@@ -7854,7 +7854,13 @@ function fbGuardarOT(ot) {
       'firma',
       'firmaStoragePath',
       'firmada',
-      'fechaFirma'
+      'fechaFirma',
+      'firmaTecnicoUrl',
+      'firmaTecnicoBase64',
+      'firmaTecnico',
+      'firmaTecnicoStoragePath',
+      'firmadaTecnico',
+      'fechaFirmaTecnico'
     ].forEach(function(campo) { delete cambiosOT[campo]; });
     cambiosOT.fbKey = ot.fbKey;
     prom = otPersistirGuardar(cambiosOT);
@@ -39778,6 +39784,11 @@ async function cambiarTecnicoOT(select) {
     notify('No se pudo localizar la OT para transferirla');
     return false;
   }
+  if (ventaDetalleOTFinalizada(ot)) {
+    select.value = anterior;
+    notify('La OT está finalizada y conserva el técnico, checklist y firmas de esa visita. Para otro responsable generá una OT nueva.');
+    return false;
+  }
   var mensaje = anterior
     ? 'Transferir esta OT de ' + anterior + ' a ' + (nuevo || 'Sin asignar') + '? El cambio quedara registrado en el historial.'
     : 'Asignar esta OT a ' + (nuevo || 'Sin asignar') + '? El cambio quedara registrado en el historial.';
@@ -48876,6 +48887,8 @@ function actualizarOT(direccionEditada) {
   var ventaInp = document.getElementById('ot-det-venta');
   var clienteInp = document.getElementById('ot-det-cliente');
   var dirInp = document.getElementById('ot-det-dir');
+  var fechaInp = document.getElementById('ot-det-fecha');
+  var horaInp = document.getElementById('ot-det-hora');
   var tipoVisitaPropuesto = tipoSel ? String(tipoSel.value || '').trim() : String(ot.tipoVisita || '').trim();
   var ventaIdPropuesta = ventaInp ? String(ventaInp.value || '').trim() : String(ot.ventaId || '').trim();
   var esPostVenta = tipoVisitaPropuesto.toLocaleLowerCase('es-AR').indexOf('post-venta') >= 0;
@@ -48893,6 +48906,22 @@ function actualizarOT(direccionEditada) {
     notify('Para guardar un reclamo post-venta abrilo primero desde Soporte / Reclamos. Así la OT conserva su reclamo original.');
     return Promise.resolve(null);
   }
+  var clienteSeleccionadoPropuesto = clienteInp && !clienteInp.readOnly
+    ? _otClientePorClave(clienteInp.dataset.clienteKey || '')
+    : null;
+  if (otCambioEstructuralEnFinalizada(ot, {
+    ventaId: ventaInp && !ventaInp.readOnly ? ventaIdPropuesta : undefined,
+    clienteKey: clienteSeleccionadoPropuesto
+      ? String(clienteSeleccionadoPropuesto.fbKey || clienteSeleccionadoPropuesto.id || clienteSeleccionadoPropuesto.codigo || '').trim()
+      : undefined,
+    tecnico: tecSel ? tecSel.value : undefined,
+    fecha: fechaInp ? fechaInp.value : undefined,
+    hora: horaInp ? horaInp.value : undefined,
+    tipoVisita: tipoSel ? tipoVisitaPropuesto : undefined
+  })) {
+    notify('Esta OT ya está finalizada y conserva checklist, firmas y cierre. No puede reutilizarse para otra visita; generá una OT nueva desde la venta o el reclamo.');
+    return Promise.resolve(null);
+  }
   if (ventaInp && !ventaInp.readOnly) {
     ot.ventaId = ventaPostVenta ? String(ventaPostVenta.id || ventaPostVenta.numero || ventaIdPropuesta).trim() : ventaIdPropuesta;
     ot.venta = ot.ventaId;
@@ -48901,7 +48930,7 @@ function actualizarOT(direccionEditada) {
     ot.origen = ventaPostVenta ? 'venta' : 'manual';
   }
   if (clienteInp && !clienteInp.readOnly) {
-    var clienteSeleccionado = _otClientePorClave(clienteInp.dataset.clienteKey || '');
+    var clienteSeleccionado = clienteSeleccionadoPropuesto;
     if (clienteSeleccionado) {
       var vinculoClienteOT = clienteVinculoOperacion(clienteSeleccionado);
       ot.cliente = String(clienteSeleccionado.nombre || clienteSeleccionado.razonSocial || '').trim();
@@ -48933,8 +48962,8 @@ function actualizarOT(direccionEditada) {
     });
     ot.tecnicoFbKey = tecnicoSeleccionado ? String(tecnicoSeleccionado.fbKey || '') : '';
   }
-  ot.fecha      = document.getElementById('ot-det-fecha').value;
-  ot.hora       = document.getElementById('ot-det-hora').value;
+  ot.fecha      = fechaInp.value;
+  ot.hora       = horaInp.value;
   if (durSel)  ot.duracion   = durSel.value;
   if (tipoSel) ot.tipoVisita = tipoVisitaPropuesto;
   ot.obs        = document.getElementById('ot-det-obs').value;
@@ -50719,6 +50748,33 @@ function ventaDetalleCoincidenciaCliente(venta, ot) {
   return nombreVenta && nombreOT && nombreVenta === nombreOT ? 55 : 0;
 }
 
+function ventaDetalleOTHuellaVenta(ot) {
+  if (!ot) return false;
+  var origen = _svTxtNombre(ot.origen || ot.origenOT || ot.tipoOrigen);
+  var referencias = [ot.ventaId, ot.venta, ot.ventaFbKey, ot.ventaKey]
+    .map(function(valor){ return String(valor || '').trim(); }).filter(Boolean);
+  var textos = [ot.descripcion, ot.obs, ot.observaciones]
+    .concat(Array.isArray(ot.audit) ? ot.audit.map(function(registro){ return registro && registro.accion; }) : [])
+    .map(function(valor){ return _svTxtNombre(valor); }).filter(Boolean).join(' ');
+  return origen === 'venta' || referencias.length > 0 || /(?:generad[ao]|cread[ao]|asociad[ao]).{0,35}venta/.test(textos);
+}
+
+function otCambioEstructuralEnFinalizada(ot, propuesta) {
+  if (!ventaDetalleOTFinalizada(ot) || !propuesta) return false;
+  var normalizar = function(valor){ return _svTxtClave(valor); };
+  var actual = {
+    ventaId: ot.ventaId || ot.venta || '',
+    clienteKey: ot.clienteFbKey || ot.clienteKey || ot.clienteId || ot.idCliente || '',
+    tecnico: ot.tecnico || ot.tecnicoNombre || '',
+    fecha: ot.fecha || ot.fechaProgramada || '',
+    hora: ot.hora || '',
+    tipoVisita: ot.tipoVisita || ''
+  };
+  return Object.keys(propuesta).some(function(campo) {
+    return propuesta[campo] !== undefined && normalizar(propuesta[campo]) !== normalizar(actual[campo]);
+  });
+}
+
 function ventaDetalleResolverOT(venta) {
   if (!venta) return null;
   var ots = window.otData || [];
@@ -50737,24 +50793,26 @@ function ventaDetalleResolverOT(venta) {
   }) || null;
   if (directa) return directa;
 
-  // Sólo considerar OT cuyo número de venta ya no resuelve a ninguna venta.
-  // Así una coincidencia de cliente nunca roba una OT correctamente vinculada.
+  // La reparación heurística sólo admite OT creadas desde una venta, con
+  // materiales coincidentes y fecha cercana. Coincidir solamente en el cliente
+  // no prueba una relación: una OT manual histórica puede pertenecer al mismo
+  // cliente y conservar checklist, firmas y cierre de otra visita.
   var codigosVenta = ventaDetalleCodigos(venta);
   var fechaVenta = fechaVentaTimestamp(venta.fechaOrden || venta.fecha, venta.ts);
   var candidatas = ots.map(function(ot) {
     if (!ot || _svResolverVentaRegistro(ot)) return null;
+    if (!ventaDetalleOTHuellaVenta(ot)) return null;
     var puntaje = ventaDetalleCoincidenciaCliente(venta, ot);
     if (!puntaje) return null;
     var codigosOT = ventaDetalleCodigos(ot);
-    if (codigosVenta.length && codigosOT.length) {
-      var comunes = codigosVenta.filter(function(codigo){ return codigosOT.indexOf(codigo) >= 0; }).length;
-      if (!comunes) return null; // materiales diferentes: contradicción fuerte
-      puntaje += 35 + Math.min(25, comunes * 5);
-    }
+    if (!codigosVenta.length || !codigosOT.length) return null;
+    var comunes = codigosVenta.filter(function(codigo){ return codigosOT.indexOf(codigo) >= 0; }).length;
+    if (!comunes) return null;
+    puntaje += 35 + Math.min(25, comunes * 5);
     var fechaOT = fechaVentaTimestamp(ot.fecha || ot.fechaProgramada || ot.fechaCreacion, ot.ts);
     var distanciaDias = fechaVenta && fechaOT ? Math.abs(fechaOT - fechaVenta) / 86400000 : 99999;
-    if (distanciaDias <= 90) puntaje += 20;
-    else if (distanciaDias <= 365) puntaje += 10;
+    if (distanciaDias > 90) return null;
+    puntaje += 20;
     return { ot:ot, puntaje:puntaje, distanciaDias:distanciaDias };
   }).filter(Boolean).sort(function(a,b) {
     return (b.puntaje - a.puntaje) || (a.distanciaDias - b.distanciaDias);
@@ -50780,10 +50838,7 @@ function ventaDetalleRepararVinculoOT(venta, opciones) {
     || (otKeyCanonica && String(venta.otId || '') !== otKeyCanonica);
   var estadoCambia = estadoInstalacion !== String(venta.estadoInst || '');
   if (!relacionCambia && !estadoCambia) return ot;
-  if (opciones.soloLectura) {
-    venta.estadoInst = estadoInstalacion;
-    return ot;
-  }
+  if (opciones.soloLectura) return ot;
 
   var ahora = Date.now();
   var fechaAudit = new Date(ahora).toLocaleDateString('es-AR') + ' ' + new Date(ahora).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
