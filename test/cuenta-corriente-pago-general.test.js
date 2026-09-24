@@ -1,10 +1,9 @@
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
+const { readActiveApp } = require('./helpers/active-app');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.js'), 'utf8');
+const app = readActiveApp().source;
 
 function sourceOfFunction(name) {
   const start = app.indexOf('function ' + name + '(');
@@ -26,11 +25,12 @@ test('el pago de cuenta se imputa primero a la venta más antigua y admite saldo
       { fbKey:'v-vieja', id:'V-1', clienteFbKey:'c1', fecha:'10/08/2026', total:80, totalPagado:0 }
     ],
     ventaValidaParaMetricas: () => true,
+    _svClaveClientePrincipalRegistro: () => 'c1',
     _svSaldoPendienteVenta: venta => venta.total - venta.totalPagado,
     _svTxtNombre: valor => String(valor || '').toLowerCase(),
     Math, parseFloat, String
   };
-  vm.runInNewContext(sourceOfFunction('_ccVentasPendientesActuales') + '\n' + sourceOfFunction('_ccPlanImputacion'), sandbox);
+  vm.runInNewContext(sourceOfFunction('_ccDatosActuales') + '\n' + sourceOfFunction('_ccVentasPendientesActuales') + '\n' + sourceOfFunction('_ccPlanImputacion'), sandbox);
   const resultado = sandbox._ccPlanImputacion(110);
   assert.deepEqual(Array.from(resultado.plan, item => item.venta.id), ['V-1', 'V-2']);
   assert.equal(resultado.plan[0].monto, 80);
@@ -40,11 +40,12 @@ test('el pago de cuenta se imputa primero a la venta más antigua y admite saldo
   assert.equal(resultado.sinImputar, 0);
 });
 
-test('el guardado del pago general usa una transacción única y deja trazabilidad grupal', () => {
+test('el pago general deja trazabilidad grupal y delega al núcleo canónico', () => {
   const confirmar = sourceOfFunction('confirmarPagoCuentaCorriente');
-  assert.match(confirmar, /fbRunTransaction\(window\.fbRef\(window\.fbDB, 'sisventas'\)/);
-  assert.match(confirmar, /raiz\.cobros_cuenta\[grupo\] = cabecera/);
-  assert.match(confirmar, /pagoCuentaGrupo:grupo/);
+  const guardar = sourceOfFunction('_ccGuardarPagoAcotado');
+  assert.match(confirmar, /await _ccGuardarPagoAcotado\(grupo, solicitudes, cabecera, comprobanteCuenta\)/);
+  assert.match(confirmar, /grupoPago:grupo/);
   assert.match(confirmar, /origen:'cuenta_corriente'/);
-  assert.match(confirmar, /estado:nuevoPagado>=total-.01\?'pago_total':'seniado'/);
+  assert.match(guardar, /registrarCobrosCanonicos/);
+  assert.match(guardar, /origen:'cuenta_corriente'/);
 });

@@ -6992,6 +6992,154 @@ function ventasPagosPersistirEliminarPago(fbKey) {
   });
 }
 
+function _cobroNuevaClave(prefijo) {
+  return String(prefijo || 'cobro') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+}
+
+function _cobroPagoPorKey(fbKey) {
+  return (window._historialPagosCompleto || []).find(function(pago) {
+    return pago && String(pago.fbKey || '') === String(fbKey || '');
+  }) || null;
+}
+
+function _cobroTieneComprobante(pago) {
+  return !!(pago && (
+    pago.comprobanteAdjunto || pago.comprobanteRef ||
+    (pago.comprobanteCuenta && (pago.grupoPago || pago.pagoCuentaGrupo))
+  ));
+}
+
+function _cobroMetaComprobante(documento, refKey) {
+  if (!documento || !refKey) return null;
+  return {
+    nombre:String(documento.nombre || 'Comprobante'),
+    tipo:String(documento.tipo || ''),
+    ts:Number(documento.ts) || Date.now(),
+    refKey:String(refKey)
+  };
+}
+
+// Núcleo único de cobros. Todas las entradas escriben pagos en /pagos, el
+// resumen de cada venta y el comprobante en /cobros_adjuntos dentro de una
+// sola actualización multipath. `grupoPago` conserva una imputación única que
+// alcanza a varias ventas sin crear un segundo modelo contable.
+async function registrarCobrosCanonicos(opciones) {
+  opciones = opciones || {};
+  var solicitudes = Array.isArray(opciones.solicitudes) ? opciones.solicitudes : [];
+  if (!solicitudes.length) throw new Error('No hay ventas para imputar el cobro');
+  if (!window.fbDB || !window.fbGet || !window.fbUpdate || !window.fbRunTransaction) {
+    throw new Error('Sin conexión segura para registrar el cobro');
+  }
+  var grupo = String(opciones.grupoPago || opciones.operacionKey || _cobroNuevaClave('cobro')).replace(/[.#$\[\]\/]/g, '_');
+  var origen = String(opciones.origen || 'cobranzas');
+  var ref = function(path){ return window.fbRef(window.fbDB, 'sisventas/' + path); };
+  var leer = async function(path){ var snap = await window.fbGet(ref(path)); return snap && snap.val ? snap.val() : null; };
+  var cargarResultadoExistente = async function(cabecera) {
+    var pagoKeys = Object.keys(cabecera && cabecera.pagoKeys || {});
+    var resultados = [];
+    for (var i = 0; i < pagoKeys.length; i++) {
+      var pago = await leer('pagos/' + pagoKeys[i]);
+      if (!pago) continue;
+      var ventaKey = pago.ventaFbKey || pago.ventaKey || '';
+      var venta = ventaKey ? await leer('ventas/' + ventaKey) : null;
+      if (venta) resultados.push({ pago:Object.assign({fbKey:pagoKeys[i]},pago), venta:Object.assign({fbKey:ventaKey},venta) });
+    }
+    return resultados;
+  };
+
+  var yaGuardado = await leer('cobros_grupos/' + grupo);
+  if (yaGuardado) return cargarResultadoExistente(yaGuardado);
+
+  var token = grupo + '_' + Math.random().toString(36).slice(2);
+  var ahoraLock = Date.now();
+  var lockRef = ref('control_cobros');
+  var lock = await window.fbRunTransaction(lockRef, function(actual) {
+    var vencido = actual && ahoraLock - (Number(actual.ts) || 0) > 120000;
+    if (actual && !vencido) return;
+    return {token:token, grupoPago:grupo, origen:origen, ts:ahoraLock};
+  }, {applyLocally:false});
+  if (!lock || !lock.committed) throw new Error('Hay otro cobro en proceso. Esperá a que termine antes de reintentar.');
+  var desconexion = window.fbOnDisconnect ? window.fbOnDisconnect(lockRef) : null;
+  try {
+    if (desconexion && desconexion.remove) await desconexion.remove();
+    yaGuardado = await leer('cobros_grupos/' + grupo);
+    if (yaGuardado) return await cargarResultadoExistente(yaGuardado);
+
+    var ventas = await Promise.all(solicitudes.map(function(s){ return leer('ventas/' + s.ventaFbKey); }));
+    var pagosRaiz = await leer('pagos') || {};
+    var pagosExistentes = Object.keys(pagosRaiz).map(function(key){ return Object.assign({fbKey:key},pagosRaiz[key] || {}); });
+    var updates = {};
+    var confirmados = [];
+    var pagoKeysGuardados = {};
+    var adjuntoKey = opciones.comprobante ? String(opciones.adjuntoKey || grupo) : '';
+    var metaComprobante = _cobroMetaComprobante(opciones.comprobante, adjuntoKey);
+
+    solicitudes.forEach(function(s, indice) {
+      var venta = ventas[indice];
+      if (!venta || !ventaValidaParaMetricas(venta)) throw new Error('La venta ' + (s.ventaId || '') + ' ya no está disponible para cobrar');
+      var ventaConKey = Object.assign({}, venta, {fbKey:s.ventaFbKey});
+      var relacionados = pagosExistentes.filter(function(p){ return _svPagoValido(p) && _svRegistroPerteneceVenta(p, ventaConKey); });
+      var pagado = relacionados.length
+        ? relacionados.reduce(function(total,p){ return total + (parseFloat(p.monto) || 0); }, 0)
+        : _svResumenPagoLegacyVenta(venta);
+      var totalVenta = _svTotalVentaCanonico(ventaConKey);
+      var disponible = Math.max(0, Math.round((totalVenta - pagado) * 100) / 100);
+      var monto = Math.round((parseFloat(s.monto != null ? s.monto : s.pago && s.pago.monto) || 0) * 100) / 100;
+      if (!(monto > 0) || monto > disponible + 0.009) throw new Error('El saldo de ' + (s.ventaId || venta.id || '') + ' cambió. Revisá la imputación antes de reintentar.');
+      var pagoKey = String(s.pagoKey || s.pago && s.pago.fbKey || _cobroNuevaClave('pago'));
+      if (pagosRaiz[pagoKey]) throw new Error('La clave del cobro ya existe sin una operación confirmada');
+      var nuevoPagado = Math.round((pagado + monto) * 100) / 100;
+      var pago = Object.assign({}, s.pago || {}, {
+        fbKey:pagoKey,
+        venta:String(venta.id || s.ventaId || s.ventaFbKey),
+        ventaId:String(venta.id || s.ventaId || s.ventaFbKey),
+        ventaFbKey:String(s.ventaFbKey),
+        ventaKey:String(s.ventaFbKey),
+        monto:monto,
+        totalVenta:totalVenta,
+        saldoAnterior:disponible,
+        saldoRestante:Math.max(0, Math.round((totalVenta - nuevoPagado) * 100) / 100),
+        origen:origen,
+        grupoPago:grupo,
+        pagoGrupoTotal:parseFloat(opciones.montoTotal) || monto,
+        imputacionOrden:indice + 1,
+        imputacionesTotal:solicitudes.length
+      });
+      if (metaComprobante) {
+        pago.comprobanteAdjunto = metaComprobante;
+        pago.comprobanteRef = adjuntoKey;
+      }
+      updates['pagos/' + pagoKey] = pago;
+      updates['ventas/' + s.ventaFbKey + '/totalPagado'] = nuevoPagado;
+      updates['ventas/' + s.ventaFbKey + '/estadoPago'] = nuevoPagado >= totalVenta - 0.01 ? 'pago_total' : 'seniado';
+      pagoKeysGuardados[pagoKey] = true;
+      confirmados.push({pago:pago,venta:Object.assign({},ventaConKey,{totalPagado:nuevoPagado,estadoPago:updates['ventas/' + s.ventaFbKey + '/estadoPago']})});
+    });
+
+    var cabecera = Object.assign({}, opciones.cabecera || {}, {
+      grupoPago:grupo,
+      origen:origen,
+      monto:parseFloat(opciones.montoTotal) || confirmados.reduce(function(total,item){ return total + item.pago.monto; },0),
+      pagoKeys:pagoKeysGuardados,
+      adjuntoKey:adjuntoKey,
+      cantidadImputaciones:confirmados.length,
+      usuario:opciones.usuario || (typeof currentUser !== 'undefined' ? currentUser : '') || '',
+      ts:Number(opciones.ts) || Date.now()
+    });
+    updates['cobros_grupos/' + grupo] = cabecera;
+    if (opciones.comprobante) updates['cobros_adjuntos/' + adjuntoKey] = opciones.comprobante;
+    var propietario = await leer('control_cobros');
+    if (!propietario || propietario.token !== token) throw new Error('Se perdió la exclusividad del cobro. Reintentá la operación.');
+    await window.fbUpdate(ref(''), updates);
+    _svModeloVentasV3Cache = null;
+    return confirmados;
+  } finally {
+    if (desconexion && desconexion.cancel) await desconexion.cancel();
+    await window.fbRunTransaction(lockRef, function(actual){ return actual && actual.token === token ? null : undefined; }, {applyLocally:false});
+  }
+}
+window.registrarCobrosCanonicos = registrarCobrosCanonicos;
+
 function _svMontoPagadoVenta(venta) {
   if (!venta) return 0;
   var resumenV3 = _svResumenVentaCanonico(venta);
@@ -15270,15 +15418,13 @@ function cerrarConfirmacionVenta() {
 
 // Abre el módulo de cobranzas con la venta precargada
 function abrirCobroRapido(ventaId, total, cliente) {
-  // Recordar la venta de origen para poder volver
-  window._cobOrigenVentaId = ventaId;
   // Mostrar botón de volver al entrar desde una venta
   setTimeout(function() {
     var btnVolver = document.getElementById('cob-volver-venta');
     if (btnVolver) btnVolver.style.display = '';
   }, 200);
   // Usar irACobranzasConVenta que precarga todos los campos correctamente
-  irACobranzasConVenta(ventaId);
+  irACobranzasConVenta(ventaId, 'venta');
 }
 
 function volverADetalleVenta() {
@@ -22925,7 +23071,7 @@ function selVentaCob(ventaId, cliente, total, cobrado, saldo) {
 
 // Navega a Cobranzas y precarga el formulario con los datos reales de la venta,
 // para no tener que volver a buscarla y tipear todo de nuevo.
-function irACobranzasConVenta(ventaId) {
+function irACobranzasConVenta(ventaId, origen) {
   var vid = String(ventaId||'').trim();
   var num = vid.replace(/[^0-9]/g,'');
   var venta = (ventasList||[]).find(function(v){
@@ -22933,6 +23079,7 @@ function irACobranzasConVenta(ventaId) {
       (num && (String(v.id).replace(/[^0-9]/g,'') === num || String(v.fbKey||'').replace(/[^0-9]/g,'') === num));
   });
   showPage('cobranzas', document.querySelector('[onclick*=cobranzas]'));
+  window._cobOrigenVentaId = origen === 'venta' ? vid : null;
   if (!venta) return;
   setTimeout(function() {
     var total   = _svTotalVentaCanonico(venta);
@@ -25261,7 +25408,11 @@ function verCuentaClienteReal(clienteRef) {
       var fecha = p.fecha || v.fecha || '';
       var claveGrupo = fecha + '|' + String(medio).toLowerCase();
       if (!grupos[claveGrupo]) grupos[claveGrupo] = { fecha:fecha, medio:medio, monto:0, ts:_ccFechaOrden(fecha, p.ts), comprobantes:[] };
-      if (p.comprobanteCuenta && p.pagoCuentaGrupo && grupos[claveGrupo].comprobantes.indexOf(p.pagoCuentaGrupo) < 0) grupos[claveGrupo].comprobantes.push(p.pagoCuentaGrupo);
+      var comprobanteId = p.comprobanteRef || p.grupoPago || p.pagoCuentaGrupo || p.fbKey || '';
+      var comprobanteRef = _cobroTieneComprobante(p) ? comprobanteId : '';
+      if (comprobanteRef && !grupos[claveGrupo].comprobantes.some(function(item){ return item && item.id === comprobanteId; })) {
+        grupos[claveGrupo].comprobantes.push({id:comprobanteId,ref:comprobanteRef});
+      }
       grupos[claveGrupo].monto += parseFloat(p.monto) || 0;
     });
     var restante = objetivoCobrado;
@@ -26236,13 +26387,11 @@ async function anularPago(fbKey) {
     return item && item.fbKey === fbKey ? Object.assign({}, item, cambiosAnulacion) : item;
   });
   var resumen = _svResumenPagoVentaDesdeLista(venta, pagosTrasAnulacion);
-  Promise.all([
-    ventasPagosPersistirActualizarPago(fbKey, cambiosAnulacion),
-    ventasPagosPersistirActualizarVenta(venta.fbKey, {
-      totalPagado: resumen.pagado,
-      estadoPago: resumen.estadoPago
-    })
-  ]).then(function(){
+  var updatesAnulacion = {};
+  Object.keys(cambiosAnulacion).forEach(function(campo) { updatesAnulacion['pagos/' + fbKey + '/' + campo] = cambiosAnulacion[campo]; });
+  updatesAnulacion['ventas/' + venta.fbKey + '/totalPagado'] = resumen.pagado;
+  updatesAnulacion['ventas/' + venta.fbKey + '/estadoPago'] = resumen.estadoPago;
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas'), updatesAnulacion).then(function(){
       _svModeloVentasV3Cache = null;
       notify('✓ Cobro anulado · saldo de la venta recalculado');
     })
@@ -26289,12 +26438,7 @@ function filtrarCobros(texto) {
 }
 
 async function elimPago(fbKey) {
-  if (typeof window.tienePermiso === 'function' && !window.tienePermiso('cobranzas.anular', { args:[fbKey] })) { notify('No tenés permiso para eliminar cobros'); return; }
-  if (typeof window.tienePermiso !== 'function') { notify('No tenés permiso para eliminar cobros'); return; }
-  if (!await svConfirm('Eliminar este pago?')) return;
-  window.fbRemove(window.fbRef(window.fbDB, 'sisventas/pagos/' + fbKey))
-    .then(function(){ notify('Pago eliminado'); })
-    .catch(function(e){ notify('Error: '+e.message); });
+  return anularPago(fbKey);
 }
 
 function _cobroMontoHistorialHTML(p) {
@@ -26379,7 +26523,8 @@ function fbCargarPagos() {
         var montoStr = p.anulado ? '<s>$'+(parseFloat(p.monto)||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</s> <span style="color:var(--red);font-size:11px">ANULADO</span>' : _cobroMontoHistorialHTML(p);
         var saldoStr = _cobroSaldoRestanteHistorialHTML(p, lista, idx);
         var reciboBtn = p.anulado ? '' : '<button class="btn btn-sm btn-icon" onclick="verReciboDesdeHistorial('+idx+')" title="Ver recibo"><i class="ti ti-file-invoice" style="font-size:14px"></i></button>';
-        var docBtn = p.fbKey && (!p.anulado || p.comprobanteAdjunto) ? '<button class="btn btn-sm btn-icon" onclick="verOAdjuntarDocumentoCobro(\''+escapeHTML(p.fbKey)+'\','+(!!p.comprobanteAdjunto)+')" title="'+(p.comprobanteAdjunto?'Ver comprobante adjunto':'Adjuntar comprobante')+'"><i class="ti ti-paperclip" style="font-size:14px;color:'+(p.comprobanteAdjunto?'var(--green)':'var(--text3)')+'"></i></button>' : '';
+        var tieneComprobante = _cobroTieneComprobante(p);
+        var docBtn = p.fbKey && (!p.anulado || tieneComprobante) ? '<button class="btn btn-sm btn-icon" onclick="verOAdjuntarDocumentoCobro(\''+escapeHTML(p.fbKey)+'\','+tieneComprobante+')" title="'+(tieneComprobante?'Ver comprobante adjunto':'Adjuntar comprobante')+'"><i class="ti ti-paperclip" style="font-size:14px;color:'+(tieneComprobante?'var(--green)':'var(--text3)')+'"></i></button>' : '';
         return '<tr data-fecha="'+(p.fecha||'')+'" data-anulado="'+(p.anulado?'1':'0')+'" data-medio="'+escapeHTML(p.medio||'')+'" style="'+trStyle+'"><td style="font-family:monospace;font-size:12px">'+escapeHTML(p.venta||'—')+'</td><td>'+escapeHTML(nombreClienteVigente(p,'—'))+'</td><td style="color:var(--text3)">'+escapeHTML(_mostrarFecha(p.fecha||''))+'</td><td>'+escapeHTML(formatoMedioPago(p.medio||'—'))+'</td><td style="text-align:right">'+montoStr+'</td><td style="text-align:right">'+saldoStr+'</td><td style="text-align:right;white-space:nowrap"><div style="display:flex;justify-content:flex-end;gap:4px">'+ventaLink+reciboBtn+docBtn+_ed+'</div></td></tr>';
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
@@ -26775,9 +26920,9 @@ function cerrarPagoCuentaCorriente() {
   if (typeof svSincronizarPilaModales === 'function') svSincronizarPilaModales();
 }
 
-function _ccBotonesComprobantes(grupos) {
-  return (grupos || []).filter(function(g){ return /^cc_[a-zA-Z0-9_]+$/.test(g); }).map(function(g) {
-    return ' <button class="btn btn-sm" onclick="event.stopPropagation();abrirComprobanteCuenta(\''+g+'\')"><i class="ti ti-paperclip"></i> Ver comprobante</button>';
+function _ccBotonesComprobantes(referencias) {
+  return (referencias || []).map(function(item){ return item && item.ref || item; }).filter(Boolean).map(function(ref) {
+    return ' <button class="btn btn-sm" onclick="event.stopPropagation();verOAdjuntarDocumentoCobro(\''+escapeHTML(ref)+'\',true)"><i class="ti ti-paperclip"></i> Ver comprobante</button>';
   }).join('');
 }
 
@@ -26828,50 +26973,17 @@ function abrirPagoCuentaCorriente() {
 }
 
 async function _ccGuardarPagoAcotado(grupo, solicitudes, cabecera, comprobante) {
-  var ref = function(path){ return window.fbRef(window.fbDB, 'sisventas/' + path); };
-  var leer = async function(path){ return (await window.fbGet(ref(path))).val(); };
-  var existente = await leer('cobros_cuenta/' + grupo);
-  if (existente) return [];
-  var lockRef = ref('control_cobro_cuenta');
-  var token = grupo + '_' + Math.random().toString(36).slice(2);
-  var lock = await window.fbRunTransaction(lockRef, function(actual) {
-    if (actual) return;
-    return {token:token, grupo:grupo, ts:Date.now()};
-  }, {applyLocally:false});
-  if (!lock.committed) throw new Error('Hay otro pago en proceso. Esperá a que termine antes de reintentar.');
-  var desconexion = window.fbOnDisconnect(lockRef);
-  try {
-    await desconexion.remove();
-    if (await leer('cobros_cuenta/' + grupo)) return [];
-    var ventas = await Promise.all(solicitudes.map(function(s){ return leer('ventas/' + s.ventaFbKey); }));
-    // Sólo comprobantes de cobro: nunca se descarga la raíz, productos, fotos o chat.
-    var pagos = Object.values(await leer('pagos') || {});
-    var updates = {}, confirmados = [];
-    solicitudes.forEach(function(s, i) {
-      var venta = ventas[i];
-      if (!venta || !ventaValidaParaMetricas(venta)) throw new Error('La venta ' + s.ventaId + ' ya no está disponible para cobrar');
-      var relacionados = pagos.filter(function(p){ return _svPagoValido(p) && _svRegistroPerteneceVenta(p, Object.assign({}, venta, {fbKey:s.ventaFbKey})); });
-      var pagado = relacionados.length ? relacionados.reduce(function(n,p){return n+(parseFloat(p.monto)||0);},0) : _svResumenPagoLegacyVenta(venta);
-      var total = _svTotalVentaCanonico(venta), disponible = Math.max(0, Math.round((total-pagado)*100)/100);
-      if (!(s.monto > 0) || s.monto > disponible + .009) throw new Error('El saldo de ' + s.ventaId + ' cambió. Revisá la imputación antes de reintentar.');
-      var nuevo = Math.round((pagado+s.monto)*100)/100;
-      var estado = nuevo >= total-.01 ? 'pago_total' : 'seniado';
-      var pago = Object.assign({},s.pago,{totalVenta:total,saldoAnterior:disponible,saldoRestante:Math.max(0,total-nuevo)});
-      updates['pagos/'+pago.fbKey] = pago;
-      updates['ventas/'+s.ventaFbKey+'/totalPagado'] = nuevo;
-      updates['ventas/'+s.ventaFbKey+'/estadoPago'] = estado;
-      confirmados.push({pago:pago,venta:Object.assign({},venta,{fbKey:s.ventaFbKey,totalPagado:nuevo,estadoPago:estado})});
-    });
-    updates['cobros_cuenta/'+grupo] = cabecera;
-    if (comprobante) updates['cobros_cuenta_adjuntos/'+grupo] = comprobante;
-    var propietario = await leer('control_cobro_cuenta');
-    if (!propietario || propietario.token !== token) throw new Error('Se perdió la conexión durante la preparación. Reintentá el mismo pago.');
-    await window.fbUpdate(ref(''), updates);
-    return confirmados;
-  } finally {
-    await desconexion.cancel();
-    await window.fbRunTransaction(lockRef, function(actual){ return actual && actual.token === token ? null : undefined; }, {applyLocally:false});
-  }
+  return registrarCobrosCanonicos({
+    grupoPago:grupo,
+    origen:'cuenta_corriente',
+    solicitudes:solicitudes,
+    cabecera:cabecera,
+    comprobante:comprobante,
+    adjuntoKey:grupo,
+    montoTotal:cabecera && cabecera.monto,
+    usuario:cabecera && cabecera.usuario,
+    ts:cabecera && cabecera.ts
+  });
 }
 
 async function confirmarPagoCuentaCorriente() {
@@ -26901,7 +27013,7 @@ async function confirmarPagoCuentaCorriente() {
       cliente:window._ccNombreActual||venta.cliente||'', clienteFbKey:venta.clienteFbKey||venta.clienteKey||window._ccClienteKeyActual||'',
       monto:item.monto, moneda:'ARS', montoOriginal:item.monto, tipoCambio:1, totalVenta:_svTotalVentaCanonico(venta),
       saldoAnterior:item.saldoAnterior, saldoRestante:item.saldoRestante, medio:medio, fecha:fecha, obs:referencia,
-      usuario:currentUser||'', ts:Date.now()+indice, origen:'cuenta_corriente', pagoCuentaGrupo:grupo,
+      usuario:currentUser||'', ts:Date.now()+indice, origen:'cuenta_corriente', grupoPago:grupo,
       pagoCuentaTotal:monto, imputacionOrden:indice+1, imputacionesTotal:resultado.plan.length
     };
     solicitudes.push({ ventaFbKey:venta.fbKey, ventaId:venta.id||venta.fbKey, monto:item.monto, pago:pago });
@@ -26917,12 +27029,12 @@ async function confirmarPagoCuentaCorriente() {
     var firmaIntento = JSON.stringify([window._ccClienteKeyActual, monto, fecha, medio, referencia, comprobanteCuenta]);
     if (window._ccPagoIntento && window._ccPagoIntento.firma === firmaIntento) grupo = window._ccPagoIntento.grupo;
     else window._ccPagoIntento = {firma:firmaIntento, grupo:grupo};
-    solicitudes.forEach(function(s){ s.pago.pagoCuentaGrupo = grupo; });
+    solicitudes.forEach(function(s){ s.pago.grupoPago = grupo; });
     if (comprobanteCuenta) {
       cabecera.comprobante = {nombre:comprobanteCuenta.nombre, tipo:comprobanteCuenta.tipo};
-      solicitudes.forEach(function(s){ s.pago.comprobanteCuenta = true; });
     }
     pagosGuardados = await _ccGuardarPagoAcotado(grupo, solicitudes, cabecera, comprobanteCuenta);
+    window._ccPagoIntento = null;
     pagosGuardados.forEach(function(item) {
       asegurarOTVentaConPago(item.venta, item.venta.totalPagado);
       if (item.venta.estadoPago === 'pago_total') {
@@ -33004,19 +33116,56 @@ function previewDocumentoCobro(input) {
 
 function _guardarDocumentoCobro(fbKey, documento) {
   if (!fbKey || !window.fbDB) return Promise.reject(new Error('No se identificó el pago guardado'));
-  return window.fbSet(window.fbRef(window.fbDB, 'sisventas/cobros_adjuntos/' + fbKey), documento).then(function() {
-    return ventasPagosPersistirActualizarPago(fbKey, {
-      comprobanteAdjunto: {nombre:documento.nombre,tipo:documento.tipo,ts:documento.ts}
-    });
+  var pago = _cobroPagoPorKey(fbKey) || {fbKey:fbKey};
+  var grupo = String(pago.grupoPago || '');
+  var refKey = grupo || String(fbKey);
+  var meta = _cobroMetaComprobante(documento, refKey);
+  var pagosGrupo = grupo
+    ? (window._historialPagosCompleto || []).filter(function(item){ return item && String(item.grupoPago || '') === grupo && item.fbKey; })
+    : [pago];
+  if (!pagosGrupo.length) pagosGrupo = [pago];
+  var updates = {};
+  updates['cobros_adjuntos/' + refKey] = documento;
+  pagosGrupo.forEach(function(item) {
+    var key = String(item.fbKey || fbKey);
+    updates['pagos/' + key + '/comprobanteAdjunto'] = meta;
+    updates['pagos/' + key + '/comprobanteRef'] = refKey;
   });
+  if (grupo) updates['cobros_grupos/' + grupo + '/adjuntoKey'] = refKey;
+  return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas'), updates);
 }
 
-function verOAdjuntarDocumentoCobro(fbKey, tieneAdjunto) {
+function _cobroRutasComprobante(pago, referencia) {
+  var rutas = [];
+  function agregar(ruta) { if (ruta && rutas.indexOf(ruta) < 0) rutas.push(ruta); }
+  var refCanonica = pago && (pago.comprobanteRef || pago.comprobanteAdjunto && pago.comprobanteAdjunto.refKey);
+  agregar(refCanonica ? 'sisventas/cobros_adjuntos/' + refCanonica : '');
+  agregar(pago && pago.fbKey ? 'sisventas/cobros_adjuntos/' + pago.fbKey : '');
+  var grupoHistorico = pago && (pago.pagoCuentaGrupo || (pago.comprobanteCuenta && pago.grupoPago));
+  agregar(grupoHistorico ? 'sisventas/cobros_cuenta_adjuntos/' + grupoHistorico : '');
+  if (!pago && referencia) agregar('sisventas/cobros_adjuntos/' + referencia);
+  if (!pago && /^cc_[a-zA-Z0-9_]+$/.test(String(referencia || ''))) agregar('sisventas/cobros_cuenta_adjuntos/' + referencia);
+  return rutas;
+}
+
+async function verOAdjuntarDocumentoCobro(fbKey, tieneAdjunto) {
   if (!fbKey) return;
-  if (tieneAdjunto) {
-    _verDocumentoGestion('sisventas/cobros_adjuntos/' + fbKey, 'Comprobante de cobro');
+  var pago = _cobroPagoPorKey(fbKey);
+  var rutas = _cobroRutasComprobante(pago, fbKey);
+  try {
+    for (var i = 0; i < rutas.length; i++) {
+      var snap = await window.fbGet(window.fbRef(window.fbDB, rutas[i]));
+      var archivo = snap && snap.val ? snap.val() : null;
+      if (archivo && archivo.data) {
+        abrirVisorComprobanteSistema(archivo, 'Comprobante de cobro');
+        return;
+      }
+    }
+  } catch (errorLectura) {
+    notify('No se pudo abrir el comprobante: ' + errorLectura.message);
     return;
   }
+  if (tieneAdjunto) { notify('No se encontró el comprobante adjunto'); return; }
   var input = document.createElement('input');
   input.type = 'file';
   input.accept = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp';
@@ -33080,48 +33229,49 @@ function registrarPago() {
     fecha:    fecha,
     obs:      obs,
     usuario:  currentUser || '',
-    ts:       Date.now()
+    ts:       Date.now(),
+    origen:   window._cobOrigenVentaId ? 'venta' : 'cobranzas'
   };
 
-  // El comprobante se guarda en su ruta canónica /pagos y luego se actualiza
-  // el resumen de la venta concreta. No se usa una transacción sobre toda la
-  // raíz /sisventas: las reglas de Firebase entregan esa raíz incompleta y
-  // rechazaban cobros válidos aunque la venta estuviera visible en pantalla.
+  // El núcleo canónico confirma pago, resumen de venta, grupo y comprobante
+  // mediante una sola actualización multipath, luego de validar el saldo bajo
+  // el mismo bloqueo que usa Cuenta Corriente.
   if (!ventaObj || !ventaObj.fbKey) { notify('No se encontró la clave interna de la venta. Volvé a seleccionarla.'); return; }
-  var pagadoAntesDeGuardar = _svMontoPagadoVenta(ventaObj);
   window._cobroGuardadoEnCurso = true;
   _cobroBotonGuardar(true);
   var documentoCobro = null;
   _leerDocumentoGestion(archivoSeleccionado)
     .then(function(documento) {
       documentoCobro = documento;
-      return ventasPagosPersistirGuardarPago(pago);
-    })
-    .then(function(pagoGuardado) {
-      var totalVenta = _svTotalVentaCanonico(ventaObj);
-      var nuevoTotal = Math.min(totalVenta, Math.round((pagadoAntesDeGuardar + monto) * 100) / 100);
-      var nuevoEstado = nuevoTotal >= totalVenta - 0.01 ? 'pago_total' : nuevoTotal > 0 ? 'seniado' : 'pendiente_pago';
-      var ventaActualizada = Object.assign({}, ventaObj, { totalPagado:nuevoTotal, estadoPago:nuevoEstado });
-      // El pago global es la fuente canónica. Si el resumen auxiliar tardara
-      // en sincronizarse, el cobro ya queda registrado y no se duplica.
-      return ventasPagosPersistirActualizarVenta(ventaObj.fbKey, {
-        totalPagado: nuevoTotal,
-        estadoPago: nuevoEstado
-      }).catch(function(errorResumen) {
-        console.warn('[Resumen de pago]', errorResumen);
-      }).then(function() {
-        return { pago:pagoGuardado, venta:ventaActualizada };
+      var firmaIntento = JSON.stringify([
+        ventaObj.fbKey, monto, fecha, medio, obs, pago.moneda, pago.montoOriginal, pago.tipoCambio,
+        documento && documento.nombre || '', archivoSeleccionado && archivoSeleccionado.size || 0
+      ]);
+      if (!window._cobroIntento || window._cobroIntento.firma !== firmaIntento) {
+        window._cobroIntento = {
+          firma:firmaIntento,
+          grupoPago:_cobroNuevaClave('cobro'),
+          pagoKey:window.fbPush(window.fbRef(window.fbDB, 'sisventas/pagos')).key
+        };
+      }
+      pago.fbKey = window._cobroIntento.pagoKey;
+      pago.grupoPago = window._cobroIntento.grupoPago;
+      return registrarCobrosCanonicos({
+        grupoPago:window._cobroIntento.grupoPago,
+        origen:pago.origen,
+        solicitudes:[{ventaFbKey:ventaObj.fbKey,ventaId:ventaIdGuardar,monto:monto,pago:pago}],
+        comprobante:documentoCobro,
+        adjuntoKey:window._cobroIntento.grupoPago,
+        montoTotal:monto,
+        cabecera:{cliente:pago.cliente,clienteFbKey:pago.clienteFbKey,fecha:fecha,medio:medio,referencia:obs},
+        usuario:currentUser || '',
+        ts:pago.ts
       });
     })
-    .then(function(resultado) {
-      if (!documentoCobro) return resultado;
-      return _guardarDocumentoCobro(resultado.pago.fbKey, documentoCobro).then(function() {
-        resultado.pago.comprobanteAdjunto = {nombre:documentoCobro.nombre,tipo:documentoCobro.tipo,ts:documentoCobro.ts};
-        return resultado;
-      }).catch(function(error) {
-        notify('El cobro se guardó, pero el comprobante no: ' + error.message + '. Podés adjuntarlo desde el historial.');
-        return resultado;
-      });
+    .then(function(resultados) {
+      if (!resultados || !resultados.length) throw new Error('No se confirmó el cobro');
+      window._cobroIntento = null;
+      return resultados[0];
     })
     .then(function(resultado) {
       var pagoGuardado = resultado.pago;
@@ -50996,18 +51146,22 @@ function renderDetalleVenta(v) {
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
         '<span style="font-weight:600">Historial de pagos</span>' +
         (saldo > 0
-          ? '<button class="btn btn-sm btn-primary" onclick="irACobranzasConVenta(this.dataset.vid)" data-vid="'+v.id+'"><i class="ti ti-plus"></i> Registrar pago</button>'
+          ? '<button class="btn btn-sm btn-primary" onclick="irACobranzasConVenta(this.dataset.vid,\'venta\')" data-vid="'+v.id+'"><i class="ti ti-plus"></i> Registrar pago</button>'
           : '<span style="font-size:12px;color:var(--green)"><i class="ti ' + (esSinCargoDetalle ? 'ti-gift' : 'ti-check') + '"></i> ' + (esSinCargoDetalle ? 'Trabajo sin cargo' : 'Saldo cancelado') + '</span>'
         ) +
       '</div>' +
       (pagos.length
         ? pagos.map(function(p) {
+            var tieneComprobantePago = _cobroTieneComprobante(p);
+            var comprobantePagoBtn = p.fbKey
+              ? '<button class="btn btn-sm btn-icon" onclick="verOAdjuntarDocumentoCobro(\''+escapeHTML(p.fbKey)+'\','+tieneComprobantePago+')" title="'+(tieneComprobantePago?'Ver comprobante':'Adjuntar comprobante')+'"><i class="ti ti-paperclip" style="color:'+(tieneComprobantePago?'var(--green)':'var(--text3)')+'"></i></button>'
+              : '';
             return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:.5px solid var(--border)">' +
               '<div>' +
                 '<div style="font-size:13px;font-weight:500">$' + (parseFloat(p.monto)||0).toLocaleString('es-AR') + '</div>' +
                 '<div style="font-size:11px;color:var(--text3)">' + (p.fecha||'') + ' · ' + (p.medio||'Efectivo') + (p.nota?' · '+p.nota:'') + '</div>' +
               '</div>' +
-              '<span style="font-size:12px;padding:2px 8px;border-radius:6px;background:var(--green-bg);color:var(--green)">✓</span>' +
+              '<div style="display:flex;align-items:center;gap:6px">'+comprobantePagoBtn+'<span style="font-size:12px;padding:2px 8px;border-radius:6px;background:var(--green-bg);color:var(--green)">✓</span></div>' +
             '</div>';
           }).join('') +
           (saldo > 0

@@ -10,8 +10,9 @@ test('adjunto opcional, PDF legible y rechazos por tamaño o tipo',async()=>{
 test('archivo se guarda una sola vez junto a las imputaciones',()=>{
  const f=s.slice(s.indexOf('async function confirmarPagoCuentaCorriente('),s.indexOf('function cargosActualizarModalidad('));
  assert.match(f,/await _ccLeerComprobante/);
- assert.match(f,/s\.pago\.comprobanteCuenta = true/);
+ assert.match(f,/s\.pago\.grupoPago = grupo/);
  assert.match(f,/await _ccGuardarPagoAcotado\(grupo, solicitudes, cabecera, comprobanteCuenta\)/);
- assert.match(s,/updates\['cobros_cuenta_adjuntos\/\'\+grupo\] = comprobante/);
+ assert.match(s,/updates\['cobros_adjuntos\/' \+ adjuntoKey\] = opciones\.comprobante/);
+ assert.doesNotMatch(s,/updates\['cobros_cuenta_adjuntos/);
  assert.match(s,/_ccBotonesComprobantes\(m\.comprobantes\)/);
 });

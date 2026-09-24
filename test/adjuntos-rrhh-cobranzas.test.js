@@ -15,7 +15,9 @@ function block(start, end) {
 const functions = [
   block('function _empleadoUltimaBaja(', 'function renderTablaEmpleados('),
   block('async function confirmarEstadoEmpleado(', 'async function adjuntarDocumentoBajaEmpleado('),
-  block('function _guardarDocumentoCobro(', 'function verOAdjuntarDocumentoCobro(')
+  block('function _cobroPagoPorKey(', 'function _cobroTieneComprobante('),
+  block('function _cobroMetaComprobante(', '// Núcleo único de cobros.'),
+  block('function _guardarDocumentoCobro(', 'async function verOAdjuntarDocumentoCobro(')
 ].join('\n');
 
 function context(overrides = {}) {
@@ -29,7 +31,7 @@ function context(overrides = {}) {
     empData:{ e1:{fbKey:'e1',nombre:'Empleada',activo:true,historial:[]} },
     document:{getElementById(id) { return id === 'emp-estado-confirmar' ? boton : id === 'emp-estado-documento' ? input : id === 'modal-nuevo' ? modal : null; }},
     notify(message) { calls.push(['notify', message]); },
-    window:{fbDB:{}, fbRef(_db,path) { return path; }, fbSet(path,data) { calls.push(['set',path,data]); return Promise.resolve(); },
+    window:{fbDB:{}, _historialPagosCompleto:[], fbRef(_db,path) { return path; }, fbSet(path,data) { calls.push(['set',path,data]); return Promise.resolve(); },
       fbUpdate(path,data) { calls.push(['update',path,data]); return Promise.resolve(); }, fbRemove(path) { calls.push(['remove',path]); return Promise.resolve(); }},
     ventasPagosPersistirActualizarPago(key, data) { calls.push(['payment-update',key,data]); return Promise.resolve(); }
   };
@@ -69,9 +71,12 @@ test('el comprobante de cobro se guarda separado del registro liviano de pagos',
   const {ctx,calls} = context();
   const documento = {nombre:'transferencia.pdf',tipo:'application/pdf',data:'data:application/pdf;base64,AA==',ts:1};
   await ctx._guardarDocumentoCobro('pago-1',documento);
-  assert.equal(calls[0][1],'sisventas/cobros_adjuntos/pago-1');
-  assert.equal(calls[1][0],'payment-update');
-  assert.equal(calls[1][2].comprobanteAdjunto.data,undefined);
+  assert.equal(calls[0][0],'update');
+  assert.equal(calls[0][1],'sisventas');
+  assert.deepEqual(calls[0][2]['cobros_adjuntos/pago-1'],documento);
+  assert.equal(calls[0][2]['pagos/pago-1/comprobanteAdjunto'].data,undefined);
+  assert.equal(calls[0][2]['pagos/pago-1/comprobanteAdjunto'].refKey,'pago-1');
+  assert.equal(calls[0][2]['pagos/pago-1/comprobanteRef'],'pago-1');
 });
 
 test('los documentos de RR. HH. tienen una regla de acceso exclusiva de administración', () => {
