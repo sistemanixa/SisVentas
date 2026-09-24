@@ -35234,19 +35234,22 @@ function spAbrirModal(fbKey) {
   var otLinkEl = document.getElementById('sp-modal-ot-link');
   var otParaAbrir = _buscarOTCanonicaPorClave(r.otKey, r.otId || r.otNumero);
   var ventaParaAbrir = _buscarVentaCanonicaReclamo(r, otParaAbrir);
-  if (otParaAbrir || ventaParaAbrir || r.otKey || r.otId || r.otNumero || r.ventaKey || r.ventaFbKey || r.ventaId) {
+  if (otParaAbrir || ventaParaAbrir || r.otKey || r.otId || r.otNumero || r.ventaKey || r.ventaFbKey || r.ventaId || r.generacionOTError) {
     otLinkEl.style.display = '';
     var links = '';
     if (otParaAbrir) {
       var otRef = otParaAbrir.fbKey || otParaAbrir.id;
       links += '<button class="btn btn-sm" onclick="spVerOT(\''+escapeHTML(otRef)+'\')"><i class="ti ti-file-text" style="font-size:13px"></i> Ver OT ' + escapeHTML(otParaAbrir.id || otParaAbrir.numero || '') + '</button> ';
     } else if (r.otKey || r.otId || r.otNumero) {
-      links += '<span style="font-size:12px;color:var(--red)">Vínculo de OT roto</span> <button class="btn btn-sm" onclick="spRepararVinculoOT(\''+escapeHTML(fbKey)+'\')"><i class="ti ti-link"></i> Buscar / reparar OT</button> <button class="btn btn-sm" onclick="spPasarAVisitaYGenerarOT(\''+escapeHTML(fbKey)+'\')"><i class="ti ti-file-plus"></i> Crear OT</button> ';
+      links += '<span style="font-size:12px;color:var(--red)">Vínculo de OT roto</span> <button class="btn btn-sm" onclick="spRepararVinculoOT(\''+escapeHTML(fbKey)+'\')"><i class="ti ti-link"></i> Buscar / reparar OT</button> ';
     }
     if (ventaParaAbrir) {
       links += '<button class="btn btn-sm" onclick="spVerVenta(\''+escapeHTML(ventaParaAbrir.fbKey)+'\')"><i class="ti ti-receipt" style="font-size:13px"></i> Ver venta ' + escapeHTML(ventaParaAbrir.id || '') + '</button>';
     } else if (r.ventaKey || r.ventaFbKey || r.ventaId) {
       links += '<span style="font-size:12px;color:var(--red)">Vínculo de venta roto</span> <button class="btn btn-sm" onclick="spRepararVinculoVenta(\''+escapeHTML(fbKey)+'\')"><i class="ti ti-link"></i> Buscar / reparar venta</button>';
+    }
+    if (r.generacionOTError) {
+      links += '<div style="width:100%;margin-top:8px;font-size:12px;color:var(--red)"><i class="ti ti-alert-triangle"></i> Último intento: '+escapeHTML(r.generacionOTError)+'</div>';
     }
     otLinkEl.innerHTML = links;
   } else {
@@ -35323,7 +35326,9 @@ function spRenderAcciones(estado) {
     btns.push('<button class="btn btn-sm" onclick="spPasarAVisitaYGenerarOT()" style="color:var(--red)"><i class="ti ti-truck"></i> Pasar a visita técnica · generar OT</button>');
   }
   if (estado === 'visita') {
-    btns.push('<button class="btn btn-sm btn-primary" onclick="spGenerarOT()"><i class="ti ti-file-plus"></i> Generar OT y asignar técnico</button>');
+    var reclamoVisita = SP_MODAL_KEY && SP_DATA[SP_MODAL_KEY];
+    var requiereRecuperacion = reclamoVisita && (reclamoVisita.otKey || reclamoVisita.otId || reclamoVisita.ventaKey || reclamoVisita.ventaId || reclamoVisita.generacionOTError);
+    btns.push('<button class="btn btn-sm btn-primary" onclick="spPasarAVisitaYGenerarOT()"><i class="ti ti-file-plus"></i> '+(requiereRecuperacion?'Reintentar y reparar OT':'Generar OT y asignar técnico')+'</button>');
   }
   if (estado === 'ot_activa') {
     btns.push('<button class="btn btn-sm" onclick="spAbrirResolucionVisita()" style="color:var(--green)"><i class="ti ti-check"></i> Marcar resuelto por visita técnica</button>');
@@ -35374,6 +35379,22 @@ function spCambiarEstado(nuevoEstado, extraDatos, reclamoKey) {
       return true;
     })
     .catch(function(e){ notify('Error: '+e.message); return false; });
+}
+
+function spRegistrarFalloGeneracionOT(reclamoKey, error) {
+  var reclamo = SP_DATA[reclamoKey];
+  if (!reclamo || !window.fbDB) return Promise.resolve(false);
+  var mensaje = String(error && error.message || error || 'Error desconocido');
+  var historial = Array.isArray(reclamo.historial) ? reclamo.historial.slice() : [];
+  historial.push({ texto:'No se pudo generar la OT: ' + mensaje, autor:currentUser || 'sistema', ts:Date.now() });
+  var cambios = { historial:historial, generacionOTError:mensaje, generacionOTFalloEn:Date.now(), generacionOTPendiente:true };
+  return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/reclamos/' + reclamoKey), cambios).then(function() {
+    SP_DATA[reclamoKey] = Object.assign({}, reclamo, cambios, { fbKey:reclamoKey });
+    spRenderLista();
+    spActualizarMetricas();
+    if (SP_MODAL_KEY === reclamoKey) spAbrirModal(reclamoKey);
+    return true;
+  }).catch(function(){ return false; });
 }
 
 function spResolverRemoto() {
@@ -35603,7 +35624,11 @@ function _candidatasOTReclamo(reclamo) {
 }
 
 function _candidatasVentaReclamo(reclamo, ot) {
-  var candidatas = (ventasList || []).filter(function(venta) { return _coincideReclamoExacto(venta, reclamo); });
+  var candidatas = (ventasList || []).filter(function(venta) {
+    if (!_coincideReclamoExacto(venta, reclamo)) return false;
+    var estado = String(venta && venta.estado || '').toLocaleLowerCase('es-AR');
+    return !(venta && venta.anulada) && estado !== 'anulado' && estado !== 'anulada';
+  });
   if (ot) {
     var deOT = _buscarVentaCanonicaReclamo({}, ot);
     if (deOT && candidatas.indexOf(deOT) < 0) candidatas.push(deOT);
@@ -35622,7 +35647,7 @@ function _elegirCandidataVinculo(titulo, candidatas, etiqueta) {
   });
 }
 
-function _guardarVinculoReclamoExistente(reclamo, ot, venta) {
+function _guardarVinculoReclamoExistente(reclamo, ot, venta, opciones) {
   if (!reclamo || !reclamo.fbKey || !window.fbDB) return Promise.reject(new Error('Reclamo no disponible'));
   var updates = {};
   var base = 'sisventas/reclamos/' + reclamo.fbKey;
@@ -35642,8 +35667,17 @@ function _guardarVinculoReclamoExistente(reclamo, ot, venta) {
     updates['sisventas/ventas/' + venta.fbKey + '/reclamoFbKey'] = reclamo.fbKey;
     updates['sisventas/ventas/' + venta.fbKey + '/reclamoId'] = reclamo.id || reclamo.numero || reclamo.fbKey;
   }
+  if (ot && venta) {
+    updates['sisventas/ordenes_trabajo/' + ot.fbKey + '/ventaId'] = venta.id || venta.numero || '';
+    updates['sisventas/ordenes_trabajo/' + ot.fbKey + '/venta'] = venta.id || venta.numero || '';
+    updates['sisventas/ordenes_trabajo/' + ot.fbKey + '/ventaFbKey'] = venta.fbKey || '';
+    updates['sisventas/ordenes_trabajo/' + ot.fbKey + '/ventaKey'] = venta.fbKey || '';
+    updates['sisventas/ventas/' + venta.fbKey + '/otId'] = ot.fbKey || ot.id || '';
+    updates['sisventas/ventas/' + venta.fbKey + '/otNumero'] = ot.id || ot.numero || '';
+    updates['sisventas/ventas/' + venta.fbKey + '/otGenerada'] = true;
+  }
   return window.fbUpdate(window.fbRef(window.fbDB), updates).then(function() {
-    notify('Vínculo reparado ✓');
+    if (!(opciones && opciones.silencioso)) notify('Vínculo reparado ✓');
   });
 }
 
@@ -35692,11 +35726,13 @@ function spPasarAVisitaYGenerarOT(reclamoKey) {
     return _spOTGeneracionPorReclamo[rKey];
   }
   var botonProcesoVisita = document.activeElement && document.activeElement.tagName === 'BUTTON' ? document.activeElement : null;
-  var progresoVisita = svCrearProgresoBoton(botonProcesoVisita, 'Registrando visita técnica…');
-  _spOTGeneracionPorReclamo[rKey] = spCambiarEstado('visita', { visitaSolicitadaEn:Date.now() }, rKey)
-    .then(function(actualizado){
-      if (!actualizado) return false;
-      progresoVisita.actualizar('Creando venta y orden de trabajo…');
+  var progresoVisita = svCrearProgresoBoton(botonProcesoVisita, 'Preparando visita técnica…');
+  // No cambiar el estado antes de validar producto y técnico. Si el usuario
+  // cancela o falta configuración, el reclamo debe conservar su estado real y
+  // no registrar una generación que nunca empezó.
+  _spOTGeneracionPorReclamo[rKey] = Promise.resolve()
+    .then(function(){
+      progresoVisita.actualizar('Creando o recuperando venta y orden de trabajo…');
       return spGenerarOT(rKey);
     })
     .finally(function(){ delete _spOTGeneracionPorReclamo[rKey]; progresoVisita.finalizar(); });
@@ -35708,47 +35744,91 @@ async function spGenerarOT(reclamoKey) {
   if (!rKey) return;
   var r = SP_DATA[rKey];
   if (!r) return;
-  if (_buscarOTCanonicaPorClave(r.otKey, r.otId || r.otNumero)) return;
+  var otVinculada = _buscarOTCanonicaPorClave(r.otKey, r.otId || r.otNumero);
+  if (otVinculada) return otVinculada;
 
-  var prodVisita = spProductoVisitaTecnicaConfigurado();
+  // Una escritura pudo completarse antes de que se actualizara el reclamo. En
+  // ese caso se recuperan los registros por la referencia exacta al reclamo en
+  // vez de crear otra venta u otra OT.
+  var candidatasOT = _candidatasOTReclamo(r);
+  var otRecuperable = await _elegirCandidataVinculo('Se encontraron varias OT creadas para este reclamo. Elegí cuál recuperar:', candidatasOT, function(item) {
+    return (item.id || item.numero || item.fbKey) + ' · ' + (item.fecha || '') + ' · ' + (item.tecnico || 'Sin técnico');
+  });
+  if (candidatasOT.length > 1 && !otRecuperable) return false;
+  if (otRecuperable) {
+    try {
+      var ventaRecuperableOT = _candidatasVentaReclamo(r, otRecuperable)[0] || _buscarVentaCanonicaReclamo(r, otRecuperable);
+      await _guardarVinculoReclamoExistente(r, otRecuperable, ventaRecuperableOT, { silencioso:true });
+      var reclamoRecuperado = await spCambiarEstado('ot_activa', {
+        otKey:otRecuperable.fbKey || '', otId:otRecuperable.id || otRecuperable.numero || '',
+        otNumero:otRecuperable.id || otRecuperable.numero || '',
+        ventaKey:ventaRecuperableOT && ventaRecuperableOT.fbKey || '',
+        ventaFbKey:ventaRecuperableOT && ventaRecuperableOT.fbKey || '',
+        ventaId:ventaRecuperableOT && (ventaRecuperableOT.id || ventaRecuperableOT.numero) || '',
+        tecnico:otRecuperable.tecnico || '', generacionOTPendiente:false, generacionOTError:null,
+        vinculoRecuperadoEn:Date.now()
+      }, rKey);
+      if (!reclamoRecuperado) throw new Error('No se pudo actualizar el reclamo con la OT recuperada');
+      notify('✓ Se recuperó y vinculó ' + (otRecuperable.id || 'la OT existente'));
+      return otRecuperable;
+    } catch (errorRecuperacion) {
+      await spRegistrarFalloGeneracionOT(rKey, errorRecuperacion);
+      notify('No se pudo recuperar la OT existente: ' + errorRecuperacion.message);
+      return false;
+    }
+  }
 
-  if (!prodVisita) {
+  var candidatasVenta = _candidatasVentaReclamo(r, null);
+  var ventaRecuperable = await _elegirCandidataVinculo('Se encontraron varias ventas creadas para este reclamo. Elegí cuál reutilizar:', candidatasVenta, function(item) {
+    return (item.id || item.fbKey) + ' · ' + (item.fecha || '') + ' · ' + (item.cliente || '');
+  });
+  if (candidatasVenta.length > 1 && !ventaRecuperable) return false;
+
+  var prodVisita = ventaRecuperable ? null : spProductoVisitaTecnicaConfigurado();
+
+  if (!ventaRecuperable && !prodVisita) {
     notify('Configurá el “Producto de visita técnica en reclamos” antes de generar la venta.');
-    return;
+    return false;
   }
 
   var tecnicos = Object.values(empData||{}).filter(spEmpleadoEsTecnico);
+  if (!tecnicos.length) {
+    notify('No hay técnicos activos disponibles para asignar la visita.');
+    return false;
+  }
   var opciones = tecnicos.length
     ? tecnicos.map(function(t,i){ return i+') '+t.nombre; }).join('\n')
     : '(sin empleados cargados)';
   var selIdx = await svPrompt('Elegí el técnico asignado:\n' + opciones);
-  if (selIdx === null) return; // canceló
+  if (selIdx === null) return false; // canceló
   var indiceTecnico = parseInt(selIdx, 10);
   if (!Number.isInteger(indiceTecnico) || !tecnicos[indiceTecnico]) {
     notify('Elegí uno de los técnicos de la lista');
-    return;
+    return false;
   }
   var tecnicoEmpleado = tecnicos[indiceTecnico];
   var tecnico = tecnicoEmpleado.nombre;
   var procesoCreacionOT = spMostrarProcesoCreacionOT('Preparando la venta vinculada…');
   await new Promise(function(resolve) { requestAnimationFrame(function(){ requestAnimationFrame(resolve); }); });
 
-  var punit = _redondearPrecioActual(precioVentaCanonicoProducto(prodVisita).precioARS);
-  var sub = punit;
-  var iva = _redondearPrecioActual(sub * 0.21);
-  var total = sub + iva;
-  var ventaId = '#SP-' + String(Date.now()).slice(-5);
+  var punit = ventaRecuperable ? 0 : _redondearPrecioActual(precioVentaCanonicoProducto(prodVisita).precioARS);
+  var sub = ventaRecuperable ? Number(ventaRecuperable.subtotal || 0) : punit;
+  var iva = ventaRecuperable ? Number(ventaRecuperable.iva || 0) : _redondearPrecioActual(sub * 0.21);
+  var total = ventaRecuperable ? Number(ventaRecuperable.total || (sub + iva) || 0) : sub + iva;
+  var ventaId = ventaRecuperable
+    ? String(ventaRecuperable.id || ventaRecuperable.numero || '')
+    : '#SP-' + String(Date.now()).slice(-5);
   var fechaHoy = svFechaLocalISO();
   var clienteRefReclamo = (typeof window._svResolverClienteRegistro === 'function')
     ? window._svResolverClienteRegistro(r, true)
     : null;
   var reclamoClienteId = r.clienteId || r.idCliente || (clienteRefReclamo && (clienteRefReclamo.id || clienteRefReclamo.numero || '')) || '';
   var reclamoClienteFbKey = r.clienteFbKey || r.clienteKey || (clienteRefReclamo && clienteRefReclamo.fbKey) || '';
-  var ventaOrigenReclamo = _buscarVentaCanonicaReclamo(r, null);
+  var ventaOrigenReclamo = ventaRecuperable || _buscarVentaCanonicaReclamo(r, null);
   var responsableComercial = ventaComisionadoPrincipalIdentidad(ventaOrigenReclamo);
   var segundoComisionado = ventaComisionadoSecundarioIdentidad(ventaOrigenReclamo);
 
-  var nuevaVenta = {
+  var nuevaVenta = ventaRecuperable || {
     id:         ventaId,
     cliente:    r.cliente||'',
     clienteId:  reclamoClienteId,
@@ -35794,8 +35874,21 @@ async function spGenerarOT(reclamoKey) {
 
   try {
     procesoCreacionOT.actualizar('Guardando la venta vinculada…');
-    var ventaGuardada = await ventasPagosPersistirGuardarVenta(nuevaVenta);
+    var ventaGuardada = ventaRecuperable || await ventasPagosPersistirGuardarVenta(nuevaVenta);
     var ventaFbKey = ventaGuardada && ventaGuardada.fbKey || '';
+    if (!ventaFbKey || !ventaId) throw new Error('La venta vinculada no tiene identificador canónico');
+
+    // Desde este punto la operación ya es recuperable: si la OT falla, la
+    // venta queda enlazada por reclamo y el próximo intento la reutiliza.
+    await _guardarVinculoReclamoExistente(r, null, ventaGuardada, { silencioso:true });
+    if (r.estado !== 'visita' || String(r.ventaKey || r.ventaFbKey || '') !== ventaFbKey) {
+      var visitaActualizada = await spCambiarEstado('visita', {
+        visitaSolicitadaEn:Date.now(), ventaKey:ventaFbKey, ventaFbKey:ventaFbKey,
+        ventaId:ventaId, generacionOTPendiente:true, generacionOTError:null
+      }, rKey);
+      if (!visitaActualizada) throw new Error('No se pudo vincular la venta al reclamo');
+      r = SP_DATA[rKey] || r;
+    }
     var ot = {
       id:          '',
       ventaId:     ventaId,
@@ -35851,16 +35944,23 @@ async function spGenerarOT(reclamoKey) {
     }
 
     procesoCreacionOT.actualizar('Vinculando la OT con el reclamo…');
+    await _guardarVinculoReclamoExistente(r, otCanonica, ventaGuardada, { silencioso:true });
     var actualizado = await spCambiarEstado('ot_activa', {
       otKey:      otFbKey,
       otId:       otCanonica.id,
+      otNumero:   otCanonica.id,
       ventaKey:   ventaFbKey,
       ventaFbKey: ventaFbKey,
       ventaId:    ventaId,
       tecnico:    tecnico,
       reclamoKey: rKey,
-      reclamoId:  r.id || r.numero || rKey
+      reclamoId:  r.id || r.numero || rKey,
+      generacionOTPendiente:false,
+      generacionOTError:null,
+      generacionOTCompletadaEn:Date.now()
     }, rKey);
+
+    if (!actualizado) throw new Error('La OT se creó, pero no se pudo finalizar su vínculo con el reclamo');
 
     if (actualizado) {
       notify('✓ Venta y OT generadas. Técnico: ' + tecnico + ' · Total: $' + total.toLocaleString('es-AR'));
@@ -35878,8 +35978,11 @@ async function spGenerarOT(reclamoKey) {
         otData[idx].reclamoFbKey = rKey;
       }
     }
+    return otCanonica;
   } catch (e) {
+    await spRegistrarFalloGeneracionOT(rKey, e);
     notify('Error: '+e.message);
+    return false;
   } finally {
     procesoCreacionOT.finalizar();
   }
