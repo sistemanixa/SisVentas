@@ -14623,6 +14623,36 @@ function obtenerProductoPorCodigoVenta(cod, item) {
   return prod || null;
 }
 
+function productosInactivosDocumento(items) {
+  var vistos = {};
+  return (items || []).map(function(item) {
+    return obtenerProductoPorCodigoVenta(item && (item.cod || item.codigo), item || {});
+  }).filter(function(producto) {
+    if (!producto || productoEstaActivo(producto)) return false;
+    var clave = String(producto.fbKey || producto.id || producto.codigo || producto.nombre || '');
+    if (vistos[clave]) return false;
+    vistos[clave] = true;
+    return true;
+  });
+}
+
+function validarProductosActivosDocumento(items, operacion) {
+  var inactivos = productosInactivosDocumento(items);
+  if (!inactivos.length) return true;
+  var nombres = inactivos.slice(0, 5).map(function(producto) {
+    return String(producto.codigo || '') + (producto.nombre || producto.descripcion ? ' — ' + String(producto.nombre || producto.descripcion) : '');
+  }).join(', ');
+  notify('No se puede ' + (operacion || 'continuar') + ': ' + nombres + ' ' + (inactivos.length === 1 ? 'está inactivo' : 'están inactivos') + '. Reemplazá o reactivá ' + (inactivos.length === 1 ? 'ese producto' : 'esos productos') + '.');
+  return false;
+}
+
+function referenciasProductoDesdeFilas(filas) {
+  return (filas || []).map(function(tr) {
+    var codigo = String(((tr.querySelector('.prod-sel-cod') || {}).textContent) || '').trim();
+    return { cod:codigo, productoFbKey:tr.dataset.productoFbKey || '' };
+  });
+}
+
 // Compatibilidad con botones o sesiones abiertas de versiones anteriores.
 function chatEnviarFoto(input) { chatEnviarArchivo(input); }
 
@@ -15096,7 +15126,9 @@ async function confirmarVenta() {
     return !!codigo || !!descripcion || precio > 0;
   });
   if (!filas.length) { notify('Seleccioná al menos un producto'); return; }
-  // El catálogo no es inventario: una venta puede incluir cualquier producto.
+  var filasNuevasVenta = window._ventaEditandoFbKey ? filas.filter(function(tr){ return tr.dataset.productoSeleccionNueva === '1'; }) : filas;
+  if (!validarProductosActivosDocumento(referenciasProductoDesdeFilas(filasNuevasVenta), 'guardar la venta')) return;
+  // El catálogo no es inventario: una venta puede incluir cualquier producto activo.
   // La disponibilidad se decide después, en la lista de materiales, donde el
   // administrativo elige qué sobrante utilizar y qué cantidad comprar.
 
@@ -44948,6 +44980,7 @@ async function pptoAccion(accion, opts) {
   };
 
   if (accion === 'convertir_venta') {
+    if (!validarProductosActivosDocumento(p.items || p.detalle || p.productos || [], 'convertir el presupuesto en venta')) return;
     if (!opts.skipConfirm && !await svConfirm('¿Convertir este presupuesto en venta? El estado de pago inicial será Pendiente de pago.')) return;
     if (!window.fbDB) { notify('Sin conexión'); return; }
     if (window._pptoConversionEnCurso) { notify('Ya se está convirtiendo este presupuesto'); return; }
@@ -45372,6 +45405,12 @@ async function guardarPresupuesto(modo) {
   var descAmt       = _redondearPrecioActual(subtotalBruto * desc / 100);
   var conIvaGuardar = typeof _pptoConIva !== 'undefined' ? _pptoConIva : true;
 
+  var filasPptoDocumento = Array.from(document.querySelectorAll('#pp-body tr')).filter(function(tr) {
+    if (window._pptoEditandoFbKey && tr.dataset.productoSeleccionNueva !== '1') return false;
+    var codigo = String(((tr.querySelector('.prod-sel-cod') || {}).textContent) || '').trim();
+    return !!codigo || !!tr.dataset.productoFbKey;
+  });
+  if (!validarProductosActivosDocumento(referenciasProductoDesdeFilas(filasPptoDocumento), 'guardar el presupuesto')) return;
   var items = getPpItems();
 
   if (!items.length) { notify('Agregá al menos un producto al presupuesto'); return; }
@@ -53232,7 +53271,7 @@ function _renderDropGlobal(filtro) {
   var listEl = document.getElementById('prod-drop-list');
   if (!listEl || !prodData) return;
   var f = _prodNormalizarBusqueda(filtro);
-  var items = Object.values(prodData).filter(function(p) {
+  var items = Object.values(prodData).filter(productoEstaActivo).filter(function(p) {
     if (!f) return true;
     return _prodCoincideBusqueda(p, f, 'principales');
   }).slice(0, 80);
@@ -53252,7 +53291,7 @@ function _renderDropGlobal(filtro) {
     var vigenciaHtml = vigencia.vigente
       ? '<span class="badge b-green" style="font-size:9px;margin-left:4px">Precio vigente</span>'
       : '<span class="badge b-amber" style="font-size:9px;margin-left:4px">' + escapeHTML(vigencia.texto) + '</span>';
-    return '<div class="prod-drop-item" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.nombre||p.descripcion||'')+'" data-precio="'+precioProd+'" data-moneda="'+monedaProd+'" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
+    return '<div class="prod-drop-item" data-pid="'+escapeHTML(String(p.fbKey || p.id || ''))+'" data-cod="'+escapeHTML(p.codigo)+'" data-desc="'+escapeHTML(p.nombre||p.descripcion||'')+'" data-precio="'+precioProd+'" data-moneda="'+monedaProd+'" onmousedown="_selProdGlobal(this)" style="padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)">' +
       imagenProductoItemHTML({ pid:p.fbKey || p.id, cod:p.codigo, imagenUrl:p.imagenUrl }, 'prod-drop-thumb') +
       '<div style="min-width:0;flex:1">' +
         '<div style="font-size:13px;font-weight:500;color:var(--text)">'+escapeHTML(p.codigo)+' — '+escapeHTML(p.nombre||p.descripcion||'')+vigenciaHtml+'</div>' +
@@ -53273,7 +53312,12 @@ function _selProdGlobal(item) {
   var filaSeleccionada = _prodDropTR;
   var esFilaPpto = !!(filaSeleccionada && filaSeleccionada.closest('#pp-body'));
   var esFilaVenta = !!(filaSeleccionada && filaSeleccionada.closest('#det-body'));
-  var prod = Object.values(prodData||{}).find(function(p){ return p.codigo === cod || p.nombre === desc; });
+  var pid = item.dataset.pid || '';
+  var prod = Object.values(prodData||{}).find(function(p){ return (pid && String(p.fbKey || p.id || '') === String(pid)) || (!pid && (p.codigo === cod || p.nombre === desc)); });
+  if (prod && !productoEstaActivo(prod)) {
+    notify('El producto ' + (prod.codigo || prod.nombre || '') + ' está inactivo y no puede agregarse a una venta o presupuesto');
+    return;
+  }
   var vigenciaPrecio = prod ? estadoVigenciaPrecioProducto(prod) : null;
   // La fuente del selector es siempre el precio canónico en ARS. USD es una
   // presentación temporal del formulario y nunca vuelve a convertirse dos
@@ -53302,6 +53346,7 @@ function _selProdGlobal(item) {
   if (_prodDropTR) {
     var tr = _prodDropTR;
     delete tr.dataset.descripcionPersonalizada;
+    tr.dataset.productoSeleccionNueva = '1';
     if (prod && (prod.fbKey || prod.id)) tr.dataset.productoFbKey = prod.fbKey || prod.id;
     tr.dataset.unidad = (prod && prod.unidad) || 'Unidad';
     if (vigenciaPrecio) {
@@ -53511,7 +53556,7 @@ function abrirBusquedaAvanzada(tr) {
   if (prev) prev.remove();
 
   // Construir listas únicas de categorías y marcas, normalizadas
-  var productos = Object.values(prodData || {}).filter(function(p){ return p.activo !== false; });
+  var productos = Object.values(prodData || {}).filter(productoEstaActivo);
   var cats  = [...new Set(productos.map(function(p){ return (p.categoria||'').trim().toUpperCase(); }).filter(Boolean))].sort();
   var marcas = [...new Set(productos.map(function(p){ return (p.marca||'').trim().toUpperCase(); }).filter(Boolean))].sort();
 
@@ -53582,7 +53627,7 @@ function renderBusqAvanz() {
   if (!lista) return;
 
   var productos = Object.values(prodData || {}).filter(function(p) {
-    if (p.activo === false) return false;
+    if (!productoEstaActivo(p)) return false;
     if (cat   && (p.categoria||'').trim().toUpperCase() !== cat)   return false;
     if (marca && (p.marca||'').trim().toUpperCase() !== marca)      return false;
     if (texto) {
@@ -53607,7 +53652,7 @@ function renderBusqAvanz() {
     var cotiz3 = parseFloat(tc3[tc3.dolarConversion || 'oficial']) || 0;
     var precioUSD = '$' + precio.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
     var equivARS3 = '';
-    return '<div onclick="seleccionarProdAvanz(\''+escapeHTML(p.codigo)+'\',\''+escapeHTML(p.nombre||p.descripcion||'')+'\','+precio+',\'ARS\')" ' +
+    return '<div onclick="seleccionarProdAvanz(\''+escapeHTML(String(p.fbKey || p.id || ''))+'\',\''+escapeHTML(p.codigo)+'\',\''+escapeHTML(p.nombre||p.descripcion||'')+'\','+precio+',\'ARS\')" ' +
       'style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:var(--radius);cursor:pointer;margin-bottom:4px;border:0.5px solid var(--border)"' +
       ' onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
       imagenProductoItemHTML({ pid:p.fbKey || p.id, cod:p.codigo, imagenUrl:p.imagenUrl }, 'prod-list-thumb') +
@@ -53627,10 +53672,10 @@ function renderBusqAvanz() {
   }).join('') + (productos.length > 120 ? '<div style="padding:10px;text-align:center;font-size:11px;color:var(--text3)">Mostrando los primeros 120 resultados — usá los filtros para acotar</div>' : '');
 }
 
-function seleccionarProdAvanz(cod, nombre, precio, moneda) {
+function seleccionarProdAvanz(pid, cod, nombre, precio, moneda) {
   if (!_busqAvanzTR) { cerrarBusquedaAvanzada(); return; }
   // Simular la selección como si viniera del dropdown normal
-  var fakeItem = { dataset: { cod: cod, desc: nombre, precio: precio, moneda: moneda } };
+  var fakeItem = { dataset: { pid:pid, cod:cod, desc:nombre, precio:precio, moneda:moneda } };
   _prodDropTR = _busqAvanzTR;
   _selProdGlobal(fakeItem);
   cerrarBusquedaAvanzada();
