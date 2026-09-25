@@ -2295,6 +2295,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   #page-productos #pf-proveedores-tbl .pf-provider-row>td:before{content:attr(data-label);display:block;margin-bottom:6px;color:var(--text3);font-size:10px;font-weight:700;line-height:1.2;letter-spacing:.06em;text-transform:uppercase}
   #page-productos #pf-proveedores-tbl .pf-provider-name,
   #page-productos #pf-proveedores-tbl .pf-provider-cost,
+  #page-productos #pf-proveedores-tbl .pf-provider-usd,
   #page-productos #pf-proveedores-tbl .pf-provider-url{grid-column:1/-1}
   #page-productos #pf-proveedores-tbl .pf-provider-row input,
   #page-productos #pf-proveedores-tbl .pf-provider-row select{width:100%!important;min-width:0!important;height:42px!important;font-size:14px!important;padding:8px 10px!important}
@@ -2315,6 +2316,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   #page-productos #pf-proveedores-tbl .pf-provider-price,
   #page-productos #pf-proveedores-tbl .pf-provider-tax,
   #page-productos #pf-proveedores-tbl .pf-provider-cost,
+  #page-productos #pf-proveedores-tbl .pf-provider-usd,
   #page-productos #pf-proveedores-tbl .pf-provider-url,
   #page-productos #pf-proveedores-tbl .pf-provider-date,
   #page-productos #pf-proveedores-tbl .pf-provider-actions{grid-column:1/-1!important}

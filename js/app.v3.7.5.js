@@ -17235,14 +17235,81 @@ function fichaProveedorFavorito(datos) {
 var _actualizacionFichaEnCurso = false;
 async function actualizarProveedoresDesdeFicha(indice) {
   if (_actualizacionFichaEnCurso) return;
-  if (window.svBloquearSalidaCotizacion && window.svBloquearSalidaCotizacion()) return;
+  if (!window.tienePermiso('productos.editar')) { notify('Tu rol no permite actualizar precios'); return; }
+  var producto = Object.values(prodData || {}).find(function(p){ return p && String(p.fbKey || '') === String(editingProdId || ''); });
+  if (!producto) { notify('Producto no encontrado'); return; }
+  var individual = Number.isInteger(indice);
+  var vistos = {};
+  var items = productosBiosegurActualizables().filter(function(item) {
+    if (!item || !item.producto || String(item.producto.fbKey || '') !== String(producto.fbKey || '')) return false;
+    if (individual && Number(item.proveedorIdx) !== Number(indice)) return false;
+    var clave = actualizadorClaveItem(item);
+    if (vistos[clave]) return false;
+    vistos[clave] = true;
+    return true;
+  });
+  if (!items.length) { notify('Este proveedor requiere revisión manual o no tiene una URL exacta compatible'); return; }
   _actualizacionFichaEnCurso = true;
   var botones = Array.from(document.querySelectorAll('button[onclick*="actualizarProveedoresDesdeFicha"]'));
   var estados = botones.map(function(b){return {b:b,html:b.innerHTML,disabled:b.disabled};});
-  botones.forEach(function(b){b.disabled=true;b.setAttribute('aria-busy','true');b.innerHTML='<i class="ti ti-loader-2 ti-spin"></i> Actualizando…';});
+  var estado = document.getElementById('pd-proveedores-actualizacion-estado');
+  var nombres = items.map(function(item){ return String(item.proveedor.nombre || item.proveedor.proveedor || 'Proveedor'); });
+  botones.forEach(function(b){
+    b.disabled=true;
+    b.setAttribute('aria-busy','true');
+    var objetivo = !individual ? b.id === 'btn-pd-actualizar-proveedores' : Number(b.dataset.providerIndex) === Number(indice);
+    if (objetivo) b.innerHTML='<i class="ti ti-loader-2 ti-spin"></i> Actualizando…';
+  });
+  if (estado) {
+    estado.style.display = 'block';
+    estado.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Actualizando ' + items.length + ' proveedor' + (items.length === 1 ? '' : 'es') + ': <strong>' + escapeHTML(nombres.join(', ')) + '</strong>. Los valores verificados se guardarán automáticamente.';
+  }
   try {
-    abrirProveedoresEnFicha();
-    await cotizarPreciosProveedores(indice);
+    var descriptores = items.map(function(item) {
+      return {
+        idx:item.proveedorIdx,
+        nombre:item.proveedor.nombre || item.proveedor.proveedor || 'Proveedor',
+        proveedorKey:item.proveedorKey,
+        url:item.url,
+        urlProducto:true,
+        precioActual:_costoProveedorProductoSinAuditar(item.producto, item.proveedor) || 0,
+        proveedor:item.proveedor,
+        producto:item.producto
+      };
+    });
+    var resultados = await cotizarProveedoresCloudRun(descriptores, producto.codigo || '', producto.nombre || producto.descripcion || '');
+    resultados = Array.isArray(resultados) ? resultados : [];
+    var candidatos = [], fallos = [], variacionesPendientes = [];
+    items.forEach(function(item, posicion) {
+      var resultado = resultados[posicion];
+      var revision = evaluarIdentidadCotizacionProveedor(item.proveedor, item.url, resultado);
+      var validacion = resultado && resultado.precio > 0 ? validarResultadoActualizadorProveedor(item, resultado) : {ok:false,mensaje:''};
+      if (resultado && resultado.disponibilidadProveedor === 'sin_stock' && urlsProveedorEquivalentes(item.url, resultado.url) && !revision.requiereConfirmacion) {
+        candidatos.push({item:item, resultado:resultado});
+      } else if (resultado && resultado.precio > 0 && validacion.ok && urlsProveedorEquivalentes(item.url, resultado.url) && !revision.requiereConfirmacion) {
+        candidatos.push({item:item, resultado:resultado});
+      } else {
+        if (resultado && datosVariacionBloqueadaResultado(resultado).requiereAprobacion) variacionesPendientes.push({item:item, resultado:resultado});
+        fallos.push((item.proveedor.nombre || 'Proveedor') + ': ' + ((validacion && validacion.mensaje) || (resultado && resultado.error) || 'no se pudo verificar el precio'));
+      }
+    });
+    for (var pendiente of variacionesPendientes) {
+      try { await registrarVariacionPendienteActualizador(pendiente.item, pendiente.resultado); }
+      catch (errorPendiente) { console.warn('[Precios] No se pudo guardar la variación pendiente', errorPendiente); }
+    }
+    var guardado = candidatos.length ? await guardarCandidatosSegurosActualizador(candidatos) : true;
+    if (!guardado) throw new Error('No se pudieron guardar los precios verificados');
+    if (candidatos.length) verProducto(producto.fbKey, _prodDetalleOrigen);
+    if (estado) {
+      estado.innerHTML = (candidatos.length
+        ? '<span style="color:var(--green)"><i class="ti ti-circle-check"></i> ' + candidatos.length + ' proveedor' + (candidatos.length === 1 ? '' : 'es') + ' actualizado' + (candidatos.length === 1 ? '' : 's') + ' y guardado' + (candidatos.length === 1 ? '' : 's') + '.</span>'
+        : '<span style="color:var(--amber)"><i class="ti ti-alert-circle"></i> No se modificó ningún precio.</span>') +
+        (fallos.length ? '<div style="color:var(--amber);margin-top:5px">' + fallos.map(escapeHTML).join('<br>') + '</div>' : '');
+    }
+    notify(candidatos.length ? '✓ ' + candidatos.length + ' precio' + (candidatos.length === 1 ? '' : 's') + ' actualizado' + (candidatos.length === 1 ? '' : 's') + ' y guardado' + (candidatos.length === 1 ? '' : 's') : 'No se modificó ningún precio; revisá el detalle indicado');
+  } catch (error) {
+    if (estado) estado.innerHTML = '<span style="color:var(--red)"><i class="ti ti-alert-circle"></i> No se completó la actualización: ' + escapeHTML(error.message || 'Error') + '</span>';
+    notify('No se pudo actualizar: ' + (error.message || 'Error'));
   } finally {
     _actualizacionFichaEnCurso = false;
     estados.forEach(function(e){e.b.disabled=e.disabled;e.b.innerHTML=e.html;e.b.removeAttribute('aria-busy');});
@@ -19692,7 +19759,9 @@ function datosActualizadosProductoBiosegur(item, resultado) {
   pv.precioArsPublicado = pv.precio;
   pv.sinIva = resultado.sinIva !== false;
   pv.precioPublicadoOriginalArs = Number(resultado.precioPublicadoArs || pv.precio);
-  if (resultado.conversion) { pv.precioOriginal=resultado.precioOriginal; pv.monedaOriginal=resultado.monedaOriginal; pv.conversion=resultado.conversion; }
+  if (resultado.precioOriginal != null) pv.precioOriginal = Number(resultado.precioOriginal) || 0;
+  if (resultado.monedaOriginal) pv.monedaOriginal = String(resultado.monedaOriginal).toUpperCase();
+  if (resultado.conversion) pv.conversion = resultado.conversion;
   pv.descuentoProveedorPorcentaje = Number(resultado.descuentoProveedorPorcentaje || 0);
   pv.medioPagoProveedor = String(resultado.medioPagoProveedor || '');
   if (resultado.ivaAlicuota != null && isFinite(parseFloat(resultado.ivaAlicuota))) {
@@ -20830,7 +20899,7 @@ function renderTablaProveedoresProducto() {
     if (!proveedorVisibleEnProducto(pv)) return;
     var exterior = origenProveedorProducto(pv).exterior;
     if (tieneExterior && grupoAnterior !== exterior) {
-      tbl.insertAdjacentHTML('beforeend', encabezadoGrupoProveedor(exterior,7));
+      tbl.insertAdjacentHTML('beforeend', encabezadoGrupoProveedor(exterior,8));
       grupoAnterior = exterior;
     }
     var localesCostos = costosReales.filter(function(c,j){return c>0 && prodProveedoresActuales[j].disponibilidadProveedor === 'disponible' && !origenProveedorProducto(prodProveedoresActuales[j]).exterior;});
@@ -20843,7 +20912,7 @@ function renderTablaProveedoresProducto() {
     var dolarInfo = pv.dolarUsado ? '<span class="pf-provider-secondary" style="font-size:10px;color:var(--blue);font-weight:400">USD ref. '+(parseFloat(pv.costoRealUsdReferencia || pv.precioUsdReferencia)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})+' · $'+(parseFloat(pv.dolarUsado)||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})+'</span>' : '';
     var dispPv = pv.disponibilidadProveedor || 'no_verificado';
     var dispBadge = '<br><span class="badge ' + (dispPv === 'disponible' ? 'b-green' : dispPv === 'sin_stock' ? 'b-red' : '') + '" style="font-size:9px;margin-top:4px">' + escapeHTML(pv.disponibilidadProveedorTexto || (dispPv === 'disponible' ? 'Disponible' : dispPv === 'sin_stock' ? 'Sin stock' : 'No verificado')) + '</span>';
-    var costoRealFmt = origenProveedorProducto(pv).exterior ? precioExteriorProductoHTML(pv) : costoReal > 0
+    var costoRealFmt = costoReal > 0
       ? (sinIva
           ? '<div class="pf-provider-mainline"><span style="color:var(--amber);font-size:12px;font-weight:600">$'+costoReal.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})+'</span><span style="font-size:10px;color:var(--text3);margin-left:3px">(+IVA '+String(ivaProveedor).replace('.', ',')+'%)</span></div>'+dolarInfo
           : '<div class="pf-provider-mainline"><span style="color:var(--amber);font-size:12px;font-weight:600">$'+costoReal.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})+'</span><span style="font-size:10px;color:var(--text3);margin-left:3px">(IVA incluido)</span></div>'+dolarInfo)
@@ -20892,11 +20961,12 @@ function renderTablaProveedoresProducto() {
           '<input type="checkbox" '+(sinIva?'checked':'')+' onchange="actualizarProveedorProducto('+i+',\'sinIva\',this.checked);renderTablaProveedoresProducto();calcMargen();" style="accent-color:var(--amber);width:14px;height:14px;cursor:pointer">' +
         '</label>' +
       '</td>' +
-      '<td class="pf-provider-cost" data-label="Costo real / USD ref." style="padding:6px 4px;text-align:right;white-space:nowrap">'+costoRealFmt+'</td>' +
+      '<td class="pf-provider-cost" data-label="Costo real ARS" style="padding:6px 4px;text-align:right;white-space:nowrap">'+costoRealFmt+'</td>' +
+      '<td class="pf-provider-usd" data-label="Precio publicado USD" style="padding:6px 4px;text-align:right;white-space:nowrap;color:var(--blue);font-weight:600">'+precioPublicadoUsdProveedorHTML(pv)+'</td>' +
       '<td class="pf-provider-url" data-label="URL del producto" style="padding:6px 4px"><input type="url" value="'+escapeHTML(pv.url||'')+'" placeholder="https://proveedor.com/producto..." oninput="actualizarProveedorProducto('+i+',\'url\',this.value)" style="width:100%;min-width:150px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:6px 8px;font-size:12px;font-family:inherit;color:var(--blue)"></td>' +
       '<td class="pf-provider-date" data-label="Actualizado" style="padding:6px 4px;text-align:center;font-size:11px;white-space:nowrap"><div class="pf-provider-mainline" style="color:'+colorFechaPv+';font-weight:600">' + fechaPv + '</div>' + (origenPv ? '<span class="pf-provider-secondary" title="Origen técnico: '+escapeHTML(pv.actualizadoOrigen||'')+'" style="font-size:10px;color:var(--text3)">'+escapeHTML(origenPv)+'</span>' : '') + (esMasBarato ? '<span class="pf-provider-secondary badge b-green" style="font-size:9px">+ económico</span>' : '') + '</td>' +
       '<td class="pf-provider-actions" data-label="Acciones" style="padding:6px 4px;text-align:right;white-space:nowrap"><div class="pf-provider-mainline">' +
-        (window.tienePermiso('productos.editar') ? '<button class="btn btn-sm btn-icon" onclick="cotizarPreciosProveedores('+i+')" title="Actualizar este proveedor" aria-label="Actualizar este proveedor"><i class="ti ti-refresh"></i></button>' : '') +
+        (window.tienePermiso('productos.editar') ? '<button class="btn btn-sm btn-icon" data-provider-index="'+i+'" onclick="cotizarPreciosProveedores('+i+')" title="Actualizar este proveedor" aria-label="Actualizar este proveedor"><i class="ti ti-refresh"></i></button>' : '') +
         (pv.url ? '<a href="'+escapeHTML(pv.url)+'" target="_blank" class="btn btn-sm btn-icon" title="Abrir en proveedor"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i><span class="sv-mobile-action-label">Abrir</span></a>' : '') +
         '<button class="btn btn-sm btn-icon" onclick="quitarFilaProveedor('+i+')" title="Quitar"><i class="ti ti-trash" style="font-size:14px;color:var(--red)"></i><span class="sv-mobile-action-label">Quitar</span></button>' +
       '</div></td>';
@@ -20972,13 +21042,14 @@ async function cotizarPreciosProveedores(indice) {
   contextoCotizacion.firma = firmaEstadoCotizacionProducto(provCotizables, codigoProducto, nombreProducto);
   contextoCotizacion.etiqueta = (contextoCotizacion.codigo ? contextoCotizacion.codigo + ' · ' : '') + contextoCotizacion.nombre;
   _cotizacionProductoActiva = contextoCotizacion;
+  actualizarBloqueoControlesCotizacionProducto(true, provCotizables, individual ? indice : null);
 
   var btn = document.getElementById('btn-cotizar-prov');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Consultando...'; }
   var box = document.getElementById('pf-proveedores-cotizacion-resultado');
   if (box) {
     box.style.display = 'block';
-    box.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Consultando ' + provCotizables.length + ' proveedor' + (provCotizables.length !== 1 ? 'es' : '') + ' para <strong>' + escapeHTML(contextoCotizacion.etiqueta) + '</strong>...';
+    box.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Actualizando ' + provCotizables.length + ' proveedor' + (provCotizables.length !== 1 ? 'es' : '') + ': <strong>' + escapeHTML(provCotizables.map(function(p){return p.nombre;}).join(', ')) + '</strong>. Esperá a que finalice antes de guardar.';
   }
 
   return cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProducto)
@@ -21127,6 +21198,26 @@ function restaurarBotonCotizacionProveedores() {
   if (btn) {
     btn.disabled = false;
     btn.innerHTML = '<i class="ti ti-refresh"></i> Cotizar online';
+  }
+  actualizarBloqueoControlesCotizacionProducto(false);
+}
+
+function actualizarBloqueoControlesCotizacionProducto(activo, proveedores, indice) {
+  var guardar = document.getElementById('btn-guardar-producto');
+  if (guardar) {
+    guardar.disabled = !!activo;
+    guardar.innerHTML = activo ? '<i class="ti ti-loader-2 ti-spin"></i> Esperando actualización…' : '<i class="ti ti-check"></i> Guardar producto';
+  }
+  document.querySelectorAll('#pd-proveedores-guardar button').forEach(function(boton){ boton.disabled = !!activo; });
+  document.querySelectorAll('#pf-proveedores-tbl button[onclick*="cotizarPreciosProveedores"]').forEach(function(boton){
+    boton.disabled = !!activo;
+    if (activo && Number(boton.dataset.providerIndex) === Number(indice)) boton.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i>';
+    if (!activo) boton.innerHTML = '<i class="ti ti-refresh"></i>';
+  });
+  var box = document.getElementById('pf-proveedores-cotizacion-resultado');
+  if (activo && box && proveedores && proveedores.length) {
+    box.style.display = 'block';
+    box.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Actualizando ' + proveedores.length + ' proveedor' + (proveedores.length === 1 ? '' : 'es') + ': <strong>' + escapeHTML(proveedores.map(function(p){return p.nombre;}).join(', ')) + '</strong>. Esperá a que finalice antes de guardar.';
   }
 }
 
@@ -21498,9 +21589,9 @@ function cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProduc
         url: pv.url,
         codigo: codigoProducto || '',
         producto: nombreProducto || '',
-        incluirFicha: proveedorProductoEsFavorito(prodProveedoresActuales[pv.idx] || pv),
+        incluirFicha: proveedorProductoEsFavorito(prodProveedoresActuales[pv.idx] || pv.proveedor || pv, pv.producto),
         precioAnteriorArs: parseFloat(pv.precioActual) || 0,
-        confirmarIdentidadManual:identidadProveedorConfirmadaParaUrl(prodProveedoresActuales[pv.idx] || pv,pv.url),
+        confirmarIdentidadManual:identidadProveedorConfirmadaParaUrl(prodProveedoresActuales[pv.idx] || pv.proveedor || pv,pv.url),
         debug: true
       })
     })
@@ -21530,11 +21621,13 @@ function cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProduc
       if (data && data.ok) {
         var precioOk = parseFloat(data.precioArs || data.precio || 0) || 0;
         var convertido = {
+          ok: true,
           proveedor: data.proveedor || pv.nombre,
           proveedorKey: pv.proveedorKey,
           url: data.url || pv.url,
           producto: typeof data.producto === 'string' ? data.producto : nombreProducto,
           precio: precioOk,
+          moneda: data.moneda || 'ARS',
           sinIva: data.sinIva !== undefined ? data.sinIva : true,
           ivaAlicuota: data.ivaAlicuota != null && isFinite(parseFloat(data.ivaAlicuota))
             ? parseFloat(data.ivaAlicuota)
@@ -21702,6 +21795,7 @@ function recalcularCompraDesdeProveedores(opciones) {
 }
 
 async function cerrarFormProducto(guardado) {
+  if (_cotizacionProductoActiva) { notify('Esperá que termine la actualización de precios antes de salir'); return false; }
   if (window.svBloquearSalidaCotizacion && window.svBloquearSalidaCotizacion()) return false;
   if (guardado !== true && firmaNavegacionEditorProducto() !== _pfFirmaNavegacion && !await svConfirm('Hay cambios sin guardar. ¿Salir y descartarlos?',{titulo:'Cambios sin guardar',textoAceptar:'Descartar y salir'})) return;
   cancelarCotizacionProductoEditor();
@@ -22361,6 +22455,7 @@ function togglePantallaCompletaCatalogo() {
 }
 
 async function guardarProducto() {
+  if (_cotizacionProductoActiva) { notify('Esperá que termine la actualización de precios antes de guardar'); return; }
   if (window.svBloquearSalidaCotizacion && window.svBloquearSalidaCotizacion()) return;
   if (window.productoFichaConsultando && window.productoFichaConsultando()) { notify('Esperá que termine la consulta del producto antes de guardar'); return; }
   let cod  = document.getElementById('pf-codigo').value.trim();
@@ -22651,16 +22746,17 @@ function verProducto(id, origen) {
         var dispTexto = pv.disponibilidadProveedorTexto || (dispPv === 'disponible' ? 'Disponible' : dispPv === 'sin_stock' ? 'Sin stock' : 'No verificado');
         var enlaceProveedor = enlaceUrlProveedorProducto(pv.url, pv.nombre);
         var exterior = origenProveedorProducto(pv).exterior;
-        var grupo = tieneExterior && grupoAnterior !== exterior ? encabezadoGrupoProveedor(exterior,4) : '';
+        var grupo = tieneExterior && grupoAnterior !== exterior ? encabezadoGrupoProveedor(exterior,5) : '';
         grupoAnterior = exterior;
         return grupo + '<tr' + (esMasBarato ? ' style="background:var(--green-bg)"' : '') + '>' +
           '<td style="padding:8px 4px">' + escapeHTML(pv.nombre||'—') + ' ' + distintivoProveedorExterior(pv) + (proveedorProductoEsFavorito(pv,p) ? ' <span class="badge b-blue">Favorito para cotizar</span>' : '') + (esMasBarato ? ' <span class="badge b-green" style="font-size:9px;margin-left:4px"><i class="ti ti-check"></i> '+(empateMenorCosto ? 'Mismo menor costo' : 'Más económico')+'</span>' : '') + '<br><span style="font-size:10px;color:' + (dispPv === 'disponible' ? 'var(--green)' : dispPv === 'sin_stock' ? 'var(--red)' : 'var(--text3)') + '">' + escapeHTML(dispTexto) + '</span></td>' +
-          '<td style="padding:8px 4px;text-align:right;font-weight:500">' + (origenProveedorProducto(pv).exterior ? precioExteriorProductoHTML(pv) + mejoraCostoExteriorHTML(fila.costo, menorCosto, pv) : fila.costo > 0 ? '$' + fila.costo.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) : 'Sin precio') + '</td>' +
+          '<td style="padding:8px 4px;text-align:right;font-weight:500">' + (fila.costo > 0 ? '$' + fila.costo.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) + (exterior ? mejoraCostoExteriorHTML(fila.costo, menorCosto, pv) : '') : 'Sin precio') + '</td>' +
+          '<td style="padding:8px 4px;text-align:right;font-weight:600;color:var(--blue)">' + precioPublicadoUsdProveedorHTML(pv) + '</td>' +
           '<td style="padding:8px 4px;text-align:right;color:var(--text3);font-size:12px">' + escapeHTML(_mostrarFecha(pv.actualizado||'')) + '</td>' +
-          '<td style="padding:8px 4px;text-align:right;white-space:nowrap">' + (window.tienePermiso('productos.editar') ? '<button class="btn btn-sm btn-icon" title="Actualizar este proveedor" aria-label="Actualizar este proveedor" onclick="actualizarProveedoresDesdeFicha('+p.proveedores.indexOf(pv)+')"><i class="ti ti-refresh"></i></button> ' : '') + enlaceProveedor + '</td>' +
+          '<td style="padding:8px 4px;text-align:right;white-space:nowrap">' + (window.tienePermiso('productos.editar') ? '<button class="btn btn-sm btn-icon" data-provider-index="'+p.proveedores.indexOf(pv)+'" title="Actualizar este proveedor" aria-label="Actualizar este proveedor" onclick="actualizarProveedoresDesdeFicha('+p.proveedores.indexOf(pv)+')"><i class="ti ti-refresh"></i></button> ' : '') + enlaceProveedor + '</td>' +
         '</tr>';
       }).join('');
-      provBox.innerHTML = '<table style="width:100%;font-size:13px"><thead><tr><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio costo</th><th style="text-align:right">Actualizado</th><th style="text-align:right">Producto</th></tr></thead><tbody>' + rows + '</tbody></table>';
+      provBox.innerHTML = '<table style="width:100%;font-size:13px"><thead><tr><th style="text-align:left">Proveedor</th><th style="text-align:right">Costo ARS</th><th style="text-align:right">Precio página USD</th><th style="text-align:right">Actualizado</th><th style="text-align:right">Producto</th></tr></thead><tbody>' + rows + '</tbody></table>';
       asegurarDesplazamientoTablas(provBox);
       inicializarGrillasEn(provBox);
     }
@@ -22681,6 +22777,20 @@ function precioExteriorProductoHTML(pv) {
     return (ars>0 ? '<strong>ARS '+fmt(ars)+'</strong>' : '') + '<div style="font-size:11px;color:var(--text3)">Precio original USD no informado por la cotización</div>';
   }
   return '<strong>USD '+fmt(original)+'</strong><div style="font-size:11px;color:var(--text3)">'+(dolar>0 ? 'ARS '+fmt(original*dolar)+' · USD 1 = ARS '+fmt(dolar)+' (cotización vigente)' : 'Sin cotización del dólar disponible')+'</div>';
+}
+
+function valorPublicadoUsdProveedor(pv) {
+  pv = pv || {};
+  var conversion = pv.conversion || {};
+  var moneda = String(pv.monedaOriginal || conversion.monedaOriginal || '').toUpperCase();
+  var valor = Number(pv.precioOriginal != null ? pv.precioOriginal : conversion.precioOriginal) || 0;
+  return moneda === 'USD' && valor > 0 ? valor : 0;
+}
+
+function precioPublicadoUsdProveedorHTML(pv) {
+  var valor = valorPublicadoUsdProveedor(pv);
+  if (!(valor > 0)) return '<span style="color:var(--text3);font-weight:400">—</span>';
+  return 'USD ' + valor.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
 function proveedorVisibleEnProducto(pv) {

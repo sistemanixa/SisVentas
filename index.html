@@ -4109,7 +4109,7 @@ Listo para analizar.
               <summary>Cómo se consultan los proveedores</summary> Cargá uno o más proveedores de este producto. La URL es obligatoria: si la fila no la tiene, se usa la URL general del producto. El sistema guarda el precio ARS publicado, el dólar usado y la referencia USD para mantener el costo actualizado.
             </details>
             <table id="pf-proveedores-tbl" style="width:100%">
-              <tr class="pf-provider-head"><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio ARS</th><th style="text-align:center;white-space:nowrap" title="Si el proveedor cotiza sin IVA, el sistema suma el 21% para calcular el costo real">Sin IVA <i class="ti ti-info-circle" style="font-size:11px;color:var(--text3)"></i></th><th style="text-align:right;color:var(--amber)">Costo / USD ref.</th><th>URL</th><th style="text-align:right">Actualizado</th><th></th></tr>
+              <tr class="pf-provider-head"><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio ARS</th><th style="text-align:center;white-space:nowrap" title="Si el proveedor cotiza sin IVA, el sistema suma el 21% para calcular el costo real">Sin IVA <i class="ti ti-info-circle" style="font-size:11px;color:var(--text3)"></i></th><th style="text-align:right;color:var(--amber)">Costo real ARS</th><th style="text-align:right;color:var(--blue)">Precio publicado USD</th><th>URL</th><th style="text-align:right">Actualizado</th><th></th></tr>
             </table>
             <div id="pf-proveedores-vacio" style="text-align:center;color:var(--text3);padding:16px;font-size:13px">Sin proveedores cargados — agregá al menos uno</div>
             <div id="pf-proveedores-cotizacion-resultado" style="display:none;margin-top:12px;padding:10px 12px;border:0.5px solid rgba(96,165,250,.24);background:rgba(59,130,246,.06);border-radius:var(--radius);font-size:12px;color:var(--text2)"></div>
@@ -4297,7 +4297,8 @@ Listo para analizar.
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><span class="card-title">Proveedores y comparación de precios</span><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" data-permiso="productos.agregarProveedor" onclick="abrirProveedoresEnFicha(true)"><i class="ti ti-plus"></i> Agregar proveedor</button><button class="btn btn-sm btn-primary" onclick="actualizarProveedoresDesdeFicha()"><i class="ti ti-refresh"></i> Actualizar</button></div></div>
+            <div class="card-head"><span class="card-title">Proveedores y comparación de precios</span><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" data-permiso="productos.agregarProveedor" onclick="abrirProveedoresEnFicha(true)"><i class="ti ti-plus"></i> Agregar proveedor</button><button class="btn btn-sm btn-primary" id="btn-pd-actualizar-proveedores" onclick="actualizarProveedoresDesdeFicha()"><i class="ti ti-refresh"></i> Actualizar todos</button></div></div>
+            <div id="pd-proveedores-actualizacion-estado" style="display:none;margin:0 0 12px;padding:10px 12px;border:1px solid rgba(96,165,250,.28);background:rgba(59,130,246,.07);border-radius:10px;font-size:12px;color:var(--text2)" role="status" aria-live="polite"></div>
             <div id="pd-proveedores-box"></div>
           </div>
         </div>
