@@ -3076,3 +3076,54 @@ body.sv-exterior-dialog-open .content{overflow:hidden!important;overscroll-behav
 .ppto-traslado-interno input{width:150px;max-width:100%}
 @media(max-width:600px){.commercial-proposal-dialog{padding:14px!important}.commercial-proposal-dialog .proposal-items{max-height:35vh}.commercial-proposal-dialog table{min-width:620px}.commercial-proposal-dialog .proposal-summary{font-size:12px}}
 .item-prod-img.ot-selector-miniatura{object-fit:contain;background:var(--bg3);box-shadow:none}
+
+/* Editor comercial: tarjetas contenidas y controles legibles en pantallas pequeñas. */
+@media(max-width:900px){
+ #page-venta #venta-items-tbl.sv-mobile-card-grid,
+ #page-venta #venta-items-tbl.sv-mobile-card-grid tbody,
+ #page-venta #venta-items-tbl.sv-mobile-card-grid tbody>tr{width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+ #page-venta #venta-items-tbl.sv-mobile-card-grid tbody{grid-template-columns:minmax(0,1fr)!important}
+ #page-venta #venta-items-tbl.sv-mobile-card-grid tbody>tr{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0 8px!important;padding:10px!important}
+ #page-venta #venta-items-tbl.sv-mobile-card-grid tbody>tr>td{grid-column:auto!important;min-width:0!important;padding:8px 4px!important;align-items:stretch!important}
+ #page-venta #venta-items-tbl.sv-mobile-card-grid tbody>tr>td[data-label="CÓDIGO"],
+ #page-venta #venta-items-tbl.sv-mobile-card-grid tbody>tr>td[data-label="PRODUCTO"]{grid-column:1/-1!important}
+ #page-venta #venta-items-tbl.sv-mobile-card-grid td>*{min-width:0;max-width:100%;box-sizing:border-box}
+ #page-venta #venta-items-tbl.sv-mobile-card-grid .item-prod-cell{width:100%;white-space:normal!important}
+ #page-venta #venta-items-tbl.sv-mobile-card-grid .desc-txt{white-space:normal!important;overflow-wrap:anywhere;line-height:1.4}
+ #page-venta #venta-items-tbl.sv-mobile-card-grid input.qty,
+ #page-venta #venta-items-tbl.sv-mobile-card-grid input.price,
+ #page-venta #venta-items-tbl.sv-mobile-card-grid input.disc{width:100%!important;min-width:0!important;min-height:40px;font-size:14px!important;padding:8px!important;box-sizing:border-box}
+ #page-venta #venta-items-tbl.sv-mobile-card-grid .stock-ind{white-space:normal!important;overflow:visible!important}
+ #page-venta #venta-items-tbl.sv-mobile-card-grid td.sv-card-actions{grid-column:2!important;align-items:flex-end!important}
+ #page-venta #venta-items-tbl.sv-mobile-card-grid td.sv-card-actions>.btn{width:44px!important;min-height:40px}
+ #page-venta #venta-comision-control{display:grid!important;grid-template-columns:20px minmax(0,1fr);gap:6px 10px!important;align-items:center!important}
+ #page-venta #venta-comision-control input{width:18px!important;min-width:18px!important;margin:0!important}
+ #page-venta #venta-comision-control label{margin:0;line-height:1.4}
+ #page-venta #venta-comision-control>span{grid-column:2;line-height:1.4}
+}
+
+/* Presupuestos: detalle y editor adaptados al ancho disponible. */
+@media(max-width:900px){
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)),
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) tbody,
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) tbody>tr{width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) tbody{grid-template-columns:minmax(0,1fr)!important}
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) tbody>tr{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0 8px!important;padding:10px!important}
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) tbody>tr>td{grid-column:auto!important;min-width:0!important;padding:8px 4px!important;align-items:stretch!important}
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) tbody>tr>td[data-label="Código"],
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) tbody>tr>td[data-label="Descripción"]{grid-column:1/-1!important}
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) td>*{min-width:0;max-width:100%;box-sizing:border-box}
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) .item-prod-cell{width:100%;white-space:normal!important}
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) .desc-txt{white-space:normal!important;overflow-wrap:anywhere;line-height:1.4}
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) input.qty,
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) input.price,
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) input.disc{width:100%!important;min-width:0!important;min-height:40px;font-size:14px!important;padding:8px!important;box-sizing:border-box}
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) .stock-ind{white-space:normal!important;overflow:visible!important}
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) td.sv-card-actions{grid-column:2!important;align-items:flex-end!important}
+ #page-presupuesto table.sv-mobile-card-grid:is(:has(> #pp-body),:has(> #ppto-det-items)) td.sv-card-actions>.btn{width:44px!important;min-height:40px}
+}
+@media(max-width:900px){
+ #page-presupuesto #ppto-det-items .item-prod-mini-line{width:100%;min-width:0;white-space:normal!important;align-items:flex-start}
+ #page-presupuesto #ppto-det-items .item-prod-mini-line>span{min-width:0;white-space:normal!important;overflow-wrap:anywhere;line-height:1.4}
+ #page-presupuesto #ppto-det-items td[data-label="Subtotal venta"]{grid-column:1/-1!important}
+}
