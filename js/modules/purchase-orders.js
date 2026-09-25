@@ -212,6 +212,36 @@
     return state.inventory[key] || {};
   }
 
+  function recommendedProviderForItem(item) {
+    var currentProviders = providersFor(findProduct(item));
+    if (currentProviders.length) item.proveedores = currentProviders;
+    var providers = item.proveedores || [];
+    return providers.find(function (provider) { return provider.disponible && provider.costo > 0; }) ||
+      providers.find(function (provider) { return provider.costo > 0; }) || null;
+  }
+
+  function applyRecommendedProviders(list) {
+    var result = { reviewed: 0, applied: 0, changed: 0, unavailable: 0 };
+    ((list && list.items) || []).forEach(function (item) {
+      if (!isPurchasableMaterialItem(item)) return;
+      result.reviewed++;
+      var recommended = recommendedProviderForItem(item);
+      if (!recommended) {
+        result.unavailable++;
+        return;
+      }
+      var previousKey = String(item.proveedorKey || item.proveedor || '');
+      var nextKey = String(recommended.proveedorKey || recommended.nombre || '');
+      item.proveedor = recommended.nombre;
+      item.proveedorKey = recommended.proveedorKey;
+      item.proveedorUrl = safeProviderUrl(recommended.url);
+      item.costoUnitario = recommended.costo;
+      result.applied++;
+      if (previousKey !== nextKey) result.changed++;
+    });
+    return result;
+  }
+
   function buildMaterialItem(item, index) {
     var product = findProduct(item);
     var providers = providersFor(product);
@@ -446,7 +476,7 @@
         '<span class="badge b-blue">Venta ' + esc(list.ventaId || 'manual') + '</span>' +
         '<span class="badge ' + (generated ? 'b-green' : 'b-amber') + '">' + (generated ? 'Órdenes generadas' : 'En preparación') + '</span>' +
         '<span style="font-size:12px;color:var(--text3);align-self:center">El stock anterior es sólo informativo. Indicá manualmente qué cantidad ya tienen.</span></div>' +
-        '<div class="oc-material-actions"><button class="btn btn-sm ' + (state.groupMaterialsByProvider ? 'btn-primary' : '') + '" onclick="ocAlternarAgrupacionProveedores()"><i class="ti ti-category-2"></i> ' + (state.groupMaterialsByProvider ? 'Ver orden de venta' : 'Agrupar por proveedor') + '</button><button class="btn btn-sm" onclick="ocCopiarPedidoWhatsApp()"><i class="ti ti-brand-whatsapp"></i> Copiar pedido para WhatsApp</button><button class="btn btn-sm" onclick="ocExportarListaExcel()"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</button></div>' +
+        '<div class="oc-material-actions"><button class="btn btn-sm ' + (state.groupMaterialsByProvider ? 'btn-primary' : '') + '" onclick="ocAlternarAgrupacionProveedores()"><i class="ti ti-category-2"></i> ' + (state.groupMaterialsByProvider ? 'Ver orden de venta' : 'Agrupar por proveedor') + '</button><button class="btn btn-sm" onclick="ocCopiarPedidoWhatsApp()"><i class="ti ti-brand-whatsapp"></i> Copiar pedido para WhatsApp</button>' + (!locked ? '<button class="btn btn-sm" onclick="ocAplicarProveedoresRecomendados()" title="Elegir nuevamente el proveedor conveniente actual para todos los materiales"><i class="ti ti-sparkles"></i> Poner todos en recomendado</button>' : '') + '<button class="btn btn-sm" onclick="ocExportarListaExcel()"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</button></div>' +
       '</div>' +
       '<div class="table-wrap oc-material-table-wrap"><table class="oc-material-table" data-sv-mobile-cards="off"><thead><tr><th style="width:34px">Comprar</th><th>Material</th><th class="tr">Necesario</th><th class="tr">Ya tenemos</th><th class="tr">A comprar</th><th>Proveedor conveniente</th><th class="tr">Costo estimado</th><th>Referencia</th></tr></thead><tbody>' +
       displayItems.map(function (display) {
@@ -530,6 +560,24 @@
   function toggleProviderGrouping() {
     state.groupMaterialsByProvider = !state.groupMaterialsByProvider;
     renderMaterialListBody();
+  }
+
+  function applyRecommendedProvidersToCurrentList() {
+    var list = state.activeList;
+    if (!list || materialListLocked(list)) return;
+    var result = applyRecommendedProviders(list);
+    renderMaterialListBody();
+    if (typeof window.notify !== 'function') return result;
+    if (!result.reviewed) window.notify('No hay materiales para revisar');
+    else if (!result.applied) window.notify('Ningún material tiene un proveedor recomendado disponible');
+    else {
+      var message = 'Proveedor recomendado aplicado a ' + result.applied + ' material' + (result.applied === 1 ? '' : 'es');
+      if (result.changed) message += ' · ' + result.changed + ' cambiaron de proveedor';
+      if (result.unavailable) message += ' · ' + result.unavailable + ' sin recomendación';
+      message += '. Revisá la lista y guardá las decisiones.';
+      window.notify(message);
+    }
+    return result;
   }
 
   function buildMaterialExportRows(list) {
@@ -1636,6 +1684,7 @@
     isPurchasableMaterialItem: isPurchasableMaterialItem,
     materialRowsForDisplay: materialRowsForDisplay,
     purchaseSummaryForProvider: purchaseSummaryForProvider,
+    applyRecommendedProviders: applyRecommendedProviders,
     buildMaterialExportRows: buildMaterialExportRows,
     buildWhatsAppOrderText: buildWhatsAppOrderText,
     syncOTConsumption: syncOTConsumption,
@@ -1657,6 +1706,7 @@
   window.ocExportarListaExcel = exportMaterialListExcel;
   window.ocCopiarPedidoWhatsApp = copyWhatsAppOrder;
   window.ocCopiarPedidoWhatsAppProveedor = copyWhatsAppOrderForItem;
+  window.ocAplicarProveedoresRecomendados = applyRecommendedProvidersToCurrentList;
   window.ocGenerarOrdenesDesdeLista = generateOrdersFromList;
   window.ocShowTab = showOrdersTab;
   window.ocAbrirOrden = openOrder;

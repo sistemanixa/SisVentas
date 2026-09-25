@@ -71,6 +71,25 @@ test('cada proveedor seleccionado conserva su URL en la lista y en la orden gene
   assert.match(source, /Abrir link de compra/);
 });
 
+test('puede volver a aplicar el proveedor recomendado actual a toda la lista', () => {
+  const purchases = loadModule();
+  const list = {items:[
+    {productoKey:'prod-a',codigo:'A',descripcion:'Producto A',incluir:false,cantidadComprar:0,proveedor:'Proveedor Dos',proveedorKey:'p2',proveedorUrl:'https://proveedor.test/b',costoUnitario:242},
+    {productoKey:'prod-b',codigo:'B',descripcion:'Producto B',incluir:true,cantidadComprar:2,proveedor:'Proveedor Uno',proveedorKey:'p1',proveedorUrl:'https://proveedor.test/a',costoUnitario:121},
+    {productoKey:'servicio',codigo:'MO',descripcion:'Instalación remota',esManoDeObra:true,incluir:false,cantidadComprar:0,proveedor:'',costoUnitario:0}
+  ]};
+  const result = purchases.applyRecommendedProviders(list);
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), {reviewed:2,applied:2,changed:2,unavailable:0});
+  assert.equal(list.items[0].proveedorKey, 'p1');
+  assert.equal(list.items[0].proveedorUrl, 'https://proveedor.test/a');
+  assert.equal(list.items[0].costoUnitario, 121);
+  assert.equal(list.items[0].incluir, false);
+  assert.equal(list.items[0].cantidadComprar, 0);
+  assert.equal(list.items[1].proveedorKey, 'p2');
+  assert.equal(list.items[2].proveedor, '');
+  assert.match(source, /Poner todos en recomendado/);
+});
+
 test('la mano de obra se excluye de la lista aun cuando estaba guardada anteriormente', () => {
   const purchases = loadModule();
   const list = {
