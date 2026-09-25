@@ -88,6 +88,9 @@ test('puede volver a aplicar el proveedor recomendado actual a toda la lista', (
   assert.equal(list.items[1].proveedorKey, 'p2');
   assert.equal(list.items[2].proveedor, '');
   assert.match(source, /Poner todos en recomendado/);
+  assert.match(source, /Guardando recomendados/);
+  assert.match(source, /saveCurrentList\(true\)\.then/);
+  assert.match(source, /Proveedor recomendado aplicado y guardado/);
 });
 
 test('la mano de obra se excluye de la lista aun cuando estaba guardada anteriormente', () => {

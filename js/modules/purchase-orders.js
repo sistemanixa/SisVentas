@@ -476,7 +476,7 @@
         '<span class="badge b-blue">Venta ' + esc(list.ventaId || 'manual') + '</span>' +
         '<span class="badge ' + (generated ? 'b-green' : 'b-amber') + '">' + (generated ? 'Órdenes generadas' : 'En preparación') + '</span>' +
         '<span style="font-size:12px;color:var(--text3);align-self:center">El stock anterior es sólo informativo. Indicá manualmente qué cantidad ya tienen.</span></div>' +
-        '<div class="oc-material-actions"><button class="btn btn-sm ' + (state.groupMaterialsByProvider ? 'btn-primary' : '') + '" onclick="ocAlternarAgrupacionProveedores()"><i class="ti ti-category-2"></i> ' + (state.groupMaterialsByProvider ? 'Ver orden de venta' : 'Agrupar por proveedor') + '</button><button class="btn btn-sm" onclick="ocCopiarPedidoWhatsApp()"><i class="ti ti-brand-whatsapp"></i> Copiar pedido para WhatsApp</button>' + (!locked ? '<button class="btn btn-sm" onclick="ocAplicarProveedoresRecomendados()" title="Elegir nuevamente el proveedor conveniente actual para todos los materiales"><i class="ti ti-sparkles"></i> Poner todos en recomendado</button>' : '') + '<button class="btn btn-sm" onclick="ocExportarListaExcel()"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</button></div>' +
+        '<div class="oc-material-actions"><button class="btn btn-sm ' + (state.groupMaterialsByProvider ? 'btn-primary' : '') + '" onclick="ocAlternarAgrupacionProveedores()"><i class="ti ti-category-2"></i> ' + (state.groupMaterialsByProvider ? 'Ver orden de venta' : 'Agrupar por proveedor') + '</button><button class="btn btn-sm" onclick="ocCopiarPedidoWhatsApp()"><i class="ti ti-brand-whatsapp"></i> Copiar pedido para WhatsApp</button>' + (!locked ? '<button class="btn btn-sm" id="oc-apply-recommended-btn" onclick="ocAplicarProveedoresRecomendados()" title="Elegir y guardar el proveedor conveniente actual para todos los materiales"><i class="ti ti-sparkles"></i> Poner todos en recomendado</button>' : '') + '<button class="btn btn-sm" onclick="ocExportarListaExcel()"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</button></div>' +
       '</div>' +
       '<div class="table-wrap oc-material-table-wrap"><table class="oc-material-table" data-sv-mobile-cards="off"><thead><tr><th style="width:34px">Comprar</th><th>Material</th><th class="tr">Necesario</th><th class="tr">Ya tenemos</th><th class="tr">A comprar</th><th>Proveedor conveniente</th><th class="tr">Costo estimado</th><th>Referencia</th></tr></thead><tbody>' +
       displayItems.map(function (display) {
@@ -564,20 +564,34 @@
 
   function applyRecommendedProvidersToCurrentList() {
     var list = state.activeList;
-    if (!list || materialListLocked(list)) return;
+    if (!list || materialListLocked(list)) return Promise.resolve(null);
     var result = applyRecommendedProviders(list);
     renderMaterialListBody();
-    if (typeof window.notify !== 'function') return result;
-    if (!result.reviewed) window.notify('No hay materiales para revisar');
-    else if (!result.applied) window.notify('Ningún material tiene un proveedor recomendado disponible');
-    else {
-      var message = 'Proveedor recomendado aplicado a ' + result.applied + ' material' + (result.applied === 1 ? '' : 'es');
+    if (!result.reviewed) {
+      if (typeof window.notify === 'function') window.notify('No hay materiales para revisar');
+      return Promise.resolve(result);
+    }
+    if (!result.applied) {
+      if (typeof window.notify === 'function') window.notify('Ningún material tiene un proveedor recomendado disponible');
+      return Promise.resolve(result);
+    }
+    var button = document.getElementById('oc-apply-recommended-btn');
+    if (button) {
+      button.disabled = true;
+      button.innerHTML = '<i class="ti ti-loader-2 spin"></i> Guardando recomendados...';
+    }
+    return saveCurrentList(true).then(function () {
+      var message = 'Proveedor recomendado aplicado y guardado en ' + result.applied + ' material' + (result.applied === 1 ? '' : 'es');
       if (result.changed) message += ' · ' + result.changed + ' cambiaron de proveedor';
       if (result.unavailable) message += ' · ' + result.unavailable + ' sin recomendación';
-      message += '. Revisá la lista y guardá las decisiones.';
-      window.notify(message);
-    }
-    return result;
+      if (typeof window.notify === 'function') window.notify(message);
+      renderMaterialListBody();
+      return result;
+    }).catch(function (error) {
+      renderMaterialListBody();
+      if (typeof window.notify === 'function') window.notify('Se aplicaron los recomendados, pero no se pudieron guardar: ' + error.message);
+      throw error;
+    });
   }
 
   function buildMaterialExportRows(list) {
