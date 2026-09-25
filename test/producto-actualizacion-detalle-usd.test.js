@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const app = fs.readFileSync('js/app.v3.7.5.js', 'utf8');
+const app = fs.readFileSync('js/app.v3.7.6.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 
 function bloque(desde, hasta) {

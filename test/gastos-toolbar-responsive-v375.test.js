@@ -16,7 +16,7 @@ test('tablet ordena filtros y acciones en dos columnas', () => {
   assert.match(html, /class="btn btn-sm gas-action-advance"/);
   assert.match(html, /class="btn btn-sm gas-action-multi"/);
   assert.match(html, /class="btn btn-sm admin-only gas-action-recurring"/);
-  const app = fs.readFileSync('js/app.v3.7.5.js', 'utf8');
+  const app = fs.readFileSync('js/app.v3.7.6.js', 'utf8');
   assert.match(app, /btn\.className = _gastosPagoMultipleActivo \? 'btn btn-sm btn-primary gas-action-multi' : 'btn btn-sm gas-action-multi'/);
 });
 

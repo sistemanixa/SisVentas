@@ -2,7 +2,7 @@ const fs = require('fs');
 const assert = require('assert');
 
 const modulo = fs.readFileSync('js/modules/commissions.js', 'utf8');
-const app = fs.readFileSync('js/app.v3.7.5.js', 'utf8');
+const app = fs.readFileSync('js/app.v3.7.6.js', 'utf8');
 
 assert.match(modulo, /est === 'pendiente_aprobacion' \|\| est === 'pendiente_pago'/,
   'La gestión debe permitir rechazar una comisión aprobada que todavía está pendiente de pago');
