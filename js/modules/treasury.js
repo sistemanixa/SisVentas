@@ -12,7 +12,23 @@
     var lista=Array.isArray(pagos)
       ? pagos.map(function(item,index){return Object.assign({_idx:index},item||{});})
       : Object.keys(pagos||{}).map(function(key){return Object.assign({_key:key},pagos[key]||{});});
-    return lista.filter(function(pago){return !(pago&&(pago.anulado===true||String(pago.estado||'').toLowerCase()==='anulado'));});
+    lista=lista.filter(function(pago){return !(pago&&(pago.anulado===true||String(pago.estado||'').toLowerCase()==='anulado'));});
+    if(lista.length) return lista;
+    // Compatibilidad con gastos creados por el acceso rapido anterior: se
+    // guardaban como pagados, pero sin el nodo pagos que consume Tesoreria.
+    var estado=String(obj&&obj.estado||'').toLowerCase();
+    var montoPagado=parseFloat(obj&&obj.montoPagado)||0;
+    if(!montoPagado&&['pagado','pagada'].includes(estado)) montoPagado=parseFloat(obj&&obj.monto)||0;
+    if(montoPagado<=0) return [];
+    return [{
+      _key:'legacy',
+      fecha:(obj&&obj.fechaPago)||(obj&&obj.fecha)||'',
+      monto:montoPagado,
+      medio:(obj&&obj.medio)||(obj&&obj.medioPago)||'',
+      usuario:(obj&&obj.usuario)||'Sistema',
+      ts:(obj&&obj.pagadoTs)||(obj&&obj.ts)||0,
+      origenLegacy:true
+    }];
   }
   window._tesoreriaPagos=function(){
     var out=[];

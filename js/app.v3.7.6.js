@@ -30583,8 +30583,11 @@ function guardarGastoRapido() {
     });
   }
 
+  var ahora = Date.now();
+  var fechaGasto = document.getElementById('gr-fecha').value;
+  var medioGasto = document.getElementById('gr-medio').value;
   var datos = {
-    fecha:          document.getElementById('gr-fecha').value,
+    fecha:          fechaGasto,
     vencimiento:    '',
     tipo:           'Variable',
     categoria:      document.getElementById('gr-categoria').value,
@@ -30592,7 +30595,7 @@ function guardarGastoRapido() {
     monto:          monto,
     montoPagado:    pagueYo ? 0 : monto,  // si lo pagó un técnico, queda pendiente hasta reembolso
     estado:         pagueYo ? 'pendiente' : 'pagado',
-    medio:          document.getElementById('gr-medio').value,
+    medio:          medioGasto,
     proveedor:      '',
     comprobante:    '',
     empleadoId:     miEmpleado ? miEmpleado.fbKey : null,
@@ -30601,8 +30604,21 @@ function guardarGastoRapido() {
     esFijoBase:     false,
     fotoBase64:     gastoRapidoFotoBase64 || null,
     usuario:        currentUser || '',
-    ts:             Date.now()
+    ts:             ahora
   };
+  // Un gasto abonado debe tener el mismo comprobante contable que el alta
+  // completa. Tesoreria se alimenta de pagos, no solo del estado del gasto.
+  if (!pagueYo) {
+    datos.pagos = {};
+    datos.pagos['pago_inicial_' + ahora] = {
+      fecha: fechaGasto,
+      monto: monto,
+      medio: medioGasto,
+      usuario: currentUser || '',
+      ts: ahora,
+      origen: 'gasto_rapido'
+    };
+  }
 
   window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), datos)
     .then(function() {
@@ -42478,6 +42494,18 @@ function guardarGastoCompleto() {
       });
     }
   }
+  if (!gastoActualFbKey && pagado > 0) {
+    var pagoInicialTs = Date.now();
+    datos.pagos = {};
+    datos.pagos['pago_inicial_' + pagoInicialTs] = {
+      fecha: datos.fecha,
+      monto: pagado,
+      medio: datos.medio,
+      usuario: currentUser || '',
+      ts: pagoInicialTs,
+      origen: 'alta_gasto'
+    };
+  }
   if (!window.fbDB) { notify('Sin conexión'); return; }
   var promesa = gastoActualFbKey
     ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+gastoActualFbKey), datos)
@@ -53175,11 +53203,15 @@ function fabAccion(tipo) {
       showPage('cobranzas', document.querySelector('[onclick*="cobranzas"]'));
       break;
     case 'gasto':
-      if (window.tienePermiso('gastos.cargarPropio')) {
+      if (typeof puedeAdministrarGastos === 'function' && puedeAdministrarGastos()) {
+        svNavegarDirecto('gastos', function(){
+          if (typeof abrirFormGasto === 'function') abrirFormGasto(null);
+        }, document.querySelector('[onclick*="gastos"]'));
+      } else if (window.tienePermiso('gastos.cargarPropio')) {
         if (typeof abrirGastoRapido === 'function') abrirGastoRapido();
         else notify('Acceso restringido para tu rol');
       } else {
-        svNavegarDirecto('gastos', function(){ if(typeof abrirModalNuevo==='function') abrirModalNuevo('gasto'); }, document.querySelector('[onclick*="gastos"]'));
+        notify('Acceso restringido para tu rol');
       }
       break;
     case 'agenda':
