@@ -1,6 +1,13 @@
 (function () {
   'use strict';
   var pendientes = new Set();
+  function mensajeProveedor(registrado, mensaje) {
+    var texto=String(mensaje || 'No se pudo verificar el proveedor');
+    if (/nissei/i.test(String(registrado && registrado.nombre || '')) && /(?:redirigi[oó].*p[aá]gina diferente|verificaci[oó]n.*seguridad|bloque[oó].*consulta autom[aá]tica)/i.test(texto)) {
+      return 'Nissei bloquea la lectura automática con su verificación de seguridad. Conservá la URL y cargá el importe manualmente por ahora.';
+    }
+    return texto;
+  }
   window.verificarConexionProveedor = async function(key, pedirUrl) {
     if (!key || pendientes.has(key)) return;
     var registrado=(proveedoresData || []).find(p=>p.fbKey===key);
@@ -16,7 +23,7 @@
     try {
       const res = await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/verificar-proveedor', {method:'POST',headers:await headersCotizadorProtegido(),body:JSON.stringify({proveedorKey:key,url:url.trim()}),signal:AbortSignal.timeout(90000)});
       const data=await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.mensaje || 'No se pudo verificar el proveedor');
+      if (!res.ok || !data.ok) throw new Error(mensajeProveedor(registrado,data.mensaje));
       const p=(proveedoresData || []).find(p=>p.fbKey===key);
       if (p) p.conexionAutomatica=data.conexion;
       botones.forEach(function(b) {
@@ -27,7 +34,7 @@
       });
       notify(data.conexion.mensaje);
       if (typeof renderModuloActualizadorPrecios==='function' && document.getElementById('page-actualizadorprecios').classList.contains('active')) renderModuloActualizadorPrecios();
-    } catch(e) { notify('Verificación pendiente: ' + e.message); }
+    } catch(e) { notify('Verificación pendiente: ' + mensajeProveedor(registrado,e.message)); }
     finally { pendientes.delete(key); botones.forEach(b=>{b.disabled=false;b.textContent='Verificar conexión';}); }
   };
 })();

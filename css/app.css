@@ -3075,3 +3075,4 @@ body.sv-exterior-dialog-open .content{overflow:hidden!important;overscroll-behav
 .ppto-traslado-interno small{display:block;margin-top:4px;font-size:11px;color:var(--text3);line-height:1.4}
 .ppto-traslado-interno input{width:150px;max-width:100%}
 @media(max-width:600px){.commercial-proposal-dialog{padding:14px!important}.commercial-proposal-dialog .proposal-items{max-height:35vh}.commercial-proposal-dialog table{min-width:620px}.commercial-proposal-dialog .proposal-summary{font-size:12px}}
+.item-prod-img.ot-selector-miniatura{object-fit:contain;background:var(--bg3);box-shadow:none}

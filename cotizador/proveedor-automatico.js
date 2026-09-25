@@ -26,6 +26,30 @@ function urlProveedor(valor, web) {
   if (u.protocol !== 'https:' || base.protocol !== 'https:' || u.username || u.password || u.port || net.isIP(u.hostname) || !u.hostname.includes('.') || host(u.hostname) !== host(base.hostname)) throw new Error('La URL debe ser HTTPS y pertenecer a la web registrada del proveedor');
   return u;
 }
+function urlsProductoEquivalentes(origen, destino) {
+  let inicial, final;
+  try { inicial = new URL(origen); final = new URL(destino); } catch (_) { return false; }
+  const host = valor => valor.toLowerCase().replace(/^www\./,'');
+  if (inicial.protocol !== 'https:' || final.protocol !== 'https:' || host(inicial.hostname) !== host(final.hostname)) return false;
+  const ruta = valor => valor.pathname.replace(/\/+$/,'') || '/';
+  if (ruta(inicial) === ruta(final) && inicial.search === final.search) return true;
+
+  // Algunos comercios Magento agregan una categoría a la URL canónica del
+  // mismo producto (por ejemplo /py/<slug> -> /py/recomendado/<slug>).
+  // La ficha estructurada todavía valida título y oferta; aquí sólo evitamos
+  // rechazar esa canonicalización legítima antes de poder leerla.
+  const segmentoFinal = valor => {
+    const partes = ruta(valor).split('/').filter(Boolean);
+    try { return decodeURIComponent(partes[partes.length - 1] || '').toLowerCase(); } catch (_) { return ''; }
+  };
+  const slugInicial = segmentoFinal(inicial), slugFinal = segmentoFinal(final);
+  const genericos = new Set(['py','producto','product','catalog','category','recomendado','ocasiones']);
+  return slugInicial.length >= 8 && slugInicial === slugFinal && !genericos.has(slugInicial);
+}
+function esPaginaVerificacionSeguridad(datos) {
+  const texto = [datos && datos.titulo, datos && datos.texto, datos && datos.url].filter(Boolean).join('\n');
+  return /(?:just a moment|un momento|verificaci[oó]n de seguridad en curso|cdn-cgi\/challenge-platform)/i.test(texto);
+}
 async function destinoPublico(host) {
   const direcciones = await dns.lookup(host,{all:true});
   if (!direcciones.length || direcciones.some(x=>!direccionPublica(x.address))) throw new Error('La web no resolvió a un destino público admitido');
@@ -116,7 +140,9 @@ async function consultarAutomatico(proveedor, url) {
     if (!url || destino.pathname === '/') return {acceso:true,requiereUrl:true};
     await page.goto(destino.href,{waitUntil:'domcontentloaded',timeout:20000});
     if (compraGamer) await page.locator('h1.product-details__info__title').waitFor({state:'visible',timeout:20000});
-    if (new URL(page.url()).pathname !== destino.pathname || new URL(page.url()).search !== destino.search) throw new Error('La web redirigió a una página diferente del producto');
+    const paginaInicial={titulo:await page.title().catch(()=>''),texto:await page.locator('body').innerText().catch(()=>''),url:page.url()};
+    if (esPaginaVerificacionSeguridad(paginaInicial)) throw new Error('El proveedor bloqueó la consulta automática con su verificación de seguridad. El enlace sigue siendo válido; cargá el importe manualmente hasta que habilite un acceso automático');
+    if (!urlsProductoEquivalentes(destino.href,page.url())) throw new Error('La web redirigió a una página diferente del producto');
     if (flytec) {
       const codigo=(destino.pathname.match(/^\/produto\/[^/]+\/(\d+)\/?$/)||[])[1];
       if(!codigo) throw new Error('Falta la URL exacta de producto Flytec');
@@ -180,4 +206,4 @@ function seleccionarPrecioCompraGamer(datos,url,medio) {
   if(!(precio>0))throw new Error('Precio de CompraGamer inválido');
   return precio;
 }
-module.exports={consultarAutomatico,validarOferta,urlProveedor,firmaAcceso,aplicarCondicionComercial,seleccionarPrecioCompraGamer,direccionPublica,precioFlytec};
+module.exports={consultarAutomatico,validarOferta,urlProveedor,urlsProductoEquivalentes,esPaginaVerificacionSeguridad,firmaAcceso,aplicarCondicionComercial,seleccionarPrecioCompraGamer,direccionPublica,precioFlytec};

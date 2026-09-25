@@ -58,6 +58,12 @@
     return (ot && ot.materiales || []).filter(controllable);
   }
 
+  function pendingDelivery(ot) {
+    return controllableMaterials(ot).filter(function (material) {
+      return n(material.vendida) > n(material.entregada);
+    });
+  }
+
   function deliveryDescription(materials) {
     var groups = {};
     materials.forEach(function(material) {
@@ -196,7 +202,12 @@
     var allInstalled = document.getElementById('ot-btn-todo-instalado');
     var exceptions = document.getElementById('ot-btn-excepciones');
     var receive = document.getElementById('ot-btn-recibir-devolucion');
-    if (deliver) deliver.style.display = admin && !isClosed && !ot.custodiaIniciada && materials.length ? '' : 'none';
+    var pending = pendingDelivery(ot);
+    var canDeliver = pending.some(function (material) { return !isClosed || material.adicionalOT === true; });
+    if (deliver) {
+      deliver.style.display = admin && canDeliver ? '' : 'none';
+      deliver.textContent = ot.custodiaIniciada ? 'Entregar materiales pendientes' : 'Entregar materiales al técnico';
+    }
     if (allInstalled) allInstalled.style.display = !isClosed && ot.custodiaIniciada && !ot.custodiaRendida ? '' : 'none';
     if (exceptions) exceptions.style.display = !isClosed && ot.custodiaIniciada && !ot.custodiaRendida ? '' : 'none';
     if (receive) receive.style.display = admin && totals.devolucionPendiente > 0 ? '' : 'none';
@@ -244,14 +255,20 @@
     var ot = currentOT();
     if (!ot || !isAdministration()) return;
     if (!ot.tecnico) { window.notify('Asigná un técnico antes de entregar materiales'); return; }
-    var eligible = controllableMaterials(ot);
+    var closed = typeof window.otEstaCerrada === 'function' ? window.otEstaCerrada(ot) : ['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0;
+    var eligible = pendingDelivery(ot).filter(function (material) {
+      return !closed || correctionKey === String(ot.fbKey || ot.id) || material.adicionalOT === true;
+    });
     if (!eligible.length) { window.notify('Esta OT no tiene equipos o materiales controlables'); return; }
-    var deliveryText = deliveryDescription(eligible);
+    var deliveryText = deliveryDescription(eligible.map(function (material) {
+      return Object.assign({}, material, { vendida:n(material.vendida) - n(material.entregada) });
+    }));
     if (!await window.svConfirm('Se entregarán ' + deliveryText + ' de la OT bajo responsabilidad de ' + ot.tecnico + '. ¿Confirmar entrega?')) return;
+    if (closed) correctionKey = String(ot.fbKey || ot.id);
     var now = Date.now();
     ot.materiales = (ot.materiales || []).map(function (raw) {
       var material = normalizeMaterial(raw);
-      if (!controllable(material)) return material;
+      if (eligible.indexOf(raw) < 0) return raw;
       material.custodiaActiva = true;
       material.entregada = n(material.vendida);
       material.custodiaClasificada = false;
@@ -264,7 +281,7 @@
     ot.custodiaRendida = false;
     ot.custodiaTecnico = ot.tecnico;
     ot.custodiaEntregadaEn = now;
-    save(ot, 'Materiales entregados a ' + ot.tecnico + ' · ' + deliveryText + ' bajo custodia')
+    return save(ot, 'Materiales entregados a ' + ot.tecnico + ' · ' + deliveryText + ' bajo custodia')
       .then(function () { window.notify('✓ Entrega registrada. Los materiales quedaron a cargo de ' + ot.tecnico); })
       .catch(function (error) { window.notify('No se pudo registrar la entrega: ' + error.message); });
   }

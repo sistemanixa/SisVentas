@@ -4,6 +4,13 @@
   var secuencia = 0;
   function el(id) { return document.getElementById(id); }
   function estado(texto) { if (el('pf-importar-estado')) el('pf-importar-estado').textContent = texto; }
+  function mensajeProveedor(proveedor, mensaje) {
+    var texto = String(mensaje || 'No se pudo consultar la ficha');
+    if (/nissei/i.test(String(proveedor && proveedor.nombre || '')) && /(?:redirigi[oó].*p[aá]gina diferente|verificaci[oó]n.*seguridad|bloque[oó].*consulta autom[aá]tica)/i.test(texto)) {
+      return 'Nissei está bloqueando la lectura automática con su verificación de seguridad. El enlace es válido, pero por ahora el precio debe cargarse manualmente.';
+    }
+    return texto;
+  }
   function mostrarCarga(activa) {
     var boton = el('pf-importar-boton');
     if (!boton) return;
@@ -117,7 +124,7 @@
       });
       var datos = await respuesta.json();
       if (!vigente(c)) { if (consulta === c) estado('La ficha cambió durante la consulta. No se aplicó el resultado; podés volver a consultar.'); return; }
-      if (!respuesta.ok || !datos || !datos.ok) throw new Error(datos && (datos.mensaje || datos.error) || 'No se pudo consultar el producto');
+      if (!respuesta.ok || !datos || !datos.ok) throw new Error(mensajeProveedor(proveedor, datos && (datos.mensaje || datos.error)));
       var ficha = datos.ficha;
       if (!ficha || !String(ficha.nombre || '').trim()) throw new Error('El cotizador no devolvió la ficha del producto. No se modificaron los campos.');
       if (urlExacta(datos.url) !== url || !datos.identidad || datos.identidad.ok !== true) throw new Error('La respuesta no confirmó el producto de la URL consultada');
@@ -149,7 +156,7 @@
       if (!imagen) faltantes.push('imagen');
       estado('Ficha y precio cargados. Revisá la categoría y los datos antes de guardar.' + (faltantes.length ? ' El proveedor no informó: ' + faltantes.join(', ') + '.' : ''));
     } catch (error) {
-      if (consulta === c) estado(error.name === 'AbortError' ? 'La consulta demoró demasiado. Podés reintentar; no se guardó ningún producto.' : String(error.message || 'No se pudo consultar la ficha'));
+      if (consulta === c) estado(error.name === 'AbortError' ? 'La consulta demoró demasiado. Podés reintentar; no se guardó ningún producto.' : mensajeProveedor(proveedor, error.message));
     } finally {
       clearTimeout(timer);
       if (consulta === c) { consulta = null; mostrarCarga(false); }
