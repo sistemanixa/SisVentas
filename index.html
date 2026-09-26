@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.7.8-firebase' -->
+<!-- VERSION: 'v3.7.9-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.7.8.js"></script>
+<script src="./js/core/version.v3.7.9.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,7 +34,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=3.3.17"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.7.8">
+<link rel="stylesheet" href="./css/app.css?v=3.7.9">
 <link rel="stylesheet" href="./css/surveys.css?v=1">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
@@ -1707,7 +1707,7 @@
         <!-- DETALLE CUENTA CLIENTE -->
         <div id="cc-detail" style="display:none">
           <div style="margin-bottom:14px">
-            <button class="btn btn-sm" onclick="document.getElementById('cc-detail').style.display='none';document.querySelector('#page-cuentacorriente .card').style.display='';document.querySelector('#page-cuentacorriente .metrics').style.display=''"><i class="ti ti-arrow-left"></i> Volver</button>
+            <button class="btn btn-sm" onclick="volverListaCuentaCorriente()"><i class="ti ti-arrow-left"></i> Volver</button>
           </div>
           <div class="emp-header">
             <div class="s-avatar admin" style="width:44px;height:44px;font-size:14px" id="cc-avatar">GR</div>
@@ -4837,9 +4837,9 @@ Listo para analizar.
         <label>Foto del ticket / comprobante</label>
         <div id="g-foto-drop" tabindex="0" role="button" aria-label="Agregar comprobante" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('g-foto-input').click();}" style="border:1.5px dashed var(--border2);border-radius:var(--radius);padding:14px;text-align:center;cursor:pointer;background:var(--bg3)" onclick="document.getElementById('g-foto-input').click()">
           <i class="ti ti-camera-plus" style="font-size:24px;color:var(--text3)"></i>
-          <div style="font-size:12px;color:var(--text3);margin-top:4px">Arrastrá una imagen, pegala con Ctrl+V o tocá para elegir el comprobante</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">Elegir PDF o imagen · hasta 2 MB · también podés arrastrar o pegar con Ctrl+V</div>
         </div>
-        <input type="file" id="g-foto-input" accept="image/*" style="display:none" onchange="previewFotoGasto(this)">
+        <input type="file" id="g-foto-input" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" style="display:none" onchange="previewFotoGasto(this)">
         <div id="g-foto-preview" style="margin-top:8px"></div>
       </div>
     </div>
@@ -4868,10 +4868,10 @@ Listo para analizar.
         <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comprobante de este pago</label>
         <div style="border:1.5px dashed var(--border2);border-radius:var(--radius);padding:10px;text-align:center;cursor:pointer;background:var(--bg3)" onclick="document.getElementById('mpg-comprobante-input').click()">
           <i class="ti ti-paperclip" style="font-size:18px;color:var(--text3)"></i>
-          <div id="mpg-comprobante-lbl" style="font-size:12px;color:var(--text3);margin-top:3px">Opcional: adjuntar transferencia / ticket</div>
+          <div id="mpg-comprobante-lbl" style="font-size:12px;color:var(--text3);margin-top:3px">Elegir PDF o imagen · hasta 2 MB</div>
           <div id="mpg-comprobante-preview" style="display:none;margin-top:10px;align-items:center;justify-content:center;gap:8px"></div>
         </div>
-        <input type="file" id="mpg-comprobante-input" accept="image/*,.pdf" style="display:none" onchange="previewPagoGastoComprobante(this)">
+        <input type="file" id="mpg-comprobante-input" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" style="display:none" onchange="previewPagoGastoComprobante(this)">
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn" style="flex:1" onclick="document.getElementById('modal-pago-gasto').style.display='none'">Cancelar</button>
@@ -5278,11 +5278,11 @@ Listo para analizar.
         <label>Foto del ticket / comprobante</label>
         <div style="border:1.5px dashed var(--border2);border-radius:var(--radius);padding:18px;text-align:center;cursor:pointer;background:var(--bg3)" onclick="document.getElementById('movi-foto-input').click()">
           <i class="ti ti-camera-plus" style="font-size:24px;color:var(--text3)"></i>
-          <div style="font-size:12px;color:var(--text3);margin-top:6px">Tocá para subir foto</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:6px">Elegir PDF o imagen · hasta 2 MB</div>
           <div id="movi-foto-nombre" style="font-size:12px;color:var(--green);margin-top:4px"></div>
         </div>
-        <input type="file" id="movi-foto-input" accept="image/*" style="display:none" onchange="onFotoSeleccionada(this)">
-        <img id="movi-foto-preview" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:var(--radius);margin-top:8px">
+        <input type="file" id="movi-foto-input" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" style="display:none" onchange="onFotoSeleccionada(this)">
+        <div id="movi-foto-preview" style="display:none;margin-top:8px"></div>
       </div>
       <!-- Repetición periódica -->
       <div class="fg full" id="movi-periodico-wrap" style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:4px">
@@ -5697,7 +5697,8 @@ Listo para analizar.
 <script src="./js/modules/offline-core.js?v=1.0.0"></script>
 <script src="./js/modules/comparacion-comercial.js?v=1"></script>
 <script src="./js/modules/search-filter-notice.js?v=scroll-2"></script>
-<script src="./js/app.v3.7.8.js"></script>
+<script src="./js/core/loading-indicator.js?v=1"></script>
+<script src="./js/app.v3.7.9.js"></script>
 <script src="./js/modules/partial-invoices.js?v=1"></script>
 <script src="./js/modules/commercial-drafts.js?v=2"></script>
 <script src="./js/modules/chat-access.js?v=1"></script>
@@ -5851,9 +5852,9 @@ Listo para analizar.
         <label>Foto del ticket (opcional)</label>
         <div style="border:1.5px dashed var(--border2);border-radius:var(--radius);padding:12px;text-align:center;cursor:pointer;background:var(--bg3)" onclick="document.getElementById('gr-foto-input').click()">
           <i class="ti ti-camera-plus" style="font-size:20px;color:var(--text3)"></i>
-          <div style="font-size:11px;color:var(--text3);margin-top:4px">Tocá para sacar foto o subir</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">Elegir PDF o imagen · hasta 2 MB</div>
         </div>
-        <input type="file" id="gr-foto-input" accept="image/*" style="display:none" onchange="previewFotoGastoRapido(this)">
+        <input type="file" id="gr-foto-input" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" style="display:none" onchange="previewFotoGastoRapido(this)">
         <div id="gr-foto-preview" style="margin-top:8px"></div>
       </div>
     </div>
@@ -6223,7 +6224,7 @@ Listo para analizar.
 
 <script src="./js/modules/role-guard.js?v=3.3.17"></script>
 <script src="./js/modules/purchase-orders.js?v=3.7.6-recomendados"></script>
-<script src="./js/modules/ot-material-custody.js?v=3.7.8"></script>
+<script src="./js/modules/ot-material-custody.js?v=3.7.9"></script>
 <script src="./js/modules/release-tour.js?v=2.0.161"></script>
 
 <!--

@@ -972,6 +972,8 @@
   }
 
   function initTable(table) {
+    // Matriz de permisos: no es un listado con columnas configurables.
+    if (table && table.dataset.svRoleMatrix === '1') return;
     if (!table) return;
     // showPage prepara el modulo antes de volverlo visible. Inicializar en ese
     // instante mide un ancho cero o residual y deja columnas diminutas hasta
