@@ -15,7 +15,7 @@
     activeOrder: null,
     manualItems: [],
     editingOrderKey: null,
-    groupMaterialsByProvider: false
+    groupMaterialsByProvider: true
   };
 
   function esc(value) {
@@ -443,7 +443,7 @@
     if (sourceSale && syncListItemsWithSale(list, sourceSale) && list.fbKey && window.fbDB) {
       update(PATH_LISTS + '/' + list.fbKey, { items: list.items, actualizadoEn: Date.now(), actualizadoPor: window.currentUser || 'Sistema' }).catch(function () {});
     }
-    state.groupMaterialsByProvider = false;
+    state.groupMaterialsByProvider = true;
     state.activeList = JSON.parse(JSON.stringify(list));
     var modal = ensureModal('oc-material-list-modal', '1120px');
     document.getElementById('oc-material-list-modal-title').innerHTML = '<i class="ti ti-list-check" style="margin-right:7px"></i>' + esc(list.numero || 'Lista de materiales') + ' · ' + esc(list.cliente || '');
@@ -476,7 +476,7 @@
         '<span class="badge b-blue">Venta ' + esc(list.ventaId || 'manual') + '</span>' +
         '<span class="badge ' + (generated ? 'b-green' : 'b-amber') + '">' + (generated ? 'Órdenes generadas' : 'En preparación') + '</span>' +
         '<span style="font-size:12px;color:var(--text3);align-self:center">El stock anterior es sólo informativo. Indicá manualmente qué cantidad ya tienen.</span></div>' +
-        '<div class="oc-material-actions"><button class="btn btn-sm ' + (state.groupMaterialsByProvider ? 'btn-primary' : '') + '" onclick="ocAlternarAgrupacionProveedores()"><i class="ti ti-category-2"></i> ' + (state.groupMaterialsByProvider ? 'Ver orden de venta' : 'Agrupar por proveedor') + '</button><button class="btn btn-sm" onclick="ocCopiarPedidoWhatsApp()"><i class="ti ti-brand-whatsapp"></i> Copiar pedido para WhatsApp</button>' + (!locked ? '<button class="btn btn-sm" id="oc-apply-recommended-btn" onclick="ocAplicarProveedoresRecomendados()" title="Elegir y guardar el proveedor conveniente actual para todos los materiales"><i class="ti ti-sparkles"></i> Poner todos en recomendado</button>' : '') + '<button class="btn btn-sm" onclick="ocExportarListaExcel()"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</button></div>' +
+        '<div class="oc-material-actions"><button class="btn btn-sm ' + (state.groupMaterialsByProvider ? 'btn-primary' : '') + '" onclick="ocAlternarAgrupacionProveedores()"><i class="ti ti-category-2"></i> ' + (state.groupMaterialsByProvider ? 'Desagrupar' : 'Agrupar por proveedor') + '</button><button class="btn btn-sm" onclick="ocCopiarPedidoWhatsApp()"><i class="ti ti-brand-whatsapp"></i> Copiar pedido para WhatsApp</button>' + (!locked ? '<button class="btn btn-sm" id="oc-apply-recommended-btn" onclick="ocAplicarProveedoresRecomendados()" title="Elegir y guardar el proveedor conveniente actual para todos los materiales"><i class="ti ti-sparkles"></i> Poner todos en recomendado</button>' : '') + '<button class="btn btn-sm" onclick="ocExportarListaExcel()"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</button></div>' +
       '</div>' +
       '<div class="table-wrap oc-material-table-wrap"><table class="oc-material-table" data-sv-mobile-cards="off"><thead><tr><th style="width:34px">Comprar</th><th>Material</th><th class="tr">Necesario</th><th class="tr">Ya tenemos</th><th class="tr">A comprar</th><th>Proveedor conveniente</th><th class="tr">Costo estimado</th><th>Referencia</th></tr></thead><tbody>' +
       displayItems.map(function (display) {
@@ -508,6 +508,7 @@
         '</tr>';
       }).join('') +
       '</tbody></table></div>' +
+      (window.permisoModulo && window.permisoModulo('balancecompra') ? '<button class="btn" onclick="ocAbrirSimuladorParaguay()">Simular compra Paraguay</button>' : '') +
       '<div id="oc-material-summary" style="margin-top:12px"></div>' +
       '<div class="oc-material-footer-actions">' +
         (!locked ? '<button class="btn" onclick="ocGuardarListaActual()"><i class="ti ti-device-floppy"></i> Guardar decisiones</button><button class="btn btn-primary" onclick="ocGenerarOrdenesDesdeLista()"><i class="ti ti-shopping-cart"></i> Generar órdenes por proveedor</button>' : (generated ? '<button class="btn btn-primary" onclick="document.getElementById(\'oc-material-list-modal\').style.display=\'none\';ocShowTab(\'orders\')"><i class="ti ti-shopping-cart"></i> Ver órdenes generadas</button>' : '<span class="badge b-green">Lista cerrada sin compras</span>')) +
@@ -517,6 +518,31 @@
       if (window.SisVentas && typeof window.SisVentas.prepareResizablePage === 'function') window.SisVentas.prepareResizablePage(body);
     }, 0);
   }
+
+  window.ocAbrirSimuladorParaguay = async function () {
+    if (!window.permisoModulo || !window.permisoModulo('balancecompra')) return;
+    if (!state.activeList) return;
+    if (!window.SVParaguayPlanner) {
+      try { await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/paraguay-planner.js?v=3.7.10';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);}); }
+      catch(e) { if(window.notify) window.notify('No se pudo cargar el simulador'); return; }
+    }
+    var list=state.activeList;
+    var sale=saleRef(list.ventaFbKey||list.ventaId)||{};
+    var rows=(list.items||[]).filter(function(i){return isPurchasableMaterialItem(i)&&i.incluir&&i.cantidadComprar>0;}).map(function(i){
+      var product=findProduct(i)||{};
+      var raw=typeof window.proveedoresVinculadosProducto==='function'?window.proveedoresVinculadosProducto(product):(product.proveedores||[]);
+      var pv=raw.find(function(p){return (i.proveedorKey&&p.proveedorKey===i.proveedorKey)||String(p.nombre||p.proveedor||'')===i.proveedor;})||{};
+      var py=/paraguay|flytec|nissei/i.test(i.proveedor||'')||/\.com\.py/i.test(i.proveedorUrl||'');
+      var original=i.origenVentaItem||{}; var originalQty=Number(original.qty||original.cantidad||original.cant)||1;
+      var baselinePart=typeof window.obtenerCostoItemVenta==='function'?window.obtenerCostoItemVenta(original)/originalQty*Number(i.cantidadComprar):null;
+      return {baselinePart:baselinePart,key:[i.productoKey||i.codigo,i.linea,i.proveedorKey||i.proveedor].join('|'),code:i.codigo,description:i.descripcion,provider:i.proveedor,qty:Number(i.cantidadComprar),include:py,usd:String(pv.monedaOriginal||'').toUpperCase()==='USD'?Number(pv.precioOriginal)||'':'',weight:1};
+    });
+    window.SVParaguayPlanner.open({saleId:list.ventaId,rows:rows,saved:list.simuladorParaguay,
+      thumbnail:function(row){var item=(list.items||[]).find(function(i){return [i.productoKey||i.codigo,i.linea,i.proveedorKey||i.proveedor].join('|')===row.key;});return productThumbnail(item||{});},
+      initial:{revenue:typeof window._rentIngresoNetoVenta==='function'?window._rentIngresoNetoVenta(sale):'',baseline:typeof window._rentCostoVenta==='function'?window._rentCostoVenta(sale):''},
+      save:async function(data){if(!window.permisoModulo('balancecompra'))throw new Error('Sin permiso');await update(PATH_LISTS+'/'+list.fbKey,{simuladorParaguay:data});list.simuladorParaguay=JSON.parse(JSON.stringify(data));var stored=state.lists.find(function(x){return x.fbKey===list.fbKey;});if(stored)stored.simuladorParaguay=list.simuladorParaguay;renderBalanceCompra();}
+    });
+  };
 
   function materialChanged(index) {
     var list = state.activeList;
@@ -905,6 +931,7 @@
   }
 
   function renderLists() {
+    renderBalanceCompra();
     renderPageShell();
     var target = document.getElementById('oc2-lists');
     if (!target) return;
@@ -915,6 +942,54 @@
       }).join('') : '<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text3)">Las listas se crean desde el detalle de una venta</td></tr>') +
       '</tbody></table></div>';
   }
+
+  function balanceFinalizado(list) {
+    return ['recibida','cerrada','cancelada','anulada'].includes(String(list.estado || '').toLowerCase());
+  }
+
+  function balanceIndicadores(list) {
+    var sim = list.simuladorParaguay;
+    if (!sim || !sim.result || !sim.parameters) return null;
+    var p = sim.parameters, r = sim.result;
+    var current = (list.items || []).filter(function(i){return !i.esManoDeObra && i.incluir && Number(i.cantidadComprar)>0;});
+    var stale = current.length !== (sim.rows || []).length || current.some(function(i){
+      var key=[i.productoKey||i.codigo,i.linea,i.proveedorKey||i.proveedor].join('|');
+      return !(sim.rows||[]).some(function(row){return row.key===key && Number(row.qty)===Number(i.cantidadComprar);});
+    });
+    var selected = (sim.rows || []).filter(function(row){return row.include;});
+    var retained = p.retained === '' ? Math.max(0,Number(p.baseline||0)-selected.reduce(function(sum,row){return sum+Number(row.baselinePart||0);},0)) : Number(p.retained||0);
+    var chosen = sim.chosen || (Number(r.remote)<=Number(r.onsite)?'remote':'onsite');
+    var total = Number(r[chosen]);
+    var saving = Number(p.baseline||0)-retained-total;
+    var originCost = Number(p.baseline||0)-retained;
+    return { chosen:chosen, applied:!!sim.chosen, total:total, saving:saving,
+      percent:originCost>0?saving/originCost*100:null,
+      points:Number(p.revenue)>0?saving/Number(p.revenue)*100:null,
+      margin:Number(p.revenue)>0?(Number(p.revenue)-retained-total)/Number(p.revenue)*100:null,
+      incomplete:sim.complete!==true, stale:stale,
+      usd:Number(p.usd)||0 };
+  }
+
+  function renderBalanceCompra() {
+    var target=document.getElementById('balance-compra-content');
+    if(!target)return;
+    if(!window.permisoModulo || !window.permisoModulo('balancecompra')){target.innerHTML='';return;}
+    var lists=state.lists.slice().sort(function(a,b){return Number(balanceFinalizado(a))-Number(balanceFinalizado(b)) || Number(b.ts||0)-Number(a.ts||0);});
+    var active=lists.filter(function(l){return !balanceFinalizado(l);}).length;
+    var lastSection='';
+    target.innerHTML='<div class="card"><h2>Balance de compra</h2><p>'+active+' compras activas · '+(lists.length-active)+' finalizadas · '+lists.filter(function(l){return !!l.simuladorParaguay;}).length+' con simulación</p><p>Compras pendientes primero. Abrí una compra para comparar envío y viaje. Las mejoras son estimaciones contra el costo guardado de la venta, antes de comisiones.</p></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px">'+(lists.length?lists.map(function(list){
+      var section=balanceFinalizado(list)?'Finalizadas':'Activas sin finalizar';
+      var header=section!==lastSection?'<h3 style="grid-column:1/-1;margin:10px 0 0">'+section+'</h3>':'';lastSection=section;
+      var m=balanceIndicadores(list), pct=function(v){return v===null?'—':v.toLocaleString('es-AR',{maximumFractionDigits:2})+'%';};
+      return header+'<button type="button" class="card" style="text-align:left;margin:0;color:var(--text);cursor:pointer;width:100%;font:inherit" onclick="abrirBalanceCompra(\''+attr(list.fbKey)+'\')"><strong>'+esc(list.ventaId||list.numero)+' · '+esc(list.cliente||'Sin cliente')+'</strong><p>'+esc(list.numero)+' · '+esc(list.estado||'preparacion')+'</p>'+(m?'<span class="badge '+(m.incomplete||m.stale?'b-amber':'b-blue')+'">'+(m.stale?'Selección modificada: recalcular':m.incomplete?'Estimación incompleta':'Estimación guardada')+'</span><p>'+(m.applied?'Modalidad elegida: ':'Alternativa de menor costo: ')+(m.chosen==='remote'?'Envío':'Viaje')+'</p><div style="font-size:22px;font-weight:700;color:var(--'+(m.saving>=0?'green':'red')+')">'+money(m.saving)+'</div><p>Mejora estimada · '+pct(m.percent)+' sobre el costo reemplazado'+(m.usd?' · USD '+(m.saving/m.usd).toLocaleString('es-AR',{maximumFractionDigits:2}):'')+'</p><p>Margen: '+pct(m.margin)+' · variación '+(m.points===null?'—':m.points.toLocaleString('es-AR',{maximumFractionDigits:2}))+' puntos</p><p>Compra exterior con logística: '+money(m.total)+'</p>':'<p>Sin simulación guardada</p><p>Completá los costos para conocer el ahorro y el margen.</p>')+'<span style="color:var(--blue)">Abrir balance →</span></button>';
+    }).join(''):'<p>No hay listas de compra. Crealas desde Preparar compra en una venta.</p>')+'</div>';
+  }
+  window.renderBalanceCompra=renderBalanceCompra;
+  window.abrirBalanceCompra=async function(key){
+    if(!window.permisoModulo || !window.permisoModulo('balancecompra'))return;
+    await openMaterialList(key);
+    if(state.activeList && state.activeList.fbKey===key) await window.ocAbrirSimuladorParaguay();
+  };
 
   function renderMetrics() {
     renderPageShell();
@@ -1682,7 +1757,7 @@
     state.activeOrder = null;
     state.manualItems = [];
     state.editingOrderKey = null;
-    state.groupMaterialsByProvider = false;
+    state.groupMaterialsByProvider = true;
   }
 
   window.SisVentasCompras = {
