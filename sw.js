@@ -4,7 +4,7 @@ const CACHE = 'sisventas-v3.7.11';
 const SHELL = [
   './',
   './index.html',
-  './css/app.css?v=3.7.10',
+  './css/app.css?v=3.7.11',
   './css/v3-preview.css',
   './js/app.js',
   './js/modules/budget-proposals.js?v=3.7.0',
@@ -76,7 +76,7 @@ const SHELL = [
   './js/modules/page-transition.js',
   './js/modules/resource-monitor.js',
   './js/modules/role-guard.js',
-  './js/modules/purchase-orders.js?v=3.7.10',
+  './js/modules/purchase-orders.js?v=3.7.11',
   './js/modules/ot-material-custody.js',
   './js/modules/release-tour.js',
   './js/modules/v3-launch.js',

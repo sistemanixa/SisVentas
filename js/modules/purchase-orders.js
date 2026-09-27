@@ -523,7 +523,7 @@
     if (!window.permisoModulo || !window.permisoModulo('balancecompra')) return;
     if (!state.activeList) return;
     if (!window.SVParaguayPlanner) {
-      try { await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/paraguay-planner.js?v=3.7.10';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);}); }
+      try { await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/paraguay-planner.js?v=3.7.11';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);}); }
       catch(e) { if(window.notify) window.notify('No se pudo cargar el simulador'); return; }
     }
     var list=state.activeList;
