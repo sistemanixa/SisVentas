@@ -533,7 +533,7 @@
     if (!window.permisoModulo || !window.permisoModulo('balancecompra')) return;
     if (!state.activeList) return;
     if (!window.SVParaguayPlanner) {
-      try { await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/paraguay-planner.js?v=3.7.14';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);}); }
+      try { await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/paraguay-planner.js?v=3.7.15';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);}); }
       catch(e) { if(window.notify) window.notify('No se pudo cargar el simulador'); return; }
     }
     var list=state.activeList;
@@ -547,7 +547,7 @@
       var baselinePart=typeof window.obtenerCostoItemVenta==='function'?window.obtenerCostoItemVenta(original)/originalQty*Number(i.cantidadComprar):null;
       return {baselinePart:baselinePart,key:[i.productoKey||i.codigo,i.linea,i.proveedorKey||i.proveedor].join('|'),code:i.codigo,description:i.descripcion,provider:i.proveedor,qty:Number(i.cantidadComprar),include:py,usd:String(pv.monedaOriginal||'').toUpperCase()==='USD'?Number(pv.precioOriginal)||'':'',weight:1};
     });
-    if(!window.SVPurchasePDF){try{await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/purchase-pdf-import.js?v=3.7.14';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}catch(e){if(window.notify)window.notify('No se pudo cargar la importación PDF. Reintentá.');return;}}
+    if(!window.SVPurchasePDF){try{await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/purchase-pdf-import.js?v=3.7.15';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}catch(e){if(window.notify)window.notify('No se pudo cargar la importación PDF. Reintentá.');return;}}
     window.SVParaguayPlanner.open({saleId:list.ventaId,rows:rows,saved:list.simuladorParaguay,closed:materialListLocked(list)||!!list.compraConfirmacion,isClosed:function(){return materialListLocked(state.lists.find(function(x){return x.fbKey===list.fbKey;})||list);},
       catalog:productList().filter(function(p){return !isLabor(p);}).map(function(p){return {key:String(p.fbKey||p.codigo),code:p.codigo||'',description:p.nombre||'',providers:providersFor(p).map(function(v){var raw=(typeof window.proveedoresVinculadosProducto==='function'?window.proveedoresVinculadosProducto(p):p.proveedores||[]).find(function(x){return x.proveedorKey===v.proveedorKey||String(x.nombre||x.proveedor)===v.nombre;})||{};return Object.assign({},v,{usd:String(raw.monedaOriginal||'').toUpperCase()==='USD'?Number(raw.precioOriginal)||0:0});})};}),
       confirm:function(snapshot){return confirmPlannedPurchase(list,snapshot);},
