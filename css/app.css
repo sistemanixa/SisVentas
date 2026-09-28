@@ -3167,3 +3167,13 @@ body.sv-exterior-dialog-open .content{overflow:hidden!important;overscroll-behav
 .sv-cargando-cartel{display:flex;align-items:center;gap:12px;max-width:calc(100vw - 40px);padding:20px 28px;border:1px solid var(--border2);border-radius:14px;background:var(--bg2);color:var(--text);box-shadow:0 8px 32px #0006;font-size:16px;font-weight:600}
 .sv-cargando-cartel i{font-size:26px;animation:sv-cargando-giro 1s linear infinite}
 @keyframes sv-cargando-giro{to{transform:rotate(360deg)}}
+
+/* Ventas: aprovechar el alto disponible y mantener paginación visible. */
+@media(min-width:769px){
+ #page-detalle:has(#ventas-list-view:not([style*="display: none"]):not([style*="display:none"])){height:100%;min-height:0}
+ #page-detalle #ventas-list-view{height:100%;display:flex;flex-direction:column;min-height:0}
+ #ventas-list-view>.metrics{flex-shrink:0}
+ #ventas-list-view>.card{flex:1;min-height:260px;display:flex;flex-direction:column;margin-bottom:0}
+ #page-detalle #ventas-list-view .table-wrap{flex:1;min-height:120px;max-height:none}
+ #ventas-list-view .ventas-list-footer{flex-shrink:0}
+}
