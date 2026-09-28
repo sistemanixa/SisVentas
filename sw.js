@@ -1,10 +1,10 @@
-/* SisVentas NIXA - Service Worker v3.7.15
+/* SisVentas NIXA - Service Worker v3.7.16
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.7.15';
+const CACHE = 'sisventas-v3.7.16';
 const SHELL = [
   './',
   './index.html',
-  './css/app.css?v=3.7.15',
+  './css/app.css?v=3.7.16',
   './css/v3-preview.css',
   './js/app.js',
   './js/modules/budget-proposals.js?v=3.7.0',
@@ -13,13 +13,13 @@ const SHELL = [
   './css/surveys.css?v=1',
   './js/modules/search-filter-notice.js?v=1',
   './js/modules/comparacion-comercial.js?v=1',
-  './js/app.v3.7.15.js',
+  './js/app.v3.7.16.js',
   './js/modules/product-url-import.js',
   './js/modules/keyboard-actions.js',
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js',
   './js/core/version.js',
-  './js/core/version.v3.7.15.js',
+  './js/core/version.v3.7.16.js',
   './js/core/loading-indicator.js?v=1',
   './js/core/login.js',
   './js/core/access-control.js',
@@ -76,7 +76,7 @@ const SHELL = [
   './js/modules/page-transition.js',
   './js/modules/resource-monitor.js',
   './js/modules/role-guard.js',
-  './js/modules/purchase-orders.js?v=3.7.15',
+  './js/modules/purchase-orders.js?v=3.7.16',
   './js/modules/ot-material-custody.js',
   './js/modules/release-tour.js',
   './js/modules/v3-launch.js',
