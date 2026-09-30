@@ -31,30 +31,8 @@
   document.addEventListener('sisventas:page-changed', function(){ setTimeout(window.aplicarDashboardPermisos309, 80); });
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(window.aplicarDashboardPermisos309, 300); });
 
-  function ventaActualEditando309(){
-    var key = window._ventaEditandoFbKey;
-    if (!key) return window._ventaEditandoOriginal || null;
-    return window._ventaEditandoOriginal || (window.ventasList||[]).find(function(v){ return v && (v.fbKey === key || v.id === key); }) || null;
-  }
-  function restaurarDescuentosEdicion309(){
-    var v = ventaActualEditando309(); if (!v) return;
-    var dg = document.getElementById('desc-general');
-    if (dg && String(dg.value||'').trim() === '') { var val = parseFloat(v.descuentoGeneral || 0) || 0; if (val > 0) dg.value = val; }
-    Array.from(document.querySelectorAll('#det-body tr')).forEach(function(tr, idx){
-      var inp = tr.querySelector('.disc'); if (!inp || String(inp.value||'').trim() !== '') return;
-      var it = (v.items||[])[idx] || null;
-      if (!it) { var cod = (tr.querySelector('.prod-sel-cod')||{}).textContent || ''; it = (v.items||[]).find(function(x){ return String(x.cod||x.codigo||'') === String(cod); }); }
-      var d = it ? (parseFloat(it.disc || it.descuentoPct || 0) || 0) : 0;
-      if (d > 0) { inp.value = d; inp.style.color = 'var(--green)'; }
-    });
-  }
-  var abrirPrev309 = window.abrirEditorVenta;
-  if (typeof abrirPrev309 === 'function') window.abrirEditorVenta = function(fbKey){ var r = abrirPrev309.apply(this, arguments); [450,900,1400].forEach(function(t){ setTimeout(function(){ restaurarDescuentosEdicion309(); if(typeof calcTotals==='function') calcTotals(); }, t); }); return r; };
-  var calcPrev309 = window.calcTotals;
-  if (typeof calcPrev309 === 'function') window.calcTotals = function(){ if (window._ventaEditandoFbKey || window._ventaEditandoOriginal) restaurarDescuentosEdicion309(); return calcPrev309.apply(this, arguments); };
-  document.addEventListener('sisventas:sale-before-confirm', function(){
-    if (window._ventaEditandoFbKey || window._ventaEditandoOriginal) restaurarDescuentosEdicion309();
-  });
+  // Los descuentos se cargan al abrir la venta. No restaurarlos al recalcular:
+  // un campo vacío puede ser una decisión del usuario, no un dato perdido.
 
   window.abrirDetalleVentaConfirmada309 = function(id, fbKey){
     if (typeof cerrarConfirmacionVenta === 'function') cerrarConfirmacionVenta();

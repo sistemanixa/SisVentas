@@ -92,6 +92,17 @@ function validarOferta(datos) {
   if (sin && !tasa) throw new Error('El precio no incluye IVA, pero no informa una alícuota verificable');
   return {precioArs:precio,moneda:'ARS',sinIva:sin,ivaOrigen,ivaAlicuota:tasa?Number(tasa[1].replace(',','.')):null,tituloProveedor:p.name,selectorPrecio:'Product.offers.price',disponibilidadProveedor:/\/InStock$/.test(o.availability || '')?'disponible':'no_verificado'};
 }
+function ofertaComprasParaguay(datos) {
+  const url=new URL(datos.url);
+  if(!/^(www\.)?(comprasparaguai\.com\.br|comprasparaguay\.com\.ar|comparaguay\.com\.py)$/.test(url.hostname)) throw new Error('Dominio del comparador no admitido');
+  const productos=datos.productos.filter(p=>[].concat(p.offers||[]).some(o=>o.url===datos.url));
+  if(productos.length!==1) throw new Error('Abrí la ficha de una tienda concreta; este enlace reúne varias ofertas');
+  const p=productos[0], ofertas=[].concat(p.offers||[]);
+  if(ofertas.length!==1 || ofertas[0]['@type']!=='Offer') throw new Error('Elegí una oferta concreta del comparador');
+  const o=ofertas[0], precio=Number(o.price), tienda=String(o.seller?.name||'').trim();
+  if(o.priceCurrency!=='USD'||!Number.isFinite(precio)||precio<=0||!tienda||!p.name) throw new Error('No se pudo verificar precio USD y tienda de la oferta');
+  return {precioOriginal:precio,moneda:'USD',requiereConversion:true,tituloProveedor:p.name,tiendaOrigen:tienda,fuente:'compras_paraguay_oferta_tienda',disponibilidadProveedor:/\/InStock$/.test(o.availability||'')?'disponible':'no_verificado'};
+}
 async function consultarAutomatico(proveedor, url) {
   if (!String(proveedor.web || '').trim()) throw new Error('Falta cargar la web del proveedor');
   if (url && !/^https:\/\//i.test(url)) throw new Error('La URL de prueba debe ser un enlace HTTPS completo del producto');
@@ -159,6 +170,10 @@ async function consultarAutomatico(proveedor, url) {
       document.querySelectorAll('script[type="application/ld+json"]').forEach(n=>{try{leer(JSON.parse(n.textContent));}catch(_){}});
       return {productos,titulo:(document.querySelector('h1')||{}).textContent||'',url:location.href,texto:document.body.innerText};
     });
+    if (/^(www\.)?(comprasparaguai\.com\.br|comprasparaguay\.com\.ar|comparaguay\.com\.py)$/.test(destino.hostname)) {
+      const oferta=ofertaComprasParaguay(datos);
+      return {ok:true,url:destino.href,...oferta,ficha:await extraerFichaPagina(page)};
+    }
     let precioCompraGamer;
     if (compraGamer) {
       const medio = proveedor.condicionComercial && proveedor.condicionComercial.medioPago;
@@ -206,4 +221,4 @@ function seleccionarPrecioCompraGamer(datos,url,medio) {
   if(!(precio>0))throw new Error('Precio de CompraGamer inválido');
   return precio;
 }
-module.exports={consultarAutomatico,validarOferta,urlProveedor,urlsProductoEquivalentes,esPaginaVerificacionSeguridad,firmaAcceso,aplicarCondicionComercial,seleccionarPrecioCompraGamer,direccionPublica,precioFlytec};
+module.exports={ofertaComprasParaguay,consultarAutomatico,validarOferta,urlProveedor,urlsProductoEquivalentes,esPaginaVerificacionSeguridad,firmaAcceso,aplicarCondicionComercial,seleccionarPrecioCompraGamer,direccionPublica,precioFlytec};
