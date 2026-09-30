@@ -33,6 +33,7 @@ function setup() {
     else target[keys.at(-1)]=clone(value);
   };
   const window = {
+    SisVentas:{carga:{mostrar:()=>()=>{}}},
     fbDB:{},
     fbRef(_db,path){ return String(path || '').replace(/^sisventas\/?/,''); },
     async fbGet(path){ return {val:()=>clone(get(path))}; },
@@ -58,7 +59,7 @@ function setup() {
     _svTotalVentaCanonico:venta=>Number(venta.total)||0
   });
   vm.runInContext(core,context);
-  return {context,db,writes,put};
+  return {context,db,writes,put,window};
 }
 
 test('Cobranzas registra pago, saldo y comprobante en una única escritura',async()=>{
@@ -204,4 +205,46 @@ test('el origen identifica Detalle, Cobranzas y Cuenta Corriente sin cambiar el 
   assert.match(source,/window\._cobOrigenVentaId = origen === 'venta' \? vid : null/);
   assert.match(source,/origen:\s+window\._cobOrigenVentaId \? 'venta' : 'cobranzas'/);
   assert.match(source,/origen:'cuenta_corriente'/);
+});
+
+test('dos cobros consecutivos saldan incluso los cuarenta centavos restantes',async()=>{
+ const t=setup();
+ for (const [grupo,monto] of [['primero',99.6],['segundo',0.4]]) {
+  await t.context.registrarCobrosCanonicos({grupoPago:grupo,solicitudes:[{ventaFbKey:'v1',monto,pagoKey:grupo}]});
+  assert.equal(t.db.control_cobros,undefined);
+ }
+ assert.equal(t.db.ventas.v1.totalPagado,100);
+ assert.equal(t.db.ventas.v1.estadoPago,'pago_total');
+ assert.equal(Object.keys(t.db.pagos).length,2);
+ assert.ok(t.writes.every(write=>write.control_cobros===null));
+});
+
+test('un error de cancelacion de desconexion no deja bloqueado un pago confirmado',async()=>{
+ const t=setup();
+ t.window.fbOnDisconnect=()=>({remove:async()=>{},cancel:async()=>{throw Error('desconexion');}});
+ const options={grupoPago:'confirmado',solicitudes:[{ventaFbKey:'v1',monto:40,pagoKey:'p1'}]};
+ await assert.rejects(t.context.registrarCobrosCanonicos(options),/desconexion/);
+ assert.equal(t.db.control_cobros,undefined);
+ await t.context.registrarCobrosCanonicos(options);
+ assert.equal(Object.keys(t.db.pagos).length,1);
+});
+
+test('libera tras un fallo aunque la transaccion comience con cache vacia',async()=>{
+ const t=setup(); const tx=t.window.fbRunTransaction;
+ let calls=0;
+ t.window.fbRunTransaction=async(path,fn)=>{
+  if(++calls===2) assert.equal(fn(null),null,'debe consultar al servidor, no abortar');
+  return tx(path,fn);
+ };
+ await assert.rejects(t.context.registrarCobrosCanonicos({grupoPago:'fallido',solicitudes:[{ventaFbKey:'v1',monto:101}]}),/saldo/);
+ assert.equal(t.db.control_cobros,undefined);
+});
+
+test('no borra el bloqueo de otra operacion activa',async()=>{
+ const t=setup();
+ t.window.fbUpdate=async()=>{t.put('control_cobros',{token:'otro',ts:Date.now()});throw Error('conexion');};
+ await assert.rejects(t.context.registrarCobrosCanonicos({grupoPago:'propio',solicitudes:[{ventaFbKey:'v1',monto:40}]}),/conexion/);
+ assert.equal(t.db.control_cobros.token,'otro');
+ await assert.rejects(t.context.registrarCobrosCanonicos({grupoPago:'siguiente',solicitudes:[{ventaFbKey:'v1',monto:40}]}),/otro cobro/);
+ assert.equal(Object.keys(t.db.pagos).length,0);
 });
