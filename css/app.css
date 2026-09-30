@@ -3179,3 +3179,14 @@ body.sv-exterior-dialog-open .content{overflow:hidden!important;overscroll-behav
 }
 @media(min-width:769px){#ventas-list-view>.card>:not(.table-wrap){flex:0 0 auto}#ventas-list-view>.card>.sv-search-filter-notice{height:auto;min-height:0}}
 
+
+/* El importe completo se adapta al ancho disponible de su tarjeta. */
+#dash-capacidad-facturar-card{min-width:0}
+#dash-capacidad-facturar-card #kpi-iva{font-size:20px;line-height:1.2;white-space:normal;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;max-width:100%}
+#dash-capacidad-facturar-card .m-sub{overflow-wrap:anywhere}
+
+#page-dashboard #dash-metricas-globales{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))!important}
+@media(max-width:560px){#page-dashboard #dash-metricas-globales{grid-template-columns:minmax(0,1fr)!important}}
+
+/* Tamaño uniforme de los indicadores principales del dashboard. */
+#page-dashboard #dash-metricas-globales .m-value{font-size:20px!important;line-height:1.2!important;font-variant-numeric:tabular-nums}

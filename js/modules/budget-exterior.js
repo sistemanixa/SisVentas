@@ -33,6 +33,24 @@
     return {aplicado:!!aplicado,origen:origen,disponible:disponible};
   }
   window.estadoCotizacionExteriorItem=estadoCotizacionExteriorItem;
+  var aplicandoCosto=false;
+  window.aplicarCostoParaguayItem=async function(index){
+    if(aplicandoCosto)return;
+    if(!window.tienePermiso('presupuestos.actualizarExterior'))return notify('Sin permiso para aplicar costos de Paraguay');
+    var record=buscarPptoPorRef(pptoActualId);
+    if(!record||!record.fbKey||record.ventaId||record.ventaFbKey||['convertido','anulado','rechazado'].includes(record.estado))return notify('Este presupuesto no admite cambios de costo');
+    var item=(record.items||[])[index];if(!item)return;
+    var product=obtenerProductoPorCodigoVenta(item.cod||item.codigo,item);
+    var oferta=window.PropuestasComerciales.mejorOfertaParaguay(item,product);
+    if(!oferta)return notify('No hay una cotización vigente de Paraguay disponible. Actualizá el precio del proveedor.');
+    var items=record.items.map(function(x){return Object.assign({},x);}),next=items[index];
+    next.costoCompraAnterior=obtenerCostoUnitarioVenta(item.cod||item.codigo,item);
+    next.costoUnitarioCompra=oferta.cost;next.costoTotalCompra=oferta.cost*Number(item.qty??item.cantidad??1);next.origenCompra='Paraguay';
+    delete next.costoUnitarioUSD;delete next.costoTotal;delete next.costo;
+    var audit=(record.audit||[]).concat([{fecha:new Date().toLocaleString('es-AR'),usuario:typeof currentUser==='undefined'?'':currentUser,accion:'Costo de compra Paraguay aplicado a '+(item.cod||item.codigo||'producto')+'. Precio al cliente conservado.'}]);
+    aplicandoCosto=true;
+    try{await pptoPersistirActualizar(record.fbKey,{items:items,audit:audit});record.items=items;record.audit=audit;verPpto(record.fbKey);notify('Costo de Paraguay aplicado. Precio al cliente sin cambios.');}catch(e){notify('No se pudo aplicar el costo: '+e.message);}finally{aplicandoCosto=false;}
+  };
   function tieneCompraExterior(record){return !!(record&&Array.isArray(record.items)&&record.items.some(function(it){return estadoCotizacionExteriorItem(it,null)&&estadoCotizacionExteriorItem(it,null).aplicado;}));}
   function costoTrasladoGuardado(record){return Math.max(0,Number(record&&record.costosTrasladoExteriorARS)||0);}
   async function guardarCostoTraslado(record,valor){
