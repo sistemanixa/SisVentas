@@ -3177,3 +3177,5 @@ body.sv-exterior-dialog-open .content{overflow:hidden!important;overscroll-behav
  #page-detalle #ventas-list-view .table-wrap{flex:1;min-height:120px;max-height:none}
  #ventas-list-view .ventas-list-footer{flex-shrink:0}
 }
+@media(min-width:769px){#ventas-list-view>.card>:not(.table-wrap){flex:0 0 auto}#ventas-list-view>.card>.sv-search-filter-notice{height:auto;min-height:0}}
+
