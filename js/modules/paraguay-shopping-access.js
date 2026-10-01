@@ -13,10 +13,11 @@
   }).filter(Boolean)].map(row => row.map(csvCell).join(';')).join('\r\n');
   if (typeof module !== 'undefined') module.exports = {eligible, quote, csv};
   if (!root.document) return;
-  let panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', busy = false;
+  let panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', busy = false, generation = 0;
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const amount = n => Number(n).toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
   function close() {
+    generation++;
     stops.forEach(stop => stop()); stops = [];
     panel?.remove(); panel = null; products = {}; lists = {}; selected = {}; listKey = ''; busy = false;
   }
@@ -51,6 +52,8 @@
   function renderSummary() {
     const entries = Object.entries(selected).filter(([key]) => eligible(products[key]));
     panel.querySelector('[data-cart-items]').innerHTML = entries.length ? entries.map(([key,qty]) => '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)"><span style="flex:1">'+esc(products[key].nombre || products[key].descripcion)+' <strong>× '+qty+'</strong></span><span>US$ '+amount(quote(products[key]).usd*qty)+'</span><button class="btn btn-sm" data-remove="'+esc(key)+'" aria-label="Quitar '+esc(products[key].nombre)+' del carrito">Quitar</button></div>').join('') : '<p class="py-note">Tu carrito está vacío. Agregá productos desde el catálogo.</p>';
+    const missingItems=Object.entries(selected).filter(([key])=>!eligible(products[key]));
+    if(missingItems.length)panel.querySelector('[data-cart-items]').insertAdjacentHTML('beforeend',missingItems.map(([key,qty])=>'<div class="py-note">Producto no disponible: '+esc(products[key]?.nombre||key)+' × '+qty+' <button class="btn btn-sm" data-remove="'+esc(key)+'">Quitar producto no disponible</button></div>').join(''));
     const usd = entries.reduce((s,[key,qty]) => s+quote(products[key]).usd*qty,0);
     const ars = entries.reduce((s,[key,qty]) => s+quote(products[key]).ars*qty,0);
     const missing = entries.filter(([key]) => !quote(products[key]).usd).length;
@@ -68,14 +71,17 @@
     panel.querySelector('[data-lists]').innerHTML = '<option value="">Nueva lista</option>'+Object.entries(lists).map(([key,list])=>'<option value="'+esc(key)+'"'+(key===listKey?' selected':'')+'>'+esc(list.nombre)+'</option>').join('');
   }
   function status(text) { if (panel) panel.querySelector('[data-status]').textContent = text; }
-  async function open(nombre) {
+  async function open(nombre, options = {}) {
     close();
-    if (root.currentRole !== 'compras_paraguay' || !root.currentUserUid) return;
-    const uid = root.currentUserUid;
-    const roleQuery = root.fbRef(root.fbDB, 'sv_chat_roles/'+uid);
+    const admin = root.currentRole === 'admin' && root.permisoModulo?.('balancecompra');
+    if ((!admin && root.currentRole !== 'compras_paraguay') || !root.currentUserUid) return;
+    const actor = root.currentUserUid, role = root.currentRole, session = generation;
+    const uid = admin && options.ownerUid || actor;
+    const valid = () => generation === session && root.currentUserUid === actor && root.currentRole === role;
+    const roleQuery = root.fbRef(root.fbDB, 'sv_chat_roles/'+actor);
     const identity = (await root.fbGet(roleQuery)).val();
-    if (root.currentUserUid !== uid || root.currentRole !== 'compras_paraguay') return;
-    if (!identity || identity.rol !== 'compras_paraguay' || identity.activo !== true) throw new Error('No se pudo verificar el acceso de Compras Paraguay');
+    if (!valid()) return;
+    if (!identity || identity.rol !== role || identity.activo !== true) throw new Error('No se pudo verificar el acceso de Compras Paraguay');
     panel = document.createElement('main'); panel.id = 'screen-paraguay';
     panel.innerHTML = `
       <style>
@@ -128,6 +134,20 @@
         </div>
       </div>`;
     document.body.appendChild(panel);
+    if (admin) {
+      panel.style.cssText = 'position:fixed;inset:0;z-index:10000';
+      panel.querySelector('.s-urole').textContent = 'Administrador · Compras Paraguay';
+      panel.querySelector('[data-logout]').textContent = 'Volver a Compras de exterior';
+      const back = document.createElement('button');
+      back.className = 'btn btn-sm';back.textContent = '← Compras de exterior';
+      back.onclick = () => {if(!busy){close();options.onClose?.();}};
+      panel.querySelector('.topbar-right').prepend(back);
+      panel.querySelector('.page-title').textContent = 'Paraguay · ' + (options.ownerName || 'Mis listas');
+      const ownerNote = document.createElement('p');
+      ownerNote.className = 'py-note';
+      ownerNote.textContent = 'Listas de: ' + (options.ownerName || nombre) + '. Los cambios se guardan para este usuario.';
+      panel.querySelector('[data-list-card]').prepend(ownerNote);
+    }
     panel.querySelector(".content").prepend(panel.querySelector("[data-products-card]"));
     const preferences = document.createElement('div');
     preferences.hidden = true;
@@ -153,7 +173,7 @@
       panel.querySelector('.sidebar').classList.remove('open');
       panel.querySelector('[data-menu]').setAttribute('aria-expanded','false');
     });
-    panel.querySelector('[data-logout]').onclick = () => root.doLogout();
+    panel.querySelector('[data-logout]').onclick = () => {if(admin){if(!busy){close();options.onClose?.();}}else root.doLogout();};
     panel.querySelector('[data-search]').oninput = renderProducts;
     panel.querySelector('[data-cart-items]').onclick = e => {const button=e.target.closest('[data-remove]');if(button){delete selected[button.dataset.remove];renderProducts();}};
     panel.querySelector('[data-cart]').onclick = () => panel.querySelector('[data-list-card]').scrollIntoView({behavior:'smooth',block:'start'});
@@ -181,18 +201,19 @@
       status(''); renderProducts();
     };
     panel.querySelector('[data-save]').onclick = async () => {
-      if (busy) return;
+      if (busy || !valid()) return;
       const name = panel.querySelector('[data-name]').value.trim();
       const items = Object.fromEntries(Object.entries(selected).filter(([key])=>eligible(products[key])));
+      if (Object.keys(selected).some(key=>!eligible(products[key]))) {status('La lista contiene productos que ya no están disponibles. Quitalos de la lista antes de guardar.');return;}
       if (!name || !Object.keys(items).length) { status('Completá el nombre y elegí al menos un producto con cantidad.'); return; }
       for (const input of panel.querySelectorAll('[data-product]')) if (!input.reportValidity()) return;
       busy = true; panel.querySelector('[data-save]').disabled = true; panel.querySelector('[data-lists]').disabled = true;
       const key = listKey || root.fbPush(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid)).key;
       try {
         await root.fbSet(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid+'/'+key),{nombre:name,productos:items,actualizadoEn:root.fbServerTimestamp()});
-        listKey = key; if(panel){renderLists();status('Lista guardada. No se generó una orden de compra.');}
-      } catch (e) {status('No se pudo guardar la lista. Revisá la conexión y el acceso.');}
-      finally {busy=false;if(panel){panel.querySelector('[data-save]').disabled=false;panel.querySelector('[data-lists]').disabled=false;}}
+        if(valid()&&panel){listKey = key;renderLists();status('Lista guardada. No se generó una orden de compra.');}
+      } catch (e) {if(valid())status('No se pudo guardar la lista. Revisá la conexión y el acceso.');}
+      finally {if(valid()){busy=false;if(panel){panel.querySelector('[data-save]').disabled=false;panel.querySelector('[data-lists]').disabled=false;}}}
     };
     panel.querySelector('[data-download]').onclick = () => {
       if (!Object.keys(selected).some(key=>eligible(products[key]))) {status('Elegí al menos un producto para descargar.');return;}
@@ -200,9 +221,10 @@
       link.href=url;link.download='lista-compras-paraguay.csv';link.click();URL.revokeObjectURL(url);
     };
     const query = root.fbQuery(root.fbRef(root.fbDB,'sisventas/productos'),root.fbOrderByChild('categoria'),root.fbEqualTo(CATEGORY));
-    stops.push(root.fbOnValue(query,snap=>{products=snap.val()||{};if(panel)renderProducts();},()=>status('No se pudo cargar el catálogo autorizado.')));
-    stops.push(root.fbOnValue(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid),snap=>{lists=snap.val()||{};if(panel)renderLists();},()=>status('No se pudieron cargar tus listas.')));
-    stops.push(root.fbOnValue(roleQuery,snap=>{const role=snap.val();if(!role||role.activo!==true||role.rol!=='compras_paraguay')root.doLogout();}));
+    stops.push(root.fbOnValue(query,snap=>{if(!valid())return;products=snap.val()||{};if(panel)renderProducts();},()=>status('No se pudo cargar el catálogo autorizado.')));
+    let initialList = options.listKey || '';
+    stops.push(root.fbOnValue(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid),snap=>{if(!valid())return;lists=snap.val()||{};if(panel){if(initialList){listKey=initialList;initialList='';const list=lists[listKey]||{};selected={...list.productos};panel.querySelector('[data-name]').value=list.nombre||'';renderProducts();}renderLists();}},()=>status('No se pudieron cargar tus listas.')));
+    stops.push(root.fbOnValue(roleQuery,snap=>{if(!valid())return;const identity=snap.val();if(!identity||identity.activo!==true||identity.rol!==role){close();root.doLogout();}}));
     renderProducts();
   }
   const originalRoles = root._renderTablaRolesUI;
@@ -211,5 +233,6 @@
     const container = document.getElementById('cfg-roles-tabla');
     if (container) container.insertAdjacentHTML('afterbegin','<section class="card" aria-label="Rol Compras Paraguay"><div class="card-head"><span class="card-title">Compras Paraguay</span><span class="badge">Acceso limitado</span></div><p>Catálogo exclusivo de la categoría COMPRAS PARAGUAY, listas de compra propias y ajustes de apariencia.</p><p style="font-size:12px;color:var(--text3)">Este rol se asigna desde Usuarios. No tiene acceso a los módulos generales ni modifica productos.</p></section>');
   };
+  document.addEventListener('sisventas:session-ended',close);
   root.SVParaguayPortal = {open,close};
 })(typeof window === 'undefined' ? {} : window);

@@ -50,3 +50,14 @@ test('roles existentes conservan lectura y escritura comercial',async()=>{
   await assertSucceeds(set(ref(other,'sisventas/compatibilidad/'+rol),true));
  }
 });
+
+test('admin crea listas propias y edita las de Paraguay sin habilitar otros roles',async()=>{
+ const admin=env.authenticatedContext('admin').database();
+ await assertSucceeds(set(ref(admin,'sv_listas_paraguay/admin/propia'),list));
+ await assertSucceeds(set(ref(admin,'sv_listas_paraguay/py/lista1'),{...list,nombre:'Editada por admin',productos:{py1:3}}));
+ assert.equal((await get(ref(db,'sv_listas_paraguay/py/lista1'))).val().productos.py1,3);
+ await assertFails(set(ref(admin,'sv_listas_paraguay/py/invalida'),{...list,productos:{local1:1}}));
+ for(const rol of ['administrativo','vendedor','tecnico','tecnico_vendedor','baja','otro']){
+   await assertFails(set(ref(env.authenticatedContext(rol).database(),'sv_listas_paraguay/py/lista1'),list));
+ }
+});

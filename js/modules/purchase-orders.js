@@ -301,6 +301,44 @@
     };
   }
 
+  // Los extras pertenecen al pedido, pero no se mezclan con list.items:
+  // esas filas conservan la asignación y los costos propios de cada venta.
+  function extraMaterialItems(list) {
+    var sim = (list && list.simuladorParaguay) || {};
+    var parameters = sim.parameters || {};
+    var extras = sim.extras || [];
+    var goods = extras.reduce(function(sum, row) { return sum + (Number(row.qty) || 0) * (Number(row.usd) || 0); }, 0);
+    var rate = Number(sim.chosen === 'remote' ? parameters.usdt : parameters.usd) || 0;
+    var logistics = (Number(parameters.extraLogisticsUSD) || 0) * (Number(parameters.usd) || 0);
+    return extras.map(function(row) {
+      var item = {
+        productoKey: row.productKey || '', codigo: row.code || '', descripcion: row.description || '',
+        cantidadNecesaria: Number(row.qty) || 0, usarExistente: 0, cantidadComprar: Number(row.qty) || 0,
+        incluir: true, esExtra: true, destino: 'stock',
+        proveedor: row.provider || '', proveedorKey: row.providerKey || '',
+        proveedorUrl: safeProviderUrl(row.providerUrl), precioOrigenUSD: Number(row.usd) || 0,
+        costoUnitario: (Number(row.usd) || 0) * rate + (goods ? logistics * (Number(row.usd) || 0) / goods : 0)
+      };
+      // Compatibilidad con simulaciones anteriores que no guardaban el enlace.
+      if (!item.proveedorUrl) item.proveedores = providersFor(findProduct(item));
+      return item;
+    });
+  }
+
+  function extraMaterialRowsHTML(list) {
+    var extras = extraMaterialItems(list);
+    if (!extras.length) return '';
+    var total = extras.reduce(function(sum, item) { return sum + item.cantidadComprar * item.costoUnitario; }, 0);
+    return '<tr class="oc-provider-group"><td colspan="10"><div class="oc-provider-group-head"><strong>Extras · stock general</strong><span>' + extras.length + ' productos · Total ' + money(total) + '</span></div><small>Incluidos en el pedido. El stock ingresa al registrar la recepción.</small></td></tr>' + extras.map(function(item, index) {
+      var url = providerUrlForItem(item), amount = item.cantidadComprar * item.costoUnitario;
+      return '<tr data-index="extra-' + index + '"><td class="oc-material-check"><span class="badge b-green">Extra</span></td>' +
+        '<td class="oc-material-product" data-label="Material"><div class="oc-material-product-content">' + productThumbnail(item) + '<div class="oc-material-product-copy"><strong>' + esc(item.codigo) + '</strong><div class="oc-material-description">' + esc(item.descripcion) + '</div></div></div></td>' +
+        '<td data-label="Necesario">' + formatOrderQuantity(item.cantidadNecesaria) + '</td><td data-label="Ya tenemos">—</td><td data-label="A comprar">' + formatOrderQuantity(item.cantidadComprar) + '</td>' +
+        '<td class="oc-material-provider" data-label="Proveedor">' + esc(item.proveedor) + (url ? '<div><a href="' + attr(url) + '" target="_blank" rel="noopener">Abrir link de compra</a></div>' : '') + '</td>' +
+        '<td data-label="Costo estimado">' + money(amount) + '</td><td data-label="USD equivalente">' + materialEquivalent(amount, 'USD') + '</td><td data-label="USDT equivalente">' + materialEquivalent(amount, 'USDT') + '</td><td class="oc-material-reference">Stock general · USD ' + item.precioOrigenUSD.toLocaleString('es-AR') + ' por unidad</td></tr>';
+    }).join('');
+  }
+
   function saleRef(value) {
     if (value && typeof value === 'object') return value;
     var ref = String(value || '');
@@ -517,7 +555,7 @@
           '<td class="oc-material-reference" data-label="Referencia">Operativo: ' + (parseFloat(op.general) || 0) + ' general · ' + (parseFloat(op.reservado) || 0) + ' reservado<br>Catálogo viejo: ' + legacy + ' (no verificado)' + (product ? '<br><button class="btn btn-sm" onclick="navegarAProducto(\'' + attr(product.fbKey || product.codigo) + '\')">Ver producto</button>' : '') + '</td>' +
         '</tr>';
       }).join('') +
-      '</tbody></table></div>' +
+      extraMaterialRowsHTML(list) + '</tbody></table></div>' +
       (list.compraConfirmacion && list.compraConfirmacion.estado==='pendiente' ? '<button class="btn btn-primary" onclick="ocGenerarOrdenesDesdeLista()">Reanudar confirmación de compra</button>' : '') +
       (window.permisoModulo && window.permisoModulo('balancecompra') ? '<button class="btn" onclick="ocAbrirSimuladorParaguay()">Simular compra Paraguay</button>' : '') +
       '<p style="font-size:12px;color:var(--text3)">Columnas USD y USDT: equivalentes del costo en pesos. Dólar: '+money(materialRates().usd)+' · USDT: '+(materialRates().usdt?money(materialRates().usdt):'sin cotización disponible')+'. El selector muestra el USD de origen cuando está informado; el costo en pesos conserva el valor registrado.</p>' +
@@ -589,7 +627,7 @@
     var el = document.getElementById('oc-material-summary');
     var list = state.activeList;
     if (!el || !list) return;
-    var purchase = (list.items || []).filter(function (i) { return isPurchasableMaterialItem(i) && i.incluir && i.cantidadComprar > 0; });
+    var purchase = (list.items || []).filter(function (i) { return isPurchasableMaterialItem(i) && i.incluir && i.cantidadComprar > 0; }).concat(extraMaterialItems(list));
     var groups = {};
     var missing = 0;
     purchase.forEach(function (i) {
@@ -658,6 +696,15 @@
         Math.round(buy * unitCost * 100) / 100, providerUrlForItem(item)
       ]);
     });
+    var extras = extraMaterialItems(list);
+    if (extras.length) {
+      rows.push(['Extras · stock general', '', '', '', '', '', '', '', '', '', '']);
+      groupRows.push(rows.length);
+      extras.forEach(function(item) {
+        rows.push(['Extra', 'Sí', item.codigo, item.descripcion, item.cantidadNecesaria, 0, item.cantidadComprar, item.proveedor,
+          item.costoUnitario, Math.round(item.cantidadComprar * item.costoUnitario * 100) / 100, providerUrlForItem(item)]);
+      });
+    }
     return { rows: rows, groupRows: groupRows };
   }
 
@@ -668,7 +715,7 @@
 
   function buildWhatsAppOrderText(list, providerFilter) {
     var filterKey = String(providerFilter || '').trim().toLowerCase();
-    var items = ((list && list.items) || []).filter(function (item) {
+    var items = ((list && list.items) || []).concat(extraMaterialItems(list)).filter(function (item) {
       return isPurchasableMaterialItem(item) && item.incluir && (parseFloat(item.cantidadComprar) || 0) > 0 && (!filterKey || providerGroupKey(item) === filterKey);
     });
     if (!items.length) throw new Error('No hay materiales seleccionados para copiar');
@@ -688,10 +735,13 @@
       groupByProvider[key].items.push(item);
     });
     return groups.map(function (group) {
-      var products = group.items.map(function (item) {
+      var productText = function (item) {
         return '*' + formatOrderQuantity(item.cantidadComprar) + ' x ' + String(item.codigo || '').trim() + '*\n' +
           String(item.descripcion || '').trim() + '\n' + providerUrlForItem(item);
-      }).join('\n\n');
+      };
+      var products = group.items.filter(function(item) { return !item.esExtra; }).map(productText).join('\n\n');
+      var extras = group.items.filter(function(item) { return item.esExtra; });
+      if (extras.length) products += (products ? '\n\n' : '') + '*Extras · stock general*\n\n' + extras.map(productText).join('\n\n');
       return '*PEDIDO – ' + group.provider.toLocaleUpperCase('es') + '*\n\n' + products;
     }).join('\n\n\n');
   }
@@ -1076,7 +1126,7 @@
     var lists=state.lists.filter(function(l){return !l.compraConjuntaId&&!l.desagrupada&&balanceTieneCompraExterior(l);}).sort(function(a,b){return Number(balanceFinalizado(a))-Number(balanceFinalizado(b)) || Number(b.ts||0)-Number(a.ts||0);});
     var active=lists.filter(function(l){return !balanceFinalizado(l);}).length;
     var lastSection='';
-    target.innerHTML='<style>#balance-compra-content .bc-card{padding:24px;margin:0}#balance-compra-content .bc-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}#balance-compra-content .bc-head h2{font-size:20px;margin:0 0 8px}#balance-compra-content .bc-alert{padding:12px 16px;background:#e5b83b18;border-left:3px solid #e5b83b;color:var(--amber,#e5b83b);margin:18px 0;border-radius:6px}#balance-compra-content .bc-meta{margin:16px 0;color:var(--text2)}#balance-compra-content .bc-comparison{display:grid;grid-template-columns:1fr 1fr;gap:18px}#balance-compra-content .bc-comparison section{padding:22px;border-radius:14px;border:1px solid var(--border2);background:var(--bg3)}#balance-compra-content .bc-comparison .bc-after{border-color:#46b78c;background:#46b78c10}#balance-compra-content .bc-comparison h3{margin:0;font-size:18px}#balance-compra-content .bc-comparison p{color:var(--text3);margin:7px 0 22px}#balance-compra-content .bc-amount{display:flex;flex-direction:column;gap:7px;min-width:0}#balance-compra-content .bc-amount>span{color:var(--text2);font-size:13px}#balance-compra-content .bc-amount>strong{font-size:clamp(21px,2.5vw,32px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}#balance-compra-content .bc-amount>small{color:var(--text3);line-height:1.5}#balance-compra-content .bc-margin{display:flex;justify-content:space-between;align-items:center;margin:20px 0;font-size:16px}#balance-compra-content .bc-margin strong{font-size:28px}#balance-compra-content .bc-improvement{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:22px;background:#36b87818;border:1px solid #36b87866;border-radius:14px;margin-top:18px;color:#64dba1}#balance-compra-content .bc-improvement>div:last-child{display:flex;flex-direction:column;gap:6px;justify-content:center}#balance-compra-content .bc-improvement>div:last-child>strong{font-size:30px}#balance-compra-content .bc-loss{background:#df565618;color:#ff9292;border-color:#df5656}#balance-compra-content .bc-cost-title{margin:26px 0 14px}#balance-compra-content .bc-costs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}#balance-compra-content .bc-costs .bc-amount{padding:18px;background:var(--bg3);border-radius:12px;border-top:3px solid var(--blue,#6f9fea)}#balance-compra-content .bc-costs .bc-amount>strong{font-size:23px}#balance-compra-content .bc-footnote{font-size:12px;line-height:1.6;color:var(--text3);margin-bottom:0}@media(max-width:650px){#balance-compra-content .bc-comparison,#balance-compra-content .bc-costs,#balance-compra-content .bc-improvement{grid-template-columns:1fr}#balance-compra-content .bc-card{padding:16px}}</style><div class="card"><h2>Compras · preparar y seguir</h2><button class="btn btn-primary" onclick="ocNuevaCompraConjunta()">Reunir ventas en una compra</button> <button class="btn btn-primary" onclick="ocNuevaCompraStock()">Nueva compra para stock</button><p>'+active+' compras activas · '+(lists.length-active)+' finalizadas · '+lists.filter(function(l){return !!l.simuladorParaguay;}).length+' con simulación</p><p>Reuní las ventas que vas a comprar juntas. Cada viaje o pedido tiene sus gastos una sola vez; los productos conservan su destino.</p></div><div style="display:grid;grid-template-columns:minmax(0,1fr);gap:18px">'+(lists.length?lists.map(function(list){
+    target.innerHTML='<style>#balance-compra-content .bc-card{padding:24px;margin:0}#balance-compra-content .bc-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}#balance-compra-content .bc-head h2{font-size:20px;margin:0 0 8px}#balance-compra-content .bc-alert{padding:12px 16px;background:#e5b83b18;border-left:3px solid #e5b83b;color:var(--amber,#e5b83b);margin:18px 0;border-radius:6px}#balance-compra-content .bc-meta{margin:16px 0;color:var(--text2)}#balance-compra-content .bc-comparison{display:grid;grid-template-columns:1fr 1fr;gap:18px}#balance-compra-content .bc-comparison section{padding:22px;border-radius:14px;border:1px solid var(--border2);background:var(--bg3)}#balance-compra-content .bc-comparison .bc-after{border-color:#46b78c;background:#46b78c10}#balance-compra-content .bc-comparison h3{margin:0;font-size:18px}#balance-compra-content .bc-comparison p{color:var(--text3);margin:7px 0 22px}#balance-compra-content .bc-amount{display:flex;flex-direction:column;gap:7px;min-width:0}#balance-compra-content .bc-amount>span{color:var(--text2);font-size:13px}#balance-compra-content .bc-amount>strong{font-size:clamp(21px,2.5vw,32px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}#balance-compra-content .bc-amount>small{color:var(--text3);line-height:1.5}#balance-compra-content .bc-margin{display:flex;justify-content:space-between;align-items:center;margin:20px 0;font-size:16px}#balance-compra-content .bc-margin strong{font-size:28px}#balance-compra-content .bc-improvement{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:22px;background:#36b87818;border:1px solid #36b87866;border-radius:14px;margin-top:18px;color:#64dba1}#balance-compra-content .bc-improvement>div:last-child{display:flex;flex-direction:column;gap:6px;justify-content:center}#balance-compra-content .bc-improvement>div:last-child>strong{font-size:30px}#balance-compra-content .bc-loss{background:#df565618;color:#ff9292;border-color:#df5656}#balance-compra-content .bc-cost-title{margin:26px 0 14px}#balance-compra-content .bc-costs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}#balance-compra-content .bc-costs .bc-amount{padding:18px;background:var(--bg3);border-radius:12px;border-top:3px solid var(--blue,#6f9fea)}#balance-compra-content .bc-costs .bc-amount>strong{font-size:23px}#balance-compra-content .bc-footnote{font-size:12px;line-height:1.6;color:var(--text3);margin-bottom:0}@media(max-width:650px){#balance-compra-content .bc-comparison,#balance-compra-content .bc-costs,#balance-compra-content .bc-improvement{grid-template-columns:1fr}#balance-compra-content .bc-card{padding:16px}}#page-balancecompra .btn-primary{background:var(--green-bg);color:var(--green);border:1px solid var(--green);box-shadow:none}#page-balancecompra .btn-primary:hover{filter:brightness(1.15)}#page-balancecompra .btn:focus-visible{outline:2px solid var(--blue);outline-offset:3px}#balance-compra-content .bc-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 18px;border-left:3px solid var(--blue)}#balance-compra-content .bc-toolbar h2{font-size:17px;margin:0 0 6px}#balance-compra-content .bc-toolbar p{margin:4px 0;font-size:12px;color:var(--text3)}#balance-compra-content .bc-toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}#balance-compra-content .bc-toolbar-actions .btn{font-size:12px;padding:8px 12px}#balance-compra-content .bc-toolbar-actions .bc-joint{background:var(--blue-bg,var(--bg3));color:var(--blue);border-color:var(--blue)}#balance-compra-content .bc-card{padding:14px}#balance-compra-content .bc-head{gap:8px}#balance-compra-content .bc-head h2{font-size:16px;margin:0 0 3px;overflow-wrap:anywhere}#balance-compra-content .bc-head span{font-size:11px;color:var(--text3)}#balance-compra-content .bc-head .btn{padding:7px 11px;font-size:12px}#balance-compra-content .bc-alert{padding:6px 10px;margin:9px 0;font-size:11px}#balance-compra-content .bc-meta{margin:7px 0;font-size:11px}#balance-compra-content .bc-comparison{gap:10px}#balance-compra-content .bc-comparison section{padding:10px 12px;border-radius:9px}#balance-compra-content .bc-comparison h3{font-size:13px}#balance-compra-content .bc-comparison p{font-size:11px;margin:3px 0 8px}#balance-compra-content .bc-amount{gap:2px}#balance-compra-content .bc-amount>span{font-size:11px}#balance-compra-content .bc-amount>strong{font-size:20px}#balance-compra-content .bc-amount>small,#balance-compra-content .bc-comparison section>small{font-size:10px}#balance-compra-content .bc-margin{margin:7px 0;font-size:11px}#balance-compra-content .bc-margin strong{font-size:16px}#balance-compra-content .bc-improvement{padding:9px 12px;gap:10px;margin-top:9px;border-radius:9px}#balance-compra-content .bc-improvement>div:last-child{gap:2px;font-size:11px}#balance-compra-content .bc-improvement>div:last-child>strong{font-size:18px}#balance-compra-content .bc-cost-title{margin:11px 0 7px;font-size:13px}#balance-compra-content .bc-costs{gap:8px}#balance-compra-content .bc-costs .bc-amount{padding:8px 10px;border-radius:8px;border-top-width:2px}#balance-compra-content .bc-costs .bc-amount>strong{font-size:16px}#balance-compra-content .bc-footnote{font-size:10px;line-height:1.4;margin:8px 0 0}#exterior-user-lists{padding:16px 18px;border-left:3px solid var(--green)}#exterior-user-lists .card-head{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}#exterior-user-lists .card-title{font-size:15px;text-transform:none;letter-spacing:0;font-weight:700;color:var(--text);margin-right:auto}#exterior-user-lists>p{margin:5px 0 10px;line-height:1.4}@media(max-width:650px){#balance-compra-content .bc-toolbar-actions{width:100%}#balance-compra-content .bc-toolbar-actions .btn{flex:1}#balance-compra-content .bc-amount>strong{font-size:18px}}</style><div class="card bc-toolbar"><div><h2>Compras · preparar y seguir</h2><p>'+active+' activas · '+(lists.length-active)+' finalizadas · '+lists.filter(function(l){return !!l.simuladorParaguay;}).length+' con simulación</p><p>Cada pedido reúne productos y gastos, conservando su destino.</p></div><div class="bc-toolbar-actions"><button class="btn btn-primary bc-joint" onclick="ocNuevaCompraConjunta()"><i class="ti ti-files" aria-hidden="true"></i> Reunir ventas</button><button class="btn btn-primary" onclick="ocNuevaCompraStock()"><i class="ti ti-plus" aria-hidden="true"></i> Compra para stock</button></div></div><div style="display:grid;grid-template-columns:minmax(0,1fr);gap:18px">'+(lists.length?lists.map(function(list){
       var section=balanceFinalizado(list)?'Finalizadas':'Activas sin finalizar';
       var header=section!==lastSection?'<h3 style="grid-column:1/-1;margin:10px 0 0">'+section+'</h3>':'';lastSection=section;
       var m=balanceIndicadores(list), pct=function(v){return v===null?'—':v.toLocaleString('es-AR',{maximumFractionDigits:2})+'%';};
@@ -1876,6 +1926,7 @@
     purchaseSummaryForProvider: purchaseSummaryForProvider,
     applyRecommendedProviders: applyRecommendedProviders,
     buildMaterialExportRows: buildMaterialExportRows,
+    extraMaterialItems: extraMaterialItems,
     buildWhatsAppOrderText: buildWhatsAppOrderText,
     syncOTConsumption: syncOTConsumption,
     releaseOTLeftovers: releaseOTLeftovers,

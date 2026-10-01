@@ -89,7 +89,7 @@
       "$uid": {
         ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || (auth.uid === $uid && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'compras_paraguay'))",
         "$lista": {
-          ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'compras_paraguay' && auth.uid === $uid",
+          ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'compras_paraguay' && auth.uid === $uid))",
           ".validate": "newData.hasChildren(['nombre','productos','actualizadoEn'])",
           "nombre": {
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"

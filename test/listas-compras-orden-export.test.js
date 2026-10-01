@@ -56,7 +56,7 @@ test('la lista vuelve al orden vigente de la venta y conserva decisiones por pro
 
 test('la interfaz permite agrupar sin reemplazar el orden y exporta un xlsx con hipervínculos', () => {
   assert.match(source, /Agrupar por proveedor/);
-  assert.match(source, /Ver orden de venta/);
+  assert.match(source, /Desagrupar/);
   assert.match(source, /Exportar Excel/);
   assert.match(source, /window\.XLSX\.utils\.aoa_to_sheet/);
   assert.match(source, /linkCell\.l = \{ Target: linkCell\.v/);
@@ -174,4 +174,48 @@ test('el pedido para WhatsApp exige proveedor y URL en cada material seleccionad
   assert.throws(() => purchases.buildWhatsAppOrderText({items:[
     {productoKey:'prod-a',codigo:'A',descripcion:'Producto A',incluir:true,cantidadComprar:1,proveedor:'Proveedor Uno',proveedorUrl:''}
   ]}), /Falta el link de compra de A/);
+});
+
+test('los extras se agrupan en el pedido y Excel, incluso si repiten un producto de la venta', () => {
+  const purchases = loadModule();
+  const list = {items:[
+    {productoKey:'prod-a',codigo:'A',descripcion:'Para la venta',incluir:true,cantidadComprar:1,cantidadNecesaria:1,proveedor:'Proveedor Uno',proveedorKey:'p1',proveedorUrl:'https://proveedor.test/a',costoUnitario:100}
+  ],simuladorParaguay:{chosen:'remote',parameters:{usd:1000,usdt:1100,extraLogisticsUSD:10},extras:[
+    {productKey:'prod-a',code:'A',description:'Extra del mismo producto',provider:'Proveedor Uno',providerKey:'p1',qty:3,usd:8},
+    {productKey:'prod-b',code:'B',description:'Extra de otro proveedor',provider:'Proveedor Dos',providerKey:'p2',providerUrl:'https://proveedor.test/b-negociado',qty:2,usd:5}
+  ]}};
+  const before = JSON.stringify(list);
+  const extras = purchases.extraMaterialItems(list);
+  assert.equal(extras.length,2);
+  assert.equal(extras[0].destino,'stock');
+  assert.equal(extras[0].cantidadComprar,3);
+  assert.equal(extras.reduce((s,i)=>s+i.cantidadComprar*i.costoUnitario,0),47400);
+  const text = purchases.buildWhatsAppOrderText(list);
+  assert.match(text,/\*1 x A\*\nPara la venta/);
+  assert.match(text,/\*Extras · stock general\*\n\n\*3 x A\*\nExtra del mismo producto\nhttps:\/\/proveedor.test\/a/);
+  assert.match(text,/\*2 x B\*\nExtra de otro proveedor\nhttps:\/\/proveedor.test\/b-negociado/);
+  assert.doesNotMatch(purchases.buildWhatsAppOrderText(list,'p2'), /Para la venta|Extra del mismo producto/);
+  for (const grouped of [true,false]) {
+    purchases.state.groupMaterialsByProvider=grouped;
+    const exported=purchases.buildMaterialExportRows(list);
+    const header=exported.rows.findIndex(row=>row[0]==='Extras · stock general');
+    assert.ok(header>0);
+    assert.ok(exported.groupRows.includes(header+1));
+    assert.deepEqual(Array.from(exported.rows.slice(header+1),row=>[row[0],row[2],row[6]]),[['Extra','A',3],['Extra','B',2]]);
+    assert.equal(exported.rows[header+1][10],'https://proveedor.test/a');
+  }
+  assert.equal(JSON.stringify(list),before,'Mostrar/exportar no modifica la venta, la simulación ni el stock');
+});
+
+test('una lista sólo de extras conserva sus productos, costos y enlaces al reabrirla', () => {
+  const purchases=loadModule();
+  const list=JSON.parse(JSON.stringify({items:[],simuladorParaguay:{chosen:'onsite',parameters:{usd:1000,usdt:1100,extraLogisticsUSD:2},extras:[
+    {productKey:'prod-a',code:'A',description:'Stock',provider:'Proveedor Uno',providerKey:'p1',qty:2,usd:10}
+  ]}}));
+  assert.equal(purchases.extraMaterialItems(list)[0].costoUnitario,11000);
+  assert.match(purchases.buildWhatsAppOrderText(list),/Extras · stock general/);
+  assert.equal(purchases.buildMaterialExportRows(list).rows.length,3);
+  list.simuladorParaguay.extras=[];
+  assert.equal(purchases.buildMaterialExportRows(list).rows.length,1);
+  assert.throws(()=>purchases.buildWhatsAppOrderText(list),/No hay materiales/);
 });

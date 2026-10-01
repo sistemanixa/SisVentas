@@ -23,7 +23,7 @@ function reglasParaguay(base) {
     '$uid': {
       '.read':active+" && ("+role+" === 'admin' || (auth.uid === $uid && "+role+" === 'compras_paraguay'))",
       '$lista': {
-        '.write':restricted+' && auth.uid === $uid',
+        '.write':active+" && ("+role+" === 'admin' || ("+role+" === 'compras_paraguay' && auth.uid === $uid))",
         '.validate':"newData.hasChildren(['nombre','productos','actualizadoEn'])",
         nombre:{'.validate':'newData.isString() && newData.val().length > 0 && newData.val().length <= 120'},
         actualizadoEn:{'.validate':'newData.isNumber() && newData.val() <= now + 300000 && newData.val() >= 0'},
