@@ -1069,6 +1069,7 @@
   }
 
   function renderBalanceCompra() {
+    if(window.SVExteriorLists)window.SVExteriorLists.mount();
     var target=document.getElementById('balance-compra-content');
     if(!target)return;
     if(!window.permisoModulo || !window.permisoModulo('balancecompra')){target.innerHTML='';return;}
