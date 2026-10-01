@@ -1,5 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync('js/app.v3.8.8.js','utf8');
+const appPath=fs.readFileSync('index.html','utf8').match(/src="\.\/(js\/app\.v[0-9.]+\.js)"/)[1];
+const source=fs.readFileSync(appPath,'utf8');
 const routine=source.slice(source.indexOf('function actualizarAutomaticamente('),source.indexOf('function restaurarPaginaPostActualizacion('));
 function setup(options={}) {
   let now=1000,id=0;const timers=new Map(),nodes=new Map(),storage=new Map(),redirects=[],messages=[];
@@ -51,6 +52,7 @@ test('pausa de recuperación impide volver a bloquear por otro aviso',()=>{
 
 test('activación conserva PDFs y cachés ajenas, elimina sólo versiones anteriores',async()=>{
   const listeners={},deleted=[];let pending;
-  const c={URL,Request,Response,Promise,self:{addEventListener:(type,fn)=>listeners[type]=fn,clients:{claim:()=>{}},location:{origin:'https://ventas.sistemanixa.com'}},caches:{keys:async()=>['sisventas-v3.8.7','sisventas-v3.8.8','sisventas-pdf-transitorios','otra-aplicacion'],delete:async key=>deleted.push(key)}};
+  const currentCache=fs.readFileSync('sw.js','utf8').match(/const CACHE = '([^']+)'/)[1];
+  const c={URL,Request,Response,Promise,self:{addEventListener:(type,fn)=>listeners[type]=fn,clients:{claim:()=>{}},location:{origin:'https://ventas.sistemanixa.com'}},caches:{keys:async()=>['sisventas-v3.8.7',currentCache,'sisventas-pdf-transitorios','otra-aplicacion'],delete:async key=>deleted.push(key)}};
   vm.runInNewContext(fs.readFileSync('sw.js','utf8'),c);listeners.activate({waitUntil:p=>pending=p});await pending;assert.deepEqual(deleted,['sisventas-v3.8.7']);
 });

@@ -442,5 +442,8 @@ test('el proxy de imágenes acepta solo orígenes HTTPS autorizados', () => {
   assert.equal(urlImagenProductoPermitida('https://www.tecnoprices.com/mayorista/imagen.jpg').hostname, 'www.tecnoprices.com');
   assert.equal(urlImagenProductoPermitida('http://www.biosegur.com.ar/thumb/insegura.jpg'), null);
   assert.equal(urlImagenProductoPermitida('https://example.com/imagen.jpg'), null);
+  assert.equal(urlImagenProductoPermitida('https://www.flytec.com.py/produtos/8604.JPG').hostname, 'www.flytec.com.py');
+  assert.equal(urlImagenProductoPermitida('https://bucket-prod.us-ord-10.linodeobjects.com/site/photo.webp').hostname, 'bucket-prod.us-ord-10.linodeobjects.com');
+  assert.equal(urlImagenProductoPermitida('https://otro.linodeobjects.com/photo.webp'), null);
   assert.equal(urlImagenProductoPermitida('https://biosegur.com.ar.evil.test/imagen.jpg'), null);
 });

@@ -31,6 +31,16 @@ function reglasParaguay(base) {
           '.validate':'newData.hasChildren()',
           '$producto':{'.validate':"newData.isNumber() && newData.val() > 0 && newData.val() <= 9999 && newData.val() % 1 === 0 && root.child('sisventas/productos').child($producto).child('categoria').val() === 'COMPRAS PARAGUAY' && root.child('sisventas/productos').child($producto).child('activo').val() !== false && root.child('sisventas/productos').child($producto).child('estado').val() !== 'Inactivo' && root.child('sisventas/productos').child($producto).child('esManoDeObra').val() !== true"}
         },
+        comprasFinales:{
+          '$producto':{
+            '.validate':"newData.parent().parent().child('productos').child($producto).exists() && newData.hasChildren(['cantidad','precioUnitario','moneda','proveedor'])",
+            cantidad:{'.validate':'newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999 && newData.val() % 1 === 0'},
+            precioUnitario:{'.validate':'newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000'},
+            moneda:{'.validate':"newData.isString() && (newData.val() === 'USD' || newData.val() === 'ARS' || newData.val() === 'PYG')"},
+            proveedor:{'.validate':'newData.isString() && newData.val().length <= 120'},
+            '$otro':{'.validate':false}
+          }
+        },
         '$otro':{'.validate':false}
       }
     }

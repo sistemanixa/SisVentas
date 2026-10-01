@@ -20,7 +20,7 @@
     reset();owner=root.currentUserUid;
     const page=document.getElementById('page-balancecompra');if(!page)return;
     host=document.createElement('section');host.className='card';host.id='exterior-user-lists';
-    host.innerHTML='<div class="card-head"><span class="card-title">Listas de compra de usuarios</span><button class="btn btn-sm btn-primary" data-catalog>Catálogo Paraguay · Mis listas</button><button class="btn btn-sm" data-refresh>Actualizar listas</button></div><p style="font-size:12px;color:var(--text3)">Agrupadas por usuario. Los totales se calculan con los precios actuales del catálogo; estas listas todavía no son órdenes de compra.</p><div data-results role="status">Cargando listas…</div>';
+    host.innerHTML='<div class="card-head"><span class="card-title">Listas de compra de usuarios</span><button class="btn btn-sm btn-primary" data-catalog>Ofertas · Mis listas</button><button class="btn btn-sm" data-refresh>Actualizar listas</button></div><p style="font-size:12px;color:var(--text3)">Agrupadas por usuario. Los totales se calculan con los precios actuales del catálogo; estas listas todavía no son órdenes de compra.</p><div data-results role="status">Cargando listas…</div>';
     page.prepend(host);host.querySelector('[data-refresh]').onclick=load;
     host.onclick=async e=>{
       const button=e.target.closest('[data-catalog],[data-edit-list]');if(!button||!allowed())return;

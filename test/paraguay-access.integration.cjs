@@ -28,6 +28,14 @@ test('lee solo su ficha y no puede cambiar productos, usuarios ni roles',async()
   for(const path of ['sisventas/productos/py1/nombre','sv_chat_roles/py/rol','sv_usuarios/userpy/rol'])await assertFails(set(ref(db,path),'admin'));
 });
 const list={nombre:'Viaje',productos:{py1:2},actualizadoEn:Date.now()};
+test('compra real conserva cantidad solicitada y valida moneda, costo y pertenencia',async()=>{
+ const value={...list,comprasFinales:{py1:{cantidad:1,precioUnitario:400,moneda:'USD',proveedor:'Tienda'}}};
+ const path='sv_listas_paraguay/py/compra-real';
+ await assertSucceeds(set(ref(db,path),value));
+ const stored=(await get(ref(db,path))).val();assert.equal(stored.productos.py1,2);assert.equal(stored.comprasFinales.py1.cantidad,1);
+ for(const patch of [{cantidad:-1},{cantidad:1.5},{precioUnitario:-1},{moneda:'BTC'},{extra:true}])await assertFails(set(ref(db,path),{...value,comprasFinales:{py1:{...value.comprasFinales.py1,...patch}}}));
+ await assertFails(set(ref(db,path),{...value,comprasFinales:{local1:value.comprasFinales.py1}}));
+});
 test('guarda y recupera su lista; otra cuenta no puede leerla ni modificarla',async()=>{
   await assertSucceeds(set(ref(db,'sv_listas_paraguay/py/lista1'),list));
   assert.equal((await assertSucceeds(get(ref(db,'sv_listas_paraguay/py/lista1')))).val().productos.py1,2);

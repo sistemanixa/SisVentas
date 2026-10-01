@@ -129,6 +129,8 @@ function cors(req, res) {
 }
 
 const DOMINIOS_IMAGEN_PRODUCTO = [
+  /^bucket-prod\.us-ord-10\.linodeobjects\.com$/,
+  /(^|\.)flytec\.com\.py$/,
   /(^|\.)mitiendanube\.com$/,
   /(^|\.)biosegur\.com\.ar$/,
   /(^|\.)ciardi\.com\.ar$/,
