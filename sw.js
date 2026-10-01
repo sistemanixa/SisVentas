@@ -1,6 +1,6 @@
-/* SisVentas NIXA - Service Worker v3.8.7
+/* SisVentas NIXA - Service Worker v3.8.8
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.8.7';
+const CACHE = 'sisventas-v3.8.8';
 const SHELL = [
   './js/modules/employee-cash-receipt.js?v=1',
   './js/modules/exterior-user-lists.js?v=3.8.5',
@@ -18,14 +18,14 @@ const SHELL = [
   './js/modules/search-filter-notice.js?v=1',
   './js/modules/comparacion-comercial.js?v=1',
   './js/modules/commercial-approval.js?v=3.8.1',
-  './js/app.v3.8.7.js',
+  './js/app.v3.8.8.js',
   './js/modules/product-url-import.js?v=3.8.2',
   './js/modules/paraguay-shopping-access.js?v=3.8.4',
   './js/modules/keyboard-actions.js',
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js',
   './js/core/version.js',
-  './js/core/version.v3.8.7.js',
+  './js/core/version.v3.8.8.js',
   './js/core/loading-indicator.js?v=1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.8.1',
@@ -104,7 +104,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
-        keys.filter((key) => key !== CACHE && key !== 'sisventas-pdf-transitorios').map((key) => caches.delete(key)),
+        keys.filter((key) => /^sisventas-v\d/.test(key) && key !== CACHE).map((key) => caches.delete(key)),
       ))
       .then(() => self.clients.claim()),
   );
