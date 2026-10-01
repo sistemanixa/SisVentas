@@ -4,6 +4,7 @@ const net = require('node:net');
 const crypto = require('node:crypto');
 const { chromium } = require('playwright');
 const { extraerFichaPagina } = require('./ficha-producto');
+const { esHostComprasParaguay, urlMovilComprasParaguay, mismaOfertaComprasParaguay, datosComprasParaguay, leerPaginaComprasParaguay } = require('./compras-paraguay');
 function firmaAcceso(p) { return crypto.createHash('sha256').update(JSON.stringify([p.web || '',p.usuario || '',p.password || '',p.condicionComercial || null])).digest('hex'); }
 function aplicarCondicionComercial(resultado, condicion) {
   if (resultado.requiereConversion) return resultado;
@@ -94,8 +95,8 @@ function validarOferta(datos) {
 }
 function ofertaComprasParaguay(datos) {
   const url=new URL(datos.url);
-  if(!/^(www\.)?(comprasparaguai\.com\.br|comprasparaguay\.com\.ar|comparaguay\.com\.py)$/.test(url.hostname)) throw new Error('Dominio del comparador no admitido');
-  const productos=datos.productos.filter(p=>[].concat(p.offers||[]).some(o=>o.url===datos.url));
+  if(!esHostComprasParaguay(url.hostname) && !/^(www\.)?(comprasparaguay\.com\.ar|comparaguay\.com\.py)$/.test(url.hostname)) throw new Error('Dominio del comparador no admitido');
+  const productos=datos.productos.filter(p=>[].concat(p.offers||[]).some(o=>o.url===datos.url || mismaOfertaComprasParaguay(o.url, datos.url)));
   if(productos.length!==1) throw new Error('Abrí la ficha de una tienda concreta; este enlace reúne varias ofertas');
   const p=productos[0], ofertas=[].concat(p.offers||[]);
   if(ofertas.length!==1 || ofertas[0]['@type']!=='Offer') throw new Error('Elegí una oferta concreta del comparador');
@@ -107,6 +108,21 @@ async function consultarAutomatico(proveedor, url) {
   if (!String(proveedor.web || '').trim()) throw new Error('Falta cargar la web del proveedor');
   if (url && !/^https:\/\//i.test(url)) throw new Error('La URL de prueba debe ser un enlace HTTPS completo del producto');
   const web = /^https?:/.test(proveedor.web || '') ? proveedor.web : 'https://' + proveedor.web;
+  // La ficha pública móvil contiene la misma oferta USD y tienda. Consultarla
+  // directamente evita abrir la página de seguridad del navegador automático.
+  // No se inicia sesión ni se envían las credenciales guardadas del proveedor.
+  if (esHostComprasParaguay(new URL(web).hostname)) {
+    urlMovilComprasParaguay(web);
+    const destinoPublicoProducto = urlMovilComprasParaguay(url || web);
+    const pagina = await leerPaginaComprasParaguay(destinoPublicoProducto.href, destinoPublico);
+    const tituloPagina = (pagina.html.match(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/i) || [])[1] || '';
+    const textoPagina = pagina.html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '').replace(/<[^>]*>/g, ' ');
+    if (esPaginaVerificacionSeguridad({titulo:tituloPagina,texto:textoPagina,url:pagina.url})) throw new Error('Compras Paraguay bloqueó la lectura de la ficha pública con su verificación de seguridad');
+    if (!url || destinoPublicoProducto.pathname === '/') return {acceso:true,requiereUrl:true};
+    const datos = datosComprasParaguay(pagina.html, pagina.url);
+    const oferta = ofertaComprasParaguay(datos);
+    return {ok:true,url,...oferta,tituloProveedor:datos.titulo,ficha:datos.ficha};
+  }
   const destino = urlProveedor(url || web,web);
   const compraGamer = destino.hostname.replace(/^www\./,'') === 'compragamer.com';
   const flytec = destino.hostname.replace(/^www\./,'') === 'flytec.com.py';

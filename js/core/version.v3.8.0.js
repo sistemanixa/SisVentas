@@ -19,5 +19,3 @@ window.SISVENTAS_PWA_VERSION = 'v3.8.0';
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { aplicarVersionSisVentas(document); });
   else aplicarVersionSisVentas(document);
 })();
-
-

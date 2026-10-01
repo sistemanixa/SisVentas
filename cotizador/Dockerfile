@@ -8,6 +8,7 @@ RUN npm install --omit=dev
 COPY index.js ./
 COPY ficha-producto.js ./
 COPY proveedor-automatico.js ./
+COPY compras-paraguay.js ./
 COPY conversion-proveedor.js ./
 
 ENV NODE_ENV=production
