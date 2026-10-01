@@ -6,6 +6,33 @@
   function esComprasParaguay(url) {
     try { return /^(?:www\.|mobile\.)?comprasparaguai\.com\.br$/.test(new URL(url).hostname); } catch (_) { return false; }
   }
+  async function consultarComprasParaguayDirecto(url, proveedor, signal) {
+    var origen = new URL(url);
+    if (origen.protocol !== 'https:' || origen.username || origen.password || origen.port || origen.search || !/^\/[^/]+__\d+\/$/.test(origen.pathname) || !esComprasParaguay(url) || !esComprasParaguay(proveedor.web)) throw new Error('Compras Paraguay requiere una URL exacta y su proveedor registrado.');
+    var api = new URL(origen.pathname, 'https://api.comprasparaguai.com.br');
+    var respuesta;
+    try {
+      respuesta = await fetch(api.href, {signal:signal, credentials:'omit', referrerPolicy:'no-referrer', redirect:'error', headers:{Accept:'application/json'}});
+    } catch (error) {
+      if (error.name === 'AbortError') throw error;
+      throw new Error('No se pudo consultar Compras Paraguay desde este equipo. Revisá la conexión y volvé a intentar.');
+    }
+    if (!respuesta.ok || !/application\/json/i.test(respuesta.headers.get('content-type') || '')) throw new Error('Compras Paraguay no permitió leer la ficha desde este equipo (HTTP ' + respuesta.status + ').');
+    var d = await respuesta.json();
+    var devuelta = d && typeof d.url === 'string' ? new URL(d.url, api) : null;
+    if (!devuelta || devuelta.origin !== api.origin || devuelta.pathname !== api.pathname || devuelta.search || devuelta.hash) throw new Error('Compras Paraguay devolvió otro producto. No se aplicaron los datos.');
+    if (typeof d.nome !== 'string' || !d.nome.trim() || !d.loja || typeof d.loja.nome !== 'string' || !d.loja.nome.trim() || d.ocultar_preco !== false || typeof d.preco_dolar !== 'number' || !Number.isFinite(d.preco_dolar) || d.preco_dolar <= 0 || typeof d.disponivel !== 'boolean') throw new Error('Compras Paraguay no confirmó un precio público en dólares para este producto.');
+    var dolar = obtenerDolarReferenciaProducto();
+    var cambio = Number(dolar && dolar.valor);
+    var precio = Math.round(d.preco_dolar * cambio * 100) / 100;
+    if (!(cambio > 0) || !Number.isFinite(precio)) throw new Error('Configurá una cotización válida del dólar en SisVentas.');
+    var texto = function(v) { return typeof v === 'string' ? v.replace(/<[^>]*>/g, ' ').trim() : ''; };
+    return {ok:true, url:url, identidad:{ok:true}, moneda:'ARS', precioArs:precio, precioPublicadoArs:precio, precioOriginal:d.preco_dolar, monedaOriginal:'USD', sinIva:false,
+      conversion:{arsPorUsd:cambio, factor:cambio, dolarTipo:dolar.tipo, calculadaEn:Date.now()}, fuente:'compras_paraguay_api_navegador', tiendaOrigen:d.loja.nome,
+      disponibilidadProveedor:d.disponivel ? 'disponible' : 'sin_stock', disponibilidadProveedorTexto:d.disponivel ? 'Disponible' : 'Sin stock',
+      ficha:{nombre:texto(d.nome), marca:texto(d.marca), imagenUrl:d.imagem_url && d.imagem_url.large || '', detalle:[texto(d.descricao)].concat((Array.isArray(d.caracteristicas) ? d.caracteristicas : []).filter(function(c){return c && typeof c.nome === 'string' && typeof c.valor === 'string';}).map(function(c){return texto(c.nome)+': '+texto(c.valor);})).filter(Boolean).join('\n')}
+    };
+  }
   function prepararComprasParaguay(seleccionarCategoria) {
     var panel = el('pf-envio-paraguay-panel');
     if (!panel && el('pf-importar-panel')) {
@@ -169,11 +196,17 @@
     try {
       var headers = await headersCotizadorProtegido();
       if (!vigente(c)) return;
-      var respuesta = await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/cotizar', {
+      var respuesta, datos;
+      if (esComprasParaguay(url)) {
+        datos = await consultarComprasParaguayDirecto(url, proveedor, c.controlador.signal);
+        respuesta = {ok:true};
+      } else {
+      respuesta = await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor + '/cotizar', {
         method: 'POST', headers: headers, signal: c.controlador.signal,
         body: JSON.stringify({ proveedorKey: clave(proveedor), url: url, incluirFicha: true, altaProducto: true, producto: '', codigo: '' })
       });
-      var datos = await respuesta.json();
+      datos = await respuesta.json();
+      }
       if (!vigente(c)) { if (consulta === c) estado('La ficha cambió durante la consulta. No se aplicó el resultado; podés volver a consultar.'); return; }
       if (!respuesta.ok || !datos || !datos.ok) throw new Error(mensajeProveedor(proveedor, datos && (datos.mensaje || datos.error)));
       var ficha = datos.ficha;
