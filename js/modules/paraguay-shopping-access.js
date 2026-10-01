@@ -58,7 +58,7 @@
     panel.querySelector('[data-products]').innerHTML = rows.map(([key,p]) => {
       const price = salePrice(p), qty = Number(selected[key]) || 0;
       // Misma estructura y clases que renderCatalogo: tarjeta y controles hermanos.
-      return '<article class="catalogo-tarjeta"><button type="button" class="catalogo-card" data-detail="'+esc(key)+'" aria-label="Ver '+esc(p.nombre || p.descripcion)+'"><div class="catalogo-card-imagen">'+root.imagenCatalogoHTML(p,'catalogo-card-img')+'</div><div class="catalogo-card-body"><span class="catalogo-card-cat">Ofertas</span><h3>'+esc(p.nombre || p.descripcion)+'</h3>'+(p.marca?'<div class="catalogo-card-marca">'+esc(p.marca)+'</div>':'')+'<p>'+esc(p.catalogoDescripcion || p.descripcion || '')+'</p><strong class="catalogo-precio">'+(price?'$ '+amount(price)+(hasVAT(p)?' <small>con IVA</small>':''):'Consultar precio')+'</strong>'+mlBadge(p,price)+'<span class="catalogo-card-footer"><span class="catalogo-ver">Ver producto <i class="ti ti-arrow-right"></i></span></span></div></button><button type="button" class="catalogo-agregar-carrito catalogo-carrito-tarjeta '+(qty?'seleccionado':'')+'" data-add="'+esc(key)+'" aria-label="Agregar '+esc(p.nombre || p.codigo)+' al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i><span class="catalogo-producto-contador" '+(qty?'':'hidden')+'>'+qty+'</span></button><button type="button" class="catalogo-restar catalogo-restar-tarjeta" data-subtract="'+esc(key)+'" aria-label="Quitar una unidad" '+(qty?'':'hidden')+'><i class="ti ti-minus" aria-hidden="true"></i></button></article>';
+      return '<article class="catalogo-tarjeta"><button type="button" class="catalogo-card" data-detail="'+esc(key)+'" aria-label="Ver '+esc(p.nombre || p.descripcion)+'"><div class="catalogo-card-imagen">'+root.imagenCatalogoHTML(p,'catalogo-card-img')+'</div><div class="catalogo-card-body"><span class="catalogo-card-cat">Ofertas</span><h3>'+esc(p.nombre || p.descripcion)+'</h3>'+(p.marca?'<div class="catalogo-card-marca">'+esc(p.marca)+'</div>':'')+'<p>'+esc(p.catalogoDescripcion || p.descripcion || '')+'</p><strong class="catalogo-precio">'+(price?'$ '+amount(price)+(hasVAT(p)?' <small>con IVA</small>':''):'Consultar precio')+'</strong>'+mlBadge(p,price)+'<span class="catalogo-card-footer"><span class="catalogo-ver">Ver detalle <i class="ti ti-arrow-right"></i></span></span></div></button><button type="button" class="catalogo-agregar-carrito catalogo-carrito-tarjeta '+(qty?'seleccionado':'')+'" data-add="'+esc(key)+'" aria-label="Agregar '+esc(p.nombre || p.codigo)+' al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i><span class="catalogo-producto-contador" '+(qty?'':'hidden')+'>'+qty+'</span></button><button type="button" class="catalogo-restar catalogo-restar-tarjeta" data-subtract="'+esc(key)+'" aria-label="Quitar una unidad" '+(qty?'':'hidden')+'><i class="ti ti-minus" aria-hidden="true"></i></button></article>';
 
     }).map((card,index)=>{
       const name=brand(rows[index][1]);
@@ -70,11 +70,18 @@
     const p = products[key]; if (!eligible(p)) return;
     detailModal?.remove();
     const previous = document.activeElement, price = salePrice(p);
+    const sourceUrl = [p.codWeb,p.urlProveedor,...(p.proveedores||[]).map(row=>row.url)].map(value=>{
+      try {const url=new URL(String(value||''));return /^https?:$/.test(url.protocol)?url.href:'';} catch (_) {return '';}
+    }).find(Boolean);
     const modal = document.createElement('div');
     modal.dataset.svModalBehavior='compact';modal.className='catalogo-modal';modal.dataset.detailModal='';modal.style.cssText='display:flex;z-index:100100';
     modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-label',p.nombre || p.descripcion);
-    modal.innerHTML='<div class="catalogo-modal-card"><button class="catalogo-modal-close" data-close-detail aria-label="Cerrar detalle">×</button><div class="catalogo-modal-imagen">'+root.imagenCatalogoHTML(p,'catalogo-modal-img')+'</div><div class="catalogo-modal-info"><span class="catalogo-card-cat">Ofertas</span><h2>'+esc(p.nombre || p.descripcion)+'</h2><div class="catalogo-modal-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p style="white-space:pre-wrap">'+esc(p.catalogoDescripcion || p.descripcion || 'Sin descripción adicional')+'</p><strong>'+(price?'$ '+amount(price)+(hasVAT(p)?' con IVA':''):'Consultar precio')+'</strong>'+mlBadge(p,price)+'<button class="catalogo-agregar-carrito" data-modal-add aria-label="Agregar al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i></button><p data-modal-qty aria-live="polite"></p></div></div>';
+    modal.innerHTML='<div class="catalogo-modal-card"><button class="catalogo-modal-close" data-close-detail aria-label="Cerrar detalle">×</button><div class="catalogo-modal-imagen">'+root.imagenCatalogoHTML(p,'catalogo-modal-img')+'</div><div class="catalogo-modal-info"><span class="catalogo-card-cat">Ofertas</span><h2>'+esc(p.nombre || p.descripcion)+'</h2><div class="catalogo-modal-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p style="white-space:pre-wrap">'+esc(p.catalogoDescripcion || p.descripcion || 'Sin descripción adicional')+'</p><strong>'+(price?'$ '+amount(price)+(hasVAT(p)?' con IVA':''):'Consultar precio')+'</strong>'+mlBadge(p,price)+'<button class="catalogo-agregar-carrito" style="display:flex;margin-top:18px" data-modal-add aria-label="Agregar al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i></button><p data-modal-qty aria-live="polite"></p></div></div>';
     const detailKeys=Object.entries(products).filter(([,product])=>eligible(product)&&[product.nombre,product.descripcion,product.codigo,product.marca].join(' ').toLowerCase().includes(panel.querySelector('[data-search]').value.toLowerCase())).map(([id])=>id);
+    if(sourceUrl){
+      const link=document.createElement('a');link.href=sourceUrl;link.target='_blank';link.rel='noopener noreferrer';link.className='btn btn-primary';link.textContent='Ver producto ↗';link.title='Abrir la página original del producto';link.style.cssText='display:inline-flex;align-self:flex-start;margin-top:14px;text-decoration:none';
+      modal.querySelector('[data-modal-qty]').after(link);
+    }
     const move=delta=>showDetail(detailKeys[(detailKeys.indexOf(key)+delta+detailKeys.length)%detailKeys.length]);
     if(detailKeys.length>1){
       modal.insertAdjacentHTML('beforeend','<button class="catalogo-modal-nav catalogo-modal-prev" aria-label="Producto anterior">‹</button><button class="catalogo-modal-nav catalogo-modal-next" aria-label="Producto siguiente">›</button>');
@@ -84,7 +91,7 @@
     const dismiss = () => {modal.remove();if(previous?.isConnected)previous.focus();};
     modal.querySelector('[data-close-detail]').onclick=dismiss;
     modal.onclick=e=>{if(e.target===modal)dismiss();};
-    modal.onkeydown=e=>{if(detailKeys.length>1 && (e.key==='ArrowLeft'||e.key==='ArrowRight')){e.preventDefault();move(e.key==='ArrowLeft'?-1:1);return;}if(e.key==='Escape'){e.stopPropagation();dismiss();}if(e.key==='Tab'){const focusable=Array.from(modal.querySelectorAll('button'));const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}};
+    modal.onkeydown=e=>{if(detailKeys.length>1 && (e.key==='ArrowLeft'||e.key==='ArrowRight')){e.preventDefault();move(e.key==='ArrowLeft'?-1:1);return;}if(e.key==='Escape'){e.stopPropagation();dismiss();}if(e.key==='Tab'){const focusable=Array.from(modal.querySelectorAll('button,a[href]'));const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}};
     modal.querySelector('[data-modal-add]').onclick=()=>{selected[key]=Math.min(9999,(Number(selected[key])||0)+1);renderProducts();refresh();};
     document.body.appendChild(modal);detailModal=modal;refresh();modal.querySelector('[data-close-detail]').focus();
   }
@@ -109,23 +116,44 @@
     for(let i=0;i<entries.length;i+=4){
       const cards=entries.slice(i,i+4).map(({p,qty})=>{
         const price=salePrice(p),comparison=mlComparison(p,price);
-        let src='';try{const u=new URL(p.imagenUrl,root.location.href);if(/^https?:$/.test(u.protocol)||/^data:image\/(png|jpeg|webp);base64,/.test(p.imagenUrl))src=u.href;if(src&&/^https?:/.test(src)&&typeof root.urlImagenProductoParaArchivo==='function')src=root.urlImagenProductoParaArchivo(src);if(/^(localhost|127[.]0[.]0[.]1)$/.test(root.location.hostname)&&/^https?:/.test(u.href))src='http://127.0.0.1:8789/imagen-producto?url='+encodeURIComponent(u.href);}catch(_){}
-        return '<article><div class="photo">'+(src?'<img src="'+esc(src)+'" alt="" onerror="this.remove()">':'')+'</div><div class="info"><div class="brand">'+esc(p.marca||'Ofertas')+' <span>'+esc(p.codigo||'')+'</span></div><h2>'+esc(p.nombre||p.descripcion||'Producto')+'</h2><p>'+esc(String(p.catalogoDescripcion||p.descripcion||'').slice(0,240))+'</p><div class="price">'+(price?money(price):'Consultar precio')+(price&&hasVAT(p)?' <small>con IVA</small>':'')+'</div>'+(onlySelected?'<div class="quantity">Cantidad: '+qty+' · Subtotal: '+(price?money(price*qty):'A consultar')+'</div>':'')+(comparison?'<div class="saving"><b>'+comparison.percent.toLocaleString('es-AR')+'% menos que ML</b> · Ahorrás '+money(comparison.saving)+'<small>Referencia ML registrada: '+money(comparison.reference)+'</small></div>':'')+'</div></article>';
+        let src='';try{if(p.imagenUrl){const u=new URL(p.imagenUrl,root.location.href);if(/^https?:$/.test(u.protocol)||/^data:image\/(png|jpeg|webp);base64,/.test(p.imagenUrl))src=u.href;if(src&&/^https?:/.test(src)&&typeof root.urlImagenProductoParaArchivo==='function')src=root.urlImagenProductoParaArchivo(src);}}catch(_){}
+        return '<article><div class="photo">'+(src?'<img src="'+esc(src)+'" alt="">':'')+'</div><div class="info"><div class="brand">'+esc(p.marca||'Ofertas')+' <span>'+esc(p.codigo||'')+'</span></div><h2>'+esc(p.nombre||p.descripcion||'Producto')+'</h2><p>'+esc(String(p.catalogoDescripcion||p.descripcion||'').slice(0,240))+'</p><div class="price">'+(price?money(price):'Consultar precio')+(price&&hasVAT(p)?' <small>con IVA</small>':'')+'</div>'+(onlySelected?'<div class="quantity">Cantidad: '+qty+' · Subtotal: '+(price?money(price*qty):'A consultar')+'</div>':'')+(comparison?'<div class="saving"><b>'+comparison.percent.toLocaleString('es-AR')+'% menos que ML</b> · Ahorrás '+money(comparison.saving)+'<small>Referencia ML registrada: '+money(comparison.reference)+'</small></div>':'')+'</div></article>';
       }).join('');
       pages.push('<section class="sheet"><header><div class="logo">SisVentas<span>powered by Nixa</span></div><div class="edition">OFERTAS<br><small>'+esc(date)+'</small></div></header><div class="heading"><h1>'+esc(title)+'</h1><span>'+entries.length+' productos'+(onlySelected?' · '+entries.reduce((s,e)=>s+Number(e.qty),0)+' unidades':'')+'</span></div><div class="cards">'+cards+'</div>'+(onlySelected&&i+4>=entries.length?'<div class="total">Total a precio de venta <strong>'+money(total)+'</strong></div>':'')+'<footer><span>Precios de venta registrados · Sujetos a disponibilidad'+(entries.some(e=>!salePrice(e.p))?' · Hay productos con precio a consultar':'')+'</span><b>'+Math.floor(i/4+1)+' / '+Math.ceil(entries.length/4)+'</b></footer></section>');
     }
     win.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · SisVentas</title><style>
       *{box-sizing:border-box}body{margin:0;background:#e8eef5;color:#15243a;font-family:Arial,sans-serif}.toolbar{position:sticky;top:0;z-index:5;background:#112239;color:white;padding:14px;display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap}.toolbar button{background:#78d68a;color:#102b1a;border:0;border-radius:9px;padding:12px 22px;font-weight:bold;cursor:pointer}.toolbar button:disabled{opacity:.6}.sheet{position:relative;width:794px;height:1122px;padding:32px 38px;margin:24px auto;background:white;overflow:hidden}header{display:flex;justify-content:space-between;align-items:center;background:#142b48;color:white;padding:20px 24px;border-radius:14px;border-bottom:6px solid #73d28c}.logo{font-size:28px;font-weight:800}.logo span{display:block;font-size:10px;font-weight:400;letter-spacing:2px;margin-top:5px;color:#b8cbe2}.edition{text-align:right;color:#8ce8a4;font-weight:bold;letter-spacing:2px}.edition small{color:white;font-size:11px;letter-spacing:0}.heading{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:19px 0 15px}.heading h1{font-size:21px;margin:0;max-width:490px;overflow-wrap:anywhere}.heading span{font-size:11px;color:#58718f;white-space:nowrap}article{display:flex;height:182px;border:1px solid #dce5ee;border-left:5px solid #73d28c;border-radius:12px;margin-bottom:12px;overflow:hidden;background:#f6f9fc}.photo{width:142px;flex-shrink:0;background:white;display:flex;align-items:center;justify-content:center;padding:12px}.photo img{max-width:100%;max-height:150px;object-fit:contain}.info{padding:12px 15px;min-width:0;flex:1}.brand{color:#326598;font-size:10px;font-weight:bold;text-transform:uppercase}.brand span{float:right;color:#73869d}h2{font-size:13px;line-height:1.3;margin:5px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.info p{font-size:10px;line-height:1.35;color:#54677e;margin:4px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.price{font-size:18px;font-weight:bold;color:#177e49;margin-top:7px}.price small{font-size:9px}.quantity{font-size:10px;margin-top:4px}.saving{background:#e0f5e7;color:#17653c;padding:5px 8px;border-radius:5px;font-size:10px;margin-top:5px}.saving small{display:block;font-size:8px;margin-top:2px}.total{padding:12px 18px;background:#142b48;border-radius:10px;color:#fff;display:flex;justify-content:space-between;font-size:13px}.total strong{color:#8ce8a4;font-size:18px}footer{position:absolute;bottom:26px;left:38px;right:38px;border-top:1px solid #dce5ee;padding-top:10px;display:flex;justify-content:space-between;font-size:9px;color:#647b95}@media print{@page{size:A4;margin:0}.toolbar{display:none}body{background:white}.sheet{margin:0;page-break-after:always;print-color-adjust:exact;-webkit-print-color-adjust:exact}.sheet:last-child{page-break-after:auto}}
-      </style><script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script></head><body><div class="toolbar"><span>Vista previa · PDF A4 a color</span><button id="download">Descargar PDF</button><span id="pdf-status" role="status"></span></div>${pages.join('')}<script>
-      document.getElementById('download').onclick=async function(){const b=this,s=document.getElementById('pdf-status');b.disabled=true;s.textContent='Generando PDF…';let stage;try{
+      .preview-page{width:calc(794px * var(--preview-scale,1));height:calc(1122px * var(--preview-scale,1));margin:16px auto}.preview-page>.sheet{margin:0;transform:scale(var(--preview-scale,1));transform-origin:top left}@media print{.preview-page{width:794px;height:1122px;margin:0}.preview-page>.sheet{transform:none}}
+      </style><script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script></head><body><div class="toolbar"><button id="download" aria-live="polite">Descargar PDF</button></div>${pages.map(page=>'<div class="preview-page">'+page+'</div>').join('')}<script>
+      const fitPreview=()=>document.documentElement.style.setProperty('--preview-scale',Math.min(1,(document.documentElement.clientWidth-16)/794));fitPreview();window.addEventListener('resize',fitPreview);
+      document.getElementById('download').onclick=async function(){const b=this,s=b;b.disabled=true;b.textContent='Generando PDF…';let stage;try{
         if(typeof html2pdf!=='function')throw Error('No se pudo cargar el generador. Revisá la conexión e intentá nuevamente.');
-        await Promise.all(Array.from(document.images).map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.onload=img.onerror=resolve;setTimeout(resolve,8000)})));
+        // Embed the bytes before cloning: a visible remote image is not necessarily canvas-safe.
+        const imageData=new Map();
+        await Promise.all(Array.from(document.querySelectorAll('.sheet img')).map(async img=>{
+          const src=img.getAttribute('src');
+          if(!imageData.has(src))imageData.set(src,(async()=>{
+            if(src.startsWith('data:image/'))return src;
+            const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+            try{
+              const response=await fetch(src,{mode:'cors',credentials:'omit',signal:controller.signal});
+              if(!response.ok)throw Error('Imagen no disponible');
+              const blob=await response.blob();
+              if(!blob.type.startsWith('image/'))throw Error('Respuesta sin imagen');
+              return await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});
+            }finally{clearTimeout(timeout);}
+          })());
+          try{img.src=await imageData.get(src);await img.decode();}
+          catch(_){throw Error('No se pudo incorporar la foto de '+(img.closest('article').querySelector('h2')?.textContent||'un producto')+'. Intentá descargar nuevamente.');}
+        }));
         const pdf=await html2pdf().set({jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(document.createElement('div')).toPdf().get('pdf');
         stage=document.createElement('div');stage.style.cssText='position:absolute;left:0;top:0;width:794px;z-index:-1;background:white';document.body.appendChild(stage);
         const sheets=Array.from(document.querySelectorAll('.sheet'));
         for(let i=0;i<sheets.length;i++){const clone=sheets[i].cloneNode(true);clone.style.margin='0';stage.replaceChildren(clone);const canvas=await html2canvas(clone,{x:0,y:0,scale:2,useCORS:true,backgroundColor:'#fff',scrollX:0,scrollY:0,windowWidth:794,width:794,height:1122});if(i)pdf.addPage();pdf.addImage(canvas.toDataURL('image/jpeg',.97),'JPEG',0,0,210,297);s.textContent='Página '+(i+1)+' de '+sheets.length;}
-        const old=document.getElementById('pdf-ready');if(old){URL.revokeObjectURL(old.href);old.remove();}const link=document.createElement('a');link.id='pdf-ready';link.href=pdf.output('datauristring');link.download='SisVentas-Ofertas.pdf';link.textContent='Guardar archivo PDF';link.style.cssText='color:#8ce8a4;font-weight:bold';document.querySelector('.toolbar').appendChild(link);link.click();s.textContent='PDF listo';
-      }catch(e){s.textContent=e.message||'No se pudo generar el PDF';}finally{stage?.remove();b.disabled=false;}};
+        const now=new Date(),pad=n=>String(n).padStart(2,'0');
+        const filename='SisVentas-Ofertas-'+now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())+'_'+pad(now.getHours())+'-'+pad(now.getMinutes())+'-'+pad(now.getSeconds())+'.pdf';
+        const link=document.createElement('a');link.href=pdf.output('datauristring');link.download=filename;link.hidden=true;document.body.appendChild(link);link.click();setTimeout(()=>link.remove(),60000);b.textContent='Descarga iniciada';await new Promise(resolve=>setTimeout(resolve,1200));
+      }catch(e){alert(e.message||'No se pudo generar el PDF');}finally{stage?.remove();b.textContent='Descargar PDF';b.disabled=false;}};
       <\/script></body></html>`);
     win.document.close();
   }
@@ -170,7 +198,10 @@
     panel = document.createElement('main'); panel.id = 'screen-paraguay';
     panel.innerHTML = `
       <style>
-        #screen-paraguay{display:flex;height:100dvh;flex-direction:column;background:var(--bg);color:var(--text)}
+        #screen-paraguay{display:flex;height:100dvh;overflow:hidden;flex-direction:column;background:var(--bg);color:var(--text)}
+        #screen-paraguay>.app{flex:1;min-height:0;width:100%;overflow:hidden}
+        #screen-paraguay .main{min-height:0;min-width:0}
+        #screen-paraguay .topbar{flex-shrink:0}
         #screen-paraguay .nav-item{width:100%;font-family:inherit;text-align:left;background:transparent}
         #screen-paraguay .nav-item.active{background:var(--bg3)}
         #screen-paraguay .py-list-fields{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,2fr);gap:14px}
@@ -180,7 +211,7 @@
         #screen-paraguay .m-value{font-size:20px;overflow-wrap:anywhere}
         #screen-paraguay .py-actions{display:flex;gap:8px;flex-wrap:wrap}
         #screen-paraguay .py-menu{display:none}
-        #screen-paraguay .content{padding-bottom:65px}
+        #screen-paraguay .content{flex:1;min-height:0;overflow-y:auto;padding-bottom:65px;overscroll-behavior-y:contain}
         #screen-paraguay .catalogo-precio{gap:5px;align-items:baseline}
         #screen-paraguay .py-view-switch{display:flex;gap:6px}
         #screen-paraguay .py-catalog-controls{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
