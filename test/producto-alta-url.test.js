@@ -6,8 +6,10 @@ const source = fs.readFileSync('js/modules/product-url-import.js', 'utf8');
 const url = 'https://www.biosegur.com.ar/producto--det--P2822';
 
 function escenario() {
-  const ids = ['pf-importar-estado','pf-importar-boton','pf-importar-panel','pf-importar-proveedor','pf-cod-web','pf-nombre','pf-descripcion','pf-marca','pf-imagen-url','pf-es-mano-obra'];
+  const ids = ['pf-importar-estado','pf-importar-boton','pf-importar-panel','pf-importar-proveedor','pf-cod-web','pf-nombre','pf-descripcion','pf-marca','pf-imagen-url','pf-es-mano-obra','pf-envio-paraguay-panel','pf-envio-paraguay'];
   const nodes = Object.fromEntries(ids.map(id => [id, { id, value: '', checked: false, disabled: false, textContent: '', add() {}, replaceChildren() {} }]));
+  nodes['pf-envio-paraguay-panel'].dataset = {};
+  nodes['pf-envio-paraguay'].setCustomValidity = () => {};
   nodes['prod-form-view'] = { querySelectorAll: () => ids.map(id => nodes[id]) };
   const calls = [];
   let resolver;

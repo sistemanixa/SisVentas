@@ -101,7 +101,11 @@ async function extraerFichaPagina(page) {
     const htmlPlano = valor => { const doc = new DOMParser().parseFromString(String(valor || ''), 'text/html'); doc.querySelectorAll('script,style').forEach(n => n.remove()); return doc.body.textContent || ''; };
     const detalle = schema.description ? htmlPlano(schema.description) : primero(['#Descripción', '[itemprop="description"]', '#description .product-description', '.product-description', '.ui-pdp-description__content']) || meta('meta[property="og:description"],meta[name="description"]');
     const imagenSchema = Array.isArray(schema.image) ? schema.image[0] : schema.image;
-    const imagenNodo = principal.querySelector('[itemprop="image"], .product-cover img, .ui-pdp-gallery__figure img');
+    // Flytec publica la foto principal fuera de los selectores genéricos y no
+    // informa og:image. Leer su galería exacta evita tomar logos o relacionados.
+    const esFichaFlytec = /^(www\.)?flytec\.com\.py$/.test(location.hostname) && /^\/produto\/[^/]+\/\d+\/?$/.test(location.pathname);
+    const imagenFlytec = esFichaFlytec ? document.querySelector('img#imagem-principal') : null;
+    const imagenNodo = imagenFlytec || principal.querySelector('[itemprop="image"], .product-cover img, .ui-pdp-gallery__figure img');
     const imagenUrl = typeof imagenSchema === 'string' ? imagenSchema : imagenSchema && (imagenSchema.url || imagenSchema.contentUrl) ||
       (imagenNodo && (imagenNodo.getAttribute('content') || imagenNodo.getAttribute('data-image-large-src') || imagenNodo.getAttribute('src'))) || meta('meta[property="og:image"]');
     return { nombre: String(nombre || ''), marca: String(marca || ''), detalle, imagenUrl, fuente: schema.name ? 'producto_jsonld' : 'pagina_producto' };
