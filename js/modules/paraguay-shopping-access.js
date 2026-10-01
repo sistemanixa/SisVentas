@@ -27,17 +27,22 @@
     panel.querySelector('[data-products]').innerHTML = rows.map(([key,p]) => {
       const q = quote(p);
       let url = ''; try { if (/^https?:$/.test(new URL(q.url).protocol)) url = q.url; } catch (_) {}
-      return '<tr><td style="color:var(--text3)">'+esc(p.codigo)+'</td><td><strong style="color:var(--text)">'+esc(p.nombre || p.descripcion)+'</strong><div style="font-size:11px;color:var(--text3);margin-top:3px">'+esc(p.marca)+'</div>'+(url?'<a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer"><i class="ti ti-external-link" aria-hidden="true"></i> Ver en proveedor</a>':'')+'</td><td class="tr" style="color:var(--blue);white-space:nowrap">'+(q.usd?'US$ '+amount(q.usd):'Sin precio USD')+'</td><td class="tr" style="white-space:nowrap">'+(q.ars?'$ '+amount(q.ars):'Sin costo')+'</td><td class="tr"><input class="search-input" type="number" min="0" max="9999" step="1" aria-label="Cantidad '+esc(p.codigo || p.nombre)+'" data-product="'+esc(key)+'" value="'+(selected[key] || 0)+'" style="width:85px;text-align:right"></td></tr>';
-    }).join('');
+      return '<article class="catalogo-card"><div class="catalogo-card-imagen">'+root.imagenCatalogoHTML(p, 'catalogo-card-img')+'</div><div class="catalogo-card-body"><span class="catalogo-card-cat">COMPRAS PARAGUAY</span><h3>'+esc(p.nombre || p.descripcion)+'</h3><div class="catalogo-card-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p>'+esc(p.catalogoDescripcion || p.descripcion || '')+'</p><div class="catalogo-card-footer"><strong class="catalogo-precio">'+(q.usd?'US$ '+amount(q.usd):'Sin precio USD')+'</strong><span style="font-size:12px;color:var(--text3)">'+(q.ars?'$ '+amount(q.ars)+' con envío':'Sin costo ARS')+'</span></div><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px"><label style="font-size:12px">Cantidad a comprar <input class="search-input" type="number" min="0" max="9999" step="1" aria-label="Cantidad '+esc(p.codigo || p.nombre)+'" data-product="'+esc(key)+'" value="'+(selected[key] || 0)+'" style="width:85px;margin-top:6px"></label><button class="btn btn-primary" data-add="'+esc(key)+'" aria-label="Agregar '+esc(p.nombre || p.codigo)+' al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i> Agregar</button>'+(url?'<a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Ver en proveedor <i class="ti ti-external-link" aria-hidden="true"></i></a>':'')+'</div></div></article>';
+
+    }).join('') || '<div class="catalogo-vacio" style="display:flex;grid-column:1/-1"><strong>No hay productos para mostrar</strong><span>Probá otra búsqueda.</span></div>';
     renderSummary();
   }
   function renderSummary() {
     const entries = Object.entries(selected).filter(([key]) => eligible(products[key]));
+    panel.querySelector('[data-cart-items]').innerHTML = entries.length ? entries.map(([key,qty]) => '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)"><span style="flex:1">'+esc(products[key].nombre || products[key].descripcion)+' <strong>× '+qty+'</strong></span><span>US$ '+amount(quote(products[key]).usd*qty)+'</span><button class="btn btn-sm" data-remove="'+esc(key)+'" aria-label="Quitar '+esc(products[key].nombre)+' del carrito">Quitar</button></div>').join('') : '<p class="py-note">Tu carrito está vacío. Agregá productos desde el catálogo.</p>';
     const usd = entries.reduce((s,[key,qty]) => s+quote(products[key]).usd*qty,0);
     const ars = entries.reduce((s,[key,qty]) => s+quote(products[key]).ars*qty,0);
     const missing = entries.filter(([key]) => !quote(products[key]).usd).length;
     panel.querySelector('[data-total-products]').textContent = entries.length;
-    panel.querySelector('[data-total-qty]').textContent = entries.reduce((s,[,q])=>s+q,0);
+    const units = entries.reduce((s,[,q])=>s+q,0);
+    panel.querySelector('[data-total-qty]').textContent = units;
+    panel.querySelector('[data-cart-count]').textContent = units;
+    panel.querySelector('[data-cart]').setAttribute('aria-label','Ver carrito: '+units+' unidades');
     panel.querySelector('[data-total-usd]').textContent = 'US$ '+amount(usd);
     panel.querySelector('[data-total-ars]').textContent = '$ '+amount(ars);
     panel.querySelector('[data-summary]').textContent = (missing ? missing+' productos sin precio USD. ' : '')+'Revisá precios y disponibilidad antes de comprar.';
@@ -82,7 +87,7 @@
           <div class="s-foot"><div class="s-user"><div class="s-avatar admin">${esc(nombre.slice(0,2).toUpperCase())}</div><div style="min-width:0"><div class="s-uname">${esc(nombre)}</div><div class="s-urole">Compras Paraguay</div></div></div><button class="btn btn-sm" data-logout style="width:100%;justify-content:center;margin-top:8px"><i class="ti ti-logout" aria-hidden="true"></i> Cerrar sesión</button></div>
         </aside>
         <div class="main">
-          <header class="topbar"><div style="display:flex;align-items:center;gap:10px"><button class="btn btn-icon py-menu" data-menu aria-label="Abrir menú" aria-expanded="false"><i class="ti ti-menu-2" aria-hidden="true"></i></button><span class="page-title">Productos Paraguay</span></div><div class="topbar-center"><span class="topbar-date">${esc(new Date().toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'}))}</span></div><div class="topbar-right"><span class="badge">Compras Paraguay</span></div></header>
+          <header class="topbar"><div style="display:flex;align-items:center;gap:10px"><button class="btn btn-icon py-menu" data-menu aria-label="Abrir menú" aria-expanded="false"><i class="ti ti-menu-2" aria-hidden="true"></i></button><span class="page-title">Productos Paraguay</span></div><div class="topbar-center"><span class="topbar-date">${esc(new Date().toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'}))}</span></div><div class="topbar-right"><button class="btn btn-sm" data-cart aria-label="Ver carrito"><i class="ti ti-shopping-cart" aria-hidden="true"></i> <span data-cart-count aria-live="polite">0</span></button><button class="icon-btn" data-appearance aria-label="Aspecto visual" title="Aspecto visual"><i class="ti ti-settings" aria-hidden="true"></i></button></div></header>
           <div class="content">
             <div class="metrics" aria-label="Resumen de la lista">
               <div class="metric"><div class="m-label">Productos seleccionados</div><div class="m-value" data-total-products>0</div><div class="m-sub">en tu lista de compra</div></div>
@@ -93,19 +98,32 @@
             <section class="card" data-list-card aria-label="Lista de compra">
               <div class="card-head"><span class="card-title">Lista de compra</span><div class="py-actions"><button class="btn btn-sm" data-download><i class="ti ti-download" aria-hidden="true"></i> Descargar CSV</button><button class="btn btn-sm btn-primary" data-save><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar lista</button></div></div>
               <div class="py-list-fields"><div class="fg"><label for="py-mis-listas">Mis listas</label><select id="py-mis-listas" data-lists><option value="">Nueva lista</option></select></div><div class="fg"><label for="py-lista-nombre">Nombre de la lista</label><input id="py-lista-nombre" data-name maxlength="120" placeholder="Ej. Próximo viaje"></div></div>
-              <p class="py-note" data-summary></p><p data-status role="status"></p>
+              <div data-cart-items aria-label="Productos del carrito"></div><p class="py-note" data-summary></p><p data-status role="status"></p>
             </section>
             <section class="card" data-products-card aria-label="Productos Paraguay">
               <div class="card-head"><span class="card-title">Productos Paraguay</span><span class="badge">COMPRAS PARAGUAY</span></div>
               <input class="search-input" data-search aria-label="Buscar producto" placeholder="Buscar por nombre, código o marca…" style="width:100%">
               <p class="py-note" data-count style="margin-bottom:16px"></p>
-              <div class="table-wrap"><table><thead><tr><th>Código</th><th>Producto</th><th class="tr">Precio página USD</th><th class="tr">Costo ARS con envío</th><th class="tr">Cantidad a comprar</th></tr></thead><tbody data-products></tbody></table></div>
+              <div class="catalogo-grid" data-products></div>
               <p class="py-note">Los precios corresponden a la última información registrada.</p>
             </section>
           </div>
         </div>
       </div>`;
     document.body.appendChild(panel);
+    panel.querySelector(".content").prepend(panel.querySelector("[data-products-card]"));
+    const preferences = document.createElement('div');
+    preferences.hidden = true;
+    preferences.setAttribute('role','dialog'); preferences.setAttribute('aria-label','Aspecto visual');
+    preferences.style.cssText = 'position:fixed;right:12px;top:60px;z-index:999999;width:min(280px,calc(100vw - 24px));padding:18px;border:1px solid var(--border);border-radius:14px;background:var(--bg2);box-shadow:0 8px 24px #0003';
+    preferences.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center"><strong>Aspecto visual</strong><button class="btn btn-sm" data-close-appearance aria-label="Cerrar apariencia">×</button></div><div class="up-style-options" style="margin-top:14px"><button class="btn" data-visual="v3">SisVentas 3</button><button class="btn" data-visual="classic">Clásico</button></div><label style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">Modo oscuro<input type="checkbox" data-dark></label>';
+    panel.appendChild(preferences);
+    panel.querySelector('[data-appearance]').onclick = () => {preferences.hidden = !preferences.hidden;preferences.querySelector('[data-dark]').checked=document.body.classList.contains('dark-mode');};
+    preferences.querySelector('[data-close-appearance]').onclick = () => {preferences.hidden=true;panel.querySelector('[data-appearance]').focus();};
+    preferences.onkeydown = e => {if(e.key==='Escape'){preferences.hidden=true;panel.querySelector('[data-appearance]').focus();}};
+    preferences.querySelector('[data-dark]').onchange = e => root.toggleDarkMode(e.target.checked);
+    preferences.querySelectorAll('[data-visual]').forEach(button => button.onclick=()=>root.aplicarEstiloVisual(button.dataset.visual));
+
     panel.querySelector('[data-menu]').onclick = () => {
       const expanded = panel.querySelector('.sidebar').classList.toggle('open');
       panel.querySelector('[data-menu]').setAttribute('aria-expanded', String(expanded));
@@ -120,6 +138,15 @@
     });
     panel.querySelector('[data-logout]').onclick = () => root.doLogout();
     panel.querySelector('[data-search]').oninput = renderProducts;
+    panel.querySelector('[data-cart-items]').onclick = e => {const button=e.target.closest('[data-remove]');if(button){delete selected[button.dataset.remove];renderProducts();}};
+    panel.querySelector('[data-cart]').onclick = () => panel.querySelector('[data-list-card]').scrollIntoView({behavior:'smooth',block:'start'});
+    panel.querySelector('[data-products]').onclick = e => {
+      const button = e.target.closest('[data-add]'); if (!button) return;
+      const key = button.dataset.add; if (!eligible(products[key])) return;
+      selected[key] = Math.min(9999, (Number(selected[key]) || 0) + 1);
+      const input = button.closest('.catalogo-card').querySelector('[data-product]');
+      input.value = selected[key]; input.setCustomValidity(''); renderSummary();
+    };
     panel.querySelector('[data-products]').oninput = e => {
       const key = e.target.dataset.product; if (!key) return;
       const qty = Number(e.target.value);
@@ -158,5 +185,11 @@
     stops.push(root.fbOnValue(roleQuery,snap=>{const role=snap.val();if(!role||role.activo!==true||role.rol!=='compras_paraguay')root.doLogout();}));
     renderProducts();
   }
+  const originalRoles = root._renderTablaRolesUI;
+  if (typeof originalRoles === 'function') root._renderTablaRolesUI = function() {
+    originalRoles.apply(this,arguments);
+    const container = document.getElementById('cfg-roles-tabla');
+    if (container) container.insertAdjacentHTML('afterbegin','<section class="card" aria-label="Rol Compras Paraguay"><div class="card-head"><span class="card-title">Compras Paraguay</span><span class="badge">Acceso limitado</span></div><p>Catálogo exclusivo de la categoría COMPRAS PARAGUAY, listas de compra propias y ajustes de apariencia.</p><p style="font-size:12px;color:var(--text3)">Este rol se asigna desde Usuarios. No tiene acceso a los módulos generales ni modifica productos.</p></section>');
+  };
   root.SVParaguayPortal = {open,close};
 })(typeof window === 'undefined' ? {} : window);
