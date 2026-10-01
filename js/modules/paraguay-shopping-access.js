@@ -27,10 +27,26 @@
     panel.querySelector('[data-products]').innerHTML = rows.map(([key,p]) => {
       const q = quote(p);
       let url = ''; try { if (/^https?:$/.test(new URL(q.url).protocol)) url = q.url; } catch (_) {}
-      return '<article class="catalogo-card"><div class="catalogo-card-imagen">'+root.imagenCatalogoHTML(p, 'catalogo-card-img')+'</div><div class="catalogo-card-body"><span class="catalogo-card-cat">COMPRAS PARAGUAY</span><h3>'+esc(p.nombre || p.descripcion)+'</h3><div class="catalogo-card-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p>'+esc(p.catalogoDescripcion || p.descripcion || '')+'</p><div class="catalogo-card-footer"><strong class="catalogo-precio">'+(q.usd?'US$ '+amount(q.usd):'Sin precio USD')+'</strong><span style="font-size:12px;color:var(--text3)">'+(q.ars?'$ '+amount(q.ars)+' con envío':'Sin costo ARS')+'</span></div><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px"><label style="font-size:12px">Cantidad a comprar <input class="search-input" type="number" min="0" max="9999" step="1" aria-label="Cantidad '+esc(p.codigo || p.nombre)+'" data-product="'+esc(key)+'" value="'+(selected[key] || 0)+'" style="width:85px;margin-top:6px"></label><button class="btn btn-primary" data-add="'+esc(key)+'" aria-label="Agregar '+esc(p.nombre || p.codigo)+' al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i> Agregar</button>'+(url?'<a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Ver en proveedor <i class="ti ti-external-link" aria-hidden="true"></i></a>':'')+'</div></div></article>';
+      return '<article class="catalogo-card" data-detail="'+esc(key)+'" tabindex="0" aria-label="Ver '+esc(p.nombre || p.descripcion)+'"><div class="catalogo-card-imagen">'+root.imagenCatalogoHTML(p, 'catalogo-card-img')+'</div><div class="catalogo-card-body"><span class="catalogo-card-cat">COMPRAS PARAGUAY</span><h3>'+esc(p.nombre || p.descripcion)+'</h3><div class="catalogo-card-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p>'+esc(p.catalogoDescripcion || p.descripcion || '')+'</p><div class="catalogo-card-footer"><strong class="catalogo-precio">'+(q.usd?'US$ '+amount(q.usd):'Sin precio USD')+'</strong><span style="font-size:12px;color:var(--text3)">'+(q.ars?'$ '+amount(q.ars)+' con envío':'Sin costo ARS')+'</span></div><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px"><label style="font-size:12px" hidden>Cantidad <input class="search-input" type="number" min="0" max="9999" step="1" aria-label="Cantidad '+esc(p.codigo || p.nombre)+'" data-product="'+esc(key)+'" value="'+(selected[key] || 0)+'" style="width:85px;margin-top:6px"></label><span class="catalogo-ver">Ver producto →</span><button class="catalogo-restar" data-subtract="'+esc(key)+'" aria-label="Quitar una unidad"'+((selected[key] || 0)?'':' hidden')+'><i class="ti ti-minus" aria-hidden="true"></i></button><button class="catalogo-agregar-carrito" data-add="'+esc(key)+'" aria-label="Agregar '+esc(p.nombre || p.codigo)+' al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i><span class="catalogo-producto-contador" data-card-count="'+esc(key)+'" '+((selected[key] || 0)?'':'hidden')+'>'+(selected[key] || 0)+'</span></button>'+'</div></div></article>';
 
     }).join('') || '<div class="catalogo-vacio" style="display:flex;grid-column:1/-1"><strong>No hay productos para mostrar</strong><span>Probá otra búsqueda.</span></div>';
     renderSummary();
+  }
+  function showDetail(key) {
+    const p = products[key]; if (!eligible(p)) return;
+    panel.querySelector('[data-detail-modal]')?.remove();
+    const previous = document.activeElement, q = quote(p);
+    const modal = document.createElement('div');
+    modal.className='catalogo-modal';modal.dataset.detailModal='';modal.style.display='flex';
+    modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-label',p.nombre || p.descripcion);
+    modal.innerHTML='<div class="catalogo-modal-card"><button class="catalogo-modal-close" data-close-detail aria-label="Cerrar detalle">×</button><div class="catalogo-modal-imagen">'+root.imagenCatalogoHTML(p,'catalogo-modal-img')+'</div><div class="catalogo-modal-info"><span class="catalogo-card-cat">COMPRAS PARAGUAY</span><h2>'+esc(p.nombre || p.descripcion)+'</h2><div class="catalogo-modal-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p style="white-space:pre-wrap">'+esc(p.catalogoDescripcion || p.descripcion || 'Sin descripción adicional')+'</p><strong>US$ '+amount(q.usd)+'</strong><p>$ '+amount(q.ars)+' con envío</p><button class="catalogo-agregar-carrito" data-modal-add aria-label="Agregar al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i></button><p data-modal-qty aria-live="polite"></p></div></div>';
+    const refresh = () => {modal.querySelector('[data-modal-qty]').textContent=(selected[key] || 0)+' unidades en tu lista';};
+    const dismiss = () => {modal.remove();if(previous?.isConnected)previous.focus();};
+    modal.querySelector('[data-close-detail]').onclick=dismiss;
+    modal.onclick=e=>{if(e.target===modal)dismiss();};
+    modal.onkeydown=e=>{if(e.key==='Escape'){e.stopPropagation();dismiss();}if(e.key==='Tab'){const focusable=Array.from(modal.querySelectorAll('button'));const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}};
+    modal.querySelector('[data-modal-add]').onclick=()=>{selected[key]=Math.min(9999,(Number(selected[key])||0)+1);renderProducts();refresh();};
+    panel.appendChild(modal);refresh();modal.querySelector('[data-close-detail]').focus();
   }
   function renderSummary() {
     const entries = Object.entries(selected).filter(([key]) => eligible(products[key]));
@@ -43,6 +59,7 @@
     panel.querySelector('[data-total-qty]').textContent = units;
     panel.querySelector('[data-cart-count]').textContent = units;
     panel.querySelector('[data-cart]').setAttribute('aria-label','Ver carrito: '+units+' unidades');
+    panel.querySelector('[data-cart-amount]').textContent = '$ '+amount(ars)+' con envío';
     panel.querySelector('[data-total-usd]').textContent = 'US$ '+amount(usd);
     panel.querySelector('[data-total-ars]').textContent = '$ '+amount(ars);
     panel.querySelector('[data-summary]').textContent = (missing ? missing+' productos sin precio USD. ' : '')+'Revisá precios y disponibilidad antes de comprar.';
@@ -87,7 +104,7 @@
           <div class="s-foot"><div class="s-user"><div class="s-avatar admin">${esc(nombre.slice(0,2).toUpperCase())}</div><div style="min-width:0"><div class="s-uname">${esc(nombre)}</div><div class="s-urole">Compras Paraguay</div></div></div><button class="btn btn-sm" data-logout style="width:100%;justify-content:center;margin-top:8px"><i class="ti ti-logout" aria-hidden="true"></i> Cerrar sesión</button></div>
         </aside>
         <div class="main">
-          <header class="topbar"><div style="display:flex;align-items:center;gap:10px"><button class="btn btn-icon py-menu" data-menu aria-label="Abrir menú" aria-expanded="false"><i class="ti ti-menu-2" aria-hidden="true"></i></button><span class="page-title">Productos Paraguay</span></div><div class="topbar-center"><span class="topbar-date">${esc(new Date().toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'}))}</span></div><div class="topbar-right"><button class="btn btn-sm" data-cart aria-label="Ver carrito"><i class="ti ti-shopping-cart" aria-hidden="true"></i> <span data-cart-count aria-live="polite">0</span></button><button class="icon-btn" data-appearance aria-label="Aspecto visual" title="Aspecto visual"><i class="ti ti-settings" aria-hidden="true"></i></button></div></header>
+          <header class="topbar"><div style="display:flex;align-items:center;gap:10px"><button class="btn btn-icon py-menu" data-menu aria-label="Abrir menú" aria-expanded="false"><i class="ti ti-menu-2" aria-hidden="true"></i></button><span class="page-title">Productos Paraguay</span></div><div class="topbar-center"><span class="topbar-date">${esc(new Date().toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'}))}</span></div><div class="topbar-right"><button class="btn btn-sm" data-cart aria-label="Ver carrito"><i class="ti ti-shopping-cart" aria-hidden="true"></i> <span class="catalogo-carrito-contador" data-cart-count aria-live="polite">0</span><span data-cart-amount></span></button><button class="catalogo-agregar-carrito" style="width:44px;height:44px;font-size:22px;border-radius:14px" data-open-list aria-label="Abrir lista de compra"><i class="ti ti-file-description" aria-hidden="true"></i><i class="ti ti-arrow-right" aria-hidden="true"></i></button><button class="icon-btn" data-appearance aria-label="Aspecto visual" title="Aspecto visual"><i class="ti ti-settings" aria-hidden="true"></i></button></div></header>
           <div class="content">
             <div class="metrics" aria-label="Resumen de la lista">
               <div class="metric"><div class="m-label">Productos seleccionados</div><div class="m-value" data-total-products>0</div><div class="m-sub">en tu lista de compra</div></div>
@@ -140,13 +157,16 @@
     panel.querySelector('[data-search]').oninput = renderProducts;
     panel.querySelector('[data-cart-items]').onclick = e => {const button=e.target.closest('[data-remove]');if(button){delete selected[button.dataset.remove];renderProducts();}};
     panel.querySelector('[data-cart]').onclick = () => panel.querySelector('[data-list-card]').scrollIntoView({behavior:'smooth',block:'start'});
+    panel.querySelector('[data-open-list]').onclick = panel.querySelector('[data-cart]').onclick;
     panel.querySelector('[data-products]').onclick = e => {
-      const button = e.target.closest('[data-add]'); if (!button) return;
+      const minus=e.target.closest('[data-subtract]');if(minus){const key=minus.dataset.subtract;if(selected[key]>1)selected[key]--;else delete selected[key];renderProducts();return;}
+      const button = e.target.closest('[data-add]'); if (!button) {if(!e.target.closest('input,label,a')){const card=e.target.closest('[data-detail]');if(card)showDetail(card.dataset.detail);}return;}
       const key = button.dataset.add; if (!eligible(products[key])) return;
       selected[key] = Math.min(9999, (Number(selected[key]) || 0) + 1);
       const input = button.closest('.catalogo-card').querySelector('[data-product]');
-      input.value = selected[key]; input.setCustomValidity(''); renderSummary();
+      input.value = selected[key]; input.setCustomValidity(''); renderProducts();
     };
+    panel.querySelector('[data-products]').onkeydown = e => {if(e.target.matches('[data-detail]') && (e.key==='Enter'||e.key===' ')){e.preventDefault();showDetail(e.target.dataset.detail);}};
     panel.querySelector('[data-products]').oninput = e => {
       const key = e.target.dataset.product; if (!key) return;
       const qty = Number(e.target.value);
