@@ -3,6 +3,47 @@
   var consulta = null;
   var secuencia = 0;
   function el(id) { return document.getElementById(id); }
+  function esComprasParaguay(url) {
+    try { return /^(?:www\.|mobile\.)?comprasparaguai\.com\.br$/.test(new URL(url).hostname); } catch (_) { return false; }
+  }
+  function prepararComprasParaguay(seleccionarCategoria) {
+    var panel = el('pf-envio-paraguay-panel');
+    if (!panel && el('pf-importar-panel')) {
+      panel = document.createElement('div');
+      panel.id = 'pf-envio-paraguay-panel';
+      panel.style.marginTop = '12px';
+      panel.innerHTML = '<label for="pf-envio-paraguay">Costo de envío ARS</label><input id="pf-envio-paraguay" type="number" min="0" step="0.01" value="0" style="max-width:260px" oninput="actualizarEnvioComprasParaguay()"><div style="font-size:12px;color:var(--text3);margin-top:5px">Envío por producto, en pesos. Se suma al precio de la página convertido a ARS.</div>';
+      el('pf-importar-panel').appendChild(panel);
+    }
+    var url = urlExacta(el('pf-cod-web').value);
+    var activa = esComprasParaguay(url);
+    if (panel) panel.hidden = !activa;
+    if (panel && panel.dataset.url !== url) {
+      var fila = prodProveedoresActuales.find(function(p) { return urlExacta(p.url) === url; });
+      el('pf-envio-paraguay').value = fila ? Number(fila.costoEnvioArs) || 0 : 0;
+      el('pf-envio-paraguay').setCustomValidity('');
+      panel.dataset.url = url;
+    }
+    if (activa && seleccionarCategoria) {
+      var categoria = el('pf-categoria');
+      var opcion = Array.from(categoria.options).find(function(o) { return o.value.trim().toUpperCase() === 'COMPRAS PARAGUAY'; });
+      if (opcion) {
+        categoria.value = opcion.value;
+        initSearchableSelect('pf-categoria', 'Seleccionar categoría...');
+      }
+    }
+  }
+  window.actualizarEnvioComprasParaguay = function () {
+    var input = el('pf-envio-paraguay');
+    var valor = Number(input.value);
+    input.setCustomValidity(Number.isFinite(valor) && valor >= 0 ? '' : 'El envío debe ser un importe igual o mayor que cero');
+    if (!Number.isFinite(valor) || valor < 0) return;
+    var url = urlExacta(el('pf-cod-web').value);
+    prodProveedoresActuales.forEach(function(p, i) {
+      if (esComprasParaguay(url) && urlExacta(p.url) === url) actualizarProveedorProducto(i, 'costoEnvioArs', valor);
+    });
+    renderTablaProveedoresProducto();
+  };
   function estado(texto) { if (el('pf-importar-estado')) el('pf-importar-estado').textContent = texto; }
   function mensajeProveedor(proveedor, mensaje) {
     var texto = String(mensaje || 'No se pudo consultar la ficha');
@@ -85,9 +126,17 @@
     var select = el('pf-importar-proveedor');
     select.replaceChildren(new Option('Seleccioná el proveedor', ''));
     proveedores().forEach(function (p) { select.add(new Option(p.nombre || 'Proveedor', clave(p))); });
+    el('pf-cod-web').oninput = window.sugerirProveedorFicha;
     window.sugerirProveedorFicha();
+    prepararComprasParaguay(false);
+    var fila = prodProveedoresActuales.find(function(p) { return urlExacta(p.url) === urlExacta(el('pf-cod-web').value); });
+    if (el('pf-envio-paraguay')) {
+      el('pf-envio-paraguay').value = fila ? Number(fila.costoEnvioArs) || 0 : 0;
+      el('pf-envio-paraguay').setCustomValidity('');
+    }
   };
   window.sugerirProveedorFicha = function () {
+    prepararComprasParaguay(true);
     var url = urlExacta(el('pf-cod-web').value);
     if (!url) return;
     var sugerido = proveedorSugerido(url);
@@ -96,6 +145,8 @@
   window.completarProductoDesdeUrl = async function () {
     if (consulta) return;
     var url = urlExacta(el('pf-cod-web').value);
+    prepararComprasParaguay(true);
+    if (esComprasParaguay(url) && !el('pf-envio-paraguay').reportValidity()) return;
     var proveedor = proveedores().find(function (p) { return clave(p) === el('pf-importar-proveedor').value; });
     if (!url) { estado('Pegá la URL exacta del producto. La web inicial del proveedor no sirve para esta consulta.'); return; }
     if (!proveedor) { estado('Seleccioná un proveedor registrado. Sus credenciales se usan desde el servidor.'); return; }
@@ -132,6 +183,7 @@
       var precioProveedor = completarReferenciaProveedorProducto({
         nombre: proveedor.nombre, proveedorKey: clave(proveedor), url: url,
         precio: Number(datos.precioArs), sinIva: datos.sinIva === true,
+        ...(esComprasParaguay(url) ? { costoEnvioArs: Number(el('pf-envio-paraguay').value) || 0 } : {}),
         precioPublicadoOriginalArs: Number(datos.precioPublicadoArs || datos.precioArs),
         ...(datos.conversion ? {precioOriginal:datos.precioOriginal,monedaOriginal:datos.monedaOriginal,conversion:datos.conversion} : {}),
         descuentoProveedorPorcentaje: Number(datos.descuentoProveedorPorcentaje || 0),

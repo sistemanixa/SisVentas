@@ -1974,7 +1974,14 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
-    await autenticarSolicitud(req);
+    const identity = await autenticarSolicitud(req);
+    if (identity) {
+      const role = (await db.ref('sv_chat_roles/'+identity.uid).get()).val();
+      if (role && role.rol === 'compras_paraguay') {
+        send(res, 403, {ok:false,mensaje:'Este rol solo puede consultar su catálogo y listas de Paraguay'});
+        return;
+      }
+    }
     const body = await readBody(req);
     if (pathname !== '/' && pathname !== '/cotizar' && pathname !== '/biosegur' && pathname !== '/cotizar-lote' && pathname !== '/verificar-proveedor' && pathname !== '/cotizacion-guarani') {
       send(res, 404, { ok: false, error: true, mensaje: 'Ruta no encontrada' });

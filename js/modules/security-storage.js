@@ -8,6 +8,8 @@
   window.svPrepararRutasSeguridad = async function(user){
     if(stopWatching){stopWatching();stopWatching=null;}
     if(!enabled||!user)return;
+    var identity=(await window.fbGet(window.fbRef(window.fbDB,'sv_chat_roles/'+user.uid))).val();
+    if(identity && identity.rol==='compras_paraguay') { protectedStorage=true;return; }
     var target=window.fbRef(window.fbDB,'sv_usuarios');
     var snapshot=await window.fbGet(target);
     protectedStorage=snapshot.exists();

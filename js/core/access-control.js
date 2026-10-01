@@ -22,6 +22,7 @@
   function canAccess(moduleId, permissions, defaults) {
     if (!moduleId) return false;
     var role = current();
+    if (role === 'compras_paraguay') return false;
 
     permissions = permissions || global.PERMISOS_ROLES;
     defaults = defaults || global.PERMISOS_DEFAULT;
