@@ -1145,10 +1145,10 @@
 
   function collapseExteriorSections(target, opened, active, finished) {
     function fold(key, title, extraClass) {
-      var details=document.createElement('details');details.className='card bc-fold '+(extraClass||'');details.dataset.bcFold=key;details.open=opened.has(key);
-      var summary=document.createElement('summary');summary.textContent=title;details.appendChild(summary);return details;
+      var details=document.createElement(key==='active'?'section':'details');details.className='card bc-fold '+(extraClass||'');details.dataset.bcFold=key;details.open=opened.has(key)||(key==='active'&&!target.dataset.bcInitialized);
+      var summary=document.createElement(key==='active'?'h3':'summary');summary.className='bc-section-title';summary.textContent=key==='active'?'Compras en curso · '+active:title;details.appendChild(summary);return details;
     }
-    var style=document.createElement('style');style.textContent='#balance-compra-content .bc-fold{padding:14px 18px;margin:12px 0;border-left:3px solid var(--blue)}#balance-compra-content .bc-fold>summary{cursor:pointer;font-weight:700;font-size:15px;overflow-wrap:anywhere}#balance-compra-content .bc-fold[open]>summary{margin-bottom:14px}#balance-compra-content .bc-fold-active{border-left-color:var(--amber)}#balance-compra-content .bc-fold-finished{border-left-color:var(--green)}#balance-compra-content .bc-fold .bc-card{margin:10px 0}#balance-compra-content .bc-card-title{font-weight:700;font-size:14px;overflow-wrap:anywhere;margin:0 0 12px}#balance-compra-content .bc-brief{display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text3)}#balance-compra-content .bc-brief strong{color:var(--text);margin-left:5px}#balance-compra-content .bc-cost-detail{margin-top:12px}#balance-compra-content .bc-cost-detail>summary{cursor:pointer;font-size:12px;color:var(--text3)}#balance-compra-content .bc-cost-detail[open]>summary{margin-bottom:12px}';target.appendChild(style);
+    var style=document.createElement('style');style.textContent='#balance-compra-content .bc-fold{padding:14px 18px;margin:12px 0;border-left:3px solid var(--blue)}#balance-compra-content .bc-fold>summary{cursor:pointer;font-weight:700;font-size:15px;overflow-wrap:anywhere}#balance-compra-content .bc-fold[open]>summary{margin-bottom:14px}#balance-compra-content .bc-fold-active{background:transparent;border:0;border-radius:0;box-shadow:none;padding:16px 0;margin:0}#balance-compra-content .bc-fold-active>.bc-section-title{font-size:15px;margin:0 0 12px}#balance-compra-content .bc-fold-active>.bc-toolbar-actions{margin-bottom:12px}#balance-compra-content .bc-fold-finished{border-left-color:var(--green)}#balance-compra-content .bc-fold .bc-card{margin:10px 0}#balance-compra-content .bc-card-title{font-weight:700;font-size:14px;overflow-wrap:anywhere;margin:0 0 12px}#balance-compra-content .bc-brief{display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text3)}#balance-compra-content .bc-brief strong{color:var(--text);margin-left:5px}#balance-compra-content .bc-cost-detail{margin-top:12px}#balance-compra-content .bc-cost-detail>summary{cursor:pointer;font-size:12px;color:var(--text3)}#balance-compra-content .bc-cost-detail[open]>summary{margin-bottom:12px}';target.appendChild(style);
     var toolbar=target.querySelector('.bc-toolbar'), actions=toolbar.querySelector('.bc-toolbar-actions');
     var grid=toolbar.nextElementSibling, group;
     if(!grid)return;
@@ -1169,8 +1169,9 @@
       grid.prepend(activeGroup);
       var empty=document.createElement('p');empty.textContent='No hay compras activas sin finalizar.';activeGroup.appendChild(empty);
     }
-    activeGroup.querySelector('summary').after(actions);
+    activeGroup.querySelector('.bc-section-title').after(actions);
     toolbar.remove();
+    target.dataset.bcInitialized='1';
   }
 
   function renderBalanceCompra() {

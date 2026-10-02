@@ -19,8 +19,8 @@
     if(host?.isConnected&&owner===root.currentUserUid)return;
     reset();owner=root.currentUserUid;
     const page=document.getElementById('page-balancecompra');if(!page)return;
-    host=document.createElement('details');host.className='card';host.id='exterior-user-lists';
-    host.innerHTML='<style>.exterior-list-photo{width:100%;height:100%;object-fit:contain}</style><summary style="cursor:pointer;font-size:15px;font-weight:700;padding:4px 0">Listas de compra de usuarios</summary><div class="card-head" style="margin-top:14px"><button class="btn btn-sm btn-primary" data-catalog>Ofertas · Mis listas</button><button class="btn btn-sm" data-refresh>Actualizar listas</button></div><p style="font-size:12px;color:var(--text3)">Agrupadas por usuario. Los totales se calculan con los precios actuales del catálogo; estas listas todavía no son órdenes de compra.</p><div data-results role="status">Cargando listas…</div>';
+    host=document.createElement('section');host.className='card';host.id='exterior-user-lists';
+    host.innerHTML='<style>#page-balancecompra #exterior-user-lists{background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0;box-shadow:none;padding:16px 0 28px;margin-bottom:24px}.exterior-list-photo{width:100%;height:100%;object-fit:contain}</style><h3 style="font-size:15px;font-weight:700;margin:0">Listas de usuarios</h3><div class="card-head" style="margin-top:14px"><button class="btn btn-sm btn-primary" data-catalog>Ofertas · Mis listas</button><button class="btn btn-sm" data-refresh>Actualizar listas</button></div><p style="font-size:12px;color:var(--text3)">Agrupadas por usuario. Los totales se calculan con los precios actuales del catálogo; estas listas todavía no son órdenes de compra.</p><div data-results role="status">Cargando listas…</div>';
     page.prepend(host);host.querySelector('[data-refresh]').onclick=load;
     host.onclick=async e=>{
       const button=e.target.closest('[data-catalog],[data-edit-list],[data-delete-list]');if(!button||!allowed())return;

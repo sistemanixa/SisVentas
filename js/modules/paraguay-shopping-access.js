@@ -133,6 +133,16 @@
       return (grouped && (index===0 || name!==brand(rows[index-1][1])) ? '<h3 class="py-brand-heading">'+esc(name)+' <small>'+counts.get(name)+(counts.get(name)===1?' producto':' productos')+'</small></h3>' : '')+card;
     }).join('') || '<div class="catalogo-vacio" style="display:flex;grid-column:1/-1"><strong>No hay productos para mostrar</strong><span>Probá otra búsqueda.</span></div>';
     renderSummary();
+    refreshOpenDetail();
+  }
+  function refreshOpenDetail() {
+    if (!detailModal?.isConnected) return;
+    const p=products[detailModal.dataset.productKey];
+    if (!eligible(p)) {detailModal.remove();detailModal=null;return;}
+    const price=detailModal.querySelector('[data-detail-price]');
+    const html=salePriceHTML(p)+mlBadge(p,salePrice(p));
+    if(price && price.innerHTML!==html)price.innerHTML=html;
+    detailModal.querySelector('[data-modal-qty]').textContent=(selected[detailModal.dataset.productKey]||0)+' unidades en tu lista';
   }
   function showDetail(key) {
     const p = products[key]; if (!eligible(p)) return;
@@ -142,9 +152,9 @@
       try {const url=new URL(String(value||''));return /^https?:$/.test(url.protocol)?url.href:'';} catch (_) {return '';}
     }).find(Boolean);
     const modal = document.createElement('div');
-    modal.dataset.svModalBehavior='compact';modal.className='catalogo-modal';modal.dataset.detailModal='';modal.style.cssText='display:flex;z-index:100100';
+    modal.dataset.svModalBehavior='compact';modal.className='catalogo-modal';modal.dataset.detailModal='';modal.dataset.productKey=key;modal.style.cssText='display:flex;z-index:100100';
     modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-label',p.nombre || p.descripcion);
-    modal.innerHTML='<div class="catalogo-modal-card"><button class="catalogo-modal-close" data-close-detail aria-label="Cerrar detalle">×</button><div class="catalogo-modal-imagen">'+root.imagenCatalogoHTML(p,'catalogo-modal-img')+'</div><div class="catalogo-modal-info"><span class="catalogo-card-cat">Ofertas</span><h2>'+esc(p.nombre || p.descripcion)+'</h2><div class="catalogo-modal-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p style="white-space:pre-wrap">'+esc(p.catalogoDescripcion || p.descripcion || 'Sin descripción adicional')+'</p>'+salePriceHTML(p)+mlBadge(p,price)+'<button class="catalogo-agregar-carrito" style="display:flex;margin-top:18px" data-modal-add aria-label="Agregar al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i></button><p data-modal-qty aria-live="polite"></p></div></div>';
+    modal.innerHTML='<div class="catalogo-modal-card"><button class="catalogo-modal-close" data-close-detail aria-label="Cerrar detalle">×</button><div class="catalogo-modal-imagen">'+root.imagenCatalogoHTML(p,'catalogo-modal-img')+'</div><div class="catalogo-modal-info"><span class="catalogo-card-cat">Ofertas</span><h2>'+esc(p.nombre || p.descripcion)+'</h2><div class="catalogo-modal-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p style="white-space:pre-wrap">'+esc(p.catalogoDescripcion || p.descripcion || 'Sin descripción adicional')+'</p><div data-detail-price aria-live="polite">'+salePriceHTML(p)+mlBadge(p,price)+'</div><button class="catalogo-agregar-carrito" style="display:flex;margin-top:18px" data-modal-add aria-label="Agregar al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i></button><p data-modal-qty aria-live="polite"></p></div></div>';
     const detailKeys=Object.entries(products).filter(([,product])=>eligible(product)&&[product.nombre,product.descripcion,product.codigo,product.marca].join(' ').toLowerCase().includes(panel.querySelector('[data-search]').value.toLowerCase())).map(([id])=>id);
     if(sourceUrl){
       const link=document.createElement('a');link.href=sourceUrl;link.target='_blank';link.rel='noopener noreferrer';link.className='btn btn-primary';link.textContent='Ver producto ↗';link.title='Abrir la página original del producto';link.style.cssText='display:inline-flex;align-self:flex-start;margin-top:14px;text-decoration:none';
@@ -262,6 +272,7 @@
     panel.querySelector('[data-total-usd]').textContent = 'US$ '+amount(usd);
     panel.querySelector('[data-total-ars]').textContent = '$ '+amount(ars);
     panel.querySelector('[data-summary]').textContent = (missing ? missing+' productos sin precio USD. ' : '')+'La referencia no es el costo definitivo. Registrá por separado lo comprado y el precio unitario acordado; no modifica stock ni genera órdenes.';
+    if (!panel.querySelector('[data-list-card]').hidden) root.SisVentas?.prepareResizablePage?.(panel.querySelector('[data-cart-items]'));
   }
   function renderLists() {
     panel.querySelector('[data-delete-list]').disabled=busy||!listKey||!lists[listKey];
@@ -405,6 +416,9 @@
       panel.querySelector('.sidebar').classList.remove('open');
       panel.querySelector('[data-menu]').setAttribute('aria-expanded','false');
       panel.querySelector('.content').scrollTop=0;
+      // El portal no navega con showPage: al quitar hidden hay que reactivar
+      // las tablas que se prepararon mientras el catálogo estaba visible.
+      if (listsView) root.SisVentas?.prepareResizablePage?.(panel.querySelector('[data-cart-items]'));
     }
     showView(!!options.listKey);
     const preferences = document.createElement('div');
