@@ -33,6 +33,27 @@ function escenario() {
 const respuesta = () => ({ ok: true, url, moneda:'ARS', precioArs:1000, sinIva:true, ivaAlicuota:21, identidad:{ok:true}, ficha:{nombre:'Cerradura F-102T', marca:'Trinktech', detalle:'WiFi, huella y PIN', imagenUrl:'https://www.biosegur.com.ar/images/P2822.jpg'} });
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+test('Compras Paraguay selecciona categoría e IVA exento y recalcula, sin alterar otras webs ni una ficha al abrirla', () => {
+  const s = escenario();
+  s.nodes['pf-iva'] = { value:'21' };
+  s.nodes['pf-categoria'] = { value:'OTROS', options:[{value:'COMPRAS PARAGUAY'}] };
+  let recalculos = 0;
+  s.context.initSearchableSelect = () => {};
+  s.context.calcMargen = () => { recalculos++; };
+  s.context.sugerirProveedorFicha();
+  assert.equal(s.nodes['pf-iva'].value, '21');
+  s.nodes['pf-cod-web'].value = 'https://www.comprasparaguai.com.br/producto__5064641/';
+  s.context.sugerirProveedorFicha();
+  assert.equal(s.nodes['pf-categoria'].value, 'COMPRAS PARAGUAY');
+  assert.equal(s.nodes['pf-iva'].value, '0');
+  assert.equal(recalculos, 1);
+  s.nodes['pf-iva'].value = '10.5';
+  s.context.editingProdId = 'guardado';
+  s.context.inicializarFichaProducto();
+  assert.equal(s.nodes['pf-iva'].value, '10.5');
+  assert.equal(recalculos, 1);
+});
+
 test('una consulta carga ficha y precio en el borrador sin enviar credenciales del proveedor', async () => {
   const s = escenario();
   const pending = s.context.completarProductoDesdeUrl(); await flush();

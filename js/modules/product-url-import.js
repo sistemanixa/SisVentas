@@ -58,6 +58,11 @@
         categoria.value = opcion.value;
         initSearchableSelect('pf-categoria', 'Seleccionar categoría...');
       }
+      var iva = el('pf-iva');
+      if (iva && iva.value !== '0') {
+        iva.value = '0';
+        if (typeof calcMargen === 'function') calcMargen();
+      }
     }
   }
   window.actualizarEnvioComprasParaguay = function () {
@@ -154,7 +159,7 @@
     select.replaceChildren(new Option('Seleccioná el proveedor', ''));
     proveedores().forEach(function (p) { select.add(new Option(p.nombre || 'Proveedor', clave(p))); });
     el('pf-cod-web').oninput = window.sugerirProveedorFicha;
-    window.sugerirProveedorFicha();
+    window.sugerirProveedorFicha(false);
     prepararComprasParaguay(false);
     var fila = prodProveedoresActuales.find(function(p) { return urlExacta(p.url) === urlExacta(el('pf-cod-web').value); });
     if (el('pf-envio-paraguay')) {
@@ -162,8 +167,8 @@
       el('pf-envio-paraguay').setCustomValidity('');
     }
   };
-  window.sugerirProveedorFicha = function () {
-    prepararComprasParaguay(true);
+  window.sugerirProveedorFicha = function (aplicarValores) {
+    prepararComprasParaguay(aplicarValores !== false);
     var url = urlExacta(el('pf-cod-web').value);
     if (!url) return;
     var sugerido = proveedorSugerido(url);
