@@ -10,6 +10,9 @@
         ".validate": false
       },
       "config": {
+        "tipoCambio": {
+          ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'compras_paraguay'"
+        },
         "permisos": {
           ".validate": false
         }

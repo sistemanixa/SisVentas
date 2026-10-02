@@ -7,6 +7,13 @@
     return {usd: row && row.monedaOriginal === 'USD' ? Number(row.precioOriginal) || 0 : 0, ars: Number(row && (row.costoRealArs || row.precio) || p.compraARS || p.compra) || 0, url: row && row.url || p.codWeb || ''};
   };
   const hasVAT = p => p.iva == null || Number(p.iva) > 0;
+  function subscribeExchangeRate(api, valid, refresh, fail) {
+    return api.fbOnValue(api.fbRef(api.fbDB,'sisventas/config/tipoCambio'), snap => {
+      if (!valid()) return;
+      api.TIPO_CAMBIO_CONFIG = snap.val() || {};
+      refresh();
+    }, error => { if (valid()) fail(error); });
+  }
   function salePrice(p, pricing = root.precioVentaCanonicoProducto) {
     const net = typeof pricing === 'function' ? Number(pricing(p).precioARS) : Number(p.ventaARS || (p.moneda !== 'USD' && p.venta) || 0);
     const iva = p.iva == null ? 21 : Number(p.iva);
@@ -56,7 +63,7 @@
     const p = products[key]; if (!eligible(p)) return null;
     const q = quote(p); return [p.codigo || '', p.nombre || p.descripcion || '', qty, q.usd || '', q.ars || '', q.url, purchases[key]?.cantidad ?? '', purchases[key]?.precioUnitario ?? '', purchases[key]?.moneda || '', purchases[key]?.proveedor || ''];
   }).filter(Boolean)].map(row => row.map(csvCell).join(';')).join('\r\n');
-  if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection};
+  if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection, subscribeExchangeRate};
   if (!root.document) return;
   let detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', busy = false, generation = 0;
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -513,6 +520,7 @@
       link.href=url;link.download='lista-compras-paraguay.csv';link.click();URL.revokeObjectURL(url);
     };
     const query = root.fbQuery(root.fbRef(root.fbDB,'sisventas/productos'),root.fbOrderByChild('categoria'),root.fbEqualTo(CATEGORY));
+    stops.push(subscribeExchangeRate(root,valid,()=>{if(panel)renderProducts();},()=>status('No se pudo cargar la cotización. Revisá la conexión y volvé a ingresar.')));
     stops.push(root.fbOnValue(query,snap=>{if(!valid())return;products=snap.val()||{};if(panel)renderProducts();},()=>status('No se pudo cargar el catálogo autorizado.')));
     let initialList = options.listKey || '';
     stops.push(root.fbOnValue(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid),snap=>{if(!valid())return;lists=snap.val()||{};if(panel){if(initialList){listKey=initialList;initialList='';const list=lists[listKey]||{};selected={...list.productos};purchases=structuredClone(list.comprasFinales||{});panel.querySelector('[data-name]').value=list.nombre||'';renderProducts();}renderLists();}},()=>status('No se pudieron cargar tus listas.')));

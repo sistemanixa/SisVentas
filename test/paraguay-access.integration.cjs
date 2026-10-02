@@ -14,6 +14,14 @@ before(async()=>{
   db=env.authenticatedContext('py').database();
 });
 after(async()=>{if(env)await env.cleanup();});
+test('Ofertas puede leer cotizaciones pero no escribirlas ni leer la configuración completa',async()=>{
+  await assertSucceeds(get(ref(db,'sisventas/config/tipoCambio')));
+  await assertFails(set(ref(db,'sisventas/config/tipoCambio'),{oficial:1}));
+  await assertFails(get(ref(db,'sisventas/config')));
+  await assertFails(get(ref(db,'sisventas/config/empresa')));
+  await assertFails(get(ref(env.authenticatedContext('baja').database(),'sisventas/config/tipoCambio')));
+  await assertFails(get(ref(env.unauthenticatedContext().database(),'sisventas/config/tipoCambio')));
+});
 test('query de categoría devuelve exclusivamente Paraguay y bloquea lectura general o individual ajena',async()=>{
   const snap=await assertSucceeds(get(query(ref(db,'sisventas/productos'),orderByChild('categoria'),equalTo('COMPRAS PARAGUAY'))));
   assert.deepEqual(Object.keys(snap.val()),['py1']);

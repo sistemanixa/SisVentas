@@ -1,6 +1,7 @@
 (function(){
   'use strict';
   var owner='', ownerName='', readyUid='', stops=[], cache={};
+  function sessionName(){return String((window._chatDirectorio||{})[currentUserUid]?.nombre || window._impersonacionOriginal?.user || currentUser || '');}
   document.addEventListener('sisventas:session-ready',function(event){
     readyUid=String(event.detail&&event.detail.uid||'');
     window.chatIniciarDirectosSeguros();
@@ -14,7 +15,7 @@
     if(typeof chatActualizarBadges==='function')chatActualizarBadges();
   });
   function refreshUnreadIdentity(){
-    var name=String(typeof currentUser==='undefined'?'':currentUser||'');
+    var name=sessionName();
     if(ownerName===name)return;
     ownerName=name;
     Object.keys(cache).forEach(function(channel){
@@ -48,7 +49,8 @@
           if(currentUserUid!==uid||readyUid!==uid)return;
           cache[channel]=messages.val()||{};
           var list=Object.values(cache[channel]);
-          _chatNoLeidos[channel]=list.filter(function(m){return m.autor!==currentUser&&!_chatFueLeido(m,currentUser);}).length;
+          var name=sessionName();
+          _chatNoLeidos[channel]=list.filter(function(m){return m.autor!==name&&!_chatFueLeido(m,name);}).length;
           chatActualizarBadges();
           var nuevos=chatDetectarMensajesNuevos(channel,list);
           if(!chatEstaLeyendo(channel)&&nuevos.length){var last=nuevos[nuevos.length-1];chatReproducirSonidoNuevo();chatMostrarNotif('Mensaje de '+last.autor,last.texto||'Nuevo adjunto',channel);}

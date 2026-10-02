@@ -13,6 +13,7 @@ function reglasParaguay(base) {
     }
   }
   lock(result.rules);
+  result.rules.sisventas.config.tipoCambio = {'.read':restricted};
   result.rules.sv_usuarios['.indexOn'] = ['uid'];
   result.rules.sv_usuarios['.read'] = '('+result.rules.sv_usuarios['.read']+') || ('+restricted+" && query.orderByChild === 'uid' && query.equalTo === auth.uid)";
   result.rules.sisventas.productos = Object.assign({},result.rules.sisventas.productos,{

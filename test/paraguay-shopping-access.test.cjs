@@ -1,5 +1,20 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const {eligible,quote,csv,salePrice}=require('../js/modules/paraguay-shopping-access');
+test('Ofertas carga el cambio sin iniciar el dashboard y reacciona a cambios de cotización',()=>{
+  const {subscribeExchangeRate,saleAmounts}=require('../js/modules/paraguay-shopping-access');
+  let callback,errorCallback,active=true,refreshes=0,errors=0,stopped=false;
+  const api={fbDB:{},fbRef:(db,path)=>{assert.equal(path,'sisventas/config/tipoCambio');return path;},fbOnValue:(ref,cb,err)=>{callback=cb;errorCallback=err;return ()=>{stopped=true;};}};
+  const stop=subscribeExchangeRate(api,()=>active,()=>refreshes++,()=>errors++);
+  callback({val:()=>({oficial:1500,dolarConversion:'oficial'})});
+  assert.equal(saleAmounts({ventaARS:300000,iva:0},api.TIPO_CAMBIO_CONFIG.oficial).usd,200);
+  callback({val:()=>({oficial:1600,dolarConversion:'oficial'})});
+  assert.equal(saleAmounts({ventaARS:300000,iva:0},api.TIPO_CAMBIO_CONFIG.oficial).usd,187.5);
+  assert.equal(refreshes,2);
+  errorCallback(new Error('denied'));assert.equal(errors,1);
+  active=false;callback({val:()=>({oficial:1})});errorCallback(new Error('late'));
+  assert.equal(api.TIPO_CAMBIO_CONFIG.oficial,1600);assert.equal(errors,1);
+  stop();assert.equal(stopped,true);
+});
 test('venta USD usa el precio final y el cambio vigente, respetando IVA y exentos',()=>{
   const {saleAmounts}=require('../js/modules/paraguay-shopping-access');
   assert.deepEqual(saleAmounts({ventaARS:1000,iva:21},100),{ars:1210,usd:12.1});
