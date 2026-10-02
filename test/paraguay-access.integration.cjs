@@ -69,3 +69,9 @@ test('admin crea listas propias y edita las de Paraguay sin habilitar otros role
    await assertFails(set(ref(env.authenticatedContext(rol).database(),'sv_listas_paraguay/py/lista1'),list));
  }
 });
+test('permite elegir proveedor antes de comprar y rechaza compra incompleta',async()=>{
+ const path='sv_listas_paraguay/py/proveedor-pendiente';
+ const value={...list,comprasFinales:{py1:{moneda:'USD',proveedor:'Flytec Paraguay'}}};
+ await assertSucceeds(set(ref(db,path),value));
+ for(const partial of [{cantidad:1},{precioUnitario:25}])await assertFails(set(ref(db,path),{...value,comprasFinales:{py1:{...value.comprasFinales.py1,...partial}}}));
+});
