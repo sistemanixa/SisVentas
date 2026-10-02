@@ -8,3 +8,14 @@ test('lectura directa sin credenciales, usa USD exacto y dólar SisVentas',async
 test('rechaza identidad diferente y precio oculto o inválido',async()=>{for(const patch of [{url:'/otro__12/'},{ocultar_preco:true},{preco_dolar:0},{preco_dolar:'420'},{loja:null}])await assert.rejects(setup({...base,...patch}).run());});
 test('no consulta hosts falsos, proveedores distintos ni enlaces de búsqueda',async()=>{for(const [u,p] of [[url,{web:'https://flytec.com.py'}],[url+'?buscar=1'],['https://comprasparaguai.com.br.evil.test/producto__5140343/']]){const c=setup();await assert.rejects(c.run(u,p));assert.equal(c.calls.length,0);}});
 test('sin stock y dólar inválido',async()=>{assert.equal((await setup({...base,disponivel:false}).run()).disponibilidadProveedor,'sin_stock');await assert.rejects(setup(base,0).run());});
+test('URL argentina de modelo consulta la oferta menor y verifica la ficha de la tienda',async()=>{
+ const ar='https://comprasparaguay.com.ar/parlante-jbl_62935/',calls=[];
+ const model={url:'/caixa-jbl_62935/',nome:'JBL Encore',marca:'JBL',ocultar_preco:false,imagem_principal_url:'https://example.test/jbl.webp',produtos:[{url:'/caro__10/',preco_dolar:200,ocultar_preco:false,loja:{nome:'Otra'}},{url:'/barato__11/',preco_dolar:172,ocultar_preco:false,loja:{nome:'Toku'}},{url:'/oculto__12/',preco_dolar:1,ocultar_preco:true,loja:{nome:'Oculta'}}]};
+ const c=vm.createContext({URL,obtenerDolarReferenciaProducto:()=>({valor:1545,tipo:'oficial'}),fetch:async u=>{calls.push(u);return {ok:true,headers:{get:()=> 'application/json'},json:async()=>calls.length===1?model:{...base,url:'/barato__11/',preco_dolar:172,loja:{nome:'Toku'}}};}});
+ vm.runInContext(code,c);const r=await c.consultarComprasParaguayDirecto(ar,{web:'https://www.comprasparaguai.com.br'});
+ assert.equal(calls.length,2);assert.equal(calls[1],'https://api.comprasparaguai.com.br/barato__11/');assert.equal(r.precioOriginal,172);assert.equal(r.precioArs,265740);assert.equal(r.ficha.imagenUrl,model.imagem_principal_url);assert.equal(r.url,ar);assert.equal(r.tiendaOrigen,'Toku');
+});
+test('un ID de modelo distinto o una oferta externa no se importan',async()=>{
+ const ar='https://comprasparaguay.com.ar/jbl_62935/';
+ for(const model of [{url:'/jbl_999/',produtos:[]},{url:'/jbl_62935/',ocultar_preco:false,produtos:[{url:'https://evil.test/a__1/',preco_dolar:10,ocultar_preco:false,loja:{nome:'X'}}]}])await assert.rejects(setup(model).run(ar));
+});

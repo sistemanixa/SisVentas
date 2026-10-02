@@ -3,7 +3,7 @@
   const CATEGORY = 'COMPRAS PARAGUAY';
   const eligible = p => !!p && p.categoria === CATEGORY && p.estado !== 'Inactivo' && p.activo !== false && !p.esManoDeObra;
   const quote = p => {
-    const row = (p.proveedores || []).find(r => { try { return /^(?:www\.|mobile\.)?comprasparaguai\.com\.br$/.test(new URL(r.url).hostname); } catch (_) { return false; } });
+    const row = (p.proveedores || []).find(r => { try { return /^(?:www\.|mobile\.)?(?:comprasparaguai\.com\.br|comprasparaguay\.com\.ar)$/.test(new URL(r.url).hostname); } catch (_) { return false; } });
     return {usd: row && row.monedaOriginal === 'USD' ? Number(row.precioOriginal) || 0 : 0, ars: Number(row && (row.costoRealArs || row.precio) || p.compraARS || p.compra) || 0, url: row && row.url || p.codWeb || ''};
   };
   const hasVAT = p => p.iva == null || Number(p.iva) > 0;
@@ -34,7 +34,7 @@
     return true;
   }
   const csvCell = v => '"' + String(v ?? '').replace(/^[=+@-]/, "'$&").replace(/"/g, '""') + '"';
-  function mlComparison(p, price, unitCost = root.costoUnitarioProveedorProducto) {
+  function mlComparison(p, price, unitCost = root.costoUnitarioProveedorProducto, includeAll = false) {
     const refs = (p.proveedores || []).filter(pv=>{
       if (!pv || pv.disponibilidadProveedor==='sin_stock' || pv.activo===false) return false;
       let host='';try {host=new URL(pv.url).hostname.toLowerCase();} catch (_) {}
@@ -42,13 +42,19 @@
     }).map(pv=>typeof unitCost==='function'?Number(unitCost(p,pv)):Number(pv.costoRealArs || (Number(pv.precioArsPublicado || pv.precio)*(pv.sinIva?1+Number(pv.iva??p.iva??21)/100:1)))).filter(n=>Number.isFinite(n)&&n>0);
     if (!refs.length || !(price>0)) return null;
     const reference=Math.min(...refs), saving=Math.round((reference-price)*100)/100;
-    if (saving<=0) return null;
+    if (saving<=0 && !includeAll) return null;
     return {reference,saving,percent:Math.floor(saving/reference*1000)/10};
+  }
+  function pdfComparisonText(comparison) {
+    if (!comparison) return 'Sin referencia de Mercado Libre';
+    if (comparison.saving === 0) return 'Mismo precio que Mercado Libre';
+    const percent=Math.abs(comparison.saving/comparison.reference*100);
+    return (percent<0.01?'Menos de 0,01':percent.toLocaleString('es-AR',{maximumFractionDigits:2}))+'% '+(comparison.saving>0?'menos':'más')+' que Mercado Libre';
   }
   function pdfEntries(entries, pricing=root.precioVentaCanonicoProducto, unitCost=root.costoUnitarioProveedorProducto) {
     const brand=p=>String(p.marca||'').trim().replace(/\s+/g,' ').toLocaleUpperCase('es')||'SIN MARCA';
     return entries.map(entry=>{
-      const price=salePrice(entry.p,pricing),comparison=mlComparison(entry.p,price,unitCost);
+      const price=salePrice(entry.p,pricing),comparison=mlComparison(entry.p,price,unitCost,true);
       const featured=!!comparison&&price<comparison.reference*0.7;
       return {...entry,featured,comparison,group:featured?'Destacados':brand(entry.p)};
     }).sort((a,b)=>Number(b.featured)-Number(a.featured)||(a.featured?(b.comparison.saving/b.comparison.reference-a.comparison.saving/a.comparison.reference):a.group==='SIN MARCA'?Number(b.group!=='SIN MARCA'):b.group==='SIN MARCA'?-1:a.group.localeCompare(b.group,'es'))||String(a.p.nombre||a.p.descripcion||'').localeCompare(String(b.p.nombre||b.p.descripcion||''),'es'));
@@ -63,7 +69,7 @@
     const p = products[key]; if (!eligible(p)) return null;
     const q = quote(p); return [p.codigo || '', p.nombre || p.descripcion || '', qty, q.usd || '', q.ars || '', q.url, purchases[key]?.cantidad ?? '', purchases[key]?.precioUnitario ?? '', purchases[key]?.moneda || '', purchases[key]?.proveedor || ''];
   }).filter(Boolean)].map(row => row.map(csvCell).join(';')).join('\r\n');
-  if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection, subscribeExchangeRate};
+  if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection, subscribeExchangeRate, pdfComparisonText};
   if (!root.document) return;
   let detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', busy = false, generation = 0;
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -208,7 +214,7 @@
         const price=saleAmounts(p,rate).usd;
         let src='';try{if(p.imagenUrl){const u=new URL(p.imagenUrl,root.location.href);if(/^https?:$/.test(u.protocol)||/^data:image\/(png|jpeg|webp);base64,/.test(p.imagenUrl))src=u.href;if(src&&/^https?:/.test(src)&&typeof root.urlImagenProductoParaArchivo==='function')src=root.urlImagenProductoParaArchivo(src);}}catch(_){}
         const groupHeading=offset===0||pageRows[offset-1].group!==group?esc(group):'';
-        return '<div class="pdf-item"><div class="group-heading '+(featured?'featured-heading':'')+'">'+groupHeading+'</div><article class="'+(featured?'featured':'')+'"><div class="photo">'+(src?'<img src="'+esc(src)+'" alt="">':'')+'</div><div class="info"><div class="brand">'+esc(p.marca||'Ofertas')+' <span>'+esc(p.codigo||'')+'</span></div><h2>'+esc(p.nombre||p.descripcion||'Producto')+'</h2><p>'+esc(String(p.catalogoDescripcion||p.descripcion||'').slice(0,240))+'</p><div class="price">'+(price?money(price):'Consultar precio')+(price&&hasVAT(p)?' <small>con IVA</small>':'')+'</div>'+(featured?'<div class="saving">'+(comparison.saving/comparison.reference*100).toLocaleString('es-AR',{maximumFractionDigits:2})+'% menos que Mercado Libre</div>':'')+(onlySelected?'<div class="quantity">Cantidad: '+qty+' · Subtotal: '+(price?money(price*qty):'A consultar')+'</div>':'')+'</div></article></div>';
+        return '<div class="pdf-item"><div class="group-heading '+(featured?'featured-heading':'')+'">'+groupHeading+'</div><article class="'+(featured?'featured':'')+'"><div class="photo">'+(src?'<img src="'+esc(src)+'" alt="">':'')+'</div><div class="info"><div class="brand">'+esc(p.marca||'Ofertas')+' <span>'+esc(p.codigo||'')+'</span></div><h2>'+esc(p.nombre||p.descripcion||'Producto')+'</h2><p>'+esc(String(p.catalogoDescripcion||p.descripcion||'').slice(0,240))+'</p><div class="price">'+(price?money(price):'Consultar precio')+(price&&hasVAT(p)?' <small>con IVA</small>':'')+'</div>'+'<div class="saving"'+(!comparison||comparison.saving<=0?' style="color:#54677e"':'')+'>'+esc(pdfComparisonText(comparison))+'</div>'+(onlySelected?'<div class="quantity">Cantidad: '+qty+' · Subtotal: '+(price?money(price*qty):'A consultar')+'</div>':'')+'</div></article></div>';
       }).join('');
       pages.push('<section class="sheet"><header><div class="logo">SisVentas<span>powered by Nixa</span></div><div class="edition">OFERTAS<br><small>'+esc(date)+'</small></div></header><div class="heading"><h1>'+esc(title)+'</h1><span>'+entries.length+' productos'+(onlySelected?' · '+entries.reduce((s,e)=>s+Number(e.qty),0)+' unidades':'')+'</span></div><div class="cards">'+cards+'</div>'+(onlySelected&&pageIndex===pageEntries.length-1?'<div class="total">Total a precio de venta <strong>'+money(total)+'</strong></div>':'')+'<footer><span>Precios de venta registrados · Sujetos a disponibilidad'+(entries.some(e=>!salePrice(e.p))?' · Hay productos con precio a consultar':'')+'</span><b>'+(pageIndex+1)+' / '+pageEntries.length+'</b></footer></section>');
     }

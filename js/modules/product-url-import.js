@@ -4,23 +4,34 @@
   var secuencia = 0;
   function el(id) { return document.getElementById(id); }
   function esComprasParaguay(url) {
-    try { return /^(?:www\.|mobile\.)?comprasparaguai\.com\.br$/.test(new URL(url).hostname); } catch (_) { return false; }
+    try { return /^(?:www\.|mobile\.)?(?:comprasparaguai\.com\.br|comprasparaguay\.com\.ar)$/.test(new URL(url).hostname); } catch (_) { return false; }
   }
   async function consultarComprasParaguayDirecto(url, proveedor, signal) {
     var origen = new URL(url);
-    if (origen.protocol !== 'https:' || origen.username || origen.password || origen.port || origen.search || !/^\/[^/]+__\d+\/$/.test(origen.pathname) || !esComprasParaguay(url) || !esComprasParaguay(proveedor.web)) throw new Error('Compras Paraguay requiere una URL exacta y su proveedor registrado.');
-    var api = new URL(origen.pathname, 'https://api.comprasparaguai.com.br');
-    var respuesta;
-    try {
-      respuesta = await fetch(api.href, {signal:signal, credentials:'omit', referrerPolicy:'no-referrer', redirect:'error', headers:{Accept:'application/json'}});
-    } catch (error) {
-      if (error.name === 'AbortError') throw error;
-      throw new Error('No se pudo consultar Compras Paraguay desde este equipo. Revisá la conexión y volvé a intentar.');
+    function identidad(u) { var m=u.pathname.match(/^\/[^/]+?(_{1,2})(\d+)\/$/); return m ? m[1]+m[2] : ''; }
+    if (origen.protocol !== 'https:' || origen.username || origen.password || origen.port || origen.search || origen.hash || !identidad(origen) || !esComprasParaguay(url) || !esComprasParaguay(proveedor.web)) throw new Error('Compras Paraguay requiere una URL exacta y su proveedor registrado.');
+    async function leer(api) {
+      var respuesta;
+      try { respuesta=await fetch(api.href,{signal:signal,credentials:'omit',referrerPolicy:'no-referrer',redirect:'error',headers:{Accept:'application/json'}}); }
+      catch(error){if(error.name==='AbortError')throw error;throw new Error('No se pudo consultar Compras Paraguay desde este equipo. Revisá la conexión y volvé a intentar.');}
+      if(!respuesta.ok || !/application\/json/i.test(respuesta.headers.get('content-type')||''))throw new Error('Compras Paraguay no permitió leer la ficha desde este equipo (HTTP '+respuesta.status+').');
+      var data=await respuesta.json(),devuelta=data&&typeof data.url==='string'?new URL(data.url,api):null;
+      if(!devuelta || devuelta.origin!==api.origin || devuelta.username || devuelta.password || identidad(devuelta)!==identidad(api) || devuelta.search || devuelta.hash)throw new Error('Compras Paraguay devolvió otro producto. No se aplicaron los datos.');
+      return data;
     }
-    if (!respuesta.ok || !/application\/json/i.test(respuesta.headers.get('content-type') || '')) throw new Error('Compras Paraguay no permitió leer la ficha desde este equipo (HTTP ' + respuesta.status + ').');
-    var d = await respuesta.json();
-    var devuelta = d && typeof d.url === 'string' ? new URL(d.url, api) : null;
-    if (!devuelta || devuelta.origin !== api.origin || devuelta.pathname !== api.pathname || devuelta.search || devuelta.hash) throw new Error('Compras Paraguay devolvió otro producto. No se aplicaron los datos.');
+    var api=new URL(origen.pathname,'https://api.comprasparaguai.com.br'),d=await leer(api),modelo=null,ofertaUrl='';
+    if(!identidad(origen).startsWith('__')) {
+      modelo=d;
+      if(d.ocultar_preco!==false || !Array.isArray(d.produtos))throw new Error('Compras Paraguay no informó ofertas públicas para este producto.');
+      var ofertas=d.produtos.filter(function(p){
+        if(!p || p.ocultar_preco!==false || p.disponivel===false || typeof p.preco_dolar!=='number' || !Number.isFinite(p.preco_dolar) || p.preco_dolar<=0 || !p.loja || !p.loja.nome || typeof p.url!=='string')return false;
+        try {var u=new URL(p.url,api);return u.origin===api.origin&&!u.username&&!u.password&&!u.search&&!u.hash&&identidad(u).startsWith('__');}catch(_){return false;}
+      }).sort(function(a,b){return a.preco_dolar-b.preco_dolar;});
+      if(!ofertas.length)throw new Error('No hay ofertas públicas con precio para este producto.');
+      var ofertaApi=new URL(ofertas[0].url,api);
+      d=await leer(ofertaApi);
+      ofertaUrl=new URL(ofertaApi.pathname,origen.origin).href;
+    }
     if (typeof d.nome !== 'string' || !d.nome.trim() || !d.loja || typeof d.loja.nome !== 'string' || !d.loja.nome.trim() || d.ocultar_preco !== false || typeof d.preco_dolar !== 'number' || !Number.isFinite(d.preco_dolar) || d.preco_dolar <= 0 || typeof d.disponivel !== 'boolean') throw new Error('Compras Paraguay no confirmó un precio público en dólares para este producto.');
     var dolar = obtenerDolarReferenciaProducto();
     var cambio = Number(dolar && dolar.valor);
@@ -28,9 +39,9 @@
     if (!(cambio > 0) || !Number.isFinite(precio)) throw new Error('Configurá una cotización válida del dólar en SisVentas.');
     var texto = function(v) { return typeof v === 'string' ? v.replace(/<[^>]*>/g, ' ').trim() : ''; };
     return {ok:true, url:url, identidad:{ok:true}, moneda:'ARS', precioArs:precio, precioPublicadoArs:precio, precioOriginal:d.preco_dolar, monedaOriginal:'USD', sinIva:false,
-      conversion:{arsPorUsd:cambio, factor:cambio, dolarTipo:dolar.tipo, calculadaEn:Date.now()}, fuente:'compras_paraguay_api_navegador', tiendaOrigen:d.loja.nome,
+      conversion:{arsPorUsd:cambio, factor:cambio, dolarTipo:dolar.tipo, calculadaEn:Date.now()}, fuente:'compras_paraguay_api_navegador', tiendaOrigen:d.loja.nome, urlOferta:ofertaUrl,
       disponibilidadProveedor:d.disponivel ? 'disponible' : 'sin_stock', disponibilidadProveedorTexto:d.disponivel ? 'Disponible' : 'Sin stock',
-      ficha:{nombre:texto(d.nome), marca:texto(d.marca), imagenUrl:d.imagem_url && d.imagem_url.large || '', detalle:[texto(d.descricao)].concat((Array.isArray(d.caracteristicas) ? d.caracteristicas : []).filter(function(c){return c && typeof c.nome === 'string' && typeof c.valor === 'string';}).map(function(c){return texto(c.nome)+': '+texto(c.valor);})).filter(Boolean).join('\n')}
+      ficha:{nombre:texto(modelo && modelo.nome || d.nome), marca:texto(modelo && modelo.marca || d.marca), imagenUrl:modelo && (modelo.imagens_url?.[0]?.large || modelo.imagem_principal_url) || d.imagem_url && d.imagem_url.large || '', detalle:[texto(modelo && modelo.descricao || d.descricao)].concat((Array.isArray(d.caracteristicas) ? d.caracteristicas : []).filter(function(c){return c && typeof c.nome === 'string' && typeof c.valor === 'string';}).map(function(c){return texto(c.nome)+': '+texto(c.valor);})).filter(Boolean).join('\n')}
     };
   }
   function prepararComprasParaguay(seleccionarCategoria) {
@@ -118,7 +129,7 @@
     if (!url) return null;
     var host = '';
     try { host = new URL(url).hostname.replace(/^www\./, '').toLowerCase(); } catch (_) { return null; }
-    var candidatos = proveedores().filter(function(p) { return dominioProveedor(p) === host; });
+    var candidatos = proveedores().filter(function(p) { return dominioProveedor(p) === host || (esComprasParaguay(url) && esComprasParaguay('https://'+dominioProveedor(p)));  });
     return candidatos.length === 1 ? candidatos[0] : null;
   }
   function proveedorSugerido(url) {
@@ -220,6 +231,7 @@
       if (!(Number(datos.precioArs) > 0) || !Number.isFinite(Number(datos.precioArs)) || datos.moneda !== 'ARS') throw new Error('El proveedor no informó un precio válido en ARS');
       var precioProveedor = completarReferenciaProveedorProducto({
         nombre: proveedor.nombre, proveedorKey: clave(proveedor), url: url,
+        ...(datos.tiendaOrigen ? {tiendaOrigen:datos.tiendaOrigen,urlOferta:datos.urlOferta || url} : {}),
         precio: Number(datos.precioArs), sinIva: datos.sinIva === true,
         ...(esComprasParaguay(url) ? { costoEnvioArs: Number(el('pf-envio-paraguay').value) || 0 } : {}),
         precioPublicadoOriginalArs: Number(datos.precioPublicadoArs || datos.precioArs),
@@ -244,7 +256,7 @@
       if (!ficha.marca) faltantes.push('marca');
       if (!ficha.detalle) faltantes.push('detalle');
       if (!imagen) faltantes.push('imagen');
-      estado('Ficha y precio cargados. Revisá la categoría y los datos antes de guardar.' + (faltantes.length ? ' El proveedor no informó: ' + faltantes.join(', ') + '.' : ''));
+      estado('Ficha y precio cargados.' + (datos.tiendaOrigen ? ' Oferta de '+datos.tiendaOrigen+'.' : '') + ' Revisá la categoría y los datos antes de guardar.' + (faltantes.length ? ' El proveedor no informó: ' + faltantes.join(', ') + '.' : ''));
     } catch (error) {
       if (consulta === c) estado(error.name === 'AbortError' ? 'La consulta demoró demasiado. Podés reintentar; no se guardó ningún producto.' : mensajeProveedor(proveedor, error.message));
     } finally {

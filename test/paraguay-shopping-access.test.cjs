@@ -62,3 +62,15 @@ test('compara venta final con la referencia ML menor y descarta valores inválid
   assert.equal(mlComparison({proveedores:[{nombre:'Mercado Libre',precio:100,sinIva:true}],iva:21},100).reference,121);
   assert.equal(mlComparison(p,85000,()=>200000).reference,200000);
 });
+test('PDF muestra relación con ML en destacados y marcas, incluso igualdad o mayor precio',()=>{
+ const {pdfEntries,pdfComparisonText,pdfPages}=require('../js/modules/paraguay-shopping-access');
+ const entries=[50,85,100,120].map((ventaARS,i)=>({p:{nombre:'Producto '+i,marca:'JBL',ventaARS,iva:0,proveedores:[{nombre:'Mercado Libre',precio:100}]},qty:1}));
+ entries.push({p:{nombre:'Sin referencia',marca:'JBL',ventaARS:80,iva:0},qty:1});
+ const result=pdfEntries(entries),labels=result.map(r=>pdfComparisonText(r.comparison));
+ assert.equal(result.filter(r=>r.featured).length,1);
+ assert.deepEqual(labels,['50% menos que Mercado Libre','15% menos que Mercado Libre','Mismo precio que Mercado Libre','20% más que Mercado Libre','Sin referencia de Mercado Libre']);
+ assert.deepEqual(pdfPages(result).map(page=>page.length),[1,4]);
+ const code=fs.readFileSync('js/modules/paraguay-shopping-access.js','utf8');
+ assert.match(code,/esc\(pdfComparisonText\(comparison\)\)/);
+ assert.doesNotMatch(code,/featured\?'<div class="saving"/);
+});

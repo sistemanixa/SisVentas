@@ -49,3 +49,8 @@ test('envío no agrega IVA adicional y no afecta otros proveedores ni hosts simi
   }
   for (const costoEnvioArs of [-1, Infinity, NaN]) assert.equal(ctx.costoEnvioProveedorProducto({...base, costoEnvioArs}), 0);
 });
+test('envío argentino usa el mismo cálculo que la ficha brasileña',()=>{
+ const pv={...base,url:'https://comprasparaguay.com.ar/parlante_62935/'};
+ assert.equal(ctx.costoEnvioProveedorProducto(pv),10000);
+ assert.equal(ctx.costoExteriorVigenteARS(pv),932365);
+});
