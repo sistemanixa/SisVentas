@@ -1,12 +1,22 @@
 (function(){
   'use strict';
-  var owner='', stops=[], cache={};
+  var owner='', ownerName='', stops=[], cache={};
+  function refreshUnreadIdentity(){
+    var name=String(typeof currentUser==='undefined'?'':currentUser||'');
+    if(ownerName===name)return;
+    ownerName=name;
+    Object.keys(cache).forEach(function(channel){
+      _chatNoLeidos[channel]=Object.values(cache[channel]||{}).filter(function(m){return m.autor!==name&&!_chatFueLeido(m,name);}).length;
+    });
+    if(typeof chatActualizarBadges==='function')chatActualizarBadges();
+  }
   window.chatDirectoId=function(uid){return 'directo_'+[currentUserUid,uid].sort().join('_');};
   window.chatDirectoParaNombre=function(nombre){var entry=Object.entries(window._chatDirectorio||{}).find(function(pair){return pair[1].nombre===nombre;});return entry?window.chatDirectoId(entry[0]):'';};
   window.chatDirectosSnapshot=function(){return Promise.resolve({val:function(){return cache;}});};
   window.chatIniciarDirectosSeguros=function(){
-    if(!window.fbDB||!currentUserUid||owner===currentUserUid)return;
-    stops.forEach(function(stop){stop();});stops=[];cache={};owner=currentUserUid;
+    if(!window.fbDB||!currentUserUid)return;
+    if(owner===currentUserUid){refreshUnreadIdentity();return;}
+    stops.forEach(function(stop){stop();});stops=[];cache={};owner=currentUserUid;ownerName=String(currentUser||'');
     var uid=owner;
     stops.push(window.fbOnValue(window.fbRef(window.fbDB,'sv_chat_roles/'+uid),function(snap){
       if(currentUserUid!==uid)return;

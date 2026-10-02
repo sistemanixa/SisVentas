@@ -49,7 +49,7 @@
   function user() { return typeof currentUserUid !== 'undefined' && currentUserUid ? String(currentUserUid) : ''; }
   function prefix() { return 'sv:commercial-draft:v1:' + encodeURIComponent(user()) + ':'; }
   function root(kind) { return document.getElementById(kind === 'venta' ? 'page-venta' : 'ppto-form-view'); }
-  function visible(kind) { var el = root(kind); return el && el.getClientRects().length > 0; }
+  function visible(kind) { var el = root(kind); return el && el.closest('.page')?.classList.contains('active') && el.getClientRects().length > 0; }
   function records() {
     if (!user()) return [];
     var out = [], p = prefix();
@@ -102,7 +102,7 @@
   }
   function badges() {
     var n = records().length;
-    document.querySelectorAll('[data-draft-count]').forEach(function (el) { var kind = el.closest('#vtab-borradores') ? 'venta' : 'presupuesto'; var count = records().filter(function(d){return d.kind === kind;}).length; el.textContent = count; el.hidden = !count; });
+    document.querySelectorAll('[data-draft-count]').forEach(function (el) { var kind = el.closest('#vtab-borradores') ? 'venta' : 'presupuesto'; var count = records().filter(function(d){return d.kind === kind;}).length; if(el.textContent!==String(count))el.textContent=count;if(el.hidden!==!count)el.hidden=!count; });
     if (window._svDraftGrid) renderGrid();
     if (window._svSalesDraftGrid) renderGrid('venta');
   }

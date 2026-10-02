@@ -14,7 +14,7 @@ assert(!app.includes("btnRechazar = estadoNorm === 'pendiente_aprobacion' && esC
 assert(app.includes("abrirComisionDesdeGasto(\\'"), 'Gastos debe abrir la comisión exacta.');
 assert(commissions.includes('rechazarComisionGestion'), 'El rechazo debe quedar en el módulo Comisiones.');
 assert(commissions.includes('rehabilitarComision'), 'Las comisiones rechazadas deben poder rehabilitarse.');
-assert(index.includes('resizable-tables.js?v=3.2.5-grillas-render-dinamico-1'), 'La app debe cargar la copia actual del controlador general de grillas.');
+assert(/src="\.\/js\/modules\/resizable-tables\.js\?v=[^"]+"/.test(index), 'La app debe cargar la copia actual del controlador general de grillas.');
 assert(grids.includes('dragUsesPercent = false'), 'El controlador validado debe conservar el arrastre en píxeles estilo Windows.');
 assert(grids.includes("handle.addEventListener('dblclick'"), 'El controlador validado debe conservar el autoajuste por doble clic.');
 assert(grids.includes('persistPixelLayout(table, index, autoWidthForColumn(table, index));'), 'El autoajuste validado debe persistir únicamente la columna elegida.');

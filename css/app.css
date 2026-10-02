@@ -2996,7 +2996,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 /* Las tablas dentro de desplegables ARCA no deben quedar ocultas esperando medidas. */
 #page-creditofiscal table.sv-columns-pending{visibility:visible!important}
 /* Aviso común de búsquedas activas, también en pantallas angostas. */
-.sv-search-filter-notice { display:flex;align-items:center;justify-content:space-between;gap:10px;flex:1 0 100%;box-sizing:border-box;max-width:100%;padding:8px 12px;margin:8px 0;background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--radius);color:var(--amber);font-size:12px; }
+.sv-search-filter-notice { display:flex;align-items:center;justify-content:space-between;gap:10px;flex:0 0 auto;width:100%;height:auto;min-height:0;align-self:start;box-sizing:border-box;max-width:100%;padding:8px 12px;margin:8px 0;background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--radius);color:var(--amber);font-size:12px; }
 .sv-search-filter-notice[hidden] { display:none; }
 .sv-search-filter-notice span { overflow-wrap:anywhere;min-width:0; }
 .sv-search-filter-notice button { flex-shrink:0; }

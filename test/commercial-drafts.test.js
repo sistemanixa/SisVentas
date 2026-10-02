@@ -8,7 +8,7 @@ assert.equal(valid({schema:1, kind:'venta', updated:now-TTL},now),false);
 assert.equal(valid({schema:1, kind:'presupuesto', updated:now+1},now),false);
 function field(id,value='') {return {id,value,type:'text',dataset:{},closest:()=>null};}
 const sale = field('venta-obs'), quote=field('pp-cli');
-const roots = {'page-venta':{querySelectorAll:()=>[sale],getClientRects:()=>[1]},'ppto-form-view':{querySelectorAll:()=>[quote],getClientRects:()=>[1]}};
+const roots = {'page-venta':{querySelectorAll:()=>[sale],closest:()=>({classList:{contains:()=>true}}),getClientRects:()=>[1]},'ppto-form-view':{querySelectorAll:()=>[quote],closest:()=>({classList:{contains:()=>true}}),getClientRects:()=>[1]}};
 const storage={}; Object.defineProperties(storage,{getItem:{value:k=>storage[k]||null},setItem:{value:(k,v)=>{storage[k]=v;}},removeItem:{value:k=>delete storage[k]}});
 const c={document:{getElementById:id=>roots[id],querySelectorAll:()=>[],addEventListener(){}},localStorage:storage,currentUserUid:'user-a',setInterval(fn){c.tick=fn;},notify(){},_ventaConIva:true,_pptoConIva:true,_ventaImpConDetalle:false,_pptoConDetalle:false,_ventaMonedaActual:'ARS',_pptoMonedaActual:'ARS',addEventListener(){}};
 c.window=c; vm.createContext(c); vm.runInContext(fs.readFileSync('js/modules/commercial-drafts.js','utf8'),c);

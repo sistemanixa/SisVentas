@@ -484,11 +484,14 @@
       if (style) style.remove();
       delete table.dataset.svAlignmentScope;
     }
-    tableHeaders(table).forEach(function (_th, index) {
-      columnCells(table, index).forEach(function (cell) {
-        cell.style.textAlign = '';
-        actionContainersInCell(cell).forEach(function (actionGroup) { actionGroup.style.removeProperty('justify-content'); });
+    var cells = tableHeaders(table).flatMap(function (_th, index) {
+      return columnCells(table, index).map(function(cell) {
+        return {cell:cell,actions:actionContainersInCell(cell)};
       });
+    });
+    cells.forEach(function(entry) {
+      if (entry.cell.style.textAlign) entry.cell.style.textAlign = '';
+      entry.actions.forEach(function(group) { if(group.style.justifyContent)group.style.removeProperty('justify-content'); });
     });
   }
 
@@ -570,11 +573,16 @@
   }
 
   function updateOverflowTitles(table) {
-    Array.from(table.querySelectorAll('th,td')).forEach(function (cell) {
+    // Read layout as one batch before changing attributes on any cell.
+    var measurements = Array.from(table.querySelectorAll('th,td')).map(function (cell) {
       if (cell.querySelector && cell.querySelector('.sv-col-resizer')) return;
       var text = (cell.textContent || '').trim().replace(/\s+/g, ' ');
       if (!text) return;
-      var clipped = cell.scrollWidth > cell.clientWidth + 2;
+      return {cell:cell,text:text,clipped:cell.scrollWidth > cell.clientWidth + 2};
+    });
+    measurements.forEach(function (measurement) {
+      if (!measurement) return;
+      var cell=measurement.cell,text=measurement.text,clipped=measurement.clipped;
       if (clipped) {
         if (!cell.title || cell.dataset.svAutoTitle === '1') {
           cell.title = text;
@@ -689,14 +697,20 @@
   function applyPercentProfile(table, percentages) {
     var headers = tableHeaders(table);
     if (!table || !headers.length) return;
+    var columns = headers.map(function(th,index) {
+      return {physicalIndex:physicalIndexForHeader(th),cells:columnCells(table,index)};
+    });
+    var ignoredColumns=Array.from(table.querySelectorAll('thead th[data-sv-column-ignore="1"]')).map(function(th){
+      return {index:physicalIndexForHeader(th),hidden:isHidden(th)||th.getAttribute('aria-hidden')==='true'};
+    });
     clearPixelWidths(table);
     var colgroup = ensureColgroup(table, totalColumnCount(table));
     // Las columnas técnicas declaradas como ignoradas no participan del 100%.
     // Esta regla depende de su semántica, nunca del nombre de una pantalla.
-    Array.from(table.querySelectorAll('thead th[data-sv-column-ignore="1"]')).forEach(function(ignored) {
-      var physicalIndex = physicalIndexForHeader(ignored);
+    ignoredColumns.forEach(function(ignored) {
+      var physicalIndex = ignored.index;
       if (physicalIndex >= 0 && colgroup.children[physicalIndex]) {
-        var ignoredHidden = isHidden(ignored) || ignored.getAttribute('aria-hidden') === 'true';
+        var ignoredHidden = ignored.hidden;
         colgroup.children[physicalIndex].style.width = ignoredHidden ? '0px' : '32px';
       }
     });
@@ -717,11 +731,11 @@
     headers.forEach(function (_th, index) {
       var pct = normalizePercent(percentages[index]);
       var pctVisual = pct * factorAncho;
-      var physicalIndex = physicalIndexForVisibleIndex(table, index);
+      var physicalIndex = columns[index].physicalIndex;
       if (colgroup.children[physicalIndex]) {
         colgroup.children[physicalIndex].style.width = (pctVisual > 0 ? pctVisual : 1) + '%';
       }
-      columnCells(table, index).forEach(function (cell) {
+      columns[index].cells.forEach(function (cell) {
         cell.style.width = '';
         cell.style.maxWidth = '';
         cell.style.minWidth = '0';
@@ -816,7 +830,7 @@
     return true;
   }
 
-  function applyColumnWidth(table, index, width) {
+  function applyColumnWidth(table, index, width, deferOverflow) {
     var safeWidth = normalizeWidth(width);
     var physicalIndex = physicalIndexForVisibleIndex(table, index);
     var colgroup = ensureColgroup(table, totalColumnCount(table));
@@ -826,8 +840,18 @@
       cell.style.maxWidth = safeWidth + 'px';
       cell.style.minWidth = MIN_WIDTH + 'px';
     });
-    updateOverflowTitles(table);
+    if (!deferOverflow) updateOverflowTitles(table);
     return safeWidth;
+  }
+
+  function applyColumnWidths(table, widths) {
+    var plans=widths.map(function(width,index){return {width:normalizeWidth(width),physical:physicalIndexForVisibleIndex(table,index),cells:columnCells(table,index)};});
+    var cols=ensureColgroup(table,totalColumnCount(table));
+    plans.forEach(function(plan){
+      if(cols.children[plan.physical])cols.children[plan.physical].style.width=plan.width+'px';
+      plan.cells.forEach(function(cell){cell.style.width=plan.width+'px';cell.style.maxWidth=plan.width+'px';cell.style.minWidth=MIN_WIDTH+'px';});
+    });
+    updateOverflowTitles(table);
   }
 
   function autoWidthForColumn(table, index) {
@@ -909,10 +933,7 @@
     table.style.setProperty('width', 'var(--sv-pixel-total-width)', 'important');
     table.style.setProperty('min-width', 'var(--sv-pixel-total-width)', 'important');
     table.style.tableLayout = 'fixed';
-    resolvedWidths.forEach(function (width, index) {
-      applyColumnWidth(table, index, width);
-    });
-    updateOverflowTitles(table);
+    applyColumnWidths(table, resolvedWidths);
   }
 
   function pixelContainerWidth(table) {
@@ -954,7 +975,7 @@
     table.style.setProperty('--sv-pixel-total-width', total + 'px');
     table.style.setProperty('width', 'var(--sv-pixel-total-width)', 'important');
     table.style.setProperty('min-width', 'var(--sv-pixel-total-width)', 'important');
-    fitted.forEach(function(width, index) { applyColumnWidth(table, index, width); });
+    applyColumnWidths(table, fitted);
     table.dataset.svViewportFitWidth = String(Math.round(available));
   }
 
