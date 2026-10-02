@@ -12,6 +12,10 @@
     const iva = p.iva == null ? 21 : Number(p.iva);
     return Number.isFinite(net) && net > 0 && Number.isFinite(iva) && iva >= 0 ? Math.round(net * (1 + iva / 100) * 100) / 100 : 0;
   }
+  function saleAmounts(p, rate, pricing = root.precioVentaCanonicoProducto) {
+    const ars=salePrice(p,pricing), exchange=Number(rate);
+    return {ars,usd:ars>0&&Number.isFinite(exchange)&&exchange>0?Math.round(ars/exchange*100)/100:0};
+  }
   const csvCell = v => '"' + String(v ?? '').replace(/^[=+@-]/, "'$&").replace(/"/g, '""') + '"';
   function mlComparison(p, price, unitCost = root.costoUnitarioProveedorProducto) {
     const refs = (p.proveedores || []).filter(pv=>{
@@ -28,11 +32,17 @@
     const p = products[key]; if (!eligible(p)) return null;
     const q = quote(p); return [p.codigo || '', p.nombre || p.descripcion || '', qty, q.usd || '', q.ars || '', q.url, purchases[key]?.cantidad ?? '', purchases[key]?.precioUnitario ?? '', purchases[key]?.moneda || '', purchases[key]?.proveedor || ''];
   }).filter(Boolean)].map(row => row.map(csvCell).join(';')).join('\r\n');
-  if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, mlComparison};
+  if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, saleAmounts, mlComparison};
   if (!root.document) return;
   let detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', busy = false, generation = 0;
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const amount = n => Number(n).toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
+  const exchangeRate = () => Number(root.obtenerDolarReferenciaProducto?.().valor)||0;
+  function salePriceHTML(p) {
+    const values=saleAmounts(p,exchangeRate());
+    if(!values.usd)return '<strong>Consultar precio en USD</strong>';
+    return '<span style="display:flex;flex-direction:column;gap:6px;align-items:flex-start"><strong style="font-size:19px;color:var(--green)">US$ '+amount(values.usd)+(hasVAT(p)?' <small style="font-size:10px">con IVA</small>':'')+'</strong><small style="font-size:12px;font-weight:400;color:var(--text3)">≈ ARS $ '+amount(values.ars)+' · cambio del día</small></span>';
+  }
   function mlBadge(p, price) {
     const comparison=mlComparison(p,price);if(!comparison)return '';
     return '<span class="py-ml-saving" style="display:flex;flex-wrap:wrap;gap:4px 8px;margin:9px 0;color:var(--green);font-size:12px;line-height:1.4"><b>'+(comparison.percent>0?comparison.percent.toLocaleString('es-AR')+'% menos que ML':'Menos que ML')+'</b><span>Ahorrás $ '+amount(comparison.saving)+'</span><small style="flex-basis:100%;color:var(--text3);font-size:10px">ML: $ '+amount(comparison.reference)+' · referencia registrada</small></span>';
@@ -58,7 +68,7 @@
     panel.querySelector('[data-products]').innerHTML = rows.map(([key,p]) => {
       const price = salePrice(p), qty = Number(selected[key]) || 0;
       // Misma estructura y clases que renderCatalogo: tarjeta y controles hermanos.
-      return '<article class="catalogo-tarjeta"><button type="button" class="catalogo-card" data-detail="'+esc(key)+'" aria-label="Ver '+esc(p.nombre || p.descripcion)+'"><div class="catalogo-card-imagen">'+root.imagenCatalogoHTML(p,'catalogo-card-img')+'</div><div class="catalogo-card-body"><span class="catalogo-card-cat">Ofertas</span><h3>'+esc(p.nombre || p.descripcion)+'</h3>'+(p.marca?'<div class="catalogo-card-marca">'+esc(p.marca)+'</div>':'')+'<p>'+esc(p.catalogoDescripcion || p.descripcion || '')+'</p><strong class="catalogo-precio">'+(price?'$ '+amount(price)+(hasVAT(p)?' <small>con IVA</small>':''):'Consultar precio')+'</strong>'+mlBadge(p,price)+'<span class="catalogo-card-footer"><span class="catalogo-ver">Ver detalle <i class="ti ti-arrow-right"></i></span></span></div></button><button type="button" class="catalogo-agregar-carrito catalogo-carrito-tarjeta '+(qty?'seleccionado':'')+'" data-add="'+esc(key)+'" aria-label="Agregar '+esc(p.nombre || p.codigo)+' al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i><span class="catalogo-producto-contador" '+(qty?'':'hidden')+'>'+qty+'</span></button><button type="button" class="catalogo-restar catalogo-restar-tarjeta" data-subtract="'+esc(key)+'" aria-label="Quitar una unidad" '+(qty?'':'hidden')+'><i class="ti ti-minus" aria-hidden="true"></i></button></article>';
+      return '<article class="catalogo-tarjeta"><button type="button" class="catalogo-card" data-detail="'+esc(key)+'" aria-label="Ver '+esc(p.nombre || p.descripcion)+'"><div class="catalogo-card-imagen">'+root.imagenCatalogoHTML(p,'catalogo-card-img')+'</div><div class="catalogo-card-body"><span class="catalogo-card-cat">Ofertas</span><h3>'+esc(p.nombre || p.descripcion)+'</h3>'+(p.marca?'<div class="catalogo-card-marca">'+esc(p.marca)+'</div>':'')+'<p>'+esc(p.catalogoDescripcion || p.descripcion || '')+'</p>'+salePriceHTML(p)+mlBadge(p,price)+'<span class="catalogo-card-footer"><span class="catalogo-ver">Ver detalle <i class="ti ti-arrow-right"></i></span></span></div></button><button type="button" class="catalogo-agregar-carrito catalogo-carrito-tarjeta '+(qty?'seleccionado':'')+'" data-add="'+esc(key)+'" aria-label="Agregar '+esc(p.nombre || p.codigo)+' al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i><span class="catalogo-producto-contador" '+(qty?'':'hidden')+'>'+qty+'</span></button><button type="button" class="catalogo-restar catalogo-restar-tarjeta" data-subtract="'+esc(key)+'" aria-label="Quitar una unidad" '+(qty?'':'hidden')+'><i class="ti ti-minus" aria-hidden="true"></i></button></article>';
 
     }).map((card,index)=>{
       const name=brand(rows[index][1]);
@@ -76,7 +86,7 @@
     const modal = document.createElement('div');
     modal.dataset.svModalBehavior='compact';modal.className='catalogo-modal';modal.dataset.detailModal='';modal.style.cssText='display:flex;z-index:100100';
     modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-label',p.nombre || p.descripcion);
-    modal.innerHTML='<div class="catalogo-modal-card"><button class="catalogo-modal-close" data-close-detail aria-label="Cerrar detalle">×</button><div class="catalogo-modal-imagen">'+root.imagenCatalogoHTML(p,'catalogo-modal-img')+'</div><div class="catalogo-modal-info"><span class="catalogo-card-cat">Ofertas</span><h2>'+esc(p.nombre || p.descripcion)+'</h2><div class="catalogo-modal-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p style="white-space:pre-wrap">'+esc(p.catalogoDescripcion || p.descripcion || 'Sin descripción adicional')+'</p><strong>'+(price?'$ '+amount(price)+(hasVAT(p)?' con IVA':''):'Consultar precio')+'</strong>'+mlBadge(p,price)+'<button class="catalogo-agregar-carrito" style="display:flex;margin-top:18px" data-modal-add aria-label="Agregar al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i></button><p data-modal-qty aria-live="polite"></p></div></div>';
+    modal.innerHTML='<div class="catalogo-modal-card"><button class="catalogo-modal-close" data-close-detail aria-label="Cerrar detalle">×</button><div class="catalogo-modal-imagen">'+root.imagenCatalogoHTML(p,'catalogo-modal-img')+'</div><div class="catalogo-modal-info"><span class="catalogo-card-cat">Ofertas</span><h2>'+esc(p.nombre || p.descripcion)+'</h2><div class="catalogo-modal-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p style="white-space:pre-wrap">'+esc(p.catalogoDescripcion || p.descripcion || 'Sin descripción adicional')+'</p>'+salePriceHTML(p)+mlBadge(p,price)+'<button class="catalogo-agregar-carrito" style="display:flex;margin-top:18px" data-modal-add aria-label="Agregar al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i></button><p data-modal-qty aria-live="polite"></p></div></div>';
     const detailKeys=Object.entries(products).filter(([,product])=>eligible(product)&&[product.nombre,product.descripcion,product.codigo,product.marca].join(' ').toLowerCase().includes(panel.querySelector('[data-search]').value.toLowerCase())).map(([id])=>id);
     if(sourceUrl){
       const link=document.createElement('a');link.href=sourceUrl;link.target='_blank';link.rel='noopener noreferrer';link.className='btn btn-primary';link.textContent='Ver producto ↗';link.title='Abrir la página original del producto';link.style.cssText='display:inline-flex;align-self:flex-start;margin-top:14px;text-decoration:none';
@@ -110,14 +120,15 @@
     const win=frame.contentWindow;
     const title=onlySelected?(panel.querySelector('[data-name]').value.trim()||'Mi lista de productos'):'Catálogo de Productos';
     const date=new Date().toLocaleDateString('es-AR');
-    const money=n=>'$ '+amount(n);
-    const total=entries.reduce((s,{p,qty})=>s+salePrice(p)*qty,0);
+    const rate=exchangeRate();if(!(rate>0)){pdfPreview.remove();pdfPreview=null;root.alert('Falta la cotización del dólar para generar el PDF.');return;}
+    const money=n=>'US$ '+amount(n);
+    const total=entries.reduce((s,{p,qty})=>s+saleAmounts(p,rate).usd*qty,0);
     const pages=[];
     for(let i=0;i<entries.length;i+=4){
       const cards=entries.slice(i,i+4).map(({p,qty})=>{
-        const price=salePrice(p),comparison=mlComparison(p,price);
+        const price=saleAmounts(p,rate).usd;
         let src='';try{if(p.imagenUrl){const u=new URL(p.imagenUrl,root.location.href);if(/^https?:$/.test(u.protocol)||/^data:image\/(png|jpeg|webp);base64,/.test(p.imagenUrl))src=u.href;if(src&&/^https?:/.test(src)&&typeof root.urlImagenProductoParaArchivo==='function')src=root.urlImagenProductoParaArchivo(src);}}catch(_){}
-        return '<article><div class="photo">'+(src?'<img src="'+esc(src)+'" alt="">':'')+'</div><div class="info"><div class="brand">'+esc(p.marca||'Ofertas')+' <span>'+esc(p.codigo||'')+'</span></div><h2>'+esc(p.nombre||p.descripcion||'Producto')+'</h2><p>'+esc(String(p.catalogoDescripcion||p.descripcion||'').slice(0,240))+'</p><div class="price">'+(price?money(price):'Consultar precio')+(price&&hasVAT(p)?' <small>con IVA</small>':'')+'</div>'+(onlySelected?'<div class="quantity">Cantidad: '+qty+' · Subtotal: '+(price?money(price*qty):'A consultar')+'</div>':'')+(comparison?'<div class="saving"><b>'+comparison.percent.toLocaleString('es-AR')+'% menos que ML</b> · Ahorrás '+money(comparison.saving)+'<small>Referencia ML registrada: '+money(comparison.reference)+'</small></div>':'')+'</div></article>';
+        return '<article><div class="photo">'+(src?'<img src="'+esc(src)+'" alt="">':'')+'</div><div class="info"><div class="brand">'+esc(p.marca||'Ofertas')+' <span>'+esc(p.codigo||'')+'</span></div><h2>'+esc(p.nombre||p.descripcion||'Producto')+'</h2><p>'+esc(String(p.catalogoDescripcion||p.descripcion||'').slice(0,240))+'</p><div class="price">'+(price?money(price):'Consultar precio')+(price&&hasVAT(p)?' <small>con IVA</small>':'')+'</div>'+(onlySelected?'<div class="quantity">Cantidad: '+qty+' · Subtotal: '+(price?money(price*qty):'A consultar')+'</div>':'')+'</div></article>';
       }).join('');
       pages.push('<section class="sheet"><header><div class="logo">SisVentas<span>powered by Nixa</span></div><div class="edition">OFERTAS<br><small>'+esc(date)+'</small></div></header><div class="heading"><h1>'+esc(title)+'</h1><span>'+entries.length+' productos'+(onlySelected?' · '+entries.reduce((s,e)=>s+Number(e.qty),0)+' unidades':'')+'</span></div><div class="cards">'+cards+'</div>'+(onlySelected&&i+4>=entries.length?'<div class="total">Total a precio de venta <strong>'+money(total)+'</strong></div>':'')+'<footer><span>Precios de venta registrados · Sujetos a disponibilidad'+(entries.some(e=>!salePrice(e.p))?' · Hay productos con precio a consultar':'')+'</span><b>'+Math.floor(i/4+1)+' / '+Math.ceil(entries.length/4)+'</b></footer></section>');
     }
@@ -175,7 +186,7 @@
     panel.querySelector('[data-open-list]').disabled = !entries.length;
     panel.querySelector('[data-cart]').setAttribute('aria-label','Ver carrito: '+units+' unidades');
     panel.querySelector('[data-cart-iva]').hidden = !entries.some(([key])=>hasVAT(products[key]));
-    panel.querySelector('[data-cart-amount]').textContent = '$ '+amount(entries.reduce((s,[key,qty])=>s+salePrice(products[key])*qty,0));
+    panel.querySelector('[data-cart-amount]').textContent = 'US$ '+amount(entries.reduce((s,[key,qty])=>s+saleAmounts(products[key],exchangeRate()).usd*qty,0));
     panel.querySelector('[data-total-usd]').textContent = 'US$ '+amount(usd);
     panel.querySelector('[data-total-ars]').textContent = '$ '+amount(ars);
     panel.querySelector('[data-summary]').textContent = (missing ? missing+' productos sin precio USD. ' : '')+'La referencia no es el costo definitivo. Registrá por separado lo comprado y el precio unitario acordado; no modifica stock ni genera órdenes.';

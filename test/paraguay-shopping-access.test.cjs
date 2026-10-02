@@ -1,5 +1,13 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const {eligible,quote,csv,salePrice}=require('../js/modules/paraguay-shopping-access');
+test('venta USD usa el precio final y el cambio vigente, respetando IVA y exentos',()=>{
+  const {saleAmounts}=require('../js/modules/paraguay-shopping-access');
+  assert.deepEqual(saleAmounts({ventaARS:1000,iva:21},100),{ars:1210,usd:12.1});
+  assert.deepEqual(saleAmounts({ventaARS:1000,iva:0},200),{ars:1000,usd:5});
+  assert.equal(saleAmounts({ventaARS:1000,iva:10.5},100).usd,11.05);
+  assert.equal(saleAmounts({ventaARS:1000},0).usd,0);
+  assert.equal(saleAmounts({compra:1000},100).usd,0);
+});
 
 test('Ofertas usa venta canónica con IVA, nunca el costo del proveedor',()=>{
   const p={ventaARS:1000,compra:600,iva:21};
