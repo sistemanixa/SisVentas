@@ -77,7 +77,17 @@
     const result={goods,remote:total,onsite:total,remoteAllocation:alloc,onsiteAllocation:alloc,localCostAdjustment,travel:chosen==='onsite'?logistics:0,remoteExtra:total-goods*num(p.usd),onsiteExtra:total-goods*num(p.usd),extraTotal,orderTotal:total+rows.filter(r=>!r.include).reduce((s,r)=>s+r.qty*num(r.localUnitARS),0)+extraTotal,retained,profit,margin:revenue?profit/revenue*100:null,allGoods,logistics,usedUSDT:used,freshUSDT:tokens?tokenTotal-used:0};
     return {version:6,rows,extras,parameters:Object.assign({},p,{retained:'',goodsRate:unitRate}),chosen,previewChoice:chosen,choiceMode:'manual',result,complete:pending.length===0,pending,hasForeign};
   }
-  const api={initialize,calculateDraft};
+  function providerLink(row,catalog,masters){
+    if(!row.providerKey||row.method==='stock')return null;
+    const product=(catalog||[]).find(p=>(row.productKey&&p.key===row.productKey)||(row.code&&p.code===row.code));
+    const linked=(product?.providers||[]).find(p=>p.proveedorKey===row.providerKey);
+    const master=(masters||[]).find(p=>p.proveedorKey===row.providerKey);
+    for(const [value,label] of [[linked?.url,'Ver producto'],[master?.web,'Web del proveedor']]){
+      try{const url=new URL(value);if(/^https?:$/.test(url.protocol)&&!url.username&&!url.password)return {url:url.href,label};}catch(_){}
+    }
+    return null;
+  }
+  const api={initialize,calculateDraft,providerLink};
   if(typeof module!=='undefined')module.exports=api;
   if(!root.document)return;
   root.SVExteriorPreparation=api;
@@ -109,11 +119,12 @@
       const mode=extra?'Extra para stock':r.method==='stock'?'Stock disponible':r.method==='local'?'Compra local':'Compra exterior';
       const qty=extra?num(r.qty):r.method==='stock'?0:Math.max(0,num(r.needed)-num(r.existing));
       const accept=r.method!=='stock'&&r.reference?.currency===currency&&r.reference?.providerKey===r.providerKey&&num(r.reference?.amount)>0&&!num(r.agreed);
+      const link=providerLink(r,ctx.catalog,ctx.providers);
       return '<article class="ep-card"><div class="ep-product">'+(ctx.thumbnail?.(r)||'')+'<div><strong>'+esc(r.description)+'</strong></div></div>'+
         '<div><small>Cantidad</small>'+(extra?'<input class="search-input" aria-label="Cantidad extra" type="number" min="1" step="1" data-item="'+id+'" data-field="qty" value="'+r.qty+'">':'<strong>'+qty+'</strong>')+'</div>'+
         '<div><small>Precio leído</small><strong>'+esc(r.reference?.currency||currency)+' '+money(r.reference?.amount)+'</strong></div>'+
         '<label>Precio acordado · '+currency+'<div class="ep-price"><input class="search-input" type="number" min="0.01" step="0.01" data-item="'+id+'" data-field="agreed" value="'+esc(r.agreed??'')+'" placeholder="Pendiente" '+(r.method==='stock'?'disabled':'')+'>'+(accept?'<button class="btn btn-sm" data-accept="'+id+'" title="Usar precio leído" aria-label="Usar precio leído">=</button>':'')+'</div></label>'+
-        '<label>Proveedor<select class="search-input" data-item="'+id+'" data-field="providerKey" '+(r.method==='stock'?'disabled':'')+'><option value="">Seleccionar</option>'+providers(r).map(v=>'<option value="'+esc(v.proveedorKey)+'" '+(r.providerKey===v.proveedorKey?'selected':'')+'>'+esc(v.nombre)+'</option>').join('')+'</select></label>'+
+        '<div><label>Proveedor<select class="search-input" data-item="'+id+'" data-field="providerKey" '+(r.method==='stock'?'disabled':'')+'><option value="">Seleccionar</option>'+providers(r).map(v=>'<option value="'+esc(v.proveedorKey)+'" '+(r.providerKey===v.proveedorKey?'selected':'')+'>'+esc(v.nombre)+'</option>').join('')+'</select></label>'+(link?'<a href="'+esc(link.url)+'" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:7px;font-size:12px;color:var(--blue)">'+esc(link.label)+' ↗</a>':'<small>Sin enlace del proveedor</small>')+'</div>'+
         '<details class="ep-item-options"><summary>'+mode+' · Opciones</summary><div class="ep-options">'+
         (extra?'<button class="btn" data-remove="'+i+'">Quitar extra</button>':'<label>Cómo resolverlo<select class="search-input" data-item="'+id+'" data-field="method">'+[['exterior','Compra exterior'],['local','Compra local'],['stock','Usar stock disponible']].map(([v,t])=>'<option value="'+v+'" '+(r.method===v?'selected':'')+'>'+t+'</option>').join('')+'</select></label><label>Usar del stock · disponible '+num(ctx.available?.(r))+'<input class="search-input" type="number" min="0" max="'+num(r.needed)+'" step="1" data-item="'+id+'" data-field="existing" value="'+(r.method==='stock'?num(r.needed):num(r.existing))+'" '+(r.method==='stock'?'disabled':'')+'></label>')+
         (extra||r.method==='exterior'?'<label style="flex-direction:row;align-items:center"><input style="width:auto;min-height:0" type="checkbox" data-item="'+id+'" data-field="expenseExcluded" '+(!r.expenseExcluded?'checked':'')+'>Participa en gastos compartidos</label>':'')+
