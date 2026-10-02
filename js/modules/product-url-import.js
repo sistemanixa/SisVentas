@@ -247,7 +247,7 @@
       el('pf-descripcion').value = String(ficha.detalle || '');
       var imagen = '';
       try { var destino = new URL(ficha.imagenUrl); if (/^https?:$/.test(destino.protocol) && !destino.username && !destino.password) imagen = destino.href; } catch (_) {}
-      if (imagen) { el('pf-imagen-url').value = imagen; actualizarPreviewImagenURL(imagen); }
+      if (imagen) { if (typeof window.normalizarURLImagenProducto === 'function') imagen = window.normalizarURLImagenProducto(imagen); el('pf-imagen-url').value = imagen; actualizarPreviewImagenURL(imagen); }
       if (indice !== undefined) prodProveedoresActuales[indice] = precioProveedor;
       else prodProveedoresActuales.push(precioProveedor);
       renderTablaProveedoresProducto();

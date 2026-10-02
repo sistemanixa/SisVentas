@@ -14,8 +14,8 @@ test('destacados terminan antes de comenzar las marcas en otra hoja',()=>{
   assert.deepEqual(pages.flat(),rows);
  }
 });
-test('cada marca comienza en hoja nueva y continúa de a cinco sin páginas vacías',()=>{
+test('las marcas continúan en la misma hoja, manteniendo separados los destacados',()=>{
  const {pdfPages}=require('../js/modules/paraguay-shopping-access');
  const rows=[...Array.from({length:4},()=>({featured:true,group:'Destacados'})),...Array.from({length:7},()=>({featured:false,group:'APPLE'})),{featured:false,group:'JBL'},{featured:false,group:'SONY'}];
- const pages=pdfPages(rows);assert.deepEqual(pages.map(p=>p.length),[4,5,2,1,1]);assert.ok(pages.every(p=>p.every(e=>e.group===p[0].group)));assert.deepEqual(pages.flat(),rows);
+ const pages=pdfPages(rows);assert.deepEqual(pages.map(p=>p.length),[4,5,4]);assert.deepEqual(pages[2].map(e=>e.group),['APPLE','APPLE','JBL','SONY']);assert.deepEqual(pages.flat(),rows);
 });

@@ -1,9 +1,9 @@
-/* SisVentas NIXA - Service Worker v3.8.18
+/* SisVentas NIXA - Service Worker v3.8.19
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.8.18';
+const CACHE = 'sisventas-v3.8.19';
 const SHELL = [
   './js/modules/employee-cash-receipt.js?v=1',
-  './js/modules/exterior-user-lists.js?v=3.8.18',
+  './js/modules/exterior-user-lists.js?v=3.8.19',
   './',
   './index.html',
   './js/modules/paraguay-budget-margin.js?v=3.8.1',
@@ -18,14 +18,14 @@ const SHELL = [
   './js/modules/search-filter-notice.js?v=1',
   './js/modules/comparacion-comercial.js?v=1',
   './js/modules/commercial-approval.js?v=3.8.1',
-  './js/app.v3.8.18.js',
-  './js/modules/product-url-import.js?v=3.8.18',
-  './js/modules/paraguay-shopping-access.js?v=3.8.18',
+  './js/app.v3.8.19.js',
+  './js/modules/product-url-import.js?v=3.8.19',
+  './js/modules/paraguay-shopping-access.js?v=3.8.19',
   './js/modules/keyboard-actions.js',
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js',
   './js/core/version.js',
-  './js/core/version.v3.8.18.js',
+  './js/core/version.v3.8.19.js',
   './js/core/loading-indicator.js?v=1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.8.1',
@@ -36,7 +36,7 @@ const SHELL = [
   './js/modules/push-notifications.js',
   './js/modules/offline-core.js',
   './js/modules/commercial-drafts.js',
-  './js/modules/chat-access.js?v=3.8.18',
+  './js/modules/chat-access.js?v=3.8.19',
   './js/modules/security-storage.js?v=3.8.1',
   './js/modules/catalog-cart-review.js',
   './js/modules/ai-learning.js',

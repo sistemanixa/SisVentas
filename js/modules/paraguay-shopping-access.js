@@ -61,7 +61,7 @@
   }
   function pdfPages(entries) {
     const groups=new Map(),pages=[];
-    entries.forEach(entry=>{const key=entry.featured?'__featured__':entry.group; if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);});
+    entries.forEach(entry=>{const key=entry.featured?'__featured__':'__regular__'; if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);});
     for(const section of groups.values())for(let i=0;i<section.length;i+=5)pages.push(section.slice(i,i+5));
     return pages;
   }
