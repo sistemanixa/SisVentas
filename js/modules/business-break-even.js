@@ -240,8 +240,8 @@
     var cfg = form.config;
     var fixedInput = document.getElementById('be-fixed-costs');
     var marginInput = document.getElementById('be-margin-pct');
-    if (fixedInput) { fixedInput.disabled = cfg.fixedMode === 'auto'; fixedInput.value = cfg.fixedMode === 'auto' ? Math.round(form.autoFixed) : cfg.fixedCosts; }
-    if (marginInput) { marginInput.disabled = cfg.marginMode === 'auto'; marginInput.value = (cfg.marginMode === 'auto' ? form.autoMargin : cfg.marginPct).toFixed(1); }
+    if (fixedInput) { fixedInput.disabled = cfg.fixedMode === 'auto'; if (fixedInput.disabled) fixedInput.value = Math.round(form.autoFixed); }
+    if (marginInput) { marginInput.disabled = cfg.marginMode === 'auto'; if (marginInput.disabled) marginInput.value = form.autoMargin.toFixed(1); }
 
     setText('be-kpi-fixed', money(result.fixedCosts));
     setText('be-kpi-visits', result.healthStatus === 'unavailable' || result.visitsOnly === null ? '—' : String(result.visitsOnly));

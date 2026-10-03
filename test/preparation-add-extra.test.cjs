@@ -1,0 +1,6 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const api=require('../js/modules/exterior-preparation');
+test('seleccionar extra lo agrega sólo a stock, muestra tarjeta y habilita persistencia del borrador',()=>{
+ const source=fs.readFileSync('js/modules/exterior-preparation.js','utf8');const start=source.indexOf('    function addExtra('),end=source.indexOf('    function extraResults(',start);
+ let shown=0,renders=0;const rows=[{code:'VENTA',qty:3}],d={rows,extras:[]};const c={busy:false,frozen:false,dirty:false,d,ctx:{catalog:[{key:'P',code:'P-3',description:'Cerradura',providers:[{proveedorKey:'S',nombre:'Proveedor',costo:294058,exterior:false}]}]},selectProvider:api.selectProvider,render(){renders++;},frame:{querySelector:()=>({closest:()=>({scrollIntoView(){shown++;}})})},root:{notify(){}},Date};vm.createContext(c);vm.runInContext(source.slice(start,end),c);c.addExtra('P');assert.equal(d.rows,rows);assert.equal(rows.length,1);assert.equal(d.extras.length,1);assert.equal(d.extras[0].destination,'stock');assert.equal(d.extras[0].agreed,294058);assert.equal(c.dirty,true);assert.equal(shown,1);assert.equal(renders,1);
+});

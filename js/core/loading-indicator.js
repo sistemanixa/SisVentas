@@ -3,6 +3,33 @@
   var pendientes = new Map();
   var secuencia = 0;
   var cartel;
+  var solicitudesPantalla = new Set(), bloqueoPantalla = null, solicitandoPantalla = false;
+  function liberarBloqueo() {
+    var bloqueo = bloqueoPantalla; bloqueoPantalla = null;
+    if (bloqueo) Promise.resolve(bloqueo.release()).catch(function() {});
+  }
+  async function asegurarPantalla() {
+    if (!solicitudesPantalla.size || document.visibilityState !== 'visible' || bloqueoPantalla || solicitandoPantalla || !global.navigator?.wakeLock) return;
+    solicitandoPantalla = true;
+    try {
+      var bloqueo = await global.navigator.wakeLock.request('screen');
+      if (!solicitudesPantalla.size || document.visibilityState !== 'visible') { await bloqueo.release(); return; }
+      bloqueoPantalla = bloqueo;
+      bloqueo.addEventListener('release', function() { if (bloqueoPantalla === bloqueo) bloqueoPantalla = null; });
+    } catch (_) { /* Unsupported or denied: the operation must keep running. */ }
+    finally { solicitandoPantalla = false; }
+  }
+  function mantenerPantallaActiva() {
+    var id = {}; solicitudesPantalla.add(id); asegurarPantalla();
+    return function() { solicitudesPantalla.delete(id); if (!solicitudesPantalla.size) liberarBloqueo(); };
+  }
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') asegurarPantalla(); else liberarBloqueo();
+  });
+  document.addEventListener('sisventas:session-ended', function() {
+    solicitudesPantalla.clear(); liberarBloqueo(); pendientes.clear(); if (cartel) actualizar();
+  });
+
   function actualizar() {
     if (!cartel) {
       cartel = document.createElement('div');
@@ -43,5 +70,5 @@
     if (cartel) actualizar();
   });
   global.SisVentas = global.SisVentas || {};
-  global.SisVentas.carga = { mostrar:mostrar, ejecutar:ejecutar };
+  global.SisVentas.carga = { mostrar:mostrar, ejecutar:ejecutar, mantenerPantallaActiva:mantenerPantallaActiva };
 })(window);
