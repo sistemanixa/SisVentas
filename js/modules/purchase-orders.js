@@ -1361,6 +1361,11 @@
         var saleQty = Math.max(1, parseFloat(saleItem.qty || saleItem.cantidad) || 1);
         var budgetUnit = parseFloat(saleItem.costoUnitarioPresupuestado || saleItem.costoUnitarioCompra || saleItem.costoUnitario || saleItem.costoCompra) || parseFloat(orderItem.costoUnitarioPresupuestado || orderItem.costoUnitario) || 0;
         var priorRealQty = parseFloat(saleItem.cantidadCompraReal) || 0;
+        if (saleItem.costoUnitarioAntesPreparacion == null) {
+          saleItem.costoUnitarioAntesPreparacion = saleItem.costoUnitarioPresupuestado != null
+            ? Number(saleItem.costoUnitarioPresupuestado)
+            : (typeof window.obtenerCostoItemVenta === 'function' ? window.obtenerCostoItemVenta(saleItem) / saleQty : budgetUnit);
+        }
         var priorRealTotal = parseFloat(saleItem.costoRealCompraAcumulado) || 0;
         var realQty = Math.min(saleQty, priorRealQty + movement.qty);
         var acceptedQty = Math.max(0, realQty - priorRealQty);
@@ -1438,6 +1443,7 @@
           var received = Math.min(qty, parseFloat(source.cantidadCostoReal || source.cantidadRecibida) || 0);
           var budget = parseFloat(source.costoUnitarioPresupuestado || source.costoUnitario) || 0;
           var actual = parseFloat(source.costoUnitarioReal || source.ultimoCostoReal) || budget;
+          if (saleItem.costoUnitarioAntesPreparacion == null) saleItem.costoUnitarioAntesPreparacion = Number(saleItem.costoUnitarioPresupuestado ?? budget);
           saleItem.cantidadCompraReal = received;
           saleItem.costoRealCompraAcumulado = received * actual;
           saleItem.costoTotalCompra = received * actual + Math.max(0, qty - received) * budget;

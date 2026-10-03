@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const {load}=require('./helpers/app-functions.cjs');
 const vieja='https://www.mercadolibre.com.ar/producto/up/MLAU135438615#wid=MLA901203201';
 const nueva='https://www.mercadolibre.com.ar/producto/p/MLA2113774564#wid=MLA901203201';
-function contexto(){return load({URL,URLSearchParams,proveedoresData:[],normalizarUrlProveedorProducto:x=>String(x||'').trim()},['proveedoresVinculadosProducto','productoConUrlProveedorActualizada','normalizarUrlComparacionProveedor','urlsProveedorEquivalentes','sincronizarUrlGeneralProveedorProducto']);}
+function contexto(){return load({URL,URLSearchParams,proveedoresData:[],normalizarUrlProveedorProducto:x=>String(x||'').trim()},['proveedoresVinculadosProducto','proveedorRevisionCoincide','productoConUrlProveedorActualizada','normalizarUrlComparacionProveedor','urlsProveedorEquivalentes','sincronizarUrlGeneralProveedorProducto']);}
 function producto(){return {codigo:'P-60821',codWeb:'https://www.mercadolibre.com.ar/antiguo',proveedorUrl:vieja,stock:18,proveedores:[{nombre:'MERCADO LIBRE',proveedorKey:'ml',url:vieja,precio:2386,actualizadoEn:123,identidadConfirmadaManualmente:true,identidadConfirmadaUrl:vieja}]};}
 test('cambiar URL conserva costos, sincroniza alias y elimina aprobaciones de la URL anterior',()=>{
  const c=contexto(),p=producto(),r=c.productoConUrlProveedorActualizada(p,0,p.proveedores[0],nueva);
@@ -44,7 +44,9 @@ test('Mercado Libre distingue publicación y variante, e ignora tracking',()=>{
 test('Guardar URL confirma persistencia antes de reintentar; el fallo de precio no revierte el enlace',async()=>{
  const c=contexto(),p=producto();p.fbKey='P-60821';
  let remoto=JSON.parse(JSON.stringify(p)),reintentos=0;
- const fallo={fbKey:p.fbKey,proveedorIdx:0,url:vieja,item:{producto:p,proveedor:p.proveedores[0],proveedorKey:'ml',url:vieja}};
+ // El vínculo heredado carece de key, pero el actualizador resolvió la del maestro.
+ delete p.proveedores[0].proveedorKey;delete remoto.proveedores[0].proveedorKey;
+ const fallo={fbKey:p.fbKey,proveedorIdx:0,url:vieja,item:{producto:p,proveedor:p.proveedores[0],proveedorKey:'maestro-ml',url:vieja}};
  Object.assign(c,{prodData:{[p.fbKey]:p},FB_PATHS:{productos:'productos'},
    _actualizadorSesionPrecios:{fallos:[fallo],sinStock:[],procesados:{}},
    document:{getElementById:id=>id.startsWith('actualizador-url-input')?{value:nueva}:null},
