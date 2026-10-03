@@ -39,10 +39,21 @@
     // listener activo conserva y puede volver a pintar datos del usuario.
     const fbValueListeners = new Set();
     window.fbOnValue = function(...args) {
-      const unsubscribe = onValue(...args);
+      const load = window.SVDataReadiness?.begin(args[0]?.ref || args[0]);
+      const callback = args[1];
+      if (typeof callback === 'function') args[1] = function(snapshot) {
+        try { const result = callback(snapshot); Promise.resolve(result).then(() => load?.ready(), () => load?.error()); return result; }
+        catch (error) { load?.error(); throw error; }
+      };
+      const errorCallback = typeof args[2] === 'function' ? args[2] : null;
+      const options = errorCallback ? args[3] : args[2];
+      args[2] = function(error) { load?.error(); if(errorCallback)errorCallback(error); else console.error('[Datos] No se pudo cargar la suscripción', error); };
+      if(options)args[3]=options;
+      let unsubscribe;
+      try { unsubscribe = onValue(...args); } catch(error) { load?.error(); throw error; }
       const trackedUnsubscribe = function() {
         try { unsubscribe(); }
-        finally { fbValueListeners.delete(trackedUnsubscribe); }
+        finally { load?.cancel(); fbValueListeners.delete(trackedUnsubscribe); }
       };
       fbValueListeners.add(trackedUnsubscribe);
       return trackedUnsubscribe;

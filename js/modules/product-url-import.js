@@ -269,6 +269,11 @@
       if (!ficha.detalle) faltantes.push('detalle');
       if (!imagen) faltantes.push('imagen');
       estado('Ficha y precio cargados.' + (datos.tiendaOrigen ? ' Oferta de '+datos.tiendaOrigen+'.' : '') + ' Revisá la categoría y los datos antes de guardar.' + (faltantes.length ? ' El proveedor no informó: ' + faltantes.join(', ') + '.' : ''));
+      var envio = el('pf-envio-paraguay');
+      if (esComprasParaguay(url) && envio && !el('pf-envio-paraguay-panel').hidden) {
+        envio.focus();
+        envio.select();
+      }
     } catch (error) {
       if (consulta === c) estado(error.name === 'AbortError' ? 'La consulta demoró demasiado. Podés reintentar; no se guardó ningún producto.' : mensajeProveedor(proveedor, error.message));
     } finally {

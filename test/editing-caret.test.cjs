@@ -23,13 +23,13 @@ test('importe conserva el texto y cursor durante edición y calcula su valor cru
   input.value='12.934,5';input.selectionStart=4;listeners.input();
   assert.equal(input.value,'12.934,5');assert.equal(input.selectionStart,4);assert.equal(c.getMontoRaw(input),12934.5);
 });
-test('revisión de precios no redondea el margen mientras se escribe',()=>{
+test('revisión usa recargo entero y recalcula la venta',()=>{
   const start=source.indexOf('    function actualizar(origen){');
   const fn=source.slice(start,source.indexOf('    costoInput.oninput=',start));
   const margin={value:'12.345'},price={value:'112.35'},total={};
-  const c={input:price,margenInput:margin,costoInput:{value:'100'},iva:21,ventaOriginal:100,money:v=>'ARS '+v,d:{querySelector:()=>total}};vm.createContext(c);vm.runInContext(fn+';actualizar("recargo");',c);
-  assert.equal(margin.value,'12.345');assert.equal(price.value,'112.35');
-  vm.runInContext('actualizar("venta")',c);assert.equal(margin.value,'12.35');
+  const c={input:price,margenInput:margin,costoInput:{value:'100'},sinCosto:{},iva:21,ventaOriginal:100,money:v=>'ARS '+v,d:{querySelector:()=>total}};vm.createContext(c);vm.runInContext(fn+';actualizar("recargo");',c);
+  assert.equal(margin.value,'12');assert.equal(price.value,'112.00');
+  price.value='134.56';vm.runInContext('actualizar("venta")',c);assert.equal(margin.value,'35');
 });
 test('punto de equilibrio conserva campos manuales vacíos y decimales parciales',()=>{
   const code=fs.readFileSync('js/modules/business-break-even.js','utf8');

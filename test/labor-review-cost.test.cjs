@@ -10,6 +10,6 @@ test('revisión de mano de obra sincroniza costo, venta y referencia USD',()=>{
 });
 test('costo cero y dólar ausente no generan importes inválidos',()=>{
  const r=c.cambiosRevisionManoObra({},0,100,0,123);
- assert.equal(r.margenDeseado,0);assert.equal(r.compraARS,0);assert.equal(r.compraUSD,undefined);
+ assert.equal(r.margenDeseado,0);assert.equal(r.compraARS,0);assert.equal(r.ventaARS,0);assert.equal(r.venta,0);assert.equal(r.compraUSD,undefined);
  for(const cost of [-1,NaN,Infinity])assert.throws(()=>c.cambiosRevisionManoObra({},cost,100,0,123));
 });
