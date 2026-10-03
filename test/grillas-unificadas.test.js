@@ -34,7 +34,7 @@ const duplicates = Array.from(identities.entries()).filter(([, owners]) => new S
 const central = fs.readFileSync('js/modules/resizable-tables.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const app = fs.readFileSync('js/app.v3.1.1.js', 'utf8');
-const css = fs.readFileSync('css/app.css', 'utf8');
+const css = fs.readFileSync('css/app.css', 'utf8').replace(/\r\n/g, '\n');
 assert(central.includes("root.querySelectorAll('table').forEach(initTable)"), 'El controlador central debe alcanzar todas las tablas');
 assert(central.includes('dragUsesPercent = false'), 'El arrastre central debe congelar las demás columnas como Windows');
 assert(!central.includes('applyLivePixelWidth(pendingClientX - startX)'), 'El movimiento no debe forzar píxeles sin respetar el modo de la tabla');
