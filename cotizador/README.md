@@ -104,8 +104,19 @@ gcloud run deploy cotizador \
   --set-env-vars FRONTEND_KEY=...,FIREBASE_DATABASE_URL=https://nixa-sisventas-default-rtdb.firebaseio.com,ALLOW_ORIGIN=https://ventas.sistemanixa.com,REQUIRE_FIREBASE_AUTH=true
 ```
 
-El cotizador abre Chromium para los proveedores que requieren una sesión. Por eso
-cada instancia procesa una sola solicitud a la vez y dispone de 2 GiB: dos
-navegadores simultáneos pueden superar el límite de memoria y provocar respuestas
-503 aunque la conexión del usuario funcione correctamente.
+El cotizador reutiliza Chromium dentro de cada instancia, con contextos aislados
+por consulta y sesiones de proveedor separadas por cuenta y firma de credenciales.
+Cada instancia procesa una solicitud a la vez, con hasta dos consultas del lote
+en paralelo y 2 GiB de memoria. El navegador se libera tras 30 segundos sin trabajo;
+cada contexto tiene un límite de 55 segundos. Se bloquean imágenes, medios y fuentes.
+
+Las consultas idénticas comparten trabajo y resultados válidos durante 60 segundos
+dentro de la misma instancia; no es una caché distribuida. La clave incluye proveedor,
+credenciales, URL con variante y contexto de validación. Los bloqueos de seguridad
+confirmados de Mercado Libre se respetan durante 120 segundos para esa consulta.
+No se guardan precios erróneos ni resultados de identidad pendiente.
+
+Una verificación de proveedor requiere una URL de ejemplo enviada por la pantalla
+o guardada en su configuración; el servidor ya no descarga todo el catálogo para
+buscar una. Los lotes leen una sola vez la configuración del proveedor.
 

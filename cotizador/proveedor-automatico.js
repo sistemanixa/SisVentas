@@ -2,9 +2,10 @@
 const dns = require('node:dns/promises');
 const net = require('node:net');
 const crypto = require('node:crypto');
-const { chromium } = require('playwright');
+const { adquirirNavegador } = require('./navegador-compartido');
 const { extraerFichaPagina } = require('./ficha-producto');
-const { esHostComprasParaguay, urlMovilComprasParaguay, mismaOfertaComprasParaguay, datosComprasParaguay, leerPaginaComprasParaguay } = require('./compras-paraguay');
+const { leerOfertaNissei, recursoVerificacionNissei } = require('./nissei');
+const { esHostComprasParaguay, urlMovilComprasParaguay, mismaOfertaComprasParaguay, leerApiComprasParaguay } = require('./compras-paraguay');
 function firmaAcceso(p) { return crypto.createHash('sha256').update(JSON.stringify([p.web || '',p.usuario || '',p.password || '',p.condicionComercial || null])).digest('hex'); }
 function aplicarCondicionComercial(resultado, condicion) {
   if (resultado.requiereConversion) return resultado;
@@ -108,45 +109,46 @@ async function consultarAutomatico(proveedor, url) {
   if (!String(proveedor.web || '').trim()) throw new Error('Falta cargar la web del proveedor');
   if (url && !/^https:\/\//i.test(url)) throw new Error('La URL de prueba debe ser un enlace HTTPS completo del producto');
   const web = /^https?:/.test(proveedor.web || '') ? proveedor.web : 'https://' + proveedor.web;
-  // La ficha pública móvil contiene la misma oferta USD y tienda. Consultarla
-  // directamente evita abrir la página de seguridad del navegador automático.
+  // La API pública oficial contiene la oferta exacta en USD y su tienda.
   // No se inicia sesión ni se envían las credenciales guardadas del proveedor.
   if (esHostComprasParaguay(new URL(web).hostname)) {
     urlMovilComprasParaguay(web);
     const destinoPublicoProducto = urlMovilComprasParaguay(url || web);
-    const pagina = await leerPaginaComprasParaguay(destinoPublicoProducto.href, destinoPublico);
-    const tituloPagina = (pagina.html.match(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/i) || [])[1] || '';
-    const textoPagina = pagina.html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '').replace(/<[^>]*>/g, ' ');
-    if (esPaginaVerificacionSeguridad({titulo:tituloPagina,texto:textoPagina,url:pagina.url})) throw new Error('Compras Paraguay bloqueó la lectura de la ficha pública con su verificación de seguridad');
     if (!url || destinoPublicoProducto.pathname === '/') return {acceso:true,requiereUrl:true};
-    const datos = datosComprasParaguay(pagina.html, pagina.url);
+    const datos = await leerApiComprasParaguay(url, destinoPublico);
     const oferta = ofertaComprasParaguay(datos);
-    return {ok:true,url,...oferta,tituloProveedor:datos.titulo,ficha:datos.ficha};
+    return {ok:true,url,...oferta,fuente:'compras_paraguay_api_publica',tituloProveedor:datos.titulo,ficha:datos.ficha};
   }
   const destino = urlProveedor(url || web,web);
   const compraGamer = destino.hostname.replace(/^www\./,'') === 'compragamer.com';
   const flytec = destino.hostname.replace(/^www\./,'') === 'flytec.com.py';
+  const nissei = destino.hostname.replace(/^www\./,'') === 'nissei.com';
   await destinoPublico(destino.hostname);
-  const browser = await chromium.launch({headless:true});
-  const context = await browser.newContext({serviceWorkers:'block'});
+  const browser = await adquirirNavegador();
+  let context;
   const timer=setTimeout(()=>browser.close().catch(()=>{}),55000);
   try {
+    context = await browser.newContext({serviceWorkers:'block'});
     const comprobados=new Set();
     await context.route('**/*',async route=>{
       try {
         const solicitada = new URL(route.request().url());
         const apiCompraGamer = compraGamer && !route.request().isNavigationRequest() && route.request().method() === 'GET' && solicitada.protocol === 'https:' && !solicitada.port && !solicitada.username && !solicitada.password && solicitada.hostname.endsWith('.compragamer.com');
-        const u=apiCompraGamer ? solicitada : urlProveedor(route.request().url(),web);
+        const request=route.request();
+        let origenFrame='';
+        if(nissei) {try{origenFrame=new URL(request.frame().url()).origin;}catch(_){}}
+        const verificadorNissei=nissei && recursoVerificacionNissei(solicitada.href,request.method(),request.resourceType(),request.isNavigationRequest() && !request.frame().parentFrame(),origenFrame);
+        const u=apiCompraGamer || verificadorNissei ? solicitada : urlProveedor(request.url(),web);
         if (!comprobados.has(u.hostname)) { await destinoPublico(u.hostname); comprobados.add(u.hostname); }
-        await route.continue();
+        await route.fallback();
       } catch (_) { await route.abort(); }
     });
     const page=await context.newPage();
-    await page.goto(web,{waitUntil:'domcontentloaded',timeout:25000});
+    await page.goto(nissei ? destino.href : web,{waitUntil:'domcontentloaded',timeout:25000});
     const usuario=proveedor.usuario || '', password=proveedor.password || '';
     // CompraGamer publica ambos precios sin sesión. La preferencia de pago
     // selecciona ese precio público y no necesita entrar a la cuenta.
-    if ((usuario || password) && !compraGamer) {
+    if ((usuario || password) && !compraGamer && !nissei) {
       if (!usuario || !password) throw new Error('Completá usuario y contraseña en Proveedores');
       if (!await page.locator('input[type="password"]:visible').count()) {
         const links=await page.locator('a').evaluateAll(nodes=>nodes.filter(n=>/^(ingresar|iniciar sesión|mi cuenta|acceder)$/i.test(n.textContent.trim())).map(n=>n.href));
@@ -165,11 +167,18 @@ async function consultarAutomatico(proveedor, url) {
       if (!await page.getByText(/cerrar sesión|salir de mi cuenta|logout/i).count()) throw new Error('No se pudo confirmar la sesión. Revisá las credenciales, CAPTCHA o doble factor');
     }
     if (!url || destino.pathname === '/') return {acceso:true,requiereUrl:true};
-    await page.goto(destino.href,{waitUntil:'domcontentloaded',timeout:20000});
+    if (!nissei) await page.goto(destino.href,{waitUntil:'domcontentloaded',timeout:20000});
+    // Esperar la ficha permite que termine una comprobación automática normal.
+    // No se pulsa ni resuelve ningún CAPTCHA; si sigue bloqueada, se informa.
+    if (nissei) await page.locator('.product-info-main [data-price-type="finalPrice"]').waitFor({state:'visible',timeout:15000}).catch(()=>{});
     if (compraGamer) await page.locator('h1.product-details__info__title').waitFor({state:'visible',timeout:20000});
     const paginaInicial={titulo:await page.title().catch(()=>''),texto:await page.locator('body').innerText().catch(()=>''),url:page.url()};
     if (esPaginaVerificacionSeguridad(paginaInicial)) throw new Error('El proveedor bloqueó la consulta automática con su verificación de seguridad. El enlace sigue siendo válido; cargá el importe manualmente hasta que habilite un acceso automático');
     if (!urlsProductoEquivalentes(destino.href,page.url())) throw new Error('La web redirigió a una página diferente del producto');
+    if (nissei) {
+      const oferta = await leerOfertaNissei(page,destino.href);
+      return {...oferta,ficha:await extraerFichaPagina(page),identidad:{ok:true,metodo:'nissei_ficha_precio_pyg'}};
+    }
     if (flytec) {
       const codigo=(destino.pathname.match(/^\/produto\/[^/]+\/(\d+)\/?$/)||[])[1];
       if(!codigo) throw new Error('Falta la URL exacta de producto Flytec');
@@ -225,7 +234,7 @@ async function consultarAutomatico(proveedor, url) {
       oferta.precioYaIncluyePromocion=oferta.medioPagoProveedor==='transferencia';
     }
     return Object.assign({ok:true,url:destino.href,fuente:'proveedor_automatico_url_exacta',ficha,identidad:{ok:true,metodo:'producto_estructurado_url_exacta',requiereRevisionFicha:true}},oferta);
-  } finally { clearTimeout(timer); await context.close().catch(()=>{}); await browser.close().catch(()=>{}); }
+  } finally { clearTimeout(timer); if(context)await context.close().catch(()=>{}); await browser.close().catch(()=>{}); }
 }
 function seleccionarPrecioCompraGamer(datos,url,medio) {
   const id=(new URL(url).pathname.match(/_(\d+)\/?$/)||[])[1];

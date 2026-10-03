@@ -65,8 +65,10 @@ test('la confirmación humana queda ligada a la URL y se reutiliza en futuros lo
 
 test('cambiar la URL borra la confirmación anterior', () => {
   const cambioUrl = bloque('async function guardarUrlFallidoActualizador', 'async function eliminarProductoFallidoActualizador');
-  assert.match(cambioUrl, /identidadConfirmadaManualmente:null/);
-  assert.match(cambioUrl, /identidadConfirmadaUrl:null/);
+  assert.match(cambioUrl, /productoConUrlProveedorActualizada/);
+  assert.match(cambioUrl, /'identidadConfirmadaManualmente'/);
+  assert.match(cambioUrl, /'identidadConfirmadaUrl'/);
+  assert.match(cambioUrl, /delete nueva\[campo\]/);
 });
 
 test('la aplicación activa usa el archivo inmutable indicado por index', () => {

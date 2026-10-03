@@ -39,7 +39,7 @@ test('API de producto agrega marca e imagen sin inferirlas del nombre', () => {
 test('la navegación de alta impide salir al login de otro dominio', async () => {
   let handler;
   await protegerNavegacionFicha({ route: async (_, fn) => { handler = fn; } }, 'biosegur');
-  const consultar = url => handler({ request: () => ({ isNavigationRequest: () => true, url: () => url }), continue: () => 'ok', abort: () => 'bloqueado' });
+  const consultar = url => handler({ request: () => ({ isNavigationRequest: () => true, url: () => url }), fallback: () => 'ok', abort: () => 'bloqueado' });
   assert.equal(consultar('https://www.biosegur.com.ar/login'), 'ok');
   assert.equal(consultar('https://otro.com/login'), 'bloqueado');
 });

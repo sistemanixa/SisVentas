@@ -6,10 +6,10 @@ const dominiosProveedor = { biosegur: /(^|\.)biosegur\.com\.ar$/, free_electron:
 async function protegerNavegacionFicha(context, tipo) {
   await context.route('**/*', route => {
     const request = route.request();
-    if (!request.isNavigationRequest()) return route.continue();
+    if (!request.isNavigationRequest()) return route.fallback();
     const url = urlPublica(request.url());
     return url && dominiosProveedor[tipo] && dominiosProveedor[tipo].test(new URL(url).hostname)
-      ? route.continue() : route.abort('blockedbyclient');
+      ? route.fallback() : route.abort('blockedbyclient');
   });
 }
 

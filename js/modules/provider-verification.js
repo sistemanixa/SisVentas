@@ -16,6 +16,14 @@
       url = await svPrompt('URL exacta de un producto de este proveedor. Dejá vacío para usar un producto ya vinculado:');
       if (url === null) return;
     }
+    if (!String(url || '').trim()) {
+      Object.values(typeof prodData !== 'undefined' ? prodData || {} : {}).some(function(p) {
+        var fila = (Array.isArray(p.proveedores) ? p.proveedores : []).find(function(pv) { return pv && String(pv.proveedorKey || pv.proveedorFbKey || '') === String(key) && pv.url; });
+        if (fila) { url = fila.url; return true; }
+        return false;
+      });
+    }
+    if (!String(url || '').trim()) { notify('Indicá una URL de producto para verificar este proveedor.'); return; }
     pendientes.add(key);
     var botones=Array.from(document.querySelectorAll('[data-verificar-proveedor]')).filter(b=>b.dataset.verificarProveedor===key);
     botones.forEach(b=>{b.disabled=true;b.textContent='Verificando acceso y producto…';});

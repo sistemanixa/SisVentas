@@ -1,7 +1,9 @@
 const { normalizarFicha, fichaDesdeApi, extraerFichaPagina, validarUrlFicha, identidadAlta, protegerNavegacionFicha } = require('./ficha-producto');
 const http = require('http');
 const crypto = require('crypto');
-const { chromium } = require('playwright');
+const { adquirirNavegador } = require('./navegador-compartido');
+const { crearCache, claveConsulta } = require('./consulta-cache');
+const cacheConsultas = crearCache();
 const admin = require('firebase-admin');
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
@@ -31,6 +33,7 @@ if (!admin.apps.length) {
 
 const db = admin.database();
 const { consultarAutomatico, firmaAcceso, aplicarCondicionComercial } = require('./proveedor-automatico');
+const { esProveedorPublicoComprasParaguay } = require('./compras-paraguay');
 const verificacionesProveedor = new Map();
 const { convertirPrecioProveedor, dolarSistema, validarGuarani } = require('./conversion-proveedor');
 let consultaGuarani;
@@ -68,13 +71,9 @@ async function verificarProveedor(body) {
     const proveedor = (await ref.get()).val();
     if (!proveedor || proveedor.activo === false) throw new Error('Proveedor inexistente o inactivo');
     let url = String(body.url || proveedor.conexionAutomatica?.urlPrueba || '');
-    if (!url) {
-      const productos = (await db.ref('sisventas/productos').get()).val() || {};
-      for (const p of Object.values(productos)) {
-        const fila = (Array.isArray(p.proveedores) ? p.proveedores : []).find(x=>x && (x.proveedorKey === key || x.proveedorFbKey === key) && x.url);
-        if (fila) { url = fila.url; break; }
-      }
-    }
+    // La pantalla envía un ejemplo del catálogo ya cargado. No descargar
+    // todos los productos desde Firebase para verificar un solo proveedor.
+    if (!url) throw new Error('Indicá una URL exacta de producto para verificar este proveedor.');
     let estado;
     try {
       const tipo = tipoProveedor(proveedor, '');
@@ -996,7 +995,9 @@ async function extraerProductoMercadoLibreSeo(urlExacta) {
       if (!response.ok) throw new Error(`La página de Mercado Libre respondió ${response.status}`);
       const html = await response.text();
       if (/captcha|comprobemos que eres humano|verificaci[oó]n de seguridad|account-verification/i.test(html)) {
-        throw new Error('Mercado Libre solicitó una verificación de seguridad');
+        const error = new Error('Mercado Libre bloqueó la consulta automática con una verificación de seguridad. No se pudo obtener la ficha ni el precio. Podés abrir la publicación y cargar los datos manualmente.');
+        error.codigo = 'ML_VERIFICACION_SEGURIDAD';
+        throw error;
       }
       if (/publicaci[oó]n pausada|publicaci[oó]n finalizada|producto no disponible/i.test(html)) {
         throw new Error('La publicación de Mercado Libre no está disponible');
@@ -1023,6 +1024,7 @@ async function extraerProductoMercadoLibreSeo(urlExacta) {
         selectorPrecio:precioOg ? 'meta[property="og:title"]' : 'script[type="application/ld+json"]'
       };
     } catch (error) {
+      if (error.codigo === 'ML_VERIFICACION_SEGURIDAD') throw error;
       ultimoError = error;
     } finally {
       clearTimeout(timer);
@@ -1183,13 +1185,14 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug, co
     if (!datos) {
       datos = await extraerProductoMercadoLibreSeo(urlExacta).catch((errorSeo) => {
         trace.push({ step:'mercado_libre_respaldo_seo_sin_resultado', at:new Date().toISOString(), mensaje:errorSeo.message || String(errorSeo) });
+        if (errorSeo.codigo === 'ML_VERIFICACION_SEGURIDAD') throw errorSeo;
         return null;
       });
       if (datos) trace.push({ step:'mercado_libre_respaldo_seo_ok', at:new Date().toISOString(), precioArs:datos.precioArs });
     }
     if (!datos) {
       trace.push({ step:'mercado_libre_respaldo_visual', at:new Date().toISOString() });
-      browser = await chromium.launch({ headless:true });
+      browser = await adquirirNavegador();
       context = await browser.newContext({
         locale:'es-AR',
         timezoneId:'America/Argentina/Buenos_Aires',
@@ -1246,7 +1249,7 @@ async function cotizarMercadoLibre({ proveedor, url, codigo, producto, debug, co
     const ficha = incluirFicha ? normalizarFicha({ ...(datos.ficha || {}), nombre: datos.titulo || (datos.ficha && datos.ficha.nombre) || '' }, urlExacta) : undefined;
     return { ficha, ok:true, proveedor:proveedor.nombre || 'MERCADO LIBRE', codigo:codigo || '', producto:datos.titulo || producto || '', url:urlExacta, precioArs:datos.precioArs, precioActualArs:datos.precioActualArs || datos.precioArs, precioOriginalArs:datos.precioOriginalArs || datos.precioArs, enPromocion:!!datos.enPromocion, porcentajeDescuento:Number(datos.porcentajeDescuento) || 0, sinIva:false, ivaAlicuota:21, disponibilidadProveedor:datos.disponibilidad, disponibilidadProveedorTexto:datos.disponibilidad === 'disponible' ? 'Disponible' : datos.disponibilidad === 'sin_stock' ? 'Sin stock' : 'No verificado', fuente:datos.fuente || 'mercado_libre_url_exacta', fecha:new Date().toISOString(), tituloProveedor:datos.titulo, urlFinal:urlExacta, textoPrecio:`ARS ${datos.precioArs}`, selectorPrecio:datos.fuente || 'mercado_libre', moneda:datos.moneda || 'ARS', identidad, diagnosticoMercadoLibre, debug:debug ? { trace, titulo:datos.titulo, fuente:datos.fuente || '', itemId:datos.itemId || '', diagnosticoMercadoLibre, identidad } : undefined };
   } catch (error) {
-    if (errorApiMercadoLibre) {
+    if (errorApiMercadoLibre && error.codigo !== 'ML_VERIFICACION_SEGURIDAD') {
       error.diagnosticoMercadoLibre = errorApiMercadoLibre.diagnosticoMercadoLibre;
       error.message = 'API oficial: ' + errorApiMercadoLibre.message + '. Respaldo visual: ' + error.message;
     }
@@ -1610,7 +1613,7 @@ async function cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo, 
     if (/large_default|\.jpe?g(?:\?|$)|\.png(?:\?|$)|\.webp(?:\?|$)/i.test(urlExacta)) {
       throw new Error('La URL cargada corresponde a una imagen. Cambiala por la página exacta del producto');
     }
-    browser = await chromium.launch({ headless:true });
+    browser = await adquirirNavegador();
     context = await browser.newContext({
       locale:'es-AR',
       timezoneId:'America/Argentina/Buenos_Aires',
@@ -1706,7 +1709,7 @@ async function cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo, 
   }
 }
 
-async function cotizarBiosegur({ proveedor, url, codigo, producto, debug, confirmarIdentidadManual, incluirFicha = false, altaProducto = false }) {
+async function cotizarBiosegur({ proveedor, proveedorKey, url, codigo, producto, debug, confirmarIdentidadManual, incluirFicha = false, altaProducto = false }) {
   const trace = [];
   const addTrace = (step, data = {}) => {
     trace.push({ step, at: new Date().toISOString(), ...data });
@@ -1716,12 +1719,16 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug, confir
   let page = null;
 
   try {
+    const firmaSesion = firmaCredencialesProveedor(proveedor.usuario || proveedor.user || proveedor.email || '', proveedor.password || proveedor.pass || proveedor.clave || '');
+    const claveSesion = claveSesionProveedorManual(proveedorKey || firmaSesion, 'biosegur');
+    const sesion = sesionProveedorManualVigente(claveSesion, firmaSesion);
     addTrace('navegador_iniciando', { playwright: require('playwright/package.json').version });
-    browser = await chromium.launch({ headless: true });
+    browser = await adquirirNavegador();
     addTrace('navegador_iniciado');
     context = await browser.newContext({
       locale: 'es-AR',
-      timezoneId: 'America/Argentina/Buenos_Aires'
+      timezoneId: 'America/Argentina/Buenos_Aires',
+      ...(sesion ? {storageState:sesion.storageState} : {})
     });
     if (incluirFicha) await protegerNavegacionFicha(context, 'biosegur');
     page = await context.newPage();
@@ -1736,12 +1743,21 @@ async function cotizarBiosegur({ proveedor, url, codigo, producto, debug, confir
       tienePassword: !!(proveedor.password || proveedor.pass || proveedor.clave)
     });
 
-    await page.goto(home, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    addTrace('home_abierto', { urlActual: page.url() });
-    await completarLoginBiosegur(page, proveedor);
-    addTrace('login_completado', { urlActual: page.url() });
+    async function autenticarBiosegur() {
+      await page.goto(home, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      await completarLoginBiosegur(page, proveedor);
+      sesionesProveedorManual.set(claveSesion,{firma:firmaSesion,storageState:await context.storageState(),expiraEn:Date.now()+SESION_PROVEEDOR_TTL_MS});
+      addTrace('login_completado', { urlActual: page.url() });
+    }
+    if (!sesion) await autenticarBiosegur();
+    else addTrace('sesion_reutilizada');
 
     await page.goto(urlExacta, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    if (sesion && await page.locator('input[type="password"]:visible').count()) {
+      sesionesProveedorManual.delete(claveSesion);
+      await autenticarBiosegur();
+      await page.goto(urlExacta,{waitUntil:'domcontentloaded',timeout:20000});
+    }
     await page.waitForTimeout(400);
     addTrace('url_producto_abierta', { urlActual: page.url(), titulo: await page.title().catch(() => '') });
     if (!/(^|\.)biosegur\.com\.ar$/.test(new URL(page.url()).hostname.toLowerCase())) {
@@ -1827,7 +1843,7 @@ async function cotizarLote(reqBody) {
     const items = Array.isArray(reqBody.items) ? reqBody.items : [];
     if (!items.length || items.length > 4) throw new Error('El lote automático requiere entre 1 y 4 productos');
     const conexion=proveedor.conexionAutomatica || {};
-    if (!tipoLote && (conexion.estado !== 'verificado' || conexion.firma !== firmaAcceso(proveedor))) throw new Error('Verificá nuevamente la conexión del proveedor');
+    if (!tipoLote && !esProveedorPublicoComprasParaguay(proveedor) && (conexion.estado !== 'verificado' || conexion.firma !== firmaAcceso(proveedor))) throw new Error('Verificá nuevamente la conexión del proveedor');
     const resultados=new Array(items.length);
     const jobId=String(reqBody.jobId || '');
     const progreso=/^[\w-]{1,80}$/.test(jobId) ? db.ref('sisventas/procesos/cotizador/' + jobId) : null;
@@ -1844,7 +1860,7 @@ async function cotizarLote(reqBody) {
         const i=siguiente++, item=items[i];
         await informar(item);
         try {
-          const r=await cotizar({...item,proveedorKey,incluirFicha:item.incluirFicha === true,altaProducto:false});
+          const r=await cotizar({...item,proveedorKey,incluirFicha:item.incluirFicha === true,altaProducto:false},proveedor);
           resultados[i]={...r,codigoProducto:item.codigo || '',producto:r.tituloProveedor || item.producto || '',textoPrecio:'ARS ' + r.precioArs};
         } catch(e) { resultados[i]={ok:false,url:item.url || '',codigoProducto:item.codigo || '',mensaje:e.message,diagnosticoMercadoLibre:e.diagnosticoMercadoLibre,precioAnteriorArs:Number(e.precioAnteriorArs)||0,precioCandidatoArs:Number(e.precioCandidatoArs)||0,relacion:Number(e.relacion)||0}; }
         completados++;
@@ -1859,21 +1875,22 @@ async function cotizarLote(reqBody) {
   }
 }
 
-async function cotizar(reqBody) {
-  const resultado = await convertirMonedaProveedor(await cotizarSinCondicion(reqBody));
-  const proveedor = (await db.ref('sisventas/proveedores/' + String(reqBody.proveedorKey)).get()).val();
+async function cotizar(reqBody, proveedorLote) {
+  const proveedor = proveedorLote || (await db.ref('sisventas/proveedores/' + String(reqBody.proveedorKey)).get()).val();
+  if (!proveedor || proveedor.activo === false) throw new Error('Proveedor inexistente o inactivo');
+  const consulta = {url:reqBody.url || reqBody.urlProducto || '',producto:reqBody.producto || '',codigo:reqBody.codigo || '',incluirFicha:reqBody.incluirFicha===true,altaProducto:reqBody.altaProducto===true,confirmarIdentidadManual:reqBody.confirmarIdentidadManual===true,precioAnteriorArs:reqBody.precioAnteriorArs || 0,debug:!!reqBody.debug,proveedorKey:reqBody.proveedorKey};
+  const resultado = await convertirMonedaProveedor(await cacheConsultas.consultar(claveConsulta(proveedor,consulta),()=>cotizarSinCondicion(reqBody,proveedor)));
   const final = aplicarCondicionComercial(resultado,proveedor && proveedor.condicionComercial);
   return final && final.requiereConfirmacionIdentidad ? final : validarResultadoPrecioIndividual(final,reqBody.precioAnteriorArs);
 }
 
-async function cotizarSinCondicion(reqBody) {
+async function cotizarSinCondicion(reqBody, proveedorLeido) {
   const proveedorKey = String(reqBody.proveedorKey || '').trim();
   const url = reqBody.url || reqBody.urlProducto || '';
   if (!proveedorKey) throw new Error('Falta proveedorKey');
   if (!url) throw new Error('Falta URL exacta del producto');
 
-  const snap = await db.ref(`sisventas/proveedores/${proveedorKey}`).get();
-  const proveedor = snap.val();
+  const proveedor = proveedorLeido || (await db.ref(`sisventas/proveedores/${proveedorKey}`).get()).val();
   if (!proveedor) throw new Error('Proveedor no encontrado en Firebase');
   if (proveedor.activo === false) throw new Error('Proveedor inactivo');
 
@@ -1884,7 +1901,7 @@ async function cotizarSinCondicion(reqBody) {
   const altaProducto = incluirFicha && reqBody.altaProducto === true;
   if (!tipo) {
     const conexion = proveedor.conexionAutomatica || {};
-    if (conexion.estado !== 'verificado' || conexion.firma !== firmaAcceso(proveedor)) throw new Error('Verificá primero la conexión automática del proveedor');
+    if (!esProveedorPublicoComprasParaguay(proveedor) && (conexion.estado !== 'verificado' || conexion.firma !== firmaAcceso(proveedor))) throw new Error('Verificá primero la conexión automática del proveedor');
     const resultado = await convertirMonedaProveedor(await consultarAutomatico(proveedor,url));
     resultado.identidad = identidadAlta(reqBody.producto || '', resultado.tituloProveedor, altaProducto, validarIdentidadProducto);
     if (!resultado.identidad.ok && reqBody.confirmarIdentidadManual !== true) {
@@ -1897,6 +1914,7 @@ async function cotizarSinCondicion(reqBody) {
   if (tipo === 'biosegur') {
     return cotizarBiosegur({
       proveedor,
+      proveedorKey,
       url,
       incluirFicha, altaProducto,
       codigo: reqBody.codigo || '',

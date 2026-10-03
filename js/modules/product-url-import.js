@@ -90,6 +90,9 @@
   function estado(texto) { if (el('pf-importar-estado')) el('pf-importar-estado').textContent = texto; }
   function mensajeProveedor(proveedor, mensaje) {
     var texto = String(mensaje || 'No se pudo consultar la ficha');
+    if (/mercado\s*libre/i.test(String(proveedor && proveedor.nombre || '')) && /verificaci[oó]n de seguridad|ML_VERIFICACION_SEGURIDAD|access_denied|API Mercado Libre respondi[oó] 403/i.test(texto)) {
+      return 'Mercado Libre bloqueó la consulta automática de esta publicación. No se modificaron los datos. Podés abrir la URL y cargar la ficha y el precio manualmente.';
+    }
     if (/nissei/i.test(String(proveedor && proveedor.nombre || '')) && /(?:redirigi[oó].*p[aá]gina diferente|verificaci[oó]n.*seguridad|bloque[oó].*consulta autom[aá]tica)/i.test(texto)) {
       return 'Nissei está bloqueando la lectura automática con su verificación de seguridad. El enlace es válido, pero por ahora el precio debe cargarse manualmente.';
     }
@@ -208,7 +211,16 @@
     consulta = c;
     mostrarCarga(true);
     estado('Obteniendo ficha y precio de ' + proveedor.nombre + '. Esperá un momento; la consulta puede tardar hasta un minuto.');
-    var timer = setTimeout(function () { c.controlador.abort(); }, 60000);
+    var timer = setTimeout(function () {
+      c.controlador.abort();
+      // La autenticación también puede quedar pendiente: abortar fetch solo
+      // no alcanza. Invalidar la consulta impide aplicar respuestas tardías.
+      if (consulta === c) {
+        consulta = null;
+        mostrarCarga(false);
+        estado('La consulta demoró demasiado. Podés reintentar; no se modificaron los datos.');
+      }
+    }, 60000);
     try {
       var headers = await headersCotizadorProtegido();
       if (!vigente(c)) return;

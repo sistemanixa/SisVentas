@@ -33,6 +33,48 @@ function escenario() {
 const respuesta = () => ({ ok: true, url, moneda:'ARS', precioArs:1000, sinIva:true, ivaAlicuota:21, identidad:{ok:true}, ficha:{nombre:'Cerradura F-102T', marca:'Trinktech', detalle:'WiFi, huella y PIN', imagenUrl:'https://www.biosegur.com.ar/images/P2822.jpg'} });
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+test('el vencimiento libera el botón incluso si la autenticación queda pendiente', async () => {
+  const s = escenario();
+  let vencer, autenticar;
+  s.context.setTimeout = fn => { vencer = fn; return 1; };
+  s.context.clearTimeout = () => {};
+  s.context.headersCotizadorProtegido = () => new Promise(resolve => { autenticar = resolve; });
+  const pendiente = s.context.completarProductoDesdeUrl();
+  vencer();
+  assert.equal(s.context.productoFichaConsultando(), false);
+  assert.equal(s.nodes['pf-importar-boton'].disabled, false);
+  assert.match(s.nodes['pf-importar-estado'].textContent, /demoró demasiado/);
+  autenticar({}); await pendiente;
+  assert.equal(s.calls.length, 0);
+  assert.equal(s.context.prodProveedoresActuales.length, 0);
+});
+
+test('bloqueo de Mercado Libre informa la causa y conserva la ficha', async () => {
+  const s = escenario();
+  s.context.proveedoresData[0].nombre = 'MERCADO LIBRE';
+  const pendiente = s.context.completarProductoDesdeUrl(); await flush();
+  s.resolver({ok:false, mensaje:'API Mercado Libre respondió 403: access_denied'});
+  await pendiente;
+  assert.match(s.nodes['pf-importar-estado'].textContent, /Mercado Libre bloqueó/);
+  assert.equal(s.context.prodProveedoresActuales.length, 0);
+  assert.equal(s.nodes['pf-importar-boton'].disabled, false);
+});
+
+test('una respuesta posterior al vencimiento no reemplaza la nueva consulta', async () => {
+  const s = escenario(); let vencer;
+  s.context.setTimeout = fn => { vencer = fn; return 1; };
+  s.context.clearTimeout = () => {};
+  const anterior = s.context.completarProductoDesdeUrl(); await flush();
+  // Guardar el resolvedor del primer fetch antes de iniciar otro.
+  const resolverViejo = s.calls[0];
+  vencer(); s.resolver(respuesta()); await anterior;
+  assert.equal(s.nodes['pf-nombre'].value, '');
+  assert.equal(resolverViejo.options.signal.aborted, true);
+  const nueva = s.context.completarProductoDesdeUrl(); await flush();
+  s.resolver(respuesta()); await nueva;
+  assert.equal(s.nodes['pf-nombre'].value, 'CERRADURA F-102T');
+});
+
 test('Compras Paraguay selecciona categoría e IVA exento y recalcula, sin alterar otras webs ni una ficha al abrirla', () => {
   const s = escenario();
   s.nodes['pf-iva'] = { value:'21' };

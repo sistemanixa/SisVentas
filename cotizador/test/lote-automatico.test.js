@@ -2,11 +2,12 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
+const {esProveedorPublicoComprasParaguay}=require('../compras-paraguay');
 const source=fs.readFileSync(require.resolve('../index.js'),'utf8');
-const fn=source.slice(source.indexOf('async function cotizarLote(reqBody)'),source.indexOf('\nasync function cotizar(reqBody)'));
+const fn=source.slice(source.indexOf('async function cotizarLote(reqBody)'),source.indexOf('\nasync function cotizar(reqBody,'));
 function contexto(estado='verificado') {
  const llamadas=[];
- const ctx={db:{ref:()=>({get:async()=>({val:()=>({nombre:'Nuevo',conexionAutomatica:{estado,firma:'actual'}})})})},tipoProveedor:()=>'',firmaAcceso:()=> 'actual',cotizar:async body=>{llamadas.push(body);if(body.url==='mala')throw new Error('Identidad incorrecta');return {ok:true,precioArs:100,medioPagoProveedor:'transferencia'};}};
+ const ctx={esProveedorPublicoComprasParaguay,db:{ref:()=>({get:async()=>({val:()=>({nombre:'Nuevo',conexionAutomatica:{estado,firma:'actual'}})})})},tipoProveedor:()=>'',firmaAcceso:()=> 'actual',cotizar:async body=>{llamadas.push(body);if(body.url==='mala')throw new Error('Identidad incorrecta');return {ok:true,precioArs:100,medioPagoProveedor:'transferencia'};}};
  vm.runInNewContext(fn,ctx);return {ctx,llamadas};
 }
 test('lote automático consulta cada URL y aísla fallos sin permitir modo alta',async()=>{
@@ -22,6 +23,12 @@ test('rechaza conexiones sin verificar y lotes fuera del límite antes de consul
  await assert.rejects(ctx.cotizarLote({proveedorKey:'nuevo',items:[{url:'x'}]}),/Verificá/);
  await assert.rejects(ctx.cotizarLote({proveedorKey:'nuevo',items:Array(5).fill({url:'x'})}),/1 y 4/);
  assert.equal(llamadas.length,0);
+});
+test('Compras Paraguay consulta la API pública sin verificación previa; otros dominios continúan bloqueados',async()=>{
+ const {ctx,llamadas}=contexto('pendiente');let web='https://www.comprasparaguai.com.br';
+ ctx.db.ref=()=>({get:async()=>({val:()=>({web,nombre:'Compras Paraguay',conexionAutomatica:{estado:'pendiente'}})})});
+ await ctx.cotizarLote({proveedorKey:'cp',items:[{url:'buena'}]});assert.equal(llamadas.length,1);
+ web='https://www.comprasparaguai.com.br.evil.com';await assert.rejects(ctx.cotizarLote({proveedorKey:'cp',items:[{url:'buena'}]}),/Verificá/);assert.equal(llamadas.length,1);
 });
 test('proveedores iniciales usan la misma consulta individual y conservan la confirmación enviada',async()=>{
  const {ctx,llamadas}=contexto();ctx.tipoProveedor=()=> 'biosegur';
