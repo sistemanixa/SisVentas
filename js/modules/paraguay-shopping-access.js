@@ -33,6 +33,7 @@
     await root.fbSet(root.fbRef(root.fbDB,'sv_listas_paraguay/'+ownerUid+'/'+key),null);
     return true;
   }
+  const purchaseStates = {pendiente:'Pendiente',pedido:'Pedido',comprado:'Comprado'};
   const csvCell = v => '"' + String(v ?? '').replace(/^[=+@-]/, "'$&").replace(/"/g, '""') + '"';
   function mlComparison(p, price, unitCost = root.costoUnitarioProveedorProducto, includeAll = false) {
     const refs = (p.proveedores || []).filter(pv=>{
@@ -65,13 +66,14 @@
     for(const section of groups.values())for(let i=0;i<section.length;i+=5)pages.push(section.slice(i,i+5));
     return pages;
   }
-  const csv = (items, products, purchases = {}) => '\uFEFF' + [['Código','Producto','Cantidad','USD unitario','Costo ARS unitario con envío','URL','Cantidad comprada','Precio unitario acordado','Moneda','Proveedor'], ...Object.entries(items).map(([key, qty]) => {
+  const csv = (items, products, purchases = {}) => '\uFEFF' + [['Código','Producto','Cantidad','USD unitario','Costo ARS unitario con envío','URL','Cantidad comprada','Precio unitario acordado','Moneda','Proveedor','Estado'], ...Object.entries(items).map(([key, qty]) => {
     const p = products[key]; if (!eligible(p)) return null;
-    const q = quote(p); return [p.codigo || '', p.nombre || p.descripcion || '', qty, q.usd || '', q.ars || '', q.url, purchases[key]?.cantidad ?? '', purchases[key]?.precioUnitario ?? '', purchases[key]?.moneda || '', purchases[key]?.proveedor || ''];
+    const q = quote(p); return [p.codigo || '', p.nombre || p.descripcion || '', qty, q.usd || '', q.ars || '', q.url, purchases[key]?.cantidad ?? '', purchases[key]?.precioUnitario ?? '', purchases[key]?.moneda || '', purchases[key]?.proveedor || '', purchaseStates[purchases[key]?.estado] || 'Pendiente'];
   }).filter(Boolean)].map(row => row.map(csvCell).join(';')).join('\r\n');
   if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection, subscribeExchangeRate, pdfComparisonText};
   if (!root.document) return;
   let detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', listBaseline = null, busy = false, generation = 0;
+  let cartDraft = {productos:{}, comprasFinales:{}, nombre:''};
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const amount = n => Number(n).toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
   const exchangeRate = () => Number(root.obtenerDolarReferenciaProducto?.().valor)||0;
@@ -123,6 +125,7 @@
     detailModal?.remove(); detailModal=null; purchases={};
     generation++;
     stops.forEach(stop => stop()); stops = [];
+    cartDraft = {productos:{}, comprasFinales:{}, nombre:''};
     panel?.remove(); panel = null; products = {}; lists = {}; selected = {}; listKey = ''; listBaseline = null; busy = false;
   }
   function renderProducts() {
@@ -275,8 +278,9 @@
     const entries = Object.entries(selected).filter(([key]) => eligible(products[key]));
     panel.querySelector('[data-cart-items]').innerHTML = entries.length ? '<div class="table-wrap"><table class="sv-no-resize"><thead><tr><th>Producto / proveedor</th><th>Solicitado</th><th>Referencia</th><th>Comprado</th><th>Precio unitario real</th><th>Moneda</th><th></th></tr></thead><tbody>'+entries.map(([key,qty]) => {
       const p=products[key],q=quote(p),actual=purchases[key]||{},provider=providerSelection(p,actual.proveedor,Object.values(products),typeof proveedoresData==='undefined'?[]:proveedoresData||[]);let url='';try{if(/^https?:$/.test(new URL(q.url).protocol))url=q.url;}catch(_){}
-      return '<tr><td><div class="py-list-product" style="display:flex;align-items:center;gap:10px"><span style="display:block;width:52px;height:52px;flex:0 0 52px;background:white;border-radius:8px;overflow:hidden">'+root.imagenCatalogoHTML(p,'py-list-photo')+'</span><strong>'+esc(p.nombre || p.descripcion)+'</strong></div>'+(url?'<br><a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Corroborar en proveedor ↗</a>':'')+'<label class="py-provider-choice"><span>Proveedor</span><select aria-label="Proveedor '+esc(p.codigo)+'" data-purchase="proveedor" data-key="'+esc(key)+'">'+(!provider.chosen?'<option value="">Elegir proveedor</option>':'')+provider.options.map(name=>'<option value="'+esc(name)+'" '+(name===provider.chosen?'selected':'')+'>'+esc(name)+'</option>').join('')+'</select></label></td><td><input aria-label="Cantidad solicitada '+esc(p.codigo)+'" type="number" min="1" max="9999" step="1" data-requested="'+esc(key)+'" value="'+qty+'"></td><td>US$ '+amount(q.usd)+'<br><small>$ '+amount(q.ars)+' con envío</small></td><td><input aria-label="Cantidad comprada '+esc(p.codigo)+'" data-purchase="cantidad" data-key="'+esc(key)+'" type="number" min="0" max="9999" step="1" value="'+esc(actual.cantidad??'')+'" placeholder="Pendiente"></td><td><input aria-label="Precio real '+esc(p.codigo)+'" data-purchase="precioUnitario" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioUnitario??'')+'" placeholder="Pendiente"></td><td><select aria-label="Moneda '+esc(p.codigo)+'" data-purchase="moneda" data-key="'+esc(key)+'">'+['USD','ARS','PYG'].map(c=>'<option '+((actual.moneda||'USD')===c?'selected':'')+'>'+c+'</option>').join('')+'</select></td><td><button class="btn btn-sm" data-remove="'+esc(key)+'">Quitar</button></td></tr>';
+      return '<tr data-item-state="'+esc(actual.estado||'pendiente')+'"><td><div class="py-list-product" style="display:flex;align-items:center;gap:10px"><span style="display:block;width:52px;height:52px;flex:0 0 52px;background:white;border-radius:8px;overflow:hidden">'+root.imagenCatalogoHTML(p,'py-list-photo')+'</span><strong>'+esc(p.nombre || p.descripcion)+'</strong></div>'+(url?'<br><a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Corroborar en proveedor ↗</a>':'')+'<label class="py-provider-choice"><span>Proveedor</span><select aria-label="Proveedor '+esc(p.codigo)+'" data-purchase="proveedor" data-key="'+esc(key)+'">'+(!provider.chosen?'<option value="">Elegir proveedor</option>':'')+provider.options.map(name=>'<option value="'+esc(name)+'" '+(name===provider.chosen?'selected':'')+'>'+esc(name)+'</option>').join('')+'</select></label><label class="py-provider-choice"><span>Estado de la compra</span><select aria-label="Estado '+esc(p.codigo)+'" data-purchase="estado" data-key="'+esc(key)+'">'+Object.entries(purchaseStates).map(([value,label])=>'<option value="'+value+'" '+((actual.estado||'pendiente')===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label></td><td data-label="Solicitado"><input aria-label="Cantidad solicitada '+esc(p.codigo)+'" type="number" min="1" max="9999" step="1" data-requested="'+esc(key)+'" value="'+qty+'"></td><td data-label="Referencia">US$ '+amount(q.usd)+'<br><small>$ '+amount(q.ars)+' con envío</small></td><td data-label="Comprado"><input aria-label="Cantidad comprada '+esc(p.codigo)+'" data-purchase="cantidad" data-key="'+esc(key)+'" type="number" min="0" max="9999" step="1" value="'+esc(actual.cantidad??'')+'" placeholder="Pendiente"></td><td data-label="Precio unitario real"><input aria-label="Precio real '+esc(p.codigo)+'" data-purchase="precioUnitario" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioUnitario??'')+'" placeholder="Pendiente"></td><td data-label="Moneda"><select aria-label="Moneda '+esc(p.codigo)+'" data-purchase="moneda" data-key="'+esc(key)+'">'+['USD','ARS','PYG'].map(c=>'<option '+((actual.moneda||'USD')===c?'selected':'')+'>'+c+'</option>').join('')+'</select></td><td><button class="btn btn-sm" data-remove="'+esc(key)+'">Quitar</button></td></tr>';
     }).join('')+'</tbody></table></div>' : '<p class="py-note">Tu lista está vacía. Agregá productos desde Ofertas.</p>';
+    renderPurchaseProgress();
     const missingItems=Object.entries(selected).filter(([key])=>!eligible(products[key]));
     if(missingItems.length)panel.querySelector('[data-cart-items]').insertAdjacentHTML('beforeend',missingItems.map(([key,qty])=>'<div class="py-note">Producto no disponible: '+esc(products[key]?.nombre||key)+' × '+qty+' <button class="btn btn-sm" data-remove="'+esc(key)+'">Quitar producto no disponible</button></div>').join(''));
     const usd = entries.reduce((s,[key,qty]) => s+quote(products[key]).usd*qty,0);
@@ -285,14 +289,21 @@
     panel.querySelector('[data-total-products]').textContent = entries.length;
     const units = entries.reduce((s,[,q])=>s+q,0);
     panel.querySelector('[data-total-qty]').textContent = units;
-    panel.querySelector('[data-cart-count]').textContent = units;
-    panel.querySelector('[data-cart]').setAttribute('aria-label','Ver carrito: '+units+' unidades');
-    panel.querySelector('[data-cart-iva]').hidden = !entries.some(([key])=>hasVAT(products[key]));
-    panel.querySelector('[data-cart-amount]').textContent = 'US$ '+amount(entries.reduce((s,[key,qty])=>s+saleAmounts(products[key],exchangeRate()).usd*qty,0));
+    const cartEntries=Object.entries(listKey?cartDraft.productos:selected).filter(([key])=>eligible(products[key]));
+    const cartUnits=cartEntries.reduce((sum,[,qty])=>sum+Number(qty),0);
+    panel.querySelector('[data-cart-count]').textContent = cartUnits;
+    panel.querySelector('[data-cart]').setAttribute('aria-label','Ver carrito: '+cartUnits+' unidades');
+    panel.querySelector('[data-cart-iva]').hidden = !cartEntries.some(([key])=>hasVAT(products[key]));
+    panel.querySelector('[data-cart-amount]').textContent = 'US$ '+amount(cartEntries.reduce((s,[key,qty])=>s+saleAmounts(products[key],exchangeRate()).usd*qty,0));
     panel.querySelector('[data-total-usd]').textContent = 'US$ '+amount(usd);
     panel.querySelector('[data-total-ars]').textContent = '$ '+amount(ars);
     panel.querySelector('[data-summary]').textContent = (missing ? missing+' productos sin precio USD. ' : '')+'La referencia no es el costo definitivo. Registrá por separado lo comprado y el precio unitario acordado; no modifica stock ni genera órdenes.';
     if (!panel.querySelector('[data-list-card]').hidden) root.SisVentas?.prepareResizablePage?.(panel.querySelector('[data-cart-items]'));
+  }
+  function renderPurchaseProgress() {
+    const counts={pendiente:0,pedido:0,comprado:0};
+    Object.keys(selected).filter(key=>eligible(products[key])).forEach(key=>counts[purchases[key]?.estado||'pendiente']++);
+    panel.querySelector('[data-progress]').textContent=counts.pendiente+' pendientes · '+counts.pedido+' pedidos · '+counts.comprado+' comprados. Guardá la lista para conservar los cambios.';
   }
   function renderLists() {
     panel.querySelector('[data-delete-list]').disabled=busy||!listKey||!lists[listKey];
@@ -364,6 +375,35 @@
         #screen-paraguay [data-status]{font-size:12px;color:var(--blue);margin-top:12px}
         @media(max-width:1100px){#screen-paraguay .py-menu{display:inline-flex}}
         @media(max-width:768px){#screen-paraguay .py-menu{display:inline-flex}#screen-paraguay .py-list-fields{grid-template-columns:1fr}#screen-paraguay .topbar{grid-template-columns:minmax(0,1fr) auto}#screen-paraguay .topbar-center{display:none}#screen-paraguay .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+        #screen-paraguay [data-item-state="comprado"]{box-shadow:inset 4px 0 var(--green)}
+        #screen-paraguay [data-item-state="pedido"]{box-shadow:inset 4px 0 var(--blue)}
+        /* The shopping list uses its available container, including tablet split views. */
+        #screen-paraguay .content{min-width:0;width:100%;max-width:none;box-sizing:border-box}
+        #screen-paraguay [data-list-card]{min-width:0;container-type:inline-size}
+        #screen-paraguay [data-list-card]>.card-head{flex-wrap:wrap;gap:12px}
+        #screen-paraguay .py-actions{margin-left:auto}
+        #screen-paraguay .py-list-fields>*{min-width:0}
+        #screen-paraguay .py-list-fields input,#screen-paraguay .py-list-fields select{width:100%;min-height:44px;box-sizing:border-box}
+        #screen-paraguay [data-cart-items] table{width:100%!important;min-width:0;table-layout:fixed}
+        #screen-paraguay [data-cart-items] th:first-child,#screen-paraguay [data-cart-items] td:first-child{width:30%!important;min-width:0}
+        #screen-paraguay [data-cart-items] th,#screen-paraguay [data-cart-items] td{white-space:normal;overflow-wrap:anywhere}
+        #screen-paraguay [data-cart-items] input[type=number],#screen-paraguay [data-cart-items] select{width:100%;max-width:none;min-width:0;min-height:44px;font-size:16px}
+        #screen-paraguay [data-list-card] .btn,#screen-paraguay .py-add-context .btn{min-height:44px}
+        #screen-paraguay .py-add-context{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px;margin-bottom:12px;border:1px solid var(--green);border-radius:10px}
+        #screen-paraguay .metrics{grid-template-columns:repeat(4,minmax(0,1fr));min-width:0}
+        @container(max-width:1100px){
+          #screen-paraguay [data-cart-items] table,#screen-paraguay [data-cart-items] tbody{display:block}
+          #screen-paraguay [data-cart-items] thead{display:none}
+          #screen-paraguay [data-cart-items] tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:16px;margin-top:14px;border:1px solid var(--border);border-radius:12px;background:var(--bg)}
+          #screen-paraguay [data-cart-items] td{display:block;padding:0;border:0;min-width:0}
+          #screen-paraguay [data-cart-items] td:first-child{grid-column:1/-1;width:auto!important}
+          #screen-paraguay [data-cart-items] td[data-label]:before{content:attr(data-label);display:block;margin-bottom:7px;font-size:12px;color:var(--text3)}
+          #screen-paraguay [data-cart-items] td:last-child{display:flex;align-items:flex-end;justify-content:flex-end}
+          #screen-paraguay .py-provider-choice select{max-width:none}
+        }
+        @container(max-width:540px){#screen-paraguay [data-cart-items] tr{grid-template-columns:repeat(2,minmax(0,1fr))}#screen-paraguay .py-list-fields{grid-template-columns:minmax(0,1fr)}}
+        @media(max-width:1100px){#screen-paraguay .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
       </style>
       <div class="app">
         <aside class="sidebar" aria-label="Navegación de Ofertas">
@@ -381,13 +421,13 @@
               <div class="metric"><div class="m-label">Costo total ARS</div><div class="m-value" data-total-ars style="color:var(--amber)">$ 0,00</div><div class="m-sub">incluye envío registrado</div></div>
             </div>
             <section class="card" data-list-card aria-label="Lista de compra">
-              <div class="card-head"><span class="card-title">Lista de compra</span><div class="py-actions"><button class="btn btn-sm" data-pdf-list><i class="ti ti-file-type-pdf" aria-hidden="true"></i> Exportar PDF</button><button class="btn btn-sm" data-download><i class="ti ti-download" aria-hidden="true"></i> Descargar CSV</button><button class="btn btn-sm" data-delete-list disabled style="color:var(--red,#ef8585)"><i class="ti ti-trash" aria-hidden="true"></i> Eliminar lista</button><button class="btn btn-sm btn-primary" data-save><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar lista</button></div></div>
+              <div class="card-head"><span class="card-title">Lista de compra</span><div class="py-actions"><button class="btn btn-sm" data-add-products>＋ Agregar productos</button><button class="btn btn-sm" data-pdf-list><i class="ti ti-file-type-pdf" aria-hidden="true"></i> Exportar PDF</button><button class="btn btn-sm" data-download><i class="ti ti-download" aria-hidden="true"></i> Descargar CSV</button><button class="btn btn-sm" data-delete-list disabled style="color:var(--red,#ef8585)"><i class="ti ti-trash" aria-hidden="true"></i> Eliminar lista</button><button class="btn btn-sm btn-primary" data-save><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar lista</button></div></div>
               <div class="py-list-fields"><div class="fg"><label for="py-mis-listas">Mis listas</label><select id="py-mis-listas" data-lists><option value="">Nueva lista</option></select></div><div class="fg"><label for="py-lista-nombre">Nombre de la lista</label><input id="py-lista-nombre" data-name maxlength="120" placeholder="Ej. Próximo viaje"></div></div>
-              <div data-cart-items aria-label="Productos del carrito"></div><p class="py-note" data-summary></p><p data-status role="status"></p>
+              <p class="py-note" data-progress role="status"></p><div data-cart-items aria-label="Productos del carrito"></div><p class="py-note" data-summary></p><p data-status role="status"></p>
             </section>
             <section class="card" data-products-card aria-label="Catálogo de Productos">
               <div class="card-head"><span class="card-title">Catálogo de Productos</span><div class="py-catalog-controls"><button type="button" class="btn btn-sm" data-pdf-catalog><i class="ti ti-file-type-pdf" aria-hidden="true"></i> Exportar PDF</button><label class="py-group-label"><input type="checkbox" data-group-brand> Agrupar por marca</label><div class="py-view-switch" role="group" aria-label="Vista del catálogo"><button type="button" class="btn btn-sm" data-layout="grid" aria-pressed="true"><i class="ti ti-layout-grid" aria-hidden="true"></i> Cuadrícula</button><button type="button" class="btn btn-sm" data-layout="list" aria-pressed="false"><i class="ti ti-list" aria-hidden="true"></i> Lista</button></div></div></div>
-              <input class="search-input" data-search aria-label="Buscar producto" placeholder="Buscar por nombre, código o marca…" style="width:100%">
+              <div class="py-add-context" data-add-context hidden><strong data-add-title></strong><button class="btn" data-return-list>Volver a la lista</button></div><input class="search-input" data-search aria-label="Buscar producto" placeholder="Buscar por nombre, código o marca…" style="width:100%">
               <p class="py-note" data-count style="margin-bottom:16px"></p>
               <div class="catalogo-grid" data-products></div>
               <p class="py-note">Los precios corresponden a la última información registrada.</p>
@@ -457,7 +497,22 @@
       const expanded = panel.querySelector('.sidebar').classList.toggle('open');
       panel.querySelector('[data-menu]').setAttribute('aria-expanded', String(expanded));
     };
+    function rememberCart() {
+      if(!listKey)cartDraft={productos:{...selected},comprasFinales:structuredClone(purchases),nombre:panel.querySelector('[data-name]').value};
+    }
+    function openCart() {
+      if(busy)return;
+      if(listKey){listKey='';listBaseline=null;selected={...cartDraft.productos};purchases=structuredClone(cartDraft.comprasFinales);panel.querySelector('[data-name]').value=cartDraft.nombre;}
+      panel.querySelector('[data-add-context]').hidden=true;renderLists();renderProducts();
+    }
+    panel.querySelector('[data-add-products]').onclick=()=>{
+      panel.querySelector('[data-add-context]').hidden=false;
+      panel.querySelector('[data-add-title]').textContent='Agregando productos a: '+(panel.querySelector('[data-name]').value||'Nueva lista');
+      showView(false);panel.querySelector('[data-search]').focus();
+    };
+    panel.querySelector('[data-return-list]').onclick=()=>showView(true);
     panel.querySelectorAll('[data-nav]').forEach(button => button.onclick = () => {
+      if(button.dataset.nav!=='lists')openCart();
       showView(button.dataset.nav === 'lists');
     });
     panel.querySelector('[data-logout]').onclick = () => {if(admin){if(!busy){close();options.onClose?.();}}else root.doLogout();};
@@ -467,12 +522,19 @@
       const field=input.dataset.purchase,key=input.dataset.key;if(!field||!key)return;
       purchases[key]||={};if(input.value==='')delete purchases[key][field];else purchases[key][field]=['cantidad','precioUnitario'].includes(field)?Number(input.value):input.value;
     }
-    panel.querySelector('[data-cart-items]').oninput=e=>capturePurchase(e.target);
+    panel.querySelector('[data-cart-items]').oninput=e=>{if(e.target.dataset.purchase!=='estado')capturePurchase(e.target);};
     panel.querySelector('[data-cart-items]').onchange=e=>{
       if(e.target.dataset.requested){const qty=Number(e.target.value);if(!e.target.reportValidity())return;selected[e.target.dataset.requested]=qty;renderProducts();return;}
+      if(e.target.dataset.purchase==='estado'&&e.target.value==='comprado'){
+        const item=purchases[e.target.dataset.key]||{};
+        if(!(item.cantidad>0)||!Number.isFinite(item.precioUnitario)){
+          e.target.value=item.estado||'pendiente';status('Para marcar como comprado, completá la cantidad comprada y el precio unitario final (puede ser 0).');return;
+        }
+      }
       capturePurchase(e.target);
+      if(e.target.dataset.purchase==='estado'){e.target.closest('tr').dataset.itemState=e.target.value;renderPurchaseProgress();}
     };
-    panel.querySelector('[data-cart]').onclick = () => showView(true);
+    panel.querySelector('[data-cart]').onclick = () => {openCart();showView(true);};
     panel.querySelector('[data-products]').onclick = e => {
       const minus=e.target.closest('[data-subtract]');if(minus){const key=minus.dataset.subtract;if(selected[key]>1)selected[key]--;else {delete selected[key];delete purchases[key];}renderProducts();return;}
       const button = e.target.closest('[data-add]'); if (!button) {if(!e.target.closest('input,label,a')){const card=e.target.closest('[data-detail]');if(card)showDetail(card.dataset.detail);}return;}
@@ -490,6 +552,8 @@
     };
     panel.querySelector('[data-lists]').onchange = e => {
       if (busy) return;
+      rememberCart();
+      if(!e.target.value){openCart();return;}
       listKey = e.target.value; const list = lists[listKey] || {}; listBaseline=listKey?structuredClone(list):null;
       selected = Object.assign({}, list.productos || {}); purchases=structuredClone(list.comprasFinales||{}); panel.querySelector('[data-name]').value = list.nombre || '';
       status(''); renderProducts();
@@ -515,9 +579,11 @@
       const actualItems={};
       for(const [productKey,value] of Object.entries(purchases)) {
         if(!items[productKey])continue;
-        if(value.cantidad==null && value.precioUnitario==null){if(value.proveedor)actualItems[productKey]={proveedor:value.proveedor,moneda:value.moneda||'USD'};continue;}
+        const state=value.estado||'pendiente';
+        if(!purchaseStates[state]||(state==='comprado'&&(!(value.cantidad>0)||!Number.isFinite(value.precioUnitario)))){status('Revisá cantidad y precio final de los productos marcados como comprados.');return;}
+        if(value.cantidad==null && value.precioUnitario==null){actualItems[productKey]={proveedor:value.proveedor||'',moneda:value.moneda||'USD',estado:state};continue;}
         if(!Number.isInteger(value.cantidad)||value.cantidad<0||value.cantidad>9999||!Number.isFinite(value.precioUnitario)||value.precioUnitario<0||value.precioUnitario>1e9||!['USD','ARS','PYG'].includes(value.moneda||'USD')){status('Completá cantidad comprada y precio real de cada producto revisado.');return;}
-        actualItems[productKey]={cantidad:value.cantidad,precioUnitario:value.precioUnitario,moneda:value.moneda||'USD',proveedor:value.proveedor||''};
+        actualItems[productKey]={estado:state,cantidad:value.cantidad,precioUnitario:value.precioUnitario,moneda:value.moneda||'USD',proveedor:value.proveedor||''};
       }
       busy = true; panel.querySelector('[data-delete-list]').disabled=true; panel.querySelector('[data-save]').disabled = true; panel.querySelector('[data-lists]').disabled = true;
       const key = listKey || root.fbPush(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid)).key;
@@ -533,7 +599,7 @@
           saved=(await root.fbGet(root.fbRef(root.fbDB,path))).val();
         }
         if(valid())listBaseline=structuredClone(saved);
-        if(valid()&&panel){listKey = key;renderLists();status('Lista guardada. No se generó una orden de compra.');}
+        if(valid()&&panel){if(!listKey)cartDraft={productos:{},comprasFinales:{},nombre:''};lists[key]=structuredClone(saved);listKey=key;panel.querySelector('[data-add-context]').hidden=true;showView(true);renderLists();renderProducts();status('Lista guardada. Los productos están en esta lista, fuera del carrito.');}
       } catch (e) {if(valid())status(e.code==='SV_CONFLICT'?'La lista cambió en otro equipo. Volvé a seleccionarla para revisar esos cambios antes de guardar.':(e.message||'No se pudo guardar la lista. Revisá la conexión y el acceso.'));}
       finally {if(valid()){busy=false;if(panel){panel.querySelector('[data-save]').disabled=false;panel.querySelector('[data-lists]').disabled=false;renderLists();}}}
     };

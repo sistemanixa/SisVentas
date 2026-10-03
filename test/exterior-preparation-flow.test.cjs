@@ -15,7 +15,32 @@ test('guardar preparación y costo es atómico, mantiene cambios ajenos y rechaz
  let db={listas_materiales:{L:{estado:'preparacion'}},ventas:{S:{subtotal:1000,total:1210,observaciones:'Cambio de otro usuario',items:[{cod:'A',qty:1,costoUnitarioCompra:500}]}}};
  const ctx={JSON,Number,Object,Error,materialListLocked:l=>l.estado==='cerrada',window:{currentUserUid:'u',fbDB:{},SVExteriorPreparation:api,SVGuardedWrites:{equal},obtenerCostoItemVenta:i=>i.costoTotalCompra??i.costoUnitarioCompra*i.qty,_rentIngresoNetoVenta:s=>s.subtotal,fbRef:(_,p)=>p,fbGet:async()=>({val:()=>db}),fbRunTransaction:async(_,fn)=>{const next=fn(structuredClone(db));if(next===undefined)return {committed:false};db=next;return {committed:true};}}};vm.createContext(ctx);
  const start=src.indexOf('  async function savePreparationAndSaleCosts');vm.runInContext(src.slice(start,src.indexOf('  window.ocAbrirSimuladorParaguay',start)),ctx);
- const list={fbKey:'L',ventaFbKey:'S'},snapshot={version:6,parameters:{usd:100},rows:[{code:'A',sourceLine:0,needed:1,existing:0,method:'exterior',agreed:2,providerKey:'P',provider:'P'}]};
+ const list={fbKey:'L',ventaFbKey:'S'},snapshot={version:6,exteriorAppliedAt:123,parameters:{usd:100},rows:[{code:'A',sourceLine:0,needed:1,existing:0,method:'exterior',agreed:2,providerKey:'P',provider:'P'}]};
+ await ctx.savePreparationAndSaleCosts(list,{...snapshot,exteriorAppliedAt:null},{});assert.equal(db.ventas.S.costoTotal,undefined);list.simuladorParaguay=structuredClone(db.listas_materiales.L.simuladorParaguay);
  await ctx.savePreparationAndSaleCosts(list,snapshot,{});assert.equal(db.ventas.S.costoTotal,200);assert.equal(db.ventas.S.total,1210);assert.equal(db.ventas.S.observaciones,'Cambio de otro usuario');assert.equal(db.listas_materiales.L.simuladorParaguay.rows[0].agreed,2);
  await assert.rejects(ctx.savePreparationAndSaleCosts(list,{...snapshot,rows:[{...snapshot.rows[0],agreed:3}]},{}),/Otro usuario/);assert.equal(db.ventas.S.costoTotal,200);
+});
+
+test('aplicar exterior permite guardar sin cambios y sin confirmar órdenes',async()=>{
+ const text=fs.readFileSync('js/modules/exterior-preparation.js','utf8'),start=text.indexOf('    async function save(confirm');
+ let saved,confirmed=false;const ctx={busy:false,frozen:false,dirty:false,status:'',owner:'u',cleanState:'same',editState:()=> 'same',render:()=>({rows:[{method:'exterior',qty:1,providerKey:'P',agreed:10}],parameters:{usd:1000},complete:false}),d:{saved:{}},root:{currentUserUid:'u',currentUser:'Prueba'},ctx:{save:async s=>{saved=s},confirm:async()=>{confirmed=true}},num:v=>Number(v)||0,copy:structuredClone,el:{isConnected:true},Date,Object,Error};
+ vm.createContext(ctx);vm.runInContext(text.slice(start,text.indexOf('    function close(',start)),ctx);await ctx.save(false,true);
+ assert.ok(saved.exteriorAppliedAt);assert.equal(saved.exteriorAppliedBy,'u');assert.equal(confirmed,false);assert.match(ctx.status,/aplicada/);
+});
+
+test('compras de exterior incluye ventas pagadas y pendientes, sin cerrar por pago',()=>{
+ const ctx={window:{},saleRef:()=>({estadoPago:'pago_total',items:[{origenCompra:'Exterior',costoUnitarioCompra:100}]})};vm.createContext(ctx);
+ for(const [name,next] of [['balanceTieneCompraExterior','balancePurchaseTitle'],['balanceFinalizado','balanceIndicadores']]){const start=src.indexOf('  function '+name);vm.runInContext(src.slice(start,src.indexOf('  function '+next,start)),ctx);}
+ for(const estadoPago of ['pago_total','pendiente_pago','seniado']){
+ const list={estado:'preparacion',estadoPago,simuladorParaguay:{version:6,rows:[{include:true,qty:1}],extras:[]}};
+ assert.equal(ctx.balanceTieneCompraExterior(list),true);assert.equal(ctx.balanceFinalizado(list),false);
+ }
+ assert.equal(ctx.balanceTieneCompraExterior({ventaId:'V1'}),true);
+});
+
+test('borrador exterior sin costos aplicados no aparece y no calcula margen válido',()=>{
+ const ctx={window:{},saleRef:()=>({items:[{cod:'A'}]})};vm.createContext(ctx);
+ for(const [name,next] of [['balanceTieneCompraExterior','balancePurchaseTitle'],['balanceIndicadores','balanceTieneCompraExterior']]){const start=src.indexOf('  function '+name);vm.runInContext(src.slice(start,src.indexOf('  function '+next,start)),ctx);}
+ const list={simuladorParaguay:{version:6,complete:false,parameters:{},result:{margin:76.85},rows:[{include:true,method:'exterior',qty:1,agreed:''}]}};
+ assert.equal(ctx.balanceTieneCompraExterior(list),false);assert.equal(ctx.balanceIndicadores(list),null);
 });

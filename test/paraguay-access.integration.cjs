@@ -83,3 +83,12 @@ test('permite elegir proveedor antes de comprar y rechaza compra incompleta',asy
  await assertSucceeds(set(ref(db,path),value));
  for(const partial of [{cantidad:1},{precioUnitario:25}])await assertFails(set(ref(db,path),{...value,comprasFinales:{py1:{...value.comprasFinales.py1,...partial}}}));
 });
+
+ test('estados de revisión: pedido sin precio, comprado exige cantidad y precio final',async()=>{
+ const path='sv_listas_paraguay/py/estados';
+ const row={moneda:'USD',proveedor:'Tienda',estado:'pedido'};
+ await assertSucceeds(set(ref(db,path),{...list,comprasFinales:{py1:row}}));
+ await assertFails(set(ref(db,path),{...list,comprasFinales:{py1:{...row,estado:'comprado'}}}));
+ await assertFails(set(ref(db,path),{...list,comprasFinales:{py1:{...row,estado:'otro'}}}));
+ await assertSucceeds(set(ref(db,path),{...list,comprasFinales:{py1:{...row,estado:'comprado',cantidad:1,precioUnitario:0}}}));
+ });

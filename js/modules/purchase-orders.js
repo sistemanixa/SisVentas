@@ -592,12 +592,14 @@
       if(!current||materialListLocked(current)||current.compraConfirmacion)throw new Error('La compra cambió o ya está confirmada. Volvé a abrirla.');
       if(!window.SVGuardedWrites.equal(current.simuladorParaguay||null,before))throw new Error('Otro usuario cambió la preparación. Volvé a abrirla.');
       const sources=list.origen==='conjunta'?list.sources||[]:[{ventaFbKey:list.ventaFbKey,listId:list.fbKey}];
-      sources.forEach(function(source){
+      const applyCosts=!!snapshot.exteriorAppliedAt&&snapshot.exteriorAppliedAt!==before?.exteriorAppliedAt;
+      if(applyCosts)sources.forEach(function(source){
         if(!source.ventaFbKey)return;
         const sale=data.ventas&&data.ventas[source.ventaFbKey];
         if(!sale)throw new Error('No se encontró la venta asociada.');
         const rows=(snapshot.rows||[]).filter(r=>list.origen!=='conjunta'||r.sourceListId===source.listId);
         data.ventas[source.ventaFbKey]=window.SVExteriorPreparation.applySaleCosts(sale,rows,snapshot.parameters.usd,window.obtenerCostoItemVenta,window._rentIngresoNetoVenta);
+        if(snapshot.exteriorAppliedAt&&snapshot.exteriorAppliedAt!==before?.exteriorAppliedAt){const next=data.ventas[source.ventaFbKey];next.audit=(next.audit||[]).concat([{fecha:new Date(snapshot.exteriorAppliedAt).toLocaleString('es-AR'),usuario:snapshot.updatedBy||uid,accion:'Compra exterior aplicada desde la preparación: '+rows.filter(r=>r.method==='exterior'&&Number(r.qty)>0).map(r=>r.code).join(', ')}]);}
       });
       current.simuladorParaguay=JSON.parse(JSON.stringify(snapshot));
       Object.entries(changes).filter(([key])=>key.startsWith('comprobantesCompra/')).forEach(([key,value])=>{current.comprobantesCompra=current.comprobantesCompra||{};current.comprobantesCompra[key.split('/')[1]]=value;});
@@ -615,7 +617,7 @@
     }
     var list=state.activeList;loadMaterialQuote();
     if((!materialListLocked(list)&&!list.compraConfirmacion||list.simuladorParaguay&&list.simuladorParaguay.version>=6)&&!window.SVExteriorPreparation){
-      try{await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/exterior-preparation.js?v=3.9.2-links1';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}
+      try{await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/exterior-preparation.js?v=3.9.9-apply1';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}
       catch(e){window.notify('No se pudo cargar la preparación de compra. Reintentá.');return;}
     }
     var sale=saleRef(list.ventaFbKey||list.ventaId)||{};
@@ -1127,7 +1129,7 @@
 
   function balanceIndicadores(list) {
     var sim = list.simuladorParaguay;
-    if (!sim || !sim.result || !sim.parameters) return null;
+    if (!sim || !sim.result || !sim.parameters || sim.complete!==true) return null;
     var p = sim.parameters, r = sim.result;
     var current = (list.items || []).filter(function(i){return !i.esManoDeObra && i.incluir && Number(i.cantidadNecesaria)>0;});
     var stale = current.length !== (sim.rows || []).length || current.some(function(i){
@@ -1150,9 +1152,11 @@
   }
 
   function balanceTieneCompraExterior(list) {
-    if(list.simuladorParaguay&&list.simuladorParaguay.version>=6)return (list.simuladorParaguay.rows||[]).some(function(r){return r.include&&Number(r.qty)>0;})||(list.simuladorParaguay.extras||[]).length>0;
-    if(list.origen==='conjunta'||list.origen==='stock_paraguay'||list.simuladorParaguay)return true;
-    function exterior(record){return !!(record&&Array.isArray(record.items)&&record.items.some(function(item){var origin=String(item&&item.origenCompra||'').trim();return Number(item&&item.costoUnitarioCompra)>0&&origin&&!/^(argentina|local|nacional)$/i.test(origin);}));}
+    const sim=list.simuladorParaguay;
+    const validForeign=r=>r.method==='exterior'&&Number(r.qty)>0&&!!r.providerKey&&Number(r.agreed)>0;
+    if(list.origen==='stock_paraguay')return !!(sim&&sim.exteriorAppliedAt&&[...(sim.rows||[]),...(sim.extras||[])].some(validForeign))||!!list.compraConfirmacion;
+    function exterior(record){return !!(record&&Array.isArray(record.items)&&record.items.some(function(item){var origin=String(item&&item.origenCompra||'').trim();return Number(item&&item.costoUnitarioCompra)>0&&!!origin&&!/^(argentina|local|nacional|stock)$/i.test(origin);}));}
+    if(list.origen==='conjunta')return (list.sources||[]).some(source=>exterior(saleRef(source.ventaFbKey||source.ventaId)));
     var sale=saleRef(list.ventaFbKey||list.ventaId);
     if(sale&&Array.isArray(sale.items)&&sale.items.some(function(i){return String(i.origenCompra||'').trim();}))return exterior(sale);
     if(exterior(sale))return true;
@@ -1216,7 +1220,7 @@
       var m=balanceIndicadores(list), pct=function(v){return v===null?'—':v.toLocaleString('es-AR',{maximumFractionDigits:2})+'%';};
       var equivalent=function(value){return (m.usd?'USD '+(value/m.usd).toLocaleString('es-AR',{maximumFractionDigits:2}):'USD —')+' · '+(m.usdt?(value/m.usdt).toLocaleString('es-AR',{maximumFractionDigits:2})+' USDT':'USDT —');};
       var amount=function(label,value){return '<div class="bc-amount"><span>'+label+'</span><strong>'+money(value)+'</strong><small>'+equivalent(value)+'</small></div>';};
-      var content=m?'<div class="bc-alert">'+(m.stale?'Selección modificada: recalculá para actualizar esta comparación.':m.incomplete?'Estimación incompleta: faltan gastos. La mejora es provisional.':'Simulación guardada · importes estimados')+'</div><div class="bc-meta">Venta sin IVA: <strong>'+money(m.revenue)+'</strong> · '+(m.applied?'Modalidad elegida: ':'Alternativa comparada: ')+(m.chosen==='remote'?'Envío':'Viaje')+'</div><div class="bc-comparison"><section class="bc-before"><h3>Situación actual</h3><p>Base guardada de la venta / presupuesto</p>'+amount('Ganancia actual estimada',m.currentProfit)+'<div class="bc-margin">Margen <strong>'+pct(m.currentMargin)+'</strong></div><small>Costo total actual: '+money(m.baseline)+'</small></section><section class="bc-after"><h3>Con compra en exterior</h3><p>Mismo importe de venta</p>'+amount('Ganancia proyectada',m.projectedProfit)+'<div class="bc-margin">Margen <strong>'+pct(m.margin)+'</strong></div><small>Costo total proyectado: '+money(m.retained+m.total)+'</small></section></div><div class="bc-improvement '+(m.saving<0?'bc-loss':'')+'">'+amount(m.saving>=0?'Mejora de ganancia estimada':'Disminución de ganancia estimada',m.saving)+'<div><strong>'+pct(m.points)+'</strong><span>del importe de venta sin IVA</span><small>Variación de margen: '+(m.points===null?'—':m.points.toLocaleString('es-AR',{maximumFractionDigits:2}))+' puntos porcentuales</small></div></div><h3 class="bc-cost-title">Cómo se compone el costo proyectado</h3><div class="bc-costs">'+amount('Productos del exterior¹',m.products)+amount('Gastos operativos y cambio¹',m.operating)+amount('Otros costos que se conservan',m.retained)+'</div><p class="bc-footnote">¹ Productos valuados al dólar de referencia. Operativos incluye logística, seguro, traslado y diferencia cambiaria / valoración USDT. Los costos conservados corresponden al resto de la venta. Ganancia antes de comisiones y gastos no incluidos.</p>':'<p>Sin simulación guardada. Completá los costos para comparar ganancia y margen.</p>';
+      var content=m?'<div class="bc-alert">'+(m.stale?'Selección modificada: recalculá para actualizar esta comparación.':m.incomplete?'Estimación incompleta: faltan gastos. La mejora es provisional.':'Simulación guardada · importes estimados')+'</div><div class="bc-meta">Venta sin IVA: <strong>'+money(m.revenue)+'</strong> · '+(m.applied?'Modalidad elegida: ':'Alternativa comparada: ')+(m.chosen==='remote'?'Envío':'Viaje')+'</div><div class="bc-comparison"><section class="bc-before"><h3>Situación actual</h3><p>Base guardada de la venta / presupuesto</p>'+amount('Ganancia actual estimada',m.currentProfit)+'<div class="bc-margin">Margen <strong>'+pct(m.currentMargin)+'</strong></div><small>Costo total actual: '+money(m.baseline)+'</small></section><section class="bc-after"><h3>Con compra en exterior</h3><p>Mismo importe de venta</p>'+amount('Ganancia proyectada',m.projectedProfit)+'<div class="bc-margin">Margen <strong>'+pct(m.margin)+'</strong></div><small>Costo total proyectado: '+money(m.retained+m.total)+'</small></section></div><div class="bc-improvement '+(m.saving<0?'bc-loss':'')+'">'+amount(m.saving>=0?'Mejora de ganancia estimada':'Disminución de ganancia estimada',m.saving)+'<div><strong>'+pct(m.points)+'</strong><span>del importe de venta sin IVA</span><small>Variación de margen: '+(m.points===null?'—':m.points.toLocaleString('es-AR',{maximumFractionDigits:2}))+' puntos porcentuales</small></div></div><h3 class="bc-cost-title">Cómo se compone el costo proyectado</h3><div class="bc-costs">'+amount('Productos del exterior¹',m.products)+amount('Gastos operativos y cambio¹',m.operating)+amount('Otros costos que se conservan',m.retained)+'</div><p class="bc-footnote">¹ Productos valuados al dólar de referencia. Operativos incluye logística, seguro, traslado y diferencia cambiaria / valoración USDT. Los costos conservados corresponden al resto de la venta. Ganancia antes de comisiones y gastos no incluidos.</p>':'<p>Completá y verificá los costos antes de mostrar ganancia y margen.</p>';
       var brief=m?'<div class="bc-brief"><span>Costo estimado <strong>'+money(m.retained+m.total)+'</strong></span><span>Margen <strong>'+pct(m.margin)+'</strong></span>'+((m.incomplete||m.stale)?'<small style="color:var(--amber)">Por completar</small>':'')+'</div>':'<div class="bc-brief"><span>Pendiente de preparar</span></div>';
       content=brief+'<details class="bc-cost-detail"><summary>Ver detalle de costos</summary>'+content+'</details>';
       return header+'<article class="card bc-card"><div class="bc-head"><div><h2>'+esc(balancePurchaseTitle(list))+'</h2><span>'+esc(list.numero)+' · '+esc(list.estado||'preparacion')+'</span></div><button class="btn btn-primary" onclick="abrirBalanceCompra(\''+attr(list.fbKey)+'\')">Preparar compra →</button></div>'+content+'</article>';
