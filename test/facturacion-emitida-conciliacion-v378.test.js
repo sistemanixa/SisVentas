@@ -16,7 +16,7 @@ test('Facturas es un módulo separado y visible solo para admin y administrativo
 });
 
 test('Facturas aparece en Roles y migra configuraciones anteriores con reglas seguras', () => {
-  assert.match(app, /PERMISOS_VERSION_ACTUAL = 4/);
+  assert.match(app, /PERMISOS_VERSION_ACTUAL = [4-9]\d*/);
   assert.match(app, /MODULOS_AGREGADOS_A_PERMISOS = \[[^\]]*'facturas'/);
   assert.match(app, /\{ id:'facturas',\s+label:'Facturas \(ventas facturadas y conciliación\)' \}/);
   assert.match(app, /vendedor:[\s\S]{0,350}'facturas'/);

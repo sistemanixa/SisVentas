@@ -29,7 +29,7 @@ test('las tablas en píxeles se ajustan proporcionalmente sin modificar el perfi
 });
 
 test('el cien por ciento no corta botones de acciones', () => {
-  assert.match(tables, /label \? \(34 \+ label\.length \* 7\) : 44/);
+  assert.match(tables, /label \? \(34 \+ label\.length \* 7\) : 36/);
   assert.match(tables, /if \(fixedTooSmall\) values = defaultPercentages\(table\)/);
   assert.match(tables, /readonly title="Ancho protegido para mostrar todas las acciones"/);
   assert.match(tables, /var pesos = suggestedPixelWidths\(table, headers\)/);

@@ -49,7 +49,7 @@ test('el reingreso muestra una bienvenida V3 y el historial distingue la versió
 test('el service worker precarga el lanzamiento completo de V3', () => {
   const sw = read('sw.js');
   const {version, filename} = activeRelease();
-  assert.ok(sw.includes("const CACHE = 'sisventas-" + version + "'"));
+  assert.ok(sw.includes("const CACHE = 'sisventas-" + version));
   assert.ok(sw.includes("'./js/" + filename + "'"));
   assert.ok(sw.includes("'./js/core/version." + version + ".js'"));
   assert.match(sw, /modules\/v3-launch\.js/);

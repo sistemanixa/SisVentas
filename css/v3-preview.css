@@ -69,6 +69,8 @@ html.sv-v3-preview body:not(.dark-mode) .nav-item{color:var(--text2)}
 html.sv-v3-preview .nav-item:before{left:4px;top:9px;bottom:9px;width:2px;background:var(--v3-gold)}
 html.sv-v3-preview .nav-item:hover{background:rgba(110,168,255,.07)!important;border-color:rgba(110,168,255,.12)!important}
 html.sv-v3-preview .nav-item.active{background:linear-gradient(90deg,rgba(110,168,255,.15),rgba(110,168,255,.055))!important;border-color:rgba(110,168,255,.18)!important;color:#fff!important}
+html.sv-v3-preview .nav-item.active:before{width:3px;top:7px;bottom:7px;background:#8bbaff;opacity:1}
+html.sv-v3-preview .nav-item:not(.active):hover:before{opacity:0}
 html.sv-v3-preview .nav-item.active i{color:#8bbaff!important}
 html.sv-v3-preview .nav-item[data-v3-novedades="1"] i{color:var(--v3-gold)!important}
 html.sv-v3-preview .v3-release-pill{margin-left:auto;padding:2px 6px;border-radius:999px;background:var(--v3-gold-soft);border:1px solid rgba(217,171,77,.24);color:#e9c474;font-size:8px;font-weight:800;letter-spacing:.08em}

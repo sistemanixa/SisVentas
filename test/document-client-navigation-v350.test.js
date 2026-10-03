@@ -35,7 +35,7 @@ test('un documento histórico por nombre sólo abre una coincidencia única', ()
     clientesData: [{ fbKey:'a', nombre:'Cliente repetido' }, { fbKey:'b', nombre:'Cliente repetido' }, { fbKey:'c', nombre:'Cliente único' }],
     _svTxtClave: (value) => String(value || '').trim().toLowerCase(),
     _svTxtNombre: (value) => String(value || '').trim().toLowerCase(),
-    Object
+    Object, window:{}
   };
   vm.runInNewContext(app.slice(start, end), context);
   assert.equal(context._svResolverClienteDocumento({ cliente:'Cliente único' }).fbKey, 'c');

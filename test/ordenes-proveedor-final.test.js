@@ -14,5 +14,5 @@ test('la grilla y cabecera muestran el proveedor final conciliado', () => {
 
 test('guardar recepción o conciliación persiste el resumen final', () => {
   assert.match(source, /proveedorFinalResumen: providerSummary/);
-  assert.match(source, /proveedorFinalResumen: finalProviderSummary/);
+  assert.match(source, /latest\.proveedorFinalResumen=orderProviderSummary\(latest\)/);
 });

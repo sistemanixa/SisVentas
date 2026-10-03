@@ -1,7 +1,7 @@
 const fs = require('fs');
 const assert = require('assert');
 
-const app = fs.readFileSync('js/app.v3.3.7.js', 'utf8');
+const app = require('./helpers/active-app').readActiveApp().source;
 
 assert(app.includes("f.id === 'npv-user' || f.id === 'npv-pass'"),
   'Usuario y contraseña deben tener tratamiento específico.');

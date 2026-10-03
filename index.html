@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.8.19-firebase' -->
+<!-- VERSION: 'v3.8.20-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.8.19.js"></script>
+<script src="./js/core/version.v3.8.20.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,13 +34,13 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=3.8.1"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.8.1">
+<link rel="stylesheet" href="./css/app.css?v=3.8.20-menu3">
 <link rel="stylesheet" href="./css/surveys.css?v=1">
-<link rel="stylesheet" href="./css/v3-preview.css?v=3.3.5">
+<link rel="stylesheet" href="./css/v3-preview.css?v=3.8.20-menu2">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
-  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=3.8.1"></script>
+  <script type="module" id="firebase-init" src="./js/core/firebase.js?v=3.8.1-audit1"></script>
 </head>
 <body>
 
@@ -135,6 +135,12 @@
       </div>
       <div class="nav-item" onclick="abrirHistorialActualizaciones()" title="Ver cambios y repetir recorridos guiados">
         <i class="ti ti-rocket"></i>Novedades
+      </div>
+
+      <div class="s-module-search" id="s-module-search">
+        <label class="s-module-search-field"><i class="ti ti-search" aria-hidden="true"></i><input type="search" placeholder="Buscar módulo" aria-label="Buscar módulo" autocomplete="off"><button type="button" aria-label="Limpiar búsqueda de módulos" hidden>×</button></label>
+        <div class="s-module-results" aria-label="Resultados de módulos"></div>
+        <span class="s-module-count" role="status" aria-live="polite"></span>
       </div>
 
       <div class="s-section no-tecnico">Comercial</div>
@@ -5700,11 +5706,12 @@ Listo para analizar.
 <script src="./js/modules/comparacion-comercial.js?v=1"></script>
 <script src="./js/modules/search-filter-notice.js?v=scroll-2"></script>
 <script src="./js/core/loading-indicator.js?v=1"></script>
-<script src="./js/modules/commercial-approval.js?v=3.8.1"></script>
-<script src="./js/app.v3.8.19.js"></script>
+<script src="./js/modules/commercial-approval.js?v=3.8.20"></script>
+<script src="./js/core/guarded-writes.js?v=3.8.19-audit3"></script>
+<script src="./js/app.v3.8.20.js"></script>
 <script src="./js/modules/partial-invoices.js?v=1"></script>
 <script src="./js/modules/commercial-drafts.js?v=2"></script>
-<script src="./js/modules/chat-access.js?v=3.8.19"></script>
+<script src="./js/modules/chat-access.js?v=3.8.19-audit3"></script>
 <script src="./js/modules/catalog-cart-review.js?v=1"></script>
 
 <script src="./js/modules/ai-learning.js?v=1"></script>
@@ -5715,11 +5722,12 @@ Listo para analizar.
 <script src="./js/modules/budget-proposals.js?v=3.7.0"></script>
 <script src="./js/modules/business-break-even.js?v=1.0.3"></script>
 <script src="./js/modules/product-url-import.js?v=3.8.19"></script>
-<script src="./js/modules/paraguay-shopping-access.js?v=3.8.19"></script>
+<script src="./js/modules/paraguay-shopping-access.js?v=3.8.19-audit3"></script>
 <script src="./js/modules/keyboard-actions.js?v=3.3.18"></script>
+<script src="./js/modules/sidebar-search.js?v=3.8.20"></script>
 <script src="./js/modules/provider-verification.js"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
-<script src="./js/modules/surveys.js?v=1"></script>
+<script src="./js/modules/surveys.js?v=3.8.19-audit1"></script>
 <script src="./js/core/data-query.js?v=2.0.154"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
@@ -6218,7 +6226,7 @@ Listo para analizar.
 <script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
 <script src="./js/modules/resizable-tables.js?v=rendimiento-1"></script>
 <script src="./js/modules/grid-default-order.js?v=rendimiento-1"></script>
-<script src="./js/modules/commissions.js?v=3.7.5"></script>
+<script src="./js/modules/commissions.js?v=3.8.19-audit1"></script>
 <script src="./js/modules/item-row-order.js?v=2.2.8-drag-only-1"></script>
 
 <script src="./js/modules/dolar-historico.js?v=2.0.154"></script>
@@ -6229,7 +6237,7 @@ Listo para analizar.
 <script src="./js/modules/resource-monitor.js?v=3.3.17"></script>
 
 <script src="./js/modules/role-guard.js?v=3.3.17"></script>
-<script src="./js/modules/purchase-orders.js?v=3.8.14"></script>
+<script src="./js/modules/purchase-orders.js?v=3.8.19-prep4"></script>
 <script src="./js/modules/ot-material-custody.js?v=3.7.9"></script>
 <script src="./js/modules/release-tour.js?v=2.0.161"></script>
 
@@ -6267,7 +6275,7 @@ Listo para analizar.
 <script src="./js/modules/image-paste-drop.js?v=2"></script>
 <script src="./js/modules/quantity-wheel.js?v=1"></script>
 <script src="./js/modules/performance-diagnostics.js?v=1"></script>
-<script src="./js/modules/exterior-user-lists.js?v=3.8.19"></script>
+<script src="./js/modules/exterior-user-lists.js?v=3.8.19-audit1"></script>
 <script src="./js/modules/employee-cash-receipt.js?v=1"></script>
 </body>
 </html>

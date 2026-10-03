@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const app = fs.readFileSync('js/app.v2.0.327.js', 'utf8');
+const app = fs.readFileSync('js/app.v2.0.327.js', 'utf8').replace(/\r\n/g,'\n');
 
 function cargarNormalizador() {
   const inicio = app.indexOf('function spTextoHistorialLegible');

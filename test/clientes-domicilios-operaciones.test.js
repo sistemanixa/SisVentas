@@ -23,8 +23,8 @@ test('presupuesto y OT guardan el mismo vínculo canónico', () => {
 
 test('cuenta corriente agrupa operaciones por cliente principal', () => {
   assert.match(app, /function _svClaveClientePrincipalRegistro/);
-  assert.match(app, /var key = _svClaveClientePrincipalRegistro\(venta\)/);
-  assert.match(app, /var clavePrincipalPago = _svClaveClientePrincipalRegistro\(pago\)/);
+  assert.match(app, /var key = _svClaveClientePrincipalRegistro\(venta, indiceClientes\)/);
+  assert.match(app, /var clavePrincipalPago = _svClaveClientePrincipalRegistro\(pago, indiceClientes\)/);
 });
 
 test('los selectores excluyen domicilios inactivos y los identifican por dirección', () => {

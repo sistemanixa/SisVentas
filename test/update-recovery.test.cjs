@@ -29,19 +29,21 @@ test('si replace no navega, devuelve el control a los seis segundos',()=>{
 test('navegación rechazada recupera inmediatamente la pantalla',()=>{
   const h=setup({throwNavigation:true});h.context.actualizarAutomaticamente();h.advance(400);assert.equal(h.nodes.has('overlay-actualizando'),false);assert.equal(h.timers.size,0);
 });
-test('seguir trabajando cancela definitivamente la recarga pendiente',()=>{
-  const h=setup();h.context.actualizarAutomaticamente();h.nodes.get('upd-cancel').onclick();h.advance(20000);assert.equal(h.redirects.length,0);assert.equal(h.context._actualizandoAhora,false);
+test('el cargando no ofrece el botón retirado y la recarga continúa',()=>{
+  assert.ok(!routine.includes('id="upd-cancel"'));
+  const h=setup();h.context.actualizarAutomaticamente();h.advance(400);assert.equal(h.redirects.length,1);
 });
 test('doble clic no duplica la recarga y operaciones críticas no quedan bloqueadas',()=>{
   const h=setup();h.context.actualizarAutomaticamente();h.context.actualizarAutomaticamente();h.advance(400);assert.equal(h.redirects.length,1);
   const critical=setup({critical:true});critical.context._actualizandoAhora=true;critical.context.actualizarAutomaticamente();assert.equal(critical.context._actualizandoAhora,false);assert.equal(critical.nodes.size,0);
 });
-test('localhost anuncia la versión sin consultar ni interrumpir automáticamente',()=>{
+test('localhost verifica la publicación y avisa sin interrumpir un modal abierto',async()=>{
   for(const host of ['localhost','127.0.0.1','[::1]']){
-    const h=setup({host});let announcements=0;
-    Object.assign(h.context,{_versionMasNueva:()=>true,_mostrarBotonActualizacion:()=>announcements++});
+    const h=setup({host});let announcements=0,checks=0;
+    Object.assign(h.context,{_versionMasNueva:()=>true,_verificacionVersionEnCurso:false,_verificarVersionPublicadaCompleta:async()=>{checks++;return true;},mostrarAvisoVersionNueva:()=>announcements++});
     vm.runInContext(source.slice(source.indexOf('function _dispararActualizacion('),source.indexOf('// Respaldo de baja frecuencia:',source.indexOf('function _dispararActualizacion('))),h.context);
-    h.context._dispararActualizacion('v3.8.8-firebase');assert.equal(announcements,1);assert.equal(h.nodes.size,0);assert.equal(h.redirects.length,0);
+    h.context._dispararActualizacion('v3.8.8-firebase');await Promise.resolve();await Promise.resolve();
+    assert.equal(checks,1);assert.equal(announcements,1);assert.equal(h.nodes.size,0);assert.equal(h.redirects.length,0);
   }
 });
 test('pausa de recuperación impide volver a bloquear por otro aviso',()=>{

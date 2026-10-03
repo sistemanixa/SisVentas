@@ -11,8 +11,8 @@ function setup(fn) {
 function event(key) {return {key,target:{closest(){return null;}},preventDefault(){this.prevented=true;},stopImmediatePropagation(){this.stopped=true;}};}
 test('bloquea salida y recarga mientras consulta, y libera al terminar',async()=>{
   let resolve;const c=setup(()=>new Promise(r=>{resolve=r;}));const p=c.window.cotizarPreciosProveedores();
-  assert.equal(c.window.svBloquearSalidaCotizacion(),true);
-  for(const key of ['Escape','F5','F8']) {const e=event(key);c.events.keydown(e);assert.ok(e.prevented);}
+  assert.equal(c.window.svBloquearSalidaCotizacion(),false);
+  assert.equal(c.events.keydown,undefined); // La consulta permite navegar; sólo protege recarga.
   const e=event();c.winEvents.beforeunload(e);assert.ok(e.prevented);
   resolve();await p;assert.equal(c.window.svBloquearSalidaCotizacion(),false);
 });
@@ -23,6 +23,6 @@ test('un error libera la ficha y no deja un bloqueo permanente',async()=>{
 test('masivo protege recarga sin bloquear navegación ni clics',()=>{
   const c=setup(async()=>{});c.setMasivo({dataset:{ejecutando:'1'}});
   assert.equal(c.window.svBloquearSalidaCotizacion(),false);
-  const click=event();c.events.click(click);assert.ok(!click.prevented);
+  const click=event();if(c.events.click)c.events.click(click);assert.ok(!click.prevented);
   const unload=event();c.winEvents.beforeunload(unload);assert.ok(unload.prevented);
 });

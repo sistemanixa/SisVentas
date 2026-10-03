@@ -20,3 +20,18 @@ test('guardas conectadas antes de abrir impresión o compartir y antes de guarda
 test('soporte respeta ventas que ya tienen descuento; el cálculo común se usa al resolver',()=>{const code=section('function spVentaTieneDefinicionComercial','async function spCerrarReclamo');const ctx={_svMontoPagadoVenta:()=>0};vm.createContext(ctx);vm.runInContext(code,ctx);assert.equal(ctx.spVentaTieneDefinicionComercial(original),true);assert.ok(section('async function spConfirmarResolucionVisita','function _pagableAplicarPagoLegacy').includes('SVCommercialApproval.recalculateSale(venta,items)'));});
 test('fallo al persistir aprobación no deja el presupuesto aprobado en memoria',async()=>{const record={...discounted(),fbKey:'budget',estado:'revision',requiereAprobacion:true};let rendered=0;const ctx={pptoActualId:'budget',buscarPptoPorRef:()=>record,pptoAccionPermitidaParaRol:()=>true,svValidarSalidaComercial:()=>true,currentUser:'Admin',currentUserUid:'admin',currentRole:'admin',APROBACION_CONFIG:config,SVCommercialApproval:approval,svConfirm:async()=>true,notify:()=>{},window:{fbDB:{},fbUpdate:()=>{}},pptoPersistirActualizar:async()=>{throw Error('sin conexión');},verPpto:()=>rendered++};vm.createContext(ctx);vm.runInContext(section('async function pptoAccion(accion, opts)','function _redondearPrecioActual'),ctx);await ctx.pptoAccion('aprobar',{});assert.equal(record.estado,'revision');assert.equal(record.requiereAprobacion,true);assert.equal(record.autorizacionDescuento,undefined);assert.equal(rendered,0);});
 test('el editor de venta exige guardar antes de imprimir y no reutiliza el detalle de otra operación',()=>{assert.match(section('function abrirModalImprimir(context','function otFirmaUrl'),/context==='venta'.*Guardá y autorizá/);});
+
+test('venta histórica hereda aprobación sólo de un presupuesto vinculado e importes idénticos',()=>{
+ const {ctx}=browser('admin'),sale=discounted();
+ const budget={...sale,estado:'convertido',aprobadoPor:'Supervisora',aprobadoEn:'2026-09-30'};
+ ctx._presupuestosOrigenDeVenta=()=>[budget];
+ ctx.pptoDatosParaVenta=()=>({items:sale.items,descuentoPct:sale.descuentoGeneral,total:sale.total,iva:sale.iva,conIva:sale.conIva});
+ assert.equal(ctx.svValidarSalidaComercial(sale,'venta'),true);
+ assert.equal(ctx.svAvisoAprobacionVenta(sale),'');
+ assert.equal(sale.autorizacionDescuento,undefined);
+ const changed={...sale,items:sale.items.map(i=>({...i,punit:i.punit+1}))};Object.assign(changed,approval.recalculateSale(changed));
+ assert.equal(ctx.svValidarSalidaComercial(changed,'venta'),false);
+ budget.estado='revision';assert.equal(ctx.svValidarSalidaComercial(sale,'venta'),false);
+ budget.estado='convertido';ctx._presupuestosOrigenDeVenta=()=>[budget,budget];assert.equal(ctx.svValidarSalidaComercial(sale,'venta'),false);
+ ctx._presupuestosOrigenDeVenta=()=>[];assert.equal(ctx.svValidarSalidaComercial(sale,'venta'),false);
+});

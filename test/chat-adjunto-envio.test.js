@@ -10,12 +10,12 @@ test('adjunto conserva conversación y espera confirmación del mensaje', async 
   const context = { _chatCanal:'admin', currentUser:'Test', currentRole:'admin', notify:x=>notices.push(x), document:{getElementById:()=>null}, window:{fbStorage:{},fbDB:{},fbStorageRef:()=>({}),fbUploadBytes:async()=>({ref:{}}),fbGetDownloadURL:async()=> 'https://example.com/test.pdf',fbRef:(_,path)=>path,fbPush:(path)=>{paths.push(path);return new Promise(resolve=>{finish=resolve;});} } };
   context.setTimeout = setTimeout; context.clearTimeout = clearTimeout;
   context.window.fbAuth = {currentUser:{uid:'test-owner'}};
-  vm.createContext(context); vm.runInContext(fn, context);
+  context.chatPuedeAccederCanal=()=>true;context.window.svChatPath=canal=>'sv_chat/'+canal;vm.createContext(context); vm.runInContext(fn, context);
   const pending = context.chatEnviarArchivo({name:'test.pdf',type:'application/pdf',size:12});
   context._chatCanal = 'general';
   context.currentUser = 'Otra persona';
   await new Promise(resolve=>setImmediate(resolve));
-  assert.deepEqual(paths,['sisventas/chat/admin']);
+  assert.deepEqual(paths,['sv_chat/admin']);
   assert.equal(notices.includes('✓ Adjunto enviado'),false);
   finish(); await pending;
   assert.equal(notices.includes('✓ Adjunto enviado'),true);
@@ -28,12 +28,12 @@ function escenarioAdjunto() {
   let id = 0;
   const context = {_chatCanal:'admin', currentUser:'Test', currentRole:'admin',
     notify: x => notices.push(x), document:{getElementById:()=>estado},
-    setTimeout: fn => {timers.set(++id, fn); return id;}, clearTimeout: id => timers.delete(id),
+    setTimeout: fn => {const key=++id;timers.set(key,()=>{timers.delete(key);fn();}); return key;}, clearTimeout: id => timers.delete(id),
     window:{fbAuth:{currentUser:{uid:'owner'}}, fbDB:{}, fbStorage:{},
       fbStorageRef:()=>({}), fbUploadBytes:async()=>({ref:{}}),
       fbGetDownloadURL:async()=> 'https://example.com/test.pdf',
       fbRef:(_,path)=>path, fbPush:(path,msg)=>{messages.push({path,msg});return Promise.resolve();}}};
-  vm.createContext(context); vm.runInContext(fn,context);
+  context.chatPuedeAccederCanal=()=>true;context.window.svChatPath=canal=>'sv_chat/'+canal;vm.createContext(context); vm.runInContext(fn,context);
   return {context,timers,notices,messages,estado};
 }
 const flush = () => new Promise(resolve=>setImmediate(resolve));
@@ -60,8 +60,10 @@ test('confirmación demorada conserva autor y destino y no declara fracaso', asy
   assert.equal(s.notices.includes('✓ Adjunto enviado'),false);
   assert.equal(s.messages.length,1);
   assert.equal(s.messages[0].msg.autor,'Test');
-  assert.equal(s.messages[0].path,'sisventas/chat/admin');
+  assert.equal(s.messages[0].path,'sv_chat/admin');
   confirm(); await pending;
   assert.equal(s.notices.includes('✓ Adjunto enviado'),true);
-  assert.equal(s.timers.size,0);
+  assert.equal(s.timers.size,1); // Queda solamente el aviso visual de confirmación.
+  for(const callback of [...s.timers.values()])callback();
+  assert.equal(s.timers.size,0);assert.equal(s.estado.textContent,'');
 });

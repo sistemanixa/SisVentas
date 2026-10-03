@@ -3,7 +3,7 @@ function setup(user,fail=false){
  const calls=[];
  const window={usuariosData:user?[user]:[],_chatDirectorio:{},fbDB:{},fbRef:(_,p)=>p||'/',fbUpdate:async(ref,value)=>{calls.push({ref,value});if(fail)throw Error('denegado');}};
  vm.runInNewContext(fs.readFileSync('js/modules/security-storage.js','utf8'),{window});
- vm.runInNewContext(fs.readFileSync('js/modules/chat-access.js','utf8'),{window,setInterval:()=>{}});
+ vm.runInNewContext(fs.readFileSync('js/modules/chat-access.js','utf8'),{window,document:{addEventListener(){}},setInterval:()=>{}});
  return {window,calls};
 }
 for(const activo of [true,false])test('estado '+activo+' se guarda atómicamente en ficha y accesos',async()=>{

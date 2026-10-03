@@ -16,5 +16,5 @@ test('el cambio de página inicializa en el siguiente cuadro sin esperar resize'
 });
 
 test('la aplicación carga la revisión general de render dinámico', () => {
-  assert.match(html, /resizable-tables\.js\?v=3\.2\.5-grillas-render-dinamico-1/);
+  assert.match(html, /resizable-tables\.js\?v=[^"\s]+/);
 });

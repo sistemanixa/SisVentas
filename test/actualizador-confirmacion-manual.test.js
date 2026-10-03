@@ -41,7 +41,7 @@ test('el resultado confirmado conserva evidencia, moneda e identidad manual', ()
   assert.match(resultado, /moneda:'ARS'/);
   assert.match(resultado, /selectorPrecio/);
   assert.match(resultado, /manual:true/);
-  assert.match(resultado, /confirmacionHumanaCompleta:true/);
+  assert.match(resultado, /confirmacionHumanaCompleta:false/);
   assert.match(resultado, /mercado_libre_identidad_confirmada_usuario/);
 });
 

@@ -3,6 +3,7 @@
 
   var detalleActual = null;
   var movimientosDetalle = {};
+  var guardandoDetalle = false;
   var sincronizacionSolicitada = false;
   var formatoMoneda = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -117,7 +118,28 @@
     badge.style.display = cantidad ? '' : 'none';
   }
 
+  function registroComparable(record){
+    var copy=Object.assign({},record||{});delete copy.fbKey;delete copy.empFbKey;delete copy.movFbKey;return copy;
+  }
+  function detalleVigente(raiz,grupo,movimientos){
+    var actuales=Object.entries(raiz.gastos||{}).map(function(e){return Object.assign({},e[1],{fbKey:e[0]});}).filter(function(g){return esComision(g)&&claveGrupo(g)===grupo.clave;});
+    return actuales.length===grupo.items.length && grupo.items.every(function(g){
+      var actual=actuales.find(function(x){return x.fbKey===g.fbKey;});
+      if(!actual||!window.SVGuardedWrites.equal(registroComparable(actual),registroComparable(g)))return false;
+      var mov=movimientos[g.fbKey];
+      return !mov||window.SVGuardedWrites.equal(registroComparable(((raiz.ctaemp||{})[mov.empFbKey]||{})[mov.movFbKey]),registroComparable(mov));
+    });
+  }
+  function comprobarDetalleAbierto(){
+    if(!detalleActual||guardandoDetalle||!window.SVGuardedWrites)return;
+    var actual=grupos().find(function(g){return g.clave===detalleActual.clave;});
+    if(!actual||!window.SVGuardedWrites.equal(actual.items,detalleActual.items)){
+      var info=document.getElementById('com-det-info');if(info)info.textContent='Esta comisión cambió. Cerrá y volvé a abrir el detalle para revisar los valores actuales.';
+      var guardar=document.getElementById('com-det-guardar');if(guardar)guardar.disabled=true;
+    }
+  }
   function renderModuloComisiones() {
+    comprobarDetalleAbierto();
     var tbody = document.getElementById('comisiones-tbody');
     if (!tbody) return;
     if (!sincronizacionSolicitada && typeof window.sincronizarComisionesLegacyConModulo === 'function') {
@@ -254,12 +276,13 @@
   function cerrarDetalleComision() { var modal=document.getElementById('modal-comision-gestion'); if(modal) modal.style.display='none'; detalleActual=null; movimientosDetalle={}; }
 
   async function guardarDistribucionComision() {
-    if (!detalleActual || !window.tienePermiso('comisiones.distribuir')) return;
+    if (!detalleActual || guardandoDetalle || !window.tienePermiso('comisiones.distribuir')) return;
     var maxPct = parseFloat((window.APROBACION_CONFIG && window.APROBACION_CONFIG.maxComisionPct) || 10) || 10;
     var entradas = Array.from(document.querySelectorAll('#com-det-participantes .comision-pct-input:not(:disabled)'));
     var valores = entradas.map(function (input) { return { fbKey:input.dataset.gasto, pct:parseFloat(input.value)||0 }; });
     var rechazados = detalleActual.items.filter(function(g){return estado(g)==='rechazado';}).map(function(g){return g.fbKey;});
-    var suma = valores.filter(function(v){return rechazados.indexOf(v.fbKey)<0;}).reduce(function(s,v){return s+v.pct;},0);
+    var sumaPagada = detalleActual.items.filter(function(g){return estado(g)==='pagado'||estado(g)==='pagado_parcial';}).reduce(function(total,g){return total+porcentaje(g,movimientosDetalle[g.fbKey]);},0);
+    var suma = sumaPagada + valores.filter(function(v){return rechazados.indexOf(v.fbKey)<0;}).reduce(function(s,v){return s+v.pct;},0);
     if (valores.some(function(v){return v.pct<=0;})) { window.notify('Todos los porcentajes deben ser mayores a cero'); return; }
     if (suma > maxPct + 0.001) { window.notify('La distribución supera el máximo global de ' + maxPct + '%'); return; }
     var updates = {};
@@ -276,7 +299,15 @@
       }
       if(mov.empFbKey&&mov.movFbKey){var raiz='sisventas/ctaemp/'+mov.empFbKey+'/'+mov.movFbKey;updates[raiz+'/monto']=monto;updates[raiz+'/pct']=item.pct;updates[raiz+'/gananciaBase']=base;updates[raiz+'/descripcion']=descripcion;updates[raiz+'/modificadoPor']=window.currentUser||'';updates[raiz+'/modificadoTs']=Date.now();if(cambioPct&&estado(gasto)!=='rechazado'){updates[raiz+'/estado']='pendiente';updates[raiz+'/aprobadoPor']=null;updates[raiz+'/aprobadoTs']=null;updates[raiz+'/fechaAprobacion']=null;}}
     });
-    await window.fbUpdate(window.fbRef(window.fbDB),updates); window.notify('✓ Distribución actualizada'); if(window.fbCargarGastos)window.fbCargarGastos(); cerrarDetalleComision(); setTimeout(renderModuloComisiones,200);
+    var grupoGuardado=detalleActual,movimientosGuardados=movimientosDetalle;
+    guardandoDetalle=true;
+    try {
+      if(!window.SVGuardedWrites)throw new Error('Recargá la aplicación antes de guardar');
+      var relativos={};Object.keys(updates).forEach(function(key){relativos[key.replace(/^sisventas\//,'')]=updates[key];});
+      await window.SVGuardedWrites.conditionalUpdate('sisventas',function(raiz){return detalleVigente(raiz,grupoGuardado,movimientosGuardados);},relativos);
+      window.notify('✓ Distribución actualizada');if(detalleActual===grupoGuardado)cerrarDetalleComision();renderModuloComisiones();
+    } catch(error){window.notify('No se guardó la distribución: '+error.message);}
+    finally{guardandoDetalle=false;comprobarDetalleAbierto();}
   }
 
   async function agregarParticipanteComision() {
@@ -311,6 +342,7 @@
   window.actualizarBadgeComisiones=actualizarBadgeComisiones;
   document.addEventListener('sisventas:session-ready', actualizarBadgeComisiones);
   document.addEventListener('sisventas:session-ended', function() {
+    cerrarDetalleComision();sincronizacionSolicitada=false;
     var badge = document.getElementById('badge-nav-comisiones');
     if (badge) { badge.textContent = '0'; badge.style.display = 'none'; }
   });

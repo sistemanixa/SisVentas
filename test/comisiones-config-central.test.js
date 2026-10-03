@@ -4,7 +4,7 @@ const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
 const appPath = (html.match(/src="\.\/(js\/app\.v[0-9.]+\.js)"/) || [])[1];
 assert.ok(appPath, 'La vista debe referenciar una aplicación inmutable');
-const app = fs.readFileSync(appPath, 'utf8');
+const app = fs.readFileSync(appPath, 'utf8').replace(/\r\n/g,'\n');
 const finance = fs.readFileSync('js/modules/finance-details.js', 'utf8');
 
 assert.match(html, /id="cfg-comisiones-empleados-tbody"/,

@@ -4,7 +4,17 @@ const { chromium } = require('playwright');
 
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath:'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  try {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, serviceWorkers:'block' });
+  // Servir sólo los archivos de esta copia: sin depender de otro servidor ni Firebase real.
+  const path=require('node:path'),root=path.resolve(__dirname,'..');
+  await page.route('**/*',async route=>{
+    const url=new URL(route.request().url());
+    const file=path.resolve(root,'.'+decodeURIComponent(url.pathname));
+    if(url.origin!=='http://127.0.0.1:8080'||!file.startsWith(root+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile())return route.abort();
+    const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.json':'application/json'}[path.extname(file)];
+    return route.fulfill({body:fs.readFileSync(file),contentType:mime||'application/octet-stream'});
+  });
   await page.goto('http://127.0.0.1:8080/index.html?verify=catalogo-clientes-test', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof window.renderCatalogo === 'function');
   await page.evaluate(() => {
@@ -104,8 +114,8 @@ const { chromium } = require('playwright');
   fs.mkdirSync('test-output', { recursive:true });
   await page.screenshot({ path:'test-output/catalogo-local-verificado.png', fullPage:false });
 
-  await browser.close();
   console.log('catalogo-clientes-v330: OK');
+  } finally { await browser.close(); }
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;

@@ -34,10 +34,26 @@
   if(typeof module!=='undefined')module.exports=api;
   if(!root.document)return;
   root.SVCommercialApproval=api;
+  // Older conversions may have omitted the approval stamp. Reuse only a uniquely
+  // linked, explicitly approved budget with exactly the same commercial values.
+  function documentStatus(record,type){
+    const result=status(record,type,root.APROBACION_CONFIG);
+    if(type!=='venta'||!result.needsApproval||record.autorizacionDescuento)return result;
+    if(typeof root._presupuestosOrigenDeVenta!=='function'||typeof root.pptoDatosParaVenta!=='function')return result;
+    const sources=root._presupuestosOrigenDeVenta(record);
+    if(sources.length!==1)return result;
+    const budget=sources[0],approved=status(budget,'presupuesto',root.APROBACION_CONFIG);
+    if(approved.blocked||!approved.approved)return result;
+    const data=root.pptoDatosParaVenta(budget);
+    if(data.v3Ready===false)return result;
+    const expected={items:data.items,descuentoGeneral:data.descuentoPct,total:data.total,iva:data.iva,conIva:data.conIva};
+    if(signature(record,'venta')!==signature(expected,'venta'))return result;
+    return {blocked:false,approved:true,maximum:result.maximum};
+  }
   root.svValidarSalidaComercial=function(record,type){
     // Official documents already issued keep their original fiscal values.
     if(type==='venta'&&record&&record.factura&&(record.factura.cae||record.factura.fuente==='externa'||record.factura.manual))return true;
-    const result=status(record,type,root.APROBACION_CONFIG);if(result.blocked){root.notify(result.reason);return false;}return true;
+    const result=documentStatus(record,type);if(result.blocked){root.notify(result.reason);return false;}return true;
   };
   root.svAutorizarDescuentoVenta=async function(record,previous){
     const config=root.APROBACION_CONFIG||{},d=discount(record,'venta');
@@ -50,5 +66,5 @@
     record.requiereAprobacion=false;record.autorizacionDescuento=stamp(record,'venta',{usuario:root.currentUser||root.currentUserEmail||'Admin',uid:root.currentUserUid||''},config);
     record.audit=record.audit||[];record.audit.push({fecha:record.autorizacionDescuento.fecha,usuario:record.autorizacionDescuento.usuario,accion:'Descuento autorizado: hasta '+round(d.maximum)+'% para los importes guardados',descuentoGeneral:d.general});return true;
   };
-  root.svAvisoAprobacionVenta=function(record){const result=status(record,'venta',root.APROBACION_CONFIG);return result.blocked?'<div role="alert" style="padding:12px;margin:12px 0;border:1px solid var(--amber);border-radius:9px;color:var(--amber)">'+root.escapeHTML(result.reason)+'</div>':'';};
+  root.svAvisoAprobacionVenta=function(record){const result=documentStatus(record,'venta');return result.blocked?'<div role="alert" style="padding:12px;margin:12px 0;border:1px solid var(--amber);border-radius:9px;color:var(--amber)">'+root.escapeHTML(result.reason)+'</div>':'';};
 })(typeof window!=='undefined'?window:globalThis);

@@ -13,7 +13,7 @@ test('Gastos abre la venta de una comisión y conserva el contexto de regreso', 
   assert.match(app, /window\._ventaDesdeHistorialOrigen = 'gastos'/);
   assert.match(app, /window\._gastosRetornoVenta = estado/);
   assert.match(app, /irAVentaDesdeGastoComision/);
-  assert.match(app, /Abrir venta vinculada/);
+  assert.match(app, /irAVentaDesdeGastoComision/);
   assert.match(app, /if \(origen === 'gastos' && window\._gastosRetornoVenta\)/);
   assert.match(app, /filtrarGastos\(true\)/);
 });

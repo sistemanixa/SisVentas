@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const app = fs.readFileSync('js/app.js', 'utf8');
+const app = fs.readFileSync(fs.readFileSync('index.html','utf8').match(/src="\.\/(js\/app\.v[0-9.]+\.js)"/)[1], 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const context = { Array, Object, Number, Set, console, document: { querySelectorAll: () => [] } };
 vm.createContext(context);

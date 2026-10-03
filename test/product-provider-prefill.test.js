@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const {readActiveApp}=require('./helpers/active-app');
 test('al abrir reconoce al proveedor de la URL guardada sin importar ni guardar',()=>{
   const select={value:'',replaceChildren(){this.value='';},add(){}};
-  const nodes={'pf-importar-panel':{},'pf-importar-proveedor':select,'pf-cod-web':{value:'https://www.biosegur.com.ar/producto'}};
+  const nodes={'pf-envio-paraguay-panel':{dataset:{}},'pf-envio-paraguay':{setCustomValidity(){}},'pf-importar-panel':{},'pf-importar-proveedor':select,'pf-cod-web':{value:'https://www.biosegur.com.ar/producto'}};
   const c={window:{proveedoresData:[{fbKey:'bio',nombre:'BIOSEGUR'}]},document:{getElementById:id=>nodes[id]},Option:function(){},URL,
     prodProveedoresActuales:[{proveedorKey:'bio',nombre:'BIOSEGUR',url:nodes['pf-cod-web'].value}]};
   vm.runInNewContext(fs.readFileSync('js/modules/product-url-import.js','utf8'),c);
@@ -10,8 +10,8 @@ test('al abrir reconoce al proveedor de la URL guardada sin importar ni guardar'
 });
 
 test('si cambia la URL general de Flytec usa esa URL en la fila vinculada aunque la fila tenga una anterior',async()=>{
-  const ids=['pf-importar-panel','pf-importar-proveedor','pf-cod-web','prod-form-view','pf-es-mano-obra','pf-nombre','pf-descripcion','pf-marca','pf-imagen-url','pf-importar-boton','pf-importar-estado'];
-  const nodes=Object.fromEntries(ids.map(id=>[id,{value:'',checked:false,textContent:'',disabled:false,replaceChildren(){},add(){},querySelectorAll(){return []}}]));
+  const ids=['pf-envio-paraguay-panel','pf-envio-paraguay','pf-importar-panel','pf-importar-proveedor','pf-cod-web','prod-form-view','pf-es-mano-obra','pf-nombre','pf-descripcion','pf-marca','pf-imagen-url','pf-importar-boton','pf-importar-estado'];
+  const nodes=Object.fromEntries(ids.map(id=>[id,{dataset:{},setCustomValidity(){},value:'',checked:false,textContent:'',disabled:false,replaceChildren(){},add(){},querySelectorAll(){return []}}]));
   nodes['prod-form-view'].querySelectorAll=()=>ids.map(id=>nodes[id]);
   const urlNueva='https://www.flytec.com.py/produto/kit-camera/123456';
   let body;
@@ -59,7 +59,7 @@ test('cotizar online sincroniza Flytec con la URL general nueva antes de armar l
     factorIvaProveedorProducto:()=>1,
     normalizarUrlProveedorProducto:u=>u
   };
-  vm.createContext(c);
+  vm.createContext(c);require('./helpers/app-functions.cjs').load(c,['costoEnvioProveedorProducto']);c.URL=URL;
   for(const nombre of nombres){
     const a=source.indexOf('function '+nombre+'(');
     const b=source.indexOf('\nfunction ',a+10);
@@ -83,7 +83,7 @@ test('cotizacion Flytec conserva el precio original nuevo y no el USD anterior',
     escapeHTML:s=>String(s),
     prodProveedoresActuales:[]
   };
-  vm.createContext(c);
+  vm.createContext(c);require('./helpers/app-functions.cjs').load(c,['costoEnvioProveedorProducto']);c.URL=URL;
   for(const nombre of nombres){
     const a=source.indexOf('function '+nombre+'(');
     const b=source.indexOf('\nfunction ',a+10);

@@ -13,7 +13,7 @@ function entorno(origen = 'gastos') {
     notify(m){calls.push(m);}, irAVentaDesdeGastoComision(key){calls.push(key);},
     svNavegarDirecto(id, callback){calls.push(id);callback();},
     verDetalleVenta(id){calls.push(id);}};
-  vm.runInNewContext(source, {window,document:{getElementById(id){return id === 'modal-comision-gestion' ? modal : null;},
+  vm.runInNewContext(source, {window,document:{addEventListener(){},getElementById(id){return id === 'modal-comision-gestion' ? modal : null;},
     querySelector(selector){return selector === '.page.active' ? pagina : null;}},setTimeout(){}});
   return {window,modal,pagina,calls};
 }

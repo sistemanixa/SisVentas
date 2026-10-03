@@ -1,7 +1,7 @@
 const fs = require('fs');
 const assert = require('assert');
 
-const grid = fs.readFileSync('js/modules/resizable-tables.js', 'utf8');
+const grid = fs.readFileSync('js/modules/resizable-tables.js', 'utf8').replace(/\r\n/g,'\n');
 const app = fs.readFileSync('js/app.v3.1.2.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const css = fs.readFileSync('css/app.css', 'utf8');
@@ -16,7 +16,7 @@ function body(name) {
 
 ['loadWidths', 'loadPercentages', 'loadAlignments'].forEach(name => {
   const source = body(name);
-  assert(source.indexOf('localStorage.getItem') < source.indexOf('globalDataFor'), name + ' debe priorizar el perfil local');
+  assert(source.indexOf('globalDataFor') >= 0 && source.indexOf('globalDataFor') < source.indexOf('localStorage.getItem'), name + ' debe priorizar el perfil global sincronizado y usar local como respaldo');
 });
 
 const observer = grid.slice(grid.indexOf('var observer = new MutationObserver'));
@@ -37,8 +37,8 @@ assert(html.includes("exportarExcel('Reporte de ventas',this)"), 'Reportes debe 
 assert(css.includes('#cobranzas-stats-global{width:100%'), 'Los KPI de cobranzas deben ocupar todo el ancho');
 
 assert(html.includes('repeat(auto-fit,minmax(220px,1fr))'), 'Cobros por medio de pago debe repartir solo las tarjetas existentes');
-assert(html.includes("VERSION: 'v3.1.2-firebase'"));
-assert(html.includes('./js/app.v3.1.2.js'));
-assert(sw.includes("sisventas-v3.1.2"));
+const active=require('./helpers/active-app').readActiveApp();
+assert(html.includes('./js/'+active.filename));
+assert(sw.includes('./js/'+active.filename));
 
 console.log('OK: perfiles de grilla, exportación visible y KPI de cobranzas v3.1.0');

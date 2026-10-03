@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync('js/app.v3.3.15.js','utf8');
+const source=require('./helpers/active-app').readActiveApp().source;
 const ctx={urlsProveedorEquivalentes:(a,b)=>!!a&&a===b,parsePrecioProveedorARS:x=>Number(x)||0};
 for(const nombre of ['identidadProveedorConfirmadaParaUrl','evaluarIdentidadCotizacionProveedor']){const a=source.indexOf('function '+nombre+'('),b=source.indexOf('\nfunction ',a+1);vm.runInNewContext(source.slice(a,b),ctx);}
 test('misma regla ofrece confirmación ante identidad dudosa y reutiliza la decisión para esa URL',()=>{

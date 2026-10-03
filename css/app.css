@@ -135,8 +135,12 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .s-brand span{font-weight:300;color:var(--text3)}
 .s-sub{font-size:11px;color:var(--text3);margin-top:2px}
 .s-nav{padding:14px 10px;flex:1;overflow-y:auto}
-.s-section{font-size:10px;color:var(--text3);padding:0 10px;margin:14px 0 4px;text-transform:uppercase;letter-spacing:1px}
+.s-section{font-size:10px;color:var(--text3);padding:0 10px;margin:22px 0 7px;text-transform:uppercase;letter-spacing:1px}
 .s-section:first-child{margin-top:0}
+#sv-mas-usados{margin:14px 0 16px;padding:10px 5px 5px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--bg3) 40%,transparent)}
+#sv-mas-usados .s-section{padding:0 5px;margin:0 0 8px}
+#sv-mas-usados .nav-item{padding:8px 5px}
+#sv-mas-usados .nav-item:last-child{margin-bottom:0}
 .nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--radius);cursor:pointer;color:var(--text2);font-size:13px;transition:all .12s;margin-bottom:4px;border:0.5px solid transparent;user-select:none;white-space:nowrap}
 .nav-item:hover{background:var(--bg3);color:var(--text)}
 .nav-item.active{background:var(--bg3);color:var(--text);border-color:var(--border2)}
@@ -681,7 +685,7 @@ tr:hover td{color:var(--text)}
   .hamburger{display:none!important}
   .sidebar{display:flex!important}
   .sidebar-pin{display:flex}
-  .sidebar .s-logo{padding-top:48px}
+  .sidebar .s-logo{padding-top:10px;padding-bottom:14px;padding-right:48px}
   .sidebar.desktop-autohide{width:60px;margin-right:0;box-shadow:none}
   .sidebar.desktop-autohide:hover,
   .sidebar.desktop-autohide:focus-within{width:204px;margin-right:-144px;box-shadow:8px 0 24px rgba(0,0,0,.24)}
@@ -3190,3 +3194,19 @@ body.sv-exterior-dialog-open .content{overflow:hidden!important;overscroll-behav
 
 /* Tamaño uniforme de los indicadores principales del dashboard. */
 #page-dashboard #dash-metricas-globales .m-value{font-size:20px!important;line-height:1.2!important;font-variant-numeric:tabular-nums}
+
+/* Búsqueda de navegación: conserva los accesos generales arriba. */
+.s-module-search{margin:14px 0}
+.s-module-search-field{display:flex;align-items:center;gap:6px;padding:8px;border:1px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text3)}
+.s-module-search-field:focus-within{border-color:var(--blue)}
+.s-module-search input{min-width:0;width:100%;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-size:12px}
+.s-module-search input::-webkit-search-cancel-button{display:none}
+.s-module-search button{font:inherit;color:var(--text2);cursor:pointer}
+.s-module-search-field button{padding:0;border:0;background:transparent;font-size:18px;line-height:16px}
+.s-module-search.is-searching ~ *{display:none!important}
+.s-module-results{margin-top:8px}
+.s-module-results:empty{display:none}
+.s-module-results .nav-item{width:100%;text-align:left;background:transparent;white-space:normal}
+.s-module-count{display:block;color:var(--text3);font-size:11px;padding:0 8px}
+.s-module-count:empty{display:none}
+@media(min-width:1101px){.sidebar.desktop-autohide:not(:hover):not(:focus-within) .s-module-search{display:none}}

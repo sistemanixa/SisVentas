@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.3.2.js'), 'utf8');
+const app = require('./helpers/active-app').readActiveApp().source;
 
 function exigir(fragmento, mensaje) {
   if (!app.includes(fragmento)) throw new Error(mensaje);

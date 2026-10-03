@@ -11,7 +11,7 @@ for (const falla of [false,true]) {
     const context = {_chatCargaId:0,_chatListaVisible:[],_chatListener:null,
       document:{getElementById:id=>id==='chat-messages'?messages:null},
       chatAudioCancelar(){},chatCancelReply(){},chatCerrarAdjuntos(){},chatEscucharEscribiendo(){},chatMarcarCanalActivo(){},
-      window:{fbDB:{},fbRef(){},fbGet:()=>new Promise((ok,no)=>{resolve=ok;reject=no;})}};
+      window:{fbDB:{},fbRef(){},chatDirectosSnapshot:()=>new Promise((ok,no)=>{resolve=ok;reject=no;})}};
     vm.createContext(context);
     vm.runInContext(app.slice(app.indexOf('function chatAbrirDirectos('),app.indexOf('function chatCerrarAdjuntos(')),context);
     context.chatAbrirDirectos();

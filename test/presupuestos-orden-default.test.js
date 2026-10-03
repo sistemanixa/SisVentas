@@ -16,7 +16,7 @@ test('presupuestos conserva timestamp y fecha como respaldo para historicos', ()
 });
 
 test('la grilla muestra fecha y usuario creador', () => {
-  assert.match(index, /<th>#<\/th><th>Fecha<\/th><th>Cliente<\/th><th>Total<\/th><th>Vence<\/th><th>Estado<\/th><th>Creado por<\/th><th>Acciones<\/th>/);
+  assert.match(index, /<th>#<\/th><th>Fecha<\/th><th>Cliente<\/th><th>Total<\/th><th>Descuento<\/th><th>Vence<\/th><th>Estado<\/th><th>Creado por<\/th><th>Acciones<\/th>/);
   assert.match(app, /p\.creadoPor \|\| p\.usuario \|\| p\.empleado/);
   assert.match(app, /ventaCreadorBadge\(Object\.assign\(\{\}, p, \{ creadaPor:creador \}\)\)/);
   assert.match(app, /colspan="8"/);

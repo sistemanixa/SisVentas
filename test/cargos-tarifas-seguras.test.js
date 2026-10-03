@@ -1,5 +1,5 @@
 const fs=require('node:fs'), vm=require('node:vm'), assert=require('node:assert/strict');
-const app=fs.readFileSync('js/app.v3.5.4.js','utf8');
+const app=require('./helpers/active-app').readActiveApp().source;
 const code=app.slice(app.indexOf('function _cargoNumeroEstricto'),app.indexOf('function _cargoNumeroPantalla'));
 const ctx={}; vm.createContext(ctx); vm.runInContext(code,ctx);
 const base={nombre:'Técnico',valorHora:6450,valorHoraExtra:6200,diasMes:23,comision:5};

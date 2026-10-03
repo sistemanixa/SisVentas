@@ -59,7 +59,6 @@
     window.fbUpdate      = update;
     window.fbRemove      = remove;
     window.fbOnDisconnect = onDisconnect;
-    window.fbRemove     = remove;
     window.fbServerTimestamp = serverTimestamp;
     window.fbQuery       = query;
     window.fbOrderByChild = orderByChild;

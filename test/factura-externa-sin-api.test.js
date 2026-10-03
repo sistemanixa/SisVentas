@@ -4,11 +4,11 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
-const entry = fs.existsSync(path.join(root, 'index-preview-ot.html')) ? 'index-preview-ot.html' : 'index.html';
+const entry = 'index.html';
 const html = fs.readFileSync(path.join(root, entry), 'utf8');
 const appFile = html.match(/src="\.\/js\/(app\.v[\d.]+\.js)/)[1];
 const source = fs.readFileSync(path.join(root, 'js', appFile), 'utf8');
-const start = source.indexOf('async function guardarFacturaExterna(ventaId)');
+const start = source.indexOf('async function _svCargaOperacion_guardarFacturaExterna(ventaId)');
 const end = source.indexOf('\nfunction ', start);
 
 function fixture({ duplicate = false, mismatch = false } = {}) {
@@ -36,7 +36,7 @@ function fixture({ duplicate = false, mismatch = false } = {}) {
     currentUser:'Admin', importeComprobanteVenta:String, renderDetalleVenta:()=>{}, abrirResumenFactura:()=>{}
   };
   vm.createContext(ctx);
-  vm.runInContext(source.slice(start,end),ctx);
+  vm.runInContext(source.slice(start,end),ctx);ctx.guardarFacturaExterna=ctx._svCargaOperacion_guardarFacturaExterna;
   return {ctx,notices,result:()=>({saved,apiCalls})};
 }
 

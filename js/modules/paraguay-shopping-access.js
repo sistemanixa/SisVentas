@@ -71,7 +71,7 @@
   }).filter(Boolean)].map(row => row.map(csvCell).join(';')).join('\r\n');
   if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection, subscribeExchangeRate, pdfComparisonText};
   if (!root.document) return;
-  let detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', busy = false, generation = 0;
+  let detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', listBaseline = null, busy = false, generation = 0;
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const amount = n => Number(n).toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
   const exchangeRate = () => Number(root.obtenerDolarReferenciaProducto?.().valor)||0;
@@ -123,7 +123,7 @@
     detailModal?.remove(); detailModal=null; purchases={};
     generation++;
     stops.forEach(stop => stop()); stops = [];
-    panel?.remove(); panel = null; products = {}; lists = {}; selected = {}; listKey = ''; busy = false;
+    panel?.remove(); panel = null; products = {}; lists = {}; selected = {}; listKey = ''; listBaseline = null; busy = false;
   }
   function renderProducts() {
     const search = panel.querySelector('[data-search]').value.toLowerCase();
@@ -152,6 +152,13 @@
     if (!detailModal?.isConnected) return;
     const p=products[detailModal.dataset.productKey];
     if (!eligible(p)) {detailModal.remove();detailModal=null;return;}
+    const title=detailModal.querySelector('h2'); if(title)title.textContent=p.nombre||p.descripcion||'';
+    const brand=detailModal.querySelector('.catalogo-modal-marca'); if(brand)brand.textContent=(p.marca||'')+' · '+(p.codigo||'');
+    const description=detailModal.querySelector('.catalogo-modal-info > p'); if(description)description.textContent=p.catalogoDescripcion||p.descripcion||'Sin descripción adicional';
+    const photo=detailModal.querySelector('.catalogo-modal-imagen');
+    const photoKey=JSON.stringify([p.imagenUrl,p.imagen,p.imagenes,p.foto]);
+    if(photo && detailModal.dataset.photoKey!==photoKey){photo.innerHTML=root.imagenCatalogoHTML(p,'catalogo-modal-img');detailModal.dataset.photoKey=photoKey;}
+    detailModal.setAttribute('aria-label',p.nombre||p.descripcion||'Producto');
     const price=detailModal.querySelector('[data-detail-price]');
     const html=salePriceHTML(p)+mlBadge(p,salePrice(p));
     if(price && price.innerHTML!==html)price.innerHTML=html;
@@ -483,7 +490,7 @@
     };
     panel.querySelector('[data-lists]').onchange = e => {
       if (busy) return;
-      listKey = e.target.value; const list = lists[listKey] || {};
+      listKey = e.target.value; const list = lists[listKey] || {}; listBaseline=listKey?structuredClone(list):null;
       selected = Object.assign({}, list.productos || {}); purchases=structuredClone(list.comprasFinales||{}); panel.querySelector('[data-name]').value = list.nombre || '';
       status(''); renderProducts();
     };
@@ -493,7 +500,7 @@
       busy=true;panel.querySelector('[data-save]').disabled=true;panel.querySelector('[data-lists]').disabled=true;renderLists();
       try {
         const removed=await removeShoppingList(uid,key,name);
-        if(removed&&valid()&&panel){delete lists[key];listKey='';selected={};purchases={};panel.querySelector('[data-name]').value='';renderProducts();status('Lista eliminada.');}
+        if(removed&&valid()&&panel){delete lists[key];listKey='';listBaseline=null;selected={};purchases={};panel.querySelector('[data-name]').value='';renderProducts();status('Lista eliminada.');}
       } catch(e){if(valid())status('No se pudo eliminar la lista. Revisá la conexión y el acceso.');}
       finally{if(valid()&&panel){busy=false;panel.querySelector('[data-save]').disabled=false;panel.querySelector('[data-lists]').disabled=false;renderLists();}}
     };
@@ -515,9 +522,19 @@
       busy = true; panel.querySelector('[data-delete-list]').disabled=true; panel.querySelector('[data-save]').disabled = true; panel.querySelector('[data-lists]').disabled = true;
       const key = listKey || root.fbPush(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid)).key;
       try {
-        await root.fbSet(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid+'/'+key),{nombre:name,productos:items,actualizadoEn:root.fbServerTimestamp(),...(Object.keys(actualItems).length?{comprasFinales:actualItems}:{})});
+        const path='sv_listas_paraguay/'+uid+'/'+key;
+        const data={nombre:name,productos:items,actualizadoEn:root.fbServerTimestamp(),comprasFinales:Object.keys(actualItems).length?actualItems:null};
+        let saved;
+        if(listKey){
+          if(!listBaseline||!root.SVGuardedWrites)throw new Error('Volvé a abrir la lista antes de guardar.');
+          saved=await root.SVGuardedWrites.save(path,listBaseline,data,true);
+        }else{
+          await root.fbSet(root.fbRef(root.fbDB,path),data);
+          saved=(await root.fbGet(root.fbRef(root.fbDB,path))).val();
+        }
+        if(valid())listBaseline=structuredClone(saved);
         if(valid()&&panel){listKey = key;renderLists();status('Lista guardada. No se generó una orden de compra.');}
-      } catch (e) {if(valid())status('No se pudo guardar la lista. Revisá la conexión y el acceso.');}
+      } catch (e) {if(valid())status(e.code==='SV_CONFLICT'?'La lista cambió en otro equipo. Volvé a seleccionarla para revisar esos cambios antes de guardar.':(e.message||'No se pudo guardar la lista. Revisá la conexión y el acceso.'));}
       finally {if(valid()){busy=false;if(panel){panel.querySelector('[data-save]').disabled=false;panel.querySelector('[data-lists]').disabled=false;renderLists();}}}
     };
     panel.querySelector('[data-download]').onclick = () => {
@@ -529,7 +546,7 @@
     stops.push(subscribeExchangeRate(root,valid,()=>{if(panel)renderProducts();},()=>status('No se pudo cargar la cotización. Revisá la conexión y volvé a ingresar.')));
     stops.push(root.fbOnValue(query,snap=>{if(!valid())return;products=snap.val()||{};if(panel)renderProducts();},()=>status('No se pudo cargar el catálogo autorizado.')));
     let initialList = options.listKey || '';
-    stops.push(root.fbOnValue(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid),snap=>{if(!valid())return;lists=snap.val()||{};if(panel){if(initialList){listKey=initialList;initialList='';const list=lists[listKey]||{};selected={...list.productos};purchases=structuredClone(list.comprasFinales||{});panel.querySelector('[data-name]').value=list.nombre||'';renderProducts();}renderLists();}},()=>status('No se pudieron cargar tus listas.')));
+    stops.push(root.fbOnValue(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid),snap=>{if(!valid())return;lists=snap.val()||{};if(panel){if(initialList){listKey=initialList;initialList='';const list=lists[listKey]||{};listBaseline=structuredClone(list);selected={...list.productos};purchases=structuredClone(list.comprasFinales||{});panel.querySelector('[data-name]').value=list.nombre||'';renderProducts();}renderLists();}},()=>status('No se pudieron cargar tus listas.')));
     stops.push(root.fbOnValue(roleQuery,snap=>{if(!valid())return;const identity=snap.val();if(!identity||identity.activo!==true||identity.rol!==role){close();root.doLogout();}}));
     renderProducts();
   }

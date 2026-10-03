@@ -11,7 +11,7 @@ for (const role of ['admin','administrativo','tecnico']) {
     const context = {currentRole:role,currentUser:'Prueba',_chatCanal:'general',_chatReplyMsg:null,_chatAudio:null,
       document:{getElementById:()=>input},window:{tienePermiso:()=>role==='admin',fbDB:{},fbRef:()=>({}),fbPush:()=>{sent++;return Promise.resolve();}},
       chatInputCambio:()=>{},chatAdminLimpiar:()=>{clean++;},notify:()=>{}};
-    vm.createContext(context); vm.runInContext(source,context); context.chatEnviar();
+    context.chatPuedeAccederCanal=()=>true;context.window.svChatPath=canal=>'sv_chat/'+canal;vm.createContext(context); vm.runInContext(source,context); context.chatEnviar();
     assert.equal(clean,role === 'admin' ? 1 : 0);
     assert.equal(sent,role === 'admin' ? 0 : 1);
   });

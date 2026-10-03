@@ -1,7 +1,7 @@
 const fs = require('fs');
 const assert = require('assert');
 
-const app = fs.readFileSync('js/app.v3.1.3.js', 'utf8');
+const app = require('./helpers/active-app').readActiveApp().source;
 
 assert(app.includes('function spEmpleadoEsTecnico(empleado)'), 'Debe existir una única regla para reconocer técnicos');
 assert(app.includes("return categoria.includes('TECNICO')"), 'La asignación debe respetar la categoría/cargo técnico');

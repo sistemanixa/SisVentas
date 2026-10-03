@@ -1,6 +1,6 @@
 const fs=require('fs');
 const assert=require('assert');
-const app=fs.readFileSync('js/app.js','utf8');
+const app=require('./helpers/active-app').readActiveApp().source;
 const html=fs.readFileSync('index.html','utf8');
 const match=app.match(/const titles = \{([^;]+)\};/);
 assert.ok(match,'debe existir el mapa de títulos');

@@ -10,7 +10,7 @@ function readActiveApp() {
   return {
     index,
     filename: match[1],
-    source: fs.readFileSync(path.join(root, 'js', match[1]), 'utf8')
+    source: fs.readFileSync(path.join(root, 'js', match[1]), 'utf8').replace(/\r\n/g, '\n')
   };
 }
 

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.js'), 'utf8');
+const app = require('./helpers/active-app').readActiveApp().source;
 const index = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(__dirname, '..', 'css', 'app.css'), 'utf8');
 

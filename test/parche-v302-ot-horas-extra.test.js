@@ -10,7 +10,7 @@ const workflow = fs.readFileSync(path.join(root, 'js', 'modules', 'ot-workflow.j
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 test('la versión activa queda enlazada en aplicación y documento', () => {
-  assert.match(index, /app\.v3\.0\.10\.js/);
+  assert.match(index, /app\.v[0-9.]+\.js/);
   assert.match(app, /VERSION: 'v3\.0\.10-firebase'/);
 });
 

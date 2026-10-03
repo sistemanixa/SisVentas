@@ -16,7 +16,7 @@ test('costos de propuesta sobreviven lectura, edición, guardado y conversión a
  row.dataset.costoPropuesta=JSON.stringify({cod:'OTHER',costoUnitarioCompra:66});assert.equal(c.getPpItems()[0].costoUnitarioCompra,undefined);
 });
 test('Flytec usa cotización vigente y diferencia contra el menor costo suministrado',()=>{
- const c={window:{TIPO_CAMBIO_CONFIG:{oficial:1530}},costoRealProveedorProducto:p=>p.precio};vm.runInNewContext(extract('costoExteriorVigenteARS','precioVentaDesdeCostoUnitarioProducto'),c);
+ const c={window:{TIPO_CAMBIO_CONFIG:{oficial:1530}},costoRealProveedorProducto:p=>p.precio,URL};require('./helpers/app-functions.cjs').load(c,['costoEnvioProveedorProducto']);vm.runInNewContext(extract('costoExteriorVigenteARS','precioVentaDesdeCostoUnitarioProducto'),c);
  const html=c.mejoraCostoExteriorHTML(130050,120601.69,{precioOriginal:59,monedaOriginal:'USD',disponibilidadProveedor:'disponible'});
  assert.ok(html.includes('30.331,69'));assert.ok(html.includes('25.2%'));assert.ok(html.includes('menor costo local'));
 });

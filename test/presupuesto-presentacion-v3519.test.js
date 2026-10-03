@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),vm=require('vm');
-const index=fs.readFileSync('index.html','utf8'),source=fs.readFileSync(index.match(/src="\.\/(js\/app\.v[\d.]+\.js)"/)[1],'utf8');
+const index=fs.readFileSync('index.html','utf8'),source=require('./helpers/active-app').readActiveApp().source;
 test('persistencia no sobrescribe creador pero permite cambiar comisionado',async()=>{
  let saved;
  const adapter=require('../js/v3/firebase-record-adapter.js').create({fbDB:{},fbRef:(_db,path)=>path,fbUpdate:async(path,data)=>{saved=data;}});
@@ -11,8 +11,8 @@ test('comprobante sin detalle elimina columnas y conserva estructura con y sin i
  for(const image of [false,true])for(const detail of [false,true]){
   let html='';const win={document:{write:s=>{html=s},close(){},getElementById:()=>true},location:{},addEventListener(){}};
   const model={v3Ready:true,numero:'PP-TEST',cliente:'CONSUMIDOR FINAL',items:[{cod:'P-1',desc:'Equipo',qty:1,punit:100,sub:100}],subtotal:100,descuento:0,iva:21,total:121,conIva:true,observaciones:'',fecha:'12/09/2026',vence:'30/09/2026'};
-  const ctx={window:{open:()=>win},document:{getElementById:()=>null},_pptoModeloImpresion:()=>model,_pptoConDetalle:detail,_comprobanteConImagen:{ppto:image},productoDesdeItem:()=>null,logoImpresionActualUrl:()=>'',escapeHTML:s=>String(s).replaceAll('<','&lt;'),formatearFechaComprobante:s=>s,referenciaUsdPresupuesto:()=>null,location:{href:'http://localhost/index.html'},setTimeout(){},URL:{createObjectURL:()=>''},Blob,notify:s=>{throw Error(s)}};
-  vm.createContext(ctx);vm.runInContext(source.slice(a,b),ctx);
+  const ctx={svValidarSalidaComercial:()=>true,window:{open:()=>win},document:{getElementById:()=>null},_pptoModeloImpresion:()=>model,_pptoConDetalle:detail,_comprobanteConImagen:{ppto:image},productoDesdeItem:()=>null,logoImpresionActualUrl:()=>'',escapeHTML:s=>String(s).replaceAll('<','&lt;'),formatearFechaComprobante:s=>s,referenciaUsdPresupuesto:()=>null,location:{href:'http://localhost/index.html'},setTimeout(){},URL:{createObjectURL:()=>''},Blob,notify:s=>{throw Error(s)}};
+  vm.createContext(ctx);require('./helpers/app-functions.cjs').load(ctx,['porcentajeDescuentoComprobante','precioUnitarioConDescuentoHTML']);vm.runInContext(source.slice(a,b),ctx);
   await ctx.imprimirPresupuesto({id:'PP-TEST',tituloSolucion:'SOLUCIÓN <segura>'});
   assert(html.includes('SOLUCIÓN &lt;segura>'));
   assert.equal(html.includes('P. unit.'),detail);
@@ -25,10 +25,10 @@ test('comprobante sin detalle elimina columnas y conserva estructura con y sin i
   }
  }
 });
-test('editar conserva origen y deja evidencia del cambio de comisión',()=>{
+test('editar conserva origen y deja evidencia del cambio de comisión',async()=>{
  const chunk=source.slice(source.indexOf('if (ventaEditandoFbKey) {\n    var ventaOriginalEdit'),source.indexOf('if (!ventaEditandoFbKey) {\n    procesoPantallaVenta'));
  const original={id:'V-1',creadaPor:'ORIGINAL',creadaPorRol:'vendedor',fecha:'01/01/2020',ts:10,empleado:'A',empleadoFbKey:'a',audit:[]};
- const ctx={ventaEditandoFbKey:'key',ventaOriginalEditar:original,nuevaVenta:{creadaPor:'EDITOR',empleado:'B',empleadoFbKey:'b',comisionado2FbKey:'',total:100},currentUser:'EDITOR',fechaHoy:'12/09/2026',ventaEsSinCargo:()=>false,ventaPorcentajeDescuentoEfectivo:()=>0};
- vm.runInNewContext(chunk,ctx);
+ const ctx={svAutorizarDescuentoVenta:async()=>true,ventaEditandoFbKey:'key',ventaOriginalEditar:original,nuevaVenta:{creadaPor:'EDITOR',empleado:'B',empleadoFbKey:'b',comisionado2FbKey:'',total:100},currentUser:'EDITOR',fechaHoy:'12/09/2026',ventaEsSinCargo:()=>false,ventaPorcentajeDescuentoEfectivo:()=>0};
+ await vm.runInNewContext('(async()=>{'+chunk+'})()',ctx);
  assert.equal(ctx.nuevaVenta.creadaPor,'ORIGINAL');assert.equal(ctx.nuevaVenta.ts,10);assert.equal(ctx.nuevaVenta.empleadoFbKey,'b');assert.equal(ctx.nuevaVenta.audit.length,2);
 });

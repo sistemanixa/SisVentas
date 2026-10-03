@@ -3,7 +3,7 @@ const assert = require('assert');
 
 const html = fs.readFileSync('index.html', 'utf8');
 const css = fs.readFileSync('css/app.css', 'utf8');
-const app = fs.readFileSync('js/app.v3.1.4.js', 'utf8');
+const app = require('./helpers/active-app').readActiveApp().source;
 
 assert(html.includes('id="chat-modal" data-sv-modal-behavior="compact"'), 'Chat debe quedar fuera del gestor de ventanas operativas');
 assert(html.includes('id="ia-modal" data-sv-modal-behavior="compact"'), 'IA debe quedar fuera del gestor de ventanas operativas');
@@ -15,8 +15,8 @@ assert(css.includes('#chat-fab::before,#ia-fab::before'), 'Los accesos deben con
 assert(css.includes('#chat-fab.has-unread{right:10px!important;opacity:1!important'), 'Chat con pendientes no debe retraerse');
 assert(css.includes('#ia-fab.has-unread{right:10px!important;opacity:1!important'), 'IA con respuestas pendientes no debe retraerse');
 assert(app.includes("botonChat.classList.toggle('has-unread', totalVisible > 0)"), 'El contador visible debe controlar la visibilidad persistente');
-assert(app.includes('var totalVisible = Math.max(total, _chatAvisosPendientesLocales)'), 'El aviso local no debe desaparecer por una actualización remota antes de abrir el chat');
-assert(app.includes('function chatAbrir() {\n  _chatAvisosPendientesLocales = 0;'), 'El aviso local solo debe liberarse al abrir el chat');
+assert(app.includes('var totalVisible = window._impersonacionOriginal ? 0 : total;'), 'El contador debe reflejar lecturas sincronizadas, sin conservar avisos falsos locales');
+assert(require('./helpers/app-functions.cjs').functionSource('chatAbrir').includes('_chatAvisosPendientesLocales = 0;'), 'Abrir el chat debe limpiar los avisos locales');
 assert(html.includes('id="ia-badge"'), 'IA debe mostrar un contador propio');
 assert(app.includes("boton.classList.toggle('has-unread', _iaNoLeidos > 0)"), 'El contador de IA debe mantener visible su acceso');
 assert(app.includes("if (!modalIA || !modalIA.classList.contains('open'))"), 'La IA solo debe sumar pendientes cuando su panel está cerrado');
