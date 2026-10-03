@@ -615,7 +615,7 @@
     }
     var list=state.activeList;loadMaterialQuote();
     if((!materialListLocked(list)&&!list.compraConfirmacion||list.simuladorParaguay&&list.simuladorParaguay.version>=6)&&!window.SVExteriorPreparation){
-      try{await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/exterior-preparation.js?v=3.9.1-links1';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}
+      try{await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/exterior-preparation.js?v=3.9.2-links1';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}
       catch(e){window.notify('No se pudo cargar la preparación de compra. Reintentá.');return;}
     }
     var sale=saleRef(list.ventaFbKey||list.ventaId)||{};
