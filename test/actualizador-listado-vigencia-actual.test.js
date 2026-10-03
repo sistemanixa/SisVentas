@@ -6,7 +6,7 @@ function setup(){
  const old={fbKey:'p1',codigo:'P-1',nombre:'Producto anterior'};
  const current={fbKey:'p1',codigo:'P-1',nombre:'Producto corregido'};
  const links=[{producto:current,tipo:'biosegur',proveedor:{nombre:'BIOSEGUR',vigente:true},estadoResumen:{vigente:false,texto:'Anterior'}}];
- const ctx={_actualizadorResumenCache:{listo:true,enlaces:[{producto:old,tipo:'biosegur',proveedor:{nombre:'BIOSEGUR',vigente:false},estadoResumen:{vigente:false,texto:'Anterior'}}]},proveedoresSeleccionadosActualizador:()=>['biosegur'],productosBiosegurActualizables:()=>links,estadoVigenciaPrecioProveedor:(_,pv)=>({vigente:pv.vigente,texto:pv.vigente?'Actualizado':'Pendiente'})};
+ const ctx={_actualizadorResumenCache:{listo:true,enlaces:[{producto:old,tipo:'biosegur',proveedor:{nombre:'BIOSEGUR',vigente:false},estadoResumen:{vigente:false,texto:'Anterior'}}]},proveedoresSeleccionadosActualizador:()=>['biosegur'],prodData:{p1:current},enlacesResumenActualizadorProducto:()=>links.map(x=>({...x,estadoResumen:{vigente:x.proveedor.vigente,texto:x.proveedor.vigente?"Actualizado":"Pendiente"}})),estadoVigenciaPrecioProveedor:(_,pv)=>({vigente:pv.vigente,texto:pv.vigente?'Actualizado':'Pendiente'})};
  vm.createContext(ctx);vm.runInContext(app.slice(start,end),ctx);return {ctx,links,current};
 }
 test('un producto resuelto desaparece aunque la caché anterior diga pendiente',()=>{

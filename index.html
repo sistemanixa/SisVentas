@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.9.7-firebase' -->
+<!-- VERSION: 'v3.9.8-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.9.7.js"></script>
+<script src="./js/core/version.v3.9.8.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,7 +34,7 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=3.8.1"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.9.1">
+<link rel="stylesheet" href="./css/app.css?v=3.9.8">
 <link rel="stylesheet" href="./css/surveys.css?v=1">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.8.20-menu2">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
@@ -2189,7 +2189,7 @@
             </div>
             <div class="metrics" style="margin-bottom:0">
               <div class="metric"><div class="m-label">Vinculados</div><div class="m-value" id="cfg-vm-prov-vinculados">—</div><div class="m-sub">Biosegur, Free Electron, Tecnoprices y Mercado Libre</div></div>
-              <div class="metric"><div class="m-label">Pendientes</div><div class="m-value" id="cfg-vm-prov-pendientes" style="color:var(--amber)">—</div><div class="m-sub">más de 24 h o sin verificar</div></div>
+              <div class="metric"><div class="m-label">Pendientes</div><div class="m-value" id="cfg-vm-prov-pendientes" style="color:var(--amber)">—</div><div class="m-sub">Sin verificar, vencidos o con URL a revisar</div></div>
               <div class="metric"><div class="m-label">Vigentes</div><div class="m-value" id="cfg-vm-prov-vigentes" style="color:var(--green)">—</div><div class="m-sub">actualizados recientemente</div></div>
             </div>
           </div>
@@ -4442,7 +4442,7 @@ Listo para analizar.
 
           <div class="metrics">
             <div class="metric sv-action-metric" role="button" tabindex="0" aria-label="Ver productos vinculados" title="Ver productos vinculados" onclick="abrirListadoActualizadorPrecios('vinculados')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirListadoActualizadorPrecios('vinculados')}"><div class="m-label">Productos vinculados <i class="ti ti-chevron-right"></i></div><div class="m-value" id="mod-ap-vinculados">—</div><div class="m-sub">en proveedores compatibles</div></div>
-            <div class="metric sv-action-metric" role="button" tabindex="0" aria-label="Ver productos pendientes" title="Ver productos pendientes" onclick="abrirListadoActualizadorPrecios('pendientes')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirListadoActualizadorPrecios('pendientes')}"><div class="m-label">Pendientes <i class="ti ti-chevron-right"></i></div><div class="m-value" id="mod-ap-pendientes" style="color:var(--amber)">—</div><div class="m-sub">más de 24 h o sin verificar</div></div>
+            <div class="metric sv-action-metric" role="button" tabindex="0" aria-label="Ver productos pendientes" title="Ver productos pendientes" onclick="abrirListadoActualizadorPrecios('pendientes')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirListadoActualizadorPrecios('pendientes')}"><div class="m-label">Pendientes <i class="ti ti-chevron-right"></i></div><div class="m-value" id="mod-ap-pendientes" style="color:var(--amber)">—</div><div class="m-sub">Sin verificar, vencidos o con URL a revisar</div></div>
             <div class="metric sv-action-metric" role="button" tabindex="0" aria-label="Ver productos vigentes" title="Ver productos vigentes" onclick="abrirListadoActualizadorPrecios('vigentes')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirListadoActualizadorPrecios('vigentes')}"><div class="m-label">Vigentes <i class="ti ti-chevron-right"></i></div><div class="m-value" id="mod-ap-vigentes" style="color:var(--green)">—</div><div class="m-sub">actualizados recientemente</div></div>
           </div>
 
@@ -5709,7 +5709,7 @@ Listo para analizar.
 <script src="./js/core/loading-indicator.js?v=3.9.0-wake1"></script>
 <script src="./js/modules/commercial-approval.js?v=3.8.20"></script>
 <script src="./js/core/guarded-writes.js?v=3.8.19-audit3"></script>
-<script src="./js/app.v3.9.7.js"></script>
+<script src="./js/app.v3.9.8.js"></script>
 <script src="./js/modules/partial-invoices.js?v=1"></script>
 <script src="./js/modules/commercial-drafts.js?v=2"></script>
 <script src="./js/modules/chat-access.js?v=3.8.19-audit3"></script>

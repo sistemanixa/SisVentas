@@ -3225,3 +3225,9 @@ body.sv-exterior-dialog-open .content{overflow:hidden!important;overscroll-behav
 #venta-detalle-seguimiento{display:flex;flex-wrap:wrap}
 #venta-detalle-seguimiento>.metric{flex:1 1 140px;min-width:0}
 #venta-detalle-seguimiento .m-value{overflow-wrap:anywhere}
+
+/* Acciones de venta: aprovechar el ancho sin invadir los accesos flotantes. */
+@media(min-width:701px){
+  #page-venta .form-bottom-actions{padding-right:68px;gap:6px}
+  #page-venta .form-bottom-actions>.btn{min-width:0!important;padding-left:10px;padding-right:10px;white-space:nowrap}
+}
