@@ -12,3 +12,11 @@ test('cuenta productos distintos por local y separa unidades',()=>{
  assert.equal(s.stores.find(g=>g.name==='Cellshop').products,1);
  assert.equal(s.stores.find(g=>g.name==='Local por identificar').products,1);
 });
+
+test('vista conjunta suma repetidos por local y conserva procedencia sin modificar listas',()=>{
+ const {combine}=require('../js/modules/exterior-user-lists');
+ const products={p:{nombre:'Telefono',proveedores:[{nombre:'COMPRAS PARAGUAY',tiendaOrigen:'Nissei',url:'https://comprasparaguay.com.ar/p__1/',monedaOriginal:'USD',precioOriginal:100}]}};
+ const entries=[{owner:'Admin',list:{nombre:'A',productos:{p:2}}},{owner:'Yago',list:{nombre:'B',productos:{p:1}}}];
+ const before=JSON.stringify(entries),g=combine(entries,products)[0];assert.equal(g.name,'Nissei');assert.equal(g.rows.length,1);assert.equal(g.units,3);assert.equal(g.usd,300);assert.equal(g.rows[0].sources.length,2);assert.equal(JSON.stringify(entries),before);
+ entries[1].list.comprasFinales={p:{estado:'pedido'}};assert.equal(combine(entries,products)[0].units,2);assert.equal(combine(entries,products,false)[0].units,3);
+});
