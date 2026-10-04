@@ -23,52 +23,162 @@
         ],
         ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'compras_paraguay' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora') && query.orderByChild === 'categoria' && query.equalTo === 'COMPRAS PARAGUAY'",
         "$producto": {
-          ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('crear').val() === true && !data.exists() && newData.child('categoria').val() === 'COMPRAS PARAGUAY'",
-          ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.hasChildren(['nombre','codigo','categoria']) && newData.child('categoria').val() === 'COMPRAS PARAGUAY')",
+          ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && data.child('categoria').val() === 'COMPRAS PARAGUAY' && (root.child('sv_distribuidora_permisos').child('detalle').val() === true || root.child('sv_distribuidora_permisos').child('editar').val() === true)",
+          ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && newData.exists() && newData.child('categoria').val() === 'COMPRAS PARAGUAY' && ((!data.exists() && root.child('sv_distribuidora_permisos').child('crear').val() === true) || (data.child('categoria').val() === 'COMPRAS PARAGUAY' && root.child('sv_distribuidora_permisos').child('editar').val() === true && newData.child('codigo').val() === data.child('codigo').val()))",
+          ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.hasChildren(['nombre','codigo','categoria']) && newData.child('categoria').val() === 'COMPRAS PARAGUAY' && newData.child('esManoDeObra').val() !== true)",
           "nombre": {
-            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)",
-            ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('editar').val() === true && data.parent().child('categoria').val() === 'COMPRAS PARAGUAY' && data.parent().child('activo').val() !== false && data.parent().child('estado').val() !== 'Inactivo' && data.parent().child('esManoDeObra').val() !== true && newData.exists()"
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
           },
           "marca": {
-            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)",
-            ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('editar').val() === true && data.parent().child('categoria').val() === 'COMPRAS PARAGUAY' && data.parent().child('activo').val() !== false && data.parent().child('estado').val() !== 'Inactivo' && data.parent().child('esManoDeObra').val() !== true && newData.exists()"
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
           },
           "descripcion": {
-            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 10000)",
-            ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('editar').val() === true && data.parent().child('categoria').val() === 'COMPRAS PARAGUAY' && data.parent().child('activo').val() !== false && data.parent().child('estado').val() !== 'Inactivo' && data.parent().child('esManoDeObra').val() !== true && newData.exists()"
-          },
-          "codWeb": {
-            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000 && (newData.val() === '' || newData.val().beginsWith('https://') || newData.val().beginsWith('http://')))",
-            ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('editar').val() === true && data.parent().child('categoria').val() === 'COMPRAS PARAGUAY' && data.parent().child('activo').val() !== false && data.parent().child('estado').val() !== 'Inactivo' && data.parent().child('esManoDeObra').val() !== true && newData.exists()"
-          },
-          "imagenUrl": {
-            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000 && (newData.val() === '' || newData.val().beginsWith('https://') || newData.val().beginsWith('http://')))",
-            ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('editar').val() === true && data.parent().child('categoria').val() === 'COMPRAS PARAGUAY' && data.parent().child('activo').val() !== false && data.parent().child('estado').val() !== 'Inactivo' && data.parent().child('esManoDeObra').val() !== true && newData.exists()"
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 10000)"
           },
           "codigo": {
             ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
           },
           "categoria": {
-            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.val() === 'COMPRAS PARAGUAY')"
-          },
-          "activo": {
-            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isBoolean())"
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
           },
           "estado": {
             ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
           },
           "moneda": {
-            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.val() === 'ARS')"
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
+          },
+          "monedaVenta": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
+          },
+          "monedaCarga": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
+          },
+          "unidad": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
+          },
+          "catalogoDescripcion": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 10000)"
+          },
+          "proveedor": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
+          },
+          "proveedorUrl": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
+          },
+          "proveedorActualizado": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
+          },
+          "dolarTipo": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
+          },
+          "precioActualizadoOrigen": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
+          },
+          "tcTipoGuardado": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
+          },
+          "tcFecha": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
           },
           "iva": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "stock": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "stockMin": {
             ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
           },
           "ventaARS": {
             ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
           },
+          "compraARS": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "ventaUSD": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "compraUSD": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "compra": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "venta": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "precioGremio": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "margenDeseado": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "metrosPorPresentacion": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "cantidadPorPresentacion": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "costoPresentacionArs": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "precioArsPublicado": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "costoRealArs": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "precioUsdReferencia": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "costoRealUsdReferencia": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "dolarUsado": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "precioActualizadoEn": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "tcGuardado": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "activo": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isBoolean())"
+          },
+          "esManoDeObra": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isBoolean())"
+          },
+          "catalogoVisible": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isBoolean())"
+          },
+          "catalogoDestacado": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isBoolean())"
+          },
+          "codWeb": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000000 && (newData.val() === '' || newData.val().beginsWith('https://') || newData.val().beginsWith('http://')))"
+          },
+          "urlProveedor": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000000 && (newData.val() === '' || newData.val().beginsWith('https://') || newData.val().beginsWith('http://')))"
+          },
+          "imagenUrl": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000000 && (newData.val() === '' || newData.val().beginsWith('https://') || newData.val().beginsWith('http://') || newData.val().beginsWith('data:image/')))"
+          },
+          "proveedores": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.hasChildren())"
+          },
+          "garantiaConfig": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.hasChildren())"
+          },
           "$otro": {
             ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora'"
           }
+        }
+      },
+      "contadores": {
+        "codigoProducto": {
+          ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('crear').val() === true",
+          ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('crear').val() === true && data.isNumber() && newData.isNumber() && newData.val() === data.val() + 1"
         }
       }
     },
@@ -100,19 +210,19 @@
       }
     },
     "sv_chat_directorio": {
-      ".read": "((auth != null) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)",
+      ".read": "(((auth != null) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)) && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)",
       ".write": "(auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay'"
     },
     "sv_chat": {
       "$canal": {
-        ".read": "((auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)",
-        ".write": "((auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)"
+        ".read": "(((auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)) && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)",
+        ".write": "(((auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)) && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)"
       }
     },
     "sv_chat_escribiendo": {
       "$canal": {
-        ".read": "((auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)",
-        ".write": "((auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)"
+        ".read": "(((auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)) && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)",
+        ".write": "(((auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)) && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)"
       }
     },
     "sv_usuarios": {
@@ -226,6 +336,10 @@
           ".validate": false
         }
       }
+    },
+    "sv_catalogo_proveedores": {
+      ".read": "(auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin') || (auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && (root.child('sv_distribuidora_permisos').child('editar').val() === true || root.child('sv_distribuidora_permisos').child('crear').val() === true))",
+      ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'"
     }
   }
 }

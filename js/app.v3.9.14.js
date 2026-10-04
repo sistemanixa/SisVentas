@@ -17650,6 +17650,7 @@ function proveedoresPersistirLote(entradas) {
 }
 
 function productoPersistirGuardar(producto, baseEdicion) {
+  if (currentRole === 'distribuidora') return window.SVDistribuidora.saveProduct(producto);
   return Promise.resolve().then(function() {
     if (producto && producto.fbKey && baseEdicion) {
       if (!window.SVGuardedWrites) throw new Error('Recargá la aplicación para guardar con protección de cambios');
@@ -21301,7 +21302,7 @@ function renderTablaProveedoresProducto() {
         var key = String(prov.fbKey || prov.key || prov.id || '');
         return '<option value="'+escapeHTML(key)+'"'+(key === proveedorKeyActual ? ' selected' : '')+'>'+escapeHTML(prov.nombre || 'Proveedor')+(prov.rubro ? ' · '+escapeHTML(prov.rubro) : '')+'</option>';
       }).join('');
-    opcionesProveedor += '<option value="__nuevo__">＋ Cargar proveedor nuevo…</option>';
+    if(window.currentRole !== 'distribuidora') opcionesProveedor += '<option value="__nuevo__">＋ Cargar proveedor nuevo…</option>';
     var tr = document.createElement('tr');
     var productoActual = editingProdId && prodData && prodData[editingProdId]
       ? prodData[editingProdId]
@@ -22166,6 +22167,7 @@ async function cerrarFormProducto(guardado) {
   if (window.svBloquearSalidaCotizacion && window.svBloquearSalidaCotizacion()) return false;
   if (guardado !== true && firmaNavegacionEditorProducto() !== _pfFirmaNavegacion && !await svConfirm('Hay cambios sin guardar. ¿Salir y descartarlos?',{titulo:'Cambios sin guardar',textoAceptar:'Descartar y salir'})) return;
   cancelarCotizacionProductoEditor();
+  if (window.currentRole === 'distribuidora' && window.SVDistribuidora?.returnFromProduct()) return true;
   if (window.SVExteriorPreparation?.returnFromProduct) {
     if (_proveedoresEnFicha) restaurarProveedoresEnFicha();
     window.SVExteriorPreparation.returnFromProduct();
@@ -44474,6 +44476,7 @@ function fbCargarProveedores() {
       return proveedor;
     }) : [];
     proveedoresData = lista;
+    if(currentRole === 'admin') window.SVDistribuidora?.syncProviders(lista).catch(function(){console.warn('No se pudo actualizar el directorio de proveedores del catálogo');});
     renderResumenPreciosProveedores();
     lista = lista.filter(proveedorVisibleEnProducto);
     if (_svEsPaginaActiva('actualizadorprecios') && typeof renderModuloActualizadorPrecios === 'function') {

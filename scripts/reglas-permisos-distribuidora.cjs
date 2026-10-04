@@ -11,15 +11,23 @@ function permisosDistribuidora(base){
  r.sv_distribuidora_permisos={'.read':'('+admin+') || ('+dist+')','.write':admin};
  for(const k of ['chat','detalle','editar','crear'])r.sv_distribuidora_permisos[k]={'.validate':'newData.isBoolean()'};
  r.sv_distribuidora_permisos['$otro']={'.validate':false};
- const product={'.write':dist+' && '+permission('crear')+" && !data.exists() && newData.child('categoria').val() === 'COMPRAS PARAGUAY'",
- '.validate':role+" !== 'distribuidora' || (newData.hasChildren(['nombre','codigo','categoria']) && newData.child('categoria').val() === 'COMPRAS PARAGUAY')"};
- const types={nombre:'string',marca:'string',descripcion:'string',codWeb:'url',imagenUrl:'url',codigo:'string',categoria:'category',activo:'bool',estado:'string',moneda:'currency',iva:'number',ventaARS:'number'};
- for(const [k,type] of Object.entries(types)){
-  let valid=type==='number'?'newData.isNumber() && newData.val() >= 0':type==='bool'?'newData.isBoolean()':type==='category'?"newData.val() === 'COMPRAS PARAGUAY'":type==='currency'?"newData.val() === 'ARS'":'newData.isString() && newData.val().length <= '+(k==='descripcion'?10000:2000);
-  if(type==='url')valid+=" && (newData.val() === '' || newData.val().beginsWith('https://') || newData.val().beginsWith('http://'))";
-  product[k]={'.validate':role+" !== 'distribuidora' || ("+valid+')'};
-  if(['nombre','marca','descripcion','codWeb','imagenUrl'].includes(k))product[k]['.write']=dist+' && '+permission('editar')+" && data.parent().child('categoria').val() === 'COMPRAS PARAGUAY' && data.parent().child('activo').val() !== false && data.parent().child('estado').val() !== 'Inactivo' && data.parent().child('esManoDeObra').val() !== true && newData.exists()";
- }
+ const canEdit=dist+' && ('+permission('editar')+' || '+permission('crear')+')';
+ r.sv_catalogo_proveedores={'.read':'('+admin+') || ('+canEdit+')','.write':admin};
+ r.sisventas.contadores=r.sisventas.contadores||{};
+ r.sisventas.contadores.codigoProducto={'.read':dist+' && '+permission('crear'),'.write':dist+' && '+permission('crear')+' && data.isNumber() && newData.isNumber() && newData.val() === data.val() + 1'};
+ const category="newData.child('categoria').val() === 'COMPRAS PARAGUAY'";
+ const product={'.read':dist+" && data.child('categoria').val() === 'COMPRAS PARAGUAY' && ("+permission('detalle')+' || '+permission('editar')+')',
+ '.write':dist+' && newData.exists() && '+category+" && ((!data.exists() && "+permission('crear')+") || (data.child('categoria').val() === 'COMPRAS PARAGUAY' && "+permission('editar')+" && newData.child('codigo').val() === data.child('codigo').val()))",
+ '.validate':role+" !== 'distribuidora' || (newData.hasChildren(['nombre','codigo','categoria']) && "+category+" && newData.child('esManoDeObra').val() !== true)"};
+ const text=['nombre','marca','descripcion','codigo','categoria','estado','moneda','monedaVenta','monedaCarga','unidad','catalogoDescripcion','proveedor','proveedorUrl','proveedorActualizado','dolarTipo','precioActualizadoOrigen','tcTipoGuardado','tcFecha'];
+ const numbers=['iva','stock','stockMin','ventaARS','compraARS','ventaUSD','compraUSD','compra','venta','precioGremio','margenDeseado','metrosPorPresentacion','cantidadPorPresentacion','costoPresentacionArs','precioArsPublicado','costoRealArs','precioUsdReferencia','costoRealUsdReferencia','dolarUsado','precioActualizadoEn','tcGuardado'];
+ const bools=['activo','esManoDeObra','catalogoVisible','catalogoDestacado'];
+ function validate(k,rule){product[k]={'.validate':role+" !== 'distribuidora' || ("+rule+')'};}
+ for(const k of text)validate(k,'newData.isString() && newData.val().length <= '+(['descripcion','catalogoDescripcion'].includes(k)?10000:2000));
+ for(const k of numbers)validate(k,'newData.isNumber() && newData.val() >= 0');
+ for(const k of bools)validate(k,'newData.isBoolean()');
+ for(const k of ['codWeb','urlProveedor','imagenUrl'])validate(k,"newData.isString() && newData.val().length <= 2000000 && (newData.val() === '' || newData.val().beginsWith('https://') || newData.val().beginsWith('http://')"+(k==='imagenUrl'?" || newData.val().beginsWith('data:image/')":"")+")");
+ for(const k of ['proveedores','garantiaConfig'])validate(k,'newData.hasChildren()');
  product.$otro={'.validate':role+" !== 'distribuidora'"};r.sisventas.productos.$producto=product;
  r.sv_distribuidora_auditoria={'.read':admin,'$registro':{'.write':dist+" && !data.exists() && newData.child('uid').val() === auth.uid",'.validate':"newData.hasChildren(['uid','producto','accion','fecha','campos'])",uid:{'.validate':'newData.isString()'},producto:{'.validate':'newData.isString()'},accion:{'.validate':"newData.val() === 'crear' || newData.val() === 'editar'"},fecha:{'.validate':'newData.isNumber() && newData.val() <= now + 300000 && newData.val() >= now - 300000'},campos:{'.validate':'newData.isString() && newData.val().length <= 1000'},'$otro':{'.validate':false}}};
  return out;
