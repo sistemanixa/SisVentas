@@ -159,3 +159,16 @@ test('editar permite importar otra URL sin duplicar proveedor ni tocar los demá
   assert.equal(s.context.prodProveedoresActuales[1].precio,30);
   assert.equal(s.nodes['pf-nombre'].value,'CERRADURA F-102T');
 });
+
+test('importar proveedor secundario conserva imagen y ficha principal existente', async () => {
+  const s=escenario();s.context.editingProdId='P-9213';
+  s.context._productoEditorBase={codWeb:'https://favorito.example/producto'};
+  Object.assign(s.nodes['pf-nombre'],{value:'NOMBRE PROPIO'});
+  s.nodes['pf-marca'].value='MARCA PROPIA';s.nodes['pf-descripcion'].value='DETALLE PROPIO';s.nodes['pf-imagen-url'].value='https://favorito.example/foto.jpg';
+  s.context.prodProveedoresActuales=[{nombre:'Favorito',proveedorKey:'f',url:s.context._productoEditorBase.codWeb,precio:100}];
+  const pending=s.context.completarProductoDesdeUrl();await flush();s.resolver(respuesta());await pending;
+  assert.equal(s.context.prodProveedoresActuales.length,2);
+  assert.equal(s.context.prodProveedoresActuales[1].url,url);
+  assert.equal(s.nodes['pf-nombre'].value,'NOMBRE PROPIO');assert.equal(s.nodes['pf-marca'].value,'MARCA PROPIA');assert.equal(s.nodes['pf-descripcion'].value,'DETALLE PROPIO');assert.equal(s.nodes['pf-imagen-url'].value,'https://favorito.example/foto.jpg');
+  assert.equal(s.nodes['pf-cod-web'].value,url); // La URL escrita por el usuario tampoco se revierte automáticamente.
+});

@@ -5,9 +5,9 @@ const vieja='https://www.mercadolibre.com.ar/producto/up/MLAU135438615#wid=MLA90
 const nueva='https://www.mercadolibre.com.ar/producto/p/MLA2113774564#wid=MLA901203201';
 function contexto(){return load({URL,URLSearchParams,proveedoresData:[],normalizarUrlProveedorProducto:x=>String(x||'').trim()},['proveedoresVinculadosProducto','proveedorRevisionCoincide','productoConUrlProveedorActualizada','normalizarUrlComparacionProveedor','urlsProveedorEquivalentes','sincronizarUrlGeneralProveedorProducto']);}
 function producto(){return {codigo:'P-60821',codWeb:'https://www.mercadolibre.com.ar/antiguo',proveedorUrl:vieja,stock:18,proveedores:[{nombre:'MERCADO LIBRE',proveedorKey:'ml',url:vieja,precio:2386,actualizadoEn:123,identidadConfirmadaManualmente:true,identidadConfirmadaUrl:vieja}]};}
-test('cambiar URL conserva costos, sincroniza alias y elimina aprobaciones de la URL anterior',()=>{
+test('cambiar URL conserva costos y URL principal y elimina aprobaciones de la URL anterior',()=>{
  const c=contexto(),p=producto(),r=c.productoConUrlProveedorActualizada(p,0,p.proveedores[0],nueva);
- assert.equal(r.codWeb,nueva);assert.equal(r.proveedorUrl,nueva);assert.equal(r.proveedores[0].url,nueva);
+ assert.equal(r.codWeb,p.codWeb);assert.equal(r.proveedorUrl,p.proveedorUrl);assert.equal(r.proveedores[0].url,nueva);
  assert.equal(r.proveedores[0].precio,2386);assert.equal(r.stock,18);assert.equal(r.proveedores[0].actualizadoEn,0);
  assert.equal(r.proveedores[0].identidadConfirmadaManualmente,undefined);assert.equal(p.proveedores[0].url,vieja);
 });
@@ -27,7 +27,7 @@ test('varios proveedores no pisan la URL general ni datos de otro proveedor',()=
 test('producto heredado se materializa con nombre, precio y URL completos',()=>{
  const c=contexto(),p={codigo:'P-1',proveedor:'MERCADO LIBRE',codWeb:vieja,compra:2386};
  const r=c.productoConUrlProveedorActualizada(p,0,c.proveedoresVinculadosProducto(p)[0],nueva);
- assert.equal(r.proveedores[0].nombre,'MERCADO LIBRE');assert.equal(r.proveedores[0].precio,2386);assert.equal(r.codWeb,nueva);
+ assert.equal(r.proveedores[0].nombre,'MERCADO LIBRE');assert.equal(r.proveedores[0].precio,2386);assert.equal(r.codWeb,p.codWeb);
 });
 test('guardar otra edición no repone una URL general antigua sobre el proveedor',()=>{
  const c=contexto();c._productoEditorBase={codWeb:vieja};c.document={getElementById:()=>({value:vieja})};
@@ -57,6 +57,11 @@ test('Guardar URL confirma persistencia antes de reintentar; el fallo de precio 
    }}
  });
  load(c,['guardarUrlFallidoActualizador']);await c.guardarUrlFallidoActualizador(p.fbKey,0);
- assert.equal(reintentos,1);assert.equal(remoto.codWeb,nueva);assert.equal(remoto.proveedores[0].precio,2386);
+ assert.equal(reintentos,1);assert.equal(remoto.codWeb,p.codWeb);assert.equal(remoto.proveedores[0].precio,2386);
  assert.equal(c.proveedoresVinculadosProducto(remoto)[0].url,nueva);assert.equal(fallo.url,nueva);
+});
+
+test('editar URL de fila no reemplaza principal incluso con un único proveedor',()=>{
+ const general={value:vieja},c=contexto();Object.assign(c,{document:{getElementById:()=>general},prodProveedoresActuales:[{url:vieja,precio:2386}],completarReferenciaProveedorProducto:x=>x,recalcularCompraDesdeProveedores:()=>{},calcMargen:()=>{}});
+ load(c,['actualizarProveedorProducto']);c.actualizarProveedorProducto(0,'url',nueva);assert.equal(general.value,vieja);assert.equal(c.prodProveedoresActuales[0].url,nueva);
 });

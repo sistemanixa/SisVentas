@@ -58,3 +58,17 @@ test('cantidad editable recalcula totales y ganancia sin imputar extras a la ven
 });
 test('extra local conserva pesos, no requiere dólar ni envío y no altera ganancia',()=>{const d=draft();d.rows=[];d.extras=[{...row('P-9213',2,2500,'local'),destination:'stock'}];d.parameters.usd='';d.parameters.shippingInsuredUSD='';const s=calculateDraft(d);assert.equal(s.complete,true);assert.equal(s.hasForeign,false);assert.equal(s.extras[0].unitCostARS,2500);assert.equal(s.result.extraTotal,5000);assert.equal(s.result.profit,240000);assert.equal(require('../js/modules/exterior-preparation').agreedSummary(d).ars,5000);const reopened=initialize({rows:[],saved:s});assert.equal(reopened.extras[0].method,'local');});
 test('extras locales no absorben logística exterior ni cotización USD',()=>{const d=draft();d.extras=[{...row('local',1,2500,'local'),destination:'stock'},{...row('foreign',1,100),destination:'stock'}];const s=calculateDraft(d);assert.equal(s.extras[0].unitCostARS,2500);assert.equal(s.extras[1].unitCostARS,106666.67);assert.equal(s.result.extraTotal,109166.67);});
+
+test('migración antigua no convierte costo local ARS en USD ni duplica cantidades',()=>{
+ const source={key:'A',productKey:'A',code:'A',qty:2,needed:2,baselinePart:70840,localUnitARS:35420,providerKey:'P',include:false,usd:23};
+ const saved={version:4,rows:[{...source,qty:1}],parameters:{usd:1540,baseline:70840,revenue:90000}};
+ const d=initialize({rows:[source],saved,catalog:[{key:'A',providers:[{proveedorKey:'P',nombre:'Flytec',exterior:true,usd:23}]}]});
+ assert.equal(d.rows[0].method,'local');assert.equal(d.rows[0].reference.currency,'ARS');assert.equal(d.rows[0].agreed,35420);assert.equal(d.rows[0].requestedQty,1);
+ const result=calculateDraft(d);assert.equal(result.rows[0].qty,1);assert.equal(result.result.orderTotal,35420);assert.ok(result.pending.some(p=>p.includes('Cantidad pendiente')));
+ assert.equal(require('../js/modules/exterior-preparation').agreedSummary(d).ars,35420);
+});
+test('precio manual sólo se conserva cuando su moneda coincide con el proveedor',()=>{
+ const source={key:'A',productKey:'A',code:'A',qty:1,baselinePart:35420,providerKey:'P'};
+ const d=initialize({rows:[source],saved:{version:6,rows:[{...source,method:'local',agreed:35420,manualPrice:true,reference:{amount:35420,currency:'ARS'}}]},catalog:[{key:'A',providers:[{proveedorKey:'P',exterior:true,usd:23}]}]});
+ assert.equal(d.rows[0].agreed,23);assert.equal(d.rows[0].reference.currency,'USD');
+});

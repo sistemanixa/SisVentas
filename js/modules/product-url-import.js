@@ -254,21 +254,26 @@
         disponibilidadProveedor: datos.disponibilidadProveedor || 'no_verificado',
         disponibilidadProveedorTexto: datos.disponibilidadProveedorTexto || 'No verificado'
       }, url, datos.fuente || 'consulta-url-exacta');
+      var primaria = typeof _productoEditorBase !== 'undefined' && _productoEditorBase
+        ? urlExacta(_productoEditorBase.codWeb || _productoEditorBase.urlProveedor || '') : '';
+      var completarFicha = !editingProdId || !primaria || primaria === url;
+      if (completarFicha) {
       el('pf-nombre').value = String(ficha.nombre).toUpperCase();
       el('pf-marca').value = String(ficha.marca || '').toUpperCase();
       el('pf-descripcion').value = String(ficha.detalle || '');
       var imagen = '';
       try { var destino = new URL(ficha.imagenUrl); if (/^https?:$/.test(destino.protocol) && !destino.username && !destino.password) imagen = destino.href; } catch (_) {}
       if (imagen) { if (typeof window.normalizarURLImagenProducto === 'function') imagen = window.normalizarURLImagenProducto(imagen); el('pf-imagen-url').value = imagen; actualizarPreviewImagenURL(imagen); }
+      }
       if (indice !== undefined) prodProveedoresActuales[indice] = precioProveedor;
       else prodProveedoresActuales.push(precioProveedor);
       renderTablaProveedoresProducto();
       recalcularCompraDesdeProveedores();
       var faltantes = [];
-      if (!ficha.marca) faltantes.push('marca');
-      if (!ficha.detalle) faltantes.push('detalle');
-      if (!imagen) faltantes.push('imagen');
-      estado('Ficha y precio cargados.' + (datos.tiendaOrigen ? ' Oferta de '+datos.tiendaOrigen+'.' : '') + ' Revisá la categoría y los datos antes de guardar.' + (faltantes.length ? ' El proveedor no informó: ' + faltantes.join(', ') + '.' : ''));
+      if (completarFicha && !ficha.marca) faltantes.push('marca');
+      if (completarFicha && !ficha.detalle) faltantes.push('detalle');
+      if (completarFicha && !imagen) faltantes.push('imagen');
+      estado((completarFicha ? 'Ficha y precio cargados.' : 'Proveedor cargado. Se conservaron la imagen y los datos principales del producto.') + (datos.tiendaOrigen ? ' Oferta de '+datos.tiendaOrigen+'.' : '') + ' Revisá la categoría y los datos antes de guardar.' + (faltantes.length ? ' El proveedor no informó: ' + faltantes.join(', ') + '.' : ''));
       var envio = el('pf-envio-paraguay');
       if (esComprasParaguay(url) && envio && !el('pf-envio-paraguay-panel').hidden) {
         envio.focus();

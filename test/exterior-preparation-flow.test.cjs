@@ -13,10 +13,10 @@ test('reintentos de creación usan una única lista transaccional por venta',asy
 test('guardar preparación y costo es atómico, mantiene cambios ajenos y rechaza preparación obsoleta',async()=>{
  const api=require('../js/modules/exterior-preparation');const equal=require('../js/core/guarded-writes').equal;
  let db={listas_materiales:{L:{estado:'preparacion'}},ventas:{S:{subtotal:1000,total:1210,observaciones:'Cambio de otro usuario',items:[{cod:'A',qty:1,costoUnitarioCompra:500}]}}};
- const ctx={JSON,Number,Object,Error,materialListLocked:l=>l.estado==='cerrada',window:{currentUserUid:'u',fbDB:{},SVExteriorPreparation:api,SVGuardedWrites:{equal},obtenerCostoItemVenta:i=>i.costoTotalCompra??i.costoUnitarioCompra*i.qty,_rentIngresoNetoVenta:s=>s.subtotal,fbRef:(_,p)=>p,fbGet:async()=>({val:()=>db}),fbRunTransaction:async(_,fn)=>{const next=fn(structuredClone(db));if(next===undefined)return {committed:false};db=next;return {committed:true};}}};vm.createContext(ctx);
+ const paths=[];const ctx={JSON,Number,Object,Error,PATH_LISTS:'sisventas/listas_materiales',materialListLocked:l=>l.estado==='cerrada',window:{currentUserUid:'u',fbDB:{},SVExteriorPreparation:api,SVGuardedWrites:{equal,restTransaction:async(path,fn)=>{paths.push(path);const local=path==='sisventas/listas_materiales/L';const next=fn(structuredClone(local?db.listas_materiales.L:db));if(local)db.listas_materiales.L=next;else db=next;return {committed:true};}},obtenerCostoItemVenta:i=>i.costoTotalCompra??i.costoUnitarioCompra*i.qty,_rentIngresoNetoVenta:s=>s.subtotal,fbRef:(_,p)=>p,fbGet:async()=>({val:()=>db}),fbRunTransaction:async(_,fn)=>{const next=fn(structuredClone(db));if(next===undefined)return {committed:false};db=next;return {committed:true};}}};vm.createContext(ctx);
  const start=src.indexOf('  async function savePreparationAndSaleCosts');vm.runInContext(src.slice(start,src.indexOf('  window.ocAbrirSimuladorParaguay',start)),ctx);
  const list={fbKey:'L',ventaFbKey:'S'},snapshot={version:6,exteriorAppliedAt:123,parameters:{usd:100},rows:[{code:'A',sourceLine:0,needed:1,existing:0,method:'exterior',agreed:2,providerKey:'P',provider:'P'}]};
- await ctx.savePreparationAndSaleCosts(list,{...snapshot,exteriorAppliedAt:null},{});assert.equal(db.ventas.S.costoTotal,undefined);list.simuladorParaguay=structuredClone(db.listas_materiales.L.simuladorParaguay);
+ await ctx.savePreparationAndSaleCosts(list,{...snapshot,exteriorAppliedAt:null,extras:[{code:'EXTRA',qty:1,agreed:164}]},{});assert.equal(paths[0],'sisventas/listas_materiales/L');assert.equal(db.listas_materiales.L.simuladorParaguay.extras[0].code,'EXTRA');assert.equal(db.ventas.S.costoTotal,undefined);list.simuladorParaguay=structuredClone(db.listas_materiales.L.simuladorParaguay);
  await ctx.savePreparationAndSaleCosts(list,snapshot,{});assert.equal(db.ventas.S.costoTotal,200);assert.equal(db.ventas.S.total,1210);assert.equal(db.ventas.S.observaciones,'Cambio de otro usuario');assert.equal(db.listas_materiales.L.simuladorParaguay.rows[0].agreed,2);
  await assert.rejects(ctx.savePreparationAndSaleCosts(list,{...snapshot,rows:[{...snapshot.rows[0],agreed:3}]},{}),/Otro usuario/);assert.equal(db.ventas.S.costoTotal,200);
 });
@@ -43,4 +43,21 @@ test('borrador exterior sin costos aplicados no aparece y no calcula margen vál
  for(const [name,next] of [['balanceTieneCompraExterior','balancePurchaseTitle'],['balanceIndicadores','balanceTieneCompraExterior']]){const start=src.indexOf('  function '+name);vm.runInContext(src.slice(start,src.indexOf('  function '+next,start)),ctx);}
  const list={simuladorParaguay:{version:6,complete:false,parameters:{},result:{margin:76.85},rows:[{include:true,method:'exterior',qty:1,agreed:''}]}};
  assert.equal(ctx.balanceTieneCompraExterior(list),false);assert.equal(ctx.balanceIndicadores(list),null);
+});
+test('preparación conjunta histórica con precios sigue visible sin aplicar costos nuevos',()=>{
+ const ctx={window:{},saleRef:()=>({items:[]})};vm.createContext(ctx);const start=src.indexOf('  function balanceTieneCompraExterior');vm.runInContext(src.slice(start,src.indexOf('  function balancePurchaseTitle',start)),ctx);
+ const list={origen:'conjunta',sources:[{ventaId:'V1'},{ventaId:'V2'}],simuladorParaguay:{version:4,complete:false,rows:[{include:true,qty:5,providerKey:'flytec',usd:85}]}};
+ assert.equal(ctx.balanceTieneCompraExterior(list),true);
+ list.simuladorParaguay.rows[0].usd='';assert.equal(ctx.balanceTieneCompraExterior(list),false);
+ list.simuladorParaguay.version=6;list.simuladorParaguay.rows[0].agreed=85;assert.equal(ctx.balanceTieneCompraExterior(list),false);
+});
+
+test('proveedor con pesos y cotización histórica conserva referencia USD sin presentarla como lectura directa',()=>{
+ const ctx={window:{},providerMaster:()=>({nombre:'COMPRAS PARAGUAY',fbKey:'P'})};vm.createContext(ctx);
+ const start=src.indexOf('  function providersFor('),end=src.indexOf('\n  function ',start+12);vm.runInContext(src.slice(start,end),ctx);
+ const p=ctx.providersFor({proveedores:[{nombre:'COMPRAS PARAGUAY',precio:198660,dolarUsado:1540}]})[0];
+ assert.equal(p.usd,129);assert.equal(p.usdConverted,true);
+ const exact=ctx.providersFor({proveedores:[{nombre:'COMPRAS PARAGUAY',precio:198660,dolarUsado:1540,monedaOriginal:'USD',precioOriginal:130}]})[0];
+ assert.equal(exact.usd,130);assert.equal(exact.usdConverted,false);
+ const absent=ctx.providersFor({proveedores:[{nombre:'COMPRAS PARAGUAY',precio:198660}]})[0];assert.equal(absent.usd,0);
 });

@@ -59,7 +59,44 @@
     if(!result.committed)throw conflict();
     return result;
   }
-  const api={equal,merge,save,conditionalUpdate,conflict};
+
+  function errorMessage(error){
+    return /disconnect|network|failed to fetch|abort|timeout/i.test(String(error?.message||error))
+      ? 'Se interrumpió la conexión. No se pudo confirmar la operación. Conservá esta ventana y verificá el estado antes de reintentar.'
+      : String(error?.message||'No se pudo completar la operación.');
+  }
+  // Las operaciones entre ventas y listas necesitan una única escritura condicional.
+  // El SDK corta escrituras de más de 16 MB; REST admite hasta 256 MB y preserva
+  // concurrencia con ETag. Reservar esto para aplicar/cancelar, nunca para borradores.
+  async function restTransaction(ref, transform){
+    const user=root.fbAuth?.currentUser,uid=root.currentUserUid;
+    if(!user||user.uid!==uid)throw new Error('La sesión cambió. Volvé a ingresar.');
+    const token=await user.getIdToken();
+    const url=new URL(ref.toString().replace(/\/$/,'')+'.json');
+    url.searchParams.set('auth',token);
+    const checkSession=()=>{if(root.currentUserUid!==uid||root.fbAuth.currentUser!==user)throw new Error('La sesión cambió. Volvé a ingresar.');};
+    for(let attempt=0;attempt<2;attempt++){
+      checkSession();
+      const response=await root.fetch(url.href,{headers:{'X-Firebase-ETag':'true'},cache:'no-store',signal:AbortSignal.timeout(90000)});
+      if(!response.ok)throw new Error('No se pudo leer la preparación. Revisá la conexión y los permisos.');
+      const etag=response.headers.get('etag');
+      if(!etag)throw new Error('No se pudo verificar la versión de los datos. Reintentá.');
+      const next=transform(await response.json());
+      if(next===undefined)return {committed:false};
+      if(!next||typeof next!=='object')throw new Error('La operación no produjo datos válidos.');
+      const body=JSON.stringify(next);
+      if(new TextEncoder().encode(body).byteLength>128*1024*1024)throw new Error('La operación requiere procesamiento del servidor. No se guardaron cambios.');
+      checkSession();
+      url.searchParams.set('print','silent');
+      const write=await root.fetch(url.href,{method:'PUT',headers:{'if-match':etag,'Content-Type':'application/json'},body,signal:AbortSignal.timeout(90000)});
+      if(write.ok)return {committed:true};
+      if(write.status===412){url.searchParams.delete('print');continue;}
+      if(write.status===401||write.status===403)throw new Error('No tenés permiso para completar esta operación.');
+      throw new Error('No se pudo confirmar la operación. Verificá el estado antes de reintentar.');
+    }
+    throw conflict();
+  }
+  const api={equal,merge,save,conditionalUpdate,conflict,restTransaction,errorMessage};
   if(typeof module!=='undefined')module.exports=api;
   root.SVGuardedWrites=api;
 })(typeof window==='undefined'?globalThis:window);
