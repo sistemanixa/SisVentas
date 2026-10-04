@@ -3,7 +3,9 @@
  function project(p){
   if(!p||p.categoria!=='COMPRAS PARAGUAY'||p.catalogoVisible===false||p.activo===false||String(p.estado).toLowerCase()==='inactivo'||p.esManoDeObra)return null;
   const image=String(p.imagenUrl||'');
-  return {nombre:String(p.nombre||''),marca:String(p.marca||''),descripcion:String(p.catalogoDescripcion||p.descripcion||''),imagenUrl:/^https:\/\//i.test(image)?image:''};
+  const net=typeof root.precioVentaCanonicoProducto==='function'?Number(root.precioVentaCanonicoProducto(p).precioARS):Number(p.ventaARS||p.venta||0);
+  const iva=p.iva==null?21:Number(p.iva);const precioARS=Number.isFinite(net)&&net>0?Math.round(net*(1+iva/100)*100)/100:0;
+  return {precioARS,nombre:String(p.nombre||''),marca:String(p.marca||''),descripcion:String(p.catalogoDescripcion||p.descripcion||''),imagenUrl:/^https:\/\//i.test(image)?image:''};
  }
  if(typeof module!=='undefined')module.exports={project};
  if(!root.document)return;
