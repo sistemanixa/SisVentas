@@ -123,8 +123,9 @@ test('permite elegir proveedor antes de comprar y rechaza compra incompleta',asy
  await assertFails(set(ref(d,'sisventas/productos/py1/compraARS'),-1));
  await assertFails(set(ref(d,'sisventas/productos/py1'),null));
  const p={nombre:'Creado',codigo:'D-1',categoria:'COMPRAS PARAGUAY',activo:true,estado:'Activo',ventaARS:0,iva:21,moneda:'ARS'};
- await assertSucceeds(set(ref(d,'sisventas/productos/creado'),{...p,stock:100,compraARS:10,proveedores:[{nombre:'Flytec',proveedorKey:'flytec'}]}));
+ await assertSucceeds(set(ref(d,'sisventas/productos/creado'),{...p,stock:100,compraARS:100010,proveedorFbKey:'flytec',proveedores:[{nombre:'Flytec',proveedorKey:'flytec',costoEnvioArs:100000}]}));
  await assertSucceeds(set(ref(a,'sv_catalogo_proveedores'),{flytec:{nombre:'FLYTEC PARAGUAY',pais:'Paraguay',web:'https://example.com'}}));
+ await assertFails(set(ref(d,'sisventas/productos/creado/proveedorFbKey'),{rol:'admin'}));
  await assertSucceeds(get(ref(d,'sv_catalogo_proveedores')));
  await assertFails(get(ref(d,'sisventas/proveedores')));
  await assertFails(set(ref(d,'sv_catalogo_proveedores/flytec/nombre'),'Otro'));

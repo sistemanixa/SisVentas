@@ -19,7 +19,7 @@ function permisosDistribuidora(base){
  const product={'.read':dist+" && data.child('categoria').val() === 'COMPRAS PARAGUAY' && ("+permission('detalle')+' || '+permission('editar')+')',
  '.write':dist+' && newData.exists() && '+category+" && ((!data.exists() && "+permission('crear')+") || (data.child('categoria').val() === 'COMPRAS PARAGUAY' && "+permission('editar')+" && newData.child('codigo').val() === data.child('codigo').val()))",
  '.validate':role+" !== 'distribuidora' || (newData.hasChildren(['nombre','codigo','categoria']) && "+category+" && newData.child('esManoDeObra').val() !== true)"};
- const text=['nombre','marca','descripcion','codigo','categoria','estado','moneda','monedaVenta','monedaCarga','unidad','catalogoDescripcion','proveedor','proveedorUrl','proveedorActualizado','dolarTipo','precioActualizadoOrigen','tcTipoGuardado','tcFecha'];
+ const text=['nombre','marca','descripcion','codigo','categoria','estado','moneda','monedaVenta','monedaCarga','unidad','catalogoDescripcion','proveedor','proveedorFbKey','proveedorUrl','proveedorActualizado','dolarTipo','precioActualizadoOrigen','tcTipoGuardado','tcFecha'];
  const numbers=['iva','stock','stockMin','ventaARS','compraARS','ventaUSD','compraUSD','compra','venta','precioGremio','margenDeseado','metrosPorPresentacion','cantidadPorPresentacion','costoPresentacionArs','precioArsPublicado','costoRealArs','precioUsdReferencia','costoRealUsdReferencia','dolarUsado','precioActualizadoEn','tcGuardado'];
  const bools=['activo','esManoDeObra','catalogoVisible','catalogoDestacado'];
  function validate(k,rule){product[k]={'.validate':role+" !== 'distribuidora' || ("+rule+')'};}

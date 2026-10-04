@@ -22,7 +22,7 @@ const SHELL = [
   './js/core/guarded-writes.js?v=3.9.11-cancel7',
   './js/app.v3.9.14.js',
   './js/modules/product-url-import.js?v=3.9.10',
-  './js/modules/distribuidora-access.js?v=3.9.14-native5',
+  './js/modules/distribuidora-access.js?v=3.9.14-savefix',
   './js/modules/paraguay-shopping-access.js?v=3.9.14-trash',
   './js/modules/keyboard-actions.js',
   './js/modules/sidebar-search.js?v=3.8.20',

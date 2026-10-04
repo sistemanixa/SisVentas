@@ -71,6 +71,12 @@
   native.querySelector('#pf-categoria').disabled=true;
   native.querySelector('#pf-es-mano-obra').disabled=true;
   native.querySelectorAll('#pf-anterior,#pf-siguiente').forEach(node=>node.style.setProperty('display','none','important'));
+  const notice=document.createElement('p');notice.setAttribute('role','status');notice.style.cssText='margin:12px 0;color:var(--text);white-space:pre-wrap';
+  const saveButton=native.querySelector('#btn-guardar-producto');saveButton?.parentElement.appendChild(notice);
+  const toast=document.getElementById('notif');const observer=toast?new MutationObserver(()=>{if(editor===form&&toast.classList.contains('show'))notice.textContent=toast.textContent;}):null;
+  observer?.observe(toast,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class']});
+  const restoreNotice=form._restore;form._restore=()=>{observer?.disconnect();restoreNotice();};
+  if(saveButton){saveButton.removeAttribute('onclick');saveButton.onclick=async()=>{notice.textContent='';try{await root.guardarProducto();}catch(error){notice.textContent='No se pudo guardar: '+(error.message||'Revisá los datos e intentá nuevamente.');root.restaurarBotonGuardarProducto?.();}};}
   const dismiss=()=>root.cerrarFormProducto();
   native.querySelectorAll('[onclick="cerrarFormProducto()"]').forEach(node=>{node.removeAttribute('onclick');node.onclick=dismiss;if(node.textContent.includes('Volver'))node.textContent='← Volver al catálogo';});
   form.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();dismiss();}};

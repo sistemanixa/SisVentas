@@ -172,6 +172,9 @@
           },
           "$otro": {
             ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora'"
+          },
+          "proveedorFbKey": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
           }
         }
       },
