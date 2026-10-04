@@ -361,7 +361,7 @@
   }
 
   function materialListLocked(list) {
-    return !!(list && (list.compraConjuntaId || list.desagrupada || list.compraConfirmacion || (Array.isArray(list.ordenesIds) && list.ordenesIds.length) || ['reservada', 'recibida', 'cerrada'].indexOf(list.estado) >= 0));
+    return !!(list && (list.cancelacionExteriorPendiente || list.cancelacionExteriorBloqueo || list.compraConjuntaId || list.desagrupada || list.compraConfirmacion || (Array.isArray(list.ordenesIds) && list.ordenesIds.length) || ['reservada', 'recibida', 'cerrada'].indexOf(list.estado) >= 0));
   }
 
   function itemMaterialKey(item) {
@@ -591,7 +591,7 @@
     if(!applyCosts){
       const saved=await window.SVGuardedWrites.restTransaction(window.fbRef(window.fbDB,PATH_LISTS+'/'+list.fbKey),current=>{
         if(uid!==window.currentUserUid)throw new Error('La sesión cambió.');
-        if(!current||materialListLocked(current)||current.compraConfirmacion)throw new Error('La compra cambió o ya está confirmada. Volvé a abrirla.');
+        if(!current||materialListLocked(current)||current.compraConfirmacion||current.aplicacionExteriorPendiente)throw new Error('La compra cambió o ya está confirmada. Volvé a abrirla.');
         if(!window.SVGuardedWrites.equal(current.simuladorParaguay||null,before))throw new Error('Otro usuario cambió la preparación. Volvé a abrirla.');
         current.simuladorParaguay=JSON.parse(JSON.stringify(snapshot));
         Object.entries(changes).filter(([key])=>key.startsWith('comprobantesCompra/')).forEach(([key,value])=>{current.comprobantesCompra=current.comprobantesCompra||{};current.comprobantesCompra[key.split('/')[1]]=value;});
@@ -600,27 +600,57 @@
       if(!saved.committed)throw new Error('No se pudo guardar la preparación. Reintentá.');
       return;
     }
-    const result=await window.SVGuardedWrites.restTransaction(ref,function(data){
-      if(uid!==window.currentUserUid)throw new Error('La sesión cambió. Volvé a ingresar.');
-      const current=data&&data.listas_materiales&&data.listas_materiales[list.fbKey];
-      if(!current||materialListLocked(current)||current.compraConfirmacion)throw new Error('La compra cambió o ya está confirmada. Volvé a abrirla.');
-      if(!window.SVGuardedWrites.equal(current.simuladorParaguay||null,before))throw new Error('Otro usuario cambió la preparación. Volvé a abrirla.');
-      const sources=list.origen==='conjunta'?list.sources||[]:[{ventaFbKey:list.ventaFbKey,listId:list.fbKey}];
-      const applyCosts=!!snapshot.exteriorAppliedAt&&snapshot.exteriorAppliedAt!==before?.exteriorAppliedAt;
-      if(applyCosts){delete current.exteriorCanceladoEn;current.estado='preparacion';}
-      if(applyCosts)sources.forEach(function(source){
-        if(!source.ventaFbKey)return;
-        const sale=data.ventas&&data.ventas[source.ventaFbKey];
-        if(!sale)throw new Error('No se encontró la venta asociada.');
-        const rows=(snapshot.rows||[]).filter(r=>list.origen!=='conjunta'||r.sourceListId===source.listId);
-        data.ventas[source.ventaFbKey]=window.SVExteriorPreparation.applySaleCosts(sale,rows,snapshot.parameters.usd,window.obtenerCostoItemVenta,window._rentIngresoNetoVenta);
-        if(snapshot.exteriorAppliedAt&&snapshot.exteriorAppliedAt!==before?.exteriorAppliedAt){const next=data.ventas[source.ventaFbKey];next.audit=(next.audit||[]).concat([{fecha:new Date(snapshot.exteriorAppliedAt).toLocaleString('es-AR'),usuario:snapshot.updatedBy||uid,accion:'Compra exterior aplicada desde la preparación: '+rows.filter(r=>r.method==='exterior'&&Number(r.qty)>0).map(r=>r.code).join(', ')}]);}
+    const equal=window.SVGuardedWrites.equal,copy=value=>JSON.parse(JSON.stringify(value));
+    const check=()=>{if(uid!==window.currentUserUid)throw Error('La sesión cambió.');};
+    const read=async path=>{check();return (await window.fbGet(window.fbRef(window.fbDB,path))).val();};
+    const tx=async(path,fn)=>{check();const result=await window.SVGuardedWrites.restTransaction(window.fbRef(window.fbDB,path),current=>{check();return fn(current);});if(!result.committed)throw Error('No se pudo confirmar la aplicación. Reintentá para retomarla.');};
+    const listPath=PATH_LISTS+'/'+list.fbKey;
+    const stored=await read(listPath);
+    if(!stored||materialListLocked(stored)||stored.compraConfirmacion)throw Error('La compra cambió o ya está confirmada. Volvé a abrirla.');
+    let operation=stored.aplicacionExteriorPendiente;
+    if(!operation){
+      if(!equal(stored.simuladorParaguay||null,before))throw Error('Otro usuario cambió la preparación. Volvé a abrirla.');
+      const sources=stored.origen==='conjunta'?stored.sources||[]:[{ventaFbKey:stored.ventaFbKey,listId:list.fbKey}];
+      const steps=await Promise.all(sources.filter(source=>source.ventaFbKey).map(async source=>{
+        const path='sisventas/ventas/'+source.ventaFbKey,sale=await read(path);
+        if(!sale)throw Error('No se encontró la venta asociada.');
+        const rows=(snapshot.rows||[]).filter(r=>stored.origen!=='conjunta'||r.sourceListId===source.listId);
+        if(!rows.length)throw Error('No se encontraron los productos de una venta vinculada. Volvé a abrir la preparación.');
+        const next=window.SVExteriorPreparation.applySaleCosts(sale,rows,snapshot.parameters.usd,window.obtenerCostoItemVenta,window._rentIngresoNetoVenta);
+        const baseline={};['items','total','subtotal','descuento'].forEach(field=>baseline[field]=sale[field]??null);
+        return {path,key:source.ventaFbKey,baseline,changes:{items:next.items,costoTotal:next.costoTotal,margenPct:next.margenPct},codes:rows.filter(r=>r.method==='exterior'&&Number(r.qty)>0).map(r=>r.code)};
+      }));
+      operation={id:list.fbKey+'-'+snapshot.exteriorAppliedAt,steps,snapshot:copy(snapshot),changes:copy(changes),before};
+      await tx(listPath,current=>{
+        if(!current||materialListLocked(current)||current.aplicacionExteriorPendiente||!equal(current.simuladorParaguay||null,before))throw Error('Otro usuario cambió la preparación. Volvé a abrirla.');
+        return Object.assign({},current,{aplicacionExteriorPendiente:operation});
       });
-      current.simuladorParaguay=JSON.parse(JSON.stringify(snapshot));
-      Object.entries(changes).filter(([key])=>key.startsWith('comprobantesCompra/')).forEach(([key,value])=>{current.comprobantesCompra=current.comprobantesCompra||{};current.comprobantesCompra[key.split('/')[1]]=value;});
-      return data;
-    },{applyLocally:false});
-    if(!result.committed)throw new Error('No se pudo guardar la preparación y los costos. Reintentá.');
+    }
+    const appliedSales={};
+    for(const step of operation.steps){
+      await tx(step.path,current=>{
+        if(current?.aplicacionExteriorId===operation.id){appliedSales[step.key]=current;return current;}
+        if(!current||Object.keys(step.baseline).some(field=>!equal(current[field]??null,step.baseline[field])))throw Error('Cambió el detalle de una venta. La aplicación quedó pendiente de revisión; no se sobrescribieron sus cambios.');
+        const next=Object.assign({},current,step.changes,{aplicacionExteriorId:operation.id});
+        next.audit=(Array.isArray(current.audit)?current.audit:Object.values(current.audit||{})).concat([{fecha:new Date(operation.snapshot.exteriorAppliedAt).toLocaleString('es-AR'),usuario:operation.snapshot.updatedBy||uid,accion:'Compra exterior aplicada desde la preparación: '+step.codes.join(', ')}]);
+        appliedSales[step.key]=next;return next;
+      });
+    }
+    await tx(listPath,current=>{
+      if(current?.aplicacionExteriorId===operation.id)return current;
+      if(current?.aplicacionExteriorPendiente?.id!==operation.id||!equal(current.simuladorParaguay||null,operation.before))throw Error('Cambió la preparación. Reintentá para retomar la aplicación pendiente.');
+      current.simuladorParaguay=copy(operation.snapshot);current.estado='preparacion';current.aplicacionExteriorId=operation.id;
+      delete current.exteriorCanceladoEn;delete current.aplicacionExteriorPendiente;
+      Object.entries(operation.changes).filter(([key])=>key.startsWith('comprobantesCompra/')).forEach(([key,value])=>{current.comprobantesCompra=current.comprobantesCompra||{};current.comprobantesCompra[key.split('/')[1]]=value;});
+      return current;
+    });
+    Object.assign(snapshot,copy(operation.snapshot));
+    Object.entries(appliedSales).forEach(([key,sale])=>{
+      const record=Object.assign({fbKey:key},sale);
+      const index=(window.ventasList||[]).findIndex(v=>v.fbKey===key);
+      if(index>=0)window.ventasList[index]=record;
+      if(window._ventaDetalleActual?.fbKey===key&&typeof window.renderDetalleVenta==='function')window.renderDetalleVenta(record);
+    });
   }
 
   window.ocAbrirSimuladorParaguay = async function () {
@@ -632,7 +662,7 @@
     }
     var list=state.activeList;loadMaterialQuote();
     if((!materialListLocked(list)&&!list.compraConfirmacion||list.simuladorParaguay&&list.simuladorParaguay.version>=6)&&!window.SVExteriorPreparation){
-      try{await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/exterior-preparation.js?v=3.9.10-extra2';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}
+      try{await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/exterior-preparation.js?v=3.9.12';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}
       catch(e){window.notify('No se pudo cargar la preparación de compra. Reintentá.');return;}
     }
     var sale=saleRef(list.ventaFbKey||list.ventaId)||{};
@@ -979,7 +1009,7 @@
     if(list.origen==='conjunta'&&(list.sources||[]).some(function(source){return jointSaleFingerprint(saleRef(source.ventaFbKey))!==source.saleFingerprint;}))throw Error('Cambió una venta de esta compra. Separá las ventas y volvé a reunirlas para revisar las cantidades.');
     var planned=buildPlannedOrders(list,sim);
     if(!await window.svConfirm('Confirmar compra: '+planned.length+' órdenes separadas por proveedor y destino. Se congelan precios y cotizaciones. El stock ingresa recién al registrar la recepción.'))throw new Error('Compra sin confirmar.');
-    var claim=await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_LISTS+'/'+list.fbKey),function(current){if(!current||current.compraConjuntaId||current.desagrupada||balanceFinalizado(current))return;if(current.compraConfirmacion)return current;if(current.ordenesIds&&current.ordenesIds.length)return;current.compraConfirmacion={estado:'pendiente',ordenes:planned,fecha:Date.now()};current.simuladorParaguay=sim;return current;});
+    var claim=await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_LISTS+'/'+list.fbKey),function(current){if(!current||current.aplicacionExteriorPendiente||current.cancelacionExteriorPendiente||current.cancelacionExteriorBloqueo||current.compraConjuntaId||current.desagrupada||balanceFinalizado(current))return;if(current.compraConfirmacion)return current;if(current.ordenesIds&&current.ordenesIds.length)return;current.compraConfirmacion={estado:'pendiente',ordenes:planned,fecha:Date.now()};current.simuladorParaguay=sim;return current;});
     if(!claim.committed)throw new Error('Esta lista ya tiene órdenes o no está disponible.');
     var stored=claim.snapshot.val();if(!stored.compraConfirmacion)throw new Error('No se pudo confirmar la compra.');
     list.simuladorParaguay=stored.simuladorParaguay;await finishPlannedPurchase(list,stored.compraConfirmacion);
@@ -1142,6 +1172,23 @@
     return ['recibida','cerrada','cancelada','anulada'].includes(String(list.estado || '').toLowerCase());
   }
 
+  function balancePendingCosts(list){
+    const sim=list.simuladorParaguay;
+    if(!sim)return '<p>Todavía no hay una preparación guardada. Abrí Preparar compra para cargar los productos y sus costos.</p>';
+    const pending=[],rows=[...(sim.rows||[]),...(sim.extras||[])];
+    const lines=rows.map(row=>{
+      const source=(list.items||[]).find(i=>[i.productoKey||i.codigo,i.linea,i.proveedorKey||i.proveedor].join('|')===row.key);
+      const qty=Number(row.qty)||0,needed=Number(source?.cantidadNecesaria??row.needed??qty),stock=row.method==='stock'?needed:Number(row.existing)||0,missing=needed-qty-stock;
+      if(source&&missing>0)pending.push((row.code||source.codigo)+': falta resolver '+missing.toLocaleString('es-AR')+' de '+needed.toLocaleString('es-AR')+' unidades.');
+      const foreign=row.method?row.method==='exterior':row.include===true,currency=foreign?'USD':'ARS';
+      const unit=Number(row.agreed??(foreign?row.usd:row.localUnitARS??row.baselineUnit));
+      if(qty>0&&!(unit>0))pending.push((row.code||row.description)+': falta el precio acordado.');
+      return '<tr><td>'+esc(row.code||'')+' · '+esc(row.description||'Producto')+'</td><td>'+esc(row.provider||'Sin proveedor')+'</td><td>'+qty.toLocaleString('es-AR')+'</td><td>'+(unit>0?currency+' '+money(unit*qty):'Sin precio cargado')+'</td></tr>';
+    }).join('');
+    const messages=[...new Set([...pending,...(sim.pending||[])])];
+    return '<p>Costos guardados · preparación '+(sim.complete?'por verificar':'incompleta')+'. Los importes pueden cambiar al resolver los pendientes.</p>'+(messages.length?'<div class="bc-alert"><strong>Falta completar</strong><ul>'+messages.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul></div>':'<p>Revisá el resumen de Preparar compra para validar cantidades, entrega y pago.</p>')+'<div style="overflow-x:auto"><table style="width:100%"><thead><tr><th>Producto</th><th>Proveedor</th><th>A comprar</th><th>Total de productos · sin logística</th></tr></thead><tbody>'+lines+'</tbody></table></div><p>Ganancia y margen se mostrarán al completar y verificar la preparación.</p>';
+  }
+
   function balanceIndicadores(list) {
     var sim = list.simuladorParaguay;
     if (!sim || !sim.result || !sim.parameters || sim.complete!==true) return null;
@@ -1193,46 +1240,104 @@
         if(item.costoUnitarioAntesPreparacion==null)item.costoUnitarioAntesPreparacion=qty?Number(window.obtenerCostoItemVenta(item))/qty:0;
         Object.assign(item,{origenCompra:'Local',proveedorCompra:pv.nombre,proveedorCompraKey:pv.proveedorKey,costoUnitarioCompra:cost,costoTotalCompra:Math.round(cost*qty*100)/100,precioAcordadoCompra:cost,monedaCompra:'ARS',cotizacionCompra:1});
         delete item.costoUnitarioUSD;
+        delete item.compraExteriorAplicada;
         Object.assign(m,{proveedor:pv.nombre,proveedorKey:pv.proveedorKey,proveedorUrl:pv.url,costoUnitario:cost,origenVentaItem:JSON.parse(JSON.stringify(item))});
         replacements.push({codigo:m.codigo,proveedor:pv.nombre,costoUnitario:cost});
       });
       sale.costoTotal=(sale.items||[]).reduce((sum,item)=>sum+(Number(window.obtenerCostoItemVenta(item))||0),0);
       const revenue=Number(window._rentIngresoNetoVenta(sale))||0;sale.margenPct=revenue?(revenue-sale.costoTotal)/revenue*100:0;
-      sale.audit=(sale.audit||[]).concat([Object.assign({},audit,{productos:replacements})]);
+      sale.audit=(Array.isArray(sale.audit)?sale.audit:Object.values(sale.audit||{})).concat([Object.assign({},audit,{productos:replacements})]);
       child.preparacionExteriorEliminada={simulador:child.simuladorParaguay||null,fecha:stamp,usuario:actor};delete child.simuladorParaguay;delete child.compraConjuntaId;
-      child.estado='cancelada';child.audit=(child.audit||[]).concat([audit]);child.exteriorCanceladoEn=stamp;
+      child.estado='cancelada';child.audit=(Array.isArray(child.audit)?child.audit:Object.values(child.audit||{})).concat([audit]);child.exteriorCanceladoEn=stamp;
     });
     list.preparacionExteriorEliminada=list.preparacionExteriorEliminada||{simulador:list.simuladorParaguay||null,fecha:stamp,usuario:actor};delete list.simuladorParaguay;
-    list.estado='cancelada';list.exteriorCanceladoEn=stamp;if(!sources.some(source=>source.listId===id))list.audit=(list.audit||[]).concat([audit]);
+    list.estado='cancelada';list.exteriorCanceladoEn=stamp;if(!sources.some(source=>source.listId===id))list.audit=(Array.isArray(list.audit)?list.audit:Object.values(list.audit||{})).concat([audit]);
     return data;
   }
-  window.ocEliminarPreparacionExterior=async function(id){
-    if(!window.permisoModulo?.('balancecompra'))return;
+  async function cancelExteriorPreparationScoped(id,uid,actor,stamp,progress){
+    const equal=window.SVGuardedWrites.equal,copy=v=>JSON.parse(JSON.stringify(v));
+    const check=()=>{if(uid!==window.currentUserUid||!window.permisoModulo?.('balancecompra'))throw Error('La sesión cambió.');};
+    const read=async path=>{check();return (await window.fbGet(window.fbRef(window.fbDB,path))).val();};
+    const tx=async(path,fn)=>{check();const result=await window.SVGuardedWrites.restTransaction(window.fbRef(window.fbDB,path),current=>{check();return fn(current);});if(!result.committed)throw Error('No se pudo confirmar la eliminación.');};
+    const path=PATH_LISTS+'/'+id;
+    let list=await read(path);if(!list)throw Error('No se encontró la preparación.');
+    if(list.exteriorCanceladoEn)return;
+    if(list.aplicacionExteriorPendiente)throw Error('Retomá Aplicar compra exterior antes de eliminar la preparación.');
+    let op=list.cancelacionExteriorPendiente;
+    if(!op){
+      const sources=list.origen==='conjunta'?list.sources||[]:list.ventaFbKey?[{listId:id,ventaFbKey:list.ventaFbKey}]:[];
+      const data={listas_materiales:{[id]:copy(list)},ventas:{},productos:{},ordenes:{}};
+      // Sólo registros vinculados; jamás leer o reescribir /sisventas completo.
+      await Promise.all(sources.map(async source=>{
+        const [child,sale]=await Promise.all([source.listId===id?Promise.resolve(list):read(PATH_LISTS+'/'+source.listId),read('sisventas/ventas/'+source.ventaFbKey)]);
+        data.listas_materiales[source.listId]=child;data.ventas[source.ventaFbKey]=sale;
+      }));
+      const ids=[id,...sources.map(x=>x.listId)];
+      (state.orders||[]).filter(o=>ids.includes(o.listaMaterialesId)).forEach((o,i)=>{data.ordenes[i]=o;});
+      const products=new Map();
+      Object.values(data.listas_materiales).forEach(child=>(child?.items||[]).forEach(m=>{if(m.esManoDeObra)return;const key=m.productoKey||findProduct(m)?.fbKey;if(key)products.set(key,true);}));
+      await Promise.all([...products.keys()].map(async key=>{data.productos[key]=await read('sisventas/productos/'+key);}));
+      const after=cancelExteriorPreparation(copy(data),id,actor,stamp),steps=[];
+      // Comparar sólo campos modificados conserva, por ejemplo, un pago simultáneo.
+      for(const collection of ['ventas','listas_materiales'])for(const [key,next] of Object.entries(after[collection])){
+        const before=data[collection][key],changes={},baseline={};
+        for(const field of new Set([...Object.keys(before),...Object.keys(next)]))if(!equal(before[field],next[field])){baseline[field]=before[field]??null;changes[field]=next[field]??null;}
+        steps.push({path:'sisventas/'+collection+'/'+key,baseline,changes});
+      }
+      op={id:id+'-'+stamp,actor,stamp,steps,locks:[...new Set(ids)].filter(key=>key!==id)};
+      await tx(path,current=>{if(!equal(current,list))throw Error('Otro usuario cambió la preparación. Revisala antes de eliminar.');return Object.assign({},current,{cancelacionExteriorPendiente:op});});
+    }
+    // Registro durable: un corte conserva la operación y el siguiente clic la retoma.
+    progress('Devolviendo productos a proveedores locales…');
+    for(const key of op.locks){await tx(PATH_LISTS+'/'+key,current=>{
+      if(current?.cancelacionExteriorAplicada===op.id)return current;
+      if(!current||current.compraConfirmacion||current.stockExistenteReservado||(current.ordenesIds||[]).length||current.compraConjuntaId!==id||current.cancelacionExteriorBloqueo&&current.cancelacionExteriorBloqueo!==op.id)throw Error('Cambió una venta vinculada. La eliminación quedó pendiente de revisión.');
+      return Object.assign({},current,{cancelacionExteriorBloqueo:op.id});
+    });}
+    for(const step of op.steps.filter(step=>step.path!==path)){
+      await tx(step.path,current=>{
+        if(current?.cancelacionExteriorAplicada===op.id)return current;
+        if(!current||Object.keys(step.baseline).some(key=>!equal(current[key]??null,step.baseline[key])))throw Error('Cambió una venta vinculada. La eliminación quedó pendiente de revisión.');
+        const next=Object.assign({},current,step.changes,{cancelacionExteriorAplicada:op.id});delete next.cancelacionExteriorBloqueo;return next;
+      });
+    }
+    progress('Finalizando eliminación…');
+    const last=op.steps.find(step=>step.path===path);
+    await tx(path,current=>{
+      if(current?.cancelacionExteriorAplicada===op.id)return current;
+      if(current?.cancelacionExteriorPendiente?.id!==op.id||Object.keys(last.baseline).some(key=>!equal(current[key]??null,last.baseline[key])))throw Error('Cambió la preparación. La eliminación quedó pendiente de revisión.');
+      const next=Object.assign({},current,last.changes,{cancelacionExteriorAplicada:op.id});delete next.cancelacionExteriorPendiente;return next;
+    });
+  }
+  const cancellationsInFlight=new Set();
+  window.ocEliminarPreparacionExterior=async function(id,button){
+    if(!window.permisoModulo?.('balancecompra')||cancellationsInFlight.has(id))return;
     const list=state.lists.find(l=>l.fbKey===id);if(!list)return;
-    const uid=window.currentUserUid,actor=window.currentUser||uid,stamp=Date.now(),ref=window.fbRef(window.fbDB,'sisventas');
+    cancellationsInFlight.add(id);
+    let message;
+    const progress=text=>{if(message)message.textContent=text;};
     try{
-      const snap=await window.fbGet(ref);
-      const baseline=JSON.parse(JSON.stringify(snap.val()?.listas_materiales?.[id]||null));
-      const preview=JSON.parse(JSON.stringify(snap.val()));
-      cancelExteriorPreparation(preview,id,actor,stamp);
-      if(!await window.svConfirm('¿Eliminar la preparación de '+balancePurchaseTitle(list)+'? Los productos de las ventas volverán a proveedores locales y sus costos y márgenes se recalcularán. Se conservará un registro de la preparación. Los extras para stock no se comprarán.'))return;
-      const result=await window.SVGuardedWrites.restTransaction(ref,data=>{
-        if(uid!==window.currentUserUid||!window.permisoModulo?.('balancecompra'))throw Error('La sesión cambió.');
-        if(!window.SVGuardedWrites.equal(data?.listas_materiales?.[id],baseline))throw Error('Otro usuario cambió la preparación. Revisala antes de eliminar.');
-        return cancelExteriorPreparation(JSON.parse(JSON.stringify(data)),id,actor,stamp);
-      },{applyLocally:false});
-      if(!result.committed)throw Error('No se pudo eliminar la preparación.');
+      if(!await window.svConfirm('¿Eliminar la preparación de '+balancePurchaseTitle(list)+'? Los productos de las ventas volverán a proveedores locales. Se conservará un registro. Los extras para stock no se comprarán.'))return;
+      if(button){button.disabled=true;button.setAttribute('aria-busy','true');message=document.createElement('p');message.setAttribute('role','status');message.style.cssText='color:var(--text2);font-size:12px';button.closest('article')?.appendChild(message);}
+      progress('Revisando preparación…');
+      await cancelExteriorPreparationScoped(id,window.currentUserUid,window.currentUser||window.currentUserUid,Date.now(),progress);
+      list.exteriorCanceladoEn=Date.now();list.estado='cancelada';delete list.cancelacionExteriorPendiente;
       window.notify('Preparación eliminada. Productos devueltos a proveedores locales; cambio registrado.');renderBalanceCompra();
-    }catch(e){window.notify(window.SVGuardedWrites.errorMessage(e));}
+    }catch(e){const text=window.SVGuardedWrites.errorMessage(e);progress(text+' Podés volver a pulsar el tachito para retomar.');window.notify(text);}
+    finally{cancellationsInFlight.delete(id);if(button){button.disabled=false;button.removeAttribute('aria-busy');}}
   };
 
   function balanceTieneCompraExterior(list) {
+    if(list.cancelacionExteriorPendiente)return true;
     if(list.exteriorCanceladoEn)return false;
     const sim=list.simuladorParaguay;
     // Legacy preparations predate the explicit Apply action. Preserve real priced
     // selections without treating empty simulations as applied purchases.
     if(sim&&Number(sim.version)>0&&Number(sim.version)<6&&[...(sim.rows||[]),...(sim.extras||[])].some(r=>r.include===true&&Number(r.qty)>0&&!!r.providerKey&&Number(r.usd)>0))return true;
     const validForeign=r=>r.method==='exterior'&&Number(r.qty)>0&&!!r.providerKey&&Number(r.agreed)>0;
+    // Guardar una preparación con proveedores exteriores no equivale a aplicar
+    // costos a la venta, pero debe conservarla visible para poder continuar.
+    if(sim&&Number(sim.version)>=6&&[...(sim.rows||[]),...(sim.extras||[])].some(validForeign))return true;
     if(list.origen==='stock_paraguay')return !!(sim&&sim.exteriorAppliedAt&&[...(sim.rows||[]),...(sim.extras||[])].some(validForeign))||!!list.compraConfirmacion;
     function exterior(record){return !!(record&&Array.isArray(record.items)&&record.items.some(function(item){var origin=String(item&&item.origenCompra||'').trim();return Number(item&&item.costoUnitarioCompra)>0&&!!origin&&!/^(argentina|local|nacional|stock)$/i.test(origin);}));}
     if(list.origen==='conjunta')return (list.sources||[]).some(source=>exterior(saleRef(source.ventaFbKey||source.ventaId)));
@@ -1299,11 +1404,11 @@
       var m=balanceIndicadores(list), pct=function(v){return v===null?'—':v.toLocaleString('es-AR',{maximumFractionDigits:2})+'%';};
       var equivalent=function(value){return (m.usd?'USD '+(value/m.usd).toLocaleString('es-AR',{maximumFractionDigits:2}):'USD —')+' · '+(m.usdt?(value/m.usdt).toLocaleString('es-AR',{maximumFractionDigits:2})+' USDT':'USDT —');};
       var amount=function(label,value){return '<div class="bc-amount"><span>'+label+'</span><strong>'+money(value)+'</strong><small>'+equivalent(value)+'</small></div>';};
-      var content=m?'<div class="bc-alert">'+(m.stale?'Selección modificada: recalculá para actualizar esta comparación.':m.incomplete?'Estimación incompleta: faltan gastos. La mejora es provisional.':'Simulación guardada · importes estimados')+'</div><div class="bc-meta">Venta sin IVA: <strong>'+money(m.revenue)+'</strong> · '+(m.applied?'Modalidad elegida: ':'Alternativa comparada: ')+(m.chosen==='remote'?'Envío':'Viaje')+'</div><div class="bc-comparison"><section class="bc-before"><h3>Situación actual</h3><p>Base guardada de la venta / presupuesto</p>'+amount('Ganancia actual estimada',m.currentProfit)+'<div class="bc-margin">Margen <strong>'+pct(m.currentMargin)+'</strong></div><small>Costo total actual: '+money(m.baseline)+'</small></section><section class="bc-after"><h3>Con compra en exterior</h3><p>Mismo importe de venta</p>'+amount('Ganancia proyectada',m.projectedProfit)+'<div class="bc-margin">Margen <strong>'+pct(m.margin)+'</strong></div><small>Costo total proyectado: '+money(m.retained+m.total)+'</small></section></div><div class="bc-improvement '+(m.saving<0?'bc-loss':'')+'">'+amount(m.saving>=0?'Mejora de ganancia estimada':'Disminución de ganancia estimada',m.saving)+'<div><strong>'+pct(m.points)+'</strong><span>del importe de venta sin IVA</span><small>Variación de margen: '+(m.points===null?'—':m.points.toLocaleString('es-AR',{maximumFractionDigits:2}))+' puntos porcentuales</small></div></div><h3 class="bc-cost-title">Cómo se compone el costo proyectado</h3><div class="bc-costs">'+amount('Productos del exterior¹',m.products)+amount('Gastos operativos y cambio¹',m.operating)+amount('Otros costos que se conservan',m.retained)+'</div><p class="bc-footnote">¹ Productos valuados al dólar de referencia. Operativos incluye logística, seguro, traslado y diferencia cambiaria / valoración USDT. Los costos conservados corresponden al resto de la venta. Ganancia antes de comisiones y gastos no incluidos.</p>':'<p>Completá y verificá los costos antes de mostrar ganancia y margen.</p>';
-      var brief=m?'<div class="bc-brief"><span>Costo estimado <strong>'+money(m.retained+m.total)+'</strong></span><span>Margen <strong>'+pct(m.margin)+'</strong></span>'+((m.incomplete||m.stale)?'<small style="color:var(--amber)">Por completar</small>':'')+'</div>':'<div class="bc-brief"><span>Pendiente de preparar</span></div>';
+      var content=m?'<div class="bc-alert">'+(m.stale?'Selección modificada: recalculá para actualizar esta comparación.':m.incomplete?'Estimación incompleta: faltan gastos. La mejora es provisional.':'Simulación guardada · importes estimados')+'</div><div class="bc-meta">Venta sin IVA: <strong>'+money(m.revenue)+'</strong> · '+(m.applied?'Modalidad elegida: ':'Alternativa comparada: ')+(m.chosen==='remote'?'Envío':'Viaje')+'</div><div class="bc-comparison"><section class="bc-before"><h3>Situación actual</h3><p>Base guardada de la venta / presupuesto</p>'+amount('Ganancia actual estimada',m.currentProfit)+'<div class="bc-margin">Margen <strong>'+pct(m.currentMargin)+'</strong></div><small>Costo total actual: '+money(m.baseline)+'</small></section><section class="bc-after"><h3>Con compra en exterior</h3><p>Mismo importe de venta</p>'+amount('Ganancia proyectada',m.projectedProfit)+'<div class="bc-margin">Margen <strong>'+pct(m.margin)+'</strong></div><small>Costo total proyectado: '+money(m.retained+m.total)+'</small></section></div><div class="bc-improvement '+(m.saving<0?'bc-loss':'')+'">'+amount(m.saving>=0?'Mejora de ganancia estimada':'Disminución de ganancia estimada',m.saving)+'<div><strong>'+pct(m.points)+'</strong><span>del importe de venta sin IVA</span><small>Variación de margen: '+(m.points===null?'—':m.points.toLocaleString('es-AR',{maximumFractionDigits:2}))+' puntos porcentuales</small></div></div><h3 class="bc-cost-title">Cómo se compone el costo proyectado</h3><div class="bc-costs">'+amount('Productos del exterior¹',m.products)+amount('Gastos operativos y cambio¹',m.operating)+amount('Otros costos que se conservan',m.retained)+'</div><p class="bc-footnote">¹ Productos valuados al dólar de referencia. Operativos incluye logística, seguro, traslado y diferencia cambiaria / valoración USDT. Los costos conservados corresponden al resto de la venta. Ganancia antes de comisiones y gastos no incluidos.</p>':balancePendingCosts(list);
+      var brief=m?'<div class="bc-brief"><span>Costo estimado <strong>'+money(m.retained+m.total)+'</strong></span><span>Margen <strong>'+pct(m.margin)+'</strong></span>'+((m.incomplete||m.stale)?'<small style="color:var(--amber)">Por completar</small>':'')+'</div>':'<div class="bc-brief"><span>'+((list.simuladorParaguay?.rows||[]).length?'Preparación guardada · revisar pendientes':'Pendiente de preparar')+'</span></div>';
       content=brief+'<details class="bc-cost-detail"><summary>Ver detalle de costos</summary>'+content+'</details>';
-      const trash=!materialListLocked(list)&&!balanceFinalizado(list)?'<button class="btn btn-sm" style="color:var(--red);width:36px;height:36px;padding:0" title="Eliminar preparación" aria-label="Eliminar preparación" onclick="ocEliminarPreparacionExterior(\''+attr(list.fbKey)+'\')"><i class="ti ti-trash" aria-hidden="true"></i></button>':'';
-      return header+'<article class="card bc-card"><div class="bc-head" style="display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start"><div><h2>'+esc(balancePurchaseTitle(list))+'</h2><span>'+esc(list.numero)+' · '+esc(list.estado||'preparacion')+'</span></div>'+trash+'</div>'+content+'<div class="bc-prepare-action" style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn btn-primary" onclick="abrirBalanceCompra(\''+attr(list.fbKey)+'\')">Preparar compra →</button></div></article>';
+      const trash=(list.cancelacionExteriorPendiente||!materialListLocked(list)&&!balanceFinalizado(list))?'<button class="btn btn-sm" style="position:absolute;top:4px;right:4px;color:var(--red);width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Eliminar preparación" aria-label="Eliminar preparación" onclick="ocEliminarPreparacionExterior(\''+attr(list.fbKey)+'\',this)"><i class="ti ti-trash" aria-hidden="true" style="font-size:18px;line-height:1;margin:0;display:block"></i></button>':'';
+      return header+'<article class="card bc-card" style="position:relative"><div class="bc-head" style="display:grid;grid-template-columns:minmax(0,1fr);align-items:start;padding-right:32px;min-height:30px"><div><h2>'+esc(balancePurchaseTitle(list))+'</h2><span>'+esc(list.numero)+' · '+esc(list.estado||'preparacion')+'</span></div>'+trash+'</div>'+content+'<div class="bc-prepare-action" style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn btn-primary" onclick="abrirBalanceCompra(\''+attr(list.fbKey)+'\')">Preparar compra →</button></div></article>';
 
     }).join(''):'<p>No hay listas de compra con origen exterior aplicado. Las compras locales quedan fuera de este balance por ahora.</p>')+'</div>';
     collapseExteriorSections(target,opened,active,lists.length-active);

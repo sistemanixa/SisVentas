@@ -67,7 +67,7 @@
     const chosen=draft.chosen;
     if(!['remote','onsite'].includes(chosen))pending.push('Elegir modalidad de entrega');
     ['usd','usdt','usdtPerUsd','shippingInsuredUSD','remoteOther','tripTotalARS','fee','extraLogisticsUSD'].forEach(k=>{if(p[k]!==undefined&&p[k]!==''&&!valid(p[k]))pending.push('Importe inválido: '+k);});
-    rows.forEach(r=>{if(!['exterior','local','stock'].includes(r.method))pending.push('Elegir destino: '+r.description);if(!valid(r.existing))pending.push('Revisar stock: '+r.description);r.include=r.method==='exterior';r.existing=r.method==='stock'?num(r.needed):num(r.existing);r.qty=r.method==='stock'?0:r.requestedQty==null?Math.max(0,num(r.needed)-r.existing):num(r.requestedQty);if(r.qty+r.existing>num(r.needed)||!valid(r.requestedQty??r.qty))pending.push('Revisar cantidad: '+r.description);if(r.qty+r.existing<num(r.needed))pending.push('Cantidad pendiente de resolver: '+r.description);r.baselinePart=r.qty*num(r.baselineUnit);r.providerOverride=true;});
+    rows.forEach(r=>{if(!['exterior','local','stock'].includes(r.method))pending.push('Elegir destino: '+r.description);if(!valid(r.existing))pending.push('Revisar stock: '+r.description);r.include=r.method==='exterior';r.existing=r.method==='stock'?num(r.needed):num(r.existing);r.qty=r.method==='stock'?0:r.requestedQty==null?Math.max(0,num(r.needed)-r.existing):num(r.requestedQty);if(r.qty+r.existing>num(r.needed)||!valid(r.requestedQty??r.qty))pending.push('Revisar cantidad: '+r.description);if(r.qty+r.existing<num(r.needed))pending.push('Cantidad pendiente: falta resolver '+(num(r.needed)-r.qty-r.existing).toLocaleString('es-AR')+' de '+num(r.needed).toLocaleString('es-AR')+': '+r.description);r.baselinePart=r.qty*num(r.baselineUnit);r.providerOverride=true;});
     extras.forEach(r=>{r.include=r.method!=='local';if(!r.include)r.usd=0;});
     const active=rows.filter(r=>r.include&&r.qty>0),buy=rows.filter(r=>r.qty>0).concat(extras),foreign=active.concat(extras.filter(r=>r.include)),hasForeign=foreign.length>0;
     buy.forEach(r=>{
@@ -127,9 +127,9 @@
       const qty=num(item.qty??item.cantidad??item.cant);
       if(!qty||qty!==num(r.needed))throw new Error('Cambió la cantidad de la venta. Volvé a abrir la preparación.');
       if(num(item.cantidadCompraReal)>0)throw new Error('El producto ya tiene una recepción registrada. Revisá la compra antes de cambiar su costo.');
-      if(r.method!=='stock'&&(!r.providerKey||!(num(r.agreed)>0)))return;
+      if(r.method!=='stock'&&(!r.providerKey||!(num(r.agreed)>0)))throw new Error('Faltan proveedor o precio acordado: '+r.code);
       if(r.method==='exterior'&&!(num(rate)>0))throw new Error('Falta la cotización del dólar para actualizar la venta.');
-      const original=num(item.costoUnitarioAntesPreparacion??(costOfItem(item)/qty));
+      const original=num(item.costoUnitarioAntesPreparacion??item.costoCompraAnterior??item.costoUnitarioPresupuestado??(costOfItem(item)/qty));
       const purchased=r.method==='stock'?0:r.requestedQty==null?Math.max(0,qty-num(r.existing)):num(r.requestedQty);
       if(purchased+num(r.existing)>qty)throw new Error('La cantidad supera lo necesario para la venta. Agregá el excedente como extra para stock.');
       const existing=qty-purchased;
@@ -141,6 +141,8 @@
       item.proveedorCompra=r.method==='stock'?'Stock disponible':r.provider;
       item.proveedorCompraKey=r.method==='stock'?'':r.providerKey;
       item.origenCompra=r.method==='exterior'?'Exterior':r.method==='stock'?'Stock':'Local';
+      if(r.method==='exterior')item.compraExteriorAplicada={origen:'preparacion',proveedor:r.provider,proveedorKey:r.providerKey,cantidad:purchased,cantidadStock:num(r.existing),cantidadPendiente:Math.max(0,qty-purchased-num(r.existing)),precioUnitarioUSD:num(r.agreed),cotizacion:num(rate)};
+      else delete item.compraExteriorAplicada;
       item.precioAcordadoCompra=r.method==='stock'?original:num(r.agreed);
       item.monedaCompra=r.method==='exterior'?'USD':'ARS';
       item.cotizacionCompra=r.method==='exterior'?num(rate):1;
@@ -230,7 +232,7 @@
       const qty=extra?num(r.qty):r.method==='stock'?0:r.requestedQty==null?Math.max(0,num(r.needed)-num(r.existing)):num(r.requestedQty);
       const accept=r.method!=='stock'&&r.reference?.currency===currency&&r.reference?.providerKey===r.providerKey&&num(r.reference?.amount)>0&&!num(r.agreed);
       const link=providerLink(r,ctx.catalog,ctx.providers);
-      return '<article data-card-id="'+id+'" class="ep-card"><div class="ep-product">'+(ctx.thumbnail?.(r)||'')+'<div><strong>'+esc(r.description)+'</strong></div></div>'+
+      return '<article data-card-id="'+id+'" class="ep-card"><div class="ep-product">'+(ctx.thumbnail?.(r)||'')+'<div><strong>'+esc(r.description)+'</strong>'+(extra?'':'<small data-quantity-status="'+id+'" style="display:block;margin-top:6px;line-height:1.5" aria-live="polite"></small>')+'</div></div>'+
         '<div><small>Cantidad</small>'+(extra?'<input class="search-input" aria-label="Cantidad extra" type="number" min="1" step="1" data-item="'+id+'" data-field="qty" value="'+r.qty+'">':'<input class="search-input" aria-label="Cantidad a comprar '+esc(r.code)+'" type="number" min="0" max="'+Math.max(0,num(r.needed)-num(r.existing))+'" step="any" data-item="'+id+'" data-field="requestedQty" value="'+qty+'" '+(r.method==='stock'?'disabled':'')+'>')+'</div>'+
         '<div><small>'+(r.reference?.converted?'Referencia convertida':'Precio leído')+'</small><strong>'+(num(r.reference?.amount)>0?esc(r.reference?.currency||currency)+' '+money(r.reference.amount):'Sin precio registrado')+'</strong>'+(r.reference?.converted?'<small>Según cotización guardada</small>':'')+(num(r.reference?.amount)>0?'<small>'+equivalentHTML(r.reference.amount,r.reference.currency||currency)+'</small>':'')+'</div>'+
         '<label>Precio acordado · '+currency+'<div class="ep-price"><input class="search-input" type="number" min="0.01" step="0.01" data-item="'+id+'" data-field="agreed" value="'+esc(r.agreed==null||r.agreed===''?'':Number(r.agreed).toFixed(2))+'" placeholder="Pendiente" '+(r.method==='stock'?'disabled':'')+'>'+(accept?'<button class="btn btn-sm" data-accept="'+id+'" title="Usar precio leído" aria-label="Usar precio leído">=</button>':'')+'</div><small data-unit-equivalent="'+id+'"></small></label>'+
@@ -260,6 +262,12 @@
     }
     function refreshAmounts(){
       const totals=agreedSummary(d);
+      frame.querySelectorAll('[data-quantity-status]').forEach(node=>{
+        const r=rowFor(node.dataset.quantityStatus),needed=num(r.needed),stock=r.method==='stock'?needed:num(r.existing),qty=r.method==='stock'?0:r.requestedQty==null?Math.max(0,needed-stock):num(r.requestedQty),missing=needed-stock-qty;
+        const fmt=n=>n.toLocaleString('es-AR');
+        node.textContent='Necesitás '+fmt(needed)+' · A comprar '+fmt(qty)+' · Del stock '+fmt(stock)+(missing>0?' · Falta resolver '+fmt(missing):missing<0?' · Sobran '+fmt(-missing):' · Cantidad completa');
+        node.style.color=missing?'var(--amber,#e5b83b)':'var(--text3)';
+      });
       frame.querySelectorAll('[data-line-total]').forEach(node=>{
         const r=rowFor(node.dataset.lineTotal),qty=r.destination==='stock'?num(r.qty):r.method==='stock'?0:r.requestedQty==null?Math.max(0,num(r.needed)-num(r.existing)):num(r.requestedQty);
         node.textContent=valid(r.agreed)?(r.method==='exterior'?'USD ':'ARS ')+money(qty*num(r.agreed)):'Pendiente';

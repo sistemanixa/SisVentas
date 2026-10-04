@@ -87,12 +87,14 @@
       const body=JSON.stringify(next);
       if(new TextEncoder().encode(body).byteLength>128*1024*1024)throw new Error('La operación requiere procesamiento del servidor. No se guardaron cambios.');
       checkSession();
-      url.searchParams.set('print','silent');
+      // Las escrituras condicionales deben conservar la respuesta normal.
       const write=await root.fetch(url.href,{method:'PUT',headers:{'if-match':etag,'Content-Type':'application/json'},body,signal:AbortSignal.timeout(90000)});
       if(write.ok)return {committed:true};
       if(write.status===412){url.searchParams.delete('print');continue;}
       if(write.status===401||write.status===403)throw new Error('No tenés permiso para completar esta operación.');
-      throw new Error('No se pudo confirmar la operación. Verificá el estado antes de reintentar.');
+      const detail=await write.json().catch(()=>({}));
+      console.warn('[GuardedWrite]',write.status,String(detail.error||'').slice(0,200));
+      throw new Error('No se pudo confirmar la operación (HTTP '+write.status+'). Verificá el estado antes de reintentar.');
     }
     throw conflict();
   }
