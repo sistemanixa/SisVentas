@@ -1,11 +1,17 @@
-const {chromium}=require('playwright'),assert=require('node:assert/strict');
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 (async()=>{const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});try{const page=await browser.newPage();await page.setContent('<body><div id="roles"></div></body>');await page.addStyleTag({path:'css/app.css'});
 await page.evaluate(()=>{window.config={chat:true,detalle:true,editar:true,crear:true};window.writes=[];window.currentRole='distribuidora';window.currentUserUid='test';window.fbDB={};window.fbRef=(_,p)=>p;window.fbPush=()=>({key:'new'});window.fbServerTimestamp=()=>Date.now();window.fbUpdate=async(_,v)=>{writes.push(v)};window.fbSet=async(_,v)=>{config=v};window.fbGet=async()=>({val:()=>config});window.fbOnValue=(_,cb)=>{window.configCallback=cb;cb({val:()=>config});return()=>{}};window.imagenCatalogoHTML=()=>'';window.precioVentaCanonicoProducto=()=>({precioARS:100});});
 await page.addScriptTag({path:'js/modules/distribuidora-access.js'});await page.evaluate(()=>SVDistribuidora.start());
 await page.evaluate(()=>SVDistribuidora.detail('p',{nombre:'Ejemplo',codigo:'P-1',categoria:'COMPRAS PARAGUAY',codWeb:'https://example.com/primary',marca:'Original'}));
+const app=fs.readFileSync('js/app.v3.9.14.js','utf8');const a=app.indexOf('function svPrepararModalGestionable('),b=app.indexOf('function svPrepararModalesGestionables(',a);await page.addScriptTag({content:app.slice(a,b)});
+await page.evaluate(()=>svPrepararModalGestionable(document.querySelector('.sv-distribuidora-detail')));
+assert.equal(await page.locator('.sv-distribuidora-detail').getAttribute('data-sv-modal-gestionable'),null);
+for(const width of [1146,768,390]){await page.setViewportSize({width,height:900});const bounds=await page.locator('.sv-distribuidora-detail').evaluate(n=>({client:n.clientWidth,scroll:n.scrollWidth}));assert.ok(bounds.scroll<=bounds.client+1);}
+await page.setViewportSize({width:1146,height:900});await page.screenshot({path:'tmp/distribuidora-ficha-prueba.png'});
 await page.getByRole('button',{name:'Editar producto',exact:true}).click();await page.locator('[name=nombre]').fill('Modificado');await page.getByRole('button',{name:'Guardar producto',exact:true}).click();
 const write=await page.evaluate(()=>writes[0]);assert.equal(write['sisventas/productos/p/nombre'],'Modificado');assert.equal(write['sisventas/productos/p/codWeb'],'https://example.com/primary');assert.equal(write['sv_distribuidora_auditoria/new'].accion,'editar');assert.equal(Object.keys(write).some(k=>k.endsWith('/categoria')),false);
 await page.evaluate(()=>SVDistribuidora.edit(null,null));await page.locator('[name=codigo]').fill('D-1');await page.locator('[name=nombre]').fill('Nuevo');await page.getByRole('button',{name:'Guardar producto',exact:true}).click();assert.equal(await page.evaluate(()=>writes[1]['sisventas/productos/new'].categoria),'COMPRAS PARAGUAY');
 await page.evaluate(()=>{currentRole='admin';SVDistribuidora.renderSettings(document.getElementById('roles'))});await page.getByLabel('Editar datos del producto').uncheck();await page.getByRole('button',{name:'Guardar permisos de Distribuidora'}).click();assert.equal(await page.evaluate(()=>config.editar),false);
 await page.screenshot({path:'tmp/distribuidora-permisos.png',fullPage:true});console.log('OK ficha, edición, URL preservada, alta dentro de categoría, auditoría y configuración.');
 }finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});
+
