@@ -9,7 +9,7 @@
  function allowed(key){return root.currentRole==='admin'||(root.currentRole==='distribuidora'&&!!permissions?.[key]);}
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function publicProviders(list){
-  const out={};for(const p of list||[]){const country=String(p.pais||'').trim();const exterior=/paraguay|flytec/i.test(country+' '+(p.nombre||''))||(country&&!/^(argentina|ar|arg)$/i.test(country));if(!exterior)continue;const id=p.fbKey||p.key||p.id;if(!id)continue;out[id]={};for(const k of ['nombre','web','pais','monedaPrecios','activo','base','favorito','preciosSinIva','descuentoPorcentaje'])if(p[k]!==undefined)out[id][k]=p[k];}return out;
+  const out={};for(const p of list||[]){const id=p.fbKey||p.key||p.id;if(!id)continue;out[id]={};for(const k of ['nombre','web','pais','monedaPrecios','activo','base','favorito','preciosSinIva','descuentoPorcentaje'])if(p[k]!==undefined)out[id][k]=p[k];}return out;
  }
  if(typeof module!=='undefined')module.exports={clean,eligible,publicProviders};
  if(!root.document)return;

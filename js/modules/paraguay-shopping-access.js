@@ -82,6 +82,26 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const amount = n => Number(n).toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
   const exchangeRate = () => Number(root.obtenerDolarReferenciaProducto?.().valor)||0;
+  function renderExchangeReference() {
+    if(!panel)return;
+    let node=panel.querySelector('[data-dollar-reference]');
+    if(!node){
+      node=document.createElement('div');
+      node.className='topbar-dolar';
+      node.dataset.dollarReference='';
+      node.setAttribute('role','status');
+      node.setAttribute('aria-label','Cotización del dólar');
+      node.style.cssText='cursor:default;line-height:1.3;flex-wrap:wrap;justify-content:center';
+      node.innerHTML='<span class="topbar-dolar-label">USD</span><strong data-dollar-value style="color:var(--blue)"></strong><span data-dollar-type></span>';
+      panel.querySelector('.topbar-right').prepend(node);
+    }
+    const reference=root.obtenerDolarReferenciaProducto?.()||{},cfg=root.TIPO_CAMBIO_CONFIG||{};
+    const type=Number(cfg[reference.tipo])>0?reference.tipo:(['oficial','blue','mep'].find(key=>Number(cfg[key])>0)||reference.tipo||'referencia');
+    const label=({oficial:'Oficial',blue:'Blue',mep:'MEP',ccl:'CCL',tarjeta:'Tarjeta',venta:'Venta',referencia:'Referencia'})[type]||type;
+    node.querySelector('[data-dollar-value]').textContent=Number(reference.valor)>0?'$ '+amount(reference.valor):'Sin cotización';
+    node.querySelector('[data-dollar-type]').textContent=label;
+    node.title='Dólar de referencia del catálogo · '+label+' · Pesos argentinos por USD';
+  }
   function salePriceHTML(p) {
     const reference=root.obtenerDolarReferenciaProducto?.()||{}, values=saleAmounts(p,reference.valor);
     const cfg=root.TIPO_CAMBIO_CONFIG||{};
@@ -185,6 +205,9 @@
     modal.dataset.svModalBehavior='compact';modal.className='catalogo-modal';modal.dataset.detailModal='';modal.dataset.productKey=key;modal.style.cssText='display:flex;z-index:100100';
     modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-label',p.nombre || p.descripcion);
     modal.innerHTML='<div class="catalogo-modal-card"><button class="catalogo-modal-close" data-close-detail aria-label="Cerrar detalle">×</button><div class="catalogo-modal-imagen">'+root.imagenCatalogoHTML(p,'catalogo-modal-img')+'</div><div class="catalogo-modal-info"><span class="catalogo-card-cat">Ofertas</span><h2>'+esc(p.nombre || p.descripcion)+'</h2><div class="catalogo-modal-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p style="white-space:pre-wrap">'+esc(p.catalogoDescripcion || p.descripcion || 'Sin descripción adicional')+'</p><div data-detail-price aria-live="polite">'+salePriceHTML(p)+mlBadge(p,price)+'</div><button class="catalogo-agregar-carrito" style="display:flex;margin-top:18px" data-modal-add aria-label="Agregar al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i></button><p data-modal-qty aria-live="polite"></p></div></div>';
+    if(root.SVPublicCatalog&&['admin','distribuidora'].includes(root.currentRole)){
+      const share=document.createElement('button');share.className='btn';share.textContent='Compartir URL';share.style.marginTop='12px';share.onclick=()=>root.SVPublicCatalog.share(key,products,share);modal.querySelector('.catalogo-modal-info').appendChild(share);
+    }
     const detailKeys=Object.entries(products).filter(([,product])=>eligible(product)&&[product.nombre,product.descripcion,product.codigo,product.marca].join(' ').toLowerCase().includes(panel.querySelector('[data-search]').value.toLowerCase())).map(([id])=>id);
     if(sourceUrl){
       const link=document.createElement('a');link.href=sourceUrl;link.target='_blank';link.rel='noopener noreferrer';link.className='btn btn-primary';link.textContent='Ver producto ↗';link.title='Abrir la página original del producto';link.style.cssText='display:inline-flex;align-self:flex-start;margin-top:14px;text-decoration:none';
@@ -348,6 +371,7 @@
         #screen-paraguay>.app{flex:1;min-height:0;width:100%;overflow:hidden}
         #screen-paraguay .main{min-height:0;min-width:0}
         #screen-paraguay .topbar{flex-shrink:0}
+        @media(max-width:600px){#screen-paraguay .topbar{display:flex;flex-wrap:wrap;height:auto;gap:8px;padding:10px 12px}#screen-paraguay .topbar-right{flex-wrap:wrap;gap:8px}}
         #screen-paraguay .nav-item{width:100%;font-family:inherit;text-align:left;background:transparent}
         #screen-paraguay .nav-item.active{background:var(--bg3)}
         #screen-paraguay .py-list-fields{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,2fr);gap:14px}
@@ -448,6 +472,7 @@
         </div>
       </div>`;
     document.body.appendChild(panel);
+    renderExchangeReference();
     if(role==='distribuidora'){
       const create=document.createElement('button');create.className='btn btn-primary';create.textContent='Nuevo producto';create.onclick=()=>root.SVDistribuidora.edit(null,null);panel.querySelector('[data-products-card] .card-head').appendChild(create);
       const refreshPermissions=()=>{create.hidden=!root.SVDistribuidora.allowed('crear');if(detailModal)detailModal.remove();};refreshPermissions();document.addEventListener('sisventas:distribuidora-permissions',refreshPermissions);stops.push(()=>document.removeEventListener('sisventas:distribuidora-permissions',refreshPermissions));
@@ -627,7 +652,7 @@
       link.href=url;link.download='lista-compras-paraguay.csv';link.click();URL.revokeObjectURL(url);
     };
     const query = root.fbQuery(root.fbRef(root.fbDB,'sisventas/productos'),root.fbOrderByChild('categoria'),root.fbEqualTo(CATEGORY));
-    stops.push(subscribeExchangeRate(root,valid,()=>{if(panel)renderProducts();},()=>status('No se pudo cargar la cotización. Revisá la conexión y volvé a ingresar.')));
+    stops.push(subscribeExchangeRate(root,valid,()=>{if(panel){renderExchangeReference();renderProducts();}},()=>status('No se pudo cargar la cotización. Revisá la conexión y volvé a ingresar.')));
     stops.push(root.fbOnValue(query,snap=>{if(!valid())return;products=snap.val()||{};if(panel)renderProducts();},()=>status('No se pudo cargar el catálogo autorizado.')));
     let initialList = options.listKey || '';
     stops.push(root.fbOnValue(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid),snap=>{if(!valid())return;lists=snap.val()||{};if(panel){if(initialList){listKey=initialList;initialList='';const list=lists[listKey]||{};listBaseline=structuredClone(list);selected={...list.productos};purchases=structuredClone(list.comprasFinales||{});panel.querySelector('[data-name]').value=list.nombre||'';renderProducts();}renderLists();}},()=>status('No se pudieron cargar tus listas.')));

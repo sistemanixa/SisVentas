@@ -370,6 +370,35 @@
           }
         }
       }
+    },
+    "sv_catalogo_publico_index": {
+      ".read": true,
+      "$producto": {
+        ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && (root.child('sv_distribuidora_permisos/editar').val() === true || root.child('sv_distribuidora_permisos/crear').val() === true)))",
+        ".validate": "newData.val() === true && (root.child('sisventas/productos').child($producto).exists() && root.child('sisventas/productos').child($producto).child('categoria').val() === 'COMPRAS PARAGUAY' && root.child('sisventas/productos').child($producto).child('catalogoVisible').val() !== false && root.child('sisventas/productos').child($producto).child('activo').val() !== false && root.child('sisventas/productos').child($producto).child('estado').val() !== 'Inactivo' && root.child('sisventas/productos').child($producto).child('estado').val() !== 'inactivo' && root.child('sisventas/productos').child($producto).child('esManoDeObra').val() !== true)"
+      }
+    },
+    "sv_catalogo_publico": {
+      "$producto": {
+        ".read": "root.child('sisventas/productos').child($producto).exists() && root.child('sisventas/productos').child($producto).child('categoria').val() === 'COMPRAS PARAGUAY' && root.child('sisventas/productos').child($producto).child('catalogoVisible').val() !== false && root.child('sisventas/productos').child($producto).child('activo').val() !== false && root.child('sisventas/productos').child($producto).child('estado').val() !== 'Inactivo' && root.child('sisventas/productos').child($producto).child('estado').val() !== 'inactivo' && root.child('sisventas/productos').child($producto).child('esManoDeObra').val() !== true",
+        ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && (root.child('sv_distribuidora_permisos/editar').val() === true || root.child('sv_distribuidora_permisos/crear').val() === true)))",
+        ".validate": "(root.child('sisventas/productos').child($producto).exists() && root.child('sisventas/productos').child($producto).child('categoria').val() === 'COMPRAS PARAGUAY' && root.child('sisventas/productos').child($producto).child('catalogoVisible').val() !== false && root.child('sisventas/productos').child($producto).child('activo').val() !== false && root.child('sisventas/productos').child($producto).child('estado').val() !== 'Inactivo' && root.child('sisventas/productos').child($producto).child('estado').val() !== 'inactivo' && root.child('sisventas/productos').child($producto).child('esManoDeObra').val() !== true) && newData.hasChildren(['nombre','marca','descripcion','imagenUrl'])",
+        "nombre": {
+          ".validate": "newData.isString() && newData.val() === root.child('sisventas/productos').child($producto).child('nombre').val()"
+        },
+        "marca": {
+          ".validate": "newData.isString() && (newData.val() === '' || newData.val() === root.child('sisventas/productos').child($producto).child('marca').val())"
+        },
+        "descripcion": {
+          ".validate": "newData.isString() && (newData.val() === '' || newData.val() === root.child('sisventas/productos').child($producto).child('catalogoDescripcion').val() || newData.val() === root.child('sisventas/productos').child($producto).child('descripcion').val())"
+        },
+        "imagenUrl": {
+          ".validate": "newData.isString() && (newData.val() === '' || (newData.val().beginsWith('https://') && newData.val() === root.child('sisventas/productos').child($producto).child('imagenUrl').val()))"
+        },
+        "$otro": {
+          ".validate": false
+        }
+      }
     }
   }
 }

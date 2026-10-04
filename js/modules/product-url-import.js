@@ -50,7 +50,7 @@
       panel = document.createElement('div');
       panel.id = 'pf-envio-paraguay-panel';
       panel.style.marginTop = '12px';
-      panel.innerHTML = '<label for="pf-envio-paraguay">Costo de envío ARS</label><input id="pf-envio-paraguay" type="number" min="0" step="0.01" value="0" style="max-width:260px" oninput="actualizarEnvioComprasParaguay()"><div style="font-size:12px;color:var(--text3);margin-top:5px">Envío por producto, en pesos. Se suma al precio de la página convertido a ARS.</div>';
+      panel.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:12px"><div style="flex:1 1 180px;max-width:260px"><label for="pf-envio-paraguay">Costo de envío ARS</label><input id="pf-envio-paraguay" type="number" min="0" step="1" inputmode="numeric" value="0" oninput="actualizarEnvioComprasParaguay()"></div><div style="flex:1 1 180px;max-width:260px"><label for="pf-envio-paraguay-usd">Costo de envío USD</label><input id="pf-envio-paraguay-usd" type="number" min="0" step="0.01" inputmode="decimal" value="0" oninput="actualizarEnvioComprasParaguay(\'USD\')"></div></div><div id="pf-envio-cambio" style="font-size:12px;color:var(--text3);margin-top:5px" aria-live="polite"></div>';
       el('pf-importar-panel').appendChild(panel);
     }
     var url = urlExacta(el('pf-cod-web').value);
@@ -60,6 +60,7 @@
       var fila = prodProveedoresActuales.find(function(p) { return urlExacta(p.url) === url; });
       el('pf-envio-paraguay').value = fila ? Number(fila.costoEnvioArs) || 0 : 0;
       el('pf-envio-paraguay').setCustomValidity('');
+      sincronizarEnvioUSD();
       panel.dataset.url = url;
     }
     if (activa && seleccionarCategoria) {
@@ -76,11 +77,30 @@
       }
     }
   }
-  window.actualizarEnvioComprasParaguay = function () {
-    var input = el('pf-envio-paraguay');
+  function sincronizarEnvioUSD() {
+    var usd=el('pf-envio-paraguay-usd'),ars=el('pf-envio-paraguay');
+    if(!usd||!ars)return;
+    var rate=Number(obtenerDolarReferenciaProducto().valor);
+    usd.disabled=!(Number.isFinite(rate)&&rate>0);
+    usd.value=usd.disabled?'':(Number(ars.value)/rate).toFixed(2);
+    usd.setCustomValidity('');
+    el('pf-envio-cambio').textContent=usd.disabled?'Sin cotización: podés cargar el envío en pesos.':'1 USD = ARS $ '+rate.toLocaleString('es-AR')+' · Envío por unidad. Se guarda en pesos enteros, redondeado al peso más cercano.';
+  }
+  window.actualizarEnvioComprasParaguay = function (moneda) {
+    var input = el('pf-envio-paraguay'),usd=el('pf-envio-paraguay-usd');
     var valor = Number(input.value);
-    input.setCustomValidity(Number.isFinite(valor) && valor >= 0 ? '' : 'El envío debe ser un importe igual o mayor que cero');
-    if (!Number.isFinite(valor) || valor < 0) return;
+    if(moneda==='USD'){
+      var rate=Number(obtenerDolarReferenciaProducto().valor),dollars=Number(usd.value);
+      var valid=usd.value!==''&&Number.isFinite(dollars)&&dollars>=0&&Math.abs(dollars*100-Math.round(dollars*100))<0.000001&&Number.isFinite(rate)&&rate>0;
+      var error=valid?'':'Ingresá un envío válido en dólares, con hasta dos decimales y una cotización disponible';
+      usd.setCustomValidity(error);input.setCustomValidity(error);
+      if(!valid)return;
+      valor=Math.round(dollars*rate);
+      input.value=String(valor);
+    }
+    input.setCustomValidity(input.value!==''&&Number.isSafeInteger(valor) && valor >= 0 ? '' : 'El envío debe ser un importe entero en pesos, igual o mayor que cero');
+    if(input.value===''||!Number.isSafeInteger(valor) || valor < 0) return;
+    if(moneda!=='USD')sincronizarEnvioUSD();
     var url = urlExacta(el('pf-cod-web').value);
     prodProveedoresActuales.forEach(function(p, i) {
       if (esComprasParaguay(url) && urlExacta(p.url) === url) actualizarProveedorProducto(i, 'costoEnvioArs', valor);
@@ -179,6 +199,7 @@
     if (el('pf-envio-paraguay')) {
       el('pf-envio-paraguay').value = fila ? Number(fila.costoEnvioArs) || 0 : 0;
       el('pf-envio-paraguay').setCustomValidity('');
+      sincronizarEnvioUSD();
     }
   };
   window.sugerirProveedorFicha = function (aplicarValores) {
