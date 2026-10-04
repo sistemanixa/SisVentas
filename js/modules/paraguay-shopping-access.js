@@ -31,7 +31,7 @@
   async function removeShoppingList(ownerUid, key, name) {
     const actor=root.currentUserUid, role=root.currentRole;
     const allowed=()=>root.currentUserUid===actor&&root.currentRole===role&&!!actor&&
-      ((role==='admin'&&root.permisoModulo?.('balancecompra'))||(role==='compras_paraguay'&&ownerUid===actor));
+      ((role==='admin'&&root.permisoModulo?.('balancecompra'))||(['compras_paraguay','distribuidora'].includes(role)&&ownerUid===actor));
     if(!allowed()||![ownerUid,key].every(v=>typeof v==='string'&&v.length&&!/[.#$\[\]\/]/.test(v)))throw Error('Sin permiso para eliminar esta lista.');
     if(!root.confirm('¿Eliminar la lista «'+name+'»? Esta acción no modifica productos, stock ni órdenes de compra.'))return false;
     if(!allowed())throw Error('La sesión cambió. Volvé a ingresar.');
@@ -319,7 +319,7 @@
   async function open(nombre, options = {}) {
     close();
     const admin = root.currentRole === 'admin' && root.permisoModulo?.('balancecompra');
-    if ((!admin && root.currentRole !== 'compras_paraguay') || !root.currentUserUid) return;
+    if ((!admin && !['compras_paraguay','distribuidora'].includes(root.currentRole)) || !root.currentUserUid) return;
     const actor = root.currentUserUid, role = root.currentRole, session = generation;
     const uid = admin && options.ownerUid || actor;
     const valid = () => generation === session && root.currentUserUid === actor && root.currentRole === role;
@@ -415,7 +415,7 @@
         <aside class="sidebar" aria-label="Navegación de Ofertas">
           <div class="s-logo"><div class="s-brand">SisVentas</div><div class="s-sub">powered by Nixa</div></div>
           <nav class="s-nav"><div class="s-section">Compras</div><button class="nav-item active" data-nav="products"><i class="ti ti-package" aria-hidden="true"></i> Ofertas</button><button class="nav-item" data-nav="lists"><i class="ti ti-list-check" aria-hidden="true"></i> Mis listas de compra</button></nav>
-          <div class="s-foot"><div class="s-user"><div class="s-avatar admin">${esc(nombre.slice(0,2).toUpperCase())}</div><div style="min-width:0"><div class="s-uname">${esc(nombre)}</div><div class="s-urole">Ofertas</div></div></div><button class="btn btn-sm" data-logout style="width:100%;justify-content:center;margin-top:8px"><i class="ti ti-logout" aria-hidden="true"></i> Cerrar sesión</button></div>
+          <div class="s-foot"><div class="s-user"><div class="s-avatar admin">${esc(nombre.slice(0,2).toUpperCase())}</div><div style="min-width:0"><div class="s-uname">${esc(nombre)}</div><div class="s-urole">${role === 'distribuidora' ? 'Distribuidora' : 'Ofertas'}</div></div></div><button class="btn btn-sm" data-logout style="width:100%;justify-content:center;margin-top:8px"><i class="ti ti-logout" aria-hidden="true"></i> Cerrar sesión</button></div>
         </aside>
         <div class="main">
           <header class="topbar"><div style="display:flex;align-items:center;gap:10px"><button class="btn btn-icon py-menu" data-menu aria-label="Abrir menú" aria-expanded="false"><i class="ti ti-menu-2" aria-hidden="true"></i></button><span class="page-title">Ofertas</span></div><div class="topbar-center"><span class="topbar-date">${esc(new Date().toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'}))}</span></div><div class="topbar-right"><span class="catalogo-carrito-indicador"><i class="ti ti-shopping-cart" aria-hidden="true"></i> <button type="button" class="catalogo-carrito-contador" style="border:0;cursor:pointer;color:var(--bg);font:inherit;font-weight:700" data-cart aria-label="Ver carrito"><span data-cart-count aria-live="polite">0</span></button><span class="catalogo-carrito-importe"><span data-cart-amount></span> <small data-cart-iva hidden>con IVA</small></span></span><button class="icon-btn" data-appearance aria-label="Aspecto visual" title="Aspecto visual"><i class="ti ti-settings" aria-hidden="true"></i></button></div></header>
@@ -626,6 +626,7 @@
   if (typeof originalRoles === 'function') root._renderTablaRolesUI = function() {
     originalRoles.apply(this,arguments);
     const container = document.getElementById('cfg-roles-tabla');
+    if (container) container.insertAdjacentHTML('afterbegin','<section class="card" aria-label="Rol Distribuidora"><div class="card-head"><span class="card-title">Distribuidora</span><span class="badge">Acceso limitado</span></div><p>Catálogo de COMPRAS PARAGUAY, listas propias y chat general y directo. Comparte la base de SisVentas; sin acceso a los módulos administrativos.</p></section>');
     if (container) container.insertAdjacentHTML('afterbegin','<section class="card" aria-label="Rol Compras Paraguay"><div class="card-head"><span class="card-title">Compras Paraguay</span><span class="badge">Acceso limitado</span></div><p>Catálogo exclusivo de la categoría COMPRAS PARAGUAY, listas de compra propias y ajustes de apariencia.</p><p style="font-size:12px;color:var(--text3)">Este rol se asigna desde Usuarios. No tiene acceso a los módulos generales ni modifica productos.</p></section>');
   };
   document.addEventListener('sisventas:session-ended',close);

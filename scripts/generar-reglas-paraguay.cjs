@@ -47,7 +47,7 @@ function reglasParaguay(base) {
       }
     }
   };
-  return result;
+  return require('./generar-reglas-distribuidora.cjs').reglasDistribuidora(result);
 }
 if(require.main===module) {
   const [source,target]=process.argv.slice(2);

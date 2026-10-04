@@ -13,7 +13,7 @@
   };
   var labels={ordenes_trabajo:'órdenes de trabajo',pagos:'cobros'};
   function collection(reference){
-    try{var path=new URL(String(reference)).pathname;var match=path.match(/^\/sisventas\/([^/]+)\/?$/);return match?decodeURIComponent(match[1]):'';}catch(_){return '';}
+    try{var path=new URL(String(reference)).pathname;if(/^\/sv_usuarios\/?$/.test(path))return 'usuarios';var match=path.match(/^\/sisventas\/([^/]+)\/?$/);return match?decodeURIComponent(match[1]):'';}catch(_){return '';}
   }
   function status(keys){
     var missing=keys.filter(function(k){return !states[k]||!states[k].ready;});

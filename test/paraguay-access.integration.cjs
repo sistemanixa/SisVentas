@@ -7,7 +7,7 @@ before(async()=>{
   if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!=='127.0.0.1:9005')throw Error('Solo emulador local');
   env=await initializeTestEnvironment({projectId:'demo-sisventas-security',database:{host:'127.0.0.1',port:9005,rules:fs.readFileSync('security/database.paraguay.rules.json','utf8')}});
   await env.withSecurityRulesDisabled(async c=>set(ref(c.database()),{
-    sv_chat_roles:{...Object.fromEntries(['administrativo','vendedor','tecnico','tecnico_vendedor'].map(rol=>[rol,{rol,activo:true}])),py:{rol:'compras_paraguay',activo:true},otro:{rol:'compras_paraguay',activo:true},admin:{rol:'admin',activo:true},baja:{rol:'compras_paraguay',activo:false}},
+    sv_chat_roles:{dist:{rol:'distribuidora',activo:true},distBaja:{rol:'distribuidora',activo:false},...Object.fromEntries(['administrativo','vendedor','tecnico','tecnico_vendedor'].map(rol=>[rol,{rol,activo:true}])),py:{rol:'compras_paraguay',activo:true},otro:{rol:'compras_paraguay',activo:true},admin:{rol:'admin',activo:true},baja:{rol:'compras_paraguay',activo:false}},
     sv_usuarios:{userpy:{uid:'py',rol:'compras_paraguay',nombre:'Prueba'},admin:{uid:'admin',rol:'admin'}},
     sisventas:{productos:{py1:{categoria:'COMPRAS PARAGUAY',nombre:'Patinete'},local1:{categoria:'CAMARAS IP',nombre:'Local'}},clientes:{privado:true},ventas:{privado:true}}
   }));
@@ -91,4 +91,19 @@ test('permite elegir proveedor antes de comprar y rechaza compra incompleta',asy
  await assertFails(set(ref(db,path),{...list,comprasFinales:{py1:{...row,estado:'comprado'}}}));
  await assertFails(set(ref(db,path),{...list,comprasFinales:{py1:{...row,estado:'otro'}}}));
  await assertSucceeds(set(ref(db,path),{...list,comprasFinales:{py1:{...row,estado:'comprado',cantidad:1,precioUnitario:0}}}));
+ });
+
+ test('Distribuidora: catálogo y listas propios, chat general/directo sin módulos administrativos',async()=>{
+ const dist=env.authenticatedContext('dist').database();
+ await assertSucceeds(get(query(ref(dist,'sisventas/productos'),orderByChild('categoria'),equalTo('COMPRAS PARAGUAY'))));
+ await assertSucceeds(get(query(ref(dist,'sv_usuarios'),orderByChild('uid'),equalTo('dist'))));
+ await assertSucceeds(get(ref(dist,'sisventas/config/tipoCambio')));
+ await assertSucceeds(set(ref(dist,'sv_listas_paraguay/dist/propia'),list));
+ for(const path of ['sisventas','sisventas/ventas','sisventas/clientes','sisventas/productos','sv_usuarios','sv_permisos','sv_listas_paraguay/py','sv_chat/admin','sv_chat/tecnicos','sv_chat/directo_admin_otro'])await assertFails(get(ref(dist,path)));
+ await assertFails(set(ref(dist,'sisventas/productos/py1/nombre'),'Cambiar'));
+ await assertFails(set(ref(dist,'sv_chat_roles/dist/rol'),'admin'));
+ await assertSucceeds(get(ref(dist,'sv_chat_directorio')));
+ for(const path of ['sv_chat/general/test','sv_chat/directo_dist_admin/test','sv_chat_escribiendo/general/dist'])await assertSucceeds(set(ref(dist,path),{texto:'Prueba aislada'}));
+ for(const path of ['sv_chat/admin/test','sv_chat/tecnicos/test','sv_chat/directo_admin_otro/test'])await assertFails(set(ref(dist,path),{texto:'Bloqueado'}));
+ await assertFails(get(ref(env.authenticatedContext('distBaja').database(),'sv_chat/general')));
  });

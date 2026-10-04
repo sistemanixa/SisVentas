@@ -208,6 +208,7 @@
     var regla = PERMISOS_ACCION[permiso];
     if (!regla) return false;
     var role = normRol();
+    if(role === 'distribuidora') return permiso === 'dashboard.chat';
     if (!window.svValorPermisoRol(permiso,role)) return false;
     if (regla.modulo && !moduleAllowed(regla.modulo)) return false;
     if (typeof regla.validar === 'function') return !!regla.validar(contexto || {});

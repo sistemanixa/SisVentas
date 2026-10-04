@@ -22,3 +22,8 @@ test('Firebase informa carga luego de procesar el snapshot y respeta opciones y 
  args[1]({val:()=>null});await Promise.resolve();assert.equal(ready,1);assert.equal(args[3].onlyOnce,true);
  args[2](Error('denied'));assert.equal(errors,1);stop();assert.equal(cancel,1);
 });
+test('usuarios protegidos completan la carga sin confundir una ficha individual',()=>{
+ const c={URL,window:{addEventListener(){}},document:{addEventListener(){}},requestAnimationFrame(){}};vm.runInNewContext(fs.readFileSync('js/core/data-readiness.js','utf8'),c);const api=c.window.SVDataReadiness;
+ api.begin('https://example.com/sv_usuarios/ygil').ready();assert.equal(api.status(['usuarios']).ready,false);
+ api.begin('https://example.com/sv_usuarios').ready();assert.equal(api.status(['usuarios']).ready,true);
+});
