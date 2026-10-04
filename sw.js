@@ -4,7 +4,7 @@ const CACHE = 'sisventas-v3.9.14';
 const SHELL = [
   './js/core/data-readiness.js?v=3.9.13-users',
   './js/modules/employee-cash-receipt.js?v=1',
-  './js/modules/exterior-user-lists.js?v=3.9.14-combined',
+  './js/modules/exterior-user-lists.js?v=3.9.14-agreed3',
   './',
   './index.html',
   './js/modules/paraguay-budget-margin.js?v=3.8.1',

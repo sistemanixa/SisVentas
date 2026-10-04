@@ -27,7 +27,7 @@
       const store=stores.get(id);let item=store.rows.find(r=>r.key===row.key);
       if(!item){item={...row,qty:0,usdTotal:0,arsTotal:0,sources:[]};store.rows.push(item);}
       item.qty+=row.qty;item.usdTotal+=row.qty*row.usd;item.arsTotal+=row.qty*row.ars;
-      item.sources.push({owner:entry.owner,list:entry.list.nombre,qty:row.qty,state});
+      item.sources.push({owner:entry.owner,list:entry.list.nombre,uid:entry.uid,listId:entry.listId,qty:row.qty,state,purchase:structuredClone(entry.list.comprasFinales?.[row.key]||{})});
       store.units+=row.qty;store.usd+=row.qty*row.usd;store.ars+=row.qty*row.ars;
     }));
     return Array.from(stores.values()).sort((a,b)=>a.name.localeCompare(b.name,'es'));
@@ -35,10 +35,10 @@
   if(typeof module!=='undefined')module.exports={summarize,combine};
   if(!root.document)return;
   let host,owner='',request=0,stops=[],timer=null,products={},groups=new Map(),readyProducts=false,readyUsers=false,syncError=false;
-  let view='users',excluded=new Set(),pendingOnly=true;
+  let view='users',excluded=new Set(),pendingOnly=true,drafts=new Map(),visibleRows=new Map(),saving=false,saveMessage='';
   const allowed=()=>root.currentRole==='admin'&&root.permisoModulo&&root.permisoModulo('balancecompra');
   function stop(){request++;stops.splice(0).forEach(off=>off());groups.forEach(g=>g.off?.());groups.clear();clearTimeout(timer);timer=null;}
-  function reset(){stop();host?.remove();host=null;owner='';products={};view='users';excluded.clear();pendingOnly=true;}
+  function reset(){stop();host?.remove();host=null;owner='';products={};view='users';excluded.clear();pendingOnly=true;drafts.clear();visibleRows.clear();saveMessage='';}
   function mount(){
     if(!allowed()){reset();return;}
     if(host?.isConnected&&owner===root.currentUserUid)return;
@@ -48,6 +48,7 @@
     host.innerHTML='<style>#page-balancecompra #exterior-user-lists{background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0;box-shadow:none;padding:16px 0 28px;margin-bottom:24px}.exterior-list-photo{width:100%;height:100%;object-fit:contain}</style><h3 style="font-size:15px;font-weight:700;margin:0">Listas de usuarios</h3><div class="card-head" style="margin-top:14px"><button class="btn btn-sm btn-primary" data-catalog>Ofertas · Mis listas</button><button class="btn btn-sm" data-refresh>Actualizar listas</button></div><p style="font-size:12px;color:var(--text3)">Agrupadas por usuario. Los totales se calculan con los precios actuales del catálogo; estas listas todavía no son órdenes de compra.</p><div style="display:flex;gap:8px;margin:14px 0"><button class="btn btn-sm" data-view="users" aria-pressed="true">Por usuario</button><button class="btn btn-sm" data-view="stores" aria-pressed="false">Ver por proveedor</button></div><div data-results role="status">Cargando listas…</div>';
     page.prepend(host);host.querySelector('[data-refresh]').onclick=load;
     host.onclick=async e=>{
+      const save=e.target.closest('[data-save-price]');if(save&&allowed()){await savePrice(save.dataset.savePrice);return;}
       const mode=e.target.closest('[data-view]');if(mode&&allowed()){view=mode.dataset.view;render();return;}
       const button=e.target.closest('[data-catalog],[data-edit-list],[data-delete-list]');if(!button||!allowed())return;
       button.disabled=true;
@@ -55,7 +56,7 @@
       catch(_){targetError(button.hasAttribute('data-delete-list')?'No se pudo eliminar la lista. Revisá la conexión y el acceso.':'No se pudo abrir el catálogo. Revisá la conexión y volvé a intentar.');}
       finally{button.disabled=false;}
     };
-    host.onchange=e=>{if(!allowed())return;if(e.target.matches('[data-select-list]')){const id=e.target.dataset.selectList;e.target.checked?excluded.delete(id):excluded.add(id);render();}if(e.target.matches('[data-pending-only]')){pendingOnly=e.target.checked;render();}};
+    host.onchange=e=>{if(!allowed())return;if(e.target.matches('[data-agreed-price],[data-agreed-currency]')){const id=e.target.dataset.agreedPrice||e.target.dataset.agreedCurrency,row=visibleRows.get(id);let d=drafts.get(id);if(!d){d={value:'',currency:'USD',sources:structuredClone(row.sources),key:row.key};drafts.set(id,d);}const box=e.target.closest('[data-price-editor]');d.value=box.querySelector('[data-agreed-price]').value;d.currency=box.querySelector('[data-agreed-currency]').value;saveMessage='';render();return;}if(e.target.matches('[data-select-list]')){const id=e.target.dataset.selectList;e.target.checked?excluded.delete(id):excluded.add(id);render();}if(e.target.matches('[data-pending-only]')){pendingOnly=e.target.checked;render();}};
     load();
   }
   function targetError(message){if(host)host.querySelector('[data-results]').textContent=message;}
@@ -67,6 +68,7 @@
     const opened=new Set(Array.from(result.querySelectorAll('details[open]')).map(n=>n.dataset.list||n.dataset.group));
       const errors=Array.from(groups.values()).filter(g=>g.error),filled=Array.from(groups.values()).filter(g=>!g.error&&Object.keys(g.lists).length).sort((a,b)=>String(a.user.nombre||a.user.login).localeCompare(String(b.user.nombre||b.user.login),'es'));
       host.querySelectorAll('[data-view]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.view===view));b.classList.toggle('btn-primary',b.dataset.view===view);});
+      host.querySelector('p').hidden=view==='stores';
       if(view==='stores'){renderCombined(result,filled,errors);return;}
       result.innerHTML=(errors.length?'<p>No se pudieron consultar '+errors.length+' usuarios. Volvé a actualizar para reintentar.</p>':'')+(filled.map(g=>'<details data-group="'+esc(g.userUid)+'" style="margin:16px 0"><summary style="cursor:pointer;font-weight:700">'+esc(g.user.nombre||g.user.login||g.user.mail)+' · '+esc(g.user.login||g.user.mail||'')+' · '+Object.keys(g.lists).length+' listas</summary>'+Object.entries(g.lists).sort((a,b)=>Number(b[1].actualizadoEn)-Number(a[1].actualizadoEn)).map(([listId,list])=>{
         const s=summarize(list,products);const date=Number(list.actualizadoEn)>0?new Date(Number(list.actualizadoEn)).toLocaleString('es-AR'):'';
@@ -75,10 +77,54 @@
 
     result.querySelectorAll('details').forEach(n=>{if(opened.has(n.dataset.list||n.dataset.group))n.open=true;});
   }
+  function priceEditor(row){
+    const d=drafts.get(row.editId),values=row.sources.map(s=>s.purchase),first=values[0]||{};
+    const same=values.every(v=>v.precioUnitario===first.precioUnitario&&(v.moneda||'USD')===(first.moneda||'USD'));
+    const value=d?d.value:(same?first.precioUnitario??'':''),currency=d?.currency||(same?first.moneda||'USD':'USD');
+    return `<div class="joint-price-editor" data-price-editor><span class="joint-price-title">Precio acordado · unitario</span><input type="number" min="0" max="1000000000" step="0.01" inputmode="decimal" aria-label="Precio acordado ${esc(row.code)}" data-agreed-price="${esc(row.editId)}" value="${esc(value)}" placeholder="${same?'Sin acordar':'Precios diferentes'}" ${saving?'disabled':''}><select aria-label="Moneda acordada ${esc(row.code)}" data-agreed-currency="${esc(row.editId)}" ${saving?'disabled':''}>${['USD','ARS','PYG'].map(c=>`<option ${c===currency?'selected':''}>${c}</option>`).join('')}</select><small>${value!==''?`Total acordado: ${currency} ${money(Number(value)*row.qty)}`:'Precio unitario para las listas seleccionadas'}</small><button class="btn btn-sm btn-primary" data-save-price="${esc(row.editId)}" ${!d||saving?'disabled':''}>${saving?'Guardando…':'Guardar precio'}</button></div>`;
+  }
+  async function savePrice(id){
+    if(!allowed()||saving)return;const d=drafts.get(id);if(!d)return;
+    const price=Number(d.value);if(d.value===''||!Number.isFinite(price)||price<0||price>1e9){saveMessage='Ingresá un precio acordado válido.';render();return;}
+    saving=true;saveMessage='';render();const uid=root.currentUserUid;let completed=0;
+    try{
+      for(const source of [...d.sources]){
+        if(!allowed()||uid!==root.currentUserUid)throw new Error('La sesión cambió.');
+        const actual={...source.purchase,precioUnitario:price,moneda:d.currency,cantidad:source.purchase.cantidad??0,proveedor:source.purchase.proveedor||'',estado:source.purchase.estado||'pendiente'};
+        await root.SVGuardedWrites.conditionalUpdate('sv_listas_paraguay/'+source.uid+'/'+source.listId,current=>Number(current.productos?.[d.key])===source.qty&&root.SVGuardedWrites.equal(current.comprasFinales?.[d.key]||{},source.purchase),{['comprasFinales/'+d.key]:actual,actualizadoEn:root.fbServerTimestamp()});
+        completed++;d.sources.shift();
+      }
+      drafts.delete(id);saveMessage='Precio acordado guardado en '+completed+' lista(s). El precio leído se conserva.';
+    }catch(e){saveMessage=(completed?'Guardado en '+completed+' lista(s). ':'')+(e.code==='SV_CONFLICT'?'Otra persona cambió una lista. Revisá los cambios antes de reintentar.':'No se pudo completar el guardado. Revisá la conexión; el precio ingresado sigue disponible.');}
+    finally{saving=false;if(uid===root.currentUserUid)render();}
+  }
   function renderCombined(result,filled,errors){
-    const entries=filled.flatMap(g=>Object.entries(g.lists).map(([id,list])=>({id:g.userUid+':'+id,owner:g.user.nombre||g.user.login,list})));
+    const selectionOpen=!!result.querySelector('.joint-selection[open]');
+    const entries=filled.flatMap(g=>Object.entries(g.lists).map(([id,list])=>({id:g.userUid+':'+id,uid:g.userUid,listId:id,owner:g.user.nombre||g.user.login,list})));
     const selected=entries.filter(e=>!excluded.has(e.id)),combined=combine(selected,products,pendingOnly);
-    result.innerHTML='<div class="exterior-combined"><p>Seleccioná las listas para reunir sus productos por local. Cada producto conserva el detalle de quién lo pidió.</p><div style="display:flex;flex-wrap:wrap;gap:12px">'+entries.map(e=>'<label style="display:flex;align-items:center;gap:8px;min-height:44px;padding:8px;border:1px solid var(--border);border-radius:8px"><input type="checkbox" data-select-list="'+esc(e.id)+'" '+(!excluded.has(e.id)?'checked':'')+'> '+esc(e.list.nombre)+' · '+esc(e.owner)+'</label>').join('')+'</div><label style="display:flex;align-items:center;gap:8px;min-height:44px;margin:12px 0"><input type="checkbox" data-pending-only '+(pendingOnly?'checked':'')+'> Solo pendientes (excluye pedidos y comprados)</label>'+(errors.length?'<p role="alert">Faltan listas de '+errors.length+' usuarios por sincronizar. Esta compra conjunta está incompleta.</p>':'')+'<p><strong>'+selected.length+' listas · '+combined.length+' locales · '+combined.reduce((n,g)=>n+g.units,0)+' unidades</strong></p><p style="font-size:12px;color:var(--text3)">Importes de referencia del catálogo. Esta vista no modifica las listas ni registra compras.</p>'+combined.map(g=>'<section data-store="'+esc(g.name)+'" style="border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:14px"><h3 style="margin:0 0 8px">'+esc(g.name)+'</h3><p>'+g.rows.length+' productos · '+g.units+' unidades · US$ '+money(g.usd)+' · ARS '+money(g.ars)+' con envío</p>'+g.rows.map(r=>'<div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;border-top:1px solid var(--border);padding:14px 0"><div style="flex:1 1 280px;min-width:0"><strong>'+esc(r.name)+'</strong><div style="font-size:12px;color:var(--text3)">'+esc(r.code)+'</div>'+r.sources.map(source=>'<div style="font-size:12px;margin-top:6px">'+source.qty+' × '+esc(source.list)+' · '+esc(source.owner)+(pendingOnly?'':' · '+esc(source.state))+'</div>').join('')+'</div><div style="text-align:right"><strong style="font-size:18px">'+r.qty+' unidades</strong><div>US$ '+money(r.usdTotal)+'</div><small>ARS '+money(r.arsTotal)+' con envío</small></div></div>').join('')+'</section>').join('')+(!combined.length?'<p>No hay productos para esta selección.</p>':'')+'</div>';
+    visibleRows.clear();combined.forEach(g=>g.rows.forEach(r=>{r.editId=g.name+':'+r.key;visibleRows.set(r.editId,r);}));
+    const plural=(n,one,many)=>n+' '+(n===1?one:many);
+    result.innerHTML=`<style>
+      .exterior-combined .joint-store{margin-top:16px;padding:0;overflow:hidden}
+      .joint-store-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid var(--border)}
+      .joint-store-head h3{margin:0;font-size:17px}.joint-store-head{background:var(--bg3,rgba(120,150,190,.06));border-left:3px solid var(--green,#7fda8d)}.joint-store-head h3::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green,#7fda8d);margin-right:9px}.joint-row:hover{background:rgba(130,160,200,.04)}.joint-muted{color:var(--text3);font-size:12px}
+      .joint-row,.joint-columns{display:grid;grid-template-columns:minmax(220px,1fr) 65px 110px 180px 140px;align-items:center;gap:16px;padding:14px 20px}
+      .joint-columns{font-size:11px;color:var(--text3);padding-top:10px;padding-bottom:10px}.joint-row{border-top:1px solid var(--border)}
+      .joint-product{display:flex;align-items:center;gap:14px;min-width:0}.joint-photo{display:block;width:72px;height:72px;flex:0 0 72px;background:white;border-radius:8px;overflow:hidden}.joint-photo img{width:100%;height:100%;object-fit:contain}
+      .joint-product strong{font-size:13px}.joint-source{display:inline-block;font-size:11px;color:var(--text2);margin:7px 5px 0 0;padding:4px 7px;border-radius:6px;background:rgba(130,160,200,.09)}.joint-number{text-align:right;font-size:13px}.joint-qty{text-align:center;font-size:18px;font-weight:700;color:var(--green,#7fda8d)}.joint-mobile-label{display:none}
+      .joint-controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:12px 0}.joint-controls label{display:flex;gap:8px;align-items:center;min-height:44px}.joint-selection{padding:10px 14px;border:1px solid var(--border);border-radius:8px}.joint-selection summary{cursor:pointer}
+      .joint-price-editor input,.joint-price-editor select,.joint-price-editor button{min-height:44px!important;width:100%;box-sizing:border-box}.joint-price-editor input{font-size:16px;border-radius:8px;padding:8px}.joint-price-title{grid-column:1/-1;font-size:11px;color:var(--text3)}.joint-price-editor{display:grid;grid-template-columns:1fr 70px;gap:6px}.joint-price-editor button{grid-column:1/-1}.joint-price-editor small{grid-column:1/-1;color:var(--text3)}
+      @media(max-width:850px){.joint-columns{display:none}.joint-row{grid-template-columns:65px 1fr 1fr;gap:12px}.joint-product{grid-column:1/-1}.joint-price-editor{grid-column:1/-1}.joint-row>.joint-number:last-child{grid-column:3;grid-row:2}.joint-mobile-label{display:block;font-size:11px;color:var(--text3);font-weight:400;margin-bottom:4px}.joint-qty,.joint-number{text-align:left}.joint-row{padding:14px}.joint-store-head{padding:14px}}
+    </style><div class="exterior-combined">
+    <details class="joint-selection" ${selectionOpen?'open':''}><summary>${selected.length} listas seleccionadas · Cambiar selección</summary><div class="joint-controls">${entries.map(e=>`<label><input type="checkbox" data-select-list="${esc(e.id)}" ${!excluded.has(e.id)?'checked':''}>${esc(e.list.nombre)} · ${esc(e.owner)}</label>`).join('')}</div></details>
+    <div class="joint-controls"><strong>${combined.length} proveedores · ${plural(combined.reduce((n,g)=>n+g.units,0),'unidad','unidades')}</strong><label class="joint-muted"><input type="checkbox" data-pending-only ${pendingOnly?'checked':''}>Solo pendientes</label><span class="joint-muted">Precios de referencia · ARS incluye envío</span></div>
+    <div role="status">${esc(saveMessage)}</div>
+    ${errors.length?`<p role="alert">Faltan listas de ${errors.length} usuarios por sincronizar.</p>`:''}
+    ${combined.map(g=>`<section class="card joint-store" data-store="${esc(g.name)}"><div class="joint-store-head"><div><h3>${esc(g.name)}</h3><span class="joint-muted">${plural(g.rows.length,'producto','productos')} · ${plural(g.units,'unidad','unidades')}</span></div><div class="joint-number"><strong>US$ ${money(g.usd)}</strong><div class="joint-muted">ARS ${money(g.ars)} con envío</div></div></div>
+    <div class="joint-columns"><span>Producto / lista de origen</span><span style="text-align:center">Cantidad</span><span style="text-align:right">Precio leído · USD</span><span>Precio acordado</span><span style="text-align:right">Total leído</span></div>
+    ${g.rows.map(r=>`<div class="joint-row"><div class="joint-product"><span class="joint-photo">${products[r.key]?root.imagenCatalogoHTML(products[r.key],'exterior-list-photo'):''}</span><div><strong>${esc(r.name)}</strong><div class="joint-muted">${esc(r.code)}</div>${r.sources.map(source=>`<div class="joint-source">${source.qty} × ${esc(source.list)} · ${esc(source.owner)}${pendingOnly?'':' · '+esc(source.state)}</div>`).join('')}</div></div><div class="joint-qty"><span class="joint-mobile-label">Cantidad</span>${r.qty}</div><div class="joint-number"><span class="joint-mobile-label">Precio leído · USD</span>US$ ${money(r.usd)}</div>${priceEditor(r)}<div class="joint-number"><span class="joint-mobile-label">Total leído</span><strong>US$ ${money(r.usdTotal)}</strong><div class="joint-muted">ARS ${money(r.arsTotal)}</div></div></div>`).join('')}</section>`).join('')}
+    ${!combined.length?'<p>No hay productos para esta selección.</p>':''}</div>`;
+
   }
   function load(){
     if(!allowed()||!host)return;
