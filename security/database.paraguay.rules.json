@@ -21,7 +21,55 @@
         ".indexOn": [
           "categoria"
         ],
-        ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'compras_paraguay' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora') && query.orderByChild === 'categoria' && query.equalTo === 'COMPRAS PARAGUAY'"
+        ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'compras_paraguay' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora') && query.orderByChild === 'categoria' && query.equalTo === 'COMPRAS PARAGUAY'",
+        "$producto": {
+          ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('crear').val() === true && !data.exists() && newData.child('categoria').val() === 'COMPRAS PARAGUAY'",
+          ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.hasChildren(['nombre','codigo','categoria']) && newData.child('categoria').val() === 'COMPRAS PARAGUAY')",
+          "nombre": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)",
+            ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('editar').val() === true && data.parent().child('categoria').val() === 'COMPRAS PARAGUAY' && data.parent().child('activo').val() !== false && data.parent().child('estado').val() !== 'Inactivo' && data.parent().child('esManoDeObra').val() !== true && newData.exists()"
+          },
+          "marca": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)",
+            ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('editar').val() === true && data.parent().child('categoria').val() === 'COMPRAS PARAGUAY' && data.parent().child('activo').val() !== false && data.parent().child('estado').val() !== 'Inactivo' && data.parent().child('esManoDeObra').val() !== true && newData.exists()"
+          },
+          "descripcion": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 10000)",
+            ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('editar').val() === true && data.parent().child('categoria').val() === 'COMPRAS PARAGUAY' && data.parent().child('activo').val() !== false && data.parent().child('estado').val() !== 'Inactivo' && data.parent().child('esManoDeObra').val() !== true && newData.exists()"
+          },
+          "codWeb": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000 && (newData.val() === '' || newData.val().beginsWith('https://') || newData.val().beginsWith('http://')))",
+            ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('editar').val() === true && data.parent().child('categoria').val() === 'COMPRAS PARAGUAY' && data.parent().child('activo').val() !== false && data.parent().child('estado').val() !== 'Inactivo' && data.parent().child('esManoDeObra').val() !== true && newData.exists()"
+          },
+          "imagenUrl": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000 && (newData.val() === '' || newData.val().beginsWith('https://') || newData.val().beginsWith('http://')))",
+            ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos').child('editar').val() === true && data.parent().child('categoria').val() === 'COMPRAS PARAGUAY' && data.parent().child('activo').val() !== false && data.parent().child('estado').val() !== 'Inactivo' && data.parent().child('esManoDeObra').val() !== true && newData.exists()"
+          },
+          "codigo": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
+          },
+          "categoria": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.val() === 'COMPRAS PARAGUAY')"
+          },
+          "activo": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isBoolean())"
+          },
+          "estado": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isString() && newData.val().length <= 2000)"
+          },
+          "moneda": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.val() === 'ARS')"
+          },
+          "iva": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "ventaARS": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "$otro": {
+            ".validate": "root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora'"
+          }
+        }
       }
     },
     "sv_borradores": {
@@ -52,19 +100,19 @@
       }
     },
     "sv_chat_directorio": {
-      ".read": "(auth != null) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay'",
+      ".read": "((auth != null) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)",
       ".write": "(auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay'"
     },
     "sv_chat": {
       "$canal": {
-        ".read": "(auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay'",
-        ".write": "(auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay'"
+        ".read": "((auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)",
+        ".write": "((auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)"
       }
     },
     "sv_chat_escribiendo": {
       "$canal": {
-        ".read": "(auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay'",
-        ".write": "(auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay'"
+        ".read": "((auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)",
+        ".write": "((auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ($canal === 'general' || ($canal === 'admin' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || ($canal === 'tecnicos' && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor')) || $canal.beginsWith('directo_' + auth.uid + '_') || $canal.endsWith('_' + auth.uid) || ($canal.beginsWith('archivo_') && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'))) && root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'compras_paraguay') && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() !== 'distribuidora' || root.child('sv_distribuidora_permisos/chat').val() !== false)"
       }
     },
     "sv_usuarios": {
@@ -132,6 +180,50 @@
               }
             }
           }
+        }
+      }
+    },
+    "sv_distribuidora_permisos": {
+      ".read": "(auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin') || (auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora')",
+      ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'",
+      "chat": {
+        ".validate": "newData.isBoolean()"
+      },
+      "detalle": {
+        ".validate": "newData.isBoolean()"
+      },
+      "editar": {
+        ".validate": "newData.isBoolean()"
+      },
+      "crear": {
+        ".validate": "newData.isBoolean()"
+      },
+      "$otro": {
+        ".validate": false
+      }
+    },
+    "sv_distribuidora_auditoria": {
+      ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'",
+      "$registro": {
+        ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && !data.exists() && newData.child('uid').val() === auth.uid",
+        ".validate": "newData.hasChildren(['uid','producto','accion','fecha','campos'])",
+        "uid": {
+          ".validate": "newData.isString()"
+        },
+        "producto": {
+          ".validate": "newData.isString()"
+        },
+        "accion": {
+          ".validate": "newData.val() === 'crear' || newData.val() === 'editar'"
+        },
+        "fecha": {
+          ".validate": "newData.isNumber() && newData.val() <= now + 300000 && newData.val() >= now - 300000"
+        },
+        "campos": {
+          ".validate": "newData.isString() && newData.val().length <= 1000"
+        },
+        "$otro": {
+          ".validate": false
         }
       }
     }

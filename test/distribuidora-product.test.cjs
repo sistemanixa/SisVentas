@@ -1,0 +1,5 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const {clean,payload,eligible}=require('../js/modules/distribuidora-access');
+test('permisos faltantes permiten lectura/chat pero no edición o alta',()=>{assert.deepEqual(clean(null),{chat:true,detalle:true,editar:false,crear:false});assert.equal(clean({editar:'true'}).editar,false);assert.equal(clean({editar:true}).editar,true)});
+test('editar conserva el alcance: solo datos de ficha, sin cambiar categoría ni costos',()=>{const p=payload({nombre:'Nuevo',categoria:'OTRA',stock:900,compra:1,codWeb:'https://proveedor.example/producto'},false);assert.equal(p.categoria,undefined);assert.equal(p.stock,undefined);assert.equal(p.compra,undefined);assert.equal(p.codWeb,'https://proveedor.example/producto');assert.throws(()=>payload({nombre:'X',codWeb:'javascript:alert(1)'},false));});
+test('crear exige nombre y código y fija la categoría autorizada',()=>{assert.throws(()=>payload({nombre:'X'},true));const p=payload({nombre:'X',codigo:'D-1',categoria:'OTRA'},true);assert.equal(p.categoria,'COMPRAS PARAGUAY');assert.equal(eligible(p),true);});

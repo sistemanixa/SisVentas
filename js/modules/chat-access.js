@@ -6,7 +6,7 @@
     readyUid=String(event.detail&&event.detail.uid||'');
     window.chatIniciarDirectosSeguros();
   });
-  document.addEventListener('sisventas:session-ended',function(){
+  function clearSession(){
     readyUid='';owner='';ownerName='';generation++;
     Object.values(groupStops).forEach(function(stop){stop();});groupStops={};
     stops.forEach(function(stop){stop();});stops=[];cache={};
@@ -14,7 +14,9 @@
     Object.keys(_chatNoLeidos).forEach(function(channel){delete _chatNoLeidos[channel];});
     if(typeof _chatUltimoTsPorCanal!=='undefined')_chatUltimoTsPorCanal={};
     if(typeof chatActualizarBadges==='function')chatActualizarBadges();
-  });
+  }
+  document.addEventListener('sisventas:session-ended',clearSession);
+  document.addEventListener('sisventas:chat-disabled',clearSession);
   function refreshUnreadIdentity(){
     var name=sessionName();
     if(ownerName===name)return;

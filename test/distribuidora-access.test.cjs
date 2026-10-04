@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 test('Distribuidora solo habilita el botón de chat entre las acciones generales',()=>{
  const document={addEventListener(){},querySelectorAll(){return []}};
- const window={currentRole:'distribuidora',PERMISOS_ROLES:{distribuidora:{bloqueados:[],acciones:{'usuarios.impersonar':true}}}};
+ const window={currentRole:'distribuidora',SVDistribuidora:{allowed:k=>k==='chat'},PERMISOS_ROLES:{distribuidora:{bloqueados:[],acciones:{'usuarios.impersonar':true}}}};
  vm.runInNewContext(fs.readFileSync('js/modules/action-permissions.js','utf8'),{window,document,console,setTimeout(){},MutationObserver:class{observe(){}}});
  assert.equal(window.tienePermiso('dashboard.chat'),true);
  for(const key of ['chat.limpiar','usuarios.impersonar','dashboard.rentabilidad','productos.agregarProveedor'])assert.equal(window.tienePermiso(key),false);

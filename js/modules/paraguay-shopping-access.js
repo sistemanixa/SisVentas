@@ -109,6 +109,7 @@
     return true;
   }
   function openProductSheet(key) {
+    if(root.currentRole==='distribuidora'){root.SVDistribuidora?.detail(key,products[key]);return;}
     if(productSheet||root.currentRole!=='admin'||!root.permisoModulo?.('productos')||!eligible(products[key]))return;
     const views=['prod-detail-view','prod-form-view'].map(id=>document.getElementById(id));
     if(views.some(node=>!node)||typeof root.verProducto!=='function'){root.alert('No se pudo abrir la ficha del producto.');return;}
@@ -189,7 +190,7 @@
       const link=document.createElement('a');link.href=sourceUrl;link.target='_blank';link.rel='noopener noreferrer';link.className='btn btn-primary';link.textContent='Ver producto ↗';link.title='Abrir la página original del producto';link.style.cssText='display:inline-flex;align-self:flex-start;margin-top:14px;text-decoration:none';
       modal.querySelector('[data-modal-qty]').after(link);
     }
-    if(root.currentRole==='admin'&&root.permisoModulo?.('productos')){
+    if((root.currentRole==='admin'&&root.permisoModulo?.('productos'))||root.currentRole==='distribuidora'&&root.SVDistribuidora?.allowed('detalle')){
       const sheetButton=document.createElement('button');sheetButton.type='button';sheetButton.className='btn';sheetButton.textContent='Ver ficha detallada del producto';sheetButton.dataset.productSheet='';sheetButton.style.cssText='display:inline-flex;align-self:flex-start;margin-top:10px';sheetButton.onclick=()=>openProductSheet(key);modal.querySelector('.catalogo-modal-info').appendChild(sheetButton);
     }
     const move=delta=>showDetail(detailKeys[(detailKeys.indexOf(key)+delta+detailKeys.length)%detailKeys.length]);
@@ -442,6 +443,10 @@
         </div>
       </div>`;
     document.body.appendChild(panel);
+    if(role==='distribuidora'){
+      const create=document.createElement('button');create.className='btn btn-primary';create.textContent='Nuevo producto';create.onclick=()=>root.SVDistribuidora.edit(null,null);panel.querySelector('[data-products-card] .card-head').appendChild(create);
+      const refreshPermissions=()=>{create.hidden=!root.SVDistribuidora.allowed('crear');if(detailModal)detailModal.remove();};refreshPermissions();document.addEventListener('sisventas:distribuidora-permissions',refreshPermissions);stops.push(()=>document.removeEventListener('sisventas:distribuidora-permissions',refreshPermissions));
+    }
     panel.querySelector('[data-pdf-catalog]').onclick=()=>exportPDF(false);
     panel.querySelector('[data-pdf-list]').onclick=()=>exportPDF(true);
     const groupBrand = panel.querySelector('[data-group-brand]');
@@ -489,9 +494,11 @@
     showView(!!options.listKey);
     const preferences = document.createElement('div');
     preferences.hidden = true;
-    preferences.setAttribute('role','dialog'); preferences.setAttribute('aria-label','Aspecto visual');
+    preferences.setAttribute('role','dialog'); preferences.setAttribute('aria-label','Configuración de cuenta');
     preferences.style.cssText = 'position:fixed;right:12px;top:60px;z-index:999999;width:min(280px,calc(100vw - 24px));padding:18px;border:1px solid var(--border);border-radius:14px;background:var(--bg2);box-shadow:0 8px 24px #0003';
-    preferences.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center"><strong>Aspecto visual</strong><button class="btn btn-sm" data-close-appearance aria-label="Cerrar apariencia">×</button></div><div class="up-style-options" style="margin-top:14px"><button class="btn" data-visual="v3">SisVentas 3</button><button class="btn" data-visual="classic">Clásico</button></div><label style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">Modo oscuro<input type="checkbox" data-dark></label>';
+    preferences.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center"><strong>Configuración</strong><button class="btn btn-sm" data-close-appearance aria-label="Cerrar apariencia">×</button></div><div class="up-style-options" style="margin-top:14px"><button class="btn" data-visual="v3">SisVentas 3</button><button class="btn" data-visual="classic">Clásico</button></div><label style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">Modo oscuro<input type="checkbox" data-dark></label>';
+    const logoutRight=document.createElement('button');logoutRight.type='button';logoutRight.className='btn';logoutRight.dataset.logoutRight='';logoutRight.textContent='Cerrar sesión';logoutRight.style.cssText='width:100%;justify-content:center;min-height:44px;margin-top:20px';logoutRight.onclick=()=>root.doLogout();preferences.appendChild(logoutRight);
+    preferences.style.maxHeight='calc(100dvh - 84px)';preferences.style.overflowY='auto';
     panel.appendChild(preferences);
     panel.querySelector('[data-appearance]').onclick = () => {preferences.hidden = !preferences.hidden;preferences.querySelector('[data-dark]').checked=document.body.classList.contains('dark-mode');};
     preferences.querySelector('[data-close-appearance]').onclick = () => {preferences.hidden=true;panel.querySelector('[data-appearance]').focus();};
@@ -626,7 +633,7 @@
   if (typeof originalRoles === 'function') root._renderTablaRolesUI = function() {
     originalRoles.apply(this,arguments);
     const container = document.getElementById('cfg-roles-tabla');
-    if (container) container.insertAdjacentHTML('afterbegin','<section class="card" aria-label="Rol Distribuidora"><div class="card-head"><span class="card-title">Distribuidora</span><span class="badge">Acceso limitado</span></div><p>Catálogo de COMPRAS PARAGUAY, listas propias y chat general y directo. Comparte la base de SisVentas; sin acceso a los módulos administrativos.</p></section>');
+    if(container)root.SVDistribuidora?.renderSettings(container);
     if (container) container.insertAdjacentHTML('afterbegin','<section class="card" aria-label="Rol Compras Paraguay"><div class="card-head"><span class="card-title">Compras Paraguay</span><span class="badge">Acceso limitado</span></div><p>Catálogo exclusivo de la categoría COMPRAS PARAGUAY, listas de compra propias y ajustes de apariencia.</p><p style="font-size:12px;color:var(--text3)">Este rol se asigna desde Usuarios. No tiene acceso a los módulos generales ni modifica productos.</p></section>');
   };
   document.addEventListener('sisventas:session-ended',close);

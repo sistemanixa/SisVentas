@@ -9,7 +9,7 @@ before(async()=>{
   await env.withSecurityRulesDisabled(async c=>set(ref(c.database()),{
     sv_chat_roles:{dist:{rol:'distribuidora',activo:true},distBaja:{rol:'distribuidora',activo:false},...Object.fromEntries(['administrativo','vendedor','tecnico','tecnico_vendedor'].map(rol=>[rol,{rol,activo:true}])),py:{rol:'compras_paraguay',activo:true},otro:{rol:'compras_paraguay',activo:true},admin:{rol:'admin',activo:true},baja:{rol:'compras_paraguay',activo:false}},
     sv_usuarios:{userpy:{uid:'py',rol:'compras_paraguay',nombre:'Prueba'},admin:{uid:'admin',rol:'admin'}},
-    sisventas:{productos:{py1:{categoria:'COMPRAS PARAGUAY',nombre:'Patinete'},local1:{categoria:'CAMARAS IP',nombre:'Local'}},clientes:{privado:true},ventas:{privado:true}}
+    sisventas:{productos:{py1:{categoria:'COMPRAS PARAGUAY',nombre:'Patinete',codigo:'P-1',stock:12,proveedores:[{nombre:'Prueba'}]},local1:{categoria:'CAMARAS IP',nombre:'Local'}},clientes:{privado:true},ventas:{privado:true}}
   }));
   db=env.authenticatedContext('py').database();
 });
@@ -106,4 +106,24 @@ test('permite elegir proveedor antes de comprar y rechaza compra incompleta',asy
  for(const path of ['sv_chat/general/test','sv_chat/directo_dist_admin/test','sv_chat_escribiendo/general/dist'])await assertSucceeds(set(ref(dist,path),{texto:'Prueba aislada'}));
  for(const path of ['sv_chat/admin/test','sv_chat/tecnicos/test','sv_chat/directo_admin_otro/test'])await assertFails(set(ref(dist,path),{texto:'Bloqueado'}));
  await assertFails(get(ref(env.authenticatedContext('distBaja').database(),'sv_chat/general')));
+ });
+ test('Distribuidora: permisos separados y escritura limitada a datos de su catálogo',async()=>{
+ const d=env.authenticatedContext('dist').database(),a=env.authenticatedContext('admin').database();
+ await assertFails(set(ref(d,'sisventas/productos/py1/nombre'),'Bloqueado'));
+ await assertFails(set(ref(d,'sv_distribuidora_permisos/editar'),true));
+ await assertSucceeds(set(ref(a,'sv_distribuidora_permisos'),{chat:true,detalle:true,editar:true,crear:true}));
+ await assertSucceeds(set(ref(d,'sisventas/productos/py1/nombre'),'Editado'));
+ await assertSucceeds(set(ref(d,'sisventas/productos/py1/codWeb'),'https://example.com/producto'));
+ await assertFails(set(ref(d,'sisventas/productos/local1/nombre'),'Fuera de catálogo'));
+ await assertFails(set(ref(d,'sisventas/productos/py1/categoria'),'OTRA'));
+ await assertFails(set(ref(d,'sisventas/productos/py1/stock'),100));
+ await assertFails(set(ref(d,'sisventas/productos/py1'),null));
+ const p={nombre:'Creado',codigo:'D-1',categoria:'COMPRAS PARAGUAY',activo:true,estado:'Activo',ventaARS:0,iva:21,moneda:'ARS'};
+ await assertSucceeds(set(ref(d,'sisventas/productos/creado'),p));
+ await assertFails(set(ref(d,'sisventas/productos/otra'),{...p,categoria:'OTRA'}));
+ await assertFails(set(ref(d,'sisventas/productos/extra'),{...p,stock:100}));
+ await assertSucceeds(set(ref(a,'sv_distribuidora_permisos'),{chat:false,detalle:true,editar:false,crear:false}));
+ await assertFails(set(ref(d,'sisventas/productos/py1/nombre'),'Revocado'));
+ await assertFails(set(ref(d,'sv_chat/general/test2'),{texto:'Revocado'}));
+ await assertFails(get(ref(d,'sv_chat_directorio')));
  });
