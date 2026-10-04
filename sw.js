@@ -1,6 +1,6 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.9.10';
+const CACHE = 'sisventas-v3.9.11';
 const SHELL = [
   './js/core/data-readiness.js?v=3.9.7',
   './js/modules/employee-cash-receipt.js?v=1',
@@ -20,7 +20,7 @@ const SHELL = [
   './js/modules/comparacion-comercial.js?v=1',
   './js/modules/commercial-approval.js?v=3.8.20',
   './js/core/guarded-writes.js?v=3.9.10',
-  './js/app.v3.9.10.js',
+  './js/app.v3.9.11.js',
   './js/modules/product-url-import.js?v=3.9.10',
   './js/modules/paraguay-shopping-access.js?v=3.9.10-comparison2',
   './js/modules/keyboard-actions.js',
@@ -28,7 +28,7 @@ const SHELL = [
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js',
   './js/core/version.js',
-  './js/core/version.v3.9.10.js',
+  './js/core/version.v3.9.11.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.8.1',
@@ -85,7 +85,7 @@ const SHELL = [
   './js/modules/page-transition.js',
   './js/modules/resource-monitor.js',
   './js/modules/role-guard.js',
-  './js/modules/purchase-orders.js?v=3.9.10-save5',
+  './js/modules/purchase-orders.js?v=3.9.11',
   './js/modules/exterior-preparation.js?v=3.9.10-extra2',
   './js/modules/ot-material-custody.js',
   './js/modules/release-tour.js',
