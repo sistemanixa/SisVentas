@@ -343,6 +343,33 @@
     "sv_catalogo_proveedores": {
       ".read": "(auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin') || (auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && (root.child('sv_distribuidora_permisos').child('editar').val() === true || root.child('sv_distribuidora_permisos').child('crear').val() === true))",
       ".write": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin'"
+    },
+    "sv_chat_presencia": {
+      ".read": "auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor' || (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos/chat').val() === true))",
+      "$uid": {
+        "$session": {
+          ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'admin' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'administrativo' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'vendedor' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico' || root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'tecnico_vendedor' || (root.child('sv_chat_roles').child(auth.uid).child('rol').val() === 'distribuidora' && root.child('sv_distribuidora_permisos/chat').val() === true))))",
+          ".validate": "newData.hasChildren(['uid','nombre','rol','online','ultimaConexion'])",
+          "uid": {
+            ".validate": "newData.val() === auth.uid"
+          },
+          "nombre": {
+            ".validate": "newData.isString() && newData.val() === root.child('sv_chat_directorio').child(auth.uid).child('nombre').val()"
+          },
+          "rol": {
+            ".validate": "newData.val() === root.child('sv_chat_roles').child(auth.uid).child('rol').val()"
+          },
+          "online": {
+            ".validate": "newData.val() === true"
+          },
+          "ultimaConexion": {
+            ".validate": "newData.isNumber() && newData.val() <= now + 30000 && newData.val() >= now - 300000"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
     }
   }
 }

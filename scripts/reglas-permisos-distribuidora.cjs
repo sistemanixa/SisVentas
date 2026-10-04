@@ -30,6 +30,7 @@ function permisosDistribuidora(base){
  for(const k of ['proveedores','garantiaConfig'])validate(k,'newData.hasChildren()');
  product.$otro={'.validate':role+" !== 'distribuidora'"};r.sisventas.productos.$producto=product;
  r.sv_distribuidora_auditoria={'.read':admin,'$registro':{'.write':dist+" && !data.exists() && newData.child('uid').val() === auth.uid",'.validate':"newData.hasChildren(['uid','producto','accion','fecha','campos'])",uid:{'.validate':'newData.isString()'},producto:{'.validate':'newData.isString()'},accion:{'.validate':"newData.val() === 'crear' || newData.val() === 'editar'"},fecha:{'.validate':'newData.isNumber() && newData.val() <= now + 300000 && newData.val() >= now - 300000'},campos:{'.validate':'newData.isString() && newData.val().length <= 1000'},'$otro':{'.validate':false}}};
+ r.sv_chat_presencia=require('./chat-presence-rules.cjs').chatPresenceRules();
  return out;
 }
 module.exports={permisosDistribuidora};
