@@ -2,10 +2,12 @@
   'use strict';
   var owner='', ownerName='', readyUid='', stops=[], cache={}, groupStops={}, generation=0;
   function sessionName(){return String((window._chatDirectorio||{})[currentUserUid]?.nombre || window._impersonacionOriginal?.user || currentUser || '');}
-  document.addEventListener('sisventas:session-ready',function(event){
+  function readyChat(event){
     readyUid=String(event.detail&&event.detail.uid||'');
     window.chatIniciarDirectosSeguros();
-  });
+  }
+  document.addEventListener('sisventas:session-ready',readyChat);
+  document.addEventListener('sisventas:chat-ready',readyChat);
   function clearSession(){
     readyUid='';owner='';ownerName='';generation++;
     Object.values(groupStops).forEach(function(stop){stop();});groupStops={};

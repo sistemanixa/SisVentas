@@ -14499,7 +14499,7 @@ function _completarLogin(nombre) {
     document.getElementById('screen-loading').style.display = 'none';
     Promise.resolve(currentRole === 'distribuidora' ? window.SVDistribuidora.start() : null).then(function(){return window.SVParaguayPortal.open(nombre);}).then(function(){
       if(currentRole === 'distribuidora' && window.SVDistribuidora.allowed('chat')){
-        document.dispatchEvent(new CustomEvent('sisventas:session-ready',{detail:{usuario:currentUser,rol:currentRole,uid:currentUserUid}}));
+        document.dispatchEvent(new CustomEvent('sisventas:chat-ready',{detail:{usuario:currentUser,rol:currentRole,uid:currentUserUid}}));
         chatInicializar();
       }
     }).catch(function(error) { _cancelarAutenticacionParcial(error.message); });

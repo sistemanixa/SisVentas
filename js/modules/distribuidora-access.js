@@ -28,7 +28,7 @@
    document.dispatchEvent(new CustomEvent('sisventas:distribuidora-permissions'));
    if(typeof root.aplicarVisibilidadBotonesFlotantes==='function')root.aplicarVisibilidadBotonesFlotantes();
    if(!permissions.chat&&root.currentRole==='distribuidora'){root.chatCerrar?.();document.dispatchEvent(new CustomEvent('sisventas:chat-disabled'));}
-   else if(!first&&root.currentRole==='distribuidora'){document.dispatchEvent(new CustomEvent('sisventas:session-ready',{detail:{uid}}));root.chatInicializar?.();}
+   else if(!first&&root.currentRole==='distribuidora'){document.dispatchEvent(new CustomEvent('sisventas:chat-ready',{detail:{uid}}));root.chatInicializar?.();}
    if(first){first=false;resolve();}
   },err=>{permissions=null;reject(err);});});
  }
