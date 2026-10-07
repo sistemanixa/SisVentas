@@ -65,6 +65,34 @@
       return {...entry,featured,comparison,group:featured?'Destacados':brand(entry.p)};
     }).sort((a,b)=>Number(b.featured)-Number(a.featured)||(a.featured?(b.comparison.saving/b.comparison.reference-a.comparison.saving/a.comparison.reference):a.group==='SIN MARCA'?Number(b.group!=='SIN MARCA'):b.group==='SIN MARCA'?-1:a.group.localeCompare(b.group,'es'))||String(a.p.nombre||a.p.descripcion||'').localeCompare(String(b.p.nombre||b.p.descripcion||''),'es'));
   }
+
+  function listHistory(previous,items,purchases,now=Date.now()) {
+    const result={fechasProductos:{}};
+    if(previous?.creadoEn)result.creadoEn=previous.creadoEn;else if(!previous)result.creadoEn=now;
+    for(const key of Object.keys(items)){
+      const history={...(previous?.fechasProductos?.[key]||{})};
+      if(!previous?.productos?.[key])history.agregadoEn=now;
+      if(purchases[key]?.estado==='comprado'&&previous?.comprasFinales?.[key]?.estado!=='comprado'&&!history.compradoEn)history.compradoEn=now;
+      if(Object.keys(history).length)result.fechasProductos[key]=history;
+    }
+    if(!Object.keys(result.fechasProductos).length)result.fechasProductos=null;
+    return result;
+  }
+  function listSavings(list,products,rate,unitCost) {
+    let ars=0,included=0,units=0;const total=Object.keys(list.productos||{}).length;
+    for(const key of Object.keys(list.productos||{})){
+      const actual=list.comprasFinales?.[key],product=products[key];
+      if(!product||actual?.estado!=='comprado'||!(actual.cantidad>0)||!Number.isFinite(actual.precioUnitario)||actual.precioUnitario<0)continue;
+      const currency=actual.moneda||'USD';
+      const paid=currency==='ARS'?actual.precioUnitario:currency==='USD'&&rate>0?actual.precioUnitario*rate:null;
+      if(paid===null)continue;
+      const comparison=mlComparison(product,paid||0.01,unitCost,true);if(!comparison)continue;
+      ars+=(comparison.reference-paid)*actual.cantidad;included++;units+=actual.cantidad;
+    }
+    ars=Math.round(ars*100)/100;return {ars,usd:rate>0?Math.round(ars/rate*100)/100:null,included,omitted:total-included,units};
+  }
+  const historyDate=value=>Number(value)>0?new Date(Number(value)).toLocaleDateString('es-AR'):'Sin fecha registrada';
+
   function pdfPages(entries) {
     const groups=new Map(),pages=[];
     entries.forEach(entry=>{const key=entry.featured?'__featured__':'__regular__'; if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);});
@@ -75,7 +103,7 @@
     const p = products[key]; if (!eligible(p)) return null;
     const q = quote(p,purchases[key]?.proveedor); return [p.codigo || '', p.nombre || p.descripcion || '', qty, q.usd || '', q.ars || '', q.url, purchases[key]?.cantidad ?? '', purchases[key]?.precioUnitario ?? '', purchases[key]?.moneda || '', purchases[key]?.proveedor || '', purchaseStates[purchases[key]?.estado] || 'Pendiente',q.store||'Por identificar'];
   }).filter(Boolean)].map(row => row.map(csvCell).join(';')).join('\r\n');
-  if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection, subscribeExchangeRate, pdfComparisonText};
+  if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection, subscribeExchangeRate, pdfComparisonText, listHistory, listSavings};
   if (!root.document) return;
   let detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', listBaseline = null, busy = false, generation = 0;
   let cartDraft = {productos:{}, comprasFinales:{}, nombre:''};
@@ -315,15 +343,21 @@
       let badge=row.querySelector('[data-purchase-badge]');
       if(!badge){badge=document.createElement('small');badge.dataset.purchaseBadge='';row.querySelector('strong').after(badge);badge.style.cssText='display:block;color:var(--green);margin:6px 0';}
       badge.textContent=purchaseStates[actual.estado||'pendiente'];
+      let dates=row.querySelector('[data-item-dates]');if(!dates){dates=document.createElement('small');dates.dataset.itemDates='';dates.style.cssText='display:block;margin:8px 0;color:var(--text3)';row.querySelector('td').appendChild(dates);}
+      const history=listBaseline?.fechasProductos?.[key]||{},created=listBaseline?.creadoEn;
+      dates.textContent='Agregado: '+historyDate(history.agregadoEn)+' · Compra: '+historyDate(history.compradoEn)+(created&&history.compradoEn>=created?' · '+Math.floor((history.compradoEn-created)/86400000)+' días desde la creación':'');
       const state=row.querySelector('[data-purchase="estado"]');if(state)state.closest('label').hidden=!explicitPurchaseEdits.has(key);
       row.querySelectorAll('input,select').forEach(input=>input.disabled=actual.estado==='comprado'&&!edit);
       let button=row.querySelector('[data-edit-purchase]');if(!button){button=document.createElement('button');button.type='button';button.className='btn btn-sm py-edit-item';button.dataset.editPurchase=key;button.title='Editar ítem';button.setAttribute('aria-label','Editar '+p.nombre);button.innerHTML='<i class="ti ti-pencil" aria-hidden="true"></i>';row.querySelector('td').appendChild(button);}
       let saving=row.querySelector('[data-purchase-saving]');if(!saving){saving=document.createElement('small');saving.dataset.purchaseSaving='';field.after(saving);}
       const reference=actual.moneda==='ARS'?q.ars:!actual.moneda||actual.moneda==='USD'?q.usd:0;
-      if(Number.isFinite(actual.precioUnitario)&&reference>0&&actual.cantidad>0){const delta=reference-actual.precioUnitario;const currency=actual.moneda||'USD';saving.textContent=(delta>=0?'Ahorro: ':'Diferencia: ')+currency+' '+amount(Math.abs(delta))+' por unidad · '+currency+' '+amount(Math.abs(delta)*actual.cantidad)+' total';}else saving.textContent='';
+      let savingArs=row.querySelector('[data-purchase-saving-ars]');if(!savingArs){savingArs=document.createElement('small');savingArs.dataset.purchaseSavingArs='';savingArs.style.cssText='display:block;margin-top:4px;color:var(--green);font-size:11px';saving.after(savingArs);}savingArs.textContent='';
+      if(Number.isFinite(actual.precioUnitario)&&reference>0&&actual.cantidad>0){const delta=reference-actual.precioUnitario;const currency=actual.moneda||'USD';saving.textContent=(delta>=0?'Ahorro: ':'Diferencia: ')+currency+' '+amount(Math.abs(delta))+' por unidad · '+currency+' '+amount(Math.abs(delta)*actual.cantidad)+' total';const rate=exchangeRate();if(currency==='USD'&&rate>0)savingArs.textContent=(delta>=0?'Ahorro en pesos: ':'Diferencia en pesos: ')+'≈ ARS $ '+amount(Math.abs(delta)*rate)+' por unidad · ARS $ '+amount(Math.abs(delta)*actual.cantidad*rate)+' total';}else saving.textContent='';
     });
   }
   function renderSummary() {
+    const dates=panel.querySelector('[data-list-dates]');if(dates)dates.textContent='Creada: '+(listKey?historyDate(listBaseline?.creadoEn):'Se registrará al guardar')+' · Última actualización: '+historyDate(listBaseline?.actualizadoEn);
+
     const entries = Object.entries(selected).filter(([key]) => eligible(products[key]));
     panel.querySelector('[data-cart-items]').innerHTML = entries.length ? '<div class="table-wrap"><table class="sv-no-resize"><thead><tr><th>Producto / proveedor</th><th>Solicitado</th><th>Referencia</th><th>Cantidad comprada</th><th>Precio final por unidad</th><th>Moneda</th></tr></thead><tbody>'+entries.map(([key,qty]) => {
       const p=products[key],q=quote(p,purchases[key]?.proveedor),actual=purchases[key]||{},provider=providerSelection(p,actual.proveedor,Object.values(products),typeof proveedoresData==='undefined'?[]:proveedoresData||[]);let url='';try{if(/^https?:$/.test(new URL(q.url).protocol))url=q.url;}catch(_){}
@@ -358,7 +392,7 @@
     panel.querySelector('[data-delete-list]').disabled=busy||!listKey||!lists[listKey];
     panel.querySelector('[data-lists]').innerHTML = '<option value="">Nueva lista</option>'+Object.entries(lists).map(([key,list])=>'<option value="'+esc(key)+'"'+(key===listKey?' selected':'')+'>'+esc(list.nombre)+'</option>').join('');
   }
-  function status(text) { if (panel) panel.querySelector('[data-status]').textContent = text; }
+  function status(text) { if(panel) panel.querySelectorAll('[data-status],[data-save-feedback]').forEach(el=>el.textContent=text); }
   async function open(nombre, options = {}) {
     close();editingPurchases.clear();explicitPurchaseEdits.clear();
     const admin = root.currentRole === 'admin' && root.permisoModulo?.('balancecompra');
@@ -476,9 +510,9 @@
               <div class="metric"><div class="m-label">Costo total ARS</div><div class="m-value" data-total-ars style="color:var(--amber)">$ 0,00</div><div class="m-sub">incluye envío registrado</div></div>
             </div>
             <section class="card" data-list-card aria-label="Lista de compra">
-              <div class="card-head"><span class="card-title">Lista de compra</span><div class="py-actions"><button class="btn btn-sm" data-add-products>＋ Agregar productos</button><button class="btn btn-sm" data-pdf-list><i class="ti ti-file-type-pdf" aria-hidden="true"></i> Exportar PDF</button><button class="btn btn-sm" data-download><i class="ti ti-download" aria-hidden="true"></i> Descargar CSV</button><button class="btn btn-sm" data-delete-list disabled style="color:var(--red,#ef8585)"><i class="ti ti-trash" aria-hidden="true"></i> Eliminar lista</button><button class="btn btn-sm btn-primary" data-save><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar lista</button></div></div>
+              <div class="card-head"><span class="card-title">Lista de compra</span><div class="py-actions"><button class="btn btn-sm" data-add-products>＋ Agregar productos</button><button class="btn btn-sm" data-pdf-list><i class="ti ti-file-type-pdf" aria-hidden="true"></i> Exportar PDF</button><button class="btn btn-sm" data-download><i class="ti ti-download" aria-hidden="true"></i> Descargar CSV</button><button class="btn btn-sm" data-delete-list disabled style="color:var(--red,#ef8585)"><i class="ti ti-trash" aria-hidden="true"></i> Eliminar lista</button><span data-save-feedback role="status" aria-live="polite" style="font-size:12px;max-width:320px;white-space:normal"></span><button class="btn btn-sm btn-primary" data-save><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar lista</button></div></div>
               <div class="py-list-fields"><div class="fg"><label for="py-mis-listas">Mis listas</label><select id="py-mis-listas" data-lists><option value="">Nueva lista</option></select></div><div class="fg"><label for="py-lista-nombre">Nombre de la lista</label><input id="py-lista-nombre" data-name maxlength="120" placeholder="Ej. Próximo viaje"></div></div>
-              <p class="py-note" data-progress role="status"></p><div data-cart-items aria-label="Productos del carrito"></div><p class="py-note" data-summary></p><p data-status role="status"></p>
+              <p class="py-note" data-list-dates></p><p class="py-note" data-progress role="status"></p><div data-cart-items aria-label="Productos del carrito"></div><p class="py-note" data-summary></p><p data-status role="status"></p>
             </section>
             <section class="card" data-products-card aria-label="Catálogo de Productos">
               <div class="card-head"><span class="card-title">Catálogo de Productos</span><div class="py-catalog-controls"><button type="button" class="btn btn-sm" data-pdf-catalog><i class="ti ti-file-type-pdf" aria-hidden="true"></i> Exportar PDF</button><label class="py-group-label"><input type="checkbox" data-group-brand> Agrupar por marca</label><div class="py-view-switch" role="group" aria-label="Vista del catálogo"><button type="button" class="btn btn-sm" data-layout="grid" aria-pressed="true"><i class="ti ti-layout-grid" aria-hidden="true"></i> Cuadrícula</button><button type="button" class="btn btn-sm" data-layout="list" aria-pressed="false"><i class="ti ti-list" aria-hidden="true"></i> Lista</button></div></div></div>
@@ -644,7 +678,7 @@
       const items = Object.fromEntries(Object.entries(selected).filter(([key])=>eligible(products[key])));
       if (Object.keys(selected).some(key=>!eligible(products[key]))) {status('La lista contiene productos que ya no están disponibles. Quitalos de la lista antes de guardar.');return;}
       if (!name || !Object.keys(items).length) { status('Completá el nombre y elegí al menos un producto con cantidad.'); return; }
-      for (const input of panel.querySelectorAll('[data-requested],[data-purchase]')) if (!input.reportValidity()) return;
+      for (const input of panel.querySelectorAll('[data-requested],[data-purchase]')) if (!input.reportValidity()) {status('Revisá '+(input.getAttribute('aria-label')||'los valores ingresados')+'. La lista todavía no se guardó.');return;}
       panel.querySelectorAll('[data-purchase]').forEach(capturePurchase);
       const actualItems={};
       for(const [productKey,value] of Object.entries(purchases)) {
@@ -655,11 +689,11 @@
         if(!Number.isInteger(value.cantidad)||value.cantidad<0||value.cantidad>9999||!Number.isFinite(value.precioUnitario)||value.precioUnitario<0||value.precioUnitario>1e9||!['USD','ARS','PYG'].includes(value.moneda||'USD')){status('Completá cantidad comprada y precio real de cada producto revisado.');return;}
         actualItems[productKey]={estado:state,cantidad:value.cantidad,precioUnitario:value.precioUnitario,moneda:value.moneda||'USD',proveedor:value.proveedor||''};
       }
-      busy = true; panel.querySelector('[data-delete-list]').disabled=true; panel.querySelector('[data-save]').disabled = true; panel.querySelector('[data-lists]').disabled = true;
+      busy = true; status('Guardando lista…');panel.querySelector('[data-save]').textContent='Guardando…';panel.querySelector('[data-save]').setAttribute('aria-busy','true'); panel.querySelector('[data-delete-list]').disabled=true; panel.querySelector('[data-save]').disabled = true; panel.querySelector('[data-lists]').disabled = true;
       const key = listKey || root.fbPush(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid)).key;
       try {
         const path='sv_listas_paraguay/'+uid+'/'+key;
-        const data={nombre:name,productos:items,actualizadoEn:root.fbServerTimestamp(),comprasFinales:Object.keys(actualItems).length?actualItems:null};
+        const data={nombre:name,productos:items,actualizadoEn:root.fbServerTimestamp(),comprasFinales:Object.keys(actualItems).length?actualItems:null,...listHistory(listKey?listBaseline:null,items,actualItems)};
         let saved;
         if(listKey){
           if(!listBaseline||!root.SVGuardedWrites)throw new Error('Volvé a abrir la lista antes de guardar.');
@@ -669,9 +703,9 @@
           saved=(await root.fbGet(root.fbRef(root.fbDB,path))).val();
         }
         if(valid())listBaseline=structuredClone(saved);
-        if(valid()&&panel){editingPurchases.clear();explicitPurchaseEdits.clear();if(!listKey)cartDraft={productos:{},comprasFinales:{},nombre:''};lists[key]=structuredClone(saved);listKey=key;panel.querySelector('[data-add-context]').hidden=true;showView(true);renderLists();renderProducts();status('Lista guardada. Los productos están en esta lista, fuera del carrito.');}
+        if(valid()&&panel){editingPurchases.clear();explicitPurchaseEdits.clear();if(!listKey)cartDraft={productos:{},comprasFinales:{},nombre:''};lists[key]=structuredClone(saved);listKey=key;panel.querySelector('[data-add-context]').hidden=true;showView(true);renderLists();renderProducts();status('✓ Lista guardada correctamente.');}
       } catch (e) {if(valid())status(e.code==='SV_CONFLICT'?'La lista cambió en otro equipo. Volvé a seleccionarla para revisar esos cambios antes de guardar.':(e.message||'No se pudo guardar la lista. Revisá la conexión y el acceso.'));}
-      finally {if(valid()){busy=false;if(panel){panel.querySelector('[data-save]').disabled=false;panel.querySelector('[data-lists]').disabled=false;renderLists();}}}
+      finally {if(valid()){busy=false;if(panel){panel.querySelector('[data-save]').textContent='Guardar lista';panel.querySelector('[data-save]').setAttribute('aria-busy','false');panel.querySelector('[data-save]').disabled=false;panel.querySelector('[data-lists]').disabled=false;renderLists();}}}
     };
     panel.querySelector('[data-download]').onclick = () => {
       if (!Object.keys(selected).some(key=>eligible(products[key]))) {status('Elegí al menos un producto para descargar.');return;}
@@ -694,5 +728,5 @@
     if (container) container.insertAdjacentHTML('afterbegin','<section class="card" aria-label="Rol Compras Paraguay"><div class="card-head"><span class="card-title">Compras Paraguay</span><span class="badge">Acceso limitado</span></div><p>Catálogo exclusivo de la categoría COMPRAS PARAGUAY, listas de compra propias y ajustes de apariencia.</p><p style="font-size:12px;color:var(--text3)">Este rol se asigna desde Usuarios. No tiene acceso a los módulos generales ni modifica productos.</p></section>');
   };
   document.addEventListener('sisventas:session-ended',close);
-  root.SVParaguayPortal = {open,close,removeList:removeShoppingList,returnFromProduct,isProductSheetOpen:()=>!!productSheet};
+  root.SVParaguayPortal = {listSavings,open,close,removeList:removeShoppingList,returnFromProduct,isProductSheetOpen:()=>!!productSheet};
 })(typeof window === 'undefined' ? {} : window);

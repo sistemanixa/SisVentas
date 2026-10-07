@@ -292,6 +292,23 @@
                 ".validate": false
               }
             }
+          },
+          "creadoEn": {
+            ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= now + 300000 && (!data.exists() || newData.val() === data.val())"
+          },
+          "fechasProductos": {
+            "$producto": {
+              ".validate": "newData.parent().parent().child('productos').child($producto).exists()",
+              "agregadoEn": {
+                ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= now + 300000 && (!data.exists() || newData.val() === data.val())"
+              },
+              "compradoEn": {
+                ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= now + 300000 && (!data.exists() || newData.val() === data.val())"
+              },
+              "$otro": {
+                ".validate": false
+              }
+            }
           }
         }
       }

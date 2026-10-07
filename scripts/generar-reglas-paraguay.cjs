@@ -47,6 +47,7 @@ function reglasParaguay(base) {
       }
     }
   };
+  Object.assign(result.rules.sv_listas_paraguay.$uid.$lista,require('./list-history-rules.cjs')());
   return require('./reglas-permisos-distribuidora.cjs').permisosDistribuidora(require('./generar-reglas-distribuidora.cjs').reglasDistribuidora(result));
 }
 if(require.main===module) {
