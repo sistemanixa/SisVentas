@@ -78,6 +78,18 @@
     if(!Object.keys(result.fechasProductos).length)result.fechasProductos=null;
     return result;
   }
+  function localPriceReference(product,unitCost=root.costoUnitarioProveedorProducto) {
+    const refs=(product.proveedores||[]).filter(pv=>{
+      if(!pv||pv.activo===false||pv.disponibilidadProveedor==='sin_stock')return false;
+      let host='';try{host=new URL(pv.url).hostname.toLowerCase();}catch(_){}
+      const ml=/(^|\.)mercadolibre\.com\.ar$/.test(host)||host==='meli.la'||/^mercado\s*libre$/i.test(String(pv.nombre||'').trim());
+      if(ml)return true;
+      if(pv.exterior===true||/paraguay|flytec|nissei|cellshop|shopping china/i.test(String(pv.nombre||''))||/\.(py|br)$/.test(host))return false;
+      if(typeof root.origenProveedorProducto==='function')return !root.origenProveedorProducto(pv).exterior;
+      return pv.exterior===false||/^(argentina|ar|arg)$/i.test(String(pv.pais||''))||/\.com\.ar$/.test(host);
+    }).map(pv=>typeof unitCost==='function'?Number(unitCost(product,pv)):Number(pv.costoRealArs||Number(pv.precioArsPublicado||pv.precio)*(pv.sinIva?1+Number(pv.iva??product.iva??21)/100:1))).filter(n=>Number.isFinite(n)&&n>0);
+    return refs.length?Math.min(...refs):null;
+  }
   function listSavings(list,products,rate,unitCost) {
     let ars=0,included=0,units=0;const total=Object.keys(list.productos||{}).length;
     for(const key of Object.keys(list.productos||{})){
@@ -86,8 +98,8 @@
       const currency=actual.moneda||'USD';
       const paid=currency==='ARS'?actual.precioUnitario:currency==='USD'&&rate>0?actual.precioUnitario*rate:null;
       if(paid===null)continue;
-      const comparison=mlComparison(product,paid||0.01,unitCost,true);if(!comparison)continue;
-      ars+=(comparison.reference-paid)*actual.cantidad;included++;units+=actual.cantidad;
+      const reference=localPriceReference(product,unitCost);if(reference===null)continue;
+      ars+=(reference-paid)*actual.cantidad;included++;units+=actual.cantidad;
     }
     ars=Math.round(ars*100)/100;return {ars,usd:rate>0?Math.round(ars/rate*100)/100:null,included,omitted:total-included,units};
   }

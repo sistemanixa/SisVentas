@@ -11,3 +11,5 @@ const list={productos:{a:5,b:1,c:1,d:1},comprasFinales:{a:{cantidad:2,precioUnit
 assert.deepEqual(listSavings(list,products,1000),{ars:350000,usd:350,included:2,omitted:2,units:3});
 assert.equal(listSavings(list,products,0).included,1);
 });
+
+test('comparativa usa la referencia local menor y excluye proveedores del exterior',()=>{const list={productos:{p:1},comprasFinales:{p:{estado:'comprado',cantidad:1,precioUnitario:400,moneda:'USD'}}};const products={p:{proveedores:[{nombre:'Local',pais:'Argentina',precio:550000},{nombre:'Mercado Libre',precio:600000},{nombre:'COMPRAS PARAGUAY',precio:100000},{nombre:'Nissei',precio:50000}]}};assert.equal(listSavings(list,products,1000).ars,150000);products.p.proveedores=products.p.proveedores.slice(2);assert.equal(listSavings(list,products,1000).included,0);});
