@@ -13,7 +13,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
  await page.locator('[data-save]').click();assert.equal(await page.locator('[data-cart-count]').innerText(),'0');assert.equal(await page.locator('[data-cart-items] tbody tr').count(),1);
  await page.locator('[data-add-products]').click();await page.locator('[data-add="b"]').click();await page.locator('[data-cart]').click();assert.equal(await page.locator('[data-cart-items] tbody tr').count(),2);await page.locator('[data-add-products]').click();await page.locator('[data-confirm-products]').click();assert.deepEqual(await page.evaluate(()=>saved['sv_listas_paraguay/test/list1'].productos),{a:1,b:1});
  assert.equal(await page.locator('[data-purchase="cantidad"][data-key="a"]').inputValue(),'1');
- assert.equal(await page.getByRole('columnheader',{name:'Cantidad comprada',exact:true}).count(),1);
+ assert.equal(await page.getByRole('columnheader',{name:'Cantidad comprada',exact:true,includeHidden:true}).count(),1);
  await page.locator('[data-purchase="precioUnitario"][data-key="a"]').fill('400');
  assert.match(await page.locator('[data-purchase-saving]').first().innerText(),/20,00 por unidad/);
  assert.equal(await page.locator('[data-purchase="cantidad"][data-key="a"]').inputValue(),'1');
