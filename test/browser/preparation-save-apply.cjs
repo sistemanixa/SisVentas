@@ -1,0 +1,11 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict');
+(async()=>{const b=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});try{
+const p=await b.newPage();await p.setContent('<body></body>');await p.evaluate(()=>Object.assign(window,{permisoModulo:()=>true,currentUserUid:'test',fbGet:async()=>({val:()=>({})}),fbRef:()=>'',obtenerDolarReferenciaProducto:()=>({valor:1000}),saved:[],fail:false}));await p.addScriptTag({path:'js/modules/exterior-preparation.js'});
+await p.evaluate(()=>SVExteriorPreparation.open({customer:'Prueba',rows:[{key:'A',productKey:'A',code:'A',description:'Producto A',qty:1,needed:1,providerKey:'E',include:true}],catalog:[{key:'A',code:'A',providers:[{proveedorKey:'E',nombre:'Exterior',exterior:true,usd:100}]}],save:async data=>{if(window.fail)throw Error('Prueba de conexión');window.saved.push(structuredClone(data));}}));
+assert.equal(await p.locator('[data-apply-exterior]').count(),0);
+await p.locator('[data-field="agreed"]').fill('110');await p.locator('[data-save]').click();await p.waitForFunction(()=>saved.length===1);assert.ok(await p.evaluate(()=>saved[0].exteriorAppliedAt));
+await p.locator('[data-field="agreed"]').fill('120');await p.evaluate(()=>window.fail=true);await p.locator('[data-save]').click();await p.getByRole('status').filter({hasText:'Prueba de conexión'}).waitFor();assert.equal(await p.locator('[data-save]').isEnabled(),true);
+await p.evaluate(()=>window.fail=false);await p.locator('[data-save]').click();await p.waitForFunction(()=>saved.length===2);assert.equal(Number(await p.evaluate(()=>saved[1].rows[0].agreed)),120);
+await p.locator('[data-tab="delivery"]').click();const rate=p.locator('[data-param="usd"]');await rate.evaluate(el=>el.closest('details').open=true);await rate.fill('1100');await p.locator('[data-save]').click();await p.waitForFunction(()=>saved.length===3);assert.equal(Number(await p.evaluate(()=>saved[2].parameters.usd)),1100);
+console.log('OK guardar y aplicar, segundo guardado sin reabrir, error recuperable, cotización guardada al primer clic.');
+}finally{await b.close()}})().catch(e=>{console.error(e);process.exitCode=1});

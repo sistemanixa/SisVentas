@@ -2,7 +2,7 @@
  const host=document.getElementById('content'),base='https://nixa-sisventas-default-rtdb.firebaseio.com/sv_catalogo_publico',cache=new Map();let idsPromise,view=0,query='',group=false,list=false;
  const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const href=k=>'catalogo.html?producto='+encodeURIComponent(k);
  const photo=(p,hero=false)=>/^https:\/\//i.test(p.imagenUrl||'')?'<img src="'+esc(p.imagenUrl)+'" alt="'+esc(p.nombre)+'" '+(hero?'fetchpriority="high"':'loading="lazy"')+'>':'<span>Imagen no disponible</span>';
- const price=p=>'<div class="public-price">'+(p.precioARS>0?'$ '+Number(p.precioARS).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'<small>Precio público · ARS · IVA incluido</small>':'Consultar precio')+'</div>';
+ const price=p=>'<div class="public-price">'+(p.precioUSD>0?'US$ '+Number(p.precioUSD).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'<small>Precio público · USD'+(Number(p.iva)>0?' · IVA incluido':'')+'</small>':'Consultar precio')+'</div>';
  async function read(path){const r=await fetch(base+path,{cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(15000)});if([401,403,404].includes(r.status))return null;if(!r.ok)throw Error();return r.json();}
  async function fresh(k){const p=await read('/'+encodeURIComponent(k)+'.json');if(p)cache.set(k,p);else cache.delete(k);return p;}
  const product=k=>cache.has(k)?Promise.resolve(cache.get(k)):fresh(k);
