@@ -1205,6 +1205,9 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 #chat-messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:8px;position:relative}
 #chat-messages.chat-drop-active{outline:2px dashed #25d366;outline-offset:-8px;background:rgba(37,211,102,.08)}
 #chat-messages.chat-drop-active:after{content:'Soltá la imagen para enviarla';position:absolute;inset:12px;z-index:5;border-radius:12px;background:rgba(11,20,26,.92);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:600;pointer-events:none}
+.chat-day{display:flex;flex-direction:column;gap:8px;flex-shrink:0;min-width:0}
+.chat-day-label{position:sticky;top:0;z-index:2;align-self:center;max-width:100%;padding:4px 0;pointer-events:none}
+.chat-day-label span{display:block;padding:5px 12px;border:1px solid var(--border2);border-radius:14px;background:var(--bg3);color:var(--text2);box-shadow:0 2px 5px rgba(0,0,0,.12);font-size:11px;font-weight:600;text-align:center}
 .chat-msg{max-width:80%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.4;position:relative}
 .chat-msg-wrap{display:flex;flex-direction:column;position:relative;margin-bottom:2px;touch-action:pan-y}
 .chat-msg-wrap .chat-msg{transition:transform .15s ease;will-change:transform}

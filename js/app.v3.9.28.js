@@ -3403,6 +3403,20 @@ async function chatModificarMensaje(key, accion) {
   } catch(e){notify('No se pudo modificar el mensaje: '+e.message);}
 }
 
+function chatFechaMensaje(ts, ahora) {
+  var fecha = ts ? new Date(ts) : null;
+  if (!fecha || !Number.isFinite(fecha.getTime())) return {clave:'sin-fecha', etiqueta:'Sin fecha registrada', hora:''};
+  var hoy = ahora ? new Date(ahora) : new Date();
+  var ayer = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 1);
+  function clave(d) { return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); }
+  var dia = clave(fecha);
+  return {
+    clave:dia,
+    etiqueta:dia === clave(hoy) ? 'Hoy' : dia === clave(ayer) ? 'Ayer' : fecha.toLocaleDateString('es-AR', {day:'numeric',month:'long',year:'numeric'}),
+    hora:fecha.toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'})
+  };
+}
+
 function chatRenderMensajes(lista) {
   var container = document.getElementById('chat-messages');
   if (!container) return;
@@ -3421,9 +3435,17 @@ function chatRenderMensajes(lista) {
   var msgMap = {};
   lista.forEach(function(m){ if(m.fbKey) msgMap[m.fbKey] = m; });
 
+  var ultimoDia = null;
+  var ahora = new Date();
   container.innerHTML = lista.map(function(m) {
+    var fecha = chatFechaMensaje(m.ts, ahora);
+    var separador = '';
+    if (fecha.clave !== ultimoDia) {
+      separador = (ultimoDia === null ? '' : '</section>') + '<section class="chat-day" aria-label="' + escapeHTML(fecha.etiqueta) + '"><div class="chat-day-label"><span>' + escapeHTML(fecha.etiqueta) + '</span></div>';
+      ultimoDia = fecha.clave;
+    }
     var esMio  = m.autor === currentUser;
-    var hora   = m.ts ? new Date(m.ts).toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) : '';
+    var hora   = fecha.hora;
     var align  = esMio ? 'flex-end' : 'flex-start';
     var replyHtml = '';
     if (m.replyFbKey && msgMap[m.replyFbKey]) {
@@ -3441,7 +3463,7 @@ function chatRenderMensajes(lista) {
     var acciones = chatMensajeModificable(m,currentUser) ? '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:5px">' +
       (m.texto ? '<button class="btn btn-sm" data-key="'+fbKeyEsc+'" onclick="chatModificarMensaje(this.dataset.key,\'editar\')" title="Editar mensaje"><i class="ti ti-pencil"></i></button>' : '') +
       '<button class="btn btn-sm" data-key="'+fbKeyEsc+'" onclick="chatModificarMensaje(this.dataset.key,\'eliminar\')" title="Eliminar mensaje"><i class="ti ti-trash"></i></button></div>' : '';
-    return '<div class="chat-msg-wrap" style="align-items:' + align + '" data-fbkey="' + (m.fbKey||'') + '">' +
+    return separador + '<div class="chat-msg-wrap" style="align-items:' + align + '" data-fbkey="' + (m.fbKey||'') + '">' +
       replyBtn +
       '<div class="chat-msg ' + (esMio ? 'mine' : 'other') + '">' +
         (!esMio ? '<div class="chat-msg-autor">' + escapeHTML(m.autor||'') + '</div>' : '') +
@@ -3452,7 +3474,7 @@ function chatRenderMensajes(lista) {
           chatTicks(m) +
         '</div>' +
       '</div></div>';
-  }).join('');
+  }).join('') + '</section>';
   container.scrollTop = seguirFinal && !termino ? container.scrollHeight : posicion;
   audiosActivos.forEach(function(audio) {
     var nuevo = Array.from(container.querySelectorAll('audio')).find(function(item) { return item.getAttribute('src') === audio.getAttribute('src'); });
