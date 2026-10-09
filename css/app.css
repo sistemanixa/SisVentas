@@ -2770,7 +2770,8 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 #page-agenda .ag-semana-desktop>div{min-width:0;overflow-wrap:anywhere}
 
 #pd-proveedores-box .pf-providers-inline{border:0;box-shadow:none;padding:0;margin:0}
-#pd-proveedores-box .pf-providers-inline>.card-head{display:none!important}
+#pd-proveedores-box .pf-providers-inline>.card-head{display:flex!important}
+#prod-detail-view .card:has(>#pd-proveedores-box>.pf-providers-inline)>.card-head{display:none!important}
 
 /* Las acciones se mantienen dentro de su celda incluso con columnas estrechas. */
 #prod-tbl .prod-actions-cell{padding:8px!important;white-space:normal!important}
@@ -3233,4 +3234,14 @@ body.sv-exterior-dialog-open .content{overflow:hidden!important;overscroll-behav
 @media(min-width:701px){
   #page-venta .form-bottom-actions{padding-right:68px;gap:6px}
   #page-venta .form-bottom-actions>.btn{min-width:0!important;padding-left:10px;padding-right:10px;white-space:nowrap}
+}
+
+/* Mismo editor de proveedores en ficha y formulario, sin recortar importes. */
+.pf-providers-scroll{max-width:100%;overflow-x:auto}
+@media(min-width:701px){
+ #page-productos #pf-proveedores-tbl{table-layout:auto!important;min-width:1160px!important}
+ #page-productos #pf-proveedores-tbl .pf-provider-name{min-width:210px!important}
+ #page-productos #pf-proveedores-tbl .pf-provider-cost{min-width:185px!important}
+ #page-productos #pf-proveedores-tbl .pf-provider-mainline{height:auto;min-height:32px;flex-wrap:wrap}
+ #page-productos #pf-proveedores-tbl .pf-provider-cost .pf-provider-mainline>span:first-child{flex-shrink:0;white-space:nowrap}
 }

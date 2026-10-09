@@ -21310,7 +21310,7 @@ function renderTablaProveedoresProducto() {
 
   var grupoAnterior = null;
   var tieneExterior = prodProveedoresActuales.some(function(pv){return origenProveedorProducto(pv).exterior;});
-  prodProveedoresActuales.map(function(pv,i){return {pv:pv,i:i};}).sort(function(a,b){return Number(origenProveedorProducto(a.pv).exterior)-Number(origenProveedorProducto(b.pv).exterior);}).forEach(function(fila) {
+  prodProveedoresActuales.map(function(pv,i){return {pv:pv,i:i};}).sort(function(a,b){return compararProveedoresPorOrigenYCosto(a.pv,b.pv,costosReales[a.i],costosReales[b.i]);}).forEach(function(fila) {
     var pv = fila.pv, i = fila.i;
     if (!proveedorVisibleEnProducto(pv)) return;
     var exterior = origenProveedorProducto(pv).exterior;
@@ -23206,7 +23206,7 @@ function verProducto(id, origen) {
       var empateMenorCosto = comparacion.filter(function(fila){ return fila.costo > 0 && fila.costo === menorCosto; }).length > 1;
       var tieneExterior = lista.some(function(pv){return origenProveedorProducto(pv).exterior;});
       var grupoAnterior = null;
-      comparacion.sort(function(a,b){return Number(origenProveedorProducto(a.proveedor).exterior)-Number(origenProveedorProducto(b.proveedor).exterior);});
+      comparacion.sort(function(a,b){return compararProveedoresPorOrigenYCosto(a.proveedor,b.proveedor,a.costo,b.costo);});
       var rows = comparacion.map(function(fila, i) {
         var pv = fila.proveedor;
         var pvNormalizado = fila.normalizado;
@@ -23288,6 +23288,11 @@ function distintivoProveedorExterior(pv) {
 
 function encabezadoGrupoProveedor(exterior, columnas) {
   return '<tr class="provider-origin-group '+(exterior ? 'provider-origin-exterior' : 'provider-origin-local')+'"><td colspan="'+columnas+'" style="padding:14px 6px 8px;color:var(--blue);font-weight:600;border-bottom:1px solid var(--border)">'+(exterior ? 'Proveedores del exterior · Costos convertidos a ARS' : 'Proveedores locales')+'</td></tr>';
+}
+
+function compararProveedoresPorOrigenYCosto(a, b, costoA, costoB) {
+  return Number(origenProveedorProducto(a).exterior) - Number(origenProveedorProducto(b).exterior) ||
+    (costoA > 0 ? costoA : Infinity) - (costoB > 0 ? costoB : Infinity);
 }
 
 function ordenarProveedoresComparacion(proveedores) {

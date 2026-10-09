@@ -36,3 +36,13 @@ test('actualizador omite referencia incluso con URL heredada y no la envía al c
  assert.equal(c.validarResultadoActualizadorProveedor({proveedor:ref},{},{}).ok,false);
  assert.equal(ref.precio,606264);
 });
+
+test('ficha y edición agrupan con el mismo orden sin mezclar la referencia con exterior',()=>{
+ const c={window:{},proveedoresData:[]};vm.createContext(c);load(c,'origenProveedorProducto');load(c,'compararProveedoresPorOrigenYCosto');
+ const reference={proveedorKey:'referencia-de-valor',url:'https://flytec.com.py/p'};
+ const flytec={nombre:'FLYTEC PARAGUAY'};
+ assert.ok(c.compararProveedoresPorOrigenYCosto(reference,flytec,606264,306460)<0);
+ assert.ok(c.compararProveedoresPorOrigenYCosto({pais:'Argentina'},{pais:'Argentina'},10,20)<0);
+ assert.match(source,/compararProveedoresPorOrigenYCosto\(a.pv,b.pv,costosReales/);
+ assert.match(source,/compararProveedoresPorOrigenYCosto\(a.proveedor,b.proveedor,a.costo,b.costo\)/);
+});

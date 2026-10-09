@@ -10,7 +10,7 @@ const SHELL = [
   './',
   './index.html',
   './js/modules/paraguay-budget-margin.js?v=3.8.1',
-  './css/app.css?v=3.9.28',
+  './css/app.css?v=3.9.30',
   './css/v3-preview.css?v=3.8.20-menu2',
   './js/app.js',
   './js/modules/budget-proposals.js?v=3.7.0',
