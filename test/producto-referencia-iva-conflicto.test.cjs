@@ -18,3 +18,10 @@ test('cotizar referencia local conserva exento; la URL principal puede actualiza
  assert.equal(iva.value,favorite?'21':'0');assert.equal(c.prodProveedoresActuales[0].ivaAlicuota,21);
  }
 });
+
+test('proveedor de referencia incorporado al sistema, primero y sin duplicar',()=>{
+ const c={window:{}};vm.createContext(c);load(c,'proveedoresConReferenciaDeValor');
+ const blank=c.proveedoresConReferenciaDeValor([]);assert.equal(blank.length,1);assert.equal(blank[0].nombre,'REFERENCIA DE VALOR');
+ const again=c.proveedoresConReferenciaDeValor([...blank,{fbKey:'flytec',nombre:'FLYTEC'}]);assert.equal(again.length,2);assert.equal(again[0].pais,'Argentina');
+ load(c,'origenProveedorProducto');assert.equal(c.origenProveedorProducto({proveedorKey:'referencia-de-valor',url:'https://flytec.com.py/p'}).exterior,false);
+});

@@ -38,6 +38,7 @@
   providersStop=root.fbOnValue(root.fbRef(root.fbDB,'sv_catalogo_proveedores'),snap=>{
    if(root.currentRole!=='distribuidora')return;
    root.proveedoresData=Object.entries(snap.val()||{}).map(([fbKey,p])=>({...p,fbKey}));
+   if(root.proveedoresConReferenciaDeValor)root.proveedoresData=root.proveedoresConReferenciaDeValor(root.proveedoresData);
    if(editor&&!root.productoFichaConsultando?.())root.inicializarFichaProducto?.();
   },()=>root.notify?.('No se pudo cargar el listado de proveedores.'));
  }

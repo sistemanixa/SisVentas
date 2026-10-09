@@ -16285,7 +16285,8 @@ function completarReferenciaProveedorProducto(pv, urlFallback, origen) {
   if (esLegacyUsd) {
     precio = Math.round(precio * tc.valor * 100) / 100;
   }
-  var url = normalizarUrlProveedorProducto(pv.url || urlFallback || '', pv.nombre || pv.proveedor || '');
+  var esReferenciaManual = String(pv.proveedorKey || pv.proveedorFbKey || '') === 'referencia-de-valor';
+  var url = esReferenciaManual ? '' : normalizarUrlProveedorProducto(pv.url || urlFallback || '', pv.nombre || pv.proveedor || '');
   pv.url = url;
   var costoReal = precio > 0 ? precio * factorIvaProveedorProducto(pv) + costoEnvioProveedorProducto(pv) : 0;
   pv.nombre = String(pv.nombre || pv.proveedor || '').trim();
@@ -21345,7 +21346,7 @@ function renderTablaProveedoresProducto() {
     }
     opcionesProveedor += (proveedoresData || [])
       .filter(function(prov){ return prov && prov.activo !== false; })
-      .sort(function(a,b){ return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); })
+      .sort(function(a,b){ return (String(b.fbKey || '') === 'referencia-de-valor') - (String(a.fbKey || '') === 'referencia-de-valor') || String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'); })
       .map(function(prov){
         var key = String(prov.fbKey || prov.key || prov.id || '');
         return '<option value="'+escapeHTML(key)+'"'+(key === proveedorKeyActual ? ' selected' : '')+'>'+escapeHTML(prov.nombre || 'Proveedor')+(prov.rubro ? ' · '+escapeHTML(prov.rubro) : '')+'</option>';
@@ -23259,6 +23260,7 @@ function proveedorVisibleEnProducto(pv) {
 function origenProveedorProducto(pv) {
   pv = pv || {};
   var key = String(pv.proveedorKey || pv.proveedorFbKey || '');
+  if (key === 'referencia-de-valor') return {exterior:false,etiqueta:'Referencia local · ARS'};
   var maestro = (proveedoresData || []).find(function(p) {
     return key ? String(p.fbKey || p.key || p.id || '') === key : String(p.nombre || '').trim().toLowerCase() === String(pv.nombre || '').trim().toLowerCase();
   }) || {};
@@ -44551,6 +44553,13 @@ function renderResumenPreciosProveedores() {
   }).join('') + '<style>#prov-precios-resumen .prov-precio-foto{width:104px;height:104px;max-height:104px;flex:0 0 104px;object-fit:contain;border-radius:0;background:#fff;border:0;box-shadow:none;display:block}</style>';
 }
 
+function proveedoresConReferenciaDeValor(lista) {
+  var key = 'referencia-de-valor';
+  var existentes = (lista || []).filter(function(p) { return String(p.fbKey || p.key || p.id || '') !== key; });
+  return [{fbKey:key,nombre:'REFERENCIA DE VALOR',pais:'Argentina',monedaPrecios:'ARS',web:'',activo:true,base:false,favorito:false,preciosSinIva:false,rubro:'Referencia manual de precios'}].concat(existentes);
+}
+window.proveedoresConReferenciaDeValor = proveedoresConReferenciaDeValor;
+
 function fbCargarProveedores() {
   if (!window.fbDB) return;
   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/proveedores'), function(snap) {
@@ -44560,6 +44569,7 @@ function fbCargarProveedores() {
       proveedor.nombre = String(proveedor.nombre || '').trim().toLocaleUpperCase('es-AR');
       return proveedor;
     }) : [];
+    lista = proveedoresConReferenciaDeValor(lista);
     proveedoresData = lista;
     if(currentRole === 'admin') window.SVDistribuidora?.syncProviders(lista).catch(function(){console.warn('No se pudo actualizar el directorio de proveedores del catálogo');});
     renderResumenPreciosProveedores();
