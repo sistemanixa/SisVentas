@@ -90,18 +90,23 @@
     }).map(pv=>typeof unitCost==='function'?Number(unitCost(product,pv)):Number(pv.costoRealArs||Number(pv.precioArsPublicado||pv.precio)*(pv.sinIva?1+Number(pv.iva??product.iva??21)/100:1))).filter(n=>Number.isFinite(n)&&n>0);
     return refs.length?Math.min(...refs):null;
   }
+  function localReferenceHTML(product) {
+    const reference=localPriceReference(product);
+    return reference===null?'':'<small class="py-local-reference" style="display:block;margin-top:8px;color:var(--green)">Referencia local / ML: ARS $ '+reference.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</small>';
+  }
   function listSavings(list,products,rate,unitCost) {
-    let ars=0,included=0,units=0;const total=Object.keys(list.productos||{}).length;
+    let ars=0,included=0,units=0,withReference=0,pendingFinal=0;const total=Object.keys(list.productos||{}).length;
     for(const key of Object.keys(list.productos||{})){
       const actual=list.comprasFinales?.[key],product=products[key];
-      if(!product||actual?.estado!=='comprado'||!(actual.cantidad>0)||!Number.isFinite(actual.precioUnitario)||actual.precioUnitario<0)continue;
+      if(!product)continue;
+      const reference=localPriceReference(product,unitCost);if(reference===null)continue;withReference++;
+      if(actual?.estado!=='comprado'||!(actual.cantidad>0)||!Number.isFinite(actual.precioUnitario)||actual.precioUnitario<0){pendingFinal++;continue;}
       const currency=actual.moneda||'USD';
       const paid=currency==='ARS'?actual.precioUnitario:currency==='USD'&&rate>0?actual.precioUnitario*rate:null;
       if(paid===null)continue;
-      const reference=localPriceReference(product,unitCost);if(reference===null)continue;
       ars+=(reference-paid)*actual.cantidad;included++;units+=actual.cantidad;
     }
-    ars=Math.round(ars*100)/100;return {ars,usd:rate>0?Math.round(ars/rate*100)/100:null,included,omitted:total-included,units};
+    ars=Math.round(ars*100)/100;return {ars,usd:rate>0?Math.round(ars/rate*100)/100:null,included,omitted:total-included,units,withReference,pendingFinal};
   }
   const historyDate=value=>Number(value)>0?new Date(Number(value)).toLocaleDateString('es-AR'):'Sin fecha registrada';
 
@@ -373,7 +378,7 @@
     const entries = Object.entries(selected).filter(([key]) => eligible(products[key]));
     panel.querySelector('[data-cart-items]').innerHTML = entries.length ? '<div class="table-wrap"><table class="sv-no-resize"><thead><tr><th>Producto / proveedor</th><th>Solicitado</th><th>Referencia</th><th>Cantidad comprada</th><th>Precio final por unidad</th><th>Moneda</th></tr></thead><tbody>'+entries.map(([key,qty]) => {
       const p=products[key],q=quote(p,purchases[key]?.proveedor),actual=purchases[key]||{},provider=providerSelection(p,actual.proveedor,Object.values(products),typeof proveedoresData==='undefined'?[]:proveedoresData||[]);let url='';try{if(/^https?:$/.test(new URL(q.url).protocol))url=q.url;}catch(_){}
-      return '<tr data-item-state="'+esc(actual.estado||'pendiente')+'"><td><button type="button" class="btn btn-sm py-remove-item" data-remove="'+esc(key)+'" aria-label="Eliminar '+esc(p.nombre||p.codigo)+' de la lista" title="Eliminar de la lista"><i class="ti ti-trash" aria-hidden="true"></i></button><div class="py-list-product" style="display:flex;align-items:center;gap:10px"><span style="display:block;width:52px;height:52px;flex:0 0 52px;background:white;border-radius:8px;overflow:hidden">'+root.imagenCatalogoHTML(p,'py-list-photo')+'</span><strong>'+esc(p.nombre || p.descripcion)+'</strong></div><small class="py-note">Local: '+esc(q.store||'Por identificar')+'</small>'+(url?'<br><a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Corroborar en proveedor ↗</a>':'')+'<label class="py-provider-choice"><span>Proveedor</span><select aria-label="Proveedor '+esc(p.codigo)+'" data-purchase="proveedor" data-key="'+esc(key)+'">'+(!provider.chosen?'<option value="">Elegir proveedor</option>':'')+provider.options.map(name=>'<option value="'+esc(name)+'" '+(name===provider.chosen?'selected':'')+'>'+esc(name)+'</option>').join('')+'</select></label><label class="py-provider-choice"><span>Estado de la compra</span><select aria-label="Estado '+esc(p.codigo)+'" data-purchase="estado" data-key="'+esc(key)+'">'+Object.entries(purchaseStates).map(([value,label])=>'<option value="'+value+'" '+((actual.estado||'pendiente')===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label></td><td data-label="Solicitado"><input aria-label="Cantidad solicitada '+esc(p.codigo)+'" type="number" min="1" max="9999" step="1" data-requested="'+esc(key)+'" value="'+qty+'"></td><td data-label="Referencia">US$ '+amount(q.usd)+'<br><small>$ '+amount(q.ars)+' con envío</small></td><td data-label="Cantidad comprada"><input aria-label="Cantidad comprada '+esc(p.codigo)+'" data-purchase="cantidad" data-key="'+esc(key)+'" type="number" min="0" max="9999" step="1" value="'+esc(actual.cantidad??qty)+'" placeholder="Pendiente"></td><td data-label="Precio final por unidad"><input aria-label="Precio real '+esc(p.codigo)+'" data-purchase="precioUnitario" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioUnitario??'')+'" placeholder="Pendiente"></td><td data-label="Moneda"><select aria-label="Moneda '+esc(p.codigo)+'" data-purchase="moneda" data-key="'+esc(key)+'">'+['USD','ARS','PYG'].map(c=>'<option '+((actual.moneda||'USD')===c?'selected':'')+'>'+c+'</option>').join('')+'</select></td></tr>';
+      return '<tr data-item-state="'+esc(actual.estado||'pendiente')+'"><td><button type="button" class="btn btn-sm py-remove-item" data-remove="'+esc(key)+'" aria-label="Eliminar '+esc(p.nombre||p.codigo)+' de la lista" title="Eliminar de la lista"><i class="ti ti-trash" aria-hidden="true"></i></button><div class="py-list-product" style="display:flex;align-items:center;gap:10px"><span style="display:block;width:52px;height:52px;flex:0 0 52px;background:white;border-radius:8px;overflow:hidden">'+root.imagenCatalogoHTML(p,'py-list-photo')+'</span><strong>'+esc(p.nombre || p.descripcion)+'</strong></div><small class="py-note">Local: '+esc(q.store||'Por identificar')+'</small>'+(url?'<br><a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Corroborar en proveedor ↗</a>':'')+'<label class="py-provider-choice"><span>Proveedor</span><select aria-label="Proveedor '+esc(p.codigo)+'" data-purchase="proveedor" data-key="'+esc(key)+'">'+(!provider.chosen?'<option value="">Elegir proveedor</option>':'')+provider.options.map(name=>'<option value="'+esc(name)+'" '+(name===provider.chosen?'selected':'')+'>'+esc(name)+'</option>').join('')+'</select></label><label class="py-provider-choice"><span>Estado de la compra</span><select aria-label="Estado '+esc(p.codigo)+'" data-purchase="estado" data-key="'+esc(key)+'">'+Object.entries(purchaseStates).map(([value,label])=>'<option value="'+value+'" '+((actual.estado||'pendiente')===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label></td><td data-label="Solicitado"><input aria-label="Cantidad solicitada '+esc(p.codigo)+'" type="number" min="1" max="9999" step="1" data-requested="'+esc(key)+'" value="'+qty+'"></td><td data-label="Referencia">US$ '+amount(q.usd)+'<br><small>$ '+amount(q.ars)+' con envío</small>'+localReferenceHTML(p)+'</td><td data-label="Cantidad comprada"><input aria-label="Cantidad comprada '+esc(p.codigo)+'" data-purchase="cantidad" data-key="'+esc(key)+'" type="number" min="0" max="9999" step="1" value="'+esc(actual.cantidad??qty)+'" placeholder="Pendiente"></td><td data-label="Precio final por unidad"><input aria-label="Precio real '+esc(p.codigo)+'" data-purchase="precioUnitario" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioUnitario??'')+'" placeholder="Pendiente"></td><td data-label="Moneda"><select aria-label="Moneda '+esc(p.codigo)+'" data-purchase="moneda" data-key="'+esc(key)+'">'+['USD','ARS','PYG'].map(c=>'<option '+((actual.moneda||'USD')===c?'selected':'')+'>'+c+'</option>').join('')+'</select></td></tr>';
     }).join('')+'</tbody></table></div>' : '<p class="py-note">Tu lista está vacía. Agregá productos desde Ofertas.</p>';
     refreshPurchaseRows();renderPurchaseProgress();
     const missingItems=Object.entries(selected).filter(([key])=>!eligible(products[key]));
@@ -419,7 +424,7 @@
     panel = document.createElement('main'); panel.id = 'screen-paraguay';
     panel.innerHTML = `
       <style>
-      #screen-paraguay .py-add-context{position:sticky;top:0;z-index:5;background:var(--bg2);padding:12px;border:1px solid var(--border);border-radius:10px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}#screen-paraguay .py-add-context[hidden]{display:none}#screen-paraguay .py-edit-item{position:absolute;right:12px;top:60px;width:44px;height:44px;padding:0;display:inline-flex;align-items:center;justify-content:center;color:var(--blue);z-index:2}#screen-paraguay [data-purchase-saving]{display:block;margin-top:6px;color:var(--green);font-size:11px}#screen-paraguay .py-list-photo{width:100%;height:100%;object-fit:contain}
+      #screen-paraguay .py-add-context{position:sticky;top:0;z-index:5;background:var(--bg2);padding:12px;border:1px solid var(--border);border-radius:10px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}#screen-paraguay .py-add-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin-left:auto}#screen-paraguay .py-add-actions [data-confirm-products]{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}#screen-paraguay .py-add-context[hidden]{display:none}#screen-paraguay .py-edit-item{position:absolute;right:12px;top:60px;width:44px;height:44px;padding:0;display:inline-flex;align-items:center;justify-content:center;color:var(--blue);z-index:2}#screen-paraguay [data-purchase-saving]{display:block;margin-top:6px;color:var(--green);font-size:11px}#screen-paraguay .py-list-photo{width:100%;height:100%;object-fit:contain}
       #screen-paraguay [data-cart-items] table{min-width:1100px;table-layout:auto}
       #screen-paraguay [data-cart-items] th:first-child,#screen-paraguay [data-cart-items] td:first-child{width:320px!important;min-width:320px;white-space:normal!important}
       #screen-paraguay .py-list-product strong{white-space:normal;overflow-wrap:anywhere;line-height:1.4;min-width:0}
@@ -528,7 +533,7 @@
             </section>
             <section class="card" data-products-card aria-label="Catálogo de Productos">
               <div class="card-head"><span class="card-title">Catálogo de Productos</span><div class="py-catalog-controls"><button type="button" class="btn btn-sm" data-pdf-catalog><i class="ti ti-file-type-pdf" aria-hidden="true"></i> Exportar PDF</button><label class="py-group-label"><input type="checkbox" data-group-brand> Agrupar por marca</label><div class="py-view-switch" role="group" aria-label="Vista del catálogo"><button type="button" class="btn btn-sm" data-layout="grid" aria-pressed="true"><i class="ti ti-layout-grid" aria-hidden="true"></i> Cuadrícula</button><button type="button" class="btn btn-sm" data-layout="list" aria-pressed="false"><i class="ti ti-list" aria-hidden="true"></i> Lista</button></div></div></div>
-              <div class="py-add-context" data-add-context hidden><strong data-add-title></strong><button class="btn btn-primary" data-confirm-products>Confirmar productos en la lista</button><button class="btn" data-return-list>Revisar lista</button></div><input class="search-input" data-search aria-label="Buscar producto" placeholder="Buscar por nombre, código o marca…" style="width:100%">
+              <div class="py-add-context" data-add-context hidden><strong data-add-title></strong><div class="py-add-actions"><button class="btn" data-return-list>Revisar lista</button><button class="btn btn-primary" data-confirm-products>Confirmar productos en la lista</button></div></div><input class="search-input" data-search aria-label="Buscar producto" placeholder="Buscar por nombre, código o marca…" style="width:100%">
               <p class="py-note" data-count style="margin-bottom:16px"></p>
               <div class="catalogo-grid" data-products></div>
               <p class="py-note">Los precios corresponden a la última información registrada.</p>
@@ -709,14 +714,14 @@
         let saved;
         if(listKey){
           if(!listBaseline||!root.SVGuardedWrites)throw new Error('Volvé a abrir la lista antes de guardar.');
-          saved=await root.SVGuardedWrites.save(path,listBaseline,data,true);
+          saved=await root.SVGuardedWrites.save(path,listBaseline,data,true,{ignoreUpdatedTimestamp:true});
         }else{
           await root.fbSet(root.fbRef(root.fbDB,path),data);
           saved=(await root.fbGet(root.fbRef(root.fbDB,path))).val();
         }
         if(valid())listBaseline=structuredClone(saved);
         if(valid()&&panel){editingPurchases.clear();explicitPurchaseEdits.clear();if(!listKey)cartDraft={productos:{},comprasFinales:{},nombre:''};lists[key]=structuredClone(saved);listKey=key;panel.querySelector('[data-add-context]').hidden=true;showView(true);renderLists();renderProducts();status('✓ Lista guardada correctamente.');}
-      } catch (e) {if(valid())status(e.code==='SV_CONFLICT'?'La lista cambió en otro equipo. Volvé a seleccionarla para revisar esos cambios antes de guardar.':(e.message||'No se pudo guardar la lista. Revisá la conexión y el acceso.'));}
+      } catch (e) {if(valid())status(e.code==='SV_CONFLICT'?'La versión guardada de esta lista cambió desde que la abriste, posiblemente en otra ventana. Tus cambios siguen aquí; revisá la lista antes de reintentar.':(e.message||'No se pudo guardar la lista. Revisá la conexión y el acceso.'));}
       finally {if(valid()){busy=false;if(panel){panel.querySelector('[data-save]').textContent='Guardar lista';panel.querySelector('[data-save]').setAttribute('aria-busy','false');panel.querySelector('[data-save]').disabled=false;panel.querySelector('[data-lists]').disabled=false;renderLists();}}}
     };
     panel.querySelector('[data-download]').onclick = () => {

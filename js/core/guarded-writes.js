@@ -19,23 +19,42 @@
     }
     return next;
   }
-  async function save(path,baseline,changes,requireUnchanged){
+  async function save(path,baseline,changes,requireUnchanged,options){
+    const ignoreUpdated=options?.ignoreUpdatedTimestamp===true && /^sv_listas_paraguay\/[^/]+\/[^/]+$/.test(path);
+    const comparable=value=>{const copy=Object.assign({},value);delete copy.fbKey;if(ignoreUpdated)delete copy.actualizadoEn;return copy;};
+    const mergeCurrent=current=>merge(current,ignoreUpdated?{...baseline,actualizadoEn:current?.actualizadoEn}:baseline,changes);
     if(!root.fbDB||typeof root.fbRunTransaction!=='function')throw new Error('No hay conexión segura para guardar');
     // Precargar evita abortar una transacción por la primera llamada con caché vacía.
     const ref=root.fbRef(root.fbDB,path);
     const uid=root.currentUserUid;
     await root.fbGet(ref);
     if(uid!==root.currentUserUid)throw conflict();
+    let sawServerRecord=false;
     const result=await root.fbRunTransaction(ref,current=>{
+      if(current!==null)sawServerRecord=true;
       if(uid!==root.currentUserUid)return undefined;
       if(requireUnchanged){
-        const original=Object.assign({},baseline);delete original.fbKey;
-        const latest=Object.assign({},current);delete latest.fbKey;
+        const original=comparable(baseline);
+        const latest=comparable(current);
         if(!current||!equal(latest,original))return undefined;
       }
-      return merge(current,baseline,changes);
+      return mergeCurrent(current);
     },{applyLocally:false});
-    if(!result.committed)throw conflict();
+    if(!result.committed){
+      if(sawServerRecord||uid!==root.currentUserUid)throw conflict();
+      // Firebase puede invocar el actualizador con caché local vacía aunque get() haya leído el servidor.
+      // Verificar la misma precondición contra el servidor antes de atribuirlo a otro editor.
+      const verified=await restTransaction(ref,current=>{
+        if(requireUnchanged){
+          const original=comparable(baseline);
+          const latest=comparable(current);
+          if(!current||!equal(latest,original))return undefined;
+        }
+        return mergeCurrent(current);
+      });
+      if(!verified.committed)throw conflict();
+      return verified.value;
+    }
     return result.snapshot.val();
   }
   async function conditionalUpdate(path,validate,updates){
@@ -89,7 +108,7 @@
       checkSession();
       // Las escrituras condicionales deben conservar la respuesta normal.
       const write=await root.fetch(url.href,{method:'PUT',headers:{'if-match':etag,'Content-Type':'application/json'},body,signal:AbortSignal.timeout(90000)});
-      if(write.ok)return {committed:true};
+      if(write.ok)return {committed:true,value:await write.json().catch(()=>null)};
       if(write.status===412){url.searchParams.delete('print');continue;}
       if(write.status===401||write.status===403)throw new Error('No tenés permiso para completar esta operación.');
       const detail=await write.json().catch(()=>({}));
