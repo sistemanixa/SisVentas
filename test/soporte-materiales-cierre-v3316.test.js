@@ -13,10 +13,10 @@ test('cerrar cobra o bonifica sólo mano de obra y persiste materiales y reclamo
   const venta={fbKey:'v',items:[{cod:'MO',qty:1,punit:100,sub:100}],subtotal:100,iva:0,estadoPago:'pendiente_pago'};
   const reclamo={estado:'ot_activa',otKey:'ot'};
   const ot={fbKey:'ot',estado:'completada',materiales:[{cod:'C',qty:2,punit:10.25,adicionalOT:true}]};
-  const writes=[];const c={...ctx,svAutorizarDescuentoVenta:async()=>true,SVCommercialApproval:require('../js/modules/commercial-approval'),SP_DATA:{r:reclamo},SP_MODAL_KEY:'r',FB_PATHS:{ordenesTrabajo:'sisventas/ordenes_trabajo'},currentUser:'Vendedor',
+  const writes=[];const c={...ctx,svAutorizarDescuentoVenta:async()=>{assert.equal(bonificada,false);return true;},SVCommercialApproval:require('../js/modules/commercial-approval'),SP_DATA:{r:reclamo},SP_MODAL_KEY:'r',FB_PATHS:{ordenesTrabajo:'sisventas/ordenes_trabajo'},currentUser:'Vendedor',
    _svResolverVentaRegistro:()=>venta,_buscarOTCanonicaPorClave:()=>ot,otEstaCerrada:o=>o.estado==='completada',spVentaTieneDefinicionComercial:()=>false,
    svCrearProgresoBoton:()=>({finalizar(){}}),svFechaLocalISO:()=> '2026-09-05',spRenderLista(){},spActualizarMetricas(){},spAbrirModal(){},notify:m=>{if(m.startsWith('No se pudo'))throw Error(m);},
-   window:{fbDB:{},fbRef:(_,p)=>p||'',fbGet:async p=>({val:()=>p.includes('reclamos')?reclamo:p.includes('ordenes_trabajo')?ot:venta}),fbUpdate:async(p,data)=>writes.push({p,data})}};
+   window:{tienePermiso:p=>p==='soporte.resolver',fbDB:{},fbRef:(_,p)=>p||'',fbGet:async p=>({val:()=>p.includes('reclamos')?reclamo:p.includes('ordenes_trabajo')?ot:venta}),fbUpdate:async(p,data)=>writes.push({p,data})}};
   c.window.SisVentas={carga:{mostrar:()=>()=>{}}};vm.createContext(c);require('./helpers/app-functions.cjs').load(c,['_svCargaOperacion_otGuardarCorreccionProductos']);vm.runInContext(extract('spIntegrarMaterialesOT'),c);const start=src.indexOf('async function spConfirmarResolucionVisita('),end=src.indexOf('\nfunction ',start+10);vm.runInContext(src.slice(start,end),c);
   await c.spConfirmarResolucionVisita('r','v','MO',{querySelector:()=>({value:bonificada?'bonificada':'cobrada'}),remove(){}});
   assert.equal(writes.length,1);assert.equal(writes[0].p,'');assert.equal(writes[0].data['sisventas/ventas/v/total'],bonificada?20.5:120.5);assert.equal(writes[0].data['sisventas/reclamos/r/estado'],'cerrado');assert.equal(writes[0].data['sisventas/ventas/v/items'][1].sub,20.5);

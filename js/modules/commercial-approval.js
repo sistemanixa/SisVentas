@@ -19,6 +19,12 @@
     const iva=round(subtotal*Math.max(0,rate)),total=round(subtotal+iva),descuento=round(gross-subtotal);
     return {items:normalized,subtotal,iva,total,descuento,descuentoPctEfectivo:gross>0?round(descuento/gross*100):0};
   }
+  function bonificarVisitaReclamo(record,context){
+    context=context||{};
+    const discounted=lines(record).filter(i=>itemDiscount(i)>0);
+    if(!context.reclamoKey||!context.otKey||!context.usuario||general(record,'venta')!==0||discount(record,'venta').invalid||discounted.length!==1||itemDiscount(discounted[0])!==100||discounted[0].bonificadoPostVenta!==true)return null;
+    return {version:1,reclamoKey:context.reclamoKey,otKey:context.otKey,usuario:context.usuario,fecha:new Date().toISOString(),firma:signature(record,'venta')};
+  }
   function status(record,type,config){
     record=record||{};config=config||{};const d=discount(record,type),limit=number(config.descuentoLimite??10),proof=record.autorizacionDescuento;
     if(d.invalid)return {blocked:true,reason:'El descuento debe estar entre 0% y 100%.'};
@@ -26,11 +32,13 @@
     if(type==='venta'&&d.general>0&&lines(record).length){const totals=recalculateSale(record);if(Math.abs(totals.total-number(record.total))>0.02)return {blocked:true,reason:'El descuento general guardado ('+d.general+'%) no coincide con el total. Revisá y guardá la venta antes de emitirla.'};}
     const exceeds=d.maximum>limit+0.000001||(type==='presupuesto'&&number(record.total)>number(config.montoLimite??200000));
     const legacyApproved=type==='presupuesto'&&!proof&&!record.vistaPreviaSinGuardar&&!!record.aprobadoPor&&!!record.aprobadoEn&&['aprobado_int','enviado','visto','aceptado','convertido'].includes(record.estado);
-    const valid=legacyApproved||proof&&proof.version===1&&proof.firma===signature(record,type)&&!!proof.usuario&&!!proof.fecha;
+    const claim=record.bonificacionReclamo;
+    const claimValid=type==='venta'&&claim&&claim.version===1&&!!claim.fecha&&claim.firma===signature(record,type)&&!!bonificarVisitaReclamo(record,claim);
+    const valid=claimValid||legacyApproved||proof&&proof.version===1&&proof.firma===signature(record,type)&&!!proof.usuario&&!!proof.fecha;
     if(exceeds&&!valid)return {blocked:true,needsApproval:true,reason:'Descuento o importe fuera del límite: falta una autorización registrada para estos valores. Guardá y solicitá la aprobación antes de imprimir, generar PDF o compartir.'};
     return {blocked:false,maximum:d.maximum,approved:!!valid};
   }
-  const api={discount,signature,stamp,status,recalculateSale};
+  const api={discount,signature,stamp,status,recalculateSale,bonificarVisitaReclamo};
   if(typeof module!=='undefined')module.exports=api;
   if(!root.document)return;
   root.SVCommercialApproval=api;

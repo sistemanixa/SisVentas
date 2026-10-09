@@ -35,3 +35,16 @@ test('venta histórica hereda aprobación sólo de un presupuesto vinculado e im
  budget.estado='convertido';ctx._presupuestosOrigenDeVenta=()=>[budget,budget];assert.equal(ctx.svValidarSalidaComercial(sale,'venta'),false);
  ctx._presupuestosOrigenDeVenta=()=>[];assert.equal(ctx.svValidarSalidaComercial(sale,'venta'),false);
 });
+
+ test('sin cargo desde reclamos conserva constancia específica sin autorizar otros descuentos',()=>{
+ const a=require('../js/modules/commercial-approval');
+ const sale={items:[{cod:'MO',qty:1,punit:100,disc:100,bonificadoPostVenta:true},{cod:'MAT',qty:1,punit:30,disc:0}],total:30,iva:0};
+ sale.bonificacionReclamo=a.bonificarVisitaReclamo(sale,{reclamoKey:'r',otKey:'ot',usuario:'yplana'});
+ assert.ok(sale.bonificacionReclamo);
+ assert.equal(a.status(sale,'venta',{descuentoLimite:10}).blocked,false);
+ const edited=JSON.parse(JSON.stringify(sale));edited.items[1].disc=20;
+ assert.equal(a.status(edited,'venta',{descuentoLimite:10}).blocked,true);
+ assert.equal(a.bonificarVisitaReclamo(edited,{reclamoKey:'r',otKey:'ot',usuario:'yplana'}),null);
+ const ordinary=JSON.parse(JSON.stringify(sale));delete ordinary.bonificacionReclamo;
+ assert.equal(a.status(ordinary,'venta',{descuentoLimite:10}).blocked,true);
+ });
