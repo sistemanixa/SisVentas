@@ -17542,7 +17542,7 @@ async function _svCargaOperacion_actualizarProveedoresDesdeFicha(indice) {
       };
     });
     var resultados = await cotizarProveedoresCloudRun(descriptores, producto.codigo || '', producto.nombre || producto.descripcion || '');
-    resultados = Array.isArray(resultados) ? resultados : [];
+    resultados = Array.isArray(resultados) ? resultados : (resultados && Array.isArray(resultados.resultados) ? resultados.resultados : []);
     var candidatos = [], fallos = [], variacionesPendientes = [];
     items.forEach(function(item, posicion) {
       var resultado = resultados[posicion];
