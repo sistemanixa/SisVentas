@@ -33,6 +33,7 @@ function permisosDistribuidora(base){
  r.sv_chat_presencia=require('./chat-presence-rules.cjs').chatPresenceRules();
  Object.assign(r,require('./public-catalog-rules.cjs').publicCatalogRules());
  Object.assign(r,require('./catalog-request-rules.cjs').catalogRequestRules());
+ require('./public-currency-rules.cjs').publicCurrencyRules(r);
  return out;
 }
 module.exports={permisosDistribuidora};

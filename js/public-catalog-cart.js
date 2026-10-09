@@ -5,12 +5,13 @@ let cart={},busy=false,step=1,pending=null,contact={nombre:'',lista:'',telefono:
 try{const saved=JSON.parse(localStorage.getItem(KEY)||'{}');for(const [id,p] of Object.entries(saved).slice(0,40))if(p&&Number.isInteger(p.qty)&&p.qty>0&&p.qty<=999)cart[id]=p;}catch(_){}
 try{pending=JSON.parse(sessionStorage.getItem(DRAFT)||'null');}catch(_){}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const money=n=>'US$ '+Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const money=n=>window.SVPublicCurrency?window.SVPublicCurrency.money(n):'US$ '+Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const button=document.createElement('button');button.className='btn cart-toggle';button.type='button';document.querySelector('header').append(button);
 const dialog=document.createElement('dialog');dialog.className='public-cart';dialog.setAttribute('aria-labelledby','cart-title');document.body.append(dialog);
 let opener;
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(cart));}catch(_){}update();}
 function update(){const n=Object.values(cart).reduce((s,p)=>s+p.qty,0);button.textContent='Mi lista ('+n+')';button.setAttribute('aria-label','Abrir carrito, '+n+' productos');}
+window.addEventListener('catalog-currency-change',()=>{if(dialog.open&&step===1&&!busy)render();});
 function remember(){dialog.querySelectorAll('[data-contact]').forEach(i=>contact[i.name]=i.value);}
 function message(text){dialog.querySelector('[data-message]').textContent=text;}
 function close(){if(busy)return;remember();dialog.close();opener?.focus();}
