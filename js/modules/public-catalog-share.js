@@ -1,14 +1,23 @@
 (function(root){
  'use strict';
+ function mercadoLibreReference(p,rate,unitCost=root.costoUnitarioProveedorProducto){
+  if(!(Number.isFinite(rate)&&rate>0))return 0;
+  const refs=(p.proveedores||[]).filter(pv=>{
+   if(!pv||pv.activo===false||pv.disponibilidadProveedor==='sin_stock'||pv.esReferenciaEstimada===true)return false;
+   let host='';try{host=new URL(pv.url).hostname.toLowerCase();}catch(_){}
+   return /(^|\.)mercadolibre\.com\.ar$/.test(host)||host==='meli.la'||/^mercado\s*libre$/i.test(String(pv.nombre||'').trim());
+  }).map(pv=>typeof unitCost==='function'?Number(unitCost(p,pv)):Number(pv.costoRealArs||(Number(pv.precioArsPublicado||pv.precio)*(pv.sinIva?1+Number(pv.iva??p.iva??21)/100:1)))).filter(n=>Number.isFinite(n)&&n>0);
+  return refs.length?Math.round(Math.min(...refs)/rate*100)/100:0;
+ }
  function project(p, rate=Number(root.obtenerDolarReferenciaProducto?.().valor)){
   if(!p||p.categoria!=='COMPRAS PARAGUAY'||p.catalogoVisible===false||p.activo===false||String(p.estado).toLowerCase()==='inactivo'||p.esManoDeObra)return null;
   const image=String(p.imagenUrl||'');
   const net=typeof root.precioVentaCanonicoProducto==='function'?Number(root.precioVentaCanonicoProducto(p).precioARS):Number(p.ventaARS||p.venta||0);
   const iva=p.iva==null?21:Number(p.iva);const precioARS=Number.isFinite(net)&&net>0?Math.round(net*(1+iva/100)*100)/100:0;
   const precioUSD=Number.isFinite(rate)&&rate>0?Math.round(precioARS/rate*100)/100:0;
-  return {precioUSD,iva:Number.isFinite(iva)&&iva>=0?iva:21,nombre:String(p.nombre||''),marca:String(p.marca||''),descripcion:String(p.catalogoDescripcion||p.descripcion||''),imagenUrl:/^https:\/\//i.test(image)?image:''};
+  return {precioUSD,referenciaMLUSD:mercadoLibreReference(p,rate),iva:Number.isFinite(iva)&&iva>=0?iva:21,nombre:String(p.nombre||''),marca:String(p.marca||''),descripcion:String(p.catalogoDescripcion||p.descripcion||''),imagenUrl:/^https:\/\//i.test(image)?image:''};
  }
- if(typeof module!=='undefined')module.exports={project};
+ if(typeof module!=='undefined')module.exports={project,mercadoLibreReference};
  if(!root.document)return;
  function shareNotice(button,text,url){
   let notice=button.parentElement.querySelector('[data-share-status]');
