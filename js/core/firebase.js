@@ -80,11 +80,17 @@
     window.fbSignIn      = signInWithEmailAndPassword;
     window.fbSignOut     = signOut;
     window.fbOnAuth = function(auth, callback, errorCallback) {
+      let authEpoch = 0;
       return onAuthStateChanged(auth, async function(user) {
+        const epoch = ++authEpoch;
         try {
-          if (window.svPrepararRutasSeguridad) await window.svPrepararRutasSeguridad(user);
-          callback(user);
+          const prepared = window.svPrepararRutasSeguridad ? await window.svPrepararRutasSeguridad(user) : undefined;
+          if (epoch !== authEpoch) return;
+          // No entregar a la UI una preparación que ya pertenece a otra sesión.
+          if (prepared && window.svPreparacionSeguridadVigente && !window.svPreparacionSeguridadVigente(prepared, user)) return;
+          callback(user, prepared);
         } catch (error) {
+          if (epoch !== authEpoch) return;
           console.warn('[Auth] No se pudo verificar la ubicación de acceso', error);
           if (errorCallback) errorCallback(error);
           else if (window.notify) window.notify('No se pudo verificar el acceso. Revisá la conexión y recargá.');

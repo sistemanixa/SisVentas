@@ -31,7 +31,11 @@ test('la OC dispone de un comprobante imprimible con proveedor e items', () => {
   assert.match(purchaseOrders, /Proveedor/);
   assert.match(purchaseOrders, /window\.print/);
   assert.match(purchaseOrders, /hasReceipts \? '<button class="btn" onclick="ocImprimirOrdenActual/);
-  assert.match(index, /purchase-orders\.js\?v=[^"\s]+/);
+  // La OC se prepara después de verificar la sesión, desde el cargador activo.
+  const loaderPath = index.match(/src="\.\/(js\/core\/session-assets\.js)\?[^"\s]+"/);
+  assert.ok(loaderPath, 'el índice debe cargar el manifiesto de módulos de sesión');
+  const loader = fs.readFileSync(path.join(root, loaderPath[1]), 'utf8');
+  assert.match(loader, /purchase-orders\.js\?v=[^'"\s]+/);
 });
 
 test('el detalle de OC adopta la regla general de columnas con una clave estable', () => {

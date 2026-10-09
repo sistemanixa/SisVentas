@@ -656,15 +656,20 @@
   window.ocAbrirSimuladorParaguay = async function () {
     if (!window.permisoModulo || !window.permisoModulo('balancecompra')) return;
     if (!state.activeList) return;
-    if (!window.SVParaguayPlanner) {
-      try { await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/paraguay-planner.js?v=3.7.19';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);}); }
+    var list=state.activeList;
+    var useLegacyPlanner=(materialListLocked(list)||list.compraConfirmacion)&&!(list.simuladorParaguay&&list.simuladorParaguay.version>=6);
+    function simulatorCurrent(){return state.activeList===list && window.permisoModulo('balancecompra') && !!useLegacyPlanner===!!((materialListLocked(list)||list.compraConfirmacion)&&!(list.simuladorParaguay&&list.simuladorParaguay.version>=6));}
+    if (useLegacyPlanner && !window.SVParaguayPlanner) {
+      try { if(window.SVSessionAssets) await window.SVSessionAssets.load('planner'); else await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/paraguay-planner.js?v=3.8.1';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);}); }
       catch(e) { if(window.notify) window.notify('No se pudo cargar el simulador'); return; }
     }
-    var list=state.activeList;loadMaterialQuote();
+    if(!simulatorCurrent())return;
+    loadMaterialQuote();
     if((!materialListLocked(list)&&!list.compraConfirmacion||list.simuladorParaguay&&list.simuladorParaguay.version>=6)&&!window.SVExteriorPreparation){
-      try{await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/exterior-preparation.js?v=3.9.12';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}
+      try{if(window.SVSessionAssets)await window.SVSessionAssets.load('preparation');else await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/exterior-preparation.js?v=3.9.12';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}
       catch(e){window.notify('No se pudo cargar la preparación de compra. Reintentá.');return;}
     }
+    if(!simulatorCurrent())return;
     var sale=saleRef(list.ventaFbKey||list.ventaId)||{};
     var rows=(list.items||[]).filter(function(i){return isPurchasableMaterialItem(i)&&i.incluir&&i.cantidadNecesaria>0;}).map(function(i){
       var product=findProduct(i)||{};
@@ -675,8 +680,9 @@
       var baselinePart=typeof window.obtenerCostoItemVenta==='function'?Number(original.costoUnitarioAntesPreparacion??(window.obtenerCostoItemVenta(original)/originalQty))*Number(i.cantidadNecesaria):null;
       return {sourceLine:i.linea,reference:i.referenciaCompra||null,localUnitARS:Number(i.costoUnitario)||0,referenceDate:pv.actualizado||'',sourceListId:i.sourceListId||'',saleLabel:i.saleLabel||'',expenseExcluded:!!i.expenseExcluded,needed:Number(i.cantidadNecesaria)||0,existing:Number(i.usarExistente)||0,sourceQty:Number(i.cantidadComprar)||0,productKey:String(i.productoKey||i.codigo),providerKey:i.proveedorKey||'',baselinePart:baselinePart,key:[i.productoKey||i.codigo,i.linea,i.proveedorKey||i.proveedor].join('|'),code:i.codigo,description:i.descripcion,provider:i.proveedor,qty:Number(i.cantidadComprar),include:py,usd:String(pv.monedaOriginal||'').toUpperCase()==='USD'?Number(pv.precioOriginal)||'':'',weight:1};
     });
-    if(!window.SVPurchasePDF){try{await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/purchase-pdf-import.js?v=3.7.18';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}catch(e){if(window.notify)window.notify('No se pudo cargar la importación PDF. Reintentá.');return;}}
-    ((materialListLocked(list)||list.compraConfirmacion)&&!(list.simuladorParaguay&&list.simuladorParaguay.version>=6)?window.SVParaguayPlanner:window.SVExteriorPreparation).open({rates:materialRates,openOrders:function(){window.showPage('ordenes');showOrdersTab('orders');},customer:balancePurchaseTitle(list),available:function(row){return Number((state.inventory[row.productKey||row.code]||{}).general)||0;},providers:(window.proveedoresData||[]).filter(function(p){return p.activo!==false;}).map(function(p){return {proveedorKey:String(p.fbKey||p.id||''),nombre:p.nombre,web:p.web||p.url||p.portal||p.sitio||'',activo:p.activo,exterior:typeof window.origenProveedorProducto==='function'?!!window.origenProveedorProducto(p).exterior:/paraguay|flytec|nissei/i.test(p.nombre||'')};}),saleId:list.ventaId||list.numero,stockOnly:list.origen==='stock_paraguay',rows:rows,saved:list.simuladorParaguay,closed:materialListLocked(list)||!!list.compraConfirmacion,isClosed:function(){return materialListLocked(state.lists.find(function(x){return x.fbKey===list.fbKey;})||list);},
+    if(!window.SVPurchasePDF){try{if(window.SVSessionAssets)await window.SVSessionAssets.load('purchasePDF');else await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/purchase-pdf-import.js?v=3.7.18';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}catch(e){if(window.notify)window.notify('No se pudo cargar la importación PDF. Reintentá.');return;}}
+    if(!simulatorCurrent())return;
+    (useLegacyPlanner?window.SVParaguayPlanner:window.SVExteriorPreparation).open({rates:materialRates,openOrders:function(){window.showPage('ordenes');showOrdersTab('orders');},customer:balancePurchaseTitle(list),available:function(row){return Number((state.inventory[row.productKey||row.code]||{}).general)||0;},providers:(window.proveedoresData||[]).filter(function(p){return p.activo!==false;}).map(function(p){return {proveedorKey:String(p.fbKey||p.id||''),nombre:p.nombre,web:p.web||p.url||p.portal||p.sitio||'',activo:p.activo,exterior:typeof window.origenProveedorProducto==='function'?!!window.origenProveedorProducto(p).exterior:/paraguay|flytec|nissei/i.test(p.nombre||'')};}),saleId:list.ventaId||list.numero,stockOnly:list.origen==='stock_paraguay',rows:rows,saved:list.simuladorParaguay,closed:materialListLocked(list)||!!list.compraConfirmacion,isClosed:function(){return materialListLocked(state.lists.find(function(x){return x.fbKey===list.fbKey;})||list);},
       catalog:productList().filter(function(p){return !isLabor(p);}).map(function(p){return {key:String(p.fbKey||p.codigo),code:p.codigo||'',description:p.nombre||'',detail:p.descripcion||'',stock:typeof window.stockOperativoProducto==='function'?Number(window.stockOperativoProducto(p).general)||0:0,providers:providersFor(p).map(function(v){var raw=(typeof window.proveedoresVinculadosProducto==='function'?window.proveedoresVinculadosProducto(p):p.proveedores||[]).find(function(x){return x.proveedorKey===v.proveedorKey||String(x.nombre||x.proveedor)===v.nombre;})||{};var units=typeof window.metrosPorPresentacionProducto==='function'?Number(window.metrosPorPresentacionProducto(p))||1:1;return Object.assign({},v,{costo:v.costo/units,usd:v.usd/units});})};}),
       confirm:function(snapshot){return confirmPlannedPurchase(list,snapshot);},
       closePurchase:function(){return reconcilePlannedPurchase(list);},
