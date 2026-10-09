@@ -18201,6 +18201,13 @@ function productoEstaActivo(producto) {
   return !!producto && producto.activo !== false && producto.activo !== 0 && String(producto.activo).toLowerCase() !== 'false' && String(producto.estado || '').trim().toLowerCase() !== 'inactivo' && !producto.eliminado;
 }
 
+function esProveedorReferenciaValor(pv) {
+  pv = pv || {};
+  return String(pv.proveedorKey || pv.proveedorFbKey || pv.fbKey || '') === 'referencia-de-valor' || /^referencia (?:de valor|local estimada)$/i.test(String(pv.nombre || '').trim());
+}
+function itemProveedorAutomatico(item) {
+  return !!item && !esProveedorReferenciaValor(item) && !esProveedorReferenciaValor(item.proveedor);
+}
 function productoActualizadorActivo(item) {
   var producto = item && item.producto;
   if (!producto) return false;
@@ -18213,7 +18220,7 @@ function productosBiosegurActualizables() {
     selectedTypes:['biosegur','free_electron','tecnoprices','mercado_libre'],
     now:Date.now(), maxAgeMs:precioVigenciaMs()
   }], null);
-  if (enlacesV3) return Array.from(enlacesV3).concat(enlacesProveedoresAutomaticos());
+  if (enlacesV3) return Array.from(enlacesV3).concat(enlacesProveedoresAutomaticos()).filter(itemProveedorAutomatico);
   var salida = [];
   Object.values(prodData || {}).forEach(function(p) {
     if (!productoEstaActivo(p) || esProductoManoDeObra(p)) return;
@@ -18243,7 +18250,7 @@ function productosBiosegurActualizables() {
       salida.push({ producto:p, proveedor:pv, proveedorIdx:idx, proveedorKey:String(proveedorKey), url:url, tipo:tipo });
     });
   });
-  return salida.concat(enlacesProveedoresAutomaticos());
+  return salida.concat(enlacesProveedoresAutomaticos()).filter(itemProveedorAutomatico);
 }
 
 var ACTUALIZADOR_PROVEEDORES = [
@@ -20247,6 +20254,7 @@ function datosActualizadosProductoBiosegur(item, resultado) {
 
 function validarResultadoActualizadorProveedor(item, resultado, opciones) {
   opciones = opciones || {};
+  if (!itemProveedorAutomatico(item)) return {ok:false,mensaje:'Referencia de valor: importe manual, excluido del actualizador'};
   if (!resultado || !resultado.identidad || resultado.identidad.ok !== true) {
     return { ok:false, mensaje:'El proveedor no confirmó que la página corresponda al producto solicitado' };
   }
@@ -21421,7 +21429,7 @@ async function cotizarPreciosProveedores(indice) {
       automatizable: automatizable || !!(maestro && proveedorAutomaticoDeFila(pv) && urlAutomaticaValida({url:urlProveedor}, maestro))
     };
   }).filter(function(pv) {
-    return pv.nombre && pv.url && pv.automatizable && (!individual || pv.idx === indice);
+    return !esProveedorReferenciaValor(pv) && pv.nombre && pv.url && pv.automatizable && (!individual || pv.idx === indice);
   });
   var proveedorManual = prodProveedoresActuales.find(function(pv, idx) {
     if (individual && idx !== indice) return false;
@@ -21829,6 +21837,7 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box, contex
 
   var actualizados = 0;
   var filasResultado = [];
+  provCotizables = provCotizables.filter(function(pv) { return !esProveedorReferenciaValor(pv) && !esProveedorReferenciaValor(prodProveedoresActuales[pv.idx]); });
   res.resultados.forEach(function(r, resultadoIdx) {
     var precio = parsePrecioProveedorARS(r.precio || r.precioArs || r.precioARS);
     var requiereConfirmacionIdentidad = !!(r.requiereConfirmacionIdentidad || (r.raw && r.raw.requiereConfirmacionIdentidad));
@@ -21998,7 +22007,7 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box, contex
 
 function cotizarProveedoresCloudRun(provCotizables, codigoProducto, nombreProducto) {
   var directos = provCotizables.filter(function(pv) {
-    return pv.urlProducto && pv.proveedorKey && pv.url && SISVENTAS_FUNCTIONS.cotizadorProveedor;
+    return !esProveedorReferenciaValor(pv) && pv.urlProducto && pv.proveedorKey && pv.url && SISVENTAS_FUNCTIONS.cotizadorProveedor;
   });
   if (!directos.length) return Promise.resolve(null);
 
