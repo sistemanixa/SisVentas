@@ -113,7 +113,7 @@
       result.faltantes += material.faltante;
       result.sinClasificar += Math.max(0, material.entregada - classified(material));
     });
-    result.conObservaciones = result.devolucionPendiente + result.devueltos + result.enTecnico + result.danados + result.faltantes > 0;
+    result.conObservaciones = result.sinClasificar + result.devolucionPendiente + result.enTecnico + result.danados + result.faltantes > 0;
     return result;
   }
 
@@ -434,6 +434,10 @@
         material.estadoCustodia = material.enTecnico ? 'en_tecnico' : (material.danada || material.faltante ? 'incidencia' : (material.instalada ? 'rendido' : 'devuelto'));
         return material;
       });
+      if (ot.estado === 'con_observaciones' && ot.cierreConObservaciones && ot.custodiaRendida && !summary(ot).conObservaciones) {
+        ot.estado = 'completada';
+        ot.cierreConObservaciones = false;
+      }
       return save(ot, 'Depósito confirmó la recepción de ' + total + ' unidad(es) devueltas');
     }).then(function () { window.notify('✓ Devolución recibida y material reincorporado'); })
       .catch(function (error) { window.notify('No se pudo confirmar la devolución: ' + error.message); });

@@ -41613,6 +41613,13 @@ function spIntegrarMaterialesOT(venta, ot) {
     var g = grupos[cod] || (grupos[cod] = { base:0, adicionales:[] });
     var cantidad = Number(m.qty ?? m.vendida ?? m.cantidad ?? 0);
     if (!Number.isFinite(cantidad) || cantidad < 0) throw new Error('Cantidad inválida en el material ' + cod);
+    // Las devoluciones recibidas no son materiales consumidos por el cliente.
+    // No se alteran renglones que ya integran una venta ni devoluciones pendientes.
+    if (m.adicionalOT === true && m.custodiaActiva === true) {
+      var devuelta = Number(m.devuelta || 0);
+      if (!Number.isFinite(devuelta) || devuelta < 0 || devuelta > cantidad) throw new Error('Revisá la devolución del material ' + cod);
+      cantidad -= devuelta;
+    }
     if (m.adicionalOT === true) g.adicionales.push({material:m, cantidad:cantidad});
     else g.base += cantidad;
   });
@@ -46822,6 +46829,10 @@ window.otEstaCerrada = otEstaCerrada;
 function otEstadoParaMostrar(ot) {
   if (!ot) return '';
   var estado = otEstadoNormalizado(ot);
+  if (estado === 'con_observaciones' && ot.cierreConObservaciones && ot.custodiaRendida && typeof window.otCustodiaResumen === 'function') {
+    var rendicion = window.otCustodiaResumen(ot);
+    if (rendicion.controlados > 0 && !rendicion.sinClasificar && !rendicion.conObservaciones) return 'completada';
+  }
   if (otEstaCerrada(ot)) return estado === 'con_observaciones' ? estado : 'completada';
   var progreso = parseFloat(ot && typeof ot === 'object' ? ot.progreso : 0) || 0;
   if (progreso >= 100) return 'lista_finalizar';

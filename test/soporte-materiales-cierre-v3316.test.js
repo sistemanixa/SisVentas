@@ -32,3 +32,23 @@ test('corrección de OT cerrada sincroniza eliminación y agregado con su venta'
  await c.otGuardarCorreccionProductos(ot,[{cod:'D',qty:2,punit:20.25,adicionalOT:true}],'Corrección',ot.materiales[0]);
  assert.equal(writes.length,1);assert.equal(writes[0]['sisventas/ventas/v/total'],140.5);assert.equal(writes[0]['sisventas/ventas/v/items'].some(i=>i.cod==='C'),false);assert.equal(writes[0]['sisventas/ordenes_trabajo/ot/materiales'][0].cod,'D');
 });
+
+test('devolución recibida completa no agrega un cargo ni modifica una venta cobrada',()=>{
+ const venta={items:[{cod:'MO',qty:1,punit:100,disc:100}],estadoPago:'sin_cargo'};
+ const ot={materiales:[{cod:'C',adicionalOT:true,custodiaActiva:true,vendida:1,entregada:1,instalada:0,devuelta:1,punit:20}]};
+ assert.deepEqual(merge(venta,ot),venta.items);
+});
+test('devolución parcial cobra sólo cantidad no devuelta y conserva historial vendido',()=>{
+ const m={cod:'C',adicionalOT:true,custodiaActiva:true,vendida:3,devuelta:2,punit:20};
+ assert.equal(merge({items:[]},{materiales:[m]})[0].qty,1);
+ const existing={items:[{cod:'C',qty:3,punit:20}]};
+ assert.deepEqual(merge(existing,{materiales:[m]}),existing.items);
+ assert.equal(merge({items:[]},{materiales:[{...m,devuelta:0,devueltaPendiente:2}]})[0].qty,3);
+});
+test('rendición completa con devolución no deja observaciones; incidencias siguen pendientes',()=>{
+ const c={window:{}};vm.createContext(c);vm.runInContext(fs.readFileSync('js/modules/ot-material-custody.js','utf8'),c);
+ const mat={custodiaActiva:true,vendida:1,entregada:1,devuelta:1};
+ assert.equal(c.window.otCustodiaResumen({materiales:[mat]}).conObservaciones,false);
+ for(const field of ['devueltaPendiente','enTecnico','danada','faltante'])assert.equal(c.window.otCustodiaResumen({materiales:[{...mat,devuelta:0,[field]:1}]}).conObservaciones,true);
+ assert.equal(c.window.otCustodiaResumen({materiales:[{...mat,devuelta:0}]}).conObservaciones,true);
+});
