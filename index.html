@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.10.1-firebase' -->
+<!-- VERSION: 'v3.10.2-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.10.1.js"></script>
+<script src="./js/core/version.v3.10.2.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -297,6 +297,9 @@
   <div class="overlay-mobile" id="mob-overlay" onclick="toggleSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199"></div>
 
     <div class="content">
+      <div class="sv-retorno-modulo" style="margin-bottom:16px">
+        <button type="button" id="sv-volver-global" class="btn btn-sm" style="flex-shrink:0" onclick="if(!volverAtrasSisVentas())notify('No hay una página anterior en esta sesión')" title="Volver a la vista anterior (Escape)" aria-label="Volver"><i class="ti ti-arrow-left" aria-hidden="true"></i> Volver</button>
+      </div>
 
       <!-- ── DASHBOARD ── -->
       <div id="page-dashboard" class="page active">
@@ -5712,7 +5715,7 @@ Listo para analizar.
 <script src="./js/modules/commercial-approval.js?v=3.9.29"></script>
 <script src="./js/core/guarded-writes.js?v=3.9.24-server-check2"></script>
 <script src="./js/core/session-assets.js?v=3.10.0"></script>
-<script src="./js/app.v3.10.1.js"></script>
+<script src="./js/app.v3.10.2.js"></script>
 <script src="./js/modules/partial-invoices.js?v=1"></script>
 <script src="./js/modules/commercial-drafts.js?v=2"></script>
 <script src="./js/modules/chat-access.js?v=3.10.0"></script>
