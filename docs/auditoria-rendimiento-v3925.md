@@ -206,3 +206,7 @@ Reportes, Compras y el planificador ahora reutilizan el cargador compartido para
 ### Informe de uso: índice de identidades
 
 El render prepara una sola vez índices de correo y UID, evitando una búsqueda lineal del directorio por cada usuario agregado. Conserva la primera coincidencia original incluso cuando correo y UID apuntan a entradas diferentes. El máximo de tiempos se obtiene con reduce, sin expandir todas las filas como argumentos de Math.max. Prueba de equivalencia con 1.000 usuarios, coincidencias cruzadas, clave duplicada e identidad histórica: mismo HTML y totales que v3.9.30. Cuatro pruebas de métricas aprobadas. No implica una medición de velocidad real.
+
+### Cuenta corriente: filas solo con pantalla visible
+
+El callback de pagos conserva conciliación completa, mapa de saldos e indicadores financieros, pero delega las filas a renderTablaCuentaCorriente. Ese render sale sin escribir HTML si Cuenta corriente está oculta. Al navegar se dibuja desde el mapa actual aunque el listener ya estuviera activo, y se reaplica la búsqueda vigente. Prueba de pantalla oculta, pago recibido antes de abrir, cancelación del saldo y filtro conservado. Suite general: 1.248 pruebas aprobadas. No se recortaron pagos ni deudas históricas; sigue pendiente separar sus fuentes mediante resúmenes e índices.

@@ -10674,7 +10674,7 @@ function showPage(id, el) {
   if (id === 'estadisticas')   { setTimeout(function(){ if(typeof renderEstadisticas==='function') renderEstadisticas(); }, 150); }
   if (id === 'caja')           { setTimeout(function(){ fbCargarCaja(); }, 50); }
   if (id === 'cobranzas')      { setTimeout(function(){ if(typeof iniciarMonedaCobranza==='function') iniciarMonedaCobranza(); fbCargarPagos(); }, 50); }
-  if (id === 'cuentacorriente'){ setTimeout(function(){ fbCargarPagos(); }, 50); }
+  if (id === 'cuentacorriente'){ setTimeout(function(){ fbCargarPagos(); renderTablaCuentaCorriente(); }, 50); }
   if (id === 'notificaciones')  { setTimeout(function(){ if(typeof renderHistorialComunicados==='function') renderHistorialComunicados(); }, 50); }
   if (id === 'configuracion')   { setTimeout(function(){
     try{ if(typeof cargarConfigGeneral==='function') cargarConfigGeneral(); }catch(e){}
@@ -27163,6 +27163,20 @@ function _cobroSaldoRestanteHistorialHTML(p, listaOrdenada, indice) {
     saldo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</span>';
 }
 
+function renderTablaCuentaCorriente(lista) {
+  if (!_svEsPaginaActiva('cuentacorriente')) return;
+  var ccTbody = document.getElementById('cc-tbody');
+  if (!ccTbody) return;
+  var ccLista = lista || Object.entries(window._ccMapActual || {}).filter(function(e){ return e[1].total > 0; }).sort(function(a,b){ return (b[1].total-b[1].cobrado)-(a[1].total-a[1].cobrado); });
+      ccTbody.innerHTML = ccLista.length ? ccLista.map(function(e){
+        var key=e[0],nom=e[0],d=e[1]; if(d && d.nombre) nom=d.nombre; var saldo=d.total-d.cobrado;
+        return '<tr class="ccrow" data-saldo="'+saldo+'" data-cliente-key="'+escapeHTML(key)+'" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(key).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+d.total.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td><td style="text-align:right;color:var(--green)">$'+d.cobrado.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+saldo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago === '—' ? '—' : _mostrarFecha(d.ultimoPago))+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
+        return '<tr class="ccrow" data-saldo="'+saldo+'" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(nom).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
+      }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr>';
+      setTimeout(function(){ buscarCC((document.getElementById('cc-buscador')||{}).value||''); }, 0);
+
+}
+
 function fbCargarPagos() {
   if (!window.fbDB) return;
   if (window._pagosListenerActivo) return;
@@ -27217,12 +27231,7 @@ function fbCargarPagos() {
     var ccTbody = document.getElementById('cc-tbody');
     if (ccTbody) {
       var ccLista = Object.entries(ccMap).filter(function(e){ return e[1].total>0; }).sort(function(a,b){ return (b[1].total-b[1].cobrado)-(a[1].total-a[1].cobrado); });
-      ccTbody.innerHTML = ccLista.length ? ccLista.map(function(e){
-        var key=e[0],nom=e[0],d=e[1]; if(d && d.nombre) nom=d.nombre; var saldo=d.total-d.cobrado;
-        return '<tr class="ccrow" data-saldo="'+saldo+'" data-cliente-key="'+escapeHTML(key)+'" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(key).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+d.total.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td><td style="text-align:right;color:var(--green)">$'+d.cobrado.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+saldo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago === '—' ? '—' : _mostrarFecha(d.ultimoPago))+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
-        return '<tr class="ccrow" data-saldo="'+saldo+'" style="cursor:pointer;touch-action:pan-x pan-y" onclick="verCuentaClienteReal(\''+escapeHTML(nom).replace(/'/g,"\\'")+'\')" onmouseenter="this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'"><td style="font-weight:500">'+escapeHTML(nom)+'</td><td style="text-align:right">$'+Math.round(d.total).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--green)">$'+Math.round(d.cobrado).toLocaleString('es-AR')+'</td><td style="text-align:right;font-weight:500;color:'+(saldo>0?'var(--amber)':'var(--text3)')+'">$'+Math.round(saldo).toLocaleString('es-AR')+'</td><td style="text-align:right;color:var(--text3)">'+escapeHTML(d.ultimoPago)+'</td><td style="text-align:right">'+(saldo<=0?'<span class="badge b-green">Al día</span>':'<span class="badge b-amber">Pendiente</span>')+'</td><td><i class="ti ti-chevron-right" style="color:var(--text3)"></i></td></tr>';
-      }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin datos</td></tr>';
-      setTimeout(function(){ buscarCC((document.getElementById('cc-buscador')||{}).value||''); }, 0);
+      renderTablaCuentaCorriente(ccLista);
       var totalDeuda=ccLista.reduce(function(s,e){return s+(e[1].total-e[1].cobrado>0?e[1].total-e[1].cobrado:0);},0);
       var conSaldo=ccLista.filter(function(e){return e[1].total-e[1].cobrado>0;}).length;
       var hoyD = new Date();
