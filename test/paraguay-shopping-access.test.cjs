@@ -71,17 +71,17 @@ test('PDF muestra relación con ML en destacados y marcas, incluso igualdad o ma
  assert.deepEqual(labels,['50% menos que Mercado Libre · Ahorrás ARS $ 50,00 por unidad','15% menos que Mercado Libre · Ahorrás ARS $ 15,00 por unidad','Mismo precio que Mercado Libre','20% más que Mercado Libre · Diferencia ARS $ 20,00 por unidad','Sin referencia de Mercado Libre']);
  assert.deepEqual(pdfPages(result).map(page=>page.length),[1,4]);
  const code=fs.readFileSync('js/modules/paraguay-shopping-access.js','utf8');
- assert.match(code,/esc\(pdfComparisonText\(comparison\)\)/);
+ assert.match(code,/function pdfComparisonText/);
  assert.doesNotMatch(code,/featured\?'<div class="saving"/);
 });
 
 test('tarjetas muestran comparación aunque Mercado Libre sea más barato o igual',()=>{
  const code=fs.readFileSync('js/modules/paraguay-shopping-access.js','utf8');
  const vm=require('node:vm');const {mlComparison,pdfComparisonText}=require('../js/modules/paraguay-shopping-access');
- const context={root:{},mlComparison,pdfComparisonText,esc:String,amount:n=>n.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})};vm.createContext(context);
+ const context={displayMoney:n=>'US$ '+(n/1535).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}),root:{},mlComparison,pdfComparisonText,esc:String,amount:n=>n.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})};vm.createContext(context);
  vm.runInContext(code.slice(code.indexOf('  function mlBadge('),code.indexOf('  let productSheet=')),context);
  const p={proveedores:[{nombre:'MERCADO LIBRE',precio:427500}]};
- const html=context.mlBadge(p,446826.38);assert.match(html,/4,52% más que Mercado Libre/);assert.match(html,/19.326,38/);assert.doesNotMatch(html,/Ahorrás/);
+ const html=context.mlBadge(p,446826.38);assert.match(html,/4,52% más que Mercado Libre/);assert.match(html,/US\$ 12,59/);assert.doesNotMatch(html,/Ahorrás/);
  assert.match(context.mlBadge(p,427500),/Mismo precio/);assert.match(context.mlBadge(p,400000),/Ahorrás/);
  assert.equal(context.mlBadge({},446826.38),'');
 });

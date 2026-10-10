@@ -137,6 +137,9 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const amount = n => Number(n).toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
   const exchangeRate = () => Number(root.obtenerDolarReferenciaProducto?.().valor)||0;
+  let displayCurrency='USD';
+  try{displayCurrency=root.localStorage.getItem('sv-public-currency')==='ARS'?'ARS':'USD';}catch(_){}
+  const displayMoney=ars=>displayCurrency==='ARS'?'ARS $ '+amount(ars):exchangeRate()>0?'US$ '+amount(ars/exchangeRate()):'Sin cotización';
   function renderExchangeReference() {
     if(!panel)return;
     let node=panel.querySelector('[data-dollar-reference]');
@@ -155,6 +158,10 @@
     const label=({oficial:'Oficial',blue:'Blue',mep:'MEP',ccl:'CCL',tarjeta:'Tarjeta',venta:'Venta',referencia:'Referencia'})[type]||type;
     node.querySelector('[data-dollar-value]').textContent=Number(reference.valor)>0?'$ '+amount(reference.valor):'Sin cotización';
     node.querySelector('[data-dollar-type]').textContent=label;
+    if(!panel.querySelector('[data-display-currency]')){
+      const selector=document.createElement('select');selector.dataset.displayCurrency='';selector.className='search-input';selector.setAttribute('aria-label','Moneda de precios');selector.innerHTML='<option value="USD">Dólares</option><option value="ARS">Pesos</option>';selector.value=displayCurrency;
+      selector.onchange=()=>{displayCurrency=selector.value;try{root.localStorage.setItem('sv-public-currency',displayCurrency);}catch(_){}renderProducts();refreshOpenDetail();};node.after(selector);
+    }
     node.title='Dólar de referencia del catálogo · '+label+' · Pesos argentinos por USD';
   }
   function salePriceHTML(p) {
@@ -162,13 +169,12 @@
     const cfg=root.TIPO_CAMBIO_CONFIG||{};
     const type=Number(cfg[reference.tipo])>0?reference.tipo:([reference.tipo==='venta'?'venta':null,...['oficial','blue','mep'].filter(key=>Number(cfg[key])>0)].find(Boolean)||reference.tipo||'referencia');
     const label=({oficial:'Dólar oficial',blue:'Dólar blue',mep:'Dólar MEP',ccl:'Dólar CCL',tarjeta:'Dólar tarjeta',venta:'Dólar venta',referencia:'Dólar de referencia'})[type]||('Dólar '+type);
-    if(!values.usd)return '<strong>Consultar precio en USD</strong>';
-    return '<span style="display:flex;flex-direction:column;gap:6px;align-items:flex-start"><strong style="font-size:19px;color:var(--green)">US$ '+amount(values.usd)+(hasVAT(p)?' <small style="font-size:10px">con IVA</small>':'')+'</strong><small style="font-size:12px;font-weight:400;color:var(--text3)">≈ ARS $ '+amount(values.ars)+' · '+esc(label)+' $ '+amount(reference.valor)+'</small></span>';
+    return '<strong style="font-size:19px;color:var(--green)">'+displayMoney(values.ars)+(hasVAT(p)?' <small style="font-size:10px">con IVA</small>':'')+'</strong>';
   }
   function mlBadge(p, price) {
     const comparison=mlComparison(p,price,root.costoUnitarioProveedorProducto,true);if(!comparison)return '';
-    if(comparison.saving<=0)return '<span class="py-ml-saving" style="display:block;margin:9px 0;color:var(--text2);font-size:12px;line-height:1.4"><b>'+esc(pdfComparisonText(comparison))+'</b><small style="display:block;color:var(--text3);font-size:10px">ML: ARS $ '+amount(comparison.reference)+' · referencia registrada</small></span>';
-    return '<span class="py-ml-saving" style="display:flex;flex-wrap:wrap;gap:4px 8px;margin:9px 0;color:var(--green);font-size:12px;line-height:1.4"><b>'+(comparison.percent>0?comparison.percent.toLocaleString('es-AR')+'% menos que ML':'Menos que ML')+'</b><span>Ahorrás $ '+amount(comparison.saving)+'</span><small style="flex-basis:100%;color:var(--text3);font-size:10px">ML: $ '+amount(comparison.reference)+' · referencia registrada</small></span>';
+    const text=comparison.saving>0?(comparison.percent>0?comparison.percent.toLocaleString('es-AR')+'% menos que ML':'Menos que ML'):comparison.saving===0?'Mismo precio que ML':Math.abs(comparison.saving/comparison.reference*100).toLocaleString('es-AR',{maximumFractionDigits:2})+'% más que Mercado Libre';
+    return '<span class="py-ml-saving" style="display:flex;flex-wrap:wrap;gap:4px 8px;margin:9px 0;color:var(--'+(comparison.saving>0?'green':'text2')+');font-size:12px;line-height:1.4"><b>'+text+'</b>'+(comparison.saving!==0?'<span>'+(comparison.saving>0?'Ahorrás ':'Diferencia ')+displayMoney(Math.abs(comparison.saving))+'</span>':'')+'<small style="flex-basis:100%;color:var(--text3);font-size:10px">ML: '+displayMoney(comparison.reference)+' · referencia registrada</small></span>';
   }
   let productSheet=null;
   function returnFromProduct(restore=true) {
@@ -408,7 +414,7 @@
     panel.querySelector('[data-cart-count]').textContent = cartUnits;
     panel.querySelector('[data-cart]').setAttribute('aria-label','Ver carrito: '+cartUnits+' unidades');
     panel.querySelector('[data-cart-iva]').hidden = !cartEntries.some(([key])=>hasVAT(products[key]));
-    panel.querySelector('[data-cart-amount]').textContent = 'US$ '+amount(cartEntries.reduce((s,[key,qty])=>s+saleAmounts(products[key],exchangeRate()).usd*qty,0));
+    panel.querySelector('[data-cart-amount]').textContent = displayMoney(cartEntries.reduce((s,[key,qty])=>s+salePrice(products[key])*qty,0));
     panel.querySelector('[data-total-usd]').textContent = 'US$ '+amount(usd);
     panel.querySelector('[data-total-ars]').textContent = '$ '+amount(ars);
     panel.querySelector('[data-summary]').textContent = (missing ? missing+' productos sin precio USD. ' : '')+'La referencia no es el costo definitivo. Registrá por separado lo comprado y el precio unitario acordado; no modifica stock ni genera órdenes.';
