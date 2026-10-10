@@ -274,7 +274,7 @@
     modal.querySelector('[data-close-detail]').onclick=dismiss;
     modal.onclick=e=>{if(e.target===modal)dismiss();};
     modal.onkeydown=e=>{if(detailKeys.length>1 && (e.key==='ArrowLeft'||e.key==='ArrowRight')){e.preventDefault();move(e.key==='ArrowLeft'?-1:1);return;}if(e.key==='Escape'){e.stopPropagation();dismiss();}if(e.key==='Tab'){const focusable=Array.from(modal.querySelectorAll('button,a[href]'));const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}};
-    modal.querySelector('[data-modal-add]').onclick=()=>{selected[key]=Math.min(9999,(Number(selected[key])||0)+1);renderProducts();refresh();};
+    modal.querySelector('[data-modal-add]').onclick=()=>{root.advertirStockProveedorFavorito?.(products[key]);selected[key]=Math.min(9999,(Number(selected[key])||0)+1);renderProducts();refresh();};
     document.body.appendChild(modal);detailModal=modal;refresh();modal.querySelector('[data-close-detail]').focus();
   }
   function exportPDF(onlySelected) {
@@ -660,7 +660,7 @@
       const minus=e.target.closest('[data-subtract]');if(minus){const key=minus.dataset.subtract;if(selected[key]>1)selected[key]--;else {delete selected[key];delete purchases[key];}renderProducts();return;}
       const button = e.target.closest('[data-add]'); if (!button) {if(!e.target.closest('input,label,a')){const card=e.target.closest('[data-detail]');if(card)showDetail(card.dataset.detail);}return;}
       const key = button.dataset.add; if (!eligible(products[key])) return;
-      selected[key] = Math.min(9999, (Number(selected[key]) || 0) + 1);
+      root.advertirStockProveedorFavorito?.(products[key]);selected[key] = Math.min(9999, (Number(selected[key]) || 0) + 1);
       renderProducts();
     };
     panel.querySelector('[data-products]').onkeydown = e => {if(e.target.matches('[data-detail]') && (e.key==='Enter'||e.key===' ')){e.preventDefault();showDetail(e.target.dataset.detail);}};
@@ -669,6 +669,7 @@
       const qty = Number(e.target.value);
       e.target.setCustomValidity(Number.isInteger(qty) && qty >= 0 && qty <= 9999 ? '' : 'Ingresá una cantidad entera entre 0 y 9999');
       if (!e.target.checkValidity()) return;
+      if (qty > (Number(selected[key]) || 0)) root.advertirStockProveedorFavorito?.(products[key]);
       if (qty) selected[key] = qty; else delete selected[key]; renderSummary();
     };
     panel.querySelector('[data-lists]').onchange = e => {

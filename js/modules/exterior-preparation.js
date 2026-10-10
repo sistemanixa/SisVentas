@@ -332,6 +332,7 @@
       if(busy||frozen)return;
       const product=(ctx.catalog||[]).find(p=>String(p.key)===String(key));
       if(!product){root.notify?.('No se encontró el producto. Volvé a buscarlo.');return;}
+      root.advertirStockProveedorFavorito?.(String(product.key));
       const options=product.providers||[],pv=options.find(p=>p.exterior&&p.activo!==false&&p.disponible!==false)||options.find(p=>p.activo!==false&&p.disponible!==false);
       const added={key:'extra-'+Date.now(),productKey:product.key,code:product.code,description:product.description,method:'local',destination:'stock',include:false,qty:1,agreed:'',reference:{amount:0,currency:'ARS'}};
       selectProvider(added,pv);d.extras.push(added);dirty=true;render();

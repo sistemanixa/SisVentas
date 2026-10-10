@@ -1331,7 +1331,7 @@ function agregarComponenteKit(pid) {
   var buscarKit = document.getElementById('kit-sel-buscar');
   if (buscarKit) { buscarKit.value = ''; buscarKit.focus(); }
   filtrarSelectorKit('');
-  notify('✓ ' + p.nombre + ' agregado al kit');
+  if (!advertirStockProveedorFavorito(p)) notify('✓ ' + p.nombre + ' agregado al kit');
 }
 
 function guardarKit() {
@@ -2733,7 +2733,7 @@ async function iaPrepararPresupuestoGuiado(texto) {
   function base(t){d.innerHTML='';d.style.boxShadow='0 24px 80px rgba(0,0,0,.4)';var h=document.createElement('h3');h.textContent=t;h.style.cssText='font-size:18px;margin:0 0 18px';d.appendChild(h);}
   function btn(t,fn){var b=document.createElement('button');b.className='btn btn-sm';b.style.cssText='margin:8px 8px 0 0;white-space:normal;text-align:left;border-radius:8px;padding:9px 14px';b.textContent=t;b.onclick=fn;d.appendChild(b);return b;}
   function elegirCliente(){base('Elegí el cliente y domicilio');var input=document.createElement('input');input.className='search-input';input.placeholder='Nombre del cliente';input.value=nombre;d.appendChild(input);var lista=document.createElement('div');d.appendChild(lista);function buscar(){lista.innerHTML='';(clientesData||[]).filter(function(c){return c.activo!==false&&norm(input.value).split(/\s+/).filter(function(t){return !/^(de|calle|la|el)$/.test(t);}).every(function(t){return norm((c.nombre||c.empresa||'')+' '+(c.dir||c.direccion||c.domicilio||'')).includes(t);});}).slice(0,30).forEach(function(c){var b=document.createElement('button');b.className='btn btn-sm';b.style.cssText='display:block;margin:8px 0;white-space:normal;text-align:left';b.textContent=(c.nombre||c.empresa)+' · '+(c.dir||c.direccion||c.domicilio||'Sin dirección registrada');b.onclick=function(){cliente=c;elegirProducto();};lista.appendChild(b);});if(!lista.children.length)lista.textContent='Sin coincidencias. Probá otro nombre.';}input.oninput=buscar;buscar();btn('Cancelar',function(){d.close();});}
-  function elegirProducto(){base('Elegí el producto registrado');d.style.width='min(1100px,94vw)';var parsed=extraerCantidadInicio(consultas[paso]||''),q=parsed.resto;var input=document.createElement('input');input.className='search-input';input.placeholder='Nombre o código del producto';input.value=q;d.appendChild(input);var qty=document.createElement('input');qty.type='number';qty.min='1';qty.step='1';qty.value=parsed.cantidad;qty.setAttribute('aria-label','Cantidad');qty.className='search-input';d.appendChild(qty);var tipo=document.createElement('select');tipo.className='search-input';tipo.setAttribute('aria-label','Tipo de ítem');[['productos','Productos'],['mano','Mano de obra']].forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];tipo.appendChild(op);});tipo.value=/instalaci|mano de obra|configuraci|servicio/i.test(q)?'mano':'productos';d.appendChild(tipo);var categoriaElegida=null;var lista=document.createElement('div');d.appendChild(lista);function buscar(){lista.innerHTML='';var tokens=norm(input.value).split(/\s+/).filter(Boolean).filter(function(t){return !/^(una?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|diecisiete|dieciocho|diecinueve|veinte)$/.test(t);});var disponibles=Object.values(prodData||{}).filter(function(p){return p.activo!==false&&p.estado!=='inactivo'&&!p.eliminado&&esProductoManoDeObra(p)===(tipo.value==='mano');});var buscaCamara=tipo.value==='productos'&&tokens.some(function(t){return /^(camara|camaras|domo|domos|bullet|bullets|ptz)$/.test(t);});var ultimaCategoria=null;var grilla=null;disponibles.filter(function(p){return p.activo!==false&&p.estado!=='inactivo'&&!p.eliminado&&esProductoManoDeObra(p)===(tipo.value==='mano')&&(buscaCamara ? /\b(?:camaras?|domos?|bullets?|ptz)\b/.test(norm(categoriaProductoCatalogo(p))) && !/(fuente|accesorio|soporte|cable|kit|ups|protector)/.test(norm(categoriaProductoCatalogo(p))) && tokens.filter(function(t){return !/^(camara|camaras)$/.test(t);}).every(function(t){return norm(categoriaProductoCatalogo(p)+' '+(p.nombre||p.descripcion)).includes(t.length>3?t.replace(/s$/,''):t);}) : tokens.every(function(t){return norm(categoriaProductoCatalogo(p)+' '+(p.nombre||p.descripcion)+' '+p.codigo).includes(t.length>3?t.replace(/s$/,''):t);}));}).sort(function(a,b){return categoriaProductoCatalogo(a).localeCompare(categoriaProductoCatalogo(b),'es');}).forEach(function(p){var categoria=categoriaProductoCatalogo(p);if(categoria!==ultimaCategoria){ultimaCategoria=categoria;var titulo=document.createElement('h4');titulo.textContent=categoria;titulo.style.cssText='margin:20px 0 10px;color:var(--text)';lista.appendChild(titulo);grilla=document.createElement('div');grilla.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px';lista.appendChild(grilla);}var b=document.createElement('button');b.className='btn btn-sm';b.style.cssText='display:flex;flex-direction:column;align-items:stretch;gap:12px;width:100%;margin:0;padding:10px;white-space:normal;text-align:left;height:100%';var foto=document.createElement('img');var src=urlImagenProductoVisual(p,p.imagenUrl||'');if(src){foto.src=src;foto.alt='';foto.loading='lazy';foto.style.cssText='width:100%;height:150px;flex:0 0 150px;object-fit:contain;background:white;border-radius:6px';b.appendChild(foto);}else{var vacio=document.createElement('span');vacio.textContent=tipo.value==='mano'?'Servicio':'Sin foto';vacio.style.cssText='width:64px;flex:0 0 64px;font-size:11px;color:var(--text3)';b.appendChild(vacio);}var textoProducto=document.createElement('span');textoProducto.textContent=p.codigo+' · '+(p.nombre||p.descripcion)+' · ARS '+precioVentaCanonicoProducto(p).precioARS.toLocaleString('es-AR')+' sin IVA';b.appendChild(textoProducto);b.onclick=function(){var n=Number(qty.value);if(!Number.isInteger(n)||n<1){notify('Ingresá una cantidad entera mayor a cero');return;}items.push({p:p,qty:n});reglasRevisadas=false;if(esProductoManoDeObra(p))manoObraRevisada=true;paso++;if(paso<consultas.length)elegirProducto();else resumen();};grilla.appendChild(b);});if(!lista.children.length)lista.textContent='Sin coincidencias. Probá el código o un nombre más corto.';}input.oninput=function(){categoriaElegida=null;buscar();};tipo.onchange=function(){categoriaElegida=null;buscar();};buscar();btn('Cancelar',function(){d.close();});}
+  function elegirProducto(){base('Elegí el producto registrado');d.style.width='min(1100px,94vw)';var parsed=extraerCantidadInicio(consultas[paso]||''),q=parsed.resto;var input=document.createElement('input');input.className='search-input';input.placeholder='Nombre o código del producto';input.value=q;d.appendChild(input);var qty=document.createElement('input');qty.type='number';qty.min='1';qty.step='1';qty.value=parsed.cantidad;qty.setAttribute('aria-label','Cantidad');qty.className='search-input';d.appendChild(qty);var tipo=document.createElement('select');tipo.className='search-input';tipo.setAttribute('aria-label','Tipo de ítem');[['productos','Productos'],['mano','Mano de obra']].forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];tipo.appendChild(op);});tipo.value=/instalaci|mano de obra|configuraci|servicio/i.test(q)?'mano':'productos';d.appendChild(tipo);var categoriaElegida=null;var lista=document.createElement('div');d.appendChild(lista);function buscar(){lista.innerHTML='';var tokens=norm(input.value).split(/\s+/).filter(Boolean).filter(function(t){return !/^(una?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|diecisiete|dieciocho|diecinueve|veinte)$/.test(t);});var disponibles=Object.values(prodData||{}).filter(function(p){return p.activo!==false&&p.estado!=='inactivo'&&!p.eliminado&&esProductoManoDeObra(p)===(tipo.value==='mano');});var buscaCamara=tipo.value==='productos'&&tokens.some(function(t){return /^(camara|camaras|domo|domos|bullet|bullets|ptz)$/.test(t);});var ultimaCategoria=null;var grilla=null;disponibles.filter(function(p){return p.activo!==false&&p.estado!=='inactivo'&&!p.eliminado&&esProductoManoDeObra(p)===(tipo.value==='mano')&&(buscaCamara ? /\b(?:camaras?|domos?|bullets?|ptz)\b/.test(norm(categoriaProductoCatalogo(p))) && !/(fuente|accesorio|soporte|cable|kit|ups|protector)/.test(norm(categoriaProductoCatalogo(p))) && tokens.filter(function(t){return !/^(camara|camaras)$/.test(t);}).every(function(t){return norm(categoriaProductoCatalogo(p)+' '+(p.nombre||p.descripcion)).includes(t.length>3?t.replace(/s$/,''):t);}) : tokens.every(function(t){return norm(categoriaProductoCatalogo(p)+' '+(p.nombre||p.descripcion)+' '+p.codigo).includes(t.length>3?t.replace(/s$/,''):t);}));}).sort(function(a,b){return categoriaProductoCatalogo(a).localeCompare(categoriaProductoCatalogo(b),'es');}).forEach(function(p){var categoria=categoriaProductoCatalogo(p);if(categoria!==ultimaCategoria){ultimaCategoria=categoria;var titulo=document.createElement('h4');titulo.textContent=categoria;titulo.style.cssText='margin:20px 0 10px;color:var(--text)';lista.appendChild(titulo);grilla=document.createElement('div');grilla.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px';lista.appendChild(grilla);}var b=document.createElement('button');b.className='btn btn-sm';b.style.cssText='display:flex;flex-direction:column;align-items:stretch;gap:12px;width:100%;margin:0;padding:10px;white-space:normal;text-align:left;height:100%';var foto=document.createElement('img');var src=urlImagenProductoVisual(p,p.imagenUrl||'');if(src){foto.src=src;foto.alt='';foto.loading='lazy';foto.style.cssText='width:100%;height:150px;flex:0 0 150px;object-fit:contain;background:white;border-radius:6px';b.appendChild(foto);}else{var vacio=document.createElement('span');vacio.textContent=tipo.value==='mano'?'Servicio':'Sin foto';vacio.style.cssText='width:64px;flex:0 0 64px;font-size:11px;color:var(--text3)';b.appendChild(vacio);}var textoProducto=document.createElement('span');textoProducto.textContent=p.codigo+' · '+(p.nombre||p.descripcion)+' · ARS '+precioVentaCanonicoProducto(p).precioARS.toLocaleString('es-AR')+' sin IVA';b.appendChild(textoProducto);b.onclick=function(){var n=Number(qty.value);if(!Number.isInteger(n)||n<1){notify('Ingresá una cantidad entera mayor a cero');return;}advertirStockProveedorFavorito(p);items.push({p:p,qty:n});reglasRevisadas=false;if(esProductoManoDeObra(p))manoObraRevisada=true;paso++;if(paso<consultas.length)elegirProducto();else resumen();};grilla.appendChild(b);});if(!lista.children.length)lista.textContent='Sin coincidencias. Probá el código o un nombre más corto.';}input.oninput=function(){categoriaElegida=null;buscar();};tipo.onchange=function(){categoriaElegida=null;buscar();};buscar();btn('Cancelar',function(){d.close();});}
   function revisarAutomaticos(){
     base('Materiales y mano de obra sugeridos');var aviso=document.createElement('p');aviso.textContent='Aplicamos las reglas de instalación. Revisá las cantidades y elegí el modelo cuando hay varias opciones. Los cables requieren un producto configurado por metro.';d.appendChild(aviso);
     var manuales=items.filter(function(i){return !i.automatico;}),reglas=iaReglasInstalacion(manuales),controles=[];
@@ -17833,7 +17833,7 @@ function timestampPrecioProveedorProducto(p, pv) {
 }
 
 function estadoVigenciaPrecioProveedor(p, pv) {
-  if (pv && pv.disponibilidadProveedor === 'sin_stock') return {estado:'sin_stock',vigente:false,ts:0,texto:'Sin stock · el precio puede estar desactualizado'};
+  if (pv && pv.disponibilidadProveedor === 'sin_stock') return {estado:'sin_stock',vigente:false,ts:0,texto:'Sin stock en el proveedor · verificar disponibilidad'};
   var estadoV3 = productosProveedoresV3Invocar('freshness', [p, pv, {
     now: Date.now(),
     maxAgeMs: precioVigenciaMs(),
@@ -19488,7 +19488,7 @@ async function reintentarProductoConNombreCorregidoActualizador(fbKey, proveedor
     });
     if (resultado.disponibilidadProveedor==='sin_stock' && urlsProveedorEquivalentes(item.url,resultado.url) && !evaluarIdentidadCotizacionProveedor(item.proveedor,item.url,resultado).requiereConfirmacion) {
       if(!await guardarCandidatosSegurosActualizador([{item:item,resultado:resultado}]))throw new Error('No se pudo guardar la disponibilidad');
-      actualizadorRegistrarSinStock(item);notify('El proveedor sigue sin stock. Se conservó el precio anterior.');
+      actualizadorRegistrarSinStock(item);notify(precioSinStockVerificado(item, resultado) ? 'Precio actualizado. El proveedor sigue sin stock.' : 'El proveedor sigue sin stock. Se conservó el precio anterior porque el nuevo no pudo verificarse.');
     } else if (resultado.ok && validacion.ok && urlsProveedorEquivalentes(item.url, resultado.url)) {
       var cambios = datosActualizadosProductoBiosegur(item, resultado);
       var costoAnterior = _costoProveedorProductoSinAuditar(producto, actualizadorProveedorActual(item)) || precioGremioARSDesdeProducto(producto);
@@ -20111,11 +20111,32 @@ async function eliminarProductosNoDisponiblesActualizador() {
   } catch (e) { notify('No se pudieron eliminar los productos: ' + (e.message || 'Error')); }
 }
 
+function precioSinStockVerificado(item, resultado) {
+  return !!(resultado && !datosVariacionBloqueadaResultado(resultado).requiereAprobacion &&
+    urlsProveedorEquivalentes(item.url, resultado.url) &&
+    validarResultadoActualizadorProveedor(item, resultado, {confirmacionHumanaCompleta:resultado.confirmacionHumanaCompleta === true}).ok);
+}
+
+function avisoStockProveedorFavorito(producto) {
+  if (typeof producto === 'string') producto = Object.values(prodData || {}).find(function(p){return String(p.fbKey || p.id || p.codigo) === producto;});
+  if (!producto) return '';
+  var favorito = proveedoresVinculadosProducto(producto).find(function(pv){return proveedorProductoEsFavorito(pv, producto);});
+  return favorito && favorito.disponibilidadProveedor === 'sin_stock'
+    ? (producto.codigo || producto.nombre || 'Producto') + ': sin stock en el proveedor favorito (' + (favorito.nombre || 'proveedor') + '). Verificá disponibilidad antes de comprometer la entrega.' : '';
+}
+
+function advertirStockProveedorFavorito(producto) {
+  var aviso = avisoStockProveedorFavorito(producto);
+  if (aviso) notify(aviso);
+  return !!aviso;
+}
+window.advertirStockProveedorFavorito = advertirStockProveedorFavorito;
+
 function datosActualizadosProductoBiosegur(item, resultado) {
   var p = item.producto;
   var proveedores = proveedoresVinculadosProducto(p).slice();
   var pv = Object.assign({}, proveedores[item.proveedorIdx] || {});
-  if (resultado.disponibilidadProveedor === 'sin_stock') {
+  if (resultado.disponibilidadProveedor === 'sin_stock' && !precioSinStockVerificado(item, resultado)) {
     proveedores[item.proveedorIdx] = Object.assign(pv, {
       disponibilidadProveedor: 'sin_stock',
       disponibilidadProveedorTexto: resultado.disponibilidadProveedorTexto || 'Sin stock',
@@ -20291,7 +20312,7 @@ function actualizadorHtmlFallos(detalleFallos, sinStock) {
   if (!detalleFallos.length) return '';
   var noDisponibles = detalleFallos.filter(function(f) { return !!(f && f.noDisponible); });
   return '<div style="margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border)">' +
-    '<strong style="color:var(--amber)">'+(sinStock?'Sin stock en el proveedor · precio anterior conservado':'Requieren revisión (conservaron su precio anterior):')+'</strong>' +
+    '<strong style="color:var(--amber)">'+(sinStock?'Sin stock en el proveedor · revisar disponibilidad antes de comprar':'Requieren revisión (conservaron su precio anterior):')+'</strong>' +
     (noDisponibles.length ? '<div style="margin-top:10px;padding:10px;border:1px solid rgba(239,68,68,.38);border-radius:8px;background:rgba(239,68,68,.06);display:flex;justify-content:space-between;gap:10px;align-items:center"><span><strong style="color:var(--red)"><i class="ti ti-package-off"></i> Ya no existen en el proveedor: ' + noDisponibles.length + '</strong><span style="display:block;font-size:10px;color:var(--text3);margin-top:3px">Seleccioná los que correspondan y eliminá el catálogo en una sola acción.</span></span><button class="btn btn-sm" style="color:var(--red)" onclick="eliminarProductosNoDisponiblesActualizador()"><i class="ti ti-trash"></i> Eliminar seleccionados</button></div>' : '') +
     detalleFallos.map(function(f) {
       var idSeguro = String(f.fbKey || '').replace(/[^a-zA-Z0-9_-]/g,'') + '-' + (parseInt(f.proveedorIdx,10)||0);
@@ -20783,7 +20804,7 @@ async function _svCargaOperacion_ejecutarActualizadorMasivoBiosegur() {
           var revisionIdentidad=evaluarIdentidadCotizacionProveedor(item.proveedor,item.url,resultado);
           var validacionPrecio = resultado && resultado.ok ? validarResultadoActualizadorProveedor(item, resultado) : { ok:false, mensaje:'' };
           if (resultado && resultado.disponibilidadProveedor === 'sin_stock' && urlsProveedorEquivalentes(item.url, resultado.url) && !revisionIdentidad.requiereConfirmacion) {
-            // La disponibilidad no es una falla de precio: conservar importe y fecha.
+            // Guardar disponibilidad y, si supera las validaciones, también el precio.
             var stockGuardado = await guardarCandidatosSegurosActualizador([{item:item, resultado:resultado}]);
             if (!stockGuardado) throw new Error('No se pudo guardar el aviso de falta de stock');
             _actualizadorSesionPrecios.fallos = (_actualizadorSesionPrecios.fallos || []).filter(function(f) {
@@ -21881,8 +21902,8 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box, contex
       }
     }
 
-    var aceptado = !!(match && precio > 0 && r.disponibilidadProveedor !== 'sin_stock' && !requiereAprobacion && !requiereConfirmacionIdentidad);
-    if (match && r.disponibilidadProveedor === 'sin_stock') Object.assign(prodProveedoresActuales[match.idx], {disponibilidadProveedor:'sin_stock',disponibilidadProveedorTexto:r.disponibilidadProveedorTexto || 'Sin stock',disponibilidadActualizadaEn:Date.now()});
+    var aceptado = !!(match && precio > 0 && !requiereAprobacion && !requiereConfirmacionIdentidad);
+    if (match && !requiereConfirmacionIdentidad && r.disponibilidadProveedor === 'sin_stock') Object.assign(prodProveedoresActuales[match.idx], {disponibilidadProveedor:'sin_stock',disponibilidadProveedorTexto:r.disponibilidadProveedorTexto || 'Sin stock',disponibilidadActualizadaEn:Date.now()});
     var disponibilidadRes = r.disponibilidadProveedor || 'no_verificado';
     var disponibilidadLbl = r.disponibilidadProveedorTexto || (disponibilidadRes === 'disponible' ? 'Disponible' : disponibilidadRes === 'sin_stock' ? 'Sin stock' : 'No verificado');
     if (aceptado) {
@@ -22178,7 +22199,7 @@ function recalcularCompraDesdeProveedores(opciones) {
   // vinculado y tiene precio. La OC conserva su comparación independiente y
   // recomienda el proveedor disponible de menor costo.
   var favorito = prodProveedoresActuales.find(function(pv) {
-    return pv.disponibilidadProveedor !== 'sin_stock' && proveedorProductoEsFavorito(pv) && (parseFloat(pv.precio) || 0) > 0;
+    return proveedorProductoEsFavorito(pv) && (parseFloat(pv.precio) || 0) > 0;
   });
   if (!favorito) return;
   var proveedorCostoProducto = favorito;
@@ -22564,7 +22585,7 @@ function agregarAlCarritoCatalogo(productoKey) {
   var key = String(p.fbKey);
   catalogoCarrito.set(key, (catalogoCarrito.get(key) || 0) + 1);
   renderCarritoCatalogo();
-  notify('Agregado a la selección');
+  if (!advertirStockProveedorFavorito(p)) notify('Agregado a la selección');
 }
 function cambiarCantidadCarritoCatalogo(key, cantidad) {
   cantidad = Number(cantidad);
@@ -23141,6 +23162,18 @@ function verProducto(id, origen) {
     activoLabel.style.color = activoProducto ? 'var(--green)' : 'var(--red)';
   }
   _set('pd-nombre', p.nombre||p.descripcion||'');
+  var nombreDetalle = document.getElementById('pd-nombre');
+  var avisoDetalle = document.getElementById('pd-aviso-stock-proveedor');
+  if (!avisoDetalle && nombreDetalle) {
+    avisoDetalle = document.createElement('div');
+    avisoDetalle.id = 'pd-aviso-stock-proveedor';
+    avisoDetalle.style.cssText = 'font-size:13px;color:var(--amber);margin-top:8px';
+    nombreDetalle.insertAdjacentElement('afterend', avisoDetalle);
+  }
+  if (avisoDetalle) {
+    avisoDetalle.textContent = avisoStockProveedorFavorito(p);
+    avisoDetalle.hidden = !avisoDetalle.textContent;
+  }
   _set('pd-codigo-lbl', p.codigo||'');
   var catEl = document.getElementById('pd-cat-lbl');
   if (catEl) catEl.innerHTML = '<span class="badge b-amber">' + (p.categoria||p.idcategoria||'—') + '</span>';
@@ -47987,7 +48020,7 @@ function otAgregarAlCarrito(pid) {
   var buscarOT = document.getElementById('ot-sel-prod-buscar');
   if (buscarOT) { buscarOT.value = ''; buscarOT.focus(); }
   otFiltrarSelectorProductos('');
-  notify('+ ' + p.nombre);
+  if (!advertirStockProveedorFavorito(p)) notify('+ ' + p.nombre);
 }
 
 function otRenderCarritoAdicional() {
@@ -54617,6 +54650,7 @@ function _selProdGlobal(item) {
     notify('El producto ' + (prod.codigo || prod.nombre || '') + ' está inactivo y no puede agregarse a una venta o presupuesto');
     return;
   }
+  advertirStockProveedorFavorito(prod);
   var vigenciaPrecio = prod ? estadoVigenciaPrecioProducto(prod) : null;
   // La fuente del selector es siempre el precio canónico en ARS. USD es una
   // presentación temporal del formulario y nunca vuelve a convertirse dos
@@ -54673,6 +54707,13 @@ function _selProdGlobal(item) {
       descSpan.className = 'desc-txt-clean';
       descSpan.textContent = desc;
       descTxt.appendChild(descSpan);
+      var avisoProveedor = avisoStockProveedorFavorito(prod);
+      if (avisoProveedor) {
+        var avisoStock = document.createElement('small');
+        avisoStock.textContent = avisoProveedor;
+        avisoStock.style.cssText = 'display:block;color:var(--amber)';
+        descTxt.appendChild(avisoStock);
+      }
       // para que el toggle ARS/USD pueda reconvertir sin perder precisión
     }
     if (priceInp) {

@@ -1776,6 +1776,7 @@
     var select = document.getElementById('oc-manual-product');
     var product = productList().find(function (p) { return String(p.fbKey || p.codigo) === String(select && select.value); });
     if (!product) return;
+    window.advertirStockProveedorFavorito?.(product);
     var providerSelect = document.getElementById('oc-manual-provider');
     var providerKey = providerSelect ? providerSelect.value : '';
     var candidate = providersFor(product).find(function (p) { return String(p.proveedorKey || p.nombre) === String(providerKey); }) || null;
@@ -1873,6 +1874,7 @@
     syncManualInputsV2();
     var product = productList().find(function (p) { return String(p.fbKey || p.codigo) === String(productKey || ''); });
     if (!product) return;
+    window.advertirStockProveedorFavorito?.(product);
     var providerSelect = document.getElementById('oc-manual-provider');
     var providerKey = providerSelect ? providerSelect.value : '';
     var candidate = providersFor(product).find(function (p) { return String(p.proveedorKey || p.nombre) === String(providerKey); }) || null;
