@@ -10822,7 +10822,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Referencia de Mercado Libre y ahorro en dólares visibles en el catálogo público.']),
   RELEASE_FEATURE: Object.freeze({page:'balancecompra',actionLabel:'Ver Compras de exterior'}),
   RELEASE_HISTORY: Object.freeze([
-    Object.freeze({version:'v3.10.0',date:'10/10/2026',title:'Comparación de proveedores bajo demanda',notes:Object.freeze(['El resumen se calcula al abrir Proveedores y se actualiza mientras está visible.','Las ofertas se vinculan mediante índices, conservando precios, empates y permisos.','La auditoría de mantenimiento se descarga al abrir su pestaña, con reintento ante errores.','Las tablas de compras se construyen al abrir su pantalla; el stock sigue sincronizado.','El catálogo interno muestra hasta 48 tarjetas por página y conserva la búsqueda completa.']),feature:Object.freeze({page:'proveedores',actionLabel:'Ver proveedores'})}),
+    Object.freeze({version:'v3.10.0',date:'10/10/2026',title:'Comparación de proveedores bajo demanda',notes:Object.freeze(['El resumen se calcula al abrir Proveedores y se actualiza mientras está visible.','Las ofertas se vinculan mediante índices, conservando precios, empates y permisos.','La auditoría de mantenimiento se descarga al abrir su pestaña, con reintento ante errores.','Las tablas de compras se construyen al abrir su pantalla; el stock sigue sincronizado.','El catálogo interno muestra hasta 48 tarjetas por página y conserva la búsqueda completa.','Gastos muestra 50 filas por página y exporta todos los resultados filtrados a Excel.']),feature:Object.freeze({page:'proveedores',actionLabel:'Ver proveedores'})}),
     Object.freeze({version:'v3.9.30',date:'09/10/2026',title:'Referencias locales sin alterar el IVA',notes:Object.freeze(['La cotización de proveedores secundarios conserva el IVA del producto.','La confirmación de identidad de un proveedor mantiene sincronizada la base del editor para guardar.']),feature:Object.freeze({page:'productos',actionLabel:'Ver productos'})}),
     Object.freeze({version:'v3.9.29',date:'09/10/2026',title:'Visitas sin cargo desde Reclamos',notes:Object.freeze(['Resolver una visita sin cargo utiliza el permiso de Reclamos y conserva la autorización de descuentos para Ventas.']),feature:Object.freeze({page:'soporte',actionLabel:'Ver reclamos'})}),
     Object.freeze({version:'v3.9.28',date:'09/10/2026',title:'Catálogo, fechas del chat y devoluciones de OT',notes:Object.freeze(['El catálogo muestra referencias de Mercado Libre y permite alternar dólares y pesos con la cotización vigente.','El chat agrupa los mensajes por Hoy, Ayer y fecha, con separadores visibles al desplazarse.','Los materiales devueltos y recibidos ya no generan cargos pendientes ni observaciones de custodia.']),feature:Object.freeze({page:'balancecompra',actionLabel:'Ver catálogo'})}),
@@ -28044,22 +28044,9 @@ function exportarExcel(titulo, boton) {
 
     } else if (titulo === 'Gastos del período') {
       rows = [['Fecha','Descripción','Categoría','Tipo','Monto','Estado']];
-      var tbody = document.getElementById('gastos-tbody');
-      if (tbody) {
-        tbody.querySelectorAll('tr').forEach(function(tr) {
-          var tds = tr.querySelectorAll('td');
-          if (tds.length >= 5) {
-            rows.push([
-              tds[0].textContent.trim(),
-              tds[1].textContent.trim(),
-              tds[2].textContent.trim(),
-              tds[3].textContent.trim(),
-              parseFloat(normalizarNumeroExcel(tds[4].textContent||'')) || 0,
-              tds[5] ? tds[5].textContent.trim() : ''
-            ]);
-          }
-        });
-      }
+      gastosFiltradosActuales().filter(gastoVisibleEnModuloGastos).forEach(function(g) {
+        rows.push([fechaImputacionGasto(g).split('-').reverse().join('/'), g.descripcion || '', g.categoria || '', normalizarTipoGasto(g), parseFloat(g.monto) || 0, normalizarEstadoGasto(g)]);
+      });
 
     } else {
       // Genérico: exportar la primera tabla visible de la página activa
@@ -42667,7 +42654,7 @@ function actualizarResumenPagoMultiple() {
 }
 
 function seleccionarTodosGastosVisibles() {
-  gastosFiltradosActuales().forEach(function(g){ if (gastoSeleccionableParaPago(g)) _gastosSeleccionadosPago[g.fbKey] = true; });
+  gastosFiltradosActuales().forEach(function(g){ if ((window._gastosPaginaKeys || []).indexOf(g.fbKey) >= 0 && gastoSeleccionableParaPago(g)) _gastosSeleccionadosPago[g.fbKey] = true; });
   renderTablaGastos();
 }
 
@@ -42781,9 +42768,19 @@ async function verDesgloseHaberGasto(fbKey) {
   svAlert(mensaje, { titulo:'Desglose del haber', subtitulo:g.empleadoNombre || g.descripcion || 'Personal' });
 }
 
+function cambiarPaginaGastos(pagina) {
+  window._gastosPagina = Math.max(0, Math.floor(Number(pagina) || 0));
+  renderTablaGastos();
+  var tabla = document.getElementById('gastos-tbody');
+  if (tabla) tabla.scrollIntoView({block:'start'});
+}
+
 function renderTablaGastos() {
   var tbody = document.getElementById('gastos-tbody');
   if (!tbody) return;
+  var paginador = document.getElementById('gastos-paginacion');
+  window._gastosPaginaKeys = [];
+  if (paginador) paginador.innerHTML = '';
   if (!_gastosDataReady) {
     tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:'+(_gastosCargaError?'var(--red)':'var(--text3)')+';padding:24px">'+(_gastosCargaError||'<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite;margin-right:6px"></i>Cargando gastos...')+'</td></tr>';
     return;
@@ -42815,6 +42812,16 @@ function renderTablaGastos() {
     return;
   }
 
+  var firmaFiltros = JSON.stringify(['gas-f-tipo','gas-f-estado','gas-f-mes','gas-f-empleado','gas-buscar'].map(function(id){ return (document.getElementById(id) || {}).value || ''; }).concat([kpiActivoRender]));
+  if (window._gastosFirmaPagina !== firmaFiltros) { window._gastosPagina = 0; window._gastosFirmaPagina = firmaFiltros; }
+  var paginas = Math.ceil(lista.length / 50);
+  var pagina = Math.min(Math.max(0, window._gastosPagina || 0), paginas - 1);
+  window._gastosPagina = pagina;
+  var inicio = pagina * 50;
+  var paginaGastos = lista.slice(inicio, inicio + 50);
+  window._gastosPaginaKeys = paginaGastos.map(function(g){ return g.fbKey; });
+  if (paginador) paginador.innerHTML = '<span role="status">'+(inicio+1)+'–'+Math.min(inicio+50,lista.length)+' de '+lista.length+' gastos</span>' + (paginas > 1 ? '<button type="button" class="btn btn-sm" '+(pagina === 0 ? 'disabled' : '')+' onclick="cambiarPaginaGastos('+(pagina-1)+')">Anterior</button><span>Página '+(pagina+1)+' de '+paginas+'</span><button type="button" class="btn btn-sm" '+(pagina === paginas-1 ? 'disabled' : '')+' onclick="cambiarPaginaGastos('+(pagina+1)+')">Siguiente</button>' : '');
+
   var estBadge = function(g) {
     var resta = (parseFloat(g.monto)||0)-(parseFloat(g.montoPagado)||0);
     var estadoNorm = normalizarEstadoGasto(g);
@@ -42829,7 +42836,7 @@ function renderTablaGastos() {
     return '<span class="badge b-blue">Pendiente de pago</span>';
   };
 
-  tbody.innerHTML = lista.map(function(g) {
+  tbody.innerHTML = paginaGastos.map(function(g) {
     var fecha = fechaImputacionGasto(g).split('-').reverse().join('/');
     var venc  = g.vencimiento ? g.vencimiento.split('-').reverse().join('/') : '—';
     var descCompleta = String(g.descripcion || '—');
