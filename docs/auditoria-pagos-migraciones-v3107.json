@@ -1,0 +1,70 @@
+{
+  "version": "v3.10.7",
+  "removed": [
+    {
+      "name": "ventasPagosPersistirGuardarPago",
+      "reason": "Sin consumidores activos. registrarPago y cobros de cuenta llaman registrarCobrosCanonicos, que guarda pagos y resúmenes en una sola escritura.",
+      "bytes": 1406
+    },
+    {
+      "name": "ventasPagosPersistirActualizarPago",
+      "reason": "Sin consumidores activos. La edición y anulación actuales no llaman al adaptador de actualización individual.",
+      "bytes": 363
+    },
+    {
+      "name": "migrarEmpleadoPptos",
+      "reason": "Herramienta puntual sin entrada ni llamadas, asignaba yplana a presupuestos sin empleado. Retirar código no modifica registros.",
+      "bytes": 790
+    },
+    {
+      "name": "ctaEmpEliminarDuplicadosLegacy",
+      "reason": "Stub sin consumidores cuyo único resultado era false.",
+      "bytes": 65
+    },
+    {
+      "name": "_normalizarImputacionGastosPagados",
+      "reason": "Sin llamadas. Sustituida por auditoría y migración manual mntAuditarFechasGastos/mntMigrarFechasGastos con permisos y confirmación.",
+      "bytes": 1760
+    },
+    {
+      "name": "normalizarVentaLegacyDesdePresupuesto",
+      "reason": "Sin llamadas. VerDetalleVenta es de lectura; esta reparación antigua reescribía importes desde el presupuesto.",
+      "bytes": 1203
+    }
+  ],
+  "removed_state": [
+    "_normalizacionImputacionPagosEjecutada"
+  ],
+  "retained": [
+    {
+      "name": "registrarCobrosCanonicos",
+      "reason": "Consumido por Cobranzas y pagos de cuenta; confirmado por pruebas con almacenamiento simulado."
+    },
+    {
+      "name": "_svResumenPagoLegacyVenta y _svPagosEmbebidosVenta",
+      "reason": "Lecturas activas para ventas históricas sin pagos globales; necesarias para no perder saldos."
+    },
+    {
+      "name": "_migrarPagablesLegacyAGastos",
+      "reason": "Llamada desde mntMigrarLegacy; migraciones laborales manuales siguen disponibles."
+    },
+    {
+      "name": "mntMigrarFechasGastos",
+      "reason": "Entrada de Mantenimiento con auditoría, permiso, confirmación y registro de migración."
+    },
+    {
+      "name": "ventasPagosPersistirEliminarPago y adaptadores de ventas",
+      "reason": "Tienen consumidores activos; no se retira el puente V3."
+    },
+    {
+      "name": "_registrarCobroAtomico",
+      "reason": "Sin llamadas en interfaz actual, pero consumido por test/firebase-identidad.integration.cjs. Se conserva hasta trasladar esa prueba al núcleo actual."
+    },
+    {
+      "name": "fbCargarVentasPendientesHistoricas y calcularPagadoRealVenta",
+      "reason": "Pendientes de revisar junto con sus consumidores de deuda e historial; no se eliminan por coincidencia de nombre."
+    }
+  ],
+  "data_changes": "Ninguna operación sobre registros, pagos o marcadores de migración. Solo se elimina código sin consumidores de la versión activa.",
+  "scope": "118 archivos activos, entradas HTML, módulos, V3, núcleo y referencias de pruebas/documentación. Las instantáneas antiguas se conservan."
+}
