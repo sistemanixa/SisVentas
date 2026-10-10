@@ -5851,14 +5851,32 @@ async function migrarEmpleadoPptos() {
     .catch(function(e){ notify('Error: ' + e.message); });
 }
 
+var _svTrabajosFondo = new Set();
+var _svGeneracionTrabajoFondo = 0;
+function svCancelarTrabajoFondo() {
+  _svGeneracionTrabajoFondo++;
+  _svTrabajosFondo.forEach(function(trabajo) {
+    clearTimeout(trabajo.timer);
+    if (trabajo.idle != null && typeof cancelIdleCallback === 'function') cancelIdleCallback(trabajo.idle);
+  });
+  _svTrabajosFondo.clear();
+}
+document.addEventListener('sisventas:session-ended', svCancelarTrabajoFondo);
 function svProgramarTrabajoFondo(tarea, demoraMinimaMs) {
   if (typeof tarea !== 'function') return;
+  var uid = currentUserUid, generacion = _svGeneracionTrabajoFondo;
+  var trabajo = {timer:null, idle:null};
+  _svTrabajosFondo.add(trabajo);
+  function vigente() { return generacion === _svGeneracionTrabajoFondo && uid === currentUserUid; }
   var ejecutar = function() {
+    _svTrabajosFondo.delete(trabajo);
+    if (!vigente()) return;
     try { tarea(); } catch (error) { console.warn('[Carga diferida]', error); }
   };
   var demoraMinima = Math.max(0, demoraMinimaMs || 0);
-  setTimeout(function() {
-    if (typeof requestIdleCallback === 'function') requestIdleCallback(ejecutar, { timeout: 900 });
+  trabajo.timer = setTimeout(function() {
+    if (!vigente()) { _svTrabajosFondo.delete(trabajo); return; }
+    if (typeof requestIdleCallback === 'function') trabajo.idle = requestIdleCallback(ejecutar, { timeout: 900 });
     else ejecutar();
   }, demoraMinima);
 }

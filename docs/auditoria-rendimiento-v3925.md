@@ -214,3 +214,7 @@ El callback de pagos conserva conciliación completa, mapa de saldos e indicador
 ### Cobranzas: historial visible bajo demanda
 
 El listener de pagos conserva el historial completo y la conciliación, pero delega las filas a renderHistorialCobranzas, que no escribe mientras Cobranzas está cerrada. La entrada a la página dibuja desde el historial vigente aun con la suscripción ya iniciada; se reaplica la búsqueda. Se mantiene el límite existente de 20 filas y los índices del historial usados por recibos. Prueba de ocultación, apertura tras nuevos datos, anulaciones y conservación del conjunto completo. Suite general: 1.249 pruebas aprobadas.
+
+### Arranque: cancelar trabajos de sesiones cerradas
+
+El planificador de tareas diferidas registra timers e idle callbacks y los cancela al recibir session-ended. Cada ejecución valida UID y generación de sesión; una tarea antigua tampoco se ejecuta si el mismo UID vuelve a entrar. Conserva demora mínima y fallback sin requestIdleCallback. Pruebas de cancelación en ambas etapas, cambio de UID y ejecución vigente. Se adaptó una aserción estructural del planificador al guard agregado. Suite general: 1.251 pruebas aprobadas.

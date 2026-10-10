@@ -31,7 +31,7 @@ test('la pantalla directa carga sus dependencias sin esperar el lote general', (
 });
 
 test('los lotes tienen una demora mínima real antes de esperar tiempo ocioso', () => {
-  assert.match(app, /setTimeout\(function\(\) \{\s*if \(typeof requestIdleCallback/);
+  assert.match(app, /setTimeout\(function\(\) \{\s*if \(!vigente\(\)\) \{[^\n]+\}\s*if \(typeof requestIdleCallback/);
   assert.match(app, /\}, demoraMinima\);/);
   assert.match(app, /\}, 700\);/);
   assert.match(app, /\}, 1800\);/);
