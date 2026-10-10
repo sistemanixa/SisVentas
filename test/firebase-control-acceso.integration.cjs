@@ -49,7 +49,7 @@ test('guardado real de usuario y chat actualiza ambas identidades atómicamente'
  const window={SV_SECURITY_STORAGE_V2:true,fbDB:db,fbRef:ref,fbGet:get,fbOnValue:onValue,fbUpdate:update,usuariosData:[{fbKey:'key_tecnico',uid:'tecnico',rol:'tecnico',nombre:'tecnico',activo:true}]};
  vm.runInNewContext(fs.readFileSync('js/modules/security-storage.js','utf8'),{window});
  await window.svPrepararRutasSeguridad({uid:'admin'});
- vm.runInNewContext(fs.readFileSync('js/modules/chat-access.js','utf8'),{window,setInterval:()=>{}});
+ vm.runInNewContext(fs.readFileSync('js/modules/chat-access.js','utf8'),{window,document:{addEventListener:()=>{}},setInterval:()=>{}});
  await assertSucceeds(window.guardarUsuarioConAccesoChat({uid:'tecnico',rol:'tecnico',nombre:'Nombre corregido',activo:true},'key_tecnico'));
  assert.equal((await get(ref(db,'sv_usuarios/key_tecnico/nombre'))).val(),'Nombre corregido');
  assert.equal((await get(ref(db,'sv_chat_directorio/tecnico/nombre'))).val(),'Nombre corregido');

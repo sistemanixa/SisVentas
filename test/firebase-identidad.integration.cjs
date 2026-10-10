@@ -6,7 +6,7 @@ const vm=require('node:vm');
 const {createRequire}=require('node:module');
 const dependency=createRequire(require('node:path').resolve('tmp/firebase-security-tools/package.json'));
 const {initializeTestEnvironment,assertSucceeds,assertFails}=dependency('@firebase/rules-unit-testing');
-const {ref,get,set,update,runTransaction}=dependency('firebase/database');
+const {ref,get,set,update,runTransaction,onDisconnect}=dependency('firebase/database');
 const {restringirIdentidad}=require('../scripts/generar-reglas-identidad.cjs');
 let env;
 const roles=['admin','administrativo','vendedor','tecnico_vendedor','tecnico'];
@@ -50,23 +50,36 @@ test('función real de cobro: dos intentos concurrentes no exceden el saldo',asy
   const index=fs.readFileSync('index.html','utf8');
   const active=index.match(/src="\.\/(js\/app\.v[\d.]+\.js)/)[1];
   const app=fs.readFileSync(active,'utf8');
-  const start=app.indexOf('function _registrarCobroAtomico(');
-  const end=app.indexOf('\nfunction registrarPago(',start);
+  const start=app.indexOf('function _cobroNuevaClave(');
+  const end=app.indexOf('function _svMontoPagadoVenta(',start);
   assert.ok(start>=0&&end>start);
   await env.withSecurityRulesDisabled(async c=>{
     await set(ref(c.database(),'sisventas/ventas/concurrente'),{id:'V-FICTICIA',total:106729.56,totalPagado:0});
   });
   function client(){
-    const sandbox={window:{fbDB:env.authenticatedContext('administrativo').database(),fbRef:ref,fbRunTransaction:runTransaction}};
+    const sandbox={window:{SisVentas:{carga:{mostrar:()=>()=>{}}},fbDB:env.authenticatedContext('administrativo').database(),fbRef:ref,fbGet:get,fbUpdate:update,fbRunTransaction:runTransaction,fbOnDisconnect:onDisconnect},
+      currentUser:'administrativo',_svModeloVentasV3Cache:null,
+      ventaValidaParaMetricas:venta=>!venta.anulada,
+      _svPagoValido:pago=>!pago.anulado,
+      _svRegistroPerteneceVenta:(pago,venta)=>pago.ventaFbKey===venta.fbKey,
+      _svResumenPagoLegacyVenta:venta=>Number(venta.totalPagado)||0,
+      _svTotalVentaCanonico:venta=>Number(venta.total)||0};
     vm.runInNewContext(app.slice(start,end),sandbox);
     return sandbox;
   }
-  const attempts=await Promise.allSettled([client()._registrarCobroAtomico('concurrente',{fbKey:'concurrente1',monto:106729.56}),client()._registrarCobroAtomico('concurrente',{fbKey:'concurrente2',monto:106729.56})]);
+  const options=n=>({grupoPago:'concurrente_grupo_'+n,origen:'cobranzas',montoTotal:106729.56,solicitudes:[{ventaFbKey:'concurrente',ventaId:'V-FICTICIA',monto:106729.56,pagoKey:'concurrente'+n,pago:{}}],comprobante:{nombre:'ficticio.pdf',tipo:'application/pdf',data:'ficticio'}});
+  const attempts=await Promise.allSettled([client().registrarCobrosCanonicos(options(1)),client().registrarCobrosCanonicos(options(2))]);
   assert.equal(attempts.filter(x=>x.status==='fulfilled').length,1,attempts.map(x=>x.reason?.message||'guardado').join('; '));
   const db=env.authenticatedContext('admin').database();
   assert.equal((await get(ref(db,'sisventas/ventas/concurrente/totalPagado'))).val(),106729.56);
   const pagos=(await get(ref(db,'sisventas/pagos'))).val();
   assert.equal(Object.values(pagos).filter(p=>p.ventaFbKey==='concurrente').length,1);
+  const winner=attempts.findIndex(x=>x.status==='fulfilled')+1;
+  const retry=await client().registrarCobrosCanonicos(options(winner));
+  assert.equal(retry.length,1);
+  assert.equal(Object.values((await get(ref(db,'sisventas/pagos'))).val()).filter(p=>p.ventaFbKey==='concurrente').length,1);
+  assert.equal((await get(ref(db,'sisventas/control_cobros'))).exists(),false);
+  assert.equal((await get(ref(db,'sisventas/cobros_adjuntos/concurrente_grupo_'+winner))).val().nombre,'ficticio.pdf');
 });
 test('un usuario no puede habilitarse ni promoverse en la identidad protegida',async()=>{
   const db=env.authenticatedContext('tecnico').database();

@@ -1,0 +1,32 @@
+{
+  "version": "v3.10.8",
+  "removed": [
+    {
+      "name": "_registrarCobroAtomico",
+      "reason": "La interfaz usa registrarCobrosCanonicos; la prueba de integración ahora ejecuta ese núcleo contra Firebase emulado.",
+      "bytes": 7240
+    },
+    {
+      "name": "fbCargarVentasPendientesHistoricas",
+      "reason": "Sin consumidores. fbCargarVentas usa procesarVentasSnapshot con actualizarPendientes:true.",
+      "bytes": 496
+    },
+    {
+      "name": "procesarVentasPendientesHistoricasSnapshot",
+      "reason": "Único consumidor: el cargador retirado. Los saldos históricos siguen calculándose en procesarVentasSnapshot.",
+      "bytes": 979
+    },
+    {
+      "name": "calcularPagadoRealVenta",
+      "reason": "Sin consumidores. Las consultas vigentes usan _svMontoPagadoVenta; se conservan sus respaldos para datos antiguos.",
+      "bytes": 695
+    }
+  ],
+  "retained": [
+    "registrarCobrosCanonicos y sus controles de concurrencia",
+    "procesarVentasSnapshot y ventasPendientesHistoricasList",
+    "_svMontoPagadoVenta, _svPagosEmbebidosVenta y _svResumenPagoLegacyVenta",
+    "Migraciones manuales de Mantenimiento"
+  ],
+  "data_changes": "Ninguna. Las pruebas de integración requieren un proyecto demo y emulador local. Las instantáneas antiguas permanecen archivadas."
+}
