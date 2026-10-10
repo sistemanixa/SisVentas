@@ -9,12 +9,24 @@ function formatearDuracionUso(ms) {
   var resto = minutos % 60;
   return horas + ' h' + (resto ? ' ' + resto + ' min' : '');
 }
-function nombreUsuarioUso(registro, clave) {
-  var email = String((registro && registro.email) || '').toLowerCase();
-  var usuario = (window.usuariosData || []).find(function(u) {
+function indiceUsuariosUso() {
+  var emails = new Map(), uids = new Map();
+  (window.usuariosData || []).forEach(function(u, orden) {
     var mail = String(u.mail || (u.login && u.login.includes('@') ? u.login : (u.login || '') + '@sistemanixa.com')).toLowerCase();
-    return (email && mail === email) || String(u.uid || '') === String(clave || '');
+    var uid = String(u.uid || '');
+    var entrada = {usuario:u, orden:orden};
+    if (!emails.has(mail)) emails.set(mail, entrada);
+    if (!uids.has(uid)) uids.set(uid, entrada);
   });
+  return {emails:emails, uids:uids};
+}
+function nombreUsuarioUso(registro, clave, indice) {
+  var email = String((registro && registro.email) || '').toLowerCase();
+  var porEmail = email ? indice.emails.get(email) : null;
+  var porUid = indice.uids.get(String(clave || ''));
+  // Conservar la primera coincidencia del directorio, sea por correo o UID.
+  var entrada = porEmail && (!porUid || porEmail.orden < porUid.orden) ? porEmail : porUid;
+  var usuario = entrada && entrada.usuario;
   return (usuario && (usuario.nombre || usuario.login)) || (registro && (registro.nombre || registro.email)) || 'Usuario sin identificar';
 }
 function renderMetricasUsoUsuarios(datos, periodo) {
@@ -38,14 +50,15 @@ function renderMetricasUsoUsuarios(datos, periodo) {
       });
     });
   });
+  var indice = indiceUsuariosUso();
   var filas = Object.values(acumulado).map(function(item) {
-    item.nombre = nombreUsuarioUso(item.registro, item.clave);
+    item.nombre = nombreUsuarioUso(item.registro, item.clave, indice);
     return item;
   }).filter(function(item){ return item.activoMs > 0 || item.inactivoMs > 0; })
     .sort(function(a,b){ return b.activoMs - a.activoMs; });
   var totalActivo = filas.reduce(function(s, x){ return s + x.activoMs; }, 0);
   var totalInactivo = filas.reduce(function(s, x){ return s + x.inactivoMs; }, 0);
-  var maximo = Math.max.apply(null, [1].concat(filas.map(function(x){ return Math.max(x.activoMs, x.inactivoMs); })));
+  var maximo = filas.reduce(function(max, x){ return Math.max(max, x.activoMs, x.inactivoMs); }, 1);
   var elActivo = document.getElementById('usuarios-uso-activo');
   var elInactivo = document.getElementById('usuarios-uso-inactivo');
   var elLider = document.getElementById('usuarios-uso-lider');

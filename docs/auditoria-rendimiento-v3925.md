@@ -202,3 +202,7 @@ El formato, agregación, consulta por intervalo y render del informe de uso pasa
 ### Dependencia compartida de Excel
 
 Reportes, Compras y el planificador ahora reutilizan el cargador compartido para SheetJS: una descarga simultánea, validación del objeto XLSX, timeout y reintento. La llamada con la librería disponible conserva su ejecución inmediata. No se descarga en el inicio. Suite general: 1.246 pruebas aprobadas; se comprobaron solicitudes concurrentes, timeout y carga sin global esperado.
+
+### Informe de uso: índice de identidades
+
+El render prepara una sola vez índices de correo y UID, evitando una búsqueda lineal del directorio por cada usuario agregado. Conserva la primera coincidencia original incluso cuando correo y UID apuntan a entradas diferentes. El máximo de tiempos se obtiene con reduce, sin expandir todas las filas como argumentos de Math.max. Prueba de equivalencia con 1.000 usuarios, coincidencias cruzadas, clave duplicada e identidad histórica: mismo HTML y totales que v3.9.30. Cuatro pruebas de métricas aprobadas. No implica una medición de velocidad real.
