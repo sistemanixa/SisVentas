@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════════════════
-   v20.339 — Gráficos ejecutivos en Estadísticas y Rentabilidad
+   v20.339 — Gráficos ejecutivos en Estadísticas
    Inserción por ancla final: no pisa impresión ni lógica existente.
    ══════════════════════════════════════════════════════════════════════════════ */
 (function(){
@@ -26,23 +26,13 @@
   function fechaKey(f){ var d=parseFecha(f); return d?iso(d):String(f||'').slice(0,10); }
   function mesKey(f){ var d=parseFecha(f); return d?mes(d):String(f||'').slice(0,7); }
   function ventas(){ return arr(window.ventasList||window.ventasData||window.ventas||[]).filter(function(v){return v&&v.anulada!==true&&v.estado!=='anulada';}); }
-  function gastos(){ return arr(window.gastosList||window.gastosData||window.gastos||[]); }
   function totalVenta(v){ return num(v&&((v.total!=null?v.total:v.totalVenta)!=null?(v.total!=null?v.total:v.totalVenta):v.monto)); }
-  function gastoMonto(g){ return num(g&&((g.monto!=null?g.monto:g.total)!=null?(g.monto!=null?g.monto:g.total):g.importe)); }
   function dias7(){ var out=[]; for(var i=6;i>=0;i--){ var d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-i); out.push({date:d,key:iso(d),dow:d.getDay()}); } return out; }
   function meses12(){ var out=[]; var d=new Date(); d.setDate(1); for(var i=11;i>=0;i--){ var x=new Date(d.getFullYear(),d.getMonth()-i,1); out.push({date:x,key:mes(x)}); } return out; }
   var diasLbl=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'], mesesLbl=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   function fmtCompact(v){ var n=num(v), pref=n<0?'-$':'$'; v=Math.abs(n); if(v>=1000000) return pref+(v/1000000).toFixed(v>=10000000?0:1)+'M'; if(v>=1000) return pref+Math.round(v/1000)+'k'; return pref+Math.round(v); }
   function pct(a,b){ if(!b) return '—'; var p=Math.round(((a-b)/Math.abs(b))*100); return (p>=0?'↑ ':'↓ ')+Math.abs(p)+'%'; }
   function colorPct(a,b){ return !b || a>=b ? 'var(--green)' : 'var(--red)'; }
-  function pctResultado(a,b){
-    a=num(a); b=num(b);
-    if(Math.abs(b)<1) return 'Sin base comparable';
-    if(b<0&&a>=0) return 'Pasó a ganancia';
-    if(b>=0&&a<0) return 'Pasó a pérdida';
-    if(b<0&&a<0){ var mejora=Math.round(((Math.abs(b)-Math.abs(a))/Math.abs(b))*100); return (mejora>=0?'↑ ':'↓ ')+Math.abs(mejora)+'% '+(mejora>=0?'mejora':'mayor pérdida'); }
-    return pct(a,b);
-  }
   function drawBars(containerId, serie, labels, clickPage){
     var el=document.getElementById(containerId); if(!el) return;
     var max=Math.max.apply(null,serie.map(function(x){return Math.abs(x);})); if(!max) max=1;
@@ -77,9 +67,6 @@
       '<div class="sv334-mini" id="sv334-'+id+'-mini"></div><div class="sv334-quick" id="sv334-'+id+'-quick"></div></div>';
   }
   function ensureStats(){ var page=document.getElementById('page-estadisticas'); if(!page||document.getElementById('sv334-est-card')) return; var metrics=page.querySelector('.metrics'); if(metrics) metrics.insertAdjacentHTML('afterend',cardVentas('est')); else page.insertAdjacentHTML('afterbegin',cardVentas('est')); }
-  // Rentabilidad prioriza lectura numérica y estado de salud. Los gráficos
-  // ejecutivos permanecen en Dashboard/Tablero, no en este reporte contable.
-  function ensureRent(){ var card=document.getElementById('sv334-rent-card'); if(card) card.remove(); }
   function calcSales(){
     var vs=ventas(), d7=dias7(), m12=meses12();
     var porDia={}, porMes={};
@@ -95,24 +82,14 @@
     var prom=month/(new Date().getDate()||1);
     return {daily:daily,dailyLabels:d7.map(function(d,i){return i===6?'Hoy':diasLbl[d.dow];}),monthly:monthly,monthLabels:m12.map(function(m){return mesesLbl[m.date.getMonth()];}),today:today,week:week,month:month,prevMonth:prevMonth,best:mejorDia,avg:prom};
   }
-  function calcRent(){
-    var vs=ventas(), gs=gastos(), d7=dias7(), m12=meses12();
-    function canon(desde,hasta){
-      hasta=new Date(hasta); hasta.setHours(23,59,59,999);
-      if(typeof window.calcularRentabilidadCanonica==='function') return window.calcularRentabilidadCanonica({desde:desde,hasta:hasta},vs,gs);
-      var ingresos=vs.filter(function(v){var f=parseFecha(v.fecha);return f&&f>=desde&&f<=hasta;}).reduce(function(s,v){return s+totalVenta(v);},0);
-      var otros=gs.filter(function(g){var f=parseFecha(g.fecha);return f&&f>=desde&&f<=hasta;}).reduce(function(s,g){return s+gastoMonto(g);},0);
-      return {ingresosNetos:ingresos,egresos:otros,gananciaComercial:ingresos,resultadoNeto:ingresos-otros,margenNeto:ingresos?(ingresos-otros)/ingresos*100:0};
-    }
-    var daily=d7.map(function(d){return canon(d.date,d.date).resultadoNeto;});
-    var monthly=m12.map(function(m){return canon(new Date(m.date.getFullYear(),m.date.getMonth(),1),new Date(m.date.getFullYear(),m.date.getMonth()+1,0)).resultadoNeto;});
-    var sel=document.getElementById('rent-periodo');
-    var periodo=sel?sel.value:'mes_actual';
-    var rango=typeof window._rangoFechasPeriodo==='function'?window._rangoFechasPeriodo(periodo):{desde:new Date(new Date().getFullYear(),new Date().getMonth(),1),hasta:new Date(new Date().getFullYear(),new Date().getMonth()+1,0,23,59,59)};
-    var actual=canon(rango.desde,rango.hasta);
-    var ingresos=actual.ingresosNetos||0, egresos=actual.egresos||0, utilidad=actual.resultadoNeto||0, prev=monthly[monthly.length-2]||0;
-    var best=d7.map(function(d,i){return {lbl:diasLbl[d.dow],v:daily[i]};}).sort(function(a,b){return b.v-a.v;})[0]||{lbl:'—',v:0};
-    return {daily:daily,dailyLabels:d7.map(function(d,i){return i===6?'Hoy':diasLbl[d.dow];}),monthly:monthly,monthLabels:m12.map(function(m){return mesesLbl[m.date.getMonth()];}),ingresos:ingresos,egresos:egresos,comercial:actual.gananciaComercial||0,utilidad:utilidad,prevMonth:prev,best:best,avg:utilidad/(new Date().getDate()||1),margen:ingresos?Math.round(utilidad/ingresos*100):0,periodoLabel:sel&&sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].text:'Este mes'};
+  var pendingCharts334 = {};
+  function scheduleChart334(page, render) {
+    if (pendingCharts334[page]) return;
+    pendingCharts334[page] = setTimeout(function () {
+      delete pendingCharts334[page];
+      var node = document.getElementById('page-' + page);
+      if (!document.hidden && node && node.classList.contains('active')) render();
+    }, 80);
   }
   function renderStats334(){
     ensureStats(); var x=calcSales();
@@ -124,26 +101,15 @@
     if(e('sv334-est-mini')) e('sv334-est-mini').innerHTML='<div class="sv334-mini-card"><div class="sv334-ico green"><i class="ti ti-arrow-up"></i></div><div><div class="sv334-mini-l">vs mes anterior</div><div class="sv334-mini-v green">'+pct(x.month,x.prevMonth)+'</div></div></div><div class="sv334-mini-card"><div class="sv334-ico blue"><i class="ti ti-calendar-stats"></i></div><div><div class="sv334-mini-l">Promedio diario</div><div class="sv334-mini-v">'+money(x.avg)+'</div></div></div><div class="sv334-mini-card"><div class="sv334-ico purple"><i class="ti ti-chart-pie"></i></div><div><div class="sv334-mini-l">Mejor día</div><div class="sv334-mini-v">'+esc(x.best.lbl)+' '+money(x.best.v)+'</div></div></div>';
     if(e('sv334-est-quick')) e('sv334-est-quick').innerHTML='<div class="sv334-q" onclick="kpiNavegar&&kpiNavegar(\'ventasHoy\')"><div class="sv334-q-l"><i class="ti ti-calendar-check" style="color:var(--green)"></i>Hoy</div><div class="sv334-q-v green">'+money(x.today)+'</div><div class="sv334-q-sub">vs ayer: '+money(x.daily[x.daily.length-2]||0)+'</div></div><div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-calendar-week" style="color:var(--blue)"></i>Semana</div><div class="sv334-q-v blue">'+money(x.week)+'</div><div class="sv334-q-sub">últimos 7 días</div></div><div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-calendar-month" style="color:var(--purple)"></i>Mes</div><div class="sv334-q-v purple">'+money(x.month)+'</div><div class="sv334-q-sub">vs mes anterior: <span style="color:'+colorPct(x.month,x.prevMonth)+'">'+pct(x.month,x.prevMonth)+'</span></div></div>';
   }
-  function renderRent334(){
-    ensureRent(); var x=calcRent();
-    drawBars('sv334-rent-bars',x.daily,x.dailyLabels,'rentabilidad'); drawLine('sv334-rent-line',x.monthly,x.monthLabels);
-    var e=function(id){return document.getElementById(id)};
-    if(e('sv334-rent-daily-total')) e('sv334-rent-daily-total').textContent='Semana: '+money(x.daily.reduce(function(s,v){return s+v;},0));
-    if(e('sv334-rent-periodo')) e('sv334-rent-periodo').textContent=x.periodoLabel;
-    if(e('sv334-rent-month-total')) { e('sv334-rent-month-total').textContent='Resultado: '+money(x.utilidad); e('sv334-rent-month-total').style.color=x.utilidad>=0?'var(--green)':'var(--red)'; }
-    if(e('sv334-rent-month-var')) { e('sv334-rent-month-var').textContent=pctResultado(x.utilidad,x.prevMonth)+' vs mes anterior'; e('sv334-rent-month-var').style.color=colorPct(x.utilidad,x.prevMonth); }
-    if(e('sv334-rent-mini')) e('sv334-rent-mini').innerHTML='<div class="sv334-mini-card"><div class="sv334-ico '+(x.utilidad>=x.prevMonth?'green':'red')+'"><i class="ti ti-arrow-up"></i></div><div><div class="sv334-mini-l">vs mes anterior</div><div class="sv334-mini-v '+(x.utilidad>=x.prevMonth?'green':'red')+'">'+pctResultado(x.utilidad,x.prevMonth)+'</div></div></div><div class="sv334-mini-card"><div class="sv334-ico blue"><i class="ti ti-calendar-stats"></i></div><div><div class="sv334-mini-l">Promedio diario</div><div class="sv334-mini-v">'+money(x.avg)+'</div></div></div><div class="sv334-mini-card"><div class="sv334-ico purple"><i class="ti ti-chart-pie"></i></div><div><div class="sv334-mini-l">Mejor día</div><div class="sv334-mini-v">'+esc(x.best.lbl)+' '+money(x.best.v)+'</div></div></div>';
-    if(e('sv334-rent-quick')) e('sv334-rent-quick').innerHTML='<div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-arrow-up-right" style="color:var(--green)"></i>Ingresos netos</div><div class="sv334-q-v green">'+money(x.ingresos)+'</div><div class="sv334-q-sub">sin IVA · '+esc(x.periodoLabel.toLowerCase())+'</div></div><div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-briefcase" style="color:var(--blue)"></i>Ganancia comercial</div><div class="sv334-q-v '+(x.comercial>=0?'blue':'red')+'">'+money(x.comercial)+'</div><div class="sv334-q-sub">después de costos y comisiones</div></div><div class="sv334-q"><div class="sv334-q-l"><i class="ti ti-building-bank" style="color:var(--purple)"></i>Resultado neto</div><div class="sv334-q-v '+(x.utilidad>=0?'purple':'red')+'">'+money(x.utilidad)+'</div><div class="sv334-q-sub">queda en la empresa · '+x.margen+'%</div></div>';
-  }
-  window.renderStatsGraficos334=renderStats334; window.renderRentGraficos334=renderRent334;
+  window.renderStatsGraficos334=renderStats334;
   if(typeof window.renderEstadisticas==='function'){
     var prevEst334=window.renderEstadisticas;
-    window.renderEstadisticas=function(){ var r=prevEst334.apply(this,arguments); setTimeout(renderStats334,80); return r; };
+    window.renderEstadisticas=function(){ var r=prevEst334.apply(this,arguments); scheduleChart334('estadisticas',renderStats334); return r; };
   }
-  if(typeof window.calcRentabilidad==='function'){
-    var prevRent334=window.calcRentabilidad;
-    window.calcRentabilidad=function(){ var r=prevRent334.apply(this,arguments); setTimeout(renderRent334,80); return r; };
+  function refreshActive334() {
+    scheduleChart334('estadisticas', renderStats334);
   }
-  document.addEventListener('sisventas:page-changed',function(event){ var page=event.detail&&event.detail.page; setTimeout(function(){ if(page==='estadisticas') renderStats334(); if(page==='rentabilidad') renderRent334(); },140); });
-  document.addEventListener('DOMContentLoaded',function(){ setTimeout(function(){ if(document.getElementById('page-estadisticas')&&document.getElementById('page-estadisticas').classList.contains('active')) renderStats334(); if(document.getElementById('page-rentabilidad')&&document.getElementById('page-rentabilidad').classList.contains('active')) renderRent334(); },500); });
+  document.addEventListener('sisventas:page-changed', refreshActive334);
+  document.addEventListener('visibilitychange', refreshActive334);
+  document.addEventListener('DOMContentLoaded', refreshActive334);
 })();

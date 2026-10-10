@@ -31,7 +31,7 @@
 
   function refresh(body) {
     if (!body) return;
-    var ordered = meaningfulRows(body);
+    var position = 0;
     Array.from(body.querySelectorAll(':scope > tr')).forEach(function (row) {
       var handle = row.querySelector('.sv-item-drag-handle');
       var meaningful = isMeaningfulRow(row);
@@ -40,7 +40,7 @@
         row.removeAttribute('data-item-order');
         return;
       }
-      row.dataset.itemOrder = String(ordered.indexOf(row) + 1);
+      row.dataset.itemOrder = String(++position);
     });
   }
 
@@ -131,19 +131,20 @@
       draggingRow = null;
       finishMove(body);
     }, true);
+    var pendingBodies = new Set(), scheduled = false;
     var observer = new MutationObserver(function (mutations) {
-      var touched = false;
       mutations.forEach(function (mutation) {
-        var body = mutation.target && mutation.target.closest ? mutation.target.closest('#det-body,#pp-body') : null;
-        if (!body && mutation.target && BODY_IDS.indexOf(mutation.target.id) >= 0) body = mutation.target;
-        if (!body) return;
-        touched = true;
-        Array.from(mutation.addedNodes || []).forEach(function (node) {
-          if (node && node.nodeType === 1 && node.tagName === 'TR') installRow(node);
-        });
-        refresh(body);
+        var target = mutation.target.nodeType === 1 ? mutation.target : mutation.target.parentElement;
+        var body = target && target.closest ? target.closest('#det-body,#pp-body') : null;
+        if (body) pendingBodies.add(body);
       });
-      if (touched) window.requestAnimationFrame(scan);
+      if (!pendingBodies.size || scheduled) return;
+      scheduled = true;
+      window.requestAnimationFrame(function () {
+        scheduled = false;
+        var bodies = Array.from(pendingBodies); pendingBodies.clear();
+        bodies.forEach(function(body) { if (body.isConnected) installBody(body); });
+      });
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     document.addEventListener('sisventas:page-changed', scan);

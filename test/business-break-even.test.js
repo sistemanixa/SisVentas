@@ -66,6 +66,6 @@ assert(source.includes("rentPage.insertBefore(executiveNumbers, legacyMetrics.ne
 assert(source.includes("legacyMetrics.style.display = ''"), 'Las métricas originales de Rentabilidad deben permanecer visibles');
 assert(source.includes('previousComparableRange') && source.includes('executiveContext'), 'Las cifras comparativas deben usar períodos canónicos equivalentes');
 assert(source.includes("range.hasta.getMonth() - range.desde.getMonth() + 1"), 'La base mensual debe usar meses calendario y no un promedio de días');
-assert(charts.includes("function ensureRent(){ var card=document.getElementById('sv334-rent-card'); if(card) card.remove(); }"), 'Rentabilidad debe mantenerse sin gráficos');
+assert(!charts.includes('renderRent334') && !charts.includes('calcRent()'), 'Rentabilidad no conserva gráficos ni cálculos gráficos obsoletos');
 
 console.log('OK: motor de punto de equilibrio y escenarios determinísticos.');

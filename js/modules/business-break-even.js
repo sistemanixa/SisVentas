@@ -229,6 +229,12 @@
     };
   }
 
+  var renderPending = false;
+  function scheduleRender() {
+    if (renderPending) return;
+    renderPending = true;
+    setTimeout(function () { renderPending = false; render(); }, 0);
+  }
   function render() {
     var card = document.getElementById('rent-break-even');
     if (!card) return;
@@ -373,15 +379,15 @@
     [rentCard, document.getElementById('be-config-panel')].forEach(function (panel) {
       if (!panel || panel.dataset.bound) return;
       panel.dataset.bound = '1';
-      panel.addEventListener('input', render);
-      panel.addEventListener('change', render);
+      panel.addEventListener('input', scheduleRender);
+      panel.addEventListener('change', scheduleRender);
     });
     if (!window.__sisventasBreakEvenCalcWrapped && typeof window.calcRentabilidad === 'function') {
       window.__sisventasBreakEvenCalcWrapped = true;
       var originalCalcRentabilidad = window.calcRentabilidad;
       window.calcRentabilidad = function () {
         var output = originalCalcRentabilidad.apply(this, arguments);
-        setTimeout(render, 0);
+        scheduleRender();
         return output;
       };
     }

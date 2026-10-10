@@ -122,6 +122,7 @@
       var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/dolarHistorico'));
       var rows = flatten(snap.val() || {});
       renderTabla(rows);
+      if(window.SisVentasDolarMensual) window.SisVentasDolarMensual.update(rows);
       estado(rows.length ? 'Último punto: ' + (rows[0].fecha || '') + ' ' + (rows[0].hora || '') : 'Sin registros');
     } catch(e){
       estado('Error al cargar histórico');

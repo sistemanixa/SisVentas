@@ -48,15 +48,6 @@
       lab.style.width='100%';
       lab.innerHTML=visibles.map(function(x){ return '<span>'+x.label+'</span>'; }).join('');
     }
-    try{
-      var startDay=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-      var startWeek=new Date(startDay); startWeek.setDate(startWeek.getDate()-((startWeek.getDay()+6)%7));
-      var hoyTot=0, semTot=0;
-      (ventas||[]).forEach(function(v){ var d=parseVentaDate320(v.fecha); if(!d) return; var t=parseFloat(v.total)||0; if(d>=startDay) hoyTot+=t; if(d>=startWeek) semTot+=t; });
-      var qh=document.getElementById('dash-q-hoy-326'); if(qh) qh.textContent=money320(hoyTot);
-      var qs=document.getElementById('dash-q-semana-326'); if(qs) qs.textContent=money320(semTot);
-      var qm=document.getElementById('dash-q-mes-326'); if(qm) qm.textContent=money320(actual.total);
-    }catch(e){}
     svg.onclick=function(){ dashFiltrarVentasPorMes(actual.ym); };
     document.dispatchEvent(new CustomEvent('sisventas:dashboard-evolution-rendered',{detail:{ventas:ventas||[]}}));
   };

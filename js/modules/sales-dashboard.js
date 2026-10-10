@@ -233,10 +233,6 @@
     set332('dash-q-hoy-sub-332', 'vs ayer: '+money332(yestTot)+' '+(yestTot>0?pctHtml332(hpct):'(—)'));
     set332('dash-q-semana-sub-332', 'vs semana anterior '+pctHtml332(wpct));
     set332('dash-q-mes-sub-332', 'vs mes anterior '+pctHtml332(mpct));
-    // Compatibilidad con IDs de versiones anteriores, por si algún bloque viejo quedó activo.
-    set332('dash-q-hoy-326', money332(todayTot));
-    set332('dash-q-semana-326', money332(weekTot));
-    set332('dash-q-mes-326', money332(monthTot));
   };
   document.addEventListener('sisventas:dashboard-evolution-rendered',function(event){
     var ventas=event.detail&&event.detail.ventas||[];

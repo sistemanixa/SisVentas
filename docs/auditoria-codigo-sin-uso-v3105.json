@@ -1,0 +1,340 @@
+{
+  "version": "v3.10.5",
+  "date": "2026-10-10",
+  "scope": "Aplicación activa, módulos iniciales y diferidos, núcleo, V3 y entradas HTML; excluye instantáneas históricas de app/version.",
+  "files_scanned": 118,
+  "removed_functions": [
+    {
+      "name": "buscarPreciosProveedores",
+      "bytes": 4999,
+      "lines": 73
+    },
+    {
+      "name": "pfUsarPrecio",
+      "bytes": 507,
+      "lines": 11
+    },
+    {
+      "name": "selectRole",
+      "bytes": 221,
+      "lines": 5
+    },
+    {
+      "name": "renderTareasPendientes",
+      "bytes": 2052,
+      "lines": 30
+    },
+    {
+      "name": "toggleIvaDetalle",
+      "bytes": 688,
+      "lines": 13
+    },
+    {
+      "name": "unificarClientesFiltradosLegacyInseguro",
+      "bytes": 106,
+      "lines": 3
+    },
+    {
+      "name": "pptoAlertarVencimientosProximos",
+      "bytes": 2864,
+      "lines": 50
+    },
+    {
+      "name": "recalcularTotalesVenta",
+      "bytes": 51,
+      "lines": 1
+    },
+    {
+      "name": "toggleAll",
+      "bytes": 124,
+      "lines": 1
+    },
+    {
+      "name": "_pfValorVisualAARS",
+      "bytes": 240,
+      "lines": 6
+    }
+  ],
+  "removed_runtime_work": [
+    "Series gráficas de Rentabilidad retiradas: 7 cálculos diarios, 12 mensuales y 1 del período por invocación.",
+    "Segundo recorrido de ventas para indicadores dash-q-*-326 inexistentes."
+  ],
+  "optimizations": [
+    "Agrupar renderizados de gráficos y punto de equilibrio.",
+    "Numeración lineal y procesamiento por lote de filas modificadas.",
+    "Medir visibilidad solo de botones de retorno.",
+    "Buscar solamente campos elegibles para contadores.",
+    "No repintar margen Paraguay sin cambios y no calcular con documento oculto."
+  ],
+  "retained": [
+    "Gráficos vigentes de Estadísticas y Dashboard.",
+    "Cálculos comerciales canónicos, persistencia, migraciones y contratos V3.",
+    "Temporizadores de borradores, notificaciones, presencia, sincronización y actualización horaria: siguen teniendo consumidores activos.",
+    "Referencias a IDs generados dinámicamente y compatibilidad no demostrada como retirada."
+  ],
+  "review_candidates_retained": [
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "sortData",
+      "line": 532
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "unificarClientesFiltrados",
+      "line": 965
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "flujoPostPago",
+      "line": 2242
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "tecnicoTomarOT",
+      "line": 2303
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "cerrarOTyVenta",
+      "line": 2323
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "asignarFechaInstalacion",
+      "line": 2363
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "migrarEmpleadoPptos",
+      "line": 5758
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "fbCargarVentasPendientesHistoricas",
+      "line": 6425
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "ventasPagosPersistirGuardarPago",
+      "line": 6852
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "ventasPagosPersistirActualizarPago",
+      "line": 6885
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "otModeloCanonico",
+      "line": 7739
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "abrirUserPanel",
+      "line": 7893
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "forzarActualizacionApp",
+      "line": 13376
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "appendAlert",
+      "line": 13829
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "secureLog",
+      "line": 13848
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_html",
+      "line": 13943
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_val",
+      "line": 13946
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_cls",
+      "line": 13949
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_show",
+      "line": 13950
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_flex",
+      "line": 13959
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_kitPrecioVentaARS",
+      "line": 14792
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "obtenerItemVenta",
+      "line": 14819
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "navegarAProductosPorCategoria",
+      "line": 15678
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "programarArchivoImagenProducto",
+      "line": 15889
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "productoPersistirEliminar",
+      "line": 17612
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "actualizadorNombreProveedorDistinto",
+      "line": 19351
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "cotizarProveedoresAsistente",
+      "line": 22112
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "precioExteriorProductoHTML",
+      "line": 23172
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_cargoAjusteRegistro",
+      "line": 24933
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "cargosEditarRapido",
+      "line": 25132
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "guardarDashWidgets",
+      "line": 25332
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "irACobranzasDesdeCC",
+      "line": 26453
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "verEmpleado",
+      "line": 26504
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "abrirComprobanteCuenta",
+      "line": 27676
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_optimizarLogoImpresion",
+      "line": 29635
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "ctaEmpEliminarDuplicadosLegacy",
+      "line": 31415
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "irAVentaDesdeComision",
+      "line": 31517
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "toggleMenuPpto",
+      "line": 33002
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_registrarCobroAtomico",
+      "line": 33748
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "abrirFacturacionEmitida",
+      "line": 34414
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "spPasarAVisitaYGenerarOTLegacy",
+      "line": 36085
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "spGenerarOTLegacy",
+      "line": 36125
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_normalizarImputacionGastosPagados",
+      "line": 42193
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "mejorarValorExteriorPpto",
+      "line": 46476
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "otActualizarMaterial",
+      "line": 47831
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "calcularPagadoRealVenta",
+      "line": 51184
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "normalizarVentaLegacyDesdePresupuesto",
+      "line": 51726
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "obtenerCategoriaEmpleado",
+      "line": 53864
+    },
+    {
+      "file": "js/modules/maintenance.js",
+      "name": "mntEmpByKey",
+      "line": 117
+    }
+  ],
+  "limitations": [
+    "El análisis estático no demuestra ausencia absoluta de llamadas dinámicas ni sustituye todas las combinaciones de roles y datos.",
+    "No se eliminan instantáneas históricas publicadas ni registros comerciales."
+  ],
+  "validation": {
+    "automated_tests": 1290,
+    "failed": 0,
+    "browser": [
+      "Rentabilidad: mes actual y anterior con datos reales.",
+      "Presupuestos y Detalle ventas: listados disponibles.",
+      "Nueva venta: formulario sin guardar datos.",
+      "Productos: búsqueda P-62933, ficha, Agregar proveedor, Guardar visible, Cancelar sin aviso de cambios.",
+      "Estadísticas: gráficos actuales visibles.",
+      "Dashboard: gráfico mensual conserva total y trazados.",
+      "Dólar: día, semana, mes, año; Oficial por defecto; combinación Blue/MEP y estado sin selección."
+    ],
+    "console_errors_during_final_route": 0
+  }
+}

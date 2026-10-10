@@ -6,7 +6,7 @@ function svSincronizarVolverGlobal() {
   if (!barra) return;
   var pagina = document.querySelector('.page.active');
   var propio = pagina && Array.from(pagina.querySelectorAll('button,a')).some(function(b) {
-    return _svElementoVisible(b) && /^(?:[\s\uE000-\uF8FF←↩]*)(?:Volver|Atrás)(?:\s|$)/i.test(b.textContent.trim());
+    return /^(?:[\s\uE000-\uF8FF←↩]*)(?:Volver|Atrás)(?:\s|$)/i.test(b.textContent.trim()) && _svElementoVisible(b);
   });
   var ocultar = !!propio;
   if (barra.hidden !== ocultar) barra.hidden = ocultar;
