@@ -46,7 +46,7 @@ test('Guardar URL confirma persistencia antes de reintentar; el fallo de precio 
  let remoto=JSON.parse(JSON.stringify(p)),reintentos=0;
  // El vínculo heredado carece de key, pero el actualizador resolvió la del maestro.
  delete p.proveedores[0].proveedorKey;delete remoto.proveedores[0].proveedorKey;
- const fallo={fbKey:p.fbKey,proveedorIdx:0,url:vieja,item:{producto:p,proveedor:p.proveedores[0],proveedorKey:'maestro-ml',url:vieja}};
+ const fallo={fbKey:p.fbKey,proveedorIdx:0,url:vieja,item:Object.freeze({producto:p,proveedor:p.proveedores[0],proveedorKey:'maestro-ml',url:vieja})};
  Object.assign(c,{prodData:{[p.fbKey]:p},FB_PATHS:{productos:'productos'},
    _actualizadorSesionPrecios:{fallos:[fallo],sinStock:[],procesados:{}},
    document:{getElementById:id=>id.startsWith('actualizador-url-input')?{value:nueva}:null},
@@ -58,7 +58,7 @@ test('Guardar URL confirma persistencia antes de reintentar; el fallo de precio 
  });
  load(c,['guardarUrlFallidoActualizador']);await c.guardarUrlFallidoActualizador(p.fbKey,0);
  assert.equal(reintentos,1);assert.equal(remoto.codWeb,p.codWeb);assert.equal(remoto.proveedores[0].precio,2386);
- assert.equal(c.proveedoresVinculadosProducto(remoto)[0].url,nueva);assert.equal(fallo.url,nueva);
+ assert.equal(c.proveedoresVinculadosProducto(remoto)[0].url,nueva);assert.equal(fallo.url,nueva);assert.equal(fallo.item.url,nueva);
 });
 
 test('editar URL de fila no reemplaza principal incluso con un único proveedor',()=>{

@@ -10784,7 +10784,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Referencia de Mercado Libre y ahorro en dólares visibles en el catálogo público.']),
   RELEASE_FEATURE: Object.freeze({page:'balancecompra',actionLabel:'Ver Compras de exterior'}),
   RELEASE_HISTORY: Object.freeze([
-    Object.freeze({version:'v3.10.1',date:'10/10/2026',title:'Edición de URLs durante la actualización',notes:Object.freeze(['El actualizador conserva el campo abierto, el enlace escrito y la posición mientras recibe nuevos resultados.']),feature:Object.freeze({page:'actualizadorprecios',actionLabel:'Ver actualizador'})}),
+    Object.freeze({version:'v3.10.1',date:'10/10/2026',title:'Actualizador de precios y revisión de mano de obra',notes:Object.freeze(['El actualizador conserva el campo abierto, el enlace escrito y la posición mientras recibe nuevos resultados.','Las consultas usan la URL vigente y las respuestas antiguas no sobrescriben enlaces corregidos.','Actualizar todos permite confirmar los valores de mano de obra y renovar su fecha de revisión sin cambiar precios.']),feature:Object.freeze({page:'actualizadorprecios',actionLabel:'Ver actualizador'})}),
     Object.freeze({version:'v3.10.0',date:'10/10/2026',title:'Proveedores, disponibilidad y mejoras de rendimiento',notes:Object.freeze(['Los precios verificados se actualizan aunque el proveedor esté sin stock.','Al seleccionar productos se advierte si su proveedor favorito está sin stock, sin alterar el stock propio.','Usuarios oculta los inactivos y permite mostrarlos con Ver inactivos.','El resumen se calcula al abrir Proveedores y se actualiza mientras está visible.','Las ofertas se vinculan mediante índices, conservando precios, empates y permisos.','La auditoría de mantenimiento se descarga al abrir su pestaña, con reintento ante errores.','Las tablas de compras se construyen al abrir su pantalla; el stock sigue sincronizado.','El catálogo interno muestra hasta 48 tarjetas por página y conserva la búsqueda completa.','Gastos muestra 50 filas por página y exporta todos los resultados filtrados a Excel.']),feature:Object.freeze({page:'proveedores',actionLabel:'Ver proveedores'})}),
     Object.freeze({version:'v3.9.30',date:'09/10/2026',title:'Referencias locales sin alterar el IVA',notes:Object.freeze(['La cotización de proveedores secundarios conserva el IVA del producto.','La confirmación de identidad de un proveedor mantiene sincronizada la base del editor para guardar.']),feature:Object.freeze({page:'productos',actionLabel:'Ver productos'})}),
     Object.freeze({version:'v3.9.29',date:'09/10/2026',title:'Visitas sin cargo desde Reclamos',notes:Object.freeze(['Resolver una visita sin cargo utiliza el permiso de Reclamos y conserva la autorización de descuentos para Ventas.']),feature:Object.freeze({page:'soporte',actionLabel:'Ver reclamos'})}),
@@ -18542,6 +18542,27 @@ function cambiosRevisionManoObra(p, costo, venta, dolar, fecha) {
   if(dolar>0){cambios.ventaUSD=Math.round(venta/dolar*100)/100;cambios.compraUSD=Math.round(costo/dolar*100)/100;cambios.tcGuardado=dolar;}
   return cambios;
 }
+async function confirmarVigenciaManoObra(ids, progreso) {
+  if (!window.tienePermiso('productos.editar')) throw Error('Sin permiso para editar');
+  var fecha = Date.now(), resultado = {actualizados:0, omitidos:0, fallidos:0};
+  for (var id of Array.from(new Set(ids))) {
+    try {
+      if (!window.tienePermiso('productos.editar')) throw Error('Sin permiso para editar');
+      var guardado = await window.fbRunTransaction(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + id), function(actual) {
+        if (!actual || !esProductoManoDeObra(actual) || !productoEstaActivo(actual) || estadoVigenciaPrecioProducto(actual).vigente) return;
+        // Confirmar valores vigentes: no recalcular precios, IVA, margen ni dólar.
+        return Object.assign({}, actual, {precioActualizadoEn:fecha, precioActualizadoOrigen:'revision_mano_obra'});
+      }, {applyLocally:false});
+      if (guardado.committed) {
+        var p = Object.values(prodData || {}).find(function(p) { return p.fbKey === id; });
+        if (p) Object.assign(p, guardado.snapshot.val());
+        resultado.actualizados++;
+      } else resultado.omitidos++;
+    } catch (e) { resultado.fallidos++; console.warn('[Mano de obra] No se pudo confirmar vigencia', id, e); }
+    if (progreso) progreso(resultado.actualizados + resultado.omitidos + resultado.fallidos, ids.length);
+  }
+  return resultado;
+}
 function abrirRevisionManoObra() {
   if(!window.tienePermiso('productos.editar'))return;
   if(window.SVDataReadiness&&!window.SVDataReadiness.status(['productos']).ready){notify('Cargando productos. Esperá a que termine la carga para iniciar la revisión.');return;}
@@ -18610,6 +18631,30 @@ function abrirRevisionManoObra() {
     var footer=document.createElement('footer');footer.style.cssText='position:sticky;bottom:0;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;padding:18px 24px;background:var(--bg2);border-top:1px solid var(--border)';d.appendChild(footer);
     function boton(texto,fn,estilo){var b=document.createElement('button');b.type='button';b.className='btn '+(estilo||'');b.textContent=texto;b.onclick=fn;footer.appendChild(b);return b;}
     if(window.tienePermiso('productos.eliminar')){var quitar=boton('Eliminar ítem',function(){actuar(function(){return eliminarProductoPorId(p.fbKey,false);},quitar,'Eliminando…',true);});quitar.style.color='var(--red)';quitar.dataset.moEliminar='1';quitar.title='Eliminar ítem (Supr / Delete)';}
+    var todos=boton('Actualizar todos',async function(){
+      if(ocupado)return;
+      if(costoInput.value===''||input.value===''||Number(costoInput.value)!==costoOriginal||Number(input.value)!==ventaOriginal){error.textContent='Guardá los cambios de este ítem antes de actualizar todos.';return;}
+      var ids=manoObraPendienteRevision().map(function(p){return p.fbKey;});
+      if(!ids.length){error.textContent='Todos los ítems ya están al día.';return;}
+      ocupado=true;
+      try {
+        if(!await svConfirm('¿Confirmar que los '+ids.length+' ítems pendientes de mano de obra mantienen sus valores? Se actualizará la fecha de revisión sin cambiar precios.'))return;
+        d.querySelectorAll('button,input').forEach(function(e){e.disabled=true;});
+        error.textContent='';
+        var resumen=await confirmarVigenciaManoObra(ids,function(n,total){todos.textContent='Actualizando '+n+' de '+total+'…';});
+        var mensaje=resumen.actualizados+' ítems actualizados sin cambiar precios.';
+        if(resumen.omitidos)mensaje+=' '+resumen.omitidos+' ya vigentes o no disponibles.';
+        if(resumen.fallidos)mensaje+=' '+resumen.fallidos+' no se pudieron guardar; podés reintentar.';
+        notify(mensaje);
+        if(!resumen.fallidos){d.close();return;}
+        error.textContent=mensaje;
+      } catch(e){error.textContent='No se completó la actualización: '+e.message;}
+      finally {
+        ocupado=false;todos.textContent='Actualizar todos';
+        d.querySelectorAll('button,input').forEach(function(e){e.disabled=false;});
+        margenInput.disabled=!(Number(costoInput.value)>0);input.disabled=sinCosto.checked;anterior.disabled=indiceAnterior()<0;
+      }
+    });todos.title='Confirmar todos los pendientes conservando sus valores actuales';todos.dataset.moTodos='1';
     var anterior=boton('← Anterior',async function(){
       if(ocupado)return;
       var destino=indiceAnterior();if(destino<0)return;
@@ -19702,11 +19747,8 @@ async function guardarUrlFallidoActualizador(fbKey, proveedorIdx) {
     var productoGuardado = guardado.snapshot.val();
     if (prod) Object.assign(prod, productoGuardado);
     Object.assign(fallo.item.producto, productoGuardado);
-    fallo.item.proveedor = proveedoresVinculadosProducto(productoGuardado)[proveedorIdx];
+    fallo.item = Object.assign({}, fallo.item, {producto:productoGuardado, proveedor:proveedoresVinculadosProducto(productoGuardado)[proveedorIdx], url:url, proveedorIdx:proveedorIdx});
     fallo.url = url;
-    fallo.item.url = url;
-    fallo.item.proveedorIdx = proveedorIdx;
-    if (fallo.item.proveedor) fallo.item.proveedor.url = url;
     Object.keys((_actualizadorSesionPrecios && _actualizadorSesionPrecios.procesados) || {}).forEach(function(clave) {
       if (clave.indexOf(String(fbKey) + '::' + String(parseInt(proveedorIdx,10)||0) + '::') === 0) {
         delete _actualizadorSesionPrecios.procesados[clave];
@@ -20533,30 +20575,49 @@ async function aplicarVistaPreviaActualizador() {
   }
 }
 
+function actualizadorItemVigente(item) {
+  if (!item || !item.producto) return null;
+  var producto = Object.values(prodData || {}).find(function(p) { return String(p.fbKey) === String(item.producto.fbKey); });
+  if (!producto) return null;
+  var proveedor = proveedoresVinculadosProducto(producto)[item.proveedorIdx];
+  // No reutilizar el índice si la fila ahora pertenece a otro proveedor.
+  if (!proveedor || !proveedorRevisionCoincide(Object.assign({}, proveedor, {url:item.url}), Object.assign({}, item.proveedor, {url:item.url}))) return null;
+  return Object.assign({}, item, {producto:producto, proveedor:proveedor, url:proveedor.url});
+}
+
+function actualizadorRespuestaVigente(item) {
+  var vigente = actualizadorItemVigente(item);
+  return !!vigente && String(vigente.url || '').trim() === String(item.url || '').trim();
+}
+
+function productoConResultadosActualizador(actual, candidatos) {
+  if (!actual) return;
+  var trabajo = Object.assign({}, actual);
+  trabajo.proveedores = proveedoresVinculadosProducto(actual).map(function(p) { return Object.assign({}, p); });
+  for (var candidato of candidatos) {
+    var item = candidato.item;
+    var proveedor = trabajo.proveedores[item.proveedorIdx];
+    if (!proveedorRevisionCoincide(proveedor, Object.assign({}, item.proveedor, {url:item.url}))) return;
+    var itemTrabajo = Object.assign({}, item, {producto:trabajo, proveedor:proveedor});
+    Object.assign(trabajo, datosActualizadosProductoBiosegur(itemTrabajo, candidato.resultado));
+  }
+  return trabajo;
+}
+
 async function guardarCandidatosSegurosActualizador(candidatos) {
   candidatos = (candidatos || []).filter(function(c) { return c && c.item && c.item.producto && c.item.producto.fbKey && c.resultado && productoActualizadorActivo(c.item); });
   if (!candidatos.length) return true;
-  var grupos = {}, updates = {};
-  candidatos.forEach(function(candidato) {
-    var fbKey = String(candidato.item.producto.fbKey);
-    if (!grupos[fbKey]) {
-      var trabajo = Object.assign({}, candidato.item.producto);
-      trabajo.proveedores = proveedoresVinculadosProducto(candidato.item.producto).map(function(pv) { return Object.assign({}, pv || {}); });
-      grupos[fbKey] = { original:candidato.item.producto, trabajo:trabajo, cambios:{} };
-    }
-    var grupo = grupos[fbKey];
-    var itemTrabajo = Object.assign({}, candidato.item, { producto:grupo.trabajo, proveedor:(grupo.trabajo.proveedores || [])[candidato.item.proveedorIdx] || candidato.item.proveedor });
-    grupo.cambios = datosActualizadosProductoBiosegur(itemTrabajo, candidato.resultado);
-    Object.assign(grupo.trabajo, grupo.cambios);
-  });
-  Object.keys(grupos).forEach(function(fbKey) {
-    Object.keys(grupos[fbKey].cambios).forEach(function(campo) { updates[fbKey + '/' + campo] = grupos[fbKey].cambios[campo]; });
-  });
+  var grupos = {};
+  candidatos.forEach(function(c) { var key = c.item.producto.fbKey; (grupos[key] || (grupos[key] = [])).push(c); });
   try {
-    await productosPersistirLote(productosEntradasDesdeMultipath(updates), function() {
-      return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.productos), updates);
-    });
-    Object.keys(grupos).forEach(function(fbKey) { Object.assign(grupos[fbKey].original, grupos[fbKey].cambios); });
+    for (var fbKey of Object.keys(grupos)) {
+      var guardado = await window.fbRunTransaction(window.fbRef(window.fbDB, FB_PATHS.productos + '/' + fbKey), function(actual) {
+        return productoConResultadosActualizador(actual, grupos[fbKey]);
+      }, {applyLocally:false});
+      if (!guardado.committed) throw new Error('El proveedor o su URL cambió durante la consulta. Volvé a consultar el enlace vigente.');
+      var producto = Object.values(prodData || {}).find(function(p) { return String(p.fbKey) === String(fbKey); });
+      if (producto) Object.assign(producto, guardado.snapshot.val());
+    }
     var guardadas = {};
     candidatos.forEach(function(c) { guardadas[actualizadorClaveCandidato(c)] = true; });
     _actualizadorSesionPrecios.candidatos = (_actualizadorSesionPrecios.candidatos || []).filter(function(c) { return !guardadas[actualizadorClaveCandidato(c)]; });
@@ -20787,7 +20848,7 @@ async function _svCargaOperacion_ejecutarActualizadorMasivoBiosegur() {
       var grupo = grupos[proveedorKey];
       for (var inicio = 0; inicio < grupo.length; inicio += ACTUALIZADOR_TAMANIO_BLOQUE) {
         if (modal._detenerSolicitado) break;
-        var bloque = grupo.slice(inicio, inicio + ACTUALIZADOR_TAMANIO_BLOQUE).filter(productoActualizadorActivo);
+        var bloque = grupo.slice(inicio, inicio + ACTUALIZADOR_TAMANIO_BLOQUE).map(actualizadorItemVigente).filter(function(item) { return item && productoActualizadorActivo(item); });
         if (!bloque.length) continue;
         var candidatosBloque = [];
         var nombreGrupo = (bloque[0] && bloque[0].proveedor && (bloque[0].proveedor.nombre || bloque[0].proveedor.proveedor)) || 'Proveedor';
@@ -20823,6 +20884,7 @@ async function _svCargaOperacion_ejecutarActualizadorMasivoBiosegur() {
 
         for (var i = 0; i < bloque.length; i++) {
           var item = bloque[i];
+          if (!actualizadorRespuestaVigente(item)) { procesados++; continue; }
           var resultado = resp.resultados.find(function(r){ return String(r.codigoProducto || r.codigo || '') === String(item.producto.codigo || ''); });
           _actualizadorSesionPrecios.sinStock=(_actualizadorSesionPrecios.sinStock||[]).filter(function(f){return actualizadorClaveItem(f.item)!==actualizadorClaveItem(item);});
           var revisionIdentidad=evaluarIdentidadCotizacionProveedor(item.proveedor,item.url,resultado);

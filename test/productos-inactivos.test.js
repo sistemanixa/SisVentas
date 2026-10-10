@@ -11,5 +11,5 @@ test('la cola respeta la desactivación posterior a abrir el actualizador',()=>{
 });
 test('ruta V3 recibe solo activos y cada bloque revalida su estado',()=>{
  assert.match(src,/Object.values\(prodData \|\| \{\}\).filter\(productoEstaActivo\), proveedoresData/);
- assert.match(src,/grupo.slice\(inicio, inicio \+ ACTUALIZADOR_TAMANIO_BLOQUE\).filter\(productoActualizadorActivo\)/);
+ assert.match(src,/grupo.slice\(inicio, inicio \+ ACTUALIZADOR_TAMANIO_BLOQUE\).map\(actualizadorItemVigente\).filter\(function\(item\) \{ return item && productoActualizadorActivo\(item\); \}\)/);
 });
