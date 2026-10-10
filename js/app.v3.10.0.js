@@ -10673,7 +10673,7 @@ function showPage(id, el) {
   if (id === 'reportes')       { fbCargarGastos(); setTimeout(function(){ renderReportes(); }, 100); }
   if (id === 'estadisticas')   { setTimeout(function(){ if(typeof renderEstadisticas==='function') renderEstadisticas(); }, 150); }
   if (id === 'caja')           { setTimeout(function(){ fbCargarCaja(); }, 50); }
-  if (id === 'cobranzas')      { setTimeout(function(){ if(typeof iniciarMonedaCobranza==='function') iniciarMonedaCobranza(); fbCargarPagos(); }, 50); }
+  if (id === 'cobranzas')      { setTimeout(function(){ if(typeof iniciarMonedaCobranza==='function') iniciarMonedaCobranza(); fbCargarPagos(); renderHistorialCobranzas(); }, 50); }
   if (id === 'cuentacorriente'){ setTimeout(function(){ fbCargarPagos(); renderTablaCuentaCorriente(); }, 50); }
   if (id === 'notificaciones')  { setTimeout(function(){ if(typeof renderHistorialComunicados==='function') renderHistorialComunicados(); }, 50); }
   if (id === 'configuracion')   { setTimeout(function(){
@@ -27177,28 +27177,11 @@ function renderTablaCuentaCorriente(lista) {
 
 }
 
-function fbCargarPagos() {
-  if (!window.fbDB) return;
-  if (window._pagosListenerActivo) return;
-  window._pagosListenerActivo = true;
-  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/pagos'), function(snap) {
-    var data = snap.val();
-    svMarcarDatoInicialListo('pagos');
-    var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); }).sort(function(a,b){
-      // Ordenar por fecha desc, luego por ts desc como fallback
-      var fa = (a.fecha||'').replace(/\//g,'-'); var fb2 = (b.fecha||'').replace(/\//g,'-');
-      // Normalizar DD-MM-YYYY → YYYY-MM-DD para comparar
-      var norm = function(f){ if (!f) return ''; var p=f.split('-'); return p.length===3&&p[2].length===4?p[2]+'-'+p[1]+'-'+p[0]:f; };
-      var da = norm(fa), db2 = norm(fb2);
-      if (da && db2 && da !== db2) return db2.localeCompare(da);
-      return (b.ts||0)-(a.ts||0);
-    }) : [];
-    var pagosTbody = document.getElementById('pagos-tbody');
-    // Últimas 20 por defecto — el filtro muestra más si se busca
-    window._historialPagosCompleto = lista;
-    window._historialPagosActual = lista;
-    if (typeof _chequearCambioHistCliente === 'function') _chequearCambioHistCliente();
-    if (_svEsPaginaActiva('tesoreria') && typeof window.renderTesoreria === 'function') window.renderTesoreria();
+function renderHistorialCobranzas() {
+  if (!_svEsPaginaActiva('cobranzas')) return;
+  var pagosTbody = document.getElementById('pagos-tbody');
+  var lista = window._historialPagosCompleto || [];
+  window._historialPagosActual = lista;
     if (typeof filtrarCobranzas === 'function') {
       filtrarCobranzas(); // usa _historialPagosCompleto y aplica filtros activos
     } else {
@@ -27217,6 +27200,31 @@ function fbCargarPagos() {
       }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Sin pagos registrados</td></tr>';
     }
     }
+  if (typeof filtrarCobros === 'function') filtrarCobros((document.getElementById('cob-buscador') || {}).value || '');
+}
+
+function fbCargarPagos() {
+  if (!window.fbDB) return;
+  if (window._pagosListenerActivo) return;
+  window._pagosListenerActivo = true;
+  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/pagos'), function(snap) {
+    var data = snap.val();
+    svMarcarDatoInicialListo('pagos');
+    var lista = data ? Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]},e[1]); }).sort(function(a,b){
+      // Ordenar por fecha desc, luego por ts desc como fallback
+      var fa = (a.fecha||'').replace(/\//g,'-'); var fb2 = (b.fecha||'').replace(/\//g,'-');
+      // Normalizar DD-MM-YYYY → YYYY-MM-DD para comparar
+      var norm = function(f){ if (!f) return ''; var p=f.split('-'); return p.length===3&&p[2].length===4?p[2]+'-'+p[1]+'-'+p[0]:f; };
+      var da = norm(fa), db2 = norm(fb2);
+      if (da && db2 && da !== db2) return db2.localeCompare(da);
+      return (b.ts||0)-(a.ts||0);
+    }) : [];
+    // Últimas 20 por defecto — el filtro muestra más si se busca
+    window._historialPagosCompleto = lista;
+    window._historialPagosActual = lista;
+    if (typeof _chequearCambioHistCliente === 'function') _chequearCambioHistCliente();
+    if (_svEsPaginaActiva('tesoreria') && typeof window.renderTesoreria === 'function') window.renderTesoreria();
+    renderHistorialCobranzas();
     var _emb = [];
     (ventasList||[]).forEach(function(v) {
       if (!v.pagos || !v.pagos.length) return;

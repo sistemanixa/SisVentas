@@ -210,3 +210,7 @@ El render prepara una sola vez índices de correo y UID, evitando una búsqueda 
 ### Cuenta corriente: filas solo con pantalla visible
 
 El callback de pagos conserva conciliación completa, mapa de saldos e indicadores financieros, pero delega las filas a renderTablaCuentaCorriente. Ese render sale sin escribir HTML si Cuenta corriente está oculta. Al navegar se dibuja desde el mapa actual aunque el listener ya estuviera activo, y se reaplica la búsqueda vigente. Prueba de pantalla oculta, pago recibido antes de abrir, cancelación del saldo y filtro conservado. Suite general: 1.248 pruebas aprobadas. No se recortaron pagos ni deudas históricas; sigue pendiente separar sus fuentes mediante resúmenes e índices.
+
+### Cobranzas: historial visible bajo demanda
+
+El listener de pagos conserva el historial completo y la conciliación, pero delega las filas a renderHistorialCobranzas, que no escribe mientras Cobranzas está cerrada. La entrada a la página dibuja desde el historial vigente aun con la suscripción ya iniciada; se reaplica la búsqueda. Se mantiene el límite existente de 20 filas y los índices del historial usados por recibos. Prueba de ocultación, apertura tras nuevos datos, anulaciones y conservación del conjunto completo. Suite general: 1.249 pruebas aprobadas.
