@@ -10822,7 +10822,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Referencia de Mercado Libre y ahorro en dólares visibles en el catálogo público.']),
   RELEASE_FEATURE: Object.freeze({page:'balancecompra',actionLabel:'Ver Compras de exterior'}),
   RELEASE_HISTORY: Object.freeze([
-    Object.freeze({version:'v3.10.0',date:'10/10/2026',title:'Comparación de proveedores bajo demanda',notes:Object.freeze(['El resumen se calcula al abrir Proveedores y se actualiza mientras está visible.','Las ofertas se vinculan mediante índices, conservando precios, empates y permisos.','La auditoría de mantenimiento se descarga al abrir su pestaña, con reintento ante errores.','Las tablas de compras se construyen al abrir su pantalla; el stock sigue sincronizado.']),feature:Object.freeze({page:'proveedores',actionLabel:'Ver proveedores'})}),
+    Object.freeze({version:'v3.10.0',date:'10/10/2026',title:'Comparación de proveedores bajo demanda',notes:Object.freeze(['El resumen se calcula al abrir Proveedores y se actualiza mientras está visible.','Las ofertas se vinculan mediante índices, conservando precios, empates y permisos.','La auditoría de mantenimiento se descarga al abrir su pestaña, con reintento ante errores.','Las tablas de compras se construyen al abrir su pantalla; el stock sigue sincronizado.','El catálogo interno muestra hasta 48 tarjetas por página y conserva la búsqueda completa.']),feature:Object.freeze({page:'proveedores',actionLabel:'Ver proveedores'})}),
     Object.freeze({version:'v3.9.30',date:'09/10/2026',title:'Referencias locales sin alterar el IVA',notes:Object.freeze(['La cotización de proveedores secundarios conserva el IVA del producto.','La confirmación de identidad de un proveedor mantiene sincronizada la base del editor para guardar.']),feature:Object.freeze({page:'productos',actionLabel:'Ver productos'})}),
     Object.freeze({version:'v3.9.29',date:'09/10/2026',title:'Visitas sin cargo desde Reclamos',notes:Object.freeze(['Resolver una visita sin cargo utiliza el permiso de Reclamos y conserva la autorización de descuentos para Ventas.']),feature:Object.freeze({page:'soporte',actionLabel:'Ver reclamos'})}),
     Object.freeze({version:'v3.9.28',date:'09/10/2026',title:'Catálogo, fechas del chat y devoluciones de OT',notes:Object.freeze(['El catálogo muestra referencias de Mercado Libre y permite alternar dólares y pesos con la cotización vigente.','El chat agrupa los mensajes por Hoy, Ayer y fecha, con separadores visibles al desplazarse.','Los materiales devueltos y recibidos ya no generan cargos pendientes ni observaciones de custodia.']),feature:Object.freeze({page:'balancecompra',actionLabel:'Ver catálogo'})}),
@@ -22750,6 +22750,15 @@ function imagenCatalogoHTML(p, clase) {
   return '<img class="' + escapeHTML(clase || '') + '" src="' + escapeHTML(url) + '" alt="' + escapeHTML(p.nombre || p.descripcion || 'Producto') + '" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="catalogo-sin-imagen" style="display:none"><i class="ti ti-package"></i><span>Imagen no disponible</span></div>';
 }
 
+var catalogoPaginaActual = 0;
+var catalogoFiltroPagina = '';
+function cambiarPaginaCatalogo(pagina) {
+  catalogoPaginaActual = Math.max(0, Math.floor(Number(pagina) || 0));
+  renderCatalogo();
+  var grid = document.getElementById('catalogo-grid');
+  if (grid) grid.scrollIntoView({block:'start'});
+}
+
 function renderCatalogo() {
   renderCarritoCatalogo();
   var grid = document.getElementById('catalogo-grid');
@@ -22768,13 +22777,19 @@ function renderCatalogo() {
   if (document.getElementById('catalogo-categorias-modal') && document.getElementById('catalogo-categorias-modal').style.display !== 'none') renderCategoriasCatalogo();
   var visibles = productosFiltradosCatalogo();
   catalogoProductosActuales = visibles.slice();
+  var filtroPagina = JSON.stringify([catalogoCategoriaActual, (document.getElementById('catalogo-buscar') || {}).value || '', (document.getElementById('catalogo-search-field') || {}).value || 'principales']);
+  if (filtroPagina !== catalogoFiltroPagina) { catalogoPaginaActual = 0; catalogoFiltroPagina = filtroPagina; }
+  var paginas = Math.max(1, Math.ceil(visibles.length / 48));
+  catalogoPaginaActual = Math.min(catalogoPaginaActual, paginas - 1);
+  var inicioPagina = catalogoPaginaActual * 48;
+  var paginaProductos = visibles.slice(inicioPagina, inicioPagina + 48);
   var cantidadesCategoria = new Map();
   visibles.forEach(function(p) {
     var categoria = categoriaProductoCatalogo(p);
     cantidadesCategoria.set(categoria, (cantidadesCategoria.get(categoria) || 0) + 1);
   });
   var ultimaCategoria = null;
-  grid.innerHTML = visibles.map(function(p) {
+  var catalogoHTML = paginaProductos.map(function(p) {
     var categoria = categoriaProductoCatalogo(p), encabezado = '';
     if (!catalogoCategoriaActual && categoria !== ultimaCategoria) {
       var totalCategoria = cantidadesCategoria.get(categoria);
@@ -22789,6 +22804,8 @@ function renderCatalogo() {
       (p.marca ? '<div class="catalogo-card-marca">' + escapeHTML(p.marca) + '</div>' : '') + '<p>' + escapeHTML(descripcion) + '</p><span class="catalogo-card-footer"><span class="catalogo-ver">Ver producto <i class="ti ti-arrow-right"></i></span></span></div></button>' +
       '<button type="button" class="catalogo-agregar-carrito catalogo-carrito-tarjeta" data-carrito-producto="' + escapeHTML(String(p.fbKey || '')) + '" onclick="agregarAlCarritoCatalogo(decodeURIComponent(\'' + encodeURIComponent(String(p.fbKey || '')) + '\'))" aria-label="Agregar al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i><span class="catalogo-producto-contador" hidden>0</span></button><button type="button" class="catalogo-restar catalogo-restar-tarjeta" data-carrito-restar="' + escapeHTML(String(p.fbKey || '')) + '" onclick="restarCarritoCatalogo(decodeURIComponent(\'' + encodeURIComponent(String(p.fbKey || '')) + '\'))" aria-label="Quitar una unidad del carrito" title="Quitar una unidad" hidden><i class="ti ti-minus" aria-hidden="true"></i></button></article>';
   }).join('');
+  if (paginas > 1) catalogoHTML += '<nav aria-label="Páginas del catálogo" style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;padding:16px"><button type="button" class="btn" '+(catalogoPaginaActual === 0 ? 'disabled' : '')+' onclick="cambiarPaginaCatalogo('+(catalogoPaginaActual-1)+')">Anterior</button><span role="status">'+(inicioPagina+1)+'–'+Math.min(inicioPagina+48,visibles.length)+' de '+visibles.length+' productos · Página '+(catalogoPaginaActual+1)+' de '+paginas+'</span><button type="button" class="btn" '+(catalogoPaginaActual === paginas-1 ? 'disabled' : '')+' onclick="cambiarPaginaCatalogo('+(catalogoPaginaActual+1)+')">Siguiente</button></nav>';
+  grid.innerHTML = catalogoHTML;
   actualizarContadorProductoCatalogo();
   var cantidad = document.getElementById('catalogo-cantidad');
   if (cantidad) cantidad.textContent = visibles.length + (visibles.length === 1 ? ' producto' : ' productos');
