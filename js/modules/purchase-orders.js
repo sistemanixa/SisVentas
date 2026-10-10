@@ -1137,7 +1137,13 @@
     return '<span class="badge ' + data[0] + '">' + esc(data[1]) + '</span>';
   }
 
+  function purchasePageVisible(id) {
+    var page = document.getElementById('page-' + id);
+    return !!(page && page.classList && page.classList.contains('active'));
+  }
+
   function renderPageShell() {
+    if (!purchasePageVisible('ordenes')) return;
     var page = document.getElementById('page-ordenes');
     if (!page || page.dataset.purchaseV2 === '1') return;
     page.dataset.purchaseV2 = '1';
@@ -1147,6 +1153,7 @@
   }
 
   function renderOrders() {
+    if (!purchasePageVisible('ordenes')) return;
     renderPageShell();
     var target = document.getElementById('oc2-orders');
     if (!target) return;
@@ -1163,6 +1170,7 @@
 
   function renderLists() {
     renderBalanceCompra();
+    if (!purchasePageVisible('ordenes')) return;
     renderPageShell();
     var target = document.getElementById('oc2-lists');
     if (!target) return;
@@ -1396,6 +1404,7 @@
   }
 
   function renderBalanceCompra() {
+    if (!purchasePageVisible('balancecompra')) return;
     if(window.SVExteriorLists)window.SVExteriorLists.mount();
     var target=document.getElementById('balance-compra-content');
     if(!target)return;
@@ -1454,6 +1463,7 @@
   };
 
   function renderMetrics() {
+    if (!purchasePageVisible('ordenes')) return;
     renderPageShell();
     var month = today().slice(0, 7);
     var orders = state.orders.filter(function (o) { return o.estado !== 'cancelada' && String(o.fecha || '').slice(0, 7) === month; });
@@ -2265,7 +2275,8 @@
     else setTimeout(start, 600);
   });
   document.addEventListener('sisventas:page-changed', function (event) {
-    if (event.detail && event.detail.page === 'ordenes') start();
+    if (event.detail && event.detail.page === 'ordenes') { start(); renderAll(); }
+    if (event.detail && event.detail.page === 'balancecompra') renderBalanceCompra();
   });
   document.addEventListener('sisventas:session-ended', reset);
 })();

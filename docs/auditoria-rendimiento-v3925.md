@@ -156,3 +156,7 @@ Antes y después de cada mejora: medir en móvil real y escritorio, sesiones fr�
 ### Carga inicial: herramienta de mantenimiento
 
 La auditoría administrativa V3 deja de estar en los scripts de entrada. Reutiliza session-assets y se solicita al abrir la pestaña Mantenimiento. Se mantienen descarga única, timeout y reintento; no cambia automáticamente de ruta al terminar. Reducción estructural: un script y 18.957 bytes sin comprimir menos al inicio; no se atribuye una mejora temporal sin medición de navegador. Pasaron 20 pruebas del cargador y diagnóstico, incluyendo error y reintento. Órdenes de compra conserva su carga por sesión porque interviene también en ventas, inventario y devolución de materiales; separar sus dependencias queda pendiente.
+
+### Compras: separar sincronización de datos y dibujo de pantallas
+
+Las actualizaciones de órdenes/listas/inventario ya no construyen las tablas ni métricas de Órdenes de compra ni Compra exterior mientras esas páginas están cerradas. El evento de navegación dibuja los datos actuales al entrar, incluso si las suscripciones ya estaban iniciadas. Se conserva la sincronización de inventario utilizada por productos, ventas y OT. Prueba integrada con snapshots simulados: cero escrituras de HTML estando cerrado, stock actualizado y listas/órdenes presentes al abrir. Pasaron las 91 pruebas de compras, exterior y materiales de OT. La descarga del código de Compras sigue siendo por sesión; su separación por ruta continúa pendiente.
