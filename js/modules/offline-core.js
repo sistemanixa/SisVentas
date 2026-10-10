@@ -99,7 +99,6 @@
       uid: userKey(), createdAt: Date.now(), attempts: 0, state: 'pending'
     };
     return store('readwrite', 'queue', function (s) { s.put(item); }).then(function () {
-      renderStatus();
       document.dispatchEvent(new CustomEvent('sisventas:offline-queued', { detail: item }));
       return item;
     });
@@ -203,7 +202,6 @@
   async function sync() {
     if (syncing || isOffline() || !originals.fbSet) return;
     syncing = true;
-    renderStatus();
     try {
       var items = await getQueue();
       for (var i = 0; i < items.length; i += 1) {
@@ -220,19 +218,12 @@
       console.warn('[Offline] La sincronización continuará automáticamente.', error);
     } finally {
       syncing = false;
-      renderStatus();
     }
   }
 
-  function renderStatus() {
-    if (!document.body) return;
-    var staleBadge = document.getElementById('sv-offline-status');
-    if (staleBadge) staleBadge.remove();
-  }
 
   function boot() {
     installWrappers();
-    renderStatus();
     if (!isOffline()) sync();
   }
 
@@ -244,10 +235,6 @@
     status: function () { return getQueue().then(function (q) { return { online: !isOffline(), syncing: syncing, pending: q.length }; }); }
   });
   window.addEventListener('online', sync);
-  window.addEventListener('online', renderStatus);
-  window.addEventListener('offline', renderStatus);
   document.addEventListener('firebase-ready', boot);
   if (window.firebaseReady) boot();
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderStatus);
-  else renderStatus();
 })();

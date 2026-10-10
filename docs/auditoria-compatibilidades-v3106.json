@@ -1,0 +1,312 @@
+{
+  "version": "v3.10.6",
+  "date": "2026-10-10",
+  "scope": "Aplicación activa, módulos iniciales y diferidos, núcleo, V3 y entradas HTML; excluye instantáneas históricas de app/version.",
+  "removed_functions": [
+    {
+      "file": "js/app.v3.10.6.js",
+      "name": "sortData",
+      "bytes": 704,
+      "lines": 21
+    },
+    {
+      "file": "js/app.v3.10.6.js",
+      "name": "appendAlert",
+      "bytes": 1201,
+      "lines": 19
+    },
+    {
+      "file": "js/app.v3.10.6.js",
+      "name": "secureLog",
+      "bytes": 102,
+      "lines": 3
+    },
+    {
+      "file": "js/app.v3.10.6.js",
+      "name": "_html",
+      "bytes": 83,
+      "lines": 1
+    },
+    {
+      "file": "js/app.v3.10.6.js",
+      "name": "_val",
+      "bytes": 116,
+      "lines": 1
+    },
+    {
+      "file": "js/app.v3.10.6.js",
+      "name": "_cls",
+      "bytes": 111,
+      "lines": 1
+    },
+    {
+      "file": "js/app.v3.10.6.js",
+      "name": "_show",
+      "bytes": 46,
+      "lines": 1
+    },
+    {
+      "file": "js/app.v3.10.6.js",
+      "name": "_flex",
+      "bytes": 50,
+      "lines": 1
+    },
+    {
+      "file": "js/app.v3.10.6.js",
+      "name": "_optimizarLogoImpresion",
+      "bytes": 847,
+      "lines": 19
+    },
+    {
+      "file": "js/modules/maintenance.js",
+      "name": "mntEmpByKey",
+      "bytes": 188,
+      "lines": 1
+    }
+  ],
+  "evidence": {
+    "search": "Definición única en aplicación activa, módulos diferidos, núcleo, V3 y HTML; sin nombres en despachos dinámicos ni consumidores en pruebas de la versión activa.",
+    "sortData": "Productos y ventas ordenan directamente con _sortState; se conserva ordenarTabla.",
+    "presentation": "Auxiliares sin consumidores; se conservan _set, _get, _style, _hide y _block, usados actualmente.",
+    "logo": "El input llama previewLogoImpresion; el circuito activo usa recorte de imagen, no el optimizador antiguo.",
+    "maintenance": "mntEmpByKey no tiene consumidores en el módulo ni en otras entradas activas.",
+    "offline": "sv-offline-status no se crea en ninguna entrada activa. Se retiran consultas DOM y listeners destinados únicamente a borrarlo; sync, cola, caché y bloqueo de transacciones siguen activos."
+  },
+  "remaining_candidates": [
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "unificarClientesFiltrados",
+      "line": 965,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "flujoPostPago",
+      "line": 2242,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "tecnicoTomarOT",
+      "line": 2303,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "cerrarOTyVenta",
+      "line": 2323,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "asignarFechaInstalacion",
+      "line": 2363,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "migrarEmpleadoPptos",
+      "line": 5758,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "fbCargarVentasPendientesHistoricas",
+      "line": 6425,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "ventasPagosPersistirGuardarPago",
+      "line": 6852,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "ventasPagosPersistirActualizarPago",
+      "line": 6885,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "otModeloCanonico",
+      "line": 7739,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "abrirUserPanel",
+      "line": 7893,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "forzarActualizacionApp",
+      "line": 13376,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_kitPrecioVentaARS",
+      "line": 14792,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "obtenerItemVenta",
+      "line": 14819,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "navegarAProductosPorCategoria",
+      "line": 15678,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "programarArchivoImagenProducto",
+      "line": 15889,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "productoPersistirEliminar",
+      "line": 17612,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "actualizadorNombreProveedorDistinto",
+      "line": 19351,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "cotizarProveedoresAsistente",
+      "line": 22112,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "precioExteriorProductoHTML",
+      "line": 23172,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_cargoAjusteRegistro",
+      "line": 24933,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "cargosEditarRapido",
+      "line": 25132,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "guardarDashWidgets",
+      "line": 25332,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "irACobranzasDesdeCC",
+      "line": 26453,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "verEmpleado",
+      "line": 26504,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "abrirComprobanteCuenta",
+      "line": 27676,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "ctaEmpEliminarDuplicadosLegacy",
+      "line": 31415,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "irAVentaDesdeComision",
+      "line": 31517,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "toggleMenuPpto",
+      "line": 33002,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_registrarCobroAtomico",
+      "line": 33748,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "abrirFacturacionEmitida",
+      "line": 34414,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "spPasarAVisitaYGenerarOTLegacy",
+      "line": 36085,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "spGenerarOTLegacy",
+      "line": 36125,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "_normalizarImputacionGastosPagados",
+      "line": 42193,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "mejorarValorExteriorPpto",
+      "line": 46476,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "otActualizarMaterial",
+      "line": 47831,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "calcularPagadoRealVenta",
+      "line": 51184,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "normalizarVentaLegacyDesdePresupuesto",
+      "line": 51726,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    },
+    {
+      "file": "js/app.v3.10.5.js",
+      "name": "obtenerCategoriaEmpleado",
+      "line": 53864,
+      "status": "conservado para revisión de contratos o migraciones; ausencia de llamadas literales no demuestra ausencia de uso"
+    }
+  ],
+  "limitations": "Esta entrega no declara obsoletos todos los candidatos. No modifica datos históricos ni contratos de pagos, ventas, OT o migraciones."
+}

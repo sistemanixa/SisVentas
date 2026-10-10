@@ -114,7 +114,7 @@ function mntMoney(n){ return Math.round(parseFloat(n)||0); }
 function mntVersion(){ return (window.APP_CONFIG && APP_CONFIG.VERSION) || (window.SISVENTAS_PWA_VERSION || 'v1'); }
 function mntRequireAdmin(accion,permiso){ if(window.tienePermiso(permiso||'auditoria.ver')) return true; if(typeof notify==='function') notify('No tenés permiso para ejecutar '+(accion||'esta acción')); return false; }
 function mntFecha(f){ return (typeof _pagableNormFecha==='function') ? _pagableNormFecha(f) : (f||(typeof window.svFechaLocalISO==='function'?window.svFechaLocalISO():new Date().toLocaleDateString('en-CA'))); }
-function mntEmpByKey(empKey){ try { return (empData && Object.values(empData).find(function(e){ return String(e.fbKey||e.id||'')===String(empKey||''); })) || {}; } catch(e){ return {}; } }
+
 function mntGastoExiste(gastos, tipoPagable, empKey, monto, fecha, semKey, legacyKey){
   if (typeof _pagableGastoExistente==='function') return !!_pagableGastoExistente(tipoPagable, empKey, monto, fecha, semKey, legacyKey);
   monto=mntMoney(monto); fecha=mntFecha(fecha);
