@@ -144,3 +144,11 @@ Se intentó una medición aislada con Chromium y datos sintéticos. El primer la
 6. Rediseñar caché de recursos versionados y medir actualización/offline.
 
 Antes y después de cada mejora: medir en móvil real y escritorio, sesiones frías/restauradas, red rápida/lenta, distintas cantidades de registros y cambios desde otro dispositivo. Reportar mediana y percentil 95 en múltiples repeticiones, tarea más larga, número de listeners, transferencia y memoria. Objetivos de referencia para la experiencia web: LCP <= 2,5 s e INP <= 200 ms; establecer el presupuesto de login verificado tras medir la latencia real de Auth y RTDB. Separar siempre demora de red, procesamiento y renderizado.
+
+## Avance 10/10/2026 — v3.10.0 local
+
+- La preparación de identidad/rutas ya comparte el trabajo en curso y entrega sus snapshots al resolutor; ese punto de la auditoría no se repitió.
+- El resumen de precios de proveedores ahora sale inmediatamente cuando su módulo no está activo. Al abrir Proveedores se calcula con los datos vigentes; los snapshots de productos/proveedores lo actualizan mientras permanece visible.
+- Se reemplazó la búsqueda lineal por oferta por índices de clave y nombre (manteniendo la primera coincidencia y la prioridad de clave).
+- Prueba sintética: 1.000 productos, con empates, proveedor inactivo, ofertas sin stock, nombres normalizados, producto duplicado y sección abierta. El HTML visible coincide exactamente con v3.9.30. Con la vista oculta, los recorridos de productos pasan de 1.000 a 0. No representa una medición de latencia de Firebase ni de móvil real.
+- Pendientes: separar carga de código por ruta/rol, paginar Gastos y Catálogo, revisar suscripciones e históricos y medir caché/arranque en navegador.

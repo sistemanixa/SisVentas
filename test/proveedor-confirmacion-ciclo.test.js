@@ -5,7 +5,7 @@ function fn(name){const start=source.indexOf('function '+name+'('),end=source.in
 test('confirmar, guardar la ficha y recargar conserva identidad y URL; otra publicación requiere revisión',async()=>{
  let persisted;
  const url='https://proveedor/producto';
- const c={prodProveedoresActuales:[{url,precio:100,identidadConfirmadaManualmente:true}],prodData:[{fbKey:'p1',proveedores:[{url,precio:100}]}],editingProdId:'p1',currentUser:'Usuario',currentUserEmail:'',FB_PATHS:{productos:'productos'},urlsProveedorEquivalentes:(a,b)=>!!a&&a===b,window:{fbDB:{},fbRef:(_,p)=>p,fbUpdate:async(p,data)=>{persisted=JSON.parse(JSON.stringify(data));}}};
+ const c={_productoEditorBase:null,prodProveedoresActuales:[{url,precio:100,identidadConfirmadaManualmente:true}],prodData:[{fbKey:'p1',proveedores:[{url,precio:100}]}],editingProdId:'p1',currentUser:'Usuario',currentUserEmail:'',FB_PATHS:{productos:'productos'},urlsProveedorEquivalentes:(a,b)=>!!a&&a===b,window:{fbDB:{},fbRef:(_,p)=>p,fbUpdate:async(p,data)=>{persisted=JSON.parse(JSON.stringify(data));}}};
  vm.createContext(c);vm.runInContext(fn('persistirConfirmacionIdentidadProveedor')+'\n'+fn('identidadProveedorConfirmadaParaUrl'),c);
  assert.equal(await c.persistirConfirmacionIdentidadProveedor(0),true);
  const saved=JSON.parse(JSON.stringify(c.prodProveedoresActuales[0]));
@@ -15,7 +15,7 @@ test('confirmar, guardar la ficha y recargar conserva identidad y URL; otra publ
  assert.equal(c.identidadProveedorConfirmadaParaUrl(saved,'https://proveedor/otro'),false);
 });
 test('fallo al guardar no presenta una autorización persistida',async()=>{
- const c={prodProveedoresActuales:[{url:'https://proveedor/producto'}],editingProdId:'p1',currentUser:'Usuario',currentUserEmail:'',FB_PATHS:{productos:'productos'},window:{fbDB:{},fbRef:(_,p)=>p,fbUpdate:async()=>{throw Error('sin conexión');}}};
+ const c={_productoEditorBase:null,prodProveedoresActuales:[{url:'https://proveedor/producto'}],editingProdId:'p1',currentUser:'Usuario',currentUserEmail:'',FB_PATHS:{productos:'productos'},window:{fbDB:{},fbRef:(_,p)=>p,fbUpdate:async()=>{throw Error('sin conexión');}}};
  vm.createContext(c);vm.runInContext(fn('persistirConfirmacionIdentidadProveedor'),c);
  await assert.rejects(c.persistirConfirmacionIdentidadProveedor(0),/sin conexión/);
  assert.equal(c.prodProveedoresActuales[0].identidadConfirmadaUrl,undefined);
