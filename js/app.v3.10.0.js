@@ -5677,7 +5677,8 @@ function resumenSesionUsuario(u, ahora) {
 function renderTablaUsuarios() {
   var tbody = document.getElementById('usuarios-tbody');
   if (!tbody) return;
-  var lista = window.usuariosData || [];
+  var verInactivos = !!(document.getElementById('usuarios-ver-inactivos') || {}).checked;
+  var lista = (window.usuariosData || []).filter(function(u){ return verInactivos || u.activo !== false; });
   var resumenEl = document.getElementById('usuarios-online-resumen');
   if (resumenEl) {
     var cantOnline = lista.filter(function(u) {
@@ -5688,7 +5689,7 @@ function renderTablaUsuarios() {
       cantOnline + ' ' + (cantOnline === 1 ? 'usuario conectado ahora' : 'usuarios conectados ahora');
   }
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Sin usuarios registrados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">'+(verInactivos ? 'Sin usuarios registrados' : 'Sin usuarios activos')+'</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(function(u, i) {
