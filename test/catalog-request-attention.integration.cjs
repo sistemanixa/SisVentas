@@ -1,0 +1,22 @@
+const {test,after}=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),dep=require('module').createRequire('C:/SisVentas/tmp/firebase-security-tools/package.json');
+const {initializeTestEnvironment,assertSucceeds,assertFails}=dep('@firebase/rules-unit-testing');
+const {ref,set,get,update,serverTimestamp}=dep('firebase/database');
+const {purchaseList}=require('../js/modules/public-catalog-requests.js');let env;
+after(async()=>env?.cleanup());
+test('atender guarda lista, precio original y autor en una operación sin duplicados',async()=>{
+ const rules=require('../scripts/catalog-request-rules.cjs').catalogRequestRules();
+ rules.sv_listas_paraguay=JSON.parse(fs.readFileSync('security/database.paraguay.rules.json')).rules.sv_listas_paraguay;
+ env=await initializeTestEnvironment({projectId:'demo-catalog-attention',database:{host:'127.0.0.1',port:9005,rules:JSON.stringify({rules})}});
+ const id='abcd1234-abcd-1234-abcd-123456789012',request={lista:'Prueba',contenido:JSON.stringify([{id:'p',nombre:'Producto',cantidad:2,precioUSD:100},{id:'q',nombre:'Quitado',cantidad:1,precioUSD:50}])};
+ await env.withSecurityRulesDisabled(async c=>set(ref(c.database()),{sv_chat_roles:{dist:{rol:'distribuidora',activo:true},other:{rol:'distribuidora',activo:true}},sv_distribuidora_permisos:{solicitudes:true},sv_catalogo_solicitudes:{[id]:request},sisventas:{productos:{p:{categoria:'COMPRAS PARAGUAY',activo:true}}}}));
+ const db=env.authenticatedContext('dist').database(),key='solicitud_'+id,stamp=serverTimestamp();
+ const list=purchaseList(request,{0:{cantidad:3,precioUSD:999},1:{eliminado:true}},stamp);
+ assert.deepEqual(list.productos,{p:3});assert.equal(list.comprasFinales.p.precioVentaUnitarioUSD,100);
+ const changes={['sv_listas_paraguay/dist/'+key]:list};
+ changes['sv_catalogo_solicitudes_estado/'+id]='atendida';changes['sv_catalogo_solicitudes_atencion/'+id]={uid:'dist',usuario:'Usuario prueba',fecha:stamp,lista:key};
+ await assertSucceeds(update(ref(db),changes));
+ const saved=(await get(ref(db,'sv_catalogo_solicitudes_atencion/'+id))).val();assert.equal(saved.uid,'dist');assert.equal(typeof saved.fecha,'number');
+ await assertFails(update(ref(db),changes));
+ const other=env.authenticatedContext('other').database();const duplicate={...changes};delete duplicate['sv_listas_paraguay/dist/'+key];duplicate['sv_listas_paraguay/other/'+key]=list;duplicate['sv_catalogo_solicitudes_atencion/'+id]={uid:'other',usuario:'Otro',fecha:stamp,lista:key};await assertFails(update(ref(other),duplicate));
+ assert.equal((await get(ref(other,'sv_listas_paraguay/other/'+key))).exists(),false);
+});

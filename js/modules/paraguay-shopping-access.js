@@ -31,7 +31,7 @@
   async function removeShoppingList(ownerUid, key, name) {
     const actor=root.currentUserUid, role=root.currentRole;
     const allowed=()=>root.currentUserUid===actor&&root.currentRole===role&&!!actor&&
-      ((role==='admin'&&root.permisoModulo?.('balancecompra'))||(['compras_paraguay','distribuidora'].includes(role)&&ownerUid===actor));
+      ((role==='admin'&&root.permisoModulo?.('balancecompra'))||((['compras_paraguay','distribuidora'].includes(role)||root.permisoModulo?.('distribuidora'))&&ownerUid===actor));
     if(!allowed()||![ownerUid,key].every(v=>typeof v==='string'&&v.length&&!/[.#$\[\]\/]/.test(v)))throw Error('Sin permiso para eliminar esta lista.');
     if(!root.confirm('¿Eliminar la lista «'+name+'»? Esta acción no modifica productos, stock ni órdenes de compra.'))return false;
     if(!allowed())throw Error('La sesión cambió. Volvé a ingresar.');
@@ -94,19 +94,29 @@
     const reference=localPriceReference(product);
     return reference===null?'':'<small class="py-local-reference" style="display:block;margin-top:8px;color:var(--green)">Referencia local / ML: ARS $ '+reference.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</small>';
   }
-  function listSavings(list,products,rate,unitCost) {
-    let ars=0,included=0,units=0,withReference=0,pendingFinal=0;const total=Object.keys(list.productos||{}).length;
-    for(const key of Object.keys(list.productos||{})){
-      const actual=list.comprasFinales?.[key],product=products[key];
-      if(!product)continue;
-      const reference=localPriceReference(product,unitCost);if(reference===null)continue;withReference++;
-      if(actual?.estado!=='comprado'||!(actual.cantidad>0)||!Number.isFinite(actual.precioUnitario)||actual.precioUnitario<0){pendingFinal++;continue;}
-      const currency=actual.moneda||'USD';
-      const paid=currency==='ARS'?actual.precioUnitario:currency==='USD'&&rate>0?actual.precioUnitario*rate:null;
-      if(paid===null)continue;
-      ars+=(reference-paid)*actual.cantidad;included++;units+=actual.cantidad;
+  function itemProfit(actual,rate) {
+    if(!Number.isFinite(actual?.precioVentaUnitarioUSD)||actual.precioVentaUnitarioUSD<0)return {reason:'sale'};
+    if(actual.estado!=='comprado'||!(actual.cantidad>0)||!Number.isFinite(actual.precioUnitario)||actual.precioUnitario<0)return {reason:'purchase'};
+    const cost=(actual.moneda||'USD')==='USD'?actual.precioUnitario:actual.moneda==='ARS'&&rate>0?actual.precioUnitario/rate:null;
+    if(cost===null)return {reason:'currency'};
+    const unitUsd=Math.round((actual.precioVentaUnitarioUSD-cost)*100)/100;
+    const usd=Math.round(unitUsd*actual.cantidad*100)/100;
+    return {unitUsd,usd,ars:rate>0?Math.round(usd*rate*100)/100:null};
+  }
+  function listSavings(list,products,rate) {
+    let usd=0,included=0,units=0,missingSale=0,pendingFinal=0;
+    const keys=Object.keys(list.productos||{});
+    for(const key of keys){
+      const actual=list.comprasFinales?.[key],profit=itemProfit(actual,rate);
+      if(profit.reason){if(profit.reason==='sale')missingSale++;else pendingFinal++;continue;}
+      usd+=profit.usd;included++;units+=actual.cantidad;
     }
-    ars=Math.round(ars*100)/100;return {ars,usd:rate>0?Math.round(ars/rate*100)/100:null,included,omitted:total-included,units,withReference,pendingFinal};
+    usd=Math.round(usd*100)/100;
+    return {ars:rate>0?Math.round(usd*rate*100)/100:null,usd,included,omitted:keys.length-included,units,missingSale,pendingFinal};
+  }
+  function captureAgreedSale(actual,product,rate,isNew) {
+    if(isNew&&actual.precioVentaUnitarioUSD==null){const price=saleAmounts(product,rate).usd;if(price>0)actual.precioVentaUnitarioUSD=price;}
+    return actual;
   }
   const historyDate=value=>Number(value)>0?new Date(Number(value)).toLocaleDateString('es-AR'):'Sin fecha registrada';
 
@@ -120,7 +130,7 @@
     const p = products[key]; if (!eligible(p)) return null;
     const q = quote(p,purchases[key]?.proveedor); return [p.codigo || '', p.nombre || p.descripcion || '', qty, q.usd || '', q.ars || '', q.url, purchases[key]?.cantidad ?? '', purchases[key]?.precioUnitario ?? '', purchases[key]?.moneda || '', purchases[key]?.proveedor || '', purchaseStates[purchases[key]?.estado] || 'Pendiente',q.store||'Por identificar'];
   }).filter(Boolean)].map(row => row.map(csvCell).join(';')).join('\r\n');
-  if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection, subscribeExchangeRate, pdfComparisonText, listHistory, listSavings};
+  if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection, subscribeExchangeRate, pdfComparisonText, listHistory, listSavings, itemProfit, captureAgreedSale};
   if (!root.document) return;
   let detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', listBaseline = null, busy = false, generation = 0;
   let cartDraft = {productos:{}, comprasFinales:{}, nombre:''};
@@ -182,7 +192,7 @@
     host.style.cssText='position:fixed;inset:0;z-index:9999;overflow:auto;background:var(--bg);color:var(--text);padding:20px;box-sizing:border-box';
     host.innerHTML='<style>#sv-exterior-product-sheet #pf-anterior,#sv-exterior-product-sheet #pf-siguiente{display:none!important}#sv-exterior-product-sheet>div{max-width:1400px;margin:auto}#sv-exterior-product-sheet .pf-editor-header{top:0} @media(max-width:600px){#sv-exterior-product-sheet{padding:12px!important}}</style>';
     const nodes=views.map(node=>{const marker=document.createComment('ficha exterior');node.before(marker);const style=node.getAttribute('style');host.appendChild(node);return {node,marker,style};});
-    const labels=Array.from(host.querySelectorAll('button[onclick="cerrarFormProducto()"],button[onclick="cerrarDetalleProducto()"]')).map(node=>({node,html:node.innerHTML}));labels.forEach(({node})=>{if(node.textContent.includes('Volver'))node.textContent='← Volver a Ofertas';});
+    const labels=Array.from(host.querySelectorAll('button[onclick="cerrarFormProducto()"],button[onclick="cerrarDetalleProducto()"]')).map(node=>({node,html:node.innerHTML}));labels.forEach(({node})=>{if(node.textContent.includes('Volver'))node.innerHTML='<i class="ti ti-arrow-left" aria-hidden="true"></i> Volver a Ofertas';});
     const context={host,nodes,labels,key,session:generation,panelDisplay:panel.style.display,url:root.location.href};productSheet=context;
     const leave=()=>{if(views[1].style.display!=='none')root.cerrarFormProducto();else returnFromProduct();};
     context.back=e=>{e.stopImmediatePropagation();root.history.replaceState(root.history.state,'',context.url);leave();};
@@ -249,7 +259,7 @@
     const modal = document.createElement('div');
     modal.dataset.svModalBehavior='compact';modal.className='catalogo-modal';modal.dataset.detailModal='';modal.dataset.productKey=key;modal.style.cssText='display:flex;z-index:100100';
     modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-label',p.nombre || p.descripcion);
-    modal.innerHTML='<div class="catalogo-modal-card"><button class="catalogo-modal-close" data-close-detail aria-label="Cerrar detalle">×</button><div class="catalogo-modal-imagen">'+root.imagenCatalogoHTML(p,'catalogo-modal-img')+'</div><div class="catalogo-modal-info"><span class="catalogo-card-cat">Ofertas</span><h2>'+esc(p.nombre || p.descripcion)+'</h2><div class="catalogo-modal-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p style="white-space:pre-wrap">'+esc(p.catalogoDescripcion || p.descripcion || 'Sin descripción adicional')+'</p><div data-detail-price aria-live="polite">'+salePriceHTML(p)+mlBadge(p,price)+'</div><button class="catalogo-agregar-carrito" style="display:flex;margin-top:18px" data-modal-add aria-label="Agregar al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i></button><p data-modal-qty aria-live="polite"></p></div></div>';
+    modal.innerHTML='<div class="catalogo-modal-card"><button class="catalogo-modal-close" data-close-detail aria-label="Cerrar detalle">×</button><div class="catalogo-modal-imagen">'+root.imagenCatalogoHTML(p,'catalogo-modal-img')+'</div><div class="catalogo-modal-info"><span class="catalogo-card-cat">Ofertas</span><h2>'+esc(p.nombre || p.descripcion)+'</h2><div class="catalogo-modal-marca">'+esc(p.marca)+' · '+esc(p.codigo)+'</div><p style="white-space:pre-wrap">'+esc(p.catalogoDescripcion || p.descripcion || 'Sin descripción adicional')+'</p><div data-detail-price aria-live="polite">'+salePriceHTML(p)+mlBadge(p,price)+'</div><div style="display:flex;align-items:center;gap:8px;margin-top:18px"><button class="catalogo-restar" style="margin:0" data-modal-subtract aria-label="Quitar una unidad"><i class="ti ti-minus" aria-hidden="true"></i></button><button class="catalogo-agregar-carrito" data-modal-add aria-label="Agregar al carrito"><i class="ti ti-shopping-cart-plus" aria-hidden="true"></i><span class="catalogo-producto-contador" data-modal-count hidden></span></button></div><p data-modal-qty aria-live="polite"></p></div></div>';
     if(root.SVPublicCatalog&&['admin','distribuidora'].includes(root.currentRole)){
       const share=document.createElement('button');share.type='button';share.className='catalogo-share';share.setAttribute('aria-label','Compartir producto');share.title='Compartir producto';
       share.innerHTML='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg>';
@@ -269,11 +279,12 @@
       modal.insertAdjacentHTML('beforeend','<button class="catalogo-modal-nav catalogo-modal-prev" aria-label="Producto anterior">‹</button><button class="catalogo-modal-nav catalogo-modal-next" aria-label="Producto siguiente">›</button>');
       modal.querySelector('.catalogo-modal-prev').onclick=()=>move(-1);modal.querySelector('.catalogo-modal-next').onclick=()=>move(1);
     }
-    const refresh = () => {modal.querySelector('[data-modal-qty]').textContent=(selected[key] || 0)+' unidades en tu lista';};
+    const refresh = () => {const qty=Number(selected[key])||0;modal.querySelector('[data-modal-qty]').textContent=qty+' unidades en tu lista';modal.querySelector('[data-modal-subtract]').hidden=!qty;modal.querySelector('[data-modal-count]').textContent=qty;modal.querySelector('[data-modal-count]').hidden=!qty;modal.querySelector('[data-modal-add]').classList.toggle('seleccionado',!!qty);};
     const dismiss = () => {modal.remove();if(previous?.isConnected)previous.focus();};
     modal.querySelector('[data-close-detail]').onclick=dismiss;
     modal.onclick=e=>{if(e.target===modal)dismiss();};
     modal.onkeydown=e=>{if(detailKeys.length>1 && (e.key==='ArrowLeft'||e.key==='ArrowRight')){e.preventDefault();move(e.key==='ArrowLeft'?-1:1);return;}if(e.key==='Escape'){e.stopPropagation();dismiss();}if(e.key==='Tab'){const focusable=Array.from(modal.querySelectorAll('button,a[href]'));const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}};
+    modal.querySelector('[data-modal-subtract]').onclick=()=>{if(selected[key]>1)selected[key]--;else{delete selected[key];delete purchases[key];}renderProducts();refresh();};
     modal.querySelector('[data-modal-add]').onclick=()=>{root.advertirStockProveedorFavorito?.(products[key]);selected[key]=Math.min(9999,(Number(selected[key])||0)+1);renderProducts();refresh();};
     document.body.appendChild(modal);detailModal=modal;refresh();modal.querySelector('[data-close-detail]').focus();
   }
@@ -285,7 +296,7 @@
     pdfPreview?.remove();pdfPreview=document.createElement('div');
     pdfPreview.dataset.svModalBehavior='compact';pdfPreview.setAttribute('role','dialog');pdfPreview.setAttribute('aria-label','Vista previa PDF');pdfPreview.setAttribute('aria-modal','true');
     pdfPreview.style.cssText='position:fixed;inset:0;z-index:100110;background:#e8eef5;display:flex;flex-direction:column';
-    const back=document.createElement('button');back.textContent='← Volver al catálogo';back.className='btn';back.style.cssText='flex-shrink:0;align-self:flex-start;margin:8px;background:#142b48;color:white';
+    const back=document.createElement('button');back.innerHTML='<i class="ti ti-arrow-left" aria-hidden="true"></i> Volver al catálogo';back.className='btn btn-sm';back.style.cssText='flex-shrink:0;align-self:flex-start;margin:8px';
     const previous=document.activeElement;back.onclick=()=>{pdfPreview.remove();pdfPreview=null;previous?.focus();};
     const frame=document.createElement('iframe');frame.title='PDF de productos';frame.style.cssText='flex:1;width:100%;border:0;background:#e8eef5';
     pdfPreview.append(back,frame);document.body.appendChild(pdfPreview);back.focus();
@@ -366,19 +377,22 @@
       const state=row.querySelector('[data-purchase="estado"]');if(state)state.closest('label').hidden=!explicitPurchaseEdits.has(key);
       row.querySelectorAll('input,select').forEach(input=>input.disabled=actual.estado==='comprado'&&!edit);
       let button=row.querySelector('[data-edit-purchase]');if(!button){button=document.createElement('button');button.type='button';button.className='btn btn-sm py-edit-item';button.dataset.editPurchase=key;button.title='Editar ítem';button.setAttribute('aria-label','Editar '+p.nombre);button.innerHTML='<i class="ti ti-pencil" aria-hidden="true"></i>';row.querySelector('td').appendChild(button);}
-      let saving=row.querySelector('[data-purchase-saving]');if(!saving){saving=document.createElement('small');saving.dataset.purchaseSaving='';field.after(saving);}
-      const reference=actual.moneda==='ARS'?q.ars:!actual.moneda||actual.moneda==='USD'?q.usd:0;
-      let savingArs=row.querySelector('[data-purchase-saving-ars]');if(!savingArs){savingArs=document.createElement('small');savingArs.dataset.purchaseSavingArs='';savingArs.style.cssText='display:block;margin-top:4px;color:var(--green);font-size:11px';saving.after(savingArs);}savingArs.textContent='';
-      if(Number.isFinite(actual.precioUnitario)&&reference>0&&actual.cantidad>0){const delta=reference-actual.precioUnitario;const currency=actual.moneda||'USD';saving.textContent=(delta>=0?'Ahorro: ':'Diferencia: ')+currency+' '+amount(Math.abs(delta))+' por unidad · '+currency+' '+amount(Math.abs(delta)*actual.cantidad)+' total';const rate=exchangeRate();if(currency==='USD'&&rate>0)savingArs.textContent=(delta>=0?'Ahorro en pesos: ':'Diferencia en pesos: ')+'≈ ARS $ '+amount(Math.abs(delta)*rate)+' por unidad · ARS $ '+amount(Math.abs(delta)*actual.cantidad*rate)+' total';}else saving.textContent='';
+      let saving=row.querySelector('[data-purchase-saving]');if(!saving){const footer=document.createElement('td');footer.className='py-item-profit';saving=document.createElement('div');saving.dataset.purchaseSaving='';saving.setAttribute('aria-live','polite');footer.appendChild(saving);row.appendChild(footer);}
+      const profit=itemProfit(actual,exchangeRate());
+      saving.style.cssText='display:block;margin-top:8px;color:var(--green);font-weight:700';
+      saving.style.color=profit.reason?'var(--text3)':profit.usd<0?'var(--red)':'var(--green)';
+      saving.textContent=profit.reason==='sale'?'Falta precio de venta acordado':profit.reason==='purchase'?'Ganancia pendiente de compra':profit.reason?'Falta conversión de moneda':'Ganancia: US$ '+amount(profit.unitUsd)+' por unidad · US$ '+amount(profit.usd)+' total'+(profit.ars!==null?' · ≈ ARS $ '+amount(profit.ars):'');
+
     });
   }
   function renderSummary() {
     const dates=panel.querySelector('[data-list-dates]');if(dates)dates.textContent='Creada: '+(listKey?historyDate(listBaseline?.creadoEn):'Se registrará al guardar')+' · Última actualización: '+historyDate(listBaseline?.actualizadoEn);
 
     const entries = Object.entries(selected).filter(([key]) => eligible(products[key]));
-    panel.querySelector('[data-cart-items]').innerHTML = entries.length ? '<div class="table-wrap"><table class="sv-no-resize"><thead><tr><th>Producto / proveedor</th><th>Solicitado</th><th>Referencia</th><th>Cantidad comprada</th><th>Precio final por unidad</th><th>Moneda</th></tr></thead><tbody>'+entries.map(([key,qty]) => {
+    entries.forEach(([key])=>{purchases[key]=captureAgreedSale(purchases[key]||{},products[key],exchangeRate(),!listBaseline?.productos?.[key]);});
+    panel.querySelector('[data-cart-items]').innerHTML = entries.length ? '<div class="table-wrap"><table class="sv-no-resize"><thead><tr><th>Producto / proveedor</th><th>Solicitado</th><th>Referencia</th><th>Venta acordada por unidad · USD</th><th>Cantidad comprada</th><th>Precio final por unidad</th><th>Moneda</th><th>Ganancia</th></tr></thead><tbody>'+entries.map(([key,qty]) => {
       const p=products[key],q=quote(p,purchases[key]?.proveedor),actual=purchases[key]||{},provider=providerSelection(p,actual.proveedor,Object.values(products),typeof proveedoresData==='undefined'?[]:proveedoresData||[]);let url='';try{if(/^https?:$/.test(new URL(q.url).protocol))url=q.url;}catch(_){}
-      return '<tr data-item-state="'+esc(actual.estado||'pendiente')+'"><td><button type="button" class="btn btn-sm py-remove-item" data-remove="'+esc(key)+'" aria-label="Eliminar '+esc(p.nombre||p.codigo)+' de la lista" title="Eliminar de la lista"><i class="ti ti-trash" aria-hidden="true"></i></button><div class="py-list-product" style="display:flex;align-items:center;gap:10px"><span style="display:block;width:52px;height:52px;flex:0 0 52px;background:white;border-radius:8px;overflow:hidden">'+root.imagenCatalogoHTML(p,'py-list-photo')+'</span><strong>'+esc(p.nombre || p.descripcion)+'</strong></div><small class="py-note">Local: '+esc(q.store||'Por identificar')+'</small>'+(url?'<br><a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Corroborar en proveedor ↗</a>':'')+'<label class="py-provider-choice"><span>Proveedor</span><select aria-label="Proveedor '+esc(p.codigo)+'" data-purchase="proveedor" data-key="'+esc(key)+'">'+(!provider.chosen?'<option value="">Elegir proveedor</option>':'')+provider.options.map(name=>'<option value="'+esc(name)+'" '+(name===provider.chosen?'selected':'')+'>'+esc(name)+'</option>').join('')+'</select></label><label class="py-provider-choice"><span>Estado de la compra</span><select aria-label="Estado '+esc(p.codigo)+'" data-purchase="estado" data-key="'+esc(key)+'">'+Object.entries(purchaseStates).map(([value,label])=>'<option value="'+value+'" '+((actual.estado||'pendiente')===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label></td><td data-label="Solicitado"><input aria-label="Cantidad solicitada '+esc(p.codigo)+'" type="number" min="1" max="9999" step="1" data-requested="'+esc(key)+'" value="'+qty+'"></td><td data-label="Referencia">US$ '+amount(q.usd)+'<br><small>$ '+amount(q.ars)+' con envío</small>'+localReferenceHTML(p)+'</td><td data-label="Cantidad comprada"><input aria-label="Cantidad comprada '+esc(p.codigo)+'" data-purchase="cantidad" data-key="'+esc(key)+'" type="number" min="0" max="9999" step="1" value="'+esc(actual.cantidad??qty)+'" placeholder="Pendiente"></td><td data-label="Precio final por unidad"><input aria-label="Precio real '+esc(p.codigo)+'" data-purchase="precioUnitario" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioUnitario??'')+'" placeholder="Pendiente"></td><td data-label="Moneda"><select aria-label="Moneda '+esc(p.codigo)+'" data-purchase="moneda" data-key="'+esc(key)+'">'+['USD','ARS','PYG'].map(c=>'<option '+((actual.moneda||'USD')===c?'selected':'')+'>'+c+'</option>').join('')+'</select></td></tr>';
+      return '<tr data-item-state="'+esc(actual.estado||'pendiente')+'"><td><button type="button" class="btn btn-sm py-remove-item" data-remove="'+esc(key)+'" aria-label="Eliminar '+esc(p.nombre||p.codigo)+' de la lista" title="Eliminar de la lista"><i class="ti ti-trash" aria-hidden="true"></i></button><div class="py-list-product" style="display:flex;align-items:center;gap:10px"><span style="display:block;width:52px;height:52px;flex:0 0 52px;background:white;border-radius:8px;overflow:hidden">'+root.imagenCatalogoHTML(p,'py-list-photo')+'</span><strong>'+esc(p.nombre || p.descripcion)+'</strong></div><small class="py-note">Local: '+esc(q.store||'Por identificar')+'</small>'+(url?'<br><a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Corroborar en proveedor ↗</a>':'')+'<label class="py-provider-choice"><span>Proveedor</span><select aria-label="Proveedor '+esc(p.codigo)+'" data-purchase="proveedor" data-key="'+esc(key)+'">'+(!provider.chosen?'<option value="">Elegir proveedor</option>':'')+provider.options.map(name=>'<option value="'+esc(name)+'" '+(name===provider.chosen?'selected':'')+'>'+esc(name)+'</option>').join('')+'</select></label><label class="py-provider-choice"><span>Estado de la compra</span><select aria-label="Estado '+esc(p.codigo)+'" data-purchase="estado" data-key="'+esc(key)+'">'+Object.entries(purchaseStates).map(([value,label])=>'<option value="'+value+'" '+((actual.estado||'pendiente')===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label></td><td data-label="Solicitado"><input aria-label="Cantidad solicitada '+esc(p.codigo)+'" type="number" min="1" max="9999" step="1" data-requested="'+esc(key)+'" value="'+qty+'"></td><td class="py-item-reference"><details><summary>Referencias de precio</summary><div class="py-reference-values">Proveedor: US$ '+amount(q.usd)+'<br><small>$ '+amount(q.ars)+' con envío</small>'+localReferenceHTML(p)+'</div></details></td><td data-label="Venta acordada por unidad · USD"><input aria-label="Precio de venta acordado '+esc(p.codigo)+'" data-purchase="precioVentaUnitarioUSD" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioVentaUnitarioUSD??'')+'" placeholder="Falta precio histórico"></td><td data-label="Cantidad comprada"><input aria-label="Cantidad comprada '+esc(p.codigo)+'" data-purchase="cantidad" data-key="'+esc(key)+'" type="number" min="0" max="9999" step="1" value="'+esc(actual.cantidad??qty)+'" placeholder="Pendiente"></td><td data-label="Precio final por unidad"><input aria-label="Precio real '+esc(p.codigo)+'" data-purchase="precioUnitario" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioUnitario??'')+'" placeholder="Pendiente"></td><td data-label="Moneda"><select aria-label="Moneda '+esc(p.codigo)+'" data-purchase="moneda" data-key="'+esc(key)+'">'+['USD','ARS','PYG'].map(c=>'<option '+((actual.moneda||'USD')===c?'selected':'')+'>'+c+'</option>').join('')+'</select></td></tr>';
     }).join('')+'</tbody></table></div>' : '<p class="py-note">Tu lista está vacía. Agregá productos desde Ofertas.</p>';
     refreshPurchaseRows();renderPurchaseProgress();
     const missingItems=Object.entries(selected).filter(([key])=>!eligible(products[key]));
@@ -412,11 +426,12 @@
   function status(text) { if(panel) panel.querySelectorAll('[data-status],[data-save-feedback]').forEach(el=>el.textContent=text); }
   async function open(nombre, options = {}) {
     close();editingPurchases.clear();explicitPurchaseEdits.clear();
-    const admin = root.currentRole === 'admin' && root.permisoModulo?.('balancecompra');
+    const internal=options.internal===true&&!!root.permisoModulo?.('distribuidora');
+    const admin = internal || root.currentRole === 'admin' && root.permisoModulo?.('balancecompra');
     if ((!admin && !['compras_paraguay','distribuidora'].includes(root.currentRole)) || !root.currentUserUid) return;
     const actor = root.currentUserUid, role = root.currentRole, session = generation;
-    const uid = admin && options.ownerUid || actor;
-    const valid = () => generation === session && root.currentUserUid === actor && root.currentRole === role;
+    const uid = root.currentRole==='admin' && options.ownerUid || actor;
+    const valid = () => generation === session && root.currentUserUid === actor && root.currentRole === role && (!internal || root.permisoModulo?.('distribuidora'));
     const roleQuery = root.fbRef(root.fbDB, 'sv_chat_roles/'+actor);
     const identity = (await root.fbGet(roleQuery)).val();
     if (!valid()) return;
@@ -468,7 +483,7 @@
         #screen-paraguay .py-catalog-list .catalogo-card p{min-height:0;margin:6px 0;-webkit-line-clamp:1}
         #screen-paraguay .py-catalog-list .catalogo-card-footer{min-height:0;padding:8px 0 0}
         @media(max-width:600px){#screen-paraguay .py-catalog-list .catalogo-card-imagen{width:82px;min-height:160px}#screen-paraguay .py-catalog-list .catalogo-card-body{padding:12px 12px 64px}#screen-paraguay .py-catalog-list .catalogo-card h3{font-size:12px}#screen-paraguay .py-catalog-list .catalogo-card-img{padding:6px}}
-        #screen-paraguay [hidden]{display:none!important}
+        #screen-paraguay [hidden]{display:none!important}#screen-paraguay .catalogo-restar:disabled{opacity:.35;cursor:default}
         #screen-paraguay [data-cart-items] input{width:100%;min-width:75px;max-width:160px;padding:7px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:6px}
         #screen-paraguay .table-wrap{overflow:auto}
         #screen-paraguay table{min-width:680px}
@@ -498,23 +513,33 @@
         #screen-paraguay .py-remove-item i{font-size:18px;line-height:1;flex:none}
         #screen-paraguay .py-missing-item{padding:18px 64px 18px 14px}
         #screen-paraguay [data-cart-items] tbody td:last-child{padding-right:66px}
-        @container(max-width:1100px){
-          #screen-paraguay [data-cart-items] table,#screen-paraguay [data-cart-items] tbody{display:block}
-          #screen-paraguay [data-cart-items] thead{display:none}
-          #screen-paraguay [data-cart-items] tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:16px;margin-top:14px;border:1px solid var(--border);border-radius:12px;background:var(--bg)}
-          #screen-paraguay [data-cart-items] td{display:block;padding:0;border:0;min-width:0}
-          #screen-paraguay [data-cart-items] td:first-child{grid-column:1/-1;width:auto!important;padding-right:52px}
-          #screen-paraguay [data-cart-items] td[data-label]:before{content:attr(data-label);display:block;margin-bottom:7px;font-size:12px;color:var(--text3)}
-          #screen-paraguay [data-cart-items] tbody td:last-child{padding-right:0}
-          #screen-paraguay .py-provider-choice select{max-width:none}
-        }
-        @container(max-width:540px){#screen-paraguay [data-cart-items] tr{grid-template-columns:repeat(2,minmax(0,1fr))}#screen-paraguay .py-list-fields{grid-template-columns:minmax(0,1fr)}}
+
+#screen-paraguay [data-cart-items] table,#screen-paraguay [data-cart-items] tbody{display:block}
+#screen-paraguay [data-cart-items] thead{display:none}
+#screen-paraguay [data-cart-items] tr{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-template-areas:"identity identity identity identity identity identity" "requested requested requested bought bought bought" "sale sale cost cost currency currency" "profit profit profit profit profit profit" "reference reference reference reference reference reference";gap:18px 16px;padding:20px;margin:16px 0;border:1px solid var(--border);border-radius:14px;background:var(--bg)}
+#screen-paraguay [data-cart-items] td{display:block;padding:0;border:0;min-width:0}
+#screen-paraguay [data-cart-items] td:first-child{grid-area:identity;width:auto!important;padding:0 58px 16px 0;border-bottom:1px solid var(--border)}
+#screen-paraguay [data-cart-items] td[data-label="Solicitado"]{grid-area:requested}
+#screen-paraguay [data-cart-items] td[data-label="Cantidad comprada"]{grid-area:bought}
+#screen-paraguay [data-cart-items] td[data-label="Venta acordada por unidad · USD"]{grid-area:sale}
+#screen-paraguay [data-cart-items] td[data-label="Precio final por unidad"]{grid-area:cost}
+#screen-paraguay [data-cart-items] td[data-label="Moneda"]{grid-area:currency}
+#screen-paraguay [data-cart-items] td.py-item-profit{grid-area:profit;padding:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px}
+#screen-paraguay [data-cart-items] [data-purchase-saving]{margin:0!important;font-size:14px;line-height:1.6}
+#screen-paraguay [data-cart-items] td.py-item-reference{grid-area:reference;border-top:1px solid var(--border);padding-top:12px;color:var(--text3);font-size:12px}
+#screen-paraguay [data-cart-items] td.py-item-reference:before,#screen-paraguay [data-cart-items] td.py-item-profit:before{display:none}
+#screen-paraguay .py-item-reference summary{cursor:pointer;font-weight:600}
+#screen-paraguay .py-reference-values{padding-top:10px;line-height:1.7}
+#screen-paraguay [data-cart-items] td[data-label]:before{content:attr(data-label);display:block;margin-bottom:8px;font-size:12px;color:var(--text3)}
+#screen-paraguay [data-cart-items] tbody td:last-child{padding-right:14px}
+#screen-paraguay .py-provider-choice select{max-width:none}
+@container(max-width:540px){#screen-paraguay [data-cart-items] tr{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"identity identity" "requested bought" "sale sale" "cost currency" "profit profit" "reference reference";padding:14px;gap:14px}#screen-paraguay .py-list-fields{grid-template-columns:minmax(0,1fr)}}
         @media(max-width:1100px){#screen-paraguay .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
       </style>
       <div class="app">
         <aside class="sidebar" aria-label="Navegación de Ofertas">
           <div class="s-logo"><div class="s-brand">SisVentas</div><div class="s-sub">powered by Nixa</div></div>
-          <nav class="s-nav"><div class="s-section">Compras</div><button class="nav-item active" data-nav="products"><i class="ti ti-package" aria-hidden="true"></i> Ofertas</button><button class="nav-item" data-nav="lists"><i class="ti ti-list-check" aria-hidden="true"></i> Mis listas de compra</button></nav>
+          <nav class="s-nav"><div class="s-section">Compras</div><button class="nav-item active" data-nav="products"><i class="ti ti-package" aria-hidden="true"></i> Ofertas</button><button class="nav-item" data-nav="lists"><i class="ti ti-list-check" aria-hidden="true"></i> Mis listas de compra</button><button class="nav-item" data-nav="requests"><i class="ti ti-inbox" aria-hidden="true"></i> Solicitudes de compra</button></nav>
           <div class="s-foot"><div class="s-user"><div class="s-avatar admin">${esc(nombre.slice(0,2).toUpperCase())}</div><div style="min-width:0"><div class="s-uname">${esc(nombre)}</div><div class="s-urole">${role === 'distribuidora' ? 'Distribuidora' : 'Ofertas'}</div></div></div><button class="btn btn-sm" data-logout style="width:100%;justify-content:center;margin-top:8px"><i class="ti ti-logout" aria-hidden="true"></i> Cerrar sesión</button></div>
         </aside>
         <div class="main">
@@ -543,7 +568,9 @@
       </div>`;
     document.body.appendChild(panel);
     renderExchangeReference();
-    if(role==='distribuidora'){
+    if(role==='distribuidora'||role==='admin'){
+      if(!root.SVDistribuidora)await root.SVSessionAssets.load('distribuidora');
+      if(!valid())return;
       const create=document.createElement('button');create.className='btn btn-primary';create.textContent='Nuevo producto';create.onclick=()=>root.SVDistribuidora.edit(null,null);panel.querySelector('[data-products-card] .card-head').appendChild(create);
       const refreshPermissions=()=>{create.hidden=!root.SVDistribuidora.allowed('crear');if(detailModal)detailModal.remove();};refreshPermissions();document.addEventListener('sisventas:distribuidora-permissions',refreshPermissions);stops.push(()=>document.removeEventListener('sisventas:distribuidora-permissions',refreshPermissions));
     }
@@ -563,10 +590,10 @@
     });
     if (admin) {
       panel.style.cssText = 'position:fixed;inset:0;z-index:10000';
-      panel.querySelector('.s-urole').textContent = 'Administrador · Ofertas';
-      panel.querySelector('[data-logout]').textContent = 'Volver a Compras de exterior';
+      panel.querySelector('.s-urole').textContent = internal?'Distribuidora':'Administrador · Ofertas';
+      panel.querySelector('[data-logout]').textContent = internal?'Volver a SisVentas':'Volver a Compras de exterior';
       const back = document.createElement('button');
-      back.className = 'btn btn-sm';back.textContent = '← Compras de exterior';
+      back.className = 'btn btn-sm';back.textContent = internal?'← Volver a SisVentas':'← Compras de exterior';
       back.onclick = () => {if(!busy){close();options.onClose?.();}};
       const backRow = document.createElement('div');
       backRow.style.cssText = 'margin-bottom:14px;display:flex;align-items:center';
@@ -578,12 +605,30 @@
       ownerNote.textContent = 'Listas de: ' + (options.ownerName || nombre) + '. Los cambios se guardan para este usuario.';
       panel.querySelector('[data-list-card]').prepend(ownerNote);
     }
+    const promotionsView=document.createElement('section');promotionsView.hidden=true;panel.querySelector('.content').append(promotionsView);
+    if(role==='admin'){const nav=document.createElement('button');nav.className='nav-item';nav.dataset.nav='promotions';nav.textContent='Configuración de ofertas';panel.querySelector('.s-nav').append(nav);}
+    stops.push(()=>root.SVCatalogPromotionsConfig?.reset());
+    const requestsView=document.createElement('section');requestsView.hidden=true;requestsView.setAttribute('aria-label','Solicitudes de compra');panel.querySelector('.content').appendChild(requestsView);
+    const requestsButton=panel.querySelector('[data-nav="requests"]');requestsButton.hidden=!admin&&role!=='distribuidora';
+    function showRequests(){
+      promotionsView.hidden=true;root.SVCatalogPromotionsConfig?.reset();
+      panel.querySelector('[data-products-card]').hidden=true;panel.querySelector('[data-list-card]').hidden=true;panel.querySelector('.metrics').hidden=true;requestsView.hidden=false;
+      panel.querySelector('.page-title').textContent='Solicitudes de compra';
+      panel.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav==='requests'));
+      panel.querySelector('.sidebar').classList.remove('open');panel.querySelector('[data-menu]').setAttribute('aria-expanded','false');
+      if(admin||root.SVDistribuidora?.allowed('solicitudes')){requestsView.replaceChildren();root.SVCatalogRequests?.reset();root.SVCatalogRequests?.mount(requestsView);}
+      else {requestsView.textContent='Solicitudes de compra: Administración debe habilitar el permiso para consultar los datos de contacto y atender las solicitudes del catálogo público.';}
+      panel.querySelector('.content').scrollTop=0;
+    }
+    const refreshRequests=()=>{if(!requestsView.hidden)showRequests();};document.addEventListener('sisventas:distribuidora-permissions',refreshRequests);stops.push(()=>{document.removeEventListener('sisventas:distribuidora-permissions',refreshRequests);root.SVCatalogRequests?.reset();});
     function showView(listsView) {
+      promotionsView.hidden=true;root.SVCatalogPromotionsConfig?.reset();
+      requestsView.hidden=true;root.SVCatalogRequests?.reset();
       panel.querySelector('[data-products-card]').hidden=listsView;
       panel.querySelector('[data-list-card]').hidden=!listsView;
       panel.querySelector('.metrics').hidden=!listsView;
       panel.querySelector('.page-title').textContent=listsView?'Mis listas de compra':'Ofertas';
-      panel.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',(b.dataset.nav==='lists')===listsView));
+      panel.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav===(listsView?'lists':'products')));
       panel.querySelector('.sidebar').classList.remove('open');
       panel.querySelector('[data-menu]').setAttribute('aria-expanded','false');
       panel.querySelector('.content').scrollTop=0;
@@ -626,6 +671,8 @@
     panel.querySelector('[data-return-list]').onclick=()=>showView(true);
     panel.querySelector('[data-confirm-products]').onclick=async()=>{if(busy)return;showView(true);await panel.querySelector('[data-save]').onclick();};
     panel.querySelectorAll('[data-nav]').forEach(button => button.onclick = () => {
+      if(button.dataset.nav==='promotions'){requestsView.hidden=true;root.SVCatalogRequests?.reset();panel.querySelector('[data-products-card]').hidden=true;panel.querySelector('[data-list-card]').hidden=true;panel.querySelector('.metrics').hidden=true;promotionsView.hidden=false;panel.querySelector('.page-title').textContent='Configuración de ofertas';panel.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b===button));root.SVCatalogPromotionsConfig.mount(promotionsView);return;}
+      if(button.dataset.nav==='requests'){showRequests();return;}
       if(button.dataset.nav!=='lists')openCart();
       showView(button.dataset.nav === 'lists');
     });
@@ -634,7 +681,7 @@
     panel.querySelector('[data-cart-items]').onclick = e => {const edit=e.target.closest('[data-edit-purchase]');if(edit){editingPurchases.add(edit.dataset.editPurchase);explicitPurchaseEdits.add(edit.dataset.editPurchase);renderSummary();return;}const button=e.target.closest('[data-remove]');if(button){delete selected[button.dataset.remove];delete purchases[button.dataset.remove];renderProducts();}};
     function capturePurchase(input) {
       const field=input.dataset.purchase,key=input.dataset.key;if(!field||!key)return;
-      purchases[key]||={};if(field==='cantidad'&&purchases[key].cantidad==null&&!Number.isFinite(purchases[key].precioUnitario)&&input.value===String(selected[key]))return;if(input.value==='')delete purchases[key][field];else purchases[key][field]=['cantidad','precioUnitario'].includes(field)?Number(input.value):input.value;
+      purchases[key]||={};if(field==='cantidad'&&purchases[key].cantidad==null&&!Number.isFinite(purchases[key].precioUnitario)&&input.value===String(selected[key]))return;if(input.value==='')delete purchases[key][field];else purchases[key][field]=['cantidad','precioUnitario','precioVentaUnitarioUSD'].includes(field)?Number(input.value):input.value;
     }
     panel.querySelector('[data-cart-items]').oninput=e=>{
       const t=e.target;if(t.dataset.purchase==='estado')return;capturePurchase(t);
@@ -706,6 +753,10 @@
         if(value.cantidad==null && value.precioUnitario==null){actualItems[productKey]={proveedor:value.proveedor||'',moneda:value.moneda||'USD',estado:state};continue;}
         if(!Number.isInteger(value.cantidad)||value.cantidad<0||value.cantidad>9999||!Number.isFinite(value.precioUnitario)||value.precioUnitario<0||value.precioUnitario>1e9||!['USD','ARS','PYG'].includes(value.moneda||'USD')){status('Completá cantidad comprada y precio real de cada producto revisado.');return;}
         actualItems[productKey]={estado:state,cantidad:value.cantidad,precioUnitario:value.precioUnitario,moneda:value.moneda||'USD',proveedor:value.proveedor||''};
+      }
+      for(const key of Object.keys(actualItems)) {
+        const sale=purchases[key]?.precioVentaUnitarioUSD;
+        if(sale!=null){if(!Number.isFinite(sale)||sale<0||sale>1e9){status('Revisá el precio de venta acordado.');return;}actualItems[key].precioVentaUnitarioUSD=sale;}
       }
       busy = true; status('Guardando lista…');panel.querySelector('[data-save]').textContent='Guardando…';panel.querySelector('[data-save]').setAttribute('aria-busy','true'); panel.querySelector('[data-delete-list]').disabled=true; panel.querySelector('[data-save]').disabled = true; panel.querySelector('[data-lists]').disabled = true;
       const key = listKey || root.fbPush(root.fbRef(root.fbDB,'sv_listas_paraguay/'+uid)).key;

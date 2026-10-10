@@ -1,0 +1,7 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),{quote}=require('../js/catalog-promotions.js');
+const items=[{id:'a',precioUSD:100,cantidad:2},{id:'b',precioUSD:50,cantidad:1}];
+const offer={activa:true,codigo:'PROMO',inicio:10,fin:100,porcentaje:10,alcance:'pedido'};
+test('Oferta de pedido fija precio por unidad sin modificar originales',()=>{const result=quote(items,{offer},' promo ',50);assert.equal(result[0].precioUSD,90);assert.equal(result[1].precioUSD,45);assert.equal(items[0].precioUSD,100);assert.equal(result[0].precioOriginalUSD,100);});
+test('Oferta de productos aplica únicamente a los seleccionados',()=>{const result=quote(items,{offer:{...offer,alcance:'productos',productos:['b']}},'PROMO',50);assert.equal(result[0].precioUSD,100);assert.equal(result[1].precioUSD,45);});
+test('Inicio y cierre impiden aplicar oferta fuera de vigencia',()=>{for(const now of [9,100,101])assert.throws(()=>quote(items,{offer},'PROMO',now));assert.throws(()=>quote(items,{offer:{...offer,activa:false}},'PROMO',50));});
+test('Contador baja cada segundo, toma el cierre más próximo y avisa al cerrar',()=>{const {countdown}=require('../js/catalog-promotions');const offers={a:{...offer,inicio:0,fin:90000}};assert.match(countdown(offers,30000),/00:01:00$/);assert.match(countdown(offers,31000),/00:00:59$/);assert.match(countdown(offers,90000),/finalizó/);assert.equal(countdown({a:{...offer,inicio:100000,fin:200000}},30000),'');assert.equal(countdown({a:{...offer,activa:false}},200000),'');});

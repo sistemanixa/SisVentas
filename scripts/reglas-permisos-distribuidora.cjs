@@ -9,7 +9,7 @@ function permisosDistribuidora(base){
  for(const name of ['sv_chat','sv_chat_escribiendo'])for(const op of ['.read','.write'])r[name].$canal[op]='('+r[name].$canal[op]+') && '+chat;
  r.sv_chat_directorio['.read']='('+r.sv_chat_directorio['.read']+') && '+chat;
  r.sv_distribuidora_permisos={'.read':'('+admin+') || ('+dist+')','.write':admin};
- for(const k of ['chat','detalle','editar','crear'])r.sv_distribuidora_permisos[k]={'.validate':'newData.isBoolean()'};
+ for(const k of ['chat','detalle','editar','crear','solicitudes'])r.sv_distribuidora_permisos[k]={'.validate':'newData.isBoolean()'};
  r.sv_distribuidora_permisos['$otro']={'.validate':false};
  const canEdit=dist+' && ('+permission('editar')+' || '+permission('crear')+')';
  r.sv_catalogo_proveedores={'.read':'('+admin+') || ('+canEdit+')','.write':admin};

@@ -5,13 +5,23 @@ const old={...first,productos:{a:1},comprasFinales:{}};const bought=listHistory(
 const again=listHistory({...old,...bought,comprasFinales:{a:{estado:'comprado'}}},{a:1},{a:{estado:'comprado'}},300);assert.equal(again.fechasProductos.a.compradoEn,200);
 assert.deepEqual(listHistory({productos:{a:1},comprasFinales:{a:{estado:'comprado'}}},{a:1},{a:{estado:'comprado'}},500),{fechasProductos:null});
 });
-test('ahorro ML usa cantidad real, monedas comparables y omite no comprados o sin referencia',()=>{
-const p={proveedores:[{nombre:'Mercado Libre',precio:600000}]};const products={a:p,b:p,c:{},d:p};
-const list={productos:{a:5,b:1,c:1,d:1},comprasFinales:{a:{cantidad:2,precioUnitario:400,moneda:'USD',estado:'comprado'},b:{cantidad:1,precioUnitario:650000,moneda:'ARS',estado:'comprado'},c:{cantidad:1,precioUnitario:1,moneda:'USD',estado:'comprado'},d:{cantidad:1,precioUnitario:100,moneda:'USD',estado:'pendiente'}}};
-assert.deepEqual(listSavings(list,products,1000),{ars:350000,usd:350,included:2,omitted:2,units:3,withReference:3,pendingFinal:1});
-assert.equal(listSavings(list,products,0).included,1);
+
+test('ganancia usa venta acordada y cantidad comprada, sin depender del catálogo ni ML',()=>{
+ const list={productos:{a:5,b:1,c:1},comprasFinales:{a:{estado:'comprado',cantidad:2,precioUnitario:400,moneda:'USD',precioVentaUnitarioUSD:500},b:{estado:'comprado',cantidad:1,precioUnitario:650000,moneda:'ARS',precioVentaUnitarioUSD:600},c:{estado:'comprado',cantidad:1,precioUnitario:1,moneda:'USD'}}};
+ const result=listSavings(list,{a:{ventaARS:999999,proveedores:[{nombre:'Mercado Libre',precio:99999999}]}},1000);
+ assert.equal(result.usd,150);assert.equal(result.ars,150000);assert.equal(result.included,2);assert.equal(result.missingSale,1);assert.equal(result.units,3);
+ assert.deepEqual(listSavings(list,{},1000),result);
 });
-
-test('comparativa usa la referencia local menor y excluye proveedores del exterior',()=>{const list={productos:{p:1},comprasFinales:{p:{estado:'comprado',cantidad:1,precioUnitario:400,moneda:'USD'}}};const products={p:{proveedores:[{nombre:'Local',pais:'Argentina',precio:550000},{nombre:'Mercado Libre',precio:600000},{nombre:'COMPRAS PARAGUAY',precio:100000},{nombre:'Nissei',precio:50000}]}};assert.equal(listSavings(list,products,1000).ars,150000);products.p.proveedores=products.p.proveedores.slice(2);assert.equal(listSavings(list,products,1000).included,0);});
-
-test('referencia ML disponible sin compra final no se informa como referencia faltante',()=>{const result=listSavings({productos:{p:1}},{p:{proveedores:[{nombre:'MERCADO LIBRE',precio:3890000}]}},1540);assert.equal(result.withReference,1);assert.equal(result.pendingFinal,1);assert.equal(result.included,0);assert.equal(result.ars,0);});
+test('sin precio histórico no inventa ganancia; compra pendiente y PYG no comparables',()=>{
+ const {itemProfit}=require('../js/modules/paraguay-shopping-access');
+ assert.equal(itemProfit({precioUnitario:10,estado:'comprado',cantidad:1},1000).reason,'sale');
+ assert.equal(itemProfit({precioVentaUnitarioUSD:100},1000).reason,'purchase');
+ assert.equal(itemProfit({precioVentaUnitarioUSD:100,precioUnitario:10,estado:'comprado',cantidad:1,moneda:'PYG'},1000).reason,'currency');
+ assert.equal(itemProfit({precioVentaUnitarioUSD:0,precioUnitario:10,estado:'comprado',cantidad:1},1000).usd,-10);
+});
+test('precio acordado se captura una vez para nuevos ítems; no migra históricos con precio actual',()=>{
+ const {captureAgreedSale}=require('../js/modules/paraguay-shopping-access');
+ const a=captureAgreedSale({}, {ventaARS:500000,iva:0},1000,true);assert.equal(a.precioVentaUnitarioUSD,500);
+ captureAgreedSale(a,{ventaARS:900000,iva:0},1200,true);assert.equal(a.precioVentaUnitarioUSD,500);
+ assert.deepEqual(captureAgreedSale({}, {ventaARS:900000,iva:0},1000,false),{});
+});

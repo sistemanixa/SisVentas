@@ -37,6 +37,7 @@ function reglasParaguay(base) {
             '.validate':"newData.parent().parent().child('productos').child($producto).exists() && newData.hasChildren(['moneda','proveedor']) && newData.hasChild('cantidad') === newData.hasChild('precioUnitario') && (newData.child('estado').val() !== 'comprado' || (newData.child('cantidad').val() > 0 && newData.hasChild('precioUnitario')))",
             cantidad:{'.validate':'newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999 && newData.val() % 1 === 0'},
             estado:{'.validate':"newData.isString() && (newData.val() === 'pendiente' || newData.val() === 'pedido' || newData.val() === 'comprado')"},
+            precioVentaUnitarioUSD:{'.validate':'newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000'},
             precioUnitario:{'.validate':'newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000'},
             moneda:{'.validate':"newData.isString() && (newData.val() === 'USD' || newData.val() === 'ARS' || newData.val() === 'PYG')"},
             proveedor:{'.validate':'newData.isString() && newData.val().length <= 120'},

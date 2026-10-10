@@ -24,6 +24,14 @@ test('Roles incorpora los módulos que antes faltaban', () => {
   ['asistente', 'kits', 'actualizadorprecios', 'ctaemp', 'tesoreria', 'notificaciones', 'tablero', 'facturas']
     .forEach((id) => assert.ok(ids.has(id), `Falta ${id} en Roles`));
 });
+test('Distribuidora está habilitada para admin y bloqueada para otros hasta delegar',()=>{
+ const old=context.normalizarPermisosRolesGuardados({_version:6,vendedor:{bloqueados:[]},admin:{bloqueados:[]}});
+ assert.ok(old.vendedor.bloqueados.includes('distribuidora'));
+ assert.ok(!old.admin.bloqueados.includes('distribuidora'));
+ const next=context.normalizarPermisosRolesGuardados({_version:7,vendedor:{bloqueados:[]}});
+ assert.ok(!next.vendedor.bloqueados.includes('distribuidora'));
+ assert.ok(context.TODOS_MODULOS.some(m=>m.id==='distribuidora'));
+});
 
 test('Una configuración legacy bloquea Kits y Asistente para técnico', () => {
   const legacy = context.normalizarPermisosRolesGuardados({

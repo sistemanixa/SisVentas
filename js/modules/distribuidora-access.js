@@ -1,8 +1,8 @@
 (function(root){
  'use strict';
  const CATEGORY='COMPRAS PARAGUAY';
- const defaults={chat:true,detalle:true,editar:false,crear:false};
- const labels={chat:'Chat general y mensajes directos',detalle:'Abrir ficha interna del producto',editar:'Editar datos del producto',crear:'Crear productos en su catálogo'};
+ const defaults={chat:true,detalle:true,editar:false,crear:false,solicitudes:false};
+ const labels={chat:'Chat general y mensajes directos',detalle:'Abrir ficha interna del producto',editar:'Editar datos del producto',crear:'Crear productos en su catálogo',solicitudes:'Ver solicitudes del catálogo y marcar su atención'};
  let permissions=null,stop=null,editor=null,detailBox=null,providersStop=null;
  const eligible=p=>!!p&&p.categoria===CATEGORY&&p.activo!==false&&p.estado!=='Inactivo'&&!p.esManoDeObra;
  const clean=value=>Object.fromEntries(Object.keys(defaults).map(k=>[k,typeof value?.[k]==='boolean'?value[k]:defaults[k]]));
@@ -79,7 +79,7 @@
   const restoreNotice=form._restore;form._restore=()=>{observer?.disconnect();restoreNotice();};
   if(saveButton){saveButton.removeAttribute('onclick');saveButton.onclick=async()=>{notice.textContent='';try{await root.guardarProducto();}catch(error){notice.textContent='No se pudo guardar: '+(error.message||'Revisá los datos e intentá nuevamente.');root.restaurarBotonGuardarProducto?.();}};}
   const dismiss=()=>root.cerrarFormProducto();
-  native.querySelectorAll('[onclick="cerrarFormProducto()"]').forEach(node=>{node.removeAttribute('onclick');node.onclick=dismiss;if(node.textContent.includes('Volver'))node.textContent='← Volver al catálogo';});
+  native.querySelectorAll('[onclick="cerrarFormProducto()"]').forEach(node=>{node.removeAttribute('onclick');node.onclick=dismiss;if(node.textContent.includes('Volver'))node.innerHTML='<i class="ti ti-arrow-left" aria-hidden="true"></i> Volver al catálogo';});
   form.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();dismiss();}};
   native.querySelector('#pf-nombre').focus();
  }
@@ -99,7 +99,7 @@
   box._restore=()=>{native.innerHTML=previousHTML;if(previousStyle===null)native.removeAttribute('style');else native.setAttribute('style',previousStyle);marker.replaceWith(native);};
   const oldProducts=root.prodData;
   try{root.prodData=[{...p,fbKey:key}];root.verProducto(key,'ofertas');}catch(error){closeDetail();root.notify?.('No se pudo mostrar la ficha');return;}finally{root.prodData=oldProducts;}
-  const back=native.querySelector('button[onclick="cerrarDetalleProducto()"]');back.removeAttribute('onclick');back.textContent='← Volver al catálogo';back.onclick=closeDetail;
+  const back=native.querySelector('button[onclick="cerrarDetalleProducto()"]');back.removeAttribute('onclick');back.innerHTML='<i class="ti ti-arrow-left" aria-hidden="true"></i> Volver al catálogo';back.onclick=closeDetail;
   const hero=native.querySelector('.product-hero');hero.removeAttribute('onclick');hero.style.cursor='default';hero.removeAttribute('title');
   native.querySelectorAll('.product-hero-delete,.product-active-toggle,[data-permiso="productos.agregarProveedor"],#btn-pd-actualizar-proveedores').forEach(n=>n.remove());
   const editButton=native.querySelector('.product-hero-edit');editButton.removeAttribute('onclick');editButton.hidden=!allowed('editar');editButton.onclick=()=>edit(key,p,closeDetail);

@@ -6,6 +6,9 @@
   if (typeof module !== 'undefined' && module.exports) { module.exports = { valid: valid, TTL: TTL }; return; }
   var sessions = {}, restoring = false, owner = user(), failed = false;
   var cloudOwner = '', unsubscribe = null, cloudReady = false, pending = {}, cloudTimer = null;
+  function canSync() {
+    return typeof currentRole !== 'undefined' && !!currentRole && currentRole !== 'distribuidora' && currentRole !== 'compras_paraguay';
+  }
   function publish(d) {
     if (d.deleted) localStorage.setItem(prefix()+d.id,JSON.stringify(d));
     pending[d.id] = d;
@@ -13,7 +16,7 @@
     if (typeof setTimeout === 'function') cloudTimer = setTimeout(sendPending, 500);
   }
   function sendPending() {
-    if (!cloudReady || cloudOwner !== user() || !window.fbUpdate) return;
+    if (!canSync() || !cloudReady || cloudOwner !== user() || !window.fbUpdate) return;
     var batch = pending; pending = {};
     if (!Object.keys(batch).length) return;
     var uid = cloudOwner;
@@ -26,11 +29,16 @@
   function tombstone(id) { return {id:id,deleted:true,updated:Date.now()}; }
   function connect() {
     var uid = user();
+    if (!canSync()) {
+      if (unsubscribe) unsubscribe();
+      unsubscribe = null; cloudOwner = ''; cloudReady = false;
+      return;
+    }
     if (cloudOwner === uid || !uid || !window.fbDB || !window.fbOnValue || !window.fbUpdate) return;
     if (unsubscribe) unsubscribe();
     cloudOwner = uid; cloudReady = false;
     unsubscribe = window.fbOnValue(window.fbRef(window.fbDB, 'sv_borradores/' + uid), function(snapshot) {
-      if (user() !== uid) return;
+      if (user() !== uid || !canSync()) return;
       var remote = snapshot.val() || {};
       Object.keys(remote).forEach(function(id) {
         var d=remote[id], local; try { local=JSON.parse(localStorage.getItem(prefix()+id)); } catch (_) {}
@@ -44,7 +52,7 @@
       records().forEach(function(d) { if (!remote[d.id] || (!remote[d.id].deleted && d.updated > remote[d.id].updated)) pending[d.id]=d; });
       Object.keys(localStorage).filter(function(k){return k.indexOf(prefix())===0;}).forEach(function(k){var d;try{d=JSON.parse(localStorage.getItem(k));}catch(_){}if(d&&d.deleted&&(!remote[d.id]||!remote[d.id].deleted))pending[d.id]=d;});
       cloudReady = true; failed = false; badges(); sendPending();
-    }, function() { cloudReady=false; cloudOwner=''; if (!failed) {failed=true;notify('No se pudieron sincronizar los borradores. Se conserva la copia local.');} });
+    }, function() { if (user() !== uid || !canSync()) return; cloudReady=false; cloudOwner=''; if (!failed) {failed=true;notify('No se pudieron sincronizar los borradores. Se conserva la copia local.');} });
   }
   function user() { return typeof currentUserUid !== 'undefined' && currentUserUid ? String(currentUserUid) : ''; }
   function prefix() { return 'sv:commercial-draft:v1:' + encodeURIComponent(user()) + ':'; }

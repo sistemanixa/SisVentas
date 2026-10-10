@@ -279,6 +279,9 @@
               "cantidad": {
                 ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999 && newData.val() % 1 === 0"
               },
+              "precioVentaUnitarioUSD": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
+              },
               "precioUnitario": {
                 ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
               },
@@ -330,6 +333,9 @@
       },
       "$otro": {
         ".validate": false
+      },
+      "solicitudes": {
+        ".validate": "newData.isBoolean()"
       }
     },
     "sv_distribuidora_auditoria": {

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.10.12-firebase' -->
+<!-- VERSION: 'v3.10.13-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.10.12.js"></script>
+<script src="./js/core/version.v3.10.13.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -137,6 +137,7 @@
       <div class="nav-item" onclick="abrirHistorialActualizaciones()" title="Ver cambios y repetir recorridos guiados">
         <i class="ti ti-rocket"></i>Novedades
       </div>
+      <div class="nav-item" onclick="showPage('distribuidora',this)" id="nav-item-distribuidora" style="color:var(--amber,#d4af37)"><i class="ti ti-building-store"></i>Distribuidora</div>
 
       <div class="s-module-search" id="s-module-search">
         <label class="s-module-search-field"><i class="ti ti-search" aria-hidden="true"></i><input type="search" placeholder="Buscar módulo" aria-label="Buscar módulo" autocomplete="off"><button type="button" aria-label="Limpiar búsqueda de módulos" hidden>×</button></label>
@@ -252,6 +253,7 @@
       <div class="nav-item" onclick="showPage('notificaciones',this)">
         <i class="ti ti-bell"></i>Notificaciones
       </div>
+
       <div class="nav-item" onclick="showPage('configuracion',this)" id="nav-item-configuracion">
         <i class="ti ti-settings"></i>Configuración
       </div>
@@ -4004,10 +4006,12 @@ Listo para analizar.
 
         <style>
 .content:has(#page-productos.active #prod-form-view[style*="display: block"]){padding-top:0!important}
-.pf-editor-header>div:first-child .btn,.pf-editor-header #pf-anterior,.pf-editor-header #pf-siguiente{background:transparent;border-color:transparent;box-shadow:none;padding-left:0;padding-right:0;color:var(--text2)}
+.pf-editor-header #pf-anterior,.pf-editor-header #pf-siguiente{background:transparent;border-color:transparent;box-shadow:none;padding-left:0;padding-right:0;color:var(--text2)}
 .pf-editor-header #prod-form-title{font-size:22px!important;line-height:1.2}
 .pf-editor-subtitle{font-size:12px;color:var(--text3);margin-top:5px;line-height:1.4}
 .pf-editor-header{position:sticky;top:0;z-index:15;background:var(--bg);padding:8px 0;gap:12px;border-bottom:1px solid var(--border)}
+/* Cubre el margen superior del contenedor al fijar el encabezado durante el scroll. */
+.pf-editor-header::before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;background:var(--bg);pointer-events:none}
 #prod-form-title{flex:1;font-size:17px!important;font-weight:700!important}
 .pf-identidad-layout{display:grid;grid-template-columns:minmax(230px,1fr) minmax(0,3fr);gap:16px;align-items:stretch}
 .pf-identidad-layout{margin-bottom:16px}
@@ -4032,7 +4036,7 @@ Listo para analizar.
 <!-- FORMULARIO NUEVO/EDITAR -->
         <div id="prod-form-view" style="display:none">
           <div class="pf-editor-header" style="margin-bottom:14px;display:flex;flex-direction:column;align-items:stretch;gap:8px">
-            <div><button class="btn btn-sm" onclick="cerrarFormProducto()">← Volver al listado</button></div>
+            <div><button class="btn btn-sm" onclick="cerrarFormProducto()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Volver al listado</button></div>
             <div><div id="prod-form-title" style="font-size:17px;font-weight:700;color:var(--text);text-align:left">Nuevo producto</div><div id="pf-editor-subtitle" class="pf-editor-subtitle"></div></div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <button type="button" class="btn btn-sm" id="pf-anterior" onclick="navegarEditorProducto(-1)" aria-label="Producto anterior" title="Producto anterior"><i class="ti ti-chevron-left"></i> Producto anterior</button>
@@ -4121,7 +4125,7 @@ Listo para analizar.
               <summary>Cómo se consultan los proveedores</summary> Cargá uno o más proveedores de este producto. Cada proveedor se consulta desde su URL. REFERENCIA DE VALOR se carga manualmente y no se consulta. El sistema guarda el precio ARS publicado, el dólar usado y la referencia USD para mantener el costo actualizado.
             </details>
             <div class="pf-providers-scroll"><table id="pf-proveedores-tbl" style="width:100%">
-              <tr class="pf-provider-head"><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio ARS</th><th style="text-align:center;white-space:nowrap" title="Si el proveedor cotiza sin IVA, el sistema suma el 21% para calcular el costo real">Sin IVA <i class="ti ti-info-circle" style="font-size:11px;color:var(--text3)"></i></th><th style="text-align:right;color:var(--amber)">Costo real ARS</th><th style="text-align:right;color:var(--blue)">Precio publicado USD</th><th>URL</th><th style="text-align:right">Actualizado</th><th></th></tr>
+              <tr class="pf-provider-head"><th style="text-align:left">Proveedor</th><th style="text-align:right">Precio ARS / USD</th><th style="text-align:center;white-space:nowrap" title="Si el proveedor cotiza sin IVA, el sistema suma el 21% para calcular el costo real">Sin IVA <i class="ti ti-info-circle" style="font-size:11px;color:var(--text3)"></i></th><th style="text-align:right;color:var(--amber)">Costo real ARS</th><th style="text-align:right;color:var(--blue)">Precio publicado USD</th><th>URL</th><th style="text-align:right">Actualizado</th><th></th></tr>
             </table></div>
             <div id="pf-proveedores-vacio" style="text-align:center;color:var(--text3);padding:16px;font-size:13px">Sin proveedores cargados — agregá al menos uno</div>
             <div id="pf-proveedores-cotizacion-resultado" style="display:none;margin-top:12px;padding:10px 12px;border:0.5px solid rgba(96,165,250,.24);background:rgba(59,130,246,.06);border-radius:var(--radius);font-size:12px;color:var(--text2)"></div>
@@ -5715,7 +5719,7 @@ Listo para analizar.
 <script src="./js/modules/commercial-approval.js?v=3.9.29"></script>
 <script src="./js/core/guarded-writes.js?v=3.9.24-server-check2"></script>
 <script src="./js/core/session-assets.js?v=perf-31010"></script>
-<script src="./js/app.v3.10.12.js"></script>
+<script src="./js/app.v3.10.13.js"></script>
 <script src="./js/modules/navigation-back.js?v=perf-3105"></script>
 <script src="./js/modules/partial-invoices.js?v=1"></script>
 <script src="./js/modules/commercial-drafts.js?v=perf-31010"></script>
@@ -6282,8 +6286,7 @@ Listo para analizar.
 <script src="./js/modules/image-paste-drop.js?v=2"></script>
 <script src="./js/modules/quantity-wheel.js?v=2"></script>
 <script src="./js/modules/performance-diagnostics.js?v=1"></script>
-<script src="./js/modules/exterior-user-lists.js?v=3.9.24-reference-status2"></script><script src="./js/modules/public-catalog-requests.js?v=1"></script>
+<script src="./js/modules/exterior-user-lists.js?v=3.9.24-reference-status2"></script><script src="./js/modules/public-catalog-requests.js?v=1"></script><script src="./js/modules/catalog-promotions-config.js?v=1"></script>
 <script src="./js/modules/employee-cash-receipt.js?v=1"></script>
 </body>
 </html>
-

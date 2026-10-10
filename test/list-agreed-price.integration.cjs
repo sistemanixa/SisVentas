@@ -1,0 +1,27 @@
+const {test,after}=require('node:test');
+const assert=require('node:assert/strict');
+const dep=require('module').createRequire('C:/SisVentas/tmp/firebase-security-tools/package.json');
+const {initializeTestEnvironment,assertSucceeds,assertFails}=dep('@firebase/rules-unit-testing');
+const {ref,set,update,get}=dep('firebase/database');
+const {listSavings}=require('../js/modules/paraguay-shopping-access');
+let env;
+after(async()=>env?.cleanup());
+test('precio acordado persiste al reabrir, no cambia con catálogo y valida permisos e importes',async()=>{
+  if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!=='127.0.0.1:9005')throw Error('Solo emulador local');
+  env=await initializeTestEnvironment({projectId:'demo-sisventas-security',database:{host:'127.0.0.1',port:9005,rules:JSON.stringify({rules:{sv_listas_paraguay:require('../security/database.paraguay.rules.json').rules.sv_listas_paraguay}})}});
+  await env.withSecurityRulesDisabled(c=>set(ref(c.database()),{sv_chat_roles:{u:{rol:'distribuidora',activo:true},otro:{rol:'distribuidora',activo:true}},sisventas:{productos:{p:{categoria:'COMPRAS PARAGUAY',activo:true,ventaARS:500000}}}}));
+  const db=env.authenticatedContext('u').database(),path='sv_listas_paraguay/u/prueba';
+  await assertSucceeds(set(ref(db,path),{nombre:'Prueba precio acordado',productos:{p:2},actualizadoEn:Date.now(),comprasFinales:{p:{estado:'comprado',cantidad:2,precioUnitario:400,moneda:'USD',proveedor:'Proveedor',precioVentaUnitarioUSD:500}}}));
+  const reopened=env.authenticatedContext('u').database();
+  let list=(await assertSucceeds(get(ref(reopened,path)))).val();
+  assert.equal(list.comprasFinales.p.precioVentaUnitarioUSD,500);
+  assert.equal(listSavings(list,{},1000).usd,200);
+  await env.withSecurityRulesDisabled(c=>update(ref(c.database(),'sisventas/productos/p'),{ventaARS:900000}));
+  await assertSucceeds(update(ref(reopened,path),{actualizadoEn:Date.now(),'comprasFinales/p/precioUnitario':450}));
+  list=(await get(ref(reopened,path))).val();
+  assert.equal(list.comprasFinales.p.precioVentaUnitarioUSD,500);
+  assert.equal(listSavings(list,{},1000).usd,100);
+  for(const invalid of [-1,'500',1000000001])await assertFails(set(ref(reopened,path+'/comprasFinales/p/precioVentaUnitarioUSD'),invalid));
+  await assertFails(set(ref(env.authenticatedContext('otro').database(),path+'/comprasFinales/p/precioVentaUnitarioUSD'),600));
+  await assertFails(set(ref(env.unauthenticatedContext().database(),path+'/comprasFinales/p/precioVentaUnitarioUSD'),600));
+});
