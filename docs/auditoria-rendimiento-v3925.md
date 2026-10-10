@@ -194,3 +194,7 @@ Estos pendientes requieren cambios de datos/reglas, migración y validación int
 ### Extracción del monolito: Excel bajo demanda
 
 El generador de exportaciones pasa a js/modules/excel-export.js; no se precarga en index ni en SHELL. El punto de entrada conserva la firma pública, indica descarga, bloquea doble clic y cancela si cambió el UID. Reutiliza el cargador con timeout/reintento. SheetJS sigue cargándose al exportar. Se verifica la exportación de Gastos con datos completos desde el módulo extraído y el fallo/cambio de sesión del punto de entrada. Suite general: 1.242 pruebas aprobadas. Es una extracción incremental; la separación completa de Auth y dominios continúa pendiente.
+
+### Extracción del monolito: métricas de Usuarios bajo demanda
+
+El formato, agregación, consulta por intervalo y render del informe de uso pasan a js/modules/usage-metrics.js. El punto de entrada público conserva período y reintento; descarta solicitudes de apertura reemplazadas, de otro UID o con la página cerrada. No se precarga el módulo en index ni SHELL. La escritura periódica de actividad permanece en su circuito existente. Suite general: 1.244 pruebas aprobadas, incluyendo consulta por rango y ciclo de descarga/error/salida de pantalla. Continúa pendiente la separación completa de Auth y dominios.
