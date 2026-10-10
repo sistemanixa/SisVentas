@@ -172,3 +172,21 @@ Gastos construye hasta 50 filas por página. Filtros y KPI conservan sus conjunt
 ### Comisiones: contador lateral sin ordenar detalles
 
 El badge de pendientes cuenta claves de venta directamente con un Set cuando no recibe los grupos de la pantalla. Evita construir arrays de participantes y ordenar todos los grupos para una notificación. Cuando el render ya tiene grupos, los reutiliza. Conserva permisos, una notificación por grupo pendiente y registros sin venta separados por clave. Equivalencia comprobada con 2.000 registros sintéticos y estados mixtos; 25 pruebas de Comisiones aprobadas. Sin medición de tiempo real de navegador.
+
+### Métricas de uso y SDK Firebase
+
+Las métricas solicitan por clave de día únicamente el intervalo Hoy/7/30 días, con límites inclusivos y orden por clave (índice nativo). Respuestas de períodos anteriores o de otro UID no reemplazan el resultado vigente. El SDK Firebase 10.12.0 usa caché exacta primero porque su ruta contiene una versión inmutable; los módulos locales continúan con red primero mientras se prepara su versionado integral. Se alinearon las URLs de Firebase y Comisiones en el shell. Cinco pruebas específicas aprobadas; suite general: 1.240 pruebas, todas aprobadas (sin el caso de navegador opcional).
+
+## Estado de cierre de la etapa local v3.10.0 (10/10/2026)
+
+Terminados: identidad compartida previamente implementada; auditoría administrativa bajo demanda; render de compras/proveedores ocultos evitado; paginación de Gastos y catálogo; exportación completa de Gastos; contador directo de Comisiones; métricas por intervalo; caché del SDK inmutable. También se incorporó el filtro solicitado de usuarios inactivos.
+
+El plan completo de arquitectura NO está terminado. Pendientes concretos:
+
+- Extraer Auth y el monolito en dominios con dependencias explícitas. Los portales y Compras aún intervienen en sesión, ventas, inventario y OT.
+- Sustituir suscripciones globales por resúmenes de saldos y consultas históricas paginadas. No se recortó el historial financiero: los saldos antiguos dependen de él.
+- Crear un índice autorizado de conversaciones/no leídos y migrar mensajes antes de limitar sus consultas. Un límite de mensajes sin ese índice perdería notificaciones antiguas.
+- Versionar todos los módulos locales de forma inmutable antes de aplicar caché prioritaria general, con pruebas de actualización, rollback y offline.
+- Medir arranque frío/caliente, red lenta y dispositivos reales. Las pruebas sintéticas no equivalen a latencia de producción.
+
+Estos pendientes requieren cambios de datos/reglas, migración y validación integral; no se declaran resueltos por haber aprobado la suite actual. La versión permanece local y no publicada.

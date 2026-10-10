@@ -5931,18 +5931,28 @@ function renderMetricasUsoUsuarios(datos, periodo) {
       '<div class="usuarios-uso-tiempo"><span style="color:var(--green)">Activo ' + formatearDuracionUso(item.activoMs) + '</span><br><span style="color:var(--amber)">Sin interacción ' + formatearDuracionUso(item.inactivoMs) + '</span></div></div>';
   }).join('');
 }
+var _usoUsuariosSolicitud = 0;
 function cargarMetricasUsoUsuarios(periodo) {
   periodo = String(periodo || (document.getElementById('usuarios-uso-periodo') || {}).value || '7');
-  if (_usoUsuariosCache) renderMetricasUsoUsuarios(_usoUsuariosCache, periodo);
-  if (!window.fbDB || !window.fbGet || _usoUsuariosCargando) return;
+  if (!window.fbDB || !window.fbGet) return;
+  var solicitud = ++_usoUsuariosSolicitud;
+  var uid = currentUserUid;
+  var ahora = new Date();
+  var desde = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+  var dias = periodo === 'hoy' ? 1 : Math.min(30, Math.max(1, parseInt(periodo, 10) || 7));
+  desde.setDate(desde.getDate() - dias + 1);
+  function clave(d) { return d.getFullYear() + '_' + String(d.getMonth()+1).padStart(2,'0') + '_' + String(d.getDate()).padStart(2,'0'); }
   _usoUsuariosCargando = true;
-  window.fbGet(window.fbRef(window.fbDB, 'sisventas/uso_usuarios')).then(function(snap) {
+  var consulta = window.fbQuery(window.fbRef(window.fbDB, 'sisventas/uso_usuarios'), window.fbOrderByKey(), window.fbStartAt(clave(desde)), window.fbEndAt(clave(ahora)));
+  return window.fbGet(consulta).then(function(snap) {
+    if (solicitud !== _usoUsuariosSolicitud || uid !== currentUserUid) return;
     _usoUsuariosCache = snap.val() || {};
     renderMetricasUsoUsuarios(_usoUsuariosCache, periodo);
   }).catch(function() {
+    if (solicitud !== _usoUsuariosSolicitud || uid !== currentUserUid) return;
     var grafico = document.getElementById('usuarios-uso-grafico');
     if (grafico) grafico.innerHTML = '<div class="usuarios-uso-vacio">No se pudieron cargar las métricas de uso.</div>';
-  }).finally(function(){ _usoUsuariosCargando = false; });
+  }).finally(function(){ if (solicitud === _usoUsuariosSolicitud) _usoUsuariosCargando = false; });
 }
 window.cargarMetricasUsoUsuarios = cargarMetricasUsoUsuarios;
 

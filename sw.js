@@ -33,7 +33,7 @@ const SHELL = [
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.9.13',
-  './js/core/firebase.js?v=3.9.26',
+  './js/core/firebase.js?v=3.10.0',
   './js/modules/item-row-order.js',
   './js/core/data-query.js',
   './js/modules/notifications.js',
@@ -58,7 +58,7 @@ const SHELL = [
   './js/modules/dashboard-permissions.js',
   './js/modules/sales-metrics.js',
   './js/modules/action-permissions.js?v=3.9.14',
-  './js/modules/commissions.js?v=3.8.19-audit1',
+  './js/modules/commissions.js?v=3.10.0',
   './js/modules/image-paste-drop.js',
   './js/modules/quantity-wheel.js?v=2',
   './js/core/metrics-cache.js',
@@ -125,6 +125,9 @@ self.addEventListener('fetch', (event) => {
   if (url.origin === 'https://www.gstatic.com' && url.pathname.indexOf('/firebasejs/') >= 0) {
     event.respondWith(
       caches.open(CACHE).then(async (cache) => {
+        // El SDK usa una versión exacta en la ruta: nunca cambia su contenido.
+        const cached = await cache.match(event.request);
+        if (cached) return cached;
         try {
           const response = await fetch(new Request(event.request, { cache: 'no-store' }));
           if (response.ok) await cache.put(event.request, response.clone());
