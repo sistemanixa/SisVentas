@@ -94,3 +94,17 @@ test('si la compra se cierra mientras se prepara el simulador no abre la edició
  x.window.SVSessionAssets.load=async name=>{if(name==='preparation')await new Promise(r=>release=r);await original(name);};
  const pending=x.run();x.state.activeList.locked=true;release();await pending;assert.deepEqual(x.opened,[]);
 });
+test('auditoría de mantenimiento no se descarga al iniciar y comparte carga bajo demanda',async()=>{
+ const x=setup();assert.equal(x.scripts.length,0);
+ const a=x.load('diagnostics'),b=x.load('diagnostics');assert.equal(a,b);assert.equal(x.scripts.length,1);
+ x.window.SisVentas={V3Diagnostics:{}};x.scripts[0].onload();await a;await x.load('diagnostics');assert.equal(x.scripts.length,1);
+ const index=fs.readFileSync('index.html','utf8');assert.ok(!index.includes('<script src="./js/v3/admin-diagnostics.js'));
+});
+test('mantenimiento muestra fallo y permite reintentar sin bloquear otras pantallas',async()=>{
+ const scripts=[],nodes={};const panel={style:{display:'block'},appendChild:n=>nodes[n.id]=n};nodes['cfg-mantenimiento']=panel;
+ const window={};const document={getElementById:id=>nodes[id],head:{appendChild:s=>scripts.push(s)},createElement:()=>({children:[],setAttribute(){},appendChild(n){this.children.push(n)},remove(){delete nodes[this.id]}})};
+ vm.runInNewContext(source,{window,document,setTimeout,clearTimeout,Promise,Error});
+ const first=window.SVSessionAssets.maintenance();scripts[0].onerror();await first;
+ const status=nodes['mnt-diagnostics-loading'];assert.match(status.textContent,/descargar/);assert.equal(status.children[0].textContent,'Reintentar');
+ const retry=status.children[0].onclick();let mounts=0;window.SisVentas={V3Diagnostics:{mount(){mounts++}}};scripts[1].onload();await retry;assert.equal(mounts,1);assert.equal(nodes['mnt-diagnostics-loading'],undefined);
+});

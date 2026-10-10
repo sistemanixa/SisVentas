@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   var assets = {
+    diagnostics: {src:'./js/v3/admin-diagnostics.js?v=3.3.17', ready:function(){return !!(window.SisVentas && window.SisVentas.V3Diagnostics);}},
     distribuidora: {src:'./js/modules/distribuidora-access.js?v=3.9.14-savefix', ready:function(){return !!window.SVDistribuidora;}},
     paraguay: {src:'./js/modules/paraguay-shopping-access.js?v=3.9.24-reference-status2', ready:function(){return !!window.SVParaguayPortal;}},
     compras: {src:'./js/modules/purchase-orders.js?v=3.9.27', ready:function(){return !!window.SisVentasCompras;}},
@@ -45,5 +46,29 @@
     await Promise.all(modules.map(load));
     return !isCurrent || isCurrent();
   }
-  window.SVSessionAssets = {load:load, forRole:forRole};
+  async function maintenance() {
+    var panel = document.getElementById('cfg-mantenimiento');
+    if (!panel || panel.style.display === 'none') return;
+    var status = document.getElementById('mnt-diagnostics-loading');
+    if (!status) {
+      status = document.createElement('div');
+      status.id = 'mnt-diagnostics-loading';
+      status.setAttribute('role', 'status');
+      panel.appendChild(status);
+    }
+    status.textContent = 'Cargando auditoría de mantenimiento…';
+    try {
+      await load('diagnostics');
+      window.SisVentas.V3Diagnostics.mount();
+      status.remove();
+    } catch (error) {
+      status.textContent = error.message + ' ';
+      var retry = document.createElement('button');
+      retry.className = 'btn btn-sm';
+      retry.textContent = 'Reintentar';
+      retry.onclick = maintenance;
+      status.appendChild(retry);
+    }
+  }
+  window.SVSessionAssets = {load:load, forRole:forRole, maintenance:maintenance};
 })();

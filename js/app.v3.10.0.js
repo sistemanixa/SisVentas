@@ -10822,7 +10822,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Referencia de Mercado Libre y ahorro en dólares visibles en el catálogo público.']),
   RELEASE_FEATURE: Object.freeze({page:'balancecompra',actionLabel:'Ver Compras de exterior'}),
   RELEASE_HISTORY: Object.freeze([
-    Object.freeze({version:'v3.10.0',date:'10/10/2026',title:'Comparación de proveedores bajo demanda',notes:Object.freeze(['El resumen se calcula al abrir Proveedores y se actualiza mientras está visible.','Las ofertas se vinculan mediante índices, conservando precios, empates y permisos.']),feature:Object.freeze({page:'proveedores',actionLabel:'Ver proveedores'})}),
+    Object.freeze({version:'v3.10.0',date:'10/10/2026',title:'Comparación de proveedores bajo demanda',notes:Object.freeze(['El resumen se calcula al abrir Proveedores y se actualiza mientras está visible.','Las ofertas se vinculan mediante índices, conservando precios, empates y permisos.','La auditoría de mantenimiento se descarga al abrir su pestaña, con reintento ante errores.']),feature:Object.freeze({page:'proveedores',actionLabel:'Ver proveedores'})}),
     Object.freeze({version:'v3.9.30',date:'09/10/2026',title:'Referencias locales sin alterar el IVA',notes:Object.freeze(['La cotización de proveedores secundarios conserva el IVA del producto.','La confirmación de identidad de un proveedor mantiene sincronizada la base del editor para guardar.']),feature:Object.freeze({page:'productos',actionLabel:'Ver productos'})}),
     Object.freeze({version:'v3.9.29',date:'09/10/2026',title:'Visitas sin cargo desde Reclamos',notes:Object.freeze(['Resolver una visita sin cargo utiliza el permiso de Reclamos y conserva la autorización de descuentos para Ventas.']),feature:Object.freeze({page:'soporte',actionLabel:'Ver reclamos'})}),
     Object.freeze({version:'v3.9.28',date:'09/10/2026',title:'Catálogo, fechas del chat y devoluciones de OT',notes:Object.freeze(['El catálogo muestra referencias de Mercado Libre y permite alternar dólares y pesos con la cotización vigente.','El chat agrupa los mensajes por Hoy, Ayer y fecha, con separadores visibles al desplazarse.','Los materiales devueltos y recibidos ya no generan cargos pendientes ni observaciones de custodia.']),feature:Object.freeze({page:'balancecompra',actionLabel:'Ver catálogo'})}),
@@ -24228,7 +24228,10 @@ function showCfgTab(id, el) {
     if (typeof renderHistorialComunicados === 'function') renderHistorialComunicados();
   }
   if (id === 'actividad') cargarLogActividad();
-  if (id === 'mantenimiento' && typeof mntInicializar === 'function') mntInicializar();
+  if (id === 'mantenimiento') {
+    if (typeof mntInicializar === 'function') mntInicializar();
+    if (window.SVSessionAssets) window.SVSessionAssets.maintenance();
+  }
   if (id === 'asistente') aacfgInicializar();
 }
 function showCfgDolarTab(el) {

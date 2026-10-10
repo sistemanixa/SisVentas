@@ -152,3 +152,7 @@ Antes y después de cada mejora: medir en móvil real y escritorio, sesiones fr�
 - Se reemplazó la búsqueda lineal por oferta por índices de clave y nombre (manteniendo la primera coincidencia y la prioridad de clave).
 - Prueba sintética: 1.000 productos, con empates, proveedor inactivo, ofertas sin stock, nombres normalizados, producto duplicado y sección abierta. El HTML visible coincide exactamente con v3.9.30. Con la vista oculta, los recorridos de productos pasan de 1.000 a 0. No representa una medición de latencia de Firebase ni de móvil real.
 - Pendientes: separar carga de código por ruta/rol, paginar Gastos y Catálogo, revisar suscripciones e históricos y medir caché/arranque en navegador.
+
+### Carga inicial: herramienta de mantenimiento
+
+La auditoría administrativa V3 deja de estar en los scripts de entrada. Reutiliza session-assets y se solicita al abrir la pestaña Mantenimiento. Se mantienen descarga única, timeout y reintento; no cambia automáticamente de ruta al terminar. Reducción estructural: un script y 18.957 bytes sin comprimir menos al inicio; no se atribuye una mejora temporal sin medición de navegador. Pasaron 20 pruebas del cargador y diagnóstico, incluyendo error y reintento. Órdenes de compra conserva su carga por sesión porque interviene también en ventas, inventario y devolución de materiales; separar sus dependencias queda pendiente.
