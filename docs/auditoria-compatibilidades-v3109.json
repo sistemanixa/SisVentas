@@ -1,0 +1,176 @@
+{
+  "version": "v3.10.9",
+  "files_scanned": 118,
+  "removed": [
+    {
+      "name": "makeIcon",
+      "bytes": 112
+    },
+    {
+      "name": "abrirUserPanel",
+      "bytes": 93
+    },
+    {
+      "name": "programarArchivoImagenProducto",
+      "bytes": 223
+    },
+    {
+      "name": "guardarDashWidgets",
+      "bytes": 57
+    },
+    {
+      "name": "navegarAProductosPorCategoria",
+      "bytes": 258
+    },
+    {
+      "name": "irACobranzasDesdeCC",
+      "bytes": 1275
+    },
+    {
+      "name": "irAVentaDesdeComision",
+      "bytes": 155
+    },
+    {
+      "name": "abrirFacturacionEmitida",
+      "bytes": 347
+    },
+    {
+      "name": "obtenerCategoriaEmpleado",
+      "bytes": 606
+    },
+    {
+      "name": "obtenerItemVenta",
+      "bytes": 291
+    },
+    {
+      "name": "_kitPrecioVentaARS",
+      "bytes": 578
+    },
+    {
+      "name": "cotizarProveedoresAsistente",
+      "bytes": 2062
+    },
+    {
+      "name": "actualizadorNombreProveedorDistinto",
+      "bytes": 380
+    }
+  ],
+  "evidence": {
+    "calls": "Cada función tenía solo su definición en el conjunto activo; sin consumidores en HTML, módulos diferidos, V3, núcleo o despachos por nombre.",
+    "navigation": "Se conservan toggleUserPanel, guardarPermisosRoles, navegarAProducto, verDetalleVentaDesdeId y las entradas actuales de Facturas y Cuenta Corriente.",
+    "products": "Se conservan obtenerProductoPorCodigoVenta, obtenerKitPorCodigoVenta y los cálculos vigentes. programarArchivoImagenProducto solo retornaba; las imágenes usan sus URL.",
+    "quotes": "Se retira únicamente el cotizador asistido sin llamadas; el cotizador actual no cambia.",
+    "tests": "Las referencias encontradas a nombres retirados pertenecen a pruebas de instantáneas históricas; no se alteran esas instantáneas."
+  },
+  "remaining": [
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "unificarClientesFiltrados",
+      "line": 945,
+      "decision": "Conservada: contrato explícito con accesos locales antiguos."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "flujoPostPago",
+      "line": 2222,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "tecnicoTomarOT",
+      "line": 2283,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "cerrarOTyVenta",
+      "line": 2303,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "asignarFechaInstalacion",
+      "line": 2343,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "otModeloCanonico",
+      "line": 7641,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "forzarActualizacionApp",
+      "line": 13281,
+      "decision": "Conservada como acceso manual de recuperación de versión."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "productoPersistirEliminar",
+      "line": 17497,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "precioExteriorProductoHTML",
+      "line": 23057,
+      "decision": "Conservada: consumidor en test/product-provider-prefill.test.js; revisar prueba y presentación vigente juntos."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "_cargoAjusteRegistro",
+      "line": 24818,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "cargosEditarRapido",
+      "line": 25017,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "verEmpleado",
+      "line": 26389,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "abrirComprobanteCuenta",
+      "line": 27561,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "toggleMenuPpto",
+      "line": 32869,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "spPasarAVisitaYGenerarOTLegacy",
+      "line": 35819,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "spGenerarOTLegacy",
+      "line": 35859,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "mejorarValorExteriorPpto",
+      "line": 46176,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    },
+    {
+      "file": "js/app.v3.10.8.js",
+      "name": "otActualizarMaterial",
+      "line": 47531,
+      "decision": "Conservada pendiente de trazar contrato operativo y reemplazo; no se elimina solo por ausencia de llamadas literales."
+    }
+  ],
+  "data_changes": "Ninguno. Se elimina código, no se ejecutan migraciones ni escrituras comerciales."
+}
