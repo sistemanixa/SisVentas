@@ -1,0 +1,9 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const src=fs.readFileSync('js/modules/commissions.js','utf8');
+function setup(data){const badge={style:{}};const c={window:{gastosData:data,tienePermiso:()=>true},document:{getElementById:()=>badge}};vm.createContext(c);for(const name of ['esComision','estado','claveGrupo','grupos','estadoGrupo','actualizarBadgeComisiones']){const start=src.indexOf('  function '+name+'('),end=src.indexOf('\n  function ',start+10);vm.runInContext(src.slice(start,end),c);}return {c,badge};}
+test('conteo directo equivale a agrupación con estados mixtos, duplicados y registros sin venta',()=>{
+ const data=Array.from({length:2000},(_,i)=>({fbKey:String(i),tipoPagable:i%7?'comision':'gasto',ventaFbKey:i%11?String(Math.floor(i/3)):'',estado:['pendiente_aprobacion','pendiente_pago','pagado','rechazado','pagado_parcial'][i%5],fecha:'2026-10-10'}));
+ const {c,badge}=setup(data);const expected=c.grupos().filter(g=>c.estadoGrupo(g)==='pendiente_aprobacion').length;c.grupos=()=>{throw Error('El badge no debe agrupar ni ordenar')};c.actualizarBadgeComisiones();assert.equal(badge.textContent,expected);assert.equal(badge.style.display,'');
+ c.window.tienePermiso=()=>false;c.actualizarBadgeComisiones();assert.equal(badge.textContent,0);assert.equal(badge.style.display,'none');
+});
+test('render visible reutiliza sus grupos y evento de sesión cuenta datos vigentes',()=>{const {c,badge}=setup([{fbKey:'a',tipo:'comision',estado:'pendiente_aprobacion'}]);c.actualizarBadgeComisiones([{items:[{estado:'pagado'}]}]);assert.equal(badge.textContent,0);c.actualizarBadgeComisiones({type:'sisventas:session-ready'});assert.equal(badge.textContent,1);c.window.gastosData=[];c.actualizarBadgeComisiones();assert.equal(badge.textContent,0);});

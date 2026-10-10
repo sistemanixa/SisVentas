@@ -168,3 +168,7 @@ El catálogo interno construye hasta 48 tarjetas por página, con Anterior/Sigui
 ### Gastos: paginación y exportación completa
 
 Gastos construye hasta 50 filas por página. Filtros y KPI conservan sus conjuntos completos; cambiar un filtro reinicia la página y una reducción de datos ajusta su límite. Seleccionar visibles actúa únicamente sobre la página mostrada, conservando selecciones explícitas anteriores. Excel deja de leer celdas del DOM (que incluían una columna adicional de selección) y exporta los datos filtrados completos con sus columnas correctas. Prueba sintética: 123 registros generan 50/50/23 filas y 123 registros exportados; pruebas de filtros, KPI, reducción y selección entre páginas. Pasaron las 54 pruebas de Gastos y sus integraciones seleccionadas. No se midió latencia real ni se recargó la sesión abierta del usuario. Continúan pendientes la carga por ruta, suscripciones e históricos y las mediciones de arranque.
+
+### Comisiones: contador lateral sin ordenar detalles
+
+El badge de pendientes cuenta claves de venta directamente con un Set cuando no recibe los grupos de la pantalla. Evita construir arrays de participantes y ordenar todos los grupos para una notificación. Cuando el render ya tiene grupos, los reutiliza. Conserva permisos, una notificación por grupo pendiente y registros sin venta separados por clave. Equivalencia comprobada con 2.000 registros sintéticos y estados mixtos; 25 pruebas de Comisiones aprobadas. Sin medición de tiempo real de navegador.

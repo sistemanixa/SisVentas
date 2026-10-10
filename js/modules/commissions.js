@@ -113,7 +113,17 @@
     var badge = document.getElementById('badge-nav-comisiones');
     if (!badge) return;
     var permitido = typeof window.tienePermiso === 'function' && window.tienePermiso('comisiones.aprobar');
-    var cantidad = permitido ? (Array.isArray(gruposActuales) ? gruposActuales : grupos()).filter(function(g) { return estadoGrupo(g) === 'pendiente_aprobacion'; }).length : 0;
+    var cantidad = 0;
+    if (permitido && Array.isArray(gruposActuales)) {
+      cantidad = gruposActuales.filter(function(g) { return estadoGrupo(g) === 'pendiente_aprobacion'; }).length;
+    } else if (permitido) {
+      // El badge necesita ventas pendientes, no construir y ordenar sus detalles.
+      var pendientes = new Set();
+      (window.gastosData || []).forEach(function(gasto) {
+        if (esComision(gasto) && estado(gasto) === 'pendiente_aprobacion') pendientes.add(claveGrupo(gasto));
+      });
+      cantidad = pendientes.size;
+    }
     badge.textContent = cantidad;
     badge.style.display = cantidad ? '' : 'none';
   }
