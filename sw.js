@@ -3,7 +3,7 @@
 const CACHE = 'sisventas-v3.9.30';
 const SHELL = [
   './js/modules/public-catalog-requests.js?v=1',
-  './js/modules/public-catalog-share.js?v=5',
+  './js/modules/public-catalog-share.js?v=6',
   './js/core/data-readiness.js?v=3.9.13-users',
   './js/modules/employee-cash-receipt.js?v=1',
   './js/modules/exterior-user-lists.js?v=3.9.24-reference-status2',

@@ -17,6 +17,15 @@
   const precioUSD=Number.isFinite(rate)&&rate>0?Math.round(precioARS/rate*100)/100:0;
   return {precioUSD,referenciaMLUSD:mercadoLibreReference(p,rate),iva:Number.isFinite(iva)&&iva>=0?iva:21,nombre:String(p.nombre||''),marca:String(p.marca||''),descripcion:String(p.catalogoDescripcion||p.descripcion||''),imagenUrl:/^https:\/\//i.test(image)?image:''};
  }
+ async function syncProduct(product, previous){
+  const data=project(product);
+  if(!data&&!project(previous))return;
+  if(!product.fbKey)throw Error('Producto sin identificador');
+  const updates={};
+  updates['sv_catalogo_publico/'+product.fbKey]=data;
+  updates['sv_catalogo_publico_index/'+product.fbKey]=data?true:null;
+  await root.fbUpdate(root.fbRef(root.fbDB),updates);
+ }
  if(typeof module!=='undefined')module.exports={project,mercadoLibreReference};
  if(!root.document)return;
  function shareNotice(button,text,url){
@@ -45,5 +54,5 @@
   }catch(e){shareNotice(button,'No se pudo preparar el enlace. Revisá la conexión y volvé a presionar compartir.');}
   finally{clearTimeout(timer);button.disabled=false;}
  }
- root.SVPublicCatalog={project,share};
+ root.SVPublicCatalog={project,share,syncProduct};
 })(typeof window==='undefined'?{}:window);

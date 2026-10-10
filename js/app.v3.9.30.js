@@ -6332,9 +6332,15 @@ function fbGuardarProducto(prod, baseEdicion) {
   }
   var eraEdicion = !!prod.fbKey;
   return productoPersistirGuardar(prod, baseEdicion)
-    .then(function(guardado) {
+    .then(async function(guardado) {
       if (guardado) Object.assign(prod, guardado);
       refrescarProductoGuardado();
+      try {
+        await window.SVPublicCatalog.syncProduct(prod, baseEdicion);
+      } catch (errorCatalogo) {
+        notify('Producto guardado, pero no se pudo sincronizar el catálogo público. Volvé a guardar para reintentar: ' + errorCatalogo.message);
+        return true;
+      }
       notify(eraEdicion ? 'Producto actualizado ✓' : 'Producto guardado ✓');
       return true;
     })
