@@ -108,3 +108,13 @@ test('mantenimiento muestra fallo y permite reintentar sin bloquear otras pantal
  const status=nodes['mnt-diagnostics-loading'];assert.match(status.textContent,/descargar/);assert.equal(status.children[0].textContent,'Reintentar');
  const retry=status.children[0].onclick();let mounts=0;window.SisVentas={V3Diagnostics:{mount(){mounts++}}};scripts[1].onload();await retry;assert.equal(mounts,1);assert.equal(nodes['mnt-diagnostics-loading'],undefined);
 });
+
+test('Excel comparte descarga entre módulos y no vuelve a descargar al estar listo',async()=>{
+ const x=setup();const first=x.load('sheetjs'),second=x.load('sheetjs');assert.equal(first,second);assert.equal(x.scripts.length,1);
+ x.window.XLSX={};x.scripts[0].onload();await first;await second;await x.load('sheetjs');assert.equal(x.scripts.length,1);
+});
+test('Excel permite reintentar después de timeout y valida que la librería exista',async()=>{
+ const x=setup();let pending=x.load('sheetjs');x.timers.values().next().value();await assert.rejects(pending,/demoró/);
+ pending=x.load('sheetjs');x.scripts[1].onload();await assert.rejects(pending,/inicializar/);
+ pending=x.load('sheetjs');x.window.XLSX={};x.scripts[2].onload();await pending;assert.equal(x.timers.size,0);
+});

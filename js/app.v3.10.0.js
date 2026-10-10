@@ -27952,11 +27952,10 @@ function _renderCajaUI(apertura, ingresos, egresos) {
 
 function cargarSheetJS(callback, onerror) {
   if (window.XLSX) { callback(); return; }
-  var s = document.createElement('script');
-  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-  s.onload = callback;
-  s.onerror = function(){ if (typeof onerror === 'function') onerror(); else notify('Error al cargar librería Excel'); };
-  document.head.appendChild(s);
+  return window.SVSessionAssets.load('sheetjs').then(callback, function(error) {
+    if (typeof onerror === 'function') onerror(error);
+    else notify('No se pudo cargar la librería Excel. Reintentá.');
+  });
 }
 
 async function exportarExcel(titulo, boton) {

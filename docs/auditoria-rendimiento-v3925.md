@@ -198,3 +198,7 @@ El generador de exportaciones pasa a js/modules/excel-export.js; no se precarga 
 ### Extracción del monolito: métricas de Usuarios bajo demanda
 
 El formato, agregación, consulta por intervalo y render del informe de uso pasan a js/modules/usage-metrics.js. El punto de entrada público conserva período y reintento; descarta solicitudes de apertura reemplazadas, de otro UID o con la página cerrada. No se precarga el módulo en index ni SHELL. La escritura periódica de actividad permanece en su circuito existente. Suite general: 1.244 pruebas aprobadas, incluyendo consulta por rango y ciclo de descarga/error/salida de pantalla. Continúa pendiente la separación completa de Auth y dominios.
+
+### Dependencia compartida de Excel
+
+Reportes, Compras y el planificador ahora reutilizan el cargador compartido para SheetJS: una descarga simultánea, validación del objeto XLSX, timeout y reintento. La llamada con la librería disponible conserva su ejecución inmediata. No se descarga en el inicio. Suite general: 1.246 pruebas aprobadas; se comprobaron solicitudes concurrentes, timeout y carga sin global esperado.
