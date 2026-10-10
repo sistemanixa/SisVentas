@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   var assets = {
+    excel: {src:'./js/modules/excel-export.js?v=3.10.0', ready:function(){return !!window.SVExcelExport;}},
     diagnostics: {src:'./js/v3/admin-diagnostics.js?v=3.3.17', ready:function(){return !!(window.SisVentas && window.SisVentas.V3Diagnostics);}},
     distribuidora: {src:'./js/modules/distribuidora-access.js?v=3.9.14-savefix', ready:function(){return !!window.SVDistribuidora;}},
     paraguay: {src:'./js/modules/paraguay-shopping-access.js?v=3.9.24-reference-status2', ready:function(){return !!window.SVParaguayPortal;}},

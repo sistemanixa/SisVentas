@@ -190,3 +190,7 @@ El plan completo de arquitectura NO está terminado. Pendientes concretos:
 - Medir arranque frío/caliente, red lenta y dispositivos reales. Las pruebas sintéticas no equivalen a latencia de producción.
 
 Estos pendientes requieren cambios de datos/reglas, migración y validación integral; no se declaran resueltos por haber aprobado la suite actual. La versión permanece local y no publicada.
+
+### Extracción del monolito: Excel bajo demanda
+
+El generador de exportaciones pasa a js/modules/excel-export.js; no se precarga en index ni en SHELL. El punto de entrada conserva la firma pública, indica descarga, bloquea doble clic y cancela si cambió el UID. Reutiliza el cargador con timeout/reintento. SheetJS sigue cargándose al exportar. Se verifica la exportación de Gastos con datos completos desde el módulo extraído y el fallo/cambio de sesión del punto de entrada. Suite general: 1.242 pruebas aprobadas. Es una extracción incremental; la separación completa de Auth y dominios continúa pendiente.

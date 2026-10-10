@@ -22,5 +22,5 @@ test('KPI conserva lista completa y una reducción de datos ajusta página',()=>
 test('Excel exporta los 123 registros filtrados con columnas correctas aunque solo se dibujen 50',()=>{
  const r=setup();let exported;
  r.c.cargarSheetJS=cb=>cb();r.c.notify=()=>{};r.c.window.XLSX={utils:{book_new:()=>({}),aoa_to_sheet:rows=>{exported=rows;return {}},book_append_sheet(){}},writeFile(){}};
- vm.runInContext(fn('exportarExcel'),r.c);r.c.renderTablaGastos();r.c.exportarExcel('Gastos del período');assert.equal(exported.length,124);assert.deepEqual(Array.from(exported[1]),['10/10/2026','Gasto 0','Otro','Variable',100,'pendiente_pago']);assert.equal(r.count(),50);
+ vm.runInContext(require('fs').readFileSync('js/modules/excel-export.js','utf8'),r.c);r.c.renderTablaGastos();r.c.window.SVExcelExport.exportar('Gastos del período');assert.equal(exported.length,124);assert.deepEqual(Array.from(exported[1]),['10/10/2026','Gasto 0','Otro','Variable',100,'pendiente_pago']);assert.equal(r.count(),50);
 });
