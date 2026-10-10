@@ -13,7 +13,7 @@ function block(start, end) {
 const context = vm.createContext({ Date, Object, Number, String, Array, parseInt, parseFloat, isNaN });
 vm.runInContext(
   block('function _cargoValorHoraParaMes(', 'function _habCrearFilas(') + '\n' +
-  block('function _cargoHistorialValorHora(', 'function _cargoAjusteRegistro('),
+  block('function _cargoHistorialValorHora(', 'function renderCargosConfig('),
   context
 );
 

@@ -1,0 +1,230 @@
+{
+  "version": "v3.10.10",
+  "scope": "Aplicación activa y 118 archivos: código, entradas HTML, módulos iniciales/diferidos, V3 y núcleo. Revisión estática de consumidores, temporizadores, observadores y cálculos. Incluye revisión de funciones privadas en módulos y dependencias que quedan sin consumidores después de la limpieza.",
+  "removed": [
+    {
+      "name": "flujoPostPago",
+      "bytes": 2569
+    },
+    {
+      "name": "tecnicoTomarOT",
+      "bytes": 1065
+    },
+    {
+      "name": "cerrarOTyVenta",
+      "bytes": 1738
+    },
+    {
+      "name": "asignarFechaInstalacion",
+      "bytes": 1393
+    },
+    {
+      "name": "otModeloCanonico",
+      "bytes": 106
+    },
+    {
+      "name": "obtenerKitPorCodigoVenta",
+      "bytes": 690
+    },
+    {
+      "name": "productoPersistirEliminar",
+      "bytes": 342
+    },
+    {
+      "name": "precioExteriorProductoHTML",
+      "bytes": 972
+    },
+    {
+      "name": "_cargoAjusteRegistro",
+      "bytes": 697
+    },
+    {
+      "name": "cargosEditarRapido",
+      "bytes": 279
+    },
+    {
+      "name": "verEmpleado",
+      "bytes": 1947
+    },
+    {
+      "name": "abrirComprobanteCuenta",
+      "bytes": 497
+    },
+    {
+      "name": "toggleMenuPpto",
+      "bytes": 736
+    },
+    {
+      "name": "spPasarAVisitaYGenerarOTLegacy",
+      "bytes": 350
+    },
+    {
+      "name": "spGenerarOTLegacy",
+      "bytes": 5632
+    },
+    {
+      "name": "mejorarValorExteriorPpto",
+      "bytes": 932
+    },
+    {
+      "name": "otActualizarMaterial",
+      "bytes": 1400
+    },
+    {
+      "name": "generarOrdenCompraDesdeVenta",
+      "bytes": 697
+    },
+    {
+      "name": "setChildren",
+      "bytes": 73
+    },
+    {
+      "name": "makeBadge",
+      "bytes": 241
+    },
+    {
+      "name": "safeClass",
+      "bytes": 101
+    },
+    {
+      "name": "_kitLista",
+      "bytes": 137
+    },
+    {
+      "file": "js/core/metrics-cache.js",
+      "name": "setHTML",
+      "bytes": 118
+    },
+    {
+      "file": "js/core/metrics-cache.js",
+      "name": "productoCod",
+      "bytes": 82
+    },
+    {
+      "file": "js/core/metrics-cache.js",
+      "name": "refrescarDashOT312",
+      "bytes": 213
+    },
+    {
+      "file": "js/modules/configuration-mobile.js",
+      "name": "money331",
+      "bytes": 90
+    },
+    {
+      "file": "js/modules/dashboard-permissions.js",
+      "name": "esAdmin309",
+      "bytes": 59
+    },
+    {
+      "file": "js/modules/ot-data-sync.js",
+      "name": "svMoney",
+      "bytes": 140
+    },
+    {
+      "file": "js/modules/ot-data-sync.js",
+      "name": "svMes",
+      "bytes": 217
+    },
+    {
+      "file": "js/modules/ot-data-sync.js",
+      "name": "ventaRelacionada",
+      "bytes": 643
+    },
+    {
+      "file": "js/modules/ot-data-sync.js",
+      "name": "clienteRelacionado",
+      "bytes": 1146
+    },
+    {
+      "file": "js/modules/payroll-duplicate-guard.js",
+      "name": "sv346Activos",
+      "bytes": 128
+    },
+    {
+      "file": "js/modules/payroll-duplicate-guard.js",
+      "name": "sv346EmpleadoSeleccionado",
+      "bytes": 312
+    },
+    {
+      "file": "js/modules/payroll-duplicate-guard.js",
+      "name": "sv346ActualizarMarcaAguinaldo",
+      "bytes": 176
+    },
+    {
+      "file": "js/modules/payroll-legacy-migration.js",
+      "name": "sv347EmpleadoSeleccionado",
+      "bytes": 193
+    },
+    {
+      "file": "js/modules/purchase-orders.js",
+      "name": "addManualItem",
+      "bytes": 870
+    },
+    {
+      "file": "js/modules/purchase-orders.js",
+      "name": "removeManualItem",
+      "bytes": 93
+    },
+    {
+      "file": "js/modules/resizable-tables.js",
+      "name": "clearColumnWidth",
+      "bytes": 502
+    },
+    {
+      "file": "js/modules/resizable-tables.js",
+      "name": "setColumnWidth",
+      "bytes": 212
+    },
+    {
+      "file": "js/modules/resizable-tables.js",
+      "name": "resetColumn",
+      "bytes": 253
+    },
+    {
+      "file": "js/modules/resizable-tables.js",
+      "name": "initMutationTables",
+      "bytes": 764
+    },
+    {
+      "file": "js/modules/dashboard-permissions.js",
+      "name": "rolActual309",
+      "bytes": 576
+    },
+    {
+      "file": "js/modules/ot-data-sync.js",
+      "name": "svNorm",
+      "bytes": 147
+    }
+  ],
+  "retained": {
+    "unificarClientesFiltrados": "Contrato explícito para accesos locales antiguos; redirige a la revisión segura de duplicados.",
+    "forzarActualizacionApp": "Acceso manual de recuperación del caché y versión, sin trabajo periódico."
+  },
+  "decisions": {
+    "ot": "Se conservan el cierre vigente, custodia de materiales, otToggleInstalado, el wizard y la persistencia segura; se retiran flujos anteriores sin consumidores.",
+    "reclamos": "Se conservan spGenerarOT y spPasarAVisitaYGenerarOT; se retiran las variantes Legacy sin llamadas.",
+    "proveedores": "La prueba de precio USD pasa a precioPublicadoUsdProveedorHTML, presentación usada actualmente.",
+    "cargos": "Se conserva el guardado explícito con _cargoAplicarCambio y _cargoGuardarSeguro; se retiran auxiliares sin llamadas.",
+    "pagos": "Se conserva registrarCobrosCanonicos, lectura histórica y comprobantes mediante lector común.",
+    "background": "Se conservan sincronización, cola de borradores, presencia, notificaciones, actualización de versión e histórico del dólar: tienen tareas vigentes.",
+    "observers": "Numeración, retorno, filtros, tablas y gráficos ya agrupan trabajo; se conserva su comportamiento.",
+    "assets": "Se conservan instantáneas publicadas y módulos diferidos; no se borran por no figurar como llamadas directas."
+  },
+  "data_changes": "Ninguno. No se ejecutan migraciones ni escrituras comerciales.",
+  "limits": "La auditoría no prueba ausencia universal de errores ni garantiza que no existan futuras oportunidades; las mejoras se limitan a código con evidencia y pruebas.",
+  "runtime_changes": {
+    "presupuestos": "No construir el mapa ni recorrer filas cada segundo cuando el módulo no está visible; reactivar al cambiar página o visibilidad.",
+    "metricas": "Agrupar solicitudes consecutivas de refresco en una sola ejecución con los datos más recientes, conservando retornos de los renderizadores.",
+    "borradores": "Contar por tipo en una sola lectura y omitir controles visuales con pestaña oculta; guardar y sincronizar continúan activos.",
+    "asistente": "Retirar búsqueda del campo de enseñanza que ya no existe.",
+    "cache": "Renovar identificadores de recursos modificados, incluido el módulo diferido de compras."
+  },
+  "verification": {
+    "unit": "1294 pruebas aprobadas, 0 fallos",
+    "integration": "42 pruebas aprobadas en emulador demo-sisventas-security; sin escribir datos comerciales reales",
+    "static": "Sólo quedan 2 entradas globales manuales documentadas; no quedaron funciones privadas con una única referencia en el rastreo. Esto es evidencia estática, no prueba universal.",
+    "browser": "v3.10.10 en localhost: configuración/dólar y cargos, presupuestos con 7 resultados, OT con 9 abiertas y 109 completadas, reclamos, órdenes de compra, apertura/cierre de orden manual vacía, tesorería estabilizada con 26 pagos y productos. Sin guardar operaciones."
+  },
+  "removed_count": 43,
+  "removed_bytes": 29528
+}

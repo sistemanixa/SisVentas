@@ -8,7 +8,7 @@
     if (typeof escapeHTML === 'function') return escapeHTML(v);
     return String(v||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
   }
-  function money331(v){ return '$' + Math.round(parseFloat(v)||0).toLocaleString('es-AR'); }
+
   function isMob331(){ return window.matchMedia && window.matchMedia('(max-width: 760px)').matches; }
   function addCss331(){
     if (document.getElementById('sv-mobile-ux-331-css')) return;

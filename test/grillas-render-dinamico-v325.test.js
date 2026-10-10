@@ -6,9 +6,15 @@ const grid = fs.readFileSync('js/modules/resizable-tables.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 
 test('agregar filas dentro de tbody reactiva la tabla general', () => {
-  assert.match(grid, /target\.closest && target\.closest\('table'\)/);
-  assert.match(grid, /var targetTable = [\s\S]*?target\.closest\('table'\)/);
-  assert.match(grid, /initTable\(targetTable\)/);
+  const start = grid.indexOf('function mutationTouchesActivePage(');
+  const end = grid.indexOf('\n  }', start) + 4;
+  const visible = {nodeType:1, closest:()=>({})};
+  const hidden = {nodeType:1, closest:()=>({})};
+  const c = {document:{querySelector:()=>({contains:node=>node===visible})}};
+  require('node:vm').runInNewContext(grid.slice(start,end),c);
+  assert.equal(c.mutationTouchesActivePage([{target:visible,addedNodes:[]}]),true);
+  assert.equal(c.mutationTouchesActivePage([{target:hidden,addedNodes:[]}]),false);
+  assert.match(grid, /if \(!mutationTouchesActivePage\(mutations\)\) return;[\s\S]*?scheduleScan\(\)/);
 });
 
 test('el cambio de página inicializa en el siguiente cuadro sin esperar resize', () => {

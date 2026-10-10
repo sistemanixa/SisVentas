@@ -42,7 +42,9 @@
   }
   async function teach(){
     if(!admin())return;
-    var input=document.getElementById('ia-teaching-input')||document.getElementById('ia-input'),text=input.value.trim();
+    var input=document.getElementById('ia-input');
+    if(!input)return;
+    var text=input.value.trim();
     if(!text){notify('Escribí o dictá la regla y luego presioná Enseñar.');return;}
     var button=document.getElementById('ia-ensenar');button.disabled=true;button.textContent='Interpretando…';
     try{

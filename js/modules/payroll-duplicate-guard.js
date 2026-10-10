@@ -14,14 +14,8 @@
   function sv346Norm(v){
     return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   }
-  function sv346Activos(){
-    return sv346Arr(window.empData || {}).filter(function(e){ return e && e.activo !== false; });
-  }
-  function sv346EmpleadoSeleccionado(key){
-    if (window.aguSelKeys322 && typeof window.aguSelKeys322.has === 'function') return window.aguSelKeys322.has(key);
-    var chk = document.querySelector('.agu-check-322[data-key="' + String(key || '').replace(/"/g,'\\"') + '"]');
-    return !chk || chk.checked;
-  }
+
+
   function sv346EsGastoAguinaldo(g, empKey, semKey, semLbl){
     if (!g || g.anulado === true || sv346Norm(g.estado) === 'anulado') return false;
     var desc = sv346Norm(g.descripcion || g.concepto || '');
@@ -44,7 +38,5 @@
       return keys.has(empKey) && sv346EsGastoAguinaldo(g, empKey, semKey, semLbl);
     });
   }
-  function sv346ActualizarMarcaAguinaldo(e, semKey, payload){
-    return window.fbSet(window.fbRef(window.fbDB, 'sisventas/aguinaldos/' + e.fbKey + '/' + semKey), payload);
-  }
+
 })();

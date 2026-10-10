@@ -28,7 +28,7 @@
   function esMes(v, m){ return fecha(v).slice(0,7) === (m || mesActual()); }
   function money(v){ return typeof window.fmtMoney === 'function' ? window.fmtMoney(num(v)) : ('$' + Math.round(num(v)).toLocaleString('es-AR')); }
   function setText(el, val){ if (typeof el === 'string') el = document.getElementById(el); if (el) el.textContent = val; }
-  function setHTML(el, val){ if (typeof el === 'string') el = document.getElementById(el); if (el) el.innerHTML = val; }
+
   function getLista(nombre){
     if (SV.Cache && typeof SV.Cache.get === 'function') return arr(SV.Cache.get(nombre));
     var mapa = { ventas: window.ventasList || window.ventasData, clientes: window.clientesList || window.cliData || window.clientesData, productos: window.prodData || window.productosData, pagos: window.pagosData || window.pagosList || window._pagosListaActual || window._historialPagosCompleto, gastos: window.gastosData || window.gastosList, ot: window.otData || window.ordenesTrabajoData };
@@ -41,7 +41,7 @@
     return Object.keys(out);
   }
   function clienteId(c){ return id(c && (c.fbKey || c.id || c.idCliente || c.codigo || c.dni || c.cuit)); }
-  function productoCod(p){ return id(p && (p.codigo || p.cod || p.id || p.fbKey)); }
+
   function totalVenta(v){
     if (typeof window._svTotalVentaCanonico === 'function') return window._svTotalVentaCanonico(v || {});
     return num(v && (v.total || v.totalVenta || v.importe || v.monto || v.totalConIva));
@@ -246,12 +246,7 @@
     setText('tes-met-efectivo', money(m.efectivo));
     setText('tes-met-comp', String(m.comprobantes));
   }
-  function refrescarDashOT312(){
-    var m = SV.Metrics.ot();
-    setText('ot-met-abiertas', String(m.abiertas));
-    setText('ot-met-hoy', String(m.hoy));
-    setText('ot-met-comp', String(m.completadasTotal));
-  }
+
   function refrescarDashVentas312(){
     if(!(window.tienePermiso && window.tienePermiso('ventas.verDashboard'))) return;
     var m = SV.Metrics.ventas();
@@ -275,21 +270,26 @@
     // El refresco global no debe volver a escribirlos desde una caché distinta.
   };
 
+  var refreshTimer = null;
+  function scheduleRefresh(delay){
+    if(refreshTimer !== null) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(function(){ refreshTimer = null; SV.Metrics.refresh(); }, delay);
+  }
   document.addEventListener('sisventas:page-changed', function(event){
     var page=event.detail&&event.detail.page;
     // Órdenes de trabajo calcula sus KPI junto con la tabla usando la misma
     // colección canónica. No pisarlos después con el caché auxiliar, porque
     // puede conservar registros legacy que la tabla ya no muestra.
-    if(['dashboard','detalle','tesoreria','cobranzas'].indexOf(page) >= 0) setTimeout(SV.Metrics.refresh, 80);
+    if(['dashboard','detalle','tesoreria','cobranzas'].indexOf(page) >= 0) scheduleRefresh(80);
   });
   ['renderDashboard','renderTesoreria','renderMetricasVentas'].forEach(function(fn){
     var prev = window[fn];
     if (typeof prev === 'function' && !prev._sv312) {
-      window[fn] = function(){ var r = prev.apply(this, arguments); setTimeout(SV.Metrics.refresh, 60); return r; };
+      window[fn] = function(){ var r = prev.apply(this, arguments); scheduleRefresh(60); return r; };
       window[fn]._sv312 = true;
     }
   });
-  document.addEventListener('DOMContentLoaded', function(){ setTimeout(SV.Metrics.refresh, 500); });
+  document.addEventListener('DOMContentLoaded', function(){ scheduleRefresh(500); });
 })();
 
 

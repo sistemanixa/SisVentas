@@ -224,7 +224,10 @@
     if(badge.textContent!==texto)badge.textContent=texto;
     if(badge.title!==titulo)badge.title=titulo;
   }
-  setInterval(function(){
+  function refreshProposals(){
+    if(document.hidden)return;
+    var page=document.getElementById('page-presupuesto');
+    if(!page||!page.classList.contains('active'))return;
     var anchor=document.getElementById('ppto-det-meta');
     if(anchor){
       var b=document.getElementById('ppto-combinar');
@@ -232,11 +235,15 @@
       b.hidden=!permission();
       if(typeof buscarPptoPorRef==='function'&&typeof pptoActualId!=='undefined')marcarOrigenExterior(document.getElementById('ppto-det-estado-badge'),buscarPptoPorRef(pptoActualId));
     }
-    if(typeof pptoData!=='undefined'&&Array.isArray(pptoData)){
+    var rows=document.querySelectorAll('#ppto-tbody-main tr[data-ppto-ref]');
+    if(rows.length&&typeof pptoData!=='undefined'&&Array.isArray(pptoData)){
       var presupuestos=new Map(pptoData.map(function(p){return [String(p.fbKey||p.id||''),p];}));
-      document.querySelectorAll('#ppto-tbody-main tr[data-ppto-ref]').forEach(function(row){
+      rows.forEach(function(row){
         marcarOrigenExterior(row.cells[0],presupuestos.get(row.dataset.pptoRef));
       });
     }
-  },1000);
+  }
+  setInterval(refreshProposals,1000);
+  document.addEventListener('sisventas:page-changed',refreshProposals);
+  document.addEventListener('visibilitychange',refreshProposals);
 })();

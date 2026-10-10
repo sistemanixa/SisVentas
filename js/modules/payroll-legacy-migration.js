@@ -128,10 +128,7 @@
   }
   document.addEventListener('sisventas:payroll-modal-opened',function(){ setTimeout(sv347InjectFecha,0); });
 
-  function sv347EmpleadoSeleccionado(key){
-    var chk = document.querySelector('.agu-check-322[data-key="' + String(key || '').replace(/"/g,'\\"') + '"]');
-    return !chk || chk.checked;
-  }
+
   async function sv347HaySacRegistrado(empleados, semKey, semLbl){
     var empKeys = new Set((empleados||[]).map(function(e){ return String(e.fbKey||''); }));
     var gastos = sv347GastosExtendidos();

@@ -72,7 +72,7 @@ test('cotizar online sincroniza Flytec con la URL general nueva antes de armar l
 
 test('cotizacion Flytec conserva el precio original nuevo y no el USD anterior',()=>{
   const source=readActiveApp().source;
-  const nombres=['normalizarUrlComparacionProveedor','urlsProveedorEquivalentes','parsePrecioProveedorARS','alicuotaIvaProveedorProducto','factorIvaProveedorProducto','completarReferenciaProveedorProducto','precioExteriorProductoHTML','origenProveedorProducto'];
+  const nombres=['normalizarUrlComparacionProveedor','urlsProveedorEquivalentes','parsePrecioProveedorARS','alicuotaIvaProveedorProducto','factorIvaProveedorProducto','completarReferenciaProveedorProducto','valorPublicadoUsdProveedor','precioPublicadoUsdProveedorHTML','origenProveedorProducto'];
   const c={
     URL,
     window:{TIPO_CAMBIO_CONFIG:{oficial:1530,dolarConversion:'oficial'}},
@@ -100,7 +100,7 @@ test('cotizacion Flytec conserva el precio original nuevo y no el USD anterior',
     conversion:{arsPorUsd:1530,factor:1530}
   },'', 'flytec_precio_dinamico');
   assert.equal(actualizado.precioOriginal,32);
-  assert.match(c.precioExteriorProductoHTML(actualizado),/USD 32,00/);
+  assert.match(c.precioPublicadoUsdProveedorHTML(actualizado),/USD 32,00/);
 
   const sinConversion=c.completarReferenciaProveedorProducto({
     proveedorKey:'fly',

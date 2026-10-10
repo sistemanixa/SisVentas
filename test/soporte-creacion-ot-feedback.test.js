@@ -5,7 +5,7 @@ const app = require('./helpers/active-app').readActiveApp().source;
 
 assert(app.includes('function spEmpleadoEsTecnico(empleado)'), 'Debe existir una única regla para reconocer técnicos');
 assert(app.includes("return categoria.includes('TECNICO')"), 'La asignación debe respetar la categoría/cargo técnico');
-assert.strictEqual((app.match(/filter\(spEmpleadoEsTecnico\)/g) || []).length, 2, 'Los dos caminos de reclamos deben filtrar sólo técnicos');
+assert.strictEqual((app.match(/filter\(spEmpleadoEsTecnico\)/g) || []).length, 1, 'El circuito vigente de reclamos debe filtrar sólo técnicos');
 assert(app.includes("spMostrarProcesoCreacionOT('Preparando la venta vinculada…')"), 'Debe mostrar progreso inmediatamente después de elegir técnico');
 assert(app.includes("procesoCreacionOT.actualizar('Creando la orden de trabajo…')"), 'Debe informar la creación real de la OT');
 assert(app.includes("procesoCreacionOT.actualizar('Vinculando la OT con el reclamo…')"), 'Debe informar la vinculación final');

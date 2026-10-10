@@ -885,32 +885,11 @@
     Object.keys(widths).forEach(function (key) { applyColumnWidth(table, parseInt(key, 10), widths[key]); });
   }
 
-  function clearColumnWidth(table, index) {
-    var physicalIndex = physicalIndexForVisibleIndex(table, index);
-    var colgroup = table.querySelector('colgroup.sv-resizable-cols');
-    if (colgroup && colgroup.children[physicalIndex]) colgroup.children[physicalIndex].style.width = '';
-    columnCells(table, index).forEach(function (cell) {
-      cell.style.width = '';
-      cell.style.maxWidth = '';
-      cell.style.minWidth = MIN_WIDTH + 'px';
-    });
-    updateOverflowTitles(table);
-  }
 
-  function setColumnWidth(table, index, width) {
-    var safeWidth = applyColumnWidth(table, index, width);
-    var widths = loadWidths(table);
-    widths[index] = safeWidth;
-    saveWidths(table, widths);
-  }
 
-  function resetColumn(table, index) {
-    var widths = loadWidths(table);
-    delete widths[index];
-    saveWidths(table, widths);
-    var headers = tableHeaders(table);
-    applyColumnWidth(table, index, defaultWidthForHeader(headers[index]));
-  }
+
+
+
 
   function applySavedWidths(table) {
     var headers = tableHeaders(table);
@@ -1729,20 +1708,7 @@
     });
   }
 
-  function initMutationTables(mutations) {
-    var active = document.querySelector('.page.active');
-    Array.from(mutations || []).forEach(function (mutation) {
-      var target = mutation.target;
-      var targetTable = target && target.nodeType === 1 && target.closest ? target.closest('table') : null;
-      if (targetTable && (!active || active.contains(targetTable))) initTable(targetTable);
-      Array.from(mutation.addedNodes || []).forEach(function (node) {
-        if (!node || node.nodeType !== 1) return;
-        if (active && node !== active && !active.contains(node)) return;
-        if (node.matches && node.matches('table')) initTable(node);
-        if (node.querySelectorAll) node.querySelectorAll('table').forEach(initTable);
-      });
-    });
-  }
+
 
   ready(function () {
     cargarPerfilesGlobales();

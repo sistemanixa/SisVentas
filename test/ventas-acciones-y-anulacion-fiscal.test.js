@@ -20,7 +20,7 @@ if (app.includes("boton('Ver detalle', 'ti-eye', \"verVenta(")) throw new Error(
 });
 if (!index.includes('<tbody id="ventas-tbody"></tbody>')) throw new Error('No se encontró la tabla de ventas');
 
-const anulacion = bloque('async function anularVenta', 'function toggleMenuPpto');
+const anulacion = require('./helpers/app-functions.cjs').functionSource('anularVenta');
 if (!anulacion.includes('tieneFacturaFiscal && !notaCreditoActiva')) throw new Error('Una factura vigente debe bloquear la anulación sin NC');
 if (!anulacion.includes('documentoAnulacion')) throw new Error('La NC debe quedar registrada como documento de respaldo');
 if (!anulacion.includes('audit: auditAnulacion')) throw new Error('La anulación debe quedar auditada');

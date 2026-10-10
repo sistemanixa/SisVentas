@@ -1,17 +1,7 @@
 (function(){
   'use strict';
-  function rolActual309(){
-    var r = String(window.currentRole || window.currentUserRole || '').toLowerCase().trim();
-    var badge = document.getElementById('role-badge-el');
-    var side  = document.getElementById('s-urole-el');
-    var txt = [r, badge ? badge.textContent : '', side ? side.textContent : ''].join(' ').toLowerCase();
-    if (/admin|administrador/.test(txt)) return 'admin';
-    if (/administrativo/.test(txt)) return 'administrativo';
-    if (/tecnic/.test(txt)) return 'tecnico';
-    if (/vendedor/.test(txt)) return 'vendedor';
-    return r;
-  }
-  function esAdmin309(){ return rolActual309() === 'admin'; }
+
+
   function setDisplay309(el, visible, displayValue){
     if (!el) return;
     el.style.display = visible ? (displayValue || '') : 'none';

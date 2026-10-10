@@ -1772,19 +1772,9 @@
     target.innerHTML = state.manualItems.length ? '<table><thead><tr><th>Material</th><th class="tr">Cantidad</th><th class="tr">Costo unit.</th><th></th></tr></thead><tbody>' + state.manualItems.map(function (item, index) { return '<tr><td><strong>' + esc(item.codigo) + '</strong> · ' + esc(item.descripcion) + '</td><td class="tr"><input class="search-input oc-manual-qty" data-index="' + index + '" type="number" min="1" value="' + item.cantidadOrdenada + '" style="width:75px;text-align:right"></td><td class="tr"><input class="search-input oc-manual-cost" data-index="' + index + '" type="number" min="0" step="0.01" value="' + item.costoUnitario + '" style="width:115px;text-align:right"></td><td><button class="btn btn-sm btn-icon" onclick="ocQuitarItemManual(' + index + ')"><i class="ti ti-trash"></i></button></td></tr>'; }).join('') + '</tbody></table>' : '<div style="padding:24px;text-align:center;color:var(--text3)">Agregá los materiales que necesitás comprar.</div>';
   }
 
-  function addManualItem() {
-    var select = document.getElementById('oc-manual-product');
-    var product = productList().find(function (p) { return String(p.fbKey || p.codigo) === String(select && select.value); });
-    if (!product) return;
-    window.advertirStockProveedorFavorito?.(product);
-    var providerSelect = document.getElementById('oc-manual-provider');
-    var providerKey = providerSelect ? providerSelect.value : '';
-    var candidate = providersFor(product).find(function (p) { return String(p.proveedorKey || p.nombre) === String(providerKey); }) || null;
-    state.manualItems.push({ productoKey: product.fbKey || '', codigo: product.codigo || '', descripcion: product.nombre || '', unidad: product.unidad || 'Unidad', cantidadOrdenada: 1, cantidadRecibida: 0, costoUnitario: candidate ? candidate.costo : 0 });
-    renderManualItems();
-  }
 
-  function removeManualItem(index) { state.manualItems.splice(index, 1); renderManualItems(); }
+
+
 
   function saveManualOrder() {
     var providerSelect = document.getElementById('oc-manual-provider');

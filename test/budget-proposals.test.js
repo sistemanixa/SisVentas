@@ -1,8 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+function runModule(code,c){c.document=Object.assign({addEventListener(){}},c.document);return vm.runInNewContext(code,c);}
 const integration=require('../js/v3/budget-integration');
 const budget=require('../js/v3/budget-read-model');
-const context={window:{},setInterval(){}};
-vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8'),context);
+const context={window:{},document:{addEventListener(){}},setInterval(){}};
+runModule(fs.readFileSync('js/modules/budget-proposals.js','utf8'),context);
 const {combine,scenario}=context.window.PropuestasComerciales;
 const plain=v=>JSON.parse(JSON.stringify(v));
 const source=require('./helpers/active-app').readActiveApp().source;
@@ -10,13 +11,13 @@ function extract(name,next){return source.slice(source.indexOf('function '+name+
 test('costos de propuesta sobreviven lectura, edición, guardado y conversión a venta',()=>{
  const row={dataset:{costoPropuesta:JSON.stringify({cod:'A',costoUnitarioCompra:66,origenCompra:'Paraguay',porcentajeVentaCompra:30})},querySelector(sel){return sel.includes('prod-sel-cod')?{textContent:'A'}:sel.includes('desc')?{textContent:'Cámara'}:sel.includes('qty')?{value:2}:sel.includes('price')?{value:'85.8',dataset:{}}:sel.includes('disc')?{value:'10'}:null;}};
  const c={document:{querySelectorAll:()=>[row]},_redondearPrecioActual:budget.roundMoney,obtenerProductoPorCodigoVenta:()=>null};
- vm.runInNewContext(extract('getPpItems','stockBadgeHTML'),c);
+ runModule(extract('getPpItems','stockBadgeHTML'),c);
  const items=c.getPpItems();assert.equal(items[0].costoUnitarioCompra,66);assert.equal(items[0].origenCompra,'Paraguay');
  const record=integration.fields({items,descuentoGeneral:5,conIva:true});const sale=integration.toSale(record);assert.equal(sale.items[0].costoUnitarioCompra,66);
  row.dataset.costoPropuesta=JSON.stringify({cod:'OTHER',costoUnitarioCompra:66});assert.equal(c.getPpItems()[0].costoUnitarioCompra,undefined);
 });
 test('Flytec usa cotización vigente y diferencia contra el menor costo suministrado',()=>{
- const c={window:{TIPO_CAMBIO_CONFIG:{oficial:1530}},costoRealProveedorProducto:p=>p.precio,URL};require('./helpers/app-functions.cjs').load(c,['costoEnvioProveedorProducto']);vm.runInNewContext(extract('costoExteriorVigenteARS','precioVentaDesdeCostoUnitarioProducto'),c);
+ const c={window:{TIPO_CAMBIO_CONFIG:{oficial:1530}},costoRealProveedorProducto:p=>p.precio,URL};require('./helpers/app-functions.cjs').load(c,['costoEnvioProveedorProducto']);runModule(extract('costoExteriorVigenteARS','precioVentaDesdeCostoUnitarioProducto'),c);
  const html=c.mejoraCostoExteriorHTML(130050,120601.69,{precioOriginal:59,monedaOriginal:'USD',disponibilidadProveedor:'disponible'});
  assert.ok(html.includes('30.331,69'));assert.ok(html.includes('25.2%'));assert.ok(html.includes('menor costo local'));
 });
@@ -51,18 +52,18 @@ test('selección incluye mano de obra y sin Paraguay sin recalcular sus valores'
 });
 test('sin permisos ninguna acción abre ni crea una propuesta',()=>{
  const denied={window:{tienePermiso:()=>false},tienePermiso:()=>false,setInterval(){},notify(){},document:{createElement(){throw Error('No debe abrir');}}};
- vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8'),denied);
+ runModule(fs.readFileSync('js/modules/budget-proposals.js','utf8'),denied);
  denied.window.crearPropuestaExterior({});denied.window.combinarPresupuestos();
 });
 test('consulta no bloquea navegación ni edición, evita solapamiento y libera tras fallo',async()=>{
  let resolve,calls=0;const listeners=[];const c={window:{cotizarPreciosProveedores:()=>{calls++;return new Promise(r=>resolve=r);},notify(){},addEventListener:n=>listeners.push(n)},document:{getElementById:()=>null}};
- vm.runInNewContext(fs.readFileSync('js/modules/product-query-guard.js','utf8'),c);
+ runModule(fs.readFileSync('js/modules/product-query-guard.js','utf8'),c);
  const p=c.window.cotizarPreciosProveedores();assert.equal(c.window.svBloquearSalidaCotizacion(),false);await c.window.cotizarPreciosProveedores();assert.equal(calls,1);assert.deepEqual(listeners,['beforeunload']);resolve();await p;assert.equal(c.window._svConsultaProductoEnCurso,false);
 });
 test('preparación crea copia ARS con referencia, descuento y título, sin persistir original',()=>{
  const nodes={'pp-titulo-solucion':{value:''},obs:{value:''}};let copied,loaded,calculated=0;const events=[];
  const c={window:{tienePermiso:()=>true,svDrafts:{flush(){events.push('flush');},begin(){events.push('begin');}}},tienePermiso:()=>true,setInterval(){},notify(){},_svResolverClienteRegistro:()=>({fbKey:'client'}),_cargarDuplicadoPresupuesto:(r)=>copied=structuredClone(r),pptoCargarItemsEnEditor:r=>loaded=r,document:{getElementById:id=>nodes[id],querySelector:()=>nodes.obs},calcPpTotales:()=>calculated++};c.svDrafts=c.window.svDrafts;
- vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8').replace(/window\.PropuestasComerciales=\{[^;]+\};/,'window.PropuestasComerciales={combine:combine,scenario:scenario,origenExterior:origenExterior,prepare:prepare};'),c);
+ runModule(fs.readFileSync('js/modules/budget-proposals.js','utf8').replace(/window\.PropuestasComerciales=\{[^;]+\};/,'window.PropuestasComerciales={combine:combine,scenario:scenario,origenExterior:origenExterior,prepare:prepare};'),c);
  const original={id:'PP-1',moneda:'USD',descuento:10,items:[{qty:1,punit:10}]};const before=JSON.stringify(original);
  c.window.PropuestasComerciales.prepare(original,[{cod:'A',qty:1,punit:100,costoUnitarioCompra:70}],['PP-1','PP-2'],5,'Unificado');
  assert.equal(copied.moneda,'ARS');assert.equal(copied.descuentoGeneral,5);assert.equal(loaded.items[0].costoUnitarioCompra,70);assert.equal(nodes['pp-titulo-solucion'].value,'Unificado');assert.ok(nodes.obs.value.includes('PP-1, PP-2'));assert.equal(JSON.stringify(original),before);assert.equal(calculated,1);assert.deepEqual(events,['flush','begin','flush']);
@@ -74,7 +75,7 @@ test('propuesta desde editor conserva consumidor final y los ítems sin guardar 
   _svResolverClienteRegistro:()=>null,_cargarDuplicadoPresupuesto:r=>{copied=structuredClone(r);nodes['pp-cli'].value='';},
   pptoCargarItemsEnEditor:r=>loaded=r,pptoPersistirActualizar:()=>writes++,
   document:{getElementById:id=>nodes[id],querySelector:()=>nodes.obs},calcPpTotales(){}};
- vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8').replace(/window\.PropuestasComerciales=\{[^;]+\};/,'window.PropuestasComerciales={prepare:prepare};'),c);
+ runModule(fs.readFileSync('js/modules/budget-proposals.js','utf8').replace(/window\.PropuestasComerciales=\{[^;]+\};/,'window.PropuestasComerciales={prepare:prepare};'),c);
  const source={id:'PP-1',cliente:'CONSUMIDOR FINAL',items:[{cod:'A',qty:1,punit:100}],descuentoGeneral:5};
  const next=[{cod:'A',qty:1,punit:90,costoUnitarioCompra:60,origenCompra:'Paraguay'}];
  c.window.PropuestasComerciales.prepare(source,next,['PP-1'],5,'Compra Paraguay');
@@ -86,7 +87,7 @@ test('propuesta desde editor conserva consumidor final y los ítems sin guardar 
 });
 test('combinar limita al mismo cliente y presupuestos vigentes',()=>{
  const c={window:{},setInterval(){},_svResolverClienteRegistro:r=>r.clientResolved?{fbKey:r.clientResolved}:null,pptoEstaVencidoParaActualizar:p=>p.vence==='2020-01-01'};
- vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8').replace(/window\.PropuestasComerciales=\{[^;]+\};/,'window.PropuestasComerciales={combine:combine,scenario:scenario,origenExterior:origenExterior,combinable:combinable};'),c);
+ runModule(fs.readFileSync('js/modules/budget-proposals.js','utf8').replace(/window\.PropuestasComerciales=\{[^;]+\};/,'window.PropuestasComerciales={combine:combine,scenario:scenario,origenExterior:origenExterior,combinable:combinable};'),c);
  const fn=c.window.PropuestasComerciales.combinable,source={id:'PP-1',clientResolved:'A'};
  assert.equal(fn({id:'PP-2',clientResolved:'A',estado:'borrador'},source),true);
  assert.equal(fn({id:'PP-2',clientResolved:'B'},source),false);
@@ -123,7 +124,7 @@ test('actualiza el presupuesto original sin crear copia y conserva los demás re
   pptoV3Invocar:(method,args)=>{assert.equal(method,'fields');return integration.fields(args[0]);},
   pptoPersistirActualizar:async(key,changes)=>{updateCalls++;savedKey=key;savedFields=changes;},
   verPpto:key=>opened=key,notify(){},currentUser:'Admin'};
- vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8'),c);
+ runModule(fs.readFileSync('js/modules/budget-proposals.js','utf8'),c);
  await c.window.PropuestasComerciales.guardarCotizacionesEnPresupuesto(original,items,0);
  assert.equal(updateCalls,1);assert.equal(savedKey,'budget-key');assert.equal(opened,'budget-key');
  assert.equal(savedFields.items[0].punit,130);assert.equal(savedFields.items[0].costoUnitarioCompra,100);
@@ -140,7 +141,7 @@ test('guarda la mejora aunque el puente V3 de presupuestos esté inactivo',async
  const c={window:{SisVentas:{V3Budget:integration}},setInterval(){},tienePermiso:()=>true,
   buscarPptoPorRef:()=>original,pptoV3Invocar:(_method,_args,fallback)=>fallback(),
   pptoPersistirActualizar:async(key,changes)=>{saved={key,changes};},verPpto(){},notify(){}};
- vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8'),c);
+ runModule(fs.readFileSync('js/modules/budget-proposals.js','utf8'),c);
  await c.window.PropuestasComerciales.guardarCotizacionesEnPresupuesto(original,next,0);
  assert.equal(saved.key,'key-97');assert.equal(saved.changes.items[0].punit,52);
  assert.equal(saved.changes.items[1].punit,50);assert.equal(saved.changes.total,186.34);
@@ -155,7 +156,7 @@ test('la mejora directa exige una cotización vigente y más barata',()=>{
  const c={window:{},setInterval(){},esProductoManoDeObra:()=>false,
   origenProveedorProducto:pv=>({etiqueta:pv.nombre}),estadoVigenciaPrecioProveedor:(_p,pv)=>({vigente:pv.vigente}),
   costoExteriorVigenteARS:pv=>pv.costo,metrosPorPresentacionProducto:()=>1};
- vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8'),c);
+ runModule(fs.readFileSync('js/modules/budget-proposals.js','utf8'),c);
  const producto={proveedores:[
   {nombre:'FLYTEC PARAGUAY',costo:120,vigente:true,disponibilidadProveedor:'no_verificado'},
   {nombre:'FLYTEC PARAGUAY',costo:70,vigente:false,disponibilidadProveedor:'disponible'},
@@ -177,7 +178,7 @@ test('mejorar Paraguay sólo acepta un presupuesto existente originado en la com
  let notice='',writes=0;
  const c={window:{},setInterval(){},tienePermiso:()=>true,buscarPptoPorRef:()=>normal,
   notify:m=>notice=m,pptoPersistirActualizar:async()=>writes++,document:{createElement(){throw Error('No debe abrir el diálogo');}}};
- vm.runInNewContext(fs.readFileSync('js/modules/budget-proposals.js','utf8'),c);
+ runModule(fs.readFileSync('js/modules/budget-proposals.js','utf8'),c);
  c.window.crearPropuestaExterior(normal,0,true,true);
  assert.match(notice,/comparativo exterior/);
  await assert.rejects(c.window.PropuestasComerciales.guardarCotizacionesEnPresupuesto(normal,normal.items,0),/comparativo exterior/);

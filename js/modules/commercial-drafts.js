@@ -101,8 +101,9 @@
     delete sessions[kind]; badges();
   }
   function badges() {
-    var n = records().length;
-    document.querySelectorAll('[data-draft-count]').forEach(function (el) { var kind = el.closest('#vtab-borradores') ? 'venta' : 'presupuesto'; var count = records().filter(function(d){return d.kind === kind;}).length; if(el.textContent!==String(count))el.textContent=count;if(el.hidden!==!count)el.hidden=!count; });
+    var counts = {venta:0,presupuesto:0};
+    records().forEach(function(d){ counts[d.kind]++; });
+    document.querySelectorAll('[data-draft-count]').forEach(function (el) { var kind = el.closest('#vtab-borradores') ? 'venta' : 'presupuesto'; var count = counts[kind]; if(el.textContent!==String(count))el.textContent=count;if(el.hidden!==!count)el.hidden=!count; });
     if (window._svDraftGrid) renderGrid();
     if (window._svSalesDraftGrid) renderGrid('venta');
   }
@@ -220,6 +221,7 @@
   window.addEventListener('focus', badges);
   setInterval(function () {
     if (owner !== user()) { owner = user(); sessions = {}; pending = {}; cloudReady=false; if (unsubscribe) unsubscribe(); cloudOwner=''; }
-    connect(); installButtons(); flush(); badges(); sendPending();
+    connect(); flush(); sendPending();
+    if(!document.hidden){ installButtons(); badges(); }
   }, 1000);
 })();
