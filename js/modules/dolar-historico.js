@@ -5,7 +5,7 @@
   var INTERVALO_MS = 60 * 60 * 1000;
   var timer = null;
   var cargando = false;
-  var historial = [], pagina = 0, PAGE_SIZE = 50;
+  var historial = [], pagina = 0, pageSize = 25;
 
   function sesionDisponible(){
     return !!(window.fbAuth && window.fbAuth.currentUser && !document.body.classList.contains('sv-sesion-cerrada'));
@@ -94,21 +94,23 @@
     var tbody = document.getElementById('dolar-historico-tbody');
     if(!tbody) return;
     historial = rows || [];
-    pagina = Math.min(pagina, Math.max(0, Math.ceil(historial.length / PAGE_SIZE)-1));
+    pagina = Math.min(pagina, Math.max(0, Math.ceil(historial.length / pageSize)-1));
     renderResumen(historial);
     var nav = document.getElementById('dh-history-pages');
     if(!nav){
       nav = document.createElement('div'); nav.id='dh-history-pages';
       nav.style.cssText='display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:12px 0';
-      nav.innerHTML='<button type="button" class="btn btn-sm" data-newer>Más recientes</button><span data-history-range aria-live="polite" style="font-size:12px"></span><button type="button" class="btn btn-sm" data-older>Más antiguos</button>';
+      nav.innerHTML='<label style="display:flex;align-items:center;gap:8px;font-size:12px">Registros por página <select data-page-size aria-label="Registros por página" class="search-input" style="width:auto;min-height:36px"><option value="10">10</option><option value="25" selected>25</option><option value="50">50</option></select></label><button type="button" class="btn btn-sm" data-newer>Más recientes</button><span data-history-range aria-live="polite" style="font-size:12px"></span><button type="button" class="btn btn-sm" data-older>Más antiguos</button>';
       tbody.closest('table').parentElement.after(nav);
+      nav.querySelector('[data-page-size]').onchange=function(e){var size=Number(e.target.value);pageSize=[10,25,50].includes(size)?size:25;pagina=0;renderTabla(historial);};
       nav.querySelector('[data-newer]').onclick=function(){pagina=Math.max(0,pagina-1);renderTabla(historial);};
       nav.querySelector('[data-older]').onclick=function(){pagina++;renderTabla(historial);};
     }
+    nav.querySelector('[data-page-size]').value=String(pageSize);
     nav.querySelector('[data-newer]').disabled=pagina===0;
-    nav.querySelector('[data-older]').disabled=(pagina+1)*PAGE_SIZE>=historial.length;
-    nav.querySelector('[data-history-range]').textContent=historial.length ? 'Registros '+(pagina*PAGE_SIZE+1)+'–'+Math.min((pagina+1)*PAGE_SIZE,historial.length)+' de '+historial.length+' · Histórico desde '+historial[historial.length-1].fecha.split('-').reverse().join('/') : 'Sin registros';
-    rows = historial.slice(pagina*PAGE_SIZE,(pagina+1)*PAGE_SIZE);
+    nav.querySelector('[data-older]').disabled=(pagina+1)*pageSize>=historial.length;
+    nav.querySelector('[data-history-range]').textContent=historial.length ? 'Registros '+(pagina*pageSize+1)+'–'+Math.min((pagina+1)*pageSize,historial.length)+' de '+historial.length+' · Histórico desde '+historial[historial.length-1].fecha.split('-').reverse().join('/') : 'Sin registros';
+    rows = historial.slice(pagina*pageSize,(pagina+1)*pageSize);
     if(!rows.length){
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:18px">Sin histórico cargado</td></tr>';
       return;
