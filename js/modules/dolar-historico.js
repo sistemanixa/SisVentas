@@ -5,6 +5,7 @@
   var INTERVALO_MS = 60 * 60 * 1000;
   var timer = null;
   var cargando = false;
+  var historial = [], pagina = 0, PAGE_SIZE = 50;
 
   function sesionDisponible(){
     return !!(window.fbAuth && window.fbAuth.currentUser && !document.body.classList.contains('sv-sesion-cerrada'));
@@ -92,8 +93,22 @@
   function renderTabla(rows){
     var tbody = document.getElementById('dolar-historico-tbody');
     if(!tbody) return;
-    rows = (rows || []).slice(0, 72);
-    renderResumen(rows);
+    historial = rows || [];
+    pagina = Math.min(pagina, Math.max(0, Math.ceil(historial.length / PAGE_SIZE)-1));
+    renderResumen(historial);
+    var nav = document.getElementById('dh-history-pages');
+    if(!nav){
+      nav = document.createElement('div'); nav.id='dh-history-pages';
+      nav.style.cssText='display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:12px 0';
+      nav.innerHTML='<button type="button" class="btn btn-sm" data-newer>Más recientes</button><span data-history-range aria-live="polite" style="font-size:12px"></span><button type="button" class="btn btn-sm" data-older>Más antiguos</button>';
+      tbody.closest('table').parentElement.after(nav);
+      nav.querySelector('[data-newer]').onclick=function(){pagina=Math.max(0,pagina-1);renderTabla(historial);};
+      nav.querySelector('[data-older]').onclick=function(){pagina++;renderTabla(historial);};
+    }
+    nav.querySelector('[data-newer]').disabled=pagina===0;
+    nav.querySelector('[data-older]').disabled=(pagina+1)*PAGE_SIZE>=historial.length;
+    nav.querySelector('[data-history-range]').textContent=historial.length ? 'Registros '+(pagina*PAGE_SIZE+1)+'–'+Math.min((pagina+1)*PAGE_SIZE,historial.length)+' de '+historial.length+' · Histórico desde '+historial[historial.length-1].fecha.split('-').reverse().join('/') : 'Sin registros';
+    rows = historial.slice(pagina*PAGE_SIZE,(pagina+1)*PAGE_SIZE);
     if(!rows.length){
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:18px">Sin histórico cargado</td></tr>';
       return;
@@ -121,6 +136,7 @@
       estado('Cargando histórico...');
       var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/dolarHistorico'));
       var rows = flatten(snap.val() || {});
+      pagina = 0;
       renderTabla(rows);
       if(window.SisVentasDolarMensual) window.SisVentasDolarMensual.update(rows);
       estado(rows.length ? 'Último punto: ' + (rows[0].fecha || '') + ' ' + (rows[0].hora || '') : 'Sin registros');
