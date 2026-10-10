@@ -612,7 +612,7 @@
       panel.querySelector('[data-list-card]').prepend(ownerNote);
     }
     const promotionsView=document.createElement('section');promotionsView.hidden=true;panel.querySelector('.content').append(promotionsView);
-    if(role==='admin'){const nav=document.createElement('button');nav.className='nav-item';nav.dataset.nav='promotions';nav.textContent='Configuración de ofertas';panel.querySelector('.s-nav').append(nav);}
+    if(role==='admin'){const nav=document.createElement('button');nav.className='nav-item';nav.dataset.nav='promotions';nav.textContent='Configuración';panel.querySelector('.s-nav').append(nav);}
     stops.push(()=>root.SVCatalogPromotionsConfig?.reset());
     const requestsView=document.createElement('section');requestsView.hidden=true;requestsView.setAttribute('aria-label','Solicitudes de compra');panel.querySelector('.content').appendChild(requestsView);
     const requestsButton=panel.querySelector('[data-nav="requests"]');requestsButton.hidden=!admin&&role!=='distribuidora';
@@ -677,7 +677,7 @@
     panel.querySelector('[data-return-list]').onclick=()=>showView(true);
     panel.querySelector('[data-confirm-products]').onclick=async()=>{if(busy)return;showView(true);await panel.querySelector('[data-save]').onclick();};
     panel.querySelectorAll('[data-nav]').forEach(button => button.onclick = () => {
-      if(button.dataset.nav==='promotions'){requestsView.hidden=true;root.SVCatalogRequests?.reset();panel.querySelector('[data-products-card]').hidden=true;panel.querySelector('[data-list-card]').hidden=true;panel.querySelector('.metrics').hidden=true;promotionsView.hidden=false;panel.querySelector('.page-title').textContent='Configuración de ofertas';panel.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b===button));root.SVCatalogPromotionsConfig.mount(promotionsView);return;}
+      if(button.dataset.nav==='promotions'){requestsView.hidden=true;root.SVCatalogRequests?.reset();panel.querySelector('[data-products-card]').hidden=true;panel.querySelector('[data-list-card]').hidden=true;panel.querySelector('.metrics').hidden=true;promotionsView.hidden=false;panel.querySelector('.page-title').textContent='Configuración';panel.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b===button));root.SVCatalogPromotionsConfig.mount(promotionsView);return;}
       if(button.dataset.nav==='requests'){showRequests();return;}
       if(button.dataset.nav!=='lists')openCart();
       showView(button.dataset.nav === 'lists');
