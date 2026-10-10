@@ -6,6 +6,7 @@ test('usa la identidad del UID desde el directorio aunque el nombre visible sea 
   _chatFueLeido:(m,name)=>!!m.leido?.[name],chatActualizarBadges(){},chatAplicarAccesos(){},
   chatDetectarMensajesNuevos:()=>[],chatEstaLeyendo:()=>false,setInterval:fn=>{tick=fn;},document:{addEventListener:(name,fn)=>{events[name]=fn;}}};
  c.window=c;vm.createContext(c);vm.runInContext(fs.readFileSync('js/modules/chat-access.js','utf8'),c);
+ tick=()=>c.chatIniciarDirectosSeguros();
  events['sisventas:session-ready']({detail:{uid:'u1'}});tick();listeners.sv_chat_directorio({val:()=>({u1:{nombre:'Usuario real'},u2:{nombre:'Otro'}})});
  listeners['sv_chat/directo_u1_u2']({val:()=>({a:{autor:'Usuario real'},b:{autor:'Otro',leido:{'Usuario real':true}},c:{autor:'Otro'}})});
  assert.equal(counts.directo_u1_u2,1);
@@ -22,6 +23,7 @@ test('al recargar no cuenta antes de resolver la sesión y conserva los pendient
   chatDetectarMensajesNuevos:()=>[],chatEstaLeyendo:()=>false,setInterval:fn=>{tick=fn;},
   document:{addEventListener:(name,fn)=>{events[name]=fn;}}};
  c.window=c;vm.createContext(c);vm.runInContext(fs.readFileSync('js/modules/chat-access.js','utf8'),c);
+ tick=()=>c.chatIniciarDirectosSeguros();
  tick();tick();assert.equal(Object.keys(listeners).length,0,'el UID solo no alcanza');
  c.currentUser='Usuario real';tick();assert.equal(Object.keys(listeners).length,0);
  events['sisventas:session-ready']({detail:{uid:'u1'}});
@@ -53,4 +55,11 @@ test('grupos esperan identidad, no duplican listeners y descartan callbacks de s
  assert.deepEqual(Object.keys((await c.chatDirectosSnapshot()).val()),[],'los grupos no aparecen como conversaciones directas');
  events['sisventas:session-ended']();assert.equal(active,0);assert.deepEqual(counts,{});
  start();old({val:()=>({a:{autor:'Otro'}})});assert.deepEqual(counts,{},'mismo UID, otra sesión: callback viejo ignorado');
+});
+
+test('chat sin sondeo periódico: los eventos de sesión crean y cancelan conexiones',()=>{
+ const events={};let subscriptions=0,stops=0;
+ const c={currentUserUid:'u1',currentUser:'Real',_chatNoLeidos:{},fbDB:{},fbRef:(_,p)=>p,fbOnValue:()=>{subscriptions++;return()=>stops++;},chatActualizarBadges(){},setInterval(){throw Error('No debe iniciar polling');},document:{addEventListener:(n,f)=>events[n]=f}};
+ c.window=c;vm.createContext(c);vm.runInContext(fs.readFileSync('js/modules/chat-access.js','utf8'),c);assert.equal(subscriptions,0);
+ events['sisventas:chat-ready']({detail:{uid:'u1'}});assert.equal(subscriptions,2);events['sisventas:chat-ready']({detail:{uid:'u1'}});assert.equal(subscriptions,2);events['sisventas:session-ended']();assert.equal(stops,2);
 });

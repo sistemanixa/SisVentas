@@ -40,7 +40,7 @@ const SHELL = [
   './js/modules/push-notifications.js',
   './js/modules/offline-core.js',
   './js/modules/commercial-drafts.js',
-  './js/modules/chat-access.js?v=3.9.14',
+  './js/modules/chat-access.js?v=3.10.0',
   './js/modules/chat-presence.js?v=3.9.14',
   './js/modules/security-storage.js?v=3.9.26',
   './js/modules/catalog-cart-review.js',

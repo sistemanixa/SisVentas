@@ -218,3 +218,7 @@ El listener de pagos conserva el historial completo y la conciliación, pero del
 ### Arranque: cancelar trabajos de sesiones cerradas
 
 El planificador de tareas diferidas registra timers e idle callbacks y los cancela al recibir session-ended. Cada ejecución valida UID y generación de sesión; una tarea antigua tampoco se ejecuta si el mismo UID vuelve a entrar. Conserva demora mínima y fallback sin requestIdleCallback. Pruebas de cancelación en ambas etapas, cambio de UID y ejecución vigente. Se adaptó una aserción estructural del planificador al guard agregado. Suite general: 1.251 pruebas aprobadas.
+
+### Chat: inicio por eventos sin sondeo de sesión
+
+Se elimina el intervalo de un segundo de chat-access. La inicialización continúa en session-ready/chat-ready y al abrir el chat; los snapshots del directorio resuelven cambios de identidad y session-ended/chat-disabled cancelan conexiones. No se limitaron mensajes ni historial de no leídos. Se actualizaron pruebas para invocar explícitamente el inicio y se agregó la garantía de que no arranca un intervalo, con conexión única y limpieza al cerrar. Pasaron 41 pruebas seleccionadas de chat, identidad, navegación, presencia y adjuntos. No se ejecutó el caso opcional de reglas con emulador ni una sesión real de dos usuarios.

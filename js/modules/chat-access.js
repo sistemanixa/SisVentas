@@ -110,5 +110,6 @@
     changes['sv_chat_directorio/'+uid]={nombre:datos.nombre,usuarioKey:key,activo:datos.activo!==false};
     return window.fbUpdate(window.fbRef(window.fbDB),changes);
   };
-  setInterval(function(){if(!currentUserUid){owner='';window._chatRolServidor='';}else window.chatIniciarDirectosSeguros();},1000);
+  // Inicio por session-ready/chat-ready y apertura del chat; el directorio
+  // actualiza la identidad sin sondear la sesión cada segundo.
 })();
