@@ -1,0 +1,10 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const app=fs.readFileSync('js/app.v3.10.23.js','utf8'),start=app.indexOf('  var provCotizables = prodProveedoresActuales.map',app.indexOf('async function cotizarPreciosProveedores')),end=app.indexOf('  var proveedorManual',start),snippet=app.slice(start,end);
+function select(indice,url='https://www.comprasparaguai.com.br/termo-stanley__5541124/'){
+ const suppliers=[{nombre:'COMPRAS PARAGUAY',proveedorKey:'cp',precio:89030,url},{nombre:'MERCADO LIBRE',proveedorKey:'ml',precio:168000,url:'https://www.mercadolibre.com.ar/producto/p/MLA123'}],before=structuredClone(suppliers);
+ const maestros={cp:{nombre:'COMPRAS PARAGUAY',fbKey:'cp',web:'https://www.comprasparaguai.com.br/'},ml:{nombre:'MERCADO LIBRE',fbKey:'ml',web:'https://www.mercadolibre.com.ar/'}};
+ const c={URL,prodProveedoresActuales:suppliers,individual:Number.isInteger(indice),indice,document:{getElementById:()=>null},normalizarUrlProveedorProducto:u=>u,proveedorMaestro:n=>Object.values(maestros).find(p=>p.nombre===n),proveedorAutomaticoDeFila:()=>null,urlAutomaticaValida:()=>false,esProveedorReferenciaValor:()=>false};vm.runInNewContext(snippet,c);assert.deepEqual(suppliers,before);return JSON.parse(JSON.stringify(c.provCotizables));
+}
+test('Compras Paraguay público se actualiza solo por su índice sin conexión verificada',()=>{const result=select(0);assert.deepEqual(result.map(p=>p.proveedorKey),['cp']);assert.equal(result[0].idx,0);});
+test('actualización de ML y actualización conjunta conservan sus destinos',()=>{assert.deepEqual(select(1).map(p=>p.proveedorKey),['ml']);assert.deepEqual(select().map(p=>p.proveedorKey),['cp','ml']);});
+test('excepción pública no habilita homes, destinos ajenos, credenciales ni HTTP',()=>{for(const url of ['https://www.comprasparaguai.com.br/','https://evil.test/termo__5541124/','http://www.comprasparaguai.com.br/termo__5541124/','https://user:pass@www.comprasparaguai.com.br/termo__5541124/'])assert.equal(select(0,url).length,0);});

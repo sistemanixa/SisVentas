@@ -44,7 +44,7 @@ test('comparación exterior suma envío con dólar vigente', () => {
 
 test('envío no agrega IVA adicional y no afecta otros proveedores ni hosts similares', () => {
   assert.equal(ctx.completarReferenciaProveedorProducto({...base, precio:1000, sinIva:true}, '', 'consulta-url-exacta').costoRealArs, 11210);
-  for (const url of ['https://flytec.com.py/producto', 'https://comprasparaguai.com.br.ejemplo.com/producto']) {
+  for (const url of ['https://comprasparaguai.com.br.ejemplo.com/producto']) {
     assert.equal(ctx.completarReferenciaProveedorProducto({...base, url}, '', 'consulta-url-exacta').costoRealArs, 922365);
   }
   for (const costoEnvioArs of [-1, Infinity, NaN]) assert.equal(ctx.costoEnvioProveedorProducto({...base, costoEnvioArs}), 0);
@@ -54,3 +54,5 @@ test('envío argentino usa el mismo cálculo que la ficha brasileña',()=>{
  assert.equal(ctx.costoEnvioProveedorProducto(pv),10000);
  assert.equal(ctx.costoExteriorVigenteARS(pv),932365);
 });
+
+test('Flytec incluye envío al costo real y a la conversión vigente',()=>{const pv={...base,url:'https://www.flytec.com.py/produto/ezviz/8604'};assert.equal(ctx.costoEnvioProveedorProducto(pv),10000);assert.equal(ctx.costoExteriorVigenteARS(pv),932365);});

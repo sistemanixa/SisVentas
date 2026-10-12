@@ -6,6 +6,9 @@
   function esComprasParaguay(url) {
     try { return /^(?:www\.|mobile\.)?(?:comprasparaguai\.com\.br|comprasparaguay\.com\.ar)$/.test(new URL(url).hostname); } catch (_) { return false; }
   }
+  function admiteEnvioProducto(url) {
+    return esComprasParaguay(url) || (String((el('pf-categoria') || {}).value || '').trim().toUpperCase() === 'COMPRAS PARAGUAY' && !!url);
+  }
   async function consultarComprasParaguayDirecto(url, proveedor, signal) {
     var origen = new URL(url);
     function identidad(u) { var m=u.pathname.match(/^\/[^/]+?(_{1,2})(\d+)\/$/); return m ? m[1]+m[2] : ''; }
@@ -54,7 +57,7 @@
       el('pf-importar-panel').appendChild(panel);
     }
     var url = urlExacta(el('pf-cod-web').value);
-    var activa = esComprasParaguay(url);
+    var activa = admiteEnvioProducto(url);
     if (panel) panel.hidden = !activa;
     if (panel && panel.dataset.url !== url) {
       var fila = prodProveedoresActuales.find(function(p) { return urlExacta(p.url) === url; });
@@ -63,7 +66,7 @@
       sincronizarEnvioUSD();
       panel.dataset.url = url;
     }
-    if (activa && seleccionarCategoria) {
+    if (esComprasParaguay(url) && seleccionarCategoria) {
       var categoria = el('pf-categoria');
       var opcion = Array.from(categoria.options).find(function(o) { return o.value.trim().toUpperCase() === 'COMPRAS PARAGUAY'; });
       if (opcion) {
@@ -103,7 +106,7 @@
     if(moneda!=='USD')sincronizarEnvioUSD();
     var url = urlExacta(el('pf-cod-web').value);
     prodProveedoresActuales.forEach(function(p, i) {
-      if (esComprasParaguay(url) && urlExacta(p.url) === url) actualizarProveedorProducto(i, 'costoEnvioArs', valor);
+      if (admiteEnvioProducto(url) && urlExacta(p.url) === url) actualizarProveedorProducto(i, 'costoEnvioArs', valor);
     });
     renderTablaProveedoresProducto();
   };
@@ -266,7 +269,7 @@
         nombre: proveedor.nombre, proveedorKey: clave(proveedor), url: url,
         ...(datos.tiendaOrigen ? {tiendaOrigen:datos.tiendaOrigen,urlOferta:datos.urlOferta || url} : {}),
         precio: Number(datos.precioArs), sinIva: datos.sinIva === true,
-        ...(esComprasParaguay(url) ? { costoEnvioArs: Number(el('pf-envio-paraguay').value) || 0 } : {}),
+        ...(admiteEnvioProducto(url) ? { costoEnvioArs: Number(el('pf-envio-paraguay').value) || 0 } : {}),
         precioPublicadoOriginalArs: Number(datos.precioPublicadoArs || datos.precioArs),
         ...(datos.conversion ? {precioOriginal:datos.precioOriginal,monedaOriginal:datos.monedaOriginal,conversion:datos.conversion} : {}),
         descuentoProveedorPorcentaje: Number(datos.descuentoProveedorPorcentaje || 0),
