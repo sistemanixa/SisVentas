@@ -25,3 +25,5 @@ test('precio acordado se captura una vez para nuevos ítems; no migra histórico
  captureAgreedSale(a,{ventaARS:900000,iva:0},1200,true);assert.equal(a.precioVentaUnitarioUSD,500);
  assert.deepEqual(captureAgreedSale({}, {ventaARS:900000,iva:0},1000,false),{});
 });
+
+test('compra personal tiene ganancia cero sin modificar precio acordado ni costo real',()=>{const {itemProfit,listSavings}=require('../js/modules/paraguay-shopping-access');const actual={compraPersonal:true,precioUnitario:591,precioVentaUnitarioUSD:872.45,cantidad:1,estado:'comprado',moneda:'USD'};assert.equal(itemProfit(actual,1535).usd,0);assert.equal(actual.precioUnitario,591);assert.equal(actual.precioVentaUnitarioUSD,872.45);assert.equal(listSavings({productos:{a:1},comprasFinales:{a:actual}},{},1535).usd,0);assert.equal(itemProfit({...actual,compraPersonal:false},1535).usd,281.45);});

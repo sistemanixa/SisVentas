@@ -293,6 +293,9 @@
               },
               "$otro": {
                 ".validate": false
+              },
+              "compraPersonal": {
+                ".validate": "newData.isBoolean()"
               }
             }
           },
