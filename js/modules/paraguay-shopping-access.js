@@ -111,7 +111,7 @@
     if(actual.estado!=='comprado'||!(actual.cantidad>0)||!Number.isFinite(actual.precioUnitario)||actual.precioUnitario<0)return {reason:'purchase'};
     const cost=(actual.moneda||'USD')==='USD'?actual.precioUnitario:actual.moneda==='ARS'&&rate>0?actual.precioUnitario/rate:null;
     if(cost===null)return {reason:'currency'};
-    const unitUsd=Math.round((actual.precioVentaUnitarioUSD-cost)*100)/100;
+    const unitUsd=Math.round((actual.precioVentaUnitarioUSD-cost-(Number(actual.costoEnvioUnitarioUSD)||0))*100)/100;
     const usd=Math.round(unitUsd*actual.cantidad*100)/100;
     return {unitUsd,usd,ars:rate>0?Math.round(usd*rate*100)/100:null};
   }
@@ -128,6 +128,7 @@
   }
   function captureAgreedSale(actual,product,rate,isNew) {
     if(isNew&&actual.precioVentaUnitarioUSD==null){const price=saleAmounts(product,rate).usd;if(price>0)actual.precioVentaUnitarioUSD=price;}
+    if(actual.costoEnvioUnitarioUSD==null&&rate>0&&product?.proveedores?.length){const rows=product?.proveedores||[],provider=rows.find(pv=>actual.proveedor&&pv.nombre===actual.proveedor)||rows.find(pv=>root.proveedorProductoEsFavorito?.(pv,product))||rows[0];actual.costoEnvioUnitarioUSD=Math.round((Number(provider?.costoEnvioArs)||0)/rate*100)/100;}
     return actual;
   }
   const historyDate=value=>Number(value)>0?new Date(Number(value)).toLocaleDateString('es-AR'):'Sin fecha registrada';
@@ -144,7 +145,7 @@
   }).filter(Boolean)].map(row => row.map(csvCell).join(';')).join('\r\n');
   if (typeof module !== 'undefined') module.exports = {filterBalanceRows,eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection, subscribeExchangeRate, pdfComparisonText, listHistory, listSavings, itemProfit, captureAgreedSale};
   if (!root.document) return;
-  let detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', listBaseline = null, busy = false, generation = 0;
+  let adminListOptions=[], detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', listBaseline = null, busy = false, generation = 0;
   let cartDraft = {productos:{}, comprasFinales:{}, nombre:''};
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const amount = n => Number(n).toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
@@ -199,8 +200,8 @@
     context.labels.forEach(({node,html})=>{node.innerHTML=html;});
     context.host.remove();
     if(panel){panel.style.display=context.panelDisplay;panel.style.removeProperty('visibility');}
-    if(detailModal)detailModal.style.display='flex';
-    if(restore&&panel&&context.session===generation){renderProducts();if(!context.balance)showDetail(context.key);}
+    if(detailModal)detailModal.style.display=context.fromList?'none':'flex';
+    if(restore&&panel&&context.session===generation){renderProducts();if(!context.balance&&!context.fromList)showDetail(context.key);}
     return true;
   }
   function openProductSheet(key) {
@@ -212,8 +213,8 @@
     host.style.cssText='position:fixed;inset:0;z-index:9999;overflow:auto;background:var(--bg);color:var(--text);padding:20px;box-sizing:border-box';
     host.innerHTML='<style>#sv-exterior-product-sheet #pf-anterior,#sv-exterior-product-sheet #pf-siguiente{display:none!important}#sv-exterior-product-sheet>div{max-width:1400px;margin:auto}#sv-exterior-product-sheet .pf-editor-header{top:0} @media(max-width:600px){#sv-exterior-product-sheet{padding:12px!important}}</style>';
     const nodes=views.map(node=>{const marker=document.createComment('ficha exterior');node.before(marker);const style=node.getAttribute('style');host.appendChild(node);return {node,marker,style};});
-    const labels=Array.from(host.querySelectorAll('button[onclick="cerrarFormProducto()"],button[onclick="cerrarDetalleProducto()"]')).map(node=>({node,html:node.innerHTML}));labels.forEach(({node})=>{if(node.textContent.includes('Volver'))node.innerHTML='<i class="ti ti-arrow-left" aria-hidden="true"></i> '+(panel.querySelector('[data-nav="balance"]')?.classList.contains('active')?'Volver al balance':'Volver a Ofertas');});
-    const context={host,nodes,labels,key,session:generation,panelDisplay:panel.style.display,url:root.location.href,products:root.prodData,balance:panel.querySelector('[data-nav="balance"]')?.classList.contains('active')};productSheet=context;
+    const labels=Array.from(host.querySelectorAll('button[onclick="cerrarFormProducto()"],button[onclick="cerrarDetalleProducto()"]')).map(node=>({node,html:node.innerHTML}));labels.forEach(({node})=>{if(node.textContent.includes('Volver'))node.innerHTML='<i class="ti ti-arrow-left" aria-hidden="true"></i> '+(panel.querySelector('[data-nav="balance"]')?.classList.contains('active')?'Volver al balance':panel.querySelector('[data-nav="lists"]')?.classList.contains('active')?'Volver a la lista':'Volver a Ofertas');});
+    const context={host,nodes,labels,key,session:generation,panelDisplay:panel.style.display,url:root.location.href,products:root.prodData,fromList:panel.querySelector('[data-nav="lists"]')?.classList.contains('active'),balance:panel.querySelector('[data-nav="balance"]')?.classList.contains('active')};productSheet=context;
     root.prodData=[...Object.values(root.prodData||{}).filter(p=>String(p.fbKey)!==String(key)),{...products[key],fbKey:key}];
     const leave=()=>{if(views[1].style.display!=='none')root.cerrarFormProducto();else returnFromProduct();};
     context.back=e=>{e.stopImmediatePropagation();root.history.replaceState(root.history.state,'',context.url);leave();};
@@ -414,7 +415,7 @@
       saving.textContent=profit.personal?'Compra personal · '+paired(0,0):profit.reason==='sale'?'Falta precio de venta acordado':profit.reason==='purchase'?'Ganancia pendiente de compra':profit.reason?'Falta conversión de moneda':(profit.ars!==null?paired(profit.ars,profit.usd):'US$ '+amount(profit.usd));
       let costs=row.querySelector('[data-profit-costs]');if(!costs){costs=document.createElement('div');costs.dataset.profitCosts='';costs.style.cssText='font-size:14px;color:var(--text3);line-height:1.35;margin-top:3px';saving.after(costs);}
       const provider=(p.proveedores||[]).find(pv=>actual.proveedor&&pv.nombre===actual.proveedor)||(p.proveedores||[]).find(pv=>root.proveedorProductoEsFavorito?.(pv,p));
-      const shipping=Number(provider?.costoEnvioArs)||0,rate=exchangeRate(),reference=localPriceReference(p);
+      const rate=exchangeRate(),shipping=actual.costoEnvioUnitarioUSD!=null?Number(actual.costoEnvioUnitarioUSD)*rate:Number(provider?.costoEnvioArs)||0,reference=localPriceReference(p);
       costs.replaceChildren();for(const text of ['Envío: '+(shipping>0&&rate>0?paired(shipping,shipping/rate):shipping>0?'ARS $ '+amount(shipping):'Sin cargar'),'Local / ML: '+(reference!==null&&rate>0?paired(reference,reference/rate):reference!==null?'ARS $ '+amount(reference):'Sin referencia')]){const line=document.createElement('div');line.textContent=text;costs.appendChild(line);}
 
     });
@@ -430,9 +431,9 @@
 
     const entries = Object.entries(selected).filter(([key]) => eligible(products[key]));
     entries.forEach(([key])=>{purchases[key]=captureAgreedSale(purchases[key]||{},products[key],exchangeRate(),!listBaseline?.productos?.[key]);});
-    panel.querySelector('[data-cart-items]').innerHTML = entries.length ? '<div class="table-wrap"><table class="sv-no-resize"><thead><tr><th>Producto / proveedor</th><th>Solicitado</th><th>Venta acordada por unidad · USD</th><th>Cantidad comprada</th><th>Precio pagado por unidad</th><th>Moneda</th><th>Ganancias</th></tr></thead><tbody>'+entries.map(([key,qty]) => {
+    panel.querySelector('[data-cart-items]').innerHTML = entries.length ? '<div class="table-wrap"><table class="sv-no-resize"><thead><tr><th>Producto / proveedor</th><th>Solicitado</th><th>Venta acordada por unidad · USD</th><th>Cantidad comprada</th><th>Precio pagado por unidad</th><th>Envío por unidad · USD</th><th>Moneda</th><th>Ganancias</th></tr></thead><tbody>'+entries.map(([key,qty]) => {
       const p=products[key],q=quote(p,purchases[key]?.proveedor),actual=purchases[key]||{},provider=providerSelection(p,actual.proveedor,Object.values(products),typeof proveedoresData==='undefined'?[]:proveedoresData||[]);let url='';try{if(/^https?:$/.test(new URL(q.url).protocol))url=q.url;}catch(_){}
-      return '<tr data-item-state="'+esc(actual.estado||'pendiente')+'"><td><button type="button" class="btn btn-sm py-remove-item" data-remove="'+esc(key)+'" aria-label="Eliminar '+esc(p.nombre||p.codigo)+' de la lista" title="Eliminar de la lista"><i class="ti ti-trash" aria-hidden="true"></i></button><div class="py-list-product" style="display:flex;align-items:center;gap:10px"><span style="display:block;width:52px;height:52px;flex:0 0 52px;background:white;border-radius:8px;overflow:hidden">'+root.imagenCatalogoHTML(p,'py-list-photo')+'</span><strong>'+esc(p.nombre || p.descripcion)+'</strong></div><small class="py-note">Local: '+esc(q.store||'Por identificar')+'</small>'+(url?'<br><a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Corroborar en proveedor ↗</a>':'')+'<label class="py-provider-choice"><span>Proveedor</span><select aria-label="Proveedor '+esc(p.codigo)+'" data-purchase="proveedor" data-key="'+esc(key)+'">'+(!provider.chosen?'<option value="">Elegir proveedor</option>':'')+provider.options.map(name=>'<option value="'+esc(name)+'" '+(name===provider.chosen?'selected':'')+'>'+esc(name)+'</option>').join('')+'</select></label><label class="py-provider-choice"><span>Estado de la compra</span><select aria-label="Estado '+esc(p.codigo)+'" data-purchase="estado" data-key="'+esc(key)+'">'+Object.entries(purchaseStates).map(([value,label])=>'<option value="'+value+'" '+((actual.estado||'pendiente')===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label></td><td data-label="Solicitado"><input aria-label="Cantidad solicitada '+esc(p.codigo)+'" type="number" min="1" max="9999" step="1" data-requested="'+esc(key)+'" value="'+qty+'"></td><td data-label="Venta acordada por unidad · USD"><input aria-label="Precio de venta acordado '+esc(p.codigo)+'" data-purchase="precioVentaUnitarioUSD" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioVentaUnitarioUSD??'')+'" placeholder="Falta precio histórico"></td><td data-label="Cantidad comprada"><input aria-label="Cantidad comprada '+esc(p.codigo)+'" data-purchase="cantidad" data-key="'+esc(key)+'" type="number" min="0" max="9999" step="1" value="'+esc(actual.cantidad??qty)+'" placeholder="Pendiente"></td><td data-label="Precio pagado por unidad"><input aria-label="Precio real '+esc(p.codigo)+'" data-purchase="precioUnitario" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioUnitario??'')+'" placeholder="Pendiente"></td><td data-label="Moneda"><select aria-label="Moneda '+esc(p.codigo)+'" data-purchase="moneda" data-key="'+esc(key)+'">'+['USD','ARS','PYG'].map(c=>'<option '+((actual.moneda||'USD')===c?'selected':'')+'>'+c+'</option>').join('')+'</select></td></tr>';
+      return '<tr data-item-state="'+esc(actual.estado||'pendiente')+'"><td><button type="button" class="btn btn-sm py-remove-item" data-remove="'+esc(key)+'" aria-label="Eliminar '+esc(p.nombre||p.codigo)+' de la lista" title="Eliminar de la lista"><i class="ti ti-trash" aria-hidden="true"></i></button><div class="py-list-product" style="display:flex;align-items:center;gap:10px"><span style="display:block;width:52px;height:52px;flex:0 0 52px;background:white;border-radius:8px;overflow:hidden">'+root.imagenCatalogoHTML(p,'py-list-photo')+'</span><button type="button" data-list-product="'+esc(key)+'" style="border:0;background:none;color:inherit;font:inherit;font-weight:700;text-align:left;padding:0;cursor:pointer" title="Abrir ficha del producto">'+esc(p.nombre || p.descripcion)+'</button></div><small class="py-note">Local: '+esc(q.store||'Por identificar')+'</small>'+(url?'<br><a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Corroborar en proveedor ↗</a>':'')+'<label class="py-provider-choice"><span>Proveedor</span><select aria-label="Proveedor '+esc(p.codigo)+'" data-purchase="proveedor" data-key="'+esc(key)+'">'+(!provider.chosen?'<option value="">Elegir proveedor</option>':'')+provider.options.map(name=>'<option value="'+esc(name)+'" '+(name===provider.chosen?'selected':'')+'>'+esc(name)+'</option>').join('')+'</select></label><label class="py-provider-choice"><span>Estado de la compra</span><select aria-label="Estado '+esc(p.codigo)+'" data-purchase="estado" data-key="'+esc(key)+'">'+Object.entries(purchaseStates).map(([value,label])=>'<option value="'+value+'" '+((actual.estado||'pendiente')===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label></td><td data-label="Solicitado"><input aria-label="Cantidad solicitada '+esc(p.codigo)+'" type="number" min="1" max="9999" step="1" data-requested="'+esc(key)+'" value="'+qty+'"></td><td data-label="Venta acordada por unidad · USD"><input aria-label="Precio de venta acordado '+esc(p.codigo)+'" data-purchase="precioVentaUnitarioUSD" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioVentaUnitarioUSD??'')+'" placeholder="Falta precio histórico"></td><td data-label="Cantidad comprada"><input aria-label="Cantidad comprada '+esc(p.codigo)+'" data-purchase="cantidad" data-key="'+esc(key)+'" type="number" min="0" max="9999" step="1" value="'+esc(actual.cantidad??qty)+'" placeholder="Pendiente"></td><td data-label="Precio pagado por unidad"><input aria-label="Precio real '+esc(p.codigo)+'" data-purchase="precioUnitario" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioUnitario??'')+'" placeholder="Pendiente"></td><td data-label="Envío por unidad · USD"><input aria-label="Costo de envío '+esc(p.codigo)+'" data-purchase="costoEnvioUnitarioUSD" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.costoEnvioUnitarioUSD??0)+'"></td><td data-label="Moneda"><select aria-label="Moneda '+esc(p.codigo)+'" data-purchase="moneda" data-key="'+esc(key)+'">'+['USD','ARS','PYG'].map(c=>'<option '+((actual.moneda||'USD')===c?'selected':'')+'>'+c+'</option>').join('')+'</select></td></tr>';
     }).join('')+'</tbody></table></div>' : '<p class="py-note">Tu lista está vacía. Agregá productos desde Ofertas.</p>';
     refreshPurchaseRows();renderPurchaseProgress();
     const missingItems=Object.entries(selected).filter(([key])=>!eligible(products[key]));
@@ -462,18 +463,18 @@
   }
   function updateSaveButton() {
     if(!panel)return;
-    const canonical=(items,details,name)=>JSON.stringify({name:String(name||'').trim(),items:Object.entries(items||{}).sort(([a],[b])=>a.localeCompare(b)),details:Object.keys(items||{}).sort().map(key=>{const v=details?.[key]||{};return [key,{proveedor:v.proveedor||'',moneda:v.moneda||'USD',estado:v.estado||'pendiente',cantidad:v.cantidad??null,precioUnitario:v.precioUnitario??null,precioVentaUnitarioUSD:v.precioVentaUnitarioUSD??null,compraPersonal:v.compraPersonal===true}];})});
+    const canonical=(items,details,name)=>JSON.stringify({name:String(name||'').trim(),items:Object.entries(items||{}).sort(([a],[b])=>a.localeCompare(b)),details:Object.keys(items||{}).sort().map(key=>{const v=details?.[key]||{};return [key,{proveedor:v.proveedor||'',moneda:v.moneda||'USD',estado:v.estado||'pendiente',cantidad:v.cantidad??null,precioUnitario:v.precioUnitario??null,precioVentaUnitarioUSD:v.precioVentaUnitarioUSD??null,compraPersonal:v.compraPersonal===true,costoEnvioUnitarioUSD:v.costoEnvioUnitarioUSD??null}];})});
     const current=canonical(selected,purchases,panel.querySelector('[data-name]').value),previous=canonical(listBaseline?.productos,listBaseline?.comprasFinales,listBaseline?.nombre);
     const dirty=current!==previous;const button=panel.querySelector('[data-save]');button.disabled=busy||!dirty;button.classList.toggle('py-save-pending',dirty&&!busy);button.title=dirty?'Guardar cambios pendientes':'Sin cambios pendientes';
   }
   function renderLists() {
     updateSaveButton();
     panel.querySelector('[data-delete-list]').disabled=busy||!listKey||!lists[listKey];
-    panel.querySelector('[data-lists]').innerHTML = '<option value="">Nueva lista</option>'+Object.entries(lists).map(([key,list])=>'<option value="'+esc(key)+'"'+(key===listKey?' selected':'')+'>'+esc(list.nombre)+'</option>').join('');
+    panel.querySelector('[data-lists]').innerHTML = '<option value="">Nueva lista</option>'+(panel.querySelector('[data-all-lists]')?.checked?adminListOptions:[]).map(item=>'<option value="'+esc(item.value)+'">'+esc(item.label)+'</option>').join('')+Object.entries(lists).map(([key,list])=>'<option value="'+esc(key)+'"'+(key===listKey?' selected':'')+'>'+esc(list.nombre)+'</option>').join('');
   }
   function status(text) { if(panel){panel.querySelectorAll('[data-status],[data-save-feedback]').forEach(el=>el.textContent=text);updateSaveButton();} }
   async function open(nombre, options = {}) {
-    close();editingPurchases.clear();explicitPurchaseEdits.clear();
+    close();adminListOptions=[];editingPurchases.clear();explicitPurchaseEdits.clear();
     const internal=options.internal===true&&!!root.permisoModulo?.('distribuidora');
     const admin = internal || root.currentRole === 'admin' && root.permisoModulo?.('balancecompra');
     if ((!admin && !['compras_paraguay','distribuidora'].includes(root.currentRole)) || !root.currentUserUid) return;
@@ -574,7 +575,7 @@
 
 #screen-paraguay [data-cart-items] table,#screen-paraguay [data-cart-items] tbody{display:block}
 #screen-paraguay [data-cart-items] thead{display:none}
-#screen-paraguay [data-cart-items] tr{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-template-areas:"identity identity identity identity identity identity" "requested requested requested bought bought bought" "sale sale cost cost currency currency" "profit profit profit profit profit profit";gap:18px 16px;padding:20px;margin:16px 0;border:1px solid var(--border);border-radius:14px;background:var(--bg)}
+#screen-paraguay [data-cart-items] tr{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-template-areas:"identity identity identity identity identity identity" "requested bought sale sale currency currency" "cost cost cost shipping shipping shipping" "profit profit profit profit profit profit";gap:18px 16px;padding:20px;margin:16px 0;border:1px solid var(--border);border-radius:14px;background:var(--bg)}
 #screen-paraguay [data-cart-items] td{display:block;padding:0;border:0;min-width:0}
 #screen-paraguay [data-cart-items] td:first-child{grid-area:identity;width:auto!important;padding:0 58px 16px 0;border-bottom:1px solid var(--border)}
 #screen-paraguay [data-cart-items] td[data-label="Solicitado"]{grid-area:requested}
@@ -582,6 +583,7 @@
 #screen-paraguay [data-cart-items] td[data-label="Venta acordada por unidad · USD"]{grid-area:sale}
 #screen-paraguay [data-cart-items] td[data-label="Precio pagado por unidad"]{grid-area:cost}
 #screen-paraguay [data-cart-items] td[data-label="Moneda"]{grid-area:currency}
+#screen-paraguay [data-cart-items] td[data-label="Envío por unidad · USD"]{grid-area:shipping}
 #screen-paraguay [data-cart-items] td.py-item-profit{grid-area:profit;position:relative;padding:8px 150px 8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;text-align:left}
 #screen-paraguay [data-cart-items] [data-purchase-saving]{margin:0!important;font-size:15px;line-height:1.35}
 #screen-paraguay [data-cart-items] td.py-item-reference{grid-area:reference;border-top:1px solid var(--border);padding-top:12px;color:var(--text3);font-size:12px}
@@ -595,7 +597,7 @@
 #screen-paraguay [data-cart-items] td[data-label] input,#screen-paraguay [data-cart-items] td[data-label] select{height:44px;box-sizing:border-box}
 #screen-paraguay [data-cart-items] tbody td:last-child{padding-right:14px}
 #screen-paraguay .py-provider-choice select{max-width:none}
-@container(max-width:540px){#screen-paraguay [data-cart-items] tr{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"identity identity" "requested bought" "sale sale" "cost currency" "profit profit";padding:14px;gap:14px}#screen-paraguay .py-list-fields{grid-template-columns:minmax(0,1fr)}}
+@container(max-width:540px){#screen-paraguay [data-cart-items] tr{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"identity identity" "requested bought" "sale currency" "cost shipping" "profit profit";padding:14px;gap:14px}#screen-paraguay .py-list-fields{grid-template-columns:minmax(0,1fr)}}
         @media(max-width:1100px){#screen-paraguay .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #screen-paraguay [data-cart-items].py-items-compact tr{grid-template-areas:"identity identity identity identity identity identity";padding:12px;margin:8px 0;gap:0}
 #screen-paraguay [data-cart-items].py-items-compact tr>td:not(:first-child){display:none}
@@ -746,6 +748,15 @@
       if (listsView) root.SisVentas?.prepareResizablePage?.(panel.querySelector('[data-cart-items]'));
     }
     showView(!!options.listKey);
+    if(role==='admin'){
+      const allListsLabel=document.createElement('label');allListsLabel.style.cssText='display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12px;cursor:pointer';allListsLabel.innerHTML='<input type="checkbox" data-all-lists> Ver todas';panel.querySelector('.py-list-fields').before(allListsLabel);const allListsToggle=allListsLabel.querySelector('input');allListsToggle.checked=!!options.viewAllLists;allListsToggle.onchange=()=>{if(!allListsToggle.checked&&uid!==actor){if(panel.querySelector('[data-save]').classList.contains('py-save-pending')&&!root.confirm('Hay cambios sin guardar. ¿Volver a tus listas y descartarlos?')){allListsToggle.checked=true;return;}open(nombre,{...options,ownerUid:actor,ownerName:nombre,listKey:'',showLists:true,viewAllLists:false});return;}renderLists();};
+      root.fbGet(root.fbRef(root.fbDB,'sv_usuarios')).then(async snap=>{
+        const owners=new Map();Object.values(snap.val()||{}).forEach(user=>{if(user.uid&&user.uid!==uid)owners.set(user.uid,user);});if(uid!==actor)owners.set(actor,{nombre:nombre||root.currentUser});
+        const groups=await Promise.all([...owners].map(async([owner,user])=>{const snapshot=await root.fbGet(root.fbRef(root.fbDB,'sv_listas_paraguay/'+owner));return Object.entries(snapshot.val()||{}).map(([key,list])=>({value:'owner:'+owner+':'+key,uid:owner,key,name:user.nombre||user.usuario||'Usuario',label:list.nombre+' ('+(user.nombre||user.usuario||'Usuario')+')'}));}));
+        if(!valid()||!panel)return;adminListOptions=groups.flat().sort((a,b)=>a.label.localeCompare(b.label,'es'));renderLists();
+      }).catch(()=>{if(valid())status('No se pudieron cargar las listas de otros usuarios.');});
+    }
+    if(options.showLists)showView(true);
     if(options.fromSalesBalance){viewHistory.push('salesbalance');if(backButton)backButton.hidden=false;}
     const preferences = document.createElement('div');
     preferences.hidden = true;
@@ -793,10 +804,10 @@
     panel.addEventListener('input',updateSaveButton);panel.addEventListener('change',updateSaveButton);
     panel.querySelector('[data-collapse-items]').onclick=()=>{const compact=panel.querySelector('[data-cart-items]').classList.toggle('py-items-compact');const button=panel.querySelector('[data-collapse-items]');button.textContent=compact?'Expandir todo':'Colapsar todo';button.setAttribute('aria-expanded',String(!compact));};
     panel.querySelector('[data-search]').oninput = renderProducts;
-    panel.querySelector('[data-cart-items]').onclick = e => {const personal=e.target.closest('[data-personal-purchase]');if(personal){if(busy)return;const key=personal.dataset.personalPurchase;purchases[key]||={};purchases[key].compraPersonal=purchases[key].compraPersonal!==true;refreshPurchaseRows();status('Guardá la lista para conservar el cambio.');return;}const edit=e.target.closest('[data-edit-purchase]');if(edit){panel.querySelector('[data-cart-items]').classList.remove('py-items-compact');panel.querySelector('[data-collapse-items]').textContent='Colapsar todo';panel.querySelector('[data-collapse-items]').setAttribute('aria-expanded','true');const key=edit.dataset.editPurchase;if(editingPurchases.has(key)){const row=edit.closest('tr');for(const input of row.querySelectorAll('input,select'))if(!input.reportValidity())return;row.querySelectorAll('[data-purchase]').forEach(capturePurchase);editingPurchases.delete(key);explicitPurchaseEdits.delete(key);}else{editingPurchases.add(key);explicitPurchaseEdits.add(key);}renderSummary();updateSaveButton();return;}const button=e.target.closest('[data-remove]');if(button){delete selected[button.dataset.remove];delete purchases[button.dataset.remove];renderProducts();}};
+    panel.querySelector('[data-cart-items]').onclick = e => {const product=e.target.closest('[data-list-product]');if(product){if(!busy)openProductSheet(product.dataset.listProduct);return;}const personal=e.target.closest('[data-personal-purchase]');if(personal){if(busy)return;const key=personal.dataset.personalPurchase;purchases[key]||={};purchases[key].compraPersonal=purchases[key].compraPersonal!==true;refreshPurchaseRows();status('Guardá la lista para conservar el cambio.');return;}const edit=e.target.closest('[data-edit-purchase]');if(edit){panel.querySelector('[data-cart-items]').classList.remove('py-items-compact');panel.querySelector('[data-collapse-items]').textContent='Colapsar todo';panel.querySelector('[data-collapse-items]').setAttribute('aria-expanded','true');const key=edit.dataset.editPurchase;if(editingPurchases.has(key)){const row=edit.closest('tr');for(const input of row.querySelectorAll('input,select'))if(!input.reportValidity())return;row.querySelectorAll('[data-purchase]').forEach(capturePurchase);editingPurchases.delete(key);explicitPurchaseEdits.delete(key);}else{editingPurchases.add(key);explicitPurchaseEdits.add(key);}renderSummary();updateSaveButton();return;}const button=e.target.closest('[data-remove]');if(button){delete selected[button.dataset.remove];delete purchases[button.dataset.remove];renderProducts();}};
     function capturePurchase(input) {
       const field=input.dataset.purchase,key=input.dataset.key;if(!field||!key)return;
-      purchases[key]||={};if(field==='cantidad'&&purchases[key].cantidad==null&&!Number.isFinite(purchases[key].precioUnitario)&&input.value===String(selected[key]))return;if(input.value==='')delete purchases[key][field];else purchases[key][field]=['cantidad','precioUnitario','precioVentaUnitarioUSD'].includes(field)?Number(input.value):input.value;
+      purchases[key]||={};if(field==='cantidad'&&purchases[key].cantidad==null&&!Number.isFinite(purchases[key].precioUnitario)&&input.value===String(selected[key]))return;if(input.value==='')delete purchases[key][field];else purchases[key][field]=['cantidad','precioUnitario','precioVentaUnitarioUSD','costoEnvioUnitarioUSD'].includes(field)?Number(input.value):input.value;
     }
     panel.querySelector('[data-cart-items]').oninput=e=>{
       const t=e.target;if(t.dataset.purchase==='estado')return;capturePurchase(t);
@@ -836,6 +847,7 @@
     };
     panel.querySelector('[data-lists]').onchange = e => {
       if (busy) return;
+      const external=adminListOptions.find(item=>item.value===e.target.value);if(external){if(panel.querySelector('[data-save]').classList.contains('py-save-pending')&&!root.confirm('Hay cambios sin guardar. ¿Cambiar de lista y descartarlos?')){renderLists();return;}open(nombre,{...options,ownerUid:external.uid,ownerName:external.name,listKey:external.key,showLists:true,viewAllLists:true});return;}
       rememberCart();
       if(!e.target.value){openCart();return;}
       listKey = e.target.value; const list = lists[listKey] || {}; listBaseline=listKey?structuredClone(list):null;
@@ -871,6 +883,7 @@
         actualItems[productKey]={estado:state,cantidad:value.cantidad,precioUnitario:value.precioUnitario,moneda:value.moneda||'USD',proveedor:value.proveedor||''};
       }
       for(const key of Object.keys(actualItems)) {
+        const shipping=purchases[key]?.costoEnvioUnitarioUSD;if(shipping!=null){if(!Number.isFinite(shipping)||shipping<0||shipping>1e9){status('Revisá el costo de envío.');return;}actualItems[key].costoEnvioUnitarioUSD=shipping;}
         if(purchases[key]?.compraPersonal===true)actualItems[key].compraPersonal=true;
         const sale=purchases[key]?.precioVentaUnitarioUSD;
         if(sale!=null){if(!Number.isFinite(sale)||sale<0||sale>1e9){status('Revisá el precio de venta acordado.');return;}actualItems[key].precioVentaUnitarioUSD=sale;}

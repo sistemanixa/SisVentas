@@ -296,6 +296,9 @@
               },
               "compraPersonal": {
                 ".validate": "newData.isBoolean()"
+              },
+              "costoEnvioUnitarioUSD": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
               }
             }
           },

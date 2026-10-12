@@ -12,7 +12,7 @@ test('seleccionar una lista guardada habilita eliminar y limpia la edición del 
  const source=fs.readFileSync('js/modules/paraguay-shopping-access.js','utf8');
  const handler=source.match(/panel\.querySelector\('\[data-lists\]'\)\.onchange = e => \{([\s\S]*?)\n    \};/)[1];
  const button={disabled:true},select={innerHTML:''},name={value:''};
- const context={busy:false,listKey:'',listBaseline:null,lists:{saved:{nombre:'Prueba',productos:{p:2}}},selected:{},purchases:{},structuredClone,
+ const context={adminListOptions:[],busy:false,listKey:'',listBaseline:null,lists:{saved:{nombre:'Prueba',productos:{p:2}}},selected:{},purchases:{},structuredClone,
  editingPurchases:new Set(['anterior']),explicitPurchaseEdits:new Set(['anterior']),rememberCart(){},openCart(){},status(){},renderProducts(){},updateSaveButton(){},
  panel:{querySelector:s=>s==='[data-delete-list]'?button:s==='[data-lists]'?select:name},esc:v=>v};
  vm.createContext(context);
