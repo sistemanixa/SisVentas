@@ -163,7 +163,7 @@
       node.setAttribute('aria-label','Cotización del dólar');
       node.style.cssText='cursor:default;line-height:1.3;flex-wrap:wrap;justify-content:center';
       node.innerHTML='<span class="topbar-dolar-label">USD</span><strong data-dollar-value style="color:var(--blue)"></strong><span data-dollar-type></span>';
-      panel.querySelector('.topbar-right').prepend(node);
+      panel.querySelector('[data-exchange-toolbar]').appendChild(node);
     }
     const reference=root.obtenerDolarReferenciaProducto?.()||{},cfg=root.TIPO_CAMBIO_CONFIG||{};
     const type=Number(cfg[reference.tipo])>0?reference.tipo:(['oficial','blue','mep'].find(key=>Number(cfg[key])>0)||reference.tipo||'referencia');
@@ -172,7 +172,7 @@
     node.querySelector('[data-dollar-type]').textContent=label;
     if(!panel.querySelector('[data-display-currency]')){
       const selector=document.createElement('select');selector.dataset.displayCurrency='';selector.className='search-input';selector.setAttribute('aria-label','Moneda de precios');selector.innerHTML='<option value="USD">Dólares</option><option value="ARS">Pesos</option>';selector.value=displayCurrency;
-      selector.onchange=()=>{displayCurrency=selector.value;try{root.localStorage.setItem('sv-public-currency',displayCurrency);}catch(_){}renderProducts();refreshOpenDetail();};panel.querySelector('.topbar-right').prepend(selector);
+      selector.onchange=()=>{displayCurrency=selector.value;try{root.localStorage.setItem('sv-public-currency',displayCurrency);}catch(_){}renderProducts();refreshOpenDetail();};panel.querySelector('[data-exchange-toolbar]').appendChild(selector);
     }
     node.title='Dólar de referencia del catálogo · '+label+' · Pesos argentinos por USD';
   }
@@ -340,6 +340,7 @@
       pages.push('<section class="sheet"><header><div class="logo">SisVentas<span>powered by Nixa</span></div><div class="edition">OFERTAS<br><small>'+esc(date)+'</small></div></header><div class="heading"><h1>'+esc(title)+'</h1><span>'+entries.length+' productos'+(onlySelected?' · '+entries.reduce((s,e)=>s+Number(e.qty),0)+' unidades':'')+'</span></div><div class="cards">'+cards+'</div>'+(onlySelected&&pageIndex===pageEntries.length-1?'<div class="total">Total a precio de venta <strong>'+money(total)+'</strong></div>':'')+'<footer><span>Precios de venta registrados · Sujetos a disponibilidad'+(entries.some(e=>!salePrice(e.p))?' · Hay productos con precio a consultar':'')+'</span><b>'+(pageIndex+1)+' / '+pageEntries.length+'</b></footer></section>');
     }
     win.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · SisVentas</title><style>
+      #screen-paraguay [data-view-back][hidden]{display:none!important}
       *{box-sizing:border-box}body{margin:0;background:#e8eef5;color:#15243a;font-family:Arial,sans-serif}.toolbar{position:sticky;top:0;z-index:5;background:#112239;color:white;padding:14px;display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap}.toolbar button{background:#78d68a;color:#102b1a;border:0;border-radius:9px;padding:12px 22px;font-weight:bold;cursor:pointer}.toolbar button:disabled{opacity:.6}.sheet{position:relative;width:794px;height:1122px;padding:24px 32px;margin:24px auto;background:white;overflow:hidden}header{display:flex;justify-content:space-between;align-items:center;background:#142b48;color:white;padding:8px 16px;border-radius:10px;border-bottom:4px solid #73d28c}.logo{font-size:22px;font-weight:800}.logo span{display:block;font-size:10px;font-weight:400;letter-spacing:1px;margin-top:2px;color:#b8cbe2}.edition{text-align:right;color:#8ce8a4;font-weight:bold;letter-spacing:2px}.edition small{color:white;font-size:11px;letter-spacing:0}.heading{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0 8px}.heading h1{font-size:17px;margin:0;max-width:490px;overflow-wrap:anywhere}.heading span{font-size:11px;color:#58718f;white-space:nowrap}.pdf-item{height:178px}.group-heading{height:20px;font-size:11px;line-height:18px;font-weight:bold;color:#326598}.featured-heading{color:#14613c;font-size:16px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}.featured{border-left-color:#24a35b;background:#effaf2}article{display:flex;height:150px;border:1px solid #dce5ee;border-left:5px solid #73d28c;border-radius:12px;margin-bottom:8px;overflow:hidden;background:#f6f9fc}.photo{width:126px;flex-shrink:0;background:white;display:flex;align-items:center;justify-content:center;padding:12px}.photo img{max-width:100%;max-height:124px;object-fit:contain}.info{padding:8px 12px;min-width:0;flex:1}.brand{color:#326598;font-size:10px;font-weight:bold;text-transform:uppercase}.brand span{float:right;color:#73869d}h2{font-size:13px;line-height:1.3;margin:5px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.info p{font-size:10px;line-height:1.35;color:#54677e;margin:4px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.price{font-size:18px;font-weight:bold;color:#177e49;margin-top:4px}.price small{font-size:9px}.quantity{font-size:10px;margin-top:4px}.saving{color:#17653c;font-weight:bold;font-size:10px;margin-top:3px}.saving small{display:block;font-size:8px;margin-top:2px}.total{padding:7px 14px;background:#142b48;border-radius:10px;color:#fff;display:flex;justify-content:space-between;font-size:13px}.total strong{color:#8ce8a4;font-size:18px}footer{position:absolute;bottom:18px;left:32px;right:32px;border-top:1px solid #dce5ee;padding-top:10px;display:flex;justify-content:space-between;font-size:9px;color:#647b95}@media print{@page{size:A4;margin:0}.toolbar{display:none}body{background:white}.sheet{margin:0;page-break-after:always;print-color-adjust:exact;-webkit-print-color-adjust:exact}.sheet:last-child{page-break-after:auto}}
       .preview-page{width:calc(794px * var(--preview-scale,1));height:calc(1122px * var(--preview-scale,1));margin:16px auto}.preview-page>.sheet{margin:0;transform:scale(var(--preview-scale,1));transform-origin:top left}@media print{.preview-page{width:794px;height:1122px;margin:0}.preview-page>.sheet{transform:none}}
       </style><script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script></head><body><div class="toolbar"><button id="download" aria-live="polite">Descargar PDF</button></div>${pages.map(page=>'<div class="preview-page">'+page+'</div>').join('')}<script>
@@ -458,11 +459,12 @@
     const identity = (await root.fbGet(roleQuery)).val();
     if (!valid()) return;
     if (!identity || identity.rol !== role || identity.activo !== true) throw new Error('No se pudo verificar el acceso a Ofertas');
-    const viewHistory=[];let currentView='',returningView=false;
-    function rememberView(next){if(next===currentView)return;if(currentView&&!returningView)viewHistory.push(currentView);currentView=next;}
+    const viewHistory=[];let currentView='',returningView=false,backButton=null;
+    function rememberView(next){if(next===currentView)return;if(currentView&&!returningView)viewHistory.push(currentView);currentView=next;if(backButton)backButton.hidden=!viewHistory.some(view=>view!==currentView);}
     panel = document.createElement('main'); panel.id = 'screen-paraguay';
     panel.innerHTML = `
       <style>
+      #screen-paraguay [data-view-back][hidden]{display:none!important}
       #screen-paraguay .py-add-context{position:sticky;top:0;z-index:5;background:var(--bg2);padding:12px;border:1px solid var(--border);border-radius:10px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}#screen-paraguay .py-add-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin-left:auto}#screen-paraguay .py-add-actions [data-confirm-products]{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}#screen-paraguay .py-add-context[hidden]{display:none}#screen-paraguay .py-edit-item{position:absolute;right:12px;top:60px;width:44px;height:44px;padding:0;display:inline-flex;align-items:center;justify-content:center;color:var(--blue);z-index:2}#screen-paraguay [data-purchase-saving]{display:block;margin-top:6px;color:var(--green);font-size:11px}#screen-paraguay .py-list-photo{width:100%;height:100%;object-fit:contain}
       #screen-paraguay [data-cart-items] table{min-width:1100px;table-layout:auto}
       #screen-paraguay [data-cart-items] th:first-child,#screen-paraguay [data-cart-items] td:first-child{width:320px!important;min-width:320px;white-space:normal!important}
@@ -480,7 +482,14 @@
         #screen-paraguay>.app{flex:1;min-height:0;width:100%;overflow:hidden}
         #screen-paraguay .main{min-height:0;min-width:0}
         #screen-paraguay .topbar{flex-shrink:0}
-        @media(max-width:600px){#screen-paraguay .topbar{display:flex!important;flex-wrap:wrap!important;height:auto!important;min-height:58px;gap:8px;padding:10px 12px!important;align-items:center!important}#screen-paraguay .topbar-right{position:static!important;display:flex!important;flex:1 0 100%!important;width:100%!important;flex-wrap:wrap!important;justify-content:flex-start!important;align-items:center!important;gap:8px!important;margin:0!important}#screen-paraguay .topbar-right select{width:auto!important;min-width:110px;max-width:100%;flex:1 1 110px}#screen-paraguay .topbar-right .topbar-dolar{flex:0 1 auto}}
+        #screen-paraguay .topbar{height:auto!important;min-height:74px;display:flex!important;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:14px 24px!important;background:var(--bg2);border-bottom:1px solid var(--border)}
+        #screen-paraguay .topbar>div:first-child{flex:1;min-width:0}
+        #screen-paraguay .topbar-center{display:none}
+        #screen-paraguay .topbar-right{position:static!important;display:flex!important;align-items:center;gap:12px;margin:0!important;flex-wrap:wrap}
+        #screen-paraguay .py-exchange-toolbar{flex:1 0 100%;display:flex;align-items:center;justify-content:flex-end;gap:12px;padding-top:10px;border-top:1px solid var(--border)}
+        #screen-paraguay .py-exchange-toolbar select{width:120px;min-height:32px;padding:5px 10px;margin:0}
+        #screen-paraguay .py-exchange-toolbar .topbar-dolar{background:transparent;border:0;padding:0;font-size:12px}
+        @media(max-width:600px){#screen-paraguay .topbar{padding:12px!important;gap:12px}#screen-paraguay .topbar-right{width:100%;justify-content:space-between;gap:8px}#screen-paraguay .py-exchange-toolbar{justify-content:space-between;gap:8px}#screen-paraguay .page-title{font-size:15px}#screen-paraguay .content{padding:16px 12px}}
         #screen-paraguay .nav-item{width:100%;font-family:inherit;text-align:left;background:transparent}
         #screen-paraguay .nav-item.active{background:var(--bg3)}
         #screen-paraguay .py-list-fields{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,2fr);gap:14px}
@@ -567,7 +576,7 @@
           <div class="s-foot"><div class="s-user"><div class="s-avatar admin">${esc(nombre.slice(0,2).toUpperCase())}</div><div style="min-width:0"><div class="s-uname">${esc(nombre)}</div><div class="s-urole">${role === 'distribuidora' ? 'Distribuidora' : 'Ofertas'}</div></div></div><button class="btn btn-sm" data-logout style="width:100%;justify-content:center;margin-top:8px"><i class="ti ti-logout" aria-hidden="true"></i> Cerrar sesión</button></div>
         </aside>
         <div class="main">
-          <header class="topbar"><div style="display:flex;align-items:center;gap:10px"><button class="btn btn-icon py-menu" data-menu aria-label="Abrir menú" aria-expanded="false"><i class="ti ti-menu-2" aria-hidden="true"></i></button><span class="page-title">Ofertas</span></div><div class="topbar-center"><span class="topbar-date">${esc(new Date().toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'}))}</span></div><div class="topbar-right"><a class="btn btn-sm" href="./catalogo.html" target="_blank" rel="noopener noreferrer" style="background:var(--green);color:var(--bg);border-color:var(--green);font-weight:700"><i class="ti ti-external-link" aria-hidden="true"></i> Catálogo público</a><span class="catalogo-carrito-indicador"><i class="ti ti-shopping-cart" aria-hidden="true"></i> <button type="button" class="catalogo-carrito-contador" style="border:0;cursor:pointer;color:var(--bg);font:inherit;font-weight:700" data-cart aria-label="Ver carrito"><span data-cart-count aria-live="polite">0</span></button><span class="catalogo-carrito-importe"><span data-cart-amount></span> <small data-cart-iva hidden>con IVA</small></span></span><button class="icon-btn" data-appearance aria-label="Aspecto visual" title="Aspecto visual"><i class="ti ti-settings" aria-hidden="true"></i></button></div></header>
+          <header class="topbar"><div style="display:flex;align-items:center;gap:10px"><button class="btn btn-icon py-menu" data-menu aria-label="Abrir menú" aria-expanded="false"><i class="ti ti-menu-2" aria-hidden="true"></i></button><span class="page-title">Ofertas</span></div><div class="topbar-center"><span class="topbar-date">${esc(new Date().toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'}))}</span></div><div class="topbar-right"><a class="btn btn-sm" href="./catalogo.html" target="_blank" rel="noopener noreferrer" style="background:var(--green);color:var(--bg);border-color:var(--green);font-weight:700"><i class="ti ti-external-link" aria-hidden="true"></i> Catálogo público</a><span class="catalogo-carrito-indicador"><i class="ti ti-shopping-cart" aria-hidden="true"></i> <button type="button" class="catalogo-carrito-contador" style="border:0;cursor:pointer;color:var(--bg);font:inherit;font-weight:700" data-cart aria-label="Ver carrito"><span data-cart-count aria-live="polite">0</span></button><span class="catalogo-carrito-importe"><span data-cart-amount></span> <small data-cart-iva hidden>con IVA</small></span></span><button class="icon-btn" data-appearance aria-label="Aspecto visual" title="Aspecto visual"><i class="ti ti-settings" aria-hidden="true"></i></button></div><div class="py-exchange-toolbar" data-exchange-toolbar aria-label="Moneda y cotización"></div></header>
           <div class="content">
             <div class="metrics" aria-label="Resumen de la lista">
               <div class="metric"><div class="m-label">Productos seleccionados</div><div class="m-value" data-total-products>0</div><div class="m-sub">en tu lista de compra</div></div>
@@ -617,6 +626,7 @@
       panel.querySelector('.s-urole').textContent = internal?'Distribuidora':'Administrador · Ofertas';
       panel.querySelector('[data-logout]').textContent = ['compras_paraguay','distribuidora'].includes(role)?'Cerrar sesión':internal?'Volver a SisVentas':'Volver a Compras de exterior';
       const back = document.createElement('button');
+      backButton=back;back.hidden=true;back.dataset.viewBack="";
       back.className = 'btn btn-sm';back.textContent = '← Volver';back.setAttribute('aria-label','Volver a la vista anterior');
       back.onclick = () => {
         if(busy)return;
@@ -624,14 +634,9 @@
         if(!previous)return;
         returningView=true;
         try{if(previous==='promotions')panel.querySelector('[data-nav="promotions"]').click();else if(previous==='requests')showRequests();else if(previous==='balance')showBalance();else if(previous==='salesbalance')showSalesBalance();else showView(previous==='lists');}
-        finally{returningView=false;}
+        finally{returningView=false;back.hidden=!viewHistory.some(view=>view!==currentView);}
       };
-      const backRow = document.createElement('div');
-      backRow.style.cssText = 'margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap';
-      backRow.appendChild(back);
-      const dollar = panel.querySelector('[data-dollar-reference]');
-      if(dollar){const exchangeBox=document.createElement('div');exchangeBox.className='py-exchange-controls';exchangeBox.style.cssText='margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px';exchangeBox.appendChild(dollar);const currency=panel.querySelector('[data-display-currency]');if(currency){currency.style.cssText='width:140px;min-height:34px;padding:6px 10px;margin:0';exchangeBox.appendChild(currency);}backRow.appendChild(exchangeBox);}
-      panel.querySelector('.content').prepend(backRow);
+      panel.querySelector('.topbar > div').appendChild(back);
       panel.querySelector('.page-title').textContent = 'Ofertas · ' + (options.ownerName || 'Mis listas');
       const ownerNote = document.createElement('p');
       ownerNote.className = 'py-note';
@@ -704,7 +709,7 @@
       if (listsView) root.SisVentas?.prepareResizablePage?.(panel.querySelector('[data-cart-items]'));
     }
     showView(!!options.listKey);
-    if(options.fromSalesBalance)viewHistory.push('salesbalance');
+    if(options.fromSalesBalance){viewHistory.push('salesbalance');if(backButton)backButton.hidden=false;}
     const preferences = document.createElement('div');
     preferences.hidden = true;
     preferences.setAttribute('role','dialog'); preferences.setAttribute('aria-label','Configuración de cuenta');
