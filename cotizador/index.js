@@ -15,7 +15,8 @@ const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN || 'https://ventas.sistemanixa.com
 const LOCAL_DEVELOPMENT_ORIGINS = new Set([
   'http://127.0.0.1:8080', 'http://localhost:8080',
   'http://127.0.0.1:4173', 'http://localhost:4173',
-  'http://127.0.0.1:8765', 'http://localhost:8765'
+  'http://127.0.0.1:8765', 'http://localhost:8765',
+  'http://127.0.0.1:8766', 'http://localhost:8766'
 ]);
 const REQUIRE_FIREBASE_AUTH = String(process.env.REQUIRE_FIREBASE_AUTH || '').toLowerCase() === 'true';
 const ML_CLIENT_ID = process.env.ML_CLIENT_ID || '';
@@ -33,6 +34,7 @@ if (!admin.apps.length) {
 
 const db = admin.database();
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)}, db});
+const catalogRequests = require('./catalog-request').createCatalogRequest({db,periodsAPI:require('./catalog-promotions')});
 const { consultarAutomatico, firmaAcceso, aplicarCondicionComercial } = require('./proveedor-automatico');
 const { esProveedorPublicoComprasParaguay } = require('./compras-paraguay');
 const verificacionesProveedor = new Map();
@@ -375,12 +377,12 @@ async function autenticarSolicitud(req) {
   }
 }
 
-function readBody(req) {
+function readBody(req, limit = 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', (chunk) => {
       body += chunk;
-      if (body.length > 1024 * 1024) {
+      if (body.length > limit) {
         reject(new Error('Solicitud demasiado grande'));
         req.destroy();
       }
@@ -1964,6 +1966,20 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && pathname === '/mercadolibre/oauth/start') {
     try { await iniciarOAuthMercadoLibre(req, res); }
     catch (e) { sendHtml(res, e.statusCode || 500, `<h1>No se pudo iniciar la conexión</h1><p>${String(e.message || e).replace(/[<>&]/g, '')}</p>`); }
+    return;
+  }
+
+  if(req.method==='POST' && ['/catalogo/cotizar','/catalogo/solicitar'].includes(pathname)){
+    try{
+      const body=await readBody(req,25000);
+      if(pathname==='/catalogo/cotizar'){
+        await catalogRequests.limit('quotes','all',1000);
+        send(res,200,{ok:true,items:await catalogRequests.quote(body)});
+      }else{
+        await catalogRequests.submit(body);
+        send(res,200,{ok:true,id:body.id});
+      }
+    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo verificar el pedido. Tu lista queda conservada.'});}
     return;
   }
 

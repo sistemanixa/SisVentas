@@ -7,6 +7,7 @@ RUN npm install --omit=dev
 
 COPY index.js ./
 COPY oauth-authorization.js ./
+COPY catalog-request.js catalog-promotions.js ./
 COPY ficha-producto.js ./
 COPY proveedor-automatico.js ./
 COPY nissei.js ./
