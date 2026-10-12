@@ -615,13 +615,13 @@
     if (admin) {
       panel.style.cssText = 'position:fixed;inset:0;z-index:10000';
       panel.querySelector('.s-urole').textContent = internal?'Distribuidora':'Administrador · Ofertas';
-      panel.querySelector('[data-logout]').textContent = internal?'Volver a SisVentas':'Volver a Compras de exterior';
+      panel.querySelector('[data-logout]').textContent = ['compras_paraguay','distribuidora'].includes(role)?'Cerrar sesión':internal?'Volver a SisVentas':'Volver a Compras de exterior';
       const back = document.createElement('button');
       back.className = 'btn btn-sm';back.textContent = '← Volver';back.setAttribute('aria-label','Volver a la vista anterior');
       back.onclick = () => {
         if(busy)return;
         const previous=viewHistory.pop();
-        if(!previous){close();options.onClose?.();return;}
+        if(!previous)return;
         returningView=true;
         try{if(previous==='promotions')panel.querySelector('[data-nav="promotions"]').click();else if(previous==='requests')showRequests();else if(previous==='balance')showBalance();else if(previous==='salesbalance')showSalesBalance();else showView(previous==='lists');}
         finally{returningView=false;}
@@ -639,7 +639,7 @@
       panel.querySelector('[data-list-card]').prepend(ownerNote);
     }
     const promotionsView=document.createElement('section');promotionsView.hidden=true;panel.querySelector('.content').append(promotionsView);
-    if(role==='admin'){const nav=document.createElement('button');nav.className='nav-item';nav.dataset.nav='promotions';nav.textContent='Configuración';panel.querySelector('.s-nav').append(nav);}
+    if(role==='admin'){const nav=document.createElement('button');nav.className='nav-item';nav.dataset.nav='promotions';nav.innerHTML='<i class="ti ti-settings" aria-hidden="true"></i> Configuración';const dock=document.createElement('div');dock.style.cssText='flex-shrink:0;padding:8px 12px';dock.appendChild(nav);panel.querySelector('.s-foot').before(dock);}
     stops.push(()=>root.SVCatalogPromotionsConfig?.reset());
     const requestsView=document.createElement('section');requestsView.hidden=true;requestsView.setAttribute('aria-label','Solicitudes de compra');panel.querySelector('.content').appendChild(requestsView);
     const requestsButton=panel.querySelector('[data-nav="requests"]');requestsButton.hidden=!admin&&role!=='distribuidora';
@@ -747,7 +747,7 @@
       if(button.dataset.nav!=='lists')openCart();
       showView(button.dataset.nav === 'lists');
     });
-    panel.querySelector('[data-logout]').onclick = () => {if(admin){if(!busy){close();options.onClose?.();}}else root.doLogout();};
+    panel.querySelector('[data-logout]').onclick = () => {if(admin&&!['compras_paraguay','distribuidora'].includes(root.currentRole)){if(!busy){close();options.onClose?.();}}else root.doLogout();};
     panel.querySelector('[data-search]').oninput = renderProducts;
     panel.querySelector('[data-cart-items]').onclick = e => {const edit=e.target.closest('[data-edit-purchase]');if(edit){editingPurchases.add(edit.dataset.editPurchase);explicitPurchaseEdits.add(edit.dataset.editPurchase);renderSummary();return;}const button=e.target.closest('[data-remove]');if(button){delete selected[button.dataset.remove];delete purchases[button.dataset.remove];renderProducts();}};
     function capturePurchase(input) {
