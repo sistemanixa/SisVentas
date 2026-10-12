@@ -1,0 +1,1 @@
+(function(root){'use strict';root.SVServiceAuth={async headers(base){const user=root.fbAuth?.currentUser;if(!user)throw Error('La sesión venció. Volvé a ingresar.');const token=await user.getIdToken();if(root.fbAuth.currentUser!==user)throw Error('La sesión cambió. Reintentá.');return {...base,Authorization:'Bearer '+token};}};})(window);

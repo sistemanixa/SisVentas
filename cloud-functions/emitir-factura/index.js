@@ -14,8 +14,8 @@
  * (onCall) — evita la fricción de conectar Firebase Auth con el IAM
  * de Cloud Run, que requeriría desplegar vía `firebase deploy` en
  * vez de `gcloud functions deploy`. En su lugar, se protege el
- * acceso con una clave compartida simple (FRONTEND_KEY) que sólo
- * conoce el código de SisVentas.
+ * acceso con Firebase Auth y permisos leídos del registro protegido. La
+ * clave compartida pública no se considera autenticación.
  * ══════════════════════════════════════════════════════════════════
  */
 
@@ -160,25 +160,20 @@ function setCors(req, res) {
   var permitido = origen === 'https://ventas.sistemanixa.com' || /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origen);
   res.set('Access-Control-Allow-Origin', permitido ? origen : 'https://ventas.sistemanixa.com');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, X-Frontend-Key');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, X-Frontend-Key, Authorization');
 }
 
-function chequearAuth(req, res) {
-  var key = req.get('X-Frontend-Key');
-  if (key !== FRONTEND_KEY.value()) {
-    res.status(401).json({ error: true, mensaje: 'No autorizado' });
-    return false;
-  }
-  return true;
+async function chequearAuth(req,res,service){
+ try{await require('./service-auth.cjs').authorize({admin,authorization:req.get('Authorization'),service,body:req.body||{}});return true;}
+ catch(error){res.status(error.statusCode||503).json({error:true,mensaje:error.statusCode?error.message:'No se pudo verificar el permiso; reintentá'});return false;}
 }
-
 exports.emitirFactura = onRequest(
   { secrets: [TFAPP_USERTOKEN, TFAPP_APITOKEN, TFAPP_APIKEY, FRONTEND_KEY], region: 'southamerica-east1', cors: false },
   async (req, res) => {
     setCors(req, res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     if (req.method !== 'POST') { res.status(405).json({ error: true, mensaje: 'Método no permitido' }); return; }
-    if (!chequearAuth(req, res)) return;
+    if (!await chequearAuth(req, res, 'fiscal')) return;
 
     var data = req.body || {};
     if (data.accion === 'consultar_cuit') {
@@ -545,7 +540,7 @@ exports.testTFApp = onRequest(
     setCors(req, res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     if (req.method !== 'POST') { res.status(405).json({ error: true, mensaje: 'Método no permitido' }); return; }
-    if (!chequearAuth(req, res)) return;
+    if (!await chequearAuth(req, res, 'fiscal-test')) return;
 
     var resp, data;
     try {

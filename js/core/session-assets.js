@@ -11,7 +11,7 @@
     compras: {src:'./js/modules/purchase-orders.js?v=perf-31010', ready:function(){return !!window.SisVentasCompras;}},
     planner: {src:'./js/modules/paraguay-planner.js?v=3.8.1', ready:function(){return !!window.SVParaguayPlanner;}},
     preparation: {src:'./js/modules/exterior-preparation.js?v=3.9.12', ready:function(){return !!window.SVExteriorPreparation;}},
-    purchasePDF: {src:'./js/modules/purchase-pdf-import.js?v=3.7.18', ready:function(){return !!window.SVPurchasePDF;}}
+    purchasePDF: {src:'./js/modules/purchase-pdf-import.js?v=3.10.19-auth', ready:function(){return !!window.SVPurchasePDF;}}
   };
   var pending = Object.create(null);
   function load(name) {
