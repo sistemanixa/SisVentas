@@ -23,3 +23,9 @@ Solicitudes técnicas conservadas y visibles por pedido del usuario:
 Despliegue reproducible: scripts/deploy-solicitudes-correo.ps1. Requiere sesión Google Cloud con permisos de despliegue y acceso del servicio de ejecución al secreto.
 
 Resultado: ambas solicitudes técnicas llegaron al estado enviado, con messageId registrado. Los reintentos de Eventarc recuperaron los eventos originales después de corregir los receptores; no se recrearon las solicitudes ni se tocaron pedidos reales.
+
+## Diseño del correo
+
+Plantillas HTML en template.cjs: estética oscura SisVentas, estado verde para confirmación y dorado para declinación, nombre del pedido, motivo personalizado, enlace al catálogo y respuesta al remitente. Tablas y estilos inline para correo; conserva alternativa de texto simple. Todos los datos del cliente se escapan antes de insertarlos en HTML.
+
+Se enviaron las dos pruebas de diseño a nixa@sistemanixa.com. Gmail aceptó ambas. No se enviaron pruebas a clientes reales.

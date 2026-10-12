@@ -1,12 +1,13 @@
 'use strict';
 const FROM='nixa@sistemanixa.com';
+const {renderEmail}=require('./template.cjs');
 function buildMessage(request,event,type){
  const email=String(request?.email||'').trim();
  if(!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email))return null;
  if(!['confirmada','declinada'].includes(type))throw Error('Estado de correo inválido');
  const name=String(request.nombre||'').trim(),list=String(request.lista||'tu pedido').trim();
  const reason=String(event?.motivo||'No podemos completar tu pedido por falta de stock.').trim();
- return {from:FROM,to:email,subject:type==='confirmada'?'Confirmación de tu pedido · Nixa':'Respuesta a tu pedido · Nixa',text:'Hola '+name+',\n\n'+(type==='confirmada'?'Confirmamos la recepción y atención de tu pedido «'+list+'». Ya creamos la lista de compras para gestionarlo.':'No podemos completar tu pedido «'+list+'».\n\nMotivo: '+reason)+'\n\nGracias por comunicarte con Nixa.\nPodés responder este correo si tenés alguna consulta.',replyTo:FROM};
+ return {from:FROM,to:email,html:renderEmail({name,list,reason,confirmed:type==='confirmada'}),subject:type==='confirmada'?'Confirmación de tu pedido · Nixa':'Respuesta a tu pedido · Nixa',text:'Hola '+name+',\n\n'+(type==='confirmada'?'Confirmamos la recepción y atención de tu pedido «'+list+'». Ya creamos la lista de compras para gestionarlo.':'No podemos completar tu pedido «'+list+'».\n\nMotivo: '+reason)+'\n\nGracias por comunicarte con Nixa.\nPodés responder este correo si tenés alguna consulta.',replyTo:FROM};
 }
 async function dispatch({db,id,type,event,send}){
  const state=db.ref('sv_catalogo_solicitudes_correo/'+id+'/'+type);
@@ -19,4 +20,5 @@ async function dispatch({db,id,type,event,send}){
  }catch(error){await state.set({estado:'error',actualizadoEn:Date.now()});throw error;}
 }
 module.exports={buildMessage,dispatch};
+
 
