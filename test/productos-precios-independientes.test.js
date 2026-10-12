@@ -12,3 +12,6 @@ test('guardar con favorito conserva importes distintos y al comparar no copia el
  const rows=c.ordenarProveedoresComparacion(c.guardado.proveedores);assert.deepEqual(Array.from(rows,r=>r.costo),[75000,84234.15]);assert.equal(rows[0].proveedor.nombre,'FREE ELECTRON');
  c.prodProveedoresActuales=JSON.parse(JSON.stringify(c.guardado.proveedores));await c.guardarProducto();assert.deepEqual(c.guardado.proveedores.map(p=>p.precio),[75000,69615]);
 });
+
+test('guardar acepta referencia manual sin URL y conserva los proveedores reales',async()=>{const c=entorno();c.prodProveedoresActuales.push({nombre:'REFERENCIA DE VALOR',proveedorKey:'referencia-de-valor',precio:606264,url:''});c.proveedoresData.push({nombre:'REFERENCIA DE VALOR',fbKey:'referencia-de-valor'});await c.guardarProducto();assert.equal(c.guardado.proveedores.length,3);assert.equal(c.guardado.proveedores[2].url,'');assert.equal(c.guardado.proveedores[2].precio,606264);});
+test('guardar sigue rechazando proveedor real sin URL',async()=>{const c=entorno();c.prodProveedoresActuales[0].url='';await assert.rejects(c.guardarProducto(),/Completá la URL/);assert.equal(c.guardado,undefined);});
