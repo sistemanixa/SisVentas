@@ -32,6 +32,7 @@ if (!admin.apps.length) {
 }
 
 const db = admin.database();
+const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)}, db});
 const { consultarAutomatico, firmaAcceso, aplicarCondicionComercial } = require('./proveedor-automatico');
 const { esProveedorPublicoComprasParaguay } = require('./compras-paraguay');
 const verificacionesProveedor = new Map();
@@ -321,8 +322,10 @@ async function estadoOAuthMercadoLibre() {
   }
 }
 
-async function iniciarOAuthMercadoLibre(res) {
+async function iniciarOAuthMercadoLibre(req, res) {
+  const uid = await oauthAuthorization.authorize(req);
   const state = firmarEstadoOAuthMercadoLibre();
+  await oauthAuthorization.register(state, uid);
   const destino = new URL('https://auth.mercadolibre.com.ar/authorization');
   destino.searchParams.set('response_type', 'code');
   destino.searchParams.set('client_id', ML_CLIENT_ID);
@@ -337,6 +340,7 @@ async function completarOAuthMercadoLibre(url, res) {
   const code = String(url.searchParams.get('code') || '');
   const state = String(url.searchParams.get('state') || '');
   if (!code || !validarEstadoOAuthMercadoLibre(state)) throw new Error('La autorización de Mercado Libre no es válida o venció');
+  await oauthAuthorization.consume(state);
   const token = await solicitarTokenMercadoLibre({
     grant_type: 'authorization_code',
     client_id: ML_CLIENT_ID,
@@ -1958,7 +1962,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && pathname === '/mercadolibre/oauth/start') {
-    try { await iniciarOAuthMercadoLibre(res); }
+    try { await iniciarOAuthMercadoLibre(req, res); }
     catch (e) { sendHtml(res, e.statusCode || 500, `<h1>No se pudo iniciar la conexión</h1><p>${String(e.message || e).replace(/[<>&]/g, '')}</p>`); }
     return;
   }
