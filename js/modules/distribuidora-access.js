@@ -68,8 +68,10 @@
   form._restore=()=>{native.innerHTML=previousHTML;if(previousStyle===null)native.removeAttribute('style');else native.setAttribute('style',previousStyle);marker.replaceWith(native);related.forEach(([node,style])=>{if(style===null)node.removeAttribute('style');else node.setAttribute('style',style);});};
   const oldProducts=root.prodData;const restoreForm=form._restore;form._restore=()=>{restoreForm();root.prodData=oldProducts;};
   try{root.prodData=isNew?[]:[{...product,fbKey:key}];root.abrirFormProducto(key||null);}catch(error){closeEditor();root.notify?.('No se pudo mostrar el formulario');return;}
-  native.querySelector('#pf-categoria').innerHTML='<option>COMPRAS PARAGUAY</option>';
-  native.querySelector('#pf-categoria').disabled=true;
+  const category=native.querySelector('#pf-categoria');
+  category.disabled=root.currentRole!=='admin';
+  if(root.currentRole!=='admin'){category.innerHTML='<option value="COMPRAS PARAGUAY">COMPRAS PARAGUAY</option>';category.value=CATEGORY;}
+  root.initSearchableSelect?.('pf-categoria','Seleccionar categoría...');
   native.querySelector('#pf-es-mano-obra').disabled=true;
   native.querySelectorAll('#pf-anterior,#pf-siguiente').forEach(node=>node.style.setProperty('display','none','important'));
   const notice=document.createElement('p');notice.setAttribute('role','status');notice.style.cssText='margin:12px 0;color:var(--text);white-space:pre-wrap';

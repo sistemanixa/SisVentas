@@ -28,10 +28,21 @@
     const ars=salePrice(p,pricing), exchange=Number(rate);
     return {ars,usd:ars>0&&Number.isFinite(exchange)&&exchange>0?Math.round(ars/exchange*100)/100:0};
   }
+
+  function filterBalanceRows(rows,filters={}){
+    const query=String(filters.search||'').trim().toLowerCase();
+    const result=rows.filter(r=>[r.p.nombre,r.p.codigo].join(' ').toLowerCase().includes(query))
+      .filter(r=>filters.shipping==='missing'?!(r.shipping>0):filters.shipping==='loaded'?r.shipping>0:true)
+      .filter(r=>filters.review==='vat'?Number(r.p.iva)!==0:filters.review==='markup'?!(Number(r.p.margenDeseado)>0):filters.review==='loss'?r.cost>0&&r.profit<=0:filters.review==='cost'?!(r.cost>0):true);
+    const margin=r=>r.sale>0&&r.cost>0?r.profit/r.sale:-Infinity;
+    result.sort((a,b)=>filters.order==='name'?String(a.p.nombre).localeCompare(String(b.p.nombre),'es'):filters.order==='profit-asc'?a.profit-b.profit:filters.order==='margin-desc'?margin(b)-margin(a):filters.order==='sale-desc'?b.sale-a.sale:b.profit-a.profit);
+    return result;
+  }
+
   async function removeShoppingList(ownerUid, key, name) {
     const actor=root.currentUserUid, role=root.currentRole;
     const allowed=()=>root.currentUserUid===actor&&root.currentRole===role&&!!actor&&
-      ((role==='admin'&&root.permisoModulo?.('balancecompra'))||((['compras_paraguay','distribuidora'].includes(role)||root.permisoModulo?.('distribuidora'))&&ownerUid===actor));
+      ((role==='admin'&&(root.permisoModulo?.('balancecompra')||root.permisoModulo?.('distribuidora')))||((['compras_paraguay','distribuidora'].includes(role)||root.permisoModulo?.('distribuidora'))&&ownerUid===actor));
     if(!allowed()||![ownerUid,key].every(v=>typeof v==='string'&&v.length&&!/[.#$\[\]\/]/.test(v)))throw Error('Sin permiso para eliminar esta lista.');
     if(!root.confirm('¿Eliminar la lista «'+name+'»? Esta acción no modifica productos, stock ni órdenes de compra.'))return false;
     if(!allowed())throw Error('La sesión cambió. Volvé a ingresar.');
@@ -130,13 +141,14 @@
     const p = products[key]; if (!eligible(p)) return null;
     const q = quote(p,purchases[key]?.proveedor); return [p.codigo || '', p.nombre || p.descripcion || '', qty, q.usd || '', q.ars || '', q.url, purchases[key]?.cantidad ?? '', purchases[key]?.precioUnitario ?? '', purchases[key]?.moneda || '', purchases[key]?.proveedor || '', purchaseStates[purchases[key]?.estado] || 'Pendiente',q.store||'Por identificar'];
   }).filter(Boolean)].map(row => row.map(csvCell).join(';')).join('\r\n');
-  if (typeof module !== 'undefined') module.exports = {eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection, subscribeExchangeRate, pdfComparisonText, listHistory, listSavings, itemProfit, captureAgreedSale};
+  if (typeof module !== 'undefined') module.exports = {filterBalanceRows,eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, providerSelection, subscribeExchangeRate, pdfComparisonText, listHistory, listSavings, itemProfit, captureAgreedSale};
   if (!root.document) return;
   let detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', listBaseline = null, busy = false, generation = 0;
   let cartDraft = {productos:{}, comprasFinales:{}, nombre:''};
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const amount = n => Number(n).toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
   const exchangeRate = () => Number(root.obtenerDolarReferenciaProducto?.().valor)||0;
+  let balanceRefresh=null;
   let displayCurrency='USD';
   try{displayCurrency=root.localStorage.getItem('sv-public-currency')==='ARS'?'ARS':'USD';}catch(_){}
   const displayMoney=ars=>displayCurrency==='ARS'?'ARS $ '+amount(ars):exchangeRate()>0?'US$ '+amount(ars/exchangeRate()):'Sin cotización';
@@ -160,7 +172,7 @@
     node.querySelector('[data-dollar-type]').textContent=label;
     if(!panel.querySelector('[data-display-currency]')){
       const selector=document.createElement('select');selector.dataset.displayCurrency='';selector.className='search-input';selector.setAttribute('aria-label','Moneda de precios');selector.innerHTML='<option value="USD">Dólares</option><option value="ARS">Pesos</option>';selector.value=displayCurrency;
-      selector.onchange=()=>{displayCurrency=selector.value;try{root.localStorage.setItem('sv-public-currency',displayCurrency);}catch(_){}renderProducts();refreshOpenDetail();};node.after(selector);
+      selector.onchange=()=>{displayCurrency=selector.value;try{root.localStorage.setItem('sv-public-currency',displayCurrency);}catch(_){}renderProducts();refreshOpenDetail();};panel.querySelector('.topbar-right').prepend(selector);
     }
     node.title='Dólar de referencia del catálogo · '+label+' · Pesos argentinos por USD';
   }
@@ -180,13 +192,14 @@
   function returnFromProduct(restore=true) {
     if(!productSheet)return false;
     const context=productSheet;productSheet=null;
+    root.prodData=context.products;
     root.removeEventListener('popstate',context.back,true);root.removeEventListener('hashchange',context.back,true);
     context.nodes.forEach(({node,marker,style})=>{marker.replaceWith(node);if(style===null)node.removeAttribute('style');else node.setAttribute('style',style);});
     context.labels.forEach(({node,html})=>{node.innerHTML=html;});
     context.host.remove();
     if(panel){panel.style.display=context.panelDisplay;panel.style.removeProperty('visibility');}
     if(detailModal)detailModal.style.display='flex';
-    if(restore&&panel&&context.session===generation){renderProducts();showDetail(context.key);}
+    if(restore&&panel&&context.session===generation){renderProducts();if(!context.balance)showDetail(context.key);}
     return true;
   }
   function openProductSheet(key) {
@@ -198,8 +211,9 @@
     host.style.cssText='position:fixed;inset:0;z-index:9999;overflow:auto;background:var(--bg);color:var(--text);padding:20px;box-sizing:border-box';
     host.innerHTML='<style>#sv-exterior-product-sheet #pf-anterior,#sv-exterior-product-sheet #pf-siguiente{display:none!important}#sv-exterior-product-sheet>div{max-width:1400px;margin:auto}#sv-exterior-product-sheet .pf-editor-header{top:0} @media(max-width:600px){#sv-exterior-product-sheet{padding:12px!important}}</style>';
     const nodes=views.map(node=>{const marker=document.createComment('ficha exterior');node.before(marker);const style=node.getAttribute('style');host.appendChild(node);return {node,marker,style};});
-    const labels=Array.from(host.querySelectorAll('button[onclick="cerrarFormProducto()"],button[onclick="cerrarDetalleProducto()"]')).map(node=>({node,html:node.innerHTML}));labels.forEach(({node})=>{if(node.textContent.includes('Volver'))node.innerHTML='<i class="ti ti-arrow-left" aria-hidden="true"></i> Volver a Ofertas';});
-    const context={host,nodes,labels,key,session:generation,panelDisplay:panel.style.display,url:root.location.href};productSheet=context;
+    const labels=Array.from(host.querySelectorAll('button[onclick="cerrarFormProducto()"],button[onclick="cerrarDetalleProducto()"]')).map(node=>({node,html:node.innerHTML}));labels.forEach(({node})=>{if(node.textContent.includes('Volver'))node.innerHTML='<i class="ti ti-arrow-left" aria-hidden="true"></i> '+(panel.querySelector('[data-nav="balance"]')?.classList.contains('active')?'Volver al balance':'Volver a Ofertas');});
+    const context={host,nodes,labels,key,session:generation,panelDisplay:panel.style.display,url:root.location.href,products:root.prodData,balance:panel.querySelector('[data-nav="balance"]')?.classList.contains('active')};productSheet=context;
+    root.prodData=[...Object.values(root.prodData||{}).filter(p=>String(p.fbKey)!==String(key)),{...products[key],fbKey:key}];
     const leave=()=>{if(views[1].style.display!=='none')root.cerrarFormProducto();else returnFromProduct();};
     context.back=e=>{e.stopImmediatePropagation();root.history.replaceState(root.history.state,'',context.url);leave();};
     root.addEventListener('popstate',context.back,true);root.addEventListener('hashchange',context.back,true);
@@ -208,6 +222,7 @@
     try{root.verProducto(key,'ofertas');if(host.querySelector('#pd-codigo-lbl')?.textContent!==String(products[key].codigo||''))throw Error('Producto pendiente de cargar');host.querySelector('button')?.focus();}catch(e){returnFromProduct();root.alert('No se pudo abrir la ficha del producto.');}
   }
   function close() {
+    balanceRefresh=null;
     returnFromProduct(false);
     pdfPreview?.remove();pdfPreview=null;
     detailModal?.remove(); detailModal=null; purchases={};
@@ -217,6 +232,7 @@
     panel?.remove(); panel = null; products = {}; lists = {}; selected = {}; listKey = ''; listBaseline = null; busy = false;
   }
   function renderProducts() {
+    balanceRefresh?.();
     const search = panel.querySelector('[data-search]').value.toLowerCase();
     const rows = Object.entries(products).filter(([,p]) => eligible(p) && [p.nombre,p.descripcion,p.codigo,p.marca].join(' ').toLowerCase().includes(search));
     panel.querySelector('[data-count]').textContent = rows.length + (rows.length === 1 ? ' producto' : ' productos');
@@ -375,7 +391,7 @@
       const field=row.querySelector('[data-purchase="precioUnitario"]'),key=field?.dataset.key;if(!key)return;
       const actual=purchases[key]||{},edit=editingPurchases.has(key),p=products[key],q=quote(p,actual.proveedor);
       let badge=row.querySelector('[data-purchase-badge]');
-      if(!badge){badge=document.createElement('small');badge.dataset.purchaseBadge='';row.querySelector('strong').after(badge);badge.style.cssText='display:block;color:var(--green);margin:6px 0';}
+      if(!badge){badge=document.createElement('small');badge.dataset.purchaseBadge='';row.querySelector('.py-list-product').after(badge);badge.style.cssText='display:block;color:var(--green);margin:6px 0;white-space:nowrap';}
       badge.textContent=purchaseStates[actual.estado||'pendiente'];
       let dates=row.querySelector('[data-item-dates]');if(!dates){dates=document.createElement('small');dates.dataset.itemDates='';dates.style.cssText='display:block;margin:8px 0;color:var(--text3)';row.querySelector('td').appendChild(dates);}
       const history=listBaseline?.fechasProductos?.[key]||{},created=listBaseline?.creadoEn;
@@ -442,6 +458,8 @@
     const identity = (await root.fbGet(roleQuery)).val();
     if (!valid()) return;
     if (!identity || identity.rol !== role || identity.activo !== true) throw new Error('No se pudo verificar el acceso a Ofertas');
+    const viewHistory=[];let currentView='',returningView=false;
+    function rememberView(next){if(next===currentView)return;if(currentView&&!returningView)viewHistory.push(currentView);currentView=next;}
     panel = document.createElement('main'); panel.id = 'screen-paraguay';
     panel.innerHTML = `
       <style>
@@ -462,7 +480,7 @@
         #screen-paraguay>.app{flex:1;min-height:0;width:100%;overflow:hidden}
         #screen-paraguay .main{min-height:0;min-width:0}
         #screen-paraguay .topbar{flex-shrink:0}
-        @media(max-width:600px){#screen-paraguay .topbar{display:flex;flex-wrap:wrap;height:auto;gap:8px;padding:10px 12px}#screen-paraguay .topbar-right{flex-wrap:wrap;gap:8px}}
+        @media(max-width:600px){#screen-paraguay .topbar{display:flex!important;flex-wrap:wrap!important;height:auto!important;min-height:58px;gap:8px;padding:10px 12px!important;align-items:center!important}#screen-paraguay .topbar-right{position:static!important;display:flex!important;flex:1 0 100%!important;width:100%!important;flex-wrap:wrap!important;justify-content:flex-start!important;align-items:center!important;gap:8px!important;margin:0!important}#screen-paraguay .topbar-right select{width:auto!important;min-width:110px;max-width:100%;flex:1 1 110px}#screen-paraguay .topbar-right .topbar-dolar{flex:0 1 auto}}
         #screen-paraguay .nav-item{width:100%;font-family:inherit;text-align:left;background:transparent}
         #screen-paraguay .nav-item.active{background:var(--bg3)}
         #screen-paraguay .py-list-fields{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,2fr);gap:14px}
@@ -599,11 +617,20 @@
       panel.querySelector('.s-urole').textContent = internal?'Distribuidora':'Administrador · Ofertas';
       panel.querySelector('[data-logout]').textContent = internal?'Volver a SisVentas':'Volver a Compras de exterior';
       const back = document.createElement('button');
-      back.className = 'btn btn-sm';back.textContent = internal?'← Volver a SisVentas':'← Compras de exterior';
-      back.onclick = () => {if(!busy){close();options.onClose?.();}};
+      back.className = 'btn btn-sm';back.textContent = '← Volver';back.setAttribute('aria-label','Volver a la vista anterior');
+      back.onclick = () => {
+        if(busy)return;
+        const previous=viewHistory.pop();
+        if(!previous){close();options.onClose?.();return;}
+        returningView=true;
+        try{if(previous==='promotions')panel.querySelector('[data-nav="promotions"]').click();else if(previous==='requests')showRequests();else if(previous==='balance')showBalance();else if(previous==='salesbalance')showSalesBalance();else showView(previous==='lists');}
+        finally{returningView=false;}
+      };
       const backRow = document.createElement('div');
-      backRow.style.cssText = 'margin-bottom:14px;display:flex;align-items:center';
+      backRow.style.cssText = 'margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap';
       backRow.appendChild(back);
+      const dollar = panel.querySelector('[data-dollar-reference]');
+      if(dollar){const exchangeBox=document.createElement('div');exchangeBox.className='py-exchange-controls';exchangeBox.style.cssText='margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px';exchangeBox.appendChild(dollar);const currency=panel.querySelector('[data-display-currency]');if(currency){currency.style.cssText='width:140px;min-height:34px;padding:6px 10px;margin:0';exchangeBox.appendChild(currency);}backRow.appendChild(exchangeBox);}
       panel.querySelector('.content').prepend(backRow);
       panel.querySelector('.page-title').textContent = 'Ofertas · ' + (options.ownerName || 'Mis listas');
       const ownerNote = document.createElement('p');
@@ -616,7 +643,38 @@
     stops.push(()=>root.SVCatalogPromotionsConfig?.reset());
     const requestsView=document.createElement('section');requestsView.hidden=true;requestsView.setAttribute('aria-label','Solicitudes de compra');panel.querySelector('.content').appendChild(requestsView);
     const requestsButton=panel.querySelector('[data-nav="requests"]');requestsButton.hidden=!admin&&role!=='distribuidora';
-    function showRequests(){
+    const balanceView=document.createElement('section');balanceView.hidden=true;balanceView.setAttribute('aria-label','Balance de productos');panel.querySelector('.content').appendChild(balanceView);
+    if(admin){const nav=document.createElement('button');nav.className='nav-item';nav.dataset.nav='balance';nav.innerHTML='<i class="ti ti-chart-bar" aria-hidden="true"></i> Balance de productos';requestsButton.after(nav);}
+    function renderBalance(){
+      if(balanceView.hidden)return;
+      const search=balanceView.querySelector('[data-balance-search]')?.value||'';
+      const rows=Object.entries(products).filter(([,p])=>eligible(p)).map(([key,p])=>{const favorite=(p.proveedores||[]).find(r=>root.proveedorProductoEsFavorito?.(r,p));const cost=Number(root.precioGremioARSDesdeProducto?.(p))||0,sale=salePrice(p),shipping=Number(favorite?.costoEnvioArs)||0;return {key,p,cost,sale,shipping,profit:sale-cost};}).sort((a,b)=>b.profit-a.profit);
+      if(!balanceView.querySelector('[data-balance-search]'))balanceView.innerHTML='<style>.py-balance-table{width:100%;border-collapse:collapse}.py-balance-table td,.py-balance-table th{padding:14px 12px;border-bottom:1px solid var(--border);text-align:left}.py-balance-table th{font-size:11px;color:var(--text3);font-weight:500}.py-balance-table td:not(:first-child){white-space:nowrap}.py-balance-table td:first-child{min-width:240px}</style><div class="card"><div class="card-head"><h3 class="card-title">Balance de productos</h3><span data-balance-count class="badge b-green"></span></div><p class="py-note">Ganancia estimada por unidad: venta al público menos costo del proveedor favorito y envío registrado.</p><div style="display:flex;align-items:center;gap:12px;margin:18px 0;flex-wrap:wrap"><input data-balance-search data-sv-own-counter="1" class="search-input" placeholder="Buscar producto…" aria-label="Buscar en balance de productos" style="flex:1;min-width:200px"><span data-balance-visible style="font-size:12px;color:var(--text3);white-space:nowrap" aria-live="polite"></span></div><div data-balance-filters style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px"><label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text3)">Ordenar<select data-balance-order aria-label="Ordenar balance" class="search-input" style="min-width:170px"><option value="profit-desc">Mayor ganancia</option><option value="profit-asc">Menor ganancia</option><option value="margin-desc">Mayor margen %</option><option value="sale-desc">Mayor precio público</option><option value="name">Nombre A–Z</option></select></label><label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text3)">Envío<select data-balance-shipping aria-label="Envío balance" class="search-input" style="min-width:170px"><option value="all">Todos</option><option value="missing">Sin envío</option><option value="loaded">Con envío</option></select></label><label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text3)">Revisión<select data-balance-review aria-label="Revisión balance" class="search-input" style="min-width:170px"><option value="all">Todos</option><option value="vat">IVA no exento</option><option value="markup">Sin valor agregado</option><option value="loss">Ganancia cero o negativa</option><option value="cost">Sin costo</option></select></label></div><div class="sv-search-filter-notice" data-balance-notice role="status" hidden><span data-balance-notice-text></span><button class="btn btn-sm" data-balance-clear>Quitar filtros</button></div><p data-balance-audit class="py-note"></p><div class="table-wrap" style="overflow:auto"><table id="py-balance-table" class="py-balance-table"><thead><tr><th>Producto</th><th>Costo + envío</th><th>Venta pública</th><th>Ganancia / unidad</th><th>Margen</th></tr></thead><tbody data-balance-rows></tbody></table></div></div>';
+      balanceView.querySelector('[data-balance-count]').textContent=rows.length+' productos';
+      balanceView.querySelector('[data-balance-audit]').textContent=rows.filter(r=>r.shipping<=0).length+' sin envío registrado · '+rows.filter(r=>Number(r.p.iva)!==0).length+' sin IVA exento · '+rows.filter(r=>!(Number(r.p.margenDeseado)>0)).length+' sin valor agregado positivo';
+      balanceView.querySelector('[data-balance-rows]').innerHTML=filterBalanceRows(rows,{search,order:balanceView.querySelector('[data-balance-order]').value,shipping:balanceView.querySelector('[data-balance-shipping]').value,review:balanceView.querySelector('[data-balance-review]').value}).map(r=>'<tr><td><button class="py-balance-product" type="button" data-balance-product="'+esc(r.key)+'" style="font:inherit;font-weight:700;color:var(--blue);border:0;background:transparent;text-align:left;padding:0;cursor:pointer;white-space:normal;overflow-wrap:anywhere;max-width:100%">'+esc(r.p.nombre)+'</button><small style="display:block;color:var(--text3);margin-top:6px">'+esc(r.p.codigo)+(r.shipping<=0?' · Envío pendiente':'')+'</small></td><td>'+displayMoney(r.cost)+'</td><td>'+displayMoney(r.sale)+'</td><td style="color:var(--'+(r.profit>=0?'green':'red')+');font-weight:700">'+(r.cost>0?displayMoney(r.profit):'Falta costo')+'</td><td>'+(r.sale>0&&r.cost>0?amount(r.profit/r.sale*100)+'%':'—')+'</td></tr>').join('');
+      balanceView.querySelector('[data-balance-search]').oninput=renderBalance;
+      balanceView.querySelectorAll('[data-balance-filters] select').forEach(select=>select.onchange=renderBalance);
+      balanceView.querySelector('[data-balance-clear]').onclick=()=>{balanceView.querySelector('[data-balance-search]').value='';balanceView.querySelector('[data-balance-order]').value='profit-desc';balanceView.querySelector('[data-balance-shipping]').value='all';balanceView.querySelector('[data-balance-review]').value='all';renderBalance();};
+      const applied=[];
+      if(search.trim())applied.push('«'+search.trim()+'»');
+      for(const kind of ['shipping','review']){const select=balanceView.querySelector('[data-balance-'+kind+']');if(select.value!=='all')applied.push(select.options[select.selectedIndex].textContent);}
+      const order=balanceView.querySelector('[data-balance-order]');if(order.value!=='profit-desc')applied.push('Orden: '+order.options[order.selectedIndex].textContent);
+      balanceView.querySelector('[data-balance-notice]').hidden=!applied.length;
+      balanceView.querySelector('[data-balance-notice-text]').textContent='Filtro aplicado: '+applied.join(' · ')+'. Puede haber registros ocultos.';
+      balanceView.querySelector('[data-balance-visible]').textContent=balanceView.querySelectorAll('[data-balance-rows] tr').length+' '+(balanceView.querySelectorAll('[data-balance-rows] tr').length===1?'resultado':'resultados');
+      root.SisVentas?.prepareResizablePage?.(balanceView);
+      balanceView.querySelectorAll('[data-balance-product]').forEach(button=>button.onclick=()=>openProductSheet(button.dataset.balanceProduct));
+    }
+    balanceRefresh=renderBalance;
+    function showBalance(){if(!admin)return;hideSalesBalance();rememberView('balance');promotionsView.hidden=true;root.SVCatalogPromotionsConfig?.reset();requestsView.hidden=true;root.SVCatalogRequests?.reset();panel.querySelector('[data-products-card]').hidden=true;panel.querySelector('[data-list-card]').hidden=true;panel.querySelector('.metrics').hidden=true;balanceView.hidden=false;panel.querySelector('.page-title').textContent='Balance de productos';panel.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav==='balance'));panel.querySelector('.sidebar').classList.remove('open');panel.querySelector('[data-menu]').setAttribute('aria-expanded','false');renderBalance();panel.querySelector('.content').scrollTop=0;}
+    const salesBalanceView=document.createElement('section');salesBalanceView.hidden=true;panel.querySelector('.content').appendChild(salesBalanceView);
+    if(admin){const nav=document.createElement('button');nav.className='nav-item';nav.dataset.nav='salesbalance';nav.innerHTML='<i class="ti ti-chart-line" aria-hidden="true"></i> Balance de ventas';panel.querySelector('[data-nav="balance"]').after(nav);}
+    function showSalesBalance(){if(!admin)return;rememberView('salesbalance');balanceView.hidden=true;promotionsView.hidden=true;root.SVCatalogPromotionsConfig?.reset();requestsView.hidden=true;root.SVCatalogRequests?.reset();panel.querySelector('[data-products-card]').hidden=true;panel.querySelector('[data-list-card]').hidden=true;panel.querySelector('.metrics').hidden=true;salesBalanceView.hidden=false;panel.querySelector('.page-title').textContent='Balance de ventas';panel.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav==='salesbalance'));panel.querySelector('.sidebar').classList.remove('open');root.SVSalesBalance.mount(salesBalanceView,r=>open(nombre,{internal:true,ownerUid:r.uid,ownerName:r.name,listKey:r.key,fromSalesBalance:true}));}
+    stops.push(()=>root.SVSalesBalance?.reset());
+    function hideSalesBalance(){salesBalanceView.hidden=true;root.SVSalesBalance?.reset();}
+    function showRequests(){hideSalesBalance();balanceView.hidden=true;
+      rememberView('requests');
       promotionsView.hidden=true;root.SVCatalogPromotionsConfig?.reset();
       panel.querySelector('[data-products-card]').hidden=true;panel.querySelector('[data-list-card]').hidden=true;panel.querySelector('.metrics').hidden=true;requestsView.hidden=false;
       panel.querySelector('.page-title').textContent='Solicitudes de compra';
@@ -628,6 +686,9 @@
     }
     const refreshRequests=()=>{if(!requestsView.hidden)showRequests();};document.addEventListener('sisventas:distribuidora-permissions',refreshRequests);stops.push(()=>{document.removeEventListener('sisventas:distribuidora-permissions',refreshRequests);root.SVCatalogRequests?.reset();});
     function showView(listsView) {
+      hideSalesBalance();
+      balanceView.hidden=true;
+      rememberView(listsView?'lists':'products');
       promotionsView.hidden=true;root.SVCatalogPromotionsConfig?.reset();
       requestsView.hidden=true;root.SVCatalogRequests?.reset();
       panel.querySelector('[data-products-card]').hidden=listsView;
@@ -643,6 +704,7 @@
       if (listsView) root.SisVentas?.prepareResizablePage?.(panel.querySelector('[data-cart-items]'));
     }
     showView(!!options.listKey);
+    if(options.fromSalesBalance)viewHistory.push('salesbalance');
     const preferences = document.createElement('div');
     preferences.hidden = true;
     preferences.setAttribute('role','dialog'); preferences.setAttribute('aria-label','Configuración de cuenta');
@@ -677,7 +739,10 @@
     panel.querySelector('[data-return-list]').onclick=()=>showView(true);
     panel.querySelector('[data-confirm-products]').onclick=async()=>{if(busy)return;showView(true);await panel.querySelector('[data-save]').onclick();};
     panel.querySelectorAll('[data-nav]').forEach(button => button.onclick = () => {
-      if(button.dataset.nav==='promotions'){requestsView.hidden=true;root.SVCatalogRequests?.reset();panel.querySelector('[data-products-card]').hidden=true;panel.querySelector('[data-list-card]').hidden=true;panel.querySelector('.metrics').hidden=true;promotionsView.hidden=false;panel.querySelector('.page-title').textContent='Configuración';panel.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b===button));root.SVCatalogPromotionsConfig.mount(promotionsView);return;}
+      panel.querySelector('.sidebar').classList.remove('open');panel.querySelector('[data-menu]').setAttribute('aria-expanded','false');
+      if(button.dataset.nav==='salesbalance'){showSalesBalance();return;}hideSalesBalance();
+      if(button.dataset.nav==='balance'){showBalance();return;}balanceView.hidden=true;
+      if(button.dataset.nav==='promotions'){rememberView('promotions');requestsView.hidden=true;root.SVCatalogRequests?.reset();panel.querySelector('[data-products-card]').hidden=true;panel.querySelector('[data-list-card]').hidden=true;panel.querySelector('.metrics').hidden=true;promotionsView.hidden=false;panel.querySelector('.page-title').textContent='Configuración';panel.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b===button));root.SVCatalogPromotionsConfig.mount(promotionsView);return;}
       if(button.dataset.nav==='requests'){showRequests();return;}
       if(button.dataset.nav!=='lists')openCart();
       showView(button.dataset.nav === 'lists');
@@ -731,7 +796,8 @@
       if(!e.target.value){openCart();return;}
       listKey = e.target.value; const list = lists[listKey] || {}; listBaseline=listKey?structuredClone(list):null;
       selected = Object.assign({}, list.productos || {}); purchases=structuredClone(list.comprasFinales||{}); panel.querySelector('[data-name]').value = list.nombre || '';
-      status(''); renderProducts();
+      editingPurchases.clear();explicitPurchaseEdits.clear();
+      status(''); renderLists();renderProducts();
     };
     panel.querySelector('[data-delete-list]').onclick = async () => {
       if(busy||!valid()||!listKey||!lists[listKey])return;

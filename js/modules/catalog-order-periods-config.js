@@ -1,0 +1,17 @@
+(function(root){
+'use strict';
+let stop;
+function reset(){stop?.();stop=null;}
+function mount(host){
+ reset();if(root.currentRole!=='admin')return;
+ host.innerHTML='<h3>Tiempos de las listas</h3><p>Configurá los períodos que se repiten todos los meses, en horario de Argentina. El cierre incluye todo el día indicado. Si el mes es más corto, cierra el último día del mes.</p><form data-period-form><div data-period-rows style="grid-column:1/-1;display:grid;gap:16px"></div><button type="button" class="btn" data-add-period>＋ Agregar período</button><button type="submit" class="btn">Guardar períodos</button><p role="status"></p></form>';
+ const form=host.querySelector('form'),box=host.querySelector('[data-period-rows]'),status=host.querySelector('[role=status]');let dirty=false,busy=false,ready=false;
+ const value=()=>Array.from(box.children,row=>({nombre:row.querySelector('[name=nombre]').value,inicio:Number(row.querySelector('[name=inicio]').value),fin:Number(row.querySelector('[name=fin]').value)}));
+ function add(p){const row=document.createElement('fieldset');row.style.cssText='border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-wrap:wrap;gap:12px';row.innerHTML='<label style="flex:1 1 200px">Nombre<input name="nombre" required maxlength="80"></label><label style="flex:1 1 100px">Día de apertura<input name="inicio" type="number" min="1" max="31" required></label><label style="flex:1 1 100px">Día de cierre<input name="fin" type="number" min="1" max="31" required></label><button type="button" class="btn" aria-label="Quitar período">Quitar</button>';for(const k of ['nombre','inicio','fin'])row.querySelector('[name='+k+']').value=p[k];row.querySelector('button').onclick=()=>{if(busy)return;row.remove();dirty=true;status.textContent='Cambios pendientes de guardar.';};box.append(row);}
+ form.oninput=()=>{dirty=true;status.textContent='Cambios pendientes de guardar.';};
+ host.querySelector('[data-add-period]').onclick=()=>{if(!ready||busy)return;if(box.children.length>=12){status.textContent='Podés configurar hasta doce períodos.';return;}add({nombre:'Nuevo período',inicio:1,fin:1});dirty=true;status.textContent='Completá el nuevo período y guardá los cambios.';};
+ form.onsubmit=async e=>{e.preventDefault();if(!ready||busy||root.currentRole!=='admin')return;let rows;try{rows=root.SVCatalogPromotions.validatePeriods(value());}catch(e){status.textContent=e.message;return;}busy=true;form.querySelectorAll('input,button').forEach(n=>n.disabled=true);try{await root.fbSet(root.fbRef(root.fbDB,'sv_catalogo_periodos'),{periodos:rows});dirty=false;status.textContent='Períodos guardados. El catálogo público usará estos tiempos.';}catch(_){status.textContent='No se pudo guardar. Conservamos tus cambios; revisá conexión y permisos.';}finally{busy=false;form.querySelectorAll('input,button').forEach(n=>n.disabled=false);}};
+ stop=root.fbOnValue(root.fbRef(root.fbDB,'sv_catalogo_periodos'),snap=>{if(!host.isConnected||dirty||busy)return;const data=snap.val();let rows;try{rows=root.SVCatalogPromotions.validatePeriods(data?.periodos??root.SVCatalogPromotions.defaultPeriods);}catch(_){status.textContent='La configuración guardada no es válida.';return;}box.replaceChildren();rows.forEach(add);ready=true;},()=>{status.textContent='No se pudieron cargar los períodos. Revisá conexión y permisos.';});
+}
+root.SVCatalogOrderPeriodsConfig={mount,reset};
+})(window);

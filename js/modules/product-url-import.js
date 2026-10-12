@@ -82,7 +82,7 @@
     if(!usd||!ars)return;
     var rate=Number(obtenerDolarReferenciaProducto().valor);
     usd.disabled=!(Number.isFinite(rate)&&rate>0);
-    usd.value=usd.disabled?'':(Number(ars.value)/rate).toFixed(2);
+    usd.value=usd.disabled?'':(Number(ars.value)/rate).toFixed(0);
     usd.setCustomValidity('');
     el('pf-envio-cambio').textContent=usd.disabled?'Sin cotización: podés cargar el envío en pesos.':'1 USD = ARS $ '+rate.toLocaleString('es-AR')+' · Envío por unidad. Se guarda en pesos enteros, redondeado al peso más cercano.';
   }

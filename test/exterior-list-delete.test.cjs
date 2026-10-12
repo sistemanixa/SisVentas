@@ -5,3 +5,21 @@ test('cancelar no escribe ni elimina',async()=>{const {writes,remove}=setup('adm
 test('rol limitado sólo puede eliminar listas propias',async()=>{const {writes,remove}=setup('compras_paraguay');await assert.rejects(remove('otro','lista-1','Ejemplo'),/Sin permiso/);await remove('admin-uid','lista-1','Propia');assert.equal(writes.length,1);});
 test('no admite otros roles, rutas arbitrarias ni cambios de sesión',async()=>{for(const role of ['ventas','soporte']){const {remove,writes}=setup(role);await assert.rejects(remove('admin-uid','lista-1','Ejemplo'));assert.equal(writes.length,0);}const {root,remove,writes}=setup();await assert.rejects(remove('otro/usuario','lista-1','Ejemplo'));root.confirm=()=>{root.currentUserUid='otro';return true;};await assert.rejects(remove('yago-uid','lista-1','Ejemplo'),/sesión/);assert.equal(writes.length,0);});
 test('el error de Firebase se propaga, sin informar éxito falso',async()=>{const {root,remove}=setup();root.fbSet=async()=>{throw Error('desconectado');};await assert.rejects(remove('yago-uid','lista-1','Ejemplo'),/desconectado/);});
+
+test('admin con acceso a Distribuidora elimina sin depender de Compras de exterior',async()=>{const {root,writes,remove}=setup();root.permisoModulo=modulo=>modulo==='distribuidora';assert.equal(await remove('yago-uid','lista-1','Ejemplo'),true);assert.equal(writes.length,1);});
+
+test('seleccionar una lista guardada habilita eliminar y limpia la edición del ítem anterior',()=>{
+ const source=fs.readFileSync('js/modules/paraguay-shopping-access.js','utf8');
+ const handler=source.match(/panel\.querySelector\('\[data-lists\]'\)\.onchange = e => \{([\s\S]*?)\n    \};/)[1];
+ const button={disabled:true},select={innerHTML:''},name={value:''};
+ const context={busy:false,listKey:'',listBaseline:null,lists:{saved:{nombre:'Prueba',productos:{p:2}}},selected:{},purchases:{},structuredClone,
+ editingPurchases:new Set(['anterior']),explicitPurchaseEdits:new Set(['anterior']),rememberCart(){},openCart(){},status(){},renderProducts(){},
+ panel:{querySelector:s=>s==='[data-delete-list]'?button:s==='[data-lists]'?select:name},esc:v=>v};
+ vm.createContext(context);
+ const render=source.match(/function renderLists\(\) \{([\s\S]*?)\n  \}/)[1];
+ vm.runInContext('function renderLists(){'+render+'}\nfunction selectList(e){'+handler+'}',context);
+ context.selectList({target:{value:'saved'}});
+ assert.equal(button.disabled,false);assert.equal(name.value,'Prueba');assert.equal(context.selected.p,2);
+ assert.equal(context.editingPurchases.size,0);assert.equal(context.explicitPurchaseEdits.size,0);
+ context.busy=true;context.renderLists();assert.equal(button.disabled,true);
+});
