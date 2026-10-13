@@ -85,6 +85,8 @@
   });
 
   window.confirmarRegistroAguinaldo = async function(){
+    if (window._aguinaldoGuardando) { notify('Ya se está registrando el aguinaldo'); return; }
+    if (!window.tienePermiso('empleados.registrarHaberes')) { notify('Sin permiso para registrar aguinaldos'); return; }
     if (!window.fbDB) { notify('Sin conexión'); return; }
     var sel = document.getElementById('agu-sem-sel');
     var actual = (typeof _semestreActual === 'function') ? _semestreActual() : { anio: new Date().getFullYear(), sem: (new Date().getMonth() < 6 ? 1 : 2) };
@@ -97,40 +99,29 @@
     var fechaGasto = (fechaInp && fechaInp.value) ? fechaInp.value : _sv348Today();
     var empleados = _sv348Arr(window.empData || empData || {}).filter(function(e){ return e && e.activo !== false && e.fbKey && _sv348EmpleadoSeleccionado(e.fbKey); });
     if (!empleados.length) { notify('Seleccioná al menos un empleado'); return; }
+    window._aguinaldoGuardando = true;
     try {
+      var permitirDuplicado = false;
       if (_sv348ExisteSacEnGastos(empleados, semKey, semLbl)) {
         if (!await window.svConfirm('Ya existe aguinaldo registrado en Gastos para uno o más empleados en ' + semLbl + '. Si está mal, eliminá ese gasto. ¿Registrar de nuevo de todas formas?')) return;
+        permitirDuplicado = true;
       }
       var habSnap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/haberes'));
       var habData = habSnap.val() || {};
       var filas = (typeof _calcularFilasAguinaldo === 'function') ? _calcularFilasAguinaldo(empleados, habData, anio, sem) : [];
-      var promesas = [];
-      var contador = 0;
-      var tsBase = Date.now();
-      filas.forEach(function(f, idx){
-        if (!f || !f.e || !f.e.fbKey || Number(f.aguinaldo || 0) <= 0) return;
-        var e = f.e;
-        var gasto = (typeof _pagableGastoBase === 'function') ? _pagableGastoBase({
-          fecha: fechaGasto, tipo:'Fijo', tipoPagable:'aguinaldo',
-          descripcion:'Aguinaldo ' + (e.nombre || '') + ' — ' + semLbl,
-          monto:Number(f.aguinaldo || 0), empleadoFbKey:e.fbKey, empleadoNombre:e.nombre || '',
-          semestre:semKey, mejorSueldo:Number(f.mejorSueldo || 0), legacyKey:'sac_nuevo/' + e.fbKey + '/' + semKey + '/' + tsBase, ts:tsBase + idx
-        }) : {
-          fecha: fechaGasto, tipo:'Fijo', tipoPagable:'aguinaldo', descripcion:'Aguinaldo ' + (e.nombre || '') + ' — ' + semLbl,
-          categoria:'Personal', monto:Number(f.aguinaldo || 0), medio:'Transferencia', estado:'Pendiente', empleadoId:e.fbKey,
-          empleadoFbKey:e.fbKey, empleadoNombre:e.nombre || '', semestre:semKey, mejorSueldo:Number(f.mejorSueldo || 0), ts:tsBase + idx
-        };
-        promesas.push(window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), gasto));
-        contador++;
-      });
+      var contador = filas.filter(function(f){return f && f.e && f.e.fbKey && Number(f.aguinaldo || 0)>0;}).length;
       if (!contador) { notify('No hay importes de aguinaldo para registrar'); return; }
-      await Promise.all(promesas);
+      var editor = document.getElementById('modal-aguinaldo');
+      var operacionKey = editor && editor.dataset.aguinaldoOperacion;
+      if (!operacionKey) {operacionKey='sac_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);if(editor)editor.dataset.aguinaldoOperacion=operacionKey;}
+      var resultado = await _guardarAguinaldosAtomico(filas,semKey,fechaGasto,semLbl,operacionKey,permitirDuplicado);
+      if (!resultado || !resultado.committed) throw new Error('No se pudo confirmar el aguinaldo');
       var modal = document.getElementById('modal-aguinaldo');
       if (modal) modal.remove();
       notify('✓ Aguinaldo de ' + semLbl + ' registrado en Gastos con fecha ' + fechaGasto + ' (' + contador + ' empleados)');
       if (typeof registrarActividad === 'function') registrarActividad('Aguinaldo registrado en Gastos', semLbl + ' — ' + contador + ' empleados');
     } catch(err) {
       notify('Error al registrar aguinaldo: ' + (err && err.message ? err.message : err));
-    }
+    } finally { window._aguinaldoGuardando = false; }
   };
 })();
