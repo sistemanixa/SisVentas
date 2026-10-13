@@ -329,6 +329,7 @@
     var suma=detalleActual.items.filter(function(g){return estado(g)!=='rechazado';}).reduce(function(s,g){return s+porcentaje(g,movimientosDetalle[g.fbKey]);},0);
     if(suma+pct>maxPct+0.001){window.notify('El reparto total superaría el máximo de '+maxPct+'%');return;}
     var ventaBase=ventaDelGrupo(detalleActual);
+    if (!ventaBase || ventaBase.comisionHabilitada !== true) {window.notify('Habilitá la comisión en la venta antes de agregar participantes.');return;}
     var base=ventaBase&&typeof window._calcularBaseComisionVenta==='function'?window._calcularBaseComisionVenta(ventaBase).ganancia:detalleActual.items.reduce(function(v,g){return v||baseGanancia(g,movimientosDetalle[g.fbKey]);},0); if(!(base>0)){window.notify('No se pudo determinar la ganancia base');return;}
     var claveReabrir=detalleActual.clave;
     await window._generarComisionVentaAtomica(emp,{tipo:'comision',estado:'pendiente',aprobadoPor:'',aprobadoTs:null,monto:Math.round(base*pct)/100,pct:pct,pctOriginal:pct,ajustadoAlTope:false,gananciaBase:base,ventaId:detalleActual.ventaId||'',ventaFbKey:detalleActual.ventaFbKey||'',cliente:detalleActual.cliente||'',descripcion:'Comisión venta '+(detalleActual.ventaId||'')+' · '+pct+'% sobre ganancia $'+Math.round(base).toLocaleString('es-AR')+' · participante agregado',fecha:new Date().toISOString().slice(0,10),ts:Date.now(),empleadoNombre:emp.nombre||'',origenCarga:'gestion_comisiones'});

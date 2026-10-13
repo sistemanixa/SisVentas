@@ -3,7 +3,33 @@
   'use strict';
   var TTL = 30 * 86400000;
   function valid(d, now) { return d && d.schema === 1 && typeof d.updated === 'number' && now - d.updated < TTL && d.updated <= now && (d.kind === 'venta' || d.kind === 'presupuesto'); }
-  if (typeof module !== 'undefined' && module.exports) { module.exports = { valid: valid, TTL: TTL }; return; }
+  function stable(value) {
+    if (Array.isArray(value)) return value.map(stable);
+    if (value && typeof value === 'object') { var out={}; Object.keys(value).sort().forEach(function(k){out[k]=stable(value[k]);}); return out; }
+    return value;
+  }
+  function same(a,b) { return JSON.stringify(stable(a)) === JSON.stringify(stable(b)); }
+  function mergeForm(base,draft,current) {
+    var result=JSON.parse(JSON.stringify(current)),conflicts=[];
+    function choose(old,proposed,latest,label) {
+      if (same(proposed,old)) return latest;
+      if (same(latest,old) || same(proposed,latest)) return proposed;
+      conflicts.push(label); return latest;
+    }
+    function key(f){return f.id || '@'+f.index;}
+    var before={},proposed={};
+    (base.fields||[]).forEach(function(f){before[key(f)]=f;});
+    (draft.fields||[]).forEach(function(f){proposed[key(f)]=f;});
+    result.fields=(current.fields||[]).map(function(f){var k=key(f);if(f.id==='vf-numero-preview')return f;return proposed[k] ? choose(before[k],proposed[k],f,f.id||'Campo '+f.index) : f;});
+    // Los precios y su moneda son una unidad: jamás interpretar renglones
+    // actuales en una moneda distinta tomada del borrador.
+    function prices(data){return {rows:data.rows,currency:data.currency};}
+    var selected=choose(prices(base),prices(draft),prices(current),'Productos e importes');
+    result.rows=selected.rows;result.currency=selected.currency;
+    ['iva','detail','creadoConIA'].forEach(function(k){result[k]=choose(base[k],draft[k],current[k],k);});
+    return {data:result,conflicts:conflicts};
+  }
+  if (typeof module !== 'undefined' && module.exports) { module.exports = { valid: valid, TTL: TTL, same:same, mergeForm:mergeForm }; return; }
   var sessions = {}, restoring = false, owner = user(), failed = false;
   var cloudOwner = '', unsubscribe = null, cloudReady = false, pending = {}, cloudTimer = null;
   function canSync() {
@@ -88,7 +114,7 @@
   function begin(kind) {
     if (restoring || !user()) return;
     var data = capture(kind);
-    sessions[kind] = { id: Date.now() + '-' + Math.random().toString(36).slice(2), base: JSON.stringify(data), last: JSON.stringify(data), original: original(kind, data) ? JSON.parse(JSON.stringify(original(kind, data))) : null };
+    sessions[kind] = { id: Date.now() + '-' + Math.random().toString(36).slice(2), base: JSON.stringify(data), baseData:data, last: JSON.stringify(data), original: original(kind, data) ? JSON.parse(JSON.stringify(original(kind, data))) : null };
   }
   function save(kind) {
     if (restoring || !user() || owner !== user()) return;
@@ -96,6 +122,7 @@
     var data = capture(kind), json = JSON.stringify(data); if (json === s.last) return;
     var meaningful = data.edit || data.rows.some(function (r) { return r.cod.trim() || r.price || (r.desc.trim() && r.desc.trim() !== 'Seleccioná un producto'); }) || data.fields.some(function (f) { return ['cli-inp', 'venta-obs', 'desc-general', 'pp-cli', 'pp-descuento','pp-obs','pp-titulo-solucion'].indexOf(f.id) >= 0 && f.value.trim() && f.value !== '0'; }) || data.fields.some(function (f) { return !f.id && f.value.trim(); });
     var d = { schema: 1, id: s.id, kind: kind, updated: Date.now(), data: data, original: s.original };
+    if (s.baseData) d.baseData=s.baseData;
     try {
       if (json === s.base || !meaningful) { localStorage.removeItem(prefix() + s.id); publish(tombstone(s.id)); }
       else { localStorage.setItem(prefix() + s.id, JSON.stringify(d)); publish(d); }
@@ -184,13 +211,25 @@
     if (!valid(d, Date.now())) { notify('El borrador venció.'); return; }
     var current = d.data.edit ? (d.kind === 'venta' ? (ventasList || []).find(function (v) { return v.fbKey === d.data.edit; }) : buscarPptoPorRef(d.data.edit)) : null;
     if (d.data.edit && (!current || !(d.kind === 'venta' ? puedeEditarVentaPermiso(current) : puedeEditarPresupuestoPermiso(current)))) { notify('La operación ya no está disponible para edición.'); return; }
-    if (current && JSON.stringify(current) !== JSON.stringify(d.original)) { notify('La operación original cambió. Revisala antes de recuperar este borrador para no sobrescribir cambios posteriores.'); return; }
+    var changed = current && !same(current,d.original);
+    if (changed && (d.kind !== 'venta' || !d.original || typeof cargarRegistroVentaEnEditor !== 'function')) { notify('La operación original cambió. Revisala antes de recuperar este borrador para no sobrescribir cambios posteriores.'); return; }
     flush(); restoring = true; if (dialog) { dialog.close(); dialog.remove(); }
     svNavegarDirecto(d.kind === 'venta' ? 'venta' : 'presupuesto', function () {
       try {
+        var conflicts=[],baseData=d.baseData;
+        if (changed) {
+          // Solo preparar formularios; no escribir ventas ni descartar el respaldo.
+          iniciarNuevaVenta(); cargarRegistroVentaEnEditor(d.original);
+          baseData=baseData || capture('venta');
+          iniciarNuevaVenta(); cargarRegistroVentaEnEditor(current);
+          var latest=capture('venta'),merged=mergeForm(baseData,d.data,latest);
+          conflicts=merged.conflicts;
+          d=Object.assign({},d,{data:merged.data});
+          baseData=latest;
+        }
         if (d.kind === 'venta') iniciarNuevaVenta(); else abrirNuevoPresupuesto();
         var scope = root(d.kind), elements = Array.from(scope.querySelectorAll('input,select,textarea')).filter(function (el) { return !el.closest('tbody') && el.type !== 'file' && el.type !== 'password'; });
-        d.data.fields.forEach(function (f) { var el = f.id ? document.getElementById(f.id) : elements[f.index]; if (el && scope.contains(el)) { el.value = f.value; if (el.type === 'checkbox' || el.type === 'radio') el.checked = f.checked; Object.assign(el.dataset, f.data); } });
+        d.data.fields.forEach(function (f) { if (f.id === 'vf-numero-preview') return; var el = f.id ? document.getElementById(f.id) : elements[f.index]; if (el && scope.contains(el)) { el.value = f.value; if (el.type === 'checkbox' || el.type === 'radio') el.checked = f.checked; Object.assign(el.dataset, f.data); } });
         var body = document.getElementById(d.kind === 'venta' ? 'det-body' : 'pp-body'); body.replaceChildren();
         d.data.rows.forEach(function (r) {
           var tr = crearFilaProducto(r.cod, r.desc, r.price, r.qty, r.disc); Object.assign(tr.dataset, r.data); body.appendChild(tr);
@@ -198,7 +237,7 @@
           if (r.data.creditoHistorico === '1') tr.querySelectorAll('.qty,.price,.disc').forEach(function (el) { el.readOnly = true; });
           if (d.kind === 'presupuesto') tr.querySelectorAll('.qty,.price,.disc').forEach(function (el) { el.addEventListener('input', calcPpTotales); });
         });
-        if (d.kind === 'venta') { window._ventaEditandoFbKey = d.data.edit || null; window._ventaEditandoOriginal = current; _ventaMonedaActual = d.data.currency; _ventaImpConDetalle = d.data.detail; aplicarEstadoIvaVenta(d.data.iva, false); actualizarVisualMonedaVenta(); calcTotals(); }
+        if (d.kind === 'venta') { window._ventaEditandoFbKey = d.data.edit || null; window._ventaEditandoOriginal = current; var preview=document.getElementById('vf-numero-preview'); if(current && preview)preview.value=current.id || ''; _ventaMonedaActual = d.data.currency; _ventaImpConDetalle = d.data.detail; aplicarEstadoIvaVenta(d.data.iva, false); actualizarVisualMonedaVenta(); calcTotals(); }
         else { window._pptoEditandoFbKey = d.data.edit || null; window._pptoEditandoId = d.data.editId || null; _pptoMonedaActual = d.data.currency; _pptoConDetalle = d.data.detail; _pptoConIva = d.data.iva; calcPpTotales(); }
         var ivaButton = document.getElementById(d.kind === 'venta' ? 'btn-toggle-iva-venta' : 'btn-toggle-iva-ppto');
         if (ivaButton) ivaButton.innerHTML = '<i class="ti ti-receipt-tax"></i> ' + (d.data.iva ? 'Con IVA' : 'Sin IVA');
@@ -209,8 +248,8 @@
           var label = document.getElementById('pmt-label'); if (label) label.textContent = d.data.currency;
           var thumb = document.getElementById('pmt-thumb'); if (thumb) thumb.style.transform = d.data.currency === 'USD' ? 'translateX(16px)' : 'translateX(0)';
         }
-        sessions[d.kind] = { id: d.id, base: '', last: JSON.stringify(capture(d.kind)), original: d.original };
-        notify('Borrador recuperado. Revisá y guardá para confirmar los cambios.');
+        sessions[d.kind] = { id: conflicts.length ? Date.now()+'-'+Math.random().toString(36).slice(2) : d.id, base: '', baseData:baseData, last: JSON.stringify(capture(d.kind)), original: current ? JSON.parse(JSON.stringify(current)) : d.original };
+        notify(conflicts.length ? 'Borrador recuperado conservando los valores actuales en: '+conflicts.join(', ')+'. El borrador original queda disponible para revisar esas diferencias.' : 'Borrador recuperado. Se conservaron los cambios posteriores de la venta. Revisá y guardá para confirmar.');
       } finally { restoring = false; }
     });
   }

@@ -2162,6 +2162,7 @@
   }
 
   function start() {
+    if (typeof window.svPuedeLeerDominio === 'function' && !window.svPuedeLeerDominio('ordenes')) return;
     if (state.started || !window.fbDB) return;
     state.started = true;
     window.fbOnValue(window.fbRef(window.fbDB, PATH_ORDERS), function (snap) {

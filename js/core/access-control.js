@@ -22,7 +22,7 @@
   function canAccess(moduleId, permissions, defaults) {
     if (!moduleId) return false;
     var role = current();
-    if (['compras_paraguay','distribuidora'].includes(role)) return false;
+    if (!['admin','administrativo','vendedor','tecnico_vendedor','tecnico'].includes(role)) return false;
 
     permissions = permissions || global.PERMISOS_ROLES;
     defaults = defaults || global.PERMISOS_DEFAULT;
