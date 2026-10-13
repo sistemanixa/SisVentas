@@ -183,6 +183,7 @@
   PERMISOS_ACCION['dashboard.otsPendientes']={modulo:'dashboard',label:'Ver órdenes pendientes en inicio',roles:['admin']};
   PERMISOS_ACCION['dashboard.chat']={modulo:'dashboard',label:'Mostrar botón del chat',roles:['admin','administrativo','vendedor','tecnico_vendedor','tecnico']};
   PERMISOS_ACCION['dashboard.asistente']={modulo:'dashboard',label:'Mostrar botón del asistente',roles:['admin','administrativo','vendedor','tecnico_vendedor','tecnico']};
+  PERMISOS_ACCION['dashboard.novedades']={modulo:'dashboard',label:'Ver novedades',roles:['admin','administrativo','vendedor','tecnico_vendedor','tecnico']};
   PERMISOS_ACCION['empleados.verComisionesPendientes']={modulo:'ctaemp',label:'Ver comisiones pendientes',roles:['admin']};
   var widgetsLegacy={"metricasGlobales":"metricas_globales","rentabilidad":"rentabilidad","miActividad":"mi_actividad","misOT":"mis_ots","grafico":"grafico_barras","otsPendientes":"ots_pendientes","chat":"btn_chat","asistente":"btn_ia"};
   window.SISVENTAS_PERMISOS_ACCION = PERMISOS_ACCION;

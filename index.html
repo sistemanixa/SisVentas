@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.10.30-firebase' -->
+<!-- VERSION: 'v3.10.31-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.10.30.js"></script>
+<script src="./js/core/version.v3.10.31.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -134,7 +134,7 @@
       <div class="nav-item active" onclick="showPage('dashboard',this)">
         <i class="ti ti-layout-dashboard"></i>Dashboard
       </div>
-      <div class="nav-item" onclick="abrirHistorialActualizaciones()" title="Ver cambios y repetir recorridos guiados">
+      <div class="nav-item" data-permiso="dashboard.novedades" onclick="abrirHistorialActualizaciones()" title="Ver cambios y repetir recorridos guiados">
         <i class="ti ti-rocket"></i>Novedades
       </div>
       <div class="nav-item" onclick="showPage('distribuidora',this)" id="nav-item-distribuidora" style="color:var(--amber,#d4af37)"><i class="ti ti-building-store"></i>Distribuidora</div>
@@ -5711,7 +5711,8 @@ Listo para analizar.
 <script src="./js/modules/v3-launch.js"></script>
 <script>window.SV_SECURITY_STORAGE_V2 = true;</script>
 <script src="./js/modules/security-storage.js?v=3.9.26"></script>
-<script src="./js/modules/action-permissions.js?v=3.9.14"></script>
+<script src="./js/modules/action-permissions.js?v=3.10.31-news"></script>
+<script src="./js/modules/release-permissions.js?v=1"></script>
 <script src="./js/modules/offline-core.js?v=3.10.6"></script>
 <script src="./js/modules/comparacion-comercial.js?v=1"></script>
 <script src="./js/modules/search-filter-notice.js?v=balance-31017"></script>
@@ -5720,7 +5721,7 @@ Listo para analizar.
 <script src="./js/core/guarded-writes.js?v=3.9.24-server-check2"></script>
 <script src="./js/core/session-assets.js?v=3.10.18-navigation"></script>
 <script src="./js/core/service-auth.js?v=3.10.19"></script>
-<script src="./js/app.v3.10.30.js"></script>
+<script src="./js/app.v3.10.31.js"></script>
 <script src="./js/modules/navigation-back.js?v=3.10.20-home"></script>
 <script src="./js/modules/partial-invoices.js?v=1"></script>
 <script src="./js/modules/commercial-drafts.js?v=perf-31010"></script>
