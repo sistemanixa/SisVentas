@@ -314,7 +314,8 @@
     try {
       if(!window.SVGuardedWrites)throw new Error('Recargá la aplicación antes de guardar');
       var relativos={};Object.keys(updates).forEach(function(key){relativos[key.replace(/^sisventas\//,'')]=updates[key];});
-      await window.SVGuardedWrites.conditionalUpdate('sisventas',function(raiz){return detalleVigente(raiz,grupoGuardado,movimientosGuardados);},relativos);
+      var response=await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor+'/comisiones/redistribuir',{method:'POST',headers:await window.SVServiceAuth.headers({'Content-Type':'application/json'}),body:JSON.stringify({grupo:grupoGuardado,movimientos:movimientosGuardados,valores:valores})});
+      var result=await response.json();if(!response.ok||!result.ok||!result.committed)throw new Error(result.mensaje||'No se pudo confirmar la distribución');
       window.notify('✓ Distribución actualizada');if(detalleActual===grupoGuardado)cerrarDetalleComision();renderModuloComisiones();
     } catch(error){window.notify('No se guardó la distribución: '+error.message);}
     finally{guardandoDetalle=false;comprobarDetalleAbierto();}

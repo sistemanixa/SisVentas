@@ -13,13 +13,13 @@ test('seleccionar una lista guardada habilita eliminar y limpia la edición del 
  const handler=source.match(/panel\.querySelector\('\[data-lists\]'\)\.onchange = e => \{([\s\S]*?)\n    \};/)[1];
  const button={disabled:true},select={innerHTML:''},name={value:''};
  const context={adminListOptions:[],busy:false,listKey:'',listBaseline:null,lists:{saved:{nombre:'Prueba',productos:{p:2}}},selected:{},purchases:{},structuredClone,
- editingPurchases:new Set(['anterior']),explicitPurchaseEdits:new Set(['anterior']),rememberCart(){},openCart(){},status(){},renderProducts(){},updateSaveButton(){},
+ editingPurchases:new Set(['anterior']),explicitPurchaseEdits:new Set(['anterior']),collapseListItems(){button.collapsed=true;},rememberCart(){},openCart(){},status(){},renderProducts(){},updateSaveButton(){},
  panel:{querySelector:s=>s==='[data-delete-list]'?button:s==='[data-lists]'?select:name},esc:v=>v};
  vm.createContext(context);
  const render=source.match(/function renderLists\(\) \{([\s\S]*?)\n  \}/)[1];
  vm.runInContext('function renderLists(){'+render+'}\nfunction selectList(e){'+handler+'}',context);
  context.selectList({target:{value:'saved'}});
- assert.equal(button.disabled,false);assert.equal(name.value,'Prueba');assert.equal(context.selected.p,2);
+ assert.equal(button.collapsed,true);assert.equal(button.disabled,false);assert.equal(name.value,'Prueba');assert.equal(context.selected.p,2);
  assert.equal(context.editingPurchases.size,0);assert.equal(context.explicitPurchaseEdits.size,0);
  context.busy=true;context.renderLists();assert.equal(button.disabled,true);
 });

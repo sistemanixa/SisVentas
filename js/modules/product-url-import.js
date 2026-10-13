@@ -53,7 +53,7 @@
       panel = document.createElement('div');
       panel.id = 'pf-envio-paraguay-panel';
       panel.style.marginTop = '12px';
-      panel.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:12px"><div style="flex:1 1 180px;max-width:260px"><label for="pf-envio-paraguay">Costo de envío ARS</label><input id="pf-envio-paraguay" type="number" min="0" step="1" inputmode="numeric" value="0" oninput="actualizarEnvioComprasParaguay()"></div><div style="flex:1 1 180px;max-width:260px"><label for="pf-envio-paraguay-usd">Costo de envío USD</label><input id="pf-envio-paraguay-usd" type="number" min="0" step="0.01" inputmode="decimal" value="0" oninput="actualizarEnvioComprasParaguay(\'USD\')"></div></div><div id="pf-envio-cambio" style="font-size:12px;color:var(--text3);margin-top:5px" aria-live="polite"></div>';
+      panel.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:12px"><div style="flex:1 1 180px;max-width:260px"><label for="pf-envio-paraguay">Costo de envío ARS</label><input id="pf-envio-paraguay" type="number" min="0" step="1" inputmode="numeric" value="0" oninput="actualizarEnvioComprasParaguay()"></div><div style="flex:1 1 180px;max-width:260px"><label for="pf-envio-paraguay-usd">Costo de envío USD</label><input id="pf-envio-paraguay-usd" type="number" min="0" step="1" inputmode="numeric" value="0" oninput="actualizarEnvioComprasParaguay(\'USD\')"></div></div><div id="pf-envio-cambio" style="font-size:12px;color:var(--text3);margin-top:5px" aria-live="polite"></div>';
       el('pf-importar-panel').appendChild(panel);
     }
     var url = urlExacta(el('pf-cod-web').value);
@@ -85,9 +85,12 @@
     if(!usd||!ars)return;
     var rate=Number(obtenerDolarReferenciaProducto().valor);
     usd.disabled=!(Number.isFinite(rate)&&rate>0);
-    usd.value=usd.disabled?'':(Number(ars.value)/rate).toFixed(0);
+    var fila=prodProveedoresActuales.find(function(p){return urlExacta(p.url)===urlExacta(el('pf-cod-web').value);});
+    var fijo=fila&&Number.isFinite(fila.costoEnvioUSD)?fila.costoEnvioUSD:null;
+    usd.value=fijo!==null?String(fijo):usd.disabled?'':(Number(ars.value)/rate).toFixed(0);
+    if(fijo!==null&&!usd.disabled)ars.value=String(Math.round(fijo*rate));
     usd.setCustomValidity('');
-    el('pf-envio-cambio').textContent=usd.disabled?'Sin cotización: podés cargar el envío en pesos.':'1 USD = ARS $ '+rate.toLocaleString('es-AR')+' · Envío por unidad. Se guarda en pesos enteros, redondeado al peso más cercano.';
+    el('pf-envio-cambio').textContent=usd.disabled?'Sin cotización: podés cargar el envío en pesos.':'1 USD = ARS $ '+rate.toLocaleString('es-AR')+' · Envío fijo en USD. Pesos a la cotización actual.';
   }
   window.actualizarEnvioComprasParaguay = function (moneda) {
     var input = el('pf-envio-paraguay'),usd=el('pf-envio-paraguay-usd');
@@ -98,15 +101,15 @@
       var error=valid?'':'Ingresá un envío válido en dólares, con hasta dos decimales y una cotización disponible';
       usd.setCustomValidity(error);input.setCustomValidity(error);
       if(!valid)return;
-      valor=Math.round(dollars*rate);
+      dollars=Math.round(dollars);usd.value=String(dollars);valor=Math.round(dollars*rate);
       input.value=String(valor);
     }
     input.setCustomValidity(input.value!==''&&Number.isSafeInteger(valor) && valor >= 0 ? '' : 'El envío debe ser un importe entero en pesos, igual o mayor que cero');
     if(input.value===''||!Number.isSafeInteger(valor) || valor < 0) return;
-    if(moneda!=='USD')sincronizarEnvioUSD();
+    if(moneda!=='USD'){var rate=Number(obtenerDolarReferenciaProducto().valor);usd.value=rate>0?String(Math.round(valor/rate)):'';}
     var url = urlExacta(el('pf-cod-web').value);
     prodProveedoresActuales.forEach(function(p, i) {
-      if (admiteEnvioProducto(url) && urlExacta(p.url) === url) actualizarProveedorProducto(i, 'costoEnvioArs', valor);
+      if (admiteEnvioProducto(url) && urlExacta(p.url) === url) {if(usd.value!=='')p.costoEnvioUSD=Number(usd.value);else delete p.costoEnvioUSD;actualizarProveedorProducto(i, 'costoEnvioArs', valor);}
     });
     renderTablaProveedoresProducto();
   };
@@ -269,7 +272,7 @@
         nombre: proveedor.nombre, proveedorKey: clave(proveedor), url: url,
         ...(datos.tiendaOrigen ? {tiendaOrigen:datos.tiendaOrigen,urlOferta:datos.urlOferta || url} : {}),
         precio: Number(datos.precioArs), sinIva: datos.sinIva === true,
-        ...(admiteEnvioProducto(url) ? { costoEnvioArs: Number(el('pf-envio-paraguay').value) || 0 } : {}),
+        ...(admiteEnvioProducto(url) ? { costoEnvioArs: Number(el('pf-envio-paraguay').value) || 0, costoEnvioUSD:Number(el('pf-envio-paraguay-usd').value)||0 } : {}),
         precioPublicadoOriginalArs: Number(datos.precioPublicadoArs || datos.precioArs),
         ...(datos.conversion ? {precioOriginal:datos.precioOriginal,monedaOriginal:datos.monedaOriginal,conversion:datos.conversion} : {}),
         descuentoProveedorPorcentaje: Number(datos.descuentoProveedorPorcentaje || 0),

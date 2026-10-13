@@ -8,6 +8,7 @@ RUN npm install --omit=dev
 COPY index.js ./
 COPY oauth-authorization.js ./
 COPY labor-calculations.js labor-operations.js labor-transaction.js ./
+COPY commission-calculations.js commission-operations.js ./
 COPY catalog-request.js catalog-promotions.js ./
 COPY ficha-producto.js ./
 COPY proveedor-automatico.js ./

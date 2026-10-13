@@ -1,0 +1,21 @@
+'use strict';
+const {isDeepStrictEqual}=require('node:util'),{normalizarEstadoGasto:state,esComision,claveGrupo,porcentaje:pct,baseGanancia:base,registroComparable:clean}=require('./commission-calculations');
+const fail=(statusCode,message)=>Object.assign(Error(message),{statusCode});
+function createCommissionOperations({auth,db,transaction,now=Date.now}){
+ async function authorize(req){const m=String(req.headers.authorization||'').match(/^Bearer\s+(\S+)$/i);if(!m)throw fail(401,'Sesión requerida');let token;try{token=await auth.verifyIdToken(m[1],true);}catch(_){throw fail(401,'Sesión inválida');}const i=(await db.ref('sv_chat_roles/'+token.uid).get()).val();if(i?.activo!==true||!['admin','administrativo','tecnico','vendedor','tecnico_vendedor'].includes(i.rol))throw fail(403,'Sin acceso');const cfg=(await db.ref('sv_permisos/'+i.rol).get()).val()||{};if(cfg.bloqueados?.includes('comisiones')||(typeof cfg.acciones?.comisiones?.distribuir==='boolean'?!cfg.acciones.comisiones.distribuir:i.rol!=='admin'))throw fail(403,'Sin permiso para distribuir comisiones');return {uid:token.uid,nombre:i.nombre||token.name||token.email||token.uid};}
+ async function redistribute(identity,body){const group=body?.grupo,values=body?.valores,moves=body?.movimientos||{};
+ if(!group||typeof group.clave!=='string'||!Array.isArray(group.items)||!group.items.length||group.items.length>100||new Set(group.items.map(g=>g?.fbKey)).size!==group.items.length||!Array.isArray(values)||values.length>100||values.some(v=>!v||typeof v.fbKey!=='string')||new Set(values.map(v=>v.fbKey)).size!==values.length)throw fail(400,'Distribución inválida');let error;
+ const result=await transaction(root=>{error=null;if(!root)return null;try{
+  const actual=Object.entries(root.gastos||{}).map(([k,g])=>({...g,fbKey:k})).filter(g=>esComision(g)&&claveGrupo(g)===group.clave);
+  if(actual.length!==group.items.length||group.items.some(g=>!actual.some(a=>a.fbKey===g.fbKey&&isDeepStrictEqual(clean(a),clean(g)))))throw fail(409,'La comisión cambió. Volvé a abrirla.');
+  const linked={};for(const g of actual){const match=String(g.legacyKey||'').match(/^ctaemp\/([^/]+)\/([^/]+)$/);const movement=match?root.ctaemp?.[match[1]]?.[match[2]]:null;const expected=moves[g.fbKey];if((movement||expected)&&!isDeepStrictEqual(clean(movement),clean(expected)))throw fail(409,'Un movimiento cambió. Volvé a abrir la comisión.');if(movement)linked[g.fbKey]={movement,emp:match[1],key:match[2]};}
+  const max=Number(root.config?.maxComisionPct)||10;let sum=actual.filter(g=>['pagado','pagado_parcial'].includes(state(g))).reduce((t,g)=>t+pct(g,linked[g.fbKey]?.movement),0);
+  const editable=actual.filter(g=>!['pagado','pagado_parcial'].includes(state(g)));if(values.length!==editable.length||editable.some(g=>!values.some(v=>v.fbKey===g.fbKey)))throw fail(409,'Los participantes editables cambiaron');
+  for(const v of values){if(!Number.isFinite(v.pct)||v.pct<=0)throw fail(400,'Porcentaje inválido');const g=actual.find(g=>g.fbKey===v.fbKey);if(state(g)!=='rechazado')sum+=v.pct;}
+  if(sum>max+0.001)throw fail(400,'La distribución supera el máximo global');
+  for(const v of values){const g=root.gastos[v.fbKey],link=linked[v.fbKey],gain=base(g,link?.movement),amount=Math.round(gain*v.pct)/100,changed=Math.abs(pct(g,link?.movement)-v.pct)>0.0001,rejected=state(g)==='rechazado';const fields={monto:amount,pct:v.pct,gananciaBase:gain,descripcion:'Comisión venta '+(actual.find(a=>a.fbKey===v.fbKey).ventaId||'')+' · '+v.pct+'% sobre ganancia $'+Math.round(gain).toLocaleString('es-AR')+' · distribución administrada',modificadoPor:identity.nombre,modificadoTs:now()};Object.assign(g,fields);if(changed&&!rejected){g.estado='pendiente_aprobacion';g.requiereAprobacion=true;delete g.aprobadoPor;delete g.aprobadoTs;delete g.fechaAprobacion;}if(link){Object.assign(link.movement,fields);if(changed&&!rejected){link.movement.estado='pendiente';delete link.movement.aprobadoPor;delete link.movement.aprobadoTs;delete link.movement.fechaAprobacion;}}}
+  return root;
+ }catch(e){error=e;return;}});if(!result.committed)throw error||fail(409,'No se pudo confirmar la distribución');return {committed:true};}
+ return {authorize,redistribute};
+}
+module.exports={createCommissionOperations};

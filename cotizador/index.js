@@ -36,6 +36,7 @@ const db = admin.database();
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)}, db});
 const laborTransaction = require('./labor-transaction').createRootTransaction({databaseURL:DATABASE_URL,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const laborOperations = require('./labor-operations').createLaborOperations({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db,transaction:laborTransaction});
+const commissionOperations = require('./commission-operations').createCommissionOperations({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db,transaction:laborTransaction});
 const catalogRequests = require('./catalog-request').createCatalogRequest({db,periodsAPI:require('./catalog-promotions')});
 const { consultarAutomatico, firmaAcceso, aplicarCondicionComercial } = require('./proveedor-automatico');
 const { esProveedorPublicoComprasParaguay } = require('./compras-paraguay');
@@ -1971,6 +1972,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if(req.method==='POST' && pathname==='/comisiones/redistribuir'){
+    try{const identity=await commissionOperations.authorize(req);const body=await readBody(req,2000000);send(res,200,{ok:true,...await commissionOperations.redistribute(identity,body)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la distribución'});}return;
+  }
   if(req.method==='POST' && pathname==='/laboral/aprobar-horas'){
     try{const identity=await laborOperations.authorize(req);const body=await readBody(req,25000);send(res,200,{ok:true,...await laborOperations.approve(identity,body)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la operación laboral'});}return;
   }
