@@ -18,13 +18,18 @@ const server = http.createServer(async (req, res) => {
   const path=String(req.url||'').split('?')[0];
   if(!['/','/learn','/purchase-import','/transcribe'].includes(path)){res.writeHead(404);res.end(JSON.stringify({error:true,mensaje:'Ruta no encontrada'}));return;}
   const service=path==='/learn'?'learn':path==='/purchase-import'?'purchase-import':'chat';
-  try{await require('./service-auth.cjs').authorize({admin,authorization:req.headers.authorization,service});}
+  let identity;
+  try{identity=await require('./service-auth.cjs').authorize({admin,authorization:req.headers.authorization,service});}
   catch(error){res.writeHead(error.statusCode||503,{'Content-Type':'application/json'});res.end(JSON.stringify({error:true,mensaje:error.statusCode?error.message:'No se pudo verificar el permiso; reintentá'}));return;}
-  let body = '';
-  req.on('data', chunk => {body += chunk; if(body.length>5000000)req.destroy();});
+  let body = ''; let bodyBytes=0; let oversized=false;
+  if(Number(req.headers['content-length'])>5000000){res.writeHead(413,{'Content-Type':'application/json'});res.end(JSON.stringify({error:true,mensaje:'El archivo supera el tamaño permitido'}));req.resume();return;}
+  req.on('data', chunk => {bodyBytes+=chunk.length;if(bodyBytes>5000000){oversized=true;body='';return;}if(!oversized)body+=chunk;});
   req.on('end', async () => {
     try {
-      const parsedBody=JSON.parse(body);
+      if(oversized){res.writeHead(413,{'Content-Type':'application/json'});res.end(JSON.stringify({error:true,mensaje:'El archivo supera el tamaño permitido'}));return;}
+      let parsedBody;try{parsedBody=JSON.parse(body);}catch(_){res.writeHead(400,{'Content-Type':'application/json'});res.end(JSON.stringify({error:true,mensaje:'Formato de solicitud inválido'}));return;}
+      if(!parsedBody || typeof parsedBody!=='object' || Array.isArray(parsedBody)){res.writeHead(400);res.end(JSON.stringify({error:true,mensaje:'Solicitud inválida'}));return;}
+      await require('./usage-limit.cjs').reserve({admin,uid:identity.uid});
       if(path==='/transcribe'){const result=await require('./audio.cjs').transcribe(req,parsedBody);res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(result));return;}
       const { system, messages } = parsedBody;
       if(!Array.isArray(messages)||!messages.length||messages.length>12){res.writeHead(400);res.end(JSON.stringify({error:true,mensaje:'Conversación inválida'}));return;}
@@ -75,7 +80,7 @@ const server = http.createServer(async (req, res) => {
       apiReq.end();
 
     } catch(e) {
-      res.writeHead(500); res.end(JSON.stringify({ error: true, mensaje: e.message }));
+      if(e.retryAfter)res.setHeader('Retry-After',String(e.retryAfter));res.writeHead(e.statusCode||500,{'Content-Type':'application/json'}); res.end(JSON.stringify({ error: true, mensaje: e.statusCode?e.message:'No se pudo procesar la consulta' }));
     }
   });
 });
