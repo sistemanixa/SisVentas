@@ -1,0 +1,8 @@
+.sv-role-help{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;margin-left:8px;padding:0;border:1px solid var(--border3);border-radius:50%;background:transparent;color:var(--text2);font:bold 12px Georgia,serif;vertical-align:middle;cursor:help;line-height:1}
+.sv-role-help:hover,.sv-role-help:focus-visible{border-color:var(--blue);color:var(--blue);background:var(--blue-bg)}
+.sv-role-help:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.sv-role-help-module{position:relative}
+.sv-role-help-module>button:not(.sv-role-help){padding-right:46px!important}
+.sv-role-help-module>.sv-role-help{position:absolute;right:12px;top:50%;transform:translateY(-50%);margin:0}
+.sv-role-help-tooltip{position:fixed;z-index:100000;max-width:min(360px,calc(100vw - 24px));padding:12px 14px;border:1px solid var(--border3);border-radius:10px;background:var(--bg2);color:var(--text);box-shadow:0 8px 28px rgba(0,0,0,.24);font-family:inherit;font-size:13px;font-weight:400;line-height:1.55;white-space:normal;overflow-wrap:anywhere}
+.sv-role-help-tooltip[hidden]{display:none}
