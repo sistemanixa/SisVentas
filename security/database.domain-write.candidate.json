@@ -313,7 +313,7 @@
       "$rol": {
         "bloqueados": {
           "$indice": {
-            ".validate": "$indice.matches(/^(?:[0-9]|[1-5][0-9]|6[0-3])$/) && newData.isString()"
+            ".validate": "$indice.matches(/^([0-9]|[1-5][0-9]|6[0-3])$/) && newData.isString()"
           }
         }
       }

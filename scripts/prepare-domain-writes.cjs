@@ -30,7 +30,7 @@ r.ventas=r.ventas||{};r.ventas['.write']=allowed('venta',commercial);r.ventas.$v
 for(const field of ['totalPagado','estadoPago']){r.ventas.$venta[field]=r.ventas.$venta[field]||{};r.ventas.$venta[field]['.write']=allowed('cobranzas',commercial);}
 for(const n of ['pagos','cobros_grupos','cobros_adjuntos','control_cobros','cobros_cuenta','cobros_cuenta_adjuntos','control_cobro_cuenta']){r[n]=r[n]||{};r[n]['.write']=allowed('cobranzas',commercial);}
 base.rules.sv_permisos.$rol=base.rules.sv_permisos.$rol||{};
-base.rules.sv_permisos.$rol.bloqueados={'$indice':{'.validate':"$indice.matches(/^(?:[0-9]|[1-5][0-9]|6[0-3])$/) && newData.isString()"}};
+base.rules.sv_permisos.$rol.bloqueados={'$indice':{'.validate':"$indice.matches(/^([0-9]|[1-5][0-9]|6[0-3])$/) && newData.isString()"}};
 fs.writeFileSync('security/database.domain-write.candidate.json',JSON.stringify(base,null,2));
 console.log('Primer corte de escrituras comerciales preparado. Lecturas y otros módulos pendientes. No aplicado.');
 
