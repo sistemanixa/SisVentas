@@ -30,6 +30,7 @@ test('rechaza una ficha cuyo título o URL no corresponde al producto',()=>{
 });
 const evoApi=()=>({url:new URL(evoUrl).pathname,nome:evoTitulo,marca:'Interbras',imagem_url:{large:'https://imagenes.example/evo.webp'},descricao:'Autonomia: 40 km',preco_dolar:597,loja:{nome:'Nissei'},disponivel:true,ocultar_preco:false});
 test('consulta API pública exacta sin enviar credenciales ni depender de una sesión',async t=>{
+  t.mock.method(require('node:dns/promises'),'lookup',async()=>[{address:'8.8.8.8',family:4}]);
   const llamadas=[];
   t.mock.method(globalThis,'fetch',async (url,opts)=>{llamadas.push({url,opts});return new Response(JSON.stringify(evoApi()),{status:200,headers:{'content-type':'application/json'}});});
   const r=await consultarAutomatico({web:'https://www.comprasparaguai.com.br',usuario:'no_enviar',password:'no_enviar'},evoUrl);
@@ -38,6 +39,7 @@ test('consulta API pública exacta sin enviar credenciales ni depender de una se
   assert.equal(JSON.stringify(llamadas).includes('no_enviar'),false);
 });
 test('mantiene el bloqueo real y rechaza redirecciones a otra ficha o dominio',async t=>{
+  t.mock.method(require('node:dns/promises'),'lookup',async()=>[{address:'8.8.8.8',family:4}]);
   t.mock.method(globalThis,'fetch',async ()=>new Response('<title>Un momento…</title><h1>Verificación de seguridad en curso</h1>',{status:403,headers:{'content-type':'text/html'}}));
   await assert.rejects(()=>consultarAutomatico({web:'https://www.comprasparaguai.com.br'},evoUrl),/HTTP 403/);
   for(const location of ['https://otro.example/a',evoUrl.replace('5064641','5140343')]) {

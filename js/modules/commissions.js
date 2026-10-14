@@ -242,8 +242,8 @@
       var est = estado(g); var pct = porcentaje(g, movimientosDetalle[g.fbKey]); var pagada = est === 'pagado' || est === 'pagado_parcial';
       return '<div class="comision-participante" data-gasto="' + esc(g.fbKey) + '" data-estado="'+esc(est)+'" style="display:grid;grid-template-columns:minmax(150px,1fr) 100px 120px auto;gap:8px;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)">' +
         '<div><strong>' + esc(g.empleadoNombre || 'Sin asignar') + '</strong>' + (est==='rechazado'?'<div style="font-size:11px;color:var(--red);margin-top:4px"><strong>Motivo:</strong> '+esc(g.motivoRechazo || 'Sin motivo registrado')+'</div>':'') + '</div>' +
-        '<label style="display:flex;align-items:center;gap:5px"><input class="comision-pct-input" data-gasto="' + esc(g.fbKey) + '" type="number" min="0.1" max="' + maxPct + '" step="0.1" value="' + pct + '" ' + (pagada?'disabled':'') + ' oninput="actualizarResumenMargenComision()" style="width:72px">%</label>' +
-        '<strong>' + moneda(g.monto) + '</strong><div style="display:flex;gap:5px;justify-content:flex-end">' + badgeEstado(est) +
+        '<label class="comision-porcentaje"><input class="search-input comision-pct-input" aria-label="Porcentaje de ' + esc(g.empleadoNombre || 'participante') + '" data-gasto="' + esc(g.fbKey) + '" type="number" min="0.1" max="' + maxPct + '" step="0.1" value="' + pct + '" ' + (pagada?'disabled':'') + ' oninput="actualizarResumenMargenComision()">%</label>' +
+        '<strong class="comision-monto-preview" data-base="'+baseGanancia(g, movimientosDetalle[g.fbKey])+'">' + moneda(g.monto) + '</strong><div style="display:flex;gap:5px;justify-content:flex-end">' + badgeEstado(est) +
         (est === 'pendiente_aprobacion' ? '<button class="btn btn-sm" title="Aprobar esta participación" onclick="aprobarComisionGestion(\''+esc(g.fbKey)+'\')" style="color:var(--green);border-color:var(--green)"><i class="ti ti-check"></i> Aprobar</button>' : '') +
         ((est === 'pendiente_aprobacion' || est === 'pendiente_pago') ? '<button class="btn btn-sm" title="Rechazar esta participación" onclick="rechazarComisionGestion(\''+esc(g.fbKey)+'\')" style="color:var(--red);border-color:var(--red)"><i class="ti ti-x"></i> Rechazar</button>' : '') +
         (est === 'rechazado' ? '<button class="btn btn-sm" onclick="rehabilitarComision(\''+esc(g.fbKey)+'\')"><i class="ti ti-restore"></i> Rehabilitar</button>' : '') + '</div></div>';
@@ -252,12 +252,17 @@
     detalleActual.items.forEach(function (g) { existentes[String(g.empleadoFbKey || g.empleadoId || '')] = true; });
     var empleados = Object.values(window.empData || {}).filter(function (e) { return e && e.activo !== false && !existentes[String(e.fbKey || '')]; });
     var agregar = document.getElementById('com-det-agregar');
-    if (agregar) agregar.innerHTML = '<div style="font-size:12px;font-weight:700;margin-bottom:8px">Agregar participante</div><div style="display:grid;grid-template-columns:minmax(180px,1fr) 110px auto;gap:8px"><select id="com-nuevo-empleado" class="search-input"><option value="">Seleccionar persona...</option>' + empleados.map(function(e){return '<option value="'+esc(e.fbKey)+'">'+esc(e.nombre||'Sin nombre')+'</option>';}).join('') + '</select><label style="display:flex;align-items:center;gap:5px"><input id="com-nuevo-pct" type="number" min="0.1" max="'+maxPct+'" step="0.1" placeholder="0" oninput="actualizarResumenMargenComision()" style="width:75px">%</label><button class="btn" onclick="agregarParticipanteComision()"><i class="ti ti-user-plus"></i> Agregar</button></div>';
+    if (agregar) agregar.innerHTML = '<div style="font-size:12px;font-weight:700;margin-bottom:8px">Agregar participante</div><div style="display:grid;grid-template-columns:minmax(180px,1fr) 110px auto;gap:8px"><select id="com-nuevo-empleado" class="search-input"><option value="">Seleccionar persona...</option>' + empleados.map(function(e){return '<option value="'+esc(e.fbKey)+'">'+esc(e.nombre||'Sin nombre')+'</option>';}).join('') + '</select><label class="comision-porcentaje"><input class="search-input" aria-label="Porcentaje del nuevo participante" id="com-nuevo-pct" type="number" min="0.1" max="'+maxPct+'" step="0.1" placeholder="0" oninput="actualizarResumenMargenComision()">%</label><button class="btn" onclick="agregarParticipanteComision()"><i class="ti ti-user-plus"></i> Agregar</button></div>';
+    if(info){var costoLabor=calculo&&calculo.costoManoObra;info.innerHTML+='<div class="comision-costo-labor"><span>COSTO DE MANO DE OBRA</span><strong>'+(costoLabor!==null&&costoLabor!==undefined?moneda(costoLabor):'Sin desglose registrado')+'</strong></div>';}
     actualizarResumenMargenComision();
   }
 
   function actualizarResumenMargenComision(){
     var margen=document.getElementById('com-resumen-margen');if(!margen)return;
+    document.querySelectorAll('#com-det-participantes .comision-participante').forEach(function(fila){
+      var input=fila.querySelector('.comision-pct-input');var importe=fila.querySelector('.comision-monto-preview');
+      if(input && importe && !input.disabled)importe.textContent=moneda(Math.round((parseFloat(importe.dataset.base)||0)*(parseFloat(input.value)||0))/100);
+    });
     var suma=Array.from(document.querySelectorAll('#com-det-participantes .comision-participante')).reduce(function(total,fila){if(fila.dataset.estado==='rechazado')return total;var input=fila.querySelector('.comision-pct-input');return total+(parseFloat(input&&input.value)||0);},0);
     suma+=parseFloat((document.getElementById('com-nuevo-pct')||{}).value)||0;
     var neto=parseFloat(margen.dataset.neto)||0;var ganancia=parseFloat(margen.dataset.ganancia)||0;var max=parseFloat(margen.dataset.max)||0;var monto=ganancia*suma/100;var pct=neto>0?(ganancia-monto)/neto*100:0;
@@ -311,6 +316,9 @@
     });
     var grupoGuardado=detalleActual,movimientosGuardados=movimientosDetalle;
     guardandoDetalle=true;
+    var botonGuardar=document.getElementById('com-det-guardar');
+    var textoGuardar=botonGuardar&&botonGuardar.innerHTML;
+    if(botonGuardar){botonGuardar.disabled=true;botonGuardar.textContent='Guardando…';}
     try {
       if(!window.SVGuardedWrites)throw new Error('Recargá la aplicación antes de guardar');
       var relativos={};Object.keys(updates).forEach(function(key){relativos[key.replace(/^sisventas\//,'')]=updates[key];});
@@ -318,7 +326,7 @@
       var result=await response.json();if(!response.ok||!result.ok||!result.committed)throw new Error(result.mensaje||'No se pudo confirmar la distribución');
       window.notify('✓ Distribución actualizada');if(detalleActual===grupoGuardado)cerrarDetalleComision();renderModuloComisiones();
     } catch(error){window.notify('No se guardó la distribución: '+error.message);}
-    finally{guardandoDetalle=false;comprobarDetalleAbierto();}
+    finally{guardandoDetalle=false;if(botonGuardar){botonGuardar.innerHTML=textoGuardar;botonGuardar.disabled=false;}comprobarDetalleAbierto();}
   }
 
   async function agregarParticipanteComision() {

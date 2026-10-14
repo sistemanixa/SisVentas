@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.10.32-firebase' -->
+<!-- VERSION: 'v3.10.33-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -18,7 +18,7 @@
   } catch (_) { window.__SISVENTAS_BOOT_LOGO = 'nixa-icon-192.png'; }
 })();
 </script>
-<script src="./js/core/version.v3.10.32.js"></script>
+<script src="./js/core/version.v3.10.33.js"></script>
 
 <title>SisVentas</title>
 <link rel="icon" id="favicon-link" type="image/png" sizes="192x192" href="nixa-icon-192.png">
@@ -34,8 +34,8 @@
 <!-- ══ FUNCIONES DE LOGIN: en head para disponibilidad inmediata ══ -->
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=3.10.32"></script>
-<script src="./js/core/domain-read-policy.js?v=3.10.32"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.9.30">
+<script src="./js/core/domain-read-policy.js?v=3.10.33"></script>
+<link rel="stylesheet" href="./css/app.css?v=3.10.33-final">
 <link rel="stylesheet" href="./css/surveys.css?v=1">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.8.20-menu2">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
@@ -3682,8 +3682,6 @@ Listo para analizar.
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px">
               <div id="hc-nombre" style="font-size:16px;font-weight:500;color:var(--text)">—</div>
               <button class="btn btn-sm btn-icon" id="hc-editar-cliente" onclick="editarClienteDesdeHistorial()" title="Editar datos del cliente"><i class="ti ti-pencil"></i></button>
-              <button class="btn btn-sm" id="hc-agregar-domicilio" onclick="abrirNuevaSedeCliente(clienteActualId)" title="Agregar otro domicilio a este cliente"><i class="ti ti-map-pin-plus"></i> Agregar domicilio</button>
-              <button class="btn btn-sm" id="hc-eliminar-cliente" onclick="eliminarClienteDesdeHistorial()" title="Eliminar este cliente y mostrar antes todo lo que está vinculado" style="color:var(--red);border-color:var(--red)"><i class="ti ti-trash"></i> Eliminar cliente</button>
             </div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text3)">
               <span id="hc-tel"><i class="ti ti-phone" style="font-size:12px"></i> 223-4455667</span>
@@ -3692,7 +3690,13 @@ Listo para analizar.
             </div>
             <div id="hc-sedes" class="hc-sedes" style="display:none"></div>
           </div>
-          <span id="hc-estado-badge"></span>
+          <div class="hc-header-controls">
+            <div class="hc-header-actions">
+              <button class="btn btn-sm" id="hc-agregar-domicilio" onclick="abrirNuevaSedeCliente(clienteActualId)" title="Agregar otro domicilio a este cliente"><i class="ti ti-map-pin-plus"></i> Agregar domicilio</button>
+              <button class="btn btn-sm btn-icon" id="hc-eliminar-cliente" onclick="eliminarClienteDesdeHistorial()" aria-label="Eliminar cliente" title="Eliminar cliente" style="color:var(--red);border-color:var(--red)"><i class="ti ti-trash"></i></button>
+            </div>
+            <span id="hc-estado-badge"></span>
+          </div>
         </div>
 
         <!-- KPIs del cliente -->
@@ -4695,7 +4699,7 @@ Listo para analizar.
     <div id="com-det-info" style="padding:12px 14px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:12px"></div>
     <div id="com-det-participantes"></div>
     <div id="com-det-agregar" style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border)"></div>
-    <div class="modal-actions"><button class="btn" onclick="cerrarDetalleComision()">Cerrar</button><button class="btn btn-primary admin-only" id="com-det-guardar" onclick="guardarDistribucionComision()"><i class="ti ti-check"></i> Guardar distribución</button></div>
+    <div class="modal-actions comision-detalle-actions"><button class="btn" onclick="cerrarDetalleComision()">Cerrar</button><button class="btn btn-primary admin-only" id="com-det-guardar" onclick="guardarDistribucionComision()"><i class="ti ti-check"></i> Guardar distribución</button></div>
   </div>
 </div>
 
@@ -5722,7 +5726,7 @@ Listo para analizar.
 <script src="./js/core/guarded-writes.js?v=3.9.24-server-check2"></script>
 <script src="./js/core/session-assets.js?v=3.10.32-domain-reads"></script>
 <script src="./js/core/service-auth.js?v=3.10.19"></script>
-<script src="./js/app.v3.10.32.js"></script>
+<script src="./js/app.v3.10.33.js"></script>
 <script src="./js/modules/navigation-back.js?v=3.10.20-home"></script>
 <script src="./js/modules/partial-invoices.js?v=1"></script>
 <script src="./js/modules/commercial-drafts.js?v=3.10.32-recovery"></script>
@@ -6239,9 +6243,9 @@ Listo para analizar.
 
 <script src="./js/modules/refactor-health.js?v=3.3.17"></script>
 <script src="./js/modules/v3-visual-preview.js?v=3.0.6"></script>
-<script src="./js/modules/resizable-tables.js?v=perf-31010"></script>
+<script src="./js/modules/resizable-tables.js?v=3.10.33"></script>
 <script src="./js/modules/grid-default-order.js?v=rendimiento-1"></script>
-<script src="./js/modules/commissions.js?v=3.10.32-origin"></script>
+<script src="./js/modules/commissions.js?v=3.10.33-preview"></script>
 <script src="./js/modules/item-row-order.js?v=perf-3105"></script>
 
 <script src="./js/modules/dolar-month-chart.js?v=history-cursor-2"></script>
@@ -6285,7 +6289,7 @@ Listo para analizar.
 <script src="./js/v3/product-provider-integration.js?v=3.0.0-shadow-v279"></script>
 
 <script src="./js/modules/product-query-guard.js?v=3.6.17"></script>
-<script src="./js/modules/garantia-circuito.js"></script>
+<script src="./js/modules/garantia-circuito.js?v=3.10.33-ot"></script>
 <script src="./js/modules/image-paste-drop.js?v=2"></script>
 <script src="./js/modules/quantity-wheel.js?v=2"></script>
 <script src="./js/modules/performance-diagnostics.js?v=1"></script>

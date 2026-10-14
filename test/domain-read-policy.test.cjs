@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const policy=require('../js/core/domain-read-policy.js'),source=fs.readFileSync('js/app.v3.10.32.js','utf8');
+const policy=require('../js/core/domain-read-policy.js'),source=require('./helpers/active-app').readActiveApp().source;
 function defaults(role){return module=>(policy.restrictedDefaults[module]||policy.internalRoles).includes(role);}
 test('Los roles conservan dependencias compartidas y no cargan dominios fiscales bloqueados',()=>{
  for(const role of policy.internalRoles){
@@ -19,7 +19,7 @@ test('Overrides de módulos y métricas del dashboard habilitan únicamente las 
  assert.equal(policy.allows('equipos','tecnico',()=>false),false);
  for(const role of ['', 'inventado','distribuidora','compras_paraguay'])assert.equal(policy.allows('caja',role,()=>true,()=>true),false);
 });
-const loaders={cfCargar:'comprobantesCompra',fvCargar:'comprobantesVenta',cargarConfigTFAppProtegida:'config/tfapp',fbCargarCaja:'caja',fbCargarOrdenes:'ordenes',fbCargarInformes:'informes',spCargar:'reclamos',fbCargarTickets:'tickets',fbCargarGarantias:'garantias',fbCargarEquipos:'equipos',fbCargarRemitos:'remitos',fbCargarAgenda:'agenda',fbCargarServicios:'servicios'};
+const loaders={cfCargar:'comprobantesCompra',fvCargar:'comprobantesVenta',cargarConfigTFAppProtegida:'config/tfapp',fbCargarCaja:'caja',fbCargarOrdenes:'ordenes',fbCargarInformes:'informes',spCargar:'reclamos',fbCargarTickets:'tickets',fbCargarGarantias:'garantias',fbCargarEquipos:'equipos',fbCargarRemitos:'remitos',fbCargarAgenda:'agenda',fbCargarServicios:'servicios',fbCargarClientes:'clientes',fbCargarProductos:'productos',fbCargarVentas:'ventas',fbCargarPagos:'pagos',fbCargarPresupuestos:'presupuestos',fbCargarOTs:'ordenesTrabajo',cargarCargos:'config/cargos'};
 test('Cada cargador bloqueado retorna antes de consultar Firebase, incluso si se invoca directamente',async()=>{
  for(const [name,domain] of Object.entries(loaders)){
   const start=source.indexOf('function '+name+'('),ctx={Promise,svPuedeLeerDominio:d=>{assert.equal(d,domain);return false;}};
@@ -28,9 +28,9 @@ test('Cada cargador bloqueado retorna antes de consultar Firebase, incluso si se
  }
 });
 test('La política compartida se carga antes del cliente y está incluida en el shell offline',()=>{
- const html=fs.readFileSync('index.html','utf8'),sw=fs.readFileSync('sw.js','utf8');
- assert.ok(html.indexOf('domain-read-policy.js')<html.indexOf('app.v3.10.32.js'));
- assert.match(sw,/domain-read-policy\.js\?v=3\.10\.32/);
+ const active=require('./helpers/active-app').readActiveApp(),html=active.index,sw=fs.readFileSync('sw.js','utf8');
+ assert.ok(html.indexOf('domain-read-policy.js')<html.indexOf(active.filename));
+ assert.ok(sw.includes('domain-read-policy.js?v='+active.filename.match(/app\.v([\d.]+)\.js/)[1]));
 });
 test('La carga de permisos espera Firebase y no aplica resultados de otra sesión',async()=>{
  const start=source.indexOf('function cargarPermisosRoles('),fn=source.slice(start,source.indexOf('\n}',start)+2);

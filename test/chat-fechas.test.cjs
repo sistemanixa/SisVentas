@@ -6,7 +6,7 @@ const source=app.slice(app.indexOf('function chatFechaMensaje('),app.indexOf('fu
 function setup(){
  const messages={innerHTML:'',scrollTop:0,scrollHeight:600,clientHeight:200};
  const search={value:''};
- const ctx={document:{getElementById:id=>id==='chat-messages'?messages:search},_chatPrimeraCarga:true,currentUser:'yo',escapeHTML:s=>s,chatMensajeModificable:()=>false,chatMsgContenido:m=>m.texto,chatTicks:()=>'',chatInitSwipe:()=>{}};
+ const ctx={document:{getElementById:id=>id==='chat-messages'?messages:search},chatCerrarMenuMensaje(){},chatReaccionesHtml:()=>'',_chatPrimeraCarga:true,currentUser:'yo',escapeHTML:s=>s,chatMensajeModificable:()=>false,chatMsgContenido:m=>m.texto,chatTicks:()=>'',chatInitSwipe:()=>{}};
  vm.createContext(ctx);vm.runInContext(source,ctx);return {ctx,messages,search};
 }
 test('fechas por día calendario, incluso cambio de año y fecha inválida',()=>{

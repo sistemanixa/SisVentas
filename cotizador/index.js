@@ -36,6 +36,11 @@ const db = admin.database();
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)}, db});
 const laborTransaction = require('./labor-transaction').createRootTransaction({databaseURL:DATABASE_URL,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const laborOperations = require('./labor-operations').createLaborOperations({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db,transaction:laborTransaction});
+const laborSubmissions = require('./labor-submissions').createLaborSubmissions({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db,transaction:laborTransaction});
+const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db});
+const employeeDirectory = require('./employee-directory').createEmployeeDirectory({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db});
+const personalExpenses = require('./personal-expenses').createPersonalExpenses({authorize:laborSubmissions.authorize,transaction:laborTransaction});
+const supplierDirectory = require('./supplier-directory').createSupplierDirectory({authorize:employeeDirectory.authorize,db});
 const commissionOperations = require('./commission-operations').createCommissionOperations({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db,transaction:laborTransaction});
 const catalogRequests = require('./catalog-request').createCatalogRequest({db,periodsAPI:require('./catalog-promotions')});
 const { consultarAutomatico, firmaAcceso, aplicarCondicionComercial } = require('./proveedor-automatico');
@@ -1974,6 +1979,21 @@ const server = http.createServer(async (req, res) => {
 
   if(req.method==='POST' && pathname==='/comisiones/redistribuir'){
     try{const identity=await commissionOperations.authorize(req);const body=await readBody(req,2000000);send(res,200,{ok:true,...await commissionOperations.redistribute(identity,body)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la distribución'});}return;
+  }
+  if(req.method==='POST' && pathname==='/laboral/solicitar-horas'){
+    try{const identity=await laborSubmissions.authorize(req);const body=await readBody(req,25000);send(res,200,{ok:true,...await laborSubmissions.submit(identity,body)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo guardar la solicitud de horas'});}return;
+  }
+  if(req.method==='GET' && pathname==='/laboral/disponibilidad'){
+    try{await employeeAvailability.authorize(req);res.setHeader('Cache-Control','no-store');send(res,200,{ok:true,periodos:await employeeAvailability.read()});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo consultar disponibilidad'});}return;
+  }
+  if(req.method==='GET' && pathname==='/laboral/directorio'){
+    try{const identity=await employeeDirectory.authorize(req);res.setHeader('Cache-Control','no-store');send(res,200,{ok:true,...await employeeDirectory.read(identity)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo consultar directorio'});}return;
+  }
+  if(req.method==='POST' && pathname==='/laboral/solicitar-gasto'){
+    try{const identity=await personalExpenses.authorize(req);const body=await readBody(req,8000000);send(res,200,{ok:true,...await personalExpenses.submit(identity,body)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo guardar el gasto'});}return;
+  }
+  if(req.method==='GET' && pathname==='/compras/proveedores'){
+    try{const identity=await supplierDirectory.authorize(req);res.setHeader('Cache-Control','no-store');send(res,200,{ok:true,proveedores:await supplierDirectory.read(identity)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo consultar proveedores'});}return;
   }
   if(req.method==='POST' && pathname==='/laboral/aprobar-horas'){
     try{const identity=await laborOperations.authorize(req);const body=await readBody(req,25000);send(res,200,{ok:true,...await laborOperations.approve(identity,body)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la operación laboral'});}return;

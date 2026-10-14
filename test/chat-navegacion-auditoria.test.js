@@ -26,7 +26,7 @@ for (const falla of [false,true]) {
 test('buscar sin coincidencias conserva la lista original', () => {
   const messages = {scrollTop:0,scrollHeight:200,clientHeight:100,innerHTML:''};
   const search = {value:'inexistente'};
-  const context = {_chatPrimeraCarga:true,_chatListaVisible:[],document:{getElementById:id=>id==='chat-messages'?messages:search}};
+  const context = {chatCerrarMenuMensaje(){},_chatPrimeraCarga:true,_chatListaVisible:[],document:{getElementById:id=>id==='chat-messages'?messages:search}};
   vm.createContext(context);
   vm.runInContext(app.slice(app.indexOf('function chatRenderMensajes('),app.indexOf('function chatEnviar()')),context);
   const list = [{texto:'Hola',autor:'Prueba'}];

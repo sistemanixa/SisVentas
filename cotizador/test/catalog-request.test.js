@@ -43,5 +43,6 @@ test('limita pedidos por contacto sin contar los reintentos aceptados',async()=>
  await api.submit(last);await assert.rejects(api.submit(body()),e=>e.statusCode===429);
 });
 test('copia de períodos y descuentos coincide con el cliente vigente',()=>{
- assert.equal(require('node:fs').readFileSync('cotizador/catalog-promotions.js','utf8'),require('node:fs').readFileSync('js/catalog-promotions.js','utf8'));
+ const path=require('node:path'),fs=require('node:fs');
+ assert.equal(fs.readFileSync(path.join(__dirname,'../catalog-promotions.js'),'utf8'),fs.readFileSync(path.join(__dirname,'../../js/catalog-promotions.js'),'utf8'));
 });

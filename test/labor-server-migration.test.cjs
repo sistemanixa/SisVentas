@@ -14,14 +14,24 @@ test('Aguinaldos usan únicamente Gastos y dos registros del semestre no se dupl
 });
 test('La transacción REST reintenta un conflicto con datos nuevos y no pisa cambios concurrentes',async()=>{
  const {createRootTransaction}=require('../cotizador/labor-transaction');let reads=0,writes=0,bodies=[];
- const transaction=createRootTransaction({databaseURL:'https://demo.test',accessToken:async()=>'token',fetchImpl:async(url,opts)=>{if(!opts.method){reads++;return {ok:true,headers:{get:()=>String(reads)},json:async()=>({ventas:{concurrente:reads}})};}writes++;bodies.push(JSON.parse(opts.body));assert.equal(opts.headers['if-match'],String(reads));return {status:writes===1?412:200,ok:writes>1};}});
+ let cancelaciones=0;
+ const transaction=createRootTransaction({databaseURL:'https://demo.test',accessToken:async()=>'token',fetchImpl:async(url,opts)=>{if(!opts.method){reads++;return {ok:true,headers:{get:()=>String(reads)},json:async()=>({ventas:{concurrente:reads}})};}assert.equal(url,"https://demo.test/sisventas.json");writes++;bodies.push(JSON.parse(opts.body));assert.equal(opts.headers['if-match'],String(reads));return {status:writes===1?412:204,ok:writes>1,body:{cancel:async()=>{cancelaciones++;}}};}});
  const r=await transaction(root=>({...root,gastos:{nuevo:1}}));assert.equal(r.committed,true);assert.equal(bodies[1].ventas.concurrente,2);assert.equal(writes,2);
+ assert.equal(cancelaciones,2);
 });
 
 test('La autorización real rechaza inactivos y permisos bloqueados, sin confiar en el rol del cliente',async()=>{
- for(const [identity,cfg] of [[{activo:false,rol:'admin'},{}],[{activo:true,rol:'distribuidora'},{}],[{activo:true,rol:'admin'},{bloqueados:['empleados']}],[{activo:true,rol:'admin'},{acciones:{empleados:{autorizarHoras:false}}}]]){
+ for(const [identity,cfg] of [[{activo:false,rol:'admin'},{}],[{activo:true,rol:'distribuidora'},{}],[{activo:true,rol:'admin'},{bloqueados:['ctaemp']}],[{activo:true,rol:'admin'},{acciones:{empleados:{autorizarHoras:false}}}]]){
   const svc=createLaborOperations({auth:{verifyIdToken:async(_,revoked)=>{assert.equal(revoked,true);return {uid:'u'};}},db:{ref:path=>({get:async()=>({val:()=>path.startsWith('sv_chat_roles')?identity:cfg})})}});await assert.rejects(svc.authorize({headers:{authorization:'Bearer valido'}}),{statusCode:403});
  }
+});
+test('un conflicto reutiliza datos vigentes y su ETag, preservando la actualización ajena',async()=>{
+ const {createRootTransaction}=require('../cotizador/labor-transaction');let reads=0,writes=0;
+ const transaction=createRootTransaction({databaseURL:'https://demo.test',accessToken:async()=>'token',fetchImpl:async(url,opts)=>{
+  if(!opts.method){reads++;return {ok:true,headers:{get:()=> 'v1'},json:async()=>({ventas:{ajena:1}})};}
+  writes++;if(writes===1)return {status:412,ok:false,headers:{get:()=> 'v2'},json:async()=>({ventas:{ajena:2}})};
+  assert.equal(opts.headers['if-match'],'v2');assert.equal(JSON.parse(opts.body).ventas.ajena,2);return {status:200,ok:true};
+ }});assert.equal((await transaction(r=>({...r,gastos:{nuevo:1}}))).committed,true);assert.equal(reads,1);assert.equal(writes,2);
 });
 
 test('El módulo que se carga al final usa el guardado atómico y bloquea doble clic',async()=>{

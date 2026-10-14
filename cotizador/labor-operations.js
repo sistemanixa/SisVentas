@@ -8,7 +8,7 @@ function createLaborOperations({auth,db,transaction,now=Date.now}){
   const identity=(await db.ref('sv_chat_roles/'+token.uid).get()).val();
   if(identity?.activo!==true||!['admin','administrativo','vendedor','tecnico','tecnico_vendedor'].includes(identity.rol))throw fail(403,'Usuario sin acceso');
   const cfg=(await db.ref('sv_permisos/'+identity.rol).get()).val()||{};
-  if(cfg.bloqueados?.includes('empleados')||(typeof cfg.acciones?.empleados?.autorizarHoras==='boolean'? !cfg.acciones.empleados.autorizarHoras:identity.rol!=='admin'))throw fail(403,'Sin permiso para aprobar horas extra');
+  if(Object.values(cfg.bloqueados||{}).includes('ctaemp')||(typeof cfg.acciones?.empleados?.autorizarHoras==='boolean'? !cfg.acciones.empleados.autorizarHoras:identity.rol!=='admin'))throw fail(403,'Sin permiso para aprobar horas extra');
   return {uid:token.uid,nombre:identity.nombre||token.name||token.email||token.uid};
  }
  async function approve(identity,body){

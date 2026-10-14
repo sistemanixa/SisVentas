@@ -82,4 +82,4 @@ function _pagableGastoBase(payload) {
     ts: payload.ts || Date.now()
   };
 }
-module.exports={_claveOperacionConcurrente,_hsexAgruparPendientes,_hsexDescripcionDetalle,_pagableGastoBase};
+module.exports={_claveOperacionConcurrente,_hsexAgruparPendientes,_hsexDescripcionDetalle,_hsexConsolidarDetalle,_pagableGastoBase};

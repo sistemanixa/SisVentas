@@ -44,3 +44,9 @@ test('costo original cero es válido y un dato ausente o inválido no reemplaza 
  for(const value of [undefined,null,'',NaN]){const s=sale();s.items[0].costoUnitarioAntesPreparacion=value;assert.equal(base(s).ganancia,1000);}
  const s=sale();s.items[0].costoUnitarioAntesPreparacion=0;assert.equal(base(s).ganancia,2200);
 });
+test('desglosa el costo histórico de mano de obra sin alterar costo ni ganancia',()=>{
+ const ctx=load({obtenerCostoItemVenta:cost,_svTotalVentaCanonico:v=>v.total,itemVentaEsManoDeObraReporte:i=>i.cod==='MO'},['_calcularBaseComisionVenta']);
+ const v=sale();const r=ctx._calcularBaseComisionVenta(v);assert.equal(r.costoManoObra,200);assert.equal(r.costoTotal,1400);assert.equal(r.ganancia,1000);
+ v.items[2-1].costoUnitarioAntesPreparacion=150;assert.equal(ctx._calcularBaseComisionVenta(v).costoManoObra,150);
+ assert.equal(ctx._calcularBaseComisionVenta({total:100,costoTotal:20}).costoManoObra,null);
+});

@@ -10,6 +10,7 @@ let listener;
 let subscriptions = 0;
 const writes = [];
 const context = {
+  svPuedeLeerDominio: () => true,
   CARGOS_DATA: {},
   renderCargosConfig() {},
   window: {

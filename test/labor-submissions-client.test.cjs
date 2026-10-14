@@ -1,0 +1,7 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
+const source=require('./helpers/active-app').readActiveApp().source;
+const start=source.indexOf('async function _hsexGuardarSolicitudUnificada(');
+const fn=source.slice(start,source.indexOf('\n}',start)+2);
+function setup(response){let request;const c={window:{SVServiceAuth:{headers:async h=>({...h,Authorization:'Bearer prueba'})}},SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://servicio.example'},fetch:async(url,opts)=>{request={url,...opts};return {ok:response.ok,json:async()=>response.data};},JSON,Error};vm.runInNewContext(fn,c);return {save:c._hsexGuardarSolicitudUnificada,request:()=>request};}
+test('Horas personales se envían autenticadas sin leer ni escribir la colección desde el cliente',async()=>{const s=setup({ok:true,data:{ok:true,committed:true}});await s.save('e','Nombre local','2026-10',[{fecha:'2026-10-12',horas:2,lugar:'Obra'}],'Nota','ap_1');const r=s.request();assert.equal(r.url,'https://servicio.example/laboral/solicitar-horas');assert.equal(r.headers.Authorization,'Bearer prueba');assert.equal(r.method,'POST');assert.equal(JSON.parse(r.body).aporteId,'ap_1');assert.equal(JSON.parse(r.body).empNombre,undefined);});
+test('El cliente no informa guardado si el servidor rechaza o no confirma la escritura',async()=>{for(const response of [{ok:false,data:{mensaje:'Sin permiso'}},{ok:true,data:{ok:true,committed:false}}]){const s=setup(response);await assert.rejects(s.save('e','','2026-10',[],'','ap_1'));}});

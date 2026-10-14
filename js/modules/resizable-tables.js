@@ -996,7 +996,9 @@
     ensurePercentButton(table);
     var key = tableKey(table);
     if (table.dataset.svResizableReady === '1' &&
-        table.dataset.svResizableKey === key) {
+        table.dataset.svResizableKey === key && headers.every(function(th){
+          return parseInt(th.dataset.svFixedWidth || '',10) > 0 || !!th.querySelector('.sv-col-resizer');
+        })) {
       if (actionsPolicyChanged) {
         if (table.classList.contains('sv-pixel-table')) {
           applySavedWidths(table);

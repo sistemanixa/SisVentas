@@ -1,0 +1,7 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
+const source=require('./helpers/active-app').readActiveApp().source;
+function extract(name){const start=source.indexOf('function '+name+'(');return source.slice(start,source.indexOf('\n}',start)+2);}
+function ctx(users){const c={currentUserUid:'uid1',window:{usuariosData:users},empData:{e1:{fbKey:'e1',nombre:'Persona'},e2:{fbKey:'e2',nombre:'Persona'}},Array,Object,String,Set};vm.runInNewContext(extract('svEmpleadoPropio'),c);return c;}
+test('La identidad laboral se resuelve por UID exacto, no por nombre ni correo',()=>{const c=ctx([{uid:'uid1',empleadoFbKey:'e1'},{uid:'uid2',empleadoFbKey:'e2'}]);assert.equal(c.svEmpleadoPropio().fbKey,'e1');c.currentUserUid='uid2';assert.equal(c.svEmpleadoPropio().fbKey,'e2');});
+test('Sin vínculo, empleado inexistente o vínculos ambiguos no se elige una cuenta',()=>{for(const users of [[{mail:'igual',nombre:'Persona',empleadoFbKey:'e1'}],[{uid:'uid1',empleadoFbKey:'inexistente'}],[{uid:'uid1',empleadoFbKey:'e1'},{uid:'uid1',empleadoFbKey:'e2'}]])assert.equal(ctx(users).svEmpleadoPropio(),null);});
+test('La lectura directa de otra cuenta se rechaza antes de abrir Firebase',()=>{const c={svEmpleadoPropio:()=>({fbKey:'e1'}),window:{tienePermiso:()=>false},String,notify:()=>{c.denied=true;}};vm.runInNewContext(extract('cargarCtaEmp'),c);c.cargarCtaEmp('e2');assert.equal(c.denied,true);});
