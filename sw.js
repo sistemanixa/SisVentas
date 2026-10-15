@@ -28,7 +28,7 @@ const SHELL = [
   './js/modules/comparacion-comercial.js?v=1',
   './js/modules/commercial-approval.js?v=3.9.29',
   './js/core/guarded-writes.js?v=3.9.24-server-check2',
-  './js/core/session-assets.js?v=3.10.32-domain-reads',
+  './js/core/session-assets.js?v=3.10.35-public-return',
   './js/app.v3.10.35.js',
   './js/modules/navigation-back.js?v=perf-3105',
   './js/modules/product-url-import.js?v=3.9.15-dual-shipping',

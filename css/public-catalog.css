@@ -37,3 +37,11 @@ main{max-width:none;padding:0}header{margin-left:0;margin-right:0;padding:20px m
 .product-detail{position:relative;padding:0 44px}.product-detail .navigation{margin:0}.product-detail .navigation .btn{position:absolute;top:50%;transform:translateY(-50%);width:36px;height:48px;padding:0;font-size:30px;line-height:1}.product-detail [data-product-previous]{left:0}.product-detail [data-product-next]{right:0}@media(max-width:700px){.product-detail{padding:0 30px}.product-detail .navigation .btn{width:26px;min-height:44px;font-size:26px}}
 
 .order-countdown{flex-direction:column;justify-content:center;text-align:center;background:linear-gradient(110deg,#172d2b,#142238);border:1px solid #345743;border-radius:12px;padding:14px 20px;margin:8px auto;gap:10px}.order-countdown h2{font-size:20px}.order-countdown p{display:block;color:var(--text2);font-size:12px;margin-top:5px}.order-clock{align-self:center}.order-clock strong{font-size:24px}.order-clock div{min-width:60px}.catalog-opportunity strong{font-size:13px}@media(max-width:1240px){.order-countdown{margin:8px 32px}}@media(max-width:700px){.order-countdown{margin:6px 16px;padding:10px;gap:8px}.order-countdown h2{font-size:16px}.order-countdown p{font-size:11px}.order-clock div{min-width:48px}.order-clock strong{font-size:21px}}
+
+/* La ficha no queda debajo de la cabecera comercial fija. */
+.public-return{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-left:auto}
+.public-return a[hidden]{display:none}
+.public-product-open .public-sticky-top{position:static;box-shadow:none}
+.public-product-open .order-countdown,.public-product-open .currency-selector{display:none}
+.public-sticky-top header{flex-wrap:wrap}
+@media(max-width:700px){.public-return{gap:6px}.public-return .btn{padding:8px 10px;font-size:12px}.public-product-open .public-return{order:3;width:100%;justify-content:flex-start;margin-left:0}}

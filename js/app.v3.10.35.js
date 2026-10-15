@@ -10046,7 +10046,7 @@ function _svPaginaDesdeRuta() {
   var hash = String(window.location.hash || '').replace(/^#\/?/, '').split(/[/?]/)[0];
   if (!hash) return '';
   try { hash = decodeURIComponent(hash); } catch(e) {}
-  return document.getElementById('page-' + hash) ? hash : '';
+  return (hash === 'distribuidora' || document.getElementById('page-' + hash)) ? hash : '';
 }
 
 function _svActualizarRuta(id, reemplazar) {
@@ -10478,7 +10478,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Correo automático de solicitudes y navegación interna de Distribuidora.']),
   RELEASE_FEATURE: Object.freeze({page:'balancecompra',actionLabel:'Ver Compras de exterior'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.10.35',date:'14/10/2026',title:'Ayuda en permisos de Roles',notes:Object.freeze(['Cada módulo y acción de Roles muestra una i con ayuda al pasar el mouse, enfocar con el teclado o tocar.']),feature:Object.freeze({page:'configuracion',actionLabel:'Ver configuración'})}),
+ Object.freeze({version:'v3.10.35',date:'14/10/2026',title:'Ayuda en Roles y navegación del catálogo',notes:Object.freeze(['Cada módulo y acción de Roles muestra una i con ayuda al pasar el mouse, enfocar con el teclado o tocar.','El catálogo público permite volver a Ofertas y muestra las fichas de productos sin la franja fija de pedidos y moneda.']),feature:Object.freeze({page:'configuracion',actionLabel:'Ver configuración'})}),
  Object.freeze({version:'v3.10.34',date:'14/10/2026',title:'Responder desde el menú del chat',notes:Object.freeze(['Responder aparece primero en el menú de cada mensaje, además de la flecha y el gesto de arrastrar.']),feature:Object.freeze({page:'notificaciones',actionLabel:'Ver comunicados'})}),
  Object.freeze({version:'v3.10.33',date:'14/10/2026',title:'Historial por domicilio, comisiones y chat',notes:Object.freeze(['El historial filtra sus siete solapas por domicilio y muestra los pagos correspondientes. Se reorganizan sus controles y se restringe la eliminación al administrador.','Las comisiones actualizan los importes al editar porcentajes, muestran el costo de mano de obra y los demás participantes en la venta.','El chat incorpora un menú por mensaje, seis reacciones y edición de mensajes propios leídos. Los comunicados privados corrigen su etiqueta y conteo de confirmaciones.','Se corrige el ajuste de columnas y la confirmación de garantías en reclamos. Las cuentas personales y las solicitudes de horas extra incorporan validaciones de identidad.']),feature:Object.freeze({page:'notificaciones',actionLabel:'Ver comunicados'})}),
  Object.freeze({version:'v3.10.32',date:'13/10/2026',title:'Órdenes pendientes consistentes',notes:Object.freeze(['El dashboard excluye estados finales y usa el mismo alcance de usuario para la lista y los contadores de órdenes.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ver inicio'})}),
