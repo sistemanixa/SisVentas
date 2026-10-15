@@ -30,7 +30,9 @@ test('Cada cargador bloqueado retorna antes de consultar Firebase, incluso si se
 test('La política compartida se carga antes del cliente y está incluida en el shell offline',()=>{
  const active=require('./helpers/active-app').readActiveApp(),html=active.index,sw=fs.readFileSync('sw.js','utf8');
  assert.ok(html.indexOf('domain-read-policy.js')<html.indexOf(active.filename));
- assert.ok(sw.includes('domain-read-policy.js?v='+active.filename.match(/app\.v([\d.]+)\.js/)[1]));
+ const policyAsset=html.match(/src="\.\/(js\/core\/domain-read-policy\.js\?v=[^"]+)"/);
+ assert.ok(policyAsset,'el índice debe declarar la versión del módulo compartido');
+ assert.ok(sw.includes(policyAsset[1]),'el shell offline debe precargar exactamente el módulo que usa el índice');
 });
 test('La carga de permisos espera Firebase y no aplica resultados de otra sesión',async()=>{
  const start=source.indexOf('function cargarPermisosRoles('),fn=source.slice(start,source.indexOf('\n}',start)+2);

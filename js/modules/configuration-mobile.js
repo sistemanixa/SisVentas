@@ -47,7 +47,7 @@
   .sv331-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
   .sv331-mini{background:rgba(0,0,0,.12);border:0.5px solid var(--border);border-radius:10px;padding:8px 8px;min-width:0}
   .sv331-mini label{display:block;font-size:10px;color:var(--text3);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .sv331-mini input{width:100%!important;background:transparent!important;border:none!important;color:var(--text)!important;font-size:15px!important;font-weight:600!important;text-align:center!important;outline:none!important;padding:0!important}
+  .sv331-mini input{width:100%!important;background:transparent!important;border:none!important;color:var(--text)!important;font-size:16px!important;font-weight:600!important;text-align:center!important;outline:none!important;padding:0!important}
   .sv331-chevron{width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--text2);border:0.5px solid var(--border)}
   .sv331-info-card{background:var(--blue-bg)!important;color:var(--blue)!important;border:0.5px solid rgba(96,165,250,.22)!important;border-radius:14px!important;padding:12px 14px!important;font-size:13px!important;line-height:1.45!important}
   #cfg-comisiones .sv331-top-card{display:grid!important;grid-template-columns:44px 1fr 112px!important;align-items:center!important;gap:12px!important;background:var(--bg3)!important;border-radius:14px!important;padding:14px!important;margin-bottom:14px!important}
@@ -77,7 +77,11 @@
   }
   function makeCargos331(){
     var panel=document.getElementById('cfg-cargos'); if(!panel) return;
-    var old=document.getElementById('sv331-cargos-list'); if(old) old.remove();
+    var old=document.getElementById('sv331-cargos-list');
+    // Un refresco tardío o de datos no debe destruir el campo enfocado ni
+    // descartar tarifas que el usuario todavía no guardó.
+    if(old && isMob331() && (old.contains(document.activeElement) || old.querySelector('[data-cargo-save]:not(:disabled)'))) return;
+    if(old) old.remove();
     if(!isMob331()) return;
     var card=panel.querySelector('.card'); if(!card) return;
     var ids=Object.keys(window.CARGOS_DATA||{}).sort(function(a,b){return ((CARGOS_DATA[a]||{}).nombre||a).localeCompare(((CARGOS_DATA[b]||{}).nombre||b));});
@@ -194,7 +198,14 @@
       }
     }, 320);
   });
-  window.addEventListener('resize', function(){ clearTimeout(window._sv331Resize); window._sv331Resize=setTimeout(refresh331,150); });
+  var ancho331=window.innerWidth;
+  window.addEventListener('resize', function(){
+    // El teclado y las barras del navegador cambian la altura, no la grilla.
+    // Recrear las tarjetas en ese evento elimina el input y cierra el teclado.
+    if(window.innerWidth === ancho331) return;
+    ancho331=window.innerWidth;
+    clearTimeout(window._sv331Resize); window._sv331Resize=setTimeout(refresh331,150);
+  });
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(refresh331,350); });
   setTimeout(refresh331,700);
   setTimeout(refresh331,1600);

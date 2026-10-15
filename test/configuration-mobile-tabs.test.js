@@ -12,7 +12,7 @@ assert.match(source, /setTimeout\(refresh331,3200\)/,
   'Debe existir un reintento posterior a la carga asíncrona de Firebase');
 assert.match(source, /SisVentas\.initResizableTables/,
   'Al abrir una solapa debe liberarse la grilla pendiente una vez que ya es visible');
-assert.match(index, /configuration-mobile\.js\?v=perf-31010/,
+assert.match(index, /configuration-mobile\.js\?v=3\.11\.0-keyboard/,
   'El navegador debe invalidar la copia anterior del controlador de Configuración');
 
 console.log('configuration-mobile-tabs.test.js OK');
