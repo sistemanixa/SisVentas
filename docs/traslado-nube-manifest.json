@@ -22,8 +22,9 @@
     },
     {
       "path": "scripts/test-security-drafts.cjs",
-      "bytesLf": 2035,
-      "sha256Lf": "ee014e9a2540ea4b43de7a4839bc94c0fcf67ff2b7a854fb27d8d123ff7297b4"
+      "bytesLf": 2052,
+      "sha256Lf": "fd04d1c8f0e18cd67545136e273c1b82aea114eecb16058d5d6d3fdc3806a2a8",
+      "previousSha256Lf": "ee014e9a2540ea4b43de7a4839bc94c0fcf67ff2b7a854fb27d8d123ff7297b4"
     },
     {
       "path": "scripts/prepare-known-role-read.cjs",
@@ -126,6 +127,11 @@
       "path": "test/domain-read-generator.test.cjs",
       "bytesLf": 1858,
       "sha256Lf": "aeede7cef2f1ba4917eebcb100127b40b57e102927774d7eeea735e204e2c692"
+    },
+    {
+      "path": "test/cut-progression.integration.cjs",
+      "bytesLf": 4344,
+      "sha256Lf": "07ab544a3edce6691ebf61f9828ee202e1bbe021bf29b19a5a413a6ae40232b9"
     }
   ],
   "revision": {
@@ -133,5 +139,11 @@
     "sourceCommit": "bf76f862dd97e230b445d00bb6731cd6675deec9",
     "sourceRulesSha256": "469548d26df33d734ab426bbee17f696bf2eafa3ab8e8a4f955473aee596b427",
     "scope": "Regeneración offline: excepción externa de productos, snapshot de roles conocidos y fixtures con permisos explícitos. Sin despliegue de reglas."
+  },
+  "cutValidation": {
+    "date": "2026-10-15",
+    "sourceCommit": "9ffcbc3d8b64333ddaef5fc5eddd6a70fd76ef4b",
+    "integrationCases": 30,
+    "notDeployed": true
   }
 }

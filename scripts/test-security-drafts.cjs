@@ -2,12 +2,12 @@
 // Preparación y pruebas locales. Nunca aplica reglas ni usa un proyecto real.
 const fs=require('node:fs'),path=require('node:path'),{spawnSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..');
-const suites=['known-role-read','domain-reads','employee-account-reads','audit-final-permissions'].map(n=>'test/'+n+'.integration.cjs');
+const suites=['known-role-read','domain-reads','employee-account-reads','audit-final-permissions','cut-progression'].map(n=>'test/'+n+'.integration.cjs');
 const rules=['known-role-read','domain-read','employee-account-read','audit-final'].map(n=>'security/database.'+n+'.candidate.json');
 function check(){
   for(const name of rules){const parsed=JSON.parse(fs.readFileSync(path.join(root,name),'utf8'));if(Object.keys(parsed).join()!=='rules')throw Error('Candidata inesperada: '+name);}
   for(const name of suites){const r=spawnSync(process.execPath,['--check',path.join(root,name)],{stdio:'inherit'});if(r.status!==0)throw Error('Sintaxis inválida: '+name);}
-  console.log('OK: cuatro candidatas JSON y cuatro suites con sintaxis válida. Esto no prueba permisos.');
+  console.log('OK: cuatro candidatas JSON y cinco suites con sintaxis válida. Esto no prueba permisos.');
 }
 function main(){
   check();
