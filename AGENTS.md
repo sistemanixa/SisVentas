@@ -1,3 +1,52 @@
 # Preferencias de este proyecto
 
 Cuando el usuario pida **acomodar nombres**, seguir el criterio de [docs/acomodar-nombres.md](docs/acomodar-nombres.md). Es una petición de revisar y normalizar nombres de productos, conservando las variantes y usando como referencia los nombres que el usuario ya corrigió.
+
+## Continuidad y Git
+
+- Leer [docs/CONTEXTO_ACTUAL.md](docs/CONTEXTO_ACTUAL.md) al comenzar. Separar estado del repositorio, cambios locales y estado externo de producción.
+- Revisar `git status --short`, rama y último commit antes de modificar. Conservar cambios desconocidos; no usar reset/clean, sobrescrituras ni push forzado para sincronizar.
+- La referencia compartida vigente es `origin/main`. La rama `codex/v3-integracion-v236` de documentos antiguos es histórica: no cambiar a ella automáticamente. Para trabajo nuevo aislado usar una rama `codex/...` y coordinar su integración.
+- Antes de empezar en otra PC o en la nube: fetch, revisar diferencias y actualizar con fast-forward si el árbol y la rama lo permiten. No editar simultáneamente los mismos archivos desde dos equipos. Al entregar: commit y push del alcance acordado, e informar el SHA. Los archivos sin seguimiento y las sesiones del navegador no viajan con Git.
+- Actualizar CONTEXTO_ACTUAL al cerrar un bloque importante: evidencia, pendientes, límites de validación y siguiente paso. No dar por terminado algo solo porque se intentó o se cambió el código.
+
+## Estructura y ejecución local
+
+- Frontend estático: `index.html`, `css/`, `js/`, `catalogo.html`, `sw.js`. No hay `package.json` en la raíz. Servicios separados en `cotizador/` y `cloud-functions/`, cada uno con sus dependencias.
+- La aplicación activa es la que referencia `index.html`: `js/app.vX.Y.Z.js`. No modificar una versión histórica ni asumir que `js/app.js` es la activa. Mantener coherentes aplicación inmutable, marcador del índice, `js/core/version.vX.Y.Z.js`, `js/core/version.js`, caché/SHELL del Service Worker y Novedades.
+- Para una copia nueva, servir por HTTP en loopback desde la raíz del checkout; por ejemplo, si Python está instalado: `python3 -m http.server 8766 --bind 127.0.0.1` (Windows: `python -m http.server 8766 --bind 127.0.0.1`). Abrir `http://127.0.0.1:8766/`. No usar file://. No exponer el servidor del repositorio completo a Internet: contiene fuentes y documentación interna. En nube usar únicamente el reenvío autenticado del entorno o preparar una carpeta con activos públicos.
+- La PC original tiene un servidor especial que sirve `.local/release-v3619`, no la raíz. Es un espejo local no versionado: copiar allí los activos modificados antes de probar, o usar un servidor nuevo sobre el checkout. Verificar contenido HTTP y versión real; un Service Worker puede mostrar la versión anterior aunque el servidor esté apagado.
+- La interfaz local puede conectarse al Firebase real. Que diga localhost NO implica datos de prueba. No guardar ventas, cobros, comisiones, mensajes ni eliminaciones reales como prueba incidental.
+- Cuando un cambio se anuncie como visible en local, recargar efectivamente la ventana del usuario y comprobarlo; conservar o restaurar su sección, solapa y contexto cuando sea posible. No afirmar haber recargado sin hacerlo.
+
+## Verificación y publicación
+
+- Puerta de pruebas vigente: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-current.ps1` (en Linux con PowerShell: `pwsh -NoProfile -File scripts/test-current.ps1`). Node es necesario; la versión usada en la PC original figura en CONTEXTO_ACTUAL.
+- Si no hay PowerShell, ejecutar con `node --test` los archivos directamente dentro de `test/` que terminen en `.test.js`/`.test.cjs`, excluyendo prefijos `incremental-`, `release-`, `v3-architecture.test.js` y `catalogo-clientes-v330.test.js`. Este último se ejecuta por separado con su navegador/dependencias. Véase [test/README.md](test/README.md).
+- No usar todas las instantáneas históricas como puerta de publicación ni modificar sus expectativas para que pasen. Las pruebas funcionales nuevas leen la aplicación activa mediante `test/helpers/active-app.js`.
+- Ejecutar pruebas específicas necesarias, suite vigente, `node --check` del JS modificado y `git diff --check`. Para UI verificar visualmente escritorio y móvil: cabeceras opacas, ausencia de franjas, scroll del primer plano sin mover el fondo, cierre/minimización que liberen el scroll, foco/teclado y retornos.
+- Describir alcance real: recorrer una pantalla o inspeccionar CSS no equivale a probar todos sus formularios ni todas las operaciones financieras.
+- Antes de publicar una versión: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/actualizar-nodo-version.ps1 -Version vX.Y.Z -ValidarLocal`. Usar `scripts/siguiente-version.ps1` para calcular el siguiente número (el parche rota al siguiente menor después de 20).
+- Publicar solo el alcance autorizado. Revisar archivos staged explícitamente; nunca añadir todo a ciegas. Esperar a que la web entregue los activos nuevos y recién entonces ejecutar `scripts/actualizar-nodo-version.ps1 -Version vX.Y.Z`, que valida web y actualiza `sisventas/config/version`. Un push no demuestra que terminó el despliegue.
+- Git no sincroniza Firebase, Secret Manager, Cloud Run, DNS ni autenticaciones. No marcar esos cambios como aplicados basándose solo en un commit.
+
+## Reglas funcionales y visuales acordadas
+
+- Mantener la estética oscura existente, controles alineados y textos breves, sin resultados repetidos. Dashboard es inicio y no lleva Volver; otros retornos deben tener un destino real y conservar la lista/solapa de origen.
+- Compras: capturar el precio del proveedor y el precio público acordado al agregar el producto; conservarlos como valores de ese momento, editables donde corresponda. No recalcular el histórico con precios actuales. Las excepciones antiguas se completan solo según el criterio autorizado.
+- Envíos ingresados en USD conservan su base en USD; convertir a ARS para mostrar con cotización actual, sin ida y vuelta ARS→USD que altere la base. En las listas el usuario pidió envíos en USD enteros. No redondear por extensión precios de venta/proveedor ni otros importes.
+- En Distribuidora y catálogo, los importes monetarios presentados en USD van sin decimales (redondeo visual); ARS conserva su formato. Esto no autoriza redondear la base de datos ni reescribir históricos. Guardar sin editar debe conservar los originales aunque el campo se muestre entero. Un precio canónico de origen USD se usa directamente; convertir desde ARS solo cuando la fuente realmente sea ARS. Las exportaciones de datos crudos conservan precisión; no confundirlas con presentación/PDF.
+- Ahorro de compra y ganancia de venta son conceptos distintos. Compra personal no genera ganancia de venta. Mostrar faltantes identificables y no presentar cálculos incompletos como totales definitivos.
+- Listas se abren con ítems colapsados. Administrador puede optar por ver todas; por defecto ve las propias. Respetar permisos también en servidor.
+- Comunicados internos: excluir Distribuidora; selección manual se identifica como Privado; contar solo participantes válidos. Creador primero, sin tratarlo como una confirmación ajena.
+- Chat: Responder es la primera acción del menú; flecha integrada en la burbuja, reacciones desde carita lateral. Editar mensajes propios debe seguir disponible tras lectura, sujeto a autorización real de servidor, sin habilitar edición ajena.
+- Historial de cliente: domicilios seleccionables filtran las solapas coherentemente; no inventar domicilio para registros antiguos ambiguos. Eliminación de cliente solo administrador, con confirmaciones; administrativo como máximo puede desactivar. No ejecutar una cascada real para probarla.
+- No borrar ni recalcular comisiones existentes como efecto de una corrección de interfaz o auditoría.
+
+## Seguridad y configuración
+
+- Nunca incluir contraseñas, tokens, claves privadas, exportaciones de datos reales o respaldos en Git, documentación o logs. Documentar nombres de variables/secretos y permisos requeridos, no sus valores.
+- `security/auditoria-2026-10-12.txt` es un informe privado local: no agregarlo a Git ni publicarlo. Tampoco subir `tmp/`, perfiles, sesiones, credenciales de gcloud o artefactos privados de `.local/`.
+- Reglas `.candidate.json` y scripts de migración son propuestas hasta comprobar las reglas remotas y el despliegue. No ejecutarlos automáticamente. Probar permisos/concurrencia con emulador y datos ficticios; respaldar y verificar el estado exacto antes de un corte autorizado.
+- No sustituir la base completa ni ampliar permisos como arreglo rápido. Una autorización de lectura/escritura en un padre de RTDB no se revoca con un veto en un hijo.
+- En nube no asumir rutas Windows ni credenciales locales. Revisar las instrucciones del entorno y su red, adaptar herramientas con cuidado y configurar accesos por el mecanismo seguro del entorno. Faltas de credenciales se informan; no se copian claves al repositorio para resolverlas.
