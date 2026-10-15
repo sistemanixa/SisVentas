@@ -132,6 +132,36 @@
       "path": "test/cut-progression.integration.cjs",
       "bytesLf": 4344,
       "sha256Lf": "07ab544a3edce6691ebf61f9828ee202e1bbe021bf29b19a5a413a6ae40232b9"
+    },
+    {
+      "path": "scripts/prepare-password-access.cjs",
+      "bytesLf": 2182,
+      "sha256Lf": "fd665c15e8a77e3d4e7139b0d19579db3741d5c160cf333b410cfdd5c9a94f2e",
+      "provenance": "Gestión de acceso v3.11.9 local; revisión y pruebas demo Auth/RTDB/Storage del 15/10/2026. Sin despliegue."
+    },
+    {
+      "path": "scripts/test-user-access.cjs",
+      "bytesLf": 1885,
+      "sha256Lf": "08341d641f6f2ac04a4ac2222437ee6fac70351c8fa562295a7ac98578eb5514",
+      "provenance": "Gestión de acceso v3.11.9 local; revisión y pruebas demo Auth/RTDB/Storage del 15/10/2026. Sin despliegue."
+    },
+    {
+      "path": "security/database.password-access.candidate.json",
+      "bytesLf": 249317,
+      "sha256Lf": "495f4c2c48ca793ef5ea0217f168ac8ed19f4bd636f6a1f46d0219012c2e17e4",
+      "provenance": "Gestión de acceso v3.11.9 local; revisión y pruebas demo Auth/RTDB/Storage del 15/10/2026. Sin despliegue."
+    },
+    {
+      "path": "security/storage.password-access.candidate.rules",
+      "bytesLf": 1062,
+      "sha256Lf": "a5f8774fb509b2262a1827dcd1fbb9eeb0ce641955fa6039d4c24a6e59e6147e",
+      "provenance": "Gestión de acceso v3.11.9 local; revisión y pruebas demo Auth/RTDB/Storage del 15/10/2026. Sin despliegue."
+    },
+    {
+      "path": "test/user-access.integration.cjs",
+      "bytesLf": 6720,
+      "sha256Lf": "b02fb79cd46d66618d664934ad4d36bf7effd0066328c23f3cfecf0107c99f7e",
+      "provenance": "Gestión de acceso v3.11.9 local; revisión y pruebas demo Auth/RTDB/Storage del 15/10/2026. Sin despliegue."
     }
   ],
   "revision": {

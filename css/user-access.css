@@ -1,0 +1,10 @@
+.sv-access-overlay{position:fixed;inset:0;z-index:12000;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px;overscroll-behavior:contain}
+.sv-access-dialog{box-sizing:border-box;width:100%;max-width:490px;max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain;background:var(--bg2);color:var(--text);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:22px;box-shadow:0 16px 48px #0008}
+.sv-access-dialog header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sv-access-dialog h2{font-size:17px;margin:0}.sv-access-detail,.sv-access-body p{font-size:13px;color:var(--text3);line-height:1.4}
+.sv-access-body,.sv-access-body form{display:flex;flex-direction:column;gap:10px}.sv-access-body label{font-size:13px}
+.sv-access-body input{box-sizing:border-box;min-height:42px;width:100%;font-size:16px;font-family:inherit;background:var(--bg3,var(--bg));color:var(--text);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 12px}
+.sv-access-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}.sv-access-actions .btn{white-space:normal;min-height:40px}
+.sv-access-status{font-size:13px;line-height:1.4;color:var(--text2);margin:14px 0 0;overflow-wrap:anywhere}
+body:has(>.sv-access-overlay){overflow:hidden}
+@media(max-width:480px){.sv-access-dialog{padding:18px}.sv-access-actions .btn{width:100%}}

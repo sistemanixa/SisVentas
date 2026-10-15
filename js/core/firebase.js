@@ -3,7 +3,7 @@
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
              createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail,
-             signInWithEmailAndPassword as reSignIn }
+             signInWithEmailAndPassword as reSignIn, EmailAuthProvider, reauthenticateWithCredential }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getStorage, ref as storageRef, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -85,6 +85,7 @@
       return onAuthStateChanged(auth, async function(user) {
         const epoch = ++authEpoch;
         try {
+          if (user && window.SVUserAccess && await window.SVUserAccess.gate(user)) return;
           const prepared = window.svPrepararRutasSeguridad ? await window.svPrepararRutasSeguridad(user) : undefined;
           if (epoch !== authEpoch) return;
           // No entregar a la UI una preparación que ya pertenece a otra sesión.
@@ -105,6 +106,7 @@
       try { return await createUserWithEmailAndPassword(secondaryAuth,email,password); }
       finally { await signOut(secondaryAuth); }
     };
+    window.fbReauthenticate = function(user,password) { return reauthenticateWithCredential(user,EmailAuthProvider.credential(user.email,password)); };
     window.fbResetPass   = sendPasswordResetEmail;
     window.fbUpdatePass  = updatePassword;
     window.fbStorage     = fbStorage;

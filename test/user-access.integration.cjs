@@ -1,0 +1,64 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{createRequire}=require('node:module');
+const dep=createRequire(path.resolve('tmp/firebase-security-tools/package.json'));
+const {initializeTestEnvironment,assertFails,assertSucceeds}=dep('@firebase/rules-unit-testing');
+const {initializeApp,deleteApp}=dep('firebase/app');
+const {getAuth,connectAuthEmulator,signInWithEmailAndPassword,signOut}=dep('firebase/auth');
+const {getDatabase,connectDatabaseEmulator,ref,get,set}=dep('firebase/database');
+const {getStorage,connectStorageEmulator,ref:storageRef,uploadBytes}=dep('firebase/storage');
+const admin=require('../cotizador/node_modules/firebase-admin');
+const {createUserAccess,createBusinessAuth}=require('../cotizador/user-access');
+const {createPasswordEmail}=require('../cotizador/password-email');
+test('Demo Auth+RTDB: clave temporal, acceso bloqueado, cambio obligatorio, sesión normal y correo sin tocar perfiles',async()=>{
+ if(process.env.FIREBASE_AUTH_EMULATOR_HOST!=='127.0.0.1:9098'||process.env.FIREBASE_DATABASE_EMULATOR_HOST!=='127.0.0.1:9005'||process.env.FIREBASE_STORAGE_EMULATOR_HOST!=='127.0.0.1:9198'||process.env.GCLOUD_PROJECT!=='demo-sisventas-access')throw Error('Solo emuladores demo loopback');
+ const projectId='demo-sisventas-access';
+ const env=await initializeTestEnvironment({projectId,database:{host:'127.0.0.1',port:9005,rules:fs.readFileSync('security/database.password-access.candidate.json','utf8')}});
+ const app=admin.initializeApp({projectId,databaseURL:'http://127.0.0.1:9005/?ns='+projectId,credential:{getAccessToken:async()=>({access_token:'owner',expires_in:3600})}},'demo-user-access');
+ const client=initializeApp({projectId,apiKey:'FAKE_DEMO_KEY',databaseURL:'https://'+projectId+'.firebaseio.com',storageBucket:projectId+'.appspot.com'},'demo-user-access-client');
+ const auth=getAuth(client);connectAuthEmulator(auth,'http://127.0.0.1:9098',{disableWarnings:true});
+ const database=getDatabase(client);connectDatabaseEmulator(database,'127.0.0.1',9005);
+ const storage=getStorage(client);connectStorageEmulator(storage,'127.0.0.1',9198);
+ const authAdmin=app.auth(),db=app.database();
+ const asUser=async(email,password)=>{await signOut(auth);return (await signInWithEmailAndPassword(auth,email,password)).user;};
+ const req=token=>({headers:{authorization:'Bearer '+token}});
+ try{
+  await authAdmin.createUser({uid:'demo-admin',email:'admin@example.test',password:'Initial-demo-admin-key'});
+  await authAdmin.createUser({uid:'demo-worker',email:'worker@example.test',password:'Initial-demo-worker-key'});
+  await db.ref().set({sv_chat_roles:{'demo-admin':{rol:'admin',activo:true},'demo-worker':{rol:'tecnico',activo:true}},sv_usuarios:{p:{uid:'demo-worker',mail:'worker@example.test',rol:'tecnico',activo:true}},sisventas:{config:{version:'DEMO'}}});
+  const sent=[];let clock=Date.now();
+  const sendDemoEmail=createPasswordEmail({apiKey:'FAKE_DEMO_KEY',fetchImpl:async(url,options)=>{
+    assert.equal(url.startsWith('https://identitytoolkit.googleapis.com/'),true);
+    return fetch('http://127.0.0.1:9098/identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=FAKE_DEMO_KEY',options);
+  }});
+  const service=createUserAccess({auth:authAdmin,db,enabled:true,now:()=>clock,sendResetEmail:async email=>{sent.push(email);await sendDemoEmail(email);}});
+  const adminToken=await (await asUser('admin@example.test','Initial-demo-admin-key')).getIdToken();
+  const old=await asUser('worker@example.test','Initial-demo-worker-key'),oldToken=await old.getIdToken();
+  await assertSucceeds(get(ref(database,'sisventas/config/version')));
+  await assertSucceeds(uploadBytes(storageRef(storage,'chat/demo-worker/before.txt'),Buffer.from('fake fixture'),{contentType:'text/plain'}));
+  const temporary=await service.temporary(req(adminToken),{profileKey:'p'});
+  await assert.rejects(signInWithEmailAndPassword(auth,'worker@example.test','Initial-demo-worker-key'));
+  const pending=await asUser('worker@example.test',temporary.password),pendingToken=await pending.getIdToken();
+  await assertFails(get(ref(database,'sisventas/config/version')));
+  await assertFails(get(ref(database,'sv_access_resets/demo-worker')));
+  await assertFails(set(ref(database,'sv_access_resets/demo-worker/required'),false));
+  await assertFails(uploadBytes(storageRef(storage,'chat/demo-worker/pending.txt'),Buffer.from('fake fixture'),{contentType:'text/plain'}));
+  await assert.rejects(createBusinessAuth(authAdmin,db).verifyIdToken(oldToken));
+  await assert.rejects(createBusinessAuth(authAdmin,db).verifyIdToken(pendingToken));
+  await service.complete(req(pendingToken),{password:'Personal-final-demo-password'});
+  await assert.rejects(createBusinessAuth(authAdmin,db).verifyIdToken(pendingToken));
+  const ready=await asUser('worker@example.test','Personal-final-demo-password'),readyToken=await ready.getIdToken();
+  await assertSucceeds(get(ref(database,'sisventas/config/version')));
+  await assertSucceeds(uploadBytes(storageRef(storage,'chat/demo-worker/ready.txt'),Buffer.from('fake fixture'),{contentType:'text/plain'}));
+  assert.equal((await createBusinessAuth(authAdmin,db).verifyIdToken(readyToken)).uid,'demo-worker');
+  assert.deepEqual((await db.ref('sv_usuarios/p').get()).val(),{uid:'demo-worker',mail:'worker@example.test',rol:'tecnico',activo:true});
+  assert.equal(JSON.stringify((await db.ref().get()).val()).includes(temporary.password),false);
+  clock+=61000;await service.email(req(adminToken),{profileKey:'p',email:'ignored@example.test'});assert.deepEqual(sent,['worker@example.test']);
+  const outbox=await (await fetch('http://127.0.0.1:9098/emulator/v1/projects/'+projectId+'/oobCodes')).json();
+  const message=outbox.oobCodes.find(item=>item.email==='worker@example.test'&&item.requestType==='PASSWORD_RESET');assert.ok(message);
+  const changed=await fetch('http://127.0.0.1:9098/identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=FAKE_DEMO_KEY',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({oobCode:message.oobCode,newPassword:'Email-recovered-demo-password'})});
+  assert.equal(changed.ok,true);await asUser('worker@example.test','Email-recovered-demo-password');await assertSucceeds(get(ref(database,'sisventas/config/version')));
+  // Rules prove revoked versions stay blocked even after the gate reopens.
+  const outdated=env.authenticatedContext('demo-worker',{svAccessVersion:'older',svPasswordChangeRequired:false}).database();
+  await assertFails(get(ref(outdated,'sisventas/config/version')));
+ }finally{await signOut(auth).catch(()=>{});await deleteApp(client);await app.delete();await env.cleanup();}
+});

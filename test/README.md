@@ -16,3 +16,8 @@ pasar artificialmente esas expectativas antiguas.
 Las pruebas funcionales vigentes deben leer la aplicación declarada por
 `index.html` mediante `test/helpers/active-app.js`, nunca el espejo legado
 `js/app.js` ni un nombre de versión fijado a mano.
+
+Gestión de acceso (solo cuentas ficticias): `node scripts/test-user-access.cjs`
+ejecuta Auth, RTDB y Storage en emuladores demo. La interfaz se comprueba con
+`test/browser/user-access.cjs`. Configuración y límites en
+[GESTION_ACCESO_USUARIOS.md](../docs/GESTION_ACCESO_USUARIOS.md).

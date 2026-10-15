@@ -104,8 +104,13 @@
     var existing=(window.usuariosData||[]).find(function(u){return u.fbKey===key;})||{};
     var uid=datos.uid||existing.uid||Object.keys(window._chatDirectorio||{}).find(function(id){return window._chatDirectorio[id].usuarioKey===key;});
     if(!uid)return Promise.reject(new Error('No se encontró la identidad de acceso del usuario.'));
-    var changes={};changes[window.svRutaUsuarios()+'/'+key]=Object.assign({},existing,datos,{uid:uid});
-    delete changes[window.svRutaUsuarios()+'/'+key].fbKey;
+    var changes={};
+    // Patch approved profile fields only. Do not resend legacy password copies
+    // from a directory snapshot and do not purge real historical fields here.
+    ['nombre','login','mail','rol','activo','empleadoFbKey','ts'].forEach(function(field){
+      if(datos[field]!==undefined)changes[window.svRutaUsuarios()+'/'+key+'/'+field]=datos[field];
+    });
+    changes[window.svRutaUsuarios()+'/'+key+'/uid']=uid;
     changes['sv_chat_roles/'+uid]={rol:datos.rol,activo:datos.activo!==false};
     changes['sv_chat_directorio/'+uid]={nombre:datos.nombre,usuarioKey:key,activo:datos.activo!==false};
     return window.fbUpdate(window.fbRef(window.fbDB),changes);
