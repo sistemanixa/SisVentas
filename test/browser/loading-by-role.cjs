@@ -10,7 +10,7 @@ async function fixture(browser,viewport,source,pageName){
  const page=await browser.newPage({viewport});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.setContent('<style>:root{--bg2:#182333;--text:#edf3fa;--text3:#bac6d6;--border2:#394a61;--blue:#78b9ff}*{box-sizing:border-box}body{margin:0;padding:16px;background:#10151e;color:#edf3fa;font:16px system-ui}button{padding:10px}main{max-width:800px;margin:auto}h1{font-size:24px}</style><main id="page-'+pageName+'" class="page active"><h1>'+pageName+'</h1><section id="records">Información ficticia confirmada</section></main>');
- await page.evaluate(()=>{window.svPuedeLeerDominio=key=>['clientes','productos'].includes(key);});
+ await page.evaluate(()=>{window.tienePermiso=key=>key==='dashboard.metricasGlobales';window.svPuedeLeerDominio=key=>['clientes','productos'].includes(key);});
  await page.addScriptTag({content:source});
  await page.evaluate(()=>{document.dispatchEvent(new Event('DOMContentLoaded'));document.dispatchEvent(new Event('sisventas:session-ready'));});
  // El render usa requestAnimationFrame: esperar el DOM, no un plazo fijo
