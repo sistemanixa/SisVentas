@@ -1,0 +1,28 @@
+/* Las ventanas operativas contienen su scroll, incluidas sus listas internas. */
+:is(.modal-overlay,.modal,[id^="modal-"],[id$="-modal"],[role="dialog"],[role="alertdialog"],dialog[open],#py-planner,#chat-box,#ia-box),
+:is(.modal-overlay,[id^="modal-"],[id$="-modal"],[role="dialog"],[role="alertdialog"],dialog[open],#py-planner,#chat-box,#ia-box) * {
+  overscroll-behavior:contain;
+}
+/* Abierto se comporta como ventana; minimizado vuelve a liberar la página. */
+#modal-actualizador-precios:not([data-minimizado="1"]) {
+  pointer-events:auto!important;
+  background:rgba(3,8,18,.36)!important;
+}
+#actualizador-precios-panel {isolation:isolate;overscroll-behavior:contain}
+#actualizador-precios-panel>div:first-child {background:var(--bg2);position:relative;z-index:2}
+/* El acabado traslúcido no debe dejar leer contenido detrás de una cabecera. */
+html.sv-v3-preview .topbar,
+html.sv-v3-preview body.dark-mode .topbar {background:var(--bg2);position:relative;z-index:40;isolation:isolate}
+.modal-head,.modal-header,.comunicado-editor-head,.hsex-admin-modal-header,.sv-modal-drag-handle {
+  background-color:var(--bg2);
+  isolation:isolate;
+}
+#ot-wizard-301 {top:-24px!important;background-color:var(--bg2)!important;isolation:isolate;overflow:visible!important}
+#ot-wizard-301::before {content:'';position:absolute;inset:-26px -1px -1px;z-index:-1;background:var(--bg2);pointer-events:none}
+/* Estas barras ocupan todo el ancho útil: también cubren el relleno lateral. */
+#py-planner .py-sticky-summary {top:0!important;background:var(--bg2);isolation:isolate}
+#py-planner .py-sticky-summary::before {content:'';position:absolute;inset:-20px -20px 0;z-index:-1;background:var(--bg2);pointer-events:none}
+.pf-editor-header {background-color:var(--bg)!important;isolation:isolate;overflow:visible}
+.pf-editor-header::before {content:'';position:absolute;inset:-26px -1px 0;z-index:-1;background:var(--bg);pointer-events:none}
+@media(max-width:700px){#py-planner .py-sticky-summary::before{inset:-14px -14px 0}}
+@media(max-width:760px){#ot-wizard-301{top:-12px!important}#ot-wizard-301::before,.pf-editor-header::before{top:-14px}}

@@ -5,7 +5,7 @@ let cart={},busy=false,step=1,pending=null,contact={nombre:'',lista:'',telefono:
 try{const saved=JSON.parse(localStorage.getItem(KEY)||'{}');for(const [id,p] of Object.entries(saved).slice(0,40))if(p&&Number.isInteger(p.qty)&&p.qty>0&&p.qty<=999)cart[id]=p;}catch(_){}
 try{pending=JSON.parse(sessionStorage.getItem(DRAFT)||'null');}catch(_){}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const money=n=>window.SVPublicCurrency?window.SVPublicCurrency.money(n):'US$ '+Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const money=n=>window.SVPublicCurrency?window.SVPublicCurrency.money(n):'US$ '+window.SVDistribuidoraMoney.amount(n,'USD');
 const button=document.createElement('button');button.className='btn cart-toggle';button.type='button';document.querySelector('header').append(button);
 const dialog=document.createElement('dialog');dialog.className='public-cart';dialog.setAttribute('aria-labelledby','cart-title');document.body.append(dialog);
 let opener,offerCode='',quoteCache=null,quoteKey='',periods=null,periodsReady=false,periodsError=false;

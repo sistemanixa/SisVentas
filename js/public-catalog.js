@@ -6,7 +6,7 @@
  function syncViewMode(k){document.body.classList.toggle('public-product-open',!!k);if(catalogReturn){catalogReturn.href=catalogHref;catalogReturn.hidden=!k;}};
  const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
  const photo=(p,hero=false)=>/^https:\/\//i.test(p.imagenUrl||'')?'<img src="'+esc(p.imagenUrl)+'" alt="'+esc(p.nombre)+'" '+(hero?'fetchpriority="high"':'loading="lazy"')+'>':'<span class="photo-empty">Imagen no disponible</span>';
- const usd=n=>window.SVPublicCurrency?window.SVPublicCurrency.money(n):'US$ '+Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+ const usd=n=>window.SVPublicCurrency?window.SVPublicCurrency.money(n):'US$ '+window.SVDistribuidoraMoney.amount(n,'USD');
  const comparison=p=>{const reference=Number(p.referenciaMLUSD),sale=Number(p.precioUSD);if(!(reference>0&&Number.isFinite(reference)))return '<div class="ml-comparison catalog-opportunity"><strong>Descubrí novedades del exterior y opciones difíciles de encontrar en Argentina.</strong><span>Aprovechá este pedido.</span></div>';if(!(sale>0&&Number.isFinite(sale)))return '';const saving=Math.round((reference-sale)*100)/100;return '<div class="ml-comparison"><span>Referencia ML</span><strong>'+usd(reference)+'</strong>'+(saving>0?'<b>'+Math.floor(saving/reference*1000)/10+'% menos · Ahorrás '+usd(saving)+'</b>':saving===0?'<b>Mismo precio que la referencia</b>':'')+'<small>Referencia registrada · equivalente en '+(window.SVPublicCurrency?.code||'USD')+'</small></div>';};
  const price=p=>'<div class="public-price">'+(p.precioUSD>0?usd(p.precioUSD)+(Number(p.iva)>0?'<small>IVA incluido</small>':''):'Consultar precio')+'</div>'+comparison(p);
 

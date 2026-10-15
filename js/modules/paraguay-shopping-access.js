@@ -1,5 +1,6 @@
 (function(root) {
   'use strict';
+  const currencyMoney=typeof require==='function'?require('../core/distribuidora-money'):root.SVDistribuidoraMoney;
   const CATEGORY = 'COMPRAS PARAGUAY';
   const eligible = p => !!p && p.categoria === CATEGORY && p.estado !== 'Inactivo' && p.activo !== false && !p.esManoDeObra;
   const quote = (p, selectedProvider='') => {
@@ -25,8 +26,8 @@
     return Number.isFinite(net) && net > 0 && Number.isFinite(iva) && iva >= 0 ? Math.round(net * (1 + iva / 100) * 100) / 100 : 0;
   }
   function saleAmounts(p, rate, pricing = root.precioVentaCanonicoProducto) {
-    const ars=salePrice(p,pricing), exchange=Number(rate);
-    return {ars,usd:ars>0&&Number.isFinite(exchange)&&exchange>0?Math.round(ars/exchange*100)/100:0};
+    const price=typeof pricing==='function'?pricing(p):String(p.moneda||'').toUpperCase()==='USD'?{monedaOrigen:'USD',precioOrigen:Number(p.venta)||0}:{precioARS:Number(p.ventaARS||p.venta)||0};
+    return currencyMoney.saleAmounts(price,p.iva,rate);
   }
 
   function filterBalanceRows(rows,filters={}){
@@ -66,7 +67,7 @@
     if (!comparison) return 'Sin referencia de Mercado Libre';
     if (comparison.saving === 0) return 'Mismo precio que Mercado Libre';
     const percent=Math.abs(comparison.saving/comparison.reference*100);
-    return (percent<0.01?'Menos de 0,01':percent.toLocaleString('es-AR',{maximumFractionDigits:2}))+'% '+(comparison.saving>0?'menos':'más')+' que Mercado Libre · '+(comparison.saving>0?'Ahorrás ':'Diferencia ')+(rate>0?'US$ ':'ARS $ ')+Math.abs(comparison.saving/(rate>0?rate:1)).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+' por unidad';
+    return (percent<0.01?'Menos de 0,01':percent.toLocaleString('es-AR',{maximumFractionDigits:2}))+'% '+(comparison.saving>0?'menos':'más')+' que Mercado Libre · '+(comparison.saving>0?'Ahorrás ':'Diferencia ')+(rate>0?'US$ ':'ARS $ ')+Math.abs(comparison.saving/(rate>0?rate:1)).toLocaleString('es-AR',{minimumFractionDigits:rate>0?0:2,maximumFractionDigits:rate>0?0:2})+' por unidad';
   }
   function pdfEntries(entries, pricing=root.precioVentaCanonicoProducto, unitCost=root.costoUnitarioProveedorProducto) {
     const brand=p=>String(p.marca||'').trim().replace(/\s+/g,' ').toLocaleUpperCase('es')||'SIN MARCA';
@@ -149,12 +150,13 @@
   let adminListOptions=[], detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', listBaseline = null, busy = false, generation = 0;
   let cartDraft = {productos:{}, comprasFinales:{}, nombre:''};
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const amount = n => Number(n).toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2});
+  const amount = n => currencyMoney.amount(n,'ARS');
+  const usdAmount = n => currencyMoney.amount(n,'USD');
   const exchangeRate = () => Number(root.obtenerDolarReferenciaProducto?.().valor)||0;
   let balanceRefresh=null;
   let displayCurrency='USD';
   try{displayCurrency=root.localStorage.getItem('sv-public-currency')==='ARS'?'ARS':'USD';}catch(_){}
-  const displayMoney=ars=>displayCurrency==='ARS'?'ARS $ '+amount(ars):exchangeRate()>0?'US$ '+amount(ars/exchangeRate()):'Sin cotización';
+  const displayMoney=ars=>displayCurrency==='ARS'?'ARS $ '+amount(ars):exchangeRate()>0?'US$ '+usdAmount(ars/exchangeRate()):'Sin cotización';
   function renderExchangeReference() {
     if(!panel)return;
     let node=panel.querySelector('[data-dollar-reference]');
@@ -184,7 +186,7 @@
     const cfg=root.TIPO_CAMBIO_CONFIG||{};
     const type=Number(cfg[reference.tipo])>0?reference.tipo:([reference.tipo==='venta'?'venta':null,...['oficial','blue','mep'].filter(key=>Number(cfg[key])>0)].find(Boolean)||reference.tipo||'referencia');
     const label=({oficial:'Dólar oficial',blue:'Dólar blue',mep:'Dólar MEP',ccl:'Dólar CCL',tarjeta:'Dólar tarjeta',venta:'Dólar venta',referencia:'Dólar de referencia'})[type]||('Dólar '+type);
-    return '<strong style="font-size:19px;color:var(--green)">'+displayMoney(values.ars)+(hasVAT(p)?' <small style="font-size:10px">con IVA</small>':'')+'</strong>';
+    return '<strong style="font-size:19px;color:var(--green)">'+(displayCurrency==='USD'&&values.usd>0?'US$ '+usdAmount(values.usd):displayMoney(values.ars))+(hasVAT(p)?' <small style="font-size:10px">con IVA</small>':'')+'</strong>';
   }
   function mlBadge(p, price) {
     const comparison=mlComparison(p,price,root.costoUnitarioProveedorProducto,true);if(!comparison)return '';
@@ -329,7 +331,7 @@
     const title=onlySelected?(panel.querySelector('[data-name]').value.trim()||'Mi lista de productos'):'Catálogo de Productos';
     const date=new Date().toLocaleDateString('es-AR');
     const rate=exchangeRate();if(!(rate>0)){pdfPreview.remove();pdfPreview=null;root.alert('Falta la cotización del dólar para generar el PDF.');return;}
-    const money=n=>'US$ '+amount(n);
+    const money=n=>'US$ '+usdAmount(n);
     const total=entries.reduce((s,{p,qty})=>s+saleAmounts(p,rate).usd*qty,0);
     const pages=[], pageEntries=pdfPages(entries);
     for(let pageIndex=0;pageIndex<pageEntries.length;pageIndex++){
@@ -405,15 +407,15 @@
       let button=row.querySelector('[data-edit-purchase]');if(!button){button=document.createElement('button');button.type='button';button.className='btn btn-sm py-edit-item';button.dataset.editPurchase=key;button.title='Editar ítem';button.setAttribute('aria-label','Editar '+p.nombre);button.innerHTML='<i class="ti ti-pencil" aria-hidden="true"></i>';row.querySelector('td').appendChild(button);}
       button.title=edit?'Terminar edición':'Editar ítem';button.setAttribute('aria-label',(edit?'Terminar edición de ':'Editar ')+p.nombre);button.innerHTML=edit?'<i class="ti ti-check" aria-hidden="true"></i>':'<i class="ti ti-pencil" aria-hidden="true"></i>';button.style.color=edit?'var(--green)':'';
       let personal=row.querySelector('[data-personal-purchase]');if(!personal){personal=document.createElement('button');personal.type='button';personal.className='btn btn-sm';personal.dataset.personalPurchase=key;personal.style.cssText='display:inline-flex;align-items:center;gap:6px;padding:6px 10px;font-size:12px;border-color:var(--green);';}personal.textContent=(actual.compraPersonal===true?'✓ ':'')+'Compra personal';personal.setAttribute('aria-label','Compra personal '+p.nombre);personal.setAttribute('aria-pressed',String(actual.compraPersonal===true));personal.style.color='var(--green)';personal.style.background=actual.compraPersonal===true?'var(--green-bg)':'';
-      let supplier=row.querySelector('[data-purchase-reference]');if(!supplier){supplier=document.createElement('small');supplier.dataset.purchaseReference='';supplier.style.cssText='display:block;margin-top:6px;color:var(--text3)';field.after(supplier);}supplier.textContent=q.usd>0?'Proveedor: US$ '+amount(actual.precioProveedorInicialUSD??q.usd):'Proveedor: sin precio registrado';
+      let supplier=row.querySelector('[data-purchase-reference]');if(!supplier){supplier=document.createElement('small');supplier.dataset.purchaseReference='';supplier.style.cssText='display:block;margin-top:6px;color:var(--text3)';field.after(supplier);}supplier.textContent=q.usd>0?'Proveedor: US$ '+usdAmount(actual.precioProveedorInicialUSD??q.usd):'Proveedor: sin precio registrado';
       let saving=row.querySelector('[data-purchase-saving]');if(!saving){const footer=document.createElement('td');footer.className='py-item-profit';const title=document.createElement('small');title.textContent='Ganancias';title.className='py-note';footer.appendChild(title);saving=document.createElement('div');saving.dataset.purchaseSaving='';saving.setAttribute('aria-live','polite');footer.appendChild(saving);row.appendChild(footer);}
       saving.closest('.py-item-profit').appendChild(personal);
       const profit=itemProfit(actual,exchangeRate());
 
       saving.style.cssText='display:block;margin-top:8px;color:var(--green);font-size:14px;font-weight:700';
       saving.style.color=profit.reason?'var(--text3)':profit.usd<0?'var(--red)':'var(--green)';
-      const paired=(ars,usd)=>displayCurrency==='ARS'?'ARS $ '+amount(ars)+' (US$ '+amount(usd)+')':'US$ '+amount(usd)+' (ARS $ '+amount(ars)+')';
-      saving.textContent=profit.personal?'Compra personal · '+paired(0,0):profit.reason==='sale'?'Falta precio de venta acordado':profit.reason==='purchase'?'Ganancia pendiente de compra':profit.reason?'Falta conversión de moneda':(profit.ars!==null?paired(profit.ars,profit.usd):'US$ '+amount(profit.usd));
+      const paired=(ars,usd)=>displayCurrency==='ARS'?'ARS $ '+amount(ars)+' (US$ '+usdAmount(usd)+')':'US$ '+usdAmount(usd)+' (ARS $ '+amount(ars)+')';
+      saving.textContent=profit.personal?'Compra personal · '+paired(0,0):profit.reason==='sale'?'Falta precio de venta acordado':profit.reason==='purchase'?'Ganancia pendiente de compra':profit.reason?'Falta conversión de moneda':(profit.ars!==null?paired(profit.ars,profit.usd):'US$ '+usdAmount(profit.usd));
       let costs=row.querySelector('[data-profit-costs]');if(!costs){costs=document.createElement('div');costs.dataset.profitCosts='';costs.style.cssText='font-size:14px;color:var(--text3);line-height:1.35;margin-top:3px';saving.after(costs);}
       const provider=(p.proveedores||[]).find(pv=>actual.proveedor&&pv.nombre===actual.proveedor)||(p.proveedores||[]).find(pv=>root.proveedorProductoEsFavorito?.(pv,p));
       const rate=exchangeRate(),shipping=actual.costoEnvioUnitarioUSD!=null?Number(actual.costoEnvioUnitarioUSD)*rate:Number(provider?.costoEnvioArs)||0,reference=localPriceReference(p);
@@ -442,9 +444,9 @@
   }
   function renderListProfit() {
     if(!panel)return;const rate=exchangeRate(),total=listSavings({productos:selected,comprasFinales:purchases},products,rate);
-    const value=displayCurrency==='ARS'&&total.ars!==null?'ARS $ '+amount(total.ars)+' (US$ '+amount(total.usd)+')':'US$ '+amount(total.usd)+(total.ars!==null?' (ARS $ '+amount(total.ars)+')':'');
+    const value=displayCurrency==='ARS'&&total.ars!==null?'ARS $ '+amount(total.ars)+' (US$ '+usdAmount(total.usd)+')':'US$ '+usdAmount(total.usd)+(total.ars!==null?' (ARS $ '+amount(total.ars)+')':'');
     const box=panel.querySelector('[data-summary]'),cost=listCostSummary({productos:selected,comprasFinales:purchases},rate,products);
-    const money=n=>displayCurrency==='ARS'&&rate>0?'ARS $ '+amount(n*rate)+' (US$ '+amount(n)+')':'US$ '+amount(n)+(rate>0?' (ARS $ '+amount(n*rate)+')':'');
+    const money=n=>displayCurrency==='ARS'&&rate>0?'ARS $ '+amount(n*rate)+' (US$ '+usdAmount(n)+')':'US$ '+usdAmount(n)+(rate>0?' (ARS $ '+amount(n*rate)+')':'');
     const reasons={sale:'Falta el precio de venta',purchase:'Compra pendiente, cantidad o precio pagado incompletos',currency:'Moneda sin conversión disponible'};
     const pending=Object.keys(selected).map(key=>{const result=itemProfit(purchases[key],rate);return result.reason?(products[key]?.nombre||key)+' — '+reasons[result.reason]:null;}).filter(Boolean).join('\n');
     const pendingHTML=total.omitted?' · <span tabindex="0" title="'+esc(pending)+'" aria-label="'+esc(pending)+'" style="cursor:help;border-bottom:1px dotted currentColor">'+total.omitted+' '+(total.omitted===1?'ítem pendiente':'ítems pendientes')+' de cálculo</span>':'';
@@ -458,7 +460,7 @@
     entries.forEach(([key])=>{purchases[key]=captureAgreedSale(purchases[key]||{},products[key],exchangeRate(),!listBaseline?.productos?.[key]);});
     panel.querySelector('[data-cart-items]').innerHTML = entries.length ? '<div class="table-wrap"><table class="sv-no-resize"><thead><tr><th>Producto / proveedor</th><th>Solicitado</th><th>Venta acordada por unidad · USD</th><th>Cantidad comprada</th><th>Precio pagado por unidad</th><th>Envío por unidad · USD</th><th>Moneda</th><th>Ganancias</th></tr></thead><tbody>'+entries.map(([key,qty]) => {
       const p=products[key],q=quote(p,purchases[key]?.proveedor),actual=purchases[key]||{},provider=providerSelection(p,actual.proveedor,Object.values(products),typeof proveedoresData==='undefined'?[]:proveedoresData||[]);let url='';try{if(/^https?:$/.test(new URL(q.url).protocol))url=q.url;}catch(_){}
-      return '<tr data-item-state="'+esc(actual.estado||'pendiente')+'"><td><button type="button" class="btn btn-sm py-remove-item" data-remove="'+esc(key)+'" aria-label="Eliminar '+esc(p.nombre||p.codigo)+' de la lista" title="Eliminar de la lista"><i class="ti ti-trash" aria-hidden="true"></i></button><div class="py-list-product" style="display:flex;align-items:center;gap:10px"><span style="display:block;width:52px;height:52px;flex:0 0 52px;background:white;border-radius:8px;overflow:hidden">'+root.imagenCatalogoHTML(p,'py-list-photo')+'</span><button type="button" data-list-product="'+esc(key)+'" style="border:0;background:none;color:inherit;font:inherit;font-weight:700;text-align:left;padding:0;cursor:pointer" title="Abrir ficha del producto">'+esc(p.nombre || p.descripcion)+'</button></div><small class="py-note">Local: '+esc(q.store||'Por identificar')+'</small>'+(url?'<br><a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Corroborar en proveedor ↗</a>':'')+'<label class="py-provider-choice"><span>Proveedor</span><select aria-label="Proveedor '+esc(p.codigo)+'" data-purchase="proveedor" data-key="'+esc(key)+'">'+(!provider.chosen?'<option value="">Elegir proveedor</option>':'')+provider.options.map(name=>'<option value="'+esc(name)+'" '+(name===provider.chosen?'selected':'')+'>'+esc(name)+'</option>').join('')+'</select></label><label class="py-provider-choice"><span>Estado de la compra</span><select aria-label="Estado '+esc(p.codigo)+'" data-purchase="estado" data-key="'+esc(key)+'">'+Object.entries(purchaseStates).map(([value,label])=>'<option value="'+value+'" '+((actual.estado||'pendiente')===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label></td><td data-label="Solicitado"><input aria-label="Cantidad solicitada '+esc(p.codigo)+'" type="number" min="1" max="9999" step="1" data-requested="'+esc(key)+'" value="'+qty+'"></td><td data-label="Venta acordada por unidad · USD"><input aria-label="Precio de venta acordado '+esc(p.codigo)+'" data-purchase="precioVentaUnitarioUSD" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioVentaUnitarioUSD??'')+'" placeholder="Falta precio histórico"></td><td data-label="Cantidad comprada"><input aria-label="Cantidad comprada '+esc(p.codigo)+'" data-purchase="cantidad" data-key="'+esc(key)+'" type="number" min="0" max="9999" step="1" value="'+esc(actual.cantidad??qty)+'" placeholder="Pendiente"></td><td data-label="Precio pagado por unidad"><input aria-label="Precio real '+esc(p.codigo)+'" data-purchase="precioUnitario" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="0.01" value="'+esc(actual.precioUnitario??'')+'" placeholder="Pendiente"></td><td data-label="Envío por unidad · USD"><input aria-label="Costo de envío '+esc(p.codigo)+'" data-purchase="costoEnvioUnitarioUSD" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="1" value="'+esc(Math.round(actual.costoEnvioUnitarioUSD??0))+'"></td><td data-label="Moneda"><select aria-label="Moneda '+esc(p.codigo)+'" data-purchase="moneda" data-key="'+esc(key)+'">'+['USD','ARS','PYG'].map(c=>'<option '+((actual.moneda||'USD')===c?'selected':'')+'>'+c+'</option>').join('')+'</select></td></tr>';
+      return '<tr data-item-state="'+esc(actual.estado||'pendiente')+'"><td><button type="button" class="btn btn-sm py-remove-item" data-remove="'+esc(key)+'" aria-label="Eliminar '+esc(p.nombre||p.codigo)+' de la lista" title="Eliminar de la lista"><i class="ti ti-trash" aria-hidden="true"></i></button><div class="py-list-product" style="display:flex;align-items:center;gap:10px"><span style="display:block;width:52px;height:52px;flex:0 0 52px;background:white;border-radius:8px;overflow:hidden">'+root.imagenCatalogoHTML(p,'py-list-photo')+'</span><button type="button" data-list-product="'+esc(key)+'" style="border:0;background:none;color:inherit;font:inherit;font-weight:700;text-align:left;padding:0;cursor:pointer" title="Abrir ficha del producto">'+esc(p.nombre || p.descripcion)+'</button></div><small class="py-note">Local: '+esc(q.store||'Por identificar')+'</small>'+(url?'<br><a class="py-provider-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Corroborar en proveedor ↗</a>':'')+'<label class="py-provider-choice"><span>Proveedor</span><select aria-label="Proveedor '+esc(p.codigo)+'" data-purchase="proveedor" data-key="'+esc(key)+'">'+(!provider.chosen?'<option value="">Elegir proveedor</option>':'')+provider.options.map(name=>'<option value="'+esc(name)+'" '+(name===provider.chosen?'selected':'')+'>'+esc(name)+'</option>').join('')+'</select></label><label class="py-provider-choice"><span>Estado de la compra</span><select aria-label="Estado '+esc(p.codigo)+'" data-purchase="estado" data-key="'+esc(key)+'">'+Object.entries(purchaseStates).map(([value,label])=>'<option value="'+value+'" '+((actual.estado||'pendiente')===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label></td><td data-label="Solicitado"><input aria-label="Cantidad solicitada '+esc(p.codigo)+'" type="number" min="1" max="9999" step="1" data-requested="'+esc(key)+'" value="'+qty+'"></td><td data-label="Venta acordada por unidad · USD"><input aria-label="Precio de venta acordado '+esc(p.codigo)+'" data-purchase="precioVentaUnitarioUSD" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="1" value="'+esc(actual.precioVentaUnitarioUSD==null?'':Math.round(actual.precioVentaUnitarioUSD))+'" placeholder="Falta precio histórico"></td><td data-label="Cantidad comprada"><input aria-label="Cantidad comprada '+esc(p.codigo)+'" data-purchase="cantidad" data-key="'+esc(key)+'" type="number" min="0" max="9999" step="1" value="'+esc(actual.cantidad??qty)+'" placeholder="Pendiente"></td><td data-label="Precio pagado por unidad"><input aria-label="Precio real '+esc(p.codigo)+'" data-purchase="precioUnitario" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="'+((actual.moneda||'USD')==='USD'?'1':'0.01')+'" value="'+esc(actual.precioUnitario==null?'':(actual.moneda||'USD')==='USD'?Math.round(actual.precioUnitario):actual.precioUnitario)+'" placeholder="Pendiente"></td><td data-label="Envío por unidad · USD"><input aria-label="Costo de envío '+esc(p.codigo)+'" data-purchase="costoEnvioUnitarioUSD" data-key="'+esc(key)+'" type="number" min="0" max="1000000000" step="1" value="'+esc(Math.round(actual.costoEnvioUnitarioUSD??0))+'"></td><td data-label="Moneda"><select aria-label="Moneda '+esc(p.codigo)+'" data-purchase="moneda" data-key="'+esc(key)+'">'+['USD','ARS','PYG'].map(c=>'<option '+((actual.moneda||'USD')===c?'selected':'')+'>'+c+'</option>').join('')+'</select></td></tr>';
     }).join('')+'</tbody></table></div>' : '<p class="py-note">Tu lista está vacía. Agregá productos desde Ofertas.</p>';
     refreshPurchaseRows();renderPurchaseProgress();
     const missingItems=Object.entries(selected).filter(([key])=>!eligible(products[key]));
@@ -474,8 +476,8 @@
     panel.querySelector('[data-cart-count]').textContent = cartUnits;
     panel.querySelector('[data-cart]').setAttribute('aria-label','Ver carrito: '+cartUnits+' unidades');
     panel.querySelector('[data-cart-iva]').hidden = !cartEntries.some(([key])=>hasVAT(products[key]));
-    panel.querySelector('[data-cart-amount]').textContent = displayMoney(cartEntries.reduce((s,[key,qty])=>s+salePrice(products[key])*qty,0));
-    panel.querySelector('[data-total-usd]').textContent = 'US$ '+amount(usd);
+    panel.querySelector('[data-cart-amount]').textContent = displayCurrency==='USD'?'US$ '+usdAmount(cartEntries.reduce((s,[key,qty])=>s+saleAmounts(products[key],exchangeRate()).usd*qty,0)):displayMoney(cartEntries.reduce((s,[key,qty])=>s+salePrice(products[key])*qty,0));
+    panel.querySelector('[data-total-usd]').textContent = 'US$ '+usdAmount(usd);
     panel.querySelector('[data-total-ars]').textContent = '$ '+amount(ars);
     renderListProfit();
     if (!panel.querySelector('[data-list-card]').hidden) root.SisVentas?.prepareResizablePage?.(panel.querySelector('[data-cart-items]'));
@@ -833,13 +835,13 @@
     panel.querySelector('[data-list-search]').oninput=filterListItems;
     panel.querySelector('[data-collapse-items]').onclick=()=>{const compact=panel.querySelector('[data-cart-items]').classList.toggle('py-items-compact');const button=panel.querySelector('[data-collapse-items]');button.textContent=compact?'Expandir todo':'Colapsar todo';button.setAttribute('aria-expanded',String(!compact));};
     panel.querySelector('[data-search]').oninput = renderProducts;
-    panel.querySelector('[data-cart-items]').onclick = e => {const product=e.target.closest('[data-list-product]');if(product){if(!busy)openProductSheet(product.dataset.listProduct);return;}const personal=e.target.closest('[data-personal-purchase]');if(personal){if(busy)return;const key=personal.dataset.personalPurchase;purchases[key]||={};purchases[key].compraPersonal=purchases[key].compraPersonal!==true;refreshPurchaseRows();status('Guardá la lista para conservar el cambio.');return;}const edit=e.target.closest('[data-edit-purchase]');if(edit){panel.querySelector('[data-cart-items]').classList.remove('py-items-compact');panel.querySelector('[data-collapse-items]').textContent='Colapsar todo';panel.querySelector('[data-collapse-items]').setAttribute('aria-expanded','true');const key=edit.dataset.editPurchase;if(editingPurchases.has(key)){const row=edit.closest('tr');for(const input of row.querySelectorAll('input,select'))if(!input.reportValidity())return;row.querySelectorAll('[data-purchase]').forEach(capturePurchase);editingPurchases.delete(key);explicitPurchaseEdits.delete(key);}else{editingPurchases.add(key);explicitPurchaseEdits.add(key);}renderSummary();updateSaveButton();requestAnimationFrame(()=>{if(!panel)return;const target=Array.from(panel.querySelectorAll('[data-edit-purchase]')).find(button=>button.dataset.editPurchase===key)?.closest('tr');if(target){target.style.scrollMarginTop=((panel.querySelector('.topbar')?.getBoundingClientRect().height||0)+12)+'px';target.scrollIntoView({block:'start',behavior:'auto'});}});return;}const button=e.target.closest('[data-remove]');if(button){delete selected[button.dataset.remove];delete purchases[button.dataset.remove];renderProducts();}};
-    function capturePurchase(input) {
+    panel.querySelector('[data-cart-items]').onclick = e => {const product=e.target.closest('[data-list-product]');if(product){if(!busy)openProductSheet(product.dataset.listProduct);return;}const personal=e.target.closest('[data-personal-purchase]');if(personal){if(busy)return;const key=personal.dataset.personalPurchase;purchases[key]||={};purchases[key].compraPersonal=purchases[key].compraPersonal!==true;refreshPurchaseRows();status('Guardá la lista para conservar el cambio.');return;}const edit=e.target.closest('[data-edit-purchase]');if(edit){panel.querySelector('[data-cart-items]').classList.remove('py-items-compact');panel.querySelector('[data-collapse-items]').textContent='Colapsar todo';panel.querySelector('[data-collapse-items]').setAttribute('aria-expanded','true');const key=edit.dataset.editPurchase;if(editingPurchases.has(key)){const row=edit.closest('tr');for(const input of row.querySelectorAll('input,select'))if(!input.reportValidity())return;row.querySelectorAll('[data-purchase]').forEach(input=>capturePurchase(input));editingPurchases.delete(key);explicitPurchaseEdits.delete(key);}else{editingPurchases.add(key);explicitPurchaseEdits.add(key);}renderSummary();updateSaveButton();requestAnimationFrame(()=>{if(!panel)return;const target=Array.from(panel.querySelectorAll('[data-edit-purchase]')).find(button=>button.dataset.editPurchase===key)?.closest('tr');if(target){target.style.scrollMarginTop=((panel.querySelector('.topbar')?.getBoundingClientRect().height||0)+12)+'px';target.scrollIntoView({block:'start',behavior:'auto'});}});return;}const button=e.target.closest('[data-remove]');if(button){delete selected[button.dataset.remove];delete purchases[button.dataset.remove];renderProducts();}};
+    function capturePurchase(input,edited=false) {
       const field=input.dataset.purchase,key=input.dataset.key;if(!field||!key)return;
-      purchases[key]||={};if(field==='cantidad'&&purchases[key].cantidad==null&&!Number.isFinite(purchases[key].precioUnitario)&&input.value===String(selected[key]))return;if(input.value==='')delete purchases[key][field];else purchases[key][field]=['cantidad','precioUnitario','precioVentaUnitarioUSD','costoEnvioUnitarioUSD'].includes(field)?Number(input.value):input.value;
+      purchases[key]||={};const original=purchases[key][field],usd=field==='precioVentaUnitarioUSD'||field==='precioUnitario'&&(purchases[key].moneda||'USD')==='USD';if(!edited&&input.value!==''&&usd&&Number.isFinite(original)&&Number(input.value)===Math.round(original))return;if(field==='cantidad'&&purchases[key].cantidad==null&&!Number.isFinite(purchases[key].precioUnitario)&&input.value===String(selected[key]))return;if(input.value==='')delete purchases[key][field];else purchases[key][field]=['cantidad','precioUnitario','precioVentaUnitarioUSD','costoEnvioUnitarioUSD'].includes(field)?Number(input.value):input.value;
     }
     panel.querySelector('[data-cart-items]').oninput=e=>{
-      const t=e.target;if(t.dataset.purchase==='estado')return;capturePurchase(t);
+      const t=e.target;if(t.dataset.purchase==='estado')return;capturePurchase(t,true);
       if(t.dataset.purchase==='precioUnitario'&&t.value!==''&&t.checkValidity()){
         const item=purchases[t.dataset.key];item.cantidad=item.cantidad??Number(selected[t.dataset.key]);item.estado=item.cantidad>0?'comprado':'pendiente';editingPurchases.add(t.dataset.key);
         const row=t.closest('tr');row.querySelector('[data-purchase="cantidad"]').value=item.cantidad;row.querySelector('[data-purchase="estado"]').value=item.estado;row.dataset.itemState=item.estado;
@@ -901,7 +903,7 @@
       if (Object.keys(selected).some(key=>!eligible(products[key]))) {status('La lista contiene productos que ya no están disponibles. Quitalos de la lista antes de guardar.');return;}
       if (!name || !Object.keys(items).length) { status('Completá el nombre y elegí al menos un producto con cantidad.'); return; }
       for (const input of panel.querySelectorAll('[data-requested],[data-purchase]')) if (!input.reportValidity()) {status('Revisá '+(input.getAttribute('aria-label')||'los valores ingresados')+'. La lista todavía no se guardó.');return;}
-      panel.querySelectorAll('[data-purchase]').forEach(capturePurchase);
+      panel.querySelectorAll('[data-purchase]').forEach(input=>capturePurchase(input));
       const actualItems={};
       for(const [productKey,value] of Object.entries(purchases)) {
         if(!items[productKey])continue;

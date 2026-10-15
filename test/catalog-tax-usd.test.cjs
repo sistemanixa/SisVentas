@@ -10,7 +10,7 @@ test('proyección pública USD respeta exención y alícuotas sin publicar pesos
  assert.equal(project({categoria:'COMPRAS PARAGUAY',ventaARS:1000},0).precioUSD,0);
 });
 test('ahorro impreso en USD y referencia interna en ARS',()=>{
- const c={saving:20000,reference:100000};assert.match(pdfComparisonText(c,1000),/US\$ 20,00/);
+ const c={saving:20000,reference:100000};assert.match(pdfComparisonText(c,1000),/US\$ 20 por unidad/);
  assert.doesNotMatch(pdfComparisonText(c,1000),/ARS/);assert.match(pdfComparisonText(c),/ARS/);
 });
 test('carrito mixto calcula impuesto por producto y no grava exentos',()=>{

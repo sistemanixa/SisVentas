@@ -14,7 +14,9 @@
   const image=String(p.imagenUrl||'');
   const net=typeof root.precioVentaCanonicoProducto==='function'?Number(root.precioVentaCanonicoProducto(p).precioARS):Number(p.ventaARS||p.venta||0);
   const iva=p.iva==null?21:Number(p.iva);const precioARS=Number.isFinite(net)&&net>0?Math.round(net*(1+iva/100)*100)/100:0;
-  const precioUSD=Number.isFinite(rate)&&rate>0?Math.round(precioARS/rate*100)/100:0;
+  const pricing=typeof root.precioVentaCanonicoProducto==='function'?root.precioVentaCanonicoProducto(p):String(p.moneda||'').toUpperCase()==='USD'?{monedaOrigen:'USD',precioOrigen:Number(p.venta)||0}:{precioARS:net};
+  const currencyMoney=typeof require==='function'?require('../core/distribuidora-money'):root.SVDistribuidoraMoney;
+  const precioUSD=currencyMoney?currencyMoney.saleAmounts(pricing,iva,rate).usd:Number.isFinite(rate)&&rate>0?Math.round(precioARS/rate*100)/100:0;
   return {precioUSD,referenciaMLUSD:mercadoLibreReference(p,rate),iva:Number.isFinite(iva)&&iva>=0?iva:21,nombre:String(p.nombre||''),marca:String(p.marca||''),descripcion:String(p.catalogoDescripcion||p.descripcion||''),imagenUrl:/^https:\/\//i.test(image)?image:''};
  }
  async function syncProduct(product, previous){
