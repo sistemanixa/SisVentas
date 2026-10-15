@@ -35,8 +35,8 @@
     if (root.fbAuth.currentUser !== user) throw Error('La sesión cambió; volvé a ingresar');
     var response;
     try {
-      response = await fetch(base + '/usuarios/acceso/' + path, {method: 'POST', cache: 'no-store',
-        headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + token}, body: JSON.stringify(body), signal: AbortSignal.timeout(25000)});
+      response = await fetch(base + '/usuarios/acceso/' + path, {method: path === 'estado' ? 'GET' : 'POST', cache: 'no-store',
+        headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + token}, body: path === 'estado' ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(25000)});
     } catch (_) { throw Error('No llegó la confirmación del servidor. Revisá el acceso antes de reintentar; no se repite automáticamente'); }
     var result;
     try { result = await response.json(); } catch (_) { throw Error('La gestión de acceso todavía no está disponible en este servidor'); }
@@ -53,15 +53,21 @@
     var user = root.fbAuth?.currentUser;
     if (!profile?.uid || !user || profile.uid === user.uid) { root.notify?.('Elegí otro usuario activo con cuenta de acceso'); return; }
     var overlay = modal('Gestionar acceso', (profile.nombre || profile.login || 'Usuario') + ' · ' + (profile.mail || 'Sin correo'));
+    var operationStarted = false;
     var body = overlay.querySelector('.sv-access-body');
     body.innerHTML = '<label for="sv-access-admin">Confirmá tu contraseña de administrador</label>' +
       '<input class="fi" id="sv-access-admin" type="password" autocomplete="current-password">' +
       '<p>La clave temporal dura 24 horas y exige elegir una nueva al ingresar. Se muestra una sola vez.</p>' +
       '<div class="sv-access-actions"><button class="btn btn-primary" type="button" data-action="temporal">Generar clave temporal</button>' +
       '<button class="btn" type="button" data-action="correo">Enviar restablecimiento por correo</button></div>';
-    if (preferred === 'correo') status(overlay, 'El correo se envía a la dirección verificada de la cuenta.');
+    status(overlay, 'Comprobando disponibilidad del servicio…');
+    // Read-only check: no target account is read/modified and no email is sent.
+    request('estado', null, user).then(function (result) {
+      if (!operationStarted && overlay.isConnected) status(overlay, result.ready ? 'Gestión de acceso disponible.' : 'La gestión de acceso aún no está lista en el servidor.');
+    }).catch(function (error) { if (!operationStarted && overlay.isConnected) status(overlay, error.message); });
     body.querySelectorAll('[data-action]').forEach(function (button) {
       button.onclick = async function () {
+        operationStarted = true;
         if (!adminAllowed()) { status(overlay, 'La sesión ya no permite gestionar acceso'); return; }
         var input = overlay.querySelector('#sv-access-admin'), password = input.value;
         if (!password) { status(overlay, 'Ingresá tu contraseña de administrador'); input.focus(); return; }

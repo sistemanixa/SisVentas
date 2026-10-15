@@ -12,12 +12,12 @@ function fixture(options = {}) {
     set:async v=>set(p,v),update:async v=>set(p,{...get(p),...v}),push(){return db.ref(p+'/event'+(++serial));},
     orderByChild(f){queryField=f;return this;},equalTo(v){queryValue=v;return this;},
     transaction:async callback=>{const next=callback(structuredClone(get(p)));if(next===undefined)return {committed:false};set(p,next);return {committed:true,snapshot:{val:()=>structuredClone(next)}};}};}};
-  const users={worker:{uid:'worker',email:'worker@example.test',disabled:false,customClaims:{unrelated:true}}};
+  const users={admin:{uid:'admin',email:'admin@example.test',disabled:false},worker:{uid:'worker',email:'worker@example.test',disabled:false,customClaims:{unrelated:true}}};
   const passwords={},updates=[],emails=[],tokens={admin:{uid:'admin',auth_time:time/1000},other:{uid:'other',auth_time:time/1000},old:{uid:'worker',firebase:{sign_in_provider:'password'}}};
   const auth={verifyIdToken:async(token,revoked)=>{assert.equal(revoked,true);if(!tokens[token])throw Error('invalid');return {...tokens[token]};},getUser:async uid=>structuredClone(users[uid]),
     updateUser:async(uid,values)=>{updates.push({uid,fields:Object.keys(values)});if(options.failPassword && values.password)throw Error('SENSITIVE RAW ERROR');if(values.password)passwords[uid]=values.password;else Object.assign(users[uid],values);},
     revokeRefreshTokens:async()=>{},setCustomUserClaims:async(uid,claims)=>{users[uid].customClaims=claims;}};
-  const service=createUserAccess({auth,db,sendResetEmail:async mail=>{emails.push(mail);},enabled:options.enabled!==false,now:()=>time});
+  const service=createUserAccess({auth,db,sendResetEmail:async mail=>{emails.push(mail);},enabled:options.enabled!==false,emailConfigured:true,now:()=>time});
   return {service,auth,db,data,users,passwords,updates,emails,tokens,get,set,advance:()=>{time+=61000;tokens.admin.auth_time=time/1000;},request:token=>({headers:{authorization:'Bearer '+token}})};
 }
 module.exports={fixture};

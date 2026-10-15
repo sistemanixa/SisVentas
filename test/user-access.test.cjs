@@ -59,6 +59,11 @@ test('Acceso: la bandera de habilitación no permite asignar claves si las regla
   const f=fixture();f.db.getRulesJSON=async()=>({rules:{items:{'.read':true}}});
   await denied(f.service.temporary(f.request('admin'),{profileKey:'p'}),503);assert.equal(f.updates.length,0);
 });
+test('Acceso: diagnóstico del administrador es de solo lectura y no exige reautenticación para generar datos de estado',async()=>{
+ const f=fixture();f.tokens.admin.auth_time-=3600;
+ assert.equal((await f.service.status(f.request('admin'))).ready,true);assert.equal(f.updates.length,0);assert.equal(f.emails.length,0);assert.equal(f.get('sv_access_control'),null);
+ await denied(f.service.status(f.request('other')),403);
+});
 test('Correo Firebase: sin configuración falla cerrado; solicita plantilla PASSWORD_RESET sin enlaces o claves',async()=>{
   await denied(createPasswordEmail({})('a@example.test'),503);
   let request;const send=createPasswordEmail({apiKey:'FAKE_PUBLIC_KEY',fetchImpl:async(url,options)=>{request={url,...options};return {ok:true};}});

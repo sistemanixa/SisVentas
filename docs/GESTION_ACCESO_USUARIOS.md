@@ -1,5 +1,7 @@
 # Gestión de acceso: clave temporal y restablecimiento
 
+**Actualización de publicación, 15/10/2026:** ya se aplicaron el guard de reglas y los verificadores fiscales; las revisiones nuevas de Cotizador/Asistente están preparadas sin tráfico. Cliente público y marcador siguen en v3.11.7. Falta la confirmación específica requerida por la revisión automática para el corte de tráfico. Ver [PUBLICACION_ACCESO_V3119.md](PUBLICACION_ACCESO_V3119.md) y el inicio de CONTEXTO_ACTUAL para el estado externo; lo que sigue describe la preparación local original.
+
 Estado al 15/10/2026: **implementado para validación local v3.11.9, sin publicar ni habilitar sobre usuarios reales**. Base de trabajo: `1ce7683f99e134cf2a8644da3cba6fbea27c1f1b`, rama `codex/traslado-nube-seguridad-20261015`. Producción continúa en v3.11.7. Este documento no autoriza desplegar servicios, reglas ni cambiar claves.
 
 ## Comportamiento

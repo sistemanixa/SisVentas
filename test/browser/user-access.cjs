@@ -7,8 +7,8 @@ async function run(){
  try{for(const viewport of [{width:1366,height:900},{width:390,height:844}]){
   const f=fixture(),page=await browser.newPage({viewport}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('https://demo-service.invalid/**',async route=>{
-   const request=route.request(),method={'temporal':'temporary','correo':'email','completar':'complete'}[request.url().split('/').pop()];
-   try{const result=await f.service[method]({headers:request.headers()},JSON.parse(request.postData()));await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,...result})});}
+   const request=route.request(),method={'temporal':'temporary','correo':'email','completar':'complete','estado':'status'}[request.url().split('/').pop()];
+   try{const result=await f.service[method]({headers:request.headers()},request.postData()?JSON.parse(request.postData()):undefined);await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,...result})});}
    catch(e){await route.fulfill({status:e.statusCode||503,contentType:'application/json',body:JSON.stringify({ok:false,mensaje:e.message})});}
   });
   await page.setContent('<!doctype html><html class="dark-mode sv-v3-preview"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body class="dark-mode" style="font:15px system-ui"><main id="fake-main" style="height:2000px;padding:20px"><h1>Usuarios · prueba aislada</h1><p>Administrador y Técnico ficticios. Sin Firebase real.</p></main></body></html>');
@@ -25,6 +25,7 @@ async function run(){
   await page.addScriptTag({content:fs.readFileSync('js/core/user-access.js','utf8')});
   const initialOverflow=await page.evaluate(()=>getComputedStyle(document.body).overflow);
   await page.evaluate(()=>SVUserAccess.open('p'));
+  await page.getByRole('status').filter({hasText:'Gestión de acceso disponible.'}).waitFor();assert.equal(f.updates.length,0);assert.equal(f.emails.length,0);checks++;
   await page.getByRole('button',{name:'Generar clave temporal',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Ingresá tu contraseña'}).waitFor();checks++;
   await page.locator('#sv-access-admin').fill('wrong');await page.getByRole('button',{name:'Generar clave temporal',exact:true}).click();

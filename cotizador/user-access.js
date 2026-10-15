@@ -21,7 +21,7 @@ function createBusinessAuth(auth, db) {
   }};
 }
 
-function createUserAccess({auth, db, sendResetEmail, enabled = false, now = Date.now}) {
+function createUserAccess({auth, db, sendResetEmail, enabled = false, emailConfigured = false, now = Date.now}) {
   async function identity(req) {
     if (!enabled) throw fail(503, 'Gestión de acceso pendiente de habilitación segura en el servidor');
     const match = String(req.headers.authorization || '').match(/^Bearer\s+(\S+)$/i);
@@ -29,7 +29,7 @@ function createUserAccess({auth, db, sendResetEmail, enabled = false, now = Date
     try { return await auth.verifyIdToken(match[1], true); }
     catch (_) { throw fail(401, 'La sesión venció; volvé a ingresar'); }
   }
-  async function administrator(req) {
+  async function administrator(req, requireRecent = true) {
     const actor = await identity(req);
     await assertAccessReady(db, actor);
     const role = (await db.ref('sv_chat_roles/' + actor.uid).get()).val();
@@ -39,7 +39,7 @@ function createUserAccess({auth, db, sendResetEmail, enabled = false, now = Date
     }
     // A stolen old admin session cannot issue credentials. Reauthentication is
     // explicit in the UI; the password is sent only to Firebase Auth.
-    if (!Number.isFinite(actor.auth_time) || now() / 1000 - actor.auth_time > 300) {
+    if (requireRecent && (!Number.isFinite(actor.auth_time) || now() / 1000 - actor.auth_time > 300)) {
       throw fail(401, 'Confirmá nuevamente tu contraseña de administrador');
     }
     return actor;
@@ -147,6 +147,12 @@ function createUserAccess({auth, db, sendResetEmail, enabled = false, now = Date
       throw fail(503, 'No se pudo completar el cambio. El acceso sigue protegido; pedí una nueva clave temporal');
     }
   }
-  return {temporary, email, complete};
+  async function status(req) {
+    const actor = await administrator(req, false);
+    const user = await auth.getUser(actor.uid);
+    const rulesProtected = !!db.getRulesJSON && rulesProtectPasswords(await db.getRulesJSON());
+    return {enabled, rulesProtected, emailConfigured, authReadable: !!user && !user.disabled, ready: rulesProtected && emailConfigured && !!user && !user.disabled};
+  }
+  return {temporary, email, complete, status};
 }
 module.exports = {createUserAccess, createBusinessAuth, assertAccessReady};

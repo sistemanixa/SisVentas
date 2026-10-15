@@ -37,7 +37,7 @@ const db = admin.database();
 // parsers (or their tests) must not instantiate extra SDK services.
 const firebaseAuth = Object.fromEntries(['verifyIdToken','getUser','updateUser','setCustomUserClaims','revokeRefreshTokens'].map(method => [method,(...args)=>admin.auth()[method](...args)]));
 const businessAuth = require('./user-access').createBusinessAuth(firebaseAuth, db);
-const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,db,enabled:process.env.USER_ACCESS_ENABLED==='true',sendResetEmail:require('./password-email').createPasswordEmail({apiKey:process.env.FIREBASE_WEB_API_KEY})});
+const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,db,enabled:process.env.USER_ACCESS_ENABLED==='true',emailConfigured:!!process.env.FIREBASE_WEB_API_KEY,sendResetEmail:require('./password-email').createPasswordEmail({apiKey:process.env.FIREBASE_WEB_API_KEY})});
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
 const laborTransaction = require('./labor-transaction').createRootTransaction({databaseURL:DATABASE_URL,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const laborOperations = require('./labor-operations').createLaborOperations({auth:businessAuth,db,transaction:laborTransaction});
@@ -1982,6 +1982,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if(req.method==='GET' && pathname==='/usuarios/acceso/estado'){
+    res.setHeader('Cache-Control','no-store');
+    try {send(res,200,{ok:true,...await userAccess.status(req)});}
+    catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo verificar la gestión de acceso'});}
+    return;
+  }
   if(req.method==='POST' && ['/usuarios/acceso/temporal','/usuarios/acceso/correo','/usuarios/acceso/completar'].includes(pathname)){
     res.setHeader('Cache-Control','no-store');
     try {

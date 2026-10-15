@@ -18,10 +18,15 @@ function policy(service,body={}){
 async function authorize({admin,authorization,service,body}){
  const m=String(authorization||'').match(/^Bearer\s+(\S+)$/i);if(!m)fail(401,'Sesión requerida');
  let user;try{user=await admin.auth().verifyIdToken(m[1],true);}catch(_){fail(401,'Sesión inválida o vencida');}
+ await assertAccessReady(admin,user);
  const identity=(await admin.database().ref('sv_chat_roles/'+user.uid).get()).val();
  if(identity?.activo!==true||!known.includes(identity.rol))fail(403,'Usuario sin acceso al servicio');
  const cfg=(await admin.database().ref('sv_permisos/'+identity.rol).get()).val()||{};
  const p=policy(service,body);if(!permitted(identity.rol,cfg,p.module,p.action,p.defaults))fail(403,'Sin permiso para esta operación');
  return {uid:user.uid,role:identity.rol};
 }
-module.exports={authorize,permitted,policy};
+async function assertAccessReady(admin,user){
+ const state=(await admin.database().ref('sv_access_resets/'+user.uid).get()).val();
+ if(user.svPasswordChangeRequired===true||(state&&(state.required||state.version!==user.svAccessVersion)))fail(403,'Actualizá tu contraseña y volvé a ingresar');
+}
+module.exports={authorize,permitted,policy,assertAccessReady};
