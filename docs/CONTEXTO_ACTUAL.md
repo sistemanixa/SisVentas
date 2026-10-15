@@ -2,6 +2,18 @@
 
 Actualizado: 15/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Acceso propio a Google Cloud y Firebase verificado (15/10/2026)
+
+Se completó el inicio de sesión oficial de Google Cloud CLI en este entorno cloud, autorizado por el titular mediante el navegador. Esta comprobación sustituye el pendiente de acceso de la recuperación descrita abajo: no se trasladaron perfiles de la PC ni se guardaron credenciales en Git.
+
+- Google Cloud SDK `589.0.0` instalado en `/workspace/tools/google-cloud-sdk`. Proyecto configurado: `nixa-sisventas`.
+- Preparación de cada shell: `source /workspace/tools/sisventas-cloud-env.sh`. El archivo local añade la CLI al PATH, selecciona `CLOUDSDK_CONFIG=/workspace/.config-recuperacion/gcloud` si no hay otra configuración explícita e incorpora `NODE_USE_ENV_PROXY=1` para que Node 24 respete el proxy del entorno. Conserva proxy y TLS; si aparece un manifest de identidades del entorno, exige seleccionar esa identidad antes de usar una configuración alternativa.
+- Credenciales administradas por gcloud fuera del checkout, en el directorio de configuración local con permisos `0700`. No imprimir ni copiar sus archivos, tokens, códigos de autorización o cuentas personales a documentación/logs/Git. No son parte del repositorio ni del script de instalación publicado del entorno.
+- `node scripts/check-cloud-access.cjs`: sesión activa y lectura del proyecto `nixa-sisventas`, estado **ACTIVE**, código de salida **0**.
+- `node scripts/check-cloud-access.cjs --firebase`, con el proxy de Node habilitado: **lectura de reglas RTDB correcta**, código **0**. SHA-256 del JSON de reglas normalizado por el diagnóstico: `469548d26df33d734ab426bbee17f696bf2eafa3ab8e8a4f955473aee596b427`. Sin leer datos comerciales ni modificar reglas remotas.
+- Esta evidencia acredita el acceso de esta sesión/entorno; no prueba que tareas nuevas o las otras PCs hereden la autenticación. En otro entorno, configurar su identidad autorizada y repetir los dos diagnósticos. El complemento Firebase aparece instalado, pero sus herramientas MCP no estaban disponibles en este chat al comprobarlo; la verificación efectiva se hizo con gcloud y el script versionado, no con ese complemento.
+- No hubo cambios de IAM, despliegues, mezcla en main ni escrituras en producción. Las candidatas y sus cuatro fallos siguen pendientes; tener acceso no cierra la auditoría.
+
 ## Recuperación comprobada en el entorno cloud (15/10/2026)
 
 - Rama recuperada: `codex/traslado-nube-seguridad-20261015`; commit de origen comprobado: `f5ec87774422cd8b232a5c41badeebd057630896`, padre `b1d94bc91ba288aa410f3aecd016cdb8b3b5797c`. El fetch explícito de la rama confirmó el mismo SHA. Main local permanece en ese padre; no se mezcló ni se desplegó sitio, hosting, servicios o reglas.
