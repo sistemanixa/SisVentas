@@ -37,23 +37,27 @@
     },
     {
       "path": "security/database.known-role-read.candidate.json",
-      "bytesLf": 222846,
-      "sha256Lf": "9e52a526da574c6815c71d30831bf90e98a01b3cbe211f8ba2509d9972dcc7dc"
+      "bytesLf": 222844,
+      "sha256Lf": "ecfecf06378c0c2f5d77e065d357091481afb08b4553f8b16831a338fe049718",
+      "previousSha256Lf": "9e52a526da574c6815c71d30831bf90e98a01b3cbe211f8ba2509d9972dcc7dc"
     },
     {
       "path": "security/database.domain-read.candidate.json",
-      "bytesLf": 2077452,
-      "sha256Lf": "1198ae1888038f26616ed14936cd424e431c029aaad3e5fad38d18ee01620895"
+      "bytesLf": 1994553,
+      "sha256Lf": "0681d267e28036b19354d1b290425bb9d611250b3bce6f72471c60bc1b7d6d74",
+      "previousSha256Lf": "1198ae1888038f26616ed14936cd424e431c029aaad3e5fad38d18ee01620895"
     },
     {
       "path": "security/database.employee-account-read.candidate.json",
-      "bytesLf": 2202843,
-      "sha256Lf": "6ceb5718e872ee8e079adde733d3d2e3eab7742e269b48533001de139da6fcd0"
+      "bytesLf": 2119944,
+      "sha256Lf": "0f70c39255e294d2f82ed0210abd2a54220ab8124247ac33fc4b81e626ef8477",
+      "previousSha256Lf": "6ceb5718e872ee8e079adde733d3d2e3eab7742e269b48533001de139da6fcd0"
     },
     {
       "path": "security/database.audit-final.candidate.json",
-      "bytesLf": 3165476,
-      "sha256Lf": "2c3ce1ccbdb13e1301c0ff778d917f84bff57be941d2afd0868b8347994df870"
+      "bytesLf": 3082577,
+      "sha256Lf": "ac2ad2175bcb2da2523ac4289b461fbb54439fc44a7ffaf7852263509686795a",
+      "previousSha256Lf": "2c3ce1ccbdb13e1301c0ff778d917f84bff57be941d2afd0868b8347994df870"
     },
     {
       "path": "test/known-role-read.integration.cjs",
@@ -62,18 +66,21 @@
     },
     {
       "path": "test/domain-reads.integration.cjs",
-      "bytesLf": 5421,
-      "sha256Lf": "59eca124fc7e936c3f654b0c22dd01c0571da6f9854f868b74c319a030fa1aa2"
+      "bytesLf": 6098,
+      "sha256Lf": "d141e28f8840ce70a255f2752433944c38f395b923c4e74f706e6c85509af619",
+      "previousSha256Lf": "59eca124fc7e936c3f654b0c22dd01c0571da6f9854f868b74c319a030fa1aa2"
     },
     {
       "path": "test/employee-account-reads.integration.cjs",
-      "bytesLf": 6392,
-      "sha256Lf": "002ba21a663aa55dadf397557a91da25ffe179381e5b14fcc05284ab534b75ee"
+      "bytesLf": 7285,
+      "sha256Lf": "b0e72fc6f4c7d21b7261ed6e26a4a69492edc314256e7c32f41d04f8773a105e",
+      "previousSha256Lf": "002ba21a663aa55dadf397557a91da25ffe179381e5b14fcc05284ab534b75ee"
     },
     {
       "path": "test/audit-final-permissions.integration.cjs",
-      "bytesLf": 3776,
-      "sha256Lf": "faee39ec0de3209e395db2bbe7fa310713e730651017642b2f824ce7b5d50b09"
+      "bytesLf": 4806,
+      "sha256Lf": "52f6c04dd68efdd50f618f9845ab6acb587512b26640a899ab621d3615ba5bbd",
+      "previousSha256Lf": "faee39ec0de3209e395db2bbe7fa310713e730651017642b2f824ce7b5d50b09"
     },
     {
       "path": "test/security-handoff.test.cjs",
@@ -109,6 +116,22 @@
       "path": "drafts/continuidad/b2616cf9-app-delta.patch",
       "bytesLf": 42759,
       "sha256Lf": "2d91027ab5416c7c3a863c88e8c60d7c27fbb1ec823b3c6234bb01ba30f8a459"
+    },
+    {
+      "path": "scripts/prepare-domain-reads.cjs",
+      "bytesLf": 3520,
+      "sha256Lf": "8a20e346651562c4cd73cde1cc59b7e1a38cde587e0e0444889e571a89b15a2a"
+    },
+    {
+      "path": "test/domain-read-generator.test.cjs",
+      "bytesLf": 1858,
+      "sha256Lf": "aeede7cef2f1ba4917eebcb100127b40b57e102927774d7eeea735e204e2c692"
     }
-  ]
+  ],
+  "revision": {
+    "date": "2026-10-15",
+    "sourceCommit": "bf76f862dd97e230b445d00bb6731cd6675deec9",
+    "sourceRulesSha256": "469548d26df33d734ab426bbee17f696bf2eafa3ab8e8a4f955473aee596b427",
+    "scope": "Regeneración offline: excepción externa de productos, snapshot de roles conocidos y fixtures con permisos explícitos. Sin despliegue de reglas."
+  }
 }

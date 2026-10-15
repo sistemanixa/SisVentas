@@ -11,9 +11,14 @@ before(async()=>{
  });
 });
 after(async()=>{await env?.cleanup();});
-test('Admin y administrativo conservan todas las lecturas migradas',async()=>{
+test('Admin conserva todas las lecturas; Administrativo respeta los tres alcances reservados por defecto',async()=>{
  const paths=Object.keys(require('../js/core/domain-read-policy.js').domains);
- for(const role of ['admin','administrativo']){const db=env.authenticatedContext(role).database();for(const p of paths)await assertSucceeds(get(ref(db,'sisventas/'+p)));}
+ const adminOnly=['notificaciones_admin','hsextra_solicitudes','uso_usuarios'];
+ for(const role of ['admin','administrativo']){const db=env.authenticatedContext(role).database();for(const p of paths){
+  const read=get(ref(db,'sisventas/'+p));
+  if(role==='administrativo'&&adminOnly.includes(p))await assertFails(read);
+  else await assertSucceeds(read);
+ }}
 });
 test('Técnico y vendedor no leen comprobantes fiscales, configuración fiscal ni órdenes de compra bloqueadas',async()=>{
  for(const role of ['tecnico','vendedor']){const db=env.authenticatedContext(role).database();for(const p of ['comprobantesCompra','comprobantesVenta','config/tfapp','ordenes'])await assertFails(get(ref(db,'sisventas/'+p)));}
@@ -23,8 +28,15 @@ test('Identidades externas, desconocidas, inactivas y anónimas siguen sin datos
 });
 test('Cotización pública y productos de Distribuidora conservan consultas autorizadas',async()=>{
  await assertSucceeds(get(ref(env.unauthenticatedContext().database(),'sisventas/config/tipoCambio/oficial')));
- const db=env.authenticatedContext('distribuidora').database();await assertSucceeds(get(query(ref(db,'sisventas/productos'),orderByChild('categoria'),equalTo('COMPRAS PARAGUAY'))));
- await assertFails(get(ref(db,'sisventas/productos')));
+ for(const role of ['distribuidora','compras_paraguay']) {
+  await env.withSecurityRulesDisabled(async ctx=>set(ref(ctx.database(),'sv_chat_roles/'+role),{activo:true,rol:role}));
+  const db=env.authenticatedContext(role).database();const snap=await assertSucceeds(get(query(ref(db,'sisventas/productos'),orderByChild('categoria'),equalTo('COMPRAS PARAGUAY'))));
+  assert.deepEqual(Object.keys(snap.val()),['p']);
+  await assertFails(get(ref(db,'sisventas/productos')));
+  await assertFails(get(query(ref(db,'sisventas/productos'),orderByChild('categoria'),equalTo('OTRA'))));
+  await assertFails(get(ref(db,'sisventas/productos/otro')));
+  await assertFails(get(ref(db,'sisventas')));
+ }
 });
 test('Overrides respetan bloqueo, dependencia de Garantías y delegación de métricas fiscales',async()=>{
  await env.withSecurityRulesDisabled(async ctx=>{await update(ref(ctx.database()),{'sv_permisos/tecnico':{bloqueados:['caja','gastos','tesoreria','ordenes','balancecompra','creditofiscal','facturas','configuracion','equipos','informes'],acciones:{dashboard:{metricasGlobales:true}}}});});

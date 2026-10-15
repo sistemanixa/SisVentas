@@ -1,5 +1,13 @@
 # Traslado de borradores a la nube (15/10/2026)
 
+## Revisión posterior de candidatas, 15/10/2026
+
+El inventario original de abajo es histórico. Las correcciones del cliente están publicadas en **v3.11.7**, código `4f7762a4c9bdcace6bc6a1b01509a1f08cbad67b`, constancia de main `9fdaeb8f8513aeaf07b85997257487ddc3875b5f`. Las candidatas y scripts de esta entrega **siguen sin aplicarse ni incorporarse a main**. Leer primero el bloque «Candidatas de seguridad corregidas y probadas» de [CONTEXTO_ACTUAL.md](CONTEXTO_ACTUAL.md).
+
+El emulador local reprodujo los cuatro fallos originales; se corrigieron el generador de la excepción de productos, la procedencia de la candidata intermedia y dos fixtures que esperaban accesos contrarios a los permisos declarados. Se conservan denegaciones explícitas de Administrativo, consulta propia de Gastos y consulta externa limitada de ambos portales. Resultado vigente: **25/25 casos de integración y 1.542 pruebas generales aprobados**, sin cambios en las reglas remotas. El manifest revisado contiene **23 artefactos**, huellas anteriores y base de procedencia; los originales también están en Git antes de esta revisión. No ocultar fallos modificando expectativas de snapshots históricos.
+
+En esta PC, Java **21.0.10** está instalado con Android Studio en `C:/Program Files/Android/Android Studio/jbr`. Para ejecutar el emulador se definieron `JAVA_HOME` y PATH solo dentro del proceso. Esa ruta no es trasladable ni obligatoria en otra PC/nube: usar su instalación autorizada de Java 21 o posterior. Las dependencias Firebase siguen reinstalables, y los emuladores se cierran al terminar. Los logs/respaldos privados quedan fuera de Git según CONTEXTO_ACTUAL.
+
 Esta entrega **solo comparte archivos por Git**. No aplica reglas, no despliega servicios, no cambia DNS/hosting, no modifica datos comerciales y no avanza main. La versión publicada sigue siendo v3.11.1.
 
 Rama: `codex/traslado-nube-seguridad-20261015`. Base: `b1d94bc91ba288aa410f3aecd016cdb8b3b5797c` (coincidía con origin/main al iniciar). El SHA final está en el mensaje de entrega; dentro de la rama se consulta con `git log -1 --oneline`.
@@ -78,7 +86,7 @@ Canal privado recomendado: preparar un archivo cifrado con AES-256 y nombres cif
    node scripts/test-security-drafts.cjs --emulator
    ```
 
-   El manifest verifica integridad; test-security-drafts sin opciones solo valida sintaxis/JSON y con --emulator ejecuta permisos en emulador demo: actualmente debe mostrar los cuatro fallos documentados. No sustituir el host demo por producción. No se necesitan credenciales Google para estas pruebas. Mantener libre el puerto 9005 y los puertos del hub/log del emulador.
+   El manifest verifica integridad; test-security-drafts sin opciones solo valida sintaxis/JSON y con --emulator ejecuta permisos en emulador demo: tras la revisión superior deben aprobarse los 25 casos. Los cuatro fallos documentados corresponden al snapshot original del traslado. No sustituir el host demo por producción. No se necesitan credenciales Google para estas pruebas. Mantener libre el puerto 9005 y los puertos del hub/log del emulador.
 3. Correr la suite vigente por `scripts/test-current.ps1` o su equivalente documentado. Las cuatro suites `.integration.cjs` son separadas y no se suman como si fueran pruebas de la suite general.
 4. Instalar Google Cloud CLI en PATH. Configurar sesión autorizada/federación o impersonación aprobada usando los secretos/conexiones del entorno, con permisos mínimos para el objetivo. No copiar archivos de credenciales de esta PC ni crear una clave permanente como atajo. Si se utiliza inicio de sesión interactivo, hacerlo el titular con la herramienta oficial.
 5. Diagnóstico explícito, solo de lectura:

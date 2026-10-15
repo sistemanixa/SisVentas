@@ -1,6 +1,6 @@
 'use strict';
 const {test,before,after}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{createRequire}=require('node:module');
-const dep=createRequire(path.resolve('tmp/firebase-security-tools/package.json')),{initializeTestEnvironment,assertFails,assertSucceeds}=dep('@firebase/rules-unit-testing'),{ref,set,get,update}=dep('firebase/database');let env;
+const dep=createRequire(path.resolve('tmp/firebase-security-tools/package.json')),{initializeTestEnvironment,assertFails,assertSucceeds}=dep('@firebase/rules-unit-testing'),{ref,set,get,update,query,orderByChild,equalTo}=dep('firebase/database');let env;
 before(async()=>{if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!=='127.0.0.1:9005')throw Error('Solo emulador');env=await initializeTestEnvironment({projectId:'demo-sisventas-security',database:{host:'127.0.0.1',port:9005,rules:fs.readFileSync('security/database.audit-final.candidate.json','utf8')}});await env.withSecurityRulesDisabled(async c=>{await set(ref(c.database()),{sv_chat_roles:{admin:{activo:true,rol:'admin'},tech:{activo:true,rol:'tecnico'},seller:{activo:true,rol:'vendedor'},unknown:{activo:true,rol:'inventado'}},sv_usuarios:{p:{uid:'tech',empleadoFbKey:'e'}},sv_empleado_uid:{tech:{perfilFbKey:'p'}},sisventas:{productos:{p:{codigo:'P-1',categoria:'OTRA',compra:50,venta:100,stock:2}},ventas:{v:{total:100}},clientes:{c:{nombre:'Cliente'}},empleados:{e:{nombre:'Propio',sueldo:100},other:{sueldo:200}},config:{cargos:{c:{valorHora:100}}},proveedores:{p:{nombre:'Proveedor',password:'privado'}},ctaemp:{e:{m:{monto:100}}},gastos:{g:{empleadoId:'e',monto:100,montoPagado:0}}}});});});
 after(async()=>{await env?.cleanup();});
 test('Técnico no lee ventas, pagos, salarios ajenos, cargos completos ni credenciales de proveedores',async()=>{const db=env.authenticatedContext('tech').database();for(const p of ['ventas','pagos','empleados','config/cargos','proveedores','ctaemp'])await assertFails(get(ref(db,'sisventas/'+p)));await assertSucceeds(get(ref(db,'sisventas/ctaemp/e')));});
@@ -9,3 +9,15 @@ test('Rendición técnica puede actualizar unidades y no precios, ventas, salari
 test('Desconocidos y anónimos no obtienen ni reemplazan la raíz comercial',async()=>{for(const c of [env.authenticatedContext('unknown'),env.unauthenticatedContext()]){const db=c.database();await assertFails(get(ref(db,'sisventas')));await assertFails(get(ref(db,'sisventas/ventas')));await assertFails(set(ref(db,'sisventas'),{reemplazo:true}));}});
 test('Bloqueo de editar productos se respeta aunque estén habilitadas otras acciones del producto',async()=>{await env.withSecurityRulesDisabled(async c=>{await set(ref(c.database(),'sv_permisos/admin'),{bloqueados:[],acciones:{productos:{editar:false}}});});await assertFails(set(ref(env.authenticatedContext('admin').database(),'sisventas/productos/p/venta'),1));});
 test('Cambiar el vínculo protegido revoca la cuenta anterior sin depender del índice histórico',async()=>{await env.withSecurityRulesDisabled(async c=>{await set(ref(c.database(),'sv_usuarios/p/empleadoFbKey'),'other');});const db=env.authenticatedContext('tech').database();await assertFails(get(ref(db,'sisventas/ctaemp/e')));await assertSucceeds(get(ref(db,'sisventas/ctaemp/other')));});
+
+test('La candidata final conserva la consulta externa limitada sin abrir productos completos ni escrituras',async()=>{
+ await env.withSecurityRulesDisabled(async c=>{const db=c.database();await set(ref(db,'sisventas/productos/py'),{categoria:'COMPRAS PARAGUAY',compra:10,venta:20});for(const role of ['distribuidora','compras_paraguay'])await set(ref(db,'sv_chat_roles/'+role),{activo:true,rol:role});});
+ for(const role of ['distribuidora','compras_paraguay']){
+  const db=env.authenticatedContext(role).database();const snap=await assertSucceeds(get(query(ref(db,'sisventas/productos'),orderByChild('categoria'),equalTo('COMPRAS PARAGUAY'))));
+  assert.deepEqual(Object.keys(snap.val()),['py']);
+  await assertFails(get(ref(db,'sisventas/productos')));
+  await assertFails(get(query(ref(db,'sisventas/productos'),orderByChild('categoria'),equalTo('OTRA'))));
+  await assertFails(get(ref(db,'sisventas/productos/p/compra')));
+  await assertFails(set(ref(db,'sisventas/productos/py/venta'),1));
+ }
+});

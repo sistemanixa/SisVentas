@@ -1,6 +1,9 @@
 'use strict';
 const fs=require('node:fs'),policy=require('../js/core/domain-read-policy.js'),actions=require('./action-policy.cjs');
-const base=JSON.parse(fs.readFileSync('security/database.domain-write.candidate.json','utf8'));
+function build(input) {
+const base=structuredClone(input);
+// Capturar la excepción de consulta ANTES de sobrescribir el mismo nodo.
+const productRead=base.rules.sisventas.productos['.read'];
 const r=base.rules.sisventas,role="root.child('sv_chat_roles').child(auth.uid).child('rol').val()";
 const internal="auth != null && root.child('sv_chat_roles').child(auth.uid).child('activo').val() === true && ("+policy.internalRoles.map(x=>role+" === '"+x+"'").join(' || ')+')';
 function allowed(module) {
@@ -30,7 +33,13 @@ for(const [path,def] of Object.entries(policy.domains)) {
  // nombre. Copiar su permiso efectivo anterior evita bloquear escrituras.
  if(inheritedWrite)node['.write']=internal;
  node['.read']='('+internal+') && ('+[...def.modules.map(allowed),...(def.actions||[]).map(action)].join(' || ')+')';
- if(path==='productos')node['.read']='('+node['.read']+') || ('+base.rules.sisventas.productos['.read']+')';
+ if(path==='productos')node['.read']='('+node['.read']+') || ('+productRead+')';
 }
-fs.writeFileSync('security/database.domain-read.candidate.json',JSON.stringify(base,null,2)+'\n');
-console.log('Candidata de lectura preparada para '+Object.keys(policy.domains).length+' dominios. No aplicada.');
+return base;
+}
+if(require.main===module) {
+ const base=JSON.parse(fs.readFileSync('security/database.domain-write.candidate.json','utf8'));
+ fs.writeFileSync('security/database.domain-read.candidate.json',JSON.stringify(build(base),null,2)+'\n');
+ console.log('Candidata de lectura preparada para '+Object.keys(policy.domains).length+' dominios. No aplicada.');
+}
+module.exports={build};

@@ -19,7 +19,16 @@ test('Gastos propios consultados por ambos campos, sin colección completa ni co
  for(const user of ['missing','inactive','unknown'])await assertFails(get(query(ref(env.authenticatedContext(user).database(),'sisventas/gastos'),orderByChild('empleadoId'),equalTo('e1'))));
  await assertFails(get(query(ref(env.unauthenticatedContext().database(),'sisventas/gastos'),orderByChild('empleadoId'),equalTo('e1'))));
  await env.withSecurityRulesDisabled(async c=>{const db=c.database();await set(ref(db,'sv_chat_roles/office'),{activo:true,rol:'administrativo'});await set(ref(db,'sv_permisos/administrativo'),{bloqueados:['gastos','comisiones','tesoreria','reportes','rentabilidad']});});
- await assertSucceeds(get(ref(env.authenticatedContext('office').database(),'sisventas/gastos')));
+ const office=env.authenticatedContext('office').database();
+ // Con todos los módulos bloqueados y sin vínculo, la colección no está autorizada.
+ await assertFails(get(ref(office,'sisventas/gastos')));
+ await env.withSecurityRulesDisabled(async c=>{const db=c.database();await set(ref(db,'sv_usuarios/poffice'),{uid:'office',empleadoFbKey:'e1'});await set(ref(db,'sv_empleado_uid/office'),{perfilFbKey:'poffice',empleadoFbKey:'e1'});});
+ await assertSucceeds(get(query(ref(office,'sisventas/gastos'),orderByChild('empleadoId'),equalTo('e1'))));
+ await assertFails(get(ref(office,'sisventas/gastos')));
+ await assertFails(get(query(ref(office,'sisventas/gastos'),orderByChild('empleadoId'),equalTo('e2'))));
+ // Una delegación explícita de cuentas sí permite el alcance completo existente.
+ await env.withSecurityRulesDisabled(async c=>set(ref(c.database(),'sv_permisos/administrativo/acciones/empleados/verCuentas'),true));
+ await assertSucceeds(get(ref(office,'sisventas/gastos')));
 });
 test('Cuenta propia permitida, ajena y colección completa rechazadas',async()=>{const db=env.authenticatedContext('tech').database();await assertSucceeds(get(ref(db,'sisventas/ctaemp/e1')));await assertFails(get(ref(db,'sisventas/ctaemp/e2')));await assertFails(get(ref(db,'sisventas/ctaemp')));});
 test('El usuario solo lee su vínculo y no puede crearlo ni modificarlo',async()=>{const db=env.authenticatedContext('tech').database();await assertSucceeds(get(ref(db,'sv_empleado_uid/tech')));await assertFails(get(ref(db,'sv_empleado_uid/other')));await assertFails(set(ref(db,'sv_empleado_uid/tech/empleadoFbKey'),'e2'));await assertFails(set(ref(env.authenticatedContext('admin').database(),'sv_empleado_uid/tech'),{empleadoFbKey:'e2'}));});
