@@ -13,6 +13,9 @@ async function fixture(browser,viewport,source,pageName){
  await page.evaluate(()=>{window.svPuedeLeerDominio=key=>['clientes','productos'].includes(key);});
  await page.addScriptTag({content:source});
  await page.evaluate(()=>{document.dispatchEvent(new Event('DOMContentLoaded'));document.dispatchEvent(new Event('sisventas:session-ready'));});
+ // El render usa requestAnimationFrame: esperar el DOM, no un plazo fijo
+ // que puede vencer antes del primer frame al iniciar Chromium en otra PC.
+ await page.waitForFunction(()=>document.querySelector('.page.active').hasAttribute('aria-busy'));
  return {page,errors};
 }
 async function run(){
@@ -22,7 +25,7 @@ async function run(){
    for(const baseline of [true,false]){
     const {page,errors}=await fixture(browser,viewport,baseline?old:current,'dashboard');
     await page.evaluate(()=>{for(const key of ['clientes','productos'])SVDataReadiness.begin('https://fixture.invalid/sisventas/'+key).ready();});
-    await page.waitForTimeout(80);
+    await page.waitForFunction(pending=>document.querySelector('.page.active').getAttribute('aria-busy')===String(pending),baseline);
     const visible=await page.locator('#records').isVisible();assert.equal(visible,!baseline);
     if(!baseline)assert.equal(await page.locator('[data-sv-data-status]').count(),0);
     assert.deepEqual(errors,[]);results.push({viewport:viewport.width,case:'dashboard-restringido',baseline,visible});await page.close();
@@ -37,13 +40,13 @@ async function run(){
     });
     await page.addScriptTag({content:extract(baseline?previous:app,'svEscucharDirectorioEmpleados')});
     await page.evaluate(()=>svEscucharDirectorioEmpleados(snap=>{window.directory=snap.val();}));
-    await page.waitForTimeout(80);
+    await page.waitForFunction(pending=>document.querySelector('.page.active').getAttribute('aria-busy')===String(pending),baseline);
     assert.equal(await page.locator('#records').isVisible(),!baseline);assert.deepEqual(errors,[]);
     results.push({viewport:viewport.width,case:'directorio-reducido',baseline,visible:!baseline});await page.close();
    }
    const {page,errors}=await fixture(browser,viewport,current,'gastos');
    await page.evaluate(()=>{window.expenses=SVDataReadiness.begin('https://fixture.invalid/sisventas/gastos');expenses.ready();});
-   await page.waitForTimeout(50);
+   await page.waitForFunction(()=>document.querySelector('#page-gastos').getAttribute('aria-busy')==='true');
    await page.evaluate(()=>{const original=Date.now;Date.now=()=>original()+16000;document.dispatchEvent(new Event('visibilitychange'));});
    await page.waitForSelector('.sv-data-error');
    assert.match(await page.locator('[data-sv-data-status]').innerText(),/No se pudieron cargar/);
