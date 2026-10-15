@@ -15,9 +15,16 @@
   var labels={ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores'};
   function requirements(page){
     var keys=(dependencies[page]||[]).slice();
-    // Los widgets del dashboard ya se filtran por permisos. No esperar una
-    // colección que el arranque, correctamente, no suscribe para este rol.
-    if(page==='dashboard' && typeof global.svPuedeLeerDominio==='function')keys=keys.filter(function(key){return global.svPuedeLeerDominio(key);});
+    if(page==='dashboard') {
+      // Una lectura compartida puede estar autorizada por otra pantalla sin
+      // que ninguna tarjeta visible del inicio la necesite.
+      var can=typeof global.tienePermiso==='function'?global.tienePermiso:function(){return false;};
+      keys=[];
+      if(can('dashboard.metricasGlobales')||can('dashboard.rentabilidad'))keys.push('clientes','productos','ventas','pagos');
+      if(can('ventas.verDashboard'))keys.push('clientes','ventas','pagos');
+      if(can('dashboard.grafico')||can('dashboard.miActividad'))keys.push('clientes','ventas');
+      keys=Array.from(new Set(keys)).filter(function(key){return typeof global.svPuedeLeerDominio==='function'&&global.svPuedeLeerDominio(key);});
+    }
     return keys;
   }
   function ensure(key){
@@ -75,7 +82,8 @@
   function render(){
     Object.keys(dependencies).forEach(function(name){
       var page=document.getElementById('page-'+name);if(!page)return;
-      var keys=requirements(name);
+      var allowed=typeof global.permisoModulo!=='function'||global.permisoModulo(name);
+      var keys=sessionActive&&allowed?requirements(name):[];
       if(sessionActive&&page.classList.contains('active'))keys.forEach(ensure);
       var state=status(keys),box=page.querySelector('[data-sv-data-status]');
       var show=!state.ready||state.errors.length>0;
@@ -98,10 +106,11 @@
   document.addEventListener('sisventas:session-ended',reset);
   document.addEventListener('sisventas:session-ready',function(){sessionActive=true;schedule();});
   document.addEventListener('sisventas:page-changed',schedule);
+  document.addEventListener('sisventas:role-changed',schedule);
   document.addEventListener('visibilitychange',schedule);
   document.addEventListener('DOMContentLoaded',function(){
     var style=document.createElement('style');style.textContent='.sv-data-pending{position:relative;min-height:260px}.sv-data-pending>:not([data-sv-data-status]){visibility:hidden;pointer-events:none}.sv-data-status{display:flex;flex-direction:column;gap:10px;padding:24px;margin-bottom:16px;border:1px solid var(--border2);border-radius:14px;background:var(--bg2);color:var(--text);line-height:1.6}.sv-data-status span{font-size:13px;color:var(--text3)}.sv-data-status button{align-self:flex-start}.sv-data-pending>.sv-data-status{position:absolute;inset:0 0 auto;z-index:2}.sv-data-status strong::before{content:"";display:inline-block;width:14px;height:14px;margin-right:10px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin 1s linear infinite}.sv-data-error strong::before{display:none}';document.head.append(style);schedule();
   });
   global.addEventListener('online',schedule);global.addEventListener('offline',schedule);
-  global.SVDataReadiness={begin:begin,beginSource:beginSource,status:status,statusFor:statusFor,reset:reset,render:schedule};
+  global.SVDataReadiness={begin:begin,beginSource:beginSource,status:status,statusFor:statusFor,requirementsFor:requirements,reset:reset,render:schedule};
 })(window);

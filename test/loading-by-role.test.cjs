@@ -4,7 +4,7 @@ const policy=require('../js/core/domain-read-policy.js');
 const readiness=fs.readFileSync('js/core/data-readiness.js','utf8');
 const active=require('./helpers/active-app').readActiveApp().source;
 function setup(role='admin'){
- const window={addEventListener(){},svPuedeLeerDominio:key=>policy.allows(key,role,module=>(policy.restrictedDefaults[module]||policy.internalRoles).includes(role))};
+ const window={addEventListener(){},tienePermiso:key=>role==='admin'&&key==='dashboard.metricasGlobales',svPuedeLeerDominio:key=>policy.allows(key,role,module=>(policy.restrictedDefaults[module]||policy.internalRoles).includes(role))};
  const context={URL,window,document:{addEventListener(){}},requestAnimationFrame(){}};
  vm.createContext(context);vm.runInContext(readiness,context);
  return {api:window.SVDataReadiness,context};
