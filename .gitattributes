@@ -1,0 +1,2 @@
+# Los diffs históricos preservan espacios de contexto del original.
+drafts/continuidad/*.patch whitespace=-blank-at-eol

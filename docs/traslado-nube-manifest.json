@@ -1,0 +1,114 @@
+{
+  "created": "2026-10-15",
+  "branch": "codex/traslado-nube-seguridad-20261015",
+  "base": "b1d94bc91ba288aa410f3aecd016cdb8b3b5797c",
+  "normalization": "UTF-8 with CRLF normalized to LF",
+  "notDeployed": true,
+  "files": [
+    {
+      "path": "scripts/deploy-secure-hosting.cjs",
+      "bytesLf": 4434,
+      "sha256Lf": "2db80fb543c4612e26b726f98da0c983078bbf0e57c1b26d2a0e46ee43b78197"
+    },
+    {
+      "path": "scripts/lib/gcloud-cli.cjs",
+      "bytesLf": 552,
+      "sha256Lf": "3ff307c654f2651671f006f9f61a026e9be0fbc32f78ec176d4213bdf992a53a"
+    },
+    {
+      "path": "scripts/check-cloud-access.cjs",
+      "bytesLf": 1955,
+      "sha256Lf": "c7b078cf35ad568f72f41ba3ca8cd0823b5d0d83530cfb1a37cc68e7da0c3fef"
+    },
+    {
+      "path": "scripts/test-security-drafts.cjs",
+      "bytesLf": 2035,
+      "sha256Lf": "ee014e9a2540ea4b43de7a4839bc94c0fcf67ff2b7a854fb27d8d123ff7297b4"
+    },
+    {
+      "path": "scripts/prepare-known-role-read.cjs",
+      "bytesLf": 834,
+      "sha256Lf": "8b4fa33d509a654632e8afdbd9eb14e45525fe653fc1607acf70fc82b266aa25"
+    },
+    {
+      "path": "scripts/verify-handoff-manifest.cjs",
+      "bytesLf": 785,
+      "sha256Lf": "532e764520942774926d3ae48429a1fe18b096de7607b2111b98b033a1d4bab7"
+    },
+    {
+      "path": "security/database.known-role-read.candidate.json",
+      "bytesLf": 222846,
+      "sha256Lf": "9e52a526da574c6815c71d30831bf90e98a01b3cbe211f8ba2509d9972dcc7dc"
+    },
+    {
+      "path": "security/database.domain-read.candidate.json",
+      "bytesLf": 2077452,
+      "sha256Lf": "1198ae1888038f26616ed14936cd424e431c029aaad3e5fad38d18ee01620895"
+    },
+    {
+      "path": "security/database.employee-account-read.candidate.json",
+      "bytesLf": 2202843,
+      "sha256Lf": "6ceb5718e872ee8e079adde733d3d2e3eab7742e269b48533001de139da6fcd0"
+    },
+    {
+      "path": "security/database.audit-final.candidate.json",
+      "bytesLf": 3165476,
+      "sha256Lf": "2c3ce1ccbdb13e1301c0ff778d917f84bff57be941d2afd0868b8347994df870"
+    },
+    {
+      "path": "test/known-role-read.integration.cjs",
+      "bytesLf": 2497,
+      "sha256Lf": "051554ac3e9208f13cf254cb12f9455d72dec9ea29c26680ba16181c00715a49"
+    },
+    {
+      "path": "test/domain-reads.integration.cjs",
+      "bytesLf": 5421,
+      "sha256Lf": "59eca124fc7e936c3f654b0c22dd01c0571da6f9854f868b74c319a030fa1aa2"
+    },
+    {
+      "path": "test/employee-account-reads.integration.cjs",
+      "bytesLf": 6392,
+      "sha256Lf": "002ba21a663aa55dadf397557a91da25ffe179381e5b14fcc05284ab534b75ee"
+    },
+    {
+      "path": "test/audit-final-permissions.integration.cjs",
+      "bytesLf": 3776,
+      "sha256Lf": "faee39ec0de3209e395db2bbe7fa310713e730651017642b2f824ce7b5d50b09"
+    },
+    {
+      "path": "test/security-handoff.test.cjs",
+      "bytesLf": 1402,
+      "sha256Lf": "434e9c9f5e995f09bb68094c69595554d319c949b44783d6f76f54f5d201c102"
+    },
+    {
+      "path": "drafts/continuidad/purchase-orders-unificacion-en-progreso.js",
+      "bytesLf": 159759,
+      "sha256Lf": "a4118149b4a5dd43f296bf51887ac5230c3410a64c63c4e72f5668e91e2caad8"
+    },
+    {
+      "path": "drafts/continuidad/asistente-inicial/index.js",
+      "bytesLf": 2770,
+      "sha256Lf": "e848e6e55a988e393e1531ca2b315e2de05d71eb6ed9b391f9b4cd0192d399e7"
+    },
+    {
+      "path": "drafts/continuidad/asistente-baseline/index.js",
+      "bytesLf": 3690,
+      "sha256Lf": "1b017fb3d79b7cd043407cf1dda71d468ad6270150d7cc129cfe188f211bbef0"
+    },
+    {
+      "path": "drafts/continuidad/asistente-baseline/audio.cjs",
+      "bytesLf": 1575,
+      "sha256Lf": "fed57940027443d366c454f657c4150a7e54a55f8e6d1ff1fc4a35df85f7c924"
+    },
+    {
+      "path": "drafts/continuidad/b2616cf9-functional.patch",
+      "bytesLf": 24288,
+      "sha256Lf": "6a5cb687701382e34d60f3d5565657d230f9696a38deb1b050255eccaa257577"
+    },
+    {
+      "path": "drafts/continuidad/b2616cf9-app-delta.patch",
+      "bytesLf": 42759,
+      "sha256Lf": "2d91027ab5416c7c3a863c88e8c60d7c27fbb1ec823b3c6234bb01ba30f8a459"
+    }
+  ]
+}

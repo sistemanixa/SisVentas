@@ -1,0 +1,381 @@
+diff --git a/tmp/traslado-app-base.js b/tmp/traslado-app-local.js
+index 66b3662d..5b29db47 100644
+--- a/tmp/traslado-app-base.js
++++ b/tmp/traslado-app-local.js
+@@ -2509,6 +2509,7 @@ function iaActualizarBadge() {
+ }
+ 
+ function iaAbrir(contexto, label) {
++  var reglasBtn = document.getElementById('ia-reglas'); if (reglasBtn) reglasBtn.hidden = currentRole !== 'admin';
+   _iaNoLeidos = 0;
+   iaActualizarBadge();
+   _iaContexto = contexto || '';
+@@ -2564,6 +2565,7 @@ function iaAbrirDesdeOT() {
+ }
+ 
+ function iaCerrar() {
++  if (window.svIaLearning) window.svIaLearning.stop();
+   var modal = document.getElementById('ia-modal');
+   if (modal) modal.classList.remove('open');
+   document.body.style.overflow = '';
+@@ -2635,6 +2637,79 @@ function iaSugerencia(btn) {
+   if (sug) sug.style.display = 'none';
+ }
+ 
++
++
++// Reglas acordadas con administración. No se aprenden de mensajes generales.
++function iaPresupuestoBadge() { return '<span class="badge" style="margin-left:8px;color:var(--blue)" title="Preparado con el asistente; revisado por un usuario">Creado con IA</span>'; }
++function iaMarcarPresupuesto(valor) {
++  window._pptoCreadoConIA = valor === true;
++  var campo = document.getElementById('pp-numero'), marca = document.getElementById('pp-origen-ia');
++  if (!marca && campo) { marca = document.createElement('span'); marca.id = 'pp-origen-ia'; campo.parentNode.appendChild(marca); }
++  if (marca) marca.innerHTML = valor === true ? iaPresupuestoBadge() : '';
++}
++function iaReglasInstalacion(items, interno) {
++  if (!interno && window.svIaLearning) {
++    var grupos = {};
++    items.forEach(function(i) {
++      window.svIaLearning.apply([i], iaReglasInstalacion([i], true)).forEach(function(r) {
++        var key = r.codigo ? r.codigo + (r.confirmar ? '-confirmar' : '') : r.id;
++        if (!grupos[key]) grupos[key] = Object.assign({},r,{qty:0});
++        grupos[key].qty += r.qty;
++      });
++    });
++    return Object.values(grupos);
++  }
++  var reglas={};
++  function add(id,qty,label,codigo,patron,metros){if(!reglas[id])reglas[id]={id:id,qty:0,label:label,codigo:codigo,patron:patron,metros:!!metros};reglas[id].qty+=qty;}
++  items.filter(function(i){return !i.automatico&&!esProductoManoDeObra(i.p);}).forEach(function(i){
++    var p=i.p,n=String(p.nombre||p.descripcion||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(),cat=String(p.categoria||'').toLowerCase(),q=i.qty;
++    if(/video.?portero|video intercom/.test(n)&&/kit/.test(n)){
++      add('utp',50*q,'UTP Hikvision exterior 100 % cobre · 50 m por kit','P-50709',/utp.*exterior.*hikvision|utp.*hikvision.*exterior/i,true);
++      add('red',q,'Tendido de red por pantalla','P-5184',null);
++      add('video',2*q,'Instalación videoportero · frente y pantalla, dos técnicos','P-21491',null);return;
++    }
++    if(/\b(camaras?|domos?|bullets?|ptz)\b/.test(cat)&&!/(fuente|accesorio|kit|soporte|cable)/.test(cat)){
++      add('camara',q,'Instalación por cámara · dos técnicos','P-13',null);
++      if(/wi[ -]?fi|wifi/.test(n))add('paralelo',20*q,'Paralelo · 20 m por cámara Wi-Fi',null,/paralelo|bipolar/i,true);
++      else add('utp',20*q,'UTP Hikvision exterior 100 % cobre · 20 m por cámara','P-50709',/utp.*exterior.*hikvision|utp.*hikvision.*exterior/i,true);
++      if(/tvi/.test(cat))add('balun',q,'Balun · un juego por cámara TVI','P-13366',/^balun.*(?:par|juego)/i);
++      if(!/poe/.test(n))add('fuente',q,'Fuente 12 V 2 A por cámara','P-11249',null);
++      return;
++    }
++    if(/alarma/.test(n+' '+cat)||/garnet/.test(cat)){
++      if(/kit/.test(n)){add('alarma-kit',q,'Instalación por dispositivo: indicar cuántos dispositivos tiene el kit','P-20',null);reglas['alarma-kit'].confirmar=true;}
++      else if(!/control remoto|bateria|pila|fuente|cable/.test(n))add('alarma',q,'Instalación por dispositivo · dos técnicos','P-20',null);
++    }
++  });return Object.values(reglas);
++}
++
++async function iaPrepararPresupuestoGuiado(texto) {
++  if(!/presupuesto/i.test(texto)||!/prepar|arm|crea|gener/i.test(texto))return false;
++  if(!['admin','administrativo'].includes(String(currentRole||'')) || !window.tienePermiso('presupuestos.crear')){iaMostrarMensaje('bot','La preparación guiada requiere un rol administrativo o admin con permiso para crear presupuestos.');return true;}
++  if (window.svIaLearning) { try { await window.svIaLearning.load(); } catch(e) { iaMostrarMensaje('bot','No se pudieron cargar las reglas compartidas. Intentá nuevamente: '+e.message); return true; } }
++  var m=texto.match(/para\s+(.+?)(?:\s+con\s+|$)(.*)/i);
++  var nombre=m?m[1].trim():'',pedido=m?m[2]:'';
++  var descuentoMatch=texto.match(/(\d+(?:[.,]\d+)?)\s*%/),descuento=descuentoMatch?Number(descuentoMatch[1].replace(',','.')):0;
++  if(descuento>100){iaMostrarMensaje('bot','El descuento debe estar entre 0 y 100 %.');return true;}
++  var d=document.createElement('dialog');d.style.cssText='position:fixed;inset:0;margin:auto;width:min(650px,92vw);max-height:85vh;overflow:auto;padding:24px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:14px';document.body.appendChild(d);d.addEventListener('close',function(){d.remove();});d.showModal();
++  var cliente=null,items=[],consultas=pedido.replace(/(?:y\s+|con\s+|un\s+)?\d+(?:[.,]\d+)?\s*%\s*(?:de\s+descuento)?/ig,'').split(/,|\s+y\s+/).map(function(x){return x.trim();}).filter(Boolean),paso=0,manoObraRevisada=false,reglasRevisadas=false;
++  function norm(x){return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
++  function base(t){d.innerHTML='';d.style.boxShadow='0 24px 80px rgba(0,0,0,.4)';var h=document.createElement('h3');h.textContent=t;h.style.cssText='font-size:18px;margin:0 0 18px';d.appendChild(h);}
++  function btn(t,fn){var b=document.createElement('button');b.className='btn btn-sm';b.style.cssText='margin:8px 8px 0 0;white-space:normal;text-align:left;border-radius:8px;padding:9px 14px';b.textContent=t;b.onclick=fn;d.appendChild(b);return b;}
++  function elegirCliente(){base('Elegí el cliente y domicilio');var input=document.createElement('input');input.className='search-input';input.placeholder='Nombre del cliente';input.value=nombre;d.appendChild(input);var lista=document.createElement('div');d.appendChild(lista);function buscar(){lista.innerHTML='';(clientesData||[]).filter(function(c){return c.activo!==false&&norm(c.nombre||c.empresa).includes(norm(input.value));}).slice(0,30).forEach(function(c){var b=document.createElement('button');b.className='btn btn-sm';b.style.cssText='display:block;margin:8px 0;white-space:normal;text-align:left';b.textContent=(c.nombre||c.empresa)+' · '+(c.dir||c.direccion||c.domicilio||'Sin dirección registrada');b.onclick=function(){cliente=c;elegirProducto();};lista.appendChild(b);});if(!lista.children.length)lista.textContent='Sin coincidencias. Probá otro nombre.';}input.oninput=buscar;buscar();btn('Cancelar',function(){d.close();});}
++  function elegirProducto(){base('Elegí el producto registrado');d.style.width='min(1100px,94vw)';var q=consultas[paso]||'',cantidad=q.match(/^(\d+)\s+/);var input=document.createElement('input');input.className='search-input';input.placeholder='Nombre o código del producto';input.value=q.replace(/^\d+\s+/,'');d.appendChild(input);var qty=document.createElement('input');qty.type='number';qty.min='1';qty.step='1';qty.value=cantidad?cantidad[1]:'1';qty.setAttribute('aria-label','Cantidad');qty.className='search-input';d.appendChild(qty);var tipo=document.createElement('select');tipo.className='search-input';tipo.setAttribute('aria-label','Tipo de ítem');[['productos','Productos'],['mano','Mano de obra']].forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];tipo.appendChild(op);});tipo.value=/instalaci|mano de obra|configuraci|servicio/i.test(q)?'mano':'productos';d.appendChild(tipo);var categoriaElegida=null;var lista=document.createElement('div');d.appendChild(lista);function buscar(){lista.innerHTML='';var tokens=norm(input.value).split(/\s+/).filter(Boolean);var disponibles=Object.values(prodData||{}).filter(function(p){return p.activo!==false&&p.estado!=='inactivo'&&!p.eliminado&&esProductoManoDeObra(p)===(tipo.value==='mano');});var buscaCamara=tipo.value==='productos'&&tokens.some(function(t){return /^(camara|camaras|domo|domos|bullet|bullets|ptz)$/.test(t);});var ultimaCategoria=null;var grilla=null;disponibles.filter(function(p){return p.activo!==false&&p.estado!=='inactivo'&&!p.eliminado&&esProductoManoDeObra(p)===(tipo.value==='mano')&&(buscaCamara ? /\b(?:camaras?|domos?|bullets?|ptz)\b/.test(norm(categoriaProductoCatalogo(p))) && !/(fuente|accesorio|soporte|cable|kit|ups|protector)/.test(norm(categoriaProductoCatalogo(p))) && tokens.filter(function(t){return !/^(camara|camaras)$/.test(t);}).every(function(t){return norm(categoriaProductoCatalogo(p)+' '+(p.nombre||p.descripcion)).includes(t.length>3?t.replace(/s$/,''):t);}) : tokens.every(function(t){return norm(categoriaProductoCatalogo(p)+' '+(p.nombre||p.descripcion)+' '+p.codigo).includes(t.length>3?t.replace(/s$/,''):t);}));}).sort(function(a,b){return categoriaProductoCatalogo(a).localeCompare(categoriaProductoCatalogo(b),'es');}).forEach(function(p){var categoria=categoriaProductoCatalogo(p);if(categoria!==ultimaCategoria){ultimaCategoria=categoria;var titulo=document.createElement('h4');titulo.textContent=categoria;titulo.style.cssText='margin:20px 0 10px;color:var(--text)';lista.appendChild(titulo);grilla=document.createElement('div');grilla.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px';lista.appendChild(grilla);}var b=document.createElement('button');b.className='btn btn-sm';b.style.cssText='display:flex;flex-direction:column;align-items:stretch;gap:12px;width:100%;margin:0;padding:10px;white-space:normal;text-align:left;height:100%';var foto=document.createElement('img');var src=urlImagenProductoVisual(p,p.imagenUrl||'');if(src){foto.src=src;foto.alt='';foto.loading='lazy';foto.style.cssText='width:100%;height:150px;flex:0 0 150px;object-fit:contain;background:white;border-radius:6px';b.appendChild(foto);}else{var vacio=document.createElement('span');vacio.textContent=tipo.value==='mano'?'Servicio':'Sin foto';vacio.style.cssText='width:64px;flex:0 0 64px;font-size:11px;color:var(--text3)';b.appendChild(vacio);}var textoProducto=document.createElement('span');textoProducto.textContent=p.codigo+' · '+(p.nombre||p.descripcion)+' · ARS '+precioVentaCanonicoProducto(p).precioARS.toLocaleString('es-AR')+' sin IVA';b.appendChild(textoProducto);b.onclick=function(){var n=Number(qty.value);if(!Number.isInteger(n)||n<1){notify('Ingresá una cantidad entera mayor a cero');return;}items.push({p:p,qty:n});reglasRevisadas=false;if(esProductoManoDeObra(p))manoObraRevisada=true;paso++;if(paso<consultas.length)elegirProducto();else resumen();};grilla.appendChild(b);});if(!lista.children.length)lista.textContent='Sin coincidencias. Probá el código o un nombre más corto.';}input.oninput=function(){categoriaElegida=null;buscar();};tipo.onchange=function(){categoriaElegida=null;buscar();};buscar();btn('Cancelar',function(){d.close();});}
++  function revisarAutomaticos(){
++    base('Materiales y mano de obra sugeridos');var aviso=document.createElement('p');aviso.textContent='Aplicamos las reglas de instalación. Revisá las cantidades y elegí el modelo cuando hay varias opciones. Los cables requieren un producto configurado por metro.';d.appendChild(aviso);
++    var manuales=items.filter(function(i){return !i.automatico;}),reglas=iaReglasInstalacion(manuales),controles=[];
++    reglas.forEach(function(r){var bloque=document.createElement('div');bloque.style.cssText='padding:12px 0;border-bottom:1px solid var(--border)';var label=document.createElement('p');label.textContent=r.label;bloque.appendChild(label);var select=document.createElement('select');select.className='search-input';select.style.maxWidth='100%';var op=document.createElement('option');op.value='';op.textContent='Elegir producto';select.appendChild(op);var disponibles=Object.values(prodData||{}).filter(function(p){return p.activo!==false&&p.estado!=='inactivo'&&!p.eliminado&&((r.codigo&&p.codigo===r.codigo)||(r.patron&&r.patron.test(p.nombre||p.descripcion||'')))&&(!r.metros||String(p.unidad||'').toLowerCase()==='metro');});disponibles.forEach(function(p){var o=document.createElement('option');o.value=p.fbKey;o.textContent=p.codigo+' · '+(p.nombre||p.descripcion);select.appendChild(o);});var preferido=disponibles.find(function(p){return p.codigo===r.codigo;});if(preferido)select.value=preferido.fbKey;else if(disponibles.length===1)select.value=disponibles[0].fbKey;var mismo=manuales.find(function(i){return disponibles.some(function(p){return p.fbKey===i.p.fbKey;});});var cantidad=document.createElement('input');cantidad.type='number';cantidad.min='0';cantidad.step='1';cantidad.value=r.confirmar?'':String(Math.max(0,r.qty-(mismo?mismo.qty:0)));cantidad.placeholder=r.confirmar?'Cantidad de dispositivos':'Cantidad';cantidad.className='search-input';cantidad.setAttribute('aria-label',r.label);var omitir=document.createElement('label');var check=document.createElement('input');check.type='checkbox';omitir.appendChild(check);omitir.appendChild(document.createTextNode(' No agregar'));bloque.appendChild(select);bloque.appendChild(cantidad);bloque.appendChild(omitir);if(!disponibles.length){var nota=document.createElement('p');nota.textContent='No hay una coincidencia compatible. Revisá la ficha del producto antes de usar esta regla.';bloque.appendChild(nota);}d.appendChild(bloque);controles.push({r:r,select:select,cantidad:cantidad,check:check,disponibles:disponibles});});
++    btn('Continuar',function(){var agregados=[];for(var c of controles){if(c.check.checked)continue;var n=Number(c.cantidad.value);if(c.cantidad.value===''||!Number.isInteger(n)||n<0){notify('Revisá la cantidad: '+c.r.label);return;}if(n===0)continue;var p=c.disponibles.find(function(p){return p.fbKey===c.select.value;});if(!p){notify('Elegí el producto o marcá No agregar: '+c.r.label);return;}agregados.push({p:p,qty:n,automatico:true});}items=manuales.concat(agregados);reglasRevisadas=true;manoObraRevisada=true;resumen();});btn('Cancelar',function(){d.close();});
++  }
++  function resumen(){if(!reglasRevisadas&&iaReglasInstalacion(items).length){revisarAutomaticos();return;}if(!manoObraRevisada){base('Mano de obra del presupuesto');var aviso=document.createElement('p');aviso.textContent='¿Qué instalación o servicio necesitás agregar a los productos seleccionados?';aviso.style.cssText='color:var(--text2);line-height:1.6';d.appendChild(aviso);btn('Agregar mano de obra',function(){consultas[paso]='';elegirProducto();var tipo=d.querySelector('select');tipo.value='mano';tipo.dispatchEvent(new Event('change'));});btn('Continuar sin mano de obra',function(){manoObraRevisada=true;resumen();});btn('Cancelar',function(){d.close();});return;}base('Revisar presupuesto');var info=document.createElement('p');info.textContent=(cliente.nombre||cliente.empresa)+' · '+(cliente.dir||cliente.direccion||cliente.domicilio||'Sin dirección registrada');d.appendChild(info);items.forEach(function(i){var p=document.createElement('p');p.textContent=i.qty+' × '+(i.p.nombre||i.p.descripcion);d.appendChild(p);});var label=document.createElement('label');label.textContent='Descuento general (%)';var desc=document.createElement('input');desc.type='number';desc.min='0';desc.max='100';desc.step='0.01';desc.value=descuento;desc.className='search-input';desc.style.cssText='display:block;margin:8px 0 16px;width:140px';label.appendChild(desc);d.appendChild(label);btn('Agregar producto',function(){consultas[paso]='';elegirProducto();});btn('Agregar mano de obra',function(){consultas[paso]='';elegirProducto();var tipo=d.querySelector('select');tipo.value='mano';tipo.dispatchEvent(new Event('change'));});btn('Cancelar',function(){d.close();});btn('Abrir presupuesto',async function(){var valor=Number(desc.value);if(!Number.isFinite(valor)||valor<0||valor>100){notify('Descuento inválido');return;}if(!window.tienePermiso('presupuestos.crear'))return;if((window._pptoEditandoFbKey||getPpItems().length)&&!await svConfirm('Hay un presupuesto abierto. ¿Reemplazar el formulario sin guardar?'))return;showPage('presupuesto');abrirNuevoPresupuesto();iaMarcarPresupuesto(true);var body=document.getElementById('pp-body');body.innerHTML='';items.forEach(function(i){var tr=crearFilaProducto(i.p.codigo||'',i.p.nombre||i.p.descripcion||'',precioVentaCanonicoProducto(i.p).precioARS,i.qty,0);tr.dataset.productoFbKey=i.p.fbKey;tr.dataset.unidad=i.p.unidad||'Unidad';tr.querySelectorAll('.qty,.price,.disc').forEach(function(inp){inp.addEventListener('input',function(){calcRow(inp);calcPpTotales();});});body.appendChild(tr);var qty=tr.querySelector('.qty');if(qty)calcRow(qty);});document.getElementById('pp-cli').value=cliente.nombre||cliente.empresa||'';document.getElementById('pp-cli-id').value=cliente.fbKey||cliente.id;document.getElementById('pp-descuento').value=valor;if(window._pptoMonedaActual==='USD')_reconvertirFilasAMoneda('#pp-body','USD');_pptoAsegurarFilaVacia();calcPpTotales();actualizarAccesoVentasClientePpto(cliente);d.close();iaCerrar();iaMostrarMensaje('bot','Presupuesto preparado en el formulario. Revisá los importes y guardalo; las aprobaciones se aplican por el circuito habitual.');});}
++  var respuesta=iaMostrarMensaje('bot','Elegí el cliente y domicilio para continuar con la preparación del presupuesto.');
++  if(respuesta){var retomar=document.createElement('button');retomar.type='button';retomar.className='btn btn-sm';retomar.textContent='Abrir preparación';retomar.style.display='block';retomar.style.marginTop='8px';retomar.onclick=function(){if(d.isConnected){if(!d.open)d.showModal();}else iaPrepararPresupuestoGuiado(texto);};respuesta.appendChild(retomar);}
++  elegirCliente();return true;
++}
++
+ async function iaEnviar() {
+   if (_iaThinking) return;
+   var inp = document.getElementById('ia-input');
+@@ -2644,6 +2719,7 @@ async function iaEnviar() {
+   inp.style.height = '';
+ 
+   iaMostrarMensaje('user', texto);
++  if (await iaPrepararPresupuestoGuiado(texto)) return;
+   _iaHistorial.push({ role: 'user', content: texto });
+ 
+   // Indicador de pensamiento
+@@ -3034,7 +3110,7 @@ function chatPuedeAccederCanal(canal, rol) {
+   if (canal === 'tecnicos') return ['admin','tecnico','tecnico_vendedor'].includes(rol);
+   if (canal === 'admin') return ['admin','administrativo','vendedor','tecnico_vendedor'].includes(rol);
+   if (String(canal).startsWith('directo_')) {
+-    var miKey = currentUserUid || ''; 
++    var miKey = currentUserUid || '';
+     return !!miKey && (canal.startsWith('directo_' + miKey + '_') || canal.endsWith('_' + miKey));
+   }
+   return false;
+@@ -6075,6 +6151,7 @@ function fbCargarProductos() {
+       });
+     }
+     invalidarMetricasListaProductos();
++    renderResumenPreciosProveedores();
+     var paginaProductosActiva = _svEsPaginaActiva('productos');
+     var listadoProductos = document.getElementById('prod-list-view');
+     if (paginaProductosActiva && (!listadoProductos || listadoProductos.style.display !== 'none') && typeof renderTablaProductos === 'function') renderTablaProductos();
+@@ -10265,10 +10342,11 @@ function applyRole() {
+ // la API debe validar sesión, rol y permisos antes de devolver o guardar datos.
+ const APP_CONFIG = Object.freeze({
+   DEMO_MODE: false,
+-  VERSION: 'v3.6.1-firebase',
++  VERSION: 'v3.6.2-firebase',
+   RELEASE_NOTES: Object.freeze(["Cámara del chat a pantalla completa.", "Audio con envío al soltar, cancelación por gesto y reproductor propio."]),
+   RELEASE_FEATURE: Object.freeze({ page:'productos', actionLabel:'Abrir Productos' }),
+   RELEASE_HISTORY: Object.freeze([
++    Object.freeze({version:'v3.6.2',date:'13/09/2026',title:'Presupuestos asistidos y reglas compartidas',notes:Object.freeze(['Preparación guiada de presupuestos con catálogo, materiales y mano de obra sugeridos.','Marca Creado con IA en formulario, listado, detalle y borradores.','Reglas de instalación configurables por admin y compartidas con administración; dictado de pedidos en navegadores compatibles.','Comparativa visual de proveedores, revisión de mano de obra y ventanas centradas y movibles.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Abrir Presupuestos'})}),
+     Object.freeze({version:'v3.6.1',date:'13/09/2026',title:'Protección de usuarios y permisos',notes:Object.freeze(['Usuarios y Roles se guardan en rutas protegidas: solo administración del sistema puede modificarlos.','Activar o desactivar usuarios sincroniza su acceso al chat; cada usuario conserva su último acceso.','Un guardado de permisos rechazado conserva la configuración anterior.','Mejora de la confirmación de cobros cuando la transacción inicia sin datos en caché.']),feature:Object.freeze({page:'configuracion',actionLabel:'Abrir Configuración'})}),
+     Object.freeze({version:'v3.6.0',date:'12/09/2026',title:'Catálogo, revisión de precios y comparación de compras',notes:Object.freeze(['Carrito consultable con cantidades y envío técnico a revisión de presupuesto.','Identidad del producto y aprobación de precio se resuelven por separado; los precios vigentes quedan excluidos por defecto.','Rótulos del actualizador aclaran totales, vigencia y consultas por proveedor.','Comparación interna de compra en Paraguay con costos adicionales y margen estimado; permisos separados para gestión y comparación.']),feature:Object.freeze({page:'catalogo',actionLabel:'Abrir Catálogo'})}),
+     Object.freeze({version:'v3.5.21',date:'12/09/2026',title:'Confirmaciones de productos y borradores discretos',notes:Object.freeze(['La confirmación de identidad del proveedor se conserva al guardar la ficha y en posteriores actualizaciones.','Borradores mantiene el formato de los filtros de presupuestos y se retira su acceso del dashboard.']),feature:Object.freeze({page:'productos',actionLabel:'Abrir Productos'})}),
+@@ -16994,7 +17072,7 @@ function timestampPrecioProveedorProducto(p, pv) {
+ }
+ 
+ function estadoVigenciaPrecioProveedor(p, pv) {
+-  if (pv && pv.disponibilidadProveedor === 'sin_stock') return {estado:'sin_verificar',vigente:false,ts:0,texto:'Sin stock · precio pendiente de revisión'};
++  if (pv && pv.disponibilidadProveedor === 'sin_stock') return {estado:'sin_stock',vigente:false,ts:0,texto:'Sin stock · el precio puede estar desactualizado'};
+   var estadoV3 = productosProveedoresV3Invocar('freshness', [p, pv, {
+     now: Date.now(),
+     maxAgeMs: precioVigenciaMs(),
+@@ -17701,6 +17779,58 @@ function actualizadorPintarResumenDesdeCache(cache, finalizado) {
+   mostrarOtrosProveedoresActualizador(cont);
+ }
+ 
++
++function manoObraPendienteRevision() {
++  return Object.values(prodData || {}).filter(function(p){return p && p.fbKey && esProductoManoDeObra(p) && p.activo !== false && p.estado !== 'inactivo' && !p.eliminado && !estadoVigenciaPrecioProducto(p).vigente;});
++}
++function renderRevisionManoObra() {
++  var page=document.getElementById('page-actualizadorprecios'); if(!page)return;
++  var box=document.getElementById('revision-mano-obra');
++  if(!box){box=document.createElement('section');box.id='revision-mano-obra';box.className='card';page.appendChild(box);}
++  box.innerHTML='<h3>Mano de obra</h3><p>'+manoObraPendienteRevision().length+' ítems con precio vencido o sin verificar.</p><button class="btn btn-primary" onclick="abrirRevisionManoObra()" '+(!window.tienePermiso('productos.editar')?'disabled':'')+'>Actualizar mano de obra</button>';
++}
++function abrirRevisionManoObra() {
++  if(!window.tienePermiso('productos.editar'))return;
++  var cola=manoObraPendienteRevision().map(function(p){return p.fbKey;}),indice=0,ocupado=false;
++  var d=document.createElement('dialog');d.style.cssText='position:fixed;inset:0;margin:auto;width:min(560px,92vw);max-height:85vh;overflow:auto;padding:24px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:14px';
++  document.body.appendChild(d);d.addEventListener('close',function(){d.remove();renderRevisionManoObra();});d.addEventListener('cancel',function(e){if(ocupado)e.preventDefault();});
++  function pintar(){
++    var p=Object.values(prodData||{}).find(function(p){return p.fbKey===cola[indice];});
++    if(indice<cola.length&&!p){indice++;pintar();return;}
++    d.innerHTML='';var h=document.createElement('h3');h.textContent=p?'Mano de obra · '+(indice+1)+' de '+cola.length:'Revisión terminada';d.appendChild(h);
++    function boton(texto,fn){var b=document.createElement('button');b.className='btn btn-sm';b.textContent=texto;b.onclick=fn;d.appendChild(b);return b;}
++    if(!p){boton('Cerrar',function(){d.close();});return;}
++    var nombre=document.createElement('p');nombre.textContent=p.codigo+' · '+(p.nombre||p.descripcion||'');d.appendChild(nombre);
++    var fecha=document.createElement('p');fecha.textContent=estadoVigenciaPrecioProducto(p).texto;d.appendChild(fecha);
++    var costo=Number(precioGremioARSDesdeProducto(p))||0;
++    var costoTexto=document.createElement('p');costoTexto.textContent='Costo base: ARS '+costo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});d.appendChild(costoTexto);
++    var margenLabel=document.createElement('label');margenLabel.textContent='Margen agregado sobre el costo (%)';d.appendChild(margenLabel);
++    var margenInput=document.createElement('input');margenInput.type='number';margenInput.step='0.01';margenInput.className='search-input';margenInput.style.cssText='display:block;width:100%;margin:12px 0';margenInput.disabled=!(costo>0);margenLabel.appendChild(margenInput);
++    var label=document.createElement('label');label.textContent='Precio de venta ARS (sin IVA)';d.appendChild(label);
++    var input=document.createElement('input');input.type='number';input.step='0.01';input.min='0';input.value=precioVentaCanonicoProducto(p).precioARS.toFixed(2);input.className='search-input';input.style.cssText='display:block;width:100%;margin:12px 0';label.appendChild(input);
++    var totalVenta=document.createElement('p');d.appendChild(totalVenta);
++    function actualizarVenta(){var venta=Number(input.value);margenInput.value=costo>0?((venta/costo-1)*100).toFixed(2):'';totalVenta.textContent='Venta con IVA: ARS '+(venta*(1+(p.iva==null?21:Number(p.iva))/100)).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+(costo>0?'':' · Sin costo base para calcular margen');}
++    input.addEventListener('input',actualizarVenta);margenInput.addEventListener('input',function(){if(costo>0&&margenInput.value!==''){input.value=(costo*(1+Number(margenInput.value)/100)).toFixed(2);actualizarVenta();}});actualizarVenta();
++    var error=document.createElement('p');error.style.color='var(--red)';d.appendChild(error);
++    boton('Cerrar',function(){if(!ocupado)d.close();});
++    if(window.tienePermiso('productos.eliminar'))boton('Eliminar',async function(){await actuar(async function(){return await eliminarProductoPorId(p.fbKey,false);});});
++    boton('Guardar y siguiente',async function(){
++      var valor=Number(input.value);if(!input.value.trim()||!Number.isFinite(valor)||valor<0){error.textContent='Ingresá un importe válido.';return;}
++      await actuar(async function(){
++        if(!window.tienePermiso('productos.editar'))throw Error('Sin permiso para editar');
++        var cambios={venta:valor,ventaARS:valor,moneda:'ARS',monedaCarga:'ARS',precioActualizadoEn:Date.now(),precioActualizadoOrigen:'revision_mano_obra'};
++        if(costo>0)cambios.margenDeseado=Math.round((valor/costo-1)*10000)/100;
++        var dolar=obtenerDolarReferenciaProducto(p);if(dolar&&dolar.valor>0){cambios.ventaUSD=Math.round(valor/dolar.valor*100)/100;cambios.tcGuardado=dolar.valor;}
++        var updates={};Object.keys(cambios).forEach(function(k){updates[p.fbKey+'/'+k]=cambios[k];});
++        await productosPersistirLote(productosEntradasDesdeMultipath(updates),function(){return window.fbUpdate(window.fbRef(window.fbDB,FB_PATHS.productos),updates);});
++        Object.assign(p,cambios);return true;
++      });
++    });
++    async function actuar(fn){if(ocupado)return;ocupado=true;d.querySelectorAll('button,input').forEach(function(e){e.disabled=true;});error.textContent='Guardando…';try{if(await fn()){indice++;pintar();}else error.textContent='';}catch(e){error.textContent='No se guardó: '+e.message;}finally{ocupado=false;d.querySelectorAll('button,input').forEach(function(e){e.disabled=false;});if(!costo)margenInput.disabled=true;}}
++  }
++  pintar();d.showModal();
++}
++
+ function renderModuloActualizadorPreciosBasico() {
+   if (!window.tienePermiso('actualizador.consultar')) return;
+   var loading = document.getElementById('mod-ap-loading');
+@@ -17748,6 +17878,7 @@ function actualizarResumenActualizadorEnSegundoPlano() {
+ }
+ 
+ function renderModuloActualizadorPrecios() {
++  renderRevisionManoObra();
+   renderModuloActualizadorPreciosBasico();
+   // El shell aparece primero; el resumen se completa automáticamente por tandas.
+   setTimeout(actualizarResumenActualizadorEnSegundoPlano, 0);
+@@ -17820,6 +17951,7 @@ function iniciarResumenActualizadorIncremental(token) {
+ }
+ 
+ function renderModuloActualizadorPreciosAhora(token, inicioCarga) {
++  renderRevisionManoObra();
+   if (!window.tienePermiso('actualizador.consultar')) return;
+   limpiarVariacionesPrecioObsoletas();
+   var todosVinculados = productosBiosegurActualizables();
+@@ -19710,7 +19842,24 @@ async function ejecutarActualizadorMasivoBiosegur() {
+           var resultado = resp.resultados.find(function(r){ return String(r.codigoProducto || r.codigo || '') === String(item.producto.codigo || ''); });
+           var revisionIdentidad=evaluarIdentidadCotizacionProveedor(item.proveedor,item.url,resultado);
+           var validacionPrecio = resultado && resultado.ok ? validarResultadoActualizadorProveedor(item, resultado) : { ok:false, mensaje:'' };
+-          if (resultado && resultado.ok && validacionPrecio.ok && urlsProveedorEquivalentes(item.url, resultado.url)) {
++          if (resultado && resultado.disponibilidadProveedor === 'sin_stock' && urlsProveedorEquivalentes(item.url, resultado.url) && !revisionIdentidad.requiereConfirmacion) {
++            // La disponibilidad no es una falla de precio: conservar importe y fecha.
++            var stockGuardado = await guardarCandidatosSegurosActualizador([{item:item, resultado:resultado}]);
++            if (!stockGuardado) throw new Error('No se pudo guardar el aviso de falta de stock');
++            _actualizadorSesionPrecios.fallos = (_actualizadorSesionPrecios.fallos || []).filter(function(f) {
++              return actualizadorClaveItem(f.item) !== actualizadorClaveItem(item);
++            });
++            var avisoStock = modal.querySelector('[data-aviso-sin-stock]');
++            if (!avisoStock) {
++              avisoStock = document.createElement('div');
++              avisoStock.dataset.avisoSinStock = '1';
++              avisoStock.style.cssText = 'padding:12px;margin:12px;border-radius:8px;background:var(--amber-bg);color:var(--amber);font-size:12px';
++              modal.appendChild(avisoStock);
++            }
++            var avisoProducto = document.createElement('div');
++            avisoProducto.textContent = (item.producto.codigo || '') + ' · ' + (item.proveedor.nombre || '') + ': sin stock. El precio puede estar desactualizado; se conserva el anterior y se excluye del menor costo.';
++            avisoStock.appendChild(avisoProducto);
++          } else if (resultado && resultado.ok && validacionPrecio.ok && urlsProveedorEquivalentes(item.url, resultado.url)) {
+             var cambios = datosActualizadosProductoBiosegur(item, resultado);
+             var costoAnterior = _costoProveedorProductoSinAuditar(item.producto, item.proveedor) || precioGremioARSDesdeProducto(item.producto);
+             var costoNuevo = parseFloat(cambios.compraARS || cambios.compra || 0) || 0;
+@@ -32038,7 +32187,7 @@ async function imprimirPresupuesto(pptoRef, opciones) {
+     '</div>'+
+ 
+     (pptoGuardado.tituloSolucion ? '<div style="margin:18px 0;font-size:20px;font-weight:700;color:#1e293b;line-height:1.3">'+escapeHTML(pptoGuardado.tituloSolucion)+'</div>' : '')+
+-    '<table>'+ 
++    '<table>'+
+       '<thead><tr>'+
+         (_comprobanteConImagen.ppto ? '<th style="width:42px"></th>' : '')+
+         '<th style="width:90px">Código</th>'+
+@@ -42414,6 +42563,56 @@ function actualizarProveedorBaseEnForm() {
+   if (lbl) lbl.textContent = base ? '⭐ Proveedor base: ' + (base.nombre||'') : '';
+ }
+ 
++function renderResumenPreciosProveedores() {
++  var page = document.getElementById('page-proveedores');
++  if (!page) return;
++  var host = document.getElementById('prov-precios-resumen');
++  if (!host) {
++    host = document.createElement('section');
++    host.id = 'prov-precios-resumen';
++    host.className = 'card';
++    page.appendChild(host);
++  }
++  var abiertos = new Set(Array.from(host.querySelectorAll('details[open]')).map(function(d){return d.dataset.proveedor;}));
++  var grupos = (proveedoresData || []).filter(function(p){return p.activo !== false && proveedorVisibleEnProducto(p);}).map(function(p){return {proveedor:p, items:[], unicos:[], vinculados:new Set()};});
++  var resumen = {total:0, comparables:0, unica:0, sin:0};
++  var vistos = new Set();
++  Object.values(prodData || {}).forEach(function(p){
++    if (!p || p.activo === false || p.estado === 'inactivo' || p.eliminado || esProductoManoDeObra(p)) return;
++    var identidad = p.fbKey || p.id || p.codigo || p;
++    if (vistos.has(identidad)) return;
++    vistos.add(identidad);
++    resumen.total++;
++    var ofertas = new Map();
++    proveedoresVinculadosProducto(p).forEach(function(pv){
++      if (!proveedorVisibleEnProducto(pv)) return;
++      var key = pv.proveedorKey || pv.proveedorFbKey;
++      var grupo = grupos.find(function(g){return key ? g.proveedor.fbKey === key : String(g.proveedor.nombre || '').trim().toLowerCase() === String(pv.nombre || '').trim().toLowerCase();});
++      if (!grupo) return;
++      grupo.vinculados.add(p.fbKey || p.id || p.codigo || p);
++      if (pv.disponibilidadProveedor === 'sin_stock') return;
++      var costo = costoUnitarioProveedorProducto(p, pv);
++      if (!grupo || !Number.isFinite(costo) || costo <= 0) return;
++      if (!ofertas.has(grupo) || ofertas.get(grupo).costo > costo) ofertas.set(grupo, {p:p, pv:pv, costo:costo});
++    });
++    if (!ofertas.size) { resumen.sin++; return; }
++    if (ofertas.size === 1) { resumen.unica++; var unica = Array.from(ofertas.entries())[0]; unica[0].unicos.push(unica[1]); return; }
++    resumen.comparables++;
++    var minimo = Math.min.apply(null, Array.from(ofertas.values()).map(function(o){return o.costo;}));
++    var ganadores = Array.from(ofertas.entries()).filter(function(e){return Math.abs(e[1].costo - minimo) < 0.005;});
++    ganadores.forEach(function(e){e[1].empate = ganadores.length > 1; e[0].items.push(e[1]);});
++  });
++  host.innerHTML = '<h3 style="margin:0 0 6px">Productos más económicos por proveedor</h3><p style="color:var(--text3);font-size:12px;margin:0 0 16px">Costo unitario registrado en ARS, con IVA. Compara productos con al menos dos proveedores visibles con precio; excluye ofertas sin stock. Los empates cuentan en ambos. Revisá la vigencia antes de comprar.</p>' + '<div style="display:flex;flex-wrap:wrap;gap:18px;margin-bottom:18px"><strong>'+resumen.total+' productos</strong><span>'+resumen.comparables+' comparables</span><span>'+resumen.unica+' con una sola opción</span><span>'+resumen.sin+' sin opción disponible</span></div><p style="font-size:12px;color:var(--text3)">Sin mano de obra ni productos inactivos. Una sola opción no implica que sea el menor precio del mercado. Disponibilidad según registros; no incluye proveedores inactivos o fuera de tus permisos.</p>' + grupos.map(function(g){
++    var key = escapeHTML(g.proveedor.fbKey || g.proveedor.nombre);
++    return '<section style="border-top:1px solid var(--border);padding:12px 0"><strong>'+escapeHTML(g.proveedor.nombre)+'</strong><span style="color:var(--text3);margin-left:8px">'+g.vinculados.size+' vinculados</span>' + [{id:'menor',nombre:'Más económicos',items:g.items},{id:'unico',nombre:'Única opción',items:g.unicos}].map(function(categoria){
++    var clave = (g.proveedor.fbKey || g.proveedor.nombre) + ':' + categoria.id;
++    return '<details data-proveedor="'+escapeHTML(clave)+'" '+(abiertos.has(clave)?'open':'')+' style="margin-top:10px"><summary style="cursor:pointer;color:var(--blue)">'+categoria.nombre+' · '+categoria.items.length+'</summary><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:10px;margin-top:14px">'+(categoria.items.length ? categoria.items.sort(function(a,b){return String(a.p.nombre||'').localeCompare(String(b.p.nombre||''));}).map(function(o){
++      return '<article style="border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;align-items:center;gap:16px;min-width:0"><div style="width:104px;height:104px;flex:0 0 104px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden">'+imagenProductoItemHTML({pid:o.p.fbKey || o.p.id,cod:o.p.codigo,imagenUrl:o.p.imagenUrl},'prov-precio-foto')+'</div><div style="min-width:0;display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.4;overflow-wrap:anywhere"><small style="color:var(--text3)">'+escapeHTML(o.p.codigo||'')+'</small><strong>'+escapeHTML(o.p.nombre||o.p.descripcion||'Producto')+'</strong><div style="color:var(--blue);font-weight:600">ARS '+o.costo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+' <small>con IVA</small></div><small>'+escapeHTML(estadoVigenciaPrecioProveedor(o.p,o.pv).texto)+(o.empate?' · Precio empatado':'')+'</small></div></article>';
++    }).join('') : '<p style="color:var(--text3)">Sin productos en esta categoría.</p>')+'</div></details>';
++    }).join('') + '</section>';
++  }).join('') + '<style>#prov-precios-resumen .prov-precio-foto{width:104px;height:104px;max-height:104px;flex:0 0 104px;object-fit:contain;border-radius:0;background:#fff;border:0;box-shadow:none;display:block}</style>';
++}
++
+ function fbCargarProveedores() {
+   if (!window.fbDB) return;
+   window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/proveedores'), function(snap) {
+@@ -42424,6 +42623,7 @@ function fbCargarProveedores() {
+       return proveedor;
+     }) : [];
+     proveedoresData = lista;
++    renderResumenPreciosProveedores();
+     lista = lista.filter(proveedorVisibleEnProducto);
+     if (_svEsPaginaActiva('actualizadorprecios') && typeof renderModuloActualizadorPrecios === 'function') {
+       renderModuloActualizadorPrecios();
+@@ -42711,7 +42911,7 @@ function renderPptoTabla(filtroEstado, filtroTexto) {
+     const pptoRef = escapeHTML(p.fbKey || p.id || '');
+     var creador = p.creadoPor || p.usuario || p.empleado || ((p.audit || [])[0] || {}).usuario || '—';
+     return `<tr class="ppto-row" data-ppto-ref="${pptoRef}" style="cursor:pointer;touch-action:pan-x pan-y">
+-      <td style="font-weight:500">${escapeHTML(p.id)}${alerta}${numeroDuplicado}</td>
++      <td style="font-weight:500">${escapeHTML(p.id)}${alerta}${numeroDuplicado}${p.creadoConIA === true ? iaPresupuestoBadge() : ""}</td>
+       <td>${escapeHTML(_mostrarFecha(p.fecha))}</td>
+       <td>${escapeHTML(nombreClienteVigente(p,'CONSUMIDOR FINAL'))}</td>
+       <td class="tr" style="font-weight:500">${totalFmt}</td>
+@@ -43007,6 +43207,7 @@ function abrirEditorPpto(id) {
+   if (!puedeEditarPresupuestoPermiso(p)) { notify('Sin permisos o presupuesto ya convertido a venta'); return; }
+ 
+   abrirNuevoPresupuesto();
++  iaMarcarPresupuesto(p.creadoConIA === true);
+   window._pptoEditandoFbKey = p.fbKey || '';
+   window._pptoEditandoId    = p.id || '';
+   {
+@@ -43127,7 +43328,7 @@ function verPpto(id) {
+ 
+   // Info básica
+   _set('ppto-det-numero',p.id);
+-  document.getElementById('ppto-det-estado-badge').innerHTML = pptoStateBadge(p.estado, p);
++  document.getElementById('ppto-det-estado-badge').innerHTML = pptoStateBadge(p.estado, p) + (p.creadoConIA === true ? iaPresupuestoBadge() : '');
+   _set('ppto-det-meta','Creado por ' + (p.empleado || p.usuario || 'Usuario no registrado'));
+   var alertaRechazoPpto = document.getElementById('ppto-alerta-rechazo');
+   var motivoRechazoPpto = document.getElementById('ppto-motivo-rechazo');
+@@ -44334,6 +44535,7 @@ async function guardarPresupuesto(modo) {
+   var esEdicionPresupuesto = !!edicionPresupuestoFbKey;
+   const nuevo = {
+     id: '', numero: '',
++    creadoConIA: window._pptoCreadoConIA === true,
+     tituloSolucion: String((document.getElementById('pp-titulo-solucion') || {}).value || '').trim(),
+     observaciones: String((document.querySelector('#ppto-form-view input[placeholder="Condiciones, notas..."]') || {}).value || '').trim(),
+     cliente: cli, empleado: currentUser || '', usuario: currentUser || '', creadoPor: currentUser || currentUserEmail || '',
+@@ -44361,6 +44563,7 @@ async function guardarPresupuesto(modo) {
+   }
+   if (edicionPresupuestoFbKey) {
+     var pptoOriginalEdit = buscarPptoPorRef(edicionPresupuestoFbKey) || {};
++    nuevo.creadoConIA = pptoOriginalEdit.creadoConIA === true || nuevo.creadoConIA;
+     nuevo.fbKey = edicionPresupuestoFbKey;
+     nuevo.id    = edicionPresupuestoId || nuevo.id;
+     nuevo.numero = pptoOriginalEdit.numero || nuevo.id;
+@@ -44439,6 +44642,7 @@ function volverListaPpto() {
+ function abrirNuevoPresupuesto() {
+   toggleImagenComprobante('ppto', false);
+   if (window.svDrafts) window.svDrafts.flush();
++  iaMarcarPresupuesto(false);
+   _pptoConDetalle = true; togglePptoDetalle();
+   // Esta función representa siempre una alta nueva. Los flujos de edición
+   // restauran su identidad luego de inicializar el formulario.
+@@ -52497,6 +52701,8 @@ function getPpItems() {
+   }).filter(function(it){ return (it.desc && it.desc.trim() && it.desc !== 'Seleccioná un producto') || it.punit > 0; });
+ }
+ function stockBadgeHTML(cod, qty) {
++  var producto = Object.values(prodData || {}).find(function(p){return p && String(p.codigo || '') === String(cod || '') && cod;});
++  if (producto && esProductoManoDeObra(producto)) return '<span class="stock-indicator">Servicio · no requiere stock</span>';
+   var s = stockData ? stockData[cod] : null;
+   var disp = s ? Math.max(0, parseFloat(s.real) || 0) : 0;
+   if (disp <= 0) return '<span class="stock-indicator"><i class="ti ti-shopping-cart" style="font-size:10px"></i> A comprar</span>';

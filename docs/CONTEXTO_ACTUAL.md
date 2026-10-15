@@ -2,6 +2,18 @@
 
 Actualizado: 15/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Ampliación del traslado: borradores recuperados, sin despliegue
+
+El punto actual para retomar es la rama **`codex/traslado-nube-seguridad-20261015`**, basada en `b1d94bc91ba288aa410f3aecd016cdb8b3b5797c` de origin/main. Esta entrega comparte trabajo local revisado; no modifica el sitio publicado, Firebase, DNS ni servicios. Main sigue representando v3.11.1.
+
+Leer primero [TRASLADO_NUBE_SEGURIDAD.md](TRASLADO_NUBE_SEGURIDAD.md): inventario, procedencia, configuración privada y verificaciones. Los cuatro JSON candidatos, las cuatro pruebas de integración y el candidato de hosting que faltaban **se incluyen ahora en esta rama**. Se agregan herramientas portables de validación y diagnóstico solo de lectura, un generador intermedio offline y archivo de borradores anteriores saneados bajo `drafts/continuidad/`. El manifest `docs/traslado-nube-manifest.json` permite comprobar los artefactos.
+
+Se identificó además un commit local de respaldo no presente en los remotos (`b2616cf9`); se conservan sus deltas funcionales saneados para comparación, sin traer su versión antigua sobre main. Copias históricas del cotizador y otras funciones ya se encontraron en historia alcanzable desde origin/main, y no se duplican.
+
+**Estado de seguridad de estos borradores:** el emulador demo ejecutó 24 pruebas: 20 aprobadas y 4 fallidas (dos de lecturas por dominio/Distribuidora, una de gastos y una de divergencia de validación de la base). Las candidatas se preservan como estaban; no fueron activadas ni se cambiaron pruebas para ocultar fallos. El informe privado y los respaldos no se suben. Acceso de lectura Google Cloud y reglas RTDB verificado solo en esta PC; el entorno cloud debe configurar su identidad y comprobarlo por separado.
+
+Próximo paso actualizado: recuperar **esta rama**, verificar manifest y suite general, reproducir las cuatro suites en emulador y resolver las diferencias antes de proponer cualquier corte. El SHA final de traslado se informa en el chat y se consulta con `git log -1 --oneline`; no se incrusta el hash de su propio commit en este archivo.
+
 ## Punto de partida y objetivo actual
 
 - Repositorio: `https://github.com/sistemanixa/SisVentas.git`.
@@ -62,24 +74,24 @@ La documentación de `security/README.md` y `security/CONTROL-ACCESO.md` registr
 
 Cabeceras HTTP/hosting: el usuario indicó dominio de Google y abrió un panel de administración. No quedó confirmado aquí el proveedor DNS efectivo ni una migración de hosting. Existe un script local candidato de hosting; no ejecutarlo para retomar. Hace falta verificar DNS, alojamiento, cabeceras HTTP y plan de reversión sin interrumpir el sitio.
 
-## Archivos locales que no viajan en esta entrega
+## Inventario de la entrega anterior y estado actualizado
 
-Inventario inicial del 15/10/2026; los siete archivos de v3.11.1 listados arriba pasan a Git en esta publicación. Permanecen fuera del commit:
+Inventario de la entrega v3.11.1, ampliado después del aviso del entorno cloud. Los archivos del frontend ya están en main; los siguientes borradores de seguridad pasan ahora a la rama de traslado separada:
 
 | Archivo/grupo | Estado y tratamiento |
 | --- | --- |
 | `js/app.v3.10.33.js` | Git lo marca modificado, pero el diff no muestra cambios semánticos (posible normalización de fin de línea). Histórico, no restaurar ni incluir por accidente. |
-| `scripts/deploy-secure-hosting.cjs` | Sin seguimiento. Candidato de despliegue; revisar portabilidad, alcance público y configuración antes de conservarlo. |
+| `scripts/deploy-secure-hosting.cjs` | Incluido en la rama de traslado, sin ruta personal y con modo plan por defecto. No desplegado. |
 | `security/auditoria-2026-10-12.txt` | Informe privado, sin seguimiento. **No subir ni publicar**. La nube no lo tendrá; reconstruir una lista saneada de hallazgos o usar un canal privado autorizado si resulta necesario. |
-| `security/database.audit-final.candidate.json` | Sin seguimiento; propuesta final, no prueba de reglas publicadas. |
-| `security/database.domain-read.candidate.json` | Sin seguimiento; propuesta de lecturas por dominio. |
-| `security/database.employee-account-read.candidate.json` | Sin seguimiento; propuesta de cuentas de empleados. |
-| `security/database.known-role-read.candidate.json` | Sin seguimiento; propuesta de restricción de roles. |
-| `test/audit-final-permissions.integration.cjs`, `test/domain-reads.integration.cjs`, `test/employee-account-reads.integration.cjs`, `test/known-role-read.integration.cjs` | Sin seguimiento; no están incluidas en las 1.487 pruebas vigentes ni en esta entrega. Revisar y transferir de forma saneada en un bloque de seguridad aparte, o regenerarlas desde los generadores versionados. |
+| `security/database.audit-final.candidate.json` | Incluida sin alterar en rama de traslado; propuesta final, no prueba de reglas publicadas. |
+| `security/database.domain-read.candidate.json` | Incluida sin alterar; propuesta de lecturas por dominio. |
+| `security/database.employee-account-read.candidate.json` | Incluida sin alterar; propuesta de cuentas de empleados. |
+| `security/database.known-role-read.candidate.json` | Incluida sin alterar; propuesta intermedia con divergencia de base documentada. |
+| `test/audit-final-permissions.integration.cjs`, `test/domain-reads.integration.cjs`, `test/employee-account-reads.integration.cjs`, `test/known-role-read.integration.cjs` | Incluidas ahora, separadas de la suite general. Emulador: 20/24; ver los cuatro fallos en el documento de traslado. |
 | `.local/` | No tiene archivos seguidos por Git en esta copia. Incluye servidor, espejo, herramientas y material privado/antiguo; no copiar ni subir toda la carpeta. |
 | `tmp/` | Ignorado: respaldos, evidencia y dependencias de pruebas. No es transferible automáticamente. No subir respaldos ni sesiones. |
 
-La publicación solicitada no incluye estas reglas candidatas ni aplica cambios de permisos. La nube debe saber que no cuenta con esos borradores. No borrar los originales en la PC.
+La publicación web v3.11.1 no incluía estos borradores. La rama de traslado sí los conserva, sin aplicarlos ni desplegarlos. No borrar material privado original de la PC para sincronizar.
 
 ## Configuración de otra PC / nube
 
@@ -95,18 +107,18 @@ La publicación solicitada no incluye estas reglas candidatas ni aplica cambios 
 
 ## Pendientes por prioridad y próximo paso
 
-1. En la nube: clonar/fetch, leer AGENTS y este documento, comparar rama/commit y ejecutar la suite vigente antes de editar. Levantar preview aislado y verificar que los activos v3.11.1 provengan del checkout correcto. La PC original deja de editar el mismo bloque durante el traspaso. Publicación de código ya terminada según la evidencia anterior.
+1. En la nube: fetch de `codex/traslado-nube-seguridad-20261015`, leer AGENTS, este documento y TRASLADO_NUBE_SEGURIDAD, comparar rama/commit y manifest y ejecutar la suite vigente antes de editar. Reproducir 20/24 de integración y resolver los cuatro fallos. Levantar preview aislado del checkout; no confundir esta rama de trabajo con un despliegue.
 2. Reanudar auditoría de seguridad: inventariar reglas remotas, revisiones de servicios y pendientes reales; recuperar/regenerar borradores saneados. Completar lecturas por módulo/cuentas de empleados/roles con emulador y verificaciones de regresión. No activar candidatos a ciegas.
 3. Confirmar DNS y cabeceras HTTP; GitHub Pages sí quedó identificado y verificado como hosting actual en esta entrega. Preparar un corte reversible si sigue siendo necesaria la migración. No equiparar la corrección CSS de cabeceras a cabeceras de seguridad HTTP.
 4. Completar comprobaciones visuales dinámicas del planificador/editor y variantes de modales que no se abrieron, con datos de prueba. Revalidar teclado móvil y navegación cuando se modifiquen esas superficies.
 
-**Próximo paso concreto de quien retoma:** comprobar el SHA remoto de entrega y correr `scripts/test-current.ps1`; después elaborar el inventario de permisos remotos frente a `js/core/domain-read-policy.js` y los generadores de `scripts/`, antes de proponer el próximo cambio de seguridad.
+**Próximo paso concreto de quien retoma:** comprobar el SHA remoto de la rama de traslado y el manifest, correr la suite general y `node scripts/test-security-drafts.cjs --emulator`; después contrastar los fallos y permisos remotos frente a `js/core/domain-read-policy.js`. Configurar/verificar acceso cloud por separado. No aplicar reglas ni hosting para probar el traslado.
 
 El commit de documentación se crea después del commit de código citado. Para identificar la entrega completa, usar `git log -1 --oneline origin/main` y el SHA informado en el mensaje de entrega de este chat; no es posible escribir dentro de un commit su propio SHA final.
 
-Mensaje de arranque (completar el SHA de documentación con el informado al entregar):
+Mensaje de arranque actual (completar el SHA final con el informado al entregar):
 
-> Continuá SisVentas desde origin/main en el commit de entrega indicado. Leé AGENTS.md y docs/CONTEXTO_ACTUAL.md antes de editar. La versión publicada es v3.11.1; el código está en 505c0757956400b999989ecfbcaef43c83c4b7f4. Verificá Git, ejecutá la suite vigente (1.491 pruebas al entregar) y levantá un preview aislado del checkout. Después retomá el inventario de permisos remotos y los pendientes de seguridad documentados, sin aplicar candidatos automáticamente ni modificar datos comerciales para probar. Conservá los importes de origen; USD se presenta sin decimales. Informá cualquier archivo o acceso que falte en la nube.
+> Recuperá codex/traslado-nube-seguridad-20261015 desde origin y verificá el commit indicado. Leé AGENTS.md, docs/CONTEXTO_ACTUAL.md y docs/TRASLADO_NUBE_SEGURIDAD.md. Ejecutá node scripts/verify-handoff-manifest.cjs, la suite vigente (1.494 pruebas al entregar) y las cuatro suites demo de integración (20 aprobadas, 4 fallidas documentadas). Verificá el acceso cloud con su propia identidad; las credenciales y el informe privado no viajan en Git. No mezcles en main, apliques reglas ni despliegues hosting/servicios: primero analizá las diferencias. La versión publicada sigue siendo v3.11.1.
 
 ## Protocolo entre equipos
 

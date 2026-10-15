@@ -3,3 +3,13 @@ cotizador/node_modules/
 .DS_Store
 Thumbs.db
 tmp/
+# Material local/privado: no viaja con las entregas entre equipos.
+.local/
+**/node_modules/
+security/auditoria-2026-10-12.txt
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
