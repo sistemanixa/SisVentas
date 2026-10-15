@@ -2,6 +2,19 @@
 
 Actualizado: 15/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Vista privada para revisar cambios antes de publicar (15/10/2026)
+
+El usuario autorizó explícitamente copiar los archivos web a Sites de ChatGPT con acceso privado solo para su cuenta, después de que la revisión automática exigiera confirmar ese destino externo. La copia fue desplegada mediante la operación privada y Sites confirmó **succeeded**. Esta autorización corresponde a la vista de revisión; no autoriza publicar en el sitio oficial, modificar reglas, IAM, servicios o datos comerciales.
+
+- URL privada: `https://sisventas-revision-20261015.loyalpike3.chatgpt.site`.
+- Site: `appgprj_6ad064b72cfc8191b81eeeb91f69ab06`. Versión guardada: `appgprj_6ad064b72cfc8191b81eeeb91f69ab06~appgver_8bcffcf12f8481918fa3e41cdcb9c60a`. Despliegue: `appgdep_6ad0669f35a48191b9bb8fe2741b9d00`.
+- Frontend de origen: commit `dc31c9178feb500a18ce23e67bbb4971f5f86041`, aplicación `js/app.v3.11.1.js`. El índice, la aplicación activa, el CSS y la configuración cliente Firebase se conservaron idénticos. El paquete contiene 562 archivos web, unos 2,8 MB comprimidos, más `preview-source.json` con procedencia. Se excluyeron código servidor, documentación, reglas, credenciales, respaldos, dependencias y versiones históricas `app.v*` distintas de la activa.
+- Fuente separada de Sites: `/workspace/sites/sisventas-revision`, con `dist/` y `.openai/hosting.json`. Commit de esa copia: `268e580304bbc86c8c8c84045f79a251428953ec`. No es un commit ni un despliegue de main de SisVentas. Script de empaquetado local: `/workspace/tools/package-sisventas-private-preview.py`; recibe la credencial de escritura de Sites solo por stdin oculto, sin guardarla en archivos ni argumentos. Los helpers de la skill Sites no estaban disponibles como archivos/recursos en este entorno; se usaron Git y tar para preparar el paquete requerido por las herramientas nativas.
+- La copia **conserva la conexión al Firebase real** y sus permisos; no es una base de datos de prueba. No guardar operaciones comerciales, enviar mensajes ni borrar datos como prueba incidental. No se modificaron dominios de Auth, CORS, DNS ni el hosting oficial para crearla. El login y los recorridos autenticados desde este origen todavía requieren comprobarse en el navegador del titular.
+- Para revisar nuevos cambios, volver a copiar el frontend vigente, verificar sus archivos, sincronizar la fuente separada y desplegar una versión privada en **el mismo Site**. La URL no se actualiza por editar el checkout: requiere esa sincronización. No crear otro Site ni cambiar su audiencia.
+- La apertura automática en el panel devolvió `queued`; eso no prueba que el navegador haya cargado la página. La disponibilidad del despliegue sí quedó confirmada por Sites. Browser QA pendiente: este entorno no expone herramientas de control de navegador y el runtime visual no está disponible. No se afirma haber comprobado todos los formularios o cambios visuales.
+- `http://127.0.0.1:8766/` sigue siendo un servidor loopback del entorno cloud, no una URL compartida universalmente con la PC. La página temporal de comprobación de origen no apareció en el navegador del usuario (se mostró HTML de SisVentas sin estilos), por lo que esa ventana no quedó validada contra este checkout. Usar la URL HTTPS privada para la revisión compartida.
+
 ## Acceso propio a Google Cloud y Firebase verificado (15/10/2026)
 
 Se completó el inicio de sesión oficial de Google Cloud CLI en este entorno cloud, autorizado por el titular mediante el navegador. Esta comprobación sustituye el pendiente de acceso de la recuperación descrita abajo: no se trasladaron perfiles de la PC ni se guardaron credenciales en Git.
