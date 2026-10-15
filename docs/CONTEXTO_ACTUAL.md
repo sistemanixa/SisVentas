@@ -2,6 +2,16 @@
 
 Actualizado: 15/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+
+## Publicación oficial v3.11.7 completada (15/10/2026)
+
+- El usuario autorizó publicar escucha de versión y carga del Dashboard. Se preparó `.local/publicacion-v3117`, rama `codex/publicar-v3117`, desde main `c15e5663d928840f9823ddb3ee9c34b85d62d3e4`; se incorporaron explícitamente **13 archivos de cliente/pruebas**. Código publicado: **`4f7762a4c9bdcace6bc6a1b01509a1f08cbad67b`**. No se integró la rama completa de auditoría ni se publicaron candidatas, scripts de migración o material privado.
+- Alcance: escucha de versión después del acceso, reconexión y carga inicial/Dashboard según dependencias de tarjetas habilitadas; controles de lectura de categorías y Agenda. Se conservan datos compartidos de OT/cuenta y errores de cargas auténticas. Sin recalcular comisiones ni modificar datos comerciales como prueba.
+- Paquete exacto: **1.536 pruebas aprobadas, cero fallos**, más **36 comprobaciones Chromium** (12 escucha, 14 tarjetas, 10 cargas/directorios/recuperación), datos ficticios. Las tres pruebas adicionales de entrega de borradores quedan en la rama de auditoría. La suite vigente usó rutas relativas por el límite Windows de argumentos del checkout largo. Los nuevos scripts de navegador usan el ancestro común `c15e5663` como baseline, disponible desde main. Evidencia privada: `.local/publicacion-v3117/tmp/publicacion-v3117-*.log`.
+- GitHub Pages confirmó **completed/success**, ejecución **`38748993050`**, para el commit publicado. Los seis activos web coinciden por SHA-256 normalizado UTF-8/LF: índice, SW, app v3.11.7, ambos marcadores y data-readiness. Después, `scripts/actualizar-nodo-version.ps1 -Version v3.11.7` comprobó web y lectura posterior: **v3.11.7-firebase**. Única escritura Firebase: `sisventas/config/version`. Sin cambios de reglas, IAM ni servicios.
+- La revisión local previa de Administrativo real cubrió restauración del acceso, Dashboard y Gastos en escritorio/ancho móvil. Siguen pendientes **teléfono físico y sesiones propias de Osmar/Mauro**, suspensión/reconexión y recuperación del borrador del teléfono por el titular. No borrar datos del sitio para actualizar. La auditoría continúa aislada en `codex/traslado-nube-seguridad-20261015`; esta publicación no la cierra. Los estados «solo local» anteriores son antecedentes históricos.
+
+
 ## Entrega del cliente v3.11.5 para publicación (15/10/2026)
 
 - El usuario autorizó publicar los cambios revisados para recuperar el borrador de Relevamientos desde el celular. Código de publicación: **`f412bcf23ab7cde1f491ae3d73fb83e701271fa4`**, preparado en `codex/publicar-v3115` desde `b1d94bc91ba288aa410f3aecd016cdb8b3b5797c`, con avance normal de `origin/main`. El material de origen sigue conservado en `codex/traslado-nube-seguridad-20261015` (`0680ceb54b9dee321743b46e120db7cf4e5d2208` antes de documentar el despliegue).
