@@ -33,15 +33,20 @@ if (!admin.apps.length) {
 }
 
 const db = admin.database();
-const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)}, db});
+// Resolve Auth only when handling an authenticated operation. Importing pure
+// parsers (or their tests) must not instantiate extra SDK services.
+const firebaseAuth = Object.fromEntries(['verifyIdToken','getUser','updateUser','setCustomUserClaims','revokeRefreshTokens'].map(method => [method,(...args)=>admin.auth()[method](...args)]));
+const businessAuth = require('./user-access').createBusinessAuth(firebaseAuth, db);
+const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,db,enabled:process.env.USER_ACCESS_ENABLED==='true',emailConfigured:!!process.env.FIREBASE_WEB_API_KEY,sendResetEmail:require('./password-email').createPasswordEmail({apiKey:process.env.FIREBASE_WEB_API_KEY})});
+const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
 const laborTransaction = require('./labor-transaction').createRootTransaction({databaseURL:DATABASE_URL,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
-const laborOperations = require('./labor-operations').createLaborOperations({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db,transaction:laborTransaction});
-const laborSubmissions = require('./labor-submissions').createLaborSubmissions({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db,transaction:laborTransaction});
-const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db});
-const employeeDirectory = require('./employee-directory').createEmployeeDirectory({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db});
+const laborOperations = require('./labor-operations').createLaborOperations({auth:businessAuth,db,transaction:laborTransaction});
+const laborSubmissions = require('./labor-submissions').createLaborSubmissions({auth:businessAuth,db,transaction:laborTransaction});
+const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:businessAuth,db});
+const employeeDirectory = require('./employee-directory').createEmployeeDirectory({auth:businessAuth,db});
 const personalExpenses = require('./personal-expenses').createPersonalExpenses({authorize:laborSubmissions.authorize,transaction:laborTransaction});
 const supplierDirectory = require('./supplier-directory').createSupplierDirectory({authorize:employeeDirectory.authorize,db});
-const commissionOperations = require('./commission-operations').createCommissionOperations({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db,transaction:laborTransaction});
+const commissionOperations = require('./commission-operations').createCommissionOperations({auth:businessAuth,db,transaction:laborTransaction});
 const catalogRequests = require('./catalog-request').createCatalogRequest({db,periodsAPI:require('./catalog-promotions')});
 const { consultarAutomatico, firmaAcceso, aplicarCondicionComercial } = require('./proveedor-automatico');
 const { esProveedorPublicoComprasParaguay } = require('./compras-paraguay');
@@ -376,7 +381,7 @@ async function autenticarSolicitud(req) {
     throw error;
   }
   try {
-    return await admin.auth().verifyIdToken(token, true);
+    return await businessAuth.verifyIdToken(token, true);
   } catch (causa) {
     console.error('[auth-verificacion]', String(causa.code || 'sin-codigo'));
     const error = new Error('Sesión Firebase inválida o vencida');
@@ -1974,6 +1979,22 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && pathname === '/mercadolibre/oauth/start') {
     try { await iniciarOAuthMercadoLibre(req, res); }
     catch (e) { sendHtml(res, e.statusCode || 500, `<h1>No se pudo iniciar la conexión</h1><p>${String(e.message || e).replace(/[<>&]/g, '')}</p>`); }
+    return;
+  }
+
+  if(req.method==='GET' && pathname==='/usuarios/acceso/estado'){
+    res.setHeader('Cache-Control','no-store');
+    try {send(res,200,{ok:true,...await userAccess.status(req)});}
+    catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo verificar la gestión de acceso'});}
+    return;
+  }
+  if(req.method==='POST' && ['/usuarios/acceso/temporal','/usuarios/acceso/correo','/usuarios/acceso/completar'].includes(pathname)){
+    res.setHeader('Cache-Control','no-store');
+    try {
+      const method={'/usuarios/acceso/temporal':'temporary','/usuarios/acceso/correo':'email','/usuarios/acceso/completar':'complete'}[pathname];
+      const body=await readBody(req,4096);
+      send(res,200,{ok:true,...await userAccess[method](req,body)});
+    } catch(e) {send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo gestionar el acceso. No se repetirá automáticamente'});}
     return;
   }
 

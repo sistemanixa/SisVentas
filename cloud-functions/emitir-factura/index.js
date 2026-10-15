@@ -591,7 +591,12 @@ async function authenticatedUser(req, res) {
   var authorization = String(req.get('Authorization') || '');
   var match = authorization.match(/^Bearer\s+(.+)$/i);
   if (!match) { res.status(401).json({ error:true, mensaje:'Sesión requerida' }); return null; }
-  try { return await admin.auth().verifyIdToken(match[1]); }
+  try {
+    var token=await admin.auth().verifyIdToken(match[1],true);
+    var access=(await db.ref('sv_access_resets/'+token.uid).once('value')).val();
+    if(token.svPasswordChangeRequired===true || (access && (access.required || access.version!==token.svAccessVersion)))throw Error('password-change-required');
+    return token;
+  }
   catch (_) { res.status(401).json({ error:true, mensaje:'La sesión venció; volvé a iniciar sesión' }); return null; }
 }
 

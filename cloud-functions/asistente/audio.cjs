@@ -3,6 +3,7 @@ async function transcribe(req, body) {
   const token=String(req.headers.authorization||'').replace(/^Bearer /,'');
   if(!token) throw Error('Iniciá sesión nuevamente.');
   const user=await admin.auth().verifyIdToken(token,true);
+  await require('./service-auth.cjs').assertAccessReady(admin,user);
   const role=(await admin.database().ref('sv_chat_roles/'+user.uid).get()).val();
   if(!role||!role.activo||!['admin','administrativo'].includes(role.rol))throw Error('Sin permiso para dictar presupuestos.');
   if(typeof body.audio!=='string'||body.audio.length>4500000||!/^UklGR/.test(body.audio))throw Error('Audio inválido o demasiado largo.');

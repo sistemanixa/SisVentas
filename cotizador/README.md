@@ -19,6 +19,7 @@ Servicio Cloud Run separado para cotizar proveedores por su URL exacta.
 - `FIREBASE_DATABASE_URL`: `https://nixa-sisventas-default-rtdb.firebaseio.com`
 - `ALLOW_ORIGIN`: `https://ventas.sistemanixa.com`
 - `REQUIRE_FIREBASE_AUTH`: `true` en producción; exige un ID token Firebase válido además de `FRONTEND_KEY`
+- Gestión de acceso de Usuarios, **preparada en local, sin activar**: `USER_ACCESS_ENABLED` apagada por defecto y `FIREBASE_WEB_API_KEY` para solicitar la plantilla de recuperación Firebase. No habilitar solo la bandera: exige revisar/desplegar verificadores y guard de reglas antes del cliente. Configuración, IAM, endpoints y pruebas demo en [GESTION_ACCESO_USUARIOS.md](../docs/GESTION_ACCESO_USUARIOS.md).
 - `ML_CLIENT_ID`: Client ID de la aplicación de Mercado Libre.
 - `ML_CLIENT_SECRET`: secreto de la aplicación (configurarlo en Cloud, nunca en Git).
 - `ML_REDIRECT_URI`: callback registrado en Mercado Libre.

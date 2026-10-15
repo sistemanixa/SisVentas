@@ -1,7 +1,9 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.11.7';
+const CACHE = 'sisventas-v3.11.9';
 const SHELL = [
+ './css/user-access.css?v=3.11.9',
+ './js/core/user-access.js?v=3.11.9',
  './js/core/distribuidora-money.js?v=3.11.1',
  './css/surface-scroll.css?v=3.11.1-gap4',
  './js/modules/roles-help.js?v=3.10.35',
@@ -31,7 +33,7 @@ const SHELL = [
   './js/modules/commercial-approval.js?v=3.9.29',
   './js/core/guarded-writes.js?v=3.9.24-server-check2',
   './js/core/session-assets.js?v=3.11.1-usd',
-  './js/app.v3.11.7.js',
+  './js/app.v3.11.9.js',
   './js/modules/navigation-back.js?v=perf-3105',
   './js/modules/product-url-import.js?v=3.9.15-dual-shipping',
   './js/modules/keyboard-actions.js',
@@ -39,18 +41,18 @@ const SHELL = [
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js',
   './js/core/version.js',
-  './js/core/version.v3.11.7.js',
+  './js/core/version.v3.11.9.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.10.32',
-  './js/core/firebase.js?v=3.10.0',
+  './js/core/firebase.js?v=3.11.9-access',
   './js/modules/item-row-order.js?v=perf-3105',
   './js/core/data-query.js',
   './js/modules/notifications.js',
   './js/modules/push-notifications.js',
   './js/modules/offline-core.js',
   './js/modules/commercial-drafts.js?v=3.10.32-recovery',
-  './js/modules/chat-access.js?v=3.10.0',
+  './js/modules/chat-access.js?v=3.11.9-access',
   './js/modules/chat-presence.js?v=3.9.14',
   './js/modules/security-storage.js?v=3.9.26',
   './js/modules/catalog-cart-review.js',
