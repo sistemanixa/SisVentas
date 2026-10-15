@@ -1,6 +1,7 @@
 (function(global){
   'use strict';
-  var states={},generation=0,scheduled=false;
+  var states={},generation=0,scheduled=false,deadlineTimer=null,sessionActive=false;
+  var waitLimit=15000;
   var dependencies={
     dashboard:['clientes','productos','ventas','pagos'],
     productos:['productos'],catalogo:['productos'],actualizadorprecios:['productos','proveedores'],
@@ -11,28 +12,72 @@
     balancecompra:['ventas','presupuestos','productos','proveedores'],ordenes:['productos','proveedores'],
     proveedores:['proveedores'],empleados:['empleados'],usuarios:['usuarios']
   };
-  var labels={ordenes_trabajo:'órdenes de trabajo',pagos:'cobros'};
+  var labels={ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores'};
+  function requirements(page){
+    var keys=(dependencies[page]||[]).slice();
+    // Los widgets del dashboard ya se filtran por permisos. No esperar una
+    // colección que el arranque, correctamente, no suscribe para este rol.
+    if(page==='dashboard' && typeof global.svPuedeLeerDominio==='function')keys=keys.filter(function(key){return global.svPuedeLeerDominio(key);});
+    return keys;
+  }
+  function ensure(key){
+    if(!states[key])states[key]={ready:false,sources:new Set(),since:Date.now(),timeout:false,failure:false};
+    return states[key];
+  }
+  function failed(state){return !!state&&(state.timeout||state.failure||Array.from(state.sources).some(function(source){return source.error;}));}
   function collection(reference){
     try{var path=new URL(String(reference)).pathname;if(/^\/sv_usuarios\/?$/.test(path))return 'usuarios';var match=path.match(/^\/sisventas\/([^/]+)\/?$/);return match?decodeURIComponent(match[1]):'';}catch(_){return '';}
   }
   function status(keys){
     var missing=keys.filter(function(k){return !states[k]||!states[k].ready;});
-    var errors=keys.filter(function(k){return states[k]&&states[k].error;});
+    var errors=keys.filter(function(k){return failed(states[k]);});
     return {ready:!missing.length,missing:missing,errors:errors};
   }
+  function statusFor(page){return status(requirements(page));}
   function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(function(){scheduled=false;render();});}
   function begin(reference){
-    var key=collection(reference),epoch=generation,active=true;
+    return beginSource(collection(reference));
+  }
+  function beginSource(key){
+    var epoch=generation,active=true;
     if(!key)return {ready:function(){},error:function(){},cancel:function(){}};
-    if(!states[key])states[key]={ready:false,error:false};
-    states[key].error=false;schedule();
-    function finish(error){if(!active||epoch!==generation)return;states[key].error=error;if(!error)states[key].ready=true;schedule();}
-    return {ready:function(){finish(false);},error:function(){finish(true);},cancel:function(){active=false;}};
+    var state=ensure(key),source={ready:false,error:false};
+    state.sources.add(source);state.timeout=false;state.failure=false;state.since=Date.now();schedule();
+    function finish(error){
+      if(!active||epoch!==generation)return;
+      source.error=error;
+      if(!error){source.ready=true;state.timeout=false;}
+      // Consultas propias combinadas: una respuesta no completa la colección
+      // hasta que todas las fuentes registradas entregaron su primer resultado.
+      if(Array.from(state.sources).every(function(item){return item.ready;})){state.ready=true;state.failure=false;}
+      schedule();
+    }
+    return {ready:function(){finish(false);},error:function(){finish(true);},cancel:function(){if(!active||epoch!==generation)return;active=false;if(source.error)state.failure=true;state.sources.delete(source);schedule();}};
+  }
+  function checkDeadlines(){
+    deadlineTimer=null;
+    var now=Date.now(),next=Infinity,changed=false;
+    Object.keys(states).forEach(function(key){
+      var state=states[key];
+      if(state.ready||failed(state))return;
+      var remaining=waitLimit-(now-state.since);
+      if(remaining<=0){state.timeout=true;changed=true;}
+      else next=Math.min(next,remaining);
+    });
+    if(next!==Infinity)deadlineTimer=global.setTimeout(function(){checkDeadlines();schedule();},next);
+    return changed;
+  }
+  function armDeadlines(){
+    if(typeof global.setTimeout!=='function')return;
+    if(deadlineTimer!==null)global.clearTimeout(deadlineTimer);
+    if(checkDeadlines())schedule();
   }
   function render(){
     Object.keys(dependencies).forEach(function(name){
       var page=document.getElementById('page-'+name);if(!page)return;
-      var state=status(dependencies[name]),box=page.querySelector('[data-sv-data-status]');
+      var keys=requirements(name);
+      if(sessionActive&&page.classList.contains('active'))keys.forEach(ensure);
+      var state=status(keys),box=page.querySelector('[data-sv-data-status]');
       var show=!state.ready||state.errors.length>0;
       page.classList.toggle('sv-data-pending',!state.ready);
       page.setAttribute('aria-busy',String(!state.ready&&!state.errors.length));
@@ -42,19 +87,21 @@
       box.replaceChildren();
       var title=document.createElement('strong'),detail=document.createElement('span');
       title.textContent=state.errors.length?'No se pudieron cargar todos los datos':global.navigator.onLine===false?'Sin conexión. Esperando los datos…':'Cargando datos…';
-      detail.textContent=state.errors.length?(state.ready?'Se conserva la información recibida. Revisá la conexión y volvé a intentar.':'No se puede determinar todavía si hay registros. Revisá la conexión y volvé a intentar.'):'Esperando '+state.missing.map(function(k){return labels[k]||k;}).join(', ')+'. La información aparecerá al completar la carga.';
+      detail.textContent=state.errors.length?'No se pudieron completar '+state.errors.map(function(k){return labels[k]||k;}).join(', ')+'. '+(state.ready?'Se conserva la información recibida. Revisá la conexión y volvé a intentar.':'No se puede determinar todavía si hay registros. Revisá la conexión y volvé a intentar.'):'Esperando '+state.missing.map(function(k){return labels[k]||k;}).join(', ')+'. La información aparecerá al completar la carga.';
       box.append(title,detail);
       var retry=document.createElement('button');retry.className='btn btn-sm';retry.textContent='Reintentar carga';retry.onclick=function(){global.location.reload();};box.append(retry);
     });
+    armDeadlines();
     document.dispatchEvent(new CustomEvent('sisventas:data-state-changed'));
   }
-  function reset(){generation++;states={};schedule();}
+  function reset(){generation++;states={};sessionActive=false;if(deadlineTimer!==null&&typeof global.clearTimeout==='function')global.clearTimeout(deadlineTimer);deadlineTimer=null;schedule();}
   document.addEventListener('sisventas:session-ended',reset);
-  document.addEventListener('sisventas:session-ready',schedule);
+  document.addEventListener('sisventas:session-ready',function(){sessionActive=true;schedule();});
   document.addEventListener('sisventas:page-changed',schedule);
+  document.addEventListener('visibilitychange',schedule);
   document.addEventListener('DOMContentLoaded',function(){
     var style=document.createElement('style');style.textContent='.sv-data-pending{position:relative;min-height:260px}.sv-data-pending>:not([data-sv-data-status]){visibility:hidden;pointer-events:none}.sv-data-status{display:flex;flex-direction:column;gap:10px;padding:24px;margin-bottom:16px;border:1px solid var(--border2);border-radius:14px;background:var(--bg2);color:var(--text);line-height:1.6}.sv-data-status span{font-size:13px;color:var(--text3)}.sv-data-status button{align-self:flex-start}.sv-data-pending>.sv-data-status{position:absolute;inset:0 0 auto;z-index:2}.sv-data-status strong::before{content:"";display:inline-block;width:14px;height:14px;margin-right:10px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin 1s linear infinite}.sv-data-error strong::before{display:none}';document.head.append(style);schedule();
   });
   global.addEventListener('online',schedule);global.addEventListener('offline',schedule);
-  global.SVDataReadiness={begin:begin,status:status,reset:reset,render:schedule};
+  global.SVDataReadiness={begin:begin,beginSource:beginSource,status:status,statusFor:statusFor,reset:reset,render:schedule};
 })(window);
