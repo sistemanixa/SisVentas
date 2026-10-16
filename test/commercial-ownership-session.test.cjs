@@ -7,3 +7,17 @@ test('logout invalida peticiones antes y después de recibir los datos',async()=
 test('error del servidor nunca usa un historial global como fallback',async()=>{let failure=0,delivered=0;const {c}=setup(async()=>({ok:false,status:503,json:async()=>({mensaje:'Cerrado'})}));c.SVCommercialOwnership.onValue('ventas',()=>delivered++,()=>failure++);await new Promise(r=>setImmediate(r));assert.equal(failure,1);assert.equal(delivered,0);});
 test('revocación cierra el detalle y vacía la colección ya mostrada',async()=>{const elements={'venta-detalle-view':{style:{display:'block'}},'ventas-list-view':{style:{display:'none'}}};const {c}=setup(async()=>({ok:false,status:403,json:async()=>({mensaje:'Bloqueado'})}));c.document.getElementById=id=>elements[id];c._ventaDetalleActual={fbKey:'private'};let cleared=false;c.SVCommercialOwnership.onValue('ventas',snap=>{cleared=Object.keys(snap.val()).length===0;});await new Promise(r=>setImmediate(r));assert.equal(cleared,true);assert.equal(c._ventaDetalleActual,null);assert.equal(elements['venta-detalle-view'].style.display,'none');});
 test('fechaOrden derivada solo para ordenar no se introduce en la base de una edición histórica',()=>{const {c}=setup(async()=>({}));const clean=c.SVCommercialOwnership.clean({fecha:'2020-01-01',fechaOrden:'2020-01-01',_svDerivedFechaOrden:true,total:100});assert.equal(clean.fechaOrden,undefined);assert.equal(clean.fecha,'2020-01-01');assert.equal(clean.total,100);});
+function readiness(c){c.URL=URL;c.addEventListener=()=>{};c.requestAnimationFrame=()=>{};vm.runInNewContext(fs.readFileSync('js/core/data-readiness.js','utf8'),c);return c.SVDataReadiness;}
+test('Ventas completa la carga de pantalla solo después de procesar su respuesta HTTP',async()=>{
+ let finish;const {c}=setup(async()=>({ok:true,json:async()=>({ok:true,records:{demo:{total:100}}})})),load=readiness(c);
+ c.SVCommercialOwnership.onValue('ventas',()=>new Promise(resolve=>finish=resolve));await new Promise(r=>setImmediate(r));assert.equal(load.status(['ventas']).ready,false);
+ finish();await new Promise(r=>setImmediate(r));assert.equal(load.status(['ventas']).ready,true);assert.equal(load.status(['ventas']).errors.length,0);
+});
+test('Presupuestos vacío confirmado también libera la carga; un error no la simula completada',async()=>{
+ for(const ok of [true,false]){const {c}=setup(async()=>({ok,status:503,json:async()=>ok?({ok:true,records:{}}):({mensaje:'Interrupción ficticia'})})),load=readiness(c);
+ c.SVCommercialOwnership.onValue('presupuestos',()=>{});await new Promise(r=>setImmediate(r));assert.equal(load.status(['presupuestos']).ready,ok);assert.equal(load.status(['presupuestos']).errors.length,ok?0:1);}
+});
+test('cancelar la suscripción comercial descarta su respuesta y su fuente de carga',async()=>{
+ let resolve;const {c}=setup(()=>new Promise(r=>resolve=r)),load=readiness(c);let delivered=0;
+ const stop=c.SVCommercialOwnership.onValue('ventas',()=>delivered++);await new Promise(r=>setImmediate(r));stop();resolve({ok:true,json:async()=>({ok:true,records:{demo:{total:100}}})});await new Promise(r=>setImmediate(r));assert.equal(delivered,0);assert.equal(load.status(['ventas']).ready,false);
+});
