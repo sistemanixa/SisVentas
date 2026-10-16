@@ -135,7 +135,7 @@
     if(typeof root.fbOnValue!=='function'){fail();return;}
     host.querySelector('[data-results]').textContent='Cargando listas…';
     stops.push(root.fbOnValue(root.fbRef(root.fbDB,'sisventas/productos'),snap=>{if(!valid())return;products=snap.val()||{};readyProducts=true;schedule();},fail));
-    stops.push(root.fbOnValue(root.fbRef(root.fbDB,'sv_usuarios'),snap=>{
+    stops.push(root.SVUserDirectory.onValue(snap=>{
       if(!valid())return;
       readyUsers=true;const users=new Map();Object.values(snap.val()||{}).forEach(user=>{if(user?.uid)users.set(user.uid,user);});
       groups.forEach((group,key)=>{if(!users.has(key)){group.off?.();groups.delete(key);}});

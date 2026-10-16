@@ -780,7 +780,7 @@
     showView(!!options.listKey);
     if(role==='admin'){
       const allListsLabel=document.createElement('label');allListsLabel.style.cssText='display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12px;cursor:pointer';allListsLabel.innerHTML='<input type="checkbox" data-all-lists> Ver todas';panel.querySelector('.py-list-fields').before(allListsLabel);const allListsToggle=allListsLabel.querySelector('input');allListsToggle.checked=!!options.viewAllLists;allListsToggle.onchange=()=>{if(!allListsToggle.checked&&uid!==actor){if(panel.querySelector('[data-save]').classList.contains('py-save-pending')&&!root.confirm('Hay cambios sin guardar. ¿Volver a tus listas y descartarlos?')){allListsToggle.checked=true;return;}open(nombre,{...options,ownerUid:actor,ownerName:nombre,listKey:'',showLists:true,viewAllLists:false});return;}renderLists();};
-      root.fbGet(root.fbRef(root.fbDB,'sv_usuarios')).then(async snap=>{
+      root.SVUserDirectory.read().then(async snap=>{
         const owners=new Map();Object.values(snap.val()||{}).forEach(user=>{if(user.uid&&user.uid!==uid)owners.set(user.uid,user);});if(uid!==actor)owners.set(actor,{nombre:nombre||root.currentUser});
         const groups=await Promise.all([...owners].map(async([owner,user])=>{const snapshot=await root.fbGet(root.fbRef(root.fbDB,'sv_listas_paraguay/'+owner));return Object.entries(snapshot.val()||{}).map(([key,list])=>({value:'owner:'+owner+':'+key,uid:owner,key,name:user.nombre||user.usuario||'Usuario',label:list.nombre+' ('+(user.nombre||user.usuario||'Usuario')+')'}));}));
         if(!valid()||!panel)return;adminListOptions=groups.flat().sort((a,b)=>a.label.localeCompare(b.label,'es'));renderLists();

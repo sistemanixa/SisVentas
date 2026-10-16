@@ -96,7 +96,7 @@
     changes[window.svRutaUsuarios()+'/'+key+'/activo']=activo;
     changes['sv_chat_roles/'+uid+'/activo']=activo;
     changes['sv_chat_directorio/'+uid+'/activo']=activo;
-    return window.fbUpdate(window.fbRef(window.fbDB),changes);
+    return window.fbUpdate(window.fbRef(window.fbDB),changes).then(function(result){window.SVUserDirectory?.refresh();return result;});
   };
   window.guardarUsuarioConAccesoChat=function(datos,key){
     var ref=window.fbRef(window.fbDB,window.svRutaUsuarios());
@@ -113,7 +113,7 @@
     changes[window.svRutaUsuarios()+'/'+key+'/uid']=uid;
     changes['sv_chat_roles/'+uid]={rol:datos.rol,activo:datos.activo!==false};
     changes['sv_chat_directorio/'+uid]={nombre:datos.nombre,usuarioKey:key,activo:datos.activo!==false};
-    return window.fbUpdate(window.fbRef(window.fbDB),changes);
+    return window.fbUpdate(window.fbRef(window.fbDB),changes).then(function(result){window.SVUserDirectory?.refresh();return result;});
   };
   // Inicio por session-ready/chat-ready y apertura del chat; el directorio
   // actualiza la identidad sin sondear la sesión cada segundo.
