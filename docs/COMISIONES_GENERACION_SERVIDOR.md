@@ -1,4 +1,15 @@
-# Generación automática de comisiones · candidata v3.11.13
+# Generación automática de comisiones · servidor publicado
+
+**Estado vigente (16/10/2026):** activada en `cotizador-00109-dac`, 100% y sus
+14 etiquetas, mínimo de servicio 1 y CPU permanente. Corte nuevo
+`2026-10-16T14:52:27.715Z`; configuración anterior preservada. Reglas reales
+`15cd87a1dfda0ef0cf4ab6bdef5000893506595e08d1c8b4416adad9c45ab6a1`.
+Salud periódica confirmó conexión/suscripción fuera de solicitudes, sin generación
+histórica. Huellas de 224 gastos, 122 movimientos y 47 controles conservadas,
+incluida la comisión que el titular resolvió manualmente y confirmó aprobada.
+Cliente v3.11.16 publicado después de corregir las regresiones de carga detectadas
+con la sesión real. Los párrafos de preparación siguientes son antecedentes;
+estado, evidencia, fallas detectadas y límites en CONTEXTO_ACTUAL.
 
 Preparada en `codex/comerciales-por-responsable-v31113`, desde
 `8f1a53a1ab8bb72bd7d1a044c356419b02a246ba`. No publicada ni habilitada.

@@ -1,5 +1,16 @@
 # Ventas y presupuestos por responsable · v3.11.13
 
+**Estado vigente (16/10/2026):** integrado en main y publicado con servidor
+`cotizador-00109-dac`, bandera de propiedad activa y reglas efectivas
+`15cd87a1dfda0ef0cf4ab6bdef5000893506595e08d1c8b4416adad9c45ab6a1`.
+Cliente actual v3.11.16 tras corregir carga y conciliación dependiente. Se conserva
+la autoría original y se filtra el acceso desde servidor; no se reescribieron
+operaciones históricas. La generación automática de comisiones ya fue migrada y
+activada conservando las existentes; ver COMISIONES_GENERACION_SERVIDOR.md.
+La comisión del incidente anterior fue resuelta manualmente por el titular y
+quedó excluida de recuperación. Los estados de preparación siguientes son
+antecedentes; evidencia real, regresiones encontradas y límites en CONTEXTO_ACTUAL.
+
 Preparado en `codex/comerciales-por-responsable-v31113`, sobre Gastos personales
 `be07387ed30beb7ca3533ec6c6c6b040f143d313`. Sin merge a main ni despliegues. La copia
 original y su histórico local permanecen intactos.
