@@ -1,6 +1,6 @@
 # Proyectos: primera versión local (v3.11.10)
 
-Estado al 16/10/2026: implementación en `codex/proyectos-v31110`, preparada desde main `2a0d01e747204e42c278fc2ddf0f4ae3f1aad893`. **Sin publicar ni desplegar**. El usuario pidió revisar la interfaz local antes de publicar. Producción continúa en v3.11.9.
+Estado al 16/10/2026: diseño revisado y publicación autorizada por el usuario. Implementación en `codex/proyectos-v31110`, preparada desde main `2a0d01e747204e42c278fc2ddf0f4ae3f1aad893`. Servidor `cotizador-00102-red` activo; cliente v3.11.10 en publicación. Estado exacto y constancia de cierre en [PUBLICACION_PROYECTOS_V31110.md](PUBLICACION_PROYECTOS_V31110.md).
 
 ## Flujo
 
@@ -30,7 +30,7 @@ Rutas autenticadas: `GET /proyectos`, `GET /proyectos/opciones?proyecto=ID`, `PO
 
 **`PROJECTS_ENABLED=true`** habilita el servicio; por defecto está apagado. No es una credencial. Se reutilizan las credenciales/IAM del servicio existente y su acceso a RTDB; no se agregan secretos. El cliente real muestra el error si falta el servicio: nunca cae silenciosamente a datos locales de ejemplo. «Ver como» no se admite como comprobación de permisos reales de Proyectos.
 
-Antes de un despliegue futuro autorizado: revisar reglas remotas exactas (candidata local no demuestra producción), comprobar rechazo directo de la raíz nueva, evaluar el alcance heredado de Presupuestos, preparar revisión del servidor y bandera, validar con sesiones reales y recién publicar cliente/marcador según AGENTS. Este bloque **no ejecuta** esos pasos externos.
+Publicación autorizada: se comprobaron reglas remotas exactas y rechazo directo, se evaluó el alcance heredado de Presupuestos y se activó el servidor con la bandera. No fue necesario cambiar reglas ni IAM. Para otro despliegue volver a revisar el estado remoto y seguir la secuencia de cliente/marcador de AGENTS.
 
 ## Vista previa y pruebas locales
 
@@ -66,8 +66,8 @@ Evidencia inicial: 1.577 pruebas generales, 94 del servidor, 6 de RTDB emulado; 
 
 ## Límites y próximos pasos
 
-- Vista local mostrada con fixtures; no acredita sincronización de usuarios reales en producción ni pruebas de teléfono físico.
+- Vista local inicial mostrada con fixtures. Comprobación real de solo lectura con administrador (listado y formulario), sin crear proyectos; no acredita operaciones de todos los usuarios ni teléfono físico.
 - Servicio probado como fábrica contra RTDB emulado; puente comercial probado con API/DOM ficticios, no guardando presupuestos reales.
 - Actualización manual al abrir/refrescar y conflicto de revisión; todavía sin escucha en vivo, adjuntos, tareas asignadas, notificaciones o conversión automática a venta/OT.
 - Lectura de proyectos y catálogo de presupuestos completa en servidor antes de filtrar/proyectar. Agregar índices de membresía/paginación antes de escalar, manteniendo la autorización del servidor.
-- Revisar el diseño con el usuario, ajustar lo necesario y solicitar publicación solo cuando la primera versión esté aceptada. La auditoría general sigue en su rama aislada.
+- El usuario aceptó el diseño y autorizó publicar. Completar y registrar la verificación del cliente; luego acompañar el primer uso real del titular sin crear registros incidentales. La auditoría general sigue en su rama aislada.
