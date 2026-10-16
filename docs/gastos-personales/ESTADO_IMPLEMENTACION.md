@@ -1,12 +1,23 @@
 # Gastos personales · implementación v3.11.12
 
+## Habilitación real · 16/10/2026
+
+Código incluido en v3.11.16; habilitado por configuración en Cotizador, revisión
+cotizador-00098-pnx, misma imagen y configuración empresarial anterior. UID del
+titular verificado por ficha protegida y Auth; no publicarlo aquí. Depósito dedicado
+nixa-sisventas-personal-finance, privado y vacío. Sin importar la demo.
+Ver CONTEXTO_ACTUAL para evidencia, límites y estado de la comprobación de interfaz.
+La implementación local histórica que sigue no describe el estado externo actual.
+
+## Antecedente de implementación
+
 Estado: implementación local en `codex/gastos-personales-v31112`, desde main
 `4442fd7336834914c5814e908bf18a887353ab95`. Referencia aprobada consultada con
 `git show`: `e3876728e2f06a0521f5f365e3fe71ad7601e89b`, rama
 `origin/codex/referencia-gastos-personales`. No se cambió la rama original ni su
 archivo histórico local. Los tres documentos de referencia se conservaron aquí.
 
-**No está publicado ni habilitado sobre datos reales.** No se creó un bucket,
+**Estado histórico, sustituido por la habilitación anterior:** no estaba publicado ni habilitado sobre datos reales. No se creó un bucket,
 no se configuró un UID real, no se cambiaron reglas, contraseñas ni DNS y no se
 importaron cifras de la demo. La producción y la transición HTTPS anteriores
 conservan el estado documentado antes de este bloque.

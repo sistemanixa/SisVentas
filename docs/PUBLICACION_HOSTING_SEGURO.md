@@ -1,6 +1,6 @@
 # Publicación con cabeceras de seguridad
 
-Estado al preparar este documento: **DNS sigue en GitHub Pages**. No ejecutar una migración como efecto de sincronizar Git o verificar un traslado. Consultar CONTEXTO_ACTUAL y obtener el alcance autorizado.
+Estado vigente al 16/10/2026: **ventas.sistemanixa.com usa Firebase Hosting**, con A 199.36.158.100 y certificado activo; transición autorizada y verificada. GitHub conserva el código, pero un push de Pages no publica en este destino. Consultar CONTEXTO_ACTUAL antes de cada publicación. No modificar DNS como efecto de sincronizar Git.
 
 ## Cuando se active Firebase Hosting como destino de ventas
 
