@@ -2,9 +2,9 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),{execFileSync}=require('node:child_process');
 const {chromium}=require(process.env.SV_PLAYWRIGHT_MODULE||'playwright');
 const current=fs.readFileSync('js/core/data-readiness.js','utf8');
-const old=execFileSync('git',['show','f5ec87774422cd8b232a5c41badeebd057630896:js/core/data-readiness.js'],{encoding:'utf8'});
+const old=execFileSync('git',['show','b1d94bc91ba288aa410f3aecd016cdb8b3b5797c:js/core/data-readiness.js'],{encoding:'utf8'});
 const app=require('../helpers/active-app').readActiveApp().source;
-const previous=execFileSync('git',['show','f5ec87774422cd8b232a5c41badeebd057630896:js/app.v3.11.1.js'],{encoding:'utf8',maxBuffer:16*1024*1024});
+const previous=execFileSync('git',['show','b1d94bc91ba288aa410f3aecd016cdb8b3b5797c:js/app.v3.11.1.js'],{encoding:'utf8',maxBuffer:16*1024*1024});
 function extract(source,name){const start=source.indexOf('function '+name+'(');return source.slice(start,source.indexOf('\n}',start)+2);}
 async function fixture(browser,viewport,source,pageName){
  const page=await browser.newPage({viewport});

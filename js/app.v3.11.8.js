@@ -3892,7 +3892,6 @@ function fbCargarEmpleados() {
       if (paginaVacacionesVacia && paginaVacacionesVacia.classList.contains('active')) {
         renderTablaVacaciones(window._vacPeriodos || []);
       }
-      svActualizarCuentaTrasDatos();
       return;
     }
 
@@ -3977,7 +3976,6 @@ function fbCargarEmpleados() {
     if (paginaVacaciones && paginaVacaciones.classList.contains('active')) {
       renderTablaVacaciones(window._vacPeriodos || []);
     }
-    svActualizarCuentaTrasDatos();
   }, function(error) {
     window._empleadosDatosListos = true;
     window._empleadosCargaError = 'No se pudieron cargar los empleados';
@@ -3987,7 +3985,6 @@ function fbCargarEmpleados() {
     if (paginaVacacionesError && paginaVacacionesError.classList.contains('active')) {
       renderTablaVacaciones(window._vacPeriodos || []);
     }
-    svActualizarCuentaTrasDatos();
   });
 }
 // HABERES DEL MES — Registro como gastos
@@ -4573,17 +4570,6 @@ function svEmpleadoPropio() {
   var claves = Array.from(new Set(perfiles.map(function(u){return String(u.empleadoFbKey || '');}).filter(Boolean)));
   if (claves.length !== 1) return null;
   return Object.values(empData || {}).find(function(e){return String(e.fbKey || '') === claves[0];}) || null;
-}
-
-function svActualizarCuentaTrasDatos() {
-  if(!isAuthenticated || !currentUserUid)return;
-  // Estos directorios llegan en cualquier orden. Resolver siempre por UID.
-  var propio=svEmpleadoPropio();
-  if(propio && !svPuedeLeerDominio('gastos') && !_gastosUnsubscribe)fbCargarGastos();
-  if(propio && !svPuedeLeerDominio('vacaciones'))fbCargarVacaciones();
-  var page=document.querySelector('.page.active');
-  if(page?.id==='page-ctaemp' && permisoModulo('ctaemp') && !window.tienePermiso('empleados.verCuentas'))iniciarCtaEmp();
-  if(page?.id==='page-dashboard' && window.tienePermiso('dashboard.miCuenta'))renderDashMiCuenta();
 }
 
 function _hsexEmpleadoActual() {
@@ -5405,12 +5391,8 @@ function fbCargarCategorias() {
 }
 function fbCargarUsuarios() {
   if (!window.fbDB) return;
-  var uidCargaUsuarios=currentUserUid;
   window.fbOnValue(window.fbRef(window.fbDB, window.svRutaUsuarios()), function(snap) {
-    if(uidCargaUsuarios!==currentUserUid)return;
     var data = snap.val();
-    window._usuariosDatosListos=true;
-    if(!data)window.usuariosData=[];
     if (data) {
       window.usuariosData = Object.entries(data).map(function(e){
         return Object.assign({ fbKey: e[0] }, e[1]);
@@ -5428,7 +5410,6 @@ function fbCargarUsuarios() {
       renderTablaUsuarios();
       if (typeof renderHistorialComunicados === 'function') renderHistorialComunicados();
     }
-    svActualizarCuentaTrasDatos();
   });
 }
 
@@ -9813,7 +9794,6 @@ function _bloquearInterfazSinSesion(opciones) {
   window._fbCargaTodoActiva = false;
   window._empleadosDatosListos = false;
   window._empleadosCargaError = '';
-  window._usuariosDatosListos = false;
   svReiniciarCargaInicial();
   window._svModuleListeners = {};
   window._cajaListenerFirma = '';
@@ -10517,7 +10497,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Correo automático de solicitudes y navegación interna de Distribuidora.']),
   RELEASE_FEATURE: Object.freeze({page:'balancecompra',actionLabel:'Ver Compras de exterior'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.11.8',date:'15/10/2026',title:'Cuenta propia después de recargar',notes:Object.freeze(['La cuenta se actualiza al terminar de cargar el vínculo y el directorio de empleados.','El ingreso directo no queda sin perfil por el orden de las respuestas.']),feature:Object.freeze({page:'ctaemp',actionLabel:'Ver mi cuenta'})}),
+ Object.freeze({version:'v3.11.8',date:'15/10/2026',title:'Regreso al portal solo desde Ofertas',notes:Object.freeze(['El catálogo público muestra Volver a Ofertas únicamente cuando se abrió desde el portal; copiar la dirección del catálogo o de una ficha no conserva ese enlace.']),feature:Object.freeze({page:'distribuidora',actionLabel:'Ver Ofertas'})}),
  Object.freeze({version:'v3.11.7',date:'15/10/2026',title:'Carga del inicio según las tarjetas habilitadas',notes:Object.freeze(['El inicio espera solo los datos que necesitan sus tarjetas visibles.','Las consultas compartidas respetan los permisos sin mostrar esperas de módulos ajenos.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ver inicio'})}),
  Object.freeze({version:'v3.11.6',date:'15/10/2026',title:'Aviso de actualización después de iniciar sesión',notes:Object.freeze(['La escucha de versiones espera a que el acceso esté confirmado.','Una interrupción permite reconectar sin perder el respaldo web ni conservar la escucha de otra sesión.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ver inicio'})}),
  Object.freeze({version:'v3.11.5',date:'15/10/2026',title:'Guardado de relevamientos',notes:Object.freeze(['Los ítems de relevamientos se guardan con claves compatibles con Firebase y conservan sus valores, notas y fotos.','Los borradores existentes se pueden recuperar sin cambiar sus identificadores.']),feature:Object.freeze({page:'relevamientos',actionLabel:'Ver relevamientos'})}),
@@ -30974,8 +30954,7 @@ function iniciarCtaEmp() {
       cargarCtaEmp(sel.value);
     } else {
       limpiarCtaEmpSinSeleccion();
-      var estadoPerfil=window._empleadosCargaError?'No se pudo cargar el perfil':(!window._empleadosDatosListos||!window._usuariosDatosListos)?'Cargando perfil de empleado…':'Sin perfil de empleado asociado';
-      sel.innerHTML = '<option value="">'+estadoPerfil+'</option>';
+      sel.innerHTML = '<option value="">Sin perfil de empleado asociado</option>';
       sel.disabled = true;
     }
   }

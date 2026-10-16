@@ -2,7 +2,7 @@
 const fs=require('node:fs'),http=require('node:http'),assert=require('node:assert/strict'),{execFileSync}=require('node:child_process');
 const {chromium}=require(process.env.SV_PLAYWRIGHT_MODULE||'playwright');
 const current=fs.readFileSync('js/modules/surveys.js','utf8');
-const previous=execFileSync('git',['show','bec95a21fba3164c5cb33fb0036c66baabd0db39:js/modules/surveys.js'],{encoding:'utf8'});
+const previous=execFileSync('git',['show','b1d94bc91ba288aa410f3aecd016cdb8b3b5797c:js/modules/surveys.js'],{encoding:'utf8'});
 const sample={id:'REL-fixture',cliente:'Cliente ficticio',direccion:'Sitio de prueba',contacto:'',autor:'Usuario ficticio',owner:'fixture',services:['alarma','otro'],items:{
  'alarma.central':{value:'p1',label:'Central de prueba',note:'Nota conservada',photo:{data:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD9sAAAAASUVORK5CYII=',name:'foto.png'}},
  'alarma.teclados':{value:'1',note:'Total 2 teclados'},'alarma.zonas':{value:0},'otro.necesidad':{value:'Servicio ficticio'}

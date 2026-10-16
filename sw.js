@@ -2,6 +2,7 @@
    Estrategia: red primero con cache de respaldo. */
 const CACHE = 'sisventas-v3.11.9';
 const SHELL = [
+ './js/core/public-catalog-entry.js?v=3.11.8-catalog-entry',
  './css/user-access.css?v=3.11.9',
  './js/core/user-access.js?v=3.11.9',
  './js/core/distribuidora-money.js?v=3.11.1',
@@ -32,7 +33,7 @@ const SHELL = [
   './js/modules/comparacion-comercial.js?v=1',
   './js/modules/commercial-approval.js?v=3.9.29',
   './js/core/guarded-writes.js?v=3.9.24-server-check2',
-  './js/core/session-assets.js?v=3.11.1-usd',
+  './js/core/session-assets.js?v=3.11.8-catalog-entry',
   './js/app.v3.11.9.js',
   './js/modules/navigation-back.js?v=perf-3105',
   './js/modules/product-url-import.js?v=3.9.15-dual-shipping',

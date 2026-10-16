@@ -2,9 +2,9 @@
 const fs=require('node:fs'),assert=require('node:assert/strict'),{execFileSync}=require('node:child_process');
 const {chromium}=require(process.env.SV_PLAYWRIGHT_MODULE||'playwright');
 const current=fs.readFileSync('js/core/data-readiness.js','utf8');
-const previous=execFileSync('git',['show','ec26734de650b8190c8334cd4ef223f2a1c5358d:js/core/data-readiness.js'],{encoding:'utf8'});
+const previous=execFileSync('git',['show','c15e5663d928840f9823ddb3ee9c34b85d62d3e4:js/core/data-readiness.js'],{encoding:'utf8'});
 const app=require('../helpers/active-app').readActiveApp().source;
-const oldApp=execFileSync('git',['show','ec26734de650b8190c8334cd4ef223f2a1c5358d:js/app.v3.11.6.js'],{encoding:'utf8',maxBuffer:16*1024*1024});
+const oldApp=execFileSync('git',['show','c15e5663d928840f9823ddb3ee9c34b85d62d3e4:js/app.v3.11.5.js'],{encoding:'utf8',maxBuffer:16*1024*1024});
 function extract(source,name){const start=source.indexOf('function '+name+'(');assert.ok(start>=0,name);return source.slice(start,source.indexOf('\n}',start)+2);}
 async function run(){
  const browser=await chromium.launch({headless:true});let checks=0;
