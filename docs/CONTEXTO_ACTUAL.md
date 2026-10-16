@@ -2,6 +2,19 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Corte autorizado aplicado, cierre HTTPS en curso (16/10/2026)
+
+- El titular autorizó expresamente activar cliente/servidor/reglas, completar HTTPS/DNS y retirar los dos campos heredados, sin cambiar contraseñas ni enviar correos. La autorización anterior pendiente queda resuelta.
+- Cotizador `cotizador-00104-zuh` activo al **100%**. Configuración anterior y etiquetas conservadas; Asistente y funciones fiscales sin redesplegar.
+- Cliente y aviso Firebase **v3.11.11-firebase** publicados. Código público `be85b11a7be50f5c75eb6ceacc0ff7e3898a0624`; ajuste de empaquetado `da337925c18b278d60777464274a8c257b8bd5bc` en main. No se mezcló la rama completa de auditoría ni el trabajo de gastos de otra PC.
+- Reglas finales efectivas: **`e5dbd9b0ca5e7e63f7966184a39350184d55fa9d7c4111c23e82ef0beb4dbc10`**. Índice de Roles aplicado sin cambiar casillas/acciones; huella posterior `bae70a87112674c5f58a32b8873952d22ce38fc5efdf6d55921fbc14183d3768`. Respaldo privado de reversión en `tmp/audit-cutover-1792152340969`; no sustituir la base comercial.
+- Retirados únicamente `claveAdmin` de la ficha antigua de Distribuidora y `pass` de `config/loginRapido`; valores nunca leídos ni copiados, metadatos conservados, Firebase Auth intacto.
+- Firebase Hosting ya publica 579 activos de v3.11.11 y las cinco cabeceras de seguridad. Release `sites/nixa-sisventas-seguro/versions/be20ec89ddc4a12f`. Incluye la app activa y las dos anteriores, sin subir más de 1 GB de históricos. Los históricos siguen en Git.
+- Los 12 activos comprobados coinciden en el dominio principal y en web.app; 16 rechazos 401 del servidor activo correctos. **532 comprobaciones GET de ocho identidades** coinciden con la política de los 63 dominios definidos y los nodos privados/cuentas, sin crear sesiones ni datos. No hubo errores HTTP 5xx del servidor durante el corte. Para repetir: en la rama de auditoría, `node scripts/verify-audit-read-contexts.cjs --check --all-domains`; requiere inventario privado actualizado y reglas exactas.
+- Administrador real local recargado después del corte: Dashboard, Usuarios, ficha de Mauro (cancelada), Roles sin guardar y Proyectos cargan. En móvil emulado 390×844 se verificó listado y formulario de Proyectos con sus cuatro integrantes internos; cancelado sin crear registros, tamaño normal restaurado. Hubo un aviso de directorio durante el corte, resuelto al recargar; no se observó de nuevo en esos recorridos. No equivale a sesión propia de Osmar ni a teléfono físico.
+- **DNS aún no cambiado**: el TXT de validación ya está guardado en Squarespace y visible públicamente. Firebase confirmó validación y sigue en `CERT_PROPAGATING`; no cambiar el CNAME hasta `CERT_ACTIVE` y comprobación TLS/contenido contra el destino nuevo. `ventas` continúa en `sistemanixa.github.io`; raíz, www y correo intactos. Autorización del cambio ya concedida, no volver a pedirla sin cambio de alcance.
+- El espejo local vuelve al endpoint estándar del servidor activo. El cambio desconocido `js/app.v3.10.33.js` conserva su SHA y está fuera de los commits.
+
 ## Auditoría v3.11.11 preparada, pendiente de activar (16/10/2026)
 
 La rama `codex/publicar-auditoria-v31111` contiene el paquete público separado:
