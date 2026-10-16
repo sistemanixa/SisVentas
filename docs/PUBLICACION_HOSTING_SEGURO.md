@@ -12,7 +12,7 @@ Estado al preparar este documento: **DNS sigue en GitHub Pages**. No ejecutar un
    node scripts/deploy-secure-hosting.cjs --apply --expected-commit SHA_COMPLETO_REVISADO
    ```
 
-   El destino fijo es `nixa-sisventas-seguro`, proyecto `nixa-sisventas`. El comando no modifica DNS. Publica únicamente la lista de activos públicos y las cabeceras revisadas. Requiere permisos de administración de versiones/releases del sitio de Hosting; no necesita cambiar IAM de usuarios ni exportar claves. No servir la raíz del repositorio ni subir documentación/informes a Hosting.
+   El destino fijo es `nixa-sisventas-seguro`, proyecto `nixa-sisventas`. El comando no modifica DNS. Publica únicamente la lista de activos públicos y las cabeceras revisadas. Para la aplicación monolítica incluye la versión activa del índice y las dos anteriores; los cientos de versiones históricas siguen en Git y no se comprimen ni suben en cada release. Requiere permisos de administración de versiones/releases del sitio de Hosting; no necesita cambiar IAM de usuarios ni exportar claves. No servir la raíz del repositorio ni subir documentación/informes a Hosting.
 
 4. Verificar en el dominio real: index, aplicación/versiones inmutables, módulos cambiados, Service Worker, catálogos y cabeceras. Un código de salida correcto o un push no acreditan que todos los clientes reciban el paquete.
 5. Solo después, ejecutar `scripts/actualizar-nodo-version.ps1 -Version vX.Y.Z` para comprobar la web y actualizar el aviso Firebase. Si falla la web, no forzar el aviso.
