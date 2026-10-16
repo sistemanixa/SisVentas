@@ -8,6 +8,12 @@ beforeEach(async()=>{const identities={admin:{rol:'admin',activo:true},a:{rol:'v
  await env.withSecurityRulesDisabled(c=>set(ref(c.database()),{sv_chat_roles:identities,sv_usuarios:users,sv_chat_directorio:directory,sv_permisos:perms,sisventas:{ventas:{a:row('a'),b:row('b'),old:{usuario:'Persona a',fecha:'2026-10-01',ts:1,total:50}},presupuestos:{a:row('a'),b:row('b')},pagos:{sentinel:{monto:12}},gastos:{sentinel:{monto:7}}},sv_personal_finance:{proof:{ownerUid:'admin',secret:'FICTICIO'}}}));});
 after(async()=>{await app?.delete();await env?.cleanup();});
 const client=uid=>uid?env.authenticatedContext(uid).database():env.unauthenticatedContext().database();
+const {createCommissionGeneration}=require('../cotizador/commission-generation');
+async function generationFixture(){
+ const sale={...row('a',200),id:'V-DEMO',empleadoFbKey:'e',comisionHabilitada:true,estadoPago:'pago_total',items:[{qty:2,punit:100,sub:200,disc:0,costoUnitarioPresupuestado:40}],subtotal:200,descuentoGeneral:0,descuento:0,conIva:false,iva:0};
+ await db.ref().update({'sisventas/ventas/a':sale,'sisventas/empleados/e':{nombre:'Empleado ficticio',estado:'Activo'},'sisventas/config/maxComisionPct':25,'sisventas/config/comisionesEmpleados/e':{pct:25},'sisventas/pagos/demo':{ventaFbKey:'a',ventaId:'V-DEMO',monto:200,ts:2000}});
+ const service=createCommissionGeneration({db,commercial:api,enabled:true,from:1000,now:()=>10000});const actor=await service.authorize({headers:{authorization:'Bearer a'}});return {service,actor};
+}
 for(const domain of ['ventas','presupuestos']){
  test(domain+': admin lee todos, usuarios solo su registro y no el padre',async()=>{await assertSucceeds(get(ref(client('admin'),'sisventas/'+domain)));for(const uid of ['a','b']){await assertFails(get(ref(client(uid),'sisventas/'+domain)));await assertSucceeds(get(ref(client(uid),'sisventas/'+domain+'/'+uid)));await assertFails(get(ref(client(uid),'sisventas/'+domain+'/'+(uid==='a'?'b':'a'))));}await assertFails(get(ref(client(null),'sisventas/'+domain+'/a')));});
  test(domain+': no se roba ni reasigna un registro ajeno con multipath o campos anidados',async()=>{const c=client('a');await assertFails(update(ref(c,'sisventas/'+domain+'/b'),{responsableUid:'a',total:1}));await assertFails(update(ref(c),{['sisventas/'+domain+'/b/totalPagado']:100}));await assertFails(update(ref(c,'sisventas/'+domain+'/a'),{responsableUid:'b'}));});
@@ -29,4 +35,34 @@ test('convertir presupuesto reasignado conserva autor inicial y operador; no adm
  await assertFails(set(ref(client('b'),'sisventas/ventas/otro'),converted));
  await assertFails(set(ref(client('a'),'sisventas/ventas/ppto_a'),{...converted,responsableUid:'a',convertidaPorUid:'a'}));
  await assertFails(set(ref(client('b'),'sisventas/ventas/ppto_a'),{...converted,convertidaPorUid:'a'}));
+});
+
+test('generación servidor: Vendedor sin módulo Comisiones obtiene su comisión; privado y terceros quedan bloqueados',async()=>{
+ const before=(await db.ref('sisventas/gastos/sentinel').get()).val(),{service,actor}=await generationFixture();
+ assert.equal((await service.generate(actor,{ventaFbKey:'a'})).status,'generada');
+ assert.equal((await db.ref('sisventas/gastos/gasto_comision_a_e/monto').get()).val(),30);
+ assert.deepEqual((await db.ref('sisventas/gastos/sentinel').get()).val(),before);
+ assert.equal((await service.generate(actor,{ventaFbKey:'a'})).reutilizada,true);
+ for(const uid of ['admin','a','b',null]){await assertFails(get(ref(client(uid),'sv_commission_generation/a')));await assertFails(set(ref(client(uid),'sv_commission_generation/forged'),{estado:'completada'}));}
+ await assertFails(set(ref(client('a'),'sisventas/gastos/forged'),{tipoPagable:'comision',monto:999}));
+});
+
+test('generación servidor: conserva comisión manual existente y no hace backfill de cobros anteriores al corte',async()=>{
+ const {service,actor}=await generationFixture(),manual={ventaFbKey:'a',empleadoFbKey:'e',monto:17,estado:'pagado',tipoPagable:'comision'};
+ await db.ref('sisventas/gastos/manual').set(manual);assert.equal((await service.generate(actor,{ventaFbKey:'a'})).status,'existente');assert.deepEqual((await db.ref('sisventas/gastos/manual').get()).val(),manual);
+ await db.ref('sisventas/gastos/manual').remove();await db.ref('sisventas/pagos/demo/ts').set(500);assert.equal((await service.systemGenerate('a')).status,'historica');assert.equal((await db.ref('sv_commission_generation/a').get()).exists(),false);
+});
+
+test('observador genera al completar el cobro aunque el navegador no llame al endpoint',async()=>{
+ const {service}=await generationFixture();await db.ref('sisventas/ventas/a/estadoPago').set('seniado');const stop=service.start();
+ try{await db.ref('sisventas/ventas/a/estadoPago').set('pago_total');for(let i=0;i<60;i++){if((await db.ref('sv_commission_generation/a/estado').get()).val()==='completada')break;await new Promise(r=>setTimeout(r,50));}assert.equal((await db.ref('sv_commission_generation/a/estado').get()).val(),'completada');assert.equal((await db.ref('sisventas/gastos/gasto_comision_a_e/actorUid').get()).val(),'servidor');}finally{stop();}
+});
+
+test('generación retoma con otra instancia del servidor tras una caída entre cuenta y gasto',async()=>{
+ const {actor}=await generationFixture();let cut=true;
+ const interruptedDB={ref(path){const original=db.ref(path);if(path!=='sisventas/gastos/gasto_comision_a_e')return original;return {on:original.on.bind(original),off:original.off.bind(original),get:original.get.bind(original),transaction(...args){if(cut){cut=false;return Promise.reject(Error('Corte sintético'));}return original.transaction(...args);}};}};
+ const first=createCommissionGeneration({db:interruptedDB,commercial:api,enabled:true,from:1000,now:()=>10000});await assert.rejects(first.generate(actor,{ventaFbKey:'a'}),/Corte sintético/);
+ const movement=(await db.ref('sisventas/ctaemp/e/comision_a_e').get()).val();
+ const next=createCommissionGeneration({db,commercial:api,enabled:true,from:1000,now:()=>100000});await next.retryPending();
+ assert.equal((await db.ref('sv_commission_generation/a/estado').get()).val(),'completada');assert.deepEqual((await db.ref('sisventas/ctaemp/e/comision_a_e').get()).val(),movement);assert.equal((await db.ref('sisventas/gastos/gasto_comision_a_e/monto').get()).val(),30);
 });

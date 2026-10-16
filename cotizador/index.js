@@ -56,6 +56,7 @@ const employeeDirectory = require('./employee-directory').createEmployeeDirector
 const personalExpenses = require('./personal-expenses').createPersonalExpenses({authorize:laborSubmissions.authorize,transaction:laborTransaction});
 const supplierDirectory = require('./supplier-directory').createSupplierDirectory({authorize:employeeDirectory.authorize,db});
 const commissionOperations = require('./commission-operations').createCommissionOperations({auth:businessAuth,db,transaction:laborTransaction});
+const commissionGeneration = require('./commission-generation').createCommissionGeneration({db,commercial:commercialOwnership,enabled:process.env.COMMISSION_GENERATION_ENABLED==='true',from:Date.parse(process.env.COMMISSION_GENERATION_FROM||'')});
 const catalogRequests = require('./catalog-request').createCatalogRequest({db,periodsAPI:require('./catalog-promotions')});
 const { consultarAutomatico, firmaAcceso, aplicarCondicionComercial } = require('./proveedor-automatico');
 const { esProveedorPublicoComprasParaguay } = require('./compras-paraguay');
@@ -2069,6 +2070,18 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if(['/comisiones/generacion/revisar','/comisiones/generacion/generar'].includes(pathname)){
+    res.setHeader('Cache-Control','private, no-store');
+    try{
+      if(req.method!=='POST'){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+      if(requestUrl.searchParams.has('verComo')){send(res,403,{ok:false,mensaje:'Volvé a tu cuenta para generar comisiones'});return;}
+      const actor=await commissionGeneration.authorize(req),body=await readBody(req,4096);
+      if(Object.keys(body||{}).some(k=>!['ventaFbKey','digest'].includes(k)))throw Object.assign(Error('Solicitud inválida'),{statusCode:400});
+      const result=pathname.endsWith('/revisar')?await commissionGeneration.inspect(actor,body.ventaFbKey):await commissionGeneration.generate(actor,body);
+      send(res,200,{ok:true,...result});
+    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'La generación quedó pendiente de reintento seguro'});}
+    return;
+  }
   if(req.method==='POST' && pathname==='/comisiones/redistribuir'){
     try{const identity=await commissionOperations.authorize(req);const body=await readBody(req,2000000);send(res,200,{ok:true,...await commissionOperations.redistribute(identity,body)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la distribución'});}return;
   }
@@ -2168,6 +2181,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 if (require.main === module) {
+  commissionGeneration.start();
   server.listen(PORT, () => {
     console.log(`Cotizador NIXA listo en puerto ${PORT}`);
   });

@@ -21,8 +21,10 @@ assert.match(app, /function obtenerDetalleComisionEmpleado/,
   'Debe existir una única resolución de cargo y excepción individual');
 assert.match(app, /var detalle = obtenerDetalleComisionEmpleado\(emp\);[\s\S]{0,100}return parseFloat\(detalle\.pctSolicitado\)/,
   'La generación debe dejar de priorizar la ficha personal');
-assert.match(app, /var pctCadaUno = maxComisionPct \/ vendedores\.length/,
-  'Si la suma excede el máximo, el tope debe dividirse en partes iguales');
+const commissionModel = require('../cotizador/commission-generation-model');
+const split = commissionModel.preview({sale:{fbKey:'s',id:'V-DEMO',comisionHabilitada:true,empleadoFbKey:'e',comisionado2FbKey:'e2',items:[{qty:1,punit:100,sub:100,costoUnitarioPresupuestado:0}],subtotal:100,conIva:false,iva:0,total:100},payments:[{fbKey:'p',ventaFbKey:'s',monto:100}],employees:{e:{nombre:'Uno'},e2:{nombre:'Dos'}},config:{maxComisionPct:5,comisionesEmpleados:{e:{pct:8},e2:{pct:4}}}});
+assert.deepEqual(split.participantes.map(p=>p.pct),[2.5,2.5],
+  'Si la suma excede el máximo, el servidor divide el tope en partes iguales');
 assert.match(finance, /obtenerDetalleComisionEmpleado\(emp\)\.pct/,
   'La cuenta personal debe leer la configuración central');
 

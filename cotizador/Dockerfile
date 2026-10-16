@@ -17,6 +17,9 @@ COPY employee-directory.js ./
 COPY personal-expenses.js ./
 COPY supplier-directory.js ./
 COPY commission-calculations.js commission-operations.js ./
+COPY commission-generation.js commission-generation-model.js commercial-ownership.js domain-read-policy.js ./
+COPY commercial-models/ ./commercial-models/
+COPY private-finance.js private-finance-model.js private-finance-storage.js ./
 COPY catalog-request.js catalog-promotions.js ./
 COPY ficha-producto.js ./
 COPY proveedor-automatico.js ./

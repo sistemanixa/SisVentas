@@ -32,6 +32,11 @@ function build(input){
   for(const [k,v]of Object.entries(record))if(!k.startsWith('.')&&v&&typeof v==='object')closeChildren(v);
   node[id]=record;
  }
+ // Planes de generación automáticos: exclusivamente servidor, incluso para admin.
+ r.rules.sv_commission_generation={'.read':false,'.write':false};
+ for(const [domain,fields]of Object.entries({pagos:['ventaFbKey','ventaId','venta'],gastos:['ventaFbKey','ventaId','venta'],ventas:['estadoPago']})){
+  const old=s[domain]['.indexOn']||[];s[domain]['.indexOn']=[...new Set([...(Array.isArray(old)?old:[old]),...fields])];
+ }
  return r;
 }
 function source(){return JSON.parse(execFileSync('git',['show','5193bc10d3a215f1ca1f5cd5e87ebe6e0ec732d9:security/database.compact-final.candidate.json'],{maxBuffer:2e6,encoding:'utf8'}));}

@@ -46,9 +46,9 @@ test('eliminar una bonificación quita en una sola escritura el gasto y la cuent
   assert.match(flujo, /La bonificación no tiene un vínculo válido/);
 });
 
-test('la comisión manual usa la misma base que la automática y conserva la venta canónica', () => {
+test('la comisión manual conserva la venta canónica y la automática delega al servidor', () => {
   assert.match(app, /function _calcularBaseComisionVenta\(venta\)/);
-  assert.match(app, /var calculoBaseComision = _calcularBaseComisionVenta\(venta\)/);
+  assert.match(app, /SVCommissionGeneration\.generate\(venta\)/);
   assert.match(app, /await _ventaTieneComisionGenerada\(emp\.fbKey, venta\)/);
   assert.match(app, /await _generarComisionVentaAtomica\(emp, movimiento\)/);
   assert.match(app, /ventaId: venta\.id \|\| venta\.numero \|\| venta\.nro/);
@@ -56,5 +56,6 @@ test('la comisión manual usa la misma base que la automática y conserva la ven
   assert.match(app, /origenCarga: 'manual_empleados'/);
   assert.match(app, /sisventas\/comisiones_generacion/);
   assert.match(app, /estado:'procesando'/);
-  assert.match(app, /Math\.round\(\(ganancia \* pctCada \/ 100\) \* 100\) \/ 100/);
+  const model = require('../cotizador/commission-generation-model');
+  assert.equal(model.round(120 * 25 / 100), 30);
 });

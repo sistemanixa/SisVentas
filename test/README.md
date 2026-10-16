@@ -17,6 +17,13 @@ Las pruebas funcionales vigentes deben leer la aplicación declarada por
 `index.html` mediante `test/helpers/active-app.js`, nunca el espejo legado
 `js/app.js` ni un nombre de versión fijado a mano.
 
+Generación automática de comisiones candidata: `node --test
+test/commission-generation.test.cjs` (24 pruebas funcionales sin credenciales).
+El emulador de responsabilidad comercial también cubre generación, observador y
+recuperación: `node scripts/test-commercial-ownership-emulator.cjs`, con las
+dependencias/Java de AGENTS y solo el proyecto demo. Ver
+`docs/COMISIONES_GENERACION_SERVIDOR.md`; no genera comisiones reales.
+
 Gestión de acceso (solo cuentas ficticias): `node scripts/test-user-access.cjs`
 ejecuta Auth, RTDB y Storage en emuladores demo. La interfaz se comprueba con
 `test/browser/user-access.cjs`. Configuración y límites en

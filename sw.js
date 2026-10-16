@@ -76,6 +76,7 @@ const SHELL = [
   './personal-finance.html',
   './js/core/commercial-ownership.js?v=3.11.13',
   './js/modules/commercial-document-controls.js?v=3.11.13',
+  './js/core/commission-generation.js?v=3.11.13',
   './js/core/error-monitor.js',
   './js/core/relation-compatibility.js',
   './js/modules/treasury.js',

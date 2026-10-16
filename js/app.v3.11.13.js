@@ -10552,7 +10552,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.11.13',date:'16/10/2026',title:'Responsabilidad comercial',notes:Object.freeze(['Cada usuario consulta sus ventas y presupuestos. El administrador puede reasignar el responsable sin modificar el creador original.','Las fechas se conservan; un cambio manual permite actualizar productos o mantener los importes.']),feature:Object.freeze({page:'detalle',actionLabel:'Ver ventas'})}),
+ Object.freeze({version:'v3.11.13',date:'16/10/2026',title:'Responsabilidad comercial',notes:Object.freeze(['Cada usuario consulta sus ventas y presupuestos. El administrador puede reasignar el responsable sin modificar el creador original.','Las fechas se conservan; un cambio manual permite actualizar productos o mantener los importes.','Las conversiones quedan visibles en ambas auditorías. La comisión automática se verifica en el servidor, sin requerir acceso a su módulo y conservando las existentes.']),feature:Object.freeze({page:'detalle',actionLabel:'Ver ventas'})}),
  Object.freeze({version:'v3.11.12',date:'16/10/2026',title:'Gastos personales',notes:Object.freeze(['Espacio privado con tarjetas, resúmenes, pagos y estrategias, separado de las finanzas de la empresa.']),feature:Object.freeze({page:'gastospersonales',actionLabel:'Gastos personales'})}),
  Object.freeze({version:'v3.11.11',date:'16/10/2026',title:'Usuarios y chat protegidos',notes:Object.freeze(['Los participantes y listas utilizan los datos necesarios, sin fichas privadas.','El chat verifica la autoría al editar, reaccionar y marcar lecturas.']),feature:Object.freeze({page:'usuarios',actionLabel:'Ver Usuarios'})}),
  Object.freeze({version:'v3.11.10',date:'16/10/2026',title:'Proyectos',notes:Object.freeze(['Planificación por sectores con necesidades, integrantes y presupuestos vinculados.','Accesos de lectura y edición por proyecto.']),feature:Object.freeze({page:'proyectos',actionLabel:'Ver Proyectos'})}),
@@ -43121,6 +43121,7 @@ function _generarComisionVentaAtomica(emp, movimiento) {
   var controlRef = window.fbRef(window.fbDB, 'sisventas/comisiones_generacion/' + movKey);
   var ahora = Date.now();
   return window.fbRunTransaction(controlRef, function(control) {
+    if (control && control.generacionServidorId) return;
     if (control && control.estado === 'completada') return;
     if (control && control.estado === 'procesando' && ahora - Number(control.ts || 0) < 120000) return;
     return { estado:'procesando', ts:ahora, ventaId:movimiento.ventaId || '', ventaFbKey:movimiento.ventaFbKey || '', empleadoFbKey:emp.fbKey };
@@ -43151,104 +43152,10 @@ function _generarComisionVentaAtomica(emp, movimiento) {
 }
 
 async function generarComisionesVenta(venta, montoCobrado) {
-  if (!window.fbDB || !venta) return [];
-  if (venta.comisionHabilitada !== true) return [];
-
-  // Base de comisión = subtotal bruto - descuentos - costo de compra x cantidad.
-  var calculoBaseComision = _calcularBaseComisionVenta(venta);
-  var ganancia = calculoBaseComision.ganancia;
-
-  if (ganancia <= 0) return [];
-
-  // Tope máximo de comisión global (configurable en APROBACION_CONFIG)
-  var maxComisionPct = parseFloat(
-    (APROBACION_CONFIG && APROBACION_CONFIG.maxComisionPct != null)
-      ? APROBACION_CONFIG.maxComisionPct
-      : 10
-  );
-
-  // Determinar vendedores y sus FbKeys
-  var vendedores = [];
-
-  // Vendedor principal
-  var empPrincipal = Object.values(empData||{}).find(function(e){
-    return ventaPerteneceResponsableComercial(venta, e);
-  });
-  if (empPrincipal && _pctComisionEmpleadoVenta(empPrincipal) > 0) {
-    vendedores.push(empPrincipal);
-  }
-
-  // Segundo comisionado
-  var identidadCom2 = ventaComisionadoSecundarioIdentidad(venta);
-  var empCom2 = (identidadCom2.fbKey || identidadCom2.nombre) ? Object.values(empData||{}).find(function(e){
-    return (identidadCom2.fbKey && String(e.fbKey || '') === String(identidadCom2.fbKey)) ||
-      (identidadCom2.nombre && String(e.nombre || '').trim().toLocaleLowerCase('es-AR') === String(identidadCom2.nombre).trim().toLocaleLowerCase('es-AR'));
-  }) : null;
-  if (empCom2 && empCom2.fbKey !== (empPrincipal && empPrincipal.fbKey) && _pctComisionEmpleadoVenta(empCom2) > 0) {
-    vendedores.push(empCom2);
-  }
-
-  if (!vendedores.length) throw new Error('No se encontró un vendedor con comisión configurada');
-
-  // Regla:
-  // 1 vendedor: su % pero no más que maxComisionPct
-  var pctsPorEmp = vendedores.map(function(emp) {
-    return _pctComisionEmpleadoVenta(emp);
-  });
-  var pctSuma = pctsPorEmp.reduce(function(a, b){ return a + b; }, 0);
-
-  var pctEfectivos;
-  if (vendedores.length === 1) {
-    // Un solo vendedor: limitar su % al tope
-    pctEfectivos = [Math.min(pctsPorEmp[0], maxComisionPct)];
-  } else {
-    // Dos vendedores: si la suma supera el tope, repartir el tope en partes iguales
-    if (pctSuma > maxComisionPct) {
-      var pctCadaUno = maxComisionPct / vendedores.length;
-      pctEfectivos = vendedores.map(function(){ return pctCadaUno; });
-    } else {
-      // No supera el tope — cada uno recibe su % propio
-      pctEfectivos = pctsPorEmp;
-    }
-  }
-
-  var tareas = vendedores.map(function(emp, i) {
-    var pctCada = pctEfectivos[i];
-    if (!pctCada) return Promise.resolve(null);
-    var monto = Math.round((ganancia * pctCada / 100) * 100) / 100;
-    if (monto <= 0) return Promise.resolve(null);
-
-    var ajustado = pctsPorEmp[i] > pctCada; // se auto-ajustó al tope
-    var esVendedorComision = (emp.tipoEmpleado === 'Vendedor a comisión' || emp.esVendedor);
-
-    var movimiento = {
-      tipo:        'comision',
-      estado:      'pendiente', // siempre queda para revisión/aprobación
-      aprobadoPor: '',
-      aprobadoTs:  null,
-      monto:       monto,
-      pct:         pctCada,
-      pctOriginal: pctsPorEmp[i],
-      ajustadoAlTope: ajustado,
-      gananciaBase: ganancia,
-      ventaId:     venta.id || '',
-      ventaFbKey:  venta.fbKey || '',
-      cliente:     venta.cliente || '',
-      descripcion: 'Comisión venta ' + (venta.id||'') + ' · ' + pctCada + '% sobre ganancia $' + Math.round(ganancia).toLocaleString('es-AR') +
-        (ajustado ? ' (ajustado al tope máximo de ' + maxComisionPct + '%)' : '') +
-        (vendedores.length > 1 ? ' · entre ' + vendedores.length + ' comisionados' : ''),
-      fecha:       new Date().toISOString().slice(0,10),
-      ts:          Date.now(),
-      empleadoNombre: emp.nombre || '',
-      origenCarga: 'automatica_venta',
-      usuarioCarga: currentUser || ''
-    };
-
-    return _generarComisionVentaAtomica(emp, movimiento);
-  });
-  return Promise.all(tareas);
+  // El servidor relee cobros, costos guardados y configuración. El navegador no
+  // envía importes ni necesita permiso de administración de Comisiones.
+  return window.SVCommissionGeneration.generate(venta);
 }
-
 async function _actualizarCtaEmpPorPagoGasto(g, fbKey, montoTotal, nuevoPagado, nuevoEstado, medio, pagoKey, pago) {
   if (!g || !window.fbDB) return;
   var refs = await _movimientosVinculadosGasto(g, fbKey);

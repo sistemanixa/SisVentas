@@ -1,0 +1,45 @@
+(function(root){
+ 'use strict';
+ const number=v=>v!==''&&v!==null&&v!==undefined&&Number.isFinite(Number(v))&&Number(v)>=0;
+ function snapshotCosts(record){
+  if(!Array.isArray(record.items))return record;
+  return {...record,items:record.items.map(item=>{
+   if(number(item.costoUnitarioAntesPreparacion)||number(item.costoUnitarioPresupuestado))return item;
+   let cost=null;for(const k of ['costoUnitarioCompra','costoUnitario','costoCompra'])if(number(item[k])){cost=Number(item[k]);break;}
+   const qty=Number(item.qty??item.cantidad??1);
+   if(cost===null&&qty>0&&number(item.costoTotalCompra))cost=Number(item.costoTotalCompra)/qty;
+   if(cost===null){const product=root.obtenerProductoPorCodigoVenta?.(item.cod||item.codigo,item);if(product){const amount=root.obtenerCostoUnitarioVenta?.(item.cod||item.codigo,item);if(number(amount))cost=Number(amount);}}
+   return cost===null?item:{...item,costoUnitarioPresupuestado:Math.round(cost*100)/100};
+  })};
+ }
+ function preserveCosts(record,base){
+  if(!Array.isArray(record.items)||!Array.isArray(base?.items))return record;
+  const used=new Set();return {...record,items:record.items.map(item=>{
+   const identity=i=>i.productoFbKey||i.pid||i.cod||i.codigo||i.desc||i.descripcion;
+   const index=base.items.findIndex((old,i)=>!used.has(i)&&identity(old)&&identity(old)===identity(item));
+   if(index<0)return item;used.add(index);const old=base.items[index],out={...item};
+   const oldKnown=['costoUnitarioAntesPreparacion','costoUnitarioPresupuestado','costoUnitarioCompra','costoUnitario','costoCompra','costoTotalCompra'].some(k=>number(old[k]));
+   if(old.comisionCostoHistoricoPendiente||!oldKnown){out.comisionCostoHistoricoPendiente=true;delete out.costoUnitarioAntesPreparacion;delete out.costoUnitarioPresupuestado;return out;}
+   for(const k of ['costoUnitarioAntesPreparacion','costoUnitarioPresupuestado'])if(number(old[k]))out[k]=old[k];
+   if(!number(out.costoUnitarioAntesPreparacion)&&!number(old.costoUnitarioPresupuestado)){
+    for(const k of ['costoUnitarioCompra','costoUnitario','costoCompra'])if(number(old[k])){out.costoUnitarioPresupuestado=Number(old[k]);break;}
+    const qty=Number(old.qty??old.cantidad??1);if(!number(out.costoUnitarioPresupuestado)&&qty>0&&number(old.costoTotalCompra))out.costoUnitarioPresupuestado=Number(old.costoTotalCompra)/qty;
+   }
+   return out;
+  })};
+ }
+ async function request(action,venta){
+  const user=root.fbAuth?.currentUser,uid=root.currentUserUid;
+  if(!user||user.uid!==uid)throw Error('Volvé a tu cuenta para gestionar la venta');
+  if(!venta?.fbKey)throw Error('Falta la referencia guardada de la venta');
+  const token=await user.getIdToken();if(user!==root.fbAuth.currentUser||uid!==root.currentUserUid)throw Error('La sesión cambió');
+  const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servicio no disponible');
+  const res=await fetch(base+'/comisiones/generacion/'+action,{method:'POST',cache:'no-store',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({ventaFbKey:venta.fbKey}),signal:AbortSignal.timeout(60000)});
+  const result=await res.json();if(user!==root.fbAuth.currentUser||uid!==root.currentUserUid)throw Error('La sesión cambió');
+  if(!res.ok||!result.ok)throw Error(result.mensaje||'La comisión quedó pendiente');
+  if(result.status==='revision')throw Error(result.motivo+(result.faltantes?.length?' · '+result.faltantes.map(i=>i.codigo||i.descripcion).join(', '):''));
+  return result;
+ }
+ async function generate(venta){if(!venta||venta.comisionHabilitada!==true)return [];const result=await request('generar',venta);return result.participantes||[];}
+ root.SVCommissionGeneration={snapshotCosts,preserveCosts,request,generate};
+})(window);
