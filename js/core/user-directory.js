@@ -53,7 +53,11 @@
   refresh();return ()=>{subscriptions.delete(s);if(!subscriptions.size){clearInterval(timer);timer=null;signalStop?.();roleStop?.();signalStop=roleStop=null;}};
  }
  let appStop=null;
- function start(callback,error){appStop?.();appStop=subscribe(callback,error,root.currentRole==='admin'&&!!root.permisoModulo?.('usuarios'));return appStop;}
+ function start(callback,error){
+  appStop?.();const loading=root.SVDataReadiness?.beginSource('usuarios');
+  const unsubscribe=subscribe(snap=>{callback(snap);loading?.ready();},e=>{loading?.error();error?.(e);},root.currentRole==='admin'&&!!root.permisoModulo?.('usuarios'));
+  appStop=()=>{unsubscribe();loading?.cancel();};return appStop;
+ }
  document.addEventListener('sisventas:session-ended',()=>{stop();appStop=null;});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
  root.SVUserDirectory={enabled,profile,read,adminProfile,onValue:subscribe,start,refresh,stop};

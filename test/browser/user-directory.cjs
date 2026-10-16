@@ -16,14 +16,15 @@ async function main(){const browser=await chromium.launch({headless:true});let c
     var fbOnValue=(p,cb)=>{readPaths.push(p);if(p==='sv_chat_roles/actor')roleCallbacks.push(cb);return()=>{};},fbUpdate=async()=>{},permisoModulo=()=>true,notify=t=>document.getElementById('error').textContent=t;
     function renderTablaUsuarios(){document.getElementById('users').innerHTML=usuariosData.map(u=>'<li data-uid="'+u.uid+'" data-email="'+(u.mail||'')+'">'+u.nombre+'</li>').join('');}
     function renderHistorialComunicados(){}function svActualizarCuentaTrasDatos(){document.body.dataset.employee=(usuariosData.find(u=>u.uid===currentUserUid)||{}).empleadoFbKey||'';}
-    function _completarLogin(){document.getElementById('status').textContent=currentRole;if(['distribuidora','compras_paraguay'].includes(currentRole)){renderTablaUsuarios();svActualizarCuentaTrasDatos();}else fbCargarUsuarios();}
+    function _completarLogin(){document.getElementById('status').textContent=currentRole;if(['distribuidora','compras_paraguay'].includes(currentRole)){renderTablaUsuarios();svActualizarCuentaTrasDatos();}else fbCargarUsuarios();document.dispatchEvent(new CustomEvent('sisventas:session-ready'));}
     function _cancelarAutenticacionParcial(m){document.getElementById('error').textContent=m;document.getElementById('users').replaceChildren();document.getElementById('status').textContent='Acceso cerrado';}
-   </script><script>${fs.readFileSync('js/core/user-directory.js','utf8')}</script><script>${fs.readFileSync('js/modules/security-storage.js','utf8')}</script><script>${extract('fbCargarUsuarios')}\n${extract('_resolverRolYCompletarLogin')}\n_resolverRolYCompletarLogin(actor);</script>`});
+   </script><script>${fs.readFileSync('js/core/data-readiness.js','utf8')}</script><script>${fs.readFileSync('js/core/user-directory.js','utf8')}</script><script>${fs.readFileSync('js/modules/security-storage.js','utf8')}</script><script>${extract('fbCargarUsuarios')}\n${extract('_resolverRolYCompletarLogin')}\n_resolverRolYCompletarLogin(actor);</script>`});
    return r.fulfill({status:404,body:''});
   });
   await page.goto('http://127.0.0.1:18769/');await page.getByRole('heading',{name:role,exact:true}).waitFor();await page.locator('#users li').first().waitFor();checks++;
   assert.equal(await page.locator('body').getAttribute('data-employee'),'employee-own');if(['distribuidora','compras_paraguay'].includes(role))assert.equal(await page.locator('#users li[data-uid=other]').count(),0);else assert.equal(await page.locator('#users li[data-uid=other]').getAttribute('data-email'),role==='admin'?'other@example.test':'');assert.equal(await page.evaluate(()=>readPaths.some(p=>p==='sv_usuarios')),false);checks++;
   assert.equal(paths.includes('/usuarios/perfil'),true);assert.equal(paths.includes(role==='admin'?'/usuarios/administracion':'/usuarios/directorio'),!['distribuidora','compras_paraguay'].includes(role));assert.deepEqual(errors,[]);checks++;
+  if(!['distribuidora','compras_paraguay'].includes(role)){assert.equal(await page.evaluate(()=>SVDataReadiness.status(['usuarios']).ready),true);checks++;}
   await page.evaluate(()=>roleCallbacks.forEach(cb=>cb({val:()=>({rol:'tecnico',activo:false})})));await page.getByRole('heading',{name:'Acceso cerrado'}).waitFor();assert.equal(await page.locator('#users li').count(),0);checks++;
   await page.close();
  }

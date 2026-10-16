@@ -60,7 +60,7 @@ const SHELL = [
   './js/modules/offline-core.js',
   './js/modules/commercial-drafts.js?v=3.10.32-recovery',
   './js/modules/chat-access.js?v=3.11.11-directory',
-  './js/modules/chat-presence.js?v=3.9.14',
+  './js/modules/chat-presence.js?v=3.11.11',
   './js/modules/security-storage.js?v=3.11.11-directory',
   './js/modules/catalog-cart-review.js',
   './js/modules/ai-learning.js?v=perf-31010',

@@ -70,6 +70,12 @@ test('revocar rol cierra el estado del cliente y conserva errores de conexión c
  f.root.SVUserDirectory.start(()=>{});await f.root.SVUserDirectory.refresh();
  f.listeners.filter(l=>l.p==='sv_chat_roles/worker').at(-1).fn({val:()=>({activo:false,rol:'tecnico'})});assert.equal(closed,1);assert.equal(f.root.usuariosData.length,0);
 });
+
+test('la carga por API completa Usuarios y cancela su fuente al reemplazar la suscripción',async()=>{
+ const f=client();let ready=0,cancelled=0,failures=0;f.root.SVDataReadiness={beginSource:key=>{assert.equal(key,'usuarios');return {ready:()=>ready++,cancel:()=>cancelled++,error:()=>failures++};}};
+ const first=f.root.SVUserDirectory.start(()=>{});await f.root.SVUserDirectory.refresh();assert.ok(ready>0);
+ f.root.SVUserDirectory.start(()=>{});await f.root.SVUserDirectory.refresh();assert.equal(cancelled,1);assert.equal(failures,0);first();
+});
 test('preparación nueva pide solo identidad y servicio de perfil, sin colección ni fallback legacy',async()=>{
  let reads=[];const own={fbKey:'w',uid:'worker',rol:'tecnico'};
  const root={SV_SECURITY_STORAGE_V2:true,SVUserDirectory:{enabled:true,profile:async()=>own},fbRef:(_,p)=>p,fbGet:async p=>{reads.push(p);return {val:()=>({rol:'tecnico',activo:true})};}};
