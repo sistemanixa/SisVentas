@@ -4,7 +4,7 @@ const dep=createRequire(path.resolve('tmp/firebase-security-tools/package.json')
 const {initializeTestEnvironment,assertFails,assertSucceeds}=dep('@firebase/rules-unit-testing'),{ref,set,get}=dep('firebase/database');let env;
 before(async()=>{
  if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!=='127.0.0.1:9005')throw Error('Solo emulador local');
- env=await initializeTestEnvironment({projectId:'demo-sisventas-security',database:{host:'127.0.0.1',port:9005,rules:fs.readFileSync('security/database.known-role-read.candidate.json','utf8')}});
+ env=await initializeTestEnvironment({projectId:'demo-sisventas-security',database:{host:'127.0.0.1',port:9005,rules:require('./helpers/security-candidate.cjs').rulesFor('known-role-read')}});
  await env.withSecurityRulesDisabled(async ctx=>{
   const roles={};for(const rol of ['admin','administrativo','vendedor','tecnico_vendedor','tecnico','inventado','distribuidora','compras_paraguay'])roles[rol]={activo:true,rol};roles.inactivo={activo:false,rol:'admin'};
   await set(ref(ctx.database()),{sv_chat_roles:roles,sisventas:{clientes:{ficticio:{nombre:'Prueba'}},ventas:{ficticia:{total:1}},config:{tipoCambio:{oficial:100}}}});

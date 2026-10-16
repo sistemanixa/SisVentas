@@ -3,7 +3,6 @@
   "branch": "codex/traslado-nube-seguridad-20261015",
   "base": "b1d94bc91ba288aa410f3aecd016cdb8b3b5797c",
   "normalization": "UTF-8 with CRLF normalized to LF",
-  "notDeployed": true,
   "files": [
     {
       "path": "scripts/deploy-secure-hosting.cjs",
@@ -22,14 +21,14 @@
     },
     {
       "path": "scripts/test-security-drafts.cjs",
-      "bytesLf": 2052,
-      "sha256Lf": "fd04d1c8f0e18cd67545136e273c1b82aea114eecb16058d5d6d3fdc3806a2a8",
+      "bytesLf": 2345,
+      "sha256Lf": "aa50e7cd28b883a457260ee1bae2e4e0ddf34ea1d3549d56dca11a77d36f3c89",
       "previousSha256Lf": "ee014e9a2540ea4b43de7a4839bc94c0fcf67ff2b7a854fb27d8d123ff7297b4"
     },
     {
       "path": "scripts/prepare-known-role-read.cjs",
-      "bytesLf": 834,
-      "sha256Lf": "8b4fa33d509a654632e8afdbd9eb14e45525fe653fc1607acf70fc82b266aa25"
+      "bytesLf": 1013,
+      "sha256Lf": "6eec562e85584eafd7201ac0402a6e77749064ecdf7c87b92133a19ff3f1a116"
     },
     {
       "path": "scripts/verify-handoff-manifest.cjs",
@@ -62,25 +61,25 @@
     },
     {
       "path": "test/known-role-read.integration.cjs",
-      "bytesLf": 2497,
-      "sha256Lf": "051554ac3e9208f13cf254cb12f9455d72dec9ea29c26680ba16181c00715a49"
+      "bytesLf": 2494,
+      "sha256Lf": "899b2edf93b81d7b2e2ccf0f787fb4c58067db96cfec930bee38a72e9ddebc75"
     },
     {
       "path": "test/domain-reads.integration.cjs",
-      "bytesLf": 6098,
-      "sha256Lf": "d141e28f8840ce70a255f2752433944c38f395b923c4e74f706e6c85509af619",
+      "bytesLf": 6095,
+      "sha256Lf": "6614a816e797a7e5d751c23872d8df11830a4cdc0d5c107b012785bb804b4c57",
       "previousSha256Lf": "59eca124fc7e936c3f654b0c22dd01c0571da6f9854f868b74c319a030fa1aa2"
     },
     {
       "path": "test/employee-account-reads.integration.cjs",
-      "bytesLf": 7285,
-      "sha256Lf": "b0e72fc6f4c7d21b7261ed6e26a4a69492edc314256e7c32f41d04f8773a105e",
+      "bytesLf": 7282,
+      "sha256Lf": "bf6b976154aa5cd76f3b46117ef4d5ed89bbf1888ac73126a3e41c3e63c2202c",
       "previousSha256Lf": "002ba21a663aa55dadf397557a91da25ffe179381e5b14fcc05284ab534b75ee"
     },
     {
       "path": "test/audit-final-permissions.integration.cjs",
-      "bytesLf": 4806,
-      "sha256Lf": "52f6c04dd68efdd50f618f9845ab6acb587512b26640a899ab621d3615ba5bbd",
+      "bytesLf": 4803,
+      "sha256Lf": "a05288756a61434c5a7954cb9b0a911b01bd2a3d17c875c43df03b446af38dca",
       "previousSha256Lf": "faee39ec0de3209e395db2bbe7fa310713e730651017642b2f824ce7b5d50b09"
     },
     {
@@ -120,8 +119,8 @@
     },
     {
       "path": "scripts/prepare-domain-reads.cjs",
-      "bytesLf": 3520,
-      "sha256Lf": "8a20e346651562c4cd73cde1cc59b7e1a38cde587e0e0444889e571a89b15a2a"
+      "bytesLf": 3699,
+      "sha256Lf": "c48605b6cc9f56193175596aff9ff309674f5fb35f3ed087d1b70b9ee1d27f4d"
     },
     {
       "path": "test/domain-read-generator.test.cjs",
@@ -130,8 +129,8 @@
     },
     {
       "path": "test/cut-progression.integration.cjs",
-      "bytesLf": 4344,
-      "sha256Lf": "07ab544a3edce6691ebf61f9828ee202e1bbe021bf29b19a5a413a6ae40232b9"
+      "bytesLf": 4335,
+      "sha256Lf": "6c48c4747884745aaa64572c2875f5723183b62b6872ea830a3bf09632f075f2"
     },
     {
       "path": "scripts/prepare-password-access.cjs",
@@ -162,6 +161,42 @@
       "bytesLf": 6720,
       "sha256Lf": "b02fb79cd46d66618d664934ad4d36bf7effd0066328c23f3cfecf0107c99f7e",
       "provenance": "Gestión de acceso v3.11.9 local; revisión y pruebas demo Auth/RTDB/Storage del 15/10/2026. Sin despliegue."
+    },
+    {
+      "path": "scripts/prepare-access-permission-stages.cjs",
+      "provenance": "Composición offline y validación demo del 16/10/2026; no aplica etapas de dominio.",
+      "bytesLf": 2395,
+      "sha256Lf": "ee676e42827b2e45668489a42e3c1588d156107dc7e459ae8d33e4db6116f73f"
+    },
+    {
+      "path": "test/helpers/security-candidate.cjs",
+      "provenance": "Composición offline y validación demo del 16/10/2026; no aplica etapas de dominio.",
+      "bytesLf": 441,
+      "sha256Lf": "9855280aa162976f97bec3c7d472de2ac0e7cadfe409ab4a035244beafeefdf8"
+    },
+    {
+      "path": "test/access-permission-stages.test.cjs",
+      "provenance": "Composición offline y validación demo del 16/10/2026; no aplica etapas de dominio.",
+      "bytesLf": 2343,
+      "sha256Lf": "2631dd86cbd913479fb035e99bdf0724fef3f0f02e98aaec9ddf9c5641d39609"
+    },
+    {
+      "path": "test/access-permission-stages.integration.cjs",
+      "provenance": "Composición offline y validación demo del 16/10/2026; no aplica etapas de dominio.",
+      "bytesLf": 5643,
+      "sha256Lf": "e19880ac32febcc414a732d109726c0b9fc911a477ec8ef7a237c62436076aa7"
+    },
+    {
+      "path": "security/database.domain-write.candidate.json",
+      "provenance": "Composición offline y validación demo del 16/10/2026; no aplica etapas de dominio.",
+      "bytesLf": 222605,
+      "sha256Lf": "b3c2a06f70e6b2143a0f5729014918e8af2f718d4cce4966c1aa29c663b45eac"
+    },
+    {
+      "path": "cotizador/password-policy.js",
+      "provenance": "Composición offline y validación demo del 16/10/2026; no aplica etapas de dominio.",
+      "bytesLf": 1131,
+      "sha256Lf": "2956474b476dbef7d40842116bc1b967bc5c20d2f3c5c5e8218c05eeeb3d9813"
     }
   ],
   "revision": {
@@ -175,5 +210,19 @@
     "sourceCommit": "9ffcbc3d8b64333ddaef5fc5eddd6a70fd76ef4b",
     "integrationCases": 30,
     "notDeployed": true
+  },
+  "updated": "2026-10-16",
+  "deploymentStatus": {
+    "domainPermissionStages": "not-deployed",
+    "accessGuard": "deployed-previously-v3.11.9",
+    "publishedClient": "v3.11.9"
+  },
+  "accessCutValidation": {
+    "date": "2026-10-16",
+    "main": "2a0d01e747204e42c278fc2ddf0f4ae3f1aad893",
+    "sourceRulesSha256": "2fab3dfbda44e88c165729f4ab41bdcd8c3b36318f8dd280d81286675a20b56c",
+    "integrationCases": 38,
+    "generalTests": 1578,
+    "domainStagesApplied": false
   }
 }

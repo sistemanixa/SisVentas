@@ -5,7 +5,7 @@ const {initializeTestEnvironment,assertFails,assertSucceeds}=dep('@firebase/rule
 const {ref,set,get,query,orderByChild,equalTo,runTransaction}=dep('firebase/database');
 async function fixture(stage,run){
  if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!=='127.0.0.1:9005')throw Error('Solo emulador demo loopback');
- const env=await initializeTestEnvironment({projectId:'demo-sisventas-security',database:{host:'127.0.0.1',port:9005,rules:fs.readFileSync('security/database.'+stage+'.candidate.json','utf8')}});
+ const env=await initializeTestEnvironment({projectId:'demo-sisventas-security',database:{host:'127.0.0.1',port:9005,rules:require('./helpers/security-candidate.cjs').rulesFor(stage)}});
  try{
   await env.withSecurityRulesDisabled(async c=>{const db=c.database();await set(ref(db),{
    sv_chat_roles:{a:{activo:true,rol:'tecnico'},b:{activo:true,rol:'tecnico'},unknown:{activo:true,rol:'inventado'}},

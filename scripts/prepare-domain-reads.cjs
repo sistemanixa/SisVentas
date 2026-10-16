@@ -1,6 +1,7 @@
 'use strict';
 const fs=require('node:fs'),policy=require('../js/core/domain-read-policy.js'),actions=require('./action-policy.cjs');
 function build(input) {
+if(input.rules?.sv_access_resets||input.rules?.sv_access_control)throw Error('Base con protección de acceso: usar prepare-access-permission-stages.cjs para conservar el guard');
 const base=structuredClone(input);
 // Capturar la excepción de consulta ANTES de sobrescribir el mismo nodo.
 const productRead=base.rules.sisventas.productos['.read'];

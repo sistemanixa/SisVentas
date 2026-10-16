@@ -21,3 +21,12 @@ Gestión de acceso (solo cuentas ficticias): `node scripts/test-user-access.cjs`
 ejecuta Auth, RTDB y Storage en emuladores demo. La interfaz se comprueba con
 `test/browser/user-access.cjs`. Configuración y límites en
 [GESTION_ACCESO_USUARIOS.md](../docs/GESTION_ACCESO_USUARIOS.md).
+
+Permisos por dominio con el guard de acceso publicado: ejecutar
+`node scripts/test-security-drafts.cjs --emulator --with-access-guard`.
+Reutiliza los 30 escenarios de permisos y añade 8 de bloqueo temporal,
+revocación por versión, nodos privados, consultas propias y portal externo.
+Usa exclusivamente RTDB demo en loopback; no aplica reglas remotas ni
+requiere cuentas reales. Las seis regresiones de generación offline forman
+parte de la suite general. Estado y límites en
+[PLAN_CORTE_PERMISOS.md](../docs/PLAN_CORTE_PERMISOS.md).

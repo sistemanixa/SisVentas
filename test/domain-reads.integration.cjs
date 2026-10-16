@@ -4,7 +4,7 @@ const dep=createRequire(path.resolve('tmp/firebase-security-tools/package.json')
 const {initializeTestEnvironment,assertFails,assertSucceeds}=dep('@firebase/rules-unit-testing'),{ref,set,update,get,query,orderByChild,equalTo,runTransaction}=dep('firebase/database');let env;
 before(async()=>{
  if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!=='127.0.0.1:9005')throw Error('Solo emulador local');
- env=await initializeTestEnvironment({projectId:'demo-sisventas-security',database:{host:'127.0.0.1',port:9005,rules:fs.readFileSync('security/database.domain-read.candidate.json','utf8')}});
+ env=await initializeTestEnvironment({projectId:'demo-sisventas-security',database:{host:'127.0.0.1',port:9005,rules:require('./helpers/security-candidate.cjs').rulesFor('domain-read')}});
  await env.withSecurityRulesDisabled(async ctx=>{
   const roles={};for(const rol of ['admin','administrativo','vendedor','tecnico_vendedor','tecnico','inventado','distribuidora'])roles[rol]={activo:true,rol};roles.inactivo={activo:false,rol:'admin'};
   await set(ref(ctx.database()),{sv_chat_roles:roles,sisventas:{productos:{p:{categoria:'COMPRAS PARAGUAY'},otro:{categoria:'OTRA'}},ventas:{v:{total:100,totalPagado:0}},config:{tipoCambio:{oficial:100},tfapp:{punto_venta:2},empresa:{nombre:'Prueba'},cargos:{c:{valorHora:1}}}}});

@@ -4,7 +4,7 @@ const dep=createRequire(path.resolve('tmp/firebase-security-tools/package.json')
 const {initializeTestEnvironment,assertFails,assertSucceeds}=dep('@firebase/rules-unit-testing'),{ref,set,get,update,query,orderByChild,equalTo}=dep('firebase/database');let env;
 before(async()=>{
  if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!=='127.0.0.1:9005')throw Error('Solo emulador local');
- env=await initializeTestEnvironment({projectId:'demo-sisventas-security',database:{host:'127.0.0.1',port:9005,rules:fs.readFileSync('security/database.employee-account-read.candidate.json','utf8')}});
+ env=await initializeTestEnvironment({projectId:'demo-sisventas-security',database:{host:'127.0.0.1',port:9005,rules:require('./helpers/security-candidate.cjs').rulesFor('employee-account-read')}});
  await env.withSecurityRulesDisabled(async c=>{await set(ref(c.database()),{sv_chat_roles:{admin:{activo:true,rol:'admin'},tech:{activo:true,rol:'tecnico'},other:{activo:true,rol:'tecnico'},missing:{activo:true,rol:'vendedor'},inactive:{activo:false,rol:'tecnico'},unknown:{activo:true,rol:'inventado'}},sv_empleado_uid:{tech:{empleadoFbKey:'e1'},other:{empleadoFbKey:'e2'},inactive:{empleadoFbKey:'e1'},unknown:{empleadoFbKey:'e1'}},sisventas:{ctaemp:{e1:{m:{monto:100}},e2:{m:{monto:200}}}}});});
  await env.withSecurityRulesDisabled(async c=>{const db=c.database();await set(ref(db,'sv_usuarios'),{ptech:{uid:'tech',empleadoFbKey:'e1'},pother:{uid:'other',empleadoFbKey:'e2'},pinactive:{uid:'inactive',empleadoFbKey:'e1'},punknown:{uid:'unknown',empleadoFbKey:'e1'}});await update(ref(db,'sv_empleado_uid'),{'tech/perfilFbKey':'ptech','other/perfilFbKey':'pother','inactive/perfilFbKey':'pinactive','unknown/perfilFbKey':'punknown'});});
 });
