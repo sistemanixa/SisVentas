@@ -3,6 +3,9 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),{spawnSyn
 test('Hosting solo incluye activos públicos y la importación no autentica ni despliega',()=>{
  const {files,config}=require('../scripts/deploy-secure-hosting.cjs');assert.ok(files().includes('index.html'));
  for(const file of files())assert.ok(!/(^|\/)(security|docs|drafts|tmp|\.local|\.git|node_modules)(\/|$)/.test(file));
+ const apps=files().filter(p=>/^js\/app\.v\d+\.\d+\.\d+\.js$/.test(p));
+ const active=require('./helpers/active-app.js').readActiveApp().filename;
+ assert.equal(apps.length,3);assert.ok(apps.includes('js/'+active));assert.ok(!apps.includes('js/app.v3.10.33.js'));
  for(const field of ['Content-Security-Policy','X-Frame-Options','X-Content-Type-Options','Strict-Transport-Security','Referrer-Policy'])assert.ok(config.headers[0].headers[field]);
 });
 test('Hosting no consulta credenciales por defecto y rechaza apply sin commit revisado',()=>{
