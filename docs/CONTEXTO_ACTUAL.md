@@ -1,6 +1,16 @@
 # Continuidad de SisVentas
 
-Actualizado: 15/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
+Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
+
+## Proyectos v3.11.10: revisión local, sin publicar (16/10/2026)
+
+- El usuario autorizó la primera versión con necesidades, integrantes y presupuestos vinculados, respetando la gráfica existente, para verla **antes de publicar**. Se trabaja en `codex/proyectos-v31110`, checkout `.local/proyectos-v31110`, desde `origin/main` **`2a0d01e747204e42c278fc2ddf0f4ae3f1aad893`**. Producción sigue en v3.11.9. No se desplegaron servidor, reglas, sitio ni marcador Firebase.
+- Implementado: listado visual/buscador, ficha y estados, necesidades por sector con cantidades pendientes, integrantes lector/editor y responsable, borradores privados de alcance, vínculos comerciales del mismo cliente y preparación en el editor existente. Detalles de decisiones, rutas, permisos, variables y límites en [PROYECTOS.md](PROYECTOS.md).
+- Raíz nueva `sv_proyectos` accedida solo mediante servidor; sesión comercial protegida, módulo/acciones y membresía, revisiones transaccionales contra conflictos. Candidata local ensayada con emulador; las reglas remotas no se cambiaron. `PROJECTS_ENABLED` está apagado por defecto hasta un futuro despliegue autorizado. Los vínculos no cambian la privacidad heredada de Presupuestos.
+- Validación: **1.577 pruebas generales, 94 del servidor, 6 de RTDB emulado, 24 comprobaciones de navegador aislado**, más puente al editor con API ficticia. Se verificaron persistencia, cantidades desconocidas, arrays omitidos por RTDB, permisos, conflictos, foco y geometría escritorio/móvil. Sin escrituras de ventas/cobros/comisiones/contraseñas/correos reales.
+- Local: activos de esta rama copiados explícitamente a `.local/release-v3619`; ventana del admin recargada en v3.11.10. Vista de Proyectos en modo `proyectos_preview=1`, con tres proyectos ficticios guardados solo en el navegador. La interfaz real sin esa opción necesita el futuro servicio habilitado. No presentar esta demo como validación con integrantes reales.
+- Conservado fuera del alcance: auditoría en `codex/traslado-nube-seguridad-20261015`, último commit conocido **`894668215a4408ab69d7533435f44aa122948eb8`**, y cambio previo desconocido `js/app.v3.10.33.js` en la copia original (SHA-256 `45efc822ad30f94a22c1622d3abb97a2403061c53a9089ece918134bfe4a1094`). No incorporar ese archivo ni los artefactos privados de tmp/.local. No se mezcló la rama completa de auditoría en Proyectos.
+- Pendientes: revisión visual del usuario; eventuales ajustes; validación real de sesiones y privacidad comercial antes de un corte futuro; paginación/índice si aumenta volumen, escucha en vivo y teléfono físico. Segundo módulo mencionado por el usuario todavía sin especificar. Próximo paso: recorrer la ficha local con el usuario y recibir su devolución; **no publicar automáticamente**. Los bloques siguientes documentan producción e historia anterior.
 
 ## Publicación verificada de ambas PC: v3.11.9 (15/10/2026)
 

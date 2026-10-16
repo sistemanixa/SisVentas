@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),{spawnSync}=require('node:child_process');
+const root=path.resolve(__dirname,'..'),tools=path.resolve(process.env.SV_SECURITY_TOOLS||path.join(root,'tmp/firebase-security-tools'));
+const cli=path.join(tools,'node_modules/firebase-tools/lib/bin/firebase.js');
+if(!fs.existsSync(cli))throw Error('Configurar SV_SECURITY_TOOLS con las herramientas demo; no usar producción.');
+fs.mkdirSync(path.join(root,'tmp'),{recursive:true});
+const config=path.join(root,'tmp/projects-emulators.json');fs.writeFileSync(config,JSON.stringify({database:{rules:path.join(root,'security/database.password-access.candidate.json')},emulators:{database:{host:'127.0.0.1',port:9005},ui:{enabled:false},singleProjectMode:true}}));
+const env={...process.env,CI:'true',SV_SECURITY_TOOLS:tools,GCLOUD_PROJECT:'demo-sisventas-projects',GOOGLE_CLOUD_PROJECT:'demo-sisventas-projects'};
+for(const k of ['GOOGLE_APPLICATION_CREDENTIALS','GOOGLE_GHA_CREDS_PATH','FIREBASE_TOKEN','CLOUDSDK_AUTH_ACCESS_TOKEN'])delete env[k];
+const r=spawnSync(process.execPath,[cli,'emulators:exec','--only','database','--project','demo-sisventas-projects','--config',config,'node --test --test-concurrency=1 test/projects.integration.cjs'],{cwd:root,env,stdio:'inherit',windowsHide:true});if(r.error)throw r.error;process.exitCode=r.status??1;

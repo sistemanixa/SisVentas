@@ -21,6 +21,9 @@
     return (cfg.bloqueados || []).indexOf(mod) === -1;
   }
   var PERMISOS_ACCION = {
+    'proyectos.crear':{modulo:'proyectos',label:'Crear proyectos',roles:['admin','administrativo','vendedor','tecnico_vendedor']},
+    'proyectos.editar':{modulo:'proyectos',label:'Editar proyectos como integrante',roles:['admin','administrativo','vendedor','tecnico_vendedor','tecnico']},
+    'proyectos.presupuestar':{modulo:'proyectos',label:'Preparar y vincular presupuestos',roles:['admin','administrativo','vendedor','tecnico_vendedor']},
     'productos.configurarGarantia':{modulo:'productos',label:'Configurar garantía y seguimiento',roles:['admin','administrativo']},
     'equipos.confirmarInstalacion':{modulo:'equipos',label:'Confirmar equipos y cobertura desde venta / OT',roles:['admin','administrativo','tecnico']},
     'agenda.reprogramar': {modulo:'agenda',label:'Reprogramar visitas',roles:['admin','administrativo']},

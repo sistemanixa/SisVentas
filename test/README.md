@@ -21,3 +21,8 @@ Gestión de acceso (solo cuentas ficticias): `node scripts/test-user-access.cjs`
 ejecuta Auth, RTDB y Storage en emuladores demo. La interfaz se comprueba con
 `test/browser/user-access.cjs`. Configuración y límites en
 [GESTION_ACCESO_USUARIOS.md](../docs/GESTION_ACCESO_USUARIOS.md).
+
+Proyectos: `node --test test/projects.test.cjs`; integración demo con
+`node scripts/test-projects.cjs`; navegador aislado con
+`test/browser/projects.cjs` y `test/browser/projects-bridge.cjs`.
+Configuración, permisos y límites de validación en [PROYECTOS.md](../docs/PROYECTOS.md).
