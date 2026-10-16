@@ -1,4 +1,12 @@
-# Restricción de identidades Firebase — primera fase
+# Seguridad Firebase
+
+## Estado vigente: corte por dominio, 16/10/2026
+
+Las reglas finales de v3.11.11 están **aplicadas y verificadas**: SHA normalizado `e5dbd9b0ca5e7e63f7966184a39350184d55fa9d7c4111c23e82ef0beb4dbc10`. Se preservó el guard de acceso y se comprobaron 532 lecturas de ocho identidades. Roles conserva sus casillas y ahora usa índice con revisión. El servidor expone directorios sanitizados; los perfiles crudos no se leen desde el cliente.
+
+Fuente exacta, generadores y verificadores en `codex/traslado-nube-seguridad-20261015` (`security/database.compact-final.candidate.json`). Los archivos históricos siguientes son antecedentes y fixtures de emulador; **no volver a desplegarlos ni usarlos como base vigente**. Ver CONTEXTO_ACTUAL y AUDITORIA_CIERRE_20261016 para estado externo, límites y reversión privada. No hay configuración raíz para desplegar reglas automáticamente al publicar el sitio.
+
+## Antecedente: restricción de identidades, primera fase
 
 13 de septiembre de 2026. **Aplicada y verificada en producción**, después de recibir autorización específica del usuario. La revisión automática había exigido esa autorización por su alcance global.
 

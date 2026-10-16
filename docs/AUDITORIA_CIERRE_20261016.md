@@ -1,8 +1,14 @@
-# Corte final de auditoría, preparado el 16/10/2026
+# Corte final de auditoría, 16/10/2026
 
-**Estado: preparado y probado; todavía no aplicado a producción.** La revisión automática rechazó activar la nueva revisión sin autorización explícita de su alcance. Hay preguntas de autorización pendientes. Este documento no sustituye la constancia de un corte verificado.
+**Estado: cliente, servidor, permisos y limpieza aplicados por autorización expresa del titular. HTTPS/DNS en curso, esperando propagación del certificado.**
 
-## Estado comprobado
+## Estado posterior al corte autorizado
+
+Cliente y aviso v3.11.11 publicados; Cotizador `cotizador-00104-zuh` al 100%; reglas finales `e5dbd9b0ca5e7e63f7966184a39350184d55fa9d7c4111c23e82ef0beb4dbc10` aplicadas con copia privada y Roles conservados. Se eliminaron exactamente los dos campos heredados, sin leer valores ni modificar Auth. Main contiene el paquete `be85b11a` y el ajuste de empaquetado `da337925`.
+
+Hosting seguro ya sirve 579 activos (16 MB de fuentes) con las cinco cabeceras; 12 activos coinciden con producción y cuatro rutas internas comprobadas devuelven 404. Las **532 consultas limitadas por UID de ocho identidades** coincidieron con sus permisos en los 63 dominios definidos y nodos privados/cuentas; no hubo errores 5xx del servidor durante el corte. Administrador local recargado: Usuarios/ficha de Mauro, Roles y Proyectos; formulario móvil de integrantes abierto y cancelado sin guardar. El certificado está en propagación. El titular aprobó además la transición exacta A/TXT tras detectar 404 por asociación pendiente: `ventas` sigue en GitHub mediante A 185.199.108.153, TTL 300, con TXT de asociación ya guardado y confirmado en el autoritativo. La asociación ya está activa y la prueba directa por hostname/TLS pasó con siete activos y cinco cabeceras. El A final 199.36.158.100 espera `CERT_ACTIVE` y la repetición de esa prueba; raíz, correo, www y checklist se conservaron. No hace falta otra aprobación del mismo alcance.
+
+## Preparación y evidencia anteriores al corte
 
 - Referencia compartida: main `e21c04e81ef3e43854d8f8630a7756ee0df8e1d4`, cliente publicado v3.11.10. La nueva rama remota `codex/referencia-gastos-personales` no se integró: es trabajo ajeno fuera de este bloque.
 - Auditoría en `codex/traslado-nube-seguridad-20261015`, con merge explícito `2faacc66a20f047c8171ad5e13a14e03220ee232`. Paquete público aislado en `codex/publicar-auditoria-v31111`; primeros commits `8af13701fd972a753313ab1ad6d34090246ee185` y `c110e93df93eb76dafcaf454d144b1d57ab35000`. Consultar el SHA final entregado; las correcciones de inventario/configuración posteriores todavía no pertenecen a esos dos commits iniciales.

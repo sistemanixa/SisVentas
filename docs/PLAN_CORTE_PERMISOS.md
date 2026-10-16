@@ -1,8 +1,8 @@
 # Validación del corte progresivo de permisos
 
-Estado al 16/10/2026: **corte compacto preparado; ninguna etapa de permisos por dominio aplicada**. Producción está en **v3.11.10** con Proyectos, servidor activo `cotizador-00102-red`. El guard de recuperación ya está activo y debe conservarse. La v3.11.11 y `cotizador-00104-zuh` están preparados sin tráfico general; la revisión automática exige autorización concreta del corte. Ver [CONTEXTO_ACTUAL.md](CONTEXTO_ACTUAL.md) y [AUDITORIA_CIERRE_20261016.md](AUDITORIA_CIERRE_20261016.md).
+Estado al 16/10/2026: **corte compacto aplicado con autorización expresa**. Producción: **v3.11.11**, Cotizador `cotizador-00104-zuh` al 100%, reglas `e5dbd9b0ca5e7e63f7966184a39350184d55fa9d7c4111c23e82ef0beb4dbc10`. Índice de Roles sin cambios en casillas y 532 comprobaciones GET correctas de ocho identidades. No repetir `--apply`: la base anterior ya no es la efectiva. Ver [CONTEXTO_ACTUAL.md](CONTEXTO_ACTUAL.md) y [AUDITORIA_CIERRE_20261016.md](AUDITORIA_CIERRE_20261016.md) para estado HTTPS y pendientes humanos.
 
-## Candidata vigente, sin aplicar
+## Fuente del corte vigente y preparación previa
 
 La final compacta tiene huella normalizada **`e5dbd9b0ca5e7e63f7966184a39350184d55fa9d7c4111c23e82ef0beb4dbc10`** y compila en remoto con `dryRun=true`. Conserva el guard, consultas propias, índices y validaciones; añade directorio privado, chat por mensaje y dominios omitidos por las instantáneas históricas, incluido Relevamientos. Los índices de Roles se derivan sin cambiar casillas. Se verificaron 54 casos RTDB demo. `scripts/apply-audit-cutover.cjs` muestra un plan por defecto; `--check` solo lee/compila; aplicar exige huellas, cliente publicado, API y copia privada.
 

@@ -41,23 +41,23 @@
     },
     {
       "path": "docs/AUDITORIA_CIERRE_20261016.md",
-      "bytesLf": 11671,
-      "sha256Lf": "3a29fdf1a8dfbd8fe2dcb62d442b47882cbe535e1bd3ea6c9fb39f4fb3c34a30"
+      "bytesLf": 13037,
+      "sha256Lf": "cb782a64801e0c6f21e104dc364b2a39aedb3f8913c874b7879f720fb2afab3d"
     },
     {
       "path": "docs/CONTEXTO_ACTUAL.md",
-      "bytesLf": 102102,
-      "sha256Lf": "5086b20b1d35cd579dc211fb15f10cbf7e04725f9e4bb98a693e8455ae10ad62"
+      "bytesLf": 105836,
+      "sha256Lf": "8bca885e1c7ad0e96528060b62dd824bbf0ccfe1c184b95485752699d18fc72e"
     },
     {
       "path": "docs/PLAN_CORTE_PERMISOS.md",
-      "bytesLf": 12489,
-      "sha256Lf": "bf7e4366c99572e213965da6c69ba198d5ea0ea194b706466d4c945723f42c6a"
+      "bytesLf": 12531,
+      "sha256Lf": "1fa5a90a3379f25c3b9379239c880238d11e0fb856a10d345cf3d7c549b3b41c"
     },
     {
       "path": "docs/PUBLICACION_HOSTING_SEGURO.md",
-      "bytesLf": 2856,
-      "sha256Lf": "fbeaa3f55ffcb0a43960c167025b5ea1ffb8611f4366104553c5e5264d09bb9b"
+      "bytesLf": 4178,
+      "sha256Lf": "37ab2817fddc4e567b90efdf4e8e0a379eb16a76ece79cecc71a35ab5ff67cfe"
     },
     {
       "path": "drafts/continuidad/asistente-baseline/audio.cjs",
@@ -176,8 +176,8 @@
     },
     {
       "path": "scripts/deploy-secure-hosting.cjs",
-      "bytesLf": 5450,
-      "sha256Lf": "55ef90085dba5f252984c70f87a515d5d6b6e587dfb1a49287f072604a82f530"
+      "bytesLf": 6258,
+      "sha256Lf": "05ade19c7affa90403da980ca5baee86f9833cff46af713f2c24f62d6a38cb41"
     },
     {
       "path": "scripts/lib/gcloud-cli.cjs",
@@ -241,13 +241,18 @@
     },
     {
       "path": "scripts/verify-audit-read-contexts.cjs",
-      "bytesLf": 3891,
-      "sha256Lf": "962776133f5ef01472c53aa85d49237259fe85785caf4a24d9db5827516f318e"
+      "bytesLf": 3981,
+      "sha256Lf": "aad0fb3d439132149dc062190a3486750e79f1907fa97e6196e646d3a1d7c782"
     },
     {
       "path": "scripts/verify-handoff-manifest.cjs",
       "bytesLf": 785,
       "sha256Lf": "532e764520942774926d3ae48429a1fe18b096de7607b2111b98b033a1d4bab7"
+    },
+    {
+      "path": "security/README.md",
+      "bytesLf": 5563,
+      "sha256Lf": "bd0454995fff07c6129a7bce35979138f5b0a9745105180fbe85f1c957cc4dd6"
     },
     {
       "path": "security/database.audit-final.candidate.json",
@@ -401,8 +406,8 @@
     },
     {
       "path": "test/hosting-source.test.cjs",
-      "bytesLf": 1073,
-      "sha256Lf": "55e94c97bfda659f7b46e3ed03757e4a0201dc1cbfec48f34efa3acdd70ebfe0"
+      "bytesLf": 1337,
+      "sha256Lf": "ea8fdebd56a775452739ca630fddf17084514c3f066f35b7b3c7af8935fc3330"
     },
     {
       "path": "test/known-role-read.integration.cjs",
@@ -466,9 +471,30 @@
       "base": "b1d94bc91ba288aa410f3aecd016cdb8b3b5797c",
       "manifestSha256Lf": "02414e912d374f54a90b531116b2cdcb76e773529b3422287a744ff96ae24906",
       "reason": "Checkpoint preparado 16/10/2026; conserva instantáneas anteriores en Git, no acredita despliegue."
+    },
+    {
+      "base": "e21c04e81ef3e43854d8f8630a7756ee0df8e1d4",
+      "manifestSha256Lf": "5f5d407dc37841efcf7d9861b870019f249a9c08e5942218ccc2ccbea4bd8ba2",
+      "reason": "Corte aplicado y verificado 16/10/2026; conserva las instantáneas previas, DNS en transición autorizada."
+    },
+    {
+      "base": "e21c04e81ef3e43854d8f8630a7756ee0df8e1d4",
+      "manifestSha256Lf": "9b643eefd046d35beed29bd9e6b2bc2fe6431418f506977a9ecc999c864b5fdf",
+      "reason": "Corte aplicado y verificado 16/10/2026; conserva las instantáneas previas, DNS en transición autorizada."
     }
   ],
-  "publicPackage": "be85b11a7be50f5c75eb6ceacc0ff7e3898a0624",
-  "state": "prepared-not-deployed",
-  "context": "docs/AUDITORIA_CIERRE_20261016.md"
+  "publicPackage": "da337925c18b278d60777464274a8c257b8bd5bc",
+  "state": "applied-awaiting-dns-tls",
+  "context": "docs/AUDITORIA_CIERRE_20261016.md",
+  "mainReference": "8c0fe83a6b25797aaa9cfad3a8202ba545ac235d",
+  "deployment": {
+    "clientVersion": "v3.11.11-firebase",
+    "serverRevision": "cotizador-00104-zuh",
+    "trafficPercent": 100,
+    "rulesSha": "e5dbd9b0ca5e7e63f7966184a39350184d55fa9d7c4111c23e82ef0beb4dbc10",
+    "hostingVersion": "be20ec89ddc4a12f",
+    "readChecks": 532,
+    "legacyFieldsRemoved": 2,
+    "dns": "A temporal GitHub y TXT de asociación aplicados; pendiente A final Firebase"
+  }
 }

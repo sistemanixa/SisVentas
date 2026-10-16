@@ -2,7 +2,22 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
-## Auditoría en curso, v3.11.11 preparada (16/10/2026)
+## Corte autorizado aplicado, cierre HTTPS en curso (16/10/2026)
+
+- El titular autorizó expresamente activar cliente/servidor/reglas, completar HTTPS/DNS y retirar los dos campos heredados, sin cambiar contraseñas ni enviar correos. La autorización anterior pendiente queda resuelta.
+- Cotizador `cotizador-00104-zuh` activo al **100%**. Configuración anterior y etiquetas conservadas; Asistente y funciones fiscales sin redesplegar.
+- Cliente y aviso Firebase **v3.11.11-firebase** publicados. Código público `be85b11a7be50f5c75eb6ceacc0ff7e3898a0624`; ajuste de empaquetado `da337925c18b278d60777464274a8c257b8bd5bc` en main. No se mezcló la rama completa de auditoría ni el trabajo de gastos de otra PC.
+- Reglas finales efectivas: **`e5dbd9b0ca5e7e63f7966184a39350184d55fa9d7c4111c23e82ef0beb4dbc10`**. Índice de Roles aplicado sin cambiar casillas/acciones; huella posterior `bae70a87112674c5f58a32b8873952d22ce38fc5efdf6d55921fbc14183d3768`. Respaldo privado de reversión en `tmp/audit-cutover-1792152340969`; no sustituir la base comercial.
+- Retirados únicamente `claveAdmin` de la ficha antigua de Distribuidora y `pass` de `config/loginRapido`; valores nunca leídos ni copiados, metadatos conservados, Firebase Auth intacto.
+- Firebase Hosting ya publica 579 activos de v3.11.11 y las cinco cabeceras de seguridad. Release `sites/nixa-sisventas-seguro/versions/be20ec89ddc4a12f`. Incluye la app activa y las dos anteriores, sin subir más de 1 GB de históricos. Los históricos siguen en Git.
+- Los 12 activos comprobados coinciden en el dominio principal y en web.app; 16 rechazos 401 del servidor activo correctos. **532 comprobaciones GET de ocho identidades** coinciden con la política de los 63 dominios definidos y los nodos privados/cuentas, sin crear sesiones ni datos. No hubo errores HTTP 5xx del servidor durante el corte. Para repetir: en la rama de auditoría, `node scripts/verify-audit-read-contexts.cjs --check --all-domains`; requiere inventario privado actualizado y reglas exactas.
+- Administrador real local recargado después del corte: Dashboard, Usuarios, ficha de Mauro (cancelada), Roles sin guardar y Proyectos cargan. En móvil emulado 390×844 se verificó listado y formulario de Proyectos con sus cuatro integrantes internos; cancelado sin crear registros, tamaño normal restaurado. Hubo un aviso de directorio durante el corte, resuelto al recargar; no se observó de nuevo en esos recorridos. No equivale a sesión propia de Osmar ni a teléfono físico.
+- **DNS en transición, autorizado expresamente**: ACME validado; certificado en `CERT_PROPAGATING`. La prueba al destino nuevo pasó TLS pero devolvió 404 por falta de asociación, por lo que no se trasladó tráfico a ese estado. El titular autorizó el ajuste exacto A/TXT: `ventas` ya tiene A temporal **185.199.108.153**, TTL **300**, manteniendo GitHub, y TXT **hosting-site=nixa-sisventas-seguro**. Autoritativo confirmó ambos y raíz/www/MX/checklist intactos. Firebase ya confirmó `OWNERSHIP_ACTIVE`; la prueba directa con hostname real, TLS válido, siete activos idénticos y cinco cabeceras pasó. Falta `CERT_ACTIVE`; después repetir la prueba y cambiar únicamente ese A a **199.36.158.100**. El ajuste ya está aprobado; no volver a preguntar salvo cambio de alcance. Reversión: A al GitHub anterior. No cambiar raíz, www ni correo.
+- El espejo local vuelve al endpoint estándar del servidor activo. El cambio desconocido `js/app.v3.10.33.js` conserva su SHA y está fuera de los commits.
+
+## Antecedente: auditoría preparada antes del corte (16/10/2026)
+
+Este bloque y los posteriores conservan la secuencia histórica. Sus estados pendientes fueron sustituidos por el estado vigente del primer bloque; no repetir activaciones ni limpiezas ya aplicadas.
 
 - Rama de auditoría `codex/traslado-nube-seguridad-20261015`, merge explícito `2faacc66a20f047c8171ad5e13a14e03220ee232` de main `e21c04e81ef3e43854d8f8630a7756ee0df8e1d4`. Archivo histórico app.v3.10.33 conservado sin incluir.
 - Paquete aislado en `.local/publicacion-auditoria-v31111`, rama `codex/publicar-auditoria-v31111`: servidor/cliente `8af13701fd972a753313ab1ad6d34090246ee185`; correcciones de carga/presencia `c110e93df93eb76dafcaf454d144b1d57ab35000`. La revisión automática rechazó activar el 100% del tráfico por faltar autorización exacta de esta revisión y efectos nuevos. Se solicitó aprobación concreta del corte; continúa pendiente.
