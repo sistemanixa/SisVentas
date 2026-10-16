@@ -33,6 +33,14 @@ function originalAuthor(record,domain,budgets){
  const created=Object.values(candidate.audit||{}).find(a=>/^(?:presupuesto\s+creado|venta\s+(?:adicional\s+)?creada|creado\b)/i.test(a.accion||'')&&a.usuario);
  return {name:String(candidate.creadorOriginalNombre||created?.usuario||candidate.creadaPor||candidate.creadoPor||candidate.usuario||candidate.empleado||'Sin registrar'),uid:candidate.creadorOriginalUid||candidate.creadaPorUid||candidate.creadoPorUid||candidate.empleadoUid||''};
 }
+function historicalConversionAudit(record,budgets){
+ if(Object.values(record.audit||{}).some(e=>e.tipo==='conversion_presupuesto_venta'))return null;
+ const source=budgets?.[record.presupuestoFbKey];if(!source)return null;
+ const events=Object.values(source.audit||{}).filter(e=>e.usuario&&e.fecha&&(/Cliente considerado visto y aceptado al convertir a venta/i.test(e.accion||'')||e.tipo==='conversion_presupuesto_venta'));
+ if(events.length!==1)return null;
+ const event=events[0],author=originalAuthor(record,'ventas',budgets);
+ return {tipo:'conversion_presupuesto_venta',fecha:event.fecha,usuario:event.usuario,accion:'Conversión histórica de '+(source.id||'presupuesto de origen')+' a '+(record.id||'venta')+' · Creador original: '+author.name+' · Según auditoría del presupuesto',referenciaHistorica:true};
+}
 function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
  const read=async p=>(await db.ref(p).get()).val();
  async function context(){const [users,identities,permissions]=await Promise.all([read('sv_usuarios'),read('sv_chat_roles'),read('sv_permisos')]);return {people:profiles(users,identities),identities:identities||{},permissions:permissions||{}};}
@@ -53,7 +61,7 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
  }
  async function recordsContext(domain){const [c,records,budgets]=await Promise.all([context(),read('sisventas/'+domain),domain==='ventas'?read('sisventas/presupuestos'):Promise.resolve(null)]);return {c,records:records||{},budgets};}
  function recordOwner(r,domain,c,budgets){if(Object.hasOwn(r,'responsableUid'))return owner(r,domain,c.people);const source=domain==='ventas'&&r.presupuestoFbKey?budgets?.[r.presupuestoFbKey]:null;return owner(source||r,source?'presupuestos':domain,c.people);}
- async function list(actor){const {c,records,budgets}=await recordsContext(actor.domain);const result={};for(const [id,r]of Object.entries(records)){const uid=recordOwner(r,actor.domain,c,budgets);if(actor.role==='admin'||uid===actor.uid)result[id]={...r,_svOwnerUid:uid||'',_svOriginalAuthor:originalAuthor(r,actor.domain,budgets)};}return {records:result};}
+ async function list(actor){const {c,records,budgets}=await recordsContext(actor.domain);const result={};for(const [id,r]of Object.entries(records)){const uid=recordOwner(r,actor.domain,c,budgets);if(actor.role==='admin'||uid===actor.uid){result[id]={...r,_svOwnerUid:uid||'',_svOriginalAuthor:originalAuthor(r,actor.domain,budgets)};const event=actor.domain==='ventas'?historicalConversionAudit(r,budgets):null;if(event)result[id]._svConversionAudit=event;}}return {records:result};}
  async function options(actor){if(actor.role!=='admin'||actor.viewing)throw fail(403,'Solo el administrador puede reasignar');const c=await context();return {users:c.people.filter(p=>eligible(p.role,actor.domain,c.permissions)).map(p=>({uid:p.uid,nombre:p.name,rol:p.role})).sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))};}
  async function mutate(actor,body,assign){
   if(actor.viewing)throw fail(403,'Volvé a tu cuenta para modificar el responsable');

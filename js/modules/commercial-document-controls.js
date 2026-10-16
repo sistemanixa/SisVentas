@@ -25,6 +25,26 @@
   const cancel=document.createElement('button');cancel.className='btn';cancel.textContent='Cancelar';cancel.onclick=()=>dialog.close();const save=document.createElement('button');save.className='btn btn-primary';save.textContent='Asignar';save.disabled=true;footer.append(cancel,save);dialog.append(title,info,label,status,footer);document.body.append(dialog);const overflow=document.body.style.overflow;document.body.style.overflow='hidden';let released=false;const release=()=>{if(!released){document.body.style.overflow=overflow;released=true;}};cancel.onclick=()=>{release();dialog.close();dialog.remove();};dialog.addEventListener('cancel',release);dialog.addEventListener('close',()=>{release();dialog.remove();});dialog.showModal();
   try{const users=await root.SVCommercialOwnership.options(domain);if(!dialog.isConnected)return;select.append(new Option('Seleccionar persona',''));for(const u of users)select.append(new Option(u.nombre+' · '+u.rol,u.uid));select.value=record.responsableUid||record._svOwnerUid||'';select.disabled=false;status.textContent=users.length?'':'No hay personas habilitadas';select.onchange=()=>save.disabled=!select.value||select.value===(record.responsableUid||record._svOwnerUid);select.focus();save.onclick=async()=>{save.disabled=true;select.disabled=true;status.textContent='Guardando…';try{const saved=await root.SVCommercialOwnership.assign(domain,record,select.value);Object.assign(record,saved);root.notify('Responsable actualizado');cancel.onclick();}catch(e){status.textContent=e.message;save.disabled=false;select.disabled=false;}};}catch(e){status.textContent=e.message;}
  }
- root.SVCommercialDocument={iso,preserve,dateChoice,auditDate,assignDialog};
+ function conversion(p,base,actor,stamp=Date.now()){
+  const author=root.SVCommercialOwnership.author(p),uid=p.creadorOriginalUid||p.creadaPorUid||p.creadoPorUid||p.empleadoUid||'',budgetId=p.id||base.presupuestoId||base.pptoOrigen||'Sin número';
+  const event={tipo:'conversion_presupuesto_venta',fecha:new Date(stamp).toISOString(),ts:stamp,usuario:actor.nombre,actorUid:actor.uid||'',accion:'Presupuesto '+budgetId+' convertido en venta '+base.id+' · Creador original: '+author,presupuestoId:budgetId,presupuestoFbKey:base.presupuestoFbKey||'',ventaId:base.id,creadorOriginalNombre:author,creadorOriginalUid:uid};
+  const venta={...base,usuario:author,creadaPor:author,creadorOriginalNombre:author,creadorOriginalUid:uid,convertidaPor:actor.nombre,convertidaPorUid:actor.uid||'',convertidaEn:stamp,ts:stamp,creadoEn:stamp,audit:Object.values(base.audit||{}).concat([event])};
+  for(const k of ['responsableUid','responsableNombre','responsableRol','responsableRevision']){if(Object.hasOwn(p,k))venta[k]=p[k];}
+  return {venta,event};
+ }
+ function auditEntries(record){
+  const entries=Object.values(record.audit||{}).slice();
+  if(record._svConversionAudit&&!entries.some(e=>e.tipo==='conversion_presupuesto_venta'))entries.unshift(record._svConversionAudit);
+  return entries;
+ }
+ function auditHTML(record){
+  const entries=auditEntries(record),escape=root.escapeHTML;
+  return entries.length?entries.map(e=>{
+   const parsed=/^\d{4}-\d\d-\d\dT/.test(e.fecha||'')?new Date(e.fecha):null;
+   const date=parsed&&Number.isFinite(parsed.getTime())?parsed.toLocaleString('es-AR'):e.fecha||'';
+   return '<div style="font-size:12px;color:var(--text3);padding:4px 0;border-bottom:.5px solid var(--border)">'+escape(date)+' · '+escape(e.usuario||'')+' — '+escape(e.accion||'')+'</div>';
+  }).join(''):'<div style="font-size:12px;color:var(--text3)">Sin modificaciones registradas</div>';
+ }
+ root.SVCommercialDocument={iso,preserve,dateChoice,auditDate,assignDialog,conversion,auditEntries,auditHTML};
  root.abrirReasignacionComercial=assignDialog;
 })(window);

@@ -26,6 +26,20 @@ convertidaPorUid y convertidaEn. Su instante de creación como venta es el de la
 conversión, distinto del alta del presupuesto. No se reescriben conversiones reales.
 El DTO reconoce el origen al presentar conversiones antiguas sin creador explícito.
 
+La escritura multipath de una conversión nueva guarda el mismo evento explícito
+`conversion_presupuesto_venta` en ambas auditorías: actor real/UID, instante ISO,
+presupuesto/venta y creador original. La identidad se toma del presupuesto definitivo
+después de preparar/volver a leer, no del formulario anterior ni del responsable
+reasignado. Aceptación y conversión son eventos distintos; los reintentos que abren
+una venta existente no agregan eventos ni alteran su autoría.
+
+Para el legado, el servidor adjunta `_svConversionAudit` de presentación únicamente
+si existe una conversión inequívoca en la auditoría del presupuesto enlazado. La
+venta la muestra como «Según auditoría del presupuesto», sin escritura histórica,
+sin inferir actor por el campo usuario de la venta y sin duplicar un evento propio.
+Si el origen falta o es ambiguo, no se inventa una entrada. Estos metadatos `_sv`
+se descartan al guardar; nunca se presentan como una reparación persistida.
+
 ## Seguridad y datos históricos
 
 `cotizador/commercial-ownership.js` usa el guard comercial de Auth real, revocación,
@@ -80,6 +94,10 @@ las dos colecciones para no poder eludir restricciones de hijos. Admin consulta
 la colección; otros leen/escriben solo registros propios canónicos. Se protegen
 autoría y timestamps; fecha comercial requiere marcador manual vinculado al actor.
 Las concesiones anidadas de cobros también requieren ser dueño de esa venta.
+El alta de una venta convertida valida autoría contra su presupuesto protegido,
+acceso del convertidor y clave determinista; no exige que el autor original sea el
+responsable actual. Así permite convertir un presupuesto reasignado sin atribuir
+su creación al nuevo operador ni sustituir nombres históricos por el directorio.
 
 Antes de un corte hay que volver a leer las reglas remotas, comparar huella, tener
 respaldo y probar el conjunto exacto. Preparar servidor compatible primero; luego

@@ -45480,7 +45480,10 @@ async function _svCargaOperacion__convertirPresupuestoEnVentaAtomico(p, ventaBas
     var auditAnterior = Array.isArray(presupuestoActual.audit)
       ? presupuestoActual.audit.slice()
       : Object.values(presupuestoActual.audit || {});
-    var audit = auditAnterior.concat([datosAudit]);
+    // Autoría y conversión se toman del presupuesto definitivo, no del formulario previo.
+    var conversionAudit = window.SVCommercialDocument.conversion(presupuestoActual, venta, {nombre:currentUser || currentUserEmail || 'Usuario',uid:currentUserUid || ''});
+    venta = conversionAudit.venta;
+    var audit = auditAnterior.concat([datosAudit, conversionAudit.event]);
     var updates = {};
     updates['ventas/' + ventaFbKeyDeterminista] = venta;
     updates['presupuestos/' + fbKey + '/estado'] = 'convertido';
@@ -45629,7 +45632,7 @@ async function pptoAccion(accion, opts) {
       usuario:      window.SVCommercialOwnership.author(p),
       creadaPor: window.SVCommercialOwnership.author(p),
       creadorOriginalNombre: window.SVCommercialOwnership.author(p),
-      creadorOriginalUid: p.creadorOriginalUid || p.empleadoUid || p.responsableUid || '',
+      creadorOriginalUid: p.creadorOriginalUid || p.creadaPorUid || p.creadoPorUid || p.empleadoUid || '',
       responsableUid: p.responsableUid || p._svOwnerUid || currentUserUid,
       responsableNombre: p.responsableNombre || window.SVCommercialOwnership.author(p),
       responsableRol: p.responsableRol || '', responsableRevision:1, creadoEn:Date.now(),
@@ -52006,11 +52009,7 @@ function renderDetalleVenta(v) {
     // Auditoría
     '<div class="card" id="venta-detalle-auditoria">' +
           '<div style="font-weight:600;margin-bottom:10px;font-size:13px;color:var(--text2)">Auditoría</div>' +
-          (v.audit && v.audit.length ? v.audit.map(function(a) {
-            return '<div style="font-size:12px;color:var(--text3);padding:4px 0;border-bottom:.5px solid var(--border)">' +
-              (a.fecha||'') + ' · ' + (a.usuario||'') + ' — ' + (a.accion||'') +
-            '</div>';
-          }).join('') : '<div style="font-size:12px;color:var(--text3)">Sin modificaciones registradas</div>') +
+          window.SVCommercialDocument.auditHTML(v) +
         '</div>';
 
   // El perfil de columnas debe aplicarse en el mismo ciclo de renderizado.

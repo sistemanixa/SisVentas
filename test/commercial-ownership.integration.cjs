@@ -19,3 +19,14 @@ test('técnico sin módulo no puede recibir un registro ni por escritura directa
 test('legado se vincula mediante servicio antes de editar, sin abrir lectura directa por nombre',async()=>{await assertFails(get(ref(client('a'),'sisventas/ventas/old')));const actor=await api.authorize({headers:{authorization:'Bearer a'}},'ventas');await api.prepare(actor,{id:'old'});await assertSucceeds(get(ref(client('a'),'sisventas/ventas/old')));await assertSucceeds(update(ref(client('a'),'sisventas/ventas/old'),{total:60}));});
 test('usuario inactivo y nodo privado siguen denegados',async()=>{await db.ref('sv_chat_roles/a/activo').set(false);await assertFails(get(ref(client('a'),'sisventas/ventas/a')));for(const uid of ['admin','a',null])await assertFails(get(ref(client(uid),'sv_personal_finance/proof')));});
 test('regresión de auditoría: vendedor no genera comisiones con escrituras directas del navegador',async()=>{await assertFails(set(ref(client('a'),'sisventas/comisiones_generacion/ficticia'),{estado:'procesando'}));await assertFails(set(ref(client('a'),'sisventas/ctaemp/a/ficticia'),{tipo:'comision',monto:1}));});
+
+test('convertir presupuesto reasignado conserva autor inicial y operador; no admite autor u origen falsificados',async()=>{
+ await db.ref('sisventas/presupuestos/a').update({responsableUid:'b',responsableNombre:'Persona b',creadorOriginalNombre:'Nombre histórico del autor'});
+ const converted={...row('b'),presupuestoFbKey:'a',creadorOriginalUid:'a',creadorOriginalNombre:'Nombre histórico del autor',usuario:'Nombre histórico del autor',creadaPor:'Nombre histórico del autor',convertidaPorUid:'b'};
+ await assertSucceeds(set(ref(client('b'),'sisventas/ventas/ppto_a'),converted));
+ await db.ref('sisventas/ventas/ppto_a').remove();
+ await assertFails(set(ref(client('b'),'sisventas/ventas/ppto_a'),{...converted,creadorOriginalUid:'b',creadorOriginalNombre:'Persona b'}));
+ await assertFails(set(ref(client('b'),'sisventas/ventas/otro'),converted));
+ await assertFails(set(ref(client('a'),'sisventas/ventas/ppto_a'),{...converted,responsableUid:'a',convertidaPorUid:'a'}));
+ await assertFails(set(ref(client('b'),'sisventas/ventas/ppto_a'),{...converted,convertidaPorUid:'a'}));
+});

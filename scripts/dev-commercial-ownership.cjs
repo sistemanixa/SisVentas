@@ -1,7 +1,9 @@
 'use strict';
 // Solo fixture en memoria. No carga Firebase Admin ni credenciales.
 const http=require('http'),fs=require('fs'),path=require('path'),{fixture}=require('../test/helpers/commercial-ownership-fixtures.cjs');
-const {api}=fixture(),root=path.resolve(__dirname,'..');
+const {api,db}=fixture(),root=path.resolve(__dirname,'..');
+db.root.sisventas.presupuestos.budget.id='PP-DEMO';
+db.root.sisventas.presupuestos.budget.audit.push({fecha:'14/10/2026 08:44',usuario:'Operador de prueba',accion:'Cliente considerado visto y aceptado al convertir a venta'});
 const app=fs.readFileSync(path.join(root,'js/app.v3.11.13.js'),'utf8');
 const fragments=app.slice(app.indexOf('function montarCreadorComercial('),app.indexOf('function renderVentasTabla('));
 const json=(r,status,v)=>{r.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});r.end(JSON.stringify(v));};
