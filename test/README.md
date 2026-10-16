@@ -35,3 +35,12 @@ Proyectos: `node --test test/projects.test.cjs`; integración demo con
 `node scripts/test-projects.cjs`; navegador aislado con
 `test/browser/projects.cjs` y `test/browser/projects-bridge.cjs`.
 Configuración, permisos y límites de validación en [PROYECTOS.md](../docs/PROYECTOS.md).
+
+El corte compacto vigente agrega directorio filtrado, chat por mensaje,
+Relevamientos y configuración al runner de seguridad: actualmente **54 casos**
+con `--emulator --with-access-guard`. Las candidatas históricas siguen siendo
+instantáneas: no desplegarlas solas ni eliminar el guard para regenerarlas.
+`test/browser/user-directory.cjs` ejecuta 66 comprobaciones de siete roles y
+usa la API y los estados de carga reales con fixtures aislados. Las regresiones
+de presencia/Ver como y caché de porcentajes están en la suite general.
+El teléfono físico y un login propio requieren comprobación separada.

@@ -31,6 +31,13 @@
       check();
       var identity=identitySnapshot.val();
       var result={uid:user.uid,generation:epoch,identitySnapshot:identitySnapshot};
+      if(window.SVUserDirectory?.enabled){
+        if(!identity||identity.activo!==true)throw Error('Identidad sin acceso activo');
+        var profile=await window.SVUserDirectory.profile(user);check();protectedStorage=true;
+        var own={};own[profile.fbKey]=profile;
+        result.usuariosSnapshot={exists:function(){return true;},val:function(){return own;}};
+        return result;
+      }
       if(identity && ['compras_paraguay','distribuidora'].includes(identity.rol)) { protectedStorage=true;return result; }
       var target=window.fbRef(window.fbDB,'sv_usuarios');
       var snapshot=await window.fbGet(target);

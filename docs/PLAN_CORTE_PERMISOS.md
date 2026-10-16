@@ -1,6 +1,12 @@
 # Validación del corte progresivo de permisos
 
-Estado al 16/10/2026: **plan de validación; ninguna etapa de permisos por dominio aplicada**. Producción está en **v3.11.9**, código `3bf92dac`, constancia en main `2a0d01e7`. El guard de recuperación ya está activo y debe conservarse en cualquier etapa futura. Ver [CONTEXTO_ACTUAL.md](CONTEXTO_ACTUAL.md) antes de ejecutar cualquier corte.
+Estado al 16/10/2026: **corte compacto preparado; ninguna etapa de permisos por dominio aplicada**. Producción está en **v3.11.10** con Proyectos, servidor activo `cotizador-00102-red`. El guard de recuperación ya está activo y debe conservarse. La v3.11.11 y `cotizador-00104-zuh` están preparados sin tráfico general; la revisión automática exige autorización concreta del corte. Ver [CONTEXTO_ACTUAL.md](CONTEXTO_ACTUAL.md) y [AUDITORIA_CIERRE_20261016.md](AUDITORIA_CIERRE_20261016.md).
+
+## Candidata vigente, sin aplicar
+
+La final compacta tiene huella normalizada **`e5dbd9b0ca5e7e63f7966184a39350184d55fa9d7c4111c23e82ef0beb4dbc10`** y compila en remoto con `dryRun=true`. Conserva el guard, consultas propias, índices y validaciones; añade directorio privado, chat por mensaje y dominios omitidos por las instantáneas históricas, incluido Relevamientos. Los índices de Roles se derivan sin cambiar casillas. Se verificaron 54 casos RTDB demo. `scripts/apply-audit-cutover.cjs` muestra un plan por defecto; `--check` solo lee/compila; aplicar exige huellas, cliente publicado, API y copia privada.
+
+El inventario encontró configuración heredada sensible y comprobó que la candidata antigua habría bloqueado Relevamientos técnicos. Por eso las candidatas `8c318727…` y previas no son el corte vigente. Las secciones siguientes conservan la historia y condiciones, **no una autorización para aplicar un archivo histórico**. Los pendientes antiguos de directorio/inventario/tamaño ya tienen implementación y evidencia en el documento de cierre; activación, limpieza autorizada y comprobaciones humanas aún siguen pendientes.
 
 ## Composición vigente sobre v3.11.9
 

@@ -1,6 +1,15 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),zlib=require('node:zlib'),{gcloud}=require('./lib/gcloud-cli.cjs');
 const project='nixa-sisventas',site='nixa-sisventas-seguro',root=path.resolve(__dirname,'..');
+function checkedSource(){
+ const {execFileSync}=require('node:child_process'),git=args=>execFileSync('git',args,{cwd:root,encoding:'utf8',windowsHide:true}).trim();
+ const at=process.argv.indexOf('--expected-commit'),expected=at>=0?process.argv[at+1]:'';
+ if(!/^[a-f0-9]{40}$/.test(expected||'')||git(['rev-parse','HEAD'])!==expected)throw Error('Indicar --expected-commit con el SHA completo revisado');
+ if(git(['status','--porcelain','--untracked-files=normal']))throw Error('Publicar solo desde el paquete limpio, sin cambios ajenos');
+ const index=fs.readFileSync(path.join(root,'index.html'),'utf8'),version=index.match(/VERSION:\s*'(v[0-9.]+)-firebase'/)?.[1];
+ if(!version||!index.includes('js/app.'+version+'.js')||!fs.readFileSync(path.join(root,'sw.js'),'utf8').includes("'sisventas-"+version+"'"))throw Error('Versión de cliente incoherente');
+ return {commit:expected,version};
+}
 let token='';
 function accessToken(){return gcloud(['auth','print-access-token']);}
 async function api(url,method='GET',data){const r=await fetch(url,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','X-Goog-User-Project':project},...(data?{body:JSON.stringify(data)}:{}),signal:AbortSignal.timeout(90000)});const text=await r.text();if(!r.ok)throw Error('Hosting HTTP '+r.status+': '+text.slice(0,300));return text?JSON.parse(text):{};}
@@ -9,5 +18,5 @@ const csp="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' h
 const config={headers:[{glob:'**',headers:{'Content-Security-Policy':csp,'X-Frame-Options':'SAMEORIGIN','X-Content-Type-Options':'nosniff','Strict-Transport-Security':'max-age=31536000','Referrer-Policy':'strict-origin-when-cross-origin','Cache-Control':'no-cache','Cross-Origin-Opener-Policy':'same-origin-allow-popups'}}],rewrites:[{glob:'/catalogo',path:'/catalogo.html'},{glob:'/catalogo/**',path:'/catalogo.html'}]};
 async function main(){if(!process.argv.includes('--apply')){console.log(JSON.stringify({mode:'plan',project,site,files:files().length,config,note:'Sin autenticación ni cambios remotos. --apply requiere autorización de despliegue separada.'},null,2));return;}token=accessToken();if(!token)throw Error('No hay sesión gcloud válida');const base='https://firebasehosting.googleapis.com/v1beta1';const sites=await api(base+'/projects/'+project+'/sites');if(!(sites.sites||[]).some(s=>s.name.endsWith('/'+site)))await api(base+'/projects/'+project+'/sites?siteId='+site,'POST',{type:'USER_SITE'});const version=await api(base+'/sites/'+site+'/versions','POST',{config});const names=files(),map={},buffers=new Map();for(const name of names){const compressed=zlib.gzipSync(fs.readFileSync(path.join(root,name)));const hash=crypto.createHash('sha256').update(compressed).digest('hex');map['/'+name]=hash;buffers.set(hash,compressed);}let uploaded=0;const entries=Object.entries(map);for(let start=0;start<entries.length;start+=900){const batch=await api(base+'/'+version.name+':populateFiles','POST',{files:Object.fromEntries(entries.slice(start,start+900))});const hashes=batch.uploadRequiredHashes||[];for(let i=0;i<hashes.length;i+=8){await Promise.all(hashes.slice(i,i+8).map(async hash=>{const r=await fetch(batch.uploadUrl+'/'+hash,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/octet-stream'},body:buffers.get(hash),signal:AbortSignal.timeout(90000)});if(!r.ok)throw Error('Carga Hosting HTTP '+r.status);uploaded++;}));}}
 await api(base+'/'+version.name+'?update_mask=status','PATCH',{status:'FINALIZED'});await api(base+'/sites/'+site+'/releases?versionName='+version.name,'POST',{});fs.writeFileSync(path.join(root,'tmp/secure-hosting-release.json'),JSON.stringify({site,version:version.name,files:names.length,url:'https://'+site+'.web.app',config},null,2));console.log('Hosting preparado: https://'+site+'.web.app · '+names.length+' archivos públicos · '+uploaded+' cargas. DNS sin modificar.');}
-if(require.main===module)main().catch(e=>{console.error(e.message);process.exitCode=1;});
+if(require.main===module){if(process.argv.includes('--apply')){try{checkedSource();}catch(e){console.error(e.message);process.exitCode=1;return;}}main().catch(e=>{console.error(e.message);process.exitCode=1;});}
 module.exports={files,config};

@@ -7,6 +7,8 @@ RUN npm install --omit=dev
 
 COPY index.js ./
 COPY projects.js projects-model.js ./
+COPY user-directory.js ./
+COPY chat-operations.js ./
 COPY user-access.js password-email.js password-policy.js ./
 COPY oauth-authorization.js ./
 COPY labor-calculations.js labor-operations.js labor-submissions.js labor-transaction.js ./

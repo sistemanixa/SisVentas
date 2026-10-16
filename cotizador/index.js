@@ -37,6 +37,8 @@ const db = admin.database();
 // parsers (or their tests) must not instantiate extra SDK services.
 const firebaseAuth = Object.fromEntries(['verifyIdToken','getUser','updateUser','setCustomUserClaims','revokeRefreshTokens'].map(method => [method,(...args)=>admin.auth()[method](...args)]));
 const businessAuth = require('./user-access').createBusinessAuth(firebaseAuth, db);
+const userDirectory = require('./user-directory').createUserDirectory({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
+const chatOperations = require('./chat-operations').createChatOperations({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
 const projects = require('./projects').createProjects({auth:businessAuth,db,enabled:process.env.PROJECTS_ENABLED==='true'});
 const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,db,enabled:process.env.USER_ACCESS_ENABLED==='true',emailConfigured:!!process.env.FIREBASE_WEB_API_KEY,sendResetEmail:require('./password-email').createPasswordEmail({apiKey:process.env.FIREBASE_WEB_API_KEY})});
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
@@ -1980,6 +1982,24 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && pathname === '/mercadolibre/oauth/start') {
     try { await iniciarOAuthMercadoLibre(req, res); }
     catch (e) { sendHtml(res, e.statusCode || 500, `<h1>No se pudo iniciar la conexión</h1><p>${String(e.message || e).replace(/[<>&]/g, '')}</p>`); }
+    return;
+  }
+
+  if(pathname==='/chat/mensaje'){
+    res.setHeader('Cache-Control','no-store');
+    try{if(req.method!=='POST'){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+      const body=await readBody(req,25000),actor=await chatOperations.authorize(req,body.channel);
+      send(res,200,{ok:true,...await chatOperations.modify(actor,body)});
+    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar el mensaje'});}return;
+  }
+  if(['/usuarios/perfil','/usuarios/directorio','/usuarios/administracion'].includes(pathname)){
+    res.setHeader('Cache-Control','no-store');
+    try{
+      if(req.method!=='GET'){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+      const actor=await userDirectory.authorize(req);
+      const result=pathname==='/usuarios/perfil'?await userDirectory.profile(actor):await userDirectory.directory(actor,pathname==='/usuarios/administracion');
+      send(res,200,{ok:true,...result});
+    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo cargar el directorio protegido. Reintentá.'});}
     return;
   }
 

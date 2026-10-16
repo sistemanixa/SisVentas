@@ -1,106 +1,63 @@
 {
   "created": "2026-10-15",
   "branch": "codex/traslado-nube-seguridad-20261015",
-  "base": "b1d94bc91ba288aa410f3aecd016cdb8b3b5797c",
+  "base": "e21c04e81ef3e43854d8f8630a7756ee0df8e1d4",
   "normalization": "UTF-8 with CRLF normalized to LF",
   "files": [
     {
-      "path": "scripts/deploy-secure-hosting.cjs",
-      "bytesLf": 4434,
-      "sha256Lf": "2db80fb543c4612e26b726f98da0c983078bbf0e57c1b26d2a0e46ee43b78197"
+      "path": "AGENTS.md",
+      "bytesLf": 9842,
+      "sha256Lf": "0eb587403b88bd7dbcc063c01658c915830ddf9cd452766e7ef845c05858feb3"
     },
     {
-      "path": "scripts/lib/gcloud-cli.cjs",
-      "bytesLf": 552,
-      "sha256Lf": "3ff307c654f2651671f006f9f61a026e9be0fbc32f78ec176d4213bdf992a53a"
+      "path": "cotizador/Dockerfile",
+      "bytesLf": 867,
+      "sha256Lf": "b266a1e133cd22e22dfd92fa21485e19c11d9ded2ecc97767b727eee768b09bc"
     },
     {
-      "path": "scripts/check-cloud-access.cjs",
-      "bytesLf": 1955,
-      "sha256Lf": "c7b078cf35ad568f72f41ba3ca8cd0823b5d0d83530cfb1a37cc68e7da0c3fef"
+      "path": "cotizador/README.md",
+      "bytesLf": 6614,
+      "sha256Lf": "b1c915ee9321a3e0e1abac9e26ea0a9c270031b0cbb4cbdd16a903f347cab0b9"
     },
     {
-      "path": "scripts/test-security-drafts.cjs",
-      "bytesLf": 2345,
-      "sha256Lf": "aa50e7cd28b883a457260ee1bae2e4e0ddf34ea1d3549d56dca11a77d36f3c89",
-      "previousSha256Lf": "ee014e9a2540ea4b43de7a4839bc94c0fcf67ff2b7a854fb27d8d123ff7297b4"
+      "path": "cotizador/chat-operations.js",
+      "bytesLf": 4446,
+      "sha256Lf": "d46d2de775fcf510a750f3a0c9b43d9837ca4ca9274b5a48d1684c16ac303eea"
     },
     {
-      "path": "scripts/prepare-known-role-read.cjs",
-      "bytesLf": 1013,
-      "sha256Lf": "6eec562e85584eafd7201ac0402a6e77749064ecdf7c87b92133a19ff3f1a116"
+      "path": "cotizador/index.js",
+      "bytesLf": 115007,
+      "sha256Lf": "76275279705540e0204c04a6faa067fd59e57f6d18a96a4297c8c8840d9aba8c"
     },
     {
-      "path": "scripts/verify-handoff-manifest.cjs",
-      "bytesLf": 785,
-      "sha256Lf": "532e764520942774926d3ae48429a1fe18b096de7607b2111b98b033a1d4bab7"
+      "path": "cotizador/password-policy.js",
+      "bytesLf": 1131,
+      "sha256Lf": "2956474b476dbef7d40842116bc1b967bc5c20d2f3c5c5e8218c05eeeb3d9813"
     },
     {
-      "path": "security/database.known-role-read.candidate.json",
-      "bytesLf": 222844,
-      "sha256Lf": "ecfecf06378c0c2f5d77e065d357091481afb08b4553f8b16831a338fe049718",
-      "previousSha256Lf": "9e52a526da574c6815c71d30831bf90e98a01b3cbe211f8ba2509d9972dcc7dc"
+      "path": "cotizador/user-directory.js",
+      "bytesLf": 3135,
+      "sha256Lf": "45b0fffca03f6d12f75a8e51b4c550ea40c648d66b7868ad30673cec5f0c453f"
     },
     {
-      "path": "security/database.domain-read.candidate.json",
-      "bytesLf": 1994553,
-      "sha256Lf": "0681d267e28036b19354d1b290425bb9d611250b3bce6f72471c60bc1b7d6d74",
-      "previousSha256Lf": "1198ae1888038f26616ed14936cd424e431c029aaad3e5fad38d18ee01620895"
+      "path": "docs/AUDITORIA_CIERRE_20261016.md",
+      "bytesLf": 11671,
+      "sha256Lf": "3a29fdf1a8dfbd8fe2dcb62d442b47882cbe535e1bd3ea6c9fb39f4fb3c34a30"
     },
     {
-      "path": "security/database.employee-account-read.candidate.json",
-      "bytesLf": 2119944,
-      "sha256Lf": "0f70c39255e294d2f82ed0210abd2a54220ab8124247ac33fc4b81e626ef8477",
-      "previousSha256Lf": "6ceb5718e872ee8e079adde733d3d2e3eab7742e269b48533001de139da6fcd0"
+      "path": "docs/CONTEXTO_ACTUAL.md",
+      "bytesLf": 102102,
+      "sha256Lf": "5086b20b1d35cd579dc211fb15f10cbf7e04725f9e4bb98a693e8455ae10ad62"
     },
     {
-      "path": "security/database.audit-final.candidate.json",
-      "bytesLf": 3082577,
-      "sha256Lf": "ac2ad2175bcb2da2523ac4289b461fbb54439fc44a7ffaf7852263509686795a",
-      "previousSha256Lf": "2c3ce1ccbdb13e1301c0ff778d917f84bff57be941d2afd0868b8347994df870"
+      "path": "docs/PLAN_CORTE_PERMISOS.md",
+      "bytesLf": 12489,
+      "sha256Lf": "bf7e4366c99572e213965da6c69ba198d5ea0ea194b706466d4c945723f42c6a"
     },
     {
-      "path": "test/known-role-read.integration.cjs",
-      "bytesLf": 2494,
-      "sha256Lf": "899b2edf93b81d7b2e2ccf0f787fb4c58067db96cfec930bee38a72e9ddebc75"
-    },
-    {
-      "path": "test/domain-reads.integration.cjs",
-      "bytesLf": 6095,
-      "sha256Lf": "6614a816e797a7e5d751c23872d8df11830a4cdc0d5c107b012785bb804b4c57",
-      "previousSha256Lf": "59eca124fc7e936c3f654b0c22dd01c0571da6f9854f868b74c319a030fa1aa2"
-    },
-    {
-      "path": "test/employee-account-reads.integration.cjs",
-      "bytesLf": 7282,
-      "sha256Lf": "bf6b976154aa5cd76f3b46117ef4d5ed89bbf1888ac73126a3e41c3e63c2202c",
-      "previousSha256Lf": "002ba21a663aa55dadf397557a91da25ffe179381e5b14fcc05284ab534b75ee"
-    },
-    {
-      "path": "test/audit-final-permissions.integration.cjs",
-      "bytesLf": 4803,
-      "sha256Lf": "a05288756a61434c5a7954cb9b0a911b01bd2a3d17c875c43df03b446af38dca",
-      "previousSha256Lf": "faee39ec0de3209e395db2bbe7fa310713e730651017642b2f824ce7b5d50b09"
-    },
-    {
-      "path": "test/security-handoff.test.cjs",
-      "bytesLf": 1402,
-      "sha256Lf": "434e9c9f5e995f09bb68094c69595554d319c949b44783d6f76f54f5d201c102"
-    },
-    {
-      "path": "drafts/continuidad/purchase-orders-unificacion-en-progreso.js",
-      "bytesLf": 159759,
-      "sha256Lf": "a4118149b4a5dd43f296bf51887ac5230c3410a64c63c4e72f5668e91e2caad8"
-    },
-    {
-      "path": "drafts/continuidad/asistente-inicial/index.js",
-      "bytesLf": 2770,
-      "sha256Lf": "e848e6e55a988e393e1531ca2b315e2de05d71eb6ed9b391f9b4cd0192d399e7"
-    },
-    {
-      "path": "drafts/continuidad/asistente-baseline/index.js",
-      "bytesLf": 3690,
-      "sha256Lf": "1b017fb3d79b7cd043407cf1dda71d468ad6270150d7cc129cfe188f211bbef0"
+      "path": "docs/PUBLICACION_HOSTING_SEGURO.md",
+      "bytesLf": 2856,
+      "sha256Lf": "fbeaa3f55ffcb0a43960c167025b5ea1ffb8611f4366104553c5e5264d09bb9b"
     },
     {
       "path": "drafts/continuidad/asistente-baseline/audio.cjs",
@@ -108,9 +65,14 @@
       "sha256Lf": "fed57940027443d366c454f657c4150a7e54a55f8e6d1ff1fc4a35df85f7c924"
     },
     {
-      "path": "drafts/continuidad/b2616cf9-functional.patch",
-      "bytesLf": 24288,
-      "sha256Lf": "6a5cb687701382e34d60f3d5565657d230f9696a38deb1b050255eccaa257577"
+      "path": "drafts/continuidad/asistente-baseline/index.js",
+      "bytesLf": 3690,
+      "sha256Lf": "1b017fb3d79b7cd043407cf1dda71d468ad6270150d7cc129cfe188f211bbef0"
+    },
+    {
+      "path": "drafts/continuidad/asistente-inicial/index.js",
+      "bytesLf": 2770,
+      "sha256Lf": "e848e6e55a988e393e1531ca2b315e2de05d71eb6ed9b391f9b4cd0192d399e7"
     },
     {
       "path": "drafts/continuidad/b2616cf9-app-delta.patch",
@@ -118,14 +80,299 @@
       "sha256Lf": "2d91027ab5416c7c3a863c88e8c60d7c27fbb1ec823b3c6234bb01ba30f8a459"
     },
     {
+      "path": "drafts/continuidad/b2616cf9-functional.patch",
+      "bytesLf": 24288,
+      "sha256Lf": "6a5cb687701382e34d60f3d5565657d230f9696a38deb1b050255eccaa257577"
+    },
+    {
+      "path": "drafts/continuidad/purchase-orders-unificacion-en-progreso.js",
+      "bytesLf": 159759,
+      "sha256Lf": "a4118149b4a5dd43f296bf51887ac5230c3410a64c63c4e72f5668e91e2caad8"
+    },
+    {
+      "path": "index.html",
+      "bytesLf": 464754,
+      "sha256Lf": "0207560efbd791aa4069ebe4b1a66e2589484028d370474277ec420e8c47be50"
+    },
+    {
+      "path": "js/app.v3.11.11.js",
+      "bytesLf": 3151384,
+      "sha256Lf": "ec2ebfc86e68b6d22e8531cf495137c233891d6afd019a4483a98b5be655043b"
+    },
+    {
+      "path": "js/core/chat-security.js",
+      "bytesLf": 902,
+      "sha256Lf": "f5c737bdcd9bbf58d2f60bce09e715a2f192c63533aaedf8a5cde35cab0eed0e"
+    },
+    {
+      "path": "js/core/permission-index.js",
+      "bytesLf": 2655,
+      "sha256Lf": "f2ded8183dbc675bb82281df0725417bbfa8e4a965a7c0b40f402d8763ad20c2"
+    },
+    {
+      "path": "js/core/session-assets.js",
+      "bytesLf": 4121,
+      "sha256Lf": "bac7a06b2988edbfe864d14afe2082cb53cd4c5efbd819462b4b92571e126bbf"
+    },
+    {
+      "path": "js/core/user-directory.js",
+      "bytesLf": 5211,
+      "sha256Lf": "d77a4bdb85c08af3cf39526d16f6318fc9ef66f877bc0a837d1564f5aef92e99"
+    },
+    {
+      "path": "js/core/version.js",
+      "bytesLf": 1247,
+      "sha256Lf": "358bd5495af74b0af1bde7e89dceda5fda527e16b1fc650c48e0dc1d6ee863bd"
+    },
+    {
+      "path": "js/core/version.v3.11.11.js",
+      "bytesLf": 1247,
+      "sha256Lf": "358bd5495af74b0af1bde7e89dceda5fda527e16b1fc650c48e0dc1d6ee863bd"
+    },
+    {
+      "path": "js/modules/chat-access.js",
+      "bytesLf": 7467,
+      "sha256Lf": "6e9ba63385cfcfb3f795b54818f1297ac0042a6ae5c366e06b6c86115a55b38d"
+    },
+    {
+      "path": "js/modules/chat-presence.js",
+      "bytesLf": 3029,
+      "sha256Lf": "e3bab7b9aa700df4cc4ecf225965a18bebe586e62664d6f1309cf964c66cc690"
+    },
+    {
+      "path": "js/modules/distribuidora-sales-balance.js",
+      "bytesLf": 5714,
+      "sha256Lf": "4ea624149d5b8209f2dc1e6465d96dd08b723655c7be25f4557011119f8db3d1"
+    },
+    {
+      "path": "js/modules/exterior-user-lists.js",
+      "bytesLf": 23440,
+      "sha256Lf": "a0fc9a7cf4043cb66b73e7556dd12db911808553df8ec1226aa816e8f9442a8b"
+    },
+    {
+      "path": "js/modules/paraguay-shopping-access.js",
+      "bytesLf": 126790,
+      "sha256Lf": "0b1fe291ad89c47b4cc68c564eeafdeded8b1fbf0730b78c9cb20f2e86a6892a"
+    },
+    {
+      "path": "js/modules/security-storage.js",
+      "bytesLf": 3318,
+      "sha256Lf": "44b9d35cf3e4c563762c869b089427284a700d077514c67f78c89a2e2ac3613a"
+    },
+    {
+      "path": "scripts/apply-audit-cutover.cjs",
+      "bytesLf": 6232,
+      "sha256Lf": "564f52ced9a6d5bb7892b23ddf0f002258927d7b12f52c1fc76d2f133e27855f"
+    },
+    {
+      "path": "scripts/audit-user-metadata.cjs",
+      "bytesLf": 3087,
+      "sha256Lf": "54cd2253acdaaeb0597ee8c491608e113d002719063a76663b8c95d480242ff5"
+    },
+    {
+      "path": "scripts/check-cloud-access.cjs",
+      "bytesLf": 1955,
+      "sha256Lf": "c7b078cf35ad568f72f41ba3ca8cd0823b5d0d83530cfb1a37cc68e7da0c3fef"
+    },
+    {
+      "path": "scripts/deploy-secure-hosting.cjs",
+      "bytesLf": 5450,
+      "sha256Lf": "55ef90085dba5f252984c70f87a515d5d6b6e587dfb1a49287f072604a82f530"
+    },
+    {
+      "path": "scripts/lib/gcloud-cli.cjs",
+      "bytesLf": 552,
+      "sha256Lf": "3ff307c654f2651671f006f9f61a026e9be0fbc32f78ec176d4213bdf992a53a"
+    },
+    {
+      "path": "scripts/prepare-access-permission-stages.cjs",
+      "bytesLf": 2395,
+      "sha256Lf": "ee676e42827b2e45668489a42e3c1588d156107dc7e459ae8d33e4db6116f73f"
+    },
+    {
+      "path": "scripts/prepare-chat-security.cjs",
+      "bytesLf": 3753,
+      "sha256Lf": "7263d10d1820538b5fd04c6d7ee07dfccef4818d208092e04fccaa5dab58242b"
+    },
+    {
+      "path": "scripts/prepare-compact-permissions.cjs",
+      "bytesLf": 4163,
+      "sha256Lf": "b2d4bdf592170e8199398d24dc0242aaed6ad617ef2cb7296c1e7a955f71b915"
+    },
+    {
       "path": "scripts/prepare-domain-reads.cjs",
       "bytesLf": 3699,
       "sha256Lf": "c48605b6cc9f56193175596aff9ff309674f5fb35f3ed087d1b70b9ee1d27f4d"
     },
     {
-      "path": "test/domain-read-generator.test.cjs",
-      "bytesLf": 1858,
-      "sha256Lf": "aeede7cef2f1ba4917eebcb100127b40b57e102927774d7eeea735e204e2c692"
+      "path": "scripts/prepare-known-role-read.cjs",
+      "bytesLf": 1013,
+      "sha256Lf": "6eec562e85584eafd7201ac0402a6e77749064ecdf7c87b92133a19ff3f1a116"
+    },
+    {
+      "path": "scripts/prepare-password-access.cjs",
+      "bytesLf": 2182,
+      "sha256Lf": "fd665c15e8a77e3d4e7139b0d19579db3741d5c160cf333b410cfdd5c9a94f2e"
+    },
+    {
+      "path": "scripts/prepare-user-directory-rules.cjs",
+      "bytesLf": 1073,
+      "sha256Lf": "eab2bf864eb104276e271a8b1d9f42ab976da36fa20f2d92f6d1bab410d848bf"
+    },
+    {
+      "path": "scripts/remove-obsolete-credentials.cjs",
+      "bytesLf": 3068,
+      "sha256Lf": "626b8597e365d36b13f24a3b0add847db86167f4b657661776fdf7d0a6a7f7ae"
+    },
+    {
+      "path": "scripts/test-current.ps1",
+      "bytesLf": 1008,
+      "sha256Lf": "129b1f0fccdd963a1fbd8cca68c65cd485d72621d4ca0135d84b51746b23cd0d"
+    },
+    {
+      "path": "scripts/test-security-drafts.cjs",
+      "bytesLf": 2536,
+      "sha256Lf": "0c3184e4ec39b4b2d76bd15535729dd8b7eeff0555d4a6a117c1eaad0e6d1a6d"
+    },
+    {
+      "path": "scripts/test-user-access.cjs",
+      "bytesLf": 1885,
+      "sha256Lf": "08341d641f6f2ac04a4ac2222437ee6fac70351c8fa562295a7ac98578eb5514"
+    },
+    {
+      "path": "scripts/verify-audit-read-contexts.cjs",
+      "bytesLf": 3891,
+      "sha256Lf": "962776133f5ef01472c53aa85d49237259fe85785caf4a24d9db5827516f318e"
+    },
+    {
+      "path": "scripts/verify-handoff-manifest.cjs",
+      "bytesLf": 785,
+      "sha256Lf": "532e764520942774926d3ae48429a1fe18b096de7607b2111b98b033a1d4bab7"
+    },
+    {
+      "path": "security/database.audit-final.candidate.json",
+      "bytesLf": 3082577,
+      "sha256Lf": "ac2ad2175bcb2da2523ac4289b461fbb54439fc44a7ffaf7852263509686795a"
+    },
+    {
+      "path": "security/database.compact-final.candidate.json",
+      "bytesLf": 516752,
+      "sha256Lf": "061901ecb2873d5d1cd6c80cf06a00526c223214e911d0b62e99da821a37c960"
+    },
+    {
+      "path": "security/database.compact-reads.candidate.json",
+      "bytesLf": 408903,
+      "sha256Lf": "4531e037294960dfa7e41750a493032313aa2b3fb1773993cd9e71ac5cd3e6ae"
+    },
+    {
+      "path": "security/database.domain-read.candidate.json",
+      "bytesLf": 1994553,
+      "sha256Lf": "0681d267e28036b19354d1b290425bb9d611250b3bce6f72471c60bc1b7d6d74"
+    },
+    {
+      "path": "security/database.domain-write.candidate.json",
+      "bytesLf": 222605,
+      "sha256Lf": "b3c2a06f70e6b2143a0f5729014918e8af2f718d4cce4966c1aa29c663b45eac"
+    },
+    {
+      "path": "security/database.employee-account-read.candidate.json",
+      "bytesLf": 2119944,
+      "sha256Lf": "0f70c39255e294d2f82ed0210abd2a54220ab8124247ac33fc4b81e626ef8477"
+    },
+    {
+      "path": "security/database.known-role-read.candidate.json",
+      "bytesLf": 222844,
+      "sha256Lf": "ecfecf06378c0c2f5d77e065d357091481afb08b4553f8b16831a338fe049718"
+    },
+    {
+      "path": "security/database.password-access.candidate.json",
+      "bytesLf": 249317,
+      "sha256Lf": "495f4c2c48ca793ef5ea0217f168ac8ed19f4bd636f6a1f46d0219012c2e17e4"
+    },
+    {
+      "path": "security/database.user-directory.candidate.json",
+      "bytesLf": 248378,
+      "sha256Lf": "0496b6833dc9acc61ce2a75a8fdb516eee742d781112963ff5b532aa62795ada"
+    },
+    {
+      "path": "security/storage.password-access.candidate.rules",
+      "bytesLf": 1062,
+      "sha256Lf": "a5f8774fb509b2262a1827dcd1fbb9eeb0ce641955fa6039d4c24a6e59e6147e"
+    },
+    {
+      "path": "sw.js",
+      "bytesLf": 7890,
+      "sha256Lf": "329290ad1bcee627b8ecaa14a3c68135b9b38409a8fd84c22026675501017e78"
+    },
+    {
+      "path": "test/README.md",
+      "bytesLf": 2491,
+      "sha256Lf": "cec08012f83110320982a0168891a2ed4d403065ef90bf8f72b8b7216fda85e2"
+    },
+    {
+      "path": "test/access-permission-stages.integration.cjs",
+      "bytesLf": 5643,
+      "sha256Lf": "e19880ac32febcc414a732d109726c0b9fc911a477ec8ef7a237c62436076aa7"
+    },
+    {
+      "path": "test/access-permission-stages.test.cjs",
+      "bytesLf": 2343,
+      "sha256Lf": "2631dd86cbd913479fb035e99bdf0724fef3f0f02e98aaec9ddf9c5641d39609"
+    },
+    {
+      "path": "test/audit-cutover.test.cjs",
+      "bytesLf": 1452,
+      "sha256Lf": "a658a78dfc9b55b123af9ba9276dcbf32d1698347f09463472d2b478cbd65b7c"
+    },
+    {
+      "path": "test/audit-final-permissions.integration.cjs",
+      "bytesLf": 4803,
+      "sha256Lf": "a05288756a61434c5a7954cb9b0a911b01bd2a3d17c875c43df03b446af38dca"
+    },
+    {
+      "path": "test/audit-tools-plan.test.cjs",
+      "bytesLf": 565,
+      "sha256Lf": "00da68723192adda21c3f85e3c9a8f3156a347a1a682071bb72a52cd94f6d03f"
+    },
+    {
+      "path": "test/browser/chat-presence.cjs",
+      "bytesLf": 2095,
+      "sha256Lf": "b98b259d6dfe7b6518ed4c15a7e602dfb1c461845233a5596b33df4467c1f32e"
+    },
+    {
+      "path": "test/browser/user-directory.cjs",
+      "bytesLf": 5385,
+      "sha256Lf": "e8f04d4608143726d79fe7dbe5e7876f667435aea57d117403bc9e91c8d55823"
+    },
+    {
+      "path": "test/chat-presence-impersonation.test.cjs",
+      "bytesLf": 1430,
+      "sha256Lf": "ca8d41b8a96a6d563e4e0f223429b3a47e8f98faf6d14ae88661a13f61d26402"
+    },
+    {
+      "path": "test/chat-safe-attachments.test.cjs",
+      "bytesLf": 1606,
+      "sha256Lf": "0183a28c8e96064bc7351e9b7289b92a18511dd93ef035088dc22ce533e82f10"
+    },
+    {
+      "path": "test/chat-server-permissions.test.cjs",
+      "bytesLf": 3630,
+      "sha256Lf": "b9a8e47abb230ef46f822ca7f1654e4233d7188d5bf01d1f7a28f3b4daa25c3c"
+    },
+    {
+      "path": "test/commission-config-session.test.cjs",
+      "bytesLf": 1592,
+      "sha256Lf": "379c34b3f6b5d1259af076fcf1e0a44a62c064304824eb0b0a355f36260084a9"
+    },
+    {
+      "path": "test/compact-permissions.integration.cjs",
+      "bytesLf": 11358,
+      "sha256Lf": "c1ea3e401b69389b8b9af02dbfdced55a3bce9f4c5c1882a22327e7892f99e7e"
+    },
+    {
+      "path": "test/compact-permissions.test.cjs",
+      "bytesLf": 2703,
+      "sha256Lf": "b8cc7d8bc8253641bc3d5e9c1a351bab9b40c5248b5c54bfafa13e5fc10f3e62"
     },
     {
       "path": "test/cut-progression.integration.cjs",
@@ -133,70 +380,59 @@
       "sha256Lf": "6c48c4747884745aaa64572c2875f5723183b62b6872ea830a3bf09632f075f2"
     },
     {
-      "path": "scripts/prepare-password-access.cjs",
-      "bytesLf": 2182,
-      "sha256Lf": "fd665c15e8a77e3d4e7139b0d19579db3741d5c160cf333b410cfdd5c9a94f2e",
-      "provenance": "Gestión de acceso v3.11.9 local; revisión y pruebas demo Auth/RTDB/Storage del 15/10/2026. Sin despliegue."
+      "path": "test/domain-read-generator.test.cjs",
+      "bytesLf": 1858,
+      "sha256Lf": "aeede7cef2f1ba4917eebcb100127b40b57e102927774d7eeea735e204e2c692"
     },
     {
-      "path": "scripts/test-user-access.cjs",
-      "bytesLf": 1885,
-      "sha256Lf": "08341d641f6f2ac04a4ac2222437ee6fac70351c8fa562295a7ac98578eb5514",
-      "provenance": "Gestión de acceso v3.11.9 local; revisión y pruebas demo Auth/RTDB/Storage del 15/10/2026. Sin despliegue."
+      "path": "test/domain-reads.integration.cjs",
+      "bytesLf": 6095,
+      "sha256Lf": "6614a816e797a7e5d751c23872d8df11830a4cdc0d5c107b012785bb804b4c57"
     },
     {
-      "path": "security/database.password-access.candidate.json",
-      "bytesLf": 249317,
-      "sha256Lf": "495f4c2c48ca793ef5ea0217f168ac8ed19f4bd636f6a1f46d0219012c2e17e4",
-      "provenance": "Gestión de acceso v3.11.9 local; revisión y pruebas demo Auth/RTDB/Storage del 15/10/2026. Sin despliegue."
-    },
-    {
-      "path": "security/storage.password-access.candidate.rules",
-      "bytesLf": 1062,
-      "sha256Lf": "a5f8774fb509b2262a1827dcd1fbb9eeb0ce641955fa6039d4c24a6e59e6147e",
-      "provenance": "Gestión de acceso v3.11.9 local; revisión y pruebas demo Auth/RTDB/Storage del 15/10/2026. Sin despliegue."
-    },
-    {
-      "path": "test/user-access.integration.cjs",
-      "bytesLf": 6720,
-      "sha256Lf": "b02fb79cd46d66618d664934ad4d36bf7effd0066328c23f3cfecf0107c99f7e",
-      "provenance": "Gestión de acceso v3.11.9 local; revisión y pruebas demo Auth/RTDB/Storage del 15/10/2026. Sin despliegue."
-    },
-    {
-      "path": "scripts/prepare-access-permission-stages.cjs",
-      "provenance": "Composición offline y validación demo del 16/10/2026; no aplica etapas de dominio.",
-      "bytesLf": 2395,
-      "sha256Lf": "ee676e42827b2e45668489a42e3c1588d156107dc7e459ae8d33e4db6116f73f"
+      "path": "test/employee-account-reads.integration.cjs",
+      "bytesLf": 7282,
+      "sha256Lf": "bf6b976154aa5cd76f3b46117ef4d5ed89bbf1888ac73126a3e41c3e63c2202c"
     },
     {
       "path": "test/helpers/security-candidate.cjs",
-      "provenance": "Composición offline y validación demo del 16/10/2026; no aplica etapas de dominio.",
       "bytesLf": 441,
       "sha256Lf": "9855280aa162976f97bec3c7d472de2ac0e7cadfe409ab4a035244beafeefdf8"
     },
     {
-      "path": "test/access-permission-stages.test.cjs",
-      "provenance": "Composición offline y validación demo del 16/10/2026; no aplica etapas de dominio.",
-      "bytesLf": 2343,
-      "sha256Lf": "2631dd86cbd913479fb035e99bdf0724fef3f0f02e98aaec9ddf9c5641d39609"
+      "path": "test/hosting-source.test.cjs",
+      "bytesLf": 1073,
+      "sha256Lf": "55e94c97bfda659f7b46e3ed03757e4a0201dc1cbfec48f34efa3acdd70ebfe0"
     },
     {
-      "path": "test/access-permission-stages.integration.cjs",
-      "provenance": "Composición offline y validación demo del 16/10/2026; no aplica etapas de dominio.",
-      "bytesLf": 5643,
-      "sha256Lf": "e19880ac32febcc414a732d109726c0b9fc911a477ec8ef7a237c62436076aa7"
+      "path": "test/known-role-read.integration.cjs",
+      "bytesLf": 2494,
+      "sha256Lf": "899b2edf93b81d7b2e2ccf0f787fb4c58067db96cfec930bee38a72e9ddebc75"
     },
     {
-      "path": "security/database.domain-write.candidate.json",
-      "provenance": "Composición offline y validación demo del 16/10/2026; no aplica etapas de dominio.",
-      "bytesLf": 222605,
-      "sha256Lf": "b3c2a06f70e6b2143a0f5729014918e8af2f718d4cce4966c1aa29c663b45eac"
+      "path": "test/list-admin-all-toggle.test.cjs",
+      "bytesLf": 1305,
+      "sha256Lf": "4a5fab5c82849be82ebbfbc84d4607157271527531abc490015f0e7e363052eb"
     },
     {
-      "path": "cotizador/password-policy.js",
-      "provenance": "Composición offline y validación demo del 16/10/2026; no aplica etapas de dominio.",
-      "bytesLf": 1131,
-      "sha256Lf": "2956474b476dbef7d40842116bc1b967bc5c20d2f3c5c5e8218c05eeeb3d9813"
+      "path": "test/security-handoff.test.cjs",
+      "bytesLf": 1402,
+      "sha256Lf": "434e9c9f5e995f09bb68094c69595554d319c949b44783d6f76f54f5d201c102"
+    },
+    {
+      "path": "test/user-access.integration.cjs",
+      "bytesLf": 6720,
+      "sha256Lf": "b02fb79cd46d66618d664934ad4d36bf7effd0066328c23f3cfecf0107c99f7e"
+    },
+    {
+      "path": "test/user-directory.integration.cjs",
+      "bytesLf": 3530,
+      "sha256Lf": "050d77e8e08fd1a6079dabf445598f304feec61fc02449de62c3dab6bfa349be"
+    },
+    {
+      "path": "test/user-directory.test.cjs",
+      "bytesLf": 9585,
+      "sha256Lf": "40b77f6e4bebc33edb44639e567f8d9476c255cb5a4f686add1af613f33058c9"
     }
   ],
   "revision": {
@@ -224,5 +460,15 @@
     "integrationCases": 38,
     "generalTests": 1578,
     "domainStagesApplied": false
-  }
+  },
+  "history": [
+    {
+      "base": "b1d94bc91ba288aa410f3aecd016cdb8b3b5797c",
+      "manifestSha256Lf": "02414e912d374f54a90b531116b2cdcb76e773529b3422287a744ff96ae24906",
+      "reason": "Checkpoint preparado 16/10/2026; conserva instantáneas anteriores en Git, no acredita despliegue."
+    }
+  ],
+  "publicPackage": "be85b11a7be50f5c75eb6ceacc0ff7e3898a0624",
+  "state": "prepared-not-deployed",
+  "context": "docs/AUDITORIA_CIERRE_20261016.md"
 }
