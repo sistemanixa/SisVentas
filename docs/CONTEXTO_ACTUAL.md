@@ -2,6 +2,27 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+
+## Referencia de Gastos personales preparada para Codex (16/10/2026)
+
+- Solo en la rama `codex/referencia-gastos-personales`: requisitos y prototipo
+  de demostración en `docs/gastos-personales/`. Copia saneada: datos ficticios,
+  sin PDF, nombres, pólizas, saldos, pagos ni referencias financieras reales.
+- No integra el módulo, no modifica activos de la aplicación ni servicios,
+  reglas o registros de producción. La versión activa sigue la de main.
+- El diseño y el acceso desde el menú fueron aceptados como dirección para
+  continuar. Leer `LEER-PRIMERO.md` e `IMPLEMENTACION.md` antes de implementar.
+- Los documentos y la carga inicial privada se obtendrán aparte. No sembrar
+  producción con los ejemplos de esta referencia ni publicar el HTML privado.
+- Verificación de esta entrega: sintaxis JavaScript y revisión automática para
+  excluir identificadores, documentos y valores financieros del material fuente.
+  Suite vigente ejecutada: 1.574 aprobadas de 1.577, con tres fallos en
+  `test/v3-shadow-runtime.test.js`, reproducidos al ejecutar ese archivo por
+  separado sobre fuentes de aplicación/tests idénticas a HEAD. No se cambiaron
+  esos tests ni su código para esta referencia. No acredita QA visual de la
+  futura integración ni pruebas de permisos reales.
+
+
 ## Proyectos v3.11.10: publicado y verificado (16/10/2026)
 
 **Estado vigente:** el titular aceptó la vista y autorizó publicar con servidor/permisos sin tocar datos existentes. Cotizador `cotizador-00102-red` está activo al 100%, con configuración anterior preservada y `PROJECTS_ENABLED=true`. Las reglas remotas coinciden con la base protegida y no se modificaron; no se reescribieron roles ni datos de negocio. Cliente v3.11.10 publicado en main `2bbc0fd12f0e778f0ae1cb94c1400d89f7a38aa2`, Pages `38850026864` completed/success; los 14 activos HTTP coinciden con el paquete probado y el marcador Firebase confirmó `v3.11.10-firebase`. Detalles en [PUBLICACION_PROYECTOS_V31110.md](PUBLICACION_PROYECTOS_V31110.md). La nota final solo cambia documentación.
