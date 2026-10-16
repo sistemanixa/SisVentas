@@ -1,6 +1,7 @@
 const { normalizarFicha, fichaDesdeApi, extraerFichaPagina, validarUrlFicha, identidadAlta, protegerNavegacionFicha } = require('./ficha-producto');
 const http = require('http');
 const crypto = require('crypto');
+const {sendCommercial}=require('./commercial-response');
 const { adquirirNavegador } = require('./navegador-compartido');
 const { crearCache, claveConsulta } = require('./consulta-cache');
 const cacheConsultas = crearCache();
@@ -150,7 +151,7 @@ function cors(req, res) {
   if (origen) res.setHeader('Access-Control-Allow-Origin', origen);
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Frontend-Key, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Frontend-Key, Authorization, If-None-Match');
 }
 
 const DOMINIOS_IMAGEN_PRODUCTO = [
@@ -1998,7 +1999,8 @@ const server = http.createServer(async (req, res) => {
       else if(req.method==='POST'&&match[2]==='reasignar')result=await commercialOwnership.assign(actor,await readBody(req,16384));
       else if(req.method==='POST'&&match[2]==='preparar')result=await commercialOwnership.prepare(actor,await readBody(req,16384));
       else{send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
-      send(res,200,{ok:true,...result});
+      if(req.method==='GET'&&!match[2])await sendCommercial(req,res,{ok:true,...result});
+      else send(res,200,{ok:true,...result});
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la operación comercial'});}return;
   }
 

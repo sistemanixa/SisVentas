@@ -33,3 +33,8 @@ Proyectos: `node --test test/projects.test.cjs`; integración demo con
 `node scripts/test-projects.cjs`; navegador aislado con
 `test/browser/projects.cjs` y `test/browser/projects-bridge.cjs`.
 Configuración, permisos y límites de validación en [PROYECTOS.md](../docs/PROYECTOS.md).
+
+Transporte comercial: `node --test test/commercial-transport.integration.cjs test/commercial-ownership-session.test.cjs`.
+HTTP real en loopback con datos ficticios, sin credenciales. La integración no
+forma parte del glob general `.test.*`: ejecutar explícitamente. Alcance y límites
+en [RENDIMIENTO_COMERCIAL.md](../docs/RENDIMIENTO_COMERCIAL.md).

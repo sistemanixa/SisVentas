@@ -2,6 +2,15 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Continuación local: transporte comercial v3.11.17 (sin publicar)
+
+- Rama aislada codex/rendimiento-comercial-v31117, base **3c4acbefd65bc10c9e1b4b76628ab6d793fae82f**; fetch confirmó origin/main en esa base, sin novedades de la otra PC. Copia original y su modificación histórica desconocida conservadas. El SHA final de esta candidata se informa al entregar; no representa producción.
+- Cliente candidato **v3.11.17** coherente con índice, SW, versión y Novedades. GET comercial valida permisos antes de responder 304/JSON comprimido; validador en memoria por suscripción/sesión. No cambia fórmulas, reglas ni registros. Detalles y límites en [RENDIMIENTO_COMERCIAL.md](RENDIMIENTO_COMERCIAL.md).
+- **1.707 generales, 94 servidor y 18 casos específicos de transporte/sesión aprobados**; sintaxis, diff y validación local correctos. Fixture visual de tres perfiles en escritorio, sin Firebase. El viewport solicitado no cambió el tamaño efectivo: no hay nueva prueba móvil ni proxy desplegado comprobado. Espejo habitual 8766 y producción siguen **v3.11.16**, sin copiar la candidata ni modificar el aviso.
+- Consulta externa de solo lectura: A **185.199.108.153**, TTL 300 y TXT de asociación. Firebase indica **OWNERSHIP_ACTIVE / CERT_ACTIVE**, tipo TEMPORARY; HTTPS directo a **199.36.158.100** verifica siete activos v3.11.16 y cinco cabeceras. La transición exacta ya estaba autorizada, pero Squarespace volvió a exigir reautenticación Google: pestaña abierta y paso solicitado al titular. **No se cambió DNS en este bloque.** CERT_ACTIVE no significa tráfico migrado; volver a consultar antes de guardar.
+- Gastos personales sigue pendiente de activación: UID verificado del titular, bucket privado dedicado y variables de servidor. No importar demo ni conceder acceso por ser administrador. Protocolo en docs/gastos-personales/ESTADO_IMPLEMENTACION.md; no se habilitó en este bloque.
+- Próximo paso: terminar DNS cuando el titular desbloquee el editor, comprobar propagación, contenido y cabeceras. Para rendimiento, completar integración autenticada/proxy antes de publicar cliente/servidor, conservando el corte del generador. Esta mejora aún consulta RTDB y serializa/calcula hash en cada solicitud.
+
 ## Estado vigente: v3.11.16 publicada y verificada (16/10/2026)
 
 - Código público **4d5a59c5bdfe423bf1745c4231ac1e141fc46861**, en `origin/main`; trabajo en `codex/comerciales-por-responsable-v31113`. Ocho activos críticos comparados por contenido en dominio principal y Firebase Hosting, versión y aviso Firebase **v3.11.16-firebase** sincronizados. Hosting **sites/nixa-sisventas-seguro/versions/1a30b2a79fcc2e90**, confirmado en `tmp/secure-hosting-release.json`. El commit posterior de entrega modifica solo documentación.
