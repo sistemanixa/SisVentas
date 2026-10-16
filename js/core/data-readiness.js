@@ -6,7 +6,7 @@
     dashboard:['clientes','productos','ventas','pagos'],
     productos:['productos'],catalogo:['productos'],actualizadorprecios:['productos','proveedores'],
     clientes:['clientes'],venta:['clientes','productos','ventas'],presupuesto:['clientes','productos','presupuestos'],
-    detalle:['ventas','clientes','pagos'],cobranzas:['ventas','clientes','pagos'],
+    detalle:['ventas','clientes','pagos'],cobranzas:['ventas','clientes','pagos'],cuentacorriente:['ventas','clientes','pagos'],
     gastos:['gastos','empleados'],comisiones:['gastos','empleados','ventas'],
     ordentrabajo:['ordenes_trabajo','clientes','productos'],
     balancecompra:['ventas','presupuestos','productos','proveedores'],ordenes:['productos','proveedores'],
