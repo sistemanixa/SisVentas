@@ -18,7 +18,7 @@ y cliente antiguo sin validadores mantienen su funcionamiento anterior.
 ## Validación y límites
 
 `node --test test/commercial-transport.integration.cjs test/commercial-ownership-session.test.cjs`:
-18 casos aprobados. HTTP real en loopback con servicio de autorización y datos
+19 casos aprobados. CORS usa las funciones reales del servidor y conserva los orígenes permitidos. HTTP real en loopback con servicio de autorización y datos
 ficticios; sin Firebase real. Cubre 200/304/cambio, gzip sin alterar valores,
 cuentas separadas, revocación y cancelación/recuperación de carga.
 Suite vigente: 1.707 casos; servidor: 94. Sintaxis, diff y versión local correctos.
