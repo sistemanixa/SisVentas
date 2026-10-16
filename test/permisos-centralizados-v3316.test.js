@@ -12,7 +12,7 @@ test('cada acción permite y deniega por configuración para los cinco roles',()
   // Las validaciones del registro siguen aplicando aunque el permiso sea afirmativo.
   if(rule.validar)continue;
   const [group,...parts]=key.split('.'),action=parts.join('_');
-  for(const role of roles){w.currentRole=role;const cfg=w.PERMISOS_ROLES[role];cfg.bloqueados=[];cfg.acciones[group]={[action]:true};assert.equal(w.tienePermiso(key),true,key+' '+role+' habilitado');cfg.acciones[group][action]=false;assert.equal(w.tienePermiso(key),false,key+' '+role+' denegado');cfg.acciones[group][action]=true;cfg.bloqueados=[rule.modulo];assert.equal(w.tienePermiso(key),false,key+' módulo bloqueado');cfg.bloqueados=[];cfg.acciones={};}
+  for(const role of roles){w.currentRole=role;const cfg=w.PERMISOS_ROLES[role];cfg.bloqueados=[];cfg.acciones[group]={[action]:true};const allowed=key!=='ventas.verTodas'||role==='admin';assert.equal(w.tienePermiso(key),allowed,key+' '+role+' habilitado; verTodas queda reservado al administrador');cfg.acciones[group][action]=false;assert.equal(w.tienePermiso(key),false,key+' '+role+' denegado');cfg.acciones[group][action]=true;cfg.bloqueados=[rule.modulo];assert.equal(w.tienePermiso(key),false,key+' módulo bloqueado');cfg.bloqueados=[];cfg.acciones={};}
  }
 });
 test('widgets conservan configuración anterior hasta tener casilla explícita en Roles',()=>{

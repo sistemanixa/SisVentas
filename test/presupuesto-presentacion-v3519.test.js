@@ -28,7 +28,7 @@ test('comprobante sin detalle elimina columnas y conserva estructura con y sin i
 test('editar conserva origen y deja evidencia del cambio de comisión',async()=>{
  const chunk=source.slice(source.indexOf('if (ventaEditandoFbKey) {\n    var ventaOriginalEdit'),source.indexOf('if (!ventaEditandoFbKey) {\n    procesoPantallaVenta'));
  const original={id:'V-1',creadaPor:'ORIGINAL',creadaPorRol:'vendedor',fecha:'01/01/2020',ts:10,empleado:'A',empleadoFbKey:'a',audit:[]};
- const ctx={svAutorizarDescuentoVenta:async()=>true,ventaEditandoFbKey:'key',ventaOriginalEditar:original,nuevaVenta:{creadaPor:'EDITOR',empleado:'B',empleadoFbKey:'b',comisionado2FbKey:'',total:100},currentUser:'EDITOR',fechaHoy:'12/09/2026',ventaEsSinCargo:()=>false,ventaPorcentajeDescuentoEfectivo:()=>0};
+ const ctx={window:{SVCommercialDocument:{auditDate(){}}},fechaElegidaComercial:{},svAutorizarDescuentoVenta:async()=>true,ventaEditandoFbKey:'key',ventaOriginalEditar:original,nuevaVenta:{creadaPor:'EDITOR',empleado:'B',empleadoFbKey:'b',comisionado2FbKey:'',total:100},currentUser:'EDITOR',fechaHoy:'12/09/2026',ventaEsSinCargo:()=>false,ventaPorcentajeDescuentoEfectivo:()=>0};
  await vm.runInNewContext('(async()=>{'+chunk+'})()',ctx);
  assert.equal(ctx.nuevaVenta.creadaPor,'ORIGINAL');assert.equal(ctx.nuevaVenta.ts,10);assert.equal(ctx.nuevaVenta.empleadoFbKey,'b');assert.equal(ctx.nuevaVenta.audit.length,2);
 });

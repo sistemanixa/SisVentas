@@ -21,7 +21,7 @@ function createProjects({auth,db,enabled=false,now=Date.now,uuid=crypto.randomUU
   return Object.entries(data||{}).filter(([uid,p])=>p.activo!==false&&identities?.[uid]?.activo===true&&roles.includes(identities[uid].rol)).map(([uid,p])=>({uid,name:String(p.nombre||'Usuario').slice(0,100),role:identities[uid].rol}));
  }
  function budget(id,p){return {id,number:String(p.numero||p.id||id).slice(0,80),title:String(p.tituloSolucion||p.cliente||'Presupuesto').slice(0,160),clientId:String(p.clienteFbKey||p.clienteKey||p.clienteId||''),total:p.total!=null&&Number.isFinite(Number(p.total))?Number(p.total):null,currency:p.moneda==='USD'?'USD':'ARS',status:String(p.estado||'borrador').slice(0,40),items:(Array.isArray(p.items)?p.items:Object.values(p.items||{})).slice(0,200).map(i=>({description:String(i.desc||i.descripcion||'').slice(0,200),qty:Number(i.qty)||0,unitPrice:Number(i.punit)||0}))};}
- async function quotes(actor){if(!actor.quoteAllowed)return [];return Object.entries(await read('sisventas/presupuestos')||{}).filter(([,p])=>!p.eliminado).map(([id,p])=>budget(id,p));}
+ async function quotes(actor){if(!actor.quoteAllowed)return [];const records=process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'?await require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true}).visibleRecords(actor,'presupuestos'):await read('sisventas/presupuestos')||{};return Object.entries(records).filter(([,p])=>!p.eliminado).map(([id,p])=>budget(id,p));}
  async function list(actor){
   const data=await read('sv_proyectos')||{},q=await quotes(actor);
   return {canCreate:actor.createAllowed,projects:Object.values(data).filter(p=>Model.view(p,actor)).map(p=>Model.project(p,actor,q)).sort((a,b)=>b.updatedAt-a.updatedAt)};
@@ -37,7 +37,7 @@ function createProjects({auth,db,enabled=false,now=Date.now,uuid=crypto.randomUU
   const create=body.type==='create',id=create?uuid():Model.key(body.projectId);const directoryData=await directory();
   const stamp=now(),operation=uuid();let quote;
   if(body.type==='budget-link'){
-   if(!actor.quoteAllowed)throw fail(403,'Sin permiso para presupuestos');const key=Model.key(body.data?.sourceId),record=await read('sisventas/presupuestos/'+key);if(!record||record.eliminado)throw fail(404,'Presupuesto no disponible');quote=budget(key,record);
+   if(!actor.quoteAllowed)throw fail(403,'Sin permiso para presupuestos');const key=Model.key(body.data?.sourceId),record=process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'?await require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true}).assertRecord(actor,'presupuestos',key):await read('sisventas/presupuestos/'+key);if(!record||record.eliminado)throw fail(404,'Presupuesto no disponible');quote=budget(key,record);
   }
   let error,listener;const ref=db.ref('sv_proyectos/'+id);
   try{

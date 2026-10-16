@@ -65,7 +65,7 @@
   result.access={edit:edit(p,actor),manage:manage(p,actor),quote:edit(p,actor)&&!!actor.quoteAllowed};
   result.budgets=result.budgets.map(b=>{
    if(!actor.quoteAllowed)return {id:b.id,kind:'restricted',title:'Presupuesto vinculado',needIds:[]};
-   if(b.kind==='brief')return b;const q=quotes.find(q=>q.id===b.sourceId);return {...b,quote:q?clean(q):null};
+   if(b.kind==='brief')return b;const q=quotes.find(q=>q.id===b.sourceId);return q?{...b,quote:clean(q)}:{id:b.id,kind:'restricted',title:'Presupuesto vinculado',needIds:[]};
   });return result;
  }
  function stats(p){const all=p.needs.length,defined=p.needs.filter(n=>n.status==='definido').length;return {all,defined,pending:all-defined,areas:new Set(p.needs.map(n=>n.area)).size,percent:all?Math.round(defined/all*100):0};}

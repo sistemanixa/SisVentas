@@ -58,6 +58,7 @@
     }
 
     function list(collection) {
+      if (['ventas','presupuestos'].includes(collection) && root.SVCommercialOwnership) return root.SVCommercialOwnership.request(collection).then(function(data){ return Object.entries(data.records||{}).map(function(entry){return Object.assign({fbKey:entry[0]},entry[1]);}); });
       requireFirebase(['fbGet']);
       return Promise.resolve(root.fbGet(reference(collection))).then(function (snapshot) {
         var data = snapshot && typeof snapshot.val === 'function' ? snapshot.val() : null;
@@ -85,7 +86,11 @@
       delete payload.fbKey;
       // Una edición modifica el contenido comercial, nunca el autor del alta.
       // Omitir estos campos preserva también los valores más recientes del servidor.
-      if (collection === 'ventas') ['creadaPor','creadaPorRol','createdBy','usuario','fecha','fechaOrden','ts'].forEach(function(field) { delete payload[field]; });
+      if (['ventas','presupuestos'].includes(collection)) {
+        ['creadaPor','creadaPorRol','createdBy','creadoPor','usuario','ts','creadoEn','creadorOriginalUid','creadorOriginalNombre'].forEach(function(field) { delete payload[field]; });
+        if(!payload.fechaCambioManual || payload.fechaCambioManual.nueva!==payload.fecha) { delete payload.fecha;delete payload.fechaOrden; }
+        Object.keys(payload).filter(function(k){return k.startsWith('_sv');}).forEach(function(k){delete payload[k];});
+      }
       return root.fbUpdate(reference(collection, key), payload);
     }
 

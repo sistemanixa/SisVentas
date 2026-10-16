@@ -1,0 +1,6 @@
+'use strict';
+const fs=require('fs'),path=require('path'),{spawnSync}=require('child_process');
+const {build,source}=require('./prepare-commercial-ownership-rules.cjs');const tools=path.resolve(process.env.SV_SECURITY_TOOLS||'tmp/firebase-security-tools'),root=path.resolve(__dirname,'..');
+fs.mkdirSync('tmp',{recursive:true});fs.writeFileSync('tmp/commercial-ownership.candidate.json',JSON.stringify(build(source())));fs.writeFileSync('tmp/commercial-ownership-emulators.json',JSON.stringify({database:{rules:'commercial-ownership.candidate.json'},emulators:{database:{host:'127.0.0.1',port:9008},ui:{enabled:false},singleProjectMode:true}}));
+const env={...process.env,CI:'true',SV_SECURITY_TOOLS:tools,GCLOUD_PROJECT:'demo-sisventas-commercial',GOOGLE_CLOUD_PROJECT:'demo-sisventas-commercial'};for(const k of ['GOOGLE_APPLICATION_CREDENTIALS','GOOGLE_GHA_CREDS_PATH','FIREBASE_TOKEN','CLOUDSDK_AUTH_ACCESS_TOKEN'])delete env[k];
+const r=spawnSync(process.execPath,[path.join(tools,'node_modules/firebase-tools/lib/bin/firebase.js'),'emulators:exec','--only','database','--project','demo-sisventas-commercial','--config','tmp/commercial-ownership-emulators.json','node --test --test-concurrency=1 test/commercial-ownership.integration.cjs'],{cwd:root,env,stdio:'inherit',windowsHide:true});if(r.error)throw r.error;process.exitCode=r.status??1;

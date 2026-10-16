@@ -1,0 +1,30 @@
+(function(root){
+ 'use strict';
+ const iso=v=>{const s=String(v||'').trim(),m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):/^\d{4}-\d{2}-\d{2}$/.test(s)?s:'';};
+ const immutable=['creadaPor','creadaPorRol','creadaPorUid','creadoPor','creadoPorUid','createdBy','usuario','ts','creadoEn','creadorOriginalUid','creadorOriginalNombre','responsableUid','responsableNombre','responsableRol','responsableRevision','responsableActualizadoEn'];
+ function preserve(changes,baseline){const out=root.SVCommercialOwnership.clean(changes);if(changes?.fbKey)out.fbKey=changes.fbKey;if(!baseline)return out;for(const k of immutable){if(Object.hasOwn(baseline,k))out[k]=baseline[k];else delete out[k];}const manual=out.fechaCambioManual&&out.fechaCambioManual.anterior===iso(baseline.fecha)&&out.fechaCambioManual.nueva===iso(out.fecha);if(!manual){out.fecha=baseline.fecha;if(baseline.fechaOrden)out.fechaOrden=baseline.fechaOrden;else delete out.fechaOrden;}if(out.audit){const current=Object.values(baseline.audit||{}),seen=new Set(current.map(a=>JSON.stringify(a)));out.audit=current.concat(Object.values(out.audit).filter(a=>!seen.has(JSON.stringify(a))));}return out;}
+ async function dateChoice(type){
+  const input=document.getElementById(type==='venta'?'venta-fecha':'pp-fecha'),base=type==='venta'?root._ventaEditandoOriginal:root._pptoEditorBase;
+  const value=iso(input?.value)||iso(base?.fecha)||root.svFechaLocalISO();
+  if(!base||value===iso(base.fecha))return {value};
+  const signature=[base.fbKey,iso(base.fecha),value].join('|');
+  if(input._svDateChoice?.signature===signature)return input._svDateChoice.result;
+  const update=await root.svConfirm('Cambiaste la fecha de '+iso(base.fecha)+' a '+value+'. ¿Querés actualizar los productos con el catálogo actual o conservar los importes?',{titulo:'Cambio de fecha',textoAceptar:'Actualizar productos',textoCancelar:'Conservar importes'});
+  if(update){if(type==='venta')root.actualizarValoresVenta();else root.actualizarValoresPpto();}
+  const result={value,event:{anterior:iso(base.fecha),anteriorValor:base.fecha??null,nueva:value,actualizarProductos:update,actorUid:root.currentUserUid||'',fecha:new Date().toISOString()}};
+  input._svDateChoice={signature,result};return result;
+ }
+ function auditDate(record,choice){if(!choice?.event)return;record.fecha=choice.value;record.fechaOrden=choice.value;record.fechaCambioManual=choice.event;record.audit=Object.values(record.audit||{}).concat([{fecha:choice.event.fecha,usuario:root.currentUser||'Usuario',actorUid:root.currentUserUid||'',accion:'Fecha cambiada manualmente: '+choice.event.anterior+' → '+choice.event.nueva+(choice.event.actualizarProductos?' · productos actualizados desde catálogo':' · importes conservados')}]);}
+ async function assignDialog(type,id){
+  if(root.currentRole!=='admin')throw Error('Solo el administrador puede reasignar');
+  const record=(type==='presupuesto'?root.pptoData:root.ventasList).find(r=>String(r.fbKey||r.id)===String(id));if(!record)return;
+  const domain=type==='presupuesto'?'presupuestos':'ventas',dialog=document.createElement('dialog');dialog.className='sv-dialogo-sistema sv-commercial-assignment';dialog.style.cssText='background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:14px;padding:22px;margin:auto;position:fixed;inset:0;max-height:calc(100dvh - 40px);overflow:auto;width:min(440px,calc(100vw - 32px))';
+  const title=document.createElement('h3');title.textContent='Asignar '+(type==='presupuesto'?'presupuesto':'venta');const info=document.createElement('p');info.textContent='Creado por '+root.SVCommercialOwnership.author(record)+'. El creador y las comisiones se conservan.';info.style.cssText='color:var(--text2);font-size:13px';
+  const label=document.createElement('label');label.textContent='Responsable';const select=document.createElement('select');select.className='search-input';select.setAttribute('aria-label','Nuevo responsable');select.style.cssText='display:block;width:100%;margin:8px 0 18px';select.disabled=true;label.append(select);
+  const status=document.createElement('p');status.setAttribute('role','status');status.textContent='Cargando personas habilitadas…';const footer=document.createElement('div');footer.style.cssText='display:flex;justify-content:flex-end;gap:10px;margin-top:20px';
+  const cancel=document.createElement('button');cancel.className='btn';cancel.textContent='Cancelar';cancel.onclick=()=>dialog.close();const save=document.createElement('button');save.className='btn btn-primary';save.textContent='Asignar';save.disabled=true;footer.append(cancel,save);dialog.append(title,info,label,status,footer);document.body.append(dialog);const overflow=document.body.style.overflow;document.body.style.overflow='hidden';let released=false;const release=()=>{if(!released){document.body.style.overflow=overflow;released=true;}};cancel.onclick=()=>{release();dialog.close();dialog.remove();};dialog.addEventListener('cancel',release);dialog.addEventListener('close',()=>{release();dialog.remove();});dialog.showModal();
+  try{const users=await root.SVCommercialOwnership.options(domain);if(!dialog.isConnected)return;select.append(new Option('Seleccionar persona',''));for(const u of users)select.append(new Option(u.nombre+' · '+u.rol,u.uid));select.value=record.responsableUid||record._svOwnerUid||'';select.disabled=false;status.textContent=users.length?'':'No hay personas habilitadas';select.onchange=()=>save.disabled=!select.value||select.value===(record.responsableUid||record._svOwnerUid);select.focus();save.onclick=async()=>{save.disabled=true;select.disabled=true;status.textContent='Guardando…';try{const saved=await root.SVCommercialOwnership.assign(domain,record,select.value);Object.assign(record,saved);root.notify('Responsable actualizado');cancel.onclick();}catch(e){status.textContent=e.message;save.disabled=false;select.disabled=false;}};}catch(e){status.textContent=e.message;}
+ }
+ root.SVCommercialDocument={iso,preserve,dateChoice,auditDate,assignDialog};
+ root.abrirReasignacionComercial=assignDialog;
+})(window);

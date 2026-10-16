@@ -106,7 +106,7 @@
 
     'ventas.verDashboard':       { modulo:'detalle', admin:true },
     'ventas.ver':                { modulo:'detalle' },
-    'ventas.verTodas':           { modulo:'detalle', roles:['admin','administrativo'] },
+    'ventas.verTodas':           { modulo:'detalle', admin:true },
     'ventas.verMargen':          { modulo:'detalle', roles:['admin'] },
     'ventas.crear':              { modulo:'venta' },
     'ventas.editar':             { modulo:'detalle', roles:['admin','administrativo'] },
@@ -212,6 +212,7 @@
     var regla = PERMISOS_ACCION[permiso];
     if (!regla) return false;
     var role = normRol();
+    if(permiso==='ventas.verTodas' && role!=='admin')return false;
     if(role === 'distribuidora') {
       if(permiso === 'dashboard.chat') return !!window.SVDistribuidora?.allowed('chat');
       if(permiso === 'productos.verProveedoresExterior') return !!window.SVDistribuidora?.allowed('detalle');

@@ -32,7 +32,7 @@ test('inicio permite recorrer todas las OT pendientes', () => {
 
 test('ventas muestra creador y respeta el permiso de ver todas', () => {
   assert.match(html, />Creado por /);
-  assert.match(permisos, /'ventas\.verTodas':[\s\S]{0,100}admin','administrativo/);
+  assert.match(permisos, /'ventas\.verTodas':[\s\S]{0,100}admin:true/);
   assert.match(app, /function ventasVisiblesParaUsuario/);
   assert.match(app, /ventasVisiblesParaUsuario\(ventasList \|\| \[\]\)/);
   assert.match(app, /Esta venta pertenece a otro usuario/);

@@ -40,6 +40,7 @@ const businessAuth = require('./user-access').createBusinessAuth(firebaseAuth, d
 const userDirectory = require('./user-directory').createUserDirectory({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
 const chatOperations = require('./chat-operations').createChatOperations({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
 const projects = require('./projects').createProjects({auth:businessAuth,db,enabled:process.env.PROJECTS_ENABLED==='true'});
+const commercialOwnership=require('./commercial-ownership').createCommercialOwnership({auth:businessAuth,db,enabled:process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'});
 // Bucket dedicado, privado y sin enlaces de Firebase Storage. Nunca reutilizar
 // el bucket compartido de adjuntos: sus reglas no pertenecen a este dominio.
 const personalBucket=process.env.PERSONAL_FINANCE_BUCKET||'';
@@ -1982,6 +1983,22 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204);
     res.end();
     return;
+  }
+
+  if(pathname.startsWith('/comerciales/')){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');
+    try{
+      const match=pathname.match(/^\/comerciales\/(ventas|presupuestos)(?:\/(opciones|reasignar|preparar))?$/);
+      if(!match){send(res,404,{ok:false,mensaje:'Operación no disponible'});return;}
+      const view=new URL(req.url,'http://localhost').searchParams.get('verComo');
+      const actor=await commercialOwnership.authorize(req,match[1],view);let result;
+      if(req.method==='GET'&&!match[2])result=await commercialOwnership.list(actor);
+      else if(req.method==='GET'&&match[2]==='opciones')result=await commercialOwnership.options(actor);
+      else if(req.method==='POST'&&match[2]==='reasignar')result=await commercialOwnership.assign(actor,await readBody(req,16384));
+      else if(req.method==='POST'&&match[2]==='preparar')result=await commercialOwnership.prepare(actor,await readBody(req,16384));
+      else{send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+      send(res,200,{ok:true,...result});
+    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la operación comercial'});}return;
   }
 
   if(pathname.startsWith('/privado/finanzas')){

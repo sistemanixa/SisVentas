@@ -7,6 +7,8 @@ function session(store,uid){
   store[path]=next;return {committed:true,snapshot:{val:()=>structuredClone(next)}};
  },ventasPagosV3Invocar(){throw Error('No debe evadir la comprobación');},pptoV3Invocar(){throw Error('No debe evadir la comprobación');}};
  c.window=c;vm.createContext(c);vm.runInContext(fs.readFileSync('js/core/guarded-writes.js','utf8'),c);
+ c.SVCommercialOwnership={clean:r=>Object.fromEntries(Object.entries(r||{}).filter(([k])=>k!=='fbKey'&&!k.startsWith('_sv'))),prepare:async(domain,id,baseline)=>({record:structuredClone(store[domain+'/'+id]),baseline:baseline?structuredClone(baseline):null})};
+ vm.runInContext(fs.readFileSync('js/modules/commercial-document-controls.js','utf8'),c);
  load(c,['pptoPersistirGuardar','ventasPagosPersistirGuardarVenta']);return c;
 }
 for(const [kind,method] of [['presupuestos','pptoPersistirGuardar'],['ventas','ventasPagosPersistirGuardarVenta']]){
