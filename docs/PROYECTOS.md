@@ -1,6 +1,6 @@
-# Proyectos: primera versión local (v3.11.10)
+# Proyectos: primera versión (v3.11.10)
 
-Estado al 16/10/2026: diseño revisado y publicación autorizada por el usuario. Implementación en `codex/proyectos-v31110`, preparada desde main `2a0d01e747204e42c278fc2ddf0f4ae3f1aad893`. Servidor `cotizador-00102-red` activo; cliente v3.11.10 en publicación. Estado exacto y constancia de cierre en [PUBLICACION_PROYECTOS_V31110.md](PUBLICACION_PROYECTOS_V31110.md).
+Estado al 16/10/2026: **publicado y verificado** tras aprobar el diseño. Implementación en `codex/proyectos-v31110`, integrada por avance normal en main. Servidor `cotizador-00102-red` activo y cliente v3.11.10 publicado, con aviso de actualización sincronizado. Estado exacto y constancia de cierre en [PUBLICACION_PROYECTOS_V31110.md](PUBLICACION_PROYECTOS_V31110.md).
 
 ## Flujo
 
@@ -70,4 +70,4 @@ Evidencia inicial: 1.577 pruebas generales, 94 del servidor, 6 de RTDB emulado; 
 - Servicio probado como fábrica contra RTDB emulado; puente comercial probado con API/DOM ficticios, no guardando presupuestos reales.
 - Actualización manual al abrir/refrescar y conflicto de revisión; todavía sin escucha en vivo, adjuntos, tareas asignadas, notificaciones o conversión automática a venta/OT.
 - Lectura de proyectos y catálogo de presupuestos completa en servidor antes de filtrar/proyectar. Agregar índices de membresía/paginación antes de escalar, manteniendo la autorización del servidor.
-- El usuario aceptó el diseño y autorizó publicar. Completar y registrar la verificación del cliente; luego acompañar el primer uso real del titular sin crear registros incidentales. La auditoría general sigue en su rama aislada.
+- El usuario aceptó el diseño y se completó la publicación/verificación del cliente. Próximo paso: acompañar el primer uso real del titular sin crear registros incidentales. La auditoría general sigue en su rama aislada.

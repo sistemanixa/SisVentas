@@ -19,7 +19,11 @@ El titular aprobó el diseño y autorizó publicar Proyectos con servidor y perm
 
 ## Cliente y estado de publicación
 
-En preparación: publicar el paquete v3.11.10 en main, esperar Pages y coincidencia de los activos HTTP; recién después actualizar `sisventas/config/version` con el script vigente y confirmar la lectura posterior. Un servidor activo o un push no acredita por sí solo la publicación del cliente.
+**Publicado y verificado.** Main recibió por avance normal `2bbc0fd12f0e778f0ae1cb94c1400d89f7a38aa2`, que incluye el código `8bd88beb1d0e9f87e74844b0ff5843c680004729`. GitHub Pages **`38850026864`**, completed/success. Los **14 activos HTTP** coinciden por SHA-256 normalizado UTF-8/LF con el paquete probado: índice, SW, aplicación/marcadores, CSS/modelo/módulo de Proyectos, permisos, Firebase, acceso y entrada/contexto de catálogo.
+
+Después se ejecutó `scripts/actualizar-nodo-version.ps1 -Version v3.11.10`, que comprobó web/SW y escritura más lectura posterior de **`sisventas/config/version = v3.11.10-firebase`**. Esa marca es la única escritura de datos de la publicación; no se alteraron proyectos, clientes, presupuestos, ventas, cobros, comisiones, roles, contraseñas o correos reales como prueba. Las reglas se volvieron a leer: idénticas al respaldo previo. Tráfico final confirmado al 100% en `cotizador-00102-red`.
+
+Ventana local restaurada al módulo exacto del repositorio, sin el destino temporal de prueba, sin `proyectos_preview=1` y con la sesión de administrador conservada. El servicio habitual cargó listado y formulario con sus opciones reales; se canceló sin guardar. La nota de cierre posterior cambia únicamente documentación y no requiere otro aviso ni despliegue del servidor.
 
 Evidencia y respaldo privados en `.local/proyectos-v31110/tmp/publicacion-proyectos-v31110/`, fuera de Git. Reversión del servidor disponible a `cotizador-00100-boc`, que conserva el guard de acceso; no revertir a revisiones que lo omiten. Ante una reversión del cliente, conservar los proyectos nuevos y la raíz privada; no restaurar bases completas.
 
