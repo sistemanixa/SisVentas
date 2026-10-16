@@ -6,7 +6,7 @@ const leaseMs=120000;
 async function tx(ref,update){
  let listener;try{await new Promise((resolve,reject)=>{listener=()=>resolve();ref.on('value',listener,reject);});return await ref.transaction(update,undefined,false);}finally{if(listener)ref.off('value',listener);}
 }
-function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date.now}){
+function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date.now,logger=()=>{}}){
  const read=async path=>(await db.ref(path).get()).val();
  const jobId=id=>'srv_'+M.hash(id).slice(0,40);
  async function authorize(req){if(!enabled)throw fail(503,'Generación de comisiones pendiente de habilitación');return commercial.authorize(req,'ventas');}
@@ -77,11 +77,17 @@ function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date
  async function retryPending(){const jobs=await read('sv_commission_generation')||{};for(const [id,job]of Object.entries(jobs))if(['error','procesando'].includes(job.estado)&&job.leaseUntil<now()&&Number(job.intentos)<5&&Number(job.reintentarEn||0)<=now())try{await systemGenerate(id);}catch(e){await tx(db.ref('sv_commission_generation/'+id),current=>current&&current.estado!=='completada'&&current.leaseUntil<=now()?{...current,estado:e.statusCode===409?'revision':current.estado,intentos:Math.max(Number(current.intentos),Number(job.intentos)+1),reintentarEn:now()+60000}:undefined).catch(()=>{});}}
  function start(){
   if(!enabled)return ()=>{};if(!Number.isFinite(from)||from<=0)throw Error('COMMISSION_GENERATION_FROM debe ser un instante ISO válido');
-  const query=db.ref('sisventas/ventas').orderByChild('estadoPago').equalTo('pago_total'),pending=new Set(),failed=new Map();
-  const handle=snap=>{if(pending.has(snap.key))return;pending.add(snap.key);systemGenerate(snap.key).then(()=>failed.delete(snap.key)).catch(e=>{if(e.statusCode!==409)failed.set(snap.key,Number(failed.get(snap.key)||0)+1);}).finally(()=>pending.delete(snap.key));};
-  query.on('child_added',handle);query.on('child_changed',handle);
-  const timer=setInterval(()=>{retryPending().catch(()=>{});for(const [key,count]of failed)if(count<5)handle({key});},60000);timer.unref?.();retryPending().catch(()=>{});
-  return ()=>{clearInterval(timer);query.off('child_added',handle);query.off('child_changed',handle);};
+  const query=db.ref('sisventas/ventas').orderByChild('estadoPago').equalTo('pago_total'),connection=db.ref('.info/connected'),pending=new Set(),failed=new Map();
+  // Solo salud y contadores: nunca referencias de ventas, nombres ni importes.
+  const health={connected:false,subscriptionReady:false,completed:0,errors:0};
+  const report=()=>logger({event:'commission_observer_status',at:new Date(now()).toISOString(),from:new Date(from).toISOString(),...health,pending:pending.size,retries:failed.size});
+  const denied=()=>{health.subscriptionReady=false;health.errors++;report();};
+  const connected=snap=>{health.connected=snap.val()===true;report();};
+  const ready=()=>{if(!health.subscriptionReady){health.subscriptionReady=true;report();}};
+  const handle=snap=>{if(pending.has(snap.key))return;pending.add(snap.key);systemGenerate(snap.key).then(result=>{failed.delete(snap.key);if(result.status==='generada'&&!result.reutilizada)health.completed++;}).catch(e=>{health.errors++;if(e.statusCode!==409)failed.set(snap.key,Number(failed.get(snap.key)||0)+1);}).finally(()=>pending.delete(snap.key));};
+  connection.on('value',connected,denied);query.on('child_added',handle,denied);query.on('child_changed',handle,denied);query.on('value',ready,denied);
+  const timer=setInterval(()=>{report();retryPending().catch(()=>{health.errors++;});for(const [key,count]of failed)if(count<5)handle({key});},60000);timer.unref?.();retryPending().catch(()=>{health.errors++;});
+  return ()=>{clearInterval(timer);connection.off('value',connected);query.off('value',ready);query.off('child_added',handle);query.off('child_changed',handle);};
  }
  return {authorize,inspect,generate,start,systemGenerate,retryPending};
 }

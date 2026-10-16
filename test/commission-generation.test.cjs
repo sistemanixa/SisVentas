@@ -62,6 +62,16 @@ test('vista previa antigua se rechaza si cambia configuración antes de generar'
 test('circuito deshabilitado y observador sin corte configurado fallan cerrados',async()=>{
  const s=setup({enabled:false});await assert.rejects(s.actor(),{statusCode:503});const c=createCommissionGeneration({db:s.db,commercial:{},enabled:true});assert.throws(()=>c.start(),/COMMISSION_GENERATION_FROM/);
 });
+test('salud del observador confirma conexión y suscripción sin registrar datos comerciales',()=>{
+ const listeners=new Map(),removed=[],logs=[];
+ const query={on(event,fn,error){listeners.set('query/'+event,{fn,error});},off(event){removed.push('query/'+event);}};
+ const db={ref(path){if(path==='.info/connected')return {on(event,fn){listeners.set('connection',{fn});},off(){removed.push('connection');}};if(path==='sisventas/ventas')return {orderByChild:()=>({equalTo:()=>query})};return {get:async()=>({val:()=>null})};}};
+ const stop=createCommissionGeneration({db,commercial:{},enabled:true,from:1000,now:()=>2000,logger:v=>logs.push(v)}).start();
+ listeners.get('connection').fn({val:()=>true});listeners.get('query/value').fn();
+ assert.equal(logs.at(-1).connected,true);assert.equal(logs.at(-1).subscriptionReady,true);
+ listeners.get('query/value').error(Error('dato privado'));assert.equal(logs.at(-1).subscriptionReady,false);assert.equal(logs.at(-1).errors,1);
+ assert.doesNotMatch(JSON.stringify(logs),/dato privado|empleado|monto|ventaId/);stop();assert.equal(removed.length,4);
+});
 test('copias del modelo económico del servidor coinciden con el cliente y se empaquetan',()=>{
  for(const name of ['sales-read-model','budget-read-model','identity-index'])assert.equal(fs.readFileSync('cotizador/commercial-models/'+name+'.js','utf8'),fs.readFileSync('js/v3/'+name+'.js','utf8'));assert.match(fs.readFileSync('cotizador/Dockerfile','utf8'),/COPY commercial-models/);
 });

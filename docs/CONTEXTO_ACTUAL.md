@@ -2,6 +2,15 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Publicación comercial autorizada · en preparación (16/10/2026)
+
+- El usuario autorizó verificar continuidad con navegadores cerrados y publicar los cambios compatibles. Confirmó que su comisión del incidente anterior ya está aprobada y funcionando: queda excluida de recuperación, recálculo o pruebas. Se conservarán todas las comisiones existentes.
+- Fetch confirmó `origin/main` en `4442fd7336834914c5814e908bf18a887353ab95`, sin commits nuevos de la otra PC; candidata de trabajo `c114d36b0f92a948e2b78db6a8c6a8ba5de0564f`. Copia original con su único cambio histórico desconocido conservada. Ninguna de esas referencias demuestra publicación.
+- Consulta real: Cotizador `cotizador-00104-zuh` al 100%, mínimo cero y CPU solo durante solicitudes. Falta configurar mínimo de servicio 1 y CPU siempre disponible; conservar límites, secretos y variables anteriores. Reglas remotas siguen exactamente en `e5dbd9b0…`. Sitio público y Hosting entregan v3.11.11; el dominio principal continúa sin las cabeceras de Hosting. No modificar DNS como efecto incidental de esta publicación.
+- Respaldo privado de configuración/reglas y huellas de 224 gastos, 122 movimientos y 47 controles en `C:/SisVentas/tmp/commission-release/`, fuera de Git. Los tres registros vinculados a la operación excluida muestran estados coherentes con aprobación; no se modificaron. Comparar huellas después del corte.
+- Agregada telemetría sin datos comerciales para comprobar conexión/suscripción y actividad cada minuto. Puerta repetida: 1.694 generales, 94 servidor y 18 emulador RTDB demo aprobadas; 25 funcionales del generador. Sin operaciones financieras reales de prueba. Gastos personales seguirá cerrado por falta de habilitación/UID/bucket; su demo no se importa.
+- Próximo paso: servidor compatible preparado sin generación, cliente público limpio y actualización, reglas exactas de propiedad/índices y activación con corte nuevo. Confirmar externamente cada paso y actualizar este estado al terminar; todavía no realizado.
+
 ## Generación automática de comisiones en servidor · candidata v3.11.13 (16/10/2026)
 
 - Sobre `8f1a53a1ab8bb72bd7d1a044c356419b02a246ba`, misma rama aislada `codex/comerciales-por-responsable-v31113`. Sustituye el pendiente de implementación de generación automática de los bloques anteriores; **no significa activación en producción**. El usuario aclaró que el módulo Comisiones mantiene acceso exclusivamente por rol y que generar automáticamente una comisión de venta es un circuito independiente.

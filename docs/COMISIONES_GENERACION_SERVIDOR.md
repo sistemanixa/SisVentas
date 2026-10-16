@@ -87,6 +87,16 @@ no se reparan automáticamente. No ejecuta backfill financiero del historial.
 
 ## Antes de activar
 
+Preparación del corte del 16/10/2026: Cloud Run efectivo aún tenía mínimo cero
+y CPU durante solicitudes. Para el observador se requiere mínimo de servicio 1
+y `run.googleapis.com/cpu-throttling=false` en la revisión activa. Mantener el
+máximo existente y no aplicar mínimos por cada revisión etiquetada. Esto cambia
+la facturación a instancia activa, también fuera de solicitudes. Referencia:
+[configuración oficial de CPU y facturación](https://docs.cloud.google.com/run/docs/configuring/billing-settings).
+El servidor registra `commission_observer_status` al conectar, al recibir la
+suscripción inicial y cada minuto. Solo contiene estado y contadores, sin ventas,
+personas ni importes; permite verificar actividad sin generar operaciones reales.
+
 1. Revisar SHA y coordinar cliente, servidor y candidata de propiedad. La candidata
    agrega solamente el nodo privado cerrado e índices de venta para pagos/gastos
    y `estadoPago` de ventas, además de los cambios de propiedad ya preparados.

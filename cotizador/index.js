@@ -56,7 +56,7 @@ const employeeDirectory = require('./employee-directory').createEmployeeDirector
 const personalExpenses = require('./personal-expenses').createPersonalExpenses({authorize:laborSubmissions.authorize,transaction:laborTransaction});
 const supplierDirectory = require('./supplier-directory').createSupplierDirectory({authorize:employeeDirectory.authorize,db});
 const commissionOperations = require('./commission-operations').createCommissionOperations({auth:businessAuth,db,transaction:laborTransaction});
-const commissionGeneration = require('./commission-generation').createCommissionGeneration({db,commercial:commercialOwnership,enabled:process.env.COMMISSION_GENERATION_ENABLED==='true',from:Date.parse(process.env.COMMISSION_GENERATION_FROM||'')});
+const commissionGeneration = require('./commission-generation').createCommissionGeneration({db,commercial:commercialOwnership,enabled:process.env.COMMISSION_GENERATION_ENABLED==='true',from:Date.parse(process.env.COMMISSION_GENERATION_FROM||''),logger:status=>console.log(JSON.stringify(status))});
 const catalogRequests = require('./catalog-request').createCatalogRequest({db,periodsAPI:require('./catalog-promotions')});
 const { consultarAutomatico, firmaAcceso, aplicarCondicionComercial } = require('./proveedor-automatico');
 const { esProveedorPublicoComprasParaguay } = require('./compras-paraguay');
