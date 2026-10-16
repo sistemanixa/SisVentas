@@ -2,6 +2,45 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Auditoría v3.11.11 preparada, pendiente de activar (16/10/2026)
+
+La rama `codex/publicar-auditoria-v31111` contiene el paquete público separado:
+directorio filtrado, acciones protegidas del chat, caché por sesión, presencia
+en Ver como y protocolo de Hosting. Cotizador `cotizador-00104-zuh` está preparado
+con `USER_DIRECTORY_ENABLED=true` **sin tráfico general**; se comprobó su
+configuración y 20 rechazos de sesión ausente/inválida. La revisión automática
+rechazó activarlo al 100% sin autorización explícita de este corte. No tratar
+un commit/push de esta rama como publicación ni activar solo el cliente.
+
+La web vigente sigue en v3.11.10; servidor activo `cotizador-00102-red`, 100%;
+reglas `2fab3dfbda44e88c165729f4ab41bdcd8c3b36318f8dd280d81286675a20b56c`, sin cambios.
+Las candidatas/herramientas de auditoría están en `codex/traslado-nube-seguridad-20261015`;
+no se integran a ciegas en main. La final probada tiene huella
+`e5dbd9b0ca5e7e63f7966184a39350184d55fa9d7c4111c23e82ef0beb4dbc10`, incluye
+Relevamientos y configuración inventariada, y sustituye a `8c318727…`.
+Pasaron 54 pruebas RTDB demo y la compilación remota dryRun. El índice de cinco
+roles conserva casillas/acciones. Hace falta aprobación vigente, corte y
+verificación posterior; no marcar aplicado este plan.
+
+Paquete público final: **1.599 pruebas generales aprobadas**, 94 del servidor,
+66 comprobaciones de directorio en siete roles, 20 de acceso, 24 de Proyectos
+y puente, más fixture de presencia. Sintaxis/diff y versión local v3.11.11
+verificados. La rama de auditoría pasó 1.617 pruebas generales y conserva las
+herramientas/candidatas transferibles; los JSON reales permanecen privados.
+
+DNS sigue en GitHub Pages. El certificado de Hosting está en preparación,
+pendiente del TXT autorizado. La limpieza de dos campos heredados también
+requiere autorización específica, sin leer sus valores ni cambiar Auth.
+El informe privado, inventarios y copias continúan fuera de Git. Se recargó
+la ventana local y se verificó el admin/listado/ficha; posteriormente quedó
+en el acceso, por lo que otra comprobación autenticada necesita al titular.
+No equivale a login propio de Osmar ni a teléfono físico.
+
+Detalles, pruebas, límites, aprobaciones y reversión en
+[AUDITORIA_CIERRE_20261016.md](AUDITORIA_CIERRE_20261016.md). Para un futuro cambio
+de alojamiento seguir [PUBLICACION_HOSTING_SEGURO.md](PUBLICACION_HOSTING_SEGURO.md);
+un push de Pages no actualizará Firebase Hosting.
+
 ## Proyectos v3.11.10: publicado y verificado (16/10/2026)
 
 **Estado vigente:** el titular aceptó la vista y autorizó publicar con servidor/permisos sin tocar datos existentes. Cotizador `cotizador-00102-red` está activo al 100%, con configuración anterior preservada y `PROJECTS_ENABLED=true`. Las reglas remotas coinciden con la base protegida y no se modificaron; no se reescribieron roles ni datos de negocio. Cliente v3.11.10 publicado en main `2bbc0fd12f0e778f0ae1cb94c1400d89f7a38aa2`, Pages `38850026864` completed/success; los 14 activos HTTP coinciden con el paquete probado y el marcador Firebase confirmó `v3.11.10-firebase`. Detalles en [PUBLICACION_PROYECTOS_V31110.md](PUBLICACION_PROYECTOS_V31110.md). La nota final solo cambia documentación.

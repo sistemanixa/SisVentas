@@ -29,6 +29,7 @@ Cuando el usuario pida **acomodar nombres**, seguir el criterio de [docs/acomoda
 - Antes de publicar una versión: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/actualizar-nodo-version.ps1 -Version vX.Y.Z -ValidarLocal`. Usar `scripts/siguiente-version.ps1` para calcular el siguiente número (el parche rota al siguiente menor después de 20).
 - Publicar solo el alcance autorizado. Revisar archivos staged explícitamente; nunca añadir todo a ciegas. Esperar a que la web entregue los activos nuevos y recién entonces ejecutar `scripts/actualizar-nodo-version.ps1 -Version vX.Y.Z`, que valida web y actualiza `sisventas/config/version`. Un push no demuestra que terminó el despliegue.
 - Git no sincroniza Firebase, Secret Manager, Cloud Run, DNS ni autenticaciones. No marcar esos cambios como aplicados basándose solo en un commit.
+- Si CONTEXTO_ACTUAL confirma que `ventas` usa Firebase Hosting, incorporar el paso de [PUBLICACION_HOSTING_SEGURO.md](docs/PUBLICACION_HOSTING_SEGURO.md) antes de verificar web/actualizar aviso. Un push de Pages no publica allí. El script exige checkout público limpio y SHA completo revisado; no usar el árbol de auditoría con cambios ajenos como fuente.
 
 ## Reglas funcionales y visuales acordadas
 
@@ -49,4 +50,5 @@ Cuando el usuario pida **acomodar nombres**, seguir el criterio de [docs/acomoda
 - `security/auditoria-2026-10-12.txt` es un informe privado local: no agregarlo a Git ni publicarlo. Tampoco subir `tmp/`, perfiles, sesiones, credenciales de gcloud o artefactos privados de `.local/`.
 - Reglas `.candidate.json` y scripts de migración son propuestas hasta comprobar las reglas remotas y el despliegue. No ejecutarlos automáticamente. Probar permisos/concurrencia con emulador y datos ficticios; respaldar y verificar el estado exacto antes de un corte autorizado.
 - No sustituir la base completa ni ampliar permisos como arreglo rápido. Una autorización de lectura/escritura en un padre de RTDB no se revoca con un veto en un hijo.
+- El índice de Roles se deriva de casillas y acciones; conservar `indiceRevision` al normalizar y resolver conflictos recargando, sin sobrescribir decisiones concurrentes. Inventariar también dominios/configuraciones realmente usados (por ejemplo Relevamientos) antes de cerrar comodines. Guardar un borrador representativo en emulador antes del corte, sin usar datos reales.
 - En nube no asumir rutas Windows ni credenciales locales. Revisar las instrucciones del entorno y su red, adaptar herramientas con cuidado y configurar accesos por el mecanismo seguro del entorno. Faltas de credenciales se informan; no se copian claves al repositorio para resolverlas.

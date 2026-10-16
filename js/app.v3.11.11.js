@@ -3066,6 +3066,11 @@ function chatScrollAMensaje(fbKey) {
 }
 
 function chatMsgContenido(m) {
+  // La historia no se reescribe. Validar también enlaces antiguos antes de
+  // renderizarlos: escapar HTML no vuelve seguro un protocolo javascript:.
+  var seguro = function(url){return typeof url === 'string' && /^https:\/\/[^\s\\]+$/i.test(url) ? url : '';};
+  var adjuntoOriginal = m.audioUrl || m.fotoUrl || m.archivoUrl;
+  m = Object.assign({},m,{audioUrl:seguro(m.audioUrl),fotoUrl:seguro(m.fotoUrl),archivoUrl:seguro(m.archivoUrl)});
   if (m.audioUrl) {
     var segundos = Number(m.audioDuracion) || 0;
     var duracion = segundos > 0 ? Math.floor(segundos / 60) + ':' + String(Math.floor(segundos % 60)).padStart(2,'0') : 'Cargando duración…';
@@ -3077,7 +3082,7 @@ function chatMsgContenido(m) {
   if (m.archivoUrl) {
     return '<a href="' + escapeHTML(m.archivoUrl) + '" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;color:inherit;text-decoration:none;background:var(--bg3)" title="Abrir archivo adjunto"><i class="ti ti-file" style="font-size:20px;color:var(--blue)"></i><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHTML(m.archivoNombre || 'Archivo adjunto') + '</span></a>';
   }
-  return '<div>' + escapeHTML(m.texto||'') + '</div>';
+  return '<div>' + escapeHTML(m.texto || (adjuntoOriginal ? 'Adjunto no disponible' : '')) + '</div>';
 }
 
 function chatAudioEstadoPlayer(audio) {
@@ -3197,11 +3202,12 @@ function chatReaccionesHtml(m) {
   return Object.entries(grupos).map(function(par){return '<button type="button" class="chat-reaccion'+(par[1].propia?' propia':'')+'" data-key="'+escapeHTML(m.fbKey||'')+'" data-emoji="'+par[0]+'" onclick="chatReaccionarMensaje(this.dataset.key,this.dataset.emoji)" title="'+escapeHTML(par[1].nombres.join(', '))+'">'+par[0]+' '+par[1].nombres.length+'</button>';}).join('');
 }
 function chatMensajeEditable(m, usuario) {
-  return !!m && !!usuario && m.autor === usuario && !m.eliminado;
+  return !!m && !!usuario && !m.eliminado && (m.autorUid ? m.autorUid === window.fbAuth?.currentUser?.uid : m.autor === usuario);
 }
 function chatMensajeModificable(m, usuario) {
-  if (!m || !usuario || m.autor !== usuario || m.eliminado) return false;
-  return !Object.keys(m.leido || {}).some(function(k){return m.leido[k] && k !== usuario && k !== _chatUsuarioKey(usuario);});
+  if (!chatMensajeEditable(m,usuario)) return false;
+  var uid = window.fbAuth?.currentUser?.uid;
+  return !Object.keys(m.leido || {}).some(function(k){return m.leido[k] && k !== uid && k !== usuario && k !== _chatUsuarioKey(usuario);});
 }
 async function chatModificarMensaje(key, accion) {
   if (!chatPuedeAccederCanal(_chatCanal)) return;
@@ -9767,6 +9773,7 @@ function _cerrarInterfacesAlSalir() {
 }
 
 function _limpiarDatosSesionEnMemoria() {
+  if (typeof limpiarConfigComisionesSesion === 'function') limpiarConfigComisionesSesion();
   _iaHistorial = [];
   var msgs = document.getElementById('ia-messages');
   if (msgs) msgs.innerHTML = '';
@@ -10538,7 +10545,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Directorio protegido de usuarios y verificación del perfil propio.']),
   RELEASE_FEATURE: Object.freeze({page:'usuarios',actionLabel:'Ver Usuarios'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.11.11',date:'16/10/2026',title:'Directorio protegido',notes:Object.freeze(['El acceso consulta solo el perfil propio.','Los participantes y listas utilizan un directorio mínimo, sin fichas privadas.']),feature:Object.freeze({page:'usuarios',actionLabel:'Ver Usuarios'})}),
+ Object.freeze({version:'v3.11.11',date:'16/10/2026',title:'Usuarios y chat protegidos',notes:Object.freeze(['Los participantes y listas utilizan los datos necesarios, sin fichas privadas.','El chat verifica la autoría al editar, reaccionar y marcar lecturas.']),feature:Object.freeze({page:'usuarios',actionLabel:'Ver Usuarios'})}),
  Object.freeze({version:'v3.11.10',date:'16/10/2026',title:'Proyectos',notes:Object.freeze(['Planificación por sectores con necesidades, integrantes y presupuestos vinculados.','Accesos de lectura y edición por proyecto.']),feature:Object.freeze({page:'proyectos',actionLabel:'Ver Proyectos'})}),
  Object.freeze({version:'v3.11.9',date:'15/10/2026',title:'Recuperación de acceso',notes:Object.freeze(['Gestión administrativa de clave temporal y correo de restablecimiento.','El cambio de clave temporal se completa antes de abrir los módulos.']),feature:Object.freeze({page:'usuarios',actionLabel:'Usuarios'})}),
  Object.freeze({version:'v3.11.8',date:'15/10/2026',title:'Regreso al portal solo desde Ofertas',notes:Object.freeze(['El catálogo público muestra Volver a Ofertas únicamente cuando se abrió desde el portal; copiar la dirección del catálogo o de una ficha no conserva ese enlace.']),feature:Object.freeze({page:'distribuidora',actionLabel:'Ver Ofertas'})}),
@@ -53398,11 +53405,28 @@ function poblarSelectoresMediosPago() {
   });
 }
 
+function limpiarConfigComisionesSesion() {
+  CONFIG_COMISIONES_EMPLEADOS = {};
+  CONFIG_COMISIONES_EMPLEADOS_CARGADA = false;
+  window._configComisionesCarga = null;
+  window._cargaConfigComisionesPromesa = null;
+}
 function cargarConfigComisiones() {
+  if (typeof svPuedeLeerDominio === 'function' && !svPuedeLeerDominio('config/comisionesEmpleados')) {
+    CONFIG_COMISIONES_EMPLEADOS = {};
+    CONFIG_COMISIONES_EMPLEADOS_CARGADA = false;
+    return Promise.resolve();
+  }
   if (!window.fbDB) return;
   if (window._cargaConfigComisionesPromesa) return window._cargaConfigComisionesPromesa;
+  var uidConfig = typeof currentUserUid === 'string' ? currentUserUid : '';
+  var vistaConfig = window._impersonacionOriginal;
+  var cargaConfig = {};
+  window._configComisionesCarga = cargaConfig;
+  function vigente(){return window._configComisionesCarga===cargaConfig && uidConfig===(typeof currentUserUid==='string'?currentUserUid:'') && vistaConfig===window._impersonacionOriginal;}
   window._cargaConfigComisionesPromesa = Promise.all([
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/comisiones')).then(function(snap) {
+    if(!vigente())return;
     var data = snap.val();
     if (data && typeof data === 'object') {
       CONFIG_COMISIONES = Object.assign({}, CONFIG_COMISIONES || {}, data);
@@ -53412,6 +53436,7 @@ function cargarConfigComisiones() {
     }
   }).catch(function(){}),
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/maxComisionPct')).then(function(snap) {
+    if(!vigente())return;
     var val = snap.val();
     if (val != null) {
       APROBACION_CONFIG.maxComisionPct = parseFloat(val) || 10;
@@ -53420,14 +53445,16 @@ function cargarConfigComisiones() {
     }
   }).catch(function(){}),
   window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/comisionesEmpleados')).then(function(snap) {
+    if(!vigente())return;
     var data = snap.val();
     CONFIG_COMISIONES_EMPLEADOS = data && typeof data === 'object' ? data : {};
     CONFIG_COMISIONES_EMPLEADOS_CARGADA = true;
-  }).catch(function(){ CONFIG_COMISIONES_EMPLEADOS_CARGADA = true; })
-  ]).then(function(){ return migrarComisionesEmpleadosDesdeFichas(); }).then(function(){
+  }).catch(function(){ if(vigente())CONFIG_COMISIONES_EMPLEADOS_CARGADA = true; })
+  ]).then(function(){ if(vigente())return migrarComisionesEmpleadosDesdeFichas(); }).then(function(){
+    if(!vigente())return;
     var panel = document.getElementById('cfg-comisiones');
     if (panel && panel.style.display !== 'none') renderComisionesConfig();
-  }).finally(function() { window._cargaConfigComisionesPromesa = null; });
+  }).finally(function() { if(window._configComisionesCarga===cargaConfig)window._cargaConfigComisionesPromesa = null; });
   return window._cargaConfigComisionesPromesa;
 }
 

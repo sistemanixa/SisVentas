@@ -1,5 +1,22 @@
 # Cotizador NIXA
 
+## Directorio y chat protegidos (v3.11.11)
+
+`USER_DIRECTORY_ENABLED=true` habilita las rutas nuevas; si falta, permanecen
+cerradas. Reutilizan `businessAuth`, incluidos token revocado y guard de clave
+temporal/versión. No cambian contraseñas ni mandan correo.
+
+- GET `/usuarios/perfil`: solo ficha propia por UID exacto, campos permitidos.
+- GET `/usuarios/directorio`: directorio mínimo de internos, sin correos ajenos.
+- GET `/usuarios/administracion`: proyección administrativa sin campos secretos,
+  solo admin con Usuarios autorizado.
+- POST `/chat/mensaje`: edición/eliminación/reacción transaccional con permisos
+  de canal y autoría. Los valores de identidad vienen del directorio protegido.
+
+Todas las respuestas son `no-store`. No publicar el cliente nuevo antes de
+activar este API. Las reglas por mensaje/directorio requieren el cliente
+compatible; ensayarlas con los fixtures, nunca enviando mensajes reales de prueba.
+
 Servicio Cloud Run separado para cotizar proveedores por su URL exacta.
 
 ## Qué hace
@@ -98,12 +115,19 @@ Desde esta carpeta:
 ```bash
 gcloud run deploy cotizador \
   --source . \
+  --project nixa-sisventas \
   --region southamerica-east1 \
-  --memory 2Gi \
-  --concurrency 1 \
-  --allow-unauthenticated \
-  --set-env-vars FRONTEND_KEY=...,FIREBASE_DATABASE_URL=https://nixa-sisventas-default-rtdb.firebaseio.com,ALLOW_ORIGIN=https://ventas.sistemanixa.com,REQUIRE_FIREBASE_AUTH=true
+  --no-traffic --tag version-revisada \
+  --update-env-vars USER_DIRECTORY_ENABLED=true
 ```
+
+El ejemplo prepara una revisión del servicio existente. Antes de usarlo,
+consultar su configuración y conservar recursos, IAM, variables y secretos;
+no sustituirlos con `--set-env-vars` ni activar tráfico para probar. La cuenta
+necesita despliegue Cloud Run/Build y acceso a la identidad del servicio según
+la configuración existente. Autenticación, base de datos, correo y Proyectos
+conservan sus flags/secretos propios. Activar una revisión exige el alcance
+autorizado, comprobación y reversión documentados.
 
 El cotizador reutiliza Chromium dentro de cada instancia, con contextos aislados
 por consulta y sesiones de proveedor separadas por cuenta y firma de credenciales.
