@@ -15,3 +15,21 @@ test('guardar con favorito conserva importes distintos y al comparar no copia el
 
 test('guardar acepta referencia manual sin URL y conserva los proveedores reales',async()=>{const c=entorno();c.prodProveedoresActuales.push({nombre:'REFERENCIA DE VALOR',proveedorKey:'referencia-de-valor',precio:606264,url:''});c.proveedoresData.push({nombre:'REFERENCIA DE VALOR',fbKey:'referencia-de-valor'});await c.guardarProducto();assert.equal(c.guardado.proveedores.length,3);assert.equal(c.guardado.proveedores[2].url,'');assert.equal(c.guardado.proveedores[2].precio,606264);});
 test('guardar sigue rechazando proveedor real sin URL',async()=>{const c=entorno();c.prodProveedoresActuales[0].url='';await assert.rejects(c.guardarProducto(),/Completá la URL/);assert.equal(c.guardado,undefined);});
+
+test('referencia manual única admite alta sin web y edición con texto sin web heredado',async()=>{
+ for(const alta of [true,false]){
+  const c=entorno();c.editingProdId=alta?null:'P-61893';
+  c.reservarCodigoProductoAutomatico=async()=> 'P-61894';
+  c.prodProveedoresActuales=[{nombre:'REFERENCIA DE VALOR',proveedorKey:'referencia-de-valor',precio:15500,url:''}];
+  c.proveedoresData=[{nombre:'REFERENCIA DE VALOR',fbKey:'referencia-de-valor'}];
+  c.document.getElementById('pf-cod-web').value=alta?'':'SIN WEB';
+  c.window.urlExactaFichaProducto=url=>/^https:\/\//.test(url);
+  await c.guardarProducto();assert.ok(c.guardado);assert.equal(c.guardado.codWeb,'');assert.equal(c.guardado.proveedores[0].url,'');assert.equal(c.guardado.proveedores[0].precio,15500);
+ }
+});
+test('referencia manual no exime la URL inválida general cuando hay un proveedor real',async()=>{
+ const c=entorno();c.prodProveedoresActuales.push({nombre:'REFERENCIA DE VALOR',proveedorKey:'referencia-de-valor',precio:15500,url:''});
+ c.proveedoresData.push({nombre:'REFERENCIA DE VALOR',fbKey:'referencia-de-valor'});
+ c.document.getElementById('pf-cod-web').value='SIN WEB';c.window.urlExactaFichaProducto=url=>/^https:\/\//.test(url);
+ await assert.rejects(c.guardarProducto(),/URL exacta/);assert.equal(c.guardado,undefined);
+});

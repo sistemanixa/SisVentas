@@ -22762,7 +22762,14 @@ async function guardarProducto() {
   var urlGeneralProveedor = normalizarUrlProveedorProducto((document.getElementById('pf-cod-web')||{}).value || '', nombreProveedorGeneral);
   sincronizarUrlGeneralProveedorProducto();
 
-  if (!esManoObra && !editingProdId && !urlGeneralProveedor && !prodProveedoresActuales.some(function(pv) { return pv.url; })) {
+  // La referencia manual no tiene ficha web. Un texto general heredado
+  // (por ejemplo «sin web») no debe bloquear su precio cargado a mano.
+  var soloReferenciaManual = prodProveedoresActuales.length > 0 && prodProveedoresActuales.every(function(pv) {
+    return String(pv.proveedorKey || pv.proveedorFbKey || '') === 'referencia-de-valor';
+  });
+  if (soloReferenciaManual && urlGeneralProveedor && window.urlExactaFichaProducto && !window.urlExactaFichaProducto(urlGeneralProveedor)) urlGeneralProveedor = '';
+
+  if (!esManoObra && !soloReferenciaManual && !editingProdId && !urlGeneralProveedor && !prodProveedoresActuales.some(function(pv) { return pv.url; })) {
     notify('La URL exacta del producto es obligatoria para darlo de alta'); return;
   }
 
