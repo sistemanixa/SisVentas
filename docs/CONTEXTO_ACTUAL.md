@@ -133,3 +133,11 @@ Mensaje de arranque (completar el SHA de documentación con el informado al entr
 Una sola copia trabaja cada bloque. Comenzar con `git fetch origin`, revisar `git status --short` y `git log -1 --oneline`; con árbol limpio y rama main, `git pull --ff-only origin main`. En rama de trabajo integrar explícitamente main sin pisar cambios. Al entregar informar SHA y push confirmado. No usar el navegador local de una PC como evidencia de lo que está sirviendo otra o la nube.
 
 El procedimiento antiguo [sincronizacion-dos-pc-y-publicacion.md](sincronizacion-dos-pc-y-publicacion.md) sigue siendo útil sobre marcadores/despliegue, pero sus comandos a `codex/v3-integracion-v236` y versiones de ejemplo son históricos; usar la rama y versión de esta entrega.
+
+## Corrección de regreso al catálogo en preparación v3.11.8 (15/10/2026)
+
+- El usuario autorizó comprobar main y publicar únicamente el arreglo de Volver a Ofertas, conservando los avances de la otra PC. Fetch confirmó origin/main en 9fdaeb8 (v3.11.7); la rama codex/catalogo-regreso-contexto-20261015 parte exactamente de ese commit.
+- Alcance: contexto de navegación de un solo uso generado desde el botón del portal. Se consume al entrar y se elimina de la URL. El historial conserva el regreso en la ficha y al recargar; abrir por URL, copiar una ficha, reutilizar una entrada o usar el parámetro antiguo desde=ofertas no habilita el regreso. Esto controla navegación y no sustituye la autenticación ni las reglas de permisos.
+- La corrección obsoleta v3.10.36 quedó conservada en el stash 783ef3d6be97ed484dd10a091b08979104283a95; no aplicar ese stash completo. El directorio sin seguimiento publicacion/ permanece fuera del alcance.
+- v3.11.8 copia la app activa v3.11.7 y solo cambia versión/Novedades; conserva cargas por rol, Dashboard, Relevamientos, presentación USD y los demás avances publicados. No incluye ramas de auditoría, reglas candidatas ni cambios de datos comerciales.
+- Validación anterior al paquete: base con 1.536 pruebas y corrección con 1.541 aprobadas. Registrar a continuación el resultado del paquete final, revisión visual, SHA y estado de despliegue antes de declararlo publicado.
