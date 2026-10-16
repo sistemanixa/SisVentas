@@ -1,6 +1,6 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.11.11';
+const CACHE = 'sisventas-v3.11.12';
 const SHELL = [
  './js/core/permission-index.js?v=3.11.11',
  './js/core/user-directory.js?v=3.11.11',
@@ -40,7 +40,7 @@ const SHELL = [
   './js/modules/commercial-approval.js?v=3.9.29',
   './js/core/guarded-writes.js?v=3.9.24-server-check2',
   './js/core/session-assets.js?v=3.11.11-directory',
-  './js/app.v3.11.11.js',
+  './js/app.v3.11.12.js',
   './js/modules/navigation-back.js?v=perf-3105',
   './js/modules/product-url-import.js?v=3.9.15-dual-shipping',
   './js/modules/keyboard-actions.js',
@@ -48,7 +48,7 @@ const SHELL = [
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js',
   './js/core/version.js',
-  './js/core/version.v3.11.11.js',
+  './js/core/version.v3.11.12.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.10.32',
@@ -68,6 +68,12 @@ const SHELL = [
   './js/modules/product-query-guard.js?v=3.6.19',
   './js/modules/business-break-even.js?v=perf-3105',
   './push-sw.js',
+  './js/modules/private-finance-portal.js?v=3.11.12',
+  './js/modules/private-finance-ui.js?v=3.11.12',
+  './js/core/private-finance-model.js?v=3.11.12',
+  './js/core/private-finance-pdf.js?v=3.11.12',
+  './css/private-finance.css?v=3.11.12',
+  './personal-finance.html',
   './js/core/error-monitor.js',
   './js/core/relation-compatibility.js',
   './js/modules/treasury.js',
@@ -142,6 +148,8 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+  // Datos/PDF privados nunca se escriben en Cache Storage ni usan fallback.
+  if(event.request.headers?.has('Authorization') || url.pathname.startsWith('/privado/finanzas')) return;
   if (url.origin === 'https://www.gstatic.com' && url.pathname.indexOf('/firebasejs/') >= 0) {
     event.respondWith(
       caches.open(CACHE).then(async (cache) => {
@@ -185,7 +193,7 @@ self.addEventListener('fetch', (event) => {
     fetch(solicitudRed)
       .then((response) => {
         const copy = response.clone();
-        caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        if(response.ok && !/no-store|private/i.test(response.headers.get('cache-control')||'')) caches.open(CACHE).then((cache) => cache.put(event.request, copy));
         return response;
       })
       .catch(async () => {

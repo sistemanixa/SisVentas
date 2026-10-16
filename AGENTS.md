@@ -43,6 +43,7 @@ Cuando el usuario pida **acomodar nombres**, seguir el criterio de [docs/acomoda
 - Chat: Responder es la primera acción del menú; flecha integrada en la burbuja, reacciones desde carita lateral. Editar mensajes propios debe seguir disponible tras lectura, sujeto a autorización real de servidor, sin habilitar edición ajena.
 - Historial de cliente: domicilios seleccionables filtran las solapas coherentemente; no inventar domicilio para registros antiguos ambiguos. Eliminación de cliente solo administrador, con confirmaciones; administrativo como máximo puede desactivar. No ejecutar una cascada real para probarla.
 - No borrar ni recalcular comisiones existentes como efecto de una corrección de interfaz o auditoría.
+- Gastos personales es un dominio separado del titular: UID verificado y configurado en servidor, sin acceso implícito para otros administradores, cerrado durante Ver como. ARS y USD conservan centavos; no convertir ni mezclar con gastos laborales, Caja, Tesorería o comisiones. No cargar las cifras ficticias de la referencia. Ver `docs/gastos-personales/ESTADO_IMPLEMENTACION.md` antes de habilitarlo o trasladar documentos.
 
 ## Seguridad y configuración
 

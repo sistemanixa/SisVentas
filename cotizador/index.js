@@ -40,6 +40,11 @@ const businessAuth = require('./user-access').createBusinessAuth(firebaseAuth, d
 const userDirectory = require('./user-directory').createUserDirectory({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
 const chatOperations = require('./chat-operations').createChatOperations({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
 const projects = require('./projects').createProjects({auth:businessAuth,db,enabled:process.env.PROJECTS_ENABLED==='true'});
+// Bucket dedicado, privado y sin enlaces de Firebase Storage. Nunca reutilizar
+// el bucket compartido de adjuntos: sus reglas no pertenecen a este dominio.
+const personalBucket=process.env.PERSONAL_FINANCE_BUCKET||'';
+const privateFinanceDocuments=require('./private-finance-storage').createPrivateDocuments({storage:()=>admin.storage(),bucketName:personalBucket});
+const privateFinance=require('./private-finance').createPrivateFinance({auth:businessAuth,db,ownerUid:process.env.PERSONAL_FINANCE_OWNER_UID||'',enabled:process.env.PERSONAL_FINANCE_ENABLED==='true',documents:privateFinanceDocuments});
 const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,db,enabled:process.env.USER_ACCESS_ENABLED==='true',emailConfigured:!!process.env.FIREBASE_WEB_API_KEY,sendResetEmail:require('./password-email').createPasswordEmail({apiKey:process.env.FIREBASE_WEB_API_KEY})});
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
 const laborTransaction = require('./labor-transaction').createRootTransaction({databaseURL:DATABASE_URL,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
@@ -1977,6 +1982,21 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204);
     res.end();
     return;
+  }
+
+  if(pathname.startsWith('/privado/finanzas')){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
+    try{
+      const actor=await privateFinance.authorize(req);let result;
+      if(req.method==='GET'&&pathname==='/privado/finanzas/acceso')result={allowed:true};
+      else if(req.method==='GET'&&pathname==='/privado/finanzas')result=await privateFinance.get(actor);
+      else if(req.method==='POST'&&pathname==='/privado/finanzas/guardar')result=await privateFinance.save(actor,await readBody(req,2*1024*1024));
+      else if(req.method==='POST'&&pathname==='/privado/finanzas/documentos')result=await privateFinance.upload(actor,await readBody(req,22*1024*1024));
+      else if(req.method==='GET'&&/^\/privado\/finanzas\/documentos\/[a-f0-9]{64}$/.test(pathname)){
+        const file=await privateFinance.download(actor,pathname.split('/').at(-1));res.writeHead(200,{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="resumen.pdf"','Content-Length':file.bytes.length});res.end(file.bytes);return;
+      }else{send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+      send(res,200,{ok:true,...result});
+    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar el espacio privado. Conservá el formulario y reintentá.'});}return;
   }
 
   if (req.method === 'GET' && pathname === '/mercadolibre/oauth/start') {

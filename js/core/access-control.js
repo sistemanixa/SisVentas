@@ -21,6 +21,7 @@
 
   function canAccess(moduleId, permissions, defaults) {
     if (!moduleId) return false;
+    if(moduleId==='gastospersonales')return !!global.SVPrivateFinancePortal?.allowed();
     var role = current();
     if (!['admin','administrativo','vendedor','tecnico_vendedor','tecnico'].includes(role)) return false;
 
