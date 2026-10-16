@@ -40935,7 +40935,8 @@ function imprimirInforme() {
     '@media print{body{margin:20px}}</style></head><body>' +
     '<div class="header"><div>' +
     (logoImpresionActualUrl() ? '<img src="'+logoImpresionActualUrl()+'" style="height:50px;object-fit:contain;margin-bottom:4px"><br>' : '<div class="logo">NIXA</div>') +
-    '<div style="font-size:11px;color:#555">Seguridad y Automatización del Hogar</div><div style="font-size:11px">Patagones 390, Mar del Plata</div></div>' +
+    '<div style="font-size:11px;color:#555">Seguridad y Automatización del Hogar</div>' +
+    (g('cfg-empresa-dir') ? '<div style="font-size:11px">'+escapeHTML(g('cfg-empresa-dir'))+'</div>' : '') + '</div>' +
     '<div style="text-align:right"><div style="font-size:16px;font-weight:600">Informe Técnico</div><div style="font-size:13px">N° '+g('inf-numero')+'</div><div style="font-size:12px;color:#555">Fecha: '+g('inf-fecha').split('-').reverse().join('/')+'</div></div></div>' +
     '<section><h2>Datos del servicio</h2><div class="grid"><div><label>Cliente</label><p>'+g('inf-cliente')+'</p></div><div><label>Dirección</label><p>'+g('inf-dir')+'</p></div><div><label>Equipo / Sistema</label><p>'+g('inf-equipo')+'</p></div><div><label>N° serie / Modelo</label><p>'+g('inf-serie')+'</p></div><div><label>Técnico</label><p>'+g('inf-tecnico')+'</p></div><div><label>Tipo de informe</label><p>'+g('inf-tipo')+'</p></div></div></section>' +
     (g('inf-motivo') ? '<section><h2>Motivo de la visita</h2><p>'+g('inf-motivo').replace(/\n/g,'<br>')+'</p></section>' : '') +

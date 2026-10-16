@@ -2,6 +2,12 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Dirección de empresa en informes · corrección local (16/10/2026)
+
+- En la misma rama aislada `codex/comerciales-por-responsable-v31113`, sobre `85210ffb7777d642acda12801dbee42c0434e78a`: `imprimirInforme` deja de escribir una dirección fija y usa `cfg-empresa-dir`, que `cargarConfigGeneral` carga desde `sisventas/config/empresa.dir`. Dirección vacía omite esa línea; se escapa como texto HTML. El domicilio del servicio sigue siendo independiente.
+- Corrección sobre la candidata activa v3.11.13 aún no publicada. No se guardó configuración ni informes reales; no se modificaron la copia original ni el espejo de 8766. Las demos de Gastos personales (8765) y responsabilidad comercial (8764) no son la pantalla real de Informes.
+- Verificación: 3 pruebas de impresión con DOM y ventana simulados (dirección configurada, vacía/ausente y caracteres especiales); suite vigente **1.664/1.664**, sintaxis y diff correctos. No se verificó impresión física ni una sesión autenticada de Informes. Siguiente paso al integrar/publicar el cliente completo: recargar la pantalla real y comprobar vista de impresión con la configuración efectiva, sin guardar operaciones de prueba.
+
 ## Responsabilidad comercial y revisión de autoría · v3.11.13 local (16/10/2026)
 
 - Rama aislada `codex/comerciales-por-responsable-v31113`, checkout `.local/comerciales-por-responsable-v31113`, desde **be07387ed30beb7ca3533ec6c6c6b040f143d313** de Gastos personales. Conserva ese módulo y la copia original de auditoría con su histórico local. Sin merge a main, sin despliegue ni escrituras reales de negocio.
