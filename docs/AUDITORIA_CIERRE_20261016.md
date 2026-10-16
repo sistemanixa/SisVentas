@@ -1,6 +1,8 @@
 # Corte final de auditoría, 16/10/2026
 
-**Estado: cliente, servidor, permisos y limpieza aplicados por autorización expresa del titular. HTTPS/DNS en curso, esperando propagación del certificado.**
+**Estado actualizado 16/10/2026: el corte de seguridad y la transición HTTPS/DNS están aplicados. El cliente publicado es v3.11.17. Este documento conserva debajo los antecedentes del corte v3.11.11; el estado vigente y las revisiones exactas están en CONTEXTO_ACTUAL.md.**
+
+Revalidación posterior: 402 GET limitados por UID en seis identidades coincidieron con permisos por dominio. La comprobación no sustituye un login propio en teléfono físico ni el recorrido de todos los formularios. El rendimiento de primera carga continúa en evaluación; no declarar lentitud resuelta al 100%.
 
 ## Estado posterior al corte autorizado
 
@@ -66,12 +68,10 @@ explícita de ambos campos y `--profile-metadata-sha`. No llama a Auth ni conser
 copias de los valores eliminados. Sin modo explícito las tres herramientas
 solo muestran un plan. Los JSON resultantes siguen en `tmp/`, fuera de Git.
 
-## Hosting y cabeceras
+## Hosting y cabeceras · estado actualizado
 
-El sitio actual sigue en GitHub Pages y no devuelve CSP, X-Frame-Options, nosniff, HSTS ni Referrer-Policy. Firebase Hosting `nixa-sisventas-seguro` ya existía con una publicación antigua: no se confunde con producción vigente.
+El destino efectivo de ventas.sistemanixa.com es Firebase Hosting nixa-sisventas-seguro, A 199.36.158.100, certificado y asociación activos. La transición autorizada terminó: DNS autoritativo y resolvers coinciden, HTTPS y activos coinciden con el paquete, cinco cabeceras verificadas y rutas privadas inaccesibles. No volver a aplicar la preparación DNS histórica de este documento.
 
-Se creó el recurso de dominio/certificado de `ventas.sistemanixa.com`, sin tocar DNS ni tráfico. Está pendiente la aprobación para el TXT de validación en Squarespace. El destino actual sigue siendo `sistemanixa.github.io`; no tocar correo, dominio raíz, `www` ni otros servicios. Preparar TLS antes de cambiar el CNAME y verificar certificado, activos y cabeceras. Guardar el destino anterior para revertir.
+El despliegue requiere scripts/deploy-secure-hosting.cjs desde checkout limpio y SHA completo revisado; un push de GitHub Pages ya no actualiza el sitio. Ver PUBLICACION_HOSTING_SEGURO.md. Raíz, www y correo se conservaron.
 
-`scripts/deploy-secure-hosting.cjs` solo publica activos públicos y ahora exige checkout limpio y `--expected-commit` completo. Sin `--apply` no autentica ni despliega. La política CSP de compatibilidad mantiene inline/eval porque la aplicación actual los usa; no equivale a una CSP estricta sin scripts inline.
-
-Si se autoriza el cambio de alojamiento, la publicación en Hosting debe incorporarse al procedimiento futuro: un push de GitHub Pages no actualizará por sí solo ese sitio. Ver [PUBLICACION_HOSTING_SEGURO.md](PUBLICACION_HOSTING_SEGURO.md). **La auditoría no se da por aplicada ni cerrada mientras estas activaciones sigan pendientes.**
+La CSP de compatibilidad conserva inline/eval porque la aplicación existente los usa; no equivale a una CSP estricta. Una reducción requiere inventario y regresiones de sus consumidores antes de un corte. Sesiones reales de empleados en teléfono físico y plantillas bancarias privadas conservan los límites de validación documentados en CONTEXTO_ACTUAL; no cambiar contraseñas ni cargar documentos reales como prueba incidental.

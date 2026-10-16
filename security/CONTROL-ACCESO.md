@@ -1,5 +1,7 @@
 # Segunda fase: escritura de usuarios y Roles
 
+> Antecedente histórico v3.6.1. Las lecturas crudas del directorio que este texto describía como abiertas se cerraron en fases posteriores, incluso para admin; el cliente usa proyecciones autorizadas del servidor. No reabrir esas lecturas ni repetir esta migración. Estado vigente en docs/CONTEXTO_ACTUAL.md y docs/AUDITORIA_CIERRE_20261016.md.
+
 Estado: **publicado y verificado en v3.6.1**, con autorización específica del usuario. Siete usuarios trasladados y configuración conservada completa. Las dos ubicaciones anteriores están vacías y las reglas impiden recrearlas.
 
 Verificación real: 25 lecturas de acceso correctas, reglas remotas idénticas a las probadas, sesión local recargada y siete filas con contenido en Usuarios, con Firebase sincronizado. Respaldo final: `tmp/backups/control-acceso-1789306602845.json`. No se modificaron ventas ni cobros.

@@ -42,6 +42,9 @@ function historicalConversionAudit(record,budgets){
  return {tipo:'conversion_presupuesto_venta',fecha:event.fecha,usuario:event.usuario,accion:'Conversión histórica de '+(source.id||'presupuesto de origen')+' a '+(record.id||'venta')+' · Creador original: '+author.name+' · Según auditoría del presupuesto',referenciaHistorica:true};
 }
 function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
+ // Instantánea privada, de un solo uso dentro de la petición que autorizó al actor.
+ // No es una caché entre consultas: cada authorize vuelve a verificar Auth y roles.
+ const requestContexts=new WeakMap();
  const read=async p=>(await db.ref(p).get()).val();
  async function context(){const [users,identities,permissions]=await Promise.all([read('sv_usuarios'),read('sv_chat_roles'),read('sv_permisos')]);return {people:profiles(users,identities),identities:identities||{},permissions:permissions||{}};}
  async function authorize(req,domain,viewUid){
@@ -57,11 +60,12 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
    const [group,name]=a.split('.'),v=c.permissions[identity.rol]?.acciones?.[group]?.[name];return typeof v==='boolean'?v:identity.rol==='admin';
   });
   if(!canRead)throw fail(403,'Módulo no habilitado para este rol');
-  return {uid,realUid:u.uid,role:identity.rol,name:person.name,domain,viewing:uid!==u.uid};
+  const actor={uid,realUid:u.uid,role:identity.rol,name:person.name,domain,viewing:uid!==u.uid};
+  requestContexts.set(actor,c);return actor;
  }
- async function recordsContext(domain){const [c,records,budgets]=await Promise.all([context(),read('sisventas/'+domain),domain==='ventas'?read('sisventas/presupuestos'):Promise.resolve(null)]);return {c,records:records||{},budgets};}
+ async function recordsContext(domain,authorizedContext){const [c,records,budgets]=await Promise.all([authorizedContext||context(),read('sisventas/'+domain),domain==='ventas'?read('sisventas/presupuestos'):Promise.resolve(null)]);return {c,records:records||{},budgets};}
  function recordOwner(r,domain,c,budgets){if(Object.hasOwn(r,'responsableUid'))return owner(r,domain,c.people);const source=domain==='ventas'&&r.presupuestoFbKey?budgets?.[r.presupuestoFbKey]:null;return owner(source||r,source?'presupuestos':domain,c.people);}
- async function list(actor){const {c,records,budgets}=await recordsContext(actor.domain);const result={};for(const [id,r]of Object.entries(records)){const uid=recordOwner(r,actor.domain,c,budgets);if(actor.role==='admin'||uid===actor.uid){result[id]={...r,_svOwnerUid:uid||'',_svOriginalAuthor:originalAuthor(r,actor.domain,budgets)};const event=actor.domain==='ventas'?historicalConversionAudit(r,budgets):null;if(event)result[id]._svConversionAudit=event;}}return {records:result};}
+ async function list(actor){const authorizedContext=requestContexts.get(actor);requestContexts.delete(actor);const {c,records,budgets}=await recordsContext(actor.domain,authorizedContext);const result={};for(const [id,r]of Object.entries(records)){const uid=recordOwner(r,actor.domain,c,budgets);if(actor.role==='admin'||uid===actor.uid){result[id]={...r,_svOwnerUid:uid||'',_svOriginalAuthor:originalAuthor(r,actor.domain,budgets)};const event=actor.domain==='ventas'?historicalConversionAudit(r,budgets):null;if(event)result[id]._svConversionAudit=event;}}return {records:result};}
  async function options(actor){if(actor.role!=='admin'||actor.viewing)throw fail(403,'Solo el administrador puede reasignar');const c=await context();return {users:c.people.filter(p=>eligible(p.role,actor.domain,c.permissions)).map(p=>({uid:p.uid,nombre:p.name,rol:p.role})).sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))};}
  async function mutate(actor,body,assign){
   if(actor.viewing)throw fail(403,'Volvé a tu cuenta para modificar el responsable');
