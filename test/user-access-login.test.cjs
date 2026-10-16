@@ -32,7 +32,7 @@ test('Guardar perfil no reenvía contraseñas históricas ni permite introducir 
  assert.equal(JSON.stringify(changes).includes('SECRET'),false);assert.equal(window.usuariosData[0].claveAdmin,'OLD_FAKE_SECRET');
 });
 test('El verificador de Functions rechaza sesiones temporales/revocadas/versiones viejas y conserva sesiones normales',async()=>{
- const code=fs.readFileSync('cloud-functions/emitir-factura/index.js','utf8'),start=code.indexOf('async function authenticatedUser('),end=code.indexOf('\n}\n',start)+2;
+ const code=fs.readFileSync('cloud-functions/emitir-factura/index.js','utf8').replaceAll('\r\n','\n'),start=code.indexOf('async function authenticatedUser('),end=code.indexOf('\n}\n',start)+2;
  for(const scenario of [{token:{uid:'worker'},state:null,allowed:true},{token:{uid:'worker',svPasswordChangeRequired:true},state:null},
   {token:{uid:'worker'},state:{required:true,version:'new'}},{token:{uid:'worker',svAccessVersion:'old'},state:{required:false,version:'new'}},
   {token:{uid:'worker',svAccessVersion:'new',svPasswordChangeRequired:false},state:{required:false,version:'new'},allowed:true},{revoked:true}]){

@@ -30,3 +30,8 @@ Usa exclusivamente RTDB demo en loopback; no aplica reglas remotas ni
 requiere cuentas reales. Las seis regresiones de generación offline forman
 parte de la suite general. Estado y límites en
 [PLAN_CORTE_PERMISOS.md](../docs/PLAN_CORTE_PERMISOS.md).
+
+Proyectos: `node --test test/projects.test.cjs`; integración demo con
+`node scripts/test-projects.cjs`; navegador aislado con
+`test/browser/projects.cjs` y `test/browser/projects-bridge.cjs`.
+Configuración, permisos y límites de validación en [PROYECTOS.md](../docs/PROYECTOS.md).

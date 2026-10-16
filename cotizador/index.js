@@ -37,6 +37,7 @@ const db = admin.database();
 // parsers (or their tests) must not instantiate extra SDK services.
 const firebaseAuth = Object.fromEntries(['verifyIdToken','getUser','updateUser','setCustomUserClaims','revokeRefreshTokens'].map(method => [method,(...args)=>admin.auth()[method](...args)]));
 const businessAuth = require('./user-access').createBusinessAuth(firebaseAuth, db);
+const projects = require('./projects').createProjects({auth:businessAuth,db,enabled:process.env.PROJECTS_ENABLED==='true'});
 const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,db,enabled:process.env.USER_ACCESS_ENABLED==='true',emailConfigured:!!process.env.FIREBASE_WEB_API_KEY,sendResetEmail:require('./password-email').createPasswordEmail({apiKey:process.env.FIREBASE_WEB_API_KEY})});
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
 const laborTransaction = require('./labor-transaction').createRootTransaction({databaseURL:DATABASE_URL,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
@@ -1979,6 +1980,19 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && pathname === '/mercadolibre/oauth/start') {
     try { await iniciarOAuthMercadoLibre(req, res); }
     catch (e) { sendHtml(res, e.statusCode || 500, `<h1>No se pudo iniciar la conexión</h1><p>${String(e.message || e).replace(/[<>&]/g, '')}</p>`); }
+    return;
+  }
+
+  if(['/proyectos','/proyectos/opciones','/proyectos/guardar'].includes(pathname)){
+    res.setHeader('Cache-Control','no-store');
+    try{
+      const actor=await projects.authorize(req);let result;
+      if(req.method==='GET'&&pathname==='/proyectos')result=await projects.list(actor);
+      else if(req.method==='GET'&&pathname==='/proyectos/opciones')result=await projects.options(actor,requestUrl.searchParams.get('proyecto')||'');
+      else if(req.method==='POST'&&pathname==='/proyectos/guardar')result=await projects.save(actor,await readBody(req,60000));
+      else {send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+      send(res,200,{ok:true,...result});
+    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar Proyectos. Conservá tu formulario y reintentá.'});}
     return;
   }
 
