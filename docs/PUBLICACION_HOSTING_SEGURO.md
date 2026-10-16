@@ -23,4 +23,10 @@ La [guía oficial de Hosting](https://firebase.google.com/docs/hosting/custom-do
 
 No cambiar los dominios autorizados de Auth ni CORS por analogía: el dominio de producción permanece igual. La URL `web.app` sirve para comprobar activos/cabeceras; no afirmar que un login en ese origen temporal esté autorizado o probado. No desactivar protecciones para facilitar la vista previa.
 
+### Si el origen anterior usa CNAME
+
+El TXT de ACME valida el certificado, pero no sustituye la asociación de Hosting `hosting-site=[site_id]`. Antes de un corte sin interrupciones hay que comprobar **también el contenido mediante el nombre real** contra el destino nuevo: web.app correcto y TLS válido no bastan si la asociación todavía devuelve 404. CNAME y TXT no pueden convivir en el mismo nombre.
+
+Para `ventas` se preparó una transición por A/TXT: sustituir primero el CNAME anterior por un A equivalente al proveedor que sigue atendiendo (GitHub `185.199.108.153`, probado con hostname real, TLS y cinco activos idénticos), agregar el TXT `ventas = hosting-site=nixa-sisventas-seguro`, y esperar asociación y certificado activos. Solo después verificar el contenido contra Firebase `199.36.158.100` y cambiar el A de **ventas** a ese destino. No cambiar raíz, www ni correo. Conservar el TXT de asociación; la reversión de tráfico consiste en volver el A al proveedor anterior. La autorización del traslado ya fue concedida; revisar el estado exacto antes de cada paso, sin suponer que el plan está aplicado.
+
 Configuración, copias de reversión y evidencias privadas van en `tmp/`; nunca tokens, sesiones, datos de negocio ni claves en Git. Los entornos nuevos deben configurar sus propias identidades, no copiar credenciales de esta PC.
