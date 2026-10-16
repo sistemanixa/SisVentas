@@ -2,7 +2,17 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
-## Auditoría de primera carga · candidata local v3.11.18
+## v3.11.18 publicada y verificada · 16/10/2026
+
+- Autorización expresa del titular: mejoras de carga y referencia de valor sin web. Fuente limpia **b60f8bea39cb5d99f9fe53db7351b862b2fbb815**, integrada por avance normal en origin/main y codex/auditoria-carga-inicial-v31118. Copia raíz y modificación ajena de app.v3.10.33 conservadas.
+- Hosting **sites/nixa-sisventas-seguro/versions/5f67444df9aafd63**, 598 activos públicos. Ocho activos críticos idénticos por contenido en dominio real y web.app; cabeceras y web/SW/marcadores/aviso Firebase **v3.11.18-firebase** verificados. DNS y reglas sin cambios.
+- Servidor **cotizador-initial-31118-b60f8bea** al 100% y 14 etiquetas originales conservadas; dirección temporal carga-v31118 retirada. Imagen **sha256:0aef94f4a77cb9e3f58538f1965cc1eb09fc0eafb36be7abaf680eb5cfb7d8d9**, build 36ac2ba1-4723-4236-9f03-f507f97a8ba2. Configuración, secretos, recursos, acceso privado y corte COMMISSION_GENERATION_FROM comparados y preservados. Reversión: servidor cotizador-perf-31117-1573270a y cliente v3.11.17; no restaurar base ni recalcular comisiones.
+- **1.715 generales, 94 servidor, 19 transporte/sesión** aprobadas, con solapamiento; servidor usa dependencias locales con NODE_PATH, loopback fuera de restricción de sockets. **402 GET por seis identidades coincidentes y 18 lecturas privadas directas rechazadas**; sin sesiones nuevas ni escrituras. Antes del corte, GET reales autenticados del candidato a ventas/presupuestos/acceso privado 200, anónimo 401 y CORS correctos.
+- Ventana local efectivamente recargada con índice normal v3.11.18 y sin override: Dashboard, Ventas (50 filas), Presupuestos (10) y Cuenta corriente (9 clientes) cargados sin errores de consola observados. Espejo index/SW/versiones actualizado. Alta/edición sin web verificadas con persistencia ficticia, sin guardar productos reales; la pestaña original de Gastos personales no fue manipulada para las pruebas.
+- Huellas finales **16:32:35Z**: 224 gastos, 122 movimientos y 47 controles de generación, cero cambios/altas; V-910173 intacta. Observador conectado/listo, pendientes cero y errores/reintentos/generaciones cero tras escaneo inicial. Evidencias privadas en C:/SisVentas/tmp/initial-load-release-v31118, fuera de Git.
+- **Lentitud aún no resuelta al 100%**: el índice elimina el bloqueo de CPU medido (6,4 s a 73 ms); no equivale a tiempo total ni móvil físico. Próximo paso: sesión/red e historial completo, conservando saldos/documentos. El aviso de directorio protegido informado por el usuario requiere diagnosticar la petición concreta: no se declara corregido por este despliegue. Permanecen límites de auditoría/móvil/CSP documentados.
+
+## Historial: auditoría de primera carga · candidata local v3.11.18
 
 - Corrección adicional de Productos (16/10): la referencia manual canónica `referencia-de-valor` permite alta sin URL. Cuando es el único tipo de proveedor, un texto general no válido como «SIN WEB» no bloquea el guardado y se conserva vacío en codWeb; no se elimina un enlace general válido ni se relaja la validación de proveedores reales/mixtos. Cinco pruebas de persistencia simulada, suite vigente **1.715/1.715**, sintaxis y diff correctos. Activo copiado al espejo y entrada candidata recargada; no se guardaron productos reales ni se publicó. La captura del usuario corresponde a otra sesión/equipo: no se verificó allí su formulario real. Producción sigue v3.11.17.
 

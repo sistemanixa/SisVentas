@@ -1,6 +1,8 @@
 # Auditoría de primera carga · 16/10/2026
 
-Producción: v3.11.17. Candidata local: v3.11.18, rama
+Actualización de cierre: **v3.11.18 publicada** desde b60f8bea39cb5d99f9fe53db7351b862b2fbb815, servidor cotizador-initial-31118-b60f8bea al 100% y Hosting 5f67444df9aafd63. Aviso y activos verificados; 1.715 generales, 94 servidor y 19 transporte/sesión aprobadas. Estado externo, evidencia y límites en CONTEXTO_ACTUAL. La primera carga completa continúa pendiente de optimización: no anunciar el 100% resuelto.
+
+Lo siguiente documenta la medición previa a publicar. Producción entonces: v3.11.17. Candidata local: v3.11.18, rama
 codex/auditoria-carga-inicial-v31118, base d672c723d041770416609b2cb81609f72d410528.
 No publicada ni aplicada a Cloud Run/Hosting/reglas.
 
