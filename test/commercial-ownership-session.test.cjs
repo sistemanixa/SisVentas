@@ -21,3 +21,12 @@ test('cancelar la suscripción comercial descarta su respuesta y su fuente de ca
  let resolve;const {c}=setup(()=>new Promise(r=>resolve=r)),load=readiness(c);let delivered=0;
  const stop=c.SVCommercialOwnership.onValue('ventas',()=>delivered++);await new Promise(r=>setImmediate(r));stop();resolve({ok:true,json:async()=>({ok:true,records:{demo:{total:100}}})});await new Promise(r=>setImmediate(r));assert.equal(delivered,0);assert.equal(load.status(['ventas']).ready,false);
 });
+test('consulta periódica idéntica no reconstruye la pantalla; cambios reales sí se entregan',async()=>{
+ let records={demo:{total:100}},delivered=0;const {c}=setup(async()=>({ok:true,json:async()=>({ok:true,records})}));
+ c.SVCommercialOwnership.onValue('ventas',()=>delivered++);await new Promise(r=>setImmediate(r));await c.SVCommercialOwnership.refresh('ventas');assert.equal(delivered,1);
+ records={demo:{total:101}};await c.SVCommercialOwnership.refresh('ventas');assert.equal(delivered,2);
+});
+test('recuperación tras interrupción conserva datos y limpia el estado de error sin repintar lo mismo',async()=>{
+ let ok=true,delivered=0;const {c}=setup(async()=>({ok,status:503,json:async()=>ok?({ok:true,records:{demo:{total:100}}}):({mensaje:'Interrupción'})})),load=readiness(c);
+ c.SVCommercialOwnership.onValue('ventas',()=>delivered++);await new Promise(r=>setImmediate(r));ok=false;await c.SVCommercialOwnership.refresh('ventas');assert.equal(load.status(['ventas']).errors.length,1);ok=true;await c.SVCommercialOwnership.refresh('ventas');assert.equal(delivered,1);assert.equal(load.status(['ventas']).ready,true);assert.equal(load.status(['ventas']).errors.length,0);
+});
