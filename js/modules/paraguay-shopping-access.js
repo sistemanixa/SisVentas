@@ -227,6 +227,7 @@
     try{root.verProducto(key,'ofertas');if(host.querySelector('#pd-codigo-lbl')?.textContent!==String(products[key].codigo||''))throw Error('Producto pendiente de cargar');host.querySelector('button')?.focus();}catch(e){returnFromProduct();root.alert('No se pudo abrir la ficha del producto.');}
   }
   function close() {
+    root.SVDistributorDocuments?.reset();
     balanceRefresh=null;
     returnFromProduct(false);
     pdfPreview?.remove();pdfPreview=null;
@@ -697,10 +698,11 @@
       back.className = 'btn btn-sm';back.textContent = '← Volver';back.setAttribute('aria-label','Volver a la vista anterior');
       back.onclick = () => {
         if(busy)return;
+        if(currentView==='documents'&&!root.SVDistributorDocuments.canLeave())return;
         const previous=viewHistory.pop();
         if(!previous)return;
         returningView=true;
-        try{if(previous==='promotions')panel.querySelector('[data-nav="promotions"]').click();else if(previous==='requests')showRequests();else if(previous==='balance')showBalance();else if(previous==='salesbalance')showSalesBalance();else showView(previous==='lists');}
+        try{if(previous==='documents')panel.querySelector('[data-nav="documents"]').click();else if(previous==='promotions')panel.querySelector('[data-nav="promotions"]').click();else if(previous==='requests')showRequests();else if(previous==='balance')showBalance();else if(previous==='salesbalance')showSalesBalance();else showView(previous==='lists');}
         finally{returningView=false;back.hidden=!viewHistory.some(view=>view!==currentView);}
       };
       panel.querySelector('.topbar > div').appendChild(back);
@@ -744,7 +746,10 @@
     if(admin){const nav=document.createElement('button');nav.className='nav-item';nav.dataset.nav='salesbalance';nav.innerHTML='<i class="ti ti-chart-line" aria-hidden="true"></i> Balance de ventas';panel.querySelector('[data-nav="balance"]').after(nav);}
     function showSalesBalance(){if(!admin)return;rememberView('salesbalance');balanceView.hidden=true;promotionsView.hidden=true;root.SVCatalogPromotionsConfig?.reset();requestsView.hidden=true;root.SVCatalogRequests?.reset();panel.querySelector('[data-products-card]').hidden=true;panel.querySelector('[data-list-card]').hidden=true;panel.querySelector('.metrics').hidden=true;salesBalanceView.hidden=false;panel.querySelector('.page-title').textContent='Balance de ventas';panel.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav==='salesbalance'));panel.querySelector('.sidebar').classList.remove('open');root.SVSalesBalance.mount(salesBalanceView,r=>open(nombre,{internal:true,ownerUid:r.uid,ownerName:r.name,listKey:r.key,fromSalesBalance:true}));}
     stops.push(()=>root.SVSalesBalance?.reset());
-    function hideSalesBalance(){salesBalanceView.hidden=true;root.SVSalesBalance?.reset();}
+    const documentsView=document.createElement('section');documentsView.hidden=true;panel.querySelector('.content').appendChild(documentsView);
+    if(root.SVDistributorDocuments?.allowed()){const nav=document.createElement('button');nav.className='nav-item';nav.dataset.nav='documents';nav.innerHTML='<i class="ti ti-file-invoice" aria-hidden="true"></i> Comprobantes';panel.querySelector('.s-nav').appendChild(nav);}
+    stops.push(()=>root.SVDistributorDocuments?.reset());
+    function hideSalesBalance(){salesBalanceView.hidden=true;root.SVSalesBalance?.reset();documentsView.hidden=true;root.SVDistributorDocuments?.reset();}
     function showRequests(){hideSalesBalance();balanceView.hidden=true;
       rememberView('requests');
       promotionsView.hidden=true;root.SVCatalogPromotionsConfig?.reset();
@@ -826,6 +831,11 @@
     panel.querySelector('[data-return-list]').onclick=()=>showView(true);
     panel.querySelector('[data-confirm-products]').onclick=async()=>{if(busy)return;showView(true);await panel.querySelector('[data-save]').onclick();};
     panel.querySelectorAll('[data-nav]').forEach(button => button.onclick = () => {
+      if(!documentsView.hidden&&!root.SVDistributorDocuments.canLeave())return;
+      if(button.dataset.nav==='documents'){
+        if(!root.SVDistributorDocuments?.allowed())return;
+        hideSalesBalance();rememberView('documents');balanceView.hidden=true;promotionsView.hidden=true;root.SVCatalogPromotionsConfig?.reset();requestsView.hidden=true;root.SVCatalogRequests?.reset();panel.querySelector('[data-products-card]').hidden=true;panel.querySelector('[data-list-card]').hidden=true;panel.querySelector('.metrics').hidden=true;documentsView.hidden=false;panel.querySelector('.page-title').textContent='Comprobantes';panel.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b===button));panel.querySelector('.sidebar').classList.remove('open');panel.querySelector('[data-menu]').setAttribute('aria-expanded','false');root.SVDistributorDocuments.mount(documentsView);panel.querySelector('.content').scrollTop=0;return;
+      }
       panel.querySelector('.sidebar').classList.remove('open');panel.querySelector('[data-menu]').setAttribute('aria-expanded','false');
       if(button.dataset.nav==='salesbalance'){showSalesBalance();return;}hideSalesBalance();
       if(button.dataset.nav==='balance'){showBalance();return;}balanceView.hidden=true;
@@ -834,7 +844,7 @@
       if(button.dataset.nav!=='lists')openCart();
       showView(button.dataset.nav === 'lists');
     });
-    panel.querySelector('[data-logout]').onclick = () => {if(admin&&!['compras_paraguay','distribuidora'].includes(root.currentRole)){if(!busy){close();options.onClose?.();}}else root.doLogout();};
+    panel.querySelector('[data-logout]').onclick = () => {if(!documentsView.hidden&&!root.SVDistributorDocuments.canLeave())return;if(admin&&!['compras_paraguay','distribuidora'].includes(root.currentRole)){if(!busy){close();options.onClose?.();}}else root.doLogout();};
     panel.addEventListener('input',updateSaveButton);panel.addEventListener('change',updateSaveButton);
     panel.querySelector('[data-list-search]').oninput=filterListItems;
     panel.querySelector('[data-collapse-items]').onclick=()=>{const compact=panel.querySelector('[data-cart-items]').classList.toggle('py-items-compact');const button=panel.querySelector('[data-collapse-items]');button.textContent=compact?'Expandir todo':'Colapsar todo';button.setAttribute('aria-expanded',String(!compact));};

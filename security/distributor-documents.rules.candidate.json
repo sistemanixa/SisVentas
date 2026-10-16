@@ -1,0 +1,7 @@
+{
+  "sv_distribuidora_comprobantes": {
+    ".read": false,
+    ".write": false
+  },
+  "sv_distribuidora_comprobantes_contadores": {".read": false, ".write": false}
+}

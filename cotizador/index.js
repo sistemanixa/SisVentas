@@ -41,6 +41,7 @@ const businessAuth = require('./user-access').createBusinessAuth(firebaseAuth, d
 const userDirectory = require('./user-directory').createUserDirectory({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
 const chatOperations = require('./chat-operations').createChatOperations({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
 const projects = require('./projects').createProjects({auth:businessAuth,db,enabled:process.env.PROJECTS_ENABLED==='true'});
+const distributorDocuments=require('./distributor-documents').createDistributorDocuments({auth:businessAuth,db,enabled:process.env.DISTRIBUTOR_DOCUMENTS_ENABLED==='true'});
 const commercialOwnership=require('./commercial-ownership').createCommercialOwnership({auth:businessAuth,db,enabled:process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'});
 // Bucket dedicado, privado y sin enlaces de Firebase Storage. Nunca reutilizar
 // el bucket compartido de adjuntos: sus reglas no pertenecen a este dominio.
@@ -2054,6 +2055,19 @@ const server = http.createServer(async (req, res) => {
       send(res,200,{ok:true,...result});
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar Proyectos. Conservá tu formulario y reintentá.'});}
     return;
+  }
+
+  if(['/distribuidora/comprobantes','/distribuidora/comprobantes/opciones','/distribuidora/comprobantes/emitir','/distribuidora/comprobantes/anular'].includes(pathname)){
+    res.setHeader('Cache-Control','no-store');
+    try{
+      const actor=await distributorDocuments.authorize(req);let result;
+      if(req.method==='GET'&&pathname==='/distribuidora/comprobantes')result=await distributorDocuments.list(actor);
+      else if(req.method==='GET'&&pathname.endsWith('/opciones'))result=await distributorDocuments.options(actor);
+      else if(req.method==='POST'&&pathname.endsWith('/emitir'))result=await distributorDocuments.issue(actor,await readBody(req,40000));
+      else if(req.method==='POST'&&pathname.endsWith('/anular'))result=await distributorDocuments.cancel(actor,await readBody(req,2000));
+      else {send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+      send(res,200,{ok:true,...result});
+    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar el comprobante. Conservá el formulario y reintentá.'});}return;
   }
 
   if(req.method==='GET' && pathname==='/usuarios/acceso/estado'){

@@ -1,8 +1,8 @@
 (function(root){
  'use strict';
  const CATEGORY='COMPRAS PARAGUAY';
- const defaults={chat:true,detalle:true,editar:false,crear:false,solicitudes:false};
- const labels={chat:'Chat general y mensajes directos',detalle:'Abrir ficha interna del producto',editar:'Editar datos del producto',crear:'Crear productos en su catálogo',solicitudes:'Ver solicitudes del catálogo y marcar su atención'};
+ const defaults={chat:true,detalle:true,editar:false,crear:false,solicitudes:false,comprobantes:false};
+ const labels={chat:'Chat general y mensajes directos',detalle:'Abrir ficha interna del producto',editar:'Editar datos del producto',crear:'Crear productos en su catálogo',solicitudes:'Ver solicitudes del catálogo y marcar su atención',comprobantes:'Emitir y consultar remitos y recibos propios'};
  let permissions=null,stop=null,editor=null,detailBox=null,providersStop=null;
  const eligible=p=>!!p&&p.categoria===CATEGORY&&p.activo!==false&&p.estado!=='Inactivo'&&!p.esManoDeObra;
  const clean=value=>Object.fromEntries(Object.keys(defaults).map(k=>[k,typeof value?.[k]==='boolean'?value[k]:defaults[k]]));

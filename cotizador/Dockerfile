@@ -7,6 +7,7 @@ RUN npm install --omit=dev
 
 COPY index.js ./
 COPY commercial-response.js ./
+COPY distributor-documents.js ./
 COPY projects.js projects-model.js ./
 COPY user-directory.js ./
 COPY chat-operations.js ./
