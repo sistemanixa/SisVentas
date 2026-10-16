@@ -37,6 +37,14 @@ Después del corte: verificar tráfico/etiquetas, publicar solo el paquete revis
 
 Respaldos de configuración/reglas y evidencia privada: `tmp/publicacion-acceso-v3119/` en la PC original, excluidos de Git. Los secretos permanecen en sus servicios/Secret Manager. La reversión de reglas y tráfico a la versión previa es adecuada **antes de usar temporales reales**; si ya hay marcas de cambio pendiente, no retirar su protección ni volver a servidores que la omiten. En ese caso detener nuevas emisiones y recuperar conservando el guard.
 
-## Límites y pendientes ajenos a esta publicación
+## Integración y activación comprobadas (15/10/2026)
+
+- Recuperado main `fea23c0d83423a01899d09689d74ecdfb14f224b`, con el arreglo de catálogo `2e9bb937824242dc8756175d6a686f4bc3d828c7`. Fusión en la rama aislada de publicación, conservando ambos trabajos; índice, marcador y SW resueltos a v3.11.9 con los módulos de ambos bloques. La v3.11.8 publicada se conserva como histórico sin sobrescribirla con la etapa homónima de auditoría.
+- Paquete integrado: **1.566 pruebas generales**, **94 de Cotizador**, **20 comprobaciones Chromium de acceso** y **16 de navegación del catálogo**, sin fallos. Catálogo usa sus activos reales con datos ficticios y portal mínimo, apertura en otra pestaña, ficha, recarga, historial, URL copiada y regreso; no representa autenticación real del portal ni móvil físico. No hubo cambios de servidor posteriores a las pruebas de Auth/RTDB/Storage demo anteriores.
+- Después de autorización explícita, las revisiones Cotizador `cotizador-00100-boc` y Asistente `asistente-00022-wod` reciben 100% del tráfico, y las 11 etiquetas previas (9+2) apuntan a estas revisiones. Se verificaron configuración preservada y rechazos 401 sin identidad antes del corte, y todas las entradas de tráfico después. Las URLs `acceso-v3119` continúan apuntando a las mismas revisiones.
+- Administrador real en local recargado, identidad conservada y diagnóstico **«Gestión de acceso disponible.»**. No se ingresó contraseña de administrador ni se pulsaron las acciones de recuperación. La disponibilidad verifica servicio, reglas y lectura de Auth del actor; no simula un cambio real de clave.
+- Pendiente de anotar al finalizar: SHA de integración, resultado de Pages, comparación de activos y lectura del marcador remoto. Respaldos, capturas y logs privados en `tmp/publicacion-acceso-v3119/`, fuera de Git.
+
+### Límites conservados
 
 Storage no consulta la marca RTDB: un token anterior sin claim temporal puede conservar acceso a sus adjuntos hasta vencer, y las URLs de descarga tienen su propio ciclo. Las pruebas no acreditan revocación instantánea de todos los enlaces. Las copias históricas de claves en fichas requieren inventario y limpieza privados aparte. Sesión real de Osmar y teléfono/reconexión siguen pendientes; no se cambió su contraseña para probar.
