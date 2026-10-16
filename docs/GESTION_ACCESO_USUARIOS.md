@@ -1,6 +1,6 @@
 # Gestión de acceso: clave temporal y restablecimiento
 
-Estado al 15/10/2026: **servidores y guard de reglas activos por autorización del titular; cliente integrado v3.11.9 pendiente de comprobación pública**. La entrega se prepara en `codex/publicar-acceso-v3119` integrando main `fea23c0d`; la rama completa de auditoría permanece aislada. El diagnóstico real desde administrador devuelve «Gestión de acceso disponible.», sin generar claves ni enviar correos reales. Ver [PUBLICACION_ACCESO_V3119.md](PUBLICACION_ACCESO_V3119.md) para estado externo y evidencia. Este documento no autoriza nuevas acciones sobre usuarios.
+Estado al 15/10/2026: **publicado y verificado en v3.11.9**, con servidores y guard de reglas activos por autorización del titular. Código `3bf92dac6290e76e09b24b5fb0c72c843cf6c2d7` en main, integra el catálogo de la otra PC desde `fea23c0d`; la rama completa de auditoría permanece aislada. Pages completed/success, 14 activos públicos coincidentes y marcador `v3.11.9-firebase` leído después de escribir. El diagnóstico real desde administrador devuelve «Gestión de acceso disponible.», sin generar claves ni enviar correos reales. Ver [PUBLICACION_ACCESO_V3119.md](PUBLICACION_ACCESO_V3119.md) para estado externo y evidencia. Este documento no autoriza nuevas acciones sobre usuarios.
 
 ## Comportamiento
 
