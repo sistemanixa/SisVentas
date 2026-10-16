@@ -1,8 +1,6 @@
 # Gestión de acceso: clave temporal y restablecimiento
 
-**Actualización de publicación, 15/10/2026:** ya se aplicaron el guard de reglas y los verificadores fiscales; las revisiones nuevas de Cotizador/Asistente están preparadas sin tráfico. Cliente público y marcador siguen en v3.11.7. Falta la confirmación específica requerida por la revisión automática para el corte de tráfico. Ver [PUBLICACION_ACCESO_V3119.md](PUBLICACION_ACCESO_V3119.md) y el inicio de CONTEXTO_ACTUAL para el estado externo; lo que sigue describe la preparación local original.
-
-Estado al 15/10/2026: **implementado para validación local v3.11.9, sin publicar ni habilitar sobre usuarios reales**. Base de trabajo: `1ce7683f99e134cf2a8644da3cba6fbea27c1f1b`, rama `codex/traslado-nube-seguridad-20261015`. Producción continúa en v3.11.7. Este documento no autoriza desplegar servicios, reglas ni cambiar claves.
+Estado al 15/10/2026: **publicado y verificado en v3.11.9**, con servidores y guard de reglas activos por autorización del titular. Código `3bf92dac6290e76e09b24b5fb0c72c843cf6c2d7` en main, integra el catálogo de la otra PC desde `fea23c0d`; la rama completa de auditoría permanece aislada. Pages completed/success, 14 activos públicos coincidentes y marcador `v3.11.9-firebase` leído después de escribir. El diagnóstico real desde administrador devuelve «Gestión de acceso disponible.», sin generar claves ni enviar correos reales. Ver [PUBLICACION_ACCESO_V3119.md](PUBLICACION_ACCESO_V3119.md) para estado externo y evidencia. Este documento no autoriza nuevas acciones sobre usuarios.
 
 ## Comportamiento
 
@@ -25,13 +23,13 @@ Los verificadores de Cotizador y de `authenticatedUser` en emitir-factura compru
 
 La candidata de Storage conserva propietario, tipos y tamaño, y rechaza tokens marcados con cambio pendiente. **Límite conocido**: las reglas de Storage no consultan la marca RTDB; los tokens anteriores sin ese claim pueden conservar acceso a adjuntos propios hasta vencer. La revocación de Auth no equivale a invalidar inmediatamente cada URL de descarga o token de Storage. Esto no autoriza ampliar la duración ni abrir archivos; revisar ese límite antes de un corte que requiera revocación instantánea también de adjuntos.
 
-## Configuración pendiente para una futura activación autorizada
+## Secuencia de configuración y verificación
 
 1. Desplegar y verificar los verificadores de servidor, manteniendo `USER_ACCESS_ENABLED` ausente/`false`; no integrar toda la rama de auditoría. La imagen de Cotizador incluye los tres módulos nuevos en su Dockerfile.
 2. Revisar reglas remotas exactas y respaldo privado; componer el guard sobre la etapa acordada con `scripts/prepare-password-access.cjs`. Aplicar únicamente en un corte autorizado las reglas revisadas de RTDB/Storage, con regresiones y reversión del alcance exacto. No reemplazar datos ni aplicar a ciegas la candidata incluida.
 3. Configurar en el servicio `FIREBASE_WEB_API_KEY` (configuración pública del proyecto correcto, no una clave privada), proveedor email/password y plantilla/dominios de restablecimiento de Firebase. La cuenta de servicio necesita gestionar usuarios de Firebase Auth y leer/escribir las rutas privadas y consultar las reglas efectivas de RTDB. Configurar IAM por los mecanismos seguros del entorno, sin exportar credenciales al checkout.
 4. Después de verificar servicios, reglas, cliente y el límite de Storage, habilitar explícitamente `USER_ACCESS_ENABLED=true`. Por defecto todos los endpoints de recuperación permanecen cerrados. Aun con la bandera activada, generar una temporal verifica las reglas efectivas mediante `getRulesJSON()` y falla sin cambios si falta el guard. No exige ni amplía permisos de clientes, ventas o comisiones.
-5. Publicar el cliente coherente y verificar los activos antes del marcador remoto. La UI local actual apunta al backend real anterior: **no genera claves ni envía correos reales con los endpoints nuevos mientras el servicio no esté preparado**. Las pruebas completadas usan emuladores y adaptadores ficticios.
+5. Publicar el cliente coherente y verificar los activos antes del marcador remoto. El servidor real ya quedó preparado y su diagnóstico de solo lectura fue comprobado por el administrador. **No usar generación de temporales o envío real como prueba incidental**; las pruebas completas de recuperación usan emuladores y adaptadores ficticios.
 
 ## Contraseñas heredadas y vista administrativa
 
