@@ -17,6 +17,10 @@ Las pruebas funcionales vigentes deben leer la aplicación declarada por
 `index.html` mediante `test/helpers/active-app.js`, nunca el espejo legado
 `js/app.js` ni un nombre de versión fijado a mano.
 
+Interacciones compartidas: `node --test test/system-dialog-interactions.test.cjs test/surface-scroll-stack.test.cjs`.
+Demostración de navegador sin Firebase ni datos de negocio: `node scripts/dev-interaction-audit.cjs`,
+solo loopback en8784. Casos, evidencia y límites en [AUDITORIA_INTERACCIONES.md](../docs/AUDITORIA_INTERACCIONES.md).
+
 Generación automática de comisiones candidata: `node --test
 test/commission-generation.test.cjs` (24 pruebas funcionales sin credenciales).
 El emulador de responsabilidad comercial también cubre generación, observador y

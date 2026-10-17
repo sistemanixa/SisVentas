@@ -2,6 +2,13 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Auditoría de interacciones · v3.12.9 solo local
+
+- Rama `codex/auditoria-interacciones`, desde918f0923. Producción permanece en v3.12.8; no se desplegaron frontend/servidor ni permisos, ni se guardaron operaciones de prueba. Se conserva el trabajo de ambas PC; fetch de origin/main sin novedades respecto de4639a87b.
+- Fallas reproducidas y corregidas en la infraestructura compartida: Enter sobre Cancelar confirmaba, Tab salía al fondo y el cierre no restauraba foco; sincronización repetía clases sin cambios; overlay con role=dialog podía convertir el panel entero en cabecera. El observador reconoce también hidden/open/minimización. Reglas móviles de36px vencían a botones previstos de44px: prioridad ajustada solo para confirmaciones, recuperación y diálogos de Proyectos.
+- 1.878 pruebas vigentes y27 complementarias aprobadas; pruebas nuevas fallaron antes de corregir. Un primer fallo temporal de cola PDF pasó aislado y al repetir la suite; no se cambiaron sus expectativas ni el PDF. Navegador aislado escritorio/390px: clic superior, Cancelar/Tab/foco, scroll frontal sin fondo, liberar al cerrar, maximizar/restaurar, diálogo nativo y reposo sin mutaciones. Nuevo cliente real local abierto/cancelado, sin guardar, y aplicación sincronizada.
+- Herramienta reproducible `node scripts/dev-interaction-audit.cjs`, loopback8784, solo datos ficticios y CSS, sin Firebase. Criterio estable incorporado a AGENTS y detalle en [AUDITORIA_INTERACCIONES.md](AUDITORIA_INTERACCIONES.md). 43 pantallas/84 módulos inventariados; no afirmar prueba completa de todos sus formularios. Pendientes: rueda/touch/teclado físicos, portales de carteles/menús y recorridos particulares con fixtures. Próximo paso concreto: revisar ese segundo bloque antes de preparar una publicación autorizada.
+
 ## v3.12.8 publicada · aviso, recuperación y botón oscuro
 
 - Fuente desplegada: `44d6979e3e163aac355ab78c29acb6b4924c1bcf`, rama `codex/diagnostico-servidor-local`, checkout limpio. Hosting `sites/nixa-sisventas-seguro/versions/7b7f0dcbae611b7e`:362 archivos públicos,10 cargas. Dominio, aplicación inmutable, marcadores y SW verificados; después se activó y comprobó `sisventas/config/version = v3.12.8-firebase`. El permiso explícito del titular para aviso y recuperación resolvió el bloqueo de publicación anterior.
