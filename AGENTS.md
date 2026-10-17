@@ -4,6 +4,8 @@ Cuando el usuario pida **acomodar nombres**, seguir el criterio de [docs/acomoda
 
 ## Continuidad y Git
 
+- Limpieza de versiones: usar `node scripts/plan-source-cleanup.cjs` para inventariar (no borra). Conservar la activa y las dos anteriores, y cualquier copia/marcador que todavía referencien pruebas o herramientas. No borrar pruebas para justificar retirar sus dependencias. Inventario y recuperación histórica en [docs/LIMPIEZA_VERSIONES.md](docs/LIMPIEZA_VERSIONES.md). Retirar del árbol no reduce el historial de Git; no reescribirlo ni forzar pushes como parte de una limpieza rutinaria.
+
 - Leer [docs/CONTEXTO_ACTUAL.md](docs/CONTEXTO_ACTUAL.md) al comenzar. Separar estado del repositorio, cambios locales y estado externo de producción.
 - Revisar `git status --short`, rama y último commit antes de modificar. Conservar cambios desconocidos; no usar reset/clean, sobrescrituras ni push forzado para sincronizar.
 - La referencia compartida vigente es `origin/main`. La rama `codex/v3-integracion-v236` de documentos antiguos es histórica: no cambiar a ella automáticamente. Para trabajo nuevo aislado usar una rama `codex/...` y coordinar su integración.

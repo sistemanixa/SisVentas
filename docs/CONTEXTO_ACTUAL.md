@@ -2,6 +2,13 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Integración v3.12.5 y limpieza de versiones sin uso
+
+- El titular autorizó integrar v3.12.5: origin/main avanzó normalmente desde `fbaf9a49` a **69d1b6c149e3fef81d21a706e249bd5e182b7cd2**, conservando el trabajo compartido. Rama nueva de limpieza: `codex/limpieza-versiones-historicas` desde ese SHA.
+- Retirados516 archivos históricos sin referencias (258 pares aplicación/marcador),725.366.708 bytes del árbol. Se conservaron v3.12.5 y las dos anteriores, todas las pruebas y las178 versiones que aún necesitan pruebas/herramientas. **1.851 pruebas siguen pasando**, coherencia v3.12.5 y diff correctos. Sin reducir cobertura ni modificar código activo, datos, Hosting o reglas.
+- Alcance acotado tras rechazo automático de una propuesta que incluía pruebas históricas; esa propuesta no se ejecutó. Inventariador de solo lectura `scripts/plan-source-cleanup.cjs`, manifiesto y recuperación en [LIMPIEZA_VERSIONES.md](LIMPIEZA_VERSIONES.md). El historial Git permanece completo, por lo que `.git` no reduce su tamaño con este cambio. Modificación ajena del checkout original preservada.
+- Para reducir más: migrar pruebas que aún fijan snapshots antiguos y verificar equivalencia antes de retirar sus dependencias. No borrar versiones usadas ni reescribir el historial como atajo. El fallo/latencia de acceso mantiene los límites documentados abajo; la limpieza no constituye otra corrección de ingreso.
+
 ## v3.12.5 publicada y verificada · estado vigente
 
 - Autorización explícita recibida del titular para la reparación exacta. Publicación desde árbol limpio en **1bfaf5b01653ec8833b30d210696cf8fb2b2663b** (código funcional `b5c02f4974a00cf6225d0f2ba459391e1c2e1f78`). **1.851 pruebas aprobadas**, sintaxis/diff y coherencia de versión correctos. Rama `codex/correccion-ingreso-v3125`.
