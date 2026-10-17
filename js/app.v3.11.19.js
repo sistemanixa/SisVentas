@@ -10564,7 +10564,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.11.19',date:'16/10/2026',title:'Comprobantes de Distribuidora',notes:Object.freeze(['Remitos y recibos propios con vista previa y precios guardados al emitir.','Primera versión independiente de stock, Caja y comisiones.','Informe de garantía opcional con series, lector de cámara y aviso sonoro.','Las ventanas de Proyectos se abren centradas en escritorio y móvil.','Gastos personales evita verificaciones repetidas; Proyectos no lee presupuestos sin vínculos visibles.']),feature:Object.freeze({page:'distribuidora',actionLabel:'Ver Distribuidora'})}),
+ Object.freeze({version:'v3.11.19',date:'16/10/2026',title:'Comprobantes de Distribuidora',notes:Object.freeze(['Remitos y recibos propios con vista previa y precios guardados al emitir.','Primera versión independiente de stock, Caja y comisiones.','Informe de garantía opcional con series, lector de cámara y aviso sonoro.','Las ventanas de Proyectos se abren centradas en escritorio y móvil.','Remitos espera la confirmación de guardado y conserva el formulario ante errores.','Gastos personales evita verificaciones repetidas; Proyectos no lee presupuestos sin vínculos visibles.']),feature:Object.freeze({page:'distribuidora',actionLabel:'Ver Distribuidora'})}),
  Object.freeze({version:'v3.11.18',date:'16/10/2026',title:'Procesamiento inicial de ventas',notes:Object.freeze(['Los pendientes de pago reutilizan un índice del mismo historial, evitando recorrer todos los cobros por cada venta.','Se conservan los vínculos, importes y criterios contables existentes.','Referencia de valor permite crear y editar productos sin exigir una web.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ver Dashboard'})}),
 
  Object.freeze({version:'v3.11.17',date:'16/10/2026',title:'Lecturas comerciales más livianas',notes:Object.freeze(['Ventas y presupuestos evitan descargar nuevamente un historial que no cambió, verificando los permisos en cada consulta.','Las respuestas nuevas se comprimen durante el transporte sin modificar importes, responsables ni comisiones.']),feature:Object.freeze({page:'detalle',actionLabel:'Ver ventas'})}),
@@ -28475,11 +28475,14 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
   // que usa el mismo modal con sus propios botones y oculta este)
   var modalEl = document.getElementById('modal-nuevo');
   if (modalEl) {
+    var remitoGuardandoAntes = modalEl._remitoSaving;
+    modalEl._svFormToken = {};
+    modalEl._remitoSaving = false;
     modalEl.classList.toggle('secure-modal', tipo === 'gasto');
     document.body.classList.toggle('modal-secure-open', tipo === 'gasto');
     modalEl.onclick = function(ev){ if(ev.target === modalEl && tipo === 'gasto') return; };
     var botonesModal = modalEl.querySelectorAll('.modal > .flex-end button');
-    botonesModal.forEach(function(b){ b.style.removeProperty('display'); });
+    botonesModal.forEach(function(b){ b.style.removeProperty('display'); if(remitoGuardandoAntes)b.disabled=false; });
   }
   const body = document.getElementById('modal-nuevo-body');
   body.innerHTML = '';
@@ -29039,7 +29042,7 @@ function guardarNuevoGenerico() {
     guardarGarantia({ equipo:obj.eq, equipoCodigo:(equipoGarantia.selectedOptions[0] && equipoGarantia.selectedOptions[0].dataset.codigo) || '', productoFbKey:(equipoGarantia.selectedOptions[0] && equipoGarantia.selectedOptions[0].dataset.productoKey) || '', serie:obj.serie, cliente:obj.cli, clienteFbKey:clienteGarantia.dataset.clienteKey, fechaInst:obj.inst, meses:obj.meses, fechaVenc:venc.toISOString().split('T')[0], venta:obj.venta, ventaFbKey:(ventaGarantia.selectedOptions[0] && ventaGarantia.selectedOptions[0].dataset.fbKey) || '' });
 
   } else if (tipo === 'remito') {
-    guardarRemito({ numero:obj.num, cliente:obj.cli, fecha:obj.fecha||new Date().toISOString().split('T')[0], venta:obj.venta, descripcion:obj.desc, estado:'pendiente' });
+    return guardarRemitoDesdeModal({ numero:obj.num, cliente:obj.cli, fecha:obj.fecha||new Date().toISOString().split('T')[0], venta:obj.venta, descripcion:obj.desc, estado:'pendiente' });
 
   } else if (tipo === 'servicio') {
     var numSv = obj.num || ('SV-' + String((window._servData||[]).length + 1).padStart(4,'0'));
@@ -36188,9 +36191,32 @@ function guardarTicket(datos) {
 }
 
 function guardarRemito(datos) {
-  if (!window.fbDB) return;
-  window.fbPush(window.fbRef(window.fbDB, 'sisventas/remitos'), Object.assign(datos||{}, { ts: Date.now(), usuario: currentUser }))
-    .then(function(){ notify('Remito guardado'); });
+  if (!window.fbDB) return Promise.reject(new Error('Sin conexión. El remito no se guardó.'));
+  return Promise.resolve().then(function(){
+    return window.fbPush(window.fbRef(window.fbDB, 'sisventas/remitos'), Object.assign({}, datos||{}, { ts: Date.now(), usuario: currentUser }));
+  });
+}
+function guardarRemitoDesdeModal(datos) {
+  var modal = document.getElementById('modal-nuevo');
+  if (!modal || modal._remitoSaving) return Promise.resolve(false);
+  var token = modal._svFormToken;
+  var botones = Array.from(modal.querySelectorAll('.modal > .flex-end button'));
+  var estados = botones.map(function(b){return b.disabled;});
+  modal._remitoSaving = true;
+  botones.forEach(function(b){b.disabled=true;});
+  notify('Guardando remito…');
+  return guardarRemito(datos).then(function(){
+    notify('Remito guardado');
+    if (modal._svFormToken === token && window._modalTipo === 'remito' && modal.classList.contains('open')) cerrarModalNuevoGenerico();
+    return true;
+  }).catch(function(e){
+    notify('No se pudo guardar el remito: '+(e.message || 'Reintentá cuando vuelva la conexión.'));
+    return false;
+  }).finally(function(){
+    if (modal._svFormToken !== token) return;
+    modal._remitoSaving = false;
+    botones.forEach(function(b,i){b.disabled=estados[i];});
+  });
 }
 
 function guardarEvento(datos) {
