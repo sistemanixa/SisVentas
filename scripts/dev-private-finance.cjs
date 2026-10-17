@@ -11,6 +11,7 @@ const service=createPrivateFinance({db,auth:{verifyIdToken:async token=>({uid:to
 const json=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
 const server=http.createServer(async(req,res)=>{const u=new URL(req.url,'http://127.0.0.1');try{
  if(u.pathname==='/statement-import'){
+  const delay=Math.min(60000,Math.max(0,Number(process.env.PRIVATE_FINANCE_AI_DELAY_MS)||0));if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
   await service.authorize(req);let size=0;const chunks=[];for await(const b of req){size+=b.length;if(size>22*1024*1024)throw Error('Demasiado grande');chunks.push(b);}
   const {payload,normalize}=require('../cloud-functions/asistente/statement-import.cjs');payload(JSON.parse(Buffer.concat(chunks).toString()));
   if(process.env.PRIVATE_FINANCE_AI_RESULT&&process.env.PRIVATE_FINANCE_AI_PDF){

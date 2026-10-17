@@ -2,6 +2,16 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Simplificación de PDF · trabajo local posterior a v3.12.3
+
+- Rama `codex/pdf-escaneo-visual`, desde `d54ad22a08c1c74351507e2ccfd8587b53a1ed7e`. **Sin publicar**: producción continúa v3.12.3 y sus servidores. Cambios de interfaz y pruebas únicamente; sin nuevo servidor, reglas, importaciones ni pagos reales.
+- Al seleccionar/arrastrar PDF aparece un documento animado con barrido y estado visible en la zona de carga. La revisión no se abre hasta que termina la lectura. Cancelar invalida respuestas tardías; errores dejan Reintentar/Cancelar, sin propuesta parcial. Se impide reemplazar un PDF durante su lectura. Movimiento reducido respeta la preferencia del dispositivo.
+- Revisión breve: tarjeta, período, saldo ARS/USD separado, consumos, mínimo y vencimiento. Movimientos/correcciones/observaciones quedan en «Ver o corregir el detalle». Se retiró el JSON «Campos extraídos y procedencia» y el texto de infraestructura del flujo principal; la procedencia sigue conservada internamente. Aviso principal solo si faltan datos o no concilia ARS. Confirmación y validaciones permanecen; no hay guardado automático previo a revisar.
+- Preferencia estable solicitada por el usuario incorporada a AGENTS.md: diseñar para usuario final con pocas acciones e información concreta; detalles opcionales y estados visibles, sin código ni explicaciones técnicas en la pantalla principal.
+- Verificación visual aislada en `localhost:8780`, sin Firebase: escaneo y revisión en escritorio, iframe móvil390px (contenido375px, diálogo362px), desplegable y guardado completo de un PDF ficticio en memoria. Sin transferir documentos reales ni llamar al proveedor en esta prueba visual. Nuevo servidor de prueba admite demora ficticia mediante `PRIVATE_FINANCE_AI_DELAY_MS`; no afecta al servicio real. Evidencia privada en `C:/SisVentas/tmp/pdf-*.png`.
+- Suite vigente **1.833 pruebas aprobadas**, incluidas seis del flujo asíncrono de escaneo/cancelación/error/archivo inválido. Sintaxis de los dos JS y diff correctos. No equivale a teléfono físico ni a volver a probar todos los bancos.
+- Espejo8766 actualizado y ventana del titular efectivamente recargada/restaurada en Gastos personales. La pestaña antigua del documento real no se recargó ni descartó. Próximo paso: revisión del usuario; si se publica, preparar siguiente versión/cache coherente y Hosting siguiendo el procedimiento. Este bloque no cambia la precisión de la extracción ni cierra el incidente de red.
+
 ## v3.12.3 publicada y verificada · estado vigente (17/10/2026)
 
 - Código **0532bb933c7cb440edcbfdc439a569b572aacffe**, rama `codex/diagnostico-sincronizacion-v3123`. Hosting publicado desde checkout limpio **4b4c72c9a52029bc9a71c99cb2720a4270b1d462**, cuya única diferencia es documentación. Suite vigente: **1.827 aprobadas**, sin fallos; sintaxis, diff y coherencia de versión comprobados.
