@@ -2,7 +2,14 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
-## Publicación v3.12.4 · preparada, todavía sin corte
+## v3.12.4 publicada y verificada · estado vigente
+
+- Código publicado: **5f5b6c74675c7b2239826b5c1052b778c8ceda78**, rama `codex/pdf-escaneo-visual`. **1.847 pruebas aprobadas**, sintaxis y coherencia local de versión correctas. Incluye escaneo visible, resultado de lectura en pantalla completa, consumos corregidos, clasificación de débitos por sección del original y asociación de tarjetas por banco + marca. No se cambió el modelo externo ni se promete reducir el tiempo de lectura.
+- Hosting: **sites/nixa-sisventas-seguro/versions/93a5816d7e0c8e50**,615 activos públicos y9 cargas nuevas desde el checkout limpio/SHA revisado. En ventas.sistemanixa.com se compararon11 activos byte a byte, cinco cabeceras de seguridad y cuatro rutas privadas404. Web, marcadores, Service Worker y aviso Firebase confirmados en **v3.12.4-firebase**.
+- Sin cortes de Cloud Run, cambios de reglas, DNS, secretos ni importaciones financieras. Prueba real previa dejó quince movimientos contrastados con el original sin Guardar resumen; esa lectura continúa abierta en la única pestaña del titular. No se crearon tarjetas, documentos, resúmenes ni pagos reales. Espejo local8766 actualizado para su próxima carga; no se forzó recarga de la lectura pendiente.
+- Próximo paso: prueba del titular al importar sus tarjetas; el guardado es una operación real que debe confirmar él. Sigue pendiente medir/optimizar la espera externa de la lectura y diagnosticar el fallo intermitente de recarga, sin afirmar que esta publicación lo resuelve. Evidencias privadas en `C:/SisVentas/tmp/pdf-ai`, fuera de Git y Hosting.
+
+## Publicación v3.12.4 · preparación previa al corte (superada)
 
 - Autorizada por el titular: interfaz PDF, clasificación de débitos por evidencia y reconocimiento automático de tarjetas. Rama `codex/pdf-escaneo-visual`, base funcional `b628cb153f9e0ac62dea1c23046b6aec3381805e`; fetch confirma origin/main sin cambios nuevos desde `d54ad22a`. No incluye cambios de servidor, reglas, DNS ni datos financieros.
 - Aplicación inmutable, índice, marcadores, portal privado, HTML privado y precarga/SW preparados en v3.12.4. Novedades visibles incorporadas. Pruebas funcionales y lectura real contrastadas en el bloque inferior; paquete público previsto:615 activos, sin PDF ni evidencias privadas.
