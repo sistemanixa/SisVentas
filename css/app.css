@@ -120,9 +120,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .login-error{font-size:12px;color:var(--red);background:var(--red-bg);padding:8px 12px;border-radius:var(--radius);margin-bottom:14px;display:none}
 
 .login-error p{margin:0 0 12px;line-height:1.5}
-.login-retry{min-height:44px;font-size:13px}
-.login-retry:focus-visible{outline:2px solid var(--text);outline-offset:3px}
-.login-retry:disabled{opacity:.65}
+.login-error .login-retry{width:100%;min-height:44px;justify-content:center;font-size:13px;background:var(--bg3);border-color:var(--border2);color:var(--text2)}
+.login-error .login-retry:hover{background:var(--bg2);border-color:var(--border3);color:var(--text)}
+.login-error .login-retry:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.login-error .login-retry:disabled{opacity:.65}
 
 /* ── APP SHELL ── */
 #screen-app{display:none;height:100vh;flex-direction:column}

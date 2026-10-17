@@ -36,7 +36,7 @@ const SHELL = [
   './',
   './index.html',
   './js/modules/paraguay-budget-margin.js?v=perf-3105',
-  './css/app.css?v=3.12.8-login-retry',
+  './css/app.css?v=3.12.8-login-secondary',
   './css/v3-preview.css?v=3.8.20-menu2',
   './js/app.js',
   './js/modules/budget-proposals.js?v=perf-31010',

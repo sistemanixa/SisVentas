@@ -14029,7 +14029,7 @@ function _svOfrecerRecuperacionCarga(error, user) {
     show:function(failure,retry){
       var box=document.getElementById('login-error');if(!box)return;box.replaceChildren();box.style.display='block';box.setAttribute('role','alert');
       var text=document.createElement('p');text.textContent=failure.userMessage||('No se pudo completar la carga. Tu sesión se conserva y el acceso sigue bloqueado hasta verificarlo. '+failure.message);box.append(text);
-      var button=document.createElement('button');button.type='button';button.className='login-btn login-retry';button.textContent='Reintentar carga';button.onclick=function(){button.disabled=true;button.textContent='Verificando acceso…';retry();};box.append(button);
+      var button=document.createElement('button');button.type='button';button.className='btn login-retry';button.textContent='Reintentar carga';button.onclick=function(){button.disabled=true;button.textContent='Verificando acceso…';retry();};box.append(button);
     },
     deny:function(failure){_cancelarAutenticacionParcial(failure.message);}
   });

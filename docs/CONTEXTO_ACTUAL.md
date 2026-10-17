@@ -2,6 +2,13 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Publicación autorizada de aviso y recuperación · v3.12.8
+
+- El titular autorizó expresamente publicar las correcciones del aviso y recuperación de carga el17/10/2026. Esta autorización resuelve el bloqueo anterior de v3.12.7: se publica el conjunto en v3.12.8, sin un corte intermedio. Rechazó el dorado del botón; Reintentar carga usa el botón secundario oscuro, borde y foco visibles, y se bloquea mientras verifica. Ingresar conserva su diseño.
+- Fetch previo: `origin/main` sigue en4639a87bf7e6edd9f2d62af70317fdc5f9ac71b5, sin nuevos commits de otra PC. Rama `codex/diagnostico-servidor-local`, sin integrar en main. El paquete conserva el bloque PDF y el ajuste de capacidad ya publicados; no modifica servidor, reglas, permisos ni datos financieros.
+- Preparación:1.870 pruebas vigentes y35 específicas aprobadas, sintaxis/diff y coherencia v3.12.8 correctos. Comprobación local con sesión real: aviso primero recibe el clic (sin inert ni clic al fondo) y abre el espacio privado después de Entendido. Diagnóstico offline y recuperación se vuelven a comprobar con el botón oscuro. Sin guardar operaciones de prueba.
+- Estado al preparar el commit: despliegue pendiente; producción aún v3.12.6. Tras publicar registrar versión Hosting, comprobar activos/cabeceras/rutas privadas, activar marcador Firebase y verificar la interfaz. Evidencias privadas en tmp, fuera del paquete.
+
 ## Diagnóstico local y botón de recuperación · v3.12.8 candidata
 
 - Rama `codex/diagnostico-servidor-local`, base `274a116f9673572a5729aa5c16d007d4a09965b6`. Producción conserva v3.12.6; no hubo despliegue ni cambios de datos, permisos o contraseñas en este bloque. La autorización específica de v3.12.7 sigue pendiente.
