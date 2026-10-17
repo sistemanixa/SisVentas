@@ -26,12 +26,12 @@
     pending[name] = new Promise(function(resolve, reject) {
       var settled = false;
       var timer = setTimeout(function(){finish(new Error('La carga del módulo demoró demasiado. Reintentá.'));},10000);
-      function finish(error) {
+      async function finish(error) {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
         script.onload = script.onerror = null;
-        if (error) {error.code='SV_ASSET_LOAD';error.message+=' ['+name+']';window.SVSessionAssets.lastFailure={module:name,src:asset.src,time:new Date().toISOString(),message:error.message};console.warn('[SisVentas] fallo de módulo',window.SVSessionAssets.lastFailure);script.remove();reject(error);}
+        if (error) {error.code='SV_ASSET_LOAD';error.message+=' ['+name+']';script.remove();try{if(window.SVSessionRecovery?.diagnoseLocalServer)await window.SVSessionRecovery.diagnoseLocalServer(error);}catch(_){}window.SVSessionAssets.lastFailure={module:name,src:asset.src,time:new Date().toISOString(),message:error.message};console.warn('[SisVentas] fallo de módulo',window.SVSessionAssets.lastFailure);reject(error);}
         else resolve();
       }
       script.onload = function(){finish(asset.ready() ? null : new Error('No se pudo inicializar el módulo. Reintentá.'));};

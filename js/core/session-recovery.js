@@ -21,9 +21,23 @@
   }
   return {offer};
  }
+ async function diagnoseLocalServer(error,env=root){
+  if(!recoverable(error)||!['localhost','127.0.0.1','[::1]'].includes(env.location?.hostname)||typeof env.fetch!=='function')return error;
+  const controller=new AbortController();let timer;
+  try{
+   // Ruta única y no navegable: el SW no puede confundir un índice cacheado con un servidor vivo.
+   const nonce=Date.now()+'-'+Math.random().toString(36).slice(2),url=new URL('./__sv_local_probe__/'+nonce,env.location.href);
+   const timeout=new Promise((_,reject)=>{timer=(env.setTimeout||setTimeout)(()=>{controller.abort();reject(Error('Servidor sin respuesta'));},1500);});
+   const response=await Promise.race([env.fetch(url.href,{cache:'no-store',credentials:'omit',signal:controller.signal}),timeout]);
+   if(response.type==='error'||!response.status||response.status===200&&response.headers?.get?.('x-sv-local-probe')!==nonce)throw Error('Servidor no disponible');
+   // Un404 también confirma que el servidor está encendido; no ocultar el fallo de módulo.
+  }catch(_){error.localServerUnavailable=true;error.userMessage='El servidor local está apagado o no responde. Inicialo y presioná «Reintentar carga».';}
+  finally{(env.clearTimeout||clearTimeout)(timer);}
+  return error;
+ }
  function deadline(task,milliseconds=20000,clock=root.setTimeout?root:globalThis){
   let timer;return Promise.race([Promise.resolve(task),new Promise((_,reject)=>{timer=clock.setTimeout(()=>reject(Object.assign(Error('La verificación de acceso demoró demasiado. Podés volver a intentar.'),{name:'TimeoutError',code:'SV_AUTH_LOAD_TIMEOUT'})),milliseconds);})]).finally(()=>clock.clearTimeout(timer));
  }
- const api={recoverable,create,deadline};if(typeof module!=='undefined')module.exports=api;
+ const api={recoverable,create,deadline,diagnoseLocalServer};if(typeof module!=='undefined')module.exports=api;
  if(root.document)root.SVSessionRecovery=api;
 })(typeof window==='undefined'?{}:window);

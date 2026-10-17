@@ -2,6 +2,14 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Diagnóstico local y botón de recuperación · v3.12.8 candidata
+
+- Rama `codex/diagnostico-servidor-local`, base `274a116f9673572a5729aa5c16d007d4a09965b6`. Producción conserva v3.12.6; no hubo despliegue ni cambios de datos, permisos o contraseñas en este bloque. La autorización específica de v3.12.7 sigue pendiente.
+- El cartel de la ventana local provenía de módulos no descargables: el servidor8766 estaba detenido y el Service Worker conservaba una aplicación antigua. Se restableció el servidor sobre `.local/release-v3619` y se cotejaron362 activos HTTP con el fuente. No atribuir este caso a la producción.
+- La recuperación distingue loopback sin respuesta de un módulo ausente o un rechazo de permisos. Una ruta aleatoria comprueba el servidor con plazo de1500ms y sin credenciales; HTML200 cacheado no demuestra disponibilidad. Mensaje: «El servidor local está apagado o no responde. Inicialo y presioná Reintentar carga». Conserva sesión y validación de acceso. Prueba física apagando únicamente nuestro servidor, recarga desde caché, mensaje correcto y recuperación al iniciarlo otra vez.
+- Reintentar carga reutiliza `login-btn`: mismo dorado, tipografía y bordes que Ingresar, separación del texto, foco visible y bloqueo mientras verifica. Cambios visibles en la misma pestaña local; evidencia privada en tmp, no versionada.
+-1.870 pruebas vigentes y24 específicas aprobadas; sintaxis correcta. Ninguna operación financiera guardada. Siguiente paso: revisión visual del titular y publicación solo con el alcance autorizado; no confundir candidata local con versión publicada.
+
 ## Estado del corte v3.12.7 · pendiente de autorización específica
 
 - Corrección guardada y subida en `273a91a5db98b74c3fa8da3f32482baa464bdafc`, rama `codex/aviso-actualizacion-v3127`. Las pruebas y la comprobación visual de ambos órdenes de apertura y del clic en390px pasaron.
