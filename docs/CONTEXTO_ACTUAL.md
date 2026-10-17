@@ -2,7 +2,14 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
-## Corrección de ingreso v3.12.5 · candidata, aún sin publicar
+## v3.12.5 publicada y verificada · estado vigente
+
+- Autorización explícita recibida del titular para la reparación exacta. Publicación desde árbol limpio en **1bfaf5b01653ec8833b30d210696cf8fb2b2663b** (código funcional `b5c02f4974a00cf6225d0f2ba459391e1c2e1f78`). **1.851 pruebas aprobadas**, sintaxis/diff y coherencia de versión correctos. Rama `codex/correccion-ingreso-v3125`.
+- Hosting **sites/nixa-sisventas-seguro/versions/9f77cb0574e25aa9**:616 activos públicos, cinco cargas nuevas. Doce activos del dominio real idénticos al checkout; cinco cabeceras de seguridad y cuatro rutas privadas404 comprobadas. Web/marcadores/SW y aviso Firebase confirmados en **v3.12.5-firebase**. No se modificaron Cloud Run, reglas, contraseñas, correos ni datos financieros.
+- La pestaña web recibió automáticamente v3.12.5 y restauró la sesión; Dashboard terminó de cargar, incluidos presupuestos/OT/controles administrativos. Después se recargó la misma pestaña: aplicación y Dashboard visibles, error de acceso vacío, sin errores/warnings de consola al observar a los7s. Es una cota de observación, no medida exacta del login manual ni garantía de todas las sesiones. No se borraron datos del navegador en estas comprobaciones.
+- El titular informó que pudo entrar en su navegador tras borrar historial/datos: pista de estado persistido, no demostración de que un archivo obsoleto sea la causa. Queda pendiente identificar el origen exacto del estado/transporte intermitente y medir la latencia completa de ingreso antes de prometer resolución universal o mejora porcentual. No usar limpiar el navegador como solución permanente. Dos pestañas justificadas (web/local) quedan abiertas; sin operaciones de prueba financieras.
+
+## Corrección de ingreso v3.12.5 · preparación previa al corte (superada)
 
 - Código candidato guardado y subido: `b5c02f4974a00cf6225d0f2ba459391e1c2e1f78`. Suite del paquete: **1.851 aprobadas**, coherencia local y sintaxis correctas. Despliegue intentado pero rechazado por revisión automática antes de ejecutar: requiere autorización explícita del titular para publicar esta reparación exacta. Solicitud presentada; **producción sigue v3.12.4**. No reintentar el corte sin respuesta autorizando. El acceso web sí se consiguió en la pestaña de Codex con la sesión conservada; no se cambió la contraseña ni se confirmó un inicio manual nuevo.
 
