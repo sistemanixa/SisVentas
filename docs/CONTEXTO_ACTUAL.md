@@ -2,13 +2,21 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
-## Candidata v3.11.20 · Notificaciones y CSP sin eval
+## v3.11.20 publicada y verificada · Notificaciones y CSP
+
+- Fuente pública **daa07e224fc7f8316455657bddc7414e163796ac**, integrada por avance normal en origin/main. Hosting **sites/nixa-sisventas-seguro/versions/87d97f7e4a9e9d59**, 605 activos públicos, cinco cargas. Nueve activos comparados por contenido, cinco cabeceras correctas con unsafe-eval ausente y cuatro rutas internas 404. Web, SW, marcador y aviso Firebase **v3.11.20-firebase** sincronizados.
+- Servidor conserva **cotizador-documents-31119-7e9a1c1e**, tráfico/configuración/permisos sin cambios en este bloque. Reglas y DNS no se modificaron. No se guardaron operaciones financieras ni se tocaron comisiones, contraseñas o correos para probar. Copia ajena de app.v3.10.33 conserva SHA256 45EFC822AD30F94A22C1622D3ABB97A2403061C53A9089ECE918134BFE4A1094.
+- Ventana normal efectivamente recargada y restaurada en Notificaciones con versión20: 12 controles de abrir, cero onclick dinámicos en la lista, PP-0118 ausente y consola sin errores observados. Las pruebas aisladas de CSP, PDF/Excel ficticios y lector no se publicaron. Evidencia privada en C:/SisVentas/tmp/release-v31120; espejo 8766 canónico20. Pestaña privada original del titular conservada.
+- **1.766 pruebas aprobadas** más verificaciones de navegador documentadas abajo; no equivalen a todos los formularios ni dispositivos físicos. La política mantiene unsafe-inline; no anunciar CSP estricta completa. Reversión de cliente/cabeceras: fuente pública v3.11.19 f7e78c7161f3f8d903298ae41c9d908d866e443f, sin restaurar datos o cambiar servidor.
+- Continúa la optimización de la primera historia comercial; contratos de detalle/adjuntos requieren preservar edición, concurrencia, saldos y exportación. El diagnóstico actual y consumidores están en NOTIFICACIONES_CSP_V31120.md. Las pruebas físicas se consultaron al titular y siguen sin evidencia; no darlas por realizadas ni inventar acceso a los empleados.
+
+## Preparación de la publicada v3.11.20 · Notificaciones y CSP sin eval
 
 - Rama codex/auditoria-pendientes-v31120; servidor/reglas/DNS/datos sin cambios. Referencia remota main verificada en 061f00faba196fbb3d5973853175e2b952949cdc, sin novedades de otra PC. No se modifica la app inmutable publicada19.
 - Generación de acciones como datos y despacho explícito; compatibilidad limitada sin ejecutar código. Botones dinámicos usan eventos delegados, con identificadores escapados. Se retira unsafe-eval de Hosting después de probar dependencias y aplicación completa; unsafe-inline permanece por compatibilidad y no se presenta como CSP estricta.
 - 1.766 pruebas, sintaxis/diff/versiones correctos. Fixture sin Firebase bajo política que bloquea scripts embebidos/eval: cinco destinos, acción anterior y controles probados; móvil 390 px sin desborde. Excel/PDF ficticios en memoria, extracción PDF sintético y lector inicializado sin errores observados. Aplicación completa, Cuenta corriente/Productos/Proyectos/Notificaciones y retorno de Gastos personales verificados; ninguna operación de negocio guardada. Detalles y límites: [NOTIFICACIONES_CSP_V31120.md](NOTIFICACIONES_CSP_V31120.md).
 - Primera carga sigue alrededor de 8,7–9,0 s en muestras calientes, sesión alrededor de 2,4 s. Ventas (1.084 registros) completa recepción/JSON unos 4,4 s después de cabeceras; items/factura dominan el tamaño. No se recortó el DTO. Se inventariaron consumidores de edición, adjuntos, concurrencia, impresión y exportaciones antes de diseñar carga de detalle. No declarar la optimización terminada ni un 100% de seguridad/dispositivos por la suite.
-- Autorización de publicar al finalizar vigente; verificar Hosting/activos/aviso antes de marcar aplicada. Las comprobaciones físicas siguen esperando disponibilidad del titular, sin contraseñas nuevas ni importaciones reales.
+- Publicación autorizada completada; ver estado exacto en el bloque superior. Las comprobaciones físicas siguen esperando disponibilidad del titular, sin contraseñas nuevas ni importaciones reales.
 
 ## Continuación posterior a publicación · sin nuevo despliegue
 

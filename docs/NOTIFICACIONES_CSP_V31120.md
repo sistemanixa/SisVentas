@@ -1,4 +1,6 @@
-# Notificaciones y CSP · candidata v3.11.20
+# Notificaciones y CSP · v3.11.20 publicada
+
+Publicada desde daa07e224fc7f8316455657bddc7414e163796ac en Hosting 87d97f7e4a9e9d59; nueve activos, cabeceras, rutas privadas 404 y aviso de versión verificados. Servidor/reglas/DNS sin cambios.
 
 ## Corrección
 
