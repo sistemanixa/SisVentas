@@ -84,7 +84,15 @@ function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date
   const denied=()=>{health.subscriptionReady=false;health.errors++;report();};
   const connected=snap=>{health.connected=snap.val()===true;report();};
   const ready=()=>{if(!health.subscriptionReady){health.subscriptionReady=true;report();}};
-  const handle=snap=>{if(pending.has(snap.key))return;pending.add(snap.key);systemGenerate(snap.key).then(result=>{failed.delete(snap.key);if(result.status==='generada'&&!result.reutilizada)health.completed++;}).catch(e=>{health.errors++;if(e.statusCode!==409)failed.set(snap.key,Number(failed.get(snap.key)||0)+1);}).finally(()=>pending.delete(snap.key));};
+  const handle=snap=>{
+   // La consulta ya entrega la venta. Sin habilitación explícita el mismo
+   // modelo siempre responde no_aplica; no volver a leer sus dependencias.
+   // child_changed procesa una habilitación posterior y los reintentos sin
+   // snapshot conservan la validación completa del servidor.
+   const sale=typeof snap.val==='function'?snap.val():null;
+   if(sale&&sale.comisionHabilitada!==true)return;
+   if(pending.has(snap.key))return;pending.add(snap.key);systemGenerate(snap.key).then(result=>{failed.delete(snap.key);if(result.status==='generada'&&!result.reutilizada)health.completed++;}).catch(e=>{health.errors++;if(e.statusCode!==409)failed.set(snap.key,Number(failed.get(snap.key)||0)+1);}).finally(()=>pending.delete(snap.key));
+  };
   connection.on('value',connected,denied);query.on('child_added',handle,denied);query.on('child_changed',handle,denied);query.on('value',ready,denied);
   const timer=setInterval(()=>{report();retryPending().catch(()=>{health.errors++;});for(const [key,count]of failed)if(count<5)handle({key});},60000);timer.unref?.();retryPending().catch(()=>{health.errors++;});
   return ()=>{clearInterval(timer);connection.off('value',connected);query.off('value',ready);query.off('child_added',handle);query.off('child_changed',handle);};

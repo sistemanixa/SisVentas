@@ -21,6 +21,14 @@ No extrapolar tiempos de CPU de esta PC a Cloud Run ni convertir la reducción d
 
 ## Verificación y publicación
 
-1.770 pruebas generales y 94 servidor aprobadas. Cuatro pruebas nuevas de negociación/Brotli, incluidos bytes íntegros con documentos y centavos, representación pequeña y validadores. 20 pruebas de integración HTTP real de transporte y sesión aprobadas, incluido Brotli; usan datos ficticios, sin Firebase. Coherencia de cliente20 intacta.
+1.773 pruebas generales y 94 servidor aprobadas. Cuatro pruebas nuevas de negociación/Brotli, incluidos bytes íntegros con documentos y centavos, representación pequeña y validadores. 20 pruebas de integración HTTP real de transporte y sesión aprobadas, incluido Brotli; usan datos ficticios, sin Firebase. Coherencia de cliente20 intacta.
 
 Preparar imagen desde commit limpio, revisión sin tráfico, comprobar variables/secretos/cuenta/recursos/tráfico original y reglas sin cambiarlos. Probar GET autenticado y descompresión automática del navegador contra la etiqueta candidata, además de gzip/304/401/403/CORS. Solo entonces cambiar tráfico y etiquetas conservando la configuración exacta. No activar nuevamente ni cambiar el corte de generación de comisiones; no hacer backfill. Reversión: cotizador-documents-31119-7e9a1c1e, sin restaurar datos.
+
+## Observador: trabajo innecesario durante el inicio
+
+En la revisión preliminar sin tráfico se observó una cola inicial de 1.055 ventas cobradas. Inventario de solo lectura: 63 tienen comisionHabilitada estrictamente true; las otras 992 siempre terminaban no_aplica en el modelo, después de releer venta, configuración, pagos y comisiones. El callback ahora descarta esos snapshots antes de repetir consultas. No cambia elegibilidad: una habilitación posterior llega por child_changed y pasa por la validación completa. Reintentos sin snapshot mantienen la ruta anterior. No se filtra por una fecha de creación que pudiera ocultar un cobro reciente. El corte, costos, porcentajes y destinos create-only permanecen intactos.
+
+Tres pruebas nuevas: mil snapshots sin habilitación no leen dependencias ni alteran datos; habilitar luego genera una sola comisión pendiente en datos ficticios; un snapshot habilitado no reemplaza el estado actual validado en servidor. La revisión 788b320e con solo Brotli se probó pero no recibió tráfico productivo; quedó superada antes del corte por esta corrección adicional. No activar esa imagen preliminar como paquete final.
+
+Comparación autenticada preliminar: Ventas 4.910.631 bytes descomprimidos idénticos y mismo ETag (2.050.318 bytes gzip frente a 1.808.223 en candidata); Presupuestos 1.172.955 bytes idénticos (597.712 frente a 450.096). Ambos validadores devolvieron 304 sin cuerpo. Perfil, Proyectos, Comprobantes y acceso privado dieron 200. El arranque completo observado fue 9,6 s, con variación frente a las muestras previas: no anunciar mejora porcentual del total. Se conservan las huellas de 224 gastos, 122 movimientos y 47 controles y tres registros de la operación protegida. Repetir evidencia con la revisión final antes del corte.

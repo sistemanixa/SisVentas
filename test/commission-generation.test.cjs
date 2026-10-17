@@ -75,6 +75,39 @@ test('salud del observador confirma conexión y suscripción sin registrar datos
 test('copias del modelo económico del servidor coinciden con el cliente y se empaquetan',()=>{
  for(const name of ['sales-read-model','budget-read-model','identity-index'])assert.equal(fs.readFileSync('cotizador/commercial-models/'+name+'.js','utf8'),fs.readFileSync('js/v3/'+name+'.js','utf8'));assert.match(fs.readFileSync('cotizador/Dockerfile','utf8'),/COPY commercial-models/);
 });
+
+function observerFixture(options){
+ const f=setup(options),original=f.db.ref.bind(f.db),events={},reads=[];
+ f.db.ref=path=>{
+  if(path==='sisventas/ventas')return {orderByChild:()=>({equalTo:()=>({on:(event,fn)=>events[event]=fn,off(){}})})};
+  if(path==='.info/connected')return {on(){},off(){}};
+  const ref=original(path);return {...ref,get:async()=>{reads.push(path);return ref.get();}};
+ };
+ const stop=f.svc.start();return {...f,events,reads,stop};
+}
+test('observador descarta ventas sin comisión habilitada sin releer dependencias ni alterar históricos',async()=>{
+ const f=observerFixture(),before=JSON.stringify(f.db.root);
+ try{
+  for(let i=0;i<1000;i++)f.events.child_added({key:'historic-'+i,val:()=>({estadoPago:'pago_total',comisionHabilitada:i%2?false:undefined})});
+  await new Promise(setImmediate);
+  assert.deepEqual(f.reads,['sv_commission_generation']);assert.equal(JSON.stringify(f.db.root),before);
+ }finally{f.stop();}
+});
+test('habilitar comisión después del primer snapshot conserva la generación y la aprobación pendiente',async()=>{
+ const f=observerFixture();try{
+  f.events.child_added({key:'sale',val:()=>({comisionHabilitada:false})});await new Promise(setImmediate);
+  assert.equal(Object.keys(f.db.root.sisventas.gastos).length,0);
+  f.events.child_changed({key:'sale',val:()=>f.sale});await new Promise(setImmediate);
+  assert.equal(Object.keys(f.db.root.sisventas.gastos).length,1);assert.equal(Object.values(f.db.root.sisventas.gastos)[0].estado,'pendiente_aprobacion');
+  f.events.child_changed({key:'sale'});await new Promise(setImmediate);assert.equal(Object.keys(f.db.root.sisventas.gastos).length,1);
+ }finally{f.stop();}
+});
+test('un snapshot habilitado no sustituye la validación actual de la venta en servidor',async()=>{
+ const f=observerFixture({sale:{comisionHabilitada:false}}),before=JSON.stringify(f.db.root);try{
+  f.events.child_added({key:'sale',val:()=>({comisionHabilitada:true})});await new Promise(setImmediate);
+  assert.ok(f.reads.includes('sisventas/ventas/sale'));assert.equal(JSON.stringify(f.db.root),before);
+ }finally{f.stop();}
+});
 test('el navegador envía solo referencia, sin exigir acceso al módulo Comisiones',async()=>{
  let request;const user={uid:'u',getIdToken:async()=>'demo'};const c={window:null,fbAuth:{currentUser:user},currentUserUid:'u',SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://demo.invalid'},AbortSignal,fetch:async(url,options)=>{request={url,body:JSON.parse(options.body)};return {ok:true,json:async()=>({ok:true,status:'generada',participantes:[{monto:30}]})};}};c.window=c;vm.runInNewContext(fs.readFileSync('js/core/commission-generation.js','utf8'),c);await c.SVCommissionGeneration.generate({fbKey:'sale',comisionHabilitada:true,total:999,pct:99});assert.deepEqual(request.body,{ventaFbKey:'sale'});c.currentUserUid='view';await assert.rejects(c.SVCommissionGeneration.generate({fbKey:'sale',comisionHabilitada:true}),/Volvé a tu cuenta/);
 });
