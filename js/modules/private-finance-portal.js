@@ -15,6 +15,7 @@
   for(const [element,inert]of inertElements)element.inert=inert;inertElements.clear();
   if(previousHash&&location.hash==='#/gastospersonales')history.replaceState(null,'',location.pathname+location.search+previousHash);
   root.scrollTo?.(0,oldScroll);returnFocus?.isConnected&&returnFocus.focus({preventScroll:true});returnFocus=null;previousHash='';
+  document.dispatchEvent(new CustomEvent('sisventas:private-finance-closed'));
  }
  function reset(){epoch++;for(const c of requests)c.abort();requests.clear();pending=null;capability=false;context='';close();const item=menu();if(item){item.hidden=true;item.style.display='none';}}
  async function tokenFor(c,signal){
@@ -58,14 +59,16 @@
   // vuelve a autorizar en servidor; no hace falta anteponer otro GET /acceso.
   if(!allowed()&&!await check()){root.notify?.('Este espacio está reservado al titular y requiere habilitación del servidor.');return;}
   if(frame)return;
+  if(document.getElementById('popup-actualizado'))return;
   oldOverflow=document.body.style.overflow;oldScroll=root.scrollY;previousHash=location.hash==='#/gastospersonales'?'#/dashboard':location.hash||'#/dashboard';
   overlay=document.createElement('div');overlay.id='sv-private-finance-space';overlay.style.cssText='position:fixed;inset:0;z-index:11000;background:#06111f;overflow:hidden;overscroll-behavior:none';
-  frame=document.createElement('iframe');frame.title='Gastos personales · espacio privado';frame.src='./personal-finance.html?v=3.12.6';frame.style.cssText='display:block;border:0;width:100%;height:100%;background:#06111f';
+  frame=document.createElement('iframe');frame.title='Gastos personales · espacio privado';frame.src='./personal-finance.html?v=3.12.7';frame.style.cssText='display:block;border:0;width:100%;height:100%;background:#06111f';
   overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Gastos personales');returnFocus=document.activeElement;
   for(const element of document.body.children){if(['SCRIPT','STYLE','LINK'].includes(element.tagName))continue;inertElements.set(element,element.inert);element.inert=true;}
   overlay.appendChild(frame);document.body.appendChild(overlay);document.body.style.overflow='hidden';history.replaceState(null,'',location.pathname+location.search+'#/gastospersonales');frame.addEventListener('load',()=>frame?.focus(),{once:true});
  }
  document.addEventListener('sisventas:session-ended',reset);
+ document.addEventListener('sisventas:release-notice-closed',()=>{if(authenticated()&&location.hash==='#/gastospersonales')open();});
  document.addEventListener('sisventas:session-ready',()=>{reset();check().then(ok=>{if(ok&&location.hash==='#/gastospersonales')open();});});
  // applyRole y Ver como llaman a contextChanged sin esperar temporizadores.
  function contextChanged(){if(root._impersonacionOriginal||context&&context!==root.fbAuth?.currentUser?.uid)reset();else if(authenticated()&&!allowed())check();}
