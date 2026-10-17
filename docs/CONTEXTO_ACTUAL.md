@@ -2,6 +2,15 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Publicación v3.12.3 autorizada · preparada, corte pendiente (17/10/2026)
+
+- Código0532bb933c7cb440edcbfdc439a569b572aacffe integrado por avance normal en origin/main desde9bb698fe, después de fetch y revisión del alcance limpio.1.827 pruebas aprobadas y coherencia local correcta. Hosting/aviso siguen v3.12.2; no declarar publicada3.
+- Imágenes construidas y revisiones listas sin tráfico: cotizador-pdf-0532bb93 (build78ed54df-d96b-478f-aca7-d1e9cc120393) y asistente-pdf-0532bb93 (build4a50dbbd-6117-4f3c-9784-10bbfbf5d6ce). Configuración anterior comparada y conservada; solo Asistente añade habilitación/UID del titular ya configurado en Cotizador. Reglas intactas. Cinco rutas de Cotizador y tres de Asistente rechazan anónimos401; CORS localhost/127.0.0.1 probado.
+- Tráfico real conserva cotizador-catalog-41b4dcd7 y asistente-00022-wod. Sus14 y3 etiquetas originales se conservan; se añadió una etiqueta temporal pdf-v3123 a cada candidata. No se activó tráfico ni Hosting, no se enviaron correos ni se cambiaron contraseñas/datos financieros.
+- Prueba del origen127.0.0.1 volvió a fallar al descargar módulos; Auth quedó conservada y datos bloqueados. Consulta directa de los tres módulos respondió200, pero el navegador obtuvo el índice almacenado al abrir una URL de prueba distinta. Se reinició solo el servidor8766 conocido; el fallo del origen persistió. No se confirma su causa ni se da por corregido el transporte.
+- Copia limpia en http://localhost:8766/release-candidate-v3123.html apunta a las dos candidatas, con script propio confirmado. Está en acceso, esperando que el titular ingrese en esa pestaña. La sesión del origen127.0.0.1 se conserva. No transferir tokens ni borrar IndexedDB/datos del sitio para facilitar esta prueba.
+- **Siguiente paso:** tras aviso del titular, verificar sesión, Dashboard/comercial y lectura de un PDF ficticio sin confirmar importación; luego ejecutar el corte autorizado preservando todas las etiquetas originales, publicar Hosting desde checkout limpio/SHA revisado, verificar activos/cabeceras y actualizar el aviso Firebase. Evidencia y scripts operativos privados en C:/SisVentas/tmp/release-v3123. No ejecutar activar antes de comprobar el estado remoto exacto.
+
 ## Candidata local v3.12.3 · recuperación y lectura de PDF con IA (17/10/2026)
 
 - Rama codex/diagnostico-sincronizacion-v3123 desde 9bb698fec6d1bf2f57fef04ce93b04c370264681. **No publicada**. Producción conserva cliente v3.12.2-firebase y Cotizador catalog-41b4dcd7; no se cambió tráfico, reglas, Hosting, DNS, contraseñas ni correos en este bloque.
