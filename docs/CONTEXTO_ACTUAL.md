@@ -1,6 +1,12 @@
 # Continuidad de SisVentas
 
-Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
+Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
+
+## Lector compartido de productos · candidata local v3.12.1 (17/10/2026)
+
+- Continuación en codex/proyectos-movil-integral sobre 1f2f2406. Lector integrado a Productos/catálogo interno, filas de Ventas/Presupuestos, búsqueda avanzada/asistente, kits, materiales OT, listas/Compras Paraguay y Comprobantes. Solo busca, no agrega ni guarda. SKU/código registrado; no inventa equivalencia con EAN ni abre enlaces de QR. Garantías conserva lectura de series. Detalles: [LECTOR_BUSQUEDA_PRODUCTOS_V3121.md](LECTOR_BUSQUEDA_PRODUCTOS_V3121.md).
+- 1.790 generales y18 específicas del lector/controlador aprobadas, sintaxis/diff/versiones correctos. QR/barras reales sobre cámara simulada: Productos, selector de Presupuesto y Venta; ceros conservados, desconocido sin resultados, permiso denegado y cierre. Diálogo390 px centrado, fixture sin errores observados; prueba física y sonido audible pendientes. Contador genérico/regla móvil interferían en el botón: estilos ajustados al contenedor y área44 px.
+- Recarga de pestaña temporal reprodujo fetch fallido de perfil/ventas (03:55–03:56 UTC) y volvió al acceso; sin causa confirmada, no ocultado. Diagnóstico anónimo401/CORS local correcto y cero5xx/ERROR en servidor durante30 minutos revisados. Ventana principal finalmente recargada/autenticada en Productos, botón/campo44 px alineados; registró además fallo de fetch de Ventas03:58 UTC. El incidente sigue abierto. No cambió Auth ni se enviaron correos/contraseñas/operaciones reales. Producción sigue v3.12.0/servidor d849; espejo8766 candidato1 y demos separadas8771/8772. No publicado.
 
 ## Proyectos móvil · candidata local v3.12.1 (17/10/2026)
 

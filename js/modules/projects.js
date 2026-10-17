@@ -102,7 +102,7 @@
  let dialog=null,oldOverflow='',dialogEpoch=0;
  function closeDialog(){if(!dialog)return;dialog.remove();dialog=null;dialogEpoch++;document.body.style.overflow=oldOverflow;}
  function modal(title,body,submit,label='Guardar',after){
-  closeDialog();oldOverflow=document.body.style.overflow;document.body.style.overflow='hidden';dialog=document.createElement('dialog');dialog.className='px-dialog';dialog.setAttribute('aria-labelledby','px-modal-title');
+  closeDialog();oldOverflow=document.body.style.overflow;document.body.style.overflow='hidden';dialog=document.createElement('dialog');dialog.setAttribute('data-sv-escape-owner','true');dialog.className='px-dialog';dialog.setAttribute('aria-labelledby','px-modal-title');
   dialog.innerHTML='<form><header class="px-dialog-head"><h2 id="px-modal-title">'+esc(title)+'</h2><button type="button" class="px-icon" data-px-close aria-label="Cerrar">'+icon('x')+'</button></header><div class="px-dialog-body">'+body+'<p class="px-error" role="status" aria-live="polite"></p></div><footer class="px-dialog-foot">'+button('Cancelar','close')+(submit?'<button type="submit" class="btn px-primary">'+esc(label)+'</button>':'')+'</footer></form>';
   document.body.appendChild(dialog);const local=dialog,epoch=dialogEpoch;let busy=false;
   const close=()=>{if(!busy)closeDialog();};local.querySelector('[data-px-close]').onclick=close;local.querySelector('[data-px="close"]').onclick=close;

@@ -1,0 +1,12 @@
+.sv-product-scan-field{display:flex;align-items:center;gap:7px;min-width:0;width:100%;box-sizing:border-box;flex:1}
+.sv-product-scan-field input{flex:1;min-width:0!important;width:100%;box-sizing:border-box;margin-bottom:0!important}
+.sv-product-scan-button{flex:0 0 44px;width:44px;min-height:44px;padding:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--blue,#8bb9ff);border-color:var(--border2,#34445c);background:var(--bg3,#17243a)}
+.prod-buscador-wrap #prod-search-status{right:60px!important}
+#prod-drop-global .sv-product-scan-button{min-height:38px}
+.catalogo-search>.sv-product-scan-field{width:auto}
+@media(max-width:700px){.sv-product-scan-field input{font-size:16px!important}.sv-product-scan-button{min-height:44px}.sv-product-scan-field{gap:6px}}
+
+.sv-product-scan-field>.sv-search-field{flex:1;min-width:0}
+
+/* Keep the scan control aligned with the input, above an existing result counter. */
+.sv-product-scan-field{align-items:flex-start}.sv-product-scan-field>.sv-product-scan-button.btn{min-height:44px!important;height:44px!important;width:44px!important;flex:0 0 44px;padding:8px!important;align-self:flex-start}.sv-product-scan-field input{min-height:44px!important}
