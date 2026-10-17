@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded',()=>{
      const header=panel.querySelector('.modal-head,.modal-header,[data-modal-header],.sv-modal-drag-handle');
      record.direction=getComputedStyle(panel).flexDirection;
      record.locked=document.body.classList.contains('sv-modal-stack-open');
+     record.floatingShortcutsHidden=Array.from(document.querySelectorAll('#fab-container,#chat-fab,#ia-fab')).every(el=>!visible(el));
      record.header=header?getComputedStyle(header).backgroundColor:null;
      const urgent=document.getElementById('sv-important-alert-stack');
      if(urgent)record.urgentDeferred=getComputedStyle(urgent).visibility==='hidden';
