@@ -2,6 +2,14 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Continuación posterior a publicación · sin nuevo despliegue
+
+- Rama codex/auditoria-pendientes-v31120 desde 061f00faba196fbb3d5973853175e2b952949cdc. Producción sigue v3.11.19; no existe candidata20 por el nombre de rama. Informe: [AUDITORIA_POST_V31119.md](AUDITORIA_POST_V31119.md).
+- Medición con sesión propia ya lista, espacio vacío: apertura de Gastos personales 1.237 y 1.128 ms; GET de estado 1.095 y 984 ms, ambos 200. Un único /acceso durante inicio (684 ms), sin repetirlo al abrir/reabrir. Retorno elimina marco y no hubo errores de consola ni escrituras. Dos muestras, no garantía móvil ni de primera carga completa.
+- 37 pruebas adicionales de directorios y cambios de sesión aprobadas. Error exacto de directorio no reapareció en esta sesión; no equivale a reproducción del equipo que lo informó. Instrumentación/evidencias privadas ignoradas en tmp y espejo; pestaña de medición cerrada.
+- Inventario CSP: índice con 768 eventos y cuatro scripts embebidos; dos new Function en Notificaciones dependen de acciones generadas como texto. No retirar unsafe-eval/unsafe-inline sin migrar consumidores y probar dependencias/otras entradas. No cambió CSP ni permisos en este bloque.
+- Próximo paso concreto: despacho explícito de acciones de notificación con pruebas, después completar inventario de librerías/worker/PDF y política de reporte. Continúan primera historia comercial, reproducción de directorio y verificaciones físicas. No presentar lentitud/auditoría como terminadas al 100%.
+
 ## Estado vigente · v3.11.19 publicada y verificada (16/10/2026)
 
 - Fuente pública **f7e78c7161f3f8d903298ae41c9d908d866e443f**, integrada por avance normal en origin/main. Hosting **sites/nixa-sisventas-seguro/versions/72b51ff75561d3c3**, 604 activos públicos; 15 activos críticos comparados por contenido, cinco cabeceras y cuatro rutas internas 404. Web, SW, marcador y aviso Firebase **v3.11.19-firebase** sincronizados. No se publicaron docs/test/tmp/security ni fixtures locales.
