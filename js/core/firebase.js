@@ -80,9 +80,14 @@
     window.fbRunTransaction = runTransaction;
     window.fbSignIn      = signInWithEmailAndPassword;
     window.fbSignOut     = signOut;
+    // El SDK responde antes de terminar la verificación protegida del perfil.
+    // La pantalla no debe confundir esa espera con ausencia de respuesta Auth.
+    let authStateReceived = false;
+    window.fbAuthStateReceived = function(){ return authStateReceived; };
     window.fbOnAuth = function(auth, callback, errorCallback) {
       let authEpoch = 0;
       return onAuthStateChanged(auth, async function(user) {
+        authStateReceived = true;
         const epoch = ++authEpoch;
         try {
           if (user && window.SVUserAccess && await window.SVUserAccess.gate(user)) return;

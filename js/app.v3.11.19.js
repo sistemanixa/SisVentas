@@ -14094,7 +14094,8 @@ function _mostrarLoginSinSesion() {
 // (sin internet, error de configuración, etc.), mostrar el login igual
 // para no dejar al usuario trabado en la pantalla de carga indefinidamente.
 setTimeout(function() {
-  if (_primeraVerificacionAuth && !isAuthenticated) {
+  var sdkRespondio = typeof window.fbAuthStateReceived === 'function' && window.fbAuthStateReceived();
+  if (_primeraVerificacionAuth && !isAuthenticated && !sdkRespondio) {
     _primeraVerificacionAuth = false;
     _mostrarLoginSinSesion();
   }

@@ -55,7 +55,7 @@ const SHELL = [
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.10.32',
-  './js/core/firebase.js?v=3.11.9-access',
+  './js/core/firebase.js?v=3.11.19-auth-start',
   './js/modules/item-row-order.js?v=perf-3105',
   './js/core/data-query.js',
   './js/modules/notifications.js',
