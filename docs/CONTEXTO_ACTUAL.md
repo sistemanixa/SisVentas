@@ -2,6 +2,14 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## v3.12.2 publicada y verificada · estado vigente (17/10/2026)
+
+- Fuente **ac656420c3fc8315a6432bf7a2558e3211cc6c9a**, integrada por avance directo en origin/main desde `codex/recarga-lector-v3122`. Buscador de Productos en fila completa con escáner y filtros debajo; guías QR/barras, contador de análisis y aviso de lectura; diagnóstico seguro de fallos de módulos/directorio/comercial. El bloque inferior conserva la preparación local de esta misma versión.
+- Hosting **sites/nixa-sisventas-seguro/versions/328123442c19f685**, 612 activos públicos, 10 hashes cargados. Veintidós activos comparados contra fuente en el dominio real, cinco cabeceras verificadas y cuatro rutas internas404. Web/SW/marcador/aviso Firebase **v3.12.2-firebase** sincronizados. Solo cliente: servidor `cotizador-catalog-41b4dcd7`, reglas, DNS, secretos y datos sin modificaciones por este corte.
+- 1.797 pruebas generales, sintaxis/diff/coherencia correctos. Ventana local efectivamente recargada y autenticada en Productos v3.12.2: búsqueda906×44px, filtros10px debajo, tabla cargada; sin errores/warnings observados en esta comprobación. No se guardaron operaciones reales. Las guías y la lectura Code128 tienen la prueba ficticia documentada abajo; cámara física y bip audible pendientes.
+- **El fallo intermitente de recarga/sincronización sigue sin causa confirmada y sin solución acreditada.** Este corte publica diagnóstico, no una corrección de ese incidente. Próximo paso: correlacionar la siguiente falla con módulo/recurso/hora y estado del servidor/SW, sin registrar credenciales ni cuerpos privados.
+- Evidencia privada `C:/SisVentas/tmp/release-v3122`, fuera de Git/Hosting. Árbol de trabajo limpio antes del despliegue; archivo ajeno original app.v3.10.33 preservado con la misma huella indicada en v3.12.1. Reversión compatible del cliente: fuente `41b4dcd7af0683f3ba4472f6c5b42a206745c110`, sin restaurar base ni servidor.
+
 ## Trabajo local v3.12.2 · lector y diagnóstico de recarga
 
 - Rama `codex/recarga-lector-v3122` desde `3b0e30df5042b0cbacad01935e35625baebdabbf`. Producción permanece v3.12.1; no publicar este bloque automáticamente.
