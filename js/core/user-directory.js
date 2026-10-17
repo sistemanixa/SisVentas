@@ -5,7 +5,7 @@
  const session=()=>({user:root.fbAuth?.currentUser,view:root.currentUserUid||'',role:root.currentRole||'',epoch:generation});
  const valid=c=>c.epoch===generation&&c.user===root.fbAuth?.currentUser&&c.view===(root.currentUserUid||'')&&c.role===(root.currentRole||'');
  async function request(path,user,check){
-  if(!user)throw Error('No hay sesión de acceso');const token=await user.getIdToken();if(!check())throw Error('La sesión cambió');
+  if(!user)throw Error('No hay sesión de acceso');const tokenTask=user.getIdToken(),token=await(root.SVSessionRecovery?.deadline?root.SVSessionRecovery.deadline(tokenTask):tokenTask);if(!check())throw Error('La sesión cambió');
   const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servicio de usuarios no disponible');
   const r=await fetch(base+'/usuarios/'+path,{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:AbortSignal.timeout(20000)}).catch(error=>{console.warn('[SisVentas] fallo de lectura de usuarios',{resource:path,error:error.name,online:root.navigator?.onLine,time:new Date().toISOString()});throw error;}),data=await r.json().catch(()=>({}));
   if(!check())throw Error('La sesión cambió');if(!r.ok||!data.ok)throw Object.assign(Error(data.mensaje||'No se pudo cargar el directorio'),{status:r.status});return data;

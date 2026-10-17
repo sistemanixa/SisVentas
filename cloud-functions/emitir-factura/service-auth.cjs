@@ -15,12 +15,13 @@ function policy(service,body={}){
  if(service==='purchase-import')return {module:'ordenes'};
  return {module:'dashboard',action:'dashboard.asistente',defaults:known};
 }
-async function authorize({admin,authorization,service,body}){
+async function authorize({admin,authorization,service,body,personalOwnerUid='',personalEnabled=false,viewAs=false}){
  const m=String(authorization||'').match(/^Bearer\s+(\S+)$/i);if(!m)fail(401,'Sesión requerida');
  let user;try{user=await admin.auth().verifyIdToken(m[1],true);}catch(_){fail(401,'Sesión inválida o vencida');}
  await assertAccessReady(admin,user);
  const identity=(await admin.database().ref('sv_chat_roles/'+user.uid).get()).val();
  if(identity?.activo!==true||!known.includes(identity.rol))fail(403,'Usuario sin acceso al servicio');
+ if(service==='statement-import'){if(!personalEnabled||!personalOwnerUid)fail(503,'Lectura privada con IA todavía no habilitada');if(user.uid!==personalOwnerUid||viewAs)fail(403,'Espacio privado no disponible');return {uid:user.uid,role:identity.rol};}
  const cfg=(await admin.database().ref('sv_permisos/'+identity.rol).get()).val()||{};
  const p=policy(service,body);if(!permitted(identity.rol,cfg,p.module,p.action,p.defaults))fail(403,'Sin permiso para esta operación');
  return {uid:user.uid,role:identity.rol};

@@ -91,7 +91,8 @@
         const epoch = ++authEpoch;
         try {
           if (user && window.SVUserAccess && await window.SVUserAccess.gate(user)) return;
-          const prepared = window.svPrepararRutasSeguridad ? await window.svPrepararRutasSeguridad(user) : undefined;
+          const preparation = window.svPrepararRutasSeguridad ? window.svPrepararRutasSeguridad(user) : undefined;
+          const prepared = window.SVSessionRecovery?.deadline ? await window.SVSessionRecovery.deadline(preparation) : await preparation;
           if (epoch !== authEpoch) return;
           // No entregar a la UI una preparación que ya pertenece a otra sesión.
           if (prepared && window.svPreparacionSeguridadVigente && !window.svPreparacionSeguridadVigente(prepared, user)) return;
@@ -100,6 +101,8 @@
           if (epoch !== authEpoch) return;
           console.warn('[Auth] No se pudo verificar la ubicación de acceso', error);
           if (errorCallback) errorCallback(error);
+          else if (window._svOfrecerRecuperacionCarga?.(error,user)) return;
+          else if (window._cancelarAutenticacionParcial && user) window._cancelarAutenticacionParcial(error.message || 'No se pudo verificar el acceso.');
           else if (window.notify) window.notify('No se pudo verificar el acceso. Revisá la conexión y recargá.');
         }
       }, errorCallback);

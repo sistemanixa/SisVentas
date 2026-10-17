@@ -31,7 +31,7 @@
     if (!user || root.fbAuth?.currentUser !== user) throw Error('La sesión cambió; volvé a ingresar');
     var base = root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;
     if (!base) throw Error('No se encontró el servicio de gestión de acceso');
-    var token = await user.getIdToken();
+    var tokenTask=user.getIdToken(),token=await(root.SVSessionRecovery?.deadline?root.SVSessionRecovery.deadline(tokenTask):tokenTask);
     if (root.fbAuth.currentUser !== user) throw Error('La sesión cambió; volvé a ingresar');
     var response;
     try {
@@ -100,7 +100,7 @@
   async function gate(user) {
     if (!user) return false;
     var epoch = ++gateEpoch;
-    var result = await user.getIdTokenResult();
+    var claimTask=user.getIdTokenResult(),result=await(root.SVSessionRecovery?.deadline?root.SVSessionRecovery.deadline(claimTask):claimTask);
     if (epoch !== gateEpoch || root.fbAuth.currentUser !== user) return true;
     if (result.claims.svPasswordChangeRequired !== true) return false;
     if (activeUser === user && document.querySelector('#sv-access-modal [data-force-change]')) return true;

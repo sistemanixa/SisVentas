@@ -8,3 +8,9 @@
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 
 html,body{overscroll-behavior:none}dialog{overscroll-behavior:contain}.modalbody{overscroll-behavior:contain}.topbar{background:#06111f!important}.btn:disabled{opacity:.5;cursor:wait}.error:empty{display:none}.original-preview{width:100%;height:45vh;border:1px solid var(--line)}
+
+/* PDF AI */
+#dialog [hidden]{display:none!important}
+#dialog [data-action="analyzepdf"],#dialog [data-action="cancelpdfai"]{min-height:44px;width:auto;white-space:normal}
+
+@media(max-width:600px){#dialog button,#dialog input:not([type="checkbox"]):not([type="color"]),#dialog select{min-height:44px}}

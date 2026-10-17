@@ -1,0 +1,9 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),{load}=require('./helpers/app-functions.cjs');
+function setup(errors=[],allowed=['ventas','presupuestos']){const calls=[],messages=[],c={window:null,currentUserUid:'demo',navigator:{onLine:true},fbCargarTodo:()=>false,svPuedeLeerDominio:d=>allowed.includes(d),notify:m=>messages.push(m),fbDB:{},SVCommercialOwnership:{refresh:async d=>calls.push(d)},SVUserDirectory:{enabled:true,refresh:async()=>calls.push('usuarios')},SVDataReadiness:{status:()=>({errors,missing:[]})}};c.window=c;load(c,['fbSincronizarAhora']);return {c,calls,messages};}
+test('sincronizar no afirma datos actualizados sin consultar las APIs autorizadas',async()=>{const f=setup();await f.c.fbSincronizarAhora();assert.deepEqual(f.calls,['ventas','presupuestos','usuarios']);assert.match(f.messages[0],/completadas/);});
+test('sincronización fallida conserva el error visible y nunca informa éxito',async()=>{const f=setup(['ventas']);await f.c.fbSincronizarAhora();assert.match(f.messages[0],/sigue con errores/);assert.equal(f.messages.some(m=>m.includes('completadas')),false);});
+test('no consulta un dominio cerrado por rol ni publica resultados de una cuenta anterior',async()=>{const f=setup([],['ventas']);f.c.SVCommercialOwnership.refresh=async d=>{f.calls.push(d);f.c.currentUserUid='otra';};await f.c.fbSincronizarAhora();assert.deepEqual(f.calls,['ventas','usuarios']);assert.equal(f.messages.length,0);});
+test('sin conexión no inicia nuevas consultas',async()=>{const f=setup();f.c.navigator.onLine=false;await f.c.fbSincronizarAhora();assert.equal(f.calls.length,0);assert.match(f.messages[0],/Sin conexión/);});
+
+test('rechazo inesperado de un transporte tampoco anuncia éxito ni deja rechazo sin manejar',async()=>{const f=setup();f.c.SVCommercialOwnership.refresh=async()=>{throw TypeError('red ficticia');};await f.c.fbSincronizarAhora();assert.match(f.messages[0],/sigue con errores/);});

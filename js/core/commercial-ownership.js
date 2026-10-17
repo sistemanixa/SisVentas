@@ -5,7 +5,7 @@
  const valid=c=>c.epoch===generation&&c.user===root.fbAuth?.currentUser&&c.uid===root.currentUserUid&&c.role===root.currentRole;
  const clean=r=>{const value=Object.fromEntries(Object.entries(r||{}).filter(([k])=>k!=='fbKey'&&!k.startsWith('_sv')));if(r?._svDerivedFechaOrden)delete value.fechaOrden;return value;};
  async function request(domain,path='',body,validator){
-  const c=context();if(!c.user)throw Error('Sesión requerida');const token=await c.user.getIdToken();if(!valid(c))throw Error('La sesión cambió');
+  const c=context();if(!c.user)throw Error('Sesión requerida');const tokenTask=c.user.getIdToken(),token=await(root.SVSessionRecovery?.deadline?root.SVSessionRecovery.deadline(tokenTask):tokenTask);if(!valid(c))throw Error('La sesión cambió');
   const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servicio comercial no disponible');
   const view=c.user.uid!==c.uid?'?verComo='+encodeURIComponent(c.uid):'';
   const res=await fetch(base+'/comerciales/'+domain+(path?'/'+path:'')+view,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{}),...(validator?.etag&&!body&&!path?{'If-None-Match':validator.etag}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store',signal:AbortSignal.timeout(60000)}).catch(error=>{console.warn('[SisVentas] fallo de lectura comercial',{resource:domain,method:body?'POST':'GET',error:error.name,online:root.navigator?.onLine,time:new Date().toISOString()});throw error;});

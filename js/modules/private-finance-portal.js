@@ -17,6 +17,11 @@
   root.scrollTo?.(0,oldScroll);returnFocus?.isConnected&&returnFocus.focus({preventScroll:true});returnFocus=null;previousHash='';
  }
  function reset(){epoch++;for(const c of requests)c.abort();requests.clear();pending=null;capability=false;context='';close();const item=menu();if(item){item.hidden=true;item.style.display='none';}}
+ async function tokenFor(c,signal){
+  if(signal.aborted)throw Error('Análisis cancelado o sesión cambiada');
+  let abort;const cancelled=new Promise((_,reject)=>{abort=()=>reject(Error('Análisis cancelado o sesión cambiada'));signal.addEventListener('abort',abort,{once:true});});
+  try{return await Promise.race([Promise.resolve().then(()=>c.user.getIdToken()),cancelled]);}finally{signal.removeEventListener('abort',abort);}
+ }
  async function request(path='',body,raw=false){
   const c=session();if(!valid(c)||!c.user)throw Error('Volvé a tu sesión propia para abrir el espacio privado');
   if(!['','/acceso','/guardar','/documentos'].includes(path)&&!/^\/documentos\/[a-f0-9]{64}$/.test(path))throw Error('Ruta privada inválida');
@@ -28,6 +33,20 @@
    const data=raw&&response.ok?await response.blob():await response.json().catch(()=>({}));
    if(!valid(c))throw Error('La sesión cambió');if(!response.ok||!raw&&!data.ok){if([401,403].includes(response.status))reset();throw Object.assign(Error(data.mensaje||'No se pudo confirmar la operación privada'),{status:response.status});}return data;
   }finally{clearTimeout(timer);requests.delete(controller);}
+ }
+ async function analyzePDF(data,signal){
+  const c=session();if(!allowed()||!valid(c))throw Error('Volvé a tu sesión propia para analizar el PDF');
+  const controller=new AbortController();requests.add(controller);
+  const cancel=()=>controller.abort();signal?.addEventListener('abort',cancel,{once:true});if(signal?.aborted)cancel();
+  const timer=setTimeout(cancel,180000);
+  try{
+   const token=await tokenFor(c,controller.signal);if(!valid(c)||controller.signal.aborted)throw Error('Análisis cancelado o sesión cambiada');
+   const base=root.SV_IA_ENDPOINT||'https://asistente-171899432710.southamerica-east1.run.app';
+   const response=await fetch(base+'/statement-import',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({data}),cache:'no-store',signal:controller.signal});
+   const result=await response.json().catch(()=>({}));if(!valid(c)||controller.signal.aborted)throw Error('Análisis cancelado o sesión cambiada');
+   if(!response.ok||!result.ok){if([401,403].includes(response.status))reset();throw Object.assign(Error(result.mensaje||'No se pudo completar la lectura con IA'),{status:response.status});}
+   return result;
+  }finally{clearTimeout(timer);requests.delete(controller);signal?.removeEventListener('abort',cancel);}
  }
  async function check(){
   const c=session();if(!valid(c)||!c.user){reset();return false;}if(pending)return pending;
@@ -41,7 +60,7 @@
   if(frame)return;
   oldOverflow=document.body.style.overflow;oldScroll=root.scrollY;previousHash=location.hash==='#/gastospersonales'?'#/dashboard':location.hash||'#/dashboard';
   overlay=document.createElement('div');overlay.id='sv-private-finance-space';overlay.style.cssText='position:fixed;inset:0;z-index:11000;background:#06111f;overflow:hidden;overscroll-behavior:none';
-  frame=document.createElement('iframe');frame.title='Gastos personales · espacio privado';frame.src='./personal-finance.html?v=3.11.12';frame.style.cssText='display:block;border:0;width:100%;height:100%;background:#06111f';
+  frame=document.createElement('iframe');frame.title='Gastos personales · espacio privado';frame.src='./personal-finance.html?v=3.12.3';frame.style.cssText='display:block;border:0;width:100%;height:100%;background:#06111f';
   overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Gastos personales');returnFocus=document.activeElement;
   for(const element of document.body.children){if(['SCRIPT','STYLE','LINK'].includes(element.tagName))continue;inertElements.set(element,element.inert);element.inert=true;}
   overlay.appendChild(frame);document.body.appendChild(overlay);document.body.style.overflow='hidden';history.replaceState(null,'',location.pathname+location.search+'#/gastospersonales');frame.addEventListener('load',()=>frame?.focus(),{once:true});
@@ -50,7 +69,7 @@
  document.addEventListener('sisventas:session-ready',()=>{reset();check().then(ok=>{if(ok&&location.hash==='#/gastospersonales')open();});});
  // applyRole y Ver como llaman a contextChanged sin esperar temporizadores.
  function contextChanged(){if(root._impersonacionOriginal||context&&context!==root.fbAuth?.currentUser?.uid)reset();else if(authenticated()&&!allowed())check();}
- root.SVPrivateFinancePortal={open,close,allowed,check,reset,contextChanged,request};
+ root.SVPrivateFinancePortal={open,close,allowed,check,reset,contextChanged,request,analyzePDF};
  root.addEventListener('hashchange',()=>{if(overlay&&location.hash!=='#/gastospersonales')close();});
  // El SDK puede haber recuperado la sesión antes de cargar este módulo.
  if(authenticated())check().then(ok=>{if(ok&&location.hash==='#/gastospersonales')open();});

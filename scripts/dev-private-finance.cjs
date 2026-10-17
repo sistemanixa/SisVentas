@@ -10,6 +10,19 @@ const db=memoryDB({sv_chat_roles:{[actor.uid]:{activo:true,rol:'admin'},'other-a
 const service=createPrivateFinance({db,auth:{verifyIdToken:async token=>({uid:token})},ownerUid:actor.uid,enabled:true,now:()=>now,documents:{put:async(k,b)=>files.set(k,b),get:async k=>files.get(k)}});
 const json=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
 const server=http.createServer(async(req,res)=>{const u=new URL(req.url,'http://127.0.0.1');try{
+ if(u.pathname==='/statement-import'){
+  await service.authorize(req);let size=0;const chunks=[];for await(const b of req){size+=b.length;if(size>22*1024*1024)throw Error('Demasiado grande');chunks.push(b);}
+  const {payload,normalize}=require('../cloud-functions/asistente/statement-import.cjs');payload(JSON.parse(Buffer.concat(chunks).toString()));
+  if(process.env.PRIVATE_FINANCE_AI_RESULT&&process.env.PRIVATE_FINANCE_AI_PDF){
+   const crypto=require('node:crypto'),body=JSON.parse(Buffer.concat(chunks).toString()),original=fs.readFileSync(process.env.PRIVATE_FINANCE_AI_PDF);
+   if(crypto.createHash('sha256').update(Buffer.from(body.data,'base64')).digest('hex')!==crypto.createHash('sha256').update(original).digest('hex'))throw Error('El PDF no coincide con la lectura privada verificada');
+   json(res,200,{ok:true,...JSON.parse(fs.readFileSync(process.env.PRIVATE_FINANCE_AI_RESULT,'utf8'))});return;
+  }
+  // Doble de IA: solo prueba del recorrido; no es una lectura de proveedor real.
+  const field=(value,original)=>({value,original,page:1});
+  const data={pages:1,fields:{period:field('2026-09','Periodo 2026-09'),close:field('2026-09-15','Cierre 15/09/2026'),due:field('2026-10-05','Vencimiento 05/10/2026'),total:field('250.00','Saldo actual ARS 250,00'),usd:field('0.00','Saldo actual USD 0,00'),previous:field('0.00','Saldo anterior ARS 0,00'),minimum:field('25.00','Minimo ARS 25,00'),minimumCurrency:field('ARS','Minimo ARS 25,00')},movements:[{date:'2026-09-15',concept:'Compra ficticia',currency:'ARS',amount:'250.00',page:1,kind:'Consumo'}],warnings:['PRUEBA AISLADA: respuesta de IA simulada, sin proveedor ni datos reales.']};
+  json(res,200,{ok:true,...normalize({stop_reason:'end_turn',content:[{type:'text',text:JSON.stringify(data)}]})});return;
+ }
  if(u.pathname==='/prototype'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});res.end(fs.readFileSync(path.join(root,'docs/gastos-personales/prototipo-demo.html')));return;}
  if(u.pathname.startsWith('/privado/finanzas')){
   const a=await service.authorize(req);let result;
