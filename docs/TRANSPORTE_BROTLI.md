@@ -1,6 +1,8 @@
-# Compresión comercial Brotli · preparación posterior a v3.11.20
+# Compresión comercial Brotli · publicada con cliente v3.11.20
 
 Rama codex/lecturas-brotli-v3120 desde 0dc86f160dab57619cf9990be206c1ec60f0a0e9. El nombre de rama es de trabajo: no crea un cliente v3.12.0. Cliente publicado, Hosting y aviso permanecen v3.11.20.
+
+Publicada desde d849afb4d843ed3cdc8c6024e89d50abb9136f58: cotizador-load-d849afb4 al 100%, 14 etiquetas conservadas, temporal retirada y configuración/reglas/DNS intactos. Estado y digest exactos en CONTEXTO_ACTUAL. Dos muestras de Dashboard post-corte: 6.718 y 7.981 ms, con variabilidad; no constituyen garantía porcentual.
 
 ## Cambio
 
@@ -32,3 +34,5 @@ En la revisión preliminar sin tráfico se observó una cola inicial de 1.055 ve
 Tres pruebas nuevas: mil snapshots sin habilitación no leen dependencias ni alteran datos; habilitar luego genera una sola comisión pendiente en datos ficticios; un snapshot habilitado no reemplaza el estado actual validado en servidor. La revisión 788b320e con solo Brotli se probó pero no recibió tráfico productivo; quedó superada antes del corte por esta corrección adicional. No activar esa imagen preliminar como paquete final.
 
 Comparación autenticada preliminar: Ventas 4.910.631 bytes descomprimidos idénticos y mismo ETag (2.050.318 bytes gzip frente a 1.808.223 en candidata); Presupuestos 1.172.955 bytes idénticos (597.712 frente a 450.096). Ambos validadores devolvieron 304 sin cuerpo. Perfil, Proyectos, Comprobantes y acceso privado dieron 200. El arranque completo observado fue 9,6 s, con variación frente a las muestras previas: no anunciar mejora porcentual del total. Se conservan las huellas de 224 gastos, 122 movimientos y 47 controles y tres registros de la operación protegida. Repetir evidencia con la revisión final antes del corte.
+
+Verificación final: revisión con filtro comparó de nuevo cuerpos/ETag exactos y 304; perfiles/proyectos/comprobantes/acceso privado 200. Observador conectado/listo sin pendientes, errores, reintentos o generaciones en muestras post-corte; huellas financieras íntegras. Evidencia privada en tmp/load-release-d849afb4. No se activó la preliminar788.
