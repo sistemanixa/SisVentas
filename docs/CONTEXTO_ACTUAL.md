@@ -2,6 +2,14 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Contraste del PDF del titular · consumos corregidos en local
+
+- En la única pestaña de trabajo se comparó el resultado visible con las tres páginas del documento original: quince movimientos, importes/monedas/fechas principales y conciliaciones ARS/USD correctos. Se detectó que el subtotal visual de consumos excluía un débito automático cuando se clasificaba «Débito a confirmar».
+- El subtotal incluye ahora Consumo, Cuota, Seguro y Débito a confirmar, conservando signos y separando monedas; no agrega intereses, impuestos, pagos previos ni conversiones. Prueba específica con datos ficticios. **1.838 pruebas aprobadas**, sintaxis/diff correctos. Solo interfaz: no modifica importes originales ni registros guardados.
+- Espejo8766 actualizado, misma ventana recargada y mismo PDF vuelto a leer con la integración ya autorizada. La nueva lectura vuelve a coincidir en los quince importes y las dos conciliaciones; consumos visibles contrastados con el PDF. Resultado dejado abierto **sin Guardar resumen**. No se publicaron cambios, se guardaron finanzas ni se crearon pagos.
+- **Pendiente de precisión:** entre dos lecturas del mismo documento un débito de una sección explícita de débitos automáticos pasó de «Débito a confirmar» a «Consumo». El importe sigue correcto, pero la segunda clasificación puede impedir que se cree un candidato en Seguros. No dar por validada al100% la clasificación ni sus efectos derivados. Próximo paso: asegurar clasificación basada en la sección/evidencia del original, sin asumir póliza confirmada, y probar generación de candidatos en entorno aislado antes de publicar.
+- Documento, texto, capturas y comparación detallada permanecen privados en `C:/SisVentas/tmp/pdf-ai`. No copiarlos a Git. La presentación ocupa la pantalla y no tiene campos editables; no se abrió otra pestaña durante esta comprobación.
+
 ## PDF en pantalla de lectura · revisión local vigente, sin publicar
 
 - Continúa `codex/pdf-escaneo-visual` desde `0229574cd33143ed3aaac81ba9016140f71938e7`. El titular rechazó ocultar el formulario anterior dentro de «Ver o corregir»: se reemplazó por una pantalla completa de lectura, aprovechando el ancho del espacio privado.
