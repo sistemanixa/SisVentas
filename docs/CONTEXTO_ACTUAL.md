@@ -2,6 +2,13 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Candidata v3.12.0 · avisos y errores como texto
+
+- Rama codex/avisos-texto-v3120 desde e0b71d35ca523393af062b85feec5bc4fc19cf37. Rotación de versión obtenida con el script vigente; v3.11.20 permanece inmutable. Servidor cotizador-load-d849afb4, permisos y datos sin cambios; este bloque solo requiere cliente/Hosting/aviso.
+- notify() y panel de diagnóstico ya no insertan mensajes como HTML; el error del generador de Notificaciones escapa su mensaje. Se conservan estilos/duración/icono y las filas anteriores de diagnóstico. La búsqueda de consumidores explícitos no encontró necesidad de HTML en los avisos. No se modifican operaciones ni estados de notificaciones.
+- 1.778 generales aprobadas, sintaxis/diff/coherencia correctos. Fixture puro: etiquetas literales, cero imágenes/scripts, duración/cierre y ancho390. Excepción de MutationObserver observada en el contenedor del fixture móvil sin fuente precisa; no se reproduce en la aplicación completa y no se oculta ni se cuenta como validación física. Candidata completa de sesión propia cargada y sin errores de consola observados. Detalles: [AVISOS_TEXTO_V3120.md](AVISOS_TEXTO_V3120.md).
+- Publicar únicamente tras verificar paquete limpio y luego activos/cabeceras/aviso; autorización de publicar al finalizar vigente. No se necesita alterar servidor, reglas, credenciales o datos. Las pruebas físicas consultadas al titular siguen pendientes de respuesta; no darlas por hechas. CSP inline y carga de adjuntos bajo demanda conservan sus límites documentados.
+
 ## Servidor de carga publicado · cliente continúa v3.11.20
 
 - Fuente **d849afb4d843ed3cdc8c6024e89d50abb9136f58**, integrada en origin/main. Activo **cotizador-load-d849afb4**, 100% y las 14 etiquetas originales; br-v31120 retirada. Imagen **sha256:a333cc3895c511a494546029b1783aa2ae0525a5e27a0cdd8ac339c69199c730**, build **2951fee9-f536-4663-8172-415570ba79aa**. Variables, secretos, cuenta, recursos, CPU sin throttling y minScale1 conservados; reglas y DNS sin cambios. Hosting/cliente/aviso siguen v3.11.20 (87d97f7e4a9e9d59); no existe cliente v3.12.0 por el nombre de rama.

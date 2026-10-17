@@ -2,7 +2,15 @@
 window.addEventListener('error', function(event) {
   const log = document.getElementById('debug-log');
   if(log) {
-    log.innerHTML += '<div style="color:red;border-bottom:1px solid #333;padding:2px 0">❌ '+event.message+'<br><span style="color:#888">L'+event.lineno+':'+event.colno+'</span></div>';
+    const row = document.createElement('div');
+    row.style.cssText = 'color:red;border-bottom:1px solid #333;padding:2px 0';
+    row.appendChild(document.createTextNode('❌ '+String(event.message||'')));
+    row.appendChild(document.createElement('br'));
+    const location = document.createElement('span');
+    location.style.color = '#888';
+    location.textContent = 'L'+event.lineno+':'+event.colno;
+    row.appendChild(location);
+    log.appendChild(row);
     // Panel oculto por defecto — activar manualmente si se necesita debug
   }
 });
