@@ -28,3 +28,11 @@ Validación automatizada: `node --test test/distributor-documents.test.cjs`, má
 ## Próxima iteración
 
 Revisión visual con el titular; decidir integración a listas/cliente, recibos parciales y cobros, administración de comprobantes ajenos, descuentos/precios acordados y stock. No conectar a Caja ni stock sin definir qué operación representa cada comprobante y evitar duplicar ventas o pagos. Antes de publicar: emulador de reglas, servidor candidato y sesión autorizada real, sin emitir registros de negocio como prueba incidental.
+
+## Informe de garantía y lector de series (candidata)
+
+El remito permite adjuntar una hoja de garantía con condiciones del maestro y serie por unidad. El servidor verifica condiciones vigentes, series obligatorias y duplicadas antes de emitir; el documento guarda el snapshot. No asigna fecha de inicio/fin de cobertura, no crea equipos/garantías ni sustituye históricos. Si no hay condiciones definidas, hay que configurarlas; no se inventa un plazo. Recibo no incluye esta hoja.
+
+Cada serie tiene Escanear con cámara: abre un diálogo nativo modal, solicita solo video, prefiere cámara trasera y permite elegir dispositivo. ZXing/browser incluido localmente decodifica códigos de barras y QR; no hay OCR de una serie impresa sin código. Bip único, serie revisable y carga manual. Los cuadros permanecen en el navegador y no se almacenan. Tracks y respuestas pendientes se cancelan al cerrar, leer, abandonar/ocultar la página o terminar sesión. HTTPS/loopback y permisos del navegador son necesarios; HTTP de una IP de red no permite usar cámara desde celular. Volumen/permisos del equipo pueden impedir oír el bip.
+
+Pruebas: test/serial-camera-scanner.test.cjs ejecuta 12 escenarios, incluidos tres QR y un Code128 decodificados realmente desde píxeles ficticios, conservación de ceros, errores de permisos y cancelación antes/después de recibir stream. La vista /test/fixtures/serial-camera.html usa video simulado, no una cámara física. /mobile?scanner_demo=1 conecta esa simulación al formulario de 390 px, verifica unidad elegida, duplicados y papel emitido en RAM. Prueba física de cámara/sonido y exportación de PDF siguen pendientes. Nada se publicó.

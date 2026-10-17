@@ -5,7 +5,7 @@
  const requests=new Set();
  const session=()=>({user:root.fbAuth?.currentUser,view:root._impersonacionOriginal,uid:root.currentUserUid,epoch});
  const authenticated=()=>typeof isAuthenticated!=='undefined'&&isAuthenticated===true;
- const valid=c=>c.epoch===epoch&&c.user===root.fbAuth?.currentUser&&c.uid===root.currentUserUid&&!root._impersonacionOriginal&&!c.view&&authenticated();
+ const valid=c=>c.epoch===epoch&&c.user===root.fbAuth?.currentUser&&c.uid===root.currentUserUid&&c.uid===c.user?.uid&&!root._impersonacionOriginal&&!c.view&&authenticated();
  const menu=()=>document.getElementById('nav-personal-finance');
  function allowed(){const c=session();return capability&&valid(c)&&context===c.user?.uid;}
  function close(){
@@ -34,8 +34,12 @@
   const task=(async()=>{try{await request('/acceso');if(!valid(c))return false;capability=true;context=c.user.uid;return true;}catch(_){if(valid(c)){capability=false;context='';}return false;}finally{if(valid(c)&&menu()){menu().hidden=!capability;menu().style.display=capability?'':'none';}if(pending===task)pending=null;}})();pending=task;return task;
  }
  async function open(){
-  if(!await check()){root.notify?.('Este espacio está reservado al titular y requiere habilitación del servidor.');return;}
-  if(frame)return;oldOverflow=document.body.style.overflow;oldScroll=root.scrollY;previousHash=location.hash==='#/gastospersonales'?'#/dashboard':location.hash||'#/dashboard';
+  if(frame)return;
+  // La capacidad de esta sesión ya habilita el menú. La lectura del estado
+  // vuelve a autorizar en servidor; no hace falta anteponer otro GET /acceso.
+  if(!allowed()&&!await check()){root.notify?.('Este espacio está reservado al titular y requiere habilitación del servidor.');return;}
+  if(frame)return;
+  oldOverflow=document.body.style.overflow;oldScroll=root.scrollY;previousHash=location.hash==='#/gastospersonales'?'#/dashboard':location.hash||'#/dashboard';
   overlay=document.createElement('div');overlay.id='sv-private-finance-space';overlay.style.cssText='position:fixed;inset:0;z-index:11000;background:#06111f;overflow:hidden;overscroll-behavior:none';
   frame=document.createElement('iframe');frame.title='Gastos personales · espacio privado';frame.src='./personal-finance.html?v=3.11.12';frame.style.cssText='display:block;border:0;width:100%;height:100%;background:#06111f';
   overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Gastos personales');returnFocus=document.activeElement;
@@ -45,7 +49,7 @@
  document.addEventListener('sisventas:session-ended',reset);
  document.addEventListener('sisventas:session-ready',()=>{reset();check().then(ok=>{if(ok&&location.hash==='#/gastospersonales')open();});});
  // applyRole y Ver como llaman a contextChanged sin esperar temporizadores.
- function contextChanged(){if(root._impersonacionOriginal||context&&context!==root.fbAuth?.currentUser?.uid)reset();else if(authenticated())check();}
+ function contextChanged(){if(root._impersonacionOriginal||context&&context!==root.fbAuth?.currentUser?.uid)reset();else if(authenticated()&&!allowed())check();}
  root.SVPrivateFinancePortal={open,close,allowed,check,reset,contextChanged,request};
  root.addEventListener('hashchange',()=>{if(overlay&&location.hash!=='#/gastospersonales')close();});
  // El SDK puede haber recuperado la sesión antes de cargar este módulo.
