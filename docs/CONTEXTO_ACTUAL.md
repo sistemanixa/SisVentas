@@ -2,6 +2,14 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## v3.12.8 publicada · aviso, recuperación y botón oscuro
+
+- Fuente desplegada: `44d6979e3e163aac355ab78c29acb6b4924c1bcf`, rama `codex/diagnostico-servidor-local`, checkout limpio. Hosting `sites/nixa-sisventas-seguro/versions/7b7f0dcbae611b7e`:362 archivos públicos,10 cargas. Dominio, aplicación inmutable, marcadores y SW verificados; después se activó y comprobó `sisventas/config/version = v3.12.8-firebase`. El permiso explícito del titular para aviso y recuperación resolvió el bloqueo de publicación anterior.
+- Trece activos200 idénticos al fuente (incluidos recuperación, CSS y cola PDF), cinco cabeceras de seguridad y cuatro rutas privadas404. Un primer listado de comprobación contenía el nombre inexistente `js/core/private-finance.js`; se corrigió el listado a la ruta real `private-finance-import-queue.js` y se repitió antes de activar el marcador. No fue un archivo requerido por la aplicación ni un cambio del paquete.
+- Navegador web real con sesión del titular: Dashboard, Presupuestos y Detalle ventas abrieron sincronizados. No se observaron avisos de fallo en esas comprobaciones; esto no equivale a probar todas las operaciones o roles. Pestaña única conservada y dejada en Dashboard de producción.
+- Prueba local controlada: diagnóstico al detener nuestro servidor, botón sin dorado y recuperación sincronizada al restablecerlo. Local8766 permanece encendido. En caché offline de la candidata se observó una presentación anterior de CSS (botón secundario compacto); en red el CSS publicado coincide exactamente con la regla definitiva. No se borraron almacenamiento, sesión ni borradores para probar.
+-1.870 pruebas vigentes y35 específicas aprobadas. Sin modificar contraseñas, enviar correos ni guardar datos financieros de prueba; servidor/12 instancias, reglas y permisos conservados. Evidencias privadas en tmp fuera de Git/Hosting. No se integró esta rama en main. Siguiente paso: seguimiento normal del ingreso/sincronización y continuar auditoría pendiente por módulos, sin declarar cobertura universal.
+
 ## Publicación autorizada de aviso y recuperación · v3.12.8
 
 - El titular autorizó expresamente publicar las correcciones del aviso y recuperación de carga el17/10/2026. Esta autorización resuelve el bloqueo anterior de v3.12.7: se publica el conjunto en v3.12.8, sin un corte intermedio. Rechazó el dorado del botón; Reintentar carga usa el botón secundario oscuro, borde y foco visibles, y se bloquea mientras verifica. Ingresar conserva su diseño.
