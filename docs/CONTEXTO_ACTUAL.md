@@ -2,7 +2,17 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
-## Publicación v3.12.3 autorizada · preparada, corte pendiente (17/10/2026)
+## v3.12.3 publicada y verificada · estado vigente (17/10/2026)
+
+- Código **0532bb933c7cb440edcbfdc439a569b572aacffe**, rama `codex/diagnostico-sincronizacion-v3123`. Hosting publicado desde checkout limpio **4b4c72c9a52029bc9a71c99cb2720a4270b1d462**, cuya única diferencia es documentación. Suite vigente: **1.827 aprobadas**, sin fallos; sintaxis, diff y coherencia de versión comprobados.
+- Cotizador **cotizador-pdf-0532bb93**, imagen `sha256:d169bde2dcf600db7b44df8c30012e5fc9cdbd36b7cd0cdda814b02631b57d58`; Asistente **asistente-pdf-0532bb93**, imagen `sha256:500091f1348d4456d421247262ca23ba3a872c01b26d354d49a02499de790ecc`. Ambos al **100%**, con sus 14 y 3 etiquetas originales. Configuración conservada; Asistente incorpora únicamente las dos variables privadas de habilitación/titular ya verificadas. Sin cambios de secretos, DNS ni reglas.
+- Hosting **sites/nixa-sisventas-seguro/versions/4f1426a5c57a4fc4**, **614 activos públicos**, 17 cargas nuevas. Dominio real: **19 activos idénticos** a fuente, cinco cabeceras verificadas y cuatro rutas internas404. Web, Service Worker, marcadores y aviso Firebase sincronizados en **v3.12.3-firebase**.
+- Titular autenticado en copia limpia `localhost:8766`: Dashboard, Cuenta corriente (nueve clientes con saldo), Presupuestos (ocho activos), Ventas y apertura de Gastos personales comprobados contra servidores nuevos. Seleccionar un PDF ficticio inició IA automáticamente y completó período, fechas, saldos, mínimo, tasa y un movimiento. Se cerró sin confirmar: **cero resúmenes, documentos o pagos importados**. La aplicación normal se abrió después con la sesión conservada, `app.v3.12.3.js` y espacio privado vacío.
+- La lectura del PDF bancario real ya fue contrastada en el bloque inferior; no se volvió a enviar para publicar. No se modificaron contraseñas, se enviaron correos ni se guardaron operaciones empresariales durante esta verificación. Evidencia privada en `C:/SisVentas/tmp/release-v3123`, fuera de Git y Hosting.
+- **Límite vigente:** el origen local127.0.0.1 volvió a sufrir fallos de descarga antes del corte, mientras los recursos respondían200 por consulta directa. La causa de transporte/SW no está confirmada; no declarar resuelto al100% el incidente. Se conserva Auth y se ofrece recuperación verificando identidad/permisos. En consola también apareció un error aislado de MutationObserver sin origen identificado; no bloqueó la lectura ni las listas, queda por correlacionar.
+- **Próximo paso:** capturar la siguiente falla de recarga con recurso/hora/estado del servidor y SW, sin exportar sesiones ni cuerpos privados; verificar en teléfono físico cámara/bip y teclado pendientes. Importaciones reales siempre con revisión antes de confirmar; las pruebas realizadas no acreditan todos los bancos ni todos los formularios del sistema.
+
+## Preparación de v3.12.3 · registro previo al corte (superado)
 
 - Código0532bb933c7cb440edcbfdc439a569b572aacffe integrado por avance normal en origin/main desde9bb698fe, después de fetch y revisión del alcance limpio.1.827 pruebas aprobadas y coherencia local correcta. Hosting/aviso siguen v3.12.2; no declarar publicada3.
 - Imágenes construidas y revisiones listas sin tráfico: cotizador-pdf-0532bb93 (build78ed54df-d96b-478f-aca7-d1e9cc120393) y asistente-pdf-0532bb93 (build4a50dbbd-6117-4f3c-9784-10bbfbf5d6ce). Configuración anterior comparada y conservada; solo Asistente añade habilitación/UID del titular ya configurado en Cotizador. Reglas intactas. Cinco rutas de Cotizador y tres de Asistente rechazan anónimos401; CORS localhost/127.0.0.1 probado.
@@ -11,7 +21,7 @@ Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Co
 - Copia limpia en http://localhost:8766/release-candidate-v3123.html apunta a las dos candidatas, con script propio confirmado. Está en acceso, esperando que el titular ingrese en esa pestaña. La sesión del origen127.0.0.1 se conserva. No transferir tokens ni borrar IndexedDB/datos del sitio para facilitar esta prueba.
 - **Siguiente paso:** tras aviso del titular, verificar sesión, Dashboard/comercial y lectura de un PDF ficticio sin confirmar importación; luego ejecutar el corte autorizado preservando todas las etiquetas originales, publicar Hosting desde checkout limpio/SHA revisado, verificar activos/cabeceras y actualizar el aviso Firebase. Evidencia y scripts operativos privados en C:/SisVentas/tmp/release-v3123. No ejecutar activar antes de comprobar el estado remoto exacto.
 
-## Candidata local v3.12.3 · recuperación y lectura de PDF con IA (17/10/2026)
+## Candidata local v3.12.3 · registro anterior a la publicación
 
 - Rama codex/diagnostico-sincronizacion-v3123 desde 9bb698fec6d1bf2f57fef04ce93b04c370264681. **No publicada**. Producción conserva cliente v3.12.2-firebase y Cotizador catalog-41b4dcd7; no se cambió tráfico, reglas, Hosting, DNS, contraseñas ni correos en este bloque.
 - Recuperación: reproducidos esperas infinitas/cierre de Auth tras fallo de perfil o módulo; controlador limpia y bloquea datos, permite revalidar sesión, mantiene revocación cerrada y acota SDK pendientes. Sincronizar ahora consulta fuentes autorizadas y muestra sus errores. El origen del corte de transporte sigue sin confirmar. Evidencia y límites en [RECUPERACION_CARGA_V3123.md](RECUPERACION_CARGA_V3123.md).

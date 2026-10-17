@@ -9,8 +9,8 @@ Se propone la tarjeta a partir de banco/marca; una tarjeta nueva se crea solo al
 confirmar. El guardado parcial conserva la referencia de tarjeta/original para
 reintentar sin duplicarlos. ARS y USD conservan centavos independientes.
 
-El endpoint `/statement-import` autoriza token revocado, usuario activo, cambio
-obligatorio de clave y UID titular. Otro administrador y Ver como quedan fuera.
+El endpoint `/statement-import` verifica revocación del token, usuario activo,
+cambio obligatorio de clave y UID titular. Otro administrador y Ver como quedan fuera.
 Necesita `PERSONAL_FINANCE_ENABLED=true` y `PERSONAL_FINANCE_OWNER_UID` en
 Asistente, con el mismo titular verificado que Cotizador. No registrar su valor.
 Reutiliza `ANTHROPIC_KEY` existente, sin claves en cliente ni secretos nuevos.
