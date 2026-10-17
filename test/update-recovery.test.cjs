@@ -52,6 +52,17 @@ test('pausa de recuperación impide volver a bloquear por otro aviso',()=>{
   h.context._dispararActualizacion('v3.8.8-firebase');assert.equal(h.nodes.size,0);
 });
 
+test('una actualización web espera mientras Gastos personales está abierto y continúa al salir',async()=>{
+ const h=setup({host:'ventas.sistemanixa.com'});let offered=0;
+ Object.assign(h.context,{_versionMasNueva:()=>true,_verificacionVersionEnCurso:false,_verificarVersionPublicadaCompleta:async()=>true,_mostrarBotonActualizacion:()=>offered++});
+ h.nodes.set('sv-private-finance-space',{});
+ vm.runInContext(source.slice(source.indexOf('function _dispararActualizacion('),source.indexOf('// Respaldo de baja frecuencia:',source.indexOf('function _dispararActualizacion('))),h.context);
+ h.context._dispararActualizacion('v3.12.7-firebase');await Promise.resolve();await Promise.resolve();
+ assert.equal(offered,1);assert.equal(h.nodes.has('overlay-actualizando'),false);assert.equal(h.redirects.length,0);
+ h.nodes.delete('sv-private-finance-space');h.context._dispararActualizacion('v3.12.7-firebase');await Promise.resolve();await Promise.resolve();h.advance(400);
+ assert.equal(h.redirects.length,1);
+});
+
 test('activación conserva PDFs y cachés ajenas, elimina sólo versiones anteriores',async()=>{
   const listeners={},deleted=[];let pending;
   const currentCache=fs.readFileSync('sw.js','utf8').match(/const CACHE = '([^']+)'/)[1];

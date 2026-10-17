@@ -2,6 +2,13 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Publicación PDF v3.12.6 · paquete verificado, todavía sin desplegar
+
+- Rama `codex/publicacion-pdf-v3126` desde7757b1ff; fetch confirma main4639a87b sin cambios nuevos de otra PC. Conserva el bloque PDF dd5b9df5 y la documentación/prueba de capacidad. Nuevos app/marcador inmutablesv3.12.6, índice/SW/Novedades y referencias privadas CSS/UI/cola/portal actualizadas conjuntamente. No cambia imagen, tráfico ni permisos del servidor.
+- 1.863 pruebas vigentes aprobadas;25 específicas de cola/visor/resultado también pasaron antes del ajuste adicional de protección. Sintaxis/diff y coherencia localv3.12.6 correctas. Vista local aislada del paquete abre personal-finance.html?v=3.12.6 y dos archivos ficticios terminan listos sin guardar. Datos de prueba solo en memoria; ningún resumen real guardado.
+- Protección adicional: el clientev3.12.6 difiere futuras actualizaciones automáticas mientras esté abierto Gastos personales, evitando cortar lecturas de PDF sin guardar. Nueva prueba comprueba aviso sin recarga y continuidad al salir. No puede proteger retroactivamente la pestaña web que aún ejecutav3.12.5.
+- La revisión automática rechazó inspeccionar Importar resúmenes en la pestaña web por la restricción de conservarla intacta. Se pidió al titular confirmar que no quedan lecturas sin guardar y autorizar la comprobación de esa pestaña. Hasta esa respuesta no desplegar ni activar el aviso: la versión antigua puede recargarse al detectar el nuevo marcador. Paquete/dry-run listos;360 activos públicos, sin tmp/documentación.
+- Servidor comprobado: cotizador-capacidad-20261017 al100%, capacidad12 conservada. Próximo paso tras resolver lecturas pendientes: commit/SHA limpio revisado, Hosting, comparación de activos/cabeceras, avisoFirebasev3.12.6 y verificación sin operaciones reales.
 ## Ajuste de capacidad aplicado · 17/10/2026
 
 - Entrega en rama `codex/capacidad-servidor`. Servidor100% en `cotizador-capacidad-20261017`, máximo12 instancias en lugar de4; misma imagen digest d169bde2…, concurrencia1,2GiB/1CPU, secretos/configuración/permisos y14 etiquetas originales conservados. Candidata probada sin tráfico antes del corte autorizado; etiqueta temporal retirada. Reversión: `cotizador-pdf-0532bb93`, sin restaurar datos.
