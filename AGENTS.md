@@ -18,6 +18,7 @@ Cuando el usuario pida **acomodar nombres**, seguir el criterio de [docs/acomoda
 - La PC original tiene un servidor especial que sirve `.local/release-v3619`, no la raíz. Es un espejo local no versionado: copiar allí los activos modificados antes de probar, o usar un servidor nuevo sobre el checkout. Verificar contenido HTTP y versión real; un Service Worker puede mostrar la versión anterior aunque el servidor esté apagado.
 - La interfaz local puede conectarse al Firebase real. Que diga localhost NO implica datos de prueba. No guardar ventas, cobros, comisiones, mensajes ni eliminaciones reales como prueba incidental.
 - Cuando un cambio se anuncie como visible en local, recargar efectivamente la ventana del usuario y comprobarlo; conservar o restaurar su sección, solapa y contexto cuando sea posible. No afirmar haber recargado sin hacerlo.
+- Trabajar normalmente en una sola pestaña/ventana de SisVentas y reutilizarla; dejarla abierta al terminar. Abrir una segunda solo cuando sea necesaria para la tarea (por ejemplo, conservar una lectura pendiente o comparar vistas), evitando acumular pestañas de prueba.
 
 ## Verificación y publicación
 
