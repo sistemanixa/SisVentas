@@ -2,6 +2,13 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Proyectos móvil · candidata local v3.12.1 (17/10/2026)
+
+- Rama codex/proyectos-movil-integral desde 89705b74cf73249c00257099bfc984ac4e35b23b. Etapa explícita con cambio directo, cuatro solapas visibles en móvil, búsqueda de integrantes corregida, condiciones del alcance conservadas y vínculo actualizado sin retroceder revisiones. Sin cambios de servidor/modelo/reglas. Producción sigue v3.12.0 y cotizador-load-d849afb4; no publicado.
+- Ejemplo completo creado desde interfaz aislada sobre servicio/modelo reales en RAM: ficha, tres integrantes, tres necesidades, cantidad faltante/editada, dos presupuestos de 487.630 y475.530, etapas y reapertura conservadas. Autenticación/persistencia comercial y auxiliares de catálogo/aprobación sustituidos solo en fixture; no afirmar aprobación/guardado financiero real ni prueba física. No se cargó demo a Firebase. Detalles: [PROYECTOS_MOVIL_V3121.md](PROYECTOS_MOVIL_V3121.md).
+- 1.784 generales y seis integración RTDB emulado aprobadas, sintaxis/diff/versiones correctos. En360 px sin desborde, controles44 px y foco conservado al reducir alto; excepción MutationObserver del contenedor ficticio sin fuente precisa, aplicación completa local sin errores observados. Espejo8766 canónico v3.12.1 abierto en Proyectos, solo lectura; ejemplo separado8771/mobile, dura mientras siga encendido el servidor.
+- Nueva petición del titular: integrar lector de barras/QR en buscadores compartidos de Productos, Presupuestos, Ventas y consumidores. Siguiente bloque; conservar este ejemplo y cambios locales. No publicar ni importar datos ficticios al implementar el lector.
+
 ## v3.12.0 publicada y verificada · estado vigente
 
 - Rama codex/avisos-texto-v3120 desde e0b71d35ca523393af062b85feec5bc4fc19cf37. Rotación de versión obtenida con el script vigente; v3.11.20 permanece inmutable. Servidor cotizador-load-d849afb4, permisos y datos sin cambios; este bloque solo requiere cliente/Hosting/aviso.
