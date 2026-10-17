@@ -4,6 +4,8 @@ Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Co
 
 ## Integración v3.12.5 y limpieza de versiones sin uso
 
+- Limpieza guardada y subida en **c247885f9b96a75ce47e7f7c459ff6b9039b2752**, rama `codex/limpieza-versiones-historicas`, árbol limpio tras el commit. La integración de esta eliminación en main fue rechazada por revisión automática antes de ejecutar: requiere autorización explícita específica para516 archivos. Solicitud presentada al titular; **main sí tiene v3.12.5 pero todavía no la limpieza**. No reintentar su integración sin respuesta autorizando. El registro documental posterior no cambia el alcance de eliminación.
+
 - El titular autorizó integrar v3.12.5: origin/main avanzó normalmente desde `fbaf9a49` a **69d1b6c149e3fef81d21a706e249bd5e182b7cd2**, conservando el trabajo compartido. Rama nueva de limpieza: `codex/limpieza-versiones-historicas` desde ese SHA.
 - Retirados516 archivos históricos sin referencias (258 pares aplicación/marcador),725.366.708 bytes del árbol. Se conservaron v3.12.5 y las dos anteriores, todas las pruebas y las178 versiones que aún necesitan pruebas/herramientas. **1.851 pruebas siguen pasando**, coherencia v3.12.5 y diff correctos. Sin reducir cobertura ni modificar código activo, datos, Hosting o reglas.
 - Alcance acotado tras rechazo automático de una propuesta que incluía pruebas históricas; esa propuesta no se ejecutó. Inventariador de solo lectura `scripts/plan-source-cleanup.cjs`, manifiesto y recuperación en [LIMPIEZA_VERSIONES.md](LIMPIEZA_VERSIONES.md). El historial Git permanece completo, por lo que `.git` no reduce su tamaño con este cambio. Modificación ajena del checkout original preservada.
