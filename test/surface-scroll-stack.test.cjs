@@ -16,6 +16,15 @@ test('una pila sin cambios no vuelve a escribir clases ni dispara el observador 
  c.svSincronizarPilaModales();writes=0;for(let i=0;i<20;i++)c.svSincronizarPilaModales();assert.equal(writes,0);
 });
 
+test('lector nativo sobre buscador conserva los clics aunque su z-index sea auto',()=>{
+ const search=node('modal-busq-avanz',10000),scanner=node('lector',0),body=new Set();
+ scanner.style.zIndex='auto';scanner.matches=selector=>selector==='dialog:modal';let candidates=[search,scanner];
+ const c=load({_svModalSyncPendiente:false,getComputedStyle:el=>el.style,requestAnimationFrame:fn=>fn(),document:{querySelectorAll:()=>candidates,body:{classList:{contains:n=>body.has(n),toggle:(n,on)=>on?body.add(n):body.delete(n)}}}},['_svModalEsVisible','svSincronizarPilaModales']);
+ c.svSincronizarPilaModales();assert.equal(scanner.classList.contains('sv-modal-underlay'),false);assert.ok(search.classList.contains('sv-modal-underlay'));
+ scanner.isConnected=false;candidates=[search];c.svSincronizarPilaModales();assert.equal(search.classList.contains('sv-modal-underlay'),false);assert.ok(body.has('sv-modal-stack-open'));
+ search.isConnected=false;candidates=[];c.svSincronizarPilaModales();assert.equal(body.has('sv-modal-stack-open'),false);
+});
+
 test('role dialog en el overlay no convierte todo el panel en una cabecera',()=>{
  const panel={};const overlay={matches:s=>s==='[role="dialog"]',querySelector:()=>panel};
  const c=load({},['svModalPanelDesdeContenedor']);assert.equal(c.svModalPanelDesdeContenedor(overlay),panel);

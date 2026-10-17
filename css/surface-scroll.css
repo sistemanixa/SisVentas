@@ -5,6 +5,7 @@ body.sv-modal-stack-open :is(#sv-important-alert-stack,#fab-container,#chat-fab,
 /* Estos menús viven fuera de su tabla/chat: el scroll de sus listas tampoco
    debe encadenarse al documento al llegar al primer o último resultado. */
 #prod-drop-global,#prod-drop-list,#ppto-menu-global,#chat-menu-mensaje {overscroll-behavior:contain}
+dialog[data-sv-camera] button[aria-label="Cerrar lector"] {min-width:44px!important;min-height:44px!important}
 :is(.modal-overlay,.modal,[id^="modal-"],[id$="-modal"],[role="dialog"],[role="alertdialog"],dialog[open],#py-planner,#chat-box,#ia-box),
 :is(.modal-overlay,[id^="modal-"],[id$="-modal"],[role="dialog"],[role="alertdialog"],dialog[open],#py-planner,#chat-box,#ia-box) * {
   overscroll-behavior:contain;

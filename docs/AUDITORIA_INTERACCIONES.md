@@ -4,6 +4,8 @@
 
 ## Criterio obligatorio
 
+**Incidente posterior a la publicación:** la cruz de la cámara sobre Búsqueda avanzada no quedó cubierta por los recorridos anteriores. Se reprodujo `pointer-events:none` en el lector por un orden incorrecto del gestor (z-index auto contra10000), aunque `showModal()` lo dibuja en la capa superior. La candidata local v3.12.10 da prioridad a `dialog:modal`; prueba nueva primero falló y después pasó. Cierre por clic comprobado en escritorio y390px, tanto cámara activa sola como sobre buscador, con detención del video y conservación de una observación ficticia del presupuesto.1.885 pruebas vigentes aprobadas. Producción sigue v3.12.9 hasta una publicación posterior. Esta evidencia corrige el alcance declarado del lector; no afirmar que el clic en cruz anidada se había probado en v3.12.9.
+
 | Área | Condición que debe cumplirse |
 | --- | --- |
 | Clic | El control visible recibe el clic; ni una capa invisible ni el fondo ejecutan otra acción. |

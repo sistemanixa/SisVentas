@@ -16,7 +16,10 @@ document.addEventListener('DOMContentLoaded',()=>{
  document.body.append(tools);
  for(const [label,action]of [
   ['Chat de prueba',async()=>{chatAbrir();await new Promise(r=>setTimeout(r,180));chatRenderMensajes([{fbKey:'audit-message',autor:'Administrador ficticio',autorUid:'fixture',texto:'Mensaje ficticio de auditoría',ts:Date.now(),leido:{}}]);}],
-  ['Actualizador de prueba',abrirActualizadorMasivoPrecios]
+  ['Actualizador de prueba',abrirActualizadorMasivoPrecios],
+  ['Lector anidado de prueba',()=>{showPage('presupuesto');abrirNuevoPresupuesto();document.getElementById('pp-obs').value='Observación ficticia que debe conservarse';abrirBusquedaAvanzada(document.querySelector('#pp-body tr'));Array.from(tools.querySelectorAll('button')).find(b=>b.textContent==='Lector activo de prueba').click();}],
+  ['Lector de prueba',()=>{Object.defineProperty(navigator.mediaDevices,'getUserMedia',{configurable:true,value:async()=>{throw Object.assign(Error('Cámara ficticia sin permiso'),{name:'NotAllowedError'});}});SVSerialCamera.open({kind:'product',onRead:()=>{}});}],
+  ['Lector activo de prueba',()=>{const canvas=document.createElement('canvas');canvas.width=320;canvas.height=240;const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,320,240);Object.defineProperty(navigator.mediaDevices,'getUserMedia',{configurable:true,value:async()=>{const stream=canvas.captureStream(10);stream.getTracks().forEach(track=>{const stop=track.stop.bind(track);track.stop=()=>{stop();tools.dataset.cameraStops=String(Number(tools.dataset.cameraStops||0)+1);};});return stream;}});Object.defineProperty(navigator.mediaDevices,'enumerateDevices',{configurable:true,value:async()=>[]});SVSerialCamera.open({kind:'product',onRead:()=>{}});}]
  ]){const button=document.createElement('button');button.className='btn btn-sm';button.textContent=label;button.onclick=action;tools.insertBefore(button,tools.querySelector('details'));}
  document.getElementById('audit-routes').onclick=async()=>{
   const ids=Array.from(document.querySelectorAll('.page[id^="page-"]')).map(el=>el.id.slice(5));
