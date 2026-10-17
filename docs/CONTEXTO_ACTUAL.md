@@ -2,6 +2,12 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Continuación de carga · Brotli preparado, aún sin corte
+
+- Rama codex/lecturas-brotli-v3120 desde 0dc86f160dab57619cf9990be206c1ec60f0a0e9. Cliente/Hosting/aviso siguen v3.11.20; no se creó v3.12.0. Servidor productivo todavía cotizador-documents-31119-7e9a1c1e.
+- Cambio exclusivamente de compresión del DTO íntegro: Brotli negociado con respaldo gzip/identidad; ETag, autorización, no-store, precisión y registros conservados. Sin cambios de esquema, reglas o datos. Benchmark en memoria: aproximadamente 11,7% menos bytes que gzip para 1.084 registros; no es una promesa porcentual del tiempo de arranque. Detalles en [TRANSPORTE_BROTLI.md](TRANSPORTE_BROTLI.md).
+- 1.770 generales, 94 servidor y pruebas específicas de conservación aprobadas. 20 pruebas de integración HTTP ampliada aprobadas; preparar revisión sin tráfico, verificar configuración y sesión propia antes de cualquier corte autorizado. No modificar el generador/corte de comisiones ni producir operaciones reales para probarlo.
+
 ## v3.11.20 publicada y verificada · Notificaciones y CSP
 
 - Fuente pública **daa07e224fc7f8316455657bddc7414e163796ac**, integrada por avance normal en origin/main. Hosting **sites/nixa-sisventas-seguro/versions/87d97f7e4a9e9d59**, 605 activos públicos, cinco cargas. Nueve activos comparados por contenido, cinco cabeceras correctas con unsafe-eval ausente y cuatro rutas internas 404. Web, SW, marcador y aviso Firebase **v3.11.20-firebase** sincronizados.
