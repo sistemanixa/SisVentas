@@ -2,6 +2,12 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Publicación v3.12.4 · preparada, todavía sin corte
+
+- Autorizada por el titular: interfaz PDF, clasificación de débitos por evidencia y reconocimiento automático de tarjetas. Rama `codex/pdf-escaneo-visual`, base funcional `b628cb153f9e0ac62dea1c23046b6aec3381805e`; fetch confirma origin/main sin cambios nuevos desde `d54ad22a`. No incluye cambios de servidor, reglas, DNS ni datos financieros.
+- Aplicación inmutable, índice, marcadores, portal privado, HTML privado y precarga/SW preparados en v3.12.4. Novedades visibles incorporadas. Pruebas funcionales y lectura real contrastadas en el bloque inferior; paquete público previsto:615 activos, sin PDF ni evidencias privadas.
+- No guardar el resumen pendiente de la única ventana local para probar la publicación. Producción continúa v3.12.3 hasta confirmar Hosting y actualizar el aviso. Próximo paso: commit revisado, despliegue Hosting desde árbol limpio, comparar activos/cabeceras del dominio real y recién entonces actualizar `sisventas/config/version`.
+
 ## Débitos y tarjetas del PDF · corrección local, sin guardar ni publicar
 
 - Continúa `codex/pdf-escaneo-visual` desde `0b0d2adb`. Se corrigió la clasificación variable del débito: la lectura local busca la sección explícita de débitos automáticos y reclasifica un Consumo solo con coincidencia única de página, fecha, concepto e importe. No confirma pólizas, inventa movimientos ni cambia monedas/importes. Sin texto o con evidencia ambigua no sobreescribe la clasificación. La relectura conserva identidad y referencias del movimiento corregido, sin duplicarlo.
