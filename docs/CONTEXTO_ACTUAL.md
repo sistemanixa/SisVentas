@@ -2,7 +2,15 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
-## v3.12.4 publicada y verificada · estado vigente
+## Corrección de ingreso v3.12.5 · candidata, aún sin publicar
+
+- Rama `codex/correccion-ingreso-v3125` desde `fbaf9a4987adc7430cd81854baff0a641e2942d9`. Prioridad del titular: ingreso intermitente bloqueado; pidió comprobar la web además del origen local. Dos pestañas justificadas, conservadas. En web se restauró la sesión y cargó Dashboard; otra recarga también abrió la aplicación. Esto no demuestra que no falle en otros navegadores.
+- Los últimos18 registros de /usuarios/perfil consultados muestran200 y aproximadamente0,68–0,72s (OPTIONS204). Se comprobó una dependencia innecesaria en security-storage: esperaba primero get de sv_chat_roles mediante SDK del navegador, antes de consultar el perfil protegido por HTTP. La reproducción aislada con esa conexión SDK pendiente falla antes del cambio y pasa después. No existe una traza del navegador del titular que confirme que sea la única causa de su incidente.
+- Cuando está habilitado el directorio V2, el ingreso utiliza directamente /usuarios/perfil, cuyo servidor ya valida token y revocación, identidad activa, UID único y coherencia de rol/ficha. Mantiene comprobación local de UID/ficha/rol, generaciones, descarte tras logout y vigilancia de revocación. No usa perfil cacheado ni fallback de permisos ante401/403/503. El circuito anterior sin directorio conserva su comportamiento. Sin cambios en servidor, reglas, contraseñas, correos ni datos financieros.
+- Pruebas nuevas: SDK pendiente no bloquea el perfil autorizado; rechazos, perfil incompleto/ajeno/inactivo, sesión invalidada y preparación concurrente. Suite completa1.851 aprobadas antes del empaquetado. Espejo local actualizado y Dashboard recargado: acceso visible, error vacío y sin errores de consola. La pestaña local ya no contenía el PDF: se comprobó Dashboard visible y ausencia del espacio privado antes de recargar.
+- Paquete v3.12.5: aplicación/índice/versiones/SW y referencia inmutable de security-storage. No modifica el contenido de otros módulos. En una recarga de la web anterior hubo un fallo transitorio de fetch comercial, separado del ingreso; no afirmar resuelta toda la sincronización. Siguiente paso: pruebas del paquete, publicación urgente de esta corrección y comprobación de sesión en el dominio real, sin operaciones financieras.
+
+## v3.12.4 publicada y verificada · registro anterior
 
 - Integración en main autorizada expresamente por el titular después de publicar. Fetch del17/10 confirma origin/main en `d54ad22a08c1c74351507e2ccfd8587b53a1ed7e`, ancestro de los siete commits revisados hasta `73a6d8a57776604de218de307a9571d213edce97`: permite avance normal, sin conflictos, sobrescrituras ni push forzado. El árbol de la rama de trabajo está limpio; cambios ajenos de otros checkouts no se incorporan ni descartan.
 - Captura nueva del titular: tras cargar v3.12.4 aparece de nuevo «La verificación de acceso demoró demasiado», conservando la sesión. El incidente intermitente sigue abierto; no atribuirle una causa sin evidencia ni dar por validado el acceso actual por la publicación anterior. No repetir importaciones ni guardar datos de prueba para integrar Git.

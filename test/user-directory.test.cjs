@@ -76,10 +76,10 @@ test('la carga por API completa Usuarios y cancela su fuente al reemplazar la su
  const first=f.root.SVUserDirectory.start(()=>{});await f.root.SVUserDirectory.refresh();assert.ok(ready>0);
  f.root.SVUserDirectory.start(()=>{});await f.root.SVUserDirectory.refresh();assert.equal(cancelled,1);assert.equal(failures,0);first();
 });
-test('preparación nueva pide solo identidad y servicio de perfil, sin colección ni fallback legacy',async()=>{
+test('preparación nueva usa perfil validado en servidor sin lectura SDK ni fallback legacy',async()=>{
  let reads=[];const own={fbKey:'w',uid:'worker',rol:'tecnico'};
  const root={SV_SECURITY_STORAGE_V2:true,SVUserDirectory:{enabled:true,profile:async()=>own},fbRef:(_,p)=>p,fbGet:async p=>{reads.push(p);return {val:()=>({rol:'tecnico',activo:true})};}};
  vm.runInNewContext(fs.readFileSync('js/modules/security-storage.js','utf8'),{window:root});const prepared=await root.svPrepararRutasSeguridad({uid:'worker'});
- assert.deepEqual(reads,['sv_chat_roles/worker']);assert.equal(prepared.usuariosSnapshot.val().w.uid,'worker');assert.equal(root.svRutaUsuarios(),'sv_usuarios');
+ assert.deepEqual(reads,[]);assert.equal(prepared.identitySnapshot.val().rol,'tecnico');assert.equal(prepared.usuariosSnapshot.val().w.uid,'worker');assert.equal(root.svRutaUsuarios(),'sv_usuarios');
  root.SVUserDirectory.profile=async()=>{throw Error('offline');};await assert.rejects(root.svPrepararRutasSeguridad({uid:'worker'}),/offline/);assert.equal(reads.includes('sv_usuarios'),false);
 });

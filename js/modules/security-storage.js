@@ -27,17 +27,20 @@
     preparation = task;
     task.promise = (async function(){
       function check(){if(epoch !== generation)throw Error('La sesión cambió durante la verificación de acceso.');}
+      if(window.SVUserDirectory?.enabled){
+        // /usuarios/perfil valida token/revocación, identidad activa y ficha/rol
+        // en servidor. No anteponer una segunda conexión RTDB que pueda quedar
+        // pendiente e impedir llegar a esa validación autorizada.
+        var profile=await window.SVUserDirectory.profile(user);check();
+        if(profile?.uid!==user.uid||typeof profile.fbKey!=='string'||!profile.fbKey||profile.activo===false||!['admin','administrativo','vendedor','tecnico','tecnico_vendedor','compras_paraguay','distribuidora'].includes(profile.rol))throw Error('Perfil de acceso no válido');
+        protectedStorage=true;
+        var own={};own[profile.fbKey]=profile;
+        return {uid:user.uid,generation:epoch,identitySnapshot:{val:function(){return {rol:profile.rol,activo:true};}},usuariosSnapshot:{exists:function(){return true;},val:function(){return own;}}};
+      }
       var identitySnapshot=await window.fbGet(window.fbRef(window.fbDB,'sv_chat_roles/'+user.uid));
       check();
       var identity=identitySnapshot.val();
       var result={uid:user.uid,generation:epoch,identitySnapshot:identitySnapshot};
-      if(window.SVUserDirectory?.enabled){
-        if(!identity||identity.activo!==true)throw Error('Identidad sin acceso activo');
-        var profile=await window.SVUserDirectory.profile(user);check();protectedStorage=true;
-        var own={};own[profile.fbKey]=profile;
-        result.usuariosSnapshot={exists:function(){return true;},val:function(){return own;}};
-        return result;
-      }
       if(identity && ['compras_paraguay','distribuidora'].includes(identity.rol)) { protectedStorage=true;return result; }
       var target=window.fbRef(window.fbDB,'sv_usuarios');
       var snapshot=await window.fbGet(target);
