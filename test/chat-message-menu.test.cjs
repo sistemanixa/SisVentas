@@ -3,7 +3,7 @@ const {load}=require('./helpers/app-functions.cjs');
 function setup(message){
  const nodes={},events={};let modified;
  function element(){return {style:{},children:[],offsetWidth:150,offsetHeight:90,setAttribute(k,v){this[k]=v;},appendChild(n){this.children.push(n);},remove(){delete nodes[this.id];},querySelector(){return this.children.find(n=>!n.disabled);},focus(){this.focused=true;}};}
- const btn=element();btn.dataset={key:'message'};btn.getAttribute=k=>btn[k];btn.getBoundingClientRect=()=>({right:400,top:200,bottom:225});btn.closest=()=>({querySelector:()=>({dataset:{fk:'message'}})});
+ const btn=element();btn.isConnected=true;btn.dataset={key:'message'};btn.getAttribute=k=>btn[k];btn.getBoundingClientRect=()=>({right:400,top:200,bottom:225});btn.closest=()=>({querySelector:()=>({dataset:{fk:'message'}})});
  const document={getElementById:id=>nodes[id],querySelectorAll:()=>[],querySelector:()=>btn,createElement:element,body:{appendChild:n=>{nodes[n.id]=n;}},addEventListener:(k,f)=>events[k]=f};
  const c=load({document,window:{innerWidth:800,innerHeight:600,addEventListener(){}},_chatListaVisible:[{fbKey:'message',...message}],currentUser:'owner',_chatUsuarioKey:x=>x,chatModificarMensaje:(...a)=>modified=a},['chatCerrarMenuMensaje','chatMensajeEditable','chatMensajeModificable','chatAbrirMenuMensaje']);
  return {c,btn,nodes,events,get modified(){return modified;}};
@@ -39,6 +39,20 @@ test('reacciones reemplazan solo la propia y repetir el emoji la quita',async()=
 test('carita abre solo las seis reacciones, separadas de editar y eliminar',()=>{
  const s=setup({autor:'owner',texto:'Hola'});s.c.chatAbrirMenuMensaje(s.btn,true);
  const m=s.nodes['chat-menu-mensaje'];assert.equal(m.children.length,1);assert.equal(m.children[0].children.length,6);
+});
+
+test('Escape del menú se resuelve antes del retorno global y conserva la pantalla de fondo',()=>{
+ const s=setup({autor:'owner',texto:'Hola'});s.c.chatAbrirMenuMensaje(s.btn);
+ const source=require('./helpers/active-app').readActiveApp().source;
+ const handler=source.slice(source.indexOf("document.addEventListener('keydown', function(e) {\n  if (e.key !== 'Escape'"));
+ let back=0,consumed=false;
+ s.c.volverAtrasSisVentas=()=>{back++;return true;};s.c._svElementoVisible=()=>true;
+ s.c.document.querySelectorAll=selector=>selector==='[data-sv-escape-owner]'?Object.values(s.nodes).filter(n=>n['data-sv-escape-owner']):[];
+ s.c.document.addEventListener=(_,fn)=>{s.capture=fn;};
+ require('node:vm').runInContext(handler.slice(0,handler.indexOf('}, true);')+9),s.c);
+ const event={key:'Escape',preventDefault(){consumed=true;},stopPropagation(){},stopImmediatePropagation(){}};
+ s.capture(event);assert.equal(back,0);s.events.keydown(event);
+ assert.equal(s.nodes['chat-menu-mensaje'],undefined);assert.equal(consumed,true);assert.equal(s.btn.focused,true);
 });
 test('editar propio leído conserva lecturas y reacciones; bloquea mensaje ajeno',async()=>{
  let stored={autor:'Yo',texto:'Antes',leido:{otro:true},reacciones:{otro:{emoji:'👍'}}};

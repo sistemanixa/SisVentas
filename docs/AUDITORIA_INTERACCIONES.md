@@ -44,11 +44,44 @@ Abrir `http://127.0.0.1:8784/` en la misma pestaña de trabajo. La herramienta e
 
 Controles: Confirmación (Cancelar con Enter, Tab, Escape), Ventana con lista (scroll, confirmación anidada, maximizar/restaurar/cerrar), Diálogo nativo (confirmación interior) y Comprobar reposo. Restaurar el tamaño normal del navegador y volver a SisVentas al terminar. `test/fixtures/interactions.html` contiene solo datos ficticios.
 
-## Próximos recorridos, por prioridad
+## Cierre del bloque de recorridos por módulo ·17/10/2026
 
-1. Repetir rueda, gestos y teclado virtual en un dispositivo físico; comprobar Actualizador minimizado/restaurado sin iniciar un lote real.
-2. Carteles críticos y menús flotantes junto a formularios: revisar sus portales/capas propios, no suprimir alertas como arreglo general.
-3. Recorrer formularios particulares de Ventas/Presupuestos, Comisiones, Compras/Distribuidora, OT/Relevamientos, PDF/Gastos personales y Administración. Preparar fixtures para operaciones que escriben; no probar sobre datos reales.
-4. Rotación, cambios de ruta, respuestas tardías y repetición de abrir/cerrar en esos consumidores. Registrar por pantalla lo probado y lo pendiente.
+Se completó el bloque local acordado, después del commit inicial `cbe0968a8116572b0174d595f764dc89959a4bcf`, en la misma rama y candidata v3.12.9. Producción sigue v3.12.8. La aplicación completa se sirvió en un origen ficticio nuevo, sin SDK de Firebase, autenticaciones reales ni servicios externos. Las escrituras simuladas se registran solo en memoria; las peticiones externas se rechazan antes de enviarlas, HTTP no permite POST y CSP limita conexiones al mismo origen. Los servicios dedicados de Proyectos, finanzas y Distribuidora también usan identidades y almacenamiento ficticios en memoria. No se guardaron pruebas sobre datos reales.
+
+### Cobertura observada
+
+| Recorrido | Escritorio y390×844 | Resultado y alcance |
+| --- | --- | --- |
+|42 rutas activas del índice | Ambos | Apertura, contenido activo, ausencia de excepciones no controladas y de desborde horizontal del documento. No equivale a probar todas sus operaciones. |
+|27 ventanas | Ambos | Abrir/cerrar, bloqueo/liberación del fondo, orden de capas y botones de cierre alcanzables cuando existen. Formularios genéricos de cliente, producto, empleado, usuario, proveedor, evento, ticket, garantía, servicio, remito, gasto y orden de compra; gasto rápido, bonificación, comisión manual, comunicado, categorías, revisión de mano de obra, Actualizador, vacaciones, adelanto, chat, asistente, impresión, visor, origen de OT y selector de kit. |
+|9 vistas principales | Ambos | Venta, presupuesto, producto, kit, gasto, informe, equipo, historial de cliente y entrada a Relevamientos: abrir/retornar sin bloquear ni desbordar. Relevamientos se comprobó como entrada de módulo, sin afirmar un relevamiento completo. |
+|Actualizador | Ambos | Minimizar libera; restaurar bloquea; cerrar libera. No se inició ningún lote ni se modificaron precios. |
+|Chat | Ambos | Menú delante del mensaje; Responder primero; Escape cierra menú y devuelve foco sin navegar el fondo. Seis reacciones alcanzables y sin reaccionar a mensajes reales. |
+|Selector de productos | Móvil con20 resultados ficticios | Lista larga dentro del viewport, contención del scroll del menú. No se modificó su posicionamiento porque no se reprodujo un desborde. |
+|Proyectos | Ambos | Crear proyecto y necesidad ficticios en RAM; abrir/cancelar integrantes, preparar y vincular presupuesto. Diálogos centrados, dentro del ancho y con fondo bloqueado. |
+|Gastos personales | Ambos | Ocho secciones; abrir/cancelar tarjeta, pago, seguro, cuota y gasto externo. Volver a SisVentas restaura interacción y scroll. |
+|Visor PDF | Móvil | PDF sintético de tres páginas:1→2→3, Siguiente deshabilitado en la última; Anterior vuelve a2; cerrar y retornar sin bloqueo. Extracción simulada local; no se guardó el resumen ni se envió un PDF real. |
+|Distribuidora | Móvil | Selector con tres imágenes cargadas; borrador, vista previa e informe de garantía ficticios; volver conserva serie; descartar solo el borrador ficticio. No se emitió comprobante. |
+|Lector | Móvil, video simulado | Decoder real de QR y Code128 leyó dos ejemplos sintéticos, detuvo la cámara simulada y cerró. Escape restaura el overflow anterior. Sin abrir cámara física ni afirmar prueba de sonido en un dispositivo. |
+
+Rutas: Dashboard, Venta, Detalle, Presupuesto, OT, Cobranzas, Cuenta corriente, Tesorería, Configuración, Agenda, Servicios, Remitos, Proveedores, Balance de compra, Órdenes, Facturas, Crédito fiscal, Estadísticas, Notificaciones, Garantías, Soporte, Proyectos, Relevamientos, Equipos, Historial cliente, Clientes, Catálogo, Productos, Kits, Actualizador, Empleados, Usuarios, Reportes, Comisiones, Gastos, Asistente, Vacaciones, Rentabilidad, Cuentas empleados, Informes, Caja y Tablero. El inventario anterior de43 IDs incluía un contenedor que no era una ruta `.page`; el recorrido efectivo corresponde a42, más el portal privado dedicado.
+
+### Fallas adicionales reproducidas
+
+1. Tablero no abría: `renderTablero` usaba `gastosList`, una variable inexistente. Se usa la colección canónica `gastosData` conservando sus filtros y cálculo. Prueba funcional con un gasto ficticio de125 verifica tarjeta y gráfico.
+2. El recordatorio urgente del Dashboard cubría Guardar en móvil. Espera visualmente mientras hay una ventana modal y reaparece al cerrar, conservando nodo, estado y lectura pendiente. Se comprobó el punto del botón antes y después; no se descarta ni marca leído como arreglo.
+3. Listas flotantes de productos/chat fuera de sus paneles no heredaban contención de scroll. Se aplica a esos menús, sin cambiar selección ni cálculos.
+4. El lector dependía del bloqueo del monolito: abierto desde una página independiente dejaba el fondo desplazable. Ahora guarda/restaura su propio overflow, conserva el bloqueo del diálogo padre y no enfoca controles desconectados. Tres pruebas funcionales cubren estos casos.
+5. Escape del menú del chat era interceptado por la navegación global: cambiaba la página de atrás y dejaba abierto el menú. Acciones y reacciones declaran cierre propio; Escape consume su evento y restaura el disparador conectado. La prueba ejecuta ambos listeners reales en orden, además de comprobarse en navegador.
+
+La fixture de Proyectos tenía un `overflow:auto!important` que anulaba el bloqueo del módulo; se quitó esa prioridad solo en la herramienta de prueba y se repitió la comprobación. No era una modificación funcional de Proyectos.
+
+### Repetir y límites
+
+`node scripts/dev-module-audit.cjs` sirve la aplicación activa y los botones de recorridos en `http://127.0.0.1:8786/`. La herramienta no forma parte de Hosting. Usar la misma pestaña, abrir Resultado de auditoría y conservar el reporte; un resultado de ruta no implica guardar su formulario. Los helpers dedicados siguen siendo `dev-projects-flow.cjs`, `dev-private-finance.cjs` y `dev-distributor-documents.cjs`, siempre con fixtures, sin configurar PDF privados para esta auditoría.
+
+Se aprobaron1.884 pruebas vigentes y la integración HTTP de aislamiento por separado; sintaxis, diff y coherencia local se verifican antes de entregar. Los reportes/capturas están en `C:/SisVentas/tmp/`, fuera de Git y Hosting.
+
+Quedan fuera de este cierre: rueda/touch/rotación y teclado virtual en hardware físico, cámara y sonido físicos, todos los estados de datos/roles/concurrencia y todas las operaciones financieras. No se declara ausencia absoluta de microfallas ni se confunde este recorrido con una nueva auditoría de permisos. Próximo paso: revisión local del titular y, cuando lo indique, preparar la publicación desde un SHA limpio siguiendo Hosting seguro; no desplegar automáticamente por cerrar estas pruebas.
 
 Publicar esta candidata requiere la autorización de su alcance y el proceso de Hosting habitual. Las correcciones comunes no cambian cálculos financieros ni amplían permisos.

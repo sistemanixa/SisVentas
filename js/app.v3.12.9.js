@@ -3170,6 +3170,7 @@ function chatAbrirMenuMensaje(btn,soloReacciones) {
   var permitido = chatMensajeModificable(mensaje,currentUser);
   var menu = document.createElement('div');
   menu.id = 'chat-menu-mensaje'; menu.className = 'chat-menu-mensaje'; menu.setAttribute('role','menu');
+  menu.setAttribute('data-sv-escape-owner','1');
   var reacciones = document.createElement('div'); reacciones.className='chat-reacciones-selector';
   ['👍','❤️','😂','😮','😢','🙏'].forEach(function(emoji){
     var reaccion=document.createElement('button');reaccion.type='button';reaccion.textContent=emoji;reaccion.setAttribute('aria-label','Reaccionar con '+emoji);
@@ -3198,7 +3199,7 @@ function chatAbrirMenuMensaje(btn,soloReacciones) {
   if (!window._chatMenuEventos) {
     window._chatMenuEventos=true;
     document.addEventListener('click',function(e){if(!e.target.closest('#chat-menu-mensaje,.chat-menu-trigger'))chatCerrarMenuMensaje();});
-    document.addEventListener('keydown',function(e){if(e.key==='Escape'){var origen=document.querySelector('.chat-menu-trigger[aria-expanded="true"]');chatCerrarMenuMensaje();if(origen)origen.focus();}});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'&&document.getElementById('chat-menu-mensaje')){e.preventDefault?.();e.stopPropagation?.();var origen=document.querySelector('.chat-menu-trigger[aria-expanded="true"],.chat-reaccion-trigger[aria-expanded="true"]');chatCerrarMenuMensaje();if(origen?.isConnected)origen.focus();}});
     document.addEventListener('scroll',chatCerrarMenuMensaje,true);
     window.addEventListener('resize',chatCerrarMenuMensaje);
   }
@@ -10596,7 +10597,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.12.9',date:'17/10/2026',title:'Ventanas y confirmaciones más consistentes',notes:Object.freeze(['Cancelar conserva su acción al usar el teclado.','Las ventanas mantienen el foco y liberan el desplazamiento al cerrarse.']),feature:Object.freeze({page:'dashboard',actionLabel:'Abrir inicio'})}),
+ Object.freeze({version:'v3.12.9',date:'17/10/2026',title:'Ventanas y confirmaciones más consistentes',notes:Object.freeze(['Cancelar conserva su acción al usar el teclado.','Las ventanas mantienen el foco y liberan el desplazamiento al cerrarse.','Los avisos esperan mientras completás una ventana y Escape cierra primero el menú del mensaje.']),feature:Object.freeze({page:'dashboard',actionLabel:'Abrir inicio'})}),
  Object.freeze({version:'v3.12.8',date:'17/10/2026',title:'Diagnóstico del servidor local',notes:Object.freeze(['El ingreso identifica cuándo el servidor local está apagado o no responde y permite reintentar sin perder la sesión.']),feature:Object.freeze({page:'dashboard',actionLabel:'Abrir inicio'})}),
  Object.freeze({version:'v3.12.7',date:'17/10/2026',title:'Avisos sin superposiciones',notes:Object.freeze(['El aviso de actualización y Gastos personales se abren en orden, para que los botones siempre respondan sobre la ventana visible.']),feature:Object.freeze({page:'gastospersonales',actionLabel:'Abrir gastos personales'})}),
  Object.freeze({version:'v3.12.6',date:'17/10/2026',title:'Liquidaciones PDF en orden',notes:Object.freeze(['Cargá tus liquidaciones desde Resumen, seguí cada PDF en la cola y abrí los resultados listos.','El visor indica la última página y permite volver sin perder el resultado.']),feature:Object.freeze({page:'gastospersonales',actionLabel:'Abrir gastos personales'})}),
@@ -49752,7 +49753,7 @@ function renderTablero() {
   var datosPorMes = MESES.map(function(m, i) {
     var mes = String(anioSel) + '-' + String(i+1).padStart(2,'0');
     var vMes = ventas.filter(function(v){ return (v.fecha||'').slice(0,7)===mes; });
-    var gMes = (gastosList||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mes; });
+    var gMes = (gastosData||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mes; });
     return {
       mes: m, esMesActual: mes===mesActual,
       ventas: vMes.reduce(function(s,v){ return s + _svTotalVentaCanonico(v); },0),
@@ -49826,7 +49827,7 @@ function renderTablero() {
   var pendienteCobro = ventasPendientes.reduce(function(s,v){
     return s + _svSaldoPendienteVenta(v);
   }, 0);
-  var gastosMes = (gastosList||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; })
+  var gastosMes = (gastosData||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; })
     .reduce(function(s,g){ return s+(parseFloat(g.monto)||0); },0);
   var otsPend = (otData||[]).filter(function(ot){ return ot.estado !== 'completada'; }).length;
 
@@ -49834,7 +49835,7 @@ function renderTablero() {
   _e('tab-pendiente', '$'+Math.round(pendienteCobro).toLocaleString('es-AR'));
   _e('tab-pendiente-sub', ventasPendientes.length + ' venta' + (ventasPendientes.length!==1?'s':'') + ' sin cobrar');
   _e('tab-gastos-mes', '$'+Math.round(gastosMes).toLocaleString('es-AR'));
-  _e('tab-gastos-sub', (gastosList||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; }).length + ' gastos este mes');
+  _e('tab-gastos-sub', (gastosData||[]).filter(function(g){ return (g.fecha||'').slice(0,7)===mesActual; }).length + ' gastos este mes');
   _e('tab-ots-pend', otsPend);
 }
 // Misma fuente que la tarjeta "Compensación de IVA" en Facturaciones — debe coincidir siempre.

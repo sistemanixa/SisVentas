@@ -21,6 +21,14 @@ Interacciones compartidas: `node --test test/system-dialog-interactions.test.cjs
 Demostración de navegador sin Firebase ni datos de negocio: `node scripts/dev-interaction-audit.cjs`,
 solo loopback en8784. Casos, evidencia y límites en [AUDITORIA_INTERACCIONES.md](../docs/AUDITORIA_INTERACCIONES.md).
 
+Recorridos con la aplicación completa y datos ficticios: `node scripts/dev-module-audit.cjs`,
+loopback8786. Incluye controles para42 rutas,27 ventanas y9 vistas de edición;
+no carga Firebase y bloquea servicios externos/escrituras HTTP. No usarlo para
+medir producción ni para validar permisos reales. Integración de aislamiento:
+`node --test test/module-audit-isolation.integration.cjs` (requiere loopback;
+se ejecuta aparte de la puerta sin red). Las fixtures de Proyectos, finanzas y
+Distribuidora completan las vistas con sus servicios ficticios en memoria.
+
 Generación automática de comisiones candidata: `node --test
 test/commission-generation.test.cjs` (24 pruebas funcionales sin credenciales).
 El emulador de responsabilidad comercial también cubre generación, observador y

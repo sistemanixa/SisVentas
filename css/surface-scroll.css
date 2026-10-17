@@ -1,4 +1,10 @@
 /* Las ventanas operativas contienen su scroll, incluidas sus listas internas. */
+/* Los recordatorios del Dashboard esperan al cierre de una ventana. Mantener
+   sus nodos y su estado permite mostrarlos después sin darlos por leídos. */
+body.sv-modal-stack-open #sv-important-alert-stack {visibility:hidden}
+/* Estos menús viven fuera de su tabla/chat: el scroll de sus listas tampoco
+   debe encadenarse al documento al llegar al primer o último resultado. */
+#prod-drop-global,#prod-drop-list,#ppto-menu-global,#chat-menu-mensaje {overscroll-behavior:contain}
 :is(.modal-overlay,.modal,[id^="modal-"],[id$="-modal"],[role="dialog"],[role="alertdialog"],dialog[open],#py-planner,#chat-box,#ia-box),
 :is(.modal-overlay,[id^="modal-"],[id$="-modal"],[role="dialog"],[role="alertdialog"],dialog[open],#py-planner,#chat-box,#ia-box) * {
   overscroll-behavior:contain;

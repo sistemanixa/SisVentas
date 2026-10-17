@@ -1,0 +1,22 @@
+'use strict';
+window.__moduleAudit={errors:[],writes:[],blocked:[],pages:[]};
+addEventListener('error',e=>__moduleAudit.errors.push(e.message));
+addEventListener('unhandledrejection',e=>__moduleAudit.errors.push(String(e.reason?.message||e.reason)));
+const realFetch=window.fetch.bind(window);
+window.fetch=function(input,options){const url=new URL(typeof input==='string'?input:input.url,location.href);if(url.origin!==location.origin){__moduleAudit.blocked.push(url.origin);return Promise.reject(Error('Servicio externo bloqueado por fixture'));}return realFetch(input,options);};
+const fixtureRoot={sisventas:{config:{empresa:{nombre:'Empresa ficticia',dir:'Domicilio ficticio'},version:'v3.12.9-firebase'},clientes:{c:{nombre:'Cliente ficticio',dir:'Dirección ficticia',activo:true}},productos:{p:{codigo:'DEMO-1',nombre:'Producto ficticio',categoria:'Ejemplo',gremio:100,pventa:200,activo:true}},empleados:{e:{nombre:'Integrante ficticio',activo:true}},ventas:{},presupuestos:{},pagos:{}},sv_usuarios:{fixture:{uid:'fixture',nombre:'Administrador ficticio',rol:'admin',activo:true}},sv_chat_roles:{fixture:{rol:'admin',activo:true}},sv_chat_directorio:{fixture:{nombre:'Administrador ficticio',activo:true}}};
+const clone=value=>value===undefined?null:JSON.parse(JSON.stringify(value));
+const read=ref=>clone(String(ref?.path??ref??'').split('/').filter(Boolean).reduce((v,k)=>v?.[k],fixtureRoot));
+const snapshot=value=>({val:()=>clone(value),exists:()=>value!=null,forEach:fn=>Object.entries(value||{}).forEach(([key,v])=>fn({...snapshot(v),key}))});
+window.fbDB={fixture:true};window.fbRef=(_,path='')=>({path,key:path.split('/').at(-1)});
+window.fbGet=async ref=>snapshot(read(ref));
+window.fbOnValue=(ref,fn)=>{let active=true;queueMicrotask(()=>{if(active)fn(snapshot(read(ref)));});return()=>{active=false;};};
+window.fbOff=()=>{};window.fbOnAuth=()=>()=>{};
+window.fbAuth={currentUser:{uid:'fixture',email:'fixture@example.invalid',getIdToken:async()=>'FICTICIO-SIN-VALIDEZ'}};
+window.fbSignOut=async()=>{};window.fbQuery=ref=>ref;window.fbOrderByChild=()=>null;window.fbEqualTo=()=>null;window.fbLimitToLast=()=>null;
+function write(ref,value){__moduleAudit.writes.push({path:ref?.path??ref,value:clone(value)});return Promise.resolve();}
+window.fbUpdate=write;window.fbSet=write;window.fbRemove=ref=>write(ref,null);window.fbPush=(ref,value)=>{const key='ficticio-'+(__moduleAudit.writes.length+1);if(value!==undefined)write(ref,value);return {key,path:ref.path+'/'+key};};
+window.fbOnDisconnect=()=>({remove:async()=>{},set:async()=>{},cancel:async()=>{}});window.fbServerTimestamp=()=>Date.now();
+window.fbRunTransaction=async(ref,fn)=>{const value=fn(read(ref));if(value!==undefined)await write(ref,value);return {committed:value!==undefined,snapshot:snapshot(value)};};
+window.SISVENTAS_FUNCTIONS={cotizadorProveedor:location.origin,asistente:location.origin};
+window.SV_IA_ENDPOINT=location.origin;window.SV_PROJECTS_ENABLED=false;
