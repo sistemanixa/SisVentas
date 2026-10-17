@@ -2,6 +2,11 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Estado del corte v3.12.7 · pendiente de autorización específica
+
+- Corrección guardada y subida en `273a91a5db98b74c3fa8da3f32482baa464bdafc`, rama `codex/aviso-actualizacion-v3127`. Las pruebas y la comprobación visual de ambos órdenes de apertura y del clic en390px pasaron.
+- El intento de publicar v3.12.7 fue rechazado por la revisión automática: considera la reparación del aviso un cambio posterior al permiso de v3.12.6 y exige autorización explícita. No se reintentó ni se aplicó por otra vía. Se solicitó esa aprobación al titular; está pendiente. Producción continúa en v3.12.6 y cotizador-capacidad-20261017/12 instancias.
+- Tras autorización: desplegar desde SHA limpio revisado, comprobar trece activos/cabeceras/rutas privadas, actualizar el aviso y verificar Entendido en la misma pestaña, sin operaciones reales. El informe siguiente documenta la preparación y la publicación previa del PDF.
 ## PDF v3.12.6 publicado y corrección del aviso v3.12.7 preparada
 
 - El titular confirmó que no había lecturas pendientes y autorizó publicar/verificar la pestaña. v3.12.6 publicada desde881c6ba1b3dd03cd08571aad1f5d4083bf9579ba: Hosting `sites/nixa-sisventas-seguro/versions/377dfbc2285b5e95`,360 activos/9 cargas. Trece activos idénticos al fuente, cinco cabeceras de seguridad y cuatro rutas privadas404. Web/marcadores/SW/avisoFirebasev3.12.6-firebase comprobados; sesión real abrió el espacio con la carga desde Resumen. Ningún dato de prueba guardado.
