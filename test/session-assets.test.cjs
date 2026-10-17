@@ -118,3 +118,5 @@ test('Excel permite reintentar después de timeout y valida que la librería exi
  pending=x.load('sheetjs');x.scripts[1].onload();await assert.rejects(pending,/inicializar/);
  pending=x.load('sheetjs');x.window.XLSX={};x.scripts[2].onload();await pending;assert.equal(x.timers.size,0);
 });
+
+test('fallo identifica módulo y ruta estática sin datos de sesión',async()=>{const x=setup();const pending=x.load('planner');x.scripts[0].onerror();await assert.rejects(pending,/planner/);assert.equal(x.window.SVSessionAssets.lastFailure.module,'planner');assert.ok(x.window.SVSessionAssets.lastFailure.src.startsWith('./js/'));assert.deepEqual(Object.keys(x.window.SVSessionAssets.lastFailure).sort(),['message','module','src','time']);});

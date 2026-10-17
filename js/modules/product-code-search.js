@@ -11,7 +11,7 @@
    camera.open({kind:'product',label:'Código comercial o SKU registrado en el catálogo',onRead:value=>{
     if(token!==revision||!input.isConnected||input.disabled||input.readOnly||!env.valid(input,context))return;
     const text=code(value);if(!text){env.notify('El código no es válido. Podés escribirlo para buscar.');return;}
-    revision++;env.apply(input,text); // Search only; never select, add, save or open a scanned URL.
+    revision++;env.apply(input,text);env.notify("Código leído: "+text+". Revisá los resultados."); // Search only; never select, add, save or open a scanned URL.
    }});
   }
   return {open,cancel};

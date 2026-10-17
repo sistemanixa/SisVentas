@@ -8,7 +8,7 @@
   const c=context();if(!c.user)throw Error('Sesión requerida');const token=await c.user.getIdToken();if(!valid(c))throw Error('La sesión cambió');
   const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servicio comercial no disponible');
   const view=c.user.uid!==c.uid?'?verComo='+encodeURIComponent(c.uid):'';
-  const res=await fetch(base+'/comerciales/'+domain+(path?'/'+path:'')+view,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{}),...(validator?.etag&&!body&&!path?{'If-None-Match':validator.etag}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store',signal:AbortSignal.timeout(60000)});
+  const res=await fetch(base+'/comerciales/'+domain+(path?'/'+path:'')+view,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{}),...(validator?.etag&&!body&&!path?{'If-None-Match':validator.etag}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store',signal:AbortSignal.timeout(60000)}).catch(error=>{console.warn('[SisVentas] fallo de lectura comercial',{resource:domain,method:body?'POST':'GET',error:error.name,online:root.navigator?.onLine,time:new Date().toISOString()});throw error;});
   if(!valid(c))throw Error('La sesión cambió');
   if(res.status===304){if(!validator?.etag||body||path)throw Error('Validación comercial inesperada');return {_svNotModified:true};}
   const data=await res.json();if(!valid(c))throw Error('La sesión cambió');if(!res.ok||!data.ok)throw Object.assign(Error(data.mensaje||'No se pudo confirmar la operación'),{status:res.status});return {...data,_svEtag:res.headers?.get?.('etag')||''};

@@ -25,3 +25,5 @@ for(const value of ['000001234567','SERIE-DEMO-002','NB-2026-XYZ987'])test('deco
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){const mx=Math.floor(x/scale)-pad,my=Math.floor(y/scale)-pad,v=mx>=0&&my>=0&&mx<matrix.getWidth()&&my<matrix.getHeight()&&matrix.get(mx,my)?0:255;const offset=(y*width+x)*4;pixels[offset]=pixels[offset+1]=pixels[offset+2]=v;pixels[offset+3]=255;}
  const canvas={width,height,getContext:()=>({getImageData:()=>({data:pixels})})};assert.equal(new ZXing.BrowserMultiFormatReader().decodeFromCanvas(canvas).getText(),value);
 });
+
+test('confirma análisis continuo de cuadros vacíos sin inventar una lectura',async()=>{const f=fixture();await f.open();await new Promise(setImmediate);for(let n=0;n<3;n++){f.timers.shift()();await new Promise(setImmediate);}assert.ok(f.statuses.some(s=>s.includes('1 imagen analizada')));assert.ok(f.statuses.some(s=>s.includes('4 imágenes analizadas')));assert.deepEqual(f.reads,[]);f.session.close();});

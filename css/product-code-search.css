@@ -10,3 +10,7 @@
 
 /* Keep the scan control aligned with the input, above an existing result counter. */
 .sv-product-scan-field{align-items:flex-start}.sv-product-scan-field>.sv-product-scan-button.btn{min-height:44px!important;height:44px!important;width:44px!important;flex:0 0 44px;padding:8px!important;align-self:flex-start}.sv-product-scan-field input{min-height:44px!important}
+
+/* Productos: búsqueda amplia en su propia fila; filtros debajo. */
+#page-productos #prod-filtros-barra{display:flex;flex-wrap:wrap;gap:10px}
+#page-productos #prod-filtros-barra>.prod-buscador-wrap{flex:0 0 100%!important;width:100%!important;max-width:100%;min-width:0;box-sizing:border-box}

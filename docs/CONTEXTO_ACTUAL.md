@@ -2,6 +2,15 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Trabajo local v3.12.2 · lector y diagnóstico de recarga
+
+- Rama `codex/recarga-lector-v3122` desde `3b0e30df5042b0cbacad01935e35625baebdabbf`. Producción permanece v3.12.1; no publicar este bloque automáticamente.
+- Lector: guía rectangular para barras y cuadrada para QR, seleccionables sin recortar el área que decodifica. Estado confirma cuadros analizados; lectura de producto informa código reconocido sin agregarlo automáticamente. Prueba aislada con video ficticio: guía QR/barras, análisis continuo sin código, Code128 SN-001 leído y cámara detenida. Cámara física/bip todavía pendientes.
+- Productos: buscador y botón de escanear ocupan una fila completa; filtros debajo. Espejo8766 actualizado y ventana real recargada/autenticada en v3.12.2. Búsqueda906px y44px de alto, filtros10px debajo; sección Productos conservada.
+- 1.797 pruebas generales aprobadas; cambio posterior solo ajustó singular del contador y sus13 pruebas de lector volvieron a pasar. Sintaxis/versiones/diff correctos. Sin operaciones ni despliegues reales.
+- Recarga/sincronización **sin causa confirmada y todavía sin corregir**: el servidor local es Node `.local/serve-preview.cjs`, loopback8766, espejo release-v3619, con Cache-Control no-store. Hasta ahora los módulos opcionales respondieron200 al diagnóstico HTTP; la última recarga de esta candidata inició correctamente. Se agregó identificación del módulo al error de acceso y diagnóstico de fallos de transporte de directorio/comercial (dominio, método, tipo de error, estado online y hora; sin tokens, consultas, cuerpos ni datos del usuario). No se agregaron reintentos ni se ocultaron errores como solución.
+- Próximo paso: capturar la próxima falla con este diagnóstico y correlacionar módulo/solicitud/servidor/SW. No declarar resuelta la recarga porque una muestra haya cargado. Conservar los límites y pendientes de producción indicados debajo.
+
 ## v3.12.1 publicada y verificada · estado vigente (17/10/2026)
 
 - Fuente **41b4dcd7af0683f3ba4472f6c5b42a206745c110**, integrada por avance directo en origin/main desde `codex/proyectos-movil-integral`. Incluye Proyectos móvil, lector QR/barras compartido y selector con fotos de Comprobantes de Distribuidora. Los bloques siguientes describen su preparación anterior, ya publicada en este corte.
