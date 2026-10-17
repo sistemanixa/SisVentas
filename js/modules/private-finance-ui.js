@@ -133,6 +133,10 @@ function statementPage(){
  </div>`;
 }
 function pendingReading(){return stage&&!stage.saved&&!scanContext?panel('Resumen pendiente de guardar',`<div class="panelbody pdf-pending"><span>${esc(stage.newFile?.name||'Lectura del PDF')}</span><div class="actions">${button('Ver resultado','openresult','','primary')}${button('Descartar lectura','discardreading','','ghost')}</div></div>`):'';}
+function pdfCardMatches(bank,brand){
+ const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,''),entity=s=>norm(s).replace(/^banco/,''),network=s=>/^master(?:card)?(?:gold|platinum|black|standard|internacional)?$/.test(norm(s))?'mastercard':/^visa(?:gold|platinum|signature|classic|internacional)?$/.test(norm(s))?'visa':norm(s);
+ return state.cards.filter(c=>entity(c.bank)===entity(bank)&&network(c.brand)===network(brand));
+}
 function readReview(){return {...structuredClone(stage.statement),card:stage.cardCreated||stage.statement.card,movements:structuredClone(stage.movements),reviewed:true};}
 function useAsRevision(id){
  const existing=state.statements.find(s=>s.id===id);if(!existing||!stage||stage.saved)return;
@@ -149,7 +153,7 @@ async function saveResult(){
   const data=readReview();
   if(data.card==='__new_card__'){
    if(!target.proposedCard)throw Error('No se reconoció la tarjeta del resumen.');
-   if(!target.cardCreated){const id=crypto.randomUUID();await mutate('card-save',{id,bank:target.proposedCard.bank,brand:target.proposedCard.brand,masked:'',color:'#dfb767',status:'Activa',policy:'Sin nuevos consumos',note:'Creada al revisar un PDF.'});if(dead||stage!==target)return;target.cardCreated=id;}
+   if(!target.cardCreated){const matches=pdfCardMatches(target.proposedCard.bank,target.proposedCard.brand);if(matches.length>1)throw Error('Hay más de una tarjeta de ese banco y marca. Elegí cuál corresponde.');if(matches.length===1)target.cardCreated=matches[0].id;else{const id=crypto.randomUUID();await mutate('card-save',{id,bank:target.proposedCard.bank,brand:target.proposedCard.brand,masked:'',color:'#dfb767',status:'Activa',policy:'Sin nuevos consumos',note:'Creada al revisar un PDF.'});if(dead||stage!==target)return;target.cardCreated=id;}}
    data.card=target.cardCreated;
   }
   if(target.newFile&&!target.uploaded){const result=await bridge.request('/documentos',{name:target.newFile.name,data:base64(target.newFile.bytes)});if(dead||stage!==target)return;state=M.hydrate(result.state,result.state.ownerUid);target.uploaded=result.document.id;}
@@ -205,14 +209,17 @@ async function analyzeStagePDF(){
   let bytes=target.newFile?.bytes;if(!bytes){const blob=await bridge.request('/documentos/'+target.statement.file,undefined,true);bytes=await blob.arrayBuffer();}
   if(!bytes)throw Error('Volvé a seleccionar el PDF.');
   if(dead||stage!==target||controller.signal.aborted)return;
-  const result=await bridge.analyzePDF(base64(bytes),controller.signal);
+  const evidenceTask=window.SVPrivateFinancePDF?.extract?Promise.resolve().then(()=>window.SVPrivateFinancePDF.extract(bytes)).catch(()=>null):Promise.resolve(null);
+  const reading=await bridge.analyzePDF(base64(bytes),controller.signal);
+  const evidence=await evidenceTask;
+  const result=window.SVPrivateFinancePDF?.classifyAutomaticDebits?window.SVPrivateFinancePDF.classifyAutomaticDebits(reading,evidence?.automaticDebits||[]):reading;
   if(dead||stage!==target||controller.signal.aborted)return;
   target.statement={...review,source:'PDF + revisión manual',extracted:{...result.fields}};delete target.statement.movements;
   for(const [key,field]of Object.entries(result.fields))if(['previous','total','usd','minimum','minimumCurrency','close','due','period','tem','tna','cft'].includes(key))target.statement[key]=field.value;
   const bank=result.fields.bank?.value,brand=result.fields.brand?.value;
-  if(!review.card&&bank&&brand){const norm=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/banco|\W/g,'');const matches=state.cards.filter(c=>norm(c.bank)===norm(bank)&&norm(c.brand)===norm(brand));if(matches.length===1)target.statement.card=matches[0].id;else if(!matches.length){target.proposedCard={bank,brand};target.statement.card='__new_card__';}}
+  if((!review.card||review.card==='__new_card__')&&bank&&brand){const matches=pdfCardMatches(bank,brand);if(matches.length===1){target.statement.card=matches[0].id;delete target.proposedCard;}else if(!matches.length){target.proposedCard={bank,brand};target.statement.card='__new_card__';}else{target.statement.card='';delete target.proposedCard;}}
   const same=(a,b)=>['date','concept','currency','amount','kind','current','total'].every(k=>(a[k]??null)===(b[k]??null));
-  const remaining=review.movements.slice();target.movements=result.movements.map(m=>{const index=remaining.findIndex(old=>same(old,m));const old=index<0?null:remaining.splice(index,1)[0];return {...m,id:old?.id||crypto.randomUUID(),statement:target.statement.id,ref:old?.ref||''};});
+  const remaining=review.movements.slice();target.movements=result.movements.map(m=>{let index=remaining.findIndex(old=>same(old,m));if(index<0&&m.kind==='Débito a confirmar'&&m.classificationSource){const candidates=remaining.map((old,i)=>old.kind==='Consumo'&&same({...old,kind:m.kind},m)?i:-1).filter(i=>i>=0);if(candidates.length===1&&result.movements.filter(other=>same(other,m)).length===1)index=candidates[0];}const old=index<0?null:remaining.splice(index,1)[0];return {...m,id:old?.id||crypto.randomUUID(),statement:target.statement.id,ref:old?.ref||''};});
   // Una segunda lectura nunca elimina movimientos previamente revisados.
   target.movements.push(...remaining);target.warnings=[...result.warnings,...(remaining.length?['Se conservaron '+remaining.length+' movimientos anteriores sin coincidencia exacta. Revisá posibles duplicados antes de guardar.']:[])];
   scanContext=null;render();previewRender();
