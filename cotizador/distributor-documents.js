@@ -21,6 +21,7 @@ function input(body){
  const method=body.type==='recibo'?body.method:'';if(body.type==='recibo'&&!['efectivo','transferencia','tarjeta','otro'].includes(method))throw fail(400,'Elegí el medio de pago');
  return {id:key(body.id),type:body.type,currency:body.currency,client,items,method,notes:text(body.notes||'',1500),warrantyReport:includeWarranty};
 }
+function catalogImage(value){if(typeof value!=='string'||value.length>2400||/[\u0000-\u001f\u007f]/.test(value))return '';try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:'';}catch(_){return '';}}
 function createDistributorDocuments({auth,db,enabled=false,now=Date.now}){
  const read=async p=>(await db.ref(p).get()).val();
  async function authorize(req){
@@ -37,7 +38,7 @@ function createDistributorDocuments({auth,db,enabled=false,now=Date.now}){
   const [catalog,exchange,company,master]=await Promise.all([read('sv_catalogo_publico'),read('sisventas/config/tipoCambio'),read('sisventas/config/empresa'),read('sisventas/productos')]);
   const rateValue=Number(exchange?.[exchange?.dolarConversion||'oficial']||exchange?.oficial||exchange?.blue||exchange?.mep)||0;
   const rate=Number.isFinite(rateValue)&&rateValue>0?rateValue:0;
-  const products=Object.entries(catalog||{}).filter(([id,p])=>{const m=master?.[id];return m?.categoria==='COMPRAS PARAGUAY'&&m.activo!==false&&!['Inactivo','inactivo'].includes(m.estado)&&!m.esManoDeObra&&m.catalogoVisible!==false&&Number.isFinite(p.precioUSD)&&p.precioUSD>0&&p.precioUSD<=1e9;}).map(([id,p])=>({id,name:String(p.nombre||'Producto').slice(0,250),code:String(master[id].codigo||'').slice(0,60),warranty:warranty(master[id].garantiaConfig),usd:p.precioUSD,ars:rate>0&&Number.isFinite(rate)&&Number.isSafeInteger(Math.round(p.precioUSD*rate*100))?round(p.precioUSD*rate):null}));
+  const products=Object.entries(catalog||{}).filter(([id,p])=>{const m=master?.[id];return m?.categoria==='COMPRAS PARAGUAY'&&m.activo!==false&&!['Inactivo','inactivo'].includes(m.estado)&&!m.esManoDeObra&&m.catalogoVisible!==false&&Number.isFinite(p.precioUSD)&&p.precioUSD>0&&p.precioUSD<=1e9;}).map(([id,p])=>({id,name:String(p.nombre||'Producto').slice(0,250),code:String(master[id].codigo||'').slice(0,60),image:catalogImage(p.imagenUrl),brand:String(p.marca||'').slice(0,160),description:String(p.descripcion||'').slice(0,500),warranty:warranty(master[id].garantiaConfig),usd:p.precioUSD,ars:rate>0&&Number.isFinite(rate)&&Number.isSafeInteger(Math.round(p.precioUSD*rate*100))?round(p.precioUSD*rate):null}));
   const issuer=Object.fromEntries(['nombre','dir','cuit','tel','email'].map(k=>[k,String(company?.[k]||'').slice(0,240)]));
   return {products,rate,company:issuer,quotedAt:now()};
  }

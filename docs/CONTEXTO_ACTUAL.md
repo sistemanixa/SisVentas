@@ -2,6 +2,13 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Selector visual de Comprobantes · candidata local v3.12.1 (17/10/2026)
+
+- Rama `codex/proyectos-movil-integral`, base `af04ddc2a1a1b918b1e8981e1bd057eb892dcfcc`. Comprobantes de Distribuidora cambia la lista textual por buscador centrado con foto/código/nombre/marca/precio, limitado a productos habilitados de su catálogo. Mantiene QR/barras y selección explícita. Precios precisos e históricos sin cambios. Detalles: [SELECTOR_COMPROBANTES_V3121.md](SELECTOR_COMPROBANTES_V3121.md).
+- Servidor candidato entrega foto/marca/descripción pública con los mismos filtros de elegibilidad. No desplegado: para fotos/marcas consistentes en todos los roles debe publicarse junto con el cliente. Compatibilidad local usa solo foto ya autorizada por ID permitido; nunca suma productos/precios del catálogo completo.
+- 1.795 generales y 94 servidor aprobadas, sintaxis/diff/versiones correctos. Fixture 8773 con imágenes ficticias: escritorio/390 px, búsqueda, marca, vacío, agregar/repetir y Code128 por cámara simulada (solo filtra). No emisión ni datos reales. Espejo8766 actualizado y ventana principal efectivamente recargada/autenticada, de vuelta en Productos; prueba visual del selector realizada en fixture aislado.
+- Producción sigue v3.12.0 y `cotizador-load-d849afb4`; no publicación ni cambios de permisos/contraseñas/correos. Conserva cambios anteriores de la candidata1 y archivo ajeno histórico de la copia original. Sigue pendiente revisión física y diagnóstico intermitente de fetch; no se declara resuelto con este bloque.
+
 ## Lector compartido de productos · candidata local v3.12.1 (17/10/2026)
 
 - Continuación en codex/proyectos-movil-integral sobre 1f2f2406. Lector integrado a Productos/catálogo interno, filas de Ventas/Presupuestos, búsqueda avanzada/asistente, kits, materiales OT, listas/Compras Paraguay y Comprobantes. Solo busca, no agrega ni guarda. SKU/código registrado; no inventa equivalencia con EAN ni abre enlaces de QR. Garantías conserva lectura de series. Detalles: [LECTOR_BUSQUEDA_PRODUCTOS_V3121.md](LECTOR_BUSQUEDA_PRODUCTOS_V3121.md).
