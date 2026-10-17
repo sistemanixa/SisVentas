@@ -2,7 +2,16 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
-## Auditoría de interacciones · v3.12.9 solo local
+## v3.12.9 publicada · cierre de la auditoría de interacciones
+
+- El titular autorizó publicar estas correcciones el17/10/2026, conservando datos reales. Fuente limpia revisada: `5ad3ab6ddb042c8ee5f3db0e5542cf9f9d27cf76`, rama `codex/auditoria-interacciones`. Fetch previo sin cambios nuevos: `origin/main` sigue `4639a87bf7e6edd9f2d62af70317fdc5f9ac71b5`. No se integró en main ni se tocó el cambio ajeno del checkout raíz.
+- Puerta vigente repetida:1.884 pruebas aprobadas, sintaxis de aplicación/lector, diff y coherencia local correctos. Hosting `sites/nixa-sisventas-seguro/versions/393efc6293bdbebd`:363 archivos públicos,8 cargas. Se conservaron servidor, tráfico, DNS, reglas y permisos.
+- En `ventas.sistemanixa.com`,16 activos respondieron200 e idénticos al fuente, incluidos CSS compartido, superficies, Proyectos y lector; cinco cabeceras de seguridad presentes y cuatro rutas privadas404. Después se validó web y se activó/comprobó `sisventas/config/version = v3.12.9-firebase`. Ese marcador de despliegue fue la única escritura remota intencional; no se guardaron clientes, operaciones, mensajes ni documentos de prueba.
+- Navegador web real con sesión existente: Dashboard sincronizado, listas de Presupuestos/Ventas/Clientes disponibles. Nuevo cliente abierto/cancelado sin guardar: Cancelar y Guardar recibían el clic, accesos flotantes ocultos mientras estaba abierto y scroll liberado al cerrar. Novedades muestra v3.12.9 como Actual. Misma pestaña conservada y dejada en Dashboard web, sin bloqueo modal.
+- Evidencias privadas en `C:/SisVentas/tmp/release-v3129-tests.private.log`, `verify-release-v3129.private.json` y `release-v3129-web.private.png`, fuera de Git/Hosting. Esta comprobación no cubre todas las operaciones ni roles; siguen pendientes las pruebas de touch/teclado/cámara/sonido en hardware físico. Al abrir la pestaña local antes del corte había un aviso de directorio protegido; no apareció en la comprobación web posterior. Mantener seguimiento del fallo intermitente de carga, sin atribuir su resolución a esta publicación de interacciones.
+- Próximo paso: prueba física y seguimiento del ingreso/sincronización con la versión publicada. Los recorridos automáticos de auditoría se ejecutan exclusivamente con las fixtures ficticias. El servidor local8766 sigue disponible, pero la ventana del titular quedó en producción para comprobar la publicación.
+
+## Preparación local anterior · auditoría de interacciones v3.12.9
 
 ### Recorridos completados en este bloque
 

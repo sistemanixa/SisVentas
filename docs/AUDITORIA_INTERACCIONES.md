@@ -1,6 +1,6 @@
 # Auditoría de carteles, clics y desplazamiento
 
-17/10/2026. Candidata local v3.12.9, rama `codex/auditoria-interacciones` desde `918f0923`. Producción conserva v3.12.8. Sin cambios de datos, permisos, contraseñas ni servidor remoto.
+17/10/2026. Auditoría preparada en v3.12.9, rama `codex/auditoria-interacciones` desde `918f0923`, y publicada con autorización posterior del titular desde `5ad3ab6ddb042c8ee5f3db0e5542cf9f9d27cf76`. Hosting `393efc6293bdbebd`,363 activos; web y aviso Firebase verificados en v3.12.9. Registro en CONTEXTO_ACTUAL. Sin cambios de datos de negocio, permisos, contraseñas ni servidor remoto. Los apartados de preparación conservan el estado previo a la publicación.
 
 ## Criterio obligatorio
 
