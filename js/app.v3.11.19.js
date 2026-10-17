@@ -2183,7 +2183,7 @@ function verificarVencimientosPptos() {
 
   // 1. Anular los ya vencidos
   var vencidos = (pptoData||[]).filter(function(p){
-    return p.vence && p.vence < hoyStr && estadosActivos.includes(p.estado);
+    return p.vence && p.vence < hoyStr && _pptoAdmiteAvisosNotificacion(p) && estadosActivos.includes(p.estado);
   });
   vencidos.forEach(function(p) {
     if (!p.fbKey || !window.fbDB) return;
@@ -2196,19 +2196,22 @@ function verificarVencimientosPptos() {
 
   // 2. Alertar los que vencen en las próximas 48hs
   var proximos = (pptoData||[]).filter(function(p){
-    return p.vence && p.vence >= hoyStr && p.vence <= en48h && estadosActivos.includes(p.estado) && !_svAvisoVencimientoYaMostrado(p, hoyStr);
+    return p.vence && p.vence >= hoyStr && p.vence <= en48h && _pptoAdmiteAvisosNotificacion(p) && estadosActivos.includes(p.estado) && !_svAvisoVencimientoYaMostrado(p, hoyStr);
   });
   if (proximos.length) {
     proximos.forEach(function(p){ _svMarcarAvisoVencimientoMostrado(p, hoyStr); });
     // Los avisos se muestran desde el centro unificado de notificaciones para
     // evitar duplicados entre la alerta lateral y el antiguo modal central.
-    if (typeof generarNotificaciones === 'function') generarNotificaciones();
+
   }
 
   // 3. Actualizar badge en sidebar
-  var totalActivos = (pptoData||[]).filter(function(p){ return estadosActivos.includes(p.estado) && p.vence && p.vence <= en48h; }).length;
+  var totalActivos = (pptoData||[]).filter(function(p){ return _pptoAdmiteAvisosNotificacion(p) && estadosActivos.includes(p.estado) && p.vence && p.vence <= en48h; }).length;
   var badge = document.getElementById('ppto-vence-badge');
   if (badge) { badge.style.display = totalActivos > 0 ? 'flex' : 'none'; badge.textContent = totalActivos; }
+  // También retirar avisos anteriores cuando el presupuesto se anula, vence
+  // o se convierte, aunque no haya un nuevo aviso próximo por mostrar.
+  if (typeof generarNotificaciones === 'function') generarNotificaciones();
 }
 
 
@@ -10564,7 +10567,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.11.19',date:'16/10/2026',title:'Comprobantes de Distribuidora',notes:Object.freeze(['Remitos y recibos propios con vista previa y precios guardados al emitir.','Primera versión independiente de stock, Caja y comisiones.','Informe de garantía opcional con series, lector de cámara y aviso sonoro.','Las ventanas de Proyectos se abren centradas en escritorio y móvil.','Remitos espera la confirmación de guardado y conserva el formulario ante errores.','Gastos personales evita verificaciones repetidas; Proyectos no lee presupuestos sin vínculos visibles.']),feature:Object.freeze({page:'distribuidora',actionLabel:'Ver Distribuidora'})}),
+ Object.freeze({version:'v3.11.19',date:'16/10/2026',title:'Comprobantes de Distribuidora',notes:Object.freeze(['Remitos y recibos propios con vista previa y precios guardados al emitir.','Primera versión independiente de stock, Caja y comisiones.','Informe de garantía opcional con series, lector de cámara y aviso sonoro.','Las ventanas de Proyectos se abren centradas en escritorio y móvil.','Remitos espera la confirmación de guardado y conserva el formulario ante errores.','Los presupuestos anulados dejan de generar avisos de vencimiento.','Gastos personales evita verificaciones repetidas; Proyectos no lee presupuestos sin vínculos visibles.']),feature:Object.freeze({page:'distribuidora',actionLabel:'Ver Distribuidora'})}),
  Object.freeze({version:'v3.11.18',date:'16/10/2026',title:'Procesamiento inicial de ventas',notes:Object.freeze(['Los pendientes de pago reutilizan un índice del mismo historial, evitando recorrer todos los cobros por cada venta.','Se conservan los vínculos, importes y criterios contables existentes.','Referencia de valor permite crear y editar productos sin exigir una web.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ver Dashboard'})}),
 
  Object.freeze({version:'v3.11.17',date:'16/10/2026',title:'Lecturas comerciales más livianas',notes:Object.freeze(['Ventas y presupuestos evitan descargar nuevamente un historial que no cambió, verificando los permisos en cada consulta.','Las respuestas nuevas se comprimen durante el transporte sin modificar importes, responsables ni comisiones.']),feature:Object.freeze({page:'detalle',actionLabel:'Ver ventas'})}),
@@ -52406,6 +52409,12 @@ function _diasAvisoVencimientoPresupuestoConfig(){
   return isFinite(dias)?Math.max(0,Math.min(30,dias)):1;
 }
 
+function _pptoAdmiteAvisosNotificacion(p) {
+  if (!p || p.eliminado === true || p.anulado === true || p.anulada === true || p.cancelado === true || p.cancelada === true) return false;
+  var estado = String(p.estado || '').trim().toLowerCase();
+  return !['anulado','anulada','cancelado','cancelada','eliminado','rechazado','vencido','convertido'].includes(estado);
+}
+
 function generarNotificaciones() {
   try {
   todasNotifs = [];
@@ -52415,7 +52424,7 @@ function generarNotificaciones() {
   // a demanda y los faltantes reales nacen en la lista de materiales de la venta.
   if (typeof pptoData !== 'undefined') {
     pptoData.forEach(function(p) {
-      if (['rechazado','vencido','convertido'].includes(p.estado)) return;
+      if (!_pptoAdmiteAvisosNotificacion(p)) return;
 
       // La revisión es una tarea exclusiva del administrador.
       if (window.tienePermiso('presupuestos.aprobar') && p.estado === 'revision') {
