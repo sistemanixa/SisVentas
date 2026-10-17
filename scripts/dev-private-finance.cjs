@@ -2,10 +2,11 @@
 // Prueba aislada: solo loopback y datos ficticios en memoria. No importa
 // firebase-admin, no lee credenciales ni puede conectarse a la base real.
 const http=require('http'),fs=require('fs'),path=require('path');
-const {actor,now,card,statement,seed,run,memoryDB}=require('../test/helpers/private-finance-fixtures.cjs');
+const {M,actor,now,card,statement,seed,run,memoryDB}=require('../test/helpers/private-finance-fixtures.cjs');
 const {createPrivateFinance}=require('../cotizador/private-finance');
 const root=path.resolve(__dirname,'..'),port=Number(process.env.PRIVATE_FINANCE_TEST_PORT||8765);
 let data=seed();data=run(data,'card-save',{...card,id:'card-b',bank:'Banco ficticio B',brand:'Mastercard',color:'#75b4ff'});data=run(data,'statement-save',{...statement,id:'statement-b',card:'card-b',total:250000,usd:0,minimum:25000});data=run(data,'insurance-save',{id:'insurance-a',name:'Seguro de ejemplo',card:'card-a',amount:1250,currency:'ARS',classification:'Por confirmar',decision:'Evaluar'});data=run(data,'installment-save',{id:'quota-a',concept:'Compra ficticia',card:'card-a',amount:5000,currency:'ARS',current:2,total:6,period:'2026-10'});
+if(process.env.PRIVATE_FINANCE_TEST_EMPTY==='1')data=M.empty(actor.uid);
 const db=memoryDB({sv_chat_roles:{[actor.uid]:{activo:true,rol:'admin'},'other-admin':{activo:true,rol:'admin'},tech:{activo:true,rol:'tecnico'}},sv_personal_finance:{[actor.uid]:data}}),files=new Map();
 const service=createPrivateFinance({db,auth:{verifyIdToken:async token=>({uid:token})},ownerUid:actor.uid,enabled:true,now:()=>now,documents:{put:async(k,b)=>files.set(k,b),get:async k=>files.get(k)}});
 const json=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
@@ -22,6 +23,8 @@ const server=http.createServer(async(req,res)=>{const u=new URL(req.url,'http://
   // Doble de IA: solo prueba del recorrido; no es una lectura de proveedor real.
   const field=(value,original)=>({value,original,page:1});
   const data={pages:1,fields:{period:field('2026-09','Periodo 2026-09'),close:field('2026-09-15','Cierre 15/09/2026'),due:field('2026-10-05','Vencimiento 05/10/2026'),total:field('250.00','Saldo actual ARS 250,00'),usd:field('0.00','Saldo actual USD 0,00'),previous:field('0.00','Saldo anterior ARS 0,00'),minimum:field('25.00','Minimo ARS 25,00'),minimumCurrency:field('ARS','Minimo ARS 25,00')},movements:[{date:'2026-09-15',concept:'Compra ficticia',currency:'ARS',amount:'250.00',page:1,kind:'Consumo'}],warnings:['PRUEBA AISLADA: respuesta de IA simulada, sin proveedor ni datos reales.']};
+  const example=Buffer.from(JSON.parse(Buffer.concat(chunks).toString()).data,'base64').toString('latin1').match(/%SV-QUEUE-([ABC])/);
+  if(example){const factor=example[1].charCodeAt(0)-64,value=(250*factor).toFixed(2);data.fields.bank=field('Banco de prueba '+example[1],'Banco de prueba '+example[1]);data.fields.brand=field(factor===2?'Mastercard':'Visa','Marca ficticia');data.fields.total=field(value,'Saldo ficticio '+value);data.movements[0].concept='Compra ficticia '+example[1];data.movements[0].amount=value;}
   json(res,200,{ok:true,...normalize({stop_reason:'end_turn',content:[{type:'text',text:JSON.stringify(data)}]})});return;
  }
  if(u.pathname==='/prototype'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});res.end(fs.readFileSync(path.join(root,'docs/gastos-personales/prototipo-demo.html')));return;}
