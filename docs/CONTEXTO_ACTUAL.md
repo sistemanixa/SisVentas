@@ -2,6 +2,12 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Incidente activo de sincronización · capacidad de Cloud Run
+
+- 17/10/2026, aviso web «No se pudieron sincronizar los presupuestos». Pestaña de Gastos personales inspeccionada sin recargar ni tocar sus lecturas. El aviso sale del listener general de presupuestos del padre, no del importador PDF.
+- Cloud Logging confirma HTTP429 de infraestructura en `cotizador-pdf-0532bb93`, región `southamerica-east1`: solicitud abortada por no haber instancia disponible. En una muestra de diez minutos: 185 solicitudes no OPTIONS, 13 rechazos429 (6 presupuestos, 6 ventas, 1 cotizar-lote), 79 respuestas200 y 93 respuestas304. No fue un rechazo401/403 en esa muestra. Hubo cotizaciones por lote de hasta32,6 segundos; pueden competir con lecturas cortas, pero falta correlacionar ocupación por instancia para atribuir cada rechazo.
+- Configuración comprobada de la revisión activa: concurrencia1, máximo4 instancias, timeout300s, CPU sin throttling. El máximo del servicio20 no elimina el límite4 de la revisión. No se cambiaron producción, tráfico, permisos, datos, ni contraseñas. No dar por corregido este incidente.
+- Próximo paso prioritario: preparar ajuste de capacidad conservando exactamente la imagen/configuración efectiva y validar cargas paralelas de lectura/cotización antes del corte autorizado. Revisar aislamiento de trabajos largos; no ocultar avisos ni ampliar permisos. El cliente además intenta interpretar JSON antes de clasificar un rechazo de infraestructura, que puede venir como texto; preservar estado HTTP para diagnosticar/reintentar lecturas sin repetir escrituras. Referencia: https://docs.cloud.google.com/run/docs/troubleshooting#abort-request .
 ## Cola de PDF, visor y carga desde Resumen · preparado en local
 
 - Rama `codex/pdf-cola-y-visor`, desde `4639a87bf7e6edd9f2d62af70317fdc5f9ac71b5` de `origin/main` (fetch verificado). Producción continúa en v3.12.5: este bloque no publica, no integra en main y no cambia servidor remoto ni permisos.
