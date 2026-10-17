@@ -2,6 +2,14 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Candidata v3.11.20 · Notificaciones y CSP sin eval
+
+- Rama codex/auditoria-pendientes-v31120; servidor/reglas/DNS/datos sin cambios. Referencia remota main verificada en 061f00faba196fbb3d5973853175e2b952949cdc, sin novedades de otra PC. No se modifica la app inmutable publicada19.
+- Generación de acciones como datos y despacho explícito; compatibilidad limitada sin ejecutar código. Botones dinámicos usan eventos delegados, con identificadores escapados. Se retira unsafe-eval de Hosting después de probar dependencias y aplicación completa; unsafe-inline permanece por compatibilidad y no se presenta como CSP estricta.
+- 1.766 pruebas, sintaxis/diff/versiones correctos. Fixture sin Firebase bajo política que bloquea scripts embebidos/eval: cinco destinos, acción anterior y controles probados; móvil 390 px sin desborde. Excel/PDF ficticios en memoria, extracción PDF sintético y lector inicializado sin errores observados. Aplicación completa, Cuenta corriente/Productos/Proyectos/Notificaciones y retorno de Gastos personales verificados; ninguna operación de negocio guardada. Detalles y límites: [NOTIFICACIONES_CSP_V31120.md](NOTIFICACIONES_CSP_V31120.md).
+- Primera carga sigue alrededor de 8,7–9,0 s en muestras calientes, sesión alrededor de 2,4 s. Ventas (1.084 registros) completa recepción/JSON unos 4,4 s después de cabeceras; items/factura dominan el tamaño. No se recortó el DTO. Se inventariaron consumidores de edición, adjuntos, concurrencia, impresión y exportaciones antes de diseñar carga de detalle. No declarar la optimización terminada ni un 100% de seguridad/dispositivos por la suite.
+- Autorización de publicar al finalizar vigente; verificar Hosting/activos/aviso antes de marcar aplicada. Las comprobaciones físicas siguen esperando disponibilidad del titular, sin contraseñas nuevas ni importaciones reales.
+
 ## Continuación posterior a publicación · sin nuevo despliegue
 
 - Rama codex/auditoria-pendientes-v31120 desde 061f00faba196fbb3d5973853175e2b952949cdc. Producción sigue v3.11.19; no existe candidata20 por el nombre de rama. Informe: [AUDITORIA_POST_V31119.md](AUDITORIA_POST_V31119.md).

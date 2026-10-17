@@ -13,6 +13,36 @@
     return { usuario:global.currentUserName||global.currentUser||'', rol:global.currentRole||'', email:global.currentUserEmail||'' };
   }
   function svCurrentUserName(){ var ctx=sessionContext(); return String(ctx.usuario||ctx.email||'Sistema'); }
+  // Las acciones son datos, nunca código. La compatibilidad reconoce solo las
+  // cinco formas que generaba el cliente anterior, sin evaluar expresiones.
+  function accionNotificacion(accion){
+    if(!accion||typeof accion!=='object')return null;
+    if(Object.prototype.hasOwnProperty.call(accion,'tipo')){
+      if(['presupuesto','ot','gasto'].includes(accion.tipo))return typeof accion.id==='string'&&accion.id.length>0&&accion.id.length<=512?{tipo:accion.tipo,id:accion.id}:null;
+      return ['cuentacorriente','horas-extra'].includes(accion.tipo)?{tipo:accion.tipo}:null;
+    }
+    if(typeof accion.fn!=='string')return null;
+    var match=/^(abrirPresupuestoDesdeNotificacion|abrirOTDesdeNotificacion|abrirGastoDesdeNotificacion)\('([^'\\\r\n]{1,512})'\)$/.exec(accion.fn);
+    if(match)return {tipo:{abrirPresupuestoDesdeNotificacion:'presupuesto',abrirOTDesdeNotificacion:'ot',abrirGastoDesdeNotificacion:'gasto'}[match[1]],id:match[2]};
+    if(accion.fn==='abrirPanelAprobacionHsExtra()')return {tipo:'horas-extra'};
+    if(accion.fn==="showPage('cuentacorriente',document.querySelector('[onclick*=cuentacorriente]'))")return {tipo:'cuentacorriente'};
+    return null;
+  }
+  function ejecutarAccionNotificacion(accion){
+    var destino=accionNotificacion(accion);
+    if(!destino){global.notify?.('La acción de esta notificación no está disponible.');return false;}
+    try{
+      if(destino.tipo==='cuentacorriente'){
+        if(typeof global.showPage!=='function')throw Error('Destino no disponible');
+        global.showPage('cuentacorriente',document.querySelector('[onclick*=cuentacorriente]'));
+      }else{
+        var nombre={presupuesto:'abrirPresupuestoDesdeNotificacion',ot:'abrirOTDesdeNotificacion',gasto:'abrirGastoDesdeNotificacion','horas-extra':'abrirPanelAprobacionHsExtra'}[destino.tipo];
+        if(typeof global[nombre]!=='function')throw Error('Destino no disponible');
+        if(destino.tipo==='horas-extra')global[nombre]();else global[nombre](destino.id);
+      }
+      return true;
+    }catch(_){global.notify?.('No se pudo abrir el destino de la notificación.');return false;}
+  }
   function notifPermitidaTecnico(n){
     var txt=[n.tipo,n.titulo,n.title,n.descripcion,n.mensaje,n.body,n.modulo,n.categoria].join(' ').toLowerCase();
     var bloqueadas=['stock','presupuesto','iva','deuda','caja','tesorer','factur','proveedor','orden de compra','compra','cliente con saldo','vencimiento presupuesto'];
@@ -159,7 +189,7 @@
           '<div class="sv-action-alert-heading"><span>'+(aviso.urgente?'Urgente':'Aviso importante')+'</span></div>'+
           '<div class="sv-action-alert-title">'+svEsc(aviso.titulo||'Notificación importante')+'</div>'+
           '<div class="sv-action-alert-meta">'+svEsc(aviso.sub||'')+'</div>'+
-          (aviso.accion&&aviso.accion.fn?'<div class="sv-action-alert-actions"><button type="button" class="btn btn-sm btn-primary sv-important-alert-open"><i class="ti ti-external-link"></i> '+svEsc(aviso.accion.label||'Abrir')+'</button></div>':'')+
+          (accionNotificacion(aviso.accion)?'<div class="sv-action-alert-actions"><button type="button" class="btn btn-sm btn-primary sv-important-alert-open"><i class="ti ti-external-link"></i> '+svEsc(aviso.accion.label||'Abrir')+'</button></div>':'')+
         '</div>'+
         '<button type="button" class="sv-action-alert-close" aria-label="Marcar como leída y cerrar" title="Marcar como leída"><i class="ti ti-x"></i></button>';
       tarjeta.querySelector('.sv-action-alert-close').addEventListener('click',function(){ window.notifAvisoCriticoEntendido(aviso.id); });
@@ -237,7 +267,7 @@
     programarAvisoCriticoPresupuesto();
   }
   function esNotificacionGestionable(n){
-    return !!(n&&n.accion&&String(n.accion.fn||'').trim());
+    return !!(n&&n.accion&&(accionNotificacion(n.accion)||String(n.accion.fn||'').trim()));
   }
   function notificacionesPendientesParaLimpiar(){
     return notifSource().filter(function(n){
@@ -299,7 +329,7 @@
     var n=notifSource().find(function(x){return x.id===id;});
     if(!n) return;
     setN(id,{estado:'leida'});
-    if(n.accion && n.accion.fn){ try{ new Function(n.accion.fn)(); }catch(e){ console.error(e); } }
+    ejecutarAccionNotificacion(n.accion);
   };
   window.notifAvisoCriticoEntendido=function(id){
     avanzarLoteAvisosCriticos();
@@ -320,9 +350,7 @@
     avanzarLoteAvisosCriticos();
     setN(id,{estado:'leida'});
     quitarTarjetaAvisoCritico(id);
-    if(aviso&&aviso.accion&&aviso.accion.fn){
-      try{ new Function(aviso.accion.fn)(); }catch(e){ console.error(e); }
-    }
+    if(aviso)ejecutarAccionNotificacion(aviso.accion);
     setTimeout(function(){
       if(!avisoCriticoGestion||!avisoCriticoGestion.esperandoDestino) return;
       var activa=document.querySelector('.page.active');
@@ -365,15 +393,28 @@
     lista.innerHTML=rows.map(function(n){
       var st=getN(n.id), estado=st.estado||'nueva', c=colorMap[n.color]||'var(--text2)';
       var badge=estado==='pospuesta'?'<span class="badge b-amber">Pospuesta '+svEsc(st.reaparece||'')+'</span>':estado==='resuelta'?'<span class="badge b-green">Resuelta</span>':estado==='archivada'?'<span class="badge">Archivada</span>':estado==='leida'?'<span class="badge b-blue">Leída</span>':'<span class="badge b-red">Nueva</span>';
-      var tieneAccion=!!(n.accion&&n.accion.fn);
-      var act=tieneAccion?'<button class="btn btn-sm" onclick="event.stopPropagation();notifAbrirAccion(\''+svEsc(n.id)+'\')" title="Abrir el elemento relacionado">'+svEsc(n.accion.label||'Ver')+'</button>':'';
-      var noLeida=estado==='leida'?'<button class="btn btn-sm" onclick="event.stopPropagation();marcarNoLeida(\''+svEsc(n.id)+'\')" title="Volver a mostrarla como pendiente"><i class="ti ti-mail"></i> Marcar no leída</button>':'';
-      return '<div '+(tieneAccion?'onclick="notifAbrirAccion(\''+svEsc(n.id)+'\')" title="Abrir el elemento relacionado"':'')+' style="background:var(--bg2);border:0.5px solid '+(n.urgente?'var(--red)':'var(--border)')+';border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start;opacity:'+(estado==='leida'||estado==='pospuesta'?'.75':'1')+';cursor:'+(tieneAccion?'pointer':'default')+'">'+
+      var tieneAccion=!!accionNotificacion(n.accion);
+      var attrs=' data-sv-notif-id="'+svEsc(n.id)+'"';
+      var act=tieneAccion?'<button class="btn btn-sm" data-sv-notif-action="abrir"'+attrs+' title="Abrir el elemento relacionado">'+svEsc(n.accion.label||'Ver')+'</button>':'';
+      var noLeida=estado==='leida'?'<button class="btn btn-sm" data-sv-notif-action="no-leida"'+attrs+' title="Volver a mostrarla como pendiente"><i class="ti ti-mail"></i> Marcar no leída</button>':'';
+      return '<div '+(tieneAccion?'data-sv-notif-action="abrir"'+attrs+' title="Abrir el elemento relacionado"':'')+' style="background:var(--bg2);border:0.5px solid '+(n.urgente?'var(--red)':'var(--border)')+';border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start;opacity:'+(estado==='leida'||estado==='pospuesta'?'.75':'1')+';cursor:'+(tieneAccion?'pointer':'default')+'">'+
         '<i class="ti '+svEsc(n.icono||'ti-bell')+'" style="font-size:20px;color:'+c+';flex-shrink:0;margin-top:2px"></i>'+
         '<div style="flex:1;min-width:0"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><strong style="font-size:13px;color:'+c+'">'+svEsc(n.titulo||'Notificación')+'</strong>'+badge+(n.urgente?'<span class="badge b-red">Urgente</span>':'')+'</div><div style="font-size:12px;color:var(--text2);line-height:1.4;margin-top:4px">'+svEsc(n.sub||'')+'</div><div style="font-size:11px;color:var(--text3);margin-top:6px">'+svEsc(n.tiempo||'')+'</div></div>'+
-        '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">'+act+noLeida+'<button class="btn btn-sm" onclick="event.stopPropagation();notifPosponer(\''+svEsc(n.id)+'\',1)" title="Ocultar hasta mañana y mostrarla nuevamente"><i class="ti ti-clock"></i> Recordar mañana</button><button class="btn btn-sm" onclick="event.stopPropagation();notifResolver(\''+svEsc(n.id)+'\')" title="Quitar de pendientes sin modificar el elemento relacionado"><i class="ti ti-check"></i> Marcar resuelta</button><button class="btn btn-sm" onclick="event.stopPropagation();notifArchivar(\''+svEsc(n.id)+'\')" title="Guardar fuera de pendientes; seguirá disponible en el filtro Archivadas"><i class="ti ti-archive"></i> Archivar</button></div></div>';
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">'+act+noLeida+'<button class="btn btn-sm" data-sv-notif-action="posponer"'+attrs+' title="Ocultar hasta mañana y mostrarla nuevamente"><i class="ti ti-clock"></i> Recordar mañana</button><button class="btn btn-sm" data-sv-notif-action="resolver"'+attrs+' title="Quitar de pendientes sin modificar el elemento relacionado"><i class="ti ti-check"></i> Marcar resuelta</button><button class="btn btn-sm" data-sv-notif-action="archivar"'+attrs+' title="Guardar fuera de pendientes; seguirá disponible en el filtro Archivadas"><i class="ti ti-archive"></i> Archivar</button></div></div>';
     }).join('');
   };
+  document.addEventListener('click',function(event){
+    var target=event.target?.closest?.('[data-sv-notif-action]'),list=document.getElementById('notif-lista');
+    if(!target||!list?.contains(target))return;
+    var id=target.getAttribute('data-sv-notif-id'),action=target.getAttribute('data-sv-notif-action');
+    if(!notifSource().some(function(n){return String(n.id)===id;}))return;
+    event.stopPropagation();
+    if(action==='abrir')global.notifAbrirAccion(id);
+    else if(action==='no-leida')global.marcarNoLeida(id);
+    else if(action==='posponer')global.notifPosponer(id,1);
+    else if(action==='resolver')global.notifResolver(id);
+    else if(action==='archivar')global.notifArchivar(id);
+  });
   window.filtrarNotifs = function(tipo){ renderNotificaciones(tipo || ''); };
   window.actualizarBadgeNotif = function(){
     var count=notifSource().filter(function(n){ var st=getN(n.id); return visibleNotif(n,'') && !st.estado; }).length;
