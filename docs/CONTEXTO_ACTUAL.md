@@ -2,7 +2,12 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
-## Incidente activo de sincronización · capacidad de Cloud Run
+## Ajuste de capacidad aplicado · 17/10/2026
+
+- Entrega en rama `codex/capacidad-servidor`. Servidor100% en `cotizador-capacidad-20261017`, máximo12 instancias en lugar de4; misma imagen digest d169bde2…, concurrencia1,2GiB/1CPU, secretos/configuración/permisos y14 etiquetas originales conservados. Candidata probada sin tráfico antes del corte autorizado; etiqueta temporal retirada. Reversión: `cotizador-pdf-0532bb93`, sin restaurar datos.
+- Pruebas:1.862 vigentes y12 específicas; cuatro lotes lentos ficticios y24 lecturas HTTP paralelas, aislamiento/autorización, ETag/Brotli/CORS y progreso de lotes. Con sesión local real:24/24 GET en candidata y24/24 en destino normal después del corte; pantallas Ventas/Presupuestos visibles, sin errores de consola observados. Primera muestra posterior:55 respuestas200/304, cero429/5xx. Sin iniciar actualizador real ni escrituras financieras/comerciales de prueba.
+- Detalles, límites, costos y seguimiento en [CAPACIDAD_SERVIDOR_20261017.md](CAPACIDAD_SERVIDOR_20261017.md). Vigilar durante uso normal prolongado del actualizador; no declarar validación universal por una muestra breve. La pestaña web/PDF se conserva intacta. Frontend/Hosting/aviso siguenv3.12.5: mejoras locales de PDF aún sin publicar.
+## Diagnóstico previo de sincronización · capacidad de Cloud Run (ajuste aplicado arriba)
 
 - 17/10/2026, aviso web «No se pudieron sincronizar los presupuestos». Pestaña de Gastos personales inspeccionada sin recargar ni tocar sus lecturas. El aviso sale del listener general de presupuestos del padre, no del importador PDF.
 - Cloud Logging confirma HTTP429 de infraestructura en `cotizador-pdf-0532bb93`, región `southamerica-east1`: solicitud abortada por no haber instancia disponible. En una muestra de diez minutos: 185 solicitudes no OPTIONS, 13 rechazos429 (6 presupuestos, 6 ventas, 1 cotizar-lote), 79 respuestas200 y 93 respuestas304. No fue un rechazo401/403 en esa muestra. Hubo cotizaciones por lote de hasta32,6 segundos; pueden competir con lecturas cortas, pero falta correlacionar ocupación por instancia para atribuir cada rechazo.
