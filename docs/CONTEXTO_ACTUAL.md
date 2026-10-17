@@ -2,7 +2,17 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
-## Simplificación de PDF · trabajo local posterior a v3.12.3
+## PDF en pantalla de lectura · revisión local vigente, sin publicar
+
+- Continúa `codex/pdf-escaneo-visual` desde `0229574cd33143ed3aaac81ba9016140f71938e7`. El titular rechazó ocultar el formulario anterior dentro de «Ver o corregir»: se reemplazó por una pantalla completa de lectura, aprovechando el ancho del espacio privado.
+- Resultado: banco/tarjeta, período, saldo ARS/USD separado, mínimo, vencimiento, consumos y tabla de movimientos. Sin inputs de importes, campos técnicos, advertencias de inferencia del período ni JSON. En móvil cada movimiento muestra concepto, fecha e importe de su moneda; cuotas solo cuando corresponden. Si no se reconoce tarjeta se permite asociar una existente, sin editar datos financieros.
+- Guardar usa el resultado original y conserva TEM y procedencia internamente, para el cálculo existente de escenarios. No se agregaron recomendaciones financieras nuevas ni se modificó el extractor. Lecturas con faltantes obligatorios o descuadre no escriben datos. Reintento conserva tarjeta/documento ya creados; duplicados de período requieren decisión explícita de revisión y conservan referencias anteriores.
+- Volver restaura escaneo y lista de resúmenes guardados. Una lectura no guardada sigue accesible como pendiente, sin volver a enviarla a la IA; puede descartarse explícitamente. Cerrar otros formularios no elimina esa lectura. Registros ya guardados se abren en lectura, sin crear una revisión por solo consultarlos.
+- Prueba aislada en `localhost:8781`: quince movimientos ficticios, ambas monedas, seguro, interés y cuota; tasas originales preservadas. Cero inputs en el resultado, sin modal; Volver conserva la lectura, guardar y reabrir desde la lista funcionan. En móvil390px, contenido375px sin desbordamiento horizontal. Datos de prueba solo en RAM, sin Firebase ni llamadas externas. Evidencia privada `C:/SisVentas/tmp/pdf-resultado-*.png`.
+- **1.837 pruebas aprobadas**, sintaxis/diff correctos. Nuevas pruebas ejercitan presentación, precisión/metadatos, guardado, reintento sin duplicar tarjeta/PDF y bloqueo de lecturas incompletas. No sustituye la verificación física de móvil ni una validación universal de bancos.
+- Espejo8766 actualizado. La pestaña anterior del usuario (`localhost:8766`, con formulario sin guardar) se conservó sin recargar; se abrió y comprobó otra en `http://localhost:8766/?pdf_resultado=2#/gastospersonales`, autenticada y lista en Importar resúmenes. No se importaron datos reales. **Producción sigue v3.12.3**. Siguiente paso: prueba del titular; preparar versión/cache y Hosting solo cuando corresponda publicar.
+
+## Primera propuesta de simplificación · reemplazada tras la prueba del titular
 
 - Rama `codex/pdf-escaneo-visual`, desde `d54ad22a08c1c74351507e2ccfd8587b53a1ed7e`. **Sin publicar**: producción continúa v3.12.3 y sus servidores. Cambios de interfaz y pruebas únicamente; sin nuevo servidor, reglas, importaciones ni pagos reales.
 - Al seleccionar/arrastrar PDF aparece un documento animado con barrido y estado visible en la zona de carga. La revisión no se abre hasta que termina la lectura. Cancelar invalida respuestas tardías; errores dejan Reintentar/Cancelar, sin propuesta parcial. Se impide reemplazar un PDF durante su lectura. Movimiento reducido respeta la preferencia del dispositivo.
