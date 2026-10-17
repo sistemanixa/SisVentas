@@ -2,14 +2,27 @@
 
 Actualizado: 16/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
-## Candidata v3.12.0 · avisos y errores como texto
+## v3.12.0 publicada y verificada · estado vigente
 
 - Rama codex/avisos-texto-v3120 desde e0b71d35ca523393af062b85feec5bc4fc19cf37. Rotación de versión obtenida con el script vigente; v3.11.20 permanece inmutable. Servidor cotizador-load-d849afb4, permisos y datos sin cambios; este bloque solo requiere cliente/Hosting/aviso.
 - notify() y panel de diagnóstico ya no insertan mensajes como HTML; el error del generador de Notificaciones escapa su mensaje. Se conservan estilos/duración/icono y las filas anteriores de diagnóstico. La búsqueda de consumidores explícitos no encontró necesidad de HTML en los avisos. No se modifican operaciones ni estados de notificaciones.
 - 1.778 generales aprobadas, sintaxis/diff/coherencia correctos. Fixture puro: etiquetas literales, cero imágenes/scripts, duración/cierre y ancho390. Excepción de MutationObserver observada en el contenedor del fixture móvil sin fuente precisa; no se reproduce en la aplicación completa y no se oculta ni se cuenta como validación física. Candidata completa de sesión propia cargada y sin errores de consola observados. Detalles: [AVISOS_TEXTO_V3120.md](AVISOS_TEXTO_V3120.md).
-- Publicar únicamente tras verificar paquete limpio y luego activos/cabeceras/aviso; autorización de publicar al finalizar vigente. No se necesita alterar servidor, reglas, credenciales o datos. Las pruebas físicas consultadas al titular siguen pendientes de respuesta; no darlas por hechas. CSP inline y carga de adjuntos bajo demanda conservan sus límites documentados.
+- Fuente **08396535371a6a13370471369185cca091f51f28** integrada en origin/main. Hosting **sites/nixa-sisventas-seguro/versions/29949986e443a2aa**, 606 activos públicos, cinco hashes subidos. Diez activos críticos comparados, cinco cabeceras verificadas, cuatro rutas internas 404. Web/SW/marcador y aviso **v3.12.0-firebase** sincronizados. Servidor **cotizador-load-d849afb4**, 100% y 14 etiquetas originales; reglas/DNS/credenciales/datos sin cambios por este cliente.
+- Ventana normal efectivamente recargada canónica12, Cuenta corriente **223 filas**, preparación terminada y regreso a Notificaciones. Conserva cuatro errores de fetch anteriores (02:05–02:09 UTC, fuente app.v3.11.20); no aparecieron errores nuevos en esta comprobación posterior a verificar web a las 02:13 UTC. Causa de ese incidente sin confirmar: no atribuirlo a la corrección de texto ni declararlo resuelto por una recarga. Consulta agregada del servidor actualizado: cero 5xx y cero ERROR observados durante los 30 minutos revisados.
+- Evidencias privadas en C:/SisVentas/tmp/release-v3120, fuera de Git/Hosting. Espejo 8766 canónico12 y páginas de perfilado ignoradas conservadas. Reversión compatible del cliente: fuente20 daa07e224fc7f8316455657bddc7414e163796ac, sin restaurar base. Copia ajena app.v3.10.33 preservada.
 
-## Servidor de carga publicado · cliente continúa v3.11.20
+### Pendientes vigentes, por prioridad
+
+1. Pruebas físicas por HTTPS: cámara trasera, etiquetas y bip, teclado móvil, sesiones directas Mauro/Osmar y formatos bancarios privados. Consulta de disponibilidad pendiente de respuesta; no compartir claves ni crear operaciones reales para probar. Fixtures sintéticos ya documentados.
+2. Incidente intermitente de fetch: conservar timestamps/fuente y correlacionar si reaparece sin registrar tokens ni cuerpos privados. Carga actual recuperada, causa definitiva sin confirmar.
+3. Primera carga: transporte y consultas innecesarias mejorados; sigue trayendo historia comercial completa. Diseñar detalle/adjuntos bajo demanda preservando concurrencia, edición, comprobantes originales, impresión y exportación antes de recortar DTO. No prometer resolución al 100%.
+4. CSP: unsafe-eval retirado y avisos/errores corregidos, pero **unsafe-inline permanece**. Migrar eventos/scripts embebidos y verificar consumidores antes de imponer nonces/política estricta.
+5. Precaché histórico js/app.js: aproximadamente 2,6 MB, no es aplicación activa pero permanece en SHELL. No modificado; retirada futura requiere compatibilidad con SW antiguos y carga fría/offline. No identificado como causa medida de carga caliente.
+6. Ampliaciones sin definir: cobros parciales, stock, vínculos a listas, documentos ajenos y borradores entre PC. No incluidas implícitamente en la auditoría.
+
+Próximo paso concreto: completar punto1 con dispositivo disponible; correlacionar punto2 si reaparece y diseñar contrato del punto3 con pruebas de consumidores. No declarar puntos3–6 terminados por publicar12.
+
+## Antecedente: servidor de carga publicado con cliente v3.11.20
 
 - Fuente **d849afb4d843ed3cdc8c6024e89d50abb9136f58**, integrada en origin/main. Activo **cotizador-load-d849afb4**, 100% y las 14 etiquetas originales; br-v31120 retirada. Imagen **sha256:a333cc3895c511a494546029b1783aa2ae0525a5e27a0cdd8ac339c69199c730**, build **2951fee9-f536-4663-8172-415570ba79aa**. Variables, secretos, cuenta, recursos, CPU sin throttling y minScale1 conservados; reglas y DNS sin cambios. Hosting/cliente/aviso siguen v3.11.20 (87d97f7e4a9e9d59); no existe cliente v3.12.0 por el nombre de rama.
 - API autenticada: Ventas y Presupuestos conservaron cuerpo completo y ETag exactos; transferencia reducida de 2.050.318 a 1.808.223 bytes y de 597.712 a 450.096. Ambos 304 sin cuerpo; perfil/Proyectos/Comprobantes/acceso privado 200, cinco rutas anónimas 401 y CORS correcto. UI final Dashboard y Cuenta corriente223 filas, sin errores de consola observados. No se guardaron operaciones reales.

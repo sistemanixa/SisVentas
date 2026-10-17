@@ -1,6 +1,6 @@
 # Corte final de auditoría, 16/10/2026
 
-**Estado actualizado 16/10/2026: el corte de seguridad y la transición HTTPS/DNS están aplicados. El cliente publicado es v3.11.19. Este documento conserva debajo los antecedentes del corte v3.11.11; el estado vigente y las revisiones exactas están en CONTEXTO_ACTUAL.md.**
+**Estado actualizado 16/10/2026: el corte de seguridad y la transición HTTPS/DNS están aplicados. El cliente publicado es v3.12.0 (fuente 08396535371a6a13370471369185cca091f51f28); servidor activo cotizador-load-d849afb4. CSP conserva unsafe-inline; pruebas físicas y evolución de primera carga siguen pendientes. Este documento conserva debajo los antecedentes del corte v3.11.11; el estado vigente y las revisiones exactas están en CONTEXTO_ACTUAL.md.**
 
 Revalidación posterior: 402 GET limitados por UID en seis identidades coincidieron con permisos por dominio. La comprobación no sustituye un login propio en teléfono físico ni el recorrido de todos los formularios. El rendimiento de primera carga continúa en evaluación; no declarar lentitud resuelta al 100%.
 

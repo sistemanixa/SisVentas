@@ -1,4 +1,4 @@
-# Avisos y errores de texto · candidata v3.12.0
+# Avisos y errores de texto · v3.12.0 publicada
 
 Rama codex/avisos-texto-v3120 desde e0b71d35ca523393af062b85feec5bc4fc19cf37. El siguiente número se obtuvo con siguiente-version.ps1: después de v3.11.20 corresponde v3.12.0. No se modifica la aplicación inmutable20. Servidor continúa cotizador-load-d849afb4 con Brotli y filtro del observador; no requiere despliegue de servidor, reglas, IAM o DNS.
 
@@ -19,3 +19,9 @@ El panel de diagnóstico anexaba event.message con innerHTML y reinterpretaba ad
 ## Límites de cierre
 
 Esta corrección y la retirada de unsafe-eval no convierten toda la aplicación en una CSP estricta sin scripts/eventos embebidos: unsafe-inline sigue siendo una compatibilidad declarada. La separación de adjuntos/detalle comercial tampoco se activó: no eliminar documentos del DTO ni perderlos al editar/exportar. Las pruebas físicas de sesiones de empleados, teclado/cámara/sonido y plantillas bancarias privadas siguen necesitando participación del titular; no cambiar contraseñas ni cargar datos reales para reemplazar esa evidencia. No declarar una auditoría absoluta al 100% por una suite verde.
+
+## Publicación comprobada
+
+Fuente 08396535371a6a13370471369185cca091f51f28 integrada en origin/main. Hosting sites/nixa-sisventas-seguro/versions/29949986e443a2aa: 606 activos, cinco hashes nuevos, diez activos críticos comparados, cinco cabeceras y cuatro rutas internas 404. Aviso v3.12.0-firebase sincronizado después de verificar web. Servidor cotizador-load-d849afb4, permisos y datos sin cambios por este cliente. Ventana normal recargada canónica12, Cuenta corriente223 filas y retorno a Notificaciones.
+
+Conservados cuatro errores de fetch previos de app.v3.11.20 (02:05–02:09 UTC); no hubo errores nuevos observados después de publicar12. No se afirma que la corrección de texto repare ese incidente de red sin diagnóstico causal. Evidencia privada en C:/SisVentas/tmp/release-v3120. Reversión compatible: fuente pública20 daa07e224fc7f8316455657bddc7414e163796ac, sin restaurar datos.
