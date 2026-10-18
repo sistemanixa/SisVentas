@@ -4,6 +4,12 @@ Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Co
 
 ## v3.12.9 publicada · cierre de la auditoría de interacciones
 
+### Cobranzas compacta en tablet vertical · v3.12.10 local
+
+- Base `88a731825e6ed1f0ea80f38a4a2a8fb9c33f7c66`, misma rama `codex/auditoria-interacciones`. CSS exclusivo de Registrar pago, entre601 y1100px en orientación vertical: venta/fecha juntas, cliente ancho completo, total/cobrado/saldo en una fila, monto/medio juntos y saldo posterior/referencia debajo; adjunto y panel USD conservan ancho completo. Botones de porcentajes y registro con mínimo44px en esa vista. No cambia orden DOM, identificadores, eventos, validaciones ni cálculos. Celular y escritorio conservan su distribución anterior.
+- Navegador ficticio:820×1180,601×1000,390×844 y1136×900 sin desborde horizontal. Selección de venta ficticia1000 con350 cobrados:50% de650 completa325 y deja325. USD con cotización ficticia1500 y monto0,10 deja500ARS. Panel USD completo, referencia/monto/foco conservados al redimensionar y campos informativos siguen readonly. Sin pulsar Registrar ni adjuntar documentos reales. Fixture Cuenta corriente de prueba ahora aporta cotización ficticia para repetir USD.
+-1.902 pruebas vigentes aprobadas, sintaxis/diff y versión coherentes. Espejo8766:364 activos HTTP idénticos; ventana habitual actualizada en Cobranzas a820×1180, formulario de606px, tres importes en la misma fila y botones44px. Captura privada en tmp. Sin publicación ni escrituras reales; producción sigue v3.12.9. Próximo paso: revisión del titular en esa misma ventana; pruebas con touch/teclado físicos siguen pendientes.
+
 ### Gesto fino para abrir menú · v3.12.10 local
 
 - Base `9e9ed4d58b8847b0111462daf4742bd33c51b5dc`, rama `codex/auditoria-interacciones`. Apertura táctil solo iniciando entre0 y12px del borde izquierdo, recorrido horizontal mínimo64px, duración máxima650ms y deriva vertical máxima24px, con predominio horizontal2,5:1. No agrega una capa invisible sobre controles ni cambia touch-action global. Scroll vertical, retroceso, multitáctil, cancelación y rotación descartan el gesto. Inactivo en escritorio, sin sesión o con modales; excluye fotos, controles y ancestros con desplazamiento horizontal.

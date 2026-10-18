@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   ['Gesto desde borde (ficticio)',()=>gestoLateralFicticio(6)],
   ['Gesto fuera del borde (ficticio)',()=>gestoLateralFicticio(40)],
   ['Cuenta corriente de prueba',async()=>{
+   window.TIPO_CAMBIO_CONFIG={oficial:1500,dolarConversion:'oficial'};
    const ventas=[{fbKey:'v1',id:'V-DEMO',clienteFbKey:'c',cliente:'Cliente ficticio',fecha:'2026-10-01',total:1000},{fbKey:'v2',id:'V-OTRA',clienteFbKey:'other',cliente:'Otro cliente ficticio',fecha:'2026-10-01',total:1500}];
    const pagos=[{fbKey:'p1',venta:'V-DEMO',ventaFbKey:'v1',clienteFbKey:'c',cliente:'Cliente ficticio',fecha:'2026-10-17',medio:'Transferencia',monto:200,comprobanteRef:'doc1'},{fbKey:'p2',venta:'V-DEMO',ventaFbKey:'v1',clienteFbKey:'c',cliente:'Cliente ficticio',fecha:'2026-10-16',medio:'Efectivo',monto:100},{fbKey:'p3',venta:'V-DEMO',ventaFbKey:'v1',clienteFbKey:'c',cliente:'Cliente ficticio',fecha:'2026-10-17',medio:'Transferencia',monto:50,comprobanteRef:'doc2'},{fbKey:'other',venta:'V-OTRA',ventaFbKey:'v2',clienteFbKey:'other',cliente:'Otro cliente ficticio',fecha:'2026-10-17',medio:'Transferencia',monto:500}];
    fixtureRoot.sisventas.ventas=Object.fromEntries(ventas.map(v=>[v.fbKey,v]));fixtureRoot.sisventas.pagos=Object.fromEntries(pagos.map(p=>[p.fbKey,p]));

@@ -42,7 +42,7 @@
 <link rel="stylesheet" href="./css/app.css?v=3.12.9-interacciones">
 <link rel="stylesheet" href="./css/surveys.css?v=1">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.8.20-menu2">
-<link rel="stylesheet" href="./css/surface-scroll.css?v=3.12.10-cuenta">
+<link rel="stylesheet" href="./css/surface-scroll.css?v=3.12.10-tablet">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
@@ -1565,10 +1565,10 @@
               </div>
             </div>
             <div class="fg"><label>Fecha de pago</label><input type="date" id="cob-fecha"></div>
-            <div class="fg"><label>Cliente</label><input type="text" id="cob-cliente" readonly placeholder="(se carga al seleccionar venta)" style="color:var(--text2)"></div>
-            <div class="fg"><label>Total de la venta</label><input type="text" id="cob-total-venta" readonly placeholder="—" style="font-weight:500"></div>
-            <div class="fg"><label>Ya cobrado</label><input type="text" id="cob-ya-cobrado" readonly placeholder="—" style="color:var(--green)"></div>
-            <div class="fg"><label>Saldo pendiente</label><input type="text" id="cob-saldo" readonly placeholder="—" style="color:var(--amber);font-weight:500"></div>
+            <div class="fg cob-field-cliente"><label>Cliente</label><input type="text" id="cob-cliente" readonly placeholder="(se carga al seleccionar venta)" style="color:var(--text2)"></div>
+            <div class="fg cob-field-resumen"><label>Total de la venta</label><input type="text" id="cob-total-venta" readonly placeholder="—" style="font-weight:500"></div>
+            <div class="fg cob-field-resumen"><label>Ya cobrado</label><input type="text" id="cob-ya-cobrado" readonly placeholder="—" style="color:var(--green)"></div>
+            <div class="fg cob-field-resumen"><label>Saldo pendiente</label><input type="text" id="cob-saldo" readonly placeholder="—" style="color:var(--amber);font-weight:500"></div>
             <div class="fg">
               <div class="cob-monto-head">
                 <label id="cob-monto-label">Monto a cobrar ahora (ARS)</label>
