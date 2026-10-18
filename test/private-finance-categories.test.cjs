@@ -3,6 +3,22 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const {M,seed,run,statement,actor,now,command,memoryDB}=require('./helpers/private-finance-fixtures.cjs');
 const movement={id:'charge-example',date:'2026-10-01',concept:'MAPFRE 000123',amount:100001,currency:'ARS',kind:'Consumo',origin:'PDF',page:1};
 const initial=()=>run(seed(),'statement-save',{...statement,movements:[movement]});
+test('categoría propia se conserva, se reutiliza y no cambia registros financieros al crearla',()=>{
+ const before=initial(),s=run(before,'category-save',{id:'pets',name:'  Mascotas  y   cuidados  '});assert.equal(s.categories[0].name,'Mascotas y cuidados');
+ for(const group of ['movements','statements','payments','insurances','documents'])assert.deepEqual(s[group],before[group]);
+ const classified=run(s,'movement-classify',{id:movement.id,category:'mascotas y cuidados'});assert.equal(classified.movements[0].category,'Mascotas y cuidados');assert.equal(M.totalDebt(classified),M.totalDebt(before));
+ const hydrated=M.hydrate(JSON.parse(JSON.stringify(classified)),actor.uid);assert.ok(M.categoryNames(hydrated).includes('Mascotas y cuidados'));assert.equal(hydrated.categories[0].ownerUid,actor.uid);assert.equal(hydrated.history[1].action,'category-save');
+});
+test('categorías duplicadas ignoran espacios, mayúsculas y acentos; no renombran IDs usados',()=>{
+ let s=run(initial(),'category-save',{id:'coffee',name:'Café y salidas'});s=run(s,'category-save',{id:'coffee-other',name:'cafe Y salidas'});assert.equal(s.categories.length,1);
+ s=run(s,'category-save',{id:'default-duplicate',name:'ALIMENTACION'});assert.equal(s.categories.length,1);assert.equal(M.resolveCategory(s,'alimentacion'),'Alimentación');
+ assert.throws(()=>run(s,'category-save',{id:'coffee',name:'Otro nombre'}),e=>e.statusCode===409);
+});
+test('rechaza nombres vacíos, extensos, código y categorías inexistentes desde servidor',()=>{
+ for(const name of ['', '   ', 'A'.repeat(61),'<script>alert(1)</script>','__proto__'])assert.throws(()=>run(initial(),'category-save',{name}),e=>e.statusCode===400);
+ assert.throws(()=>run(initial(),'movement-classify',{id:movement.id,category:'No creada'}),e=>e.statusCode===400);
+ assert.deepEqual(M.hydrate({...seed(),categories:undefined},actor.uid).categories,[]);
+});
 test('sugiere aseguradoras abreviadas sin modificar importes ni confirmar pólizas',()=>{
  for(const concept of ['MAPFRE 000123','ZURICH 123','LA CAJA','FEDERACION PAT 001','Galicia Seguro','SEGUROS SUDAM','BBVA SEGUROS']){const m={...movement,concept},before=structuredClone(m);assert.equal(M.suggestCategory(m),'Seguro');assert.deepEqual(m,before);}
  for(const concept of ['BBVA','BANCO GALICIA','Caja de herramientas','SUPERMERCADO','PAGO ZURICH'])assert.equal(M.suggestCategory({...movement,concept,kind:concept==='PAGO ZURICH'?'Pago del período anterior':'Consumo'}),'');
@@ -31,7 +47,7 @@ test('no permite categorizar pagos, intereses, impuestos o conversiones como seg
 });
 test('clasificación de una lectura pendiente queda local hasta Guardar resumen',async()=>{
  const fs=require('fs'),vm=require('vm'),source=fs.readFileSync('js/modules/private-finance-ui.js','utf8'),calls=[];
- const context={M,stage:{movements:[structuredClone(movement)]},dialogContext:{fromStage:true,movement:movement.id},FormData:class {constructor(){return [['category','Alimentación']][Symbol.iterator]();}},closeModal(){calls.push('cerrar');},render(){},toast(){},mutate(){throw Error('No debe escribir en el servidor');}};
+ const context={M,state:seed(),stage:{movements:[structuredClone(movement)]},dialogContext:{fromStage:true,movement:movement.id},FormData:class {constructor(){return [['category','Alimentación']][Symbol.iterator]();}},closeModal(){calls.push('cerrar');},render(){},toast(){},mutate(){throw Error('No debe escribir en el servidor');}};
  vm.createContext(context);vm.runInContext(source.slice(source.indexOf('async function submit(f){'),source.indexOf('function showError(')),context);
  await context.submit({dataset:{kind:'movementcategory'}});assert.equal(context.stage.movements[0].category,'Alimentación');assert.equal(context.stage.movements[0].amount,movement.amount);assert.deepEqual(calls,['cerrar']);
 });

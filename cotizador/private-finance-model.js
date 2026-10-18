@@ -1,6 +1,6 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.SVPrivateFinanceModel=api;})(typeof globalThis==='object'?globalThis:this,function(){
  'use strict';
- const groups=['cards','statements','movements','payments','insurances','installments','expenses','strategies','documents','history'];
+ const groups=['cards','statements','movements','payments','insurances','installments','expenses','strategies','documents','categories','history'];
  const fail=(statusCode,message)=>{throw Object.assign(Error(message),{statusCode});};
  const copy=v=>JSON.parse(JSON.stringify(v));
  const key=v=>{if(typeof v!=='string'||!v||v.length>128||!/^[a-zA-Z0-9_-]+$/.test(v)||['__proto__','constructor','prototype'].includes(v))fail(400,'Identificador inválido');return v;};
@@ -9,6 +9,10 @@
  const money=(v,nullable=false,signed=false)=>{if(v==null&&nullable)return null;if(!Number.isSafeInteger(v)||Math.abs(v)>1e13||!signed&&v<0)fail(400,'Importe inválido: debe conservar centavos');return v;};
  const currency=v=>one(v,['ARS','USD']);
  const movementCategories=Object.freeze(['','Seguro','Servicios','Alimentación','Salud','Transporte','Hogar','Educación','Ocio','Otros']);
+ const categoryKey=name=>String(name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es').replace(/\s+/g,' ').trim();
+ function categoryName(value){const name=text(value,120,true).normalize('NFC').replace(/\s+/g,' ');if(name.length>60||!/^\p{L}[\p{L}\p{N} .,&()/'_-]*$/u.test(name))fail(400,'Usá un nombre de categoría de hasta 60 caracteres');return name;}
+ const categoryNames=s=>[...movementCategories,...Object.values(s?.categories||{}).map(c=>c.name)];
+ function resolveCategory(s,value){if(value==='')return '';const name=categoryName(value),existing=categoryNames(s).find(c=>categoryKey(c)===categoryKey(name));if(existing===undefined)fail(400,'Creá primero la categoría');return existing;}
  const canClassify=m=>!!m&&!m.postClose&&m.amount>0&&['Consumo','Cuota','Seguro','Débito a confirmar'].includes(m.kind);
  function suggestCategory(m){
   if(!canClassify(m)||m.category)return '';
@@ -62,7 +66,7 @@
    if(old)current.versions.push({at:stamp,previous:{...old,versions:undefined}});
    for(const c of ['ARS','USD']){const base=c==='ARS'?current.total:current.usd;if(base!=null&&base<paid(s,current,c)&&!current.reconciliation)fail(409,'El saldo es menor que los pagos registrados. Explicá la conciliación antes de continuar');}
    if(!Array.isArray(d.movements)||d.movements.length>1500)fail(400,'Revisá los movimientos (hasta 1500 por resumen)');
-   const movements=d.movements.map(m=>({id:key(m.id),statement:entityId,card,date:date(m.date),concept:text(m.concept,300,true),ref:text(m.ref||'',160),amount:money(m.amount,false,true),currency:currency(m.currency),kind:one(m.kind,['Consumo','Seguro','Débito a confirmar','Cuota','Interés','Impuesto','Pago del período anterior','Conversión','Ajuste']),category:one(m.category??s.movements.find(old=>old.id===m.id)?.category??'',movementCategories),origin:m.origin==='PDF'?'PDF':'Manual desde PDF',page:m.page==null?null:money(m.page),current:m.current==null?null:Number(m.current),total:m.total==null?null:Number(m.total),...(m.dateSource==='cierre'?{dateSource:'cierre'}:m.origin==='PDF'&&m.dateSource==='documento'&&m.dateEvidence?{dateSource:'documento',dateEvidence:{date:date(m.dateEvidence.date),page:money(m.dateEvidence.page),original:text(m.dateEvidence.original,500,true)}}:{}),postClose:false}));
+   const movements=d.movements.map(m=>({id:key(m.id),statement:entityId,card,date:date(m.date),concept:text(m.concept,300,true),ref:text(m.ref||'',160),amount:money(m.amount,false,true),currency:currency(m.currency),kind:one(m.kind,['Consumo','Seguro','Débito a confirmar','Cuota','Interés','Impuesto','Pago del período anterior','Conversión','Ajuste']),category:resolveCategory(s,m.category??s.movements.find(old=>old.id===m.id)?.category??''),origin:m.origin==='PDF'?'PDF':'Manual desde PDF',page:m.page==null?null:money(m.page),current:m.current==null?null:Number(m.current),total:m.total==null?null:Number(m.total),...(m.dateSource==='cierre'?{dateSource:'cierre'}:m.origin==='PDF'&&m.dateSource==='documento'&&m.dateEvidence?{dateSource:'documento',dateEvidence:{date:date(m.dateEvidence.date),page:money(m.dateEvidence.page),original:text(m.dateEvidence.original,500,true)}}:{}),postClose:false}));
    const seen=new Set();for(const m of movements){if(seen.has(m.id)||s.movements.some(x=>x.id===m.id&&x.statement!==entityId))fail(400,'Movimiento repetido');seen.add(m.id);if(m.category&&!canClassify(m))fail(400,'Sólo se clasifican consumos del resumen');if(m.date>close&&!(printedMovementDate(m)&&m.date<=due))fail(400,'Un movimiento posterior al cierre requiere fecha impresa verificable y no superar el vencimiento');if(m.dateSource==='cierre'&&m.date!==close)fail(400,'La fecha del cargo debe coincidir con el cierre');if(m.kind==='Cuota'&&(!Number.isInteger(m.current)||!Number.isInteger(m.total)||m.current<1||m.current>m.total||m.total>120))fail(400,'Cuotas inválidas');if(m.kind!=='Cuota')m.current=m.total=null;}
    for(const m of s.movements.filter(x=>x.statement===entityId&&!x.postClose&&!seen.has(x.id))){if(s.expenses.some(x=>x.linkedMovement===m.id)||s.insurances.some(x=>(x.charges||[]).includes(m.id))||s.installments.some(x=>x.movement===m.id))fail(409,'Un movimiento eliminado tiene vínculos: conservá su referencia o conciliá primero');}
    const delta=['ARS','USD'].filter(c=>{const base=c==='ARS'?current.total:current.usd,previous=c==='ARS'?current.previous:current.extracted.previousUSD?.value;return previous!=null&&base!=null&&money(previous,true)+movements.filter(m=>m.currency===c).reduce((t,m)=>t+m.amount,0)!==base;});
@@ -93,10 +97,13 @@
    const p=find('payments',entityId),st=find('statements',p.statement);if(!p.initial||p.status==='Anulado')fail(400,'Solo se completan mínimos declarados activos');const dt=date(d.date,true);if(dt&&(dt<st.close||dt>today(stamp)))fail(400,'Fecha de pago inválida');save('payments',{...p,date:dt,note:note()});
   }else if(command.type==='payment-void'){
    const p=find('payments',entityId);if(p.status==='Anulado')fail(409,'El registro ya está anulado');save('payments',{...p,status:'Anulado',voidReason:text(d.reason,1000,true),voidAt:stamp});
+  }else if(command.type==='category-save'){
+   const name=categoryName(d.name),existing=categoryNames(s).find(c=>categoryKey(c)===categoryKey(name));
+   if(existing===undefined){if(s.categories.some(c=>c.id===entityId))fail(409,'Esa categoría ya existe. Actualizá antes de crear otra.');if(s.categories.length>=100)fail(400,'Ya tenés 100 categorías propias');save('categories',{id:entityId,name});}
   }else if(command.type==='movement-classify'){
    const movement=find('movements',entityId);find('statements',movement.statement);
    if(!canClassify(movement))fail(400,'Sólo se clasifican consumos del resumen');
-   const category=one(d.category,movementCategories);
+   const category=resolveCategory(s,d.category);
    save('movements',{...movement,category});
    if(category==='Seguro'&&!s.insurances.some(i=>Object.values(i.charges||{}).includes(movement.id))){
     save('insurances',{id:key(movement.id+'-insurance'),name:movement.concept,ref:movement.ref||'',coverage:'',amount:movement.amount,currency:movement.currency,card:movement.card,classification:'Por confirmar',decision:'Evaluar',cancelDate:null,note:'Clasificado desde el resumen. Cobertura y periodicidad pendientes.',charges:[movement.id],history:[],origin:'Clasificación de movimiento'});
@@ -129,5 +136,5 @@
   if(JSON.stringify(s).length>6e6||Object.keys(s.operations).length>10000)fail(413,'El espacio requiere archivo histórico antes de agregar más registros');
   return {state:copy(s),replayed:false};
  }
- return {groups,key,text,money,date,period,amount,rate,fee,empty,hydrate,latest,paid,balance,totalDebt,quota,shift,project,apply,movementCategories,canClassify,suggestCategory};
+ return {groups,key,text,money,date,period,amount,rate,fee,empty,hydrate,latest,paid,balance,totalDebt,quota,shift,project,apply,movementCategories,canClassify,suggestCategory,categoryNames,resolveCategory};
 });
