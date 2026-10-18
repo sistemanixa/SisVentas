@@ -4009,14 +4009,7 @@ function fbCargarEmpleados() {
     var todos = Object.entries(data).map(function(e) {
       return Object.assign({ fbKey: e[0] }, e[1]);
     });
-    var conLegajo    = todos.filter(function(e){ return e.legajo; });
-    var sinLegajo    = todos.filter(function(e){ return !e.legajo; });
-    var maxLeg       = conLegajo.length ? Math.max.apply(null, conLegajo.map(function(e){ return parseInt(e.legajo)||0; })) : 0;
-    sinLegajo.sort(function(a,b){ return (a.ts||0)-(b.ts||0); }).forEach(function(e) {
-      maxLeg++;
-      if(svPuedeLeerDominio('empleados') && window.tienePermiso('empleados.editar')) window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/empleados/'+e.fbKey), { legajo: maxLeg });
-      e.legajo = maxLeg;
-    });
+    // Una lectura no asigna legajos ni modifica fichas históricas.
     var porNombre = {};
     todos.forEach(function(e) {
       var clave = (e.nombre||'').toLowerCase().trim().replace(/\s+/g,' ');
@@ -4038,7 +4031,6 @@ function fbCargarEmpleados() {
     actualizarCargosEmpleadosTooltip();
     renderAvisoProximasVacaciones();
     renderAvisoAumentoValorHora();
-    if (typeof migrarComisionesEmpleadosDesdeFichas === 'function') migrarComisionesEmpleadosDesdeFichas();
     var panelComisionesActual = document.getElementById('cfg-comisiones');
     if (panelComisionesActual && panelComisionesActual.style.display !== 'none' && typeof renderComisionesConfig === 'function') renderComisionesConfig();
 
@@ -4062,7 +4054,7 @@ function fbCargarEmpleados() {
       Object.values(empData).forEach(function(e) {
         if (e.activo !== false) {
           var selected = !!(empleadoUsuarioActual && String(empleadoUsuarioActual.fbKey) === String(e.fbKey)) || (e.nombre||'').toLowerCase().trim() === (currentUser||'').toLowerCase().trim();
-          opts += '<option value="'+e.fbKey+'"'+(selected?' selected':'')+'>'+escapeHTML(e.nombre)+' (Leg. '+e.legajo+')</option>';
+          opts += '<option value="'+e.fbKey+'"'+(selected?' selected':'')+'>'+escapeHTML(e.nombre)+(e.legajo?' (Leg. '+e.legajo+')':'')+'</option>';
           if (selected) fbKeyUsuarioActual = e.fbKey;
         }
       });
@@ -4075,7 +4067,7 @@ function fbCargarEmpleados() {
       var opts2 = '<option value="">— Ninguno —</option>';
       Object.values(empData).forEach(function(e) {
         if (e.activo !== false) {
-          opts2 += '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+' (Leg. '+e.legajo+')</option>';
+          opts2 += '<option value="'+e.fbKey+'">'+escapeHTML(e.nombre)+(e.legajo?' (Leg. '+e.legajo+')':'')+'</option>';
         }
       });
       selCom2.innerHTML = opts2;
@@ -5789,6 +5781,8 @@ function svCargarDatosDePaginaActual() {
   var pagina = typeof _svPaginaDesdeRuta === 'function' ? _svPaginaDesdeRuta() : '';
   if (!permisoModulo(pagina)) return;
   var tareas = {
+    clientes: [fbCargarClientes],
+    kits: [cargarKits, fbCargarProductos],
     actualizadorprecios: [fbCargarProductos, fbCargarProveedores],
     productos: [fbCargarProductos, fbCargarProveedores, fbCargarCategorias],
     gastos: [fbCargarGastos, fbCargarEmpleados, fbCargarPagos],
@@ -5899,6 +5893,7 @@ async function fbSincronizarAhora() {
   flight.promise=Promise.resolve().then(async function() {
     if(!flight.valid())return;
     var iniciada=fbCargarTodo(),keys=[],requests=[];
+    if(!iniciada && typeof svCargarDatosDePaginaActual==='function' && typeof _svPaginaDesdeRuta==='function' && _svPaginaDesdeRuta()!=='usuarios')svCargarDatosDePaginaActual();
     function solicitar(work){requests.push(Promise.resolve().then(function(){if(flight.valid())return work();}));}
     if(!iniciada && window.SVCommercialOwnership){['ventas','presupuestos'].forEach(function(domain){if(svPuedeLeerDominio(domain)){keys.push(domain);solicitar(function(){return window.SVCommercialOwnership.refresh(domain,{joinPending:true});});}});}
     if(!iniciada && window.SVUserDirectory?.enabled){keys.push('usuarios');solicitar(function(){return window.SVUserDirectory.refresh();});}
@@ -10730,7 +10725,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.12.20',date:'18/10/2026',title:'Coherencia de sincronización',notes:Object.freeze(['Borradores con envíos ordenados y recuperación por acción. Las tareas de una sesión anterior se descartan al volver a ingresar.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ir al inicio'})}),
+ Object.freeze({version:'v3.12.20',date:'18/10/2026',title:'Coherencia de sincronización',notes:Object.freeze(['Borradores con envíos ordenados, recuperación de carga y descarte de tareas de otra sesión. El menú conserva la posición de sus opciones; las consultas no modifican fichas ni porcentajes.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ir al inicio'})}),
  Object.freeze({version:'v3.12.19',date:'18/10/2026',title:'Consultas por acción',notes:Object.freeze(['Se retiran las consultas periódicas de historiales y directorios. Actualizá los datos al abrir el módulo o desde Sincronizar ahora.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ir al inicio'})}),
  Object.freeze({version:'v3.12.18',date:'18/10/2026',title:'Pie del espacio personal',notes:Object.freeze(['El usuario y el retorno del espacio personal siguen el diseño compacto de Distribuidora.']),feature:Object.freeze({page:'gastospersonales',actionLabel:'Ver gastos personales'})}),
  Object.freeze({version:'v3.12.17',date:'18/10/2026',title:'Productos y espacio personal',notes:Object.freeze(['Más vendidos abre un ranking por período, con fechas y cantidad de ventas, sin mano de obra.','Productos identifica los filtros activos y permite volver a ver todos.','El espacio personal muestra tu usuario y el retorno a SisVentas en el pie del menú.']),feature:Object.freeze({page:'productos',actionLabel:'Ver productos'})}),
@@ -27994,12 +27989,21 @@ window._svModuleListeners = window._svModuleListeners || {};
 function _suscribirModuloUnaVez(clave, ruta, callback, onError) {
   if (!window.fbDB || !clave || !ruta) return false;
   if (typeof window._svModuleListeners[clave] === 'function') return false;
-  window._svModuleListeners[clave] = window.fbOnValue(window.fbRef(window.fbDB, ruta), callback, function(error) {
-    window._svModuleListeners[clave] = null;
-    if (typeof onError === 'function') onError(error);
-    console.error('[' + clave + '] No se pudo sincronizar', error);
-  });
-  return true;
+  var closed=false,off;
+  var stop=function(){if(closed)return;closed=true;if(typeof off==='function')off();};
+  window._svModuleListeners[clave]=stop;
+  try {
+    off=window.fbOnValue(window.fbRef(window.fbDB,ruta),function(snap){if(!closed)return callback(snap);},function(error){
+      if(closed)return;stop();
+      if(window._svModuleListeners[clave]===stop)window._svModuleListeners[clave]=null;
+      if(typeof onError==='function')onError(error);
+      console.error('['+clave+'] No se pudo sincronizar',error);
+    });
+  } catch(error) {
+    stop();if(window._svModuleListeners[clave]===stop)window._svModuleListeners[clave]=null;throw error;
+  }
+  if(closed&&typeof off==='function')off();
+  return !closed;
 }
 
 function fbCargarServicios() {
@@ -53422,29 +53426,6 @@ function obtenerDetalleComisionEmpleado(emp) {
   };
 }
 
-function migrarComisionesEmpleadosDesdeFichas() {
-  if (!window.fbDB || !CONFIG_COMISIONES_EMPLEADOS_CARGADA || !window._empleadosDatosListos) return Promise.resolve(false);
-  var pendientes = [];
-  Object.values(empData || {}).forEach(function(emp) {
-    var key = _configComisionEmpleadoKey(emp);
-    if (!key || Object.prototype.hasOwnProperty.call(CONFIG_COMISIONES_EMPLEADOS, key)) return;
-    if (!Object.prototype.hasOwnProperty.call(emp, 'pctComisionPropio') && !Object.prototype.hasOwnProperty.call(emp, 'pctComision')) return;
-    var pct = parseFloat(emp.pctComisionPropio != null ? emp.pctComisionPropio : emp.pctComision) || 0;
-    var cfg = { pct:pct, migradoDesdeFicha:true, migradoTs:Date.now() };
-    CONFIG_COMISIONES_EMPLEADOS[key] = cfg;
-    pendientes.push(window.fbSet(window.fbRef(window.fbDB, 'sisventas/config/comisionesEmpleados/' + key), cfg));
-  });
-  if (!pendientes.length) return Promise.resolve(false);
-  return Promise.all(pendientes).then(function(){
-    var panel = document.getElementById('cfg-comisiones');
-    if (panel && panel.style.display !== 'none') renderComisionesConfig();
-    return true;
-  }).catch(function(error){
-    console.warn('No se pudieron migrar todas las comisiones individuales', error);
-    return false;
-  });
-}
-
 function _normComisionKey(v) {
   return String(v || '')
     .toLowerCase()
@@ -53766,7 +53747,7 @@ function cargarConfigComisiones() {
     CONFIG_COMISIONES_EMPLEADOS = data && typeof data === 'object' ? data : {};
     CONFIG_COMISIONES_EMPLEADOS_CARGADA = true;
   }).catch(function(){ if(vigente())CONFIG_COMISIONES_EMPLEADOS_CARGADA = true; })
-  ]).then(function(){ if(vigente())return migrarComisionesEmpleadosDesdeFichas(); }).then(function(){
+  ]).then(function(){
     if(!vigente())return;
     var panel = document.getElementById('cfg-comisiones');
     if (panel && panel.style.display !== 'none') renderComisionesConfig();

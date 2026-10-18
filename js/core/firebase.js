@@ -41,6 +41,13 @@
     window.fbOnValue = function(...args) {
       let active = true;
       const load = window.SVDataReadiness?.begin(args[0]?.ref || args[0]);
+      let unsubscribe;
+      const trackedUnsubscribe = function() {
+        if (!active) return;
+        active = false;
+        try { unsubscribe?.(); }
+        finally { load?.cancel(); fbValueListeners.delete(trackedUnsubscribe); }
+      };
       const callback = args[1];
       if (typeof callback === 'function') args[1] = function(snapshot) {
         if (!active) return;
@@ -49,17 +56,18 @@
       };
       const errorCallback = typeof args[2] === 'function' ? args[2] : null;
       const options = errorCallback ? args[3] : args[2];
-      args[2] = function(error) { if(!active)return; load?.error(); if(errorCallback)errorCallback(error); else console.error('[Datos] No se pudo cargar la suscripción', error); };
-      if(options)args[3]=options;
-      let unsubscribe;
-      try { unsubscribe = onValue(...args); } catch(error) { active=false; load?.error(); try { if(errorCallback)errorCallback(error); } finally { throw error; } }
-      const trackedUnsubscribe = function() {
-        if (!active) return;
-        active = false;
-        try { unsubscribe(); }
-        finally { load?.cancel(); fbValueListeners.delete(trackedUnsubscribe); }
+      args[2] = function(error) {
+        if(!active)return;
+        load?.error();
+        // SDK cancellation is terminal. Remove its readiness source before a
+        // user retries, retaining the error until a fresh source is started.
+        try { trackedUnsubscribe(); } catch(cleanup) { console.warn('[Datos] No se pudo liberar la suscripción cancelada',cleanup); }
+        if(errorCallback)errorCallback(error); else console.error('[Datos] No se pudo cargar la suscripción', error);
       };
-      fbValueListeners.add(trackedUnsubscribe);
+      if(options)args[3]=options;
+      try { unsubscribe = onValue(...args); } catch(error) { load?.error(); trackedUnsubscribe(); try { if(errorCallback)errorCallback(error); } finally { throw error; } }
+      if(active)fbValueListeners.add(trackedUnsubscribe);
+      else unsubscribe?.();
       return trackedUnsubscribe;
     };
     window.fbStopAllValueListeners = function() {

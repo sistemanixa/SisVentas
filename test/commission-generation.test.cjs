@@ -128,6 +128,26 @@ test('un snapshot habilitado no sustituye la validación actual de la venta en s
   assert.ok(f.reads.includes('sisventas/ventas/sale'));assert.equal(JSON.stringify(f.db.root),before);
  }finally{f.stop();}
 });
+
+test('una venta con identidad canónica lee sólo los empleados participantes, sin descargar la nómina',async()=>{
+ const f=setup(),ref=f.db.ref.bind(f.db),reads=[];
+ f.db.root.sisventas.empleados.other={nombre:'Otra persona ficticia',foto:'No descargar este perfil'};
+ f.db.ref=path=>{assert.notEqual(path,'sisventas/empleados');assert.notEqual(path,'sisventas/empleados/other');const r=ref(path);return {...r,get:async()=>{reads.push(path);return r.get();}};};
+ assert.equal((await f.svc.systemGenerate('sale')).status,'generada');assert.ok(reads.includes('sisventas/empleados/e'));
+ assert.equal(Object.values(f.db.root.sisventas.gastos).length,1);
+});
+
+test('un identificador canónico inválido no se convierte en otra ruta ni autoriza una comisión',async()=>{
+ const f=setup({sale:{empleadoFbKey:'../other'}}),ref=f.db.ref.bind(f.db),before=JSON.stringify(f.db.root);
+ f.db.ref=path=>{assert.doesNotMatch(path,/\.\./);return ref(path);};
+ assert.equal((await f.svc.systemGenerate('sale')).status,'revision');assert.equal(JSON.stringify(f.db.root),before);
+});
+
+test('la identidad legada conserva resolución por nombre y bloquea coincidencias ambiguas',async()=>{
+ const f=setup({sale:{empleadoFbKey:null}});assert.equal((await f.svc.inspect(await f.actor(),'sale')).status,'lista');
+ f.db.root.sisventas.empleados.other={nombre:'Empleado de prueba',activo:true};
+ assert.equal((await f.svc.inspect(await f.actor(),'sale')).status,'revision');
+});
 test('el navegador envía solo referencia, sin exigir acceso al módulo Comisiones',async()=>{
  let request;const user={uid:'u',getIdToken:async()=>'demo'};const c={window:null,fbAuth:{currentUser:user},currentUserUid:'u',SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://demo.invalid'},AbortSignal,fetch:async(url,options)=>{request={url,body:JSON.parse(options.body)};return {ok:true,json:async()=>({ok:true,status:'generada',participantes:[{monto:30}]})};}};c.window=c;vm.runInNewContext(fs.readFileSync('js/core/commission-generation.js','utf8'),c);await c.SVCommissionGeneration.generate({fbKey:'sale',comisionHabilitada:true,total:999,pct:99});assert.deepEqual(request.body,{ventaFbKey:'sale'});c.currentUserUid='view';await assert.rejects(c.SVCommissionGeneration.generate({fbKey:'sale',comisionHabilitada:true}),/Volvé a tu cuenta/);
 });

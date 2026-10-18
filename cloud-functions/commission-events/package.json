@@ -1,0 +1,13 @@
+{
+  "name": "sisventas-commission-events",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "engines": {"node": "22"},
+  "scripts": {"start": "functions-framework --target=sisventasCommissionEventForward --signature-type=event"},
+  "dependencies": {
+    "@google-cloud/functions-framework": "5.0.5",
+    "google-auth-library": "11.3.1"
+  },
+  "overrides": {"uuid": "11.1.1"}
+}

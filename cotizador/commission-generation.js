@@ -9,11 +9,21 @@ async function tx(ref,update){
 function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date.now,logger=()=>{}}){
  const read=async path=>(await db.ref(path).get()).val();
  const jobId=id=>'srv_'+M.hash(id).slice(0,40);
+ async function readEmployees(sale){
+  const first=sale.comisionadoPrincipalFbKey||sale.empleadoFbKey,second=sale.comisionado2FbKey||sale.empleado2FbKey;
+  const ids=[first,second].filter(Boolean);
+  if(ids.some(id=>!validKey(id)))return {};
+  // Preserve legacy name/ambiguity checks. Current sales with canonical keys
+  // never need to download every employee, their profile images or history.
+  if((!first&&(sale.comisionadoPrincipal||sale.empleado))||(!second&&(sale.comisionado2||sale.empleado2)))return await read('sisventas/empleados')||{};
+  const records=await Promise.all([...new Set(ids)].map(async id=>[id,await read('sisventas/empleados/'+id)]));
+  return Object.fromEntries(records.filter(([,value])=>value));
+ }
  async function authorize(req){if(!enabled)throw fail(503,'Generación de comisiones pendiente de habilitación');return commercial.authorize(req,'ventas');}
  async function load(id,ownJob){
   if(!validKey(id))throw fail(400,'Venta inválida');
   const stored=await read('sisventas/ventas/'+id);if(!stored)throw fail(404,'Venta no disponible');const sale={...stored,fbKey:id};
-  const [employees,comisiones,comisionesEmpleados,maxComisionPct,cargos]=await Promise.all(['empleados','config/comisiones','config/comisionesEmpleados','config/maxComisionPct','config/cargos'].map(p=>read('sisventas/'+p)));
+  const [employees,comisiones,comisionesEmpleados,maxComisionPct,cargos]=await Promise.all([readEmployees(sale),...['config/comisiones','config/comisionesEmpleados','config/maxComisionPct','config/cargos'].map(p=>read('sisventas/'+p))]);
   const config={comisiones,comisionesEmpleados,maxComisionPct:maxComisionPct??10,cargos};
   const queries=async(node,field,value)=>(await db.ref('sisventas/'+node).orderByChild(field).equalTo(value).get()).val()||{};
   const aliases=[...new Set([sale.id,String(sale.id||'').replace(/^#/,''),'#'+String(sale.id||'').replace(/^#/,'')].filter(Boolean))];
@@ -100,4 +110,4 @@ function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date
  }
  return {authorize,inspect,generate,start,systemGenerate,retryPending};
 }
-module.exports={createCommissionGeneration};
+module.exports={createCommissionGeneration,runCommissionTransaction:tx};

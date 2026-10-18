@@ -8,6 +8,7 @@ RUN npm install --omit=dev
 COPY index.js ./
 COPY commercial-response.js ./
 COPY commission-job-events.js ./
+COPY commission-event.js ./
 COPY distributor-documents.js ./
 COPY projects.js projects-model.js ./
 COPY user-directory.js ./

@@ -15,8 +15,8 @@ assert.doesNotMatch(app, /% Comisión propio \(solo vendedor a comisión\)/,
   'La ficha de empleado no debe editar la comisión');
 assert.match(app, /sisventas\/config\/comisionesEmpleados/,
   'Las excepciones deben persistirse en la configuración central');
-assert.match(app, /migrarComisionesEmpleadosDesdeFichas/,
-  'Los porcentajes actuales deben migrarse sin perder valores');
+assert.doesNotMatch(app, /migrarComisionesEmpleadosDesdeFichas/,
+  'Consultar configuración no debe restaurar porcentajes antiguos ni escribir migraciones');
 assert.match(app, /function obtenerDetalleComisionEmpleado/,
   'Debe existir una única resolución de cargo y excepción individual');
 assert.match(app, /var detalle = obtenerDetalleComisionEmpleado\(emp\);[\s\S]{0,100}return parseFloat\(detalle\.pctSolicitado\)/,
@@ -34,7 +34,7 @@ const vm = require('node:vm');
 test('comisión central respeta excepción cero, cargo y tope sin usar porcentaje antiguo', () => {
   const ctx = {CONFIG_COMISIONES_EMPLEADOS: {uno:{pct:0}, dos:{pct:8}}, APROBACION_CONFIG:{maxComisionPct:5}, obtenerConfigComisionCargo:()=>({pct:3})};
   vm.createContext(ctx);
-  vm.runInContext(app.slice(app.indexOf('function _configComisionEmpleadoKey('), app.indexOf('function migrarComisionesEmpleadosDesdeFichas(')),ctx);
+  vm.runInContext(app.slice(app.indexOf('function _configComisionEmpleadoKey('), app.indexOf('function _normComisionKey(')),ctx);
   assert.equal(ctx.obtenerDetalleComisionEmpleado({id:'uno',pctComisionPropio:15}).pct,0);
   assert.equal(ctx.obtenerDetalleComisionEmpleado({id:'dos'}).pct,5);
   assert.equal(ctx.obtenerDetalleComisionEmpleado({id:'dos'}).pctSolicitado,8);

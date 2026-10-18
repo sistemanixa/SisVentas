@@ -8,3 +8,8 @@ test('una respuesta administrativa tardía no vuelve a cargar porcentajes al cam
 test('un rol sin el dominio no solicita configuración de porcentajes de otros empleados',async()=>{
  const c=load({CONFIG_COMISIONES_EMPLEADOS:{viejo:{}},CONFIG_COMISIONES_EMPLEADOS_CARGADA:true,svPuedeLeerDominio:()=>false,window:{fbDB:{},fbGet:()=>assert.fail('No debe solicitar datos bloqueados')}},['cargarConfigComisiones']);await c.cargarConfigComisiones();assert.equal(Object.keys(c.CONFIG_COMISIONES_EMPLEADOS).length,0);assert.equal(c.CONFIG_COMISIONES_EMPLEADOS_CARGADA,false);
 });
+
+test('consultar configuración no restaura una excepción borrada desde un porcentaje antiguo',async()=>{
+ const writes=[];let migration=0;const c=load({currentUserUid:'admin',CONFIG_COMISIONES_EMPLEADOS:{},CONFIG_COMISIONES_EMPLEADOS_CARGADA:false,CONFIG_COMISIONES:{},APROBACION_CONFIG:{},empData:{e:{fbKey:'e',pctComisionPropio:9}},svPuedeLeerDominio:()=>true,document:{getElementById:()=>null},actualizarInputsComisiones:()=>{},migrarComisionesEmpleadosDesdeFichas:()=>migration++,window:{fbDB:{},fbRef:(_,p)=>p,fbGet:async()=>({val:()=>null}),fbSet:(...a)=>writes.push(a)}},['cargarConfigComisiones']);
+ await c.cargarConfigComisiones();assert.equal(migration,0);assert.equal(writes.length,0);assert.equal(Object.keys(c.CONFIG_COMISIONES_EMPLEADOS).length,0);assert.equal(c.empData.e.pctComisionPropio,9);
+});

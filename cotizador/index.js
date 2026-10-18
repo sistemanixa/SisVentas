@@ -59,6 +59,11 @@ const personalExpenses = require('./personal-expenses').createPersonalExpenses({
 const supplierDirectory = require('./supplier-directory').createSupplierDirectory({authorize:employeeDirectory.authorize,db});
 const commissionOperations = require('./commission-operations').createCommissionOperations({auth:businessAuth,db,transaction:laborTransaction});
 const commissionGeneration = require('./commission-generation').createCommissionGeneration({db,commercial:commercialOwnership,enabled:process.env.COMMISSION_GENERATION_ENABLED==='true',from:Date.parse(process.env.COMMISSION_GENERATION_FROM||''),logger:status=>console.log(JSON.stringify(status))});
+let commissionEventOidc;
+const commissionEvent=require('./commission-event').createCommissionEvent({db,commissions:commissionGeneration,enabled:process.env.COMMISSION_EVENT_ENABLED==='true',audience:process.env.COMMISSION_EVENT_AUDIENCE,caller:process.env.COMMISSION_EVENT_CALLER,instance:process.env.COMMISSION_EVENT_INSTANCE,probeRef:process.env.COMMISSION_EVENT_PROBE_REF||'',verifyToken:async(token,audience)=>{
+  commissionEventOidc ||= new (require('google-auth-library').OAuth2Client)();
+  return (await commissionEventOidc.verifyIdToken({idToken:token,audience})).getPayload();
+},logger:status=>console.log(JSON.stringify(status))});
 const catalogRequests = require('./catalog-request').createCatalogRequest({db,periodsAPI:require('./catalog-promotions')});
 const { consultarAutomatico, firmaAcceso, aplicarCondicionComercial } = require('./proveedor-automatico');
 const { esProveedorPublicoComprasParaguay } = require('./compras-paraguay');
@@ -1982,6 +1987,14 @@ const server = http.createServer(async (req, res) => {
   const requestUrl = new URL(req.url, 'http://localhost');
   const pathname = requestUrl.pathname;
 
+  if(pathname==='/internal/commission-event'||pathname==='/internal/commission-event-probe'){
+    // Drain the delivery without parsing or trusting any financial payload.
+    req.resume();res.setHeader('Cache-Control','no-store');
+    try{const result=await (pathname.endsWith('-probe')?commissionEvent.probe(req):commissionEvent.handle(req));send(res,200,{ok:true,...result});}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo completar el evento'});}
+    return;
+  }
+
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
@@ -2197,7 +2210,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 if (require.main === module) {
-  commissionGeneration.start();
+  if(process.env.COMMISSION_OBSERVER_ENABLED!=='false')commissionGeneration.start();
+  else if(process.env.COMMISSION_GENERATION_ENABLED==='true'&&process.env.COMMISSION_EVENT_ENABLED!=='true')throw Error('No se puede detener el observador sin habilitar el receptor de eventos');
   server.listen(PORT, () => {
     console.log(`Cotizador NIXA listo en puerto ${PORT}`);
   });

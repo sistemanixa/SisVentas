@@ -66,3 +66,22 @@ test('generación retoma con otra instancia del servidor tras una caída entre c
  const next=createCommissionGeneration({db,commercial:api,enabled:true,from:1000,now:()=>100000});await next.retryPending();
  assert.equal((await db.ref('sv_commission_generation/a/estado').get()).val(),'completada');assert.deepEqual((await db.ref('sisventas/ctaemp/e/comision_a_e').get()).val(),movement);assert.equal((await db.ref('sisventas/gastos/gasto_comision_a_e/monto').get()).val(),30);
 });
+
+test('evento de cobro usa reservas reales del emulador y no duplica una entrega repetida',async()=>{
+ const {service}=await generationFixture(),{createCommissionEvent}=require('../cotizador/commission-event');
+ const caller='worker@example.invalid',audience='https://service.example.invalid';
+ const events=createCommissionEvent({db,commissions:service,enabled:true,instance:'demo-sisventas-commercial',caller,audience,verifyToken:async()=>({email:caller,email_verified:true,iss:'https://accounts.google.com',aud:audience})});
+ const request={method:'POST',headers:{authorization:'Bearer FICTICIO','ce-specversion':'1.0','ce-type':'google.firebase.database.ref.v1.written','ce-instance':'demo-sisventas-commercial','ce-id':'emulator-event','ce-source':'//firebasedatabase.googleapis.com/projects/demo-sisventas-commercial/locations/us-central1/instances/demo-sisventas-commercial','ce-ref':'sisventas/pagos/demo/monto'}};
+ assert.equal((await events.handle(request)).result,'generada');const before=(await db.ref('sisventas').get()).val();
+ assert.equal((await events.handle(request)).status,'ignored');assert.deepEqual((await db.ref('sisventas').get()).val(),before);
+ assert.equal((await db.ref('sisventas/gastos/gasto_comision_a_e/monto').get()).val(),30);
+});
+
+test('ni otro administrador ni un usuario pueden leer o falsificar trabajos/probetas privadas del receptor',async()=>{
+ await db.ref('sv_commission_events/proof').set({state:'completed',attempts:1});
+ await db.ref('sv_commission_probe/ficticio').set({nonce:'FICTICIO'});
+ for(const uid of ['admin','a','b','tech',null])for(const node of ['sv_commission_events','sv_commission_probe']){
+  await assertFails(get(ref(client(uid),node)));
+  await assertFails(set(ref(client(uid),node+'/forged'),{state:'completed'}));
+ }
+});
