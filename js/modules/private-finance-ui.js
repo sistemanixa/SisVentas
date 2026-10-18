@@ -92,7 +92,7 @@ async function viewPDF(bytes,name,documentId){
  catch(error){loadingFailed=true;if(!disposed){d.setAttribute('aria-busy','false');status.textContent='No se pudo mostrar el original. Cerrá y volvé a abrirlo, o descargalo.';prev.disabled=next.disabled=true;}}
 }
 
-function storageBadge(){document.getElementById('storageBadge').innerHTML=icon('lock')+'Espacio privado · servidor';const identity=bridge?.identity?.(),name=String(identity?.name||'Usuario');const label=document.getElementById('personalUserName'),initials=document.getElementById('personalUserInitials');if(label){label.textContent=name;label.title=name;}if(initials)initials.textContent=name.trim().split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]).join('').toUpperCase()||'US';}
+function storageBadge(){const identity=bridge?.identity?.(),name=String(identity?.name||'Usuario');const label=document.getElementById('personalUserName'),initials=document.getElementById('personalUserInitials');if(label){label.textContent=name;label.title=name;}if(initials)initials.textContent=name.trim().slice(0,2).toUpperCase()||'US';}
 function render(){
  if(dead)return;document.getElementById('nav').innerHTML=routes.filter(x=>x[0]!=='help').map(([id,title,ico])=>`<button data-action="go" data-page="${id}" class="${(page===id||page==='statement'&&id==='imports')?'active':''}">${icon(ico)}${esc(title)}</button>`).join('');
  const pages={overview:overviewPage,cards:cardsPage,imports:importsPage,insurance:insurancePage,installments:installmentsPage,expenses:expensesPage,plan:planPage,history:historyPage,help:helpPage,statement:statementPage};

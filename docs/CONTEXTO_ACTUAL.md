@@ -2,6 +2,14 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Pie de Gastos personales · v3.12.18 local, sin publicar
+
+- Base fdabf851261a6fe522e6905630c01552b5687986, rama codex/clasificacion-gastos-pdf. El titular comparó capturas: el pie17 no coincidía visualmente con Distribuidora. Se tomó su segundo ejemplo y la implementación real s-foot/s-user/s-avatar/s-uname de paraguay-shopping-access y app.css como referencia directa.
+- Se quitó la línea técnica Espacio privado · servidor del pie; privacidad sigue indicada en la cabecera y la autorización no cambia. Avatar circular30px, dos primeras letras del nombre como en Distribuidora; nombre12px/500 en una sola línea con ellipsis y título completo; subtítulo Gastos personales; separación9px, padding12/10 y botón centrado de26px en escritorio. En dispositivos de puntero táctil el retorno conserva44px para tocarlo. Identidad y autorización exclusiva del titular sin cambios.
+- Candidato18 coherente en índice/app inmutable/core/SW/Novedades;17 publicada permanece intacta como versión. Se versionaron URLs de CSS y UI18; no se modificaron servidores ni datos reales. Suite1.985 aprobadas, sintaxis/diff/coherencia correctos. No se agregaron pruebas que dupliquen CSS.
+- Verificación en la misma pestaña local con sesión propia: nombre real, iniciales y retorno correctos, pie106px, avatar circular30 y botón26px; nombre con nowrap/ellipsis. Ejemplo ficticio390px usa el mismo HTML/CSS: pie229px dentro de pantalla sin desborde. La pestaña se restaura a Gastos personales local18, sin guardar movimientos. Capturas privadas pie-personal-*-v31218 en tmp.
+- Próximo paso: revisar este ajuste visual. Producción continúa17;18 no está publicada.
+
 ## Auditoría de conexión · corte físico y recuperación verificados · 18/10/2026
 
 - Base d55c9baaa40b392ccbded127db9e05b19e38e968; prueba ampliada guardada en1e201a3e8b5d00ed682543cfdf9de986f704f600, rama codex/clasificacion-gastos-pdf. Producción continúa17. No se modificó código de aplicación, servidor, permisos ni datos reales; no requiere otra publicación.
