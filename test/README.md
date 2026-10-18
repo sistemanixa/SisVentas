@@ -71,3 +71,5 @@ en [RENDIMIENTO_COMERCIAL.md](../docs/RENDIMIENTO_COMERCIAL.md).
 ## Auditoría de distribución de formularios
 
 Ver [AUDITORIA_FORMULARIOS.md](../docs/AUDITORIA_FORMULARIOS.md). La herramienta aislada `node scripts/dev-module-audit.cjs` registra medidas de las cuadrículas en los recorridos de módulos, ventanas y editores; incluye Recorrer configuración. Esperar a que termine cada recorrido antes de iniciar otro. No ejecutarlos sobre producción ni sobre8766, que usa datos reales.
+
+Conexión y recuperación: `node --test test/connection-transport-cycle.test.cjs` abre un servidor HTTP efímero sólo en127.0.0.1 y lo cierra/reabre dos veces. Forma parte de la suite vigente; necesita que el entorno permita conexiones loopback. Usa exclusivamente registros y token ficticios: no consulta Firebase ni Internet. Comprueba datos conservados, pausa durante el corte, recuperación automática de Ventas/Presupuestos,304 sin reconstrucción y recepción de cambios. No sustituye una prueba física de Wi-Fi en el navegador.

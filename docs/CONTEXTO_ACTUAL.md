@@ -2,6 +2,14 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Auditoría de conexión · comprobación ampliada, sin cambiar producción
+
+- Base d55c9baaa40b392ccbded127db9e05b19e38e968; rama codex/clasificacion-gastos-pdf. Producción continúa17. Pedido: observar caída del indicador y recuperación sin borrar navegación ni tocar registros. No se modificó código de aplicación, servidor, permisos ni almacenamiento real.
+- El control de navegador disponible no ofrece emulación de red por pestaña. Se solicitó al titular cortar realmente Internet unos30s y reconectar sin recargar, e informar ambos estados. Aún no hay resultado físico confirmado al escribir esta nota. La pestaña real quedó con indicador visible; lectura actual Sincronizado y título que confirma servidor/Firebase. No dar el corte físico por validado por esta observación sana.
+- Nueva prueba connection-transport-cycle.test.cjs usa los módulos publicados connection-monitor y commercial-ownership contra HTTP efímero en loopback con datos/token ficticios. Cierra el listener para producir fallo real de transporte mientras navigator y estado Firebase de prueba mantienen conectado. Dos ciclos: Sin conexión suspende consultas y preserva snapshots; restaurar reanuda automáticamente ambos dominios;304 no duplica ni reconstruye registros, y una revisión ficticia nueva llega a ambos dominios. No emite POST ni accede a Internet/Firebase. Servidor cerrado al finalizar.
+-18 pruebas específicas de conexión/reconexión/badge aprobadas. Suite vigente ampliada1.985 aprobadas, cero fallos. El primer intento del test HTTP dentro del sandbox sin red no pudo conectar ni a loopback; pasó al ejecutarlo con acceso local permitido. No se cambió la validación para esconderlo. test/README documenta necesidad de loopback. Evidencia privada tmp/connection-audit-v31217-tests.private.log.
+- Pendiente requerido: respuesta del titular con el resultado del corte físico. Al volver, comprobar en su sesión las lecturas de Ventas/Presupuestos y el indicador; preservar la navegación y no guardar operaciones. Si persiste verde durante la desconexión real, tomar ese caso como fallo abierto y diagnosticarlo; no cerrar por los tests aislados. No hay una publicación adicional en este bloque.
+
 ## Publicación completada · v3.12.17 · 18/10/2026
 
 - Autorización expresa del titular para publicar las tres mejoras y verificar sólo mediante consultas. Fuente fc9946cb16c5c2600d9d85dec9368b2813468b59, rama codex/clasificacion-gastos-pdf; remoto comprobado sin cambios adicionales de otra PC. origin/main continúa4639a87bf7e6edd9f2d62af70317fdc5f9ac71b5; no se integró main. El checkout limpio reutilizado .local/publicacion-final-v31216 está separado en el SHA fuente17 pese a conservar16 en su nombre. Cambio ajeno de la raíz js/app.v3.10.33.js conservado.
