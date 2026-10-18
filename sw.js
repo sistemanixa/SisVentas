@@ -85,6 +85,7 @@ const SHELL = [
   './js/core/private-finance-import-queue.js?v=3.12.6',
   './css/private-finance.css?v=3.12.16-clasificacion',
   './personal-finance.html',
+  './js/core/product-ranking.js?v=3.12.16',
   './js/core/connection-monitor.js?v=3.12.16',
   './js/core/commercial-ownership.js?v=3.12.16-conexion',
   './js/modules/commercial-document-controls.js?v=3.12.15',

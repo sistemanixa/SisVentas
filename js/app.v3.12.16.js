@@ -1420,6 +1420,7 @@ var _prodCatsAbiertas = {}; // sólo true = abierta
 var _filtroProductosSinPrecio = false;
 var _filtroProductosSobrantes = false;
 var _filtroProductosSinValorAgregado = false;
+var _filtroProductosMasVendidos = false;
 // El catálogo es una vista operativa. Las rutinas canónicas de precios recorren
 // moneda, proveedores e historial y deben ejecutarse sólo en la auditoría o en
 // la ficha individual; hacerlo cientos de veces durante cada render congela la
@@ -1503,8 +1504,16 @@ function productoSinValorAgregado(p) {
   var porcentaje = Number(String(valor).trim().replace(',', '.'));
   return Number.isFinite(porcentaje) && porcentaje === 0;
 }
+function obtenerMasVendidosProductos() {
+  if (!window.SVProductRanking) return [];
+  var hoy = new Date(), mes = hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0');
+  return window.SVProductRanking.rank(Object.values(prodData || {}),ventasList || [],{month:mes,validSale:ventaValidaParaMetricas,dateOf:function(v){return fechaVentaOrdenISO(v.fecha,v.ts);}}).slice(0,50);
+}
 
 function actualizarVistaFiltrosRapidosProductos() {
+  var topCard=document.getElementById('stat-prod-top-card'),topChip=document.getElementById('prod-filtro-masvendidos-activo');
+  if(topCard){topCard.setAttribute('aria-pressed',String(_filtroProductosMasVendidos));topCard.style.borderColor=_filtroProductosMasVendidos?'var(--blue)':'';topCard.style.boxShadow=_filtroProductosMasVendidos?'0 0 0 1px var(--blue)':'';}
+  if(topChip)topChip.style.display=_filtroProductosMasVendidos?'inline-flex':'none';
   [['sobrantes',_filtroProductosSobrantes,'stock',productoConSobranteReal,'Sobrantes reales'],['sinvalor',_filtroProductosSinValorAgregado,'sinvalor',productoSinValorAgregado,'Sin valor agregado']].forEach(function(filtro){
     var cantidad = Object.values(prodData || {}).filter(filtro[3]).length;
     var card = document.getElementById('stat-prod-'+filtro[2]+'-card');
@@ -1519,14 +1528,16 @@ function actualizarVistaFiltrosRapidosProductos() {
 }
 
 function toggleFiltroRapidoProductos(tipo) {
-  var activo = tipo === 'sobrantes' ? !_filtroProductosSobrantes : !_filtroProductosSinValorAgregado;
+  var activo = tipo === 'sobrantes' ? !_filtroProductosSobrantes : tipo === 'masvendidos' ? !_filtroProductosMasVendidos : !_filtroProductosSinValorAgregado;
   _filtroProductosSobrantes = tipo === 'sobrantes' && activo;
   _filtroProductosSinValorAgregado = tipo === 'sinvalor' && activo;
+  _filtroProductosMasVendidos = tipo === 'masvendidos' && activo;
   if (activo) {
     _filtroProductosSinPrecio = false;
     ['prod-search','filter-cat'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
     var uso = document.getElementById('prod-uso-filter');if(uso)uso.value='todos';
     window._prodCategoriaFiltro = '';_filtroUsoProductos = 'todos';
+    if(tipo==='masvendidos'){_ordenPrecioProductos='';var orden=document.getElementById('prod-orden-precio');if(orden)orden.value='';delete _sortState['prod-tbl'];}
     _prodCatsAbiertas = {};_todasColapsadas = false;
     var label=document.getElementById('label-colapsar-cats');if(label)label.textContent='Colapsar todo';
   }
@@ -1569,6 +1580,7 @@ function toggleFiltroProductosSinPrecio() {
   if (_filtroProductosSinPrecio) {
     _filtroProductosSobrantes = false;
     _filtroProductosSinValorAgregado = false;
+    _filtroProductosMasVendidos = false;
     // El KPI es global: al abrirlo se eliminan filtros residuales para que la
     // grilla demuestre exactamente la cantidad informada por la tarjeta.
     var buscar = document.getElementById('prod-search');
@@ -1632,6 +1644,7 @@ function _prodCoincideBusqueda(p, filtro, campo) {
 
 var _prodFormatoImporte = new Intl.NumberFormat('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
 function _renderFilaProd(p) {
+  var ranking = arguments[1];
   var stk = parseInt(p.stock) || 0;
   var stkColor = stk <= 0 ? 'var(--red)' : stk <= (p.stockMin||2) ? 'var(--amber)' : 'var(--green)';
   var metricas = metricasListaProducto(p);
@@ -1655,11 +1668,12 @@ function _renderFilaProd(p) {
   var nombreProvLbl = provLista.length === 1 ? '<br><span style="font-size:10px;color:var(--text3);font-weight:400">' + escapeHTML(provLista[0].nombre||'') + '</span>' : '';
   var pvFmt = _prodFormatoImporte.format(parseFloat(pv)||0);
   var imagenVisual = urlImagenProductoVisual(p, '');
+  var rankingEtiqueta = ranking && ranking.position ? '<span class="badge b-blue" style="font-size:10px;margin-bottom:3px">'+ranking.position+'.º · en '+ranking.sales+' venta'+(ranking.sales===1?'':'s')+'</span><br>' : '';
   return '<tr class="cr pr" data-pid="'+pid+'" data-cat="'+(p.categoria||'')+'" onclick="verProductoById(this)" style="cursor:pointer;'+(activo?'':'opacity:.62')+'">' +
     '<td>'+(imagenVisual?'<img class="prod-row-img" src="'+escapeHTML(imagenVisual)+'" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">'
       :'<div class="prod-row-img prod-row-img-placeholder"><i class="ti ti-photo"></i></div>')+'</td>'+
     '<td style="font-family:monospace;font-size:12px">'+(p.codigo||'')+'</td>'+
-    '<td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.esManoDeObra?'<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px"></i>':'')+(p.nombre||p.descripcion||'')+distintivoExteriorLista+'</td>'+
+    '<td style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+rankingEtiqueta+(p.esManoDeObra?'<i class="ti ti-tool" style="font-size:13px;color:var(--blue);margin-right:4px"></i>':'')+(p.nombre||p.descripcion||'')+distintivoExteriorLista+'</td>'+
     '<td class="hide-mobile" style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.descripcion||'—')+'</td>'+
     '<td style="text-align:right;font-weight:600;color:'+stkColor+'">'+stk+'</td>'+
     '<td style="text-align:right">$'+pvFmt+'</td>'+
@@ -1681,6 +1695,8 @@ function renderTablaProductos(filtro) {
     filtro = (document.getElementById('prod-search') || {}).value || '';
   }
   var lista = prodData ? Object.values(prodData) : [];
+  var rankingProductos = _filtroProductosMasVendidos ? obtenerMasVendidosProductos() : null;
+  if(rankingProductos)lista=rankingProductos.map(function(r){return r.product;});
   if (!_prodCategoriasFirma) {
     poblarSelectCategorias();
     _prodCategoriasFirma = 'lista-vigente';
@@ -1727,6 +1743,14 @@ function renderTablaProductos(filtro) {
       }
       return String(va||'').localeCompare(String(vb||''), 'es', {numeric:true, sensitivity:'base'}) * dir;
     });
+  }
+
+  if (_filtroProductosMasVendidos) {
+    if(filtro)lista=lista.filter(function(p){return _prodCoincideBusqueda(p,filtro);});
+    if(_ordenPrecioProductos||(_sortState['prod-tbl']||{}).col)lista=ordenarProductos(lista);
+    var puestos=new Map(rankingProductos.map(function(r){return [r.product,r];}));
+    tbody.innerHTML=lista.map(function(p){return _renderFilaProd(p,puestos.get(p));}).join('')||'<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text3)">No hay ventas del mes que coincidan con estos filtros.</td></tr>';
+    prepararAccionesGrilla('prod-tbl');_estadoBusquedaProductos(lista.length+' de '+rankingProductos.length+' más vendidos del mes');return;
   }
 
   // Con búsqueda activa → vista plana
@@ -2114,36 +2138,17 @@ function actualizarStatProductos() {
   var conSobrante = sobrantes.length;
   var unidadesSobrantes = sobrantes.reduce(function(totalInv, inv){ return totalInv + inv.general; }, 0);
   var sinPrecio  = prods.filter(productoSinPrecioCatalogo).length;
-  // Más vendido del mes
-  var mesActual = new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0');
-  var conteo = {};
-  (ventasList||[]).forEach(function(v){
-    var f = v.fecha||'';
-    // Aceptar YYYY-MM-DD y DD/MM/YYYY
-    var fIso = f.slice(0,7); // YYYY-MM si viene en ISO
-    if (f.includes('/')) {
-      var p = f.split('/'); // DD/MM/YYYY
-      if (p.length === 3) fIso = p[2] + '-' + p[1].padStart(2,'0');
-    }
-    if (fIso !== mesActual) return;
-    (v.items||[]).forEach(function(it){
-      var k = it.desc||it.nombre||''; if (!k) return;
-      conteo[k] = (conteo[k]||0) + (parseFloat(it.qty)||1);
-    });
-  });
-  var topProd = '—';
-  var maxQty  = 0;
-  Object.entries(conteo).forEach(function(e){ if(e[1]>maxQty){ maxQty=e[1]; topProd=e[0]; } });
-  if (topProd.length > 18) topProd = topProd.slice(0,16)+'…';
+  var ranking = obtenerMasVendidosProductos(), primero = ranking[0];
+  var topProd = primero ? '1.º · '+(primero.product.nombre || primero.product.descripcion || primero.product.codigo || 'Producto') : '—';
   var _s = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
   _s('stat-prod-total-label', 'Total productos');
   _s('stat-prod-stock-label', 'Sobrantes reales');
   _s('stat-prod-sinprecio-label', 'Sin precio');
-  _s('stat-prod-top-label', 'Más vendido');
+  _s('stat-prod-top-label', 'Más vendidos');
   _s('stat-prod-total-sub', 'en catálogo');
   _s('stat-prod-stock-sub', Math.round(unidadesSobrantes) + ' unidades en depósito');
   _s('stat-prod-sinprecio-sub', _filtroProductosSinPrecio ? 'filtro activo · tocá para quitar' : 'tocá para filtrar');
-  _s('stat-prod-top-sub', 'del mes');
+  _s('stat-prod-top-sub', primero ? 'en '+primero.sales+' venta'+(primero.sales===1?'':'s')+' · top 50 del mes' : 'sin ventas este mes');
   _s('stat-prod-total',    total);
   _s('stat-prod-stock',    conSobrante);
   _s('stat-prod-sinprecio',sinPrecio);
@@ -6450,6 +6455,8 @@ function fbCargarVentas() {
       normalizarFechaOrden: false,
       actualizarPendientes: true
     });
+    var paginaProductos=document.getElementById('page-productos');
+    if(paginaProductos && paginaProductos.classList.contains('active')){actualizarStatProductos();if(_filtroProductosMasVendidos)renderTablaProductos();}
   }, function(error) {
     window._ventasListenerActivo = false;
     console.error('[Ventas] No se pudo cargar el historial completo', error);
@@ -10676,7 +10683,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.12.16',date:'18/10/2026',title:'Conexión y filtros de productos',notes:Object.freeze(['Clasificá los consumos y creá tus categorías desde el mismo selector, sin cambiar los importes leídos.','Sugerencias de seguros por el nombre del cargo, siempre pendientes de confirmación.','Sobrantes reales y valor agregado cero abren sus listados; categoría y orden quedan juntos.','El indicador comprueba el servidor y recupera la sincronización al volver Internet.']),feature:Object.freeze({page:'gastospersonales',actionLabel:'Ver gastos personales'})}),
+ Object.freeze({version:'v3.12.16',date:'18/10/2026',title:'Conexión y filtros de productos',notes:Object.freeze(['Clasificá los consumos y creá tus categorías desde el mismo selector, sin cambiar los importes leídos.','Sugerencias de seguros por el nombre del cargo, siempre pendientes de confirmación.','Sobrantes, valor agregado cero y los 50 más vendidos filtran la lista. El ranking cuenta ventas, no metros ni unidades.','El indicador comprueba el servidor y recupera la sincronización al volver Internet.']),feature:Object.freeze({page:'gastospersonales',actionLabel:'Ver gastos personales'})}),
  Object.freeze({version:'v3.12.15',date:'18/10/2026',title:'Asignación y lectura de PDF',notes:Object.freeze(['Toda la etiqueta del creador abre la asignación para administradores; el selector indica quién ya está asignado.','Los PDF listos permiten guardar desde la cola y muestran el motivo cuando necesitan revisión.','La última página del original ya no muestra el cursor de espera.','Lectura de PDF más ágil, con controles de importes, monedas y fechas contra el original.']),feature:Object.freeze({page:'detalle',actionLabel:'Ver ventas'})}),
  Object.freeze({version:'v3.12.14',date:'18/10/2026',title:'Estado de conexión',notes:Object.freeze(['El indicador muestra Sin conexión cuando el dispositivo pierde la red y sólo indica Sincronizado tras la confirmación de Firebase.']),feature:Object.freeze({page:'dashboard',actionLabel:'Abrir inicio'})}),
  Object.freeze({version:'v3.12.13',date:'18/10/2026',title:'Pagos y comprobantes de cuenta',notes:Object.freeze(['Cuenta corriente muestra el importe de cada comprobante y el total de los archivos vinculados al movimiento.','Registrar pago abre más rápido al evitar búsquedas y cálculos repetidos.']),feature:Object.freeze({page:'cuentacorriente',actionLabel:'Ver cuentas'})}),

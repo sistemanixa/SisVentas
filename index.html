@@ -3954,7 +3954,7 @@ Listo para analizar.
           <div class="metric" id="stat-prod-stock-card" role="button" tabindex="0" aria-pressed="false" title="Mostrar productos con sobrantes reales" onclick="toggleFiltroRapidoProductos('sobrantes')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFiltroRapidoProductos('sobrantes');}" style="cursor:pointer"><div class="m-label" id="stat-prod-stock-label">Sobrantes reales</div><div class="m-value" id="stat-prod-stock" style="color:var(--green)">—</div><div class="m-sub" id="stat-prod-stock-sub">material disponible en depósito</div></div>
           <div class="metric" id="stat-prod-sinprecio-card" role="button" tabindex="0" aria-pressed="false" title="Mostrar únicamente los productos sin precio" onclick="toggleFiltroProductosSinPrecio()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFiltroProductosSinPrecio();}" style="cursor:pointer;transition:border-color .18s,box-shadow .18s,background .18s"><div class="m-label" id="stat-prod-sinprecio-label">Sin precio</div><div class="m-value" id="stat-prod-sinprecio" style="color:var(--amber)">—</div><div class="m-sub" id="stat-prod-sinprecio-sub">tocá para filtrar</div></div>
           <div class="metric" id="stat-prod-sinvalor-card" role="button" tabindex="0" aria-pressed="false" title="Mostrar productos con valor agregado cero" onclick="toggleFiltroRapidoProductos('sinvalor')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFiltroRapidoProductos('sinvalor');}" style="cursor:pointer"><div class="m-label">Sin valor agregado</div><div class="m-value" id="stat-prod-sinvalor" style="color:var(--amber)">—</div><div class="m-sub" id="stat-prod-sinvalor-sub">valor agregado cargado en 0%</div></div>
-          <div class="metric"><div class="m-label" id="stat-prod-top-label">Más vendido</div><div class="m-value" id="stat-prod-top" style="font-size:11px;line-height:1.3">—</div><div class="m-sub" id="stat-prod-top-sub">del mes</div></div>
+          <div class="metric" id="stat-prod-top-card" role="button" tabindex="0" aria-pressed="false" onclick="toggleFiltroRapidoProductos('masvendidos')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFiltroRapidoProductos('masvendidos');}" style="cursor:pointer" title="Top 50 del mes: cantidad de ventas distintas, sin favorecer los productos vendidos por metro"><div class="m-label" id="stat-prod-top-label">Más vendidos</div><div class="m-value" id="stat-prod-top" style="font-size:11px;line-height:1.3">—</div><div class="m-sub" id="stat-prod-top-sub">top 50 del mes · por ventas</div></div>
         </div>
 
           <div class="card">
@@ -3999,6 +3999,7 @@ Listo para analizar.
                 </select>
               </div>
               <button class="btn btn-sm" id="prod-filtro-sinprecio-activo" type="button" onclick="toggleFiltroProductosSinPrecio()" style="display:none;color:var(--amber);border-color:var(--amber)" title="Quitar filtro de productos sin precio"><i class="ti ti-filter"></i> Solo sin precio <span id="prod-filtro-sinprecio-cantidad"></span> <i class="ti ti-x"></i></button>
+              <button class="btn btn-sm" id="prod-filtro-masvendidos-activo" type="button" onclick="toggleFiltroRapidoProductos('masvendidos')" style="display:none" title="Quitar filtro de más vendidos">Top 50 del mes · por ventas ×</button>
               <button class="btn btn-sm" id="prod-filtro-sobrantes-activo" type="button" onclick="toggleFiltroRapidoProductos('sobrantes')" style="display:none" title="Quitar filtro de sobrantes reales"></button>
               <button class="btn btn-sm" id="prod-filtro-sinvalor-activo" type="button" onclick="toggleFiltroRapidoProductos('sinvalor')" style="display:none" title="Quitar filtro de valor agregado cero"></button>
               <div id="prod-grid-controls" style="margin-left:auto;display:flex;align-items:center;gap:6px">
@@ -5749,6 +5750,7 @@ Listo para analizar.
 <link rel="stylesheet" href="./css/user-access.css?v=3.11.9">
 <script src="./js/core/user-access.js?v=3.12.3"></script>
 <script src="./js/core/service-auth.js?v=3.10.19"></script>
+<script src="js/core/product-ranking.js?v=3.12.16"></script>
 <script src="js/core/connection-monitor.js?v=3.12.16"></script>
 <script src="js/core/commercial-ownership.js?v=3.12.16-conexion"></script>
 <script src="js/core/commission-generation.js?v=3.11.18"></script>

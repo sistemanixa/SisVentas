@@ -17,3 +17,5 @@
 
 /* El orden y la categoría forman un par compacto debajo del buscador. */
 #page-productos #prod-filtros-barra>.prod-orden-categoria{flex:0 1 390px;width:390px;max-width:100%;min-width:0}#page-productos .prod-orden-categoria>select{flex:1 1 0!important;min-width:0!important;width:0!important}
+
+#page-productos #prod-filtros-barra .prod-orden-categoria>#prod-orden-precio,#page-productos #prod-filtros-barra .prod-orden-categoria>#filter-cat{flex:1 1 0!important;min-width:0!important;width:0!important;max-width:190px!important}

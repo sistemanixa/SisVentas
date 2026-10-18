@@ -2,6 +2,11 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Más vendidos · ampliación local16
+
+- Pedido previo al corte: tarjeta Más vendidos plural y filtro top50 del mes en la misma grilla. Se cuenta una aparición por venta válida, no cantidades ni metros; líneas repetidas y ventas duplicadas no suman doble. Anuladas/canceladas se excluyen mediante el criterio comercial vigente. Identificación por código/vínculo; nombre exacto sólo si es inequívoco. No cambia ventas ni catálogo. Empates por nombre/código; posición y cantidad de ventas aparecen en cada fila. Tarjeta muestra el primero. Búsqueda/categoría pueden acotar el top50 y el chip permite quitarlo.
+- Verificación local con sesión real sólo de lectura:21 productos del mes; primero Mantenimiento técnico a domicilio en7 ventas. Pruebas ficticias cubren metros frente a ventas, duplicados, fechas/anulaciones, ambigüedad, empates, ausencia de mutaciones y corte a50. Suite vigente1.979 aprobadas, cero fallos. Se mantuvo la firma pública del renderizador usada por los buscadores. Categoría/orden móvil verificados al mismo alto y158,5px cada uno en viewport390. No se guardaron productos ni operaciones. Falta registrar activación/Hosting y verificación web al completar la publicación autorizada.
+
 ## Ampliaciones previas a publicación16 · Productos y conexión
 
 - Tras autorizar publicar categorías, el titular pidió incorporar antes dos tarjetas de Productos y compactar Categoría junto a Orden habitual. Sobrantes reales usa el mismo predicado de inventario operativo en contador y listado; no usa stock histórico. Sin valor agregado usa sólo margenDeseado explícito en0, nunca ausente/inválido ni el margen calculado de venta. Los tres KPI rápidos (incluido Sin precio) se excluyen al activarse y limpian búsqueda/categoría/uso para mostrar el universo contado; segundo clic/chip quita el filtro. No escribe productos ni inventario.
