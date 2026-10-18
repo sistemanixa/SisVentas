@@ -10604,7 +10604,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.12.12',date:'18/10/2026',title:'Recuperación al volver internet',notes:Object.freeze(['Ventas, presupuestos y usuarios retoman sus consultas al recuperar la conexión, conservando los datos recibidos.']),feature:Object.freeze({page:'dashboard',actionLabel:'Abrir inicio'})}),
+ Object.freeze({version:'v3.12.12',date:'18/10/2026',title:'Reconexión y pago de cuenta',notes:Object.freeze(['Ventas, presupuestos y usuarios retoman sus consultas al recuperar la conexión, conservando los datos recibidos.','La ventana de pago de cuenta queda centrada, con controles uniformes y espacio para el teclado móvil.']),feature:Object.freeze({page:'dashboard',actionLabel:'Abrir inicio'})}),
  Object.freeze({version:'v3.12.11',date:'18/10/2026',title:'Carga y formularios mejorados',notes:Object.freeze(['Los formularios aprovechan mejor el ancho de la tablet vertical y conservan controles cómodos en celular.','El resumen de Distribuidora deja más espacio para completar el comprobante en tablet.','Se corrige la reconexión que podía dejar el inicio esperando datos después de una interrupción.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
  Object.freeze({version:'v3.12.10',date:'17/10/2026',title:'Cámara, navegación y cobros',notes:Object.freeze(['La cámara conserva sus controles al abrirla desde el buscador de productos.','Cerrar el lector permite continuar el presupuesto sin perder lo ingresado.','La imagen aprovecha el visor y las guías se adaptan a la pantalla.','Cuenta corriente permite abrir el cobro y ver su comprobante, conservando el retorno.','El menú se cierra al elegir un módulo en celular y tablet, y puede abrirse deslizando desde el borde izquierdo.','Cobranzas aprovecha mejor el ancho de la tablet vertical.']),feature:Object.freeze({page:'cuentacorriente',actionLabel:'Ver cuenta corriente'})}),
  Object.freeze({version:'v3.12.9',date:'17/10/2026',title:'Ventanas y confirmaciones más consistentes',notes:Object.freeze(['Cancelar conserva su acción al usar el teclado.','Las ventanas mantienen el foco y liberan el desplazamiento al cerrarse.','Los avisos esperan mientras completás una ventana y Escape cierra primero el menú del mensaje.']),feature:Object.freeze({page:'dashboard',actionLabel:'Abrir inicio'})}),
@@ -27621,7 +27621,13 @@ function actualizarVistaPagoCuentaCorriente() {
 
 function cerrarPagoCuentaCorriente() {
   var modal = document.getElementById('modal-pago-cuenta');
-  if (modal) modal.remove();
+  if (modal) {
+    clearTimeout(modal._ccFocoTimer);
+    if (modal._ccLimpiarViewport) modal._ccLimpiarViewport();
+    var foco = modal._ccFocoAnterior;
+    modal.remove();
+    if (foco && foco.isConnected && typeof foco.focus === 'function') foco.focus({preventScroll:true});
+  }
   if (typeof svSincronizarPilaModales === 'function') svSincronizarPilaModales();
 }
 
@@ -27689,6 +27695,22 @@ function _ccLeerComprobante(file) {
   return _leerDocumentoGestion(file);
 }
 
+function prepararVentanaPagoCuentaCorriente(modal) {
+  var viewport = window.visualViewport;
+  function ajustar() {
+    if (!modal.isConnected) return;
+    modal.style.setProperty('--ccp-visible-height', (viewport ? viewport.height : window.innerHeight) + 'px');
+    modal.style.setProperty('--ccp-visible-top', (viewport ? viewport.offsetTop : 0) + 'px');
+  }
+  ajustar();
+  if (viewport) { viewport.addEventListener('resize',ajustar); viewport.addEventListener('scroll',ajustar); }
+  window.addEventListener('resize',ajustar);
+  modal._ccLimpiarViewport = function() {
+    if (viewport) { viewport.removeEventListener('resize',ajustar); viewport.removeEventListener('scroll',ajustar); }
+    window.removeEventListener('resize',ajustar);
+  };
+}
+
 function abrirPagoCuentaCorriente() {
   var ventas = _ccVentasPendientesActuales();
   if (!ventas.length) { notify('Este cliente no tiene ventas con saldo pendiente'); return; }
@@ -27700,17 +27722,24 @@ function abrirPagoCuentaCorriente() {
   modal.id = 'modal-pago-cuenta';
   modal.className = 'modal-overlay open';
   modal.style.display = 'flex';
-  modal.innerHTML = '<div class="modal" style="max-width:620px;width:calc(100% - 28px)">' +
-    '<div class="modal-header"><div><strong>Registrar pago de cuenta corriente</strong><div style="font-size:12px;color:var(--text3);margin-top:3px">'+escapeHTML(window._ccNombreActual||'Cliente')+' · deuda $'+saldo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div><button class="btn btn-sm btn-icon" onclick="cerrarPagoCuentaCorriente()"><i class="ti ti-x"></i></button></div>' +
-    '<div class="modal-body"><div class="form-grid" style="grid-template-columns:1fr 1fr"><div class="fg"><label>Monto recibido</label><input id="ccp-monto" data-money="1" data-money-fixed="2" inputmode="decimal" placeholder="0,00" oninput="actualizarVistaPagoCuentaCorriente()"></div><div class="fg"><label>Fecha</label><input id="ccp-fecha" type="date" value="'+hoy+'"></div><div class="fg"><label>Medio de pago</label><select id="ccp-medio"><option value="">Seleccionar...</option>'+medios+'</select></div><div class="fg"><label>Referencia</label><input id="ccp-referencia" placeholder="N° transferencia, recibo, etc."></div></div>' +
-    '<div style="margin-top:14px"><div style="font-size:12px;font-weight:700;margin-bottom:4px">Aplicación automática · ventas más antiguas primero</div><div id="ccp-imputaciones" style="background:var(--bg3);border-radius:var(--radius);padding:4px 12px"></div><div id="ccp-aviso" style="display:none;color:var(--red);font-size:12px;margin-top:8px"></div></div></div>' +
-    '<div class="fg" style="padding:0 20px 16px"><label for="ccp-comprobante">Comprobante del pago (opcional)</label><label class="comprobante-selector" for="ccp-comprobante"><i class="ti ti-paperclip"></i><span>Elegir PDF o imagen · hasta 2 MB</span><input id="ccp-comprobante" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" aria-label="Elegir PDF o imagen · hasta 2 MB" onchange="this.previousElementSibling.textContent=this.files.length?this.files[0].name:this.getAttribute(&quot;aria-label&quot;)"></label><small style="color:var(--text3)">JPG, PNG, WEBP o PDF · hasta 2 MB. Se vincula a todas las ventas de este pago.</small></div>' +
-    '<div class="modal-footer"><button class="btn" onclick="cerrarPagoCuentaCorriente()">Cancelar</button><button id="ccp-guardar" class="btn btn-primary" onclick="confirmarPagoCuentaCorriente()"><i class="ti ti-check"></i> Registrar e imputar</button></div></div>';
+  modal._ccFocoAnterior = document.activeElement;
+  modal.innerHTML = '<section class="modal cc-payment-modal" role="dialog" aria-modal="true" aria-labelledby="ccp-title" aria-describedby="ccp-description" tabindex="-1">' +
+    '<div class="modal-head cc-payment-header"><div class="cc-payment-heading"><h3 id="ccp-title">Registrar pago</h3><p id="ccp-description">'+escapeHTML(window._ccNombreActual||'Cliente')+' · deuda $'+saldo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</p></div><button type="button" class="btn btn-sm btn-icon" aria-label="Cerrar pago de cuenta corriente" onclick="cerrarPagoCuentaCorriente()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
+    '<div class="cc-payment-body"><div class="form-grid cc-payment-fields"><div class="fg"><label for="ccp-monto">Monto recibido</label><input id="ccp-monto" type="text" data-money="1" data-money-fixed="2" inputmode="decimal" placeholder="0,00" oninput="actualizarVistaPagoCuentaCorriente()"></div><div class="fg"><label for="ccp-fecha">Fecha</label><input id="ccp-fecha" type="date" value="'+hoy+'"></div><div class="fg cc-payment-long"><label for="ccp-medio">Medio de pago</label><select id="ccp-medio"><option value="">Seleccionar...</option>'+medios+'</select></div><div class="fg cc-payment-long"><label for="ccp-referencia">Referencia</label><input id="ccp-referencia" type="text" placeholder="N° transferencia, recibo, etc."></div></div>' +
+    '<div class="cc-payment-allocation"><h4>Aplicación automática · ventas más antiguas primero</h4><div id="ccp-imputaciones"></div><div id="ccp-aviso" style="display:none"></div></div>' +
+    '<div class="fg cc-payment-attachment"><label for="ccp-comprobante">Comprobante (opcional)</label><label class="comprobante-selector" for="ccp-comprobante"><i class="ti ti-paperclip"></i><span>Elegir PDF o imagen</span><input id="ccp-comprobante" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" aria-label="Elegir PDF o imagen" onchange="this.previousElementSibling.textContent=this.files.length?this.files[0].name:this.getAttribute(&quot;aria-label&quot;)"></label><small>Hasta 2 MB. Se adjunta a las ventas de este pago.</small></div></div>' +
+    '<div class="cc-payment-footer"><button type="button" class="btn" onclick="cerrarPagoCuentaCorriente()">Cancelar</button><button type="button" id="ccp-guardar" class="btn btn-primary" onclick="confirmarPagoCuentaCorriente()"><i class="ti ti-check"></i> Registrar e imputar</button></div></section>';
   document.body.appendChild(modal);
+  prepararVentanaPagoCuentaCorriente(modal);
   initMoneyInputsEn(modal);
   actualizarVistaPagoCuentaCorriente();
   if (typeof svSincronizarPilaModales === 'function') svSincronizarPilaModales();
-  setTimeout(function(){ var input=document.getElementById('ccp-monto'); if(input) input.focus(); },0);
+  modal._ccFocoTimer = setTimeout(function(){
+    if (!modal.isConnected) return;
+    var escritorio = window.matchMedia && window.matchMedia('(min-width:1025px) and (pointer:fine)').matches;
+    var foco = escritorio ? modal.querySelector('#ccp-monto') : modal.querySelector('[role="dialog"]');
+    if (foco) foco.focus({preventScroll:true});
+  },0);
 }
 
 async function _ccGuardarPagoAcotado(grupo, solicitudes, cabecera, comprobante) {

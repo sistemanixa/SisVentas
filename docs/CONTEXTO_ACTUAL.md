@@ -2,6 +2,15 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Presentación del pago de cuenta · v3.12.12 local, sin publicar
+
+- Rama `codex/pago-cuenta-presentacion`, desde `b706072d68bd03009bfcced47e73088bc36904df`; conserva la auditoría de reconexión12. Fetch sin novedades de `origin/main`4639a87b. Producción permanece v3.12.11; sin integración en main ni despliegue.
+- Causa visual reproducida: regla móvil heredada pegaba `.modal-overlay` al borde inferior, y el pago usaba clases de encabezado/pie sin los estilos del sistema. En390×844 la ventana anterior terminaba exactamente en844. Nuevo componente `css/cuenta-corriente.css`, cargado en índice/SHELL: centrado sólo para este pago, controles uniformes de44px, campos cortos en pareja, encabezado/pie separados y opacos, adjunto dentro del cuerpo desplazable y botones a la derecha en escritorio.
+- Apertura móvil enfoca la ventana, sin forzar teclado sobre el importe. Sigue el alto/desplazamiento de `visualViewport` sin reconstruir campos; cierre cancela foco pendiente, limpia listeners y devuelve foco sin mover el fondo. Cálculos, validaciones e imputación/registro permanecen intactos. Controles de escritorio conservados; maximizar/restaurar comprobados. Nueva nota de v3.12.12 reúne reconexión y este ajuste.
+-1.922 pruebas vigentes aprobadas, incluidos tres casos nuevos de viewport/limpieza/fallback. Fuente/versión/diff correctos. En fixture sin Firebase:390×844 centrada;320×568 y844×390 contenidos con botones visibles;820×1180 y1136×900 sin desborde. Espacio reducido390×430: cuerpo con scroll187px, PageDown desplaza74px el frente y mantiene fondo0; importe123,45 y referencia ficticia conservados. Cruz libera bloqueo y restaura foco. Maximizar1120×884 en1136×900 y restaurar720px comprobados.
+- Espejo8766 actualizado y ventana real recargada; cuenta de la captura abierta en sólo lectura y pago con importe vacío. Medidas finales390×844: panel366px, bordes verticales120,8/723,2 y cuatro campos44px. No se ingresaron importes ni se registraron pagos reales. Capturas/registro privados `tmp/cc-pago-*`, fuera de Git/Hosting. El teclado físico de Android/iOS queda pendiente; se probó reducción del espacio y eventos de viewport simulados, no hardware.
+- Se deja abierta la ventana local del pago para revisión. El servidor ficticio se detiene;8766 sigue disponible. Próximo paso: revisar el acabado y publicar la candidata12 sólo cuando el titular lo indique. Más detalle en [AUDITORIA_FORMULARIOS.md](AUDITORIA_FORMULARIOS.md).
+
 ## Auditoría de corte y retorno · v3.12.12 local, sin publicar
 
 - Rama `codex/auditoria-reconexion`, base `737943f63409a4f11095e431a7358fd46633b093`; fetch sin novedades de `origin/main`4639a87b. Producción sigue v3.12.11. El trabajo anterior y el cambio ajeno del checkout raíz están conservados.

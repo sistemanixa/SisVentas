@@ -1,6 +1,34 @@
 # Formularios en tablet vertical y celular
 
-18/10/2026. Candidata local v3.12.11, rama `codex/formularios-tablet`, desde `af19e317b133b4cd9b68fbc2dffaebb146101e2d`. Producción conserva v3.12.10. Sin publicar ni guardar operaciones reales.
+## Pago de cuenta · corrección local v3.12.12
+
+18/10/2026, rama `codex/pago-cuenta-presentacion`, desde `b706072d`.
+Producción sigue v3.12.11. La captura del titular permitió identificar una
+ventana que seguía usando el formato inferior heredado de los modales móviles.
+La revisión anterior de cuadrículas no acreditaba el acabado de esta ventana.
+
+`css/cuenta-corriente.css` centra sólo el pago, normaliza campos a44px y separa
+cabecera, cuerpo desplazable y acciones. Usa colores/bordes del sistema; no
+cambia cálculos ni registro. El adjunto queda dentro del scroll. La apertura
+móvil enfoca el diálogo, evitando lanzar el teclado automáticamente. Un ajuste
+de `visualViewport` mantiene el panel dentro del espacio visible sin reemplazar
+campos; al cerrar se cancelan eventos/foco pendientes y se restaura el foco.
+
+Comprobaciones aisladas:390×844,320×568,844×390,820×1180 y1136×900, sin desborde
+horizontal y con acciones dentro de la pantalla. En390×430 se conserva importe
+y referencia, el cuerpo desplaza74px con PageDown y el fondo permanece en0.
+La cruz libera el scroll. Maximizar/restaurar en escritorio conserva la función
+común:1120×884 y vuelta a720px. No se registraron pagos ficticios ni reales.
+
+Tres pruebas nuevas de viewport/cierre;1.922 pruebas vigentes aprobadas.
+En la ventana local real recargada se comprobó panel centrado y cuatro controles
+exactamente44px, con importe vacío. Evidencias privadas en `tmp/cc-pago-*`.
+Pendiente teclado físico: la reducción a430px y el desplazamiento de viewport
+se simularon; no se declara comprobación del teclado Android/iOS.
+
+## Registro inicial de adaptación · v3.12.11
+
+18/10/2026. Registro previo a publicación, rama `codex/formularios-tablet`, desde `af19e317b133b4cd9b68fbc2dffaebb146101e2d`. En ese momento producción conservaba v3.12.10. Sin guardar operaciones reales. La publicación posterior figura en CONTEXTO_ACTUAL.
 
 ## Criterio y cambios
 

@@ -22,6 +22,10 @@ Cubre identidad del cobro, agrupación/adjuntos, retorno con período y scroll,
 permiso de Cobranzas, visor solo lectura y saldos con el historial completo.
 Recorrido aislado en `dev-module-audit.cjs`, botón Cuenta corriente de prueba.
 
+Viewport del pago de cuenta: `node --test test/cuenta-payment-viewport.test.cjs`.
+Cubre espacio visible con teclado, cierre/limpieza y fallback sin visualViewport;
+la revisión visual usa Cuenta corriente de prueba y abre el pago sin confirmarlo.
+
 Carga persistente y caché: `node --test test/sw-fallback.test.cjs test/update-recovery.test.cjs test/realtime-transport-policy.test.cjs`.
 Reproducción anónima de transporte y límites en
 [DIAGNOSTICO_CARGA_PERSISTENTE.md](../docs/DIAGNOSTICO_CARGA_PERSISTENTE.md).

@@ -19,6 +19,7 @@ const SHELL = [
  './js/core/distribuidora-money.js?v=3.11.1',
  './css/surface-scroll.css?v=3.12.10-tablet',
  './css/responsive-forms.css?v=3.12.11',
+ './css/cuenta-corriente.css?v=3.12.12',
  './js/modules/roles-help.js?v=3.10.35',
  './css/roles-help.css?v=3.10.35',
  './js/core/domain-read-policy.js?v=3.10.34',
