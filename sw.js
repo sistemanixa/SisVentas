@@ -139,6 +139,11 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE)
       .then((cache) => cache.addAll(SHELL))
+      // La caché offline es opcional: un almacenamiento lleno/bloqueado no
+      // debe impedir que una reparación online sustituya el worker anterior.
+      .catch((error) => {
+        if (!['QuotaExceededError','SecurityError','InvalidStateError','UnknownError','NotAllowedError'].includes(error?.name)) throw error;
+      })
       .then(() => self.skipWaiting()),
   );
 });
@@ -149,6 +154,7 @@ self.addEventListener('activate', (event) => {
       .then((keys) => Promise.all(
         keys.filter((key) => /^sisventas-v\d/.test(key) && key !== CACHE).map((key) => caches.delete(key)),
       ))
+      .catch(() => {})
       .then(() => self.clients.claim()),
   );
 });
@@ -165,18 +171,23 @@ self.addEventListener('fetch', (event) => {
   if(event.request.headers?.has('Authorization') || url.pathname.startsWith('/privado/finanzas')) return;
   if (url.origin === 'https://www.gstatic.com' && url.pathname.indexOf('/firebasejs/') >= 0) {
     event.respondWith(
-      caches.open(CACHE).then(async (cache) => {
+      (async () => {
+        let cache;
+        try { cache = await caches.open(CACHE); } catch (_error) {}
         // El SDK usa una versión exacta en la ruta: nunca cambia su contenido.
-        const cached = await cache.match(event.request);
+        let cached;
+        try { cached = await cache?.match(event.request); } catch (_error) {}
         if (cached) return cached;
         try {
           const response = await fetch(new Request(event.request, { cache: 'no-store' }));
-          if (response.ok) await cache.put(event.request, response.clone());
+          if (response.ok && cache) {
+            try { await cache.put(event.request, response.clone()); } catch (_error) {}
+          }
           return response;
         } catch (_error) {
-          return (await cache.match(event.request)) || Response.error();
+          return Response.error();
         }
-      }),
+      })(),
     );
     return;
   }
@@ -187,7 +198,7 @@ self.addEventListener('fetch', (event) => {
   // bloquee las descargas iniciadas desde una vista previa blob:.
   if (url.pathname.indexOf('/__sisventas_pdf__/') === 0) {
     event.respondWith(
-      caches.match(event.request).then((response) => (
+      caches.match(event.request).catch(() => undefined).then((response) => (
         response || new Response('PDF temporal no disponible', { status: 404 })
       )),
     );
@@ -206,15 +217,19 @@ self.addEventListener('fetch', (event) => {
     fetch(solicitudRed)
       .then((response) => {
         const copy = response.clone();
-        if(response.ok && !/no-store|private/i.test(response.headers.get('cache-control')||'')) caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        if(response.ok && !/no-store|private/i.test(response.headers.get('cache-control')||'')) {
+          const saved = caches.open(CACHE).then((cache) => cache.put(event.request, copy)).catch(() => {});
+          if(event.waitUntil) event.waitUntil(saved);
+        }
         return response;
       })
       .catch(async () => {
-        const guardado = await caches.match(event.request, { ignoreSearch: true });
+        // Un módulo con ?v= nuevo nunca se reemplaza por otro con ?v= antiguo.
+        const guardado = await caches.match(event.request, { ignoreSearch: event.request.mode === 'navigate' }).catch(() => undefined);
         if (guardado) return guardado;
         // El HTML solo recupera páginas: devolverlo como JavaScript rompe el arranque.
         if (event.request.mode === 'navigate') {
-          const pagina = await caches.match('./index.html');
+          const pagina = await caches.match('./index.html').catch(() => undefined);
           if (pagina) return pagina;
         }
         return Response.error();

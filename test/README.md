@@ -22,6 +22,10 @@ Cubre identidad del cobro, agrupación/adjuntos, retorno con período y scroll,
 permiso de Cobranzas, visor solo lectura y saldos con el historial completo.
 Recorrido aislado en `dev-module-audit.cjs`, botón Cuenta corriente de prueba.
 
+Carga persistente y caché: `node --test test/sw-fallback.test.cjs test/update-recovery.test.cjs test/realtime-transport-policy.test.cjs`.
+Reproducción anónima de transporte y límites en
+[DIAGNOSTICO_CARGA_PERSISTENTE.md](../docs/DIAGNOSTICO_CARGA_PERSISTENTE.md).
+
 Interacciones compartidas: `node --test test/system-dialog-interactions.test.cjs test/surface-scroll-stack.test.cjs`.
 Demostración de navegador sin Firebase ni datos de negocio: `node scripts/dev-interaction-audit.cjs`,
 solo loopback en8784. Casos, evidencia y límites en [AUDITORIA_INTERACCIONES.md](../docs/AUDITORIA_INTERACCIONES.md).
