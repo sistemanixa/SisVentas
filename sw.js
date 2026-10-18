@@ -24,7 +24,7 @@ const SHELL = [
  './js/core/service-auth.js?v=3.10.19',
   './js/modules/catalog-promotions-config.js?v=20261011-edit',
   './js/modules/distribuidora-sales-balance.js?v=3.11.11-directory',
-  './js/modules/serial-camera-scanner.js?v=3.12.9-scroll',
+  './js/modules/serial-camera-scanner.js?v=3.12.10-encuadre',
   './js/vendor/zxing/zxing-browser-0.1.5.min.js',
   './js/modules/distributor-documents.js?v=3.12.3',
   './js/modules/catalog-order-periods-config.js?v=1',

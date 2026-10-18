@@ -4,6 +4,8 @@
 
 ## Criterio obligatorio
 
+**Encuadre móvil, candidata local v3.12.10:** video vertical podía mostrarse estrecho con una guía independiente más grande. Se estabilizó el visor con ancho completo y alto acotado, video que lo llena sin estirarse y guías proporcionadas al mismo espacio. Medición en390×844,844×390 y1136×1004: video ocupa todo el visor, guías dentro y QR cuadrado. Seis lecturas ZXing de QR/Code128 con fuentes simuladas cuadradas, verticales y horizontales correctas. Para repetir, abrir `test/fixtures/serial-camera.html` desde `dev-distributor-documents.cjs`, elegir formato y «Sin código» para inspección, o un código ficticio para lectura. No se usó cámara física; la prueba del dispositivo del titular sigue pendiente. Sin publicación ni cambios de datos.
+
 **Incidente posterior a la publicación:** la cruz de la cámara sobre Búsqueda avanzada no quedó cubierta por los recorridos anteriores. Se reprodujo `pointer-events:none` en el lector por un orden incorrecto del gestor (z-index auto contra10000), aunque `showModal()` lo dibuja en la capa superior. La candidata local v3.12.10 da prioridad a `dialog:modal`; prueba nueva primero falló y después pasó. Cierre por clic comprobado en escritorio y390px, tanto cámara activa sola como sobre buscador, con detención del video y conservación de una observación ficticia del presupuesto.1.885 pruebas vigentes aprobadas. Producción sigue v3.12.9 hasta una publicación posterior. Esta evidencia corrige el alcance declarado del lector; no afirmar que el clic en cruz anidada se había probado en v3.12.9.
 
 | Área | Condición que debe cumplirse |
