@@ -10350,6 +10350,7 @@ function showPage(id, el) {
     var actorDistribuidora=currentUserUid;
     Promise.resolve(window.SVSessionAssets.load('paraguay')).then(function(){
       if(currentUserUid!==actorDistribuidora||!permisoModulo('distribuidora'))return;
+      if(!sidebarDesktopActivo())closeSidebarMobile();
       return window.SVParaguayPortal.open(currentUser,{internal:true});
     }).catch(function(){notify('No se pudo abrir Distribuidora. Revisá la conexión.');});return;
   }
@@ -10390,6 +10391,7 @@ function showPage(id, el) {
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
   page.classList.add('active');
+  if (!sidebarDesktopActivo()) closeSidebarMobile();
   if (window.SVBackNavigation) window.SVBackNavigation.schedule();
   if (id === 'proveedores') renderResumenPreciosProveedores();
   // La primera preparación marca las tablas mientras el módulo está oculto.
@@ -10544,7 +10546,6 @@ function showPage(id, el) {
   var contentEl = document.querySelector('.content');
   if (contentEl) contentEl.scrollTop = 0;
 
-  if (window.innerWidth <= 768 && typeof closeSidebarMobile === 'function') closeSidebarMobile();
   svActualizarMasUsados(id);
   if (window.SisVentas && window.SisVentas.Access) {
     window.SisVentas.Access.emit('page-changed', { page: id });

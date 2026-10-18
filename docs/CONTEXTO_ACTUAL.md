@@ -4,6 +4,12 @@ Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Co
 
 ## v3.12.9 publicada · cierre de la auditoría de interacciones
 
+### Cierre del menú al navegar · v3.12.10 local
+
+- Base `f809c0c15d3e8bceede52a591098d4d0cb95ba44`, rama `codex/auditoria-interacciones`. El menú superpuesto usa CSS hasta1100px, pero showPage solo lo cerraba hasta768px. Se unificó con sidebarDesktopActivo (escritorio desde1101px) y se cierra al activar el destino, antes del render específico. Distribuidora también cierra tras cargar sus activos y comprobar sesión/permisos. Una navegación bloqueada no fuerza el cierre. No se cambian datos ni permisos.
+- Cuatro pruebas funcionales nuevas; la prueba de820px falló antes de corregir.1.896 pruebas vigentes aprobadas, sintaxis/diff y versión local comprobados. Navegador aislado: menú abierto y selección de Presupuestos en820px, Productos en390px y acceso rápido en1024px; menú sin open, overlay oculto y scroll liberado. En1136px conserva autoocultamiento de escritorio. Sin escrituras reales. Distribuidora validada funcionalmente con portal ficticio, sin abrir sesiones externas reales.
+- Mantiene candidata v3.12.10 y los arreglos anteriores de cámara y Cuenta corriente; producción sigue v3.12.9. Próximo paso: revisión local y publicación cuando corresponda. La comprobación adaptable simula tamaños; no sustituye touch físico.
+
 ### Consulta de cobros desde Cuenta corriente · v3.12.10 local
 
 - Dos acciones por movimiento de pago: Ver cobro lleva a Cobranzas filtrado por identidades reales de los pagos de ese movimiento; Volver a Cuenta corriente restaura cliente, período, búsqueda, filtro y desplazamiento del contenedor y de la página móvil. Se respeta permiso de Cobranzas; movimientos históricos sin identificador no inventan un cobro individual.
