@@ -1,10 +1,10 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.12.11';
+const CACHE = 'sisventas-v3.12.12';
 const SHELL = [
  './js/core/session-recovery.js?v=3.12.8-local-server',
  './js/core/permission-index.js?v=3.11.11',
- './js/core/user-directory.js?v=3.12.3',
+ './js/core/user-directory.js?v=3.12.12-reconexion',
  './js/core/chat-security.js?v=3.11.11',
  './css/projects.css?v=3.12.9-tactil',
  './css/product-code-search.css?v=3.12.3',
@@ -49,7 +49,7 @@ const SHELL = [
   './js/modules/commercial-approval.js?v=3.9.29',
   './js/core/guarded-writes.js?v=3.9.24-server-check2',
   './js/core/session-assets.js?v=3.12.8-local-server',
-  './js/app.v3.12.11.js',
+  './js/app.v3.12.12.js',
   './js/modules/navigation-back.js?v=perf-3105',
   './js/modules/product-url-import.js?v=3.9.15-dual-shipping',
   './js/modules/keyboard-actions.js',
@@ -57,7 +57,7 @@ const SHELL = [
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js',
   './js/core/version.js',
-  './js/core/version.v3.12.11.js',
+  './js/core/version.v3.12.12.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.10.32',
@@ -84,7 +84,7 @@ const SHELL = [
   './js/core/private-finance-import-queue.js?v=3.12.6',
   './css/private-finance.css?v=3.12.6',
   './personal-finance.html',
-  './js/core/commercial-ownership.js?v=3.12.3',
+  './js/core/commercial-ownership.js?v=3.12.12-reconexion',
   './js/modules/commercial-document-controls.js?v=3.11.18',
   './js/core/commission-generation.js?v=3.11.18',
   './js/core/error-monitor.js?v=3.12.0-text',

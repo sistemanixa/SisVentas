@@ -26,6 +26,11 @@ Carga persistente y caché: `node --test test/sw-fallback.test.cjs test/update-r
 Reproducción anónima de transporte y límites en
 [DIAGNOSTICO_CARGA_PERSISTENTE.md](../docs/DIAGNOSTICO_CARGA_PERSISTENTE.md).
 
+Corte/retorno y cierre de sesión: `node --test test/reconnection-cycle.test.cjs`.
+Fixture con lecturas reales y servidor ficticio: `node scripts/dev-reconnection-audit.cjs`;
+su aislamiento se valida aparte con `node --test test/reconnection-audit-isolation.integration.cjs`
+(requiere loopback). Evidencia y límites en [AUDITORIA_RECONEXION.md](../docs/AUDITORIA_RECONEXION.md).
+
 Interacciones compartidas: `node --test test/system-dialog-interactions.test.cjs test/surface-scroll-stack.test.cjs`.
 Demostración de navegador sin Firebase ni datos de negocio: `node scripts/dev-interaction-audit.cjs`,
 solo loopback en8784. Casos, evidencia y límites en [AUDITORIA_INTERACCIONES.md](../docs/AUDITORIA_INTERACCIONES.md).

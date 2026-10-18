@@ -1,0 +1,40 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Corte y retorno · datos ficticios</title>
+<style>
+body{font:16px system-ui;background:#0b1322;color:#e6edfc;max-width:1050px;margin:32px auto;padding:20px}h1{font-size:25px}p{color:#9eafc8;line-height:1.6}button{border:1px solid #3b4d6b;background:#1c2b43;color:#e6edfc;padding:12px 16px;border-radius:9px;min-height:44px;cursor:pointer;font:inherit}button:disabled{opacity:.45;cursor:default}nav{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}.card{padding:20px;border:1px solid #30415d;border-radius:14px;background:#162339}.card strong{display:block;margin-bottom:14px}.card span{display:block;line-height:1.7}.good{color:#78dc8d}.error{color:#ff9e8c}#connection{font-weight:700}#history{padding-left:22px;line-height:1.9}#summary{padding:16px;border-radius:12px;background:#162339}
+</style>
+<h1>Auditoría de corte y retorno</h1><p>DATOS FICTICIOS. Las lecturas usan los módulos reales; las cuentas y el servidor de esta prueba son aislados. No se carga Firebase, no se accede a datos reales y no se borra almacenamiento.</p>
+<div id="connection" role="status">Conectando…</div>
+<nav><button id="cut">Cortar conexión</button><button id="restore" disabled>Volver a conectar</button><button id="fail">Fallar lecturas</button><button id="logout">Cerrar sesión ficticia</button></nav>
+<div class="cards"><section class="card" id="ventas"><strong>Ventas</strong><span class="state"></span><span class="value"></span></section><section class="card" id="presupuestos"><strong>Presupuestos</strong><span class="state"></span><span class="value"></span></section><section class="card" id="usuarios"><strong>Usuarios</strong><span class="state"></span><span class="value"></span></section></div>
+<p id="summary" role="status"></p><ol id="history"></ol>
+<script>
+let online=true,signedIn=true,requests=0,recoveries=0,waitingRecovery=false,directoryReplies=0,expectedDirectoryReplies=0,targetRevision=null;
+const records={ventas:null,presupuestos:null,usuarios:null},nativeFetch=window.fetch.bind(window);
+Object.defineProperty(navigator,'onLine',{configurable:true,get:()=>online});
+window.fetch=(input,options)=>{if(/^\/(comerciales|usuarios)\//.test(new URL(input,location.href).pathname)){requests++;render();}return nativeFetch(input,options);};
+window.currentUserUid='fixture';window.currentRole='vendedor';window.SV_USER_DIRECTORY_V2=true;
+window.fbAuth={currentUser:{uid:'fixture',getIdToken:async()=> 'FICTICIO'}};
+window.SISVENTAS_FUNCTIONS={cotizadorProveedor:location.origin};window.permisoModulo=()=>true;
+function log(message){const item=document.createElement('li');item.textContent=message;document.getElementById('history').append(item);}
+function render(){
+ if(!window.SVDataReadiness)return;
+ const all=SVDataReadiness.status(['ventas','presupuestos','usuarios']);
+ if(waitingRecovery&&online&&signedIn&&all.ready&&!all.errors.length&&records.ventas===targetRevision&&records.presupuestos===targetRevision&&directoryReplies>=expectedDirectoryReplies){recoveries++;waitingRecovery=false;log('Recuperación '+recoveries+' completada sin recargar ni borrar datos.');}
+ document.getElementById('connection').textContent=!signedIn?'Sesión ficticia cerrada':!online?'Sin conexión · información recibida conservada':all.errors.length?'No se completaron las lecturas':all.ready&&!waitingRecovery?'Sincronizado':'Reconectando…';
+ for(const key of Object.keys(records)){const state=SVDataReadiness.status([key]),card=document.getElementById(key);card.querySelector('.state').textContent=state.errors.length?'Error de lectura':!online?'Sin conexión':state.ready?'Datos listos':'Esperando datos…';card.querySelector('.state').className='state '+(state.errors.length?'error':state.ready&&online?'good':'');card.querySelector('.value').textContent=records[key]===null?'Sin respuesta todavía':key==='usuarios'?'Directorio ficticio recibido':'Revisión recibida: '+records[key];}
+ document.getElementById('summary').textContent='Lecturas HTTP: '+requests+' · Recuperaciones: '+recoveries;
+ document.getElementById('summary').dataset.recoveries=String(recoveries);document.getElementById('summary').dataset.requests=String(requests);
+}
+</script>
+<script src="/js/core/data-readiness.js"></script><script src="/js/core/commercial-ownership.js"></script><script src="/js/core/user-directory.js"></script>
+<script>
+for(const domain of ['ventas','presupuestos'])SVCommercialOwnership.onValue(domain,snap=>{records[domain]=Object.values(snap.val()||{})[0]?.total??null;render();},()=>render());
+SVUserDirectory.start(snap=>{directoryReplies++;records.usuarios=Object.keys(snap.val()||{}).length;render();},()=>render());
+document.addEventListener('sisventas:data-state-changed',render);
+document.getElementById('cut').onclick=async()=>{await nativeFetch('/__fixture/network?state=offline');online=false;window.dispatchEvent(new Event('offline'));document.getElementById('cut').disabled=true;document.getElementById('restore').disabled=false;log('Corte simulado. Se conserva la información.');render();};
+document.getElementById('restore').onclick=async()=>{targetRevision=(await(await nativeFetch('/__fixture/network?state=online')).json()).revision;expectedDirectoryReplies=directoryReplies+1;online=true;waitingRecovery=true;window.dispatchEvent(new Event('online'));document.getElementById('cut').disabled=false;document.getElementById('restore').disabled=true;render();};
+document.getElementById('fail').onclick=async()=>{await nativeFetch('/__fixture/network?state=error');await Promise.all([SVCommercialOwnership.refresh('ventas'),SVCommercialOwnership.refresh('presupuestos'),SVUserDirectory.refresh()]);document.getElementById('restore').disabled=false;log('Fallo HTTP simulado. No se inventan resultados ni se vacían datos.');render();};
+document.getElementById('logout').onclick=()=>{document.dispatchEvent(new Event('sisventas:session-ended'));fbAuth.currentUser=null;currentUserUid='';signedIn=false;for(const key of Object.keys(records))records[key]=null;log('Sesión ficticia cerrada. El retorno no debe reactivar lecturas.');render();};
+render();
+</script></html>

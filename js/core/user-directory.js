@@ -27,7 +27,7 @@
   },e=>{if(epoch!==generation)return;if(String(e.code||'').toLowerCase().includes('permission_denied')){stop();root.usuariosData=[];root._cancelarAutenticacionParcial?.('No se pudo validar tu acceso. Volvé a ingresar.');}});
  }
  async function refresh(){
-  if(pending){again=true;return pending;}if(!subscriptions.size)return;
+  if(root.navigator?.onLine===false)return;if(pending){again=true;return pending;}if(!subscriptions.size)return;
   const c=session();let task;
   task=(async()=>{
    for(const admin of [...new Set([...subscriptions].map(s=>s.admin))]){
@@ -60,5 +60,6 @@
  }
  document.addEventListener('sisventas:session-ended',()=>{stop();appStop=null;});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
+ root.addEventListener?.('online',()=>{if(!document.hidden)refresh();});
  root.SVUserDirectory={enabled,profile,read,adminProfile,onValue:subscribe,start,refresh,stop};
 })(window);
