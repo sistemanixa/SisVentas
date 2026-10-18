@@ -61,12 +61,12 @@ async function original(id){if(!id){toast('No hay un original vinculado');return
 async function viewPDF(bytes,name,documentId){
  ++pdfRequestGeneration;pdfDispose?.();
  const pdfOverflow=document.body.style.overflow;document.body.style.overflow='hidden';
- const d=document.createElement('dialog');d.setAttribute('aria-label','Original PDF');
+ const d=document.createElement('dialog');d.className='private-pdf-viewer';d.setAttribute('aria-label','Original PDF');d.setAttribute('aria-busy','true');
  d.innerHTML='<div class="modalhead"><h2></h2><button type="button" class="close" aria-label="Cerrar original">×</button></div><div class="modalbody"><p data-pdf-status role="status" aria-live="polite">Cargando original…</p><canvas style="width:100%;height:auto"></canvas></div><div class="modalfoot"><button class="btn" data-prev disabled>Anterior</button><button class="btn" data-next disabled>Siguiente</button><button class="btn" data-retry hidden>Reintentar página</button></div>';
  d.querySelector('h2').textContent=name;document.body.append(d);d.showModal();
  let pdf=null,index=1,disposed=false,busy=false,shown=false,renderTask=null,retryPage=1,loadingFailed=false;
  const life=new AbortController(),prev=d.querySelector('[data-prev]'),next=d.querySelector('[data-next]'),retry=d.querySelector('[data-retry]'),status=d.querySelector('[data-pdf-status]');
- function controls(){prev.disabled=busy||!pdf||index<=1;next.disabled=busy||!pdf||index>=pdf.numPages;retry.disabled=busy;next.textContent=pdf&&index===pdf.numPages?'Última página':'Siguiente';}
+ function controls(){d.setAttribute('aria-busy',String(busy));prev.disabled=busy||!pdf||index<=1;next.disabled=busy||!pdf||index>=pdf.numPages;retry.disabled=busy;next.textContent=pdf&&index===pdf.numPages?'Última página':'Siguiente';next.title=pdf&&index===pdf.numPages?'Llegaste a la última página':'';}
  function bounded(task){let timer,abort;const limit=new Promise((_,reject)=>{abort=()=>reject(Object.assign(Error('Visor cerrado'),{name:'AbortError'}));if(life.signal.aborted){abort();return;}life.signal.addEventListener('abort',abort,{once:true});timer=setTimeout(()=>reject(Error('La página demoró demasiado')),20000);});return Promise.race([task,limit]).finally(()=>{clearTimeout(timer);life.signal.removeEventListener('abort',abort);});}
  const downloadButton=document.createElement('button');downloadButton.type='button';downloadButton.className='btn';downloadButton.textContent='Descargar original';downloadButton.onclick=async()=>{if(documentId){try{await downloadOriginal(documentId);}catch(e){if(!disposed)status.textContent='No se pudo descargar el original. Volvé a intentar.';}return;}const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));urls.add(url);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>{URL.revokeObjectURL(url);urls.delete(url);},1000);};d.querySelector('.modalfoot').append(downloadButton);
  const dispose=()=>{if(disposed)return;disposed=true;life.abort();renderTask?.cancel();Promise.resolve(pdf?.destroy()).catch(()=>{});d.remove();document.body.style.overflow=pdfOverflow;if(pdfDispose===dispose)pdfDispose=null;};
@@ -80,7 +80,7 @@ async function viewPDF(bytes,name,documentId){
  }
  prev.onclick=()=>draw(index-1);next.onclick=()=>draw(index+1);retry.onclick=()=>{shown=false;return draw(retryPage);};
  try{const opening=window.SVPrivateFinancePDF.open(bytes);opening.then(doc=>{if(disposed||loadingFailed)Promise.resolve(doc.destroy()).catch(()=>{});},()=>{});pdf=await bounded(opening);if(disposed||dead){await pdf.destroy();return;}if(!Number.isInteger(pdf.numPages)||pdf.numPages<1)throw Error('PDF sin páginas');await draw(1);}
- catch(error){loadingFailed=true;if(!disposed){status.textContent='No se pudo mostrar el original. Cerrá y volvé a abrirlo, o descargalo.';prev.disabled=next.disabled=true;}}
+ catch(error){loadingFailed=true;if(!disposed){d.setAttribute('aria-busy','false');status.textContent='No se pudo mostrar el original. Cerrá y volvé a abrirlo, o descargalo.';prev.disabled=next.disabled=true;}}
 }
 
 function storageBadge(){document.getElementById('storageBadge').innerHTML=icon('lock')+'Espacio privado · servidor';}
@@ -129,10 +129,19 @@ function resultChecks(target){
  const s=target.statement,missing=[];
  for(const [key,label]of [['period','período'],['close','cierre'],['due','vencimiento'],['total','saldo en pesos']])if(s[key]===null||s[key]===undefined||s[key]==='')missing.push(label);
  const rows=target.movements.filter(m=>m.currency==='ARS');
- const mismatch=s.previous!=null&&s.total!=null&&rows.every(m=>m.amount!=null)&&s.previous+sum(rows.map(m=>m.amount))!==s.total;
+ const cents=value=>Math.round(Number(value)*100);
+ const mismatch=s.previous!=null&&s.total!=null&&rows.every(m=>m.amount!=null)&&cents(s.previous)+rows.reduce((total,m)=>total+cents(m.amount),0)!==cents(s.total);
  const selected=target.cardCreated||s.card,needsCard=!selected||selected==='__new_card__'&&!target.proposedCard;
  const duplicate=state.statements.find(x=>x.id!==s.id&&x.card===selected&&x.period===s.period);
  return {missing,mismatch,needsCard,duplicate,blocked:!!(missing.length||mismatch||needsCard||duplicate)};
+}
+function resultBlockReason(target){
+ const checks=resultChecks(target);
+ if(checks.missing.length)return 'Falta reconocer '+checks.missing.join(', ')+'.';
+ if(checks.needsCard)return 'Elegí la tarjeta de este resumen.';
+ if(checks.duplicate)return 'Este período ya está guardado. Abrí el resultado para revisarlo.';
+ if(checks.mismatch)return 'El saldo no coincide con los movimientos. Revisá el PDF original.';
+ return '';
 }
 function statementPage(){
  if(!stage)return importsPage();
@@ -148,7 +157,8 @@ function statementPage(){
   <div class="pdf-result-period"><span>Cierre: <b>${date(s.close)}</b></span>${purchases.length?`<span>Consumos: <b>${money(consumed('ARS'))}${consumed('USD')?' + '+money(consumed('USD'),'USD'):''}</b></span>`:''}</div>
   ${panel('Movimientos',`<div class="tablewrap pdf-result-table"><table><thead><tr><th>Fecha</th><th>Detalle</th><th>Cuotas</th><th class="money">ARS</th><th class="money">USD</th></tr></thead><tbody>${rows||'<tr><td colspan="5">No se reconocieron movimientos.</td></tr>'}</tbody></table></div>`)}
   <div id="resultError" class="error" role="alert"></div>
-  <div class="pdf-result-actions">${button('Volver','resultback','','ghost')}<div>${!stage.saved?button('Volver a escanear','analyzepdf','','ghost'):''}${!stage.saved?button(saving?'Guardando…':'Guardar resumen','saveresult',checks.blocked||saving?'disabled':'','primary','check'):''}</div></div>
+  ${!stage.saved&&checks.blocked?`<p class="pdf-save-reason" role="status">${esc(resultBlockReason(stage))}</p>`:''}
+  <div class="pdf-result-actions">${button('Volver','resultback','','ghost')}<div>${!stage.saved?button('Volver a escanear','analyzepdf','','ghost'):''}${!stage.saved?button(saving?'Guardando…':'Guardar resumen','saveresult',(checks.blocked||saving?'disabled ':'')+(saving?'aria-busy="true"':''),'primary','check'):''}</div></div>
  </div>`;
 }
 function pendingReading(){return stage&&!stage.saved&&!scanContext&&!importQueue.entries.some(e=>e.result===stage)?panel('Resumen pendiente de guardar',`<div class="panelbody pdf-pending"><span>${esc(stage.newFile?.name||'Lectura del PDF')}</span><div class="actions">${button('Ver resultado','openresult','','primary')}${button('Descartar lectura','discardreading','','ghost')}</div></div>`):'';}
@@ -165,8 +175,10 @@ function useAsRevision(id){
  stage.movements.push(...remaining);previewRender();
 }
 async function saveResult(){
- if(!stage||stage.saved||saving||aiController)return;
- const target=stage;if(resultChecks(target).blocked){toast('Completá la lectura antes de guardar.');return;}
+ if(!stage||stage.saved||saving)return;
+ if(aiController){toast('Este resumen todavía se está leyendo. Esperá a que termine.');return;}
+ const target=stage;if(resultChecks(target).blocked){toast(resultBlockReason(target));return;}
+ delete target.saveError;
  saving=true;render();
  try{
   const data=readReview();
@@ -180,7 +192,12 @@ async function saveResult(){
   await mutate('statement-save',data);if(dead||stage!==target)return;
   target.saved=true;target.statement=structuredClone(state.statements.find(s=>s.id===data.id));target.movements=structuredClone(state.movements.filter(m=>m.statement===data.id&&!m.postClose));render();toast('Resumen guardado.');
 
- }catch(e){if(!dead&&stage===target)showError(e);}finally{saving=false;if(!dead&&stage===target){const b=document.querySelector('[data-action="saveresult"]');if(b){b.disabled=resultChecks(target).blocked;b.textContent='Guardar resumen';}}}
+ }catch(e){if(!dead&&stage===target){target.saveError=e.message;if(page==='imports')toast('No se pudo guardar este resumen: '+e.message);else showError(e);}}finally{saving=false;if(!dead&&stage===target){if(page==='imports')render();else{const b=document.querySelector('[data-action="saveresult"]');if(b){b.disabled=resultChecks(target).blocked;b.removeAttribute('aria-busy');b.textContent='Guardar resumen';}}}}
+}
+async function saveQueuedResult(id){
+ const entry=importQueue.entries.find(e=>e.id===id);
+ if(!entry||entry.status!=='ready'||!entry.result||entry.result.saved||saving)return;
+ stage=entry.result;page='imports';await saveResult();
 }
 
 function renderScan(){
@@ -197,8 +214,17 @@ function renderScan(){
 }
 function queuePanel(){
  if(!importQueue.entries.length)return panel('Así de simple','<div class="panelbody pdf-import-guide"><p><b>1. Subí tus PDF</b></p><p><b>2. Esperá el escaneo</b></p><p><b>3. Abrí cada resultado y guardá</b></p></div>');
- const labels={waiting:'En espera',reading:'Leyendo…',ready:'Listo para abrir',error:'No se pudo leer',cancelled:'Cancelado'};
- return panel('Tus archivos',`<div class="panelbody pdf-queue" aria-label="Cola de PDF"><p class="helptext">${importQueue.entries.filter(e=>e.status==='ready').length} de ${importQueue.entries.length} listos · no se guardan hasta confirmar</p>${importQueue.entries.map(e=>`<article class="pdf-queue-item is-${e.status}"><div class="pdf-queue-symbol" aria-hidden="true">${e.status==='ready'?icon('check'):e.status==='reading'?'<span class="pdf-queue-spinner"></span>':icon('file')}</div><div class="pdf-queue-copy"><b>${esc(e.name)}</b><small>${e.result?.saved?'Guardado':e.duplicate?'Ya estaba en la lista':labels[e.status]}</small>${e.status==='error'?`<small class="error">${esc(e.error)}</small>`:''}</div><div class="pdf-queue-actions">${e.status==='ready'?button('Abrir','queue-open',`data-id="${e.id}"`,'small'):['error','cancelled'].includes(e.status)?button('Reintentar','queue-retry',`data-id="${e.id}"`,'small'):button('Cancelar','queue-cancel',`data-id="${e.id}"`,'small ghost')}${['ready','error','cancelled'].includes(e.status)?button('Quitar','queue-remove',`data-id="${e.id}"`,'small ghost'):''}</div></article>`).join('')}</div>`);
+ const labels={waiting:'En espera',reading:'Leyendo…',ready:'Listo para guardar',error:'No se pudo leer',cancelled:'Cancelado'};
+ const rows=importQueue.entries.map(e=>{
+  const ready=e.status==='ready'&&e.result,saved=ready&&e.result.saved,reason=ready&&!saved?resultBlockReason(e.result):'',active=saving&&e.result===stage;
+  const attrs='data-id="'+e.id+'"'+(saving?' disabled':'');
+  let actions=ready?button(reason?'Revisar':'Abrir','queue-open',attrs,'small'):['error','cancelled'].includes(e.status)?button('Reintentar','queue-retry',attrs,'small'):button('Cancelar','queue-cancel',attrs,'small ghost');
+  if(ready&&!saved&&!reason)actions+=button(active?'Guardando…':'Guardar','queue-save',attrs+(active?' aria-busy="true"':''),'small primary');
+  if(['ready','error','cancelled'].includes(e.status))actions+=button('Quitar','queue-remove',attrs,'small ghost');
+  const hint=active?'Guardando…':saved?'Guardado':reason?'Necesita revisión':e.duplicate?'Lectura reutilizada':labels[e.status];
+  return '<article class="pdf-queue-item is-'+e.status+'"><div class="pdf-queue-symbol" aria-hidden="true">'+(e.status==='ready'?icon('check'):e.status==='reading'?'<span class="pdf-queue-spinner"></span>':icon('file'))+'</div><div class="pdf-queue-copy"><b>'+esc(e.name)+'</b><small>'+esc(hint)+'</small>'+(reason?'<small class="error">'+esc(reason)+'</small>':'')+((e.result?.saveError||e.status==='error')?'<small class="error">'+esc(e.result?.saveError||e.error)+'</small>':'')+'</div><div class="pdf-queue-actions">'+actions+'</div></article>';
+ }).join('');
+ return panel('Tus archivos','<div class="panelbody pdf-queue" aria-label="Cola de PDF"><p class="helptext">'+importQueue.entries.filter(e=>e.status==='ready').length+' de '+importQueue.entries.length+' listos · cada archivo se guarda por separado</p>'+rows+'</div>');
 }
 function queueChanged(){
  const reading=importQueue.entries.find(e=>e.status==='reading');scanContext=reading?{id:reading.id,name:reading.name}:null;
@@ -289,7 +315,7 @@ async function submit(f){
 function showError(error){if(dead)return;if(page==='statement'){const box=document.getElementById('resultError');box.textContent=error.status===409?'Los datos cambiaron. Actualizá antes de volver a guardar.':'No se pudo guardar el resumen. Podés reintentar sin volver a cargar el PDF.';if(error.status===409||pendingCommand){const b=document.createElement('button');b.type='button';b.className='btn small';b.textContent='Actualizar';b.onclick=async()=>{try{const previous=pendingCommand;await refresh(true);if(previous&&state.history.some(h=>h.id===previous.id)&&previous.type==='statement-save'){stage.saved=true;stage.statement=structuredClone(state.statements.find(s=>s.id===previous.data.id));}if(previous?.type==='card-save'&&state.cards.some(c=>c.id===previous.data.id))stage.cardCreated=previous.data.id;pendingCommand=null;render();}catch(e){box.textContent='No se pudo actualizar. Revisá la conexión.';}};box.append(' ',b);}return;}const el=(document.getElementById('dialog').open?document.getElementById('formError'):null)||document.getElementById('planError');if(!el){toast(error.message);return;}el.textContent=error.message;if(error.status===409||pendingCommand){const b=document.createElement('button');b.type='button';b.className='btn small';b.textContent='Actualizar base sin cerrar el formulario';b.onclick=async()=>{try{const previous=pendingCommand;await refresh(true);if(previous&&state.history.some(h=>h.id===previous.id)){pendingCommand=null;closeModal();render();toast('La operación ya estaba guardada.');return;}pendingCommand=null;el.textContent='Base actualizada. Revisá los datos actuales antes de guardar otra vez; tu formulario se conserva.';const details=document.createElement('details');details.innerHTML='<summary>Ver registros actuales para comparar</summary>'+auditChanges({changes:['cards','statements','payments','insurances','expenses'].map(group=>({group,before:[],after:state[group]}))});el.append(details);}catch(e){el.textContent=e.message;}};el.append(' ',b);}}
 document.addEventListener('submit',async e=>{e.preventDefault();if(saving||aiController)return;const f=e.target;saving=true;f.querySelectorAll('[type=submit]').forEach(b=>b.disabled=true);try{if(f.id==='modalForm')await submit(f);else if(f.id==='planForm'){const x=scenario();await mutate('strategy-save',x);render();toast('Escenario guardado sin modificar pagos.');}}catch(err){showError(err);}finally{saving=false;f.querySelectorAll('[type=submit]').forEach(b=>b.disabled=false);}});
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-action]');if(!b||saving)return;const a=b.dataset.action,id=b.dataset.id;try{
- if(a==='queue-open'){const entry=importQueue.entries.find(e=>e.id===id);if(entry?.status==='ready'){stage=entry.result;previewRender();}return;}if(a==='queue-retry'){const entry=importQueue.entries.find(e=>e.id===id);if(entry)entry.rescan=true;await importQueue.retry(id);return;}if(a==='queue-cancel'){importQueue.cancel(id);return;}if(a==='queue-remove'){const entry=importQueue.entries.find(e=>e.id===id);if(entry?.result===stage)stage=null;importQueue.remove(id);return;}if(a==='resultback'){page='imports';render();window.scrollTo(0,0);return;}if(a==='openresult'){previewRender();return;}if(a==='saveresult'){await saveResult();return;}if(a==='revisionresult'){useAsRevision(id);return;}if(a==='discardreading'){const entry=importQueue.entries.find(e=>e.result===stage);if(entry)importQueue.remove(entry.id);stage=null;render();return;}if(a==='cancelpdfai'){cancelScan();return;}if(a==='analyzepdf'){await analyzeStagePDF();return;}
+ if(a==='queue-save'){await saveQueuedResult(id);return;}if(a==='queue-open'){const entry=importQueue.entries.find(e=>e.id===id);if(entry?.status==='ready'){stage=entry.result;previewRender();}return;}if(a==='queue-retry'){const entry=importQueue.entries.find(e=>e.id===id);if(entry)entry.rescan=true;await importQueue.retry(id);return;}if(a==='queue-cancel'){importQueue.cancel(id);return;}if(a==='queue-remove'){const entry=importQueue.entries.find(e=>e.id===id);if(entry?.result===stage)stage=null;importQueue.remove(id);return;}if(a==='resultback'){page='imports';render();window.scrollTo(0,0);return;}if(a==='openresult'){previewRender();return;}if(a==='saveresult'){await saveResult();return;}if(a==='revisionresult'){useAsRevision(id);return;}if(a==='discardreading'){const entry=importQueue.entries.find(e=>e.result===stage);if(entry)importQueue.remove(entry.id);stage=null;render();return;}if(a==='cancelpdfai'){cancelScan();return;}if(a==='analyzepdf'){await analyzeStagePDF();return;}
  if(a==='return'){if(bridge)bridge.close();else location.href='./index.html#/dashboard';return;}if(a==='go')go(b.dataset.page);if(a==='menu')document.getElementById('sidebar').classList.toggle('open');if(a==='close')closeModal();if(a==='cardedit')cardEdit(id);if(a==='detail')detail(id);if(a==='detailtab')detail(dialogContext.card,dialogContext.statement,id);if(a==='payment')paymentModal(id);if(a==='editpay')editPay(id);if(a==='insuranceedit'){if(!state.cards.length)throw Error('Agregá primero una tarjeta');insuranceEdit(id);}if(a==='charge')chargeModal(id);if(a==='installmentedit'){if(!state.cards.length)throw Error('Agregá primero una tarjeta');installmentEdit(id);}if(a==='expenseedit')expenseEdit(id);if(a==='review')previewModal(state.statements.find(s=>s.id===id));if(a==='original')await original(id);if(a==='resume-document'){const doc=state.documents.find(d=>d.id===id),blob=await bridge.request('/documentos/'+id,undefined,true);if(!dead)await processFiles([new File([blob],doc.name,{type:'application/pdf'})]);}if(a==='previeworiginal'){if(stage?.newFile)await viewPDF(stage.newFile.bytes,stage.newFile.name);else await original(stage?.statement.file);}if(a==='backup')await backup();if(a==='upload'){document.getElementById('pdfInput').value='';document.getElementById('pdfInput').click();}
  if(a==='voidpay'){dialogContext={payment:id};modal('Anular registro de pago',notice('La anulación conserva el registro y deja de descontarlo del saldo. No revierte una transferencia bancaria.')+notes('','reason'),'<button class="btn danger" type="button" data-action="confirmvoid">Confirmar anulación</button>','void');}
  if(a==='confirmvoid'){const reason=document.querySelector('[name=reason]').value;saving=true;try{await mutate('payment-void',{id:dialogContext.payment,reason});closeModal();render();toast('Anulación guardada.');}finally{saving=false;}}

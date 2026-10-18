@@ -2,6 +2,15 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Cola y visor de PDF · v3.12.15 local, sin publicar
+
+- Rama `codex/pdf-cursor-final`, desde `031064d7712303e611a6508bb358424697980f2b`; incluye la corrección de asignación anterior. Producción permanece v3.12.14. Sin cambios de servidor, permisos, datos reales ni publicación.
+- El titular aclaró que no aparece error al guardar: ve el botón deshabilitado y cursor de espera. Causa comprobada: CSS aplicaba cursor wait a cualquier botón deshabilitado, incluso al límite de páginas y validaciones. Ahora sólo un estado ocupado explícito muestra progreso; el visor libera aria-busy al terminar o fallar. Última página queda deshabilitada con cursor normal y título explicativo.
+- Cada PDF válido de la cola tiene Abrir/Guardar/Quitar, sin esperar al resto. Los incompletos muestran Revisar y motivo concreto; guardados se identifican y no se guardan otra vez desde esa fila. Errores conservan lectura/archivo y permiten reintentar sin repetir la carga. La comparación del saldo se hace en centavos, evitando rechazar una suma correcta por precisión binaria; diferencias reales siguen bloqueadas. No se alteran importes extraídos ni se omiten validaciones.
+- Suite vigente: 1.942 aprobadas, cero fallos; pruebas nuevas de límites/errores del visor, guardado durante otra lectura, reintento sin volver a subir, motivos y centavos. Sintaxis, diff y validación local de versión correctos. Registro privado `tmp/pdf-save-cursor-final-tests.private.log`, fuera de Git.
+- Misma pestaña reutilizada en servicio aislado loopback8798: tres PDFs ficticios, lectura secuencial, primero guardado mientras los siguientes continuaban. Almacenamiento exclusivamente en memoria, sin Firebase ni IA externa. PDF.js real renderizó originales ficticios de una y tres páginas; última página comprobada con cursor default y aria-busy=false, Anterior rehabilita Siguiente. Servicio ficticio detenido, datos descartados. No se usaron PDFs bancarios reales ni se guardó información financiera real.
+- Espejo8766 actualizado y misma ventana restaurada a Detalle local15, sesión conservada y Sincronizado; queda abierta. Capturas privadas `tmp/pdf-cola-guardar-demo.private.png` y `tmp/pdf-ultima-pagina-cursor-demo.private.png`, fuera de Git/Hosting. No afirmar prueba de guardado real ni medición de latencia del proveedor: la lectura sigue secuencial y su demora externa no fue modificada. Próximo paso: revisión del titular y publicación de15 sólo cuando la solicite; resultado físico del corte Wi-Fi de14 sigue pendiente.
+
 ## Etiqueta y selección de responsable · v3.12.15 local, sin publicar
 
 - Rama `codex/asignacion-etiqueta`, desde `65ba7dfc67bd3c60fbf65395353eac6fd1807cae`. Producción14 intacta. Nueva app15/marcadores/índice/SW y URL versionada de commercial-document-controls/CSS coherentes.
