@@ -10619,7 +10619,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.12.13',date:'18/10/2026',title:'Importes de los comprobantes',notes:Object.freeze(['Cuenta corriente muestra el importe de cada comprobante y el total de los archivos vinculados al movimiento.']),feature:Object.freeze({page:'cuentacorriente',actionLabel:'Ver cuentas'})}),
+ Object.freeze({version:'v3.12.13',date:'18/10/2026',title:'Pagos y comprobantes de cuenta',notes:Object.freeze(['Cuenta corriente muestra el importe de cada comprobante y el total de los archivos vinculados al movimiento.','Registrar pago abre más rápido al evitar búsquedas y cálculos repetidos.']),feature:Object.freeze({page:'cuentacorriente',actionLabel:'Ver cuentas'})}),
  Object.freeze({version:'v3.12.12',date:'18/10/2026',title:'Reconexión y pago de cuenta',notes:Object.freeze(['Ventas, presupuestos y usuarios retoman sus consultas al recuperar la conexión, conservando los datos recibidos.','La ventana de pago de cuenta queda centrada, con controles uniformes y espacio para el teclado móvil.']),feature:Object.freeze({page:'dashboard',actionLabel:'Abrir inicio'})}),
  Object.freeze({version:'v3.12.11',date:'18/10/2026',title:'Carga y formularios mejorados',notes:Object.freeze(['Los formularios aprovechan mejor el ancho de la tablet vertical y conservan controles cómodos en celular.','El resumen de Distribuidora deja más espacio para completar el comprobante en tablet.','Se corrige la reconexión que podía dejar el inicio esperando datos después de una interrupción.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
  Object.freeze({version:'v3.12.10',date:'17/10/2026',title:'Cámara, navegación y cobros',notes:Object.freeze(['La cámara conserva sus controles al abrirla desde el buscador de productos.','Cerrar el lector permite continuar el presupuesto sin perder lo ingresado.','La imagen aprovecha el visor y las guías se adaptan a la pantalla.','Cuenta corriente permite abrir el cobro y ver su comprobante, conservando el retorno.','El menú se cierra al elegir un módulo en celular y tablet, y puede abrirse deslizando desde el borde izquierdo.','Cobranzas aprovecha mejor el ancho de la tablet vertical.']),feature:Object.freeze({page:'cuentacorriente',actionLabel:'Ver cuenta corriente'})}),
@@ -27585,6 +27585,9 @@ function _ccVentasPendientesActuales() {
   var nombre = window._ccNombreActual || '';
   var clienteKey = window._ccClienteKeyActual || '';
   var ccData = _ccDatosActuales();
+  // Resolver referencias de clientes una vez por consulta, no buscar en toda
+  // la lista por cada venta. El índice es local: no queda obsoleto al sincronizar.
+  var indiceClientes = typeof _svCrearIndiceClientes === 'function' ? _svCrearIndiceClientes() : null;
   function fechaOrden(v) {
     var texto = String(v && v.fecha || '').trim();
     var p = texto.split(/[\/-]/);
@@ -27597,7 +27600,7 @@ function _ccVentasPendientesActuales() {
   return (ventasList || []).filter(function(v) {
     if (!v || !v.fbKey || !ventaValidaParaMetricas(v)) return false;
     var keys = [v.clienteFbKey, v.clienteKey, v.clienteId, v.idCliente, v.idClienteOriginal].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-    var coincide = ccData && ((_svClaveClientePrincipalRegistro(v) === String(ccData.key)) || (ccData.clienteFbKey && keys.indexOf(String(ccData.clienteFbKey)) >= 0) || (ccData.legacyId && keys.indexOf(String(ccData.legacyId)) >= 0));
+    var coincide = ccData && ((_svClaveClientePrincipalRegistro(v, indiceClientes) === String(ccData.key)) || (ccData.clienteFbKey && keys.indexOf(String(ccData.clienteFbKey)) >= 0) || (ccData.legacyId && keys.indexOf(String(ccData.legacyId)) >= 0));
     if (!coincide && !keys.length) coincide = _svTxtNombre(v.cliente) === _svTxtNombre(nombre);
     return coincide && _svSaldoPendienteVenta(v) > 0.009;
   }).sort(function(a,b) {
@@ -27609,6 +27612,9 @@ function _ccVentasPendientesActuales() {
 function _ccPlanImputacion(monto) {
   var restante = Math.round((parseFloat(monto) || 0) * 100) / 100;
   var plan = [];
+  // Sin importe no hay imputaciones: evitar resolver otra vez todas las ventas
+  // al abrir la ventana o mientras el usuario vacía el campo.
+  if (restante <= 0.009) return { plan:plan, sinImputar:restante };
   _ccVentasPendientesActuales().forEach(function(venta) {
     if (restante <= 0.009) return;
     var saldo = Math.round(_svSaldoPendienteVenta(venta) * 100) / 100;

@@ -2,6 +2,13 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Apertura de pago · mejora local de candidata v3.12.13
+
+- Rama `codex/apertura-pago-cuenta`, desde `b8a033746ef19de690d7150c6ae34f0a50f715f4`; conserva importes de comprobantes. Producción permanece12, sin publicación ni operaciones reales.
+- Causa medida en misma cuenta local: antes de insertar ventana, resolución de ventas426ms; vista de imputación con importe vacío volvía a recorrer todo y llevaba acumulado863ms. No hay espera de servidor en el abridor. Se construye un índice de clientes por consulta (antes búsqueda lineal por venta) y plan vacío/cero retorna sin recorrer ventas. Sin caché persistente: cada consulta vuelve a tomar índice/datos actuales, con identidad unificada, exclusión de anuladas/saldadas y orden antiguo primero intactos.
+- Misma cuenta después: búsqueda139ms, procesamiento147ms frente a863ms; primer requestAnimationFrame171ms frente a890ms. Son muestras de esta PC, no percentiles ni medición de teclado físico. Instrumentación temporal sólo en espejo local, retirada al terminar; no viaja en Git. Pruebas vigentes1.927 aprobadas, dos nuevas de reutilización/renovación del índice y cero recorridos sin importe;16 específicas de pago/identidad/comprobantes aprobadas. Evidencia privada `tmp/cc-apertura-*`, fuera de Git/Hosting.
+- Espejo8766 actualizado sin medición; conservar pestaña local13 y formulario vacío para revisión. No cambiar cobros, contraseñas ni configuración remota. Próximo paso: publicar candidata13 completa sólo con solicitud del titular; incluye la mejora previa de importes aún local.
+
 ## Importes de comprobantes · v3.12.13 local, sin publicar
 
 - Rama `codex/comprobantes-importes`, desde `033cf5580eda8b12e2875a2bcdea15cad79023d9`. Fetch sin novedades de main; producción permanece12 y no se modificó app12 publicada. Nueva aplicación/marcadores/índice/SW13 coherentes.
