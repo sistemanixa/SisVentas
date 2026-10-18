@@ -69,3 +69,11 @@ Cuando el usuario pida **acomodar nombres**, seguir el criterio de [docs/acomoda
 - No sustituir la base completa ni ampliar permisos como arreglo rápido. Una autorización de lectura/escritura en un padre de RTDB no se revoca con un veto en un hijo.
 - El índice de Roles se deriva de casillas y acciones; conservar `indiceRevision` al normalizar y resolver conflictos recargando, sin sobrescribir decisiones concurrentes. Inventariar también dominios/configuraciones realmente usados (por ejemplo Relevamientos) antes de cerrar comodines. Guardar un borrador representativo en emulador antes del corte, sin usar datos reales.
 - En nube no asumir rutas Windows ni credenciales locales. Revisar las instrucciones del entorno y su red, adaptar herramientas con cuidado y configurar accesos por el mecanismo seguro del entorno. Faltas de credenciales se informan; no se copian claves al repositorio para resolverlas.
+
+
+## Costos y consultas
+
+- Seguir docs/CONTROL_COSTOS.md: avisos USD30; corte USD60 desde noviembre2026; octubre sigue operativo. Verificar estado remoto antes de afirmar que está activo.
+- No introducir sondeos de datos por reloj sin autorización expresa y estimación de costo. Preferir acciones del usuario y eventos reales; reintentar sólo operaciones concretas fallidas con límites.
+- Medir lecturas/transferencia y ejecución en reposo, además de las pruebas funcionales. Un304 al navegador no prueba ahorro de lecturas RTDB.
+- Explicar costo estimado antes de cambiar infraestructura. No prometer límites exactos basándose en alertas con demora. No desactivar facturación, borrar datos ni cortar una comisión como arreglo de consumo.

@@ -65,7 +65,7 @@ test('circuito deshabilitado y observador sin corte configurado fallan cerrados'
 test('salud del observador confirma conexión y suscripción sin registrar datos comerciales',()=>{
  const listeners=new Map(),removed=[],logs=[];
  const query={on(event,fn,error){listeners.set('query/'+event,{fn,error});},off(event){removed.push('query/'+event);}};
- const db={ref(path){if(path==='.info/connected')return {on(event,fn){listeners.set('connection',{fn});},off(){removed.push('connection');}};if(path==='sisventas/ventas')return {orderByChild:()=>({equalTo:()=>query})};return {get:async()=>({val:()=>null})};}};
+ const db={ref(path){if(path==='.info/connected')return {on(event,fn){listeners.set('connection',{fn});},off(){removed.push('connection');}};if(path==='sisventas/ventas')return {orderByChild:()=>({equalTo:()=>query})};return {get:async()=>({val:()=>null}),on(){},off(){}};}};
  const stop=createCommissionGeneration({db,commercial:{},enabled:true,from:1000,now:()=>2000,logger:v=>logs.push(v)}).start();
  listeners.get('connection').fn({val:()=>true});listeners.get('query/value').fn();
  assert.equal(logs.at(-1).connected,true);assert.equal(logs.at(-1).subscriptionReady,true);
@@ -90,7 +90,7 @@ test('observador descarta ventas sin comisión habilitada sin releer dependencia
  try{
   for(let i=0;i<1000;i++)f.events.child_added({key:'historic-'+i,val:()=>({estadoPago:'pago_total',comisionHabilitada:i%2?false:undefined})});
   await new Promise(setImmediate);
-  assert.deepEqual(f.reads,['sv_commission_generation']);assert.equal(JSON.stringify(f.db.root),before);
+  assert.deepEqual(f.reads,[]);assert.equal(JSON.stringify(f.db.root),before);
  }finally{f.stop();}
 });
 test('habilitar comisión después del primer snapshot conserva la generación y la aprobación pendiente',async()=>{

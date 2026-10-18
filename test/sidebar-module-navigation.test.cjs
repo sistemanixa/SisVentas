@@ -5,7 +5,7 @@ function fixture(width){
  const classes=new Set(['open']);const sidebar={classList:{remove:n=>classes.delete(n)}};
  const overlay={style:{display:'block'}},body={style:{overflow:'hidden'}};
  const page={id:'page-demo',classList:{add(){},remove(){}}};
- const c=load({window:{innerWidth:width,matchMedia:()=>({matches:width>=1101}),location:{hash:'#/demo'}},document:{body,getElementById:id=>id==='page-demo'?page:id==='mob-overlay'?overlay:null,querySelector:sel=>sel==='.sidebar'?sidebar:null,querySelectorAll:()=>[]},isAuthenticated:true,permisoModulo:()=>true,_svNavegandoAtras:false,_svHistorialPaginas:[],_svGuardarHistorialPaginas(){},_svActualizarRuta(){},_svProgramarDescargaVista(){},titles:{demo:'Prueba'},setTimeout(){},svActualizarMasUsados(){},notify(){}},['sidebarDesktopActivo','closeSidebarMobile','showPage']);
+ const c=load({window:{innerWidth:width,matchMedia:()=>({matches:width>=1101}),location:{hash:'#/demo'}},document:{body,getElementById:id=>id==='page-demo'?page:id==='mob-overlay'?overlay:null,querySelector:sel=>sel==='.sidebar'?sidebar:null,querySelectorAll:()=>[]},isAuthenticated:true,permisoModulo:()=>true,_svNavegandoAtras:false,_svHistorialPaginas:[],_svGuardarHistorialPaginas(){},_svActualizarRuta(){},_svProgramarDescargaVista(){},titles:{demo:'Prueba'},setTimeout(){},svActualizarMasUsados(){},notify(){}},['sidebarDesktopActivo','closeSidebarMobile','svActualizarLecturasPorAccion','showPage']);
  return {c,classes,overlay,body};
 }
 test('elegir un módulo cierra el menú y libera el fondo en celular y tablet hasta1100px',()=>{

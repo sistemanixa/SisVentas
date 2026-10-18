@@ -21,7 +21,9 @@
   const write=()=>{if(!allowed()||current!==epoch)return Promise.resolve();return root.fbSet(ref,{uid,nombre:root.currentUser||'',rol:root.currentRole,online:true,ultimaConexion:root.fbServerTimestamp()}).catch(()=>{});};
   stops.push(root.fbOnValue(root.fbRef(root.fbDB,'.info/connected'),snap=>{if(current!==epoch||snap.val()!==true)return;root.fbOnDisconnect(ref).remove().then(()=>{if(current===epoch)write();}).catch(()=>{});}));
   stops.push(root.fbOnValue(root.fbRef(root.fbDB,'sv_chat_presencia'),snap=>{if(current!==epoch)return;peers=snap.val()||{};refresh();},()=>{if(current===epoch){peers={};refresh();}}));
-  timer=setInterval(()=>{if(current===epoch){if(allowed())write();else stop();refresh();}},30000);
+  let lastActivityWrite=0;
+  const activity=()=>{if(current!==epoch)return;if(!allowed()){stop();return;}if(Date.now()-lastActivityWrite<30000)return;lastActivityWrite=Date.now();write();refresh();};
+  ['pointerdown','keydown'].forEach(name=>{document.addEventListener(name,activity,{passive:true});stops.push(()=>document.removeEventListener(name,activity));});
  }
  document.addEventListener('sisventas:session-ready',start);document.addEventListener('sisventas:chat-ready',start);
  document.addEventListener('sisventas:session-ended',stop);document.addEventListener('sisventas:chat-disabled',stop);

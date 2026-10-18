@@ -7,7 +7,7 @@ function session(store,uid){
   store[path]=next;return {committed:true,snapshot:{val:()=>structuredClone(next)}};
  },ventasPagosV3Invocar(){throw Error('No debe evadir la comprobación');},pptoV3Invocar(){throw Error('No debe evadir la comprobación');}};
  c.window=c;vm.createContext(c);vm.runInContext(fs.readFileSync('js/core/guarded-writes.js','utf8'),c);
- c.SVCommercialOwnership={clean:r=>Object.fromEntries(Object.entries(r||{}).filter(([k])=>k!=='fbKey'&&!k.startsWith('_sv'))),prepare:async(domain,id,baseline)=>({record:structuredClone(store[domain+'/'+id]),baseline:baseline?structuredClone(baseline):null})};
+ c.refreshes=[];c.SVCommercialOwnership={refresh:domain=>c.refreshes.push(domain),clean:r=>Object.fromEntries(Object.entries(r||{}).filter(([k])=>k!=='fbKey'&&!k.startsWith('_sv'))),prepare:async(domain,id,baseline)=>({record:structuredClone(store[domain+'/'+id]),baseline:baseline?structuredClone(baseline):null})};
  vm.runInContext(fs.readFileSync('js/modules/commercial-document-controls.js','utf8'),c);
  load(c,['pptoPersistirGuardar','ventasPagosPersistirGuardarVenta']);return c;
 }
@@ -19,6 +19,7 @@ for(const [kind,method] of [['presupuestos','pptoPersistirGuardar'],['ventas','v
   await a[method]({...original,total:120},original);
   await assert.rejects(b[method]({...original,total:130},original),{code:'SV_CONFLICT'});
   assert.equal(store[kind+'/a'].total,120);assert.equal(store[kind+'/a'].fecha,base.fecha);
+  assert.deepEqual(a.refreshes,[kind]);assert.deepEqual(b.refreshes,[]);
  });
  test(kind+': cambio de estado externo invalida el formulario anterior',async()=>{
   const base={total:100,estado:'aprobado'},store={[kind+'/a']:{...base,estado:'convertido',ventaId:'V-1'}},b=session(store,'b');

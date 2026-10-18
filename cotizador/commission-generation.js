@@ -94,8 +94,9 @@ function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date
    if(pending.has(snap.key))return;pending.add(snap.key);systemGenerate(snap.key).then(result=>{failed.delete(snap.key);if(result.status==='generada'&&!result.reutilizada)health.completed++;}).catch(e=>{health.errors++;if(e.statusCode!==409)failed.set(snap.key,Number(failed.get(snap.key)||0)+1);}).finally(()=>pending.delete(snap.key));
   };
   connection.on('value',connected,denied);query.on('child_added',handle,denied);query.on('child_changed',handle,denied);query.on('value',ready,denied);
-  const timer=setInterval(()=>{report();retryPending().catch(()=>{health.errors++;});for(const [key,count]of failed)if(count<5)handle({key});},60000);timer.unref?.();retryPending().catch(()=>{health.errors++;});
-  return ()=>{clearInterval(timer);connection.off('value',connected);query.off('value',ready);query.off('child_added',handle);query.off('child_changed',handle);};
+  const stopJobs=require('./commission-job-events').watchCommissionJobs({db,retry:systemGenerate,now,onError:()=>{health.errors++;}});
+  const timer=setInterval(()=>{report();for(const [key,count]of failed)if(count<5)handle({key});},60000);timer.unref?.();
+  return ()=>{stopJobs();clearInterval(timer);connection.off('value',connected);query.off('value',ready);query.off('child_added',handle);query.off('child_changed',handle);};
  }
  return {authorize,inspect,generate,start,systemGenerate,retryPending};
 }

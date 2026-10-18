@@ -12,5 +12,5 @@
  async function read(key){const r=await fetch(base+key+'.json',{cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error();return r.json();}
  async function refresh(){if(loading||document.hidden)return;loading=true;try{const configured=await read('dolarConversion');type=['oficial','blue','mep'].includes(configured)?configured:'oficial';const value=Number(await read(type));if(!(Number.isFinite(value)&&value>0))throw Error();rate=value;update();}catch(_){rate=0;update();}finally{loading=false;}}
  box.onclick=e=>{const b=e.target.closest('[data-currency]');if(!b||b.disabled)return;selected=b.dataset.currency;try{localStorage.setItem('sv-public-currency',selected);}catch(_){}update();};
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});window.addEventListener('focus',refresh);setInterval(refresh,60000);refresh();
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});window.addEventListener('focus',refresh);refresh();
 })();

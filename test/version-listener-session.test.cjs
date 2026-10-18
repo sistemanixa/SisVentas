@@ -24,15 +24,15 @@ function setup(role='administrativo'){
 test('firebase-ready sin login conserva HTTP y no abre una lectura protegida',()=>{
  const s=setup();s.c.iniciarChequeoPeriodicoVersion();
  assert.equal(s.subscriptions.length,0);assert.equal(s.c._listenerVersionActivo,false);
- assert.equal(s.intervals.length,1);assert.equal(s.c.httpChecks,1);
- s.intervals[0].fn();assert.equal(s.c.httpChecks,2);
+ assert.equal(s.intervals.length,0);assert.equal(s.c.httpChecks,1);
+ assert.equal(s.c.httpChecks,1);
 });
 
 for(const role of ['admin','administrativo','vendedor','tecnico_vendedor','tecnico']){
  test('la sesión confirmada de '+role+' escucha una sola vez y recibe la actualización',()=>{
   const s=setup(role);s.c.iniciarChequeoPeriodicoVersion();s.login();s.c.iniciarChequeoPeriodicoVersion();
   assert.equal(s.subscriptions.length,1);assert.equal(s.subscriptions[0].path,'sisventas/config/version');
-  assert.equal(s.intervals.length,1);assert.equal(s.c._listenerVersionActivo,true);
+  assert.equal(s.intervals.length,0);assert.equal(s.c._listenerVersionActivo,true);
   s.subscriptions[0].next({val:()=> 'v3.11.6-firebase'});assert.deepEqual(s.updates,[]);
   s.subscriptions[0].next({val:()=> 'v3.11.7-firebase'});assert.deepEqual(s.updates,['v3.11.7-firebase']);
  });
@@ -44,7 +44,7 @@ test('Auth ausente o diferente del UID de pantalla no abre una lectura con ident
 
 test('los portales externos y roles desconocidos mantienen HTTP sin pedir configuración restringida',()=>{
  for(const role of ['compras_paraguay','distribuidora','desconocido']){
-  const s=setup(role);s.login();assert.equal(s.subscriptions.length,0);s.intervals[0].fn();assert.equal(s.c.httpChecks,2);
+  const s=setup(role);s.login();assert.equal(s.subscriptions.length,0);assert.equal(s.intervals.length,0);assert.equal(s.c.httpChecks,1);
  }
 });
 
@@ -60,7 +60,7 @@ test('un rechazo asíncrono libera el listener y programa un único reintento',(
 test('el login/reintento explícito no queda bloqueado por la bandera después de un rechazo',()=>{
  const s=setup();s.login();s.subscriptions[0].error({code:'PERMISSION_DENIED'});
  s.c.iniciarChequeoPeriodicoVersion();assert.equal(s.subscriptions.length,2);assert.equal(s.timers.size,0);
- assert.equal(s.c._listenerVersionActivo,true);assert.equal(s.intervals.length,1);
+ assert.equal(s.c._listenerVersionActivo,true);assert.equal(s.intervals.length,0);
 });
 
 test('cerrar sesión cancela el reintento; una respuesta o timer anterior no afectan el nuevo login',()=>{

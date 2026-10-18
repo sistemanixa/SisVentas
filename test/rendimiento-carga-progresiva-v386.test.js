@@ -63,12 +63,11 @@ test('módulos secundarios de red esperan sesión, página o tiempo ocioso', () 
   assert.equal((dollarHistory.match(/addEventListener\('sisventas:session-ready', iniciar\)/g) || []).length, 1);
 });
 
-test('el marcador liviano vigila cada minuto pero nunca trabaja con la pestaña oculta', () => {
-  assert.match(app, /document\.visibilityState !== 'hidden'\) _chequearGitHub/);
-  assert.match(app, /60 \* 1000/);
-  assert.match(pwa, /document\.visibilityState !== 'hidden'/);
-  assert.match(pwa, /15 \* 60 \* 1000/);
-  assert.doesNotMatch(pwa, /2 \* 60 \* 1000/);
+test('marcador y PWA consultan al abrir sin vigilar por intervalos en reposo', () => {
+  const watchdog=app.slice(app.indexOf('function iniciarWatchdogVersion()'),app.indexOf('var _chequeoVersionIniciado'));
+  assert.doesNotMatch(watchdog, /setInterval/);
+  assert.doesNotMatch(pwa, /setInterval/);
+  assert.match(pwa, /reg\.update\(\)/);
 });
 
 test('las tarjetas móviles no heredan máximos de ancho de las tablas de escritorio', () => {

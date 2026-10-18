@@ -1,6 +1,6 @@
 (function(root){
  'use strict';
- let generation=0,own=null,timer=null,signalStop=null,roleStop=null,pending=null,contextKey='',again=false;
+ let generation=0,own=null,watching=false,signalStop=null,roleStop=null,pending=null,contextKey='',again=false;
  const subscriptions=new Set(),enabled=root.SV_USER_DIRECTORY_V2===true;
  const session=()=>({user:root.fbAuth?.currentUser,view:root.currentUserUid||'',role:root.currentRole||'',epoch:generation});
  const valid=c=>c.epoch===generation&&c.user===root.fbAuth?.currentUser&&c.view===(root.currentUserUid||'')&&c.role===(root.currentRole||'');
@@ -17,7 +17,7 @@
  const snapshot=users=>({exists:()=>users.length>0,val:()=>Object.fromEntries(users.map(p=>[p.fbKey,p]))});
  async function read(){const c=session(),data=await request('directorio',c.user,()=>valid(c));return snapshot(data.users);}
  async function adminProfile(key){const c=session(),data=await request('administracion',c.user,()=>valid(c));const found=data.users.find(p=>p.fbKey===key);if(!found)throw Error('Usuario no encontrado');return found;}
- function stop(){generation++;own=null;pending=null;again=false;clearInterval(timer);timer=null;signalStop?.();roleStop?.();signalStop=roleStop=null;subscriptions.clear();}
+ function stop(){generation++;own=null;pending=null;again=false;watching=false;signalStop?.();roleStop?.();signalStop=roleStop=null;subscriptions.clear();}
  function ensureContext(){const next=[root.fbAuth?.currentUser?.uid,root.currentUserUid,root.currentRole].join('|');if(next!==contextKey){const previous=own;stop();own=previous?.uid===root.fbAuth?.currentUser?.uid?previous:null;contextKey=next;root.usuariosData=own&&own.uid===root.currentUserUid?[own]:[];}}
  function watchRole(user){
   if(roleStop||!root.fbOnValue||!root.fbDB)return;const epoch=generation;
@@ -42,7 +42,7 @@
  function subscribe(callback,error,administration=false){
   ensureContext();
   const s={callback,error,admin:administration};subscriptions.add(s);
-  if(!timer){timer=setInterval(()=>{if(!document.hidden)refresh();},30000);
+  if(!watching){watching=true;
    if(root.fbOnValue&&root.fbDB){
     signalStop=root.fbOnValue(root.fbRef(root.fbDB,'sv_chat_directorio'),()=>refresh(),e=>error?.(e));
     if(root.fbAuth?.currentUser)watchRole(root.fbAuth.currentUser);
@@ -50,7 +50,7 @@
   }
   // Se programa después de registrar al suscriptor; un refresco compartido
   // entrega la respuesta a todos los interesados de la sesión vigente.
-  refresh();return ()=>{subscriptions.delete(s);if(!subscriptions.size){clearInterval(timer);timer=null;signalStop?.();roleStop?.();signalStop=roleStop=null;}};
+  refresh();return ()=>{subscriptions.delete(s);if(!subscriptions.size){watching=false;signalStop?.();roleStop?.();signalStop=roleStop=null;}};
  }
  let appStop=null;
  function start(callback,error){

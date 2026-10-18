@@ -65,12 +65,8 @@
     navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' })
       .then(function(reg){
         if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
-        // Firebase y el marcador de versión ya anuncian despliegues. Este
-        // chequeo es un respaldo de baja frecuencia y sólo trabaja visible.
+        // Comprobación asociada a la apertura; sin sondeo periódico en reposo.
         reg.update().catch(function(){});
-        setInterval(function(){
-          if(document.visibilityState !== 'hidden') reg.update().catch(function(){});
-        }, 15 * 60 * 1000);
       })
       .catch(function(err){ console.warn('[PWA] No se pudo registrar sw.js:', err); });
   }

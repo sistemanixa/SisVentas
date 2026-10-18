@@ -6,11 +6,10 @@
   // API externa, sin sesión ni datos. El401 esperado acredita red real; nunca pasa por el caché local del SW.
   const response=await root.fetch(base+'/?sv_connection_probe=1',{cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(5000)});return response.status;
  },changed:()=>root.fbMostrarEstadoConexion?.(),lost:()=>root.dispatchEvent(new Event('sisventas:connection-lost')),restored:()=>root.dispatchEvent(new Event('sisventas:connection-restored'))});
- let timer=null;
- function start(){if(!root.fbAuth?.currentUser)return;if(!timer)timer=root.setInterval(()=>monitor.check(),10000);monitor.check();}
+ function start(){if(!root.fbAuth?.currentUser)return;monitor.check();}
  root.document.addEventListener('sisventas:session-ready',start);
  root.document.addEventListener('firebase-ready',start);
- root.document.addEventListener('sisventas:session-ended',()=>{root.clearInterval(timer);timer=null;monitor.stop();});
+ root.document.addEventListener('sisventas:session-ended',()=>monitor.stop());
  root.document.addEventListener('visibilitychange',()=>{if(!root.document.hidden)start();});
  root.addEventListener('offline',()=>monitor.offline());root.addEventListener('online',start);
  root.SVConnectionMonitor=monitor;

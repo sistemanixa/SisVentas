@@ -464,6 +464,6 @@
   });
   window.addEventListener('focus',actualizarNotificacionesAutomaticamente);
   vigilarAvisoCriticoPersistente();
-  setInterval(actualizarNotificacionesAutomaticamente,30000);
+  // Sin sondeo en reposo: navegación, foco y cambios recibidos generan la revisión.
   setTimeout(actualizarNotificacionesAutomaticamente,1000);
 })(window);

@@ -188,8 +188,7 @@
     timer = null;
     if(!sesionDisponible()) return;
     setTimeout(cargar, 400);
-    setTimeout(tick, 1600);
-    timer = setInterval(tick, INTERVALO_MS);
+    // La actualización de cotización queda vinculada a una acción explícita.
   }
 
   function detener(){
