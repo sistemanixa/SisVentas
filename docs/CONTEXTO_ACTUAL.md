@@ -2,6 +2,15 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Publicación web y velocidad PDF v3.12.15 · 18/10/2026
+
+- Autorización: publicar web pendiente y mejora de lectura sin duplicar resúmenes. Fuente limpia `9110505724521adea4c9d8ed133b7947f661c345`, rama `codex/publicacion-web-v31215`; main y trabajo ajeno sin mezclar. Suite vigente1.955 aprobada, sintaxis/diff/coherencia correctos.
+- Firebase Hosting `sites/nixa-sisventas-seguro/versions/7b96318596aba20e`:371 activos públicos,33 cargas. Doce activos comprobados por hash, cinco cabeceras y cuatro rutas privadas404. Script oficial confirmó web/SW/Firebase `v3.12.15-firebase`. Sin cambios DNS, reglas o permisos.
+- Asistente: build `89c5bf40-1543-490c-9447-856f46b7eed3`, imagen `sha256:30223ade494001775bd03765123b87e75a42168589dcb99faa522990a28c842c`. Sólo reemplaza statement-import.cjs sobre imagen productiva fijada; sin reinstalar dependencias ni incluir PDF/secretos. Una construcción previa falló por PATH de Node de buildpack; se corrigió la invocación de pruebas sin afectar producción.
+- Revisión `asistente-pdf-speed-91105057` comprobada sin tráfico, después100% y sus tres etiquetas originales. Cuenta, variables, secretos y recursos idénticos salvo imagen; cuatro accesos rechazan anónimos401. Reversión a `asistente-pdf-0532bb93`. Fixtures validaron formato compacto/legacy; no se repitieron extracciones reales tras el corte ni se garantiza latencia fija. Cotizador conserva su revisión de conciliación.
+- Misma pestaña en web15, sesión conservada. Las cinco filas guardadas se compararon por DOM con el listado previo: iguales, sin duplicados. Ninguna importación ni escritura financiera como prueba. Evidencia privada tmp/v31215-web-pdfs.private.png fuera de Git/Hosting.
+- Nuevo pedido: sugerencias de seguros y clasificación desde movimientos, sin alterar importes ni reclasificar automáticamente registros guardados. Preparar siguiente candidato local. Consulta sobre eliminación: todavía no existe Eliminar resumen guardado; Quitar sólo retira la lectura de la cola. No se borró información.
+
 ## Cotizador corregido y Mercado Pago guardado · 18/10/2026
 
 - Autorización explícita del titular: actualizar sólo Cotizador, activarlo para todos sus accesos y guardar Mercado Pago. NO se publicó Hosting, Asistente, aviso de versión, reglas, DNS ni main. La web pública continúa v3.12.14; el cliente15 permanece local/candidato. La optimización del prompt de IA sigue sin publicar.
