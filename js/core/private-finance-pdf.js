@@ -1,6 +1,6 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.SVPrivateFinancePDF=api;})(typeof globalThis==='object'?globalThis:this,function(){
  'use strict';
- function decimal(s){s=String(s).trim();if(!/^-?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}$/.test(s))return null;const negative=s[0]==='-';const parts=s.replace('-','').replaceAll('.','').split(',');const value=Number(BigInt(parts[0])*100n+BigInt(parts[1]));return Number.isSafeInteger(value)&&value<=1e13?(negative?-value:value):null;}
+ function decimal(s){s=String(s).trim();if(!/^-?(?:\d+(?:\.\d{3})*|\d+),\d{2}$/.test(s))return null;const negative=s[0]==='-';const parts=s.replace('-','').replaceAll('.','').split(',');const value=Number(BigInt(parts[0])*100n+BigInt(parts[1]));return Number.isSafeInteger(value)&&value<=1e13?(negative?-value:value):null;}
  const iso=s=>{const m=String(s).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(!m)return null;const d=m[3]+'-'+m[2]+'-'+m[1],dt=new Date(d+'T12:00:00Z');return Number.isFinite(dt.getTime())&&dt.toISOString().slice(0,10)===d?d:null;};
  const normalized=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
  function sectionDate(value){
@@ -38,8 +38,77 @@
    return {...m,kind:'Débito a confirmar',classificationSource:'PDF · sección de débitos automáticos'};
   })};
  }
- function parse(pages){
-  const result={fields:{},movements:[],warnings:[],pages:pages.length,automaticDebits:debitEvidence(pages)},ambiguous=new Set();
+
+ // Contraste local con rótulos y columnas explícitos; nunca ajusta para forzar una suma.
+
+ function currencyReferences(positionedPages=[]){
+  const proofs=[];
+  positionedPages.forEach((items,page)=>{
+   const rows=[];for(const item of items){if(!item.str?.trim())continue;const y=Math.round(item.transform[5]);let row=rows.find(r=>Math.abs(r.y-y)<2);if(!row)rows.push(row={y,items:[]});row.items.push(item);}
+   const headers=rows.map(r=>{const pesos=r.items.find(i=>/^PESOS$/i.test(i.str.trim())),usd=r.items.find(i=>/^D[OÓ]LARES$/i.test(i.str.trim()));return pesos&&usd&&usd.transform[4]>pesos.transform[4]?{left:pesos.transform[4]-40,boundary:(pesos.transform[4]+pesos.width+usd.transform[4])/2}:null;}).filter(Boolean);
+   if(!headers.length||headers.some(h=>Math.abs(h.boundary-headers[0].boundary)>3))return;
+   const columns=headers[0];
+   for(const row of rows){const sorted=row.items.sort((a,b)=>a.transform[4]-b.transform[4]),line=sorted.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim(),m=line.match(/^(\d{2}-[A-Za-z]+-\d{2})\s+(.+?)\s*\(\s*[A-Z]{2,3}\s*,\s*(ARS|USD)\s*,\s*([\d.,]+)\s*\)/i);if(!m)continue;
+    const date=sectionDate(m[1]),reference=decimal(m[4]);if(!date||reference==null)continue;
+    const charges=sorted.filter(i=>i.transform[4]>=columns.left&&decimal(i.str.trim())!=null).map(i=>({amount:decimal(i.str.trim()),currency:i.transform[4]+i.width/2>columns.boundary?'USD':'ARS'}));
+    if(charges.length===1)proofs.push({date,concept:m[2].trim(),referenceCurrency:m[3].toUpperCase(),reference,charge:charges[0],page:page+1,original:line});
+   }
+  });return proofs;
+ }
+
+ function statementEvidence(pages,positionedPages=[]){
+  const proof={pages:pages.length,penalties:[],dates:[],openings:[],netOpenings:[],usdOpenings:[],creditType:null,references:currencyReferences(positionedPages)};
+  pages.forEach((content,i)=>{
+   let year='',month='';const lines=content.split(/\r?\n/),hasColumns=/PESOS\s+D[OÓ]LARES/i.test(content);
+   for(const raw of lines){const line=raw.trim().replace(/\s+/g,' '),plain=line.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const gross=line.match(/^(?:\d{2}\/[\p{L}]+\s+)?Total a pagar del periodo anterior\s+\$\s*([\d.,]+)$/iu),net=line.match(/^Saldo del periodo anterior\s+\$\s*([\d.,]+)$/i);
+    const columns=hasColumns&&line.match(/^SALDO ANTERIOR\s+([\d.,]+)\s+([\d.,]+)$/i);if(columns&&decimal(columns[2])!=null)proof.usdOpenings.push({value:decimal(columns[2]),original:line,page:i+1,origin:'PDF'});
+    if(gross&&decimal(gross[1])!=null)proof.openings.push({value:decimal(gross[1]),original:line,page:i+1});
+    if(net&&decimal(net[1])!=null)proof.netOpenings.push({value:decimal(net[1]),original:line,page:i+1});
+    if(/^Tarjeta de cr[eé]dito$/i.test(line))proof.creditType={value:'Crédito',original:line,page:i+1,origin:'PDF'};
+    const shortDate=plain.match(/^(\d{2})\/([A-Za-z]+)\s+(.+)$/);
+    if(shortDate){const d=sectionDate(shortDate[1]+'/'+shortDate[2]+'/2000'),a=shortDate[3].match(/(-?)\$\s*([\d.,]+)\s*$/);if(d&&a&&decimal(a[2])!=null)proof.dates.push({dayMonth:d.slice(5),page:i+1,amount:(a[1]?-1:1)*decimal(a[2]),line:shortDate[3],original:line});}
+    const dated=plain.match(/^(\d{2})\s+([A-Za-z]+)\.?\s+(\d{2})\s+(.+)$/);
+    let day,rest;
+    if(dated){const d=sectionDate(dated[3]+'/'+dated[2]+'/'+dated[1]);if(!d)continue;year=d.slice(0,4);month=d.slice(5,7);day=dated[3];rest=dated[4];}
+    else {const continued=plain.match(/^(\d{2})\s+(.+)$/);if(!continued||!year)continue;day=continued[1];rest=continued[2];}
+    const date=iso(day+'/'+month+'/'+year);if(!date)continue;
+    const penalty=rest.match(/^(PUNIT\.?\s+PAG\.?\s*MIN\.?\s*ANTERIOR)\s+\$\s+([\d.,]+)\s+([\d.,]+)$/i);
+    if(penalty&&decimal(penalty[2])!=null&&decimal(penalty[3])!=null)proof.penalties.push({concept:penalty[1],base:decimal(penalty[2]),amount:decimal(penalty[3]),currency:'ARS',date,page:i+1,original:line});
+    const amount=rest.match(/([\d.,]+)(-?)$/);if(amount){const value=decimal(amount[1]);if(value!=null)proof.dates.push({date,page:i+1,amount:amount[2]?-value:value,line:rest,original:line});}
+   }
+  });return proof;
+ }
+ function reconcileEvidence(reading,proof={}){
+  const result={...reading,...(Number.isInteger(proof.pages)&&proof.pages>0?{pages:proof.pages}:{}),fields:{...reading.fields},movements:reading.movements.map(m=>({...m})),warnings:[...(reading.warnings||[])]};
+  for(const p of proof.references||[]){
+   const matching=m=>m.page===p.page&&m.date===p.date&&normalized(m.concept).startsWith(normalized(p.concept));
+   const charged=result.movements.filter(m=>matching(m)&&m.currency===p.charge.currency&&m.amount===p.charge.amount);
+   const phantom=result.movements.filter(m=>matching(m)&&m.currency===p.referenceCurrency&&m.amount===p.reference);
+   if(charged.length===1&&phantom.length===1&&charged[0]!==phantom[0])result.movements=result.movements.filter(m=>m!==phantom[0]);
+  }
+  for(const p of proof.penalties||[]){
+   const key=normalized(p.concept),match=m=>m.page===p.page&&normalized(m.concept).replace(/usd$/,'')===key;
+   const candidates=result.movements.filter(match);
+   if(!candidates.length||candidates.some(m=>![p.base,p.amount].includes(m.amount))||candidates.length>2||new Set(candidates.map(m=>m.currency)).size!==candidates.length)continue;
+   result.movements=result.movements.filter(m=>!match(m));result.movements.push({...candidates[0],date:p.date,currency:p.currency,amount:p.amount,kind:'Interés',concept:p.concept,dateSource:'documento',amountSource:{page:p.page,original:p.original,origin:'PDF · columna de importe'}});
+  }
+  for(const m of result.movements){
+   const matches=(proof.dates||[]).filter(p=>p.page===m.page&&p.amount===m.amount&&normalized(p.line).includes(normalized(m.concept)));
+   if(matches.length===1&&(matches[0].date||m.date?.slice(5)===matches[0].dayMonth)){m.date=matches[0].date||m.date;m.dateSource='documento';m.dateEvidence={date:m.date,page:matches[0].page,original:matches[0].original};}
+  }
+  const usdOpenings=proof.usdOpenings||[];if(!result.fields.previousUSD&&usdOpenings.length===1)result.fields.previousUSD={...usdOpenings[0]};
+  const opening=proof.openings||[],net=proof.netOpenings||[],prior=result.fields.previous;
+  if(opening.length===1&&prior&&[opening[0].value,...net.map(p=>p.value)].includes(prior.value)){
+   const p=opening[0],header=m=>m.currency==='ARS'&&m.amount===p.value&&normalized(m.concept)==='totalapagardelperiodoanterior';
+   result.fields.previous={...p,origin:'PDF · saldo inicial antes de pagos'};result.movements=result.movements.filter(m=>!header(m));
+  }
+  if(!result.fields.brand&&proof.creditType&&normalized(result.fields.bank?.value)==='mercadopago')result.fields.brand={...proof.creditType};
+  return result;
+ }
+
+ function parse(pages,positionedPages=[]){
+  const result={fields:{},movements:[],warnings:[],pages:pages.length,automaticDebits:debitEvidence(pages),statementEvidence:statementEvidence(pages,positionedPages)},ambiguous=new Set();
   const labels={previous:/^saldo anterior(?: (?:ars|pesos))?\s*[:$]*\s*(-?[\d.,]+)$/i,total:/^saldo (?:actual|al cierre)(?: (?:ars|pesos))\s*[:$]*\s*(-?[\d.,]+)$/i,usd:/^saldo (?:actual|al cierre) (?:usd|d[oó]lares)\s*[:$]*\s*(-?[\d.,]+)$/i,minimum:/^pago m[ií]nimo(?: (?:ars|pesos))?\s*[:$]*\s*([\d.,]+)$/i,close:/^(?:fecha de )?cierre\s*:?\s*(\d{2}\/\d{2}\/\d{4})$/i,due:/^(?:fecha de )?vencimiento\s*:?\s*(\d{2}\/\d{2}\/\d{4})$/i,period:/^per[ií]odo\s*:?\s*(\d{4}-(?:0[1-9]|1[0-2]))$/i,tem:/^tem\s*:?\s*(\d{1,2}(?:[.,]\d{1,2})?)\s*%$/i};
   labels.tna=/^tna\s*:?\s*(\d{1,3}(?:[.,]\d{1,2})?)\s*%$/i;labels.cft=/^cft(?:ea)?\s*:?\s*(\d{1,3}(?:[.,]\d{1,2})?)\s*%$/i;
   pages.forEach((content,page)=>{for(const raw of content.split(/\r?\n/)){const line=raw.trim().replace(/\s+/g,' ');for(const [key,re]of Object.entries(labels)){const m=line.match(re);if(!m||ambiguous.has(key))continue;let value=['close','due'].includes(key)?iso(m[1]):key==='period'?m[1]:['tem','tna','cft'].includes(key)?Number(m[1].replace(',','.')):decimal(m[1]);if(value==null)continue;if(result.fields[key]&&result.fields[key].value!==value){result.warnings.push('Hay valores diferentes para '+key+'; revisar contra el original');ambiguous.add(key);delete result.fields[key];continue;}result.fields[key]={value,original:raw,page:page+1,origin:'PDF',unit:key==='tem'?'Porcentaje mensual':key==='tna'?'Porcentaje nominal anual':key==='cft'?'Porcentaje; periodicidad a confirmar en el PDF':''};}
@@ -53,7 +122,7 @@
  }
  async function extract(bytes){
   const pdf=await open(bytes);
-  try{if(pdf.numPages>150)throw Error('El PDF supera 150 páginas');const pages=[];for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),content=await p.getTextContent(),lines=[];let y=null,line=[];for(const item of content.items){if(!('str'in item))continue;const next=Math.round(item.transform[5]);if(y!=null&&Math.abs(y-next)>3){lines.push(line.join(' '));line=[];}line.push(item.str);y=next;if(item.hasEOL){lines.push(line.join(' '));line=[];y=null;}}if(line.length)lines.push(line.join(' '));pages.push(lines.join('\n'));}const result=parse(pages);if(!pages.some(p=>p.trim().length>30))result.warnings.unshift('No hay texto suficiente: archivo escaneado u OCR necesario. Completá manualmente.');return result;}finally{await pdf.destroy();}
+  try{if(pdf.numPages>150)throw Error('El PDF supera 150 páginas');const pages=[],positionedPages=[];for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),content=await p.getTextContent(),lines=[];positionedPages.push(content.items);let y=null,line=[];for(const item of content.items){if(!('str'in item))continue;const next=Math.round(item.transform[5]);if(y!=null&&Math.abs(y-next)>3){lines.push(line.join(' '));line=[];}line.push(item.str);y=next;if(item.hasEOL){lines.push(line.join(' '));line=[];y=null;}}if(line.length)lines.push(line.join(' '));pages.push(lines.join('\n'));}const result=parse(pages,positionedPages);if(!pages.some(p=>p.trim().length>30))result.warnings.unshift('No hay texto suficiente: archivo escaneado u OCR necesario. Completá manualmente.');return result;}finally{await pdf.destroy();}
  }
- return {decimal,parse,extract,open,debitEvidence,classifyAutomaticDebits};
+ return {decimal,parse,extract,open,debitEvidence,classifyAutomaticDebits,statementEvidence,reconcileEvidence,currencyReferences};
 });

@@ -130,7 +130,7 @@ function resultChecks(target){
  for(const [key,label]of [['period','período'],['close','cierre'],['due','vencimiento'],['total','saldo en pesos']])if(s[key]===null||s[key]===undefined||s[key]==='')missing.push(label);
  const rows=target.movements.filter(m=>m.currency==='ARS');
  const cents=value=>Math.round(Number(value)*100);
- const mismatch=s.previous!=null&&s.total!=null&&rows.every(m=>m.amount!=null)&&cents(s.previous)+rows.reduce((total,m)=>total+cents(m.amount),0)!==cents(s.total);
+ const mismatch=['ARS','USD'].some(currency=>{const previous=currency==='ARS'?s.previous:s.extracted?.previousUSD?.value,total=currency==='ARS'?s.total:s.usd,movements=target.movements.filter(m=>m.currency===currency);return previous!=null&&total!=null&&movements.every(m=>m.amount!=null)&&cents(previous)+movements.reduce((sum,m)=>sum+cents(m.amount),0)!==cents(total);});
  const selected=target.cardCreated||s.card,needsCard=!selected||selected==='__new_card__'&&!target.proposedCard;
  const duplicate=state.statements.find(x=>x.id!==s.id&&x.card===selected&&x.period===s.period);
  return {missing,mismatch,needsCard,duplicate,blocked:!!(missing.length||mismatch||needsCard||duplicate)};
@@ -219,9 +219,9 @@ function queuePanel(){
   const ready=e.status==='ready'&&e.result,saved=ready&&e.result.saved,reason=ready&&!saved?resultBlockReason(e.result):'',active=saving&&e.result===stage;
   const attrs='data-id="'+e.id+'"'+(saving?' disabled':'');
   let actions=ready?button(reason?'Revisar':'Abrir','queue-open',attrs,'small'):['error','cancelled'].includes(e.status)?button('Reintentar','queue-retry',attrs,'small'):button('Cancelar','queue-cancel',attrs,'small ghost');
-  if(ready&&!saved&&!reason)actions+=button(active?'Guardando…':'Guardar','queue-save',attrs+(active?' aria-busy="true"':''),'small primary');
+  if(ready&&!saved&&!reason)actions+=button(active?'Guardando…':e.result?.saveError?'Reintentar':'Guardar','queue-save',attrs+(active?' aria-busy="true"':''),'small primary');
   if(['ready','error','cancelled'].includes(e.status))actions+=button('Quitar','queue-remove',attrs,'small ghost');
-  const hint=active?'Guardando…':saved?'Guardado':reason?'Necesita revisión':e.duplicate?'Lectura reutilizada':labels[e.status];
+  const hint=active?'Guardando…':saved?'Guardado':e.result?.saveError?'No se pudo guardar':reason?'Necesita revisión':e.duplicate?'Lectura reutilizada':labels[e.status];
   return '<article class="pdf-queue-item is-'+e.status+'"><div class="pdf-queue-symbol" aria-hidden="true">'+(e.status==='ready'?icon('check'):e.status==='reading'?'<span class="pdf-queue-spinner"></span>':icon('file'))+'</div><div class="pdf-queue-copy"><b>'+esc(e.name)+'</b><small>'+esc(hint)+'</small>'+(reason?'<small class="error">'+esc(reason)+'</small>':'')+((e.result?.saveError||e.status==='error')?'<small class="error">'+esc(e.result?.saveError||e.error)+'</small>':'')+'</div><div class="pdf-queue-actions">'+actions+'</div></article>';
  }).join('');
  return panel('Tus archivos','<div class="panelbody pdf-queue" aria-label="Cola de PDF"><p class="helptext">'+importQueue.entries.filter(e=>e.status==='ready').length+' de '+importQueue.entries.length+' listos · cada archivo se guarda por separado</p>'+rows+'</div>');
@@ -256,11 +256,12 @@ async function readQueuedFile(entry,signal){
 }
 async function analyzePDFTarget(target,bytes,signal){
  ensureReading(signal);if(!bridge?.analyzePDF)throw Error('Actualizá SisVentas para habilitar el escaneo.');
- const review={...target.statement,movements:target.movements.slice()};target.saved=false;
+ const review={...target.statement,movements:target.movements.slice()},preserveReviewed=target.saved||target.statement.reviewed;target.saved=false;
   const evidenceTask=window.SVPrivateFinancePDF?.extract?Promise.resolve().then(()=>window.SVPrivateFinancePDF.extract(bytes)).catch(()=>null):Promise.resolve(null);
   const reading=await bridge.analyzePDF(base64(bytes),signal);
   const evidence=await evidenceTask;
-  const result=window.SVPrivateFinancePDF?.classifyAutomaticDebits?window.SVPrivateFinancePDF.classifyAutomaticDebits(reading,evidence?.automaticDebits||[]):reading;
+  const checked=window.SVPrivateFinancePDF?.reconcileEvidence?window.SVPrivateFinancePDF.reconcileEvidence(reading,evidence?.statementEvidence):reading;
+  const result=window.SVPrivateFinancePDF?.classifyAutomaticDebits?window.SVPrivateFinancePDF.classifyAutomaticDebits(checked,evidence?.automaticDebits||[]):checked;
   ensureReading(signal);
   target.statement={...review,source:'PDF + revisión manual',extracted:{...result.fields}};delete target.statement.movements;
   for(const [key,field]of Object.entries(result.fields))if(['previous','total','usd','minimum','minimumCurrency','close','due','period','tem','tna','cft'].includes(key))target.statement[key]=field.value;
@@ -269,7 +270,7 @@ async function analyzePDFTarget(target,bytes,signal){
   const same=(a,b)=>['date','concept','currency','amount','kind','current','total'].every(k=>(a[k]??null)===(b[k]??null));
   const remaining=review.movements.slice();target.movements=result.movements.map(m=>{let index=remaining.findIndex(old=>same(old,m));if(index<0&&m.kind==='Débito a confirmar'&&m.classificationSource){const candidates=remaining.map((old,i)=>old.kind==='Consumo'&&same({...old,kind:m.kind},m)?i:-1).filter(i=>i>=0);if(candidates.length===1&&result.movements.filter(other=>same(other,m)).length===1)index=candidates[0];}const old=index<0?null:remaining.splice(index,1)[0];return {...m,id:old?.id||crypto.randomUUID(),statement:target.statement.id,ref:old?.ref||''};});
   // Una segunda lectura nunca elimina movimientos previamente revisados.
-  target.movements.push(...remaining);target.warnings=[...result.warnings,...(remaining.length?['Se conservaron '+remaining.length+' movimientos anteriores sin coincidencia exacta. Revisá posibles duplicados antes de guardar.']:[])];
+  const retained=remaining.filter(m=>preserveReviewed||m.ref||m.origin!=='PDF');target.movements.push(...retained);target.warnings=[...result.warnings,...(retained.length?['Se conservaron '+retained.length+' movimientos anteriores sin coincidencia exacta. Revisá posibles duplicados antes de guardar.']:[])];
 }
 async function analyzeStagePDF(){
  if(!stage||dead||aiController)return;

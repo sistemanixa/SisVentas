@@ -19,6 +19,7 @@ test('validación monetaria usa centavos sin rechazar un saldo correcto ni ocult
  const f=fixture(),target=f.context.stage;target.statement.previous=0.1;target.statement.total=0.3;target.movements[0].amount=0.2;
  assert.equal(f.context.resultChecks(target).blocked,false);target.statement.total=0.31;assert.equal(f.context.resultChecks(target).blocked,true);assert.match(f.context.resultBlockReason(target),/saldo no coincide/);
 });
+test('validación del resultado también bloquea una diferencia en dólares sin pesificarlos',()=>{const f=fixture(),target=f.context.stage;target.statement.extracted.previousUSD={value:100};target.statement.usd=125;target.movements.push({currency:'USD',amount:25});assert.equal(f.context.resultChecks(target).blocked,false);target.statement.usd=126;assert.equal(f.context.resultChecks(target).blocked,true);});
 test('guarda un archivo listo mientras otro sigue leyendo sin modificar ese segundo resultado',async()=>{
  const f=fixture(),target=f.context.stage,reading={id:'two',status:'reading',result:{statement:{id:'other'}}};f.context.importQueue={entries:[{id:'one',status:'ready',result:target},reading]};f.context.page='imports';await f.context.saveQueuedResult('one');
  assert.equal(target.saved,true);assert.equal(reading.status,'reading');assert.equal(reading.result.statement.id,'other');assert.equal(f.context.page,'imports');assert.equal(f.context.saving,false);assert.deepEqual(f.calls,['upload','statement-save']);
