@@ -14,3 +14,6 @@
 /* Productos: búsqueda amplia en su propia fila; filtros debajo. */
 #page-productos #prod-filtros-barra{display:flex;flex-wrap:wrap;gap:10px}
 #page-productos #prod-filtros-barra>.prod-buscador-wrap{flex:0 0 100%!important;width:100%!important;max-width:100%;min-width:0;box-sizing:border-box}
+
+/* El orden y la categoría forman un par compacto debajo del buscador. */
+#page-productos #prod-filtros-barra>.prod-orden-categoria{flex:0 1 390px;width:390px;max-width:100%;min-width:0}#page-productos .prod-orden-categoria>select{flex:1 1 0!important;min-width:0!important;width:0!important}

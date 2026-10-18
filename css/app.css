@@ -3294,3 +3294,9 @@ body.sv-exterior-dialog-open .content{overflow:hidden!important;overscroll-behav
  #page-productos #pf-proveedores-tbl .pf-provider-mainline{height:auto;min-height:32px;flex-wrap:wrap}
  #page-productos #pf-proveedores-tbl .pf-provider-cost .pf-provider-mainline>span:first-child{flex-shrink:0;white-space:nowrap}
 }
+
+#page-productos .prod-list-metrics{grid-template-columns:repeat(5,minmax(0,1fr))}#page-productos .prod-list-metrics [role="button"]:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+@media(max-width:1100px){#page-productos .prod-list-metrics{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:900px){#page-productos .prod-list-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+#prod-filtros-barra .prod-orden-categoria{display:flex;gap:8px;grid-column:span 2;max-width:390px;min-width:0}#page-productos .prod-orden-categoria>select{width:0!important;flex:1 1 0!important;min-width:0!important;max-width:190px!important;font-size:12px;padding-left:9px;padding-right:22px}#prod-filtro-sobrantes-activo,#prod-filtro-sinvalor-activo{grid-column:1/-1;justify-self:start}

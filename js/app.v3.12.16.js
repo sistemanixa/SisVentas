@@ -1418,6 +1418,8 @@ function poblarSelectCategorias() {
 // cada vez que se entra al módulo.
 var _prodCatsAbiertas = {}; // sólo true = abierta
 var _filtroProductosSinPrecio = false;
+var _filtroProductosSobrantes = false;
+var _filtroProductosSinValorAgregado = false;
 // El catálogo es una vista operativa. Las rutinas canónicas de precios recorren
 // moneda, proveedores e historial y deben ejecutarse sólo en la auditoría o en
 // la ficha individual; hacerlo cientos de veces durante cada render congela la
@@ -1494,6 +1496,44 @@ function productoSinPrecioCatalogo(p) {
   return !(metricasListaProducto(p).venta > 0);
 }
 
+function productoConSobranteReal(p) { return stockOperativoProducto(p).general > 0; }
+function productoSinValorAgregado(p) {
+  var valor = p && p.margenDeseado;
+  if (valor === undefined || valor === null || String(valor).trim() === '') return false;
+  var porcentaje = Number(String(valor).trim().replace(',', '.'));
+  return Number.isFinite(porcentaje) && porcentaje === 0;
+}
+
+function actualizarVistaFiltrosRapidosProductos() {
+  [['sobrantes',_filtroProductosSobrantes,'stock',productoConSobranteReal,'Sobrantes reales'],['sinvalor',_filtroProductosSinValorAgregado,'sinvalor',productoSinValorAgregado,'Sin valor agregado']].forEach(function(filtro){
+    var cantidad = Object.values(prodData || {}).filter(filtro[3]).length;
+    var card = document.getElementById('stat-prod-'+filtro[2]+'-card');
+    if (card) { card.setAttribute('aria-pressed', String(filtro[1])); card.style.borderColor = filtro[1] ? 'var(--blue)' : ''; card.style.boxShadow = filtro[1] ? '0 0 0 1px var(--blue)' : ''; }
+    var chip = document.getElementById('prod-filtro-'+filtro[0]+'-activo');
+    if (chip) { chip.textContent = filtro[4]+' ('+cantidad+') ×'; chip.style.display = filtro[1] ? 'inline-flex' : 'none'; }
+  });
+  var total = document.getElementById('stat-prod-sinvalor');
+  if (total) total.textContent = Object.values(prodData || {}).filter(productoSinValorAgregado).length;
+  var sub = document.getElementById('stat-prod-sinvalor-sub');
+  if (sub) sub.textContent = _filtroProductosSinValorAgregado ? 'filtro activo · tocá para quitar' : 'valor agregado cargado en 0%';
+}
+
+function toggleFiltroRapidoProductos(tipo) {
+  var activo = tipo === 'sobrantes' ? !_filtroProductosSobrantes : !_filtroProductosSinValorAgregado;
+  _filtroProductosSobrantes = tipo === 'sobrantes' && activo;
+  _filtroProductosSinValorAgregado = tipo === 'sinvalor' && activo;
+  if (activo) {
+    _filtroProductosSinPrecio = false;
+    ['prod-search','filter-cat'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+    var uso = document.getElementById('prod-uso-filter');if(uso)uso.value='todos';
+    window._prodCategoriaFiltro = '';_filtroUsoProductos = 'todos';
+    _prodCatsAbiertas = {};_todasColapsadas = false;
+    var label=document.getElementById('label-colapsar-cats');if(label)label.textContent='Colapsar todo';
+  }
+  actualizarStatProductos();
+  renderTablaProductos((document.getElementById('prod-search') || {}).value || '');
+}
+
 function cambiarFiltroUsoProductos(valor) {
   _filtroUsoProductos = String(valor || 'todos');
   renderTablaProductos((document.getElementById('prod-search') || {}).value || '');
@@ -1527,6 +1567,8 @@ function actualizarVistaFiltroProductosSinPrecio(cantidad) {
 function toggleFiltroProductosSinPrecio() {
   _filtroProductosSinPrecio = !_filtroProductosSinPrecio;
   if (_filtroProductosSinPrecio) {
+    _filtroProductosSobrantes = false;
+    _filtroProductosSinValorAgregado = false;
     // El KPI es global: al abrirlo se eliminan filtros residuales para que la
     // grilla demuestre exactamente la cantidad informada por la tarjeta.
     var buscar = document.getElementById('prod-search');
@@ -1646,6 +1688,8 @@ function renderTablaProductos(filtro) {
   var catFiltro = window._prodCategoriaFiltro || (document.getElementById('filter-cat')||{}).value || '';
   if (catFiltro) lista = lista.filter(function(p){ return String(p.categoria || p.catId || 'Sin categoría') === String(catFiltro); });
   if (_filtroProductosSinPrecio) lista = lista.filter(productoSinPrecioCatalogo);
+  if (_filtroProductosSobrantes) lista = lista.filter(productoConSobranteReal);
+  if (_filtroProductosSinValorAgregado) lista = lista.filter(productoSinValorAgregado);
   if (_filtroUsoProductos === 'sinventas') lista = lista.filter(function(p){ return !productoTieneVentasHistoricas(p); });
   if (_filtroUsoProductos === 'inactivos') lista = lista.filter(function(p){ return p.activo === false || String(p.estado || '').toLowerCase() === 'inactivo'; });
   // Ordenamiento específico y liviano: trabaja sobre los productos que esta
@@ -2066,7 +2110,7 @@ window.refrescarStockOperativoCatalogo = refrescarStockOperativoCatalogo;
 function actualizarStatProductos() {
   var prods = Object.values(prodData||{});
   var total  = prods.length;
-  var sobrantes = prods.map(stockOperativoProducto).filter(function(inv){ return inv.general > 0; });
+  var sobrantes = prods.filter(productoConSobranteReal).map(stockOperativoProducto);
   var conSobrante = sobrantes.length;
   var unidadesSobrantes = sobrantes.reduce(function(totalInv, inv){ return totalInv + inv.general; }, 0);
   var sinPrecio  = prods.filter(productoSinPrecioCatalogo).length;
@@ -2105,6 +2149,7 @@ function actualizarStatProductos() {
   _s('stat-prod-sinprecio',sinPrecio);
   _s('stat-prod-top',      topProd);
   actualizarVistaFiltroProductosSinPrecio(sinPrecio);
+  actualizarVistaFiltrosRapidosProductos();
 }
 
 function productoCoincideItemVenta(producto, item) {
@@ -7740,6 +7785,13 @@ function fbMostrarEstadoConexion() {
   var title = fbOnline
     ? 'Conectado en tiempo real a Firebase'
     : (sinInternet ? 'El dispositivo informa que no tiene internet' : 'Firebase todavía no confirmó conexión activa');
+  var monitorConexion = typeof window !== 'undefined' && window.SVConnectionMonitor;
+  if (monitorConexion) {
+    var estadoConexion = monitorConexion.view(fbOnline);
+    label = estadoConexion.label; title = estadoConexion.title;
+    icon = estadoConexion.connected ? 'ti-wifi' : 'ti-wifi-off';
+    color = estadoConexion.connected ? 'var(--green)' : 'var(--amber)';
+  }
   badges.forEach(function(badge) {
     badge.innerHTML = '<i class="ti '+icon+'" style="font-size:11px"></i> ' + label;
     badge.style.color = color;
@@ -10624,7 +10676,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.12.16',date:'18/10/2026',title:'Categorías de gastos',notes:Object.freeze(['Clasificá los consumos y creá tus categorías desde el mismo selector, sin cambiar los importes leídos.','Sugerencias de seguros por el nombre del cargo, siempre pendientes de confirmación.']),feature:Object.freeze({page:'gastospersonales',actionLabel:'Ver gastos personales'})}),
+ Object.freeze({version:'v3.12.16',date:'18/10/2026',title:'Conexión y filtros de productos',notes:Object.freeze(['Clasificá los consumos y creá tus categorías desde el mismo selector, sin cambiar los importes leídos.','Sugerencias de seguros por el nombre del cargo, siempre pendientes de confirmación.','Sobrantes reales y valor agregado cero abren sus listados; categoría y orden quedan juntos.','El indicador comprueba el servidor y recupera la sincronización al volver Internet.']),feature:Object.freeze({page:'gastospersonales',actionLabel:'Ver gastos personales'})}),
  Object.freeze({version:'v3.12.15',date:'18/10/2026',title:'Asignación y lectura de PDF',notes:Object.freeze(['Toda la etiqueta del creador abre la asignación para administradores; el selector indica quién ya está asignado.','Los PDF listos permiten guardar desde la cola y muestran el motivo cuando necesitan revisión.','La última página del original ya no muestra el cursor de espera.','Lectura de PDF más ágil, con controles de importes, monedas y fechas contra el original.']),feature:Object.freeze({page:'detalle',actionLabel:'Ver ventas'})}),
  Object.freeze({version:'v3.12.14',date:'18/10/2026',title:'Estado de conexión',notes:Object.freeze(['El indicador muestra Sin conexión cuando el dispositivo pierde la red y sólo indica Sincronizado tras la confirmación de Firebase.']),feature:Object.freeze({page:'dashboard',actionLabel:'Abrir inicio'})}),
  Object.freeze({version:'v3.12.13',date:'18/10/2026',title:'Pagos y comprobantes de cuenta',notes:Object.freeze(['Cuenta corriente muestra el importe de cada comprobante y el total de los archivos vinculados al movimiento.','Registrar pago abre más rápido al evitar búsquedas y cálculos repetidos.']),feature:Object.freeze({page:'cuentacorriente',actionLabel:'Ver cuentas'})}),
