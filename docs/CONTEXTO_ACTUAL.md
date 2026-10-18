@@ -2,6 +2,13 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## v3.12.14 publicada · indicador de conexión
+
+- Publicación explícitamente autorizada el18/10/2026. Fuente limpia `51dee04e902300c11c8b29eb9fab9cb1382b80e7`, rama `codex/indicador-sin-conexion`. Fetch sin novedades de origin/main4639a87b; sin mezclar main ni modificar trabajo ajeno.
+- Hosting `sites/nixa-sisventas-seguro/versions/febf1954a1653b72`:370 activos públicos,4 cargas. Dominio entrega nueve activos críticos idénticos al fuente, cinco cabeceras presentes y cuatro rutas privadas404. Después script oficial validó web/SW/marcadores y confirmó `sisventas/config/version = v3.12.14-firebase`. Sin cambios de servidor, DNS, reglas, permisos, contraseñas o datos de negocio.
+- Suite vigente1.931 aprobada antes del corte, sintaxis/diff/coherencia correctos. Misma ventana pasó de local a dominio14 con sesión/almacenamiento conservados. App14 inmutable y versión visible confirmadas, carga cerrada; Ventas52 filas en DOM, Cuenta corriente223 filas en DOM (9 visibles por filtro Pendientes), estado Sincronizado y cero errores capturados. Se dejó en Detalle ventas para la prueba del titular. Captura privada `tmp/v31214-web-verificada.private.png` fuera de Git/Hosting.
+- No se registraron operaciones ni se borró navegación. Única escritura remota intencional: aviso de versión. La secuencia offline/retorno está probada en simulación (apartado siguiente); el titular realizará ahora el corte físico de Wi-Fi en web sin limpiar datos. Pendiente observar esa prueba: no afirmar ya probada con hardware ni garantizada la notificación inmediata si navegador/SO mantienen otra interfaz de red activa.
+
 ## Indicador de conexión · v3.12.14 local, sin publicar
 
 - Rama `codex/indicador-sin-conexion`, desde `f3cdcb83329921e30f20591622b8725acc2360e4`. Titular cortó Wi-Fi físicamente y aportó captura con Sincronizado todavía verde. Producción permanece13; no publicación ni escrituras de negocio.
