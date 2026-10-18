@@ -2,7 +2,15 @@
 
 Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
-## v3.12.9 publicada · cierre de la auditoría de interacciones
+## v3.12.10 publicada · cámara, navegación y Cobranzas
+
+- Publicación autorizada por el titular el17/10/2026. Fuente limpia `5824e47d74238b23651e538508d40e6409d15a28`, rama `codex/auditoria-interacciones`; fetch sin novedades de otra PC (`origin/main` sigue4639a87bf7e6edd9f2d62af70317fdc5f9ac71b5). No se integró main ni se tocó el cambio ajeno del checkout raíz.
+- Incluye cierre y encuadre de cámara, acciones de cobro/comprobante con retorno desde Cuenta corriente, cierre del menú al navegar, gesto lateral fino y formulario de Cobranzas compacto en tablet vertical.1.902 pruebas vigentes aprobadas, sintaxis/diff y coherencia local correctos. Se conservaron versiones publicadas anteriores.
+- Hosting `sites/nixa-sisventas-seguro/versions/a180c72167e466ab`:364 archivos públicos,6 cargas. En ventas.sistemanixa.com se comprobaron14 activos200 e idénticos al fuente, cinco cabeceras presentes y cuatro rutas privadas404. Después se validó web y se activó/comprobó `sisventas/config/version = v3.12.10-firebase`. Fue la única escritura remota intencional de datos; no se guardaron cobros ni documentos de prueba. Sin cambios de servidor, tráfico Cloud Run, DNS, reglas, permisos o contraseñas.
+- Sesión web existente conservada: tras completar el arranque, Cobranzas y Presupuestos abrieron; el menú se cerró al elegir ambos módulos. En820×1180 los tres importes de Cobranzas comparten fila, formulario606px y sin desborde horizontal. Pestaña de trabajo dejada abierta en Cobranzas web para revisión; local8766 sigue encendido y su app coincide con la publicación. No se registraron pagos ni se abrió cámara física.
+- Evidencias privadas en tmp: release-v31210-tests.private.log, verify-release-v31210.private.json y release-v31210-web.private.png. Próximo paso: comprobar touch/teclado/cámara/sonido y gesto del borde en equipos físicos; el arbitraje del gesto del navegador/SO no quedó probado con dedo real. Las verificaciones descritas no cubren toda operación financiera o rol.
+
+## Preparación anterior de v3.12.10 · producción entonces v3.12.9
 
 ### Cobranzas compacta en tablet vertical · v3.12.10 local
 
