@@ -2,6 +2,13 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Publicado · pie compacto v3.12.18 · 18/10/2026
+
+- Titular autorizó publicar al finalizar. Fuente4068d614ba193e401cc41f7aa1c51b83f6be8cf7, rama codex/clasificacion-gastos-pdf; fetch confirmó mismo commit remoto y main4639a87bf7e6edd9f2d62af70317fdc5f9ac71b5 sin novedades. Checkout limpio reutilizado .local/publicacion-final-v31216 separado en4068d614. No se integró main ni se alteró el cambio ajeno de la raíz.
+-1.985 pruebas aprobadas desde copia limpia, sintaxis/diff/coherencia18 correctos. Firebase Hosting publicó378 activos;19 archivos contrastados por hash,5 cabeceras y4 rutas privadas404 comprobadas. Aviso sisventas/config/version actualizado18 después de verificación web. Sin cambios de Cloud Run, reglas, permisos, secretos, DNS ni datos reales. Reversión17 conserva fuente fc9946cb16c5c2600d9d85dec9368b2813468b59 y publicación anterior. Evidencias privadas v31218-publicacion-tests.private.log y v31218-web-check.private.json en tmp.
+- Misma pestaña web con sesión conservada: nombre propio e iniciales correctos, avatar circular30px, nombre nowrap/ellipsis, pie106px y retorno centrado26px coinciden con local/referencia. Botón Volver a SisVentas cierra el espacio y libera overflow; no se guardaron movimientos ni operaciones. Pestaña única restaurada a Gastos personales web18. El diseño móvil corresponde a la validación local390px y activos idénticos publicados; no es prueba física nueva.
+-18 está publicada: las notas local/sin publicar siguientes conservan la preparación histórica. No quedan pasos de despliegue de este ajuste; futuras mejoras parten de este estado.
+
 ## Pie de Gastos personales · v3.12.18 local, sin publicar
 
 - Base fdabf851261a6fe522e6905630c01552b5687986, rama codex/clasificacion-gastos-pdf. El titular comparó capturas: el pie17 no coincidía visualmente con Distribuidora. Se tomó su segundo ejemplo y la implementación real s-foot/s-user/s-avatar/s-uname de paraguay-shopping-access y app.css como referencia directa.
