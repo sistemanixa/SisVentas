@@ -350,6 +350,11 @@ tr:hover td{color:var(--text)}
 
 /* ── BADGES ── */
 .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.commercial-owner-badge {border:0;font-family:inherit;line-height:1.4;text-align:center;vertical-align:middle}
+button.commercial-owner-badge {cursor:pointer;min-height:32px;padding:6px 12px}
+.commercial-owner-badge small {display:block;font-size:10px;font-weight:400}
+button.commercial-owner-badge:focus-visible {outline:2px solid var(--blue);outline-offset:3px}
+@media(pointer:coarse){button.commercial-owner-badge{min-height:44px}}
 .b-green{background:var(--green-bg);color:var(--green)}
 .b-amber{background:var(--amber-bg);color:var(--amber)}
 .b-red{background:var(--red-bg);color:var(--red)}

@@ -2,6 +2,14 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Etiqueta y selección de responsable · v3.12.15 local, sin publicar
+
+- Rama `codex/asignacion-etiqueta`, desde `65ba7dfc67bd3c60fbf65395353eac6fd1807cae`. Producción14 intacta. Nueva app15/marcadores/índice/SW y URL versionada de commercial-document-controls/CSS coherentes.
+- Causa: badge envolvía botón sólo alrededor del nombre, dejando padding y texto secundario propagar al clic de fila. Ahora toda etiqueta es un botón nativo para admin, con stopPropagation, nombre accesible y foco; otros roles conservan span sin acción. No repite línea Asignado a cuando el nombre visible coincide con creador, pero conserva identidad original/responsabilidad en datos y título. Si son distintos, sigue mostrando ambos.
+- Selector indica responsable actual desde que abre y al volver a elegirlo: informa que ya está asignado y no guarda. Otra selección muestra a quién se asignaría; guardia adicional evita escribir incluso por invocación redundante. Opciones y autorización continúan en servidor; sin cambios de roles ni permisos.
+-1.935 pruebas vigentes aprobadas, cuatro nuevas de botón completo/no anidación, repetición, roles y estados/sin escritura para venta/presupuesto, y13 específicas con conservación de autor/fecha/auditoría. Sintaxis/diff/coherencia15 correctos. Misma ventana local recargada: clic físico de puntero en padding azul fuera del nombre abrió asignación sin detalle. Se seleccionó otra opción y se volvió a la actual sólo en formulario; Cancelar sin guardar. Móvil390×844 diálogo356px centrado entre279/565 sin desborde. Viewport normal restaurado; selector queda abierto en local para revisión.
+- No se pulsó Asignar ni se modificaron asignaciones reales, creador, comisiones o auditorías. Capturas privadas `tmp/asignacion-actual-*`, fuera de Git/Hosting. Pendiente publicar15 sólo con autorización; corte físico de Wi-Fi de14 sigue pendiente de resultado del titular.
+
 ## v3.12.14 publicada · indicador de conexión
 
 - Publicación explícitamente autorizada el18/10/2026. Fuente limpia `51dee04e902300c11c8b29eb9fab9cb1382b80e7`, rama `codex/indicador-sin-conexion`. Fetch sin novedades de origin/main4639a87b; sin mezclar main ni modificar trabajo ajeno.
