@@ -10381,6 +10381,7 @@ function showPage(id, el) {
     _svGuardarHistorialPaginas();
   }
   if (id === 'cobranzas' && el) {
+    _ccLimpiarCobroSeleccionado();
     var btnVolver = document.getElementById('cob-volver-venta');
     if (btnVolver) btnVolver.style.display = 'none';
     window._cobOrigenVentaId = null;
@@ -10602,7 +10603,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.12.10',date:'17/10/2026',title:'Mejoras del lector de productos',notes:Object.freeze(['La cámara conserva sus controles al abrirla desde el buscador de productos.','Cerrar el lector permite continuar el presupuesto sin perder lo ingresado.','La imagen aprovecha el visor y las guías se adaptan a la pantalla.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
+ Object.freeze({version:'v3.12.10',date:'17/10/2026',title:'Lector y consulta de cobros',notes:Object.freeze(['La cámara conserva sus controles al abrirla desde el buscador de productos.','Cerrar el lector permite continuar el presupuesto sin perder lo ingresado.','La imagen aprovecha el visor y las guías se adaptan a la pantalla.','Cuenta corriente permite abrir el cobro y ver su comprobante, conservando el retorno.']),feature:Object.freeze({page:'cuentacorriente',actionLabel:'Ver cuenta corriente'})}),
  Object.freeze({version:'v3.12.9',date:'17/10/2026',title:'Ventanas y confirmaciones más consistentes',notes:Object.freeze(['Cancelar conserva su acción al usar el teclado.','Las ventanas mantienen el foco y liberan el desplazamiento al cerrarse.','Los avisos esperan mientras completás una ventana y Escape cierra primero el menú del mensaje.']),feature:Object.freeze({page:'dashboard',actionLabel:'Abrir inicio'})}),
  Object.freeze({version:'v3.12.8',date:'17/10/2026',title:'Diagnóstico del servidor local',notes:Object.freeze(['El ingreso identifica cuándo el servidor local está apagado o no responde y permite reintentar sin perder la sesión.']),feature:Object.freeze({page:'dashboard',actionLabel:'Abrir inicio'})}),
  Object.freeze({version:'v3.12.7',date:'17/10/2026',title:'Avisos sin superposiciones',notes:Object.freeze(['El aviso de actualización y Gastos personales se abren en orden, para que los botones siempre respondan sobre la ventana visible.']),feature:Object.freeze({page:'gastospersonales',actionLabel:'Abrir gastos personales'})}),
@@ -26018,11 +26019,12 @@ function verCuentaClienteReal(clienteRef) {
       var medio = p.medio || p.medioPago || 'Efectivo';
       var fecha = p.fecha || v.fecha || '';
       var claveGrupo = fecha + '|' + String(medio).toLowerCase();
-      if (!grupos[claveGrupo]) grupos[claveGrupo] = { fecha:fecha, medio:medio, monto:0, ts:_ccFechaOrden(fecha, p.ts), comprobantes:[] };
+      if (!grupos[claveGrupo]) grupos[claveGrupo] = { fecha:fecha, medio:medio, monto:0, ts:_ccFechaOrden(fecha, p.ts), comprobantes:[], pagos:[] };
+      if (p.fbKey && grupos[claveGrupo].pagos.indexOf(String(p.fbKey)) < 0) grupos[claveGrupo].pagos.push(String(p.fbKey));
       var comprobanteId = p.comprobanteRef || p.grupoPago || p.pagoCuentaGrupo || p.fbKey || '';
       var comprobanteRef = _cobroTieneComprobante(p) ? comprobanteId : '';
       if (comprobanteRef && !grupos[claveGrupo].comprobantes.some(function(item){ return item && item.id === comprobanteId; })) {
-        grupos[claveGrupo].comprobantes.push({id:comprobanteId,ref:comprobanteRef});
+        grupos[claveGrupo].comprobantes.push({id:comprobanteId,ref:p.fbKey || comprobanteRef});
       }
       grupos[claveGrupo].monto += parseFloat(p.monto) || 0;
     });
@@ -26034,6 +26036,7 @@ function verCuentaClienteReal(clienteRef) {
         fecha: grupo.fecha,
         concepto: 'Pago — ' + (v.id || v.fbKey || '') + ' (' + grupo.medio + ')',
         comprobantes: grupo.comprobantes,
+        pagos: grupo.pagos,
         tipo: 'Pago',
         debe: 0,
         haber: aplicado,
@@ -26099,6 +26102,8 @@ function verCuentaClienteReal(clienteRef) {
         fecha: m.fecha || '',
         concepto: m.concepto || '',
         tipo: m.tipo || '',
+        pagos: (m.pagos || []).slice(),
+        comprobantes: (m.comprobantes || []).slice(),
         debe: Number(m.debe) || 0,
         haber: Number(m.haber) || 0,
         saldo: Number(m.saldo) || 0,
@@ -26171,21 +26176,22 @@ function aplicarFiltroExtractoCuentaCorriente() {
     var trClick = ventaId ? 'onclick="verVentaDesdeHistorial(\''+ventaId+'\',this)"' : '';
     return '<tr style="'+trStyle+'" '+trClick+' onmouseenter="if(this.onclick)this.style.background=\'var(--bg3)\'" onmouseleave="this.style.background=\'\'">' +
       '<td>' + escapeHTML(typeof _mostrarFecha === 'function' ? _mostrarFecha(m.fecha) : m.fecha) + '</td>' +
-      '<td style="color:'+(ventaId?'var(--blue)':'')+'">'+escapeHTML(m.concepto)+(ventaId?' <i class="ti ti-external-link" style="font-size:10px;opacity:.6"></i>':'')+_ccBotonesComprobantes(m.comprobantes)+'</td>' +
+      '<td style="color:'+(ventaId?'var(--blue)':'')+'">'+escapeHTML(m.concepto)+(ventaId?' <i class="ti ti-external-link" style="font-size:10px;opacity:.6"></i>':'')+'</td>' +
       '<td style="text-align:right">' + (m.debe ? '$'+Math.round(m.debe).toLocaleString('es-AR') : '—') + '</td>' +
       '<td style="text-align:right;color:var(--green)">' + (m.haber ? '$'+Math.round(m.haber).toLocaleString('es-AR') : '—') + '</td>' +
       '<td style="text-align:right;font-weight:500">$' + Math.round(m.saldo).toLocaleString('es-AR') + '</td>' +
+      '<td class="cc-mov-actions">'+(m.tipo==='Pago'?'<div class="cc-mov-actions-buttons">'+_ccBotonAbrirCobro(m,extracto.movimientos.indexOf(m))+_ccBotonesComprobantes(m.comprobantes)+'</div>':'')+'</td>' +
     '</tr>';
   }).join('');
   var saldoAnteriorRow = vista.filtrado && vista.desdeValor
-    ? '<tr style="background:var(--bg3)"><td>' + escapeHTML(vista.desdeLabel) + '</td><td style="font-weight:500">Saldo anterior al período</td><td style="text-align:right">—</td><td style="text-align:right">—</td><td style="text-align:right;font-weight:600">$' + Math.round(vista.saldoAnterior).toLocaleString('es-AR') + '</td></tr>'
+    ? '<tr style="background:var(--bg3)"><td>' + escapeHTML(vista.desdeLabel) + '</td><td style="font-weight:500">Saldo anterior al período</td><td style="text-align:right">—</td><td style="text-align:right">—</td><td style="text-align:right;font-weight:600">$' + Math.round(vista.saldoAnterior).toLocaleString('es-AR') + '</td><td class="cc-mov-actions"></td></tr>'
     : '';
 
   var tablaMovimientos = document.getElementById('cc-movimientos');
   if (!tablaMovimientos) return;
   tablaMovimientos.innerHTML =
-    '<thead><tr><th>Fecha</th><th>Concepto</th><th style="text-align:right">Debe</th><th style="text-align:right">Haber</th><th style="text-align:right">Saldo</th></tr></thead>' +
-    '<tbody>' + saldoAnteriorRow + (rows || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sin movimientos en el período seleccionado</td></tr>') + '</tbody>';
+    '<thead><tr><th>Fecha</th><th>Concepto</th><th style="text-align:right">Debe</th><th style="text-align:right">Haber</th><th style="text-align:right">Saldo</th><th class="cc-mov-actions">Acciones</th></tr></thead>' +
+    '<tbody>' + saldoAnteriorRow + (rows || '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Sin movimientos en el período seleccionado</td></tr>') + '</tbody>';
   var info = document.getElementById('cc-extracto-periodo-info');
   if (info) {
     info.style.display = vista.filtrado ? 'block' : 'none';
@@ -27051,8 +27057,9 @@ function renderHistorialCobranzas() {
  if(!_svEsPaginaActiva('cobranzas'))return;
  var pagosTbody=document.getElementById('pagos-tbody');if(!pagosTbody)return;
  var completa=window._historialPagosCompleto||[],texto=(document.getElementById('cob-buscador')||{}).value||'',medio=(document.getElementById('cob-filtro-medio')||{}).value||'',filtro=typeof _cobFiltroActual==='string'?_cobFiltroActual:'todos';
+ var base=Array.isArray(window._ccCobrosSeleccionados)?completa.filter(function(p){return p && window._ccCobrosSeleccionados.indexOf(String(p.fbKey||''))>=0;}):completa;
  var consulta=JSON.stringify([texto,medio,filtro]);if(consulta!==_cobUltimaConsulta){_cobUltimaConsulta=consulta;_cobPaginaActual=1;}
- var lista=_cobFiltrarHistorial(completa,texto,medio,filtro,new Date()),paginas=Math.max(1,Math.ceil(lista.length/_cobPorPagina));_cobPaginaActual=Math.min(_cobPaginaActual,paginas);
+ var lista=_cobFiltrarHistorial(base,texto,medio,filtro,new Date()),paginas=Math.max(1,Math.ceil(lista.length/_cobPorPagina));_cobPaginaActual=Math.min(_cobPaginaActual,paginas);
  var inicio=(_cobPaginaActual-1)*_cobPorPagina,visibles=lista.slice(inicio,inicio+_cobPorPagina);window._historialPagosActual=visibles;
  pagosTbody.innerHTML=visibles.length?visibles.map(function(p,idx){
         var ventaLink = (p.venta && !p.anulado) ? '<button class="btn btn-sm btn-icon" onclick="event.stopPropagation();irAVentaDesdeCobranza(\''+escapeHTML(p.venta)+'\');" title="Ver venta"><i class="ti ti-external-link" style="font-size:13px;color:var(--blue)"></i></button>' : '—';
@@ -27572,9 +27579,61 @@ function cerrarPagoCuentaCorriente() {
 }
 
 function _ccBotonesComprobantes(referencias) {
-  return (referencias || []).map(function(item){ return item && item.ref || item; }).filter(Boolean).map(function(ref) {
-    return ' <button class="btn btn-sm" onclick="event.stopPropagation();verOAdjuntarDocumentoCobro(\''+escapeHTML(ref)+'\',true)"><i class="ti ti-paperclip"></i> Ver comprobante</button>';
-  }).join('');
+  var refs=Array.from(new Set((referencias||[]).map(function(item){return item && item.ref || item;}).filter(Boolean).map(String)));
+  return '<button type="button" class="btn btn-sm" data-cc-comprobantes="'+escapeHTML(JSON.stringify(refs))+'" onclick="event.stopPropagation();verComprobantesCuentaCorriente(this.dataset.ccComprobantes)"'+(!refs.length?' disabled title="Este pago no tiene comprobante adjunto"':'')+'><i class="ti ti-paperclip"></i> Ver comprobante</button>';
+}
+
+function _ccBotonAbrirCobro(movimiento, indice) {
+  var puede=typeof permisoModulo==='function' && permisoModulo('cobranzas');
+  var vinculado=Array.isArray(movimiento.pagos) && movimiento.pagos.length>0;
+  return '<button type="button" class="btn btn-sm" onclick="event.stopPropagation();abrirCobroDesdeCuentaCorriente('+indice+')"'+(!puede||!vinculado?' disabled title="'+(!puede?'Tu rol no permite acceder a Cobranzas':'Este movimiento histórico no tiene un cobro individual vinculado')+'"':'')+'><i class="ti ti-external-link"></i> Ver cobro</button>';
+}
+
+function verComprobantesCuentaCorriente(valor) {
+  var refs;try{refs=JSON.parse(valor);}catch(_){return;}
+  if(!Array.isArray(refs))return;
+  refs=Array.from(new Set(refs.filter(function(ref){return typeof ref==='string' && ref;})));
+  function abrir(ref){var pago=_cobroPagoPorKey(ref),adjunto=pago && pago.comprobanteAdjunto;if(adjunto && adjunto.data)abrirVisorComprobanteSistema(adjunto,'Comprobante de cobro');else verOAdjuntarDocumentoCobro(ref,true);}
+  if(refs.length===1){abrir(refs[0]);return;}
+  if(refs.length>1)_svCrearDialogoSistema({tipo:'alert',titulo:'Comprobantes del pago',mensaje:'Elegí el comprobante que querés ver.',enlaces:refs.map(function(ref,i){var pago=_cobroPagoPorKey(ref);return {texto:pago && pago.comprobanteAdjunto && pago.comprobanteAdjunto.nombre || 'Comprobante '+(i+1),abrir:function(){abrir(ref);}};})});
+}
+
+function _ccLimpiarCobroSeleccionado() {
+  window._ccCobrosSeleccionados=null;window._ccRetornoCobro=null;
+  var page=document.getElementById('page-cobranzas');if(page)delete page.dataset.ccConsulta;
+  var volver=document.getElementById('cob-volver-cuenta');if(volver)volver.style.display='none';
+}
+
+function abrirCobroDesdeCuentaCorriente(indice) {
+  if(typeof permisoModulo!=='function'||!permisoModulo('cobranzas')){notify('Tu rol no permite acceder a Cobranzas');return;}
+  if(!_svEsPaginaActiva('cuentacorriente'))return;
+  var extracto=window._ccExtractoActual,movimiento=extracto && extracto.movimientos && extracto.movimientos[indice];
+  var keys=movimiento && movimiento.tipo==='Pago' && (movimiento.pagos||[]).filter(function(key){return !!_cobroPagoPorKey(key);});
+  if(!keys || !keys.length){notify('Este movimiento no tiene un cobro individual vinculado');return;}
+  var campo=function(id){return (document.getElementById(id)||{}).value||'';},content=document.querySelector('.content');
+  var retorno={cuenta:window._ccCuentaKeyActual||extracto.clienteKey,desde:campo('cc-extracto-desde'),hasta:campo('cc-extracto-hasta'),busqueda:campo('cc-buscador'),filtro:_ccFiltroActual,scroll:content?content.scrollTop:0,scrollPagina:document.scrollingElement?document.scrollingElement.scrollTop:0,cobTexto:campo('cob-buscador'),cobMedio:campo('cob-filtro-medio'),cobFiltro:_cobFiltroActual,cobPagina:_cobPaginaActual};
+  showPage('cobranzas');if(!_svEsPaginaActiva('cobranzas'))return;
+  window._ccRetornoCobro=retorno;window._ccCobrosSeleccionados=keys;window._cobOrigenVentaId=null;
+  var page=document.getElementById('page-cobranzas');if(page)page.dataset.ccConsulta='1';
+  var origenVenta=document.getElementById('cob-volver-venta');if(origenVenta)origenVenta.style.display='none';
+  var volver=document.getElementById('cob-volver-cuenta');if(volver)volver.style.display='';
+  ['cob-buscador','cob-filtro-medio'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  _cobPaginaActual=1;setFiltroCob('todos');
+  requestAnimationFrame(function(){if(!_svEsPaginaActiva('cobranzas'))return;var content=document.querySelector('.content');if(content)content.scrollTop=0;if(document.scrollingElement)document.scrollingElement.scrollTop=0;});
+}
+
+function volverACuentaDesdeCobro() {
+  var retorno=window._ccRetornoCobro;if(!retorno)return;
+  _ccLimpiarCobroSeleccionado();
+  var campos={'cob-buscador':retorno.cobTexto,'cob-filtro-medio':retorno.cobMedio};Object.keys(campos).forEach(function(id){var el=document.getElementById(id);if(el)el.value=campos[id];});
+  _cobFiltroActual=retorno.cobFiltro;_cobPaginaActual=retorno.cobPagina;_cobUltimaConsulta=JSON.stringify([retorno.cobTexto,retorno.cobMedio,retorno.cobFiltro]);
+  var navegandoAtras=_svNavegandoAtras;_svNavegandoAtras=true;
+  try{svNavegarDirecto('cuentacorriente',function(){
+    var camposCuenta={'cc-buscador':retorno.busqueda,'cc-extracto-desde':retorno.desde,'cc-extracto-hasta':retorno.hasta};Object.keys(camposCuenta).forEach(function(id){var el=document.getElementById(id);if(el)el.value=camposCuenta[id];});
+    setFiltroCC(retorno.filtro);
+    if(window._ccMapActual && window._ccMapActual[retorno.cuenta])verCuentaClienteReal(retorno.cuenta);else volverListaCuentaCorriente();
+  });}finally{_svNavegandoAtras=navegandoAtras;}
+  requestAnimationFrame(function(){if(_svEsPaginaActiva('cuentacorriente') && window._ccCuentaKeyActual===retorno.cuenta){var content=document.querySelector('.content');if(content)content.scrollTop=retorno.scroll;if(document.scrollingElement)document.scrollingElement.scrollTop=retorno.scrollPagina;}});
 }
 
 
@@ -51529,6 +51588,7 @@ function ventaDetalleRepararVinculoOT(venta, opciones) {
 }
 
 function abrirCobrosDesdeDetalleVenta(ventaId) {
+  _ccLimpiarCobroSeleccionado();
   var venta = _svResolverVentaRegistro(ventaId);
   if (!venta) { notify('Venta no encontrada'); return; }
   var ref = venta.id || venta.fbKey || ventaId;

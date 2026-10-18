@@ -6,6 +6,14 @@ body.sv-modal-stack-open :is(#sv-important-alert-stack,#fab-container,#chat-fab,
    debe encadenarse al documento al llegar al primer o último resultado. */
 #prod-drop-global,#prod-drop-list,#ppto-menu-global,#chat-menu-mensaje {overscroll-behavior:contain}
 dialog[data-sv-camera] button[aria-label="Cerrar lector"] {min-width:44px!important;min-height:44px!important}
+#page-cobranzas[data-cc-consulta="1"] :is(#cob-registro,#cobranzas-stats-global) {display:none!important}
+#cc-movimientos .cc-mov-actions {text-align:right}
+#cc-movimientos .cc-mov-actions-buttons {display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+@media (max-width:900px) {
+  #cc-movimientos.sv-mobile-card-grid .cc-mov-actions {text-align:left}
+  #cc-movimientos.sv-mobile-card-grid .cc-mov-actions-buttons {justify-content:flex-start}
+  #cc-movimientos.sv-mobile-card-grid .cc-mov-actions button {min-height:44px!important}
+}
 :is(.modal-overlay,.modal,[id^="modal-"],[id$="-modal"],[role="dialog"],[role="alertdialog"],dialog[open],#py-planner,#chat-box,#ia-box),
 :is(.modal-overlay,[id^="modal-"],[id$="-modal"],[role="dialog"],[role="alertdialog"],dialog[open],#py-planner,#chat-box,#ia-box) * {
   overscroll-behavior:contain;

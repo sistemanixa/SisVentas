@@ -17,6 +17,11 @@ Las pruebas funcionales vigentes deben leer la aplicación declarada por
 `index.html` mediante `test/helpers/active-app.js`, nunca el espejo legado
 `js/app.js` ni un nombre de versión fijado a mano.
 
+Cuenta corriente y cobros: `node --test test/cuenta-corriente-payment-actions.test.cjs`.
+Cubre identidad del cobro, agrupación/adjuntos, retorno con período y scroll,
+permiso de Cobranzas, visor solo lectura y saldos con el historial completo.
+Recorrido aislado en `dev-module-audit.cjs`, botón Cuenta corriente de prueba.
+
 Interacciones compartidas: `node --test test/system-dialog-interactions.test.cjs test/surface-scroll-stack.test.cjs`.
 Demostración de navegador sin Firebase ni datos de negocio: `node scripts/dev-interaction-audit.cjs`,
 solo loopback en8784. Casos, evidencia y límites en [AUDITORIA_INTERACCIONES.md](../docs/AUDITORIA_INTERACCIONES.md).

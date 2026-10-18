@@ -42,7 +42,7 @@
 <link rel="stylesheet" href="./css/app.css?v=3.12.9-interacciones">
 <link rel="stylesheet" href="./css/surveys.css?v=1">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.8.20-menu2">
-<link rel="stylesheet" href="./css/surface-scroll.css?v=3.12.10-lector">
+<link rel="stylesheet" href="./css/surface-scroll.css?v=3.12.10-cuenta">
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
@@ -1521,6 +1521,7 @@
 
       <!-- ── COBRANZAS ── -->
       <div id="page-cobranzas" class="page">
+        <div id="cob-volver-cuenta" style="display:none;position:sticky;top:0;z-index:45;margin-bottom:12px;padding:8px 0;background:var(--bg)"><button type="button" class="btn btn-sm" onclick="volverACuentaDesdeCobro()"><i class="ti ti-arrow-left"></i> Volver a Cuenta corriente</button></div>
         <div id="cob-volver-venta" style="display:none;margin-bottom:12px">
           <button class="btn btn-sm" onclick="volverADetalleVenta()" style="gap:6px">
             <i class="ti ti-arrow-left"></i> Volver al detalle de la venta
@@ -1543,7 +1544,7 @@
             <div class="m-sub" id="cob-met-promedio-sub">este mes</div>
           </div>
         </div>
-        <div class="card">
+        <div class="card" id="cob-registro">
           <div class="card-head">
             <span class="card-title">Registrar pago</span>
             <div class="cob-moneda-selector" aria-label="Moneda del cobro">
