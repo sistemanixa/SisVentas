@@ -1,0 +1,6 @@
+{
+  "title": "SisVentas cost guard: database pause and operations",
+  "description": "Suspend the project's database and verify pause operations; no deletion, billing unlink, IAM or secrets permissions.",
+  "stage": "GA",
+  "includedPermissions": ["firebasedatabase.instances.get", "firebasedatabase.instances.disable", "run.operations.get"]
+}

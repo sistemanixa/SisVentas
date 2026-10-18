@@ -1,0 +1,6 @@
+{
+  "title": "SisVentas cost guard: pause service",
+  "description": "Read and update only the Cloud Run services with an explicit service-level binding.",
+  "stage": "GA",
+  "includedPermissions": ["run.services.get", "run.services.update"]
+}
