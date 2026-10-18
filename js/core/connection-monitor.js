@@ -28,8 +28,8 @@
   function failure(domain,error){failed.add(domain);changed();if(!error?.status&&network!=='down')check();else if(error?.status>=500)set('service');}
   function view(firebase){
    if(!online()||network==='down')return {label:'Sin conexión',title:'No se puede contactar al servidor. La información recibida se conserva.',connected:false};
-   if(network==='service')return {label:'Servidor no disponible',title:'El servidor no respondió correctamente. Se reintentará automáticamente.',connected:false};
-   if(failed.size)return {label:'Sincronización pendiente',title:'Pendiente de sincronizar: '+Array.from(failed).join(', ')+'. Se reintentará automáticamente.',connected:false};
+   if(network==='service')return {label:'Servidor no disponible',title:'El servidor no respondió correctamente. Volvé a intentar desde Sincronizar ahora.',connected:false};
+   if(failed.size)return {label:'Sincronización pendiente',title:'Pendiente de sincronizar: '+Array.from(failed).join(', ')+'. Usá Sincronizar ahora o volvé a abrir el módulo.',connected:false};
    if(network!=='up'||!firebase)return {label:'Reconectando',title:'Comprobando la conexión con el servidor.',connected:false};
    return {label:'Sincronizado',title:'Conexión con el servidor comprobada y Firebase conectado.',connected:true};
   }

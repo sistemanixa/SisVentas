@@ -1,6 +1,7 @@
 'use strict';
 document.addEventListener('DOMContentLoaded',()=>{
  isAuthenticated=true;currentRole='admin';currentUserUid='fixture';currentUser='Administrador ficticio';currentUserEmail='fixture@example.invalid';
+ window.SISVENTAS_FUNCTIONS.cotizadorProveedor=location.origin;window.SISVENTAS_FUNCTIONS.asistente=location.origin;
  window.tienePermiso=()=>true;window.permisoModulo=()=>true;
  clientesData=[{fbKey:'c',id:'c',nombre:'Cliente ficticio',dir:'Dirección ficticia',activo:true}];
  prodData={p:{fbKey:'p',id:'p',codigo:'DEMO-1',cod:'DEMO-1',nombre:'Producto ficticio',categoria:'Ejemplo',gremio:100,pventa:200,activo:true}};
@@ -14,6 +15,15 @@ document.addEventListener('DOMContentLoaded',()=>{
  const tools=document.createElement('aside');tools.id='module-audit-tools';tools.style.cssText='position:fixed;bottom:8px;left:8px;z-index:2147483000;max-width:340px;background:#14283e;border:1px solid #54769c;border-radius:9px;padding:8px;font-size:11px';
  tools.innerHTML='<strong>DATOS FICTICIOS · sin Firebase</strong> <button class="btn btn-sm" id="audit-routes">Recorrer módulos</button> <button class="btn btn-sm" id="audit-dialogs">Recorrer ventanas</button><button class="btn btn-sm" id="audit-editors">Recorrer editores</button><button class="btn btn-sm" id="audit-selector">Venta y selector</button><button class="btn btn-sm" id="audit-client">Cliente de prueba</button><button class="btn btn-sm" id="audit-alert">Aviso sobre ventana</button><details><summary>Resultado de auditoría</summary><pre id="module-audit-result" style="max-height:35vh;overflow:auto;white-space:pre-wrap">Preparado</pre></details>';
  document.body.append(tools);
+ let idleBaseline=null;
+ function activity(){const counts={};for(const item of __moduleAudit.reads.slice(idleBaseline?.reads||0)){const key=item.type+' '+item.path;counts[key]=(counts[key]||0)+1;}const active={};for(const sub of __moduleAudit.subscriptions)if(sub.active)active[sub.path]=(active[sub.path]||0)+1;return {seconds:idleBaseline?Math.round((Date.now()-idleBaseline.at)/1000):null,reads:__moduleAudit.reads.length-(idleBaseline?.reads||0),writes:__moduleAudit.writes.length-(idleBaseline?.writes||0),counts,active,errors:__moduleAudit.errors};}
+ for(const [label,action]of [
+  ['Ingreso completo ficticio',async()=>{fbCargarTodo();await new Promise(r=>setTimeout(r,4800));document.getElementById('module-audit-result').textContent=JSON.stringify(activity(),null,2);}],
+  ['Repetir cargas ficticias',async()=>{for(let i=0;i<3;i++){svCargarDatosDePaginaActual();fbCargarCategorias();fbCargarEquipos();fbCargarInformes();fbCargarOrdenes();fbCargarEmpleados();fbCargarProveedores();}await new Promise(r=>setTimeout(r,300));document.getElementById('module-audit-result').textContent=JSON.stringify(activity(),null,2);}],
+  ['Limpiar borradores ficticios',()=>{for(const key of Object.keys(localStorage))if(key.startsWith('sv:commercial-draft:v1:fixture:'))localStorage.removeItem(key);document.getElementById('module-audit-result').textContent='Borradores ficticios locales eliminados. Recargá para empezar una medición limpia.';}],
+  ['Iniciar reposo',()=>{idleBaseline={at:Date.now(),reads:__moduleAudit.reads.length,writes:__moduleAudit.writes.length};document.getElementById('module-audit-result').textContent=JSON.stringify(activity(),null,2);}],
+  ['Ver actividad',()=>{document.getElementById('module-audit-result').textContent=JSON.stringify(activity(),null,2);}]
+ ]){const button=document.createElement('button');button.className='btn btn-sm';button.textContent=label;button.onclick=action;tools.insertBefore(button,tools.querySelector('details'));}
  function gestoLateralFicticio(x){
   for(const [tipo,dx]of [['touchstart',0],['touchmove',90],['touchend',90]]){
    const punto={identifier:1,clientX:x+dx,clientY:160};

@@ -112,6 +112,16 @@ test('habilitar comisión después del primer snapshot conserva la generación y
   f.events.child_changed({key:'sale'});await new Promise(setImmediate);assert.equal(Object.keys(f.db.root.sisventas.gastos).length,1);
  }finally{f.stop();}
 });
+
+test('una comisión ya generada o venta anulada no vuelve a leer dependencias al iniciar o editar',async()=>{
+ const f=observerFixture(),before=JSON.stringify(f.db.root);
+ try{
+  for(const sale of [{comisionHabilitada:true,comisionesGeneradas:true},{comisionHabilitada:true,anulada:true},{comisionHabilitada:true,anulado:true},{comisionHabilitada:true,estado:'Anulada'},{comisionHabilitada:true,estado:'sin_cargo'}]){
+   for(const event of ['child_added','child_changed'])f.events[event]({key:'sale',val:()=>sale});
+  }
+  await new Promise(setImmediate);assert.deepEqual(f.reads,[]);assert.equal(JSON.stringify(f.db.root),before);
+ }finally{f.stop();}
+});
 test('un snapshot habilitado no sustituye la validación actual de la venta en servidor',async()=>{
  const f=observerFixture({sale:{comisionHabilitada:false}}),before=JSON.stringify(f.db.root);try{
   f.events.child_added({key:'sale',val:()=>({comisionHabilitada:true})});await new Promise(setImmediate);

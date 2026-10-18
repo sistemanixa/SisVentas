@@ -90,7 +90,7 @@ function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date
    // child_changed procesa una habilitación posterior y los reintentos sin
    // snapshot conservan la validación completa del servidor.
    const sale=typeof snap.val==='function'?snap.val():null;
-   if(sale&&sale.comisionHabilitada!==true)return;
+   if(sale&&(sale.comisionHabilitada!==true||sale.comisionesGeneradas===true||sale.anulada===true||sale.anulado===true||['anulada','anulado','sin_cargo'].includes(String(sale.estado||'').toLowerCase())))return;
    if(pending.has(snap.key))return;pending.add(snap.key);systemGenerate(snap.key).then(result=>{failed.delete(snap.key);if(result.status==='generada'&&!result.reutilizada)health.completed++;}).catch(e=>{health.errors++;if(e.statusCode!==409)failed.set(snap.key,Number(failed.get(snap.key)||0)+1);}).finally(()=>pending.delete(snap.key));
   };
   connection.on('value',connected,denied);query.on('child_added',handle,denied);query.on('child_changed',handle,denied);query.on('value',ready,denied);

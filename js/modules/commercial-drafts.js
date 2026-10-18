@@ -31,40 +31,57 @@
   }
   if (typeof module !== 'undefined' && module.exports) { module.exports = { valid: valid, TTL: TTL, same:same, mergeForm:mergeForm }; return; }
   var sessions = {}, restoring = false, owner = user(), failed = false;
-  var cloudOwner = '', unsubscribe = null, cloudReady = false, pending = {}, cloudTimer = null;
+  var cloudOwner = '', unsubscribe = null, cloudReady = false, pending = {}, cloudTimer = null, cloudEpoch = 0, cloudSending = null, suspended = false, cloudWriteBlocked = false;
   function canSync() {
-    return typeof currentRole !== 'undefined' && !!currentRole && currentRole !== 'distribuidora' && currentRole !== 'compras_paraguay';
+    return !suspended && typeof currentRole !== 'undefined' && !!currentRole && currentRole !== 'distribuidora' && currentRole !== 'compras_paraguay';
   }
   function publish(d) {
     if (d.deleted) localStorage.setItem(prefix()+d.id,JSON.stringify(d));
     pending[d.id] = d;
+    cloudWriteBlocked = false;
+    connect();
     if (cloudTimer) clearTimeout(cloudTimer);
     if (typeof setTimeout === 'function') cloudTimer = setTimeout(sendPending, 500);
   }
   function sendPending() {
-    if (!canSync() || !cloudReady || cloudOwner !== user() || !window.fbUpdate) return;
+    if (cloudWriteBlocked || cloudSending || window.navigator?.onLine === false || !canSync() || !cloudReady || cloudOwner !== user() || !window.fbUpdate) return;
     var batch = pending; pending = {};
     if (!Object.keys(batch).length) return;
-    var uid = cloudOwner;
-    Promise.resolve(window.fbUpdate(window.fbRef(window.fbDB, 'sv_borradores/' + uid), batch)).catch(function() {
-      if (user() !== uid) return;
+    var uid = cloudOwner, flight = {uid:uid,epoch:cloudEpoch,ids:Object.keys(batch)}, success = false, task;
+    cloudSending = flight;
+    try { task = window.fbUpdate(window.fbRef(window.fbDB, 'sv_borradores/' + uid), batch); } catch (error) { task = Promise.reject(error); }
+    Promise.resolve(task).then(function() { success = true; }, function() {
+      if (user() !== uid || flight.epoch !== cloudEpoch) return;
+      cloudWriteBlocked = true;
       Object.keys(batch).forEach(function(id) { if (!pending[id] || pending[id].updated < batch[id].updated) pending[id] = batch[id]; });
       if (!failed) { failed = true; notify('Borrador guardado en este navegador. La sincronización está pendiente.'); }
+    }).finally(function() {
+      if (cloudSending !== flight) return;
+      cloudSending = null;
+      if (success && user() === uid && flight.epoch === cloudEpoch && Object.keys(pending).length) {
+        if (cloudTimer) clearTimeout(cloudTimer);
+        cloudTimer = setTimeout(sendPending, 500);
+      }
     });
+  }
+  function stopCloud() {
+    cloudEpoch++; if (cloudTimer) clearTimeout(cloudTimer); cloudTimer = null;
+    if (unsubscribe) unsubscribe(); unsubscribe = null;
+    cloudOwner = ''; cloudReady = false; cloudSending = null; pending = {}; cloudWriteBlocked = false;
   }
   function tombstone(id) { return {id:id,deleted:true,updated:Date.now()}; }
   function connect() {
     var uid = user();
     if (!canSync()) {
-      if (unsubscribe) unsubscribe();
-      unsubscribe = null; cloudOwner = ''; cloudReady = false;
+      if (unsubscribe || cloudOwner) stopCloud();
       return;
     }
     if (cloudOwner === uid || !uid || !window.fbDB || !window.fbOnValue || !window.fbUpdate) return;
     if (unsubscribe) unsubscribe();
+    var epoch = ++cloudEpoch;
     cloudOwner = uid; cloudReady = false;
-    unsubscribe = window.fbOnValue(window.fbRef(window.fbDB, 'sv_borradores/' + uid), function(snapshot) {
-      if (user() !== uid || !canSync()) return;
+    var stop = window.fbOnValue(window.fbRef(window.fbDB, 'sv_borradores/' + uid), function(snapshot) {
+      if (epoch !== cloudEpoch || user() !== uid || !canSync()) return;
       var remote = snapshot.val() || {};
       Object.keys(remote).forEach(function(id) {
         var d=remote[id], local; try { local=JSON.parse(localStorage.getItem(prefix()+id)); } catch (_) {}
@@ -73,12 +90,18 @@
           delete pending[id];
           Object.keys(sessions).forEach(function(k){ if (sessions[k].id === id) delete sessions[k]; });
         } else if (local && local.deleted) pending[id]=local;
-        else if (valid(d,Date.now()) && (!local || d.updated >= local.updated)) localStorage.setItem(prefix()+id,JSON.stringify(d));
+        else if (valid(d,Date.now()) && (!local || d.updated > local.updated || same(d,local))) localStorage.setItem(prefix()+id,JSON.stringify(d));
       });
       records().forEach(function(d) { if (!remote[d.id] || (!remote[d.id].deleted && d.updated > remote[d.id].updated)) pending[d.id]=d; });
       Object.keys(localStorage).filter(function(k){return k.indexOf(prefix())===0;}).forEach(function(k){var d;try{d=JSON.parse(localStorage.getItem(k));}catch(_){}if(d&&d.deleted&&(!remote[d.id]||!remote[d.id].deleted))pending[d.id]=d;});
       cloudReady = true; failed = false; badges(); sendPending();
-    }, function() { if (user() !== uid || !canSync()) return; cloudReady=false; cloudOwner=''; if (!failed) {failed=true;notify('No se pudieron sincronizar los borradores. Se conserva la copia local.');} });
+    }, function() { if (epoch !== cloudEpoch || user() !== uid || !canSync()) return; stopCloud(); if (!failed) {failed=true;notify('No se pudieron sincronizar los borradores. Se conserva la copia local.');} });
+    if (epoch === cloudEpoch) unsubscribe = stop; else stop?.();
+  }
+  function resumeCloud() {
+    if (owner !== user()) { stopCloud(); owner = user(); sessions = {}; }
+    cloudWriteBlocked = false;
+    connect(); flush(); sendPending(); if (!document.hidden) { installButtons(); badges(); }
   }
   function user() { return typeof currentUserUid !== 'undefined' && currentUserUid ? String(currentUserUid) : ''; }
   function prefix() { return 'sv:commercial-draft:v1:' + encodeURIComponent(user()) + ':'; }
@@ -124,7 +147,12 @@
     var d = { schema: 1, id: s.id, kind: kind, updated: Date.now(), data: data, original: s.original };
     if (s.baseData) d.baseData=s.baseData;
     try {
-      if (json === s.base || !meaningful) { localStorage.removeItem(prefix() + s.id); publish(tombstone(s.id)); }
+      if (json === s.base || !meaningful) {
+        var previous; try { previous = JSON.parse(localStorage.getItem(prefix() + s.id)); } catch (_) {}
+        // No publicar eliminaciones de un borrador vacío que nunca existió.
+        // Conservar la marca previa evita revivirlo desde otra pestaña.
+        if (previous && !previous.deleted) publish(tombstone(s.id));
+      }
       else { localStorage.setItem(prefix() + s.id, JSON.stringify(d)); publish(d); }
       s.last = json; failed = false; badges();
     } catch (_) { warn(); }
@@ -132,7 +160,10 @@
   function flush() { ['venta', 'presupuesto'].forEach(function (k) { if (visible(k)) save(k); }); }
   function complete(kind) {
     var s = sessions[kind];
-    if (s && owner === user()) { try { localStorage.removeItem(prefix() + s.id); publish(tombstone(s.id)); } catch (_) { warn(); } }
+    if (s && owner === user()) { try {
+      var saved = JSON.parse(localStorage.getItem(prefix() + s.id));
+      if ((saved && !saved.deleted) || (pending[s.id] && !pending[s.id].deleted) || cloudSending?.ids.includes(s.id)) publish(tombstone(s.id));
+    } catch (_) { warn(); } }
     delete sessions[kind]; badges();
   }
   function badges() {
@@ -265,10 +296,19 @@
     }
     badges();
   });
-  window.addEventListener('focus', badges);
+  window.addEventListener('focus', resumeCloud);
+  window.addEventListener('online', resumeCloud);
+  document.addEventListener('sisventas:session-ready', function() { suspended = false; resumeCloud(); });
+  document.addEventListener('sisventas:session-ended', function() { suspended = true; stopCloud(); owner = ''; sessions = {}; });
+  document.addEventListener('sisventas:role-changed', resumeCloud);
+  document.addEventListener('sisventas:page-changed', resumeCloud);
+  document.addEventListener('visibilitychange', function() { if (!document.hidden) resumeCloud(); });
   setInterval(function () {
-    if (owner !== user()) { owner = user(); sessions = {}; pending = {}; cloudReady=false; if (unsubscribe) unsubscribe(); cloudOwner=''; }
-    connect(); flush(); sendPending();
+    if (owner !== user()) { stopCloud(); owner = user(); sessions = {}; }
+    // Sólo captura local: sin reconexión ni reenvío por reloj. La publicación
+    // debounced existe únicamente cuando el contenido del borrador cambió.
+    if (!canSync()) { if (unsubscribe || cloudOwner) stopCloud(); }
+    flush();
     if(!document.hidden){ installButtons(); badges(); }
   }, 1000);
 })();

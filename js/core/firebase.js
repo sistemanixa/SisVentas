@@ -39,19 +39,23 @@
     // listener activo conserva y puede volver a pintar datos del usuario.
     const fbValueListeners = new Set();
     window.fbOnValue = function(...args) {
+      let active = true;
       const load = window.SVDataReadiness?.begin(args[0]?.ref || args[0]);
       const callback = args[1];
       if (typeof callback === 'function') args[1] = function(snapshot) {
-        try { const result = callback(snapshot); Promise.resolve(result).then(() => load?.ready(), () => load?.error()); return result; }
-        catch (error) { load?.error(); throw error; }
+        if (!active) return;
+        try { const result = callback(snapshot); Promise.resolve(result).then(() => { if(active)load?.ready(); }, () => { if(active)load?.error(); }); return result; }
+        catch (error) { if(active)load?.error(); throw error; }
       };
       const errorCallback = typeof args[2] === 'function' ? args[2] : null;
       const options = errorCallback ? args[3] : args[2];
-      args[2] = function(error) { load?.error(); if(errorCallback)errorCallback(error); else console.error('[Datos] No se pudo cargar la suscripción', error); };
+      args[2] = function(error) { if(!active)return; load?.error(); if(errorCallback)errorCallback(error); else console.error('[Datos] No se pudo cargar la suscripción', error); };
       if(options)args[3]=options;
       let unsubscribe;
-      try { unsubscribe = onValue(...args); } catch(error) { load?.error(); throw error; }
+      try { unsubscribe = onValue(...args); } catch(error) { active=false; load?.error(); try { if(errorCallback)errorCallback(error); } finally { throw error; } }
       const trackedUnsubscribe = function() {
+        if (!active) return;
+        active = false;
         try { unsubscribe(); }
         finally { load?.cancel(); fbValueListeners.delete(trackedUnsubscribe); }
       };

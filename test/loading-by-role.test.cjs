@@ -36,31 +36,33 @@ test('el éxito de una fuente no borra el error de otra, ni el error al cancelar
 function directory(name,role='administrativo'){
  const {api,context}=setup(role);const calls=[];
  Object.assign(context,{currentUserUid:'fixture',SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://fixture.invalid'},svPuedeLeerDominio:()=>false,permisoModulo:()=>true,
-  setInterval:()=>1,clearInterval(){},console:{error(){}},fetch:async()=>({ok:true,json:async()=>({ok:true,empleados:{},proveedores:{}})})});
+  navigator:{onLine:true},AbortController,AbortSignal,currentRole:role,setInterval:()=>1,clearInterval(){},console:{error(){}},fetch:async()=>({ok:true,json:async()=>({ok:true,empleados:{},proveedores:{}})})});
  Object.assign(context.window,{_svModuleListeners:{},SVServiceAuth:{headers:async()=>({})}});
- const start=active.indexOf('function '+name+'('),end=active.indexOf('\n}',start)+2;
- vm.runInContext(active.slice(start,end),context);
+ for(const fn of ['svCapturarContextoOperacion','svIniciarLecturaReducida',name]){
+  const start=active.indexOf('function '+fn+'('),end=active.indexOf('\n}',start)+2;
+  vm.runInContext(active.slice(start,end),context);
+ }
  return{api,context,calls,subscribe:callback=>context[name](callback)};
 }
 for(const [name,key]of [['svEscucharDirectorioEmpleados','empleados'],['svEscucharProveedores','proveedores']]){
  test(name+' reconoce el directorio reducido solo después de procesarlo',async()=>{
   const x=directory(name);let processed=false;
   x.subscribe(snap=>{assert.equal(x.api.status([key]).ready,false);assert.deepEqual(snap.val(),{});processed=true;});
-  for(let i=0;i<10;i++)await Promise.resolve();
+  await new Promise(setImmediate);
   assert.equal(processed,true);assert.equal(x.api.status([key]).ready,true);
  });
  test(name+' muestra fallo sin inventar una colección vacía',async()=>{
   const x=directory(name);x.context.fetch=async()=>{throw Error('offline');};
   x.subscribe(()=>assert.fail('No entregar datos ante un error'));
-  for(let i=0;i<10;i++)await Promise.resolve();
+  await new Promise(setImmediate);
   assert.equal(x.api.status([key]).ready,false);assert.deepEqual(Array.from(x.api.status([key]).errors),[key]);
  });
  test(name+' ignora la respuesta de una sesión cerrada',async()=>{
   const x=directory(name);let release;x.context.fetch=()=>new Promise(resolve=>release=resolve);
   x.subscribe(()=>assert.fail('No reutilizar directorio de otra sesión'));
-  for(let i=0;i<4;i++)await Promise.resolve();
+  await new Promise(setImmediate);
   x.context.currentUserUid='otra';x.api.reset();release({ok:true,json:async()=>({ok:true,empleados:{},proveedores:{}})});
-  for(let i=0;i<10;i++)await Promise.resolve();
+  await new Promise(setImmediate);
   assert.equal(x.api.status([key]).ready,false);
  });
 }
