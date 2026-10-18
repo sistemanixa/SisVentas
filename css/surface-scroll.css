@@ -39,6 +39,12 @@ dialog[data-sv-camera] button[aria-label="Cerrar lector"] {min-width:44px!import
 /* El acabado traslúcido no debe dejar leer contenido detrás de una cabecera. */
 html.sv-v3-preview .topbar,
 html.sv-v3-preview body.dark-mode .topbar {background:var(--bg2);position:relative;z-index:40;isolation:isolate}
+/* El menú expandido se superpone al encabezado al liberar su ancho de escritorio.
+   Evitar el empate de capas: el encabezado aparece después en el documento.
+   Móvil/tablet conservan su capa 300, por encima del fondo de cierre 199. */
+@media (min-width:1101px) {
+  .sidebar {z-index:41}
+}
 .modal-head,.modal-header,.comunicado-editor-head,.hsex-admin-modal-header,.sv-modal-drag-handle {
   background-color:var(--bg2);
   isolation:isolate;

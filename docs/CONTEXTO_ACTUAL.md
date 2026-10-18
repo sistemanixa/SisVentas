@@ -2,6 +2,13 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Menú expandido detrás de cabecera · candidata v3.12.12
+
+- Continuación en `codex/pago-cuenta-presentacion`, desde `816144738d43888ed6863c6bf68487531bd112c1`. La corrección anterior del pago no cubría el menú. Producción sigue11; sin publicación ni escrituras de negocio.
+- Reproducido exactamente en escritorio1465px: sidebar desplegada204px, cabecera comienza en60px; ambas capas40 y la cabecera posterior tapa logo/pin. Corrección en `surface-scroll.css`: menú41 sólo desde1101px, manteniendo cabecera40 y menú móvil/tablet300 sobre fondo199. Índice/SHELL consultan nueva URL `v=3.12.12-menu`.
+- Misma ventana8766 recargada sin borrar almacenamiento. Punto100/25 antes devolvía cabecera y después menú; logo completo visible. En820×1180 y390×844 menú abre al borde0, queda delante y cierra tocando fondo. Se restauraron viewport normal y preferencia original de menú anclado. No se probaron gestos físicos nuevos ni operaciones financieras.
+- Suite vigente1.922/1.922 aprobada en repetición; primera ejecución falló en espera temporal15ms del primer caso PDF (sin cambios en ese módulo), que aprobó aislado12/12 y en repetición completa. SintaxisSW, diff y versión local correctos. Evidencia privada `tmp/menu-capas-corregido.private.png`; no agregarla a Git. Pendiente publicar candidata12 sólo con autorización.
+
 ## Presentación del pago de cuenta · v3.12.12 local, sin publicar
 
 - Rama `codex/pago-cuenta-presentacion`, desde `b706072d68bd03009bfcced47e73088bc36904df`; conserva la auditoría de reconexión12. Fetch sin novedades de `origin/main`4639a87b. Producción permanece v3.12.11; sin integración en main ni despliegue.
