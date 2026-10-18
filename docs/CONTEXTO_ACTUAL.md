@@ -2,6 +2,14 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## v3.12.11 publicada · recuperación de carga y formularios
+
+- Publicación expresamente autorizada el18/10/2026. Fuente limpia `410b07e6f9d8c8a284980744e85ed21ad9fc242a`, rama `codex/recuperacion-carga-persistente`; incluye la candidata de formularios y las reparaciones de CSP/Service Worker. Fetch sin novedades de otra PC (`origin/main`4639a87b). No se integró main ni se tocó el cambio ajeno del checkout raíz.
+- Hosting `sites/nixa-sisventas-seguro/versions/aa0c5d1afdb502a9`:366 activos públicos y6 cargas. En el dominio real se comprobaron15 activos200 idénticos al fuente, las cinco cabeceras de seguridad, la excepción de transporte `https://*.firebaseio.com/.lp` y cuatro rutas privadas404. Después se validó y activó `sisventas/config/version = v3.12.11-firebase`. Esta fue la única escritura remota intencional de datos de configuración; sin operaciones financieras de prueba, cambios de servidor, reglas, permisos, DNS ni contraseñas.
+-1.912 pruebas vigentes aprobadas antes del despliegue; sintaxis/diff y coherencia local correctos. Navegador web con la sesión previa conservada, sin limpiar navegación/almacenamiento: Dashboard sincronizado, Ventas, Presupuestos y Cuenta corriente listos. Cobranzas en tablet820px sin desborde; recarga normal en celular390px restauró Cobranzas con sesión, datos listos y estado sincronizado, sin errores capturados. El indicador de conexión está oculto visualmente en celular por diseño; se comprobó su contenido junto a la visibilidad y estado real de la pantalla, no se confundió esa ocultación con un fallo de carga.
+- No se guardaron ventas, cobros, presupuestos ni otros documentos de prueba. La validación web fue de lectura/carga y presentación; no equivale a probar todas las operaciones ni todos los dispositivos físicos. Próximo paso: seguimiento en los dispositivos previamente afectados mediante recarga normal, sin borrar datos. Diagnóstico y reproducción del transporte en [DIAGNOSTICO_CARGA_PERSISTENTE.md](DIAGNOSTICO_CARGA_PERSISTENTE.md); los apartados siguientes registran la preparación anterior a la publicación.
+- Evidencias privadas fuera de Git/Hosting: `tmp/release-v31211-tests.private.log`, `tmp/verify-release-v31211.private.json`, capturas web y registro de Hosting. La ventana web de trabajo se conserva abierta; local8766 continúa disponible.
+
 ## Carga persistente tras interrupción · reparación v3.12.11 sin publicar
 
 - Rama `codex/recuperacion-carga-persistente`, desde `a961423efdb62a0af9723d71817480d3dc353e77`; conserva los formularios adaptables de la candidata11. Fetch sin novedades de `origin/main`4639a87b. El cambio ajeno del checkout raíz no se tocó. Producción permanece v3.12.10, sin cambios de DNS, servidor, reglas, permisos ni datos.

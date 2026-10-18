@@ -1,6 +1,8 @@
 # Carga detenida después de una interrupción
 
-18/10/2026. Candidata local v3.12.11; producción continúa v3.12.10.
+18/10/2026. Reparación publicada en v3.12.11 desde el commit
+`410b07e6f9d8c8a284980744e85ed21ad9fc242a`. Publicación y comprobación
+web registradas en [CONTEXTO_ACTUAL.md](CONTEXTO_ACTUAL.md).
 
 ## Causa reproducida
 
@@ -66,7 +68,7 @@ SDK debe aislarse, configurar `SV_TRANSPORT_SDK_DIR` con copias públicas de
 a10.12.0. No necesitan credenciales; no copiar perfiles. `SV_TRANSPORT_PORT`
 permite elegir otro puerto. En esta PC se usó8795.
 
-## Publicación pendiente
+## Publicación y seguimiento
 
 1. Publicar desde el commit limpio revisado con el script de Hosting: la
    corrección principal está en la cabecera, por lo que copiar JS o hacer
@@ -76,4 +78,6 @@ permite elegir otro puerto. En esta PC se usó8795.
    comprobar Dashboard, Ventas, Presupuestos y Cuenta corriente. Verificar
    también una interrupción/retorno de red. No guardar operaciones de prueba.
 
-Hasta publicar y comprobar esos dispositivos no afirmar que están reparados.
+Publicación, cabecera y recarga web con sesión conservada ya comprobadas.
+Queda el seguimiento en los otros dispositivos afectados: no afirmar que
+todos fueron probados ni pedir borrar su navegación como reparación.
