@@ -2,6 +2,13 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## v3.12.13 publicada · pago e importes de comprobantes
+
+- Publicación explícitamente autorizada el18/10/2026 después de rechazo previo de revisión automática; ese intento rechazado no desplegó nada. Fuente limpia `8e3f7a4b44dfc4b60d8e992210566ded9661af04`, rama `codex/apertura-pago-cuenta`. Incluye selector de importes y optimización de apertura, manteniendo ventana centrada. Producción ahora13; no integración en main y cambios ajenos conservados.
+- Hosting `sites/nixa-sisventas-seguro/versions/160232320dc51f57`:369 activos públicos,5 cargas. Nueve activos críticos idénticos al fuente, cinco cabeceras presentes y cuatro rutas privadas404. Script oficial luego comprobó web y confirmó `sisventas/config/version = v3.12.13-firebase`. Sin modificaciones de servidor, DNS, reglas, permisos ni contraseñas.
+- Fuente con1.927 pruebas vigentes aprobadas; sintaxis/coherencia/diff correctos. Misma pestaña pasó de local a web con sesión conservada sin borrar navegación. Cuenta corriente sincronizada; app13 real confirmada en DOM. Pago abierto vacío: escritorio1543px panel720px centrado entre411,5/1131,5; móvil390×844 panel366px, bordes120,8/723,2, sin desborde. Cruz cierra sin guardar; viewport normal restaurado.
+- Selector publicado muestra dos importes y total correctos respecto de los cobros consultados; queda abierto en web. Sin errores capturados. Capturas privadas `tmp/v31213-web-*` fuera de Git/Hosting. No se crearon/modificaron pagos ni datos de prueba; única escritura remota intencional fue aviso de versión. La mejora de tiempos fue medida localmente (apartado siguiente), no se instrumentó producción ni se establece percentil de latencia web. Próximo paso: seguimiento en equipos del titular sin limpiar datos; pendientes físicos y de auditoría general conservados.
+
 ## Apertura de pago · mejora local de candidata v3.12.13
 
 - Rama `codex/apertura-pago-cuenta`, desde `b8a033746ef19de690d7150c6ae34f0a50f715f4`; conserva importes de comprobantes. Producción permanece12, sin publicación ni operaciones reales.
