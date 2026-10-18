@@ -2,6 +2,13 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Indicador de conexión · v3.12.14 local, sin publicar
+
+- Rama `codex/indicador-sin-conexion`, desde `f3cdcb83329921e30f20591622b8725acc2360e4`. Titular cortó Wi-Fi físicamente y aportó captura con Sincronizado todavía verde. Producción permanece13; no publicación ni escrituras de negocio.
+- Se reprodujo un fallo de prioridad: `fbMostrarEstadoConexion` mostraba verde si fbOnline conservaba true aunque navigator.onLine fuera false. Además firebase-ready asignaba conectividad basándose sólo en navigator.onLine. Corregido: offline descarta confirmación previa, muestra Sin conexión en ambas etiquetas y al volver espera confirmación .info/connected; SDK preparado ya no equivale a red Firebase confirmada. No se cambian transporte, consultas, sesión, permisos ni saldos. La captura no aporta navigator ni tiempos del SDK: no afirmar causa única de todo corte ni detección instantánea si SO/navegador aún no notifican pérdida de red.
+- Cuatro pruebas nuevas, tres fallaban antes y pasan después; suite1.931/1.931 aprobada, incluida presencia histórica sin cambiar sus expectativas. Sintaxis/diff/versiones correctos. `node scripts/dev-connection-badge.cjs` sirve sólo una demostración en loopback8797, sin SDK/Auth ni conexiones externas: usa función activa con estado ficticio. UI comprobada Sincronizado→Sin conexión→Reconectando→Sincronizado. Evidencia privada `tmp/conexion-offline-simulado.private.png`; es simulación, no corte del adaptador real.
+- Espejo8766 actualizado a candidata14 y misma ventana recargada en Cuenta corriente conservando sesión/almacenamiento. Pendiente probar el corte físico en la instalación del titular tras publicación autorizada, con tiempo de transición y conexión alternativa documentados si persiste el verde. No publicar automáticamente por esta consulta.
+
 ## v3.12.13 publicada · pago e importes de comprobantes
 
 - Publicación explícitamente autorizada el18/10/2026 después de rechazo previo de revisión automática; ese intento rechazado no desplegó nada. Fuente limpia `8e3f7a4b44dfc4b60d8e992210566ded9661af04`, rama `codex/apertura-pago-cuenta`. Incluye selector de importes y optimización de apertura, manteniendo ventana centrada. Producción ahora13; no integración en main y cambios ajenos conservados.
