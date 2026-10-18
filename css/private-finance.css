@@ -39,3 +39,7 @@ dialog [data-retry][hidden]{display:none}
 .pdf-save-reason{color:var(--gold);font-size:12px;margin:12px 0}.pdf-queue-actions{flex-wrap:wrap}
 
 .pdf-result-back{display:flex;justify-content:flex-start;margin-bottom:18px}.pdf-result-actions{justify-content:flex-end}
+
+/* Categorías de consumo: importes originales siempre de sólo lectura. */
+.category-charge{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;overflow-wrap:anywhere}.category-charge span{color:var(--muted)}.actions-col{text-align:right}.category-suggested{color:var(--gold)}.pdf-result-table th:nth-child(1){width:10%}.pdf-result-table th:nth-child(2){width:30%}.pdf-result-table th:nth-child(3){width:9%}.pdf-result-table th:nth-child(4),.pdf-result-table th:nth-child(5){width:16%}.pdf-result-table th:nth-child(6){width:19%}.pdf-result-category .btn{max-width:100%;white-space:normal;justify-content:flex-end}
+@media(max-width:700px){.pdf-result-table .pdf-result-category{grid-column:1/-1;grid-row:3;text-align:right}.pdf-result-category:before{display:none!important}.pdf-result-category .btn{min-height:40px}.actions-col .btn{white-space:normal}}

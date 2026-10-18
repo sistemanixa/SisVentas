@@ -8,6 +8,14 @@
  const one=(v,list)=>{if(!list.includes(v))fail(400,'Opción inválida');return v;};
  const money=(v,nullable=false,signed=false)=>{if(v==null&&nullable)return null;if(!Number.isSafeInteger(v)||Math.abs(v)>1e13||!signed&&v<0)fail(400,'Importe inválido: debe conservar centavos');return v;};
  const currency=v=>one(v,['ARS','USD']);
+ const movementCategories=Object.freeze(['','Seguro','Servicios','Alimentación','Salud','Transporte','Hogar','Educación','Ocio','Otros']);
+ const canClassify=m=>!!m&&!m.postClose&&m.amount>0&&['Consumo','Cuota','Seguro','Débito a confirmar'].includes(m.kind);
+ function suggestCategory(m){
+  if(!canClassify(m)||m.category)return '';
+  const name=String(m.concept||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();
+  // Nombres identificables: una sugerencia no confirma póliza, cobertura ni periodicidad.
+  return /\b(?:MAPFRE|ZURICH|LA CAJA|FEDERACION PAT(?:RONAL)?|FEDE PAT|GALICIA SEGUROS?|SEGUROS? SUDAM(?:ERICANA)?|BBVA SEGUROS?|SANCOR SEGUROS?|SAN CRISTOBAL SEGUROS?|SEGUROS?)\b/.test(name)?'Seguro':'';
+ }
  function extracted(input){if(input==null)return {};const out={};for(const name of ['bank','brand','previousUSD','temUSD','tnaUSD','previous','total','usd','minimum','minimumCurrency','close','due','period','tem','tna','cft']){const f=input[name];if(f==null)continue;if(!f||typeof f!=='object'||Array.isArray(f))fail(400,'Procedencia inválida');if(!['string','number'].includes(typeof f.value)||typeof f.value==='number'&&!Number.isFinite(f.value))fail(400,'Valor extraído inválido');out[name]={value:typeof f.value==='string'?text(f.value,80):f.value,original:text(f.original||'',500),page:money(f.page),origin:f.origin==='PDF · IA'?'PDF · IA':'PDF',unit:text(f.unit||'',120)};}return out;}
  const date=(v,optional=false)=>{if(optional&&(v==null||v===''))return null;if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v)||!Number.isFinite(Date.parse(v+'T12:00:00Z'))||new Date(v+'T12:00:00Z').toISOString().slice(0,10)!==v)fail(400,'Fecha inválida');return v;};
 
@@ -54,14 +62,14 @@
    if(old)current.versions.push({at:stamp,previous:{...old,versions:undefined}});
    for(const c of ['ARS','USD']){const base=c==='ARS'?current.total:current.usd;if(base!=null&&base<paid(s,current,c)&&!current.reconciliation)fail(409,'El saldo es menor que los pagos registrados. Explicá la conciliación antes de continuar');}
    if(!Array.isArray(d.movements)||d.movements.length>1500)fail(400,'Revisá los movimientos (hasta 1500 por resumen)');
-   const movements=d.movements.map(m=>({id:key(m.id),statement:entityId,card,date:date(m.date),concept:text(m.concept,300,true),ref:text(m.ref||'',160),amount:money(m.amount,false,true),currency:currency(m.currency),kind:one(m.kind,['Consumo','Seguro','Débito a confirmar','Cuota','Interés','Impuesto','Pago del período anterior','Conversión','Ajuste']),origin:m.origin==='PDF'?'PDF':'Manual desde PDF',page:m.page==null?null:money(m.page),current:m.current==null?null:Number(m.current),total:m.total==null?null:Number(m.total),...(m.dateSource==='cierre'?{dateSource:'cierre'}:m.origin==='PDF'&&m.dateSource==='documento'&&m.dateEvidence?{dateSource:'documento',dateEvidence:{date:date(m.dateEvidence.date),page:money(m.dateEvidence.page),original:text(m.dateEvidence.original,500,true)}}:{}),postClose:false}));
-   const seen=new Set();for(const m of movements){if(seen.has(m.id)||s.movements.some(x=>x.id===m.id&&x.statement!==entityId))fail(400,'Movimiento repetido');seen.add(m.id);if(m.date>close&&!(printedMovementDate(m)&&m.date<=due))fail(400,'Un movimiento posterior al cierre requiere fecha impresa verificable y no superar el vencimiento');if(m.dateSource==='cierre'&&m.date!==close)fail(400,'La fecha del cargo debe coincidir con el cierre');if(m.kind==='Cuota'&&(!Number.isInteger(m.current)||!Number.isInteger(m.total)||m.current<1||m.current>m.total||m.total>120))fail(400,'Cuotas inválidas');if(m.kind!=='Cuota')m.current=m.total=null;}
+   const movements=d.movements.map(m=>({id:key(m.id),statement:entityId,card,date:date(m.date),concept:text(m.concept,300,true),ref:text(m.ref||'',160),amount:money(m.amount,false,true),currency:currency(m.currency),kind:one(m.kind,['Consumo','Seguro','Débito a confirmar','Cuota','Interés','Impuesto','Pago del período anterior','Conversión','Ajuste']),category:one(m.category??s.movements.find(old=>old.id===m.id)?.category??'',movementCategories),origin:m.origin==='PDF'?'PDF':'Manual desde PDF',page:m.page==null?null:money(m.page),current:m.current==null?null:Number(m.current),total:m.total==null?null:Number(m.total),...(m.dateSource==='cierre'?{dateSource:'cierre'}:m.origin==='PDF'&&m.dateSource==='documento'&&m.dateEvidence?{dateSource:'documento',dateEvidence:{date:date(m.dateEvidence.date),page:money(m.dateEvidence.page),original:text(m.dateEvidence.original,500,true)}}:{}),postClose:false}));
+   const seen=new Set();for(const m of movements){if(seen.has(m.id)||s.movements.some(x=>x.id===m.id&&x.statement!==entityId))fail(400,'Movimiento repetido');seen.add(m.id);if(m.category&&!canClassify(m))fail(400,'Sólo se clasifican consumos del resumen');if(m.date>close&&!(printedMovementDate(m)&&m.date<=due))fail(400,'Un movimiento posterior al cierre requiere fecha impresa verificable y no superar el vencimiento');if(m.dateSource==='cierre'&&m.date!==close)fail(400,'La fecha del cargo debe coincidir con el cierre');if(m.kind==='Cuota'&&(!Number.isInteger(m.current)||!Number.isInteger(m.total)||m.current<1||m.current>m.total||m.total>120))fail(400,'Cuotas inválidas');if(m.kind!=='Cuota')m.current=m.total=null;}
    for(const m of s.movements.filter(x=>x.statement===entityId&&!x.postClose&&!seen.has(x.id))){if(s.expenses.some(x=>x.linkedMovement===m.id)||s.insurances.some(x=>(x.charges||[]).includes(m.id))||s.installments.some(x=>x.movement===m.id))fail(409,'Un movimiento eliminado tiene vínculos: conservá su referencia o conciliá primero');}
    const delta=['ARS','USD'].filter(c=>{const base=c==='ARS'?current.total:current.usd,previous=c==='ARS'?current.previous:current.extracted.previousUSD?.value;return previous!=null&&base!=null&&money(previous,true)+movements.filter(m=>m.currency===c).reduce((t,m)=>t+m.amount,0)!==base;});
    if(delta.length&&!current.reconciliation)fail(400,'Los subtotales no concilian. Revisá el PDF o explicá la diferencia');
    save('statements',current);s.movements=s.movements.filter(m=>m.statement!==entityId||m.postClose);for(const m of movements){
     const input=d.movements.find(x=>x.id===m.id);save('movements',m);
-    if(['Seguro','Débito a confirmar'].includes(m.kind)){
+    if(m.category==='Seguro'||!m.category&&['Seguro','Débito a confirmar'].includes(m.kind)){
      const existing=input.insuranceId?find('insurances',input.insuranceId):s.insurances.find(i=>Object.values(i.charges||{}).includes(m.id));
      if(existing&&existing.currency!==m.currency)fail(400,'La moneda del seguro vinculado no coincide');
      if(existing)save('insurances',{...existing,charges:[...new Set([...Object.values(existing.charges||{}),m.id])]});
@@ -85,6 +93,14 @@
    const p=find('payments',entityId),st=find('statements',p.statement);if(!p.initial||p.status==='Anulado')fail(400,'Solo se completan mínimos declarados activos');const dt=date(d.date,true);if(dt&&(dt<st.close||dt>today(stamp)))fail(400,'Fecha de pago inválida');save('payments',{...p,date:dt,note:note()});
   }else if(command.type==='payment-void'){
    const p=find('payments',entityId);if(p.status==='Anulado')fail(409,'El registro ya está anulado');save('payments',{...p,status:'Anulado',voidReason:text(d.reason,1000,true),voidAt:stamp});
+  }else if(command.type==='movement-classify'){
+   const movement=find('movements',entityId);find('statements',movement.statement);
+   if(!canClassify(movement))fail(400,'Sólo se clasifican consumos del resumen');
+   const category=one(d.category,movementCategories);
+   save('movements',{...movement,category});
+   if(category==='Seguro'&&!s.insurances.some(i=>Object.values(i.charges||{}).includes(movement.id))){
+    save('insurances',{id:key(movement.id+'-insurance'),name:movement.concept,ref:movement.ref||'',coverage:'',amount:movement.amount,currency:movement.currency,card:movement.card,classification:'Por confirmar',decision:'Evaluar',cancelDate:null,note:'Clasificado desde el resumen. Cobertura y periodicidad pendientes.',charges:[movement.id],history:[],origin:'Clasificación de movimiento'});
+   }
   }else if(command.type==='insurance-save'){
    const old=s.insurances.find(i=>i.id===entityId),decision=one(d.decision,['Mantener','Evaluar','Solicitar baja','Baja solicitada','Baja confirmada']),cancelDate=date(d.cancelDate,true);if(['Baja solicitada','Baja confirmada'].includes(decision)&&!cancelDate||cancelDate&&cancelDate>today(stamp))fail(400,'Indicá una fecha real de baja');
    const charges=Object.values(d.charges||old?.charges||[]).map(x=>find('movements',x).id);
@@ -113,5 +129,5 @@
   if(JSON.stringify(s).length>6e6||Object.keys(s.operations).length>10000)fail(413,'El espacio requiere archivo histórico antes de agregar más registros');
   return {state:copy(s),replayed:false};
  }
- return {groups,key,text,money,date,period,amount,rate,fee,empty,hydrate,latest,paid,balance,totalDebt,quota,shift,project,apply};
+ return {groups,key,text,money,date,period,amount,rate,fee,empty,hydrate,latest,paid,balance,totalDebt,quota,shift,project,apply,movementCategories,canClassify,suggestCategory};
 });
