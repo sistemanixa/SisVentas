@@ -2,6 +2,14 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## v3.12.12 publicada · reconexión, pago y menú
+
+- Publicación expresamente autorizada el18/10/2026. Fuente limpia `fffe983c8c6ddb59b727d208fe05f1ca49615d6a`, rama `codex/pago-cuenta-presentacion`; incluye reconexión de `b706072d`, pago de `81614473` y capas del menú. Fetch sin novedades de `origin/main`4639a87b. Sin integración en main; cambios ajenos del checkout raíz conservados.
+- Hosting `sites/nixa-sisventas-seguro/versions/ec8b5d9b14890ef0`:368 activos públicos,8 cargas. Dominio real: nueve activos idénticos al fuente (índice, app, dos marcadores, SW, dos CSS, commercial-ownership y user-directory), cinco cabeceras presentes y cuatro rutas privadas404. Luego script oficial comprobó web y confirmó `sisventas/config/version = v3.12.12-firebase`. Sin cambios de DNS, servidor, reglas, permisos ni credenciales.
+- Fuente conserva la suite vigente1.922/1.922 aprobada registrada debajo; sintaxis de app, dos módulos de reconexión y SW comprobada, diff/coherencia local correctos. Web con sesión previa conservada, sin borrar navegación: Dashboard, Ventas y Presupuestos cargados y sincronizados. Ventas muestra50 filas al terminar, sin errores capturados.
+- Menú no anclado en escritorio: expansión204px con cabecera comenzando en60px; punto100/25 devuelve sidebar y logo completo visible. Pago abierto sólo para consultar, sin importe, medio, referencia ni archivo; en390×844 panel366px centrado entre120,8/723,2 y cuatro campos44px. Cruz elimina diálogo y libera bloqueo de scroll. Se restauró viewport normal y se dejó abierta la web en Detalle ventas. Capturas privadas `tmp/v31212-web-*`, fuera de Git/Hosting.
+- No se guardaron operaciones de negocio ni datos de prueba. La única escritura remota intencional fue el aviso de versión. Los cortes/retornos se comprobaron antes en entornos aislados; esta publicación verifica activos y carga real, no un corte físico de Internet ni teclado de Android/iOS. Próximo paso: seguimiento en dispositivos reales sin borrar navegación y continuar auditoría según evidencia, sin afirmar cobertura de todas las operaciones.
+
 ## Menú expandido detrás de cabecera · candidata v3.12.12
 
 - Continuación en `codex/pago-cuenta-presentacion`, desde `816144738d43888ed6863c6bf68487531bd112c1`. La corrección anterior del pago no cubría el menú. Producción sigue11; sin publicación ni escrituras de negocio.
