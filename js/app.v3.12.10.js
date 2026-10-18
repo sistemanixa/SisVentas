@@ -25625,6 +25625,50 @@ function closeSidebarMobile() {
   document.body.style.overflow = '';
 }
 
+function inicializarGestoSidebarMobile() {
+  var inicio=null;
+  function cancelar(){inicio=null;}
+  function disponible(){
+    var sb=document.querySelector('.sidebar');
+    return isAuthenticated && !sidebarDesktopActivo() && sb && !sb.classList.contains('open') &&
+      !document.body.classList.contains('sv-modal-stack-open') && !document.querySelector('dialog[open]');
+  }
+  function superficieInteractiva(target){
+    if(!target || !target.closest)return true;
+    if(target.closest('input,textarea,select,button,a,[role="button"],[contenteditable]:not([contenteditable="false"]),img,picture,canvas,video,.sidebar,[role="dialog"],[role="alertdialog"],.modal-overlay,.catalogo-modal'))return true;
+    for(var nodo=target;nodo && nodo!==document.body;nodo=nodo.parentElement){
+      if(nodo.scrollWidth>nodo.clientWidth+1 && /auto|scroll/.test(getComputedStyle(nodo).overflowX))return true;
+    }
+    return false;
+  }
+  document.addEventListener('touchstart',function(e){
+    cancelar();
+    if(e.touches.length!==1 || !disponible())return;
+    var t=e.touches[0];
+    // Solo los primeros12px del borde: no crear una capa que tape controles.
+    if(t.clientX<0 || t.clientX>12 || superficieInteractiva(e.target))return;
+    inicio={id:t.identifier,x:t.clientX,y:t.clientY,ts:e.timeStamp,dirigido:false};
+  },{passive:true});
+  document.addEventListener('touchmove',function(e){
+    if(!inicio)return;
+    if(e.touches.length!==1 || e.touches[0].identifier!==inicio.id || !disponible()){cancelar();return;}
+    var t=e.touches[0],dx=t.clientX-inicio.x,dy=Math.abs(t.clientY-inicio.y);
+    if(dx < -4 || dy>24 || (!inicio.dirigido && dy>10 && dy>dx/2) || e.timeStamp-inicio.ts>650){cancelar();return;}
+    if(dx>=16 && dx>dy*2.5)inicio.dirigido=true;
+    if(inicio.dirigido && e.cancelable)e.preventDefault();
+  },{passive:false});
+  document.addEventListener('touchend',function(e){
+    var gesto=inicio;cancelar();if(!gesto || !disponible() || e.touches.length)return;
+    var t=Array.from(e.changedTouches).find(function(t){return t.identifier===gesto.id;});
+    if(!t)return;
+    var dx=t.clientX-gesto.x,dy=Math.abs(t.clientY-gesto.y);
+    if(gesto.dirigido && dx>=64 && dy<=24 && dx>dy*2.5 && e.timeStamp-gesto.ts<=650)toggleSidebar();
+  },{passive:true});
+  document.addEventListener('touchcancel',cancelar,{passive:true});
+  window.addEventListener('resize',cancelar);
+}
+inicializarGestoSidebarMobile();
+
 // Cerrar sidebar al navegar en mobile
 // closeSidebarMobile integrado en showPage directamente
 function _rangoFechasPeriodo(periodo) {

@@ -14,7 +14,17 @@ document.addEventListener('DOMContentLoaded',()=>{
  const tools=document.createElement('aside');tools.id='module-audit-tools';tools.style.cssText='position:fixed;bottom:8px;left:8px;z-index:2147483000;max-width:340px;background:#14283e;border:1px solid #54769c;border-radius:9px;padding:8px;font-size:11px';
  tools.innerHTML='<strong>DATOS FICTICIOS · sin Firebase</strong> <button class="btn btn-sm" id="audit-routes">Recorrer módulos</button> <button class="btn btn-sm" id="audit-dialogs">Recorrer ventanas</button><button class="btn btn-sm" id="audit-editors">Recorrer editores</button><button class="btn btn-sm" id="audit-selector">Venta y selector</button><button class="btn btn-sm" id="audit-client">Cliente de prueba</button><button class="btn btn-sm" id="audit-alert">Aviso sobre ventana</button><details><summary>Resultado de auditoría</summary><pre id="module-audit-result" style="max-height:35vh;overflow:auto;white-space:pre-wrap">Preparado</pre></details>';
  document.body.append(tools);
+ function gestoLateralFicticio(x){
+  for(const [tipo,dx]of [['touchstart',0],['touchmove',90],['touchend',90]]){
+   const punto={identifier:1,clientX:x+dx,clientY:160};
+   const evento=new Event(tipo,{bubbles:true,cancelable:true});
+   Object.defineProperties(evento,{touches:{value:tipo==='touchend'?[]:[punto]},changedTouches:{value:[punto]}});
+   document.body.dispatchEvent(evento);
+  }
+ }
  for(const [label,action]of [
+  ['Gesto desde borde (ficticio)',()=>gestoLateralFicticio(6)],
+  ['Gesto fuera del borde (ficticio)',()=>gestoLateralFicticio(40)],
   ['Cuenta corriente de prueba',async()=>{
    const ventas=[{fbKey:'v1',id:'V-DEMO',clienteFbKey:'c',cliente:'Cliente ficticio',fecha:'2026-10-01',total:1000},{fbKey:'v2',id:'V-OTRA',clienteFbKey:'other',cliente:'Otro cliente ficticio',fecha:'2026-10-01',total:1500}];
    const pagos=[{fbKey:'p1',venta:'V-DEMO',ventaFbKey:'v1',clienteFbKey:'c',cliente:'Cliente ficticio',fecha:'2026-10-17',medio:'Transferencia',monto:200,comprobanteRef:'doc1'},{fbKey:'p2',venta:'V-DEMO',ventaFbKey:'v1',clienteFbKey:'c',cliente:'Cliente ficticio',fecha:'2026-10-16',medio:'Efectivo',monto:100},{fbKey:'p3',venta:'V-DEMO',ventaFbKey:'v1',clienteFbKey:'c',cliente:'Cliente ficticio',fecha:'2026-10-17',medio:'Transferencia',monto:50,comprobanteRef:'doc2'},{fbKey:'other',venta:'V-OTRA',ventaFbKey:'v2',clienteFbKey:'other',cliente:'Otro cliente ficticio',fecha:'2026-10-17',medio:'Transferencia',monto:500}];

@@ -4,6 +4,12 @@ Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Co
 
 ## v3.12.9 publicada · cierre de la auditoría de interacciones
 
+### Gesto fino para abrir menú · v3.12.10 local
+
+- Base `9e9ed4d58b8847b0111462daf4742bd33c51b5dc`, rama `codex/auditoria-interacciones`. Apertura táctil solo iniciando entre0 y12px del borde izquierdo, recorrido horizontal mínimo64px, duración máxima650ms y deriva vertical máxima24px, con predominio horizontal2,5:1. No agrega una capa invisible sobre controles ni cambia touch-action global. Scroll vertical, retroceso, multitáctil, cancelación y rotación descartan el gesto. Inactivo en escritorio, sin sesión o con modales; excluye fotos, controles y ancestros con desplazamiento horizontal.
+- Seis pruebas funcionales nuevas; puerta vigente1.902 aprobadas. Copia aislada con eventos táctiles sintéticos en navegador: en390px inicio40px no abre, inicio6px abre y bloquea fondo; elegir Presupuestos cierra y libera; en820px también abre. Se conserva cierre automático y comportamiento de escritorio. Herramienta ofrece botones Gesto desde/fuera del borde (ficticio); no equivalen a un dedo real.
+- Pendiente comprobar sensación y arbitraje de gestos nativos del navegador/SO con celular y tablet físicos; no afirmar prueba física. Continúa candidata local v3.12.10, sin publicación ni datos reales. Próximo paso: titular prueba arrastre desde borde y recorrido de fotos/tablas.
+
 ### Cierre del menú al navegar · v3.12.10 local
 
 - Base `f809c0c15d3e8bceede52a591098d4d0cb95ba44`, rama `codex/auditoria-interacciones`. El menú superpuesto usa CSS hasta1100px, pero showPage solo lo cerraba hasta768px. Se unificó con sidebarDesktopActivo (escritorio desde1101px) y se cierra al activar el destino, antes del render específico. Distribuidora también cierra tras cargar sus activos y comprobar sesión/permisos. Una navegación bloqueada no fuerza el cierre. No se cambian datos ni permisos.
