@@ -1,0 +1,30 @@
+/* Formularios: aprovechar tablet sin alterar el orden de foco ni cálculos. */
+@media (max-width:1100px) {
+  .form-grid .toggle-sw input {width:0!important;min-width:0!important;max-width:0!important}
+  .form-grid .sv-switch-row input {width:1px!important;min-width:0!important;max-width:1px!important}
+}
+@media (min-width:601px) and (max-width:1100px) and (orientation:portrait) {
+  /* Dos columnas como máximo; en paneles menores de532px queda una sola. */
+  .form-grid,.form-grid.cols3 {
+    grid-template-columns:repeat(auto-fit,minmax(min(100%,max(260px,calc(50% - 6px))),1fr))!important;
+    align-items:end;
+  }
+  .form-grid>.fg {min-width:0}
+  .form-grid>.full,
+  .form-grid>.fg:has(textarea),
+  .form-grid>.fg:has(#pp-titulo-solucion,#pp-obs,#g-descripcion,#eq-f-desc,#kit-descripcion) {grid-column:1/-1!important}
+  .form-grid .fg :is(input:not([type=checkbox]):not([type=radio]),select,textarea,.sw) {min-width:0;max-width:100%;box-sizing:border-box}
+  /* Formularios particulares con seis columnas conservan su distribución. */
+  #cob-registro>.form-grid {grid-template-columns:repeat(6,minmax(0,1fr))!important}
+}
+
+/* En teléfono solo se emparejan datos cortos relacionados. El resto ocupa toda la fila. */
+@media (max-width:600px) {
+  .form-grid:has(> .fg :is(#vf-numero-preview,#pp-numero,#inf-numero,#g-fecha,#ag-ev-fecha,#pf-stock)) {
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .form-grid:has(> .fg :is(#vf-numero-preview,#pp-numero,#inf-numero,#g-fecha,#ag-ev-fecha,#pf-stock))>.fg {grid-column:1/-1!important;min-width:0}
+  .form-grid>.fg:has(#vf-numero-preview,#venta-fecha,#pp-numero,#pp-fecha,#pp-dias,#pp-venc,#inf-numero,#inf-fecha,#g-fecha,#g-vencimiento,#ag-ev-fecha,#ag-ev-hora,#pf-stock,#pf-stock-min) {grid-column:span 1!important}
+  .form-grid>.fg :is(input:not([type=checkbox]):not([type=radio]),select,textarea,.sw) {min-width:0;max-width:100%;box-sizing:border-box}
+  .form-grid>.fg input[type=date] {padding-inline:7px}
+}

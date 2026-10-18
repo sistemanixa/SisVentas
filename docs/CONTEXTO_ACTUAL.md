@@ -1,6 +1,15 @@
 # Continuidad de SisVentas
 
-Actualizado: 17/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
+Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
+
+## Formularios adaptables · v3.12.11 local, sin publicar
+
+- Rama aislada `codex/formularios-tablet`, base `af19e317b133b4cd9b68fbc2dffaebb146101e2d`; fetch previo sin novedades desde `origin/main`4639a87b. Producción sigue v3.12.10. Nueva app inmutable11 y marcadores/index/SW coherentes; app10 publicada conservada. El cambio funcional del monolito se limita a versión/Novedades; no se reescribieron cálculos ni permisos.
+- Hoja `css/responsive-forms.css`: restaura columnas según ancho disponible en tablet vertical, conserva textos largos/full y adapta únicamente pares breves en celular. Corrige el ancho heredado de switches invisibles. Cobranzas conserva su cuadrícula especial. Distribuidora apila el resumen debajo del formulario en tablet vertical para evitar campos angostos; no cambia emisión, garantías o importes. Criterio estable añadido a AGENTS.
+- Auditoría y medidas en [AUDITORIA_FORMULARIOS.md](AUDITORIA_FORMULARIOS.md). En entorno ficticio:42 rutas y27 ventanas en820px y390px; nueve entradas a editores en820/601/390/320/1136px;16 solapas de Configuración en820/390px, sin errores/desbordes en esos recorridos. Alturas tablet: Gasto982→604px, Equipo992→617px, Cliente784→487px, Presupuesto583→432px. Proyectos y tarjeta de Gastos personales abiertos/cancelados en tablet/celular sin necesitar cambios. Distribuidora comprobada como remito y recibo en tablet/celular/escritorio; solo se descartó un borrador ficticio RAM.
+- Presupuesto ficticio conserva observación, foco y vencimiento tras redimensionar;20 días desde18/10 calcula07/11. No se guardaron presupuestos, cobros, tarjetas ni comprobantes reales.1.902 pruebas vigentes aprobadas, sintaxis/diff y coherencia local correctos. Puerta financiera existente conservada; no se agregaron tests que solo repliquen CSS. La herramienta de recorridos ahora registra medidas de formularios y permite recorrer Configuración.
+- Espejo8766 actualizado:366 activos HTTP idénticos al fuente. Misma pestaña de trabajo recargada en Configuración local v3.12.11 a820×1180; cuadrículas a dos columnas y sin desborde. Evidencias privadas en tmp (`forms-*`, `formularios-*`), fuera de Git/Hosting. Los servidores ficticios se cierran al terminar;8766 continúa disponible.
+- Próximo paso: revisar la candidata con el titular y publicar solo cuando lo indique. Límites: no se probaron teclado virtual, touch físico ni todos los formularios condicionales/roles/escrituras; Relevamientos tuvo entrada y revisión de sus estilos por pasos, no un relevamiento completo. Se mantiene pendiente comprobar hardware y el seguimiento de carga/sincronización.
 
 ## v3.12.10 publicada · cámara, navegación y Cobranzas
 

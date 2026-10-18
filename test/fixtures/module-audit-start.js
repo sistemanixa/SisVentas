@@ -23,6 +23,13 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
  }
  for(const [label,action]of [
+  ['Recorrer configuración',async()=>{
+   showPage('configuracion');await new Promise(r=>setTimeout(r,250));__moduleAudit.configuration=[];
+   for(const button of Array.from(document.querySelectorAll('#cfg-tabs-main .cfg-tab')).filter(visible)){
+    const record={name:button.textContent.trim()};try{button.click();await new Promise(r=>setTimeout(r,180));record.forms=formLayout(document.getElementById('page-configuracion'));record.overflow=document.documentElement.scrollWidth>innerWidth;}catch(e){record.error=e.message;}
+    __moduleAudit.configuration.push(record);document.getElementById('module-audit-result').textContent=JSON.stringify(__moduleAudit,null,2);
+   }
+  }],
   ['Gesto desde borde (ficticio)',()=>gestoLateralFicticio(6)],
   ['Gesto fuera del borde (ficticio)',()=>gestoLateralFicticio(40)],
   ['Cuenta corriente de prueba',async()=>{
@@ -42,12 +49,18 @@ document.addEventListener('DOMContentLoaded',()=>{
  document.getElementById('audit-routes').onclick=async()=>{
   const ids=Array.from(document.querySelectorAll('.page[id^="page-"]')).map(el=>el.id.slice(5));
   __moduleAudit.pages=[];
-  for(const id of ids){const before=__moduleAudit.errors.length;try{showPage(id);await new Promise(r=>setTimeout(r,380));const page=document.getElementById('page-'+id);__moduleAudit.pages.push({id,active:page.classList.contains('active'),overflow:document.documentElement.scrollWidth>innerWidth,errors:__moduleAudit.errors.slice(before)});}catch(e){__moduleAudit.pages.push({id,error:e.message});}}
+  for(const id of ids){const before=__moduleAudit.errors.length;try{showPage(id);await new Promise(r=>setTimeout(r,380));const page=document.getElementById('page-'+id);__moduleAudit.pages.push({id,active:page.classList.contains('active'),forms:formLayout(page),overflow:document.documentElement.scrollWidth>innerWidth,errors:__moduleAudit.errors.slice(before)});}catch(e){__moduleAudit.pages.push({id,error:e.message});}}
   document.getElementById('module-audit-result').textContent=JSON.stringify(__moduleAudit,null,2);
  };
  const visible=el=>el.isConnected&&getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden'&&el.getClientRects().length;
  const roots=()=>Array.from(document.querySelectorAll('.modal-overlay,[role=dialog],[role=alertdialog],[id^=modal-],[id$=-modal],dialog[open]')).filter(el=>visible(el)&&getComputedStyle(el).position==='fixed');
  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+ function formLayout(root){
+  return Array.from(root.querySelectorAll('.form-grid,.px-form-grid')).filter(visible).map(grid=>({
+   id:grid.id||grid.closest('[id]')?.id,cols:getComputedStyle(grid).gridTemplateColumns,height:Math.round(grid.getBoundingClientRect().height),width:Math.round(grid.getBoundingClientRect().width),
+   fields:Array.from(grid.children).filter(visible).map(field=>{const input=field.querySelector('input:not([type=hidden]),select,textarea');const box=field.getBoundingClientRect();return {id:input?.id||input?.name,label:field.querySelector('label')?.textContent.trim().slice(0,55),x:Math.round(box.x),y:Math.round(box.y),width:Math.round(box.width),controlWidth:input?Math.round(input.getBoundingClientRect().width):0,overflow:input?input.getBoundingClientRect().right>box.right+2:false};})
+  }));
+ }
  document.getElementById('audit-dialogs').onclick=async()=>{
   __moduleAudit.dialogs=[];
   const cases=Object.keys(FORMS_CFG).map(type=>({name:'Formulario '+type,open:()=>abrirModalNuevo(type),close:cerrarModalNuevoGenerico}));
@@ -74,6 +87,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     const candidates=roots(),root=candidates.filter(el=>!candidates.some(other=>other!==el&&other.contains(el))).at(-1);
     if(!root){record.opened=false;}else{
      record.opened=true;const panel=root.querySelector('.modal')||root.firstElementChild||root;
+     record.forms=formLayout(root);
      const header=panel.querySelector('.modal-head,.modal-header,[data-modal-header],.sv-modal-drag-handle');
      record.direction=getComputedStyle(panel).flexDirection;
      record.locked=document.body.classList.contains('sv-modal-stack-open');
@@ -97,7 +111,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  document.getElementById('audit-editors').onclick=async()=>{
   __moduleAudit.editors=[];
   const cases=[
-   ['Venta','venta',iniciarNuevaVenta,()=>showPage('detalle'),'#det-body'],
+   ['Venta','venta',iniciarNuevaVenta,()=>showPage('detalle'),'#page-venta'],
    ['Presupuesto','presupuesto',abrirNuevoPresupuesto,volverListaPpto,'#ppto-form-view'],
    ['Producto','productos',()=>abrirFormProducto(null),()=>showPage('productos'),'#prod-form-view'],
    ['Kit','kits',abrirNuevoKit,volverListaKits,'#kit-form-view'],
@@ -108,7 +122,7 @@ document.addEventListener('DOMContentLoaded',()=>{
    ['Relevamiento','relevamientos',()=>{},()=>showPage('dashboard'),'#page-relevamientos']
   ];
   for(const [name,route,open,back,selector]of cases){const record={name},before=__moduleAudit.errors.length;
-   try{showPage(route);await wait(250);await open();await wait(250);const el=document.querySelector(selector);record.opened=!!el&&visible(el);record.overflow=document.documentElement.scrollWidth>innerWidth;record.blocked=document.body.classList.contains('sv-modal-stack-open');await back();await wait(80);record.returned=!document.body.classList.contains('sv-modal-stack-open');}catch(e){record.error=e.message;}
+   try{showPage(route);await wait(250);await open();await wait(250);const el=document.querySelector(selector);record.opened=!!el&&visible(el);record.forms=formLayout(el||document);record.overflow=document.documentElement.scrollWidth>innerWidth;record.blocked=document.body.classList.contains('sv-modal-stack-open');await back();await wait(80);record.returned=!document.body.classList.contains('sv-modal-stack-open');}catch(e){record.error=e.message;}
    record.errors=__moduleAudit.errors.slice(before);__moduleAudit.editors.push(record);document.getElementById('module-audit-result').textContent=JSON.stringify(__moduleAudit,null,2);
   }
  };

@@ -55,3 +55,6 @@ Transporte comercial: `node --test test/commercial-transport.integration.cjs tes
 HTTP real en loopback con datos ficticios, sin credenciales. La integración no
 forma parte del glob general `.test.*`: ejecutar explícitamente. Alcance y límites
 en [RENDIMIENTO_COMERCIAL.md](../docs/RENDIMIENTO_COMERCIAL.md).
+## Auditoría de distribución de formularios
+
+Ver [AUDITORIA_FORMULARIOS.md](../docs/AUDITORIA_FORMULARIOS.md). La herramienta aislada `node scripts/dev-module-audit.cjs` registra medidas de las cuadrículas en los recorridos de módulos, ventanas y editores; incluye Recorrer configuración. Esperar a que termine cada recorrido antes de iniciar otro. No ejecutarlos sobre producción ni sobre8766, que usa datos reales.
