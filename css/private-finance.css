@@ -37,3 +37,5 @@ dialog [data-retry][hidden]{display:none}
 .private-pdf-viewer[aria-busy=true] .btn:disabled{cursor:progress}
 
 .pdf-save-reason{color:var(--gold);font-size:12px;margin:12px 0}.pdf-queue-actions{flex-wrap:wrap}
+
+.pdf-result-back{display:flex;justify-content:flex-start;margin-bottom:18px}.pdf-result-actions{justify-content:flex-end}
