@@ -56,6 +56,16 @@ test('generación incompleta no recalcula cuando cambió la base',async()=>{
 test('observador no hace backfill antiguo; nuevos cobros completos sí generan desde servidor',async()=>{
  const s=setup();s.db.root.sisventas.pagos.p.ts=500;assert.equal((await s.svc.systemGenerate('sale')).status,'historica');assert.equal(s.db.root.sv_commission_generation,undefined);s.db.root.sisventas.pagos.p.ts=2000;assert.equal((await s.svc.systemGenerate('sale')).status,'generada');assert.equal(s.sale.audit[0].actorUid,'servidor');
 });
+
+test('reintento por evento consulta sólo su trabajo y conserva límite y plazo si falla antes de reservar',async()=>{
+ const s=setup();s.failAt('sisventas/gastos/gasto_comision_sale_e');await assert.rejects(s.svc.systemGenerate('sale'));
+ const expenseBefore=JSON.stringify(s.db.root.sisventas.gastos),ref=s.db.ref.bind(s.db),reads=[];
+ s.db.root.sv_commission_generation.otra={estado:'error',intentos:1,leaseUntil:0};
+ s.db.ref=path=>{assert.notEqual(path,'sv_commission_generation','no debe recorrer el historial');const r=ref(path);return {...r,get:async()=>{reads.push(path);if(path==='sisventas/ventas/sale')throw Error('Fallo transitorio ficticio antes de reservar');return r.get();}};};
+ for(let attempt=2;attempt<=5;attempt++){s.advance(60001);await s.svc.retryPending('sale');const job=s.db.root.sv_commission_generation.sale;assert.equal(job.intentos,attempt);assert.equal(job.estado,'error');assert.ok(job.reintentarEn>0);}
+ const saleReads=reads.filter(p=>p==='sisventas/ventas/sale').length;s.advance(60001);await s.svc.retryPending('sale');assert.equal(reads.filter(p=>p==='sisventas/ventas/sale').length,saleReads);assert.equal(saleReads,4);
+ assert.equal(s.db.root.sv_commission_generation.otra.intentos,1);assert.equal(JSON.stringify(s.db.root.sisventas.gastos),expenseBefore);await assert.rejects(s.svc.retryPending('../otra'),{statusCode:400});
+});
 test('vista previa antigua se rechaza si cambia configuración antes de generar',async()=>{
  const s=setup(),actor=await s.actor(),p=await s.svc.inspect(actor,'sale');s.db.root.sisventas.config.maxComisionPct=10;await assert.rejects(s.svc.generate(actor,{ventaFbKey:'sale',digest:p.digest}),{statusCode:409});assert.equal(s.db.root.sv_commission_generation,undefined);
 });
