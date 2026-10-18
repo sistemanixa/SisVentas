@@ -2,6 +2,13 @@
 
 Actualizado: 18/10/2026. Documento de entrega entre la PC original, otra PC y Codex en la nube. Leer junto con [AGENTS.md](../AGENTS.md). No contiene credenciales.
 
+## Importes de comprobantes · v3.12.13 local, sin publicar
+
+- Rama `codex/comprobantes-importes`, desde `033cf5580eda8b12e2875a2bcdea15cad79023d9`. Fetch sin novedades de main; producción permanece12 y no se modificó app12 publicada. Nueva aplicación/marcadores/índice/SW13 coherentes.
+- Selector de varios comprobantes muestra importe por archivo y total al pie, con texto seguro y formato ARS existente. Comprobantes compartidos suman los cobros vinculados sin repetir archivo; referencias antiguas de texto siguen abriendo. Faltantes se indican como no disponibles, sin inventar cero ni un total definitivo. Totales sumados en centavos. No se cambia agrupación por fecha/medio/venta, saldos ni cobros guardados.
+-1.925 pruebas vigentes aprobadas, incluidas tres nuevas de importes/suma/duplicados/faltantes y ampliación del caso compartido. Sintaxis/diff/coherencia13 correctos. UI ficticia:200+50=250; luego local8766 con sesión conservada, dos cobros existentes consultados sin escribir: importes y total concuerdan. Desktop1280×720 y celular390×844 sin desborde; móvil centrado entre213,6/630,3. Visor conserva acceso individual; no guardar cobros para probar.
+- Espejo8766 actualizado. Pestaña previa cayó en página interna de error al intentar cargar fixture; la herramienta bloqueó navegar desde ese estado y se usó una pestaña nueva permitida, sin saltar el bloqueo. Vista actual local13 queda abierta en el selector real para revisión. Evidencia privada `tmp/comprobantes-importes-*`, fuera de Git/Hosting. Pendiente publicación sólo si el titular la pide; no desplegar ni activar aviso13 automáticamente.
+
 ## v3.12.12 publicada · reconexión, pago y menú
 
 - Publicación expresamente autorizada el18/10/2026. Fuente limpia `fffe983c8c6ddb59b727d208fe05f1ca49615d6a`, rama `codex/pago-cuenta-presentacion`; incluye reconexión de `b706072d`, pago de `81614473` y capas del menú. Fetch sin novedades de `origin/main`4639a87b. Sin integración en main; cambios ajenos del checkout raíz conservados.

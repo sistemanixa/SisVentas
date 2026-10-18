@@ -27,6 +27,25 @@ test('agrupar pagos mantiene todos sus vínculos y un único comprobante compart
  const f=statement();f.pagos.push({...f.pagos[0],fbKey:'p2',monto:10});f.window._ccMapActual.c.cobrado=50;
  f.c.verCuentaClienteReal('c');const payment=f.window._ccExtractoActual.movimientos.find(m=>m.tipo==='Pago');
  assert.equal(payment.haber,50);assert.equal(payment.saldo,50);assert.deepEqual(Array.from(payment.pagos),['p1','p2']);assert.equal(payment.comprobantes.length,1);
+ assert.equal(payment.comprobantes[0].monto,50);
+});
+
+test('comprobantes muestra importes individuales y suma monetaria sin duplicar referencias',()=>{
+ let menu;const pagos={p1:{monto:65000,comprobanteAdjunto:{nombre:'Primero.jpeg'}},p2:{monto:81400,comprobanteAdjunto:{nombre:'Segundo.jpeg'}}};
+ const c=load({_cobroPagoPorKey:key=>pagos[key],_svCrearDialogoSistema:opts=>menu=opts},['verComprobantesCuentaCorriente','_ccFormatoImporteExtracto']);
+ c.verComprobantesCuentaCorriente('["p1","p2","p1"]');
+ assert.deepEqual(Array.from(menu.enlaces,e=>e.importe),['$ 65.000','$ 81.400']);assert.equal(menu.resumen,'$ 146.400');assert.equal(menu.enlaces[0].texto,'Primero.jpeg');
+});
+
+test('comprobante compartido usa su importe agrupado y suma centavos sin error binario',()=>{
+ let menu;const c=load({_cobroPagoPorKey:()=>({monto:999}),_svCrearDialogoSistema:opts=>menu=opts},['verComprobantesCuentaCorriente','_ccFormatoImporteExtracto']);
+ c.verComprobantesCuentaCorriente(JSON.stringify([{ref:'p1',monto:0.1},{ref:'p2',monto:0.2}]));
+ assert.equal(menu.enlaces[0].importe,'$ 0,10');assert.equal(menu.resumen,'$ 0,30');
+});
+
+test('importe faltante no se presenta como cero ni como total definitivo',()=>{
+ let menu;const c=load({_cobroPagoPorKey:key=>key==='p1'?{monto:10}:null,_svCrearDialogoSistema:opts=>menu=opts},['verComprobantesCuentaCorriente','_ccFormatoImporteExtracto']);
+ c.verComprobantesCuentaCorriente('["p1","p2"]');assert.equal(menu.enlaces[1].importe,'Importe no disponible');assert.equal(menu.resumen,'No disponible');
 });
 
 function navigation(allowed=true){

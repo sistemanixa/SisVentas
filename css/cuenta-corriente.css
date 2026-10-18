@@ -55,3 +55,10 @@
 @media(max-width:359px) {
   #modal-pago-cuenta .cc-payment-fields {grid-template-columns:minmax(0,1fr)!important}
 }
+.sv-system-dialog .sv-receipt-choice {display:flex;justify-content:space-between;align-items:center;gap:14px;overflow-wrap:anywhere;min-height:44px}
+.sv-receipt-dialog {align-items:center!important}
+.sv-receipt-amount {flex-shrink:0;white-space:nowrap;color:var(--text);font-variant-numeric:tabular-nums}
+.sv-receipt-list {margin:14px 22px!important}
+.sv-receipt-total {display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 22px;padding:14px 0 0;border-top:1px solid var(--border);font-size:13px;color:var(--text2)}
+.sv-receipt-total strong {white-space:nowrap;color:var(--green);font-variant-numeric:tabular-nums}
+@media(max-width:420px){.sv-system-dialog .sv-receipt-choice{flex-direction:column;align-items:flex-start;gap:4px}.sv-receipt-total{flex-wrap:wrap}}
