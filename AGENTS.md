@@ -59,6 +59,8 @@ Cuando el usuario pida **acomodar nombres**, seguir el criterio de [docs/acomoda
 - Ventas y presupuestos: salvo Administrador, cada usuario consulta sus registros propios/asignados. Solo el administrador reasigna, eligiendo cuentas activas cuyo rol tenga habilitado el módulo; validar también en servidor. Reasignar cambia responsable de acceso, nunca creador original ni comisionados. Autoría e instante de alta se conservan al editar/convertir. Cambiar manualmente la fecha comercial debe ofrecer actualizar productos con la función existente o conservar importes, dejando auditoría; no cambiar fecha al actualizar productos automáticamente.
 - Gastos personales es un dominio separado del titular: UID verificado y configurado en servidor, sin acceso implícito para otros administradores, cerrado durante Ver como. ARS y USD conservan centavos; no convertir ni mezclar con gastos laborales, Caja, Tesorería o comisiones. No cargar las cifras ficticias de la referencia. Ver `docs/gastos-personales/ESTADO_IMPLEMENTACION.md` antes de habilitarlo o trasladar documentos.
 
+- Más vendidos incluye únicamente productos: excluir siempre mano de obra mediante el criterio canónico del sistema, también si tiene código de catálogo. Contar presencia en ventas distintas, no unidades ni metros; mostrar el período y sus fechas exactas. Los filtros que ocultan filas deben identificarse y permitir volver al listado completo.
+
 ## Seguridad y configuración
 
 - Nunca incluir contraseñas, tokens, claves privadas, exportaciones de datos reales o respaldos en Git, documentación o logs. Documentar nombres de variables/secretos y permisos requeridos, no sus valores.

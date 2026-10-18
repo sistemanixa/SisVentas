@@ -45,3 +45,5 @@ dialog [data-retry][hidden]{display:none}
 @media(max-width:700px){.pdf-result-table .pdf-result-category{grid-column:1/-1;grid-row:3;text-align:right}.pdf-result-category:before{display:none!important}.pdf-result-category .btn{min-height:40px}.actions-col .btn{white-space:normal}}
 
 .new-category-fields:not([hidden]){display:grid;gap:8px;margin-top:16px}.new-category-fields small{color:var(--muted)}
+
+.sidefoot .profile{min-width:0}.personal-user-copy{min-width:0;flex:1}.personal-user-copy strong{display:block;font-weight:500;font-size:12px;overflow-wrap:anywhere}.sidefoot>.btn[data-action="return"]{width:100%;justify-content:flex-start;margin-top:14px;min-height:44px;white-space:normal}.sidefoot .avatar{flex:0 0 34px}

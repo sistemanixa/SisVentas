@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.12.16-firebase' -->
+<!-- VERSION: 'v3.12.17-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -19,7 +19,7 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.12.16.js"></script>
+<script src="./js/core/version.v3.12.17.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.12.9-tactil"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.11.18"></script>
@@ -3954,7 +3954,7 @@ Listo para analizar.
           <div class="metric" id="stat-prod-stock-card" role="button" tabindex="0" aria-pressed="false" title="Mostrar productos con sobrantes reales" onclick="toggleFiltroRapidoProductos('sobrantes')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFiltroRapidoProductos('sobrantes');}" style="cursor:pointer"><div class="m-label" id="stat-prod-stock-label">Sobrantes reales</div><div class="m-value" id="stat-prod-stock" style="color:var(--green)">—</div><div class="m-sub" id="stat-prod-stock-sub">material disponible en depósito</div></div>
           <div class="metric" id="stat-prod-sinprecio-card" role="button" tabindex="0" aria-pressed="false" title="Mostrar únicamente los productos sin precio" onclick="toggleFiltroProductosSinPrecio()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFiltroProductosSinPrecio();}" style="cursor:pointer;transition:border-color .18s,box-shadow .18s,background .18s"><div class="m-label" id="stat-prod-sinprecio-label">Sin precio</div><div class="m-value" id="stat-prod-sinprecio" style="color:var(--amber)">—</div><div class="m-sub" id="stat-prod-sinprecio-sub">tocá para filtrar</div></div>
           <div class="metric" id="stat-prod-sinvalor-card" role="button" tabindex="0" aria-pressed="false" title="Mostrar productos con valor agregado cero" onclick="toggleFiltroRapidoProductos('sinvalor')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFiltroRapidoProductos('sinvalor');}" style="cursor:pointer"><div class="m-label">Sin valor agregado</div><div class="m-value" id="stat-prod-sinvalor" style="color:var(--amber)">—</div><div class="m-sub" id="stat-prod-sinvalor-sub">valor agregado cargado en 0%</div></div>
-          <div class="metric" id="stat-prod-top-card" role="button" tabindex="0" aria-pressed="false" onclick="toggleFiltroRapidoProductos('masvendidos')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFiltroRapidoProductos('masvendidos');}" style="cursor:pointer" title="Top 50 del mes: cantidad de ventas distintas, sin favorecer los productos vendidos por metro"><div class="m-label" id="stat-prod-top-label">Más vendidos</div><div class="m-value" id="stat-prod-top" style="font-size:11px;line-height:1.3">—</div><div class="m-sub" id="stat-prod-top-sub">top 50 del mes · por ventas</div></div>
+          <div class="metric" id="stat-prod-top-card" role="button" tabindex="0" aria-haspopup="dialog" onclick="abrirMasVendidosProductos()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirMasVendidosProductos();}" style="cursor:pointer" title="Ver los 50 productos más vendidos por período, sin mano de obra"><div class="m-label" id="stat-prod-top-label">Más vendidos</div><div class="m-value" id="stat-prod-top" style="font-size:11px;line-height:1.3">—</div><div class="m-sub" id="stat-prod-top-sub">último mes · tocá para ver</div></div>
         </div>
 
           <div class="card">
@@ -3999,7 +3999,6 @@ Listo para analizar.
                 </select>
               </div>
               <button class="btn btn-sm" id="prod-filtro-sinprecio-activo" type="button" onclick="toggleFiltroProductosSinPrecio()" style="display:none;color:var(--amber);border-color:var(--amber)" title="Quitar filtro de productos sin precio"><i class="ti ti-filter"></i> Solo sin precio <span id="prod-filtro-sinprecio-cantidad"></span> <i class="ti ti-x"></i></button>
-              <button class="btn btn-sm" id="prod-filtro-masvendidos-activo" type="button" onclick="toggleFiltroRapidoProductos('masvendidos')" style="display:none" title="Quitar filtro de más vendidos">Top 50 del mes · por ventas ×</button>
               <button class="btn btn-sm" id="prod-filtro-sobrantes-activo" type="button" onclick="toggleFiltroRapidoProductos('sobrantes')" style="display:none" title="Quitar filtro de sobrantes reales"></button>
               <button class="btn btn-sm" id="prod-filtro-sinvalor-activo" type="button" onclick="toggleFiltroRapidoProductos('sinvalor')" style="display:none" title="Quitar filtro de valor agregado cero"></button>
               <div id="prod-grid-controls" style="margin-left:auto;display:flex;align-items:center;gap:6px">
@@ -4007,6 +4006,7 @@ Listo para analizar.
                 <button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('prod-tbl')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button>
               </div>
             </div>
+            <div id="productos-filtro-activo-banner" role="status" aria-live="polite" class="sv-product-filter-notice" style="display:none"><span><i class="ti ti-filter" aria-hidden="true"></i> <span id="productos-filtro-activo-texto"></span></span><button type="button" class="btn btn-sm" onclick="limpiarFiltrosProductos()">Ver todos</button></div>
             <div class="table-wrap prod-table-wrap">
               <table id="prod-tbl" data-sv-column-key="productos-catalogo-v3">
             <thead id="prod-tbl-thead"><tr>
@@ -5750,12 +5750,14 @@ Listo para analizar.
 <link rel="stylesheet" href="./css/user-access.css?v=3.11.9">
 <script src="./js/core/user-access.js?v=3.12.3"></script>
 <script src="./js/core/service-auth.js?v=3.10.19"></script>
-<script src="js/core/product-ranking.js?v=3.12.16"></script>
+<link rel="stylesheet" href="css/product-ranking.css?v=3.12.17">
+<script src="js/core/product-ranking.js?v=3.12.17"></script>
+<script src="js/modules/product-ranking-dialog.js?v=3.12.17"></script>
 <script src="js/core/connection-monitor.js?v=3.12.16"></script>
 <script src="js/core/commercial-ownership.js?v=3.12.16-conexion"></script>
 <script src="js/core/commission-generation.js?v=3.11.18"></script>
 <script src="js/modules/commercial-document-controls.js?v=3.12.15"></script>
-<script src="./js/app.v3.12.16.js"></script>
+<script src="./js/app.v3.12.17.js"></script>
 <script src="./js/modules/projects.js?v=3.12.3"></script>
 <script src="./js/modules/roles-help.js?v=3.10.35"></script>
 <script src="./js/modules/navigation-back.js?v=3.10.20-home"></script>
@@ -6327,7 +6329,7 @@ Listo para analizar.
 <script src="./js/modules/distribuidora-sales-balance.js?v=3.11.11-directory"></script><script src="./js/modules/exterior-user-lists.js?v=3.11.11-directory"></script><script src="./js/modules/public-catalog-requests.js?v=3.11.1-usd"></script><script src="./js/catalog-promotions.js?v=20261011-edit"></script><script src="./js/modules/catalog-order-periods-config.js?v=1"></script>
 <script src="./js/modules/catalog-promotions-config.js?v=20261011-edit"></script>
 <script src="./js/modules/employee-cash-receipt.js?v=1"></script>
-<script src="./js/modules/private-finance-portal.js?v=3.12.7"></script>
+<script src="./js/modules/private-finance-portal.js?v=3.12.17"></script>
 <script src="./js/modules/serial-camera-scanner.js?v=3.12.10-encuadre"></script><script src="./js/modules/product-code-search.js?v=3.12.3"></script><script src="./js/modules/catalog-product-picker.js?v=3.12.3"></script><script src="./js/modules/distributor-documents.js?v=3.12.11-forms"></script>
 </body>
 </html>

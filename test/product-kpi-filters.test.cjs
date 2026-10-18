@@ -25,12 +25,12 @@ test('ambas tarjetas permiten teclado y tienen un filtro visible que se puede qu
  for(const tipo of ['sobrantes','sinvalor']){assert.ok(index.includes('onclick="toggleFiltroRapidoProductos(\''+tipo+'\')"'));assert.ok(index.includes("event.preventDefault();toggleFiltroRapidoProductos('"+tipo+"');"));assert.ok(index.includes('id="prod-filtro-'+tipo+'-activo"'));}
 });
 
-test('más vendidos muestra top50 en la misma grilla, ordena por ventas y permite quitarlo',()=>{
- const {context:c,el}=setup();c.window.SVProductRanking=require('../js/core/product-ranking');c.ventaValidaParaMetricas=v=>!v.anulada;c.fechaVentaOrdenISO=f=>f;
- const now=new Date(),fecha=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-01';
- c.prodData=Object.fromEntries(Array.from({length:60},(_,i)=>['p'+i,{fbKey:'p'+i,codigo:'P-'+i,nombre:'Producto '+String(i).padStart(2,'0')}]));
- c.ventasList=Object.values(c.prodData).map((p,i)=>({id:'v'+i,fecha,items:[{pid:p.fbKey,qty:i===0?10000:1}]}));c.ventasList.push({id:'extra',fecha,items:[{pid:'p59',qty:1}]});
- c.toggleFiltroRapidoProductos('masvendidos');assert.equal((el('prod-tbody').innerHTML.match(/data-product=/g)||[]).length,50);assert.ok(el('prod-tbody').innerHTML.startsWith('<tr data-product="p59"'));assert.ok(el('stat-prod-top').textContent.includes('Producto 59'));assert.equal(el('stat-prod-top-label').textContent,'Más vendidos');assert.equal(el('stat-prod-top-card').attributes['aria-pressed'],'true');
- c.toggleFiltroRapidoProductos('masvendidos');assert.equal((el('prod-tbody').innerHTML.match(/data-product=/g)||[]).length,60);assert.equal(el('prod-filtro-masvendidos-activo').style.display,'none');
- assert.ok(index.includes('id="stat-prod-top-card"'));assert.ok(index.includes('js/core/product-ranking.js?v=3.12.16'));
+test('más vendidos abre un diálogo y no modifica los filtros de la lista',()=>{
+ const {context:c,el}=setup();let opened=0;c.window.SVProductRankingDialog={open(){opened++;}};c.toggleFiltroRapidoProductos('masvendidos');assert.equal(opened,1);assert.equal(c._filtroProductosSinPrecio,true);assert.ok(index.includes('onclick="abrirMasVendidosProductos()"'));assert.ok(index.includes('aria-haspopup="dialog"'));
+});
+test('banner refleja filtros combinados y Ver todos los limpia sin alterar productos',()=>{
+ const {context:c,el,products}=setup(),before=JSON.stringify(products);c.clearTimeout=()=>{};c._prodBusquedaTimer=null;el('prod-search').value='Cámara';el('filter-cat').value='Seguridad';c.window._prodCategoriaFiltro='Seguridad';c.actualizarBannerFiltrosProductos();assert.ok(el('productos-filtro-activo-texto').textContent.includes('Cámara'));assert.ok(el('productos-filtro-activo-texto').textContent.includes('Seguridad'));assert.ok(el('productos-filtro-activo-texto').textContent.includes('Sin precio'));assert.equal(el('productos-filtro-activo-banner').style.display,'flex');c.limpiarFiltrosProductos();assert.equal(el('productos-filtro-activo-banner').style.display,'none');assert.equal(el('prod-search').value,'');assert.equal(el('filter-cat').value,'');assert.equal(c._filtroUsoProductos,'todos');assert.equal(JSON.stringify(products),before);
+});
+test('ranking de la aplicación limita a50 productos, aplica exclusión canónica y períodos sin alterar catálogo',()=>{
+ const {context:c}=setup();c.window.SVProductRanking=require('../js/core/product-ranking');c.ventaValidaParaMetricas=v=>!v.anulada;c.fechaVentaOrdenISO=f=>f;c.esProductoManoDeObra=p=>p.servicio===true;const d=new Date(),fecha=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');c.prodData=Object.fromEntries(Array.from({length:60},(_,i)=>['p'+i,{fbKey:'p'+i,codigo:'P-'+i,nombre:'Producto '+i,servicio:i<2}]));c.ventasList=Object.values(c.prodData).map((p,i)=>({id:'v'+i,fecha,items:[{pid:p.fbKey,qty:1000}]}));const before=JSON.stringify(c.prodData);for(const n of [1,3,6,12]){const rows=c.obtenerMasVendidosProductos(n);assert.equal(rows.length,50);assert.ok(rows.every(r=>!r.product.servicio));}assert.equal(JSON.stringify(c.prodData),before);
 });
