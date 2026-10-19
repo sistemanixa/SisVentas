@@ -22,6 +22,15 @@ Cubre identidad del cobro, agrupación/adjuntos, retorno con período y scroll,
 permiso de Cobranzas, visor solo lectura y saldos con el historial completo.
 Recorrido aislado en `dev-module-audit.cjs`, botón Cuenta corriente de prueba.
 
+Pantalla bloqueada y preparación de acceso: `node --test test/auth-foreground.test.cjs test/background-foreground.test.cjs test/foreground-session.test.cjs test/firebase-write-foreground.test.cjs`.
+La regresión integrada usa perfil, almacenamiento protegido y plazo real con reloj
+ficticio: esperar oculto no consume el plazo ni deja un GET huérfano al volver.
+Demostración aislada: `node scripts/dev-foreground-audit.cjs`, loopback8882,
+`/?hidden=1`. Sólo GET locales y Auth/SDK ficticios; no abre SisVentas real.
+Validar aislamiento aparte con `node --test test/foreground-audit-isolation.integration.cjs`.
+Confirmación del cobro y comisión: `node --test test/commission-payment-confirmation.test.cjs test/commission-generation-response.test.cjs`;
+prueba orden, respuesta retenida, doble clic y cambio de sesión sin guardar datos reales.
+
 Viewport del pago de cuenta: `node --test test/cuenta-payment-viewport.test.cjs`.
 Cubre espacio visible con teclado, cierre/limpieza y fallback sin visualViewport;
 la revisión visual usa Cuenta corriente de prueba y abre el pago sin confirmarlo.

@@ -4,14 +4,29 @@
  const subscriptions=new Set(),enabled=root.SV_USER_DIRECTORY_V2===true;
  const session=()=>({user:root.fbAuth?.currentUser,view:root.currentUserUid||'',role:root.currentRole||'',epoch:generation});
  const valid=c=>c.epoch===generation&&c.user===root.fbAuth?.currentUser&&c.view===(root.currentUserUid||'')&&c.role===(root.currentRole||'');
- async function request(path,user,check){
-  if(!user)throw Error('No hay sesión de acceso');const tokenTask=user.getIdToken(),token=await(root.SVSessionRecovery?.deadline?root.SVSessionRecovery.deadline(tokenTask):tokenTask);if(!check())throw Error('La sesión cambió');
-  const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servicio de usuarios no disponible');
-  const r=await fetch(base+'/usuarios/'+path,{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:AbortSignal.timeout(20000)}).catch(error=>{console.warn('[SisVentas] fallo de lectura de usuarios',{resource:path,error:error.name,online:root.navigator?.onLine,time:new Date().toISOString()});throw error;}),data=await r.json().catch(()=>({}));
-  if(!check())throw Error('La sesión cambió');if(!r.ok||!data.ok)throw Object.assign(Error(data.mensaje||'No se pudo cargar el directorio'),{status:r.status});return data;
+ function abortable(task,signal){
+  if(!signal)return Promise.resolve(task);
+  if(signal.aborted)return Promise.reject(Object.assign(Error('La preparación fue cancelada'),{name:'AbortError'}));
+  let abort;const cancelled=new Promise((_,reject)=>{abort=()=>reject(Object.assign(Error('La preparación fue cancelada'),{name:'AbortError'}));signal.addEventListener('abort',abort,{once:true});});
+  return Promise.race([Promise.resolve(task),cancelled]).finally(()=>signal.removeEventListener('abort',abort));
  }
- async function profile(user){
-  const epoch=generation;const data=await request('perfil',user,()=>epoch===generation&&user===root.fbAuth?.currentUser);
+ async function request(path,user,check,{signal}={}){
+  if(!user)throw Error('No hay sesión de acceso');if(!check())throw Error('La sesión cambió');
+  if(signal?.aborted)throw Object.assign(Error('La preparación fue cancelada'),{name:'AbortError'});
+  if(root.SVForegroundSession){await root.SVForegroundSession.waitVisible({signal});if(!check())throw Error('La sesión cambió');}
+  const tokenTask=abortable(user.getIdToken(),signal),token=await(root.SVSessionRecovery?.deadline?root.SVSessionRecovery.deadline(tokenTask):tokenTask);if(!check())throw Error('La sesión cambió');
+  if(root.SVForegroundSession){await root.SVForegroundSession.waitVisible({signal});if(!check())throw Error('La sesión cambió');}
+  if(signal?.aborted)throw Object.assign(Error('La preparación fue cancelada'),{name:'AbortError'});
+  const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servicio de usuarios no disponible');
+  const controller=signal?new AbortController():null,abort=()=>controller?.abort();let timer;
+  if(controller){signal.addEventListener('abort',abort,{once:true});if(signal.aborted)abort();timer=setTimeout(abort,20000);}
+  try{
+   const r=await abortable(fetch(base+'/usuarios/'+path,{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller?.signal||AbortSignal.timeout(20000)}),signal).catch(error=>{if(error.name!=='AbortError')console.warn('[SisVentas] fallo de lectura de usuarios',{resource:path,error:error.name,online:root.navigator?.onLine,time:new Date().toISOString()});throw error;}),data=await abortable(r.json().catch(()=>({})),signal);
+   if(!check())throw Error('La sesión cambió');if(!r.ok||!data.ok)throw Object.assign(Error(data.mensaje||'No se pudo cargar el directorio'),{status:r.status});return data;
+  }finally{if(controller){clearTimeout(timer);signal.removeEventListener('abort',abort);}}
+ }
+ async function profile(user,options){
+  const epoch=generation;const data=await request('perfil',user,()=>epoch===generation&&user===root.fbAuth?.currentUser,options);
   if(data.profile?.uid!==user.uid)throw Error('Perfil de otra identidad');own=data.profile;watchRole(user);return data.profile;
  }
  const snapshot=users=>({exists:()=>users.length>0,val:()=>Object.fromEntries(users.map(p=>[p.fbKey,p]))});
@@ -26,8 +41,8 @@
    if(i?.activo!==true||(own&&i.rol!==own.rol)){stop();root.usuariosData=[];root._cancelarAutenticacionParcial?.('Tu acceso cambió. Volvé a ingresar.');}
   },e=>{if(epoch!==generation)return;if(String(e.code||'').toLowerCase().includes('permission_denied')){stop();root.usuariosData=[];root._cancelarAutenticacionParcial?.('No se pudo validar tu acceso. Volvé a ingresar.');}});
  }
- async function refresh(){
-  if(root.navigator?.onLine===false)return;if(pending){again=true;return pending;}if(!subscriptions.size)return;
+ async function refresh({joinPending=false}={}){
+  if(root.navigator?.onLine===false)return;if(pending){if(!joinPending)again=true;return pending;}if(!subscriptions.size)return;
   const c=session();let task;
   task=(async()=>{
    for(const admin of [...new Set([...subscriptions].map(s=>s.admin))]){
@@ -44,7 +59,12 @@
   const s={callback,error,admin:administration};subscriptions.add(s);
   if(!watching){watching=true;
    if(root.fbOnValue&&root.fbDB){
-    signalStop=root.fbOnValue(root.fbRef(root.fbDB,'sv_chat_directorio'),()=>refresh(),e=>error?.(e));
+    let signalSeen=false,signalValue;
+    signalStop=root.fbOnValue(root.fbRef(root.fbDB,'sv_chat_directorio'),snap=>{
+     const next=JSON.stringify(snap.val());
+     if(signalSeen&&next===signalValue)return;
+     signalSeen=true;signalValue=next;refresh();
+    },e=>error?.(e));
     if(root.fbAuth?.currentUser)watchRole(root.fbAuth.currentUser);
    }
   }
@@ -59,7 +79,9 @@
   appStop=()=>{unsubscribe();loading?.cancel();};return appStop;
  }
  document.addEventListener('sisventas:session-ended',()=>{stop();appStop=null;});
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
- root.addEventListener?.('online',()=>{if(!document.hidden)refresh();});
+ // Sólo estos avisos de regreso se unen a una lectura existente. La señal
+ // RTDB del directorio y refresh explícito conservan una actualización nueva.
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh({joinPending:true});});
+ root.addEventListener?.('online',()=>{if(!document.hidden)refresh({joinPending:true});});
  root.SVUserDirectory={enabled,profile,read,adminProfile,onValue:subscribe,start,refresh,stop};
 })(window);

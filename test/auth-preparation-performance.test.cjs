@@ -7,10 +7,12 @@ const source=fs.readFileSync(index.match(/src="\.\/(js\/app\.v[\d.]+\.js)/)[1],'
 const resolver=source.slice(source.indexOf('async function _resolverRolYCompletarLogin'),source.indexOf('async function _cancelarAutenticacionParcial'));
 const firebase=fs.readFileSync('js/core/firebase.js','utf8');
 const wrapper=firebase.slice(firebase.indexOf('window.fbOnAuth = function'),firebase.indexOf('window.fbCreateUser  ='));
+async function waitForFixture(predicate){for(let attempt=0;attempt<100;attempt++){if(predicate())return;await new Promise(setImmediate);}throw Error('El fixture no alcanzó la preparación esperada');}
 function setup(role='admin'){
  const calls=[],subscriptions=[];let authCallback,complete=0,rejected=0;
+ const user={uid:'u',email:'prueba@example.com'},document=new EventTarget();document.hidden=false;document.visibilityState='visible';
  const identity={rol:role,activo:true},users={key:{uid:'u',rol:role,activo:true,nombre:'Prueba'}};
- const context={SV_SECURITY_STORAGE_V2:true,fbDB:{},fbAuth:{currentUser:{uid:'u'}},currentUserUid:'',currentUserEmail:'',currentRole:'',console,setTimeout,clearTimeout,
+ const context={document,Event,EventTarget,AbortController,SV_SECURITY_STORAGE_V2:true,fbDB:{},fbAuth:{currentUser:user},currentUserUid:'',currentUserEmail:'',currentRole:'',console,setTimeout,clearTimeout,
   fbRef:(_,path)=>path,fbQuery:(path,...filters)=>({path,filters}),fbOrderByChild:x=>x,fbEqualTo:x=>x,
   fbGet:async ref=>{calls.push(ref);const path=ref.path||ref;const value=path==='sv_usuarios'?users:identity;return{val:()=>value,exists:()=>Object.keys(value).length>0};},
   fbOnValue:(path,cb)=>{subscriptions.push({path,cb});return()=>{};},fbUpdate:async()=>{},
@@ -19,8 +21,7 @@ function setup(role='admin'){
  context.window=context;vm.createContext(context);
  vm.runInContext(fs.readFileSync('js/modules/security-storage.js','utf8'),context);
  vm.runInContext(resolver,context);vm.runInContext(wrapper,context);
- const user={uid:'u',email:'prueba@example.com'};
- return{context,user,calls,subscriptions,identity,users,auth:user=>authCallback(user),counts:()=>({complete,rejected})};
+ return{context,user,calls,subscriptions,identity,users,auth:user=>{context.fbAuth.currentUser=user;return authCallback(user);},counts:()=>({complete,rejected})};
 }
 test('restauración verifica identidad y ficha con sólo dos lecturas, sin listener de existencia duplicado',async()=>{
  const x=setup();let login;
@@ -78,14 +79,14 @@ test('Auth no entrega al login una sesión pendiente después de recibir logout'
  const x=setup();let release;const original=x.context.fbGet;
  x.context.fbGet=async ref=>{await new Promise(r=>release=r);return original(ref);};
  const callbacks=[];x.context.fbOnAuth(x.context.fbAuth,user=>callbacks.push(user),()=>assert.fail('No reportar error de una sesión anterior'));
- const pending=x.auth(x.user);await x.auth(null);release();await pending;
+ const pending=x.auth(x.user);await waitForFixture(()=>release);await x.auth(null);release();await pending;
  assert.deepEqual(callbacks,[null]);
 });
 test('la sesión sólo se completa después de preparar los módulos del rol verificado',async()=>{
  const x=setup();let release,requestedRole;
  x.context.SVSessionAssets={forRole:async(role,isCurrent)=>{requestedRole=role;assert.equal(isCurrent(),true);await new Promise(r=>release=r);}};
  const pending=x.context._resolverRolYCompletarLogin(x.user,null);
- while(!release)await Promise.resolve();
+ await waitForFixture(()=>release);
  assert.equal(requestedRole,'admin');assert.equal(x.context.currentRole,'');assert.equal(x.counts().complete,0);
  release();await pending;assert.equal(x.counts().complete,1);
 });
@@ -101,7 +102,7 @@ test('no descarga módulos para una identidad inactiva',async()=>{
 test('salir mientras llegan los módulos no vuelve a completar la sesión anterior',async()=>{
  const x=setup();let release;
  x.context.SVSessionAssets={forRole:async()=>{await new Promise(r=>release=r);}};
- const pending=x.context._resolverRolYCompletarLogin(x.user,null);while(!release)await Promise.resolve();
+ const pending=x.context._resolverRolYCompletarLogin(x.user,null);await waitForFixture(()=>release);
  x.context.svInvalidarPreparacionSeguridad();x.context.currentUserUid='';
  release();await pending;assert.equal(x.counts().complete,0);assert.equal(x.context.currentRole,'');
 });

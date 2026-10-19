@@ -3,12 +3,13 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const source=require('./helpers/active-app').readActiveApp().source;
 function wrapper(gated){
  let authCallback,reads=0,deliveries=0;
- const window={SVUserAccess:{gate:async()=>gated},svPrepararRutasSeguridad:async()=>{reads++;return {uid:'worker'};}};
+ const user={uid:'worker'},document=new EventTarget();document.hidden=false;document.visibilityState='visible';
+ const window={fbAuth:{currentUser:user},SVUserAccess:{gate:async()=>gated},svPrepararRutasSeguridad:async()=>{reads++;return {uid:'worker'};}};
  const script=fs.readFileSync('js/core/firebase.js','utf8');
  const part=script.slice(script.indexOf('window.fbOnAuth = function'),script.indexOf('window.fbCreateUser  ='));
- vm.runInNewContext(part,{window,console,onAuthStateChanged:(auth,cb)=>{authCallback=cb;return ()=>{};}});
- window.fbOnAuth({},()=>deliveries++);
- return {emit:()=>authCallback({uid:'worker'}),read:()=>({reads,deliveries})};
+ vm.runInNewContext(part,{window,document,Event,AbortController,console,onAuthStateChanged:(auth,cb)=>{authCallback=cb;return ()=>{};}});
+ window.fbOnAuth(window.fbAuth,()=>deliveries++);
+ return {emit:()=>authCallback(user),read:()=>({reads,deliveries})};
 }
 test('La restauración con clave temporal no inicia lecturas de roles ni entrega la sesión al sistema',async()=>{
  const f=wrapper(true);await f.emit();assert.deepEqual(f.read(),{reads:0,deliveries:0});
@@ -18,9 +19,10 @@ test('La restauración normal conserva preparación y callback de sesión',async
 });
 test('Resolver rol retorna antes de cargar perfiles si está pendiente el cambio obligatorio',async()=>{
  const start=source.indexOf('async function _resolverRolYCompletarLogin('),end=source.indexOf('\n}\n',start)+2;
- const window={SVUserAccess:{gate:async()=>true}};let reads=0;
- const context={window,setTimeout:()=>{reads++;throw Error('No debe iniciar rol');}};vm.createContext(context);vm.runInContext(source.slice(start,end),context);
- await context._resolverRolYCompletarLogin({uid:'worker'});assert.equal(reads,0);
+ const user={uid:'worker'},document=new EventTarget();document.hidden=false;document.visibilityState='visible';
+ const window={fbAuth:{currentUser:user},SVUserAccess:{gate:async()=>true}};let reads=0;
+ const context={window,document,Event,AbortController,setTimeout:()=>{reads++;throw Error('No debe iniciar rol');}};vm.createContext(context);vm.runInContext(source.slice(start,end),context);
+ await context._resolverRolYCompletarLogin(user);assert.equal(reads,0);
 });
 test('Guardar perfil no reenvía contraseñas históricas ni permite introducir una nueva copia',async()=>{
  const script=fs.readFileSync('js/modules/chat-access.js','utf8');

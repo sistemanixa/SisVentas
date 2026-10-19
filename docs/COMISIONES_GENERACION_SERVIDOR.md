@@ -1,4 +1,21 @@
-# Generación automática de comisiones · servidor publicado
+# Generación automática de comisiones
+
+## Estado vigente · 19/10/2026
+
+El observador permanente descrito en los antecedentes está **desactivado**.
+El circuito publicado usa eventos de pago/habilitación y una función directa
+`POST /comisiones/generacion/generar`, sin consultas periódicas. Cotizador tiene
+mínimo cero y CPU por solicitud; revisión y publicación exactas en
+[CONTEXTO_ACTUAL.md](CONTEXTO_ACTUAL.md) y [COMISIONES_EVENTOS.md](COMISIONES_EVENTOS.md).
+
+La función directa confirma el registro al terminar. El pago completo y la
+habilitación de comisión son requisitos; genera un pendiente de aprobación,
+nunca una aprobación ni un pago automático. El cliente candidato v3.13.2 espera
+esa respuesta antes de cerrar la confirmación. No agrega tareas por reloj ni
+modifica comisiones existentes. Aún requiere la validación y publicación del
+candidato indicadas en CONTEXTO_ACTUAL.
+
+## Antecedentes del observador permanente · sustituidos
 
 **Estado vigente (16/10/2026):** activada en `cotizador-00109-dac`, 100% y sus
 14 etiquetas, mínimo de servicio 1 y CPU permanente. Corte nuevo

@@ -7,6 +7,12 @@
   var stopWatching = null;
   var preparation = null;
   var generation = 0;
+  function abortable(task,signal){
+    if(!signal)return Promise.resolve(task);
+    if(signal.aborted)return Promise.reject(Object.assign(Error('La preparación fue cancelada'),{name:'AbortError'}));
+    var abort;var cancelled=new Promise(function(_,reject){abort=function(){reject(Object.assign(Error('La preparación fue cancelada'),{name:'AbortError'}));};signal.addEventListener('abort',abort,{once:true});});
+    return Promise.race([Promise.resolve(task),cancelled]).finally(function(){signal.removeEventListener('abort',abort);});
+  }
   window.svInvalidarPreparacionSeguridad = function(){
     generation++;
     preparation = null;
@@ -16,34 +22,36 @@
   window.svPreparacionSeguridadVigente = function(result, user){
     return !!result && result.uid === user.uid && result.generation === generation;
   };
-  window.svPrepararRutasSeguridad = async function(user){
+  window.svPrepararRutasSeguridad = async function(user,options){
+    var signal=options&&options.signal;
+    if(signal&&signal.aborted)throw Object.assign(Error('La preparación fue cancelada'),{name:'AbortError'});
     if(!enabled||!user){window.svInvalidarPreparacionSeguridad();return;}
     // Compartir sólo trabajo en curso; un nuevo ingreso siempre vuelve a verificar.
-    if(preparation && preparation.uid === user.uid)return preparation.promise;
+    if(preparation && preparation.uid === user.uid && !preparation.signal?.aborted)return abortable(preparation.promise,signal);
     var epoch = ++generation;
     protectedStorage = false;
     if(stopWatching){stopWatching();stopWatching=null;}
-    var task = {uid:user.uid};
+    var task = {uid:user.uid,signal:signal};
     preparation = task;
     task.promise = (async function(){
-      function check(){if(epoch !== generation)throw Error('La sesión cambió durante la verificación de acceso.');}
+      function check(){if(signal&&signal.aborted)throw Object.assign(Error('La preparación fue cancelada'),{name:'AbortError'});if(epoch !== generation)throw Error('La sesión cambió durante la verificación de acceso.');}
       if(window.SVUserDirectory?.enabled){
         // /usuarios/perfil valida token/revocación, identidad activa y ficha/rol
         // en servidor. No anteponer una segunda conexión RTDB que pueda quedar
         // pendiente e impedir llegar a esa validación autorizada.
-        var profile=await window.SVUserDirectory.profile(user);check();
+        var profile=await window.SVUserDirectory.profile(user,{signal:signal});check();
         if(profile?.uid!==user.uid||typeof profile.fbKey!=='string'||!profile.fbKey||profile.activo===false||!['admin','administrativo','vendedor','tecnico','tecnico_vendedor','compras_paraguay','distribuidora'].includes(profile.rol))throw Error('Perfil de acceso no válido');
         protectedStorage=true;
         var own={};own[profile.fbKey]=profile;
         return {uid:user.uid,generation:epoch,identitySnapshot:{val:function(){return {rol:profile.rol,activo:true};}},usuariosSnapshot:{exists:function(){return true;},val:function(){return own;}}};
       }
-      var identitySnapshot=await window.fbGet(window.fbRef(window.fbDB,'sv_chat_roles/'+user.uid));
+      var identitySnapshot=await abortable(window.fbGet(window.fbRef(window.fbDB,'sv_chat_roles/'+user.uid)),signal);
       check();
       var identity=identitySnapshot.val();
       var result={uid:user.uid,generation:epoch,identitySnapshot:identitySnapshot};
       if(identity && ['compras_paraguay','distribuidora'].includes(identity.rol)) { protectedStorage=true;return result; }
       var target=window.fbRef(window.fbDB,'sv_usuarios');
-      var snapshot=await window.fbGet(target);
+      var snapshot=await abortable(window.fbGet(target),signal);
       check();
       protectedStorage=snapshot.exists();
       result.usuariosSnapshot=snapshot;

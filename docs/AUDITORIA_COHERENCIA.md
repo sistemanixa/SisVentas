@@ -1,5 +1,20 @@
 # Coherencia, sincronización y costo
 
+## Reanudación y cierre de cobro · candidato v3.13.2
+
+El reposo nocturno conservó al menos un cliente conectado. Las dos tandas de Android
+permitieron reproducir un arranque oculto, sin probar retrospectivamente qué evento
+del dispositivo lo causó. El candidato bloquea lecturas de pantalla oculta, pausa
+RTDB, cancela preparación de acceso al ocultar y vuelve a verificar al regresar.
+Conserva las escrituras ya iniciadas, la revocación y los snapshots. Los avisos
+duplicados de reconexión se agrupan; cambios reales siguen actualizando datos.
+
+En Cobranzas, Cuenta corriente y edición de venta pagada se encontró que la UI no
+esperaba la función directa de comisión. El candidato espera su única respuesta y
+confirma el pendiente de aprobación; un fallo no vuelve a registrar el cobro.
+No agrega sondeos ni cambia los eventos, el cálculo, la aprobación o las comisiones
+existentes. Ver pruebas, cobertura y estado de publicación en CONTEXTO_ACTUAL.
+
 ## Revisión13.1 · local, sin publicar
 
 La publicación13.0 ya se completó y verificó; sus secciones anteriores de preparación conservan el registro histórico. El candidato13.1 centra cargas de pantalla y limpia sus presentadores por finalización/navegación/sesión/rol, incluyendo los espacios separados. Pruebas de promesas retenidas, errores, reintentos y cierre descartan respuestas anteriores y liberan nodos/observador sin consultas nuevas. Sólo DOM: no se modificaron operaciones financieras para probar.

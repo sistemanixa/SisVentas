@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Primer plano · datos ficticios</title>
+<style>
+:root{color-scheme:dark;font:16px system-ui,sans-serif;background:#091321;color:#e4edf9}*{box-sizing:border-box}body{margin:0;padding:28px 20px 40px}main{max-width:1100px;margin:auto}h1{font-size:clamp(24px,4vw,32px);margin:8px 0 12px}p{line-height:1.55;color:#a9bad2;margin:12px 0}.eyebrow{color:#72d3b1;letter-spacing:.1em;font-size:12px;font-weight:700}.panel,.card{background:#142238;border:1px solid #30445f;border-radius:14px;padding:20px}.panel{margin-top:20px}.topline{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.badge{display:inline-block;padding:7px 12px;background:#21344c;border-radius:20px;font-size:13px}.controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}button,a{font:inherit}button{min-height:44px;border:1px solid #405a79;background:#203651;color:#edf4ff;padding:10px 15px;border-radius:9px;cursor:pointer;touch-action:manipulation}button:hover{background:#2a4768}button:focus-visible,a:focus-visible{outline:3px solid #75dbb6;outline-offset:3px}button:disabled{opacity:.45;cursor:default}button.primary{background:#17624d;border-color:#3a9b7e}button.danger{border-color:#90554e}a{color:#8ddfc3}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:20px}.card h2{font-size:14px;color:#a9bad2;margin:0 0 12px}.value{font-size:32px;font-weight:700;line-height:1.2}.state{font-size:13px;color:#a9bad2;margin-top:9px}.good{color:#8de0ab}.warn{color:#e7c580}.sources{margin-top:18px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.source{background:#101d30;border-radius:9px;padding:14px;min-width:0}.source strong,.source span{display:block}.source span{font-size:13px;line-height:1.6;color:#a9bad2;margin-top:6px}dl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;margin:18px 0 0}dt{color:#a9bad2}dd{margin:0;font-variant-numeric:tabular-nums}#history{padding-left:23px;line-height:1.7;font-size:13px;color:#a9bad2;max-height:220px;overflow:auto;overflow-wrap:anywhere}#operation-status{min-height:24px}#detail-counts{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.7;margin:0}.note{font-size:13px}.footer{margin-top:20px;font-size:13px}@media(max-width:650px){body{padding:18px 14px 30px}.panel,.card{padding:16px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.cards>.card:last-child{grid-column:1/-1}.sources{grid-template-columns:1fr}.controls>button{flex:1 1 145px}.value{font-size:29px}.panel{margin-top:16px}.cards{margin-top:16px}}
+</style></head>
+<body><main>
+<div class="eyebrow">DATOS FICTICIOS · SIN FIREBASE</div>
+<h1>Primer plano y sesión</h1>
+<p>Los módulos reales leen únicamente respuestas locales de prueba. Bloquear esta pantalla simula un documento oculto; los controles siguen disponibles para volver.</p>
+<section class="panel" aria-label="Controles de la prueba">
+ <div class="topline"><strong id="session-state" role="status">Preparando sesión ficticia…</strong><span class="badge" id="screen-state">Pantalla visible</span></div>
+ <p id="connection-state" role="status">Esperando conexión ficticia…</p>
+ <div class="controls"><button id="lock" type="button">Bloquear pantalla</button><button id="unlock" type="button" class="primary">Desbloquear pantalla</button><button id="cut" type="button">Cortar conexión</button><button id="restore" type="button">Volver a conectar</button><button id="logout" type="button" class="danger">Cerrar sesión ficticia</button></div>
+</section>
+<div class="cards" aria-label="Contadores de actividad">
+ <section class="card"><h2>Lecturas HTTP de datos</h2><div class="value" id="data-requests">0</div><div class="state">Perfil y tres fuentes</div></section>
+ <section class="card"><h2>Fuentes cargadas</h2><div class="value" id="loaded-sources">0 de 3</div><div class="state" id="loaded-total">0 registros ficticios</div></section>
+ <section class="card"><h2>Arranques confirmados</h2><div class="value" id="boot-count">0</div><div class="state">Sin reiniciar al desbloquear</div></section>
+</div>
+<section class="panel" aria-label="Datos recibidos"><strong>Datos conservados durante el bloqueo</strong><div class="sources"><div class="source" id="source-ventas"><strong>Ventas</strong><span>Sin respuesta</span></div><div class="source" id="source-presupuestos"><strong>Presupuestos</strong><span>Sin respuesta</span></div><div class="source" id="source-usuarios"><strong>Directorio</strong><span>Sin respuesta</span></div></div></section>
+<section class="panel" aria-label="Transporte ficticio"><strong>Conexión y operación de prueba</strong><dl><dt>SDK ficticio → desconectar</dt><dd id="sdk-offline">0</dd><dt>SDK ficticio → conectar</dt><dd id="sdk-online">0</dd><dt>Sondas locales sin datos</dt><dd id="probe-requests">0</dd><dt>Operaciones locales fallidas</dt><dd id="local-writes">0</dd></dl><div class="controls"><button type="button" id="fail-operation">Fallar operación ficticia</button></div><p id="operation-status" role="status">Esta operación sólo falla en memoria; no envía escrituras.</p></section>
+<section class="panel"><details><summary>Detalle de lecturas locales</summary><pre id="detail-counts"></pre></details><details><summary>Eventos de la prueba</summary><ol id="history"></ol></details></section>
+<p class="footer"><a href="/?hidden=1">Reiniciar con pantalla bloqueada</a> · <a href="/">Reiniciar visible</a></p>
+<script>
+'use strict';
+const audit=window.__foregroundAudit={hidden:new URLSearchParams(location.search).get('hidden')==='1',online:true,closed:false,session:'Esperando verificación',dataRequests:0,probes:0,boots:0,sdkOffline:0,sdkOnline:0,localWrites:0,blocked:0,counts:{},records:{ventas:null,presupuestos:null,usuarios:null},errors:[]};
+const nativeFetch=window.fetch.bind(window),nativeHidden=Object.getOwnPropertyDescriptor(Document.prototype,'hidden'),listeners=new Set();
+let databaseOnline=false,preparationGeneration=0;
+Object.defineProperty(document,'hidden',{configurable:true,get:()=>audit.hidden});
+Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>audit.hidden?'hidden':'visible'});
+Object.defineProperty(navigator,'onLine',{configurable:true,get:()=>audit.online});
+function log(message){const item=document.createElement('li');item.textContent=message;document.getElementById('history').append(item);}
+function render(){
+ const loaded=Object.values(audit.records).filter(value=>value!==null).length,total=Object.values(audit.records).reduce((sum,value)=>sum+(value||0),0);
+ document.getElementById('screen-state').textContent=audit.hidden?'Pantalla bloqueada':'Pantalla visible';
+ document.getElementById('session-state').textContent=audit.closed?'Sesión ficticia cerrada':audit.hidden&&audit.boots===0?'Sesión retenida hasta desbloquear':audit.session;
+ const connection=audit.hidden?'Pausada por pantalla bloqueada':!audit.online?'Sin conexión simulada':audit.closed?'Sin sesión activa':window.SVConnectionMonitor?.view(databaseOnline).label||'Esperando sesión';
+ document.getElementById('connection-state').textContent=connection;
+ for(const [id,value]of [['data-requests',audit.dataRequests],['boot-count',audit.boots],['sdk-offline',audit.sdkOffline],['sdk-online',audit.sdkOnline],['probe-requests',audit.probes],['local-writes',audit.localWrites]])document.getElementById(id).textContent=String(value);
+ document.getElementById('loaded-sources').textContent=loaded+' de 3';document.getElementById('loaded-total').textContent=total+' registros ficticios';
+ for(const [key,value]of Object.entries(audit.records))document.querySelector('#source-'+key+' span').textContent=value===null?'Sin respuesta':value+' registro ficticio recibido';
+ document.getElementById('detail-counts').textContent=Object.entries(audit.counts).map(([key,value])=>key+': '+value).join('\n')||'Ninguna lectura de datos iniciada.';
+ for(const [id,disabled]of [['lock',audit.hidden],['unlock',!audit.hidden],['cut',!audit.online],['restore',audit.online],['logout',audit.closed],['fail-operation',audit.closed||!audit.boots]])document.getElementById(id).disabled=disabled;
+ document.getElementById('data-requests').dataset.count=String(audit.dataRequests);document.getElementById('loaded-sources').dataset.count=String(loaded);
+}
+window.fetch=function(input,options={}){
+ const url=new URL(typeof input==='string'?input:input.url,location.href),method=String(options.method||'GET').toUpperCase();
+ if(url.origin!==location.origin||!['127.0.0.1','localhost','[::1]'].includes(url.hostname)||method!=='GET'){audit.blocked++;return Promise.reject(Error('La prueba permite sólo GET al mismo origen local'));}
+ const data=/^\/(usuarios|comerciales)\//.test(url.pathname),probe=url.searchParams.has('sv_connection_probe');
+ if(data){audit.dataRequests++;audit.counts[url.pathname]=(audit.counts[url.pathname]||0)+1;render();}else if(probe){audit.probes++;render();}
+ if(!audit.online&&(data||probe))return Promise.reject(new TypeError('Conexión ficticia interrumpida'));
+ return nativeFetch(input,options).finally(()=>queueMicrotask(render));
+};
+window.currentUserUid='';window.currentRole='';window.currentUser='Persona ficticia';window.isAuthenticated=false;window.SV_USER_DIRECTORY_V2=true;
+window.fbAuth={currentUser:{uid:'fixture',getIdToken:async()=> 'FICTICIO-SIN-VALIDEZ',getIdTokenResult:async()=>({claims:{}})}};
+window.fbDB={fixture:true};window.SISVENTAS_FUNCTIONS={cotizadorProveedor:location.origin};window.permisoModulo=()=>false;
+const snapshot=value=>({val:()=>value});
+function deliver(row){if(!row.active||!databaseOnline||!audit.online)return;row.callback(snapshot(row.path==='sv_chat_directorio'?{fixture:{nombre:'Persona ficticia',activo:true}}:{rol:'vendedor',activo:true}));}
+window.fbRef=(_,path)=>({path});
+window.fbOnValue=(ref,callback)=>{const row={path:ref.path,callback,active:true};listeners.add(row);queueMicrotask(()=>deliver(row));return()=>{row.active=false;listeners.delete(row);};};
+window.fbGoOffline=()=>{databaseOnline=false;audit.sdkOffline++;log('SDK ficticio desconectado.');render();};
+window.fbGoOnline=()=>{databaseOnline=true;audit.sdkOnline++;for(const row of listeners)queueMicrotask(()=>deliver(row));log('SDK ficticio conectado.');render();};
+window.fbMostrarEstadoConexion=render;
+window.SVUserAccess={gate:async user=>{await user.getIdTokenResult();return false;}};
+window.svPrepararRutasSeguridad=async user=>{if(!user){preparationGeneration++;return;}const generation=preparationGeneration,profile=await SVUserDirectory.profile(user);return {uid:user.uid,generation,profile};};
+window.svPreparacionSeguridadVigente=(prepared,user)=>prepared.uid===user?.uid&&prepared.generation===preparationGeneration&&fbAuth.currentUser===user;
+window._cancelarAutenticacionParcial=message=>{audit.errors.push(message);log(message);render();};
+addEventListener('error',event=>{audit.errors.push(event.message);log('Error: '+event.message);});
+addEventListener('unhandledrejection',event=>{audit.errors.push(String(event.reason?.message||event.reason));log('Error de promesa: '+String(event.reason?.message||event.reason));});
+render();
+</script>
+<script src="/js/core/foreground-session.js"></script>
+<script src="/js/core/connection-monitor.js"></script>
+<script src="/js/core/commercial-ownership.js"></script>
+<script src="/js/core/user-directory.js"></script>
+<script src="/auth-wrapper.js"></script>
+<script>
+'use strict';
+let sourceStops=[];
+function clearSources(){sourceStops.splice(0).forEach(stop=>stop?.());}
+window.fbOnAuth(fbAuth,(user,prepared)=>{
+ if(!user){clearSources();currentUserUid='';currentRole='';isAuthenticated=false;audit.closed=true;audit.session='Sesión ficticia cerrada';for(const key of Object.keys(audit.records))audit.records[key]=null;render();return;}
+ if(fbAuth.currentUser!==user||!svPreparacionSeguridadVigente(prepared,user))return;
+ currentUserUid=user.uid;currentRole=prepared.profile.rol;isAuthenticated=true;audit.boots++;audit.session='Sesión ficticia verificada';
+ document.dispatchEvent(new CustomEvent('sisventas:session-ready',{detail:{uid:user.uid,rol:currentRole}}));
+ for(const domain of ['ventas','presupuestos'])sourceStops.push(SVCommercialOwnership.onValue(domain,snap=>{audit.records[domain]=Object.keys(snap.val()||{}).length;render();},error=>{log('Lectura no disponible: '+error.message);render();}));
+ sourceStops.push(SVUserDirectory.start(snap=>{audit.records.usuarios=Object.keys(snap.val()||{}).length;render();},error=>{log('Directorio no disponible: '+error.message);render();}));
+ log('Arranque verificado: tres fuentes ficticias.');render();
+},error=>{audit.session='Error ficticio de acceso';audit.errors.push(error.message);log(error.message);render();});
+document.getElementById('lock').onclick=()=>{audit.hidden=true;document.dispatchEvent(new Event('visibilitychange'));log('Pantalla bloqueada; se conservan los datos recibidos.');render();};
+document.getElementById('unlock').onclick=()=>{audit.hidden=false;document.dispatchEvent(new Event('visibilitychange'));log('Pantalla desbloqueada.');render();};
+document.getElementById('cut').onclick=()=>{audit.online=false;window.dispatchEvent(new Event('offline'));log('Conexión interrumpida en memoria.');render();};
+document.getElementById('restore').onclick=()=>{audit.online=true;window.dispatchEvent(new Event('online'));log('Conexión simulada restablecida.');render();};
+document.getElementById('logout').onclick=()=>{fbAuth.currentUser=null;currentUserUid='';currentRole='';isAuthenticated=false;audit.closed=true;document.dispatchEvent(new Event('sisventas:session-ended'));window.__fixtureAuthObserver?.(null);log('Auth nulo entregado, incluso con pantalla bloqueada.');render();};
+document.getElementById('fail-operation').onclick=async()=>{try{await window.__fixtureFailWrite();}catch(error){document.getElementById('operation-status').textContent=error.message;log('Operación local fallida; cero escrituras HTTP.');}render();};
+document.addEventListener('sisventas:foreground-restored',()=>{log('Primer plano restaurado.');render();});
+document.addEventListener('sisventas:foreground-paused',render);
+window.dispatchEvent(new Event('pageshow'));document.dispatchEvent(new Event('firebase-ready'));render();
+</script>
+</main></body></html>

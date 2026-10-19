@@ -5,7 +5,10 @@
  const valid=c=>c.epoch===generation&&c.user===root.fbAuth?.currentUser&&c.uid===root.currentUserUid&&c.role===root.currentRole;
  const clean=r=>{const value=Object.fromEntries(Object.entries(r||{}).filter(([k])=>k!=='fbKey'&&!k.startsWith('_sv')));if(r?._svDerivedFechaOrden)delete value.fechaOrden;return value;};
  async function request(domain,path='',body,validator){
-  const c=context();if(!c.user)throw Error('Sesión requerida');const tokenTask=c.user.getIdToken(),token=await(root.SVSessionRecovery?.deadline?root.SVSessionRecovery.deadline(tokenTask):tokenTask);if(!valid(c))throw Error('La sesión cambió');
+  const c=context();if(!c.user)throw Error('Sesión requerida');
+  if(!body&&root.SVForegroundSession){await root.SVForegroundSession.waitVisible();if(!valid(c))throw Error('La sesión cambió');}
+  const tokenTask=c.user.getIdToken(),token=await(root.SVSessionRecovery?.deadline?root.SVSessionRecovery.deadline(tokenTask):tokenTask);if(!valid(c))throw Error('La sesión cambió');
+  if(!body&&root.SVForegroundSession){await root.SVForegroundSession.waitVisible();if(!valid(c))throw Error('La sesión cambió');}
   const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servicio comercial no disponible');
   const view=c.user.uid!==c.uid?'?verComo='+encodeURIComponent(c.uid):'';
   const controller=!body&&typeof AbortController==='function'&&typeof AbortSignal.any==='function'?new AbortController():null;if(controller)readControllers.add(controller);
@@ -24,7 +27,9 @@
  async function refresh(domain,{joinPending=false}={}){const s=subscriptions.get(domain);if(!s||root.navigator?.onLine===false)return;if(root.SVConnectionMonitor?.canSync()===false){await root.SVConnectionMonitor.check?.();if(subscriptions.get(domain)!==s||root.SVConnectionMonitor.canSync()===false)return;joinPending=true;}if(s.pending){if(!joinPending)s.again=true;return s.pending;}const c=context();s.pending=(async()=>{try{const data=await request(domain,'',undefined,s.etag?{etag:s.etag}:undefined);if(valid(c)&&subscriptions.get(domain)===s){if(!data._svNotModified){const snapshot=JSON.stringify(data.records||{});if(snapshot!==s.snapshot){await s.callback({val:()=>data.records});if(!valid(c)||subscriptions.get(domain)!==s)return;s.snapshot=snapshot;if(c.role!=='admin')forgetDetail(domain,data.records);}s.etag=data._svEtag;}s.loading?.ready();}}catch(e){if(valid(c)&&subscriptions.get(domain)===s){s.loading?.error();root.SVConnectionMonitor?.failure(domain,e);if([401,403].includes(e.status)){delete s.snapshot;delete s.etag;s.callback({val:()=>({})});forgetDetail(domain,{});}if(s.snapshot===undefined||[401,403].includes(e.status))s.error?.(e);}}})().finally(()=>{s.pending=null;if(s.again&&subscriptions.get(domain)===s){s.again=false;refresh(domain);}});return s.pending;}
  function stop(){generation++;for(const s of subscriptions.values())s.loading?.cancel();subscriptions.clear();root._ventasListenerActivo=false;root._pptoListenerActivo=false;root.ventasList=[];root.pptoData=[];root.ventasPendientesHistoricasList=[];}
  function contextChanged(){const next=[root.fbAuth?.currentUser?.uid,root.currentUserUid,root.currentRole,root.PERMISOS_ROLES?.[root.currentRole]?.indiceRevision||0].join('|');if(next!==key){const reload=subscriptions.size>0;stop();key=next;if(reload)queueMicrotask(()=>{root.fbCargarVentas?.();root.fbCargarPresupuestos?.();});}}
- function refreshVisible(){if(document.hidden||root.navigator?.onLine===false)return;for(const domain of subscriptions.keys())refresh(domain);}
+ // Avisos del mismo regreso comparten la lectura pendiente. Las llamadas
+ // explícitas a refresh conservan again para no perder un cambio real.
+ function refreshVisible(){if(document.hidden||root.navigator?.onLine===false)return;for(const domain of subscriptions.keys())refresh(domain,{joinPending:true});}
  function onValue(domain,callback,error){contextChanged();subscriptions.get(domain)?.loading?.cancel();const s={callback,error,loading:root.SVDataReadiness?.beginSource(domain)};subscriptions.set(domain,s);refresh(domain);return ()=>{if(subscriptions.get(domain)===s){s.loading?.cancel();subscriptions.delete(domain);}};}
  function belongs(r){return !!r&&(r.responsableUid||r._svOwnerUid)===root.currentUserUid;}
  function author(r){return r?._svOriginalAuthor?.name||r?.creadorOriginalNombre||r?.creadaPor||r?.creadoPor||r?.usuario||'Sin registrar';}

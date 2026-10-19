@@ -36,10 +36,15 @@
   const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servicio no disponible');
   const res=await fetch(base+'/comisiones/generacion/'+action,{method:'POST',cache:'no-store',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({ventaFbKey:venta.fbKey}),signal:AbortSignal.timeout(60000)});
   const result=await res.json();if(user!==root.fbAuth.currentUser||uid!==root.currentUserUid)throw Error('La sesión cambió');
-  if(!res.ok||!result.ok)throw Error(result.mensaje||'La comisión quedó pendiente');
-  if(result.status==='revision')throw Error(result.motivo+(result.faltantes?.length?' · '+result.faltantes.map(i=>i.codigo||i.descripcion).join(', '):''));
+  if(!res.ok||!result.ok){
+   const message=result.mensaje||'La comisión quedó pendiente';
+   const commissionStatus=res.status===409?(message==='La comisión se está generando en otra sesión. Reintentá'?'procesando':'revision'):'pendiente_confirmacion';
+   throw Object.assign(Error(message),{statusCode:res.status,httpStatus:res.status,commissionStatus});
+  }
   return result;
  }
- async function generate(venta){if(!venta||venta.comisionHabilitada!==true)return [];const result=await request('generar',venta);return result.participantes||[];}
+ // La operación que cobró la venta necesita el estado completo para confirmar
+ // el registro o informar revisión sin presentar el cobro guardado como fallido.
+ async function generate(venta){if(!venta||venta.comisionHabilitada!==true)return {status:'no_aplica',motivo:'La venta no tiene comisión habilitada',participantes:[]};return request('generar',venta);}
  root.SVCommissionGeneration={snapshotCosts,preserveCosts,request,generate};
 })(window);
