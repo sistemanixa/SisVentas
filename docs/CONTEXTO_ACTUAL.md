@@ -1,5 +1,14 @@
 # Continuidad de SisVentas
 
+## Publicación completada · v3.13.0 · 19/10/2026
+
+- El titular autorizó directamente la excepción exacta de retiro propio y completar la publicación; queda resuelto el bloqueo de auto-review anterior. Fuente pública518425dbc6a138c614a2ee6684d9882a7be95928, checkout limpio .local/publicacion-final-v31216. Repositorio en codex/auditoria-eventos-v3130; main4639a87b sin novedades al fetch, trabajo de ambas PC conservado.
+- Cotizador cotizador-audit-518425db ya activo al100%+14tags como se documenta debajo. Regla aplicada y comparación posterior exacta136954197b29137f0f92f0765dedace395c84d19c316ed02d33958316e83822a: sólo cambia sv_chat_presencia/$uid/$session/.write. Compilación/relectura previas y verificación completa posterior; endpoint de reglas no entregó ETag, por lo que no hubo condición If-Match. No se modificaron otras rutas de reglas ni datos comerciales. Respaldo privado v3130-release/rules-before.private.json.
+- Hosting381 activos públicos,7 cargas, versión9c0e3c70acc69aac.16 activos contrastados por hash,5 cabeceras y4 rutas internas404. Sólo después se actualizó sisventas/config/version a v3.13.0-firebase. Sin cambios de DNS/IAM/secretos, contraseñas, correos ni servicios nuevos.
+- Misma pestaña y sesión propias, sin borrar navegación: actualización automática20→13 conservó Presupuestos8; el aviso bloqueó correctamente un clic de fondo y Entendido lo liberó. Ventas50, Informes1 y Reclamos2 cargaron; Dashboard termina con Sincronizado y sin alertas visibles. Sólo consultas/navegación, sin crear formularios ni guardar operaciones. Evidencia visual privada v3130-dashboard-publicado.png. No equivale a revocar cuentas reales ni a pruebas físicas de dispositivos.
+- Verificación de fuente:2.206 pruebas generales en copia de trabajo y limpia;94 de Cotizador;67 relacionadas con presencia y10 de emulador;73 de carga a demanda, sintaxis/diff/coherencia correctos. Los límites de cobertura y costo permanecen: no garantizar auditoría100% ni mensual≤30.
+- Siguiente pedido directo del titular: centrar Cargando datos del Dashboard y avisos equivalentes. Preparar13.1 local, sin modificar13 ya publicada. El inventario laboral y su GET/PUT de raíz siguen pendientes; no se migraron datos. El espejo8766 no se anuncia actualizado: esta publicación es el dominio real.
+
 ## Corte v3.13.0 · servidor activo, web pendiente de regla
 
 - Fuente revisada518425dbc6a138c614a2ee6684d9882a7be95928, respaldada en origin/codex/auditoria-eventos-v3130. Checkout público limpio en ese SHA;2.206 pruebas aprobadas también desde esa copia. Construcción6e75fc0b-e826-4394-8f59-1c43d7732420 SUCCESS.
