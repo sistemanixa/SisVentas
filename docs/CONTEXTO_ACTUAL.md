@@ -1,6 +1,12 @@
 # Continuidad de SisVentas
 
-## Corte v3.13.0 autorizado · preparación final
+## Corte v3.13.0 · servidor activo, web pendiente de regla
+
+- Fuente revisada518425dbc6a138c614a2ee6684d9882a7be95928, respaldada en origin/codex/auditoria-eventos-v3130. Checkout público limpio en ese SHA;2.206 pruebas aprobadas también desde esa copia. Construcción6e75fc0b-e826-4394-8f59-1c43d7732420 SUCCESS.
+- Cotizador cotizador-audit-518425db activo al100% y14 etiquetas existentes;15 accesos rechazan anónimos. Previo sin tráfico general:6 rechazos401 y CORS correctos. Comparados entorno/secretos/identidad/recursos/concurrencia/plazo/escala/throttling sin cambios; mínimo0 por defecto y CPU por solicitud. Eventos de comisiones intactos, sin nuevas funciones ni modificaciones de comisiones reales. Reversión cotizador-events-b56470ce.
+- Comprobación web con sesión propia conservada, sin borrar navegación: Ventas50 filas y Presupuestos8, Sincronizado, sólo navegación/consulta contra servidor nuevo. Frontend continúa20 y marcador remoto continúa20; NO anunciar13 publicada.
+- Bloqueo real: auto-review rechazó ejecutar el cambio persistente de regla porque exige autorización directa específica de ruta/permiso. Se preguntó al titular por la única excepción sv_chat_presencia/$uid/$session/.write. No se ejecutó el aplicador ni se eludió el bloqueo; reglas mantienen base15cd87a1... y web13 espera esa respuesta. Después de autorización: aplicar/verificar regla exacta→Hosting limpio518425db→hashes/cabeceras→aviso13→misma sesión web. Alternativa ofrecida al titular: publicar otras mejoras dejando presencia pendiente; requiere preparar fuente reducida coherente, no publicar cx1 sin su regla.
+- Continuación realizada mientras esperaba: [PLAN_DOMINIO_LABORAL.md](PLAN_DOMINIO_LABORAL.md) inventaría escritores/lectores y demuestra que el perímetro también incluye haberes, compensaciones, auditoría de pagos y Mantenimiento. La siguiente reducción debe usar una autoridad única e índices completos, con pruebas concurrentes; no se creó servicio/dominio ni se migraron registros. El GET/PUT de raíz de operaciones nuevas sigue pendiente.
 
 - El titular pidió ahora publicar hasta este bloque y continuar la auditoría. Esta autorización sustituye el estado anterior «sin publicar» para este corte; no equivale a dar por concluida la auditoría ni a autorizar una migración de datos laborales.
 - Presencia moderna por conexión `cx1_`, sin latidos ni escrituras por teclado/mouse. onDisconnect confirmado antes de publicar, referencia propia por conexión, barreras de sesión/Ver como, directorio y cuentas activas. Las claves antiguas y el historial legado mantienen TTL; no se migran ni borran. El frontend requiere antes Cotizador compatible y la excepción exacta de retiro propio.
