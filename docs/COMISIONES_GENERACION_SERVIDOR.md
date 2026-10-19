@@ -10,10 +10,10 @@ mínimo cero y CPU por solicitud; revisión y publicación exactas en
 
 La función directa confirma el registro al terminar. El pago completo y la
 habilitación de comisión son requisitos; genera un pendiente de aprobación,
-nunca una aprobación ni un pago automático. El cliente candidato v3.13.2 espera
+nunca una aprobación ni un pago automático. El cliente publicado v3.13.2 espera
 esa respuesta antes de cerrar la confirmación. No agrega tareas por reloj ni
-modifica comisiones existentes. Aún requiere la validación y publicación del
-candidato indicadas en CONTEXTO_ACTUAL.
+modifica comisiones existentes. La publicación y sus verificaciones están
+registradas en CONTEXTO_ACTUAL.
 
 ## Antecedentes del observador permanente · sustituidos
 
