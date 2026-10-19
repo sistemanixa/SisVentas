@@ -1,6 +1,62 @@
 (function(global){
   'use strict';
+  function ensureLoadingStatusStyle(){
+    if(!document.head||typeof document.head.appendChild!=='function'||typeof document.createElement!=='function')return;
+    try{
+      // Un índice anterior puede recibir este JS actualizado sin el nuevo link.
+      // Resolver sólo el activo estático conocido, también bajo un subdirectorio.
+      var base=document.baseURI||global.location?.href,script=document.currentScript?.src;
+      var scriptUrl=script?new URL(script,base):null;
+      var fromScript=scriptUrl&&/^https?:$/.test(scriptUrl.protocol)&&/\/js\/core\/data-readiness\.js$/.test(scriptUrl.pathname)&&(!base||scriptUrl.origin===new URL(base).origin);
+      var url=new URL(fromScript?'../../css/loading-status.css?v=3.13.1':'./css/loading-status.css?v=3.13.1',fromScript?scriptUrl:base);
+      if(!/^https?:$/.test(url.protocol))return;
+      var links=document.querySelectorAll?.('link[rel~="stylesheet"][href]')||[];
+      for(var link of links){
+        try{var existing=new URL(link.href||link.getAttribute('href'),base||new URL('../',url));if(existing.origin===url.origin&&existing.pathname===url.pathname)return;}catch(_){}
+      }
+      if(document.getElementById?.('sv-loading-status-style'))return;
+      var style=document.createElement('link');style.id='sv-loading-status-style';style.rel='stylesheet';style.href=url.href;document.head.appendChild(style);
+    }catch(_){/* Un DOM parcial sin URL/base no debe impedir la carga de datos. */}
+  }
+  ensureLoadingStatusStyle();
+  function createScreenLoading(){
+    var owners=new Map(),observer=null,sequence=0;
+    function visible(node){
+      if(!node||node.isConnected===false)return false;
+      for(var current=node;current;current=current.parentElement||current.parentNode){
+        if(current.hidden||current.style?.display==='none'||(current.classList?.contains('page')&&!current.classList.contains('active')))return false;
+      }
+      return true;
+    }
+    function prune(){Array.from(owners.values()).forEach(function(entry){if(!visible(entry.host)||!visible(entry.container)||entry.layer.isConnected===false)entry.close();});}
+    function watch(){
+      if(observer||!global.MutationObserver||!document.body)return;
+      observer=new global.MutationObserver(prune);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','class','style']});
+    }
+    function reset(){Array.from(owners.values()).forEach(function(entry){entry.close();});}
+    function start(host,title,options){
+      options=options||{};var container=options.container||document.body;
+      if(!visible(host)||!visible(container)||typeof container.appendChild!=='function'||typeof document.createElement!=='function')return function(){};
+      owners.get(host)?.close();
+      var layer=document.createElement('div'),card=document.createElement('div'),heading=document.createElement('strong');
+      layer.id='sv-screen-loading-'+(++sequence);layer.className='sv-load-status-layer';card.className='sv-data-status';
+      card.setAttribute('role','status');card.setAttribute('aria-live','polite');card.setAttribute('aria-atomic','true');heading.textContent=String(title||'Cargando…');
+      card.appendChild(heading);layer.appendChild(card);container.appendChild(layer);
+      var entry={host:host,container:container,layer:layer,closed:false,close:null};
+      entry.close=function(){
+        if(entry.closed)return;entry.closed=true;
+        if(owners.get(entry.host)===entry)owners.delete(entry.host);entry.layer.remove();
+        entry.host=entry.container=entry.layer=null;
+        if(!owners.size&&observer){observer.disconnect();observer=null;}
+      };
+      owners.set(host,entry);watch();return entry.close;
+    }
+    ['sisventas:page-changed','sisventas:role-changed','sisventas:session-ready','sisventas:session-ended'].forEach(function(name){document.addEventListener(name,reset);});
+    return {start:start,reset:reset};
+  }
+  var screenLoading=global.SVScreenLoading=global.SVScreenLoading||createScreenLoading();
   var states={},generation=0,scheduled=false,deadlineTimer=null,sessionActive=false;
+  var statusLayer=null,statusBox=null,statusTitle=null,statusDetail=null,statusRetry=null;
   var waitLimit=15000;
   var demandPages=['informes','equipos','garantias','soporte','remitos','servicios','agenda','caja','historialcliente'];
   var dependencies={
@@ -90,54 +146,79 @@
     if(deadlineTimer!==null)global.clearTimeout(deadlineTimer);
     if(checkDeadlines())schedule();
   }
+  function clearStatus(){
+    if(statusBox)statusBox.remove();
+    if(statusLayer)statusLayer.remove();
+    statusLayer=statusBox=statusTitle=statusDetail=statusRetry=null;
+  }
+  function mountStatus(page,name,state){
+    if(!document.body)return;
+    if(!statusBox){
+      statusBox=document.createElement('div');statusBox.dataset.svDataStatus='1';statusBox.className='sv-data-status';
+      statusBox.setAttribute('role','status');statusBox.setAttribute('aria-live','polite');statusBox.setAttribute('aria-atomic','true');
+      statusTitle=document.createElement('strong');statusDetail=document.createElement('span');statusRetry=document.createElement('button');
+      statusRetry.className='btn btn-sm';statusRetry.textContent='Reintentar carga';statusBox.append(statusTitle,statusDetail,statusRetry);
+    }
+    statusBox.dataset.svDataPage=name;
+    statusBox.classList.toggle('sv-data-error',!!state.errors.length);
+    var title=state.errors.length?'No se pudieron cargar todos los datos':global.navigator.onLine===false?'Sin conexión. Esperando los datos…':'Cargando datos…';
+    var detail=state.errors.length?'No se pudieron completar '+state.errors.map(function(k){return labels[k]||k;}).join(', ')+'. '+(state.ready?'Se conserva la información recibida. Revisá la conexión y volvé a intentar.':'Revisá la conexión y volvé a intentar.'):'Esperando '+state.missing.map(function(k){return labels[k]||k;}).join(', ')+'.';
+    if(statusTitle.textContent!==title)statusTitle.textContent=title;
+    if(statusDetail.textContent!==detail)statusDetail.textContent=detail;
+    statusRetry.onclick=function(){
+      if(!sessionActive||!page.classList.contains('active')||(typeof global.permisoModulo==='function'&&!global.permisoModulo(name)))return;
+      function report(){global.notify?.('No se pudo reintentar la carga. Revisá la conexión y volvé a intentar.');schedule();}
+      try{
+        // Una recuperación explícita conserva página, filtros y formulario.
+        // Sólo las pantallas a demanda tienen su mapa completo en la app.
+        if(demandPages.includes(name)&&typeof global.svReintentarDatosDePagina==='function'){
+          var errors=status(requirements(name)).errors;
+          var timedOut=errors.filter(function(key){return states[key]?.timeout;});
+          var references=[];errors.forEach(function(key){Array.from(states[key]?.sources||[]).forEach(function(source){if(source.reference&&(source.error||(states[key].timeout&&!source.ready)))references.push({key:key,reference:source.reference});});});
+          Promise.resolve(global.svReintentarDatosDePagina(name,{errors:errors,timedOut:timedOut,references:references})).catch(report);
+        }
+        else if(demandPages.includes(name)&&typeof global.svCargarDatosDePaginaActual==='function')Promise.resolve(global.svCargarDatosDePaginaActual(name)).catch(report);
+        else if(typeof global.fbSincronizarAhora==='function')Promise.resolve(global.fbSincronizarAhora()).catch(report);
+        else global.location.reload();
+      }catch(_){report();}
+    };
+    var focused=statusBox.contains(document.activeElement)?document.activeElement:null;
+    if(!state.ready){
+      // Fuera de .page: sus animaciones/transformaciones no pueden cambiar
+      // el centro del viewport. La tarjeta es la misma, nunca una copia.
+      if(!statusLayer){statusLayer=document.createElement('div');statusLayer.id='sv-data-status-layer';statusLayer.className='sv-load-status-layer';document.body.append(statusLayer);}
+      if(statusBox.parentNode!==statusLayer)statusLayer.append(statusBox);
+    }else{
+      // Con datos previos el aviso de error convive con el contenido disponible.
+      if(statusBox.parentNode!==page)page.prepend(statusBox);
+      if(statusLayer){statusLayer.remove();statusLayer=null;}
+    }
+    if(focused&&document.activeElement!==focused)focused.focus({preventScroll:true});
+  }
   function render(){
+    var visible=null;
     Object.keys(dependencies).forEach(function(name){
       var page=document.getElementById('page-'+name);if(!page)return;
       var allowed=typeof global.permisoModulo!=='function'||global.permisoModulo(name);
       var keys=sessionActive&&allowed?requirements(name):[];
       if(sessionActive&&page.classList.contains('active'))keys.forEach(ensure);
-      var state=status(keys),box=page.querySelector('[data-sv-data-status]');
+      var state=status(keys);
       var show=!state.ready||state.errors.length>0;
       page.classList.toggle('sv-data-pending',!state.ready);
       page.setAttribute('aria-busy',String(!state.ready&&!state.errors.length));
-      if(!show){if(box)box.remove();return;}
-      if(!box){box=document.createElement('div');box.dataset.svDataStatus='1';box.className='sv-data-status';box.setAttribute('role','status');box.setAttribute('aria-live','polite');page.prepend(box);}
-      box.classList.toggle('sv-data-error',!!state.errors.length);
-      box.replaceChildren();
-      var title=document.createElement('strong'),detail=document.createElement('span');
-      title.textContent=state.errors.length?'No se pudieron cargar todos los datos':global.navigator.onLine===false?'Sin conexión. Esperando los datos…':'Cargando datos…';
-      detail.textContent=state.errors.length?'No se pudieron completar '+state.errors.map(function(k){return labels[k]||k;}).join(', ')+'. '+(state.ready?'Se conserva la información recibida. Revisá la conexión y volvé a intentar.':'No se puede determinar todavía si hay registros. Revisá la conexión y volvé a intentar.'):'Esperando '+state.missing.map(function(k){return labels[k]||k;}).join(', ')+'. La información aparecerá al completar la carga.';
-      box.append(title,detail);
-      var retry=document.createElement('button');retry.className='btn btn-sm';retry.textContent='Reintentar carga';retry.onclick=function(){
-        if(!sessionActive||!page.classList.contains('active')||(typeof global.permisoModulo==='function'&&!global.permisoModulo(name)))return;
-        function report(){global.notify?.('No se pudo reintentar la carga. Revisá la conexión y volvé a intentar.');schedule();}
-        try{
-          // Una recuperación explícita conserva página, filtros y formulario.
-          // Sólo las pantallas a demanda tienen su mapa completo en la app.
-          if(demandPages.includes(name)&&typeof global.svReintentarDatosDePagina==='function'){
-            var errors=status(requirements(name)).errors;
-            var timedOut=errors.filter(function(key){return states[key]?.timeout;});
-            var references=[];errors.forEach(function(key){Array.from(states[key]?.sources||[]).forEach(function(source){if(source.reference&&(source.error||(states[key].timeout&&!source.ready)))references.push({key:key,reference:source.reference});});});
-            Promise.resolve(global.svReintentarDatosDePagina(name,{errors:errors,timedOut:timedOut,references:references})).catch(report);
-          }
-          else if(demandPages.includes(name)&&typeof global.svCargarDatosDePaginaActual==='function')Promise.resolve(global.svCargarDatosDePaginaActual(name)).catch(report);
-          else if(typeof global.fbSincronizarAhora==='function')Promise.resolve(global.fbSincronizarAhora()).catch(report);
-          else global.location.reload();
-        }catch(_){report();}
-      };box.append(retry);
+      if(show&&sessionActive&&allowed&&page.classList.contains('active'))visible={page:page,name:name,state:state};
     });
+    if(visible)mountStatus(visible.page,visible.name,visible.state);else clearStatus();
     armDeadlines();
     document.dispatchEvent(new CustomEvent('sisventas:data-state-changed'));
   }
-  function reset(){generation++;states={};sessionActive=false;if(deadlineTimer!==null&&typeof global.clearTimeout==='function')global.clearTimeout(deadlineTimer);deadlineTimer=null;schedule();}
+  function reset(){generation++;states={};sessionActive=false;clearStatus();screenLoading.reset();if(deadlineTimer!==null&&typeof global.clearTimeout==='function')global.clearTimeout(deadlineTimer);deadlineTimer=null;schedule();}
   document.addEventListener('sisventas:session-ended',reset);
   document.addEventListener('sisventas:session-ready',function(){sessionActive=true;schedule();});
-  document.addEventListener('sisventas:page-changed',schedule);
-  document.addEventListener('sisventas:role-changed',schedule);
+  document.addEventListener('sisventas:page-changed',function(){clearStatus();schedule();});
+  document.addEventListener('sisventas:role-changed',function(){clearStatus();schedule();});
   document.addEventListener('visibilitychange',schedule);
-  document.addEventListener('DOMContentLoaded',function(){
-    var style=document.createElement('style');style.textContent='.sv-data-pending{position:relative;min-height:260px}.sv-data-pending>:not([data-sv-data-status]){visibility:hidden;pointer-events:none}.sv-data-status{display:flex;flex-direction:column;gap:10px;padding:24px;margin-bottom:16px;border:1px solid var(--border2);border-radius:14px;background:var(--bg2);color:var(--text);line-height:1.6}.sv-data-status span{font-size:13px;color:var(--text3)}.sv-data-status button{align-self:flex-start}.sv-data-pending>.sv-data-status{position:absolute;inset:0 0 auto;z-index:2}.sv-data-status strong::before{content:"";display:inline-block;width:14px;height:14px;margin-right:10px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin 1s linear infinite}.sv-data-error strong::before{display:none}';document.head.append(style);schedule();
-  });
+  document.addEventListener('DOMContentLoaded',schedule);
   global.addEventListener('online',schedule);global.addEventListener('offline',schedule);
   global.SVDataReadiness={begin:begin,beginSource:beginSource,status:status,statusFor:statusFor,requirementsFor:requirements,reset:reset,render:schedule};
 })(window);

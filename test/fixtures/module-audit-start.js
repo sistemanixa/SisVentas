@@ -11,11 +11,15 @@ document.addEventListener('DOMContentLoaded',()=>{
  document.body.classList.remove('sv-sesion-cerrada');
  for(const id of ['screen-login','screen-loading'])document.getElementById(id).style.display='none';
  const app=document.getElementById('screen-app');app.style.display='flex';app.classList.add('visible');app.inert=false;
- const auditStyle=document.createElement('style');auditStyle.textContent='body.sv-modal-stack-open #module-audit-tools{display:none}';document.head.append(auditStyle);
+ const auditStyle=document.createElement('style');auditStyle.textContent='body.sv-modal-stack-open #module-audit-tools{display:none}#module-audit-tools[hidden],#module-audit-show[hidden]{display:none!important}';document.head.append(auditStyle);
  const tools=document.createElement('aside');tools.id='module-audit-tools';tools.style.cssText='position:fixed;bottom:8px;left:8px;z-index:2147483000;max-width:340px;background:#14283e;border:1px solid #54769c;border-radius:9px;padding:8px;font-size:11px';
  tools.innerHTML='<strong>DATOS FICTICIOS · sin Firebase</strong> <button class="btn btn-sm" id="audit-routes">Recorrer módulos</button> <button class="btn btn-sm" id="audit-dialogs">Recorrer ventanas</button><button class="btn btn-sm" id="audit-editors">Recorrer editores</button><button class="btn btn-sm" id="audit-selector">Venta y selector</button><button class="btn btn-sm" id="audit-client">Cliente de prueba</button><button class="btn btn-sm" id="audit-alert">Aviso sobre ventana</button><details><summary>Resultado de auditoría</summary><pre id="module-audit-result" style="max-height:35vh;overflow:auto;white-space:pre-wrap">Preparado</pre></details>';
  document.body.append(tools);
+ const showTools=document.createElement('button');showTools.id='module-audit-show';showTools.className='btn btn-sm';showTools.textContent='Mostrar herramientas';showTools.hidden=true;showTools.style.cssText='position:fixed;bottom:8px;left:8px;z-index:2147483000';
+ showTools.onclick=()=>{tools.hidden=false;showTools.hidden=true;};document.body.append(showTools);
+ const hideTools=document.createElement('button');hideTools.className='btn btn-sm';hideTools.textContent='Ocultar herramientas';hideTools.onclick=()=>{tools.hidden=true;showTools.hidden=false;};tools.insertBefore(hideTools,tools.querySelector('details'));
  let idleBaseline=null;
+ let cerrarProcesoFicticio=null;
  function activity(){const counts={};for(const item of __moduleAudit.reads.slice(idleBaseline?.reads||0)){const key=item.type+' '+item.path;counts[key]=(counts[key]||0)+1;}const active={};for(const sub of __moduleAudit.subscriptions)if(sub.active)active[sub.path]=(active[sub.path]||0)+1;return {seconds:idleBaseline?Math.round((Date.now()-idleBaseline.at)/1000):null,reads:__moduleAudit.reads.length-(idleBaseline?.reads||0),writes:__moduleAudit.writes.length-(idleBaseline?.writes||0),counts,active,errors:__moduleAudit.errors};}
  for(const [label,action]of [
   ['Ingreso completo ficticio',async()=>{fbCargarTodo();await new Promise(r=>setTimeout(r,4800));document.getElementById('module-audit-result').textContent=JSON.stringify(activity(),null,2);}],
@@ -23,6 +27,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   ['Limpiar borradores ficticios',()=>{for(const key of Object.keys(localStorage))if(key.startsWith('sv:commercial-draft:v1:fixture:'))localStorage.removeItem(key);document.getElementById('module-audit-result').textContent='Borradores ficticios locales eliminados. Recargá para empezar una medición limpia.';}],
   ['Iniciar reposo',()=>{idleBaseline={at:Date.now(),reads:__moduleAudit.reads.length,writes:__moduleAudit.writes.length};document.getElementById('module-audit-result').textContent=JSON.stringify(activity(),null,2);}],
   ['Aviso de error ficticio',()=>notify('No se pudieron sincronizar los presupuestos')],
+  ['Proceso general ficticio',()=>{if(cerrarProcesoFicticio){cerrarProcesoFicticio();cerrarProcesoFicticio=null;}else cerrarProcesoFicticio=window.SisVentas.carga.mostrar('Proceso general ficticio…');}],
   ['Ver actividad',()=>{document.getElementById('module-audit-result').textContent=JSON.stringify(activity(),null,2);}]
  ]){const button=document.createElement('button');button.className='btn btn-sm';button.textContent=label;button.onclick=action;tools.insertBefore(button,tools.querySelector('details'));}
  const demandTools=document.createElement('details');demandTools.id='audit-demand-tools';
@@ -46,15 +51,18 @@ document.addEventListener('DOMContentLoaded',()=>{
   window._fbCargaTodoActiva=true;
   document.dispatchEvent(new CustomEvent('sisventas:session-ready',{detail:{uid:'fixture',rol:'admin',usuario:currentUser}}));
   svCancelarTrabajoFondo();showPage(page);
+  if(page==='dashboard'){fbCargarClientes();fbCargarProductos();fbCargarVentas();fbCargarPagos();}
   if(page==='historialcliente')verHistorialCliente('c');
   showDemandState();
  }
  for(const [label,action]of [
+  ['Retener Dashboard',()=>beginDemand('dashboard',['clientes','productos','pagos'])],
+  ['Liberar datos Dashboard',()=>{for(const key of ['clientes','productos','pagos'])window.__moduleAuditSourceControl.release(key);}],
   ['Retener Informes',()=>beginDemand('informes',['informes','clientes'])],
   ['Liberar informes',()=>window.__moduleAuditSourceControl.release('informes')],
   ['Liberar clientes',()=>window.__moduleAuditSourceControl.release('clientes')],
   ['Fallar informes',()=>window.__moduleAuditSourceControl.fail('informes')],
-  ['Reintentar pantalla',()=>document.querySelector('.page.active [data-sv-data-status] button')?.click()],
+  ['Reintentar pantalla',()=>{const button=document.querySelector('#sv-data-status-layer [data-sv-data-status] button')||document.querySelector('.page.active [data-sv-data-status] button');button?.click();}],
   ['Retener Historial',()=>{
    fixtureRoot.sisventas.equipos={eq:{cliente:'Cliente ficticio',clienteFbKey:'c',descripcion:'Equipo ficticio del historial',serie:'SERIE-FICTICIA',fechaInstalacion:'2026-10-01',garantiaMeses:12}};
    fixtureRoot.sisventas.tickets={ticket:{cliente:'Cliente ficticio',clienteFbKey:'c',numero:'T-FICTICIO',descripcion:'Ticket ficticio del historial',estado:'Abierto',prioridad:'Media'}};

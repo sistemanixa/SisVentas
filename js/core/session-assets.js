@@ -49,29 +49,90 @@
     await Promise.all(modules.map(load));
     return !isCurrent || isCurrent();
   }
-  async function maintenance() {
-    var panel = document.getElementById('cfg-mantenimiento');
-    if (!panel || panel.style.display === 'none') return;
-    var status = document.getElementById('mnt-diagnostics-loading');
-    if (!status) {
-      status = document.createElement('div');
-      status.id = 'mnt-diagnostics-loading';
-      status.setAttribute('role', 'status');
-      panel.appendChild(status);
+  var maintenanceCurrent = null, maintenanceRevision = 0, maintenanceSessionActive = true;
+  function maintenanceAuthenticated() { return typeof isAuthenticated === 'undefined' ? undefined : isAuthenticated; }
+  function maintenanceVisible(panel) {
+    var page = document.getElementById('page-configuracion');
+    return !!panel && panel.isConnected !== false && panel.style.display !== 'none' &&
+      (!page || !page.classList || page.classList.contains('active'));
+  }
+  function maintenanceContext() {
+    return {uid:window.currentUserUid, role:window.currentRole, auth:window.fbAuth?.currentUser,
+      authenticated:maintenanceAuthenticated(), view:window._impersonacionOriginal};
+  }
+  function maintenanceContextCurrent(context) {
+    return maintenanceSessionActive && context.authenticated !== false &&
+      context.uid === window.currentUserUid && context.role === window.currentRole &&
+      context.auth === window.fbAuth?.currentUser && context.authenticated === maintenanceAuthenticated() &&
+      context.view === window._impersonacionOriginal && (!context.uid || !context.auth || context.auth.uid === context.uid);
+  }
+  function maintenanceCurrentRequest(state) {
+    return maintenanceCurrent === state && state.revision === maintenanceRevision && maintenanceContextCurrent(state.context) &&
+      document.getElementById('cfg-mantenimiento') === state.panel && maintenanceVisible(state.panel);
+  }
+  function clearMaintenance() {
+    maintenanceRevision++;
+    var previous = maintenanceCurrent; maintenanceCurrent = null;
+    if (previous) { previous.status.remove(); if (previous.layer) previous.layer.remove(); }
+  }
+  function discardMaintenance(state) { if (maintenanceCurrent === state) clearMaintenance(); }
+  function renderMaintenanceStatus(state, error) {
+    var status = state.status, message = error ? String(error.message || 'No se pudo completar la carga. Reintentá.').replace(/\s+\[diagnostics\]$/, '') : 'Cargando auditoría de mantenimiento…';
+    status.className = 'sv-data-status' + (error ? ' sv-data-error' : '');
+    status.setAttribute('role', error ? 'alert' : 'status');
+    status.setAttribute('aria-live', error ? 'assertive' : 'polite');
+    status.setAttribute('aria-atomic', 'true');
+    status.textContent = message;
+    if (document.body) {
+      status.textContent = '';
+      var title = document.createElement('strong');
+      title.textContent = error ? 'No se pudo cargar la auditoría de mantenimiento' : message;
+      status.appendChild(title);
+      if (error) { var detail = document.createElement('span'); detail.textContent = message; status.appendChild(detail); }
     }
-    status.textContent = 'Cargando auditoría de mantenimiento…';
-    try {
-      await load('diagnostics');
-      window.SisVentas.V3Diagnostics.mount();
-      status.remove();
-    } catch (error) {
-      status.textContent = error.message + ' ';
-      var retry = document.createElement('button');
-      retry.className = 'btn btn-sm';
-      retry.textContent = 'Reintentar';
-      retry.onclick = maintenance;
+    if (error) {
+      var retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn btn-sm'; retry.textContent = 'Reintentar';
+      retry.onclick = function() {
+        if (!maintenanceCurrentRequest(state) || state.phase !== 'error') return Promise.resolve(false);
+        clearMaintenance(); return maintenance();
+      };
       status.appendChild(retry);
     }
   }
+  function maintenance() {
+    var panel = document.getElementById('cfg-mantenimiento'), context = maintenanceContext();
+    if (!maintenanceVisible(panel) || !maintenanceContextCurrent(context)) { clearMaintenance(); return Promise.resolve(false); }
+    if (maintenanceCurrent && maintenanceCurrent.phase === 'loading' && maintenanceCurrentRequest(maintenanceCurrent)) return maintenanceCurrent.task;
+    clearMaintenance();
+    var status = document.createElement('div'), layer = null;
+    status.id = 'mnt-diagnostics-loading';
+    if (document.body) {
+      layer = document.createElement('div'); layer.id = 'mnt-diagnostics-loading-layer'; layer.className = 'sv-load-status-layer';
+      layer.appendChild(status); document.body.appendChild(layer);
+    } else panel.appendChild(status);
+    var state = {panel:panel, context:context, revision:maintenanceRevision, status:status, layer:layer, phase:'loading', task:null};
+    maintenanceCurrent = state; renderMaintenanceStatus(state);
+    state.task = (async function() {
+      try {
+        await load('diagnostics');
+        if (!maintenanceCurrentRequest(state)) { discardMaintenance(state); return false; }
+        window.SisVentas.V3Diagnostics.mount();
+        discardMaintenance(state); return true;
+      } catch (error) {
+        if (!maintenanceCurrentRequest(state)) { discardMaintenance(state); return false; }
+        state.phase = 'error'; renderMaintenanceStatus(state, error); return false;
+      }
+    })();
+    return state.task;
+  }
+  document.addEventListener?.('sisventas:page-changed', function(event) {
+    if (event.detail?.page !== 'configuracion' || (maintenanceCurrent && !maintenanceCurrentRequest(maintenanceCurrent))) clearMaintenance();
+  });
+  document.addEventListener?.('sisventas:configuration-tab-changed', function(event) {
+    if (event.detail?.tab !== 'mantenimiento' || (maintenanceCurrent && !maintenanceCurrentRequest(maintenanceCurrent))) clearMaintenance();
+  });
+  document.addEventListener?.('sisventas:session-ended', function() { maintenanceSessionActive = false; clearMaintenance(); });
+  document.addEventListener?.('sisventas:session-ready', function() { maintenanceSessionActive = true; clearMaintenance(); });
+  document.addEventListener?.('sisventas:role-changed', clearMaintenance);
   window.SVSessionAssets = {load:load, forRole:forRole, maintenance:maintenance};
 })();

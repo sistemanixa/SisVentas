@@ -1,5 +1,13 @@
 # Control de consumo de SisVentas
 
+## Comprobación manual · 19/10/2026
+
+Producción vigente: Cotizador `cotizador-audit-518425db` (100% y14 accesos) y web13.0, como registra CONTEXTO_ACTUAL. Conserva mínimo0, cobro por solicitud y eventos de comisiones. Las revisiones de preparación que siguen son antecedentes, no un cambio de tráfico pendiente.
+
+Se consultaron una vez el informe de facturación actualizado y cuatro series agregadas para una ventana de60min terminada10min antes. El acumulado visible mezcla gasto anterior y registro diferido; la hora incluye publicación, pruebas y navegación. La transferencia RTDB sigue requiriendo atribución, aunque el cómputo observado ya corresponde a solicitudes. Evidencia privada `consumo-20261019.private.json`; no hay nueva alarma, sondeo ni servicio creado para esta medición. No inferir costo mensual≤30 ni un corte exacto por dólar.
+
+La verificación de acceso corresponde a cada solicitud iniciada por una acción o evento autorizado; no equivale a sondear historiales por reloj. Proyectos no contiene un temporizador de consultas. El candidato13.1 paraleliza dos lecturas de su autorización, sin cachear permisos ni reducir su cantidad. Resolver presupuestos vinculados todavía puede leer contexto comercial amplio: optimizarlo requiere conservar la visibilidad por responsable. La transacción laboral de raíz sigue pendiente. No anunciar esas reducciones como aplicadas.
+
 ## Actualización: reserva permanente retirada
 
 Cotizador cotizador-events-b56470ce al100% y14 etiquetas, mínimo0 y CPU por solicitud. Los tres receptores Gen1 sólo reenvían eventos pequeños autenticados; entrega nativa probada y probeta retirada. Fuente b56470ceeee276c572f4315c4f2853f8010f3ff1, reversión cotizador-cost-ee5a02ed. No hay observador global activo en la revisión nueva. La reserva permanente descrita abajo corresponde a la preparación anterior y ya fue reemplazada.

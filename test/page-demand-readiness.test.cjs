@@ -64,28 +64,34 @@ test('la sesión nueva descarta el snapshot pendiente del formulario anterior',(
 });
 
 function renderedEnvironment(pageName='informes',holdEmployees=false){
+ let document;
  class Element{
-  constructor(tag){this.tagName=tag;this.children=[];this.dataset={};this.attributes={};this.tokens=new Set();this.classList={contains:name=>this.tokens.has(name),toggle:(name,on)=>on?this.tokens.add(name):this.tokens.delete(name)};}
-  append(...children){for(const child of children){child.parent=this;this.children.push(child);}}
-  prepend(child){child.parent=this;this.children.unshift(child);}
-  remove(){this.parent.children=this.parent.children.filter(child=>child!==this);}
-  replaceChildren(){this.children=[];}
-  querySelector(){return this.children.find(child=>child.dataset.svDataStatus)||null;}
-  setAttribute(name,value){this.attributes[name]=value;}
+  constructor(tag){this.tagName=tag;this.children=[];this.dataset={};this.attributes={};this.tokens=new Set();this.parentNode=null;this.style={};this.classList={contains:name=>this.tokens.has(name),add:name=>this.tokens.add(name),remove:name=>this.tokens.delete(name),toggle:(name,on)=>on?this.tokens.add(name):this.tokens.delete(name)};}
+  get className(){return Array.from(this.tokens).join(' ');}
+  set className(value){this.tokens=new Set(value.split(/\s+/).filter(Boolean));}
+  append(...children){for(const child of children){child.remove();child.parentNode=this;this.children.push(child);}}
+  prepend(child){child.remove();child.parentNode=this;this.children.unshift(child);}
+  remove(){if(this.parentNode){this.parentNode.children=this.parentNode.children.filter(child=>child!==this);this.parentNode=null;}}
+  contains(node){return node===this||this.children.some(child=>child.contains(node));}
+  matches(selector){if(selector[0]==='#')return this.id===selector.slice(1);if(selector[0]==='.')return selector.slice(1).split('.').every(name=>this.tokens.has(name));if(selector==='[data-sv-data-status]')return this.dataset.svDataStatus!==undefined;if(selector==='[role="status"]')return this.attributes.role==='status';return this.tagName===selector;}
+  querySelectorAll(selector){return this.children.flatMap(child=>[...(child.matches(selector)?[child]:[]),...child.querySelectorAll(selector)]);}
+  querySelector(selector){return this.querySelectorAll(selector)[0]||null;}
+  setAttribute(name,value){this.attributes[name]=String(value);}
+  focus(options){document.activeElement=this;this.lastFocusOptions=options;}
  }
- const handlers={},frames=[],timers=new Map(),page=new Element('main'),calls=[],messages=[];
- let now=0,id=0;page.tokens.add('active');page.value='Borrador ficticio que se conserva';
+ const handlers={},frames=[],timers=new Map(),body=new Element('body'),page=new Element('main'),calls=[],messages=[];
+ let now=0,id=0;page.id='page-'+pageName;page.tokens.add('page');page.tokens.add('active');page.value='Borrador ficticio que se conserva';body.append(page);
  const root={navigator:{onLine:true},addEventListener(){},setTimeout:fn=>{const key=++id;timers.set(key,fn);return key;},clearTimeout:key=>timers.delete(key),
   location:{reload:()=>calls.push('reload')},permisoModulo:()=>true,svPuedeLeerDominio:()=>true,notify:message=>messages.push(message)};
- const document={addEventListener:(name,fn)=>{(handlers[name]??=[]).push(fn);},dispatchEvent:event=>{for(const fn of handlers[event.type]||[])fn(event);},
-  getElementById:name=>name==='page-'+pageName?page:null,createElement:tag=>new Element(tag)};
+ document={body,activeElement:body,addEventListener:(name,fn)=>{(handlers[name]??=[]).push(fn);},dispatchEvent:event=>{for(const fn of handlers[event.type]||[])fn(event);},
+  getElementById:name=>body.querySelector('#'+name),querySelector:selector=>body.querySelector(selector),querySelectorAll:selector=>body.querySelectorAll(selector),createElement:tag=>new Element(tag)};
  const c={URL,Promise,Date:{now:()=>now},CustomEvent:class{constructor(type){this.type=type;}},window:root,document,requestAnimationFrame:fn=>frames.push(fn)};
  vm.runInNewContext(fs.readFileSync('js/core/data-readiness.js','utf8'),c);
  function flush(){for(let remaining=30;frames.length&&remaining>0;remaining--)frames.shift()();assert.equal(frames.length,0);}
  const api=root.SVDataReadiness;if(['informes','equipos','soporte'].includes(pageName)&&!holdEmployees)api.beginSource('empleados').ready();document.dispatchEvent({type:'sisventas:session-ready'});flush();
- return {api,root,page,c,calls,messages,flush,end(){document.dispatchEvent({type:'sisventas:session-ended'});flush();},
+ return {api,root,page,c,body,document,calls,messages,flush,end(){document.dispatchEvent({type:'sisventas:session-ended'});flush();},
   timeout(){now=16000;for(const [key,fn]of [...timers]){timers.delete(key);fn();}flush();},
-  box:()=>page.querySelector(),retry:()=>page.querySelector().children.find(child=>child.tagName==='button')};
+  box:()=>document.querySelector('[data-sv-data-status]'),retry:()=>document.querySelector('[data-sv-data-status]')?.querySelector('button')};
 }
 
 test('el botón real de reintento sólo reinicia la pantalla a demanda y conserva el borrador',async()=>{
@@ -232,4 +238,55 @@ test('Soporte espera Reclamos, no se libera con Tickets y recupera la escucha re
  const snapshot={val:()=>({r:{descripcion:'Reclamo ficticio',estado:'nuevo'}})};
  listeners[0].callback(snapshot);listeners[0].loading.ready();e.flush();assert.equal(renders,0);assert.equal(e.page.classList.contains('sv-data-pending'),true);
  listeners[1].callback(snapshot);listeners[1].loading.ready();e.flush();assert.equal(renders,1);assert.equal(e.c.SP_DATA.r.descripcion,'Reclamo ficticio');assert.equal(e.box(),null);
+});
+
+test('el estado pendiente vive una sola vez en body y no altera scroll, foco ni bloqueo del documento',()=>{
+ const e=renderedEnvironment(),navigation=e.document.createElement('button');e.body.prepend(navigation);navigation.focus();
+ e.body.style.overflow='auto';e.page.style.transform='translateY(4px)';e.page.scrollTop=420;
+ const box=e.box(),layer=e.document.getElementById('sv-data-status-layer');
+ assert.equal(layer.parentNode,e.body);assert.equal(box.parentNode,layer);assert.equal(e.page.querySelector('[data-sv-data-status]'),null);
+ assert.equal(e.document.querySelectorAll('[data-sv-data-status]').length,1);assert.equal(e.document.querySelectorAll('[role="status"]').length,1);
+ e.api.render();e.flush();assert.equal(e.box(),box);assert.equal(e.document.activeElement,navigation);
+ assert.equal(e.body.style.overflow,'auto');assert.equal(e.page.scrollTop,420);assert.equal(e.page.style.transform,'translateY(4px)');
+});
+
+test('navegar retira el estado anterior inmediatamente y las respuestas tardías no lo duplican ni lo reabren',()=>{
+ const e=renderedEnvironment(),previous=e.retry(),late=e.api.beginSource('informes');
+ const other=e.document.createElement('main');other.id='page-productos';other.className='page';e.body.append(other);
+ e.api.beginSource('productos').error();e.flush();assert.equal(e.box().dataset.svDataPage,'informes');
+ e.page.classList.remove('active');other.classList.add('active');e.document.dispatchEvent({type:'sisventas:page-changed'});
+ assert.equal(e.box(),null);assert.equal(e.document.getElementById('sv-data-status-layer'),null);
+ e.root.svCargarDatosDePaginaActual=()=>assert.fail('El botón de la página anterior no inicia cargas');previous.onclick();e.flush();
+ assert.equal(e.box().dataset.svDataPage,'productos');assert.equal(e.document.querySelectorAll('[role="status"]').length,1);
+ late.ready();e.flush();assert.equal(e.box().dataset.svDataPage,'productos');assert.equal(e.document.querySelectorAll('[data-sv-data-status]').length,1);
+});
+
+test('un error con datos recibidos mueve la tarjeta real al módulo y deja disponibles sus datos',()=>{
+ const e=renderedEnvironment(),box=e.box(),button=e.retry();button.focus();
+ e.api.beginSource('clientes').ready();const source=e.api.beginSource('informes');source.ready();source.error();e.flush();
+ assert.equal(e.box(),box);assert.equal(box.parentNode,e.page);assert.equal(e.document.getElementById('sv-data-status-layer'),null);
+ assert.equal(e.page.classList.contains('sv-data-pending'),false);assert.equal(box.classList.contains('sv-data-error'),true);
+ assert.equal(e.retry(),button);assert.equal(e.document.activeElement,button);assert.equal(e.document.querySelectorAll('[role="status"]').length,1);
+ source.ready();e.flush();assert.equal(e.box(),null);assert.equal(e.document.querySelectorAll('[role="status"]').length,0);
+});
+
+test('el reintento enfocado sobrevive a renderizados del mismo estado sin recrear su tarjeta ni botón',()=>{
+ const e=renderedEnvironment();e.api.beginSource('informes').error();e.flush();const box=e.box(),button=e.retry();button.focus();
+ for(let index=0;index<3;index++){e.api.render();e.flush();}
+ assert.equal(e.box(),box);assert.equal(e.retry(),button);assert.equal(e.document.activeElement,button);
+ assert.equal(e.document.querySelectorAll('[role="status"]').length,1);
+});
+
+test('cerrar la sesión elimina el portal antes del siguiente frame y la callback pendiente no lo restaura',()=>{
+ const e=renderedEnvironment(),source=e.api.beginSource('informes'),old=e.retry();
+ e.document.dispatchEvent({type:'sisventas:session-ended'});assert.equal(e.box(),null);assert.equal(e.document.getElementById('sv-data-status-layer'),null);
+ e.root.svCargarDatosDePaginaActual=()=>assert.fail('El botón de sesión cerrada no puede reintentar');old.onclick();source.ready();e.flush();
+ assert.equal(e.box(),null);assert.equal(e.page.classList.contains('sv-data-pending'),false);
+});
+
+test('revocar acceso o terminar la carga retira la capa sin borrar un portal de otra operación',()=>{
+ const e=renderedEnvironment(),maintenance=e.document.createElement('div');maintenance.id='maintenance-layer';maintenance.className='sv-load-status-layer';e.body.append(maintenance);
+ e.root.permisoModulo=()=>false;e.document.dispatchEvent({type:'sisventas:role-changed'});assert.equal(e.box(),null);e.flush();
+ assert.equal(e.document.getElementById('sv-data-status-layer'),null);assert.equal(maintenance.parentNode,e.body);
+ assert.equal(e.page.classList.contains('sv-data-pending'),false);
 });

@@ -1,5 +1,13 @@
 # Coherencia, sincronización y costo
 
+## Revisión13.1 · local, sin publicar
+
+La publicación13.0 ya se completó y verificó; sus secciones anteriores de preparación conservan el registro histórico. El candidato13.1 centra cargas de pantalla y limpia sus presentadores por finalización/navegación/sesión/rol, incluyendo los espacios separados. Pruebas de promesas retenidas, errores, reintentos y cierre descartan respuestas anteriores y liberan nodos/observador sin consultas nuevas. Sólo DOM: no se modificaron operaciones financieras para probar.
+
+Proyectos: medición manual2.225ms de apertura completa, respuestas de servidor1,25–1,82s y3.318bytes. La cantidad visible no determina la cadena de Auth/acceso/rol/permisos ni las dependencias comerciales. No hay un temporizador que consulte Proyectos en reposo. Preparado paralelismo de permisos/nombre, manteniendo controles frescos en cada solicitud; ahorro real aún no medido ni desplegado. No confundir paralelismo con reducción de cantidad de consultas. Pendientes: límite del token antes del fetch y resolución de vínculos sin historiales amplios, conservando permisos/ownership.
+
+2.254 pruebas de la puerta actual y94 de Cotizador aprobadas;45 dirigidas de Proyectos/acceso/ownership. UI común comprobada en390/820/1280px con datos ficticios; no equivale a todas las operaciones ni a pruebas físicas. Detalles, limitaciones, estado externo y siguiente paso en CONTEXTO_ACTUAL. La medición de costo es manual y agregada; no existe garantía mensual≤30 ni auditoría de ausencia total de fallas.
+
 ## Continuación13.0 · sólo local
 
 Reproducción20:600.000ms de uso se reducían a60.000ms y respuesta de ficha anterior podía reemplazar la última solicitud. Candidato13.0 conserva acumulación local sin sondeos de red y ordena persistencia; descarta fichas tardías tras solicitud/apertura/cierre/navegación/sesión/rol/revisión.2.123 pruebas aprobadas con16 nuevas funcionales. Nueve editores completos en escritorio/tablet/celular ficticios sin desbordes ni errores. No publicado. Permanecen presencia90s, arranque amplio, transacciones laborales amplias y medición de costos reales.

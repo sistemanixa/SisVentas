@@ -165,15 +165,20 @@
  }
  async function confirm(message){return window.svConfirm?window.svConfirm(message):window.confirm(message);}
  function report(e){window.notify?.(e.message||'No se pudo completar la acción');}
+ let loadingClose=null;
+ function stopLoading(){state.epoch++;state.loading=false;loadingClose?.();loadingClose=null;}
  async function load(){
-  if(state.loading)return;const epoch=++state.epoch;state.loading=true;
+  if(state.loading)return;const page=host();if(!page)return;const epoch=++state.epoch,uid=window.currentUserUid,user=window.fbAuth?.currentUser,role=window.currentRole;state.loading=true;
+  if(!window.SVScreenLoading?.start)shell('<p role="status">Cargando proyectos…</p>');
+  const close=window.SVScreenLoading?.start(page,'Cargando proyectos…')||(()=>{});loadingClose=close;
+  const valid=()=>epoch===state.epoch&&host()===page&&page.isConnected!==false&&page.classList.contains('active')&&uid===window.currentUserUid&&user===window.fbAuth?.currentUser&&role===window.currentRole&&window.permisoModulo?.('proyectos');
   try{
    if(window._impersonacionOriginal)throw Error('Proyectos requiere una sesión propia para comprobar integrantes y permisos.');
    let data;if(preview())data={canCreate:true,projects:demoData().map(p=>M.project(p,demoActor(),sampleQuotes))};else data=await request('');
-   if(epoch!==state.epoch)return;state.projects=data.projects;state.canCreate=data.canCreate;state.options=null;state.selected?details():overview();
-  }catch(e){if(epoch===state.epoch)shell(empty('No se pudo abrir Proyectos',e.message,button('Reintentar','refresh')));}finally{if(epoch===state.epoch)state.loading=false;}
+   if(!valid())return;state.projects=data.projects;state.canCreate=data.canCreate;state.options=null;state.selected?details():overview();
+  }catch(e){if(valid())shell(empty('No se pudo abrir Proyectos',e.message,button('Reintentar','refresh')));}finally{close();if(loadingClose===close)loadingClose=null;if(epoch===state.epoch)state.loading=false;}
  }
- async function open(){if(!host()||!window.permisoModulo?.('proyectos'))return;shell('<div class="px-empty">'+icon('loader')+'<strong>Cargando proyectos…</strong></div>');await load();}
+ async function open(){if(!host()||!window.permisoModulo?.('proyectos'))return;if(!state.loading)shell('');await load();}
  document.addEventListener('input',e=>{if(e.target.matches('#page-proyectos [data-px-search]')){state.search=e.target.value;cards();}});
  document.addEventListener('click',async e=>{
   const b=e.target.closest('#page-proyectos [data-px]');if(!b)return;const action=b.dataset.px,id=b.dataset.id;
@@ -189,8 +194,9 @@
   const tabs=[...host().querySelectorAll('[role=tab]')],at=tabs.indexOf(tab),next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(at+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
   e.preventDefault();selectTab(tabs[next].dataset.id);tabs[next].focus();
  });
- document.addEventListener('sisventas:page-changed',e=>{if(e.detail.page==='proyectos')open();else closeDialog();});
- document.addEventListener('sisventas:session-ended',()=>{state.epoch++;state.loading=false;state.projects=[];state.selected='';state.options=null;pendingBudget=null;closeDialog();if(host())host().innerHTML='';});
+ document.addEventListener('sisventas:page-changed',e=>{if(e.detail.page==='proyectos')open();else{stopLoading();closeDialog();}});
+ document.addEventListener('sisventas:role-changed',stopLoading);
+ document.addEventListener('sisventas:session-ended',()=>{stopLoading();state.projects=[];state.selected='';state.options=null;pendingBudget=null;closeDialog();if(host())host().innerHTML='';});
  document.addEventListener('sisventas:budget-saved',async e=>{
   const pending=pendingBudget;if(!pending||pending.uid!==window.currentUserUid||preview()||e.detail.context!==pending.nonce)return;pendingBudget=null;
   try{const result=await request('/guardar',{type:'budget-link',projectId:pending.projectId,revision:state.projects.find(p=>p.id===pending.projectId)?.revision,data:{sourceId:e.detail.key,briefId:pending.briefId}});

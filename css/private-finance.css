@@ -46,4 +46,8 @@ dialog [data-retry][hidden]{display:none}
 
 .new-category-fields:not([hidden]){display:grid;gap:8px;margin-top:16px}.new-category-fields small{color:var(--muted)}
 
+/* El iframe ocupa su propio viewport; el primer estado no depende del workspace. */
+.private-bootstrap-layer{position:fixed;inset:0;z-index:15;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);place-items:center;box-sizing:border-box;padding:16px;pointer-events:none}
+.private-bootstrap-status{width:min(480px,100%);min-width:0;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);margin:0;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;overflow:auto;overflow-wrap:anywhere;overscroll-behavior:contain}
+
 .sidefoot{padding:12px 10px;border-top:.5px solid var(--line)}.sidefoot .profile{min-width:0;display:flex;align-items:center;gap:9px;padding:8px 10px}.personal-user-copy{min-width:0;flex:1}.personal-user-copy strong{display:block;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;line-height:1.35}.personal-user-copy small{font-size:11px;color:var(--dim);line-height:1.35}.sidefoot .avatar{width:30px;height:30px;flex:0 0 30px;border:0;border-radius:50%;background:#1c2d44;color:var(--blue);font-size:11px;font-weight:600}.sidefoot>.btn[data-action="return"]{width:100%;justify-content:center;margin-top:8px;min-height:0;padding:4px 9px;border:.5px solid var(--line);border-radius:8px;font-size:12px;line-height:1.35;background:transparent;color:var(--muted);white-space:nowrap}@media(pointer:coarse){.sidefoot>.btn[data-action="return"]{min-height:44px}}
