@@ -19,3 +19,6 @@ test('reintentar una suscripción cancelada no arrastra el error de la fuente an
  assert.deepEqual(Array.from(f.c.window.SVDataReadiness.status(['empleados']).errors),[]);
  f.callbacks[0][1]({});assert.equal(delivered,1);assert.equal(f.stops,1);
 });
+
+test('lecturas onlyOnce liberan el registro y no vuelven a rellenar formularios',async()=>{const f=fixture();let calls=0;for(let i=0;i<20;i++){f.c.window.fbOnValue({},()=>calls++,{onlyOnce:true});f.callbacks[i][1]({});await Promise.resolve();f.callbacks[i][1]({});}assert.equal(calls,20);assert.equal(f.stops,20);assert.ok(f.loads.every(x=>x.ready===1&&x.cancel===1));f.c.window.fbStopAllValueListeners();assert.equal(f.stops,20);});
+test('una lectura única asíncrona conserva el indicador hasta completar y se libera al fallar',async()=>{const f=fixture();let reject;f.c.window.fbOnValue({},()=>new Promise((_,r)=>reject=r),{onlyOnce:true});f.callbacks[0][1]({});assert.equal(f.stops,0);reject(Error('Preparación ficticia fallida'));await new Promise(setImmediate);assert.equal(f.loads[0].error,1);assert.equal(f.loads[0].cancel,1);assert.equal(f.stops,1);});

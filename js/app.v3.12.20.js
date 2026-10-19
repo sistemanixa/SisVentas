@@ -2051,7 +2051,9 @@ function svFechaLocalISO(fecha) {
   if (isNaN(d.getTime())) d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
-function svMesLocalISO(fecha) { return svFechaLocalISO(fecha).slice(0, 7); }
+function svMesLocalISO(fecha) {
+  return svFechaLocalISO(fecha).slice(0, 7);
+}
 window.svFechaLocalISO = svFechaLocalISO;
 window.svMesLocalISO = svMesLocalISO;
 window.$p = function(s) {
@@ -4315,7 +4317,7 @@ function _normalizarAdelantoLegacyAlAplicar(actualizaciones, empKey, empNombre, 
   if (!_adelantoEsEntregaLegacy(mov)) return;
   var monto = Math.max(0, parseFloat(mov.monto) || 0);
   if (!monto) return;
-  var fecha = _pagableNormFecha(mov.fecha) || (typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toISOString().slice(0, 10));
+  var fecha = _pagableNormFecha(mov.fecha) || (svFechaLocalISO());
   var gastoKey = 'adelanto_' + String(empKey).replace(/[^a-zA-Z0-9_-]/g, '_') + '_' + String(movKey).replace(/[^a-zA-Z0-9_-]/g, '_');
   var pagoKey = 'pago_legacy_' + String(movKey).replace(/[^a-zA-Z0-9_-]/g, '_');
   var pago = { fecha:fecha, monto:monto, medio:'Sin especificar', concepto:'adelanto', usuario:mov.usuario || 'Registro histórico', rol:'admin', ts:parseFloat(mov.ts) || Date.now(), origen:'compatibilidad_legacy' };
@@ -4548,7 +4550,7 @@ function abrirModalHsExtra() {
 }
 
 function _hsexMesActual() {
-  return new Date().toISOString().slice(0,7);
+  return svMesLocalISO();
 }
 
 function _hsexDiasMes(mesISO) {
@@ -5160,7 +5162,7 @@ async function abrirModalAguinaldo() {
           _opcionesSemestre(actual) +
         '</select>' +
         '<label style="font-size:13px;color:var(--text2);white-space:nowrap">Fecha del gasto:</label>' +
-        '<input type="date" id="agu-fecha" value="' + new Date().toISOString().slice(0,10) + '" style="padding:6px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">' +
+        '<input type="date" id="agu-fecha" value="' + svFechaLocalISO() + '" style="padding:6px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">' +
         '<div style="display:flex;align-items:center;gap:8px;margin-left:auto">' +
           '<label style="font-size:13px;color:var(--text2);white-space:nowrap">Máximo por empleado:</label>' +
           '<input type="text" id="agu-maximo" placeholder="Sin límite" oninput="recalcularAguinaldo()" ' +
@@ -5373,7 +5375,7 @@ async function _svCargaOperacion_confirmarRegistroAguinaldo() {
   var semKey = anio + '_S' + sem;
   var semLbl = (sem===1 ? '1er semestre' : '2do semestre') + ' ' + anio;
   var fechaInput = document.getElementById('agu-fecha');
-  var fechaGasto = (fechaInput && fechaInput.value) ? fechaInput.value : new Date().toISOString().slice(0,10);
+  var fechaGasto = (fechaInput && fechaInput.value) ? fechaInput.value : svFechaLocalISO();
 
   var empleados = Object.values(empData||{}).filter(function(e){ return e.activo !== false; });
 
@@ -5471,10 +5473,10 @@ function renderTablaEmpleados() {
     var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
     var cargoSoloComision = !!(cargoInfo && (cargoInfo.soloComision === true || cargoInfo.modalidadRemuneracion === 'solo_comision'));
     var mensual = cargoInfo ? (parseFloat(cargoInfo.valorHora)||0)*8*(parseFloat(cargoInfo.diasMes)||0) : 0;
-    var comCalc = (typeof calcularComisionEmpleado === 'function') ? calcularComisionEmpleado(e, new Date().toISOString().slice(0,7)) : null;
+    var comCalc = (typeof calcularComisionEmpleado === 'function') ? calcularComisionEmpleado(e, svMesLocalISO()) : null;
     var comision = comCalc ? (comCalc.comision||0) : 0;
     return '<tr class="er" style="cursor:pointer;touch-action:pan-x pan-y;'+(e.activo===false?'background:rgba(239,68,68,.07);':'')+'" title="'+escapeHTML(e.activo===false?detalleBaja:'Abrir legajo')+'" onclick="abrirLegajoEmpleado(\''+e.fbKey+'\')">' +
-      '<td style="font-family:monospace;font-weight:600;color:var(--text3)">'+String(e.legajo||'—').padStart(4,'0')+'</td>' +
+      '<td style="font-family:monospace;font-weight:600;color:var(--text3)">'+(e.legajo?escapeHTML(String(e.legajo).padStart(4,'0')):'—')+'</td>' +
       '<td style="font-weight:600;'+(e.activo===false?'color:var(--red)':'')+'">'+escapeHTML(e.nombre||'—')+(e.activo===false?'<div style="font-size:11px;color:var(--red);font-weight:500;margin-top:3px">'+escapeHTML(resumenBaja)+'</div>':'')+'</td>' +
       '<td><span class="badge '+catColor+'">'+escapeHTML(catLabel)+'</span></td>' +
       '<td style="text-align:right">'+(cargoInfo?(cargoSoloComision?'<span class="badge b-green">Solo comisión</span>':'$'+Math.round(mensual).toLocaleString('es-AR')):'—')+'</td>' +
@@ -6204,7 +6206,6 @@ function fbCargarProductos() {
     }
     if (typeof cargarOpcionesProductoVisitaTecnica === 'function') cargarOpcionesProductoVisitaTecnica(window._productoVisitaTecnicaFbKey || '');
     if (_svEsPaginaActiva('actualizadorprecios') && typeof renderModuloActualizadorPrecios === 'function') renderModuloActualizadorPrecios();
-    if (typeof limpiarProveedoresManoDeObraExistentes === 'function') limpiarProveedoresManoDeObraExistentes();
     if (typeof refrescarImagenesDetallePresupuesto === 'function') refrescarImagenesDetallePresupuesto();
     // Si el detalle sigue abierto, refrescarlo con la fuente canónica.
     var prodDetEl = document.getElementById('prod-detail-view');
@@ -10677,10 +10678,15 @@ function notify(msg, duracionMs) {
   var n = document.getElementById('notif');
   if (!n) return;
   var icono = document.createElement('i');
-  icono.className = 'ti ti-check';
+  var texto = String(msg || '');
+  var fallo = /^(?:[⚠❌]\s*)?(?:error\b|no se pud(?:o|ieron)\b|no ten[eé]s permiso\b|acceso restringido\b)/i.test(texto);
+  var exito = !fallo && !/^(?:no|sin)\b/i.test(texto) && /(?:^[✓✔]|\b(?:guardad[oa]s?|actualizad[oa]s?|registrad[oa]s?|eliminad[oa]s?|cread[oa]s?|completad[oa]s?|copiad[oa]s?)\b)/i.test(texto);
+  icono.className = fallo ? 'ti ti-alert-circle' : exito ? 'ti ti-check' : 'ti ti-info-circle';
+  n.setAttribute('role', fallo ? 'alert' : 'status');
+  n.setAttribute('aria-live', fallo ? 'assertive' : 'polite');
   icono.style.fontSize = '15px';
   icono.setAttribute('aria-hidden', 'true');
-  n.replaceChildren(icono, document.createTextNode(' ' + String(msg || '')));
+  n.replaceChildren(icono, document.createTextNode(' ' + texto));
   n.classList.add('show');
   clearTimeout(notifT);
   // Los avisos de la esquina inferior derecha suelen incluir importes,
@@ -16299,7 +16305,7 @@ function completarReferenciaProveedorProducto(pv, urlFallback, origen) {
     pv.precioUsdReferencia = precioUsdLegacy || Math.round((pv.precio / tc.valor) * 100) / 100;
     pv.costoRealUsdReferencia = Math.round((pv.costoRealArs / tc.valor) * 100) / 100;
   }
-  pv.actualizado = pv.actualizado || new Date().toISOString().slice(0,10);
+  pv.actualizado = pv.actualizado || svFechaLocalISO();
   pv.actualizadoEn = pv.actualizadoEn || Date.now();
   pv.actualizadoOrigen = esLegacyUsd ? 'legacy-usd-convertido-ars' : (origen || pv.actualizadoOrigen || 'manual');
   return pv;
@@ -17759,37 +17765,6 @@ function obtenerMarcasProductosSistema() {
   }).filter(Boolean))].sort(function(a, b) {
     return a.localeCompare(b, 'es', { sensitivity:'base' });
   });
-}
-
-var _limpiezaProveedoresManoObraEnCurso = false;
-function limpiarProveedoresManoDeObraExistentes() {
-  if (_limpiezaProveedoresManoObraEnCurso || !window.fbDB || !window.tienePermiso('productos.limpiarManoObra')) return;
-  var updates = {};
-  var cantidad = 0;
-  Object.values(prodData || {}).forEach(function(p) {
-    if (!p || !p.fbKey || !esProductoManoDeObra(p)) return;
-    var tieneProveedor = !!String(p.proveedor || p.nom_prov || '').trim()
-      || (Array.isArray(p.proveedores) && p.proveedores.length > 0)
-      || !!String(p.proveedorUrl || p.urlProveedor || p.codWeb || '').trim();
-    if (!tieneProveedor) return;
-    var base = FB_PATHS.productos + '/' + p.fbKey + '/';
-    updates[base + 'proveedores'] = null;
-    updates[base + 'proveedor'] = null;
-    updates[base + 'nom_prov'] = null;
-    updates[base + 'proveedorUrl'] = null;
-    updates[base + 'proveedorActualizado'] = null;
-    updates[base + 'urlProveedor'] = null;
-    updates[base + 'codWeb'] = null;
-    updates[base + 'proveedorKey'] = null;
-    updates[base + 'proveedorFbKey'] = null;
-    cantidad++;
-  });
-  if (!cantidad) return;
-  _limpiezaProveedoresManoObraEnCurso = true;
-  window.fbUpdate(window.fbRef(window.fbDB), updates)
-    .then(function(){ notify('Se quitaron proveedores de ' + cantidad + ' ítems de mano de obra'); })
-    .catch(function(e){ console.warn('[Productos] No se pudieron limpiar proveedores de mano de obra:', e); })
-    .finally(function(){ _limpiezaProveedoresManoObraEnCurso = false; });
 }
 
 function timestampPrecioProducto(p) {
@@ -21644,7 +21619,7 @@ function abrirAltaProveedorDesdeProducto(idx) {
 
 function agregarFilaProveedor() {
   if (!window.tienePermiso('productos.agregarProveedor')) { notify('Tu rol no permite agregar proveedores'); return; }
-  prodProveedoresActuales.push(completarReferenciaProveedorProducto({ nombre:'', proveedorKey:'', precio:0, actualizado: new Date().toISOString().split('T')[0], actualizadoOrigen:'manual' }, '', 'manual'));
+  prodProveedoresActuales.push(completarReferenciaProveedorProducto({ nombre:'', proveedorKey:'', precio:0, actualizado: svFechaLocalISO(), actualizadoOrigen:'manual' }, '', 'manual'));
   renderTablaProveedoresProducto();
 }
 
@@ -21702,7 +21677,7 @@ function actualizarProveedorProducto(idx, campo, valor) {
   }
   prodProveedoresActuales[idx][campo] = campo === 'precio' ? (parseFloat(valor)||0) : valor;
   if (campo === 'precio') {
-    prodProveedoresActuales[idx].actualizado = new Date().toISOString().split('T')[0];
+    prodProveedoresActuales[idx].actualizado = svFechaLocalISO();
     prodProveedoresActuales[idx].actualizadoEn = Date.now();
     prodProveedoresActuales[idx].actualizadoOrigen = 'manual';
   }
@@ -21893,7 +21868,7 @@ async function confirmarIdentidadProveedorConPrecioCargado(idx, url) {
     identidadConfirmadaUrl:String(url || actual.url || '').trim(),
     identidadConfirmadaEn:Date.now(),
     identidadConfirmadaPor:currentUser || currentUserEmail || 'Usuario',
-    actualizado:actual.actualizado || new Date().toISOString().slice(0,10),
+    actualizado:actual.actualizado || svFechaLocalISO(),
     actualizadoEn:actual.actualizadoEn || Date.now(),
     actualizadoOrigen:actual.actualizadoOrigen || 'precio-manual-identidad-confirmada'
   }), '', actual.actualizadoOrigen || 'precio-manual-identidad-confirmada');
@@ -21932,7 +21907,7 @@ async function aprobarVariacionPrecioProveedor(idx, precioCandidato, precioAnter
   prodProveedoresActuales[idx] = completarReferenciaProveedorProducto(Object.assign({}, prodProveedoresActuales[idx], {
     precio: precioCandidato,
     precioArsPublicado: precioCandidato,
-    actualizado: new Date().toISOString().slice(0,10),
+    actualizado: svFechaLocalISO(),
     actualizadoEn: ahora,
     actualizadoOrigen: 'variacion-aprobada-manualmente',
     variacionAprobada: true,
@@ -22054,7 +22029,7 @@ function procesarResultadoCotizacionProveedores(res, provCotizables, box, contex
       prodProveedoresActuales[match.idx] = completarReferenciaProveedorProducto(Object.assign({}, prodProveedoresActuales[match.idx], {
         precio: precio,
         url: urlRes || prodProveedoresActuales[match.idx].url || match.url,
-        actualizado: new Date().toISOString().slice(0,10),
+        actualizado: svFechaLocalISO(),
         actualizadoEn: Date.now(),
         actualizadoOrigen: r.fuente || r.origen || 'scraping-url-exacta',
         precioPublicadoOriginalArs: Number(r.precioPublicadoArs || r.precioArs || r.precio || 0),
@@ -23103,7 +23078,7 @@ async function guardarProducto() {
     datos.compraARS  = datos.compra;
     datos.tcGuardado = tc;
     datos.tcTipoGuardado = dolarRef.tipo;
-    datos.tcFecha    = new Date().toISOString().slice(0,10);
+    datos.tcFecha    = svFechaLocalISO();
   }
 
   try {
@@ -27120,7 +27095,7 @@ async function anularPago(fbKey) {
   var cambiosAnulacion = {
     anulado: true,
     estado: 'anulado',
-    anuladoFecha: new Date().toISOString().slice(0,10),
+    anuladoFecha: svFechaLocalISO(),
     anuladoPor: currentUser || 'Admin',
     anuladoMotivo: motivo
   };
@@ -27860,7 +27835,7 @@ function abrirPagoCuentaCorriente() {
   if (!ventas.length) { notify('Este cliente no tiene ventas con saldo pendiente'); return; }
   cerrarPagoCuentaCorriente();
   var saldo = ventas.reduce(function(total,v){ return total + _svSaldoPendienteVenta(v); }, 0);
-  var hoy = new Date().toISOString().slice(0,10);
+  var hoy = svFechaLocalISO();
   var medios = (MEDIOS_PAGO_CONFIG || []).map(function(m){ var n=String(m.nombre||''); return '<option value="'+escapeHTML(n)+'">'+escapeHTML(formatoMedioPago(n))+'</option>'; }).join('');
   var modal = document.createElement('div');
   modal.id = 'modal-pago-cuenta';
@@ -27988,9 +27963,10 @@ window._svModuleListeners = window._svModuleListeners || {};
 
 function _suscribirModuloUnaVez(clave, ruta, callback, onError) {
   if (!window.fbDB || !clave || !ruta) return false;
-  if (typeof window._svModuleListeners[clave] === 'function') return false;
+  window._svModuleListeners=window._svModuleListeners||{};
+  if (typeof window._svModuleListeners[clave] === 'function') return window._svModuleListeners[clave];
   var closed=false,off;
-  var stop=function(){if(closed)return;closed=true;if(typeof off==='function')off();};
+  var stop=function(){if(closed)return;closed=true;try{if(typeof off==='function')off();}finally{if(window._svModuleListeners[clave]===stop)delete window._svModuleListeners[clave];}};
   window._svModuleListeners[clave]=stop;
   try {
     off=window.fbOnValue(window.fbRef(window.fbDB,ruta),function(snap){if(!closed)return callback(snap);},function(error){
@@ -28003,7 +27979,7 @@ function _suscribirModuloUnaVez(clave, ruta, callback, onError) {
     stop();if(window._svModuleListeners[clave]===stop)window._svModuleListeners[clave]=null;throw error;
   }
   if(closed&&typeof off==='function')off();
-  return !closed;
+  return closed?false:stop;
 }
 
 function fbCargarServicios() {
@@ -28052,8 +28028,7 @@ function fbCargarCaja() {
   var esAdmin = ventasPuedeVerTodas();
   var usuarioKey = (currentUser||'sinusuario').replace(/[.\#\$\[\]\/]/g,'_');
   var firmaCaja = hoy + '|' + (esAdmin ? 'consolidada' : usuarioKey);
-  if (window._cajaListenerFirma === firmaCaja && Array.isArray(window._cajaListenerStops) && window._cajaListenerStops.length) return;
-  (window._cajaListenerStops || []).forEach(function(stop){ try { if (typeof stop === 'function') stop(); } catch (e) {} });
+  if(window._cajaListenerFirma!==firmaCaja)(window._cajaListenerStops || []).forEach(function(stop){ try { if (typeof stop === 'function') stop(); } catch (e) {} });
   window._cajaListenerStops = [];
   window._cajaListenerFirma = firmaCaja;
   var scopeEl = document.getElementById('caja-scope-label');
@@ -28065,7 +28040,7 @@ function fbCargarCaja() {
 
   if (esAdmin) {
     // Admin/administrativo ve la caja consolidada de todos los usuarios del día
-    window._cajaListenerStops.push(window.fbOnValue(window.fbRef(window.fbDB,'sisventas/caja/'+hoy),function(snap){
+    window._cajaListenerStops.push(_suscribirModuloUnaVez('cajaConsolidada','sisventas/caja/'+hoy,function(snap){
       var data = snap.val()||{};
       var apertura=0, ingresos=0, egresos=0;
       var todosLosMovs = [];
@@ -28085,11 +28060,11 @@ function fbCargarCaja() {
     }));
   } else {
     // Vendedor/técnico ve solo su propia caja del día
-    window._cajaListenerStops.push(window.fbOnValue(window.fbRef(window.fbDB,'sisventas/caja/'+hoy+'/'+usuarioKey),function(snap){
+    window._cajaListenerStops.push(_suscribirModuloUnaVez('cajaPersonal','sisventas/caja/'+hoy+'/'+usuarioKey,function(snap){
       var d = snap.val()||{};
       _renderCajaUI(parseFloat(d.apertura)||0, parseFloat(d.ingresos)||0, parseFloat(d.egresos)||0);
     }));
-    window._cajaListenerStops.push(window.fbOnValue(window.fbRef(window.fbDB,'sisventas/caja/'+hoy+'/'+usuarioKey+'_movs'),function(snap){
+    window._cajaListenerStops.push(_suscribirModuloUnaVez('cajaMovimientos','sisventas/caja/'+hoy+'/'+usuarioKey+'_movs',function(snap){
       var data = snap.val();
       var lista = data ? Object.values(data) : [];
       _renderMovimientosCaja(lista);
@@ -29198,7 +29173,7 @@ function guardarNuevoGenerico() {
       tipoEmpleado:    obj.tipo || 'Empleado',
       activo:    (obj.activo || 'Activo') !== 'Inactivo'
     };
-    if (!fbKeyEmp) datosEmp.historial = [{ tipo:'alta', motivo:'Ingreso', fecha: new Date().toISOString().split('T')[0], usuario: currentUser||'' }];
+    if (!fbKeyEmp) datosEmp.historial = [{ tipo:'alta', motivo:'Ingreso', fecha: svFechaLocalISO(), usuario: currentUser||'' }];
     if (!datosEmp.nombre.trim()) { notify('Ingresá nombre y apellido'); return; }
     if (window.fbDB) {
       if (fbKeyEmp) {
@@ -29225,7 +29200,7 @@ function guardarNuevoGenerico() {
   } else if (tipo === 'gasto') {
     var fbKey = window._modalFbKey;
     var datos = {
-      fecha:       obj.f || new Date().toISOString().split('T')[0],
+      fecha:       obj.f || svFechaLocalISO(),
       tipo:        obj.tipo || 'Variable',
       descripcion: obj.desc || '',
       categoria:   obj.cat || '',
@@ -29411,11 +29386,11 @@ function guardarNuevoGenerico() {
     guardarGarantia({ equipo:obj.eq, equipoCodigo:(equipoGarantia.selectedOptions[0] && equipoGarantia.selectedOptions[0].dataset.codigo) || '', productoFbKey:(equipoGarantia.selectedOptions[0] && equipoGarantia.selectedOptions[0].dataset.productoKey) || '', serie:obj.serie, cliente:obj.cli, clienteFbKey:clienteGarantia.dataset.clienteKey, fechaInst:obj.inst, meses:obj.meses, fechaVenc:venc.toISOString().split('T')[0], venta:obj.venta, ventaFbKey:(ventaGarantia.selectedOptions[0] && ventaGarantia.selectedOptions[0].dataset.fbKey) || '' });
 
   } else if (tipo === 'remito') {
-    return guardarRemitoDesdeModal({ numero:obj.num, cliente:obj.cli, fecha:obj.fecha||new Date().toISOString().split('T')[0], venta:obj.venta, descripcion:obj.desc, estado:'pendiente' });
+    return guardarRemitoDesdeModal({ numero:obj.num, cliente:obj.cli, fecha:obj.fecha||svFechaLocalISO(), venta:obj.venta, descripcion:obj.desc, estado:'pendiente' });
 
   } else if (tipo === 'servicio') {
     var numSv = obj.num || ('SV-' + String((window._servData||[]).length + 1).padStart(4,'0'));
-    guardarServicio({ numero:numSv, cliente:obj.cli, descripcion:obj.desc, tecnico:obj.tec||'Sin asignar', fecha:obj.fecha||new Date().toISOString().split('T')[0], garantia:obj.garantia||'—', estado:obj.estado||'En curso' });
+    guardarServicio({ numero:numSv, cliente:obj.cli, descripcion:obj.desc, tecnico:obj.tec||'Sin asignar', fecha:obj.fecha||svFechaLocalISO(), garantia:obj.garantia||'—', estado:obj.estado||'En curso' });
 
   } else if (tipo === 'evento') {
     guardarEvento({ fecha:obj.f, hora:obj.h, descripcion:obj.desc, cliente:obj.cli, empleado:obj.emp, tipo:obj.tipo, estado:'pendiente' });
@@ -30499,7 +30474,7 @@ function renderOrdenesFiltradas() {
 
 function renderDashOrdenes() {
   if (window.SisVentasCompras && typeof window.SisVentasCompras.renderAll === 'function') return window.SisVentasCompras.renderAll();
-  var mesActual = new Date().toISOString().slice(0,7); // YYYY-MM
+  var mesActual = svMesLocalISO(); // YYYY-MM
   var delMes = ordenesData.filter(function(o){ return (o.fecha||'').slice(0,7) === mesActual; });
   // Métricas
   var totalMes  = delMes.reduce(function(s,o){ return s+(parseFloat(o.monto)||0); }, 0);
@@ -30675,7 +30650,7 @@ function _garantiaFechaISO(fecha) {
 
 // Métricas
 function actualizarMetricasEquipos() {
-  var hoy = new Date().toISOString().split('T')[0];
+  var hoy = svFechaLocalISO();
   var conGar = equiposData.filter(function(e){
     var venc = _garantiaVencimientoEquipo(e);
     return venc && venc >= new Date();
@@ -30798,7 +30773,7 @@ function abrirNuevoEquipo() {
   eqFotosTemp = [];
   var _c = function(id){ var el=document.getElementById(id); if(el) el.value=''; };
   ['eq-f-cat','eq-f-modelo','eq-f-desc','eq-f-serie','eq-f-serie2','eq-f-cliente','eq-f-dir','eq-f-fecha','eq-f-venta','eq-f-obs'].forEach(_c);
-  document.getElementById('eq-f-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('eq-f-fecha').value = svFechaLocalISO();
   document.getElementById('eq-f-garantia').value = '12';
   document.getElementById('eq-f-estado').value = 'operativo';
   document.getElementById('eq-ficha-titulo').textContent = 'Nuevo equipo';
@@ -31131,7 +31106,7 @@ async function cerrarCaja() {
   else notify('Caja cerrada. ' + (diff > 0 ? 'Sobrante' : 'Faltante') + ': $' + Math.abs(diff).toLocaleString('es-AR'));
 
   if (window.fbDB) {
-    var hoy = new Date().toISOString().split('T')[0];
+    var hoy = svFechaLocalISO();
     var usuarioKey = (currentUser||'sinusuario').replace(/[.\#\$\[\]\/]/g,'_');
     window.fbPush(window.fbRef(window.fbDB, 'sisventas/caja/'+hoy+'/cierres'), {
       usuario: currentUser||'', usuarioKey, saldoCalculado, saldoReal: real, diferencia: diff, ts: Date.now()
@@ -31170,7 +31145,7 @@ function registrarMovCaja() {
   if (!monto) { notify('Ingresá el monto'); return; }
   if (!concepto) { notify('Ingresá el concepto'); return; }
 
-  var hoy = new Date().toISOString().split('T')[0];
+  var hoy = svFechaLocalISO();
   var usuarioKey = (currentUser||'sinusuario').replace(/[.\#\$\[\]\/]/g,'_');
   // Mismo criterio de scope que fbCargarCaja: admin/administrativo a la caja
   // consolidada bajo su propia clave de usuario (se suma con los demás al leer);
@@ -31192,7 +31167,7 @@ var gastoRapidoFotoBase64 = null;
 
 function abrirGastoRapido() {
   gastoRapidoFotoBase64 = null;
-  document.getElementById('gr-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('gr-fecha').value = svFechaLocalISO();
   _setMontoInput(document.getElementById('gr-monto'), 0);
   document.getElementById('gr-descripcion').value = '';
   document.getElementById('gr-categoria').value = 'Transporte';
@@ -32493,7 +32468,7 @@ function _crearGastoAdelantoDesdeMovimiento(empFbKey, movFbKey, mov) {
   var medio = mov.medioPago || (pagosArr[0] && pagosArr[0].medio) || '';
   if (!medio) return Promise.reject(new Error('Falta el medio de pago del adelanto'));
   var gastoKey = mov.gastoFbKey || ('adelanto_' + String(empFbKey).replace(/[^a-zA-Z0-9_-]/g,'_') + '_' + String(movFbKey).replace(/[^a-zA-Z0-9_-]/g,'_'));
-  var fecha = mov.fechaPago || mov.fecha || new Date().toISOString().slice(0,10);
+  var fecha = mov.fechaPago || mov.fecha || svFechaLocalISO();
   var nombre = mov.empleadoNombre || '';
   var detalle = String(mov.descripcion||'').trim();
   var gasto = {
@@ -32554,7 +32529,7 @@ function _crearGastoEmpresaDesdeMovimiento(empFbKey, movFbKey, mov) {
   var requiereAprobacion = estadoMov === 'pendiente';
   var categoriaPorTipo = { transporte:'Movilidad', materiales:'Materiales', gasto_empresa:'Gasto empresa', otro:'Otro' };
   var gasto = {
-    fecha: mov.fecha || new Date().toISOString().slice(0,10),
+    fecha: mov.fecha || svFechaLocalISO(),
     tipo: 'Variable',
     tipoPagable: 'gasto_empresa',
     categoria: categoriaPorTipo[mov.tipo] || 'Otro',
@@ -32672,7 +32647,7 @@ function guardarMovEmp() {
 }
 
 function _comisionNormFecha(f) {
-  return (f && /^\d{4}-\d{2}-\d{2}$/.test(String(f))) ? String(f) : new Date().toISOString().slice(0,10);
+  return (f && /^\d{4}-\d{2}-\d{2}$/.test(String(f))) ? String(f) : svFechaLocalISO();
 }
 
 function _buscarEmpleadoPorKeyCta(empFbKey) {
@@ -32791,7 +32766,7 @@ async function aprobarComision(movFbKey, empFbKey) {
   var refMov = window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey);
   window.fbGet(refMov).then(function(snap){
     var mov = snap.val() || {};
-    var fechaApr = new Date().toISOString().slice(0,10);
+    var fechaApr = svFechaLocalISO();
     mov.estado = 'aprobado';
     mov.aprobadoPor = currentUser || '';
     mov.fechaAprobacion = fechaApr;
@@ -32815,7 +32790,7 @@ async function rechazarComision(movFbKey, empFbKey) {
     estado: 'rechazado',
     rechazadoPor: currentUser || '',
     motivoRechazo: motivo,
-    fechaRechazo: new Date().toISOString().slice(0,10)
+    fechaRechazo: svFechaLocalISO()
   }).then(function(){ notify('Comisión rechazada'); });
 }
 
@@ -32867,7 +32842,7 @@ function aprobarMovEmp(movKey, empKey) {
   var cambios = {
     estado: 'aprobado',
     aprobadoPor: currentUser || '',
-    fechaAprobacion: new Date().toISOString().slice(0,10)
+    fechaAprobacion: svFechaLocalISO()
   };
   window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey), cambios)
     .then(function(){
@@ -32892,7 +32867,7 @@ function confirmarAprobacionAdelanto() {
     else {
       var nuevoPagoKey = 'pago_' + Date.now();
       cambiosMedio['pagos/' + nuevoPagoKey] = {
-        fecha: mov.fechaPago || mov.fecha || new Date().toISOString().slice(0,10),
+        fecha: mov.fechaPago || mov.fecha || svFechaLocalISO(),
         monto: parseFloat(mov.montoPagado)||parseFloat(mov.monto)||0,
         medio: medio,
         concepto: mov.tipo || '',
@@ -32913,7 +32888,7 @@ function confirmarAprobacionAdelanto() {
     return;
   }
   var monto = parseFloat(mov.monto) || 0;
-  var fechaPago = new Date().toISOString().slice(0,10);
+  var fechaPago = svFechaLocalISO();
   var pagoKey = 'pago_' + Date.now();
   var cambios = {
     estado: 'pagado',
@@ -33469,7 +33444,7 @@ async function anularPptoDesdeTabla(pptoId) {
   if (!await svConfirm('¿Anular el presupuesto ' + (p.id || pptoId) + '? Quedara registrado como anulado.')) return;
   var upd = {
     estado: 'anulado',
-    audit: (p.audit||[]).concat([{ accion:'Anulado', fecha: new Date().toISOString().slice(0,10), user: currentUser||'Admin' }])
+    audit: (p.audit||[]).concat([{ accion:'Anulado', fecha: svFechaLocalISO(), user: currentUser||'Admin' }])
   };
   pptoPersistirActualizar(p.fbKey, upd)
     .then(function(){ notify('Presupuesto anulado'); })
@@ -33973,7 +33948,7 @@ function registrarPago() {
   var monto  = estadoMonto.montoARS;
   var medioEl = document.getElementById('cob-medio');
   var medio  = medioEl ? medioEl.value : '';
-  var fecha  = document.getElementById('cob-fecha') ? document.getElementById('cob-fecha').value : new Date().toISOString().split('T')[0];
+  var fecha  = document.getElementById('cob-fecha') ? document.getElementById('cob-fecha').value : svFechaLocalISO();
   var refEl  = document.getElementById('cob-ref');
   var obsEl  = document.getElementById('cob-obs');
   var obs    = obsEl ? obsEl.value : (refEl ? refEl.value.trim() : '');
@@ -40027,7 +40002,7 @@ function asistGenerarPresupuesto() {
     clienteFbKey: clienteAsistente.fbKey || clienteAsistente.id || '',
     clienteKey:   clienteAsistente.fbKey || clienteAsistente.id || '',
     clienteId:    clienteAsistente.id || clienteAsistente.fbKey || '',
-    fecha:       new Date().toISOString().split('T')[0],
+    fecha:       svFechaLocalISO(),
     estado:      'borrador',
     observaciones: obs || ('Generado por asistente: '+cfg.nombre),
     items:       prods.map(function(p){ return { descripcion:p.nombre, qty:p.qty, precio:p.precio, sub:p.precio*p.qty }; }),
@@ -40332,7 +40307,7 @@ function renderTablaVacaciones(periodos) {
     var anios    = ingreso ? Math.floor((new Date()-new Date(ingreso))/(365.25*86400000)) : null;
     var antiguedad = anios===null?'—':anios<1?'< 1 año':anios+' año'+(anios!==1?'s':'');
     return '<tr>'+
-      '<td style="font-family:monospace;color:var(--text3)">'+String(emp.legajo||'—').padStart(4,'0')+'</td>'+
+      '<td style="font-family:monospace;color:var(--text3)">'+(emp.legajo?escapeHTML(String(emp.legajo).padStart(4,'0')):'—')+'</td>'+
       '<td style="font-weight:500">'+escapeHTML(emp.nombre||'—')+'</td>'+
       '<td style="font-size:12px;color:var(--text3)">'+antiguedad+'</td>'+
       '<td class="tr" style="font-weight:500">'+diasCorr+' d.</td>'+
@@ -40733,7 +40708,7 @@ function abrirLegajoEmpleado(fbKey) {
   var modalTitle = document.getElementById('modal-nuevo-title');
   var modalBody  = document.getElementById('modal-nuevo-body');
   if (!modal) return;
-  modalTitle.textContent = 'Legajo N° ' + String(emp.legajo||'—').padStart(4,'0') + ' — ' + emp.nombre;
+  modalTitle.textContent = 'Legajo N° ' + (emp.legajo?String(emp.legajo).padStart(4,'0'):'—') + ' — ' + emp.nombre;
   modalBody.innerHTML =
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">' +
       '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">DNI</div><div style="font-size:14px;font-weight:500;margin-top:2px">'+escapeHTML(emp.dni||'—')+'</div></div>' +
@@ -41266,7 +41241,7 @@ function abrirNuevoInforme() {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
-  document.getElementById('inf-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('inf-fecha').value = svFechaLocalISO();
   // Número automático
   var num = 'IT-' + String(informesData.length + 1).padStart(4,'0');
   document.getElementById('inf-numero').value = num;
@@ -41430,7 +41405,7 @@ function _pagableEstadoPendiente() { return 'Pendiente'; }
 function _pagableGastoBase(payload) {
   var monto = _pagableNormMonto(payload.monto);
   return {
-    fecha: _pagableNormFecha(payload.fecha) || new Date().toISOString().slice(0,10),
+    fecha: _pagableNormFecha(payload.fecha) || svFechaLocalISO(),
     tipo: payload.tipo || 'Variable',
     tipoPagable: payload.tipoPagable,
     descripcion: payload.descripcion || '',
@@ -41690,7 +41665,7 @@ async function _migrarPagablesLegacyAGastos() {
         var r = regs[semKey] || {};
         var monto = _pagableNormMonto(r.aguinaldo || r.monto || 0);
         if (monto <= 0) return;
-        var fecha = _pagableNormFecha(r.fecha) || new Date().toISOString().slice(0,10);
+        var fecha = _pagableNormFecha(r.fecha) || svFechaLocalISO();
         var legacyKey = 'aguinaldos/' + empKey + '/' + semKey;
         if (_pagableGastoExistente('aguinaldo', empKey, monto, fecha, semKey, legacyKey)) return;
         var semLbl = String(semKey).replace('_S1',' — 1er semestre').replace('_S2',' — 2do semestre');
@@ -41720,7 +41695,7 @@ async function _migrarPagablesLegacyAGastos() {
         var monto = _pagableNormMonto(m.monto || 0);
         if (monto <= 0) return;
         var fechaTrabajoLegacy = _pagableNormFecha(m.fechaTrabajo || m.fecha);
-        var fecha = _pagableNormFecha(m.fechaPago || m.fechaImputacion) || fechaTrabajoLegacy || new Date().toISOString().slice(0,10);
+        var fecha = _pagableNormFecha(m.fechaPago || m.fechaImputacion) || fechaTrabajoLegacy || svFechaLocalISO();
         if (tipo === 'hextra' && !m.fechaPago && !m.fechaImputacion && (m.aprobadoTs || m.ts)) {
           var creadaLegacy = new Date(m.aprobadoTs || m.ts);
           if (!isNaN(creadaLegacy.getTime())) fecha = creadaLegacy.toISOString().slice(0,10);
@@ -41757,7 +41732,7 @@ async function _migrarPagablesLegacyAGastos() {
       if (monto <= 0) return;
       var fecha = sol.aprobadoTs
         ? new Date(sol.aprobadoTs).toISOString().slice(0,10)
-        : (_pagableNormFecha(sol.fecha) || new Date().toISOString().slice(0,10));
+        : (_pagableNormFecha(sol.fecha) || svFechaLocalISO());
       var legacyKey = 'hsextra_solicitudes/' + solKey;
       var existentePorClave = sol.gastoFbKey && (gastosData||[]).find(function(g){ return g.fbKey === sol.gastoFbKey; });
       if (existentePorClave) {
@@ -42098,7 +42073,7 @@ function _filtrarGastosPorKPI(tipo) {
     if (fMes) fMes.value = '';
     if (fEstado) fEstado.value = 'pendiente';
     // Filtrar solo los que vencen esta semana — usar búsqueda temporal
-    var hoy = new Date().toISOString().split('T')[0];
+    var hoy = svFechaLocalISO();
     var enUnaSemana = new Date(Date.now()+7*86400000).toISOString().split('T')[0];
     window._filtroGastosKpiVence = { desde: hoy, hasta: enUnaSemana };
   } else if (tipo === 'reembolso') {
@@ -42350,7 +42325,7 @@ async function aprobarGastoSolicitado(gastoFbKey) {
   var g = (gastosData || []).find(function(item){ return item.fbKey === gastoFbKey; });
   if (!g) { notify('Gasto no encontrado'); return; }
   if (!await svConfirm('¿Aprobar este gasto por $' + Math.round(parseFloat(g.monto) || 0).toLocaleString('es-AR') + '? Quedará pendiente de pago.')) return;
-  var fecha = new Date().toISOString().slice(0,10);
+  var fecha = svFechaLocalISO();
   var cambios = { estado:'aprobado', requiereAprobacion:false, aprobadoPor:currentUser || '', fechaAprobacion:fecha, aprobadoTs:Date.now() };
   var tareas = [window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), cambios)];
   if (g.empleadoId && g.movimientoCtaKey) tareas.push(window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId + '/' + g.movimientoCtaKey), cambios));
@@ -42519,7 +42494,7 @@ async function aprobarComisionDesdeGasto(gastoFbKey) {
   if (!g) { notify('Gasto no encontrado'); return; }
   if (String(g.tipoPagable||'').toLowerCase() !== 'comision') { notify('No es una comisión'); return; }
   if (!await svConfirm('¿Aprobar esta comisión?')) return;
-  var fechaApr = new Date().toISOString().slice(0,10);
+  var fechaApr = svFechaLocalISO();
   var upG = { estado:'pendiente_pago', requiereAprobacion:false, aprobadoPor:currentUser||'', fechaAprobacion:fechaApr, aprobadoTs:Date.now() };
   var prom = window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), upG);
   prom = prom.then(function(){ return _buscarCtaempMovimientoPorLegacyKey(g.legacyKey); }).then(function(info){
@@ -42539,7 +42514,7 @@ async function rechazarComisionDesdeGasto(gastoFbKey) {
   if (estadoActual === 'rechazado') { notify('La comisión ya está rechazada'); return; }
   var motivo = await svPrompt('Motivo del rechazo (opcional):', '', { sugerencias:['No corresponde'] });
   if (motivo === null) return;
-  var fechaRech = new Date().toISOString().slice(0,10);
+  var fechaRech = svFechaLocalISO();
   var datosRechazo = { estado:'rechazado', requiereAprobacion:false, rechazadoPor:currentUser||'', fechaRechazo:fechaRech, rechazadoTs:Date.now(), motivoRechazo:motivo, aprobacionRevertida:estadoActual === 'pendiente_pago', aprobadoPor:null, fechaAprobacion:null, aprobadoTs:null };
   var prom = window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), datosRechazo);
   prom = prom.then(function(){ return _buscarCtaempMovimientoPorLegacyKey(g.legacyKey); }).then(function(info){
@@ -42657,7 +42632,7 @@ function renderTablaGastos() {
     if (estadoNorm==='pendiente_pago') return '<span class="badge b-blue"><i class="ti ti-check"></i> Aprobado · falta pagar</span>';
     if (estadoNorm==='rechazado')      return '<span class="badge b-red">Rechazado</span>';
     if (estadoNorm==='anulado')        return '<span class="badge b-red">Anulado</span>';
-    var hoy = new Date().toISOString().split('T')[0];
+    var hoy = svFechaLocalISO();
     if (g.vencimiento && g.vencimiento < hoy) return '<span class="badge b-red">Vencido</span>';
     return '<span class="badge b-blue">Pendiente de pago</span>';
   };
@@ -42704,7 +42679,7 @@ function renderTablaGastos() {
       '<td class="gas-type-cell" data-label="Tipo">'+tipoBadge+'</td>' +
       '<td class="tr gas-amount-cell" data-label="Monto total" style="font-weight:500">$'+(parseFloat(g.monto)||0).toLocaleString('es-AR')+'</td>' +
       '<td class="tr gas-paid-cell" data-label="Total pagado" style="color:var(--green)">$'+totalPagadoGasto(g).toLocaleString('es-AR')+'</td>' +
-      '<td class="tr gas-due-cell" data-label="Vencimiento" style="font-size:12px;color:'+(g.vencimiento&&g.vencimiento<new Date().toISOString().split('T')[0]?'var(--red)':'var(--text3)')+'">'+venc+'</td>' +
+      '<td class="tr gas-due-cell" data-label="Vencimiento" style="font-size:12px;color:'+(g.vencimiento&&g.vencimiento<svFechaLocalISO()?'var(--red)':'var(--text3)')+'">'+venc+'</td>' +
       '<td class="tr gas-status-cell" data-label="Estado">'+estBadge(g)+'</td>' +
       '<td class="tr gas-payer-cell" data-label="Pagado por">'+pagoPor+'</td>' +
       '<td class="gas-actions-cell" data-label="Acciones" style="white-space:nowrap">'+btnAprobar+btnPagar+btnPagos+
@@ -42792,7 +42767,7 @@ function buscarGastos() {
 function abrirFormGasto(fbKey) {
   gastoActualFbKey = fbKey;
   gastoFotoBase64  = null;
-  var hoy = new Date().toISOString().split('T')[0];
+  var hoy = svFechaLocalISO();
   document.getElementById('g-fecha').value     = hoy;
   document.getElementById('g-vencimiento').value = '';
   document.getElementById('g-tipo').value      = 'Variable';
@@ -43203,7 +43178,7 @@ function abrirModalBonificacionEmpleado() {
     return '<option value="' + escapeHTML(emp.fbKey || '') + '">' + escapeHTML(emp.nombre || 'Sin nombre') + '</option>';
   }).join('');
   selector.value = '';
-  document.getElementById('bonificacion-fecha').value = typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toISOString().slice(0, 10);
+  document.getElementById('bonificacion-fecha').value = svFechaLocalISO();
   document.getElementById('bonificacion-motivo').value = '';
   _setMontoInput(document.getElementById('bonificacion-monto'), 0);
   _bonificacionEmpleadoOperacionId = 'bono_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
@@ -43410,7 +43385,7 @@ function abrirModalComisionVenta() {
   });
 
   selEmpleado.value = '';
-  document.getElementById('comision-manual-fecha').value = typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toISOString().slice(0, 10);
+  document.getElementById('comision-manual-fecha').value = svFechaLocalISO();
   document.getElementById('comision-manual-venta').value = '';
   document.getElementById('comision-manual-pct').value = '';
   document.getElementById('comision-manual-nota').value = '';
@@ -43502,7 +43477,7 @@ async function guardarComisionManualVenta() {
       ventaFbKey: venta.fbKey || '',
       cliente: venta.cliente || venta.clienteNombre || '',
       descripcion: 'Comisión venta ' + (venta.id || venta.numero || '') + ' · ' + pct + '% sobre ganancia $' + Math.round(calculo.ganancia).toLocaleString('es-AR') + (nota ? ' · ' + nota : '') + ' · carga manual',
-      fecha: (document.getElementById('comision-manual-fecha') || {}).value || (typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toISOString().slice(0, 10)),
+      fecha: (document.getElementById('comision-manual-fecha') || {}).value || (svFechaLocalISO()),
       ts: Date.now(),
       empleadoNombre: emp.nombre || '',
       origenCarga: 'manual_empleados',
@@ -43627,7 +43602,7 @@ function _registrarPagoGastoUnitario(fbKey, montoNuevo, medio, comprobante, lote
     ? { nombre:comprobanteNormalizado.nombre, tipo:comprobanteNormalizado.tipo, externo:!!comprobanteData || comprobanteNormalizado.externo }
     : null;
   var pago = {
-    fecha: new Date().toISOString().slice(0,10),
+    fecha: svFechaLocalISO(),
     ts: Date.now(),
     monto: montoNuevo,
     medio: medio,
@@ -43702,7 +43677,7 @@ function confirmarPagoGasto() {
     if (loteKey && window.fbDB) {
       var gastosIncluidos = keys.map(function(k){ var g = (gastosData||[]).find(function(x){ return x.fbKey===k; }) || {}; return { gastoFbKey:k, descripcion:g.descripcion||'', monto:parseFloat(g.monto)||0, saldoPagado:Math.min(restoGasto(g), montoNuevo) }; });
       return window.fbSet(window.fbRef(window.fbDB, 'sisventas/pagos_realizados/' + loteKey), {
-        fecha:new Date().toISOString().slice(0,10), ts:Date.now(), medio:medio, monto:montoNuevo, usuario:currentUser||'', rol:currentRole||'', comprobante:_pagoGastoComprobante||null, gastos:gastosIncluidos
+        fecha:svFechaLocalISO(), ts:Date.now(), medio:medio, monto:montoNuevo, usuario:currentUser||'', rol:currentRole||'', comprobante:_pagoGastoComprobante||null, gastos:gastosIncluidos
       }).catch(function(){});
     }
   }).then(function(){
@@ -45400,7 +45375,7 @@ async function recotizarPpto() {
     total: dep.totalActualizado,
     subtotal: Math.round((parseFloat(p.subtotal)||0) * dep.factor),
     tcGuardado: dep.tcActual,
-    tcFechaGuardado: new Date().toISOString().slice(0,10),
+    tcFechaGuardado: svFechaLocalISO(),
     estado: 'borrador',
     obs: (p.obs||'') + ' [Recotizado +' + dep.pct + '% por TC]',
     fbKey: null
@@ -50012,7 +49987,7 @@ function generarOTdesdeVenta(ventaId, cliente, dir) {
 // TABLERO EJECUTIVO — datos reales
 function renderTablero() {
   var anioSel = parseInt((document.getElementById('tab-anio-sel')||{}).value) || new Date().getFullYear();
-  var mesActual = new Date().toISOString().slice(0,7);
+  var mesActual = svMesLocalISO();
   var _e = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
 
   var ventas = (ventasList||[]).filter(function(v){ return (v.fecha||'').startsWith(String(anioSel)); });
@@ -52370,7 +52345,7 @@ async function toggleCSF(vid, fk) {
   if (!window.fbDB) return;
   window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas+'/'+fk), {
     contadoSinFactura: !csf, total: nt, iva: csf ? Math.round(nt-t) : 0,
-    audit: (v.audit||[]).concat([{fecha:new Date().toISOString().slice(0,10), usuario:currentUser||'Admin', accion: csf ? 'IVA restaurado' : 'Contado sin factura'}])
+    audit: (v.audit||[]).concat([{fecha:svFechaLocalISO(), usuario:currentUser||'Admin', accion: csf ? 'IVA restaurado' : 'Contado sin factura'}])
   }).then(function(){ notify(csf ? 'IVA restaurado' : 'Contado sin factura aplicado'); })
     .catch(function(e){ notify('Error: '+e.message); });
 }
@@ -53786,7 +53761,7 @@ function actualizarInputsComisiones() {
 function calcularComisionEmpleado(emp, mesAMM) {
   var ventas = (ventasList||[]).filter(function(v){
     return ventaEmpleadoEsComisionado(v, emp) &&
-           (v.fecha||'').slice(0,7) === (mesAMM||new Date().toISOString().slice(0,7));
+           (v.fecha||'').slice(0,7) === (mesAMM||svMesLocalISO());
   });
 
   var totalVentas = ventas.reduce(function(s,v){ return s + _svTotalVentaCanonico(v); }, 0);

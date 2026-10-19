@@ -25,6 +25,8 @@
   var dbPromise;
   var originals = {};
   var syncing = false;
+  var sessionEpoch = 0;
+  document.addEventListener('sisventas:session-ended', function () { sessionEpoch += 1; });
 
   function openDb() {
     if (dbPromise) return dbPromise;
@@ -70,6 +72,14 @@
     return String(authUid || window.currentUserUid || 'preauth');
   }
 
+  function captureSession() {
+    var uid = userKey(), user = window.fbAuth && window.fbAuth.currentUser, epoch = sessionEpoch;
+    var role = window.currentRole, revision = window.PERMISOS_ROLES && window.PERMISOS_ROLES[role] && window.PERMISOS_ROLES[role].indiceRevision;
+    return {uid:uid, valid:function () {
+      return !!user && uid !== 'preauth' && uid === userKey() && user === (window.fbAuth && window.fbAuth.currentUser) && epoch === sessionEpoch && role === window.currentRole && revision === (window.PERMISOS_ROLES && window.PERMISOS_ROLES[role] && window.PERMISOS_ROLES[role].indiceRevision);
+    }};
+  }
+
   function pathOf(ref) {
     if (!ref) return '';
     try {
@@ -94,21 +104,26 @@
   }
 
   function enqueue(type, path, value) {
+    var session = captureSession();
+    if (!session.valid()) return Promise.reject(offlineError(path));
     var item = {
       id: makeId(), type: type, path: path, value: value === undefined ? null : value,
-      uid: userKey(), createdAt: Date.now(), attempts: 0, state: 'pending'
+      uid: session.uid, createdAt: Date.now(), attempts: 0, state: 'pending'
     };
-    return store('readwrite', 'queue', function (s) { s.put(item); }).then(function () {
+    return store('readwrite', 'queue', function (s) { if (!session.valid()) throw offlineError(path); s.put(item); }).then(function () {
+      if (!session.valid()) throw offlineError(path);
       document.dispatchEvent(new CustomEvent('sisventas:offline-queued', { detail: item }));
       return item;
     });
   }
 
-  function getQueue() {
+  function getQueue(session) {
+    session = session || captureSession();
+    if (!session.valid()) return Promise.resolve([]);
     return openDb().then(function (db) {
       return requestValue(db.transaction('queue', 'readonly').objectStore('queue').getAll());
     }).then(function (items) {
-      return (items || []).filter(function (item) { return item.uid === userKey(); })
+      return (session.valid() ? items || [] : []).filter(function (item) { return item.uid === session.uid; })
         .sort(function (a, b) { return a.createdAt - b.createdAt; });
     });
   }
@@ -117,16 +132,22 @@
     return store('readwrite', 'queue', function (s) { s.delete(id); });
   }
 
-  function saveCache(path, value) {
+  function saveCache(path, value, session) {
+    session = session || captureSession();
+    if (!session.valid()) return Promise.resolve();
     if (!matches(path, ALLOWED)) return Promise.resolve();
     return store('readwrite', 'cache', function (s) {
-      s.put({ key: userKey() + '|' + path, uid: userKey(), path: path, value: value, updatedAt: Date.now() });
+      if (!session.valid()) return;
+      s.put({ key: session.uid + '|' + path, uid: session.uid, path: path, value: value, updatedAt: Date.now() });
     });
   }
 
-  function readCache(path) {
+  function readCache(path, session) {
+    session = session || captureSession();
+    if (!session.valid()) return Promise.resolve();
     return openDb().then(function (db) {
-      return requestValue(db.transaction('cache', 'readonly').objectStore('cache').get(userKey() + '|' + path));
+      if (!session.valid()) return;
+      return requestValue(db.transaction('cache', 'readonly').objectStore('cache').get(session.uid + '|' + path));
     });
   }
 
@@ -185,35 +206,44 @@
       return originals.fbRunTransaction(ref, updater, options);
     };
     window.fbOnValue = function (ref, callback, cancelCallback, options) {
-      var path = pathOf(ref);
+      var path = pathOf(ref), session = captureSession(), active = true, receivedLive = false;
+      var errorCallback = typeof cancelCallback === 'function' ? cancelCallback : null;
+      var listenOptions = errorCallback ? options : cancelCallback || options;
+      function valid() { return active && session.valid(); }
       if (matches(path, ALLOWED)) {
-        readCache(path).then(function (cached) {
-          if (cached && (isOffline() || !window.__sisventasOfflineReceivedLive)) callback(fakeSnapshot(path, cached.value));
+        readCache(path, session).then(function (cached) {
+          if (valid() && cached && (isOffline() || !receivedLive)) callback(fakeSnapshot(path, cached.value));
         }).catch(function () {});
       }
-      return originals.fbOnValue(ref, function (snapshot) {
-        window.__sisventasOfflineReceivedLive = true;
-        if (matches(path, ALLOWED)) saveCache(path, snapshot.val()).catch(function () {});
+      var stop = originals.fbOnValue(ref, function (snapshot) {
+        if (!valid()) return;
+        receivedLive = true;
+        if (matches(path, ALLOWED)) saveCache(path, snapshot.val(), session).catch(function () {});
         callback(snapshot);
-      }, cancelCallback, options);
+      }, function (error) { if (!valid()) return; active = false; if (errorCallback) errorCallback(error); }, listenOptions);
+      return function () { active = false; if (typeof stop === 'function') stop(); };
     };
   }
 
   async function sync() {
     if (syncing || isOffline() || !originals.fbSet) return;
+    var session = captureSession();
+    if (!session.valid()) return;
     syncing = true;
     try {
-      var items = await getQueue();
+      var items = await getQueue(session);
       for (var i = 0; i < items.length; i += 1) {
+        if (!session.valid() || isOffline()) break;
         var item = items[i];
         if (!matches(item.path, ALLOWED) || matches(item.path, BLOCKED)) continue;
         var ref = window.fbRef(window.fbDB, item.path);
         if (item.type === 'set') await originals.fbSet(ref, item.value);
         else if (item.type === 'update') await originals.fbUpdate(ref, item.value);
         else if (item.type === 'remove') await originals.fbRemove(ref);
+        if (!session.valid()) break;
         await removeQueue(item.id);
       }
-      document.dispatchEvent(new CustomEvent('sisventas:offline-synced'));
+      if (session.valid()) document.dispatchEvent(new CustomEvent('sisventas:offline-synced'));
     } catch (error) {
       console.warn('[Offline] La sincronización continuará automáticamente.', error);
     } finally {

@@ -58,6 +58,7 @@ function setup() {
     _svResumenPagoLegacyVenta:venta=>Number(venta.totalPagado)||0,
     _svTotalVentaCanonico:venta=>Number(venta.total)||0
   });
+  require('./helpers/app-functions.cjs').load(context,[]);
   vm.runInContext(core,context);
   return {context,db,writes,put,window};
 }
@@ -130,6 +131,7 @@ test('la lectura conserva compatibilidad con las dos rutas históricas',()=>{
   const start=source.indexOf('function _cobroRutasComprobante(');
   const end=source.indexOf('async function verOAdjuntarDocumentoCobro(',start);
   const context=vm.createContext({});
+  require('./helpers/app-functions.cjs').load(context,[]);
   vm.runInContext(source.slice(start,end),context);
   assert.deepEqual(Array.from(context._cobroRutasComprobante({fbKey:'p1'},'p1')),['sisventas/cobros_adjuntos/p1']);
   assert.deepEqual(Array.from(context._cobroRutasComprobante({fbKey:'p2',comprobanteCuenta:true,pagoCuentaGrupo:'cc_viejo'},'p2')),[
@@ -147,6 +149,7 @@ test('los pagos históricos de Cuenta Corriente muestran un comprobante comparti
   const start=source.indexOf('function _cobroPagoPorKey(');
   const end=source.indexOf('function _cobroMetaComprobante(',start);
   const context=vm.createContext({window:{_historialPagosCompleto:[]}});
+  require('./helpers/app-functions.cjs').load(context,[]);
   vm.runInContext(source.slice(start,end),context);
   const rutasStart=source.indexOf('function _cobroRutasComprobante(');
   const rutasEnd=source.indexOf('async function verOAdjuntarDocumentoCobro(',rutasStart);
@@ -184,6 +187,7 @@ test('anular conserva el comprobante y recalcula pago y venta en una sola escrit
       return {pagado,estadoPago:pagado?'seniado':'pendiente_pago'};
     }
   });
+  require('./helpers/app-functions.cjs').load(context,[]);
   vm.runInContext(source.slice(start,end),context);
   await context.anularPago('p1');
   assert.equal(updates.length,1);

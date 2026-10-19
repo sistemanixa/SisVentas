@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   ['Repetir cargas ficticias',async()=>{for(let i=0;i<3;i++){svCargarDatosDePaginaActual();fbCargarCategorias();fbCargarEquipos();fbCargarInformes();fbCargarOrdenes();fbCargarEmpleados();fbCargarProveedores();}await new Promise(r=>setTimeout(r,300));document.getElementById('module-audit-result').textContent=JSON.stringify(activity(),null,2);}],
   ['Limpiar borradores ficticios',()=>{for(const key of Object.keys(localStorage))if(key.startsWith('sv:commercial-draft:v1:fixture:'))localStorage.removeItem(key);document.getElementById('module-audit-result').textContent='Borradores ficticios locales eliminados. Recargá para empezar una medición limpia.';}],
   ['Iniciar reposo',()=>{idleBaseline={at:Date.now(),reads:__moduleAudit.reads.length,writes:__moduleAudit.writes.length};document.getElementById('module-audit-result').textContent=JSON.stringify(activity(),null,2);}],
+  ['Aviso de error ficticio',()=>notify('No se pudieron sincronizar los presupuestos')],
   ['Ver actividad',()=>{document.getElementById('module-audit-result').textContent=JSON.stringify(activity(),null,2);}]
  ]){const button=document.createElement('button');button.className='btn btn-sm';button.textContent=label;button.onclick=action;tools.insertBefore(button,tools.querySelector('details'));}
  function gestoLateralFicticio(x){

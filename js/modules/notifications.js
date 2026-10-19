@@ -75,6 +75,7 @@
   var notifState=loadState();
   var notifStateUnsubscribe=null;
   var notifStateUser='';
+  var notifSyncEpoch=0, notifMigrationAttempts=new Set();
   var avisoCriticoTimer=null;
   var avisoCriticoGestion=null;
   var avisoCriticoLote=null;
@@ -205,9 +206,14 @@
     if(notifStateUser===userKey&&typeof notifStateUnsubscribe==='function') return;
     if(typeof notifStateUnsubscribe==='function') notifStateUnsubscribe();
     notifStateUser=userKey;
+    var epoch=++notifSyncEpoch, authUser=global.fbAuth&&global.fbAuth.currentUser;
+    notifMigrationAttempts=new Set();
+    function vigente(){return epoch===notifSyncEpoch&&notifStateUser===userKey&&currentIdentity()===identity&&authUser===(global.fbAuth&&global.fbAuth.currentUser);}
     notifState=loadState();
     var ref=global.fbRef(global.fbDB,'sisventas/notificaciones_estado/'+userKey);
-    notifStateUnsubscribe=global.fbOnValue(ref,function(snapshot){
+    var cancelled=false;
+    var unsubscribe=global.fbOnValue(ref,function(snapshot){
+      if(!vigente())return;
       var remote=snapshot.val()||{}, merged={}, pending={};
       Object.keys(Object.assign({},notifState,remote)).forEach(function(key){
         var localValue=notifState[key], remoteValue=remote[key];
@@ -216,9 +222,19 @@
       });
       notifState=merged;
       saveState(notifState);
-      if(Object.keys(pending).length&&global.fbUpdate) global.fbUpdate(ref,pending).catch(function(error){console.warn('[Notificaciones] No se pudo migrar estado local',error);});
+      var nuevos={};
+      Object.keys(pending).forEach(function(key){var fingerprint=key+'|'+JSON.stringify(pending[key]);if(!notifMigrationAttempts.has(fingerprint)){notifMigrationAttempts.add(fingerprint);nuevos[key]=pending[key];}});
+      // Un rollback por permisos/red no vuelve a publicar la misma versión local.
+      // La transacción conserva cualquier decisión más reciente de otro dispositivo.
+      if(authUser&&Object.keys(nuevos).length&&global.fbRunTransaction) global.fbRunTransaction(ref,function(actual){
+        if(!vigente())return;
+        var next=Object.assign({},actual||{}),changed=false;
+        Object.keys(nuevos).forEach(function(key){if(!next[key]||stateTime(nuevos[key])>stateTime(next[key])){next[key]=nuevos[key];changed=true;}});
+        return changed?next:undefined;
+      },{applyLocally:false}).catch(function(error){if(vigente())console.warn('[Notificaciones] No se pudo migrar estado local',error);});
       refreshNotifUI();
-    },function(error){ console.error('[Notificaciones] Error de sincronización',error); });
+    },function(error){cancelled=true;if(vigente()){notifStateUnsubscribe=null;console.error('[Notificaciones] Error de sincronización',error);}});
+    if(!cancelled)notifStateUnsubscribe=unsubscribe;
   }
   window.iniciarSyncNotificaciones=iniciarSyncNotificaciones;
   window.detenerSyncNotificaciones=function(){
@@ -233,6 +249,7 @@
     }
     notifStateUnsubscribe=null;
     notifStateUser='';
+    notifSyncEpoch++;notifMigrationAttempts=new Set();
     notifState={};
     avisoCriticoGestion=null;
     avisoCriticoLote=null;

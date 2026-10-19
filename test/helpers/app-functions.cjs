@@ -7,5 +7,8 @@ function functionSource(name){
  for(let m;(m=ends.exec(source));){const text=source.slice(start,m.index+1);try{new vm.Script(text);return text;}catch(_){}}
  throw new Error('Función incompleta '+name);
 }
-function load(context,names){if(!vm.isContext(context))vm.createContext(context);for(const name of names)vm.runInContext(functionSource(name),context);return context;}
+function load(context,names){if(!vm.isContext(context))vm.createContext(context);
+ // Las funciones extraídas conservan las utilidades canónicas de fecha del arranque real.
+ for(const helper of ['svFechaLocalISO','svMesLocalISO'])if(!names.includes(helper)&&typeof context[helper]!=='function')vm.runInContext(functionSource(helper),context);
+ for(const name of names)vm.runInContext(functionSource(name),context);return context;}
 module.exports={functionSource,load};

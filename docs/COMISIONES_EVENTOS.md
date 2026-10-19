@@ -1,6 +1,10 @@
-# Comisiones por eventos · preparación local
+# Comisiones por eventos · activación verificada
 
-Estado: candidato20, **sin activar**. Producción19 conserva su observador. No se probaron cobros ni comisiones reales; las pruebas financieras usan memoria/emulador.
+Estado vigente: **activo**, fuente b56470ceeee276c572f4315c4f2853f8010f3ff1, Cotizador cotizador-events-b56470ce al100% y14 accesos existentes. Mínimo0 y CPU por solicitud; observador desactivado. Identidad/secretos/recursos conservados. La web todavía19. No se probaron cobros ni comisiones reales; pruebas financieras en memoria/emulador.
+
+Tres funciones indicadas abajo ACTIVE, Gen1 Node22, min0/max1,256MB,60s y reintento, identidad exclusiva sin roles de proyecto. Probeta nativa autenticada completada2214ms; función y registro propios retirados, etiqueta temporal eliminada.15 URLs comerciales rechazan anónimos y endpoint interno también. Reversión: cotizador-cost-ee5a02ed. Estimación comunicada y autorización explícita del titular antes del corte; alertas/corte desde noviembre permanecen vigentes. Falta consumo real posterior; no se garantiza total mensual menor30.
+
+Los pasos de preparación siguientes documentan el procedimiento que se verificó antes del corte.
 
 ## Disparo y alcance
 
@@ -51,4 +55,4 @@ El catálogo confirma CPU de primera generación C024-9C10-2A5B y memoria F01C-3
 - RTDB emulado:20 casos comerciales/generación/eventos/permisos aprobados. La primera pasada detectó una transacción abortada antes de recibir estado del SDK; se reutilizó el helper transaccional existente y se repitió con éxito. No ocultar este límite usando sólo memoria.
 - Suite propia Cotizador94 aprobadas; npm audit sin vulnerabilidades conocidas tras actualizar busboy3.2.3/grpc-js1.14.6 dentro de sus rangos compatibles. La librería oficial de identidad se fija11.3.1.
 
-Falta comprobar la entrega nativa y aplicar el corte. No está publicada ni activada esta arquitectura por registrar este documento.
+Entrega nativa y corte completados según estado vigente de cabecera. Continúa pendiente medir ahorro real agregado y verificar lecturas con sesión de usuario; no ejecutar pagos ficticios sobre producción.

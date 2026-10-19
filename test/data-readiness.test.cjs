@@ -20,7 +20,8 @@ test('Firebase informa carga luego de procesar el snapshot y respeta opciones y 
  vm.runInNewContext(fragment,context);
  const stop=context.window.fbOnValue('ref',()=>{processed++;},{onlyOnce:true});
  args[1]({val:()=>null});await Promise.resolve();assert.equal(ready,1);assert.equal(args[3].onlyOnce,true);
- args[2](Error('denied'));assert.equal(errors,1);stop();assert.equal(cancel,1);
+ assert.equal(cancel,1,'La lectura única se libera al completar');
+ args[2](Error('error tardío tras terminar'));assert.equal(errors,0);stop();assert.equal(cancel,1);
 });
 test('usuarios protegidos completan la carga sin confundir una ficha individual',()=>{
  const c={URL,window:{addEventListener(){}},document:{addEventListener(){}},requestAnimationFrame(){}};vm.runInNewContext(fs.readFileSync('js/core/data-readiness.js','utf8'),c);const api=c.window.SVDataReadiness;

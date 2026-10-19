@@ -8,7 +8,9 @@ const html = fs.readFileSync('index.html', 'utf8');
 
 assert(html.includes('onclick="limpiarTodasNotificaciones()"'), 'Debe existir Limpiar todo');
 assert(html.includes('id="cfg-dias-aviso-venc-ppto" value="1"'), 'La anticipación debe iniciar en un día');
-assert(html.includes('notifications.js?v=2.0.272'), 'Debe invalidarse la caché del módulo');
+const notifURL=(html.match(/src="([^"]*\/notifications\.js\?v=[^"]+)"/)||[])[1];
+assert(notifURL, 'Debe invalidarse la caché del módulo');
+assert(fs.readFileSync('sw.js','utf8').includes(notifURL), 'Índice y Service Worker deben usar la misma revisión de Notificaciones');
 assert(app.includes('diasAvisoVencimientoPresupuesto'), 'La preferencia debe persistirse en Firebase');
 assert(app.includes("id: 'ppto_vence_' + p.id"), 'La alerta debe conservar una identidad estable durante la cuenta regresiva');
 assert(!app.includes('dias <= 7 && dias > 2'), 'No debe quedar activa la anticipación fija de siete días');

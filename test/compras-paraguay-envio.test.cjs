@@ -14,6 +14,7 @@ const ctx = vm.createContext({
   normalizarUrlProveedorProducto: valor => valor,
   factorIvaProveedorProducto: pv => pv.sinIva ? 1.21 : 1
 });
+require('./helpers/app-functions.cjs').load(ctx,[]);
 for (const nombre of ['costoEnvioProveedorProducto', 'costoRealProveedorProducto', 'costoExteriorVigenteARS', 'completarReferenciaProveedorProducto']) vm.runInContext(funcion(nombre), ctx);
 const base = { nombre:'COMPRAS PARAGUAY', url:'https://www.comprasparaguai.com.br/producto__5064641/', precio:922365, precioOriginal:597, monedaOriginal:'USD', conversion:{}, costoEnvioArs:10000 };
 

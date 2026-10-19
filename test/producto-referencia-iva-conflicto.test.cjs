@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('vm');
 const source=require('./helpers/active-app').readActiveApp().source;
 const {merge}=require('../js/core/guarded-writes');
-function load(c,name){let a=source.indexOf('function '+name+'(');if(source.slice(a-6,a)==='async ')a-=6;let b=source.indexOf('\nfunction ',a+20);const asyncEnd=source.indexOf('\nasync function ',a+20);if(asyncEnd>=0&&asyncEnd<b)b=asyncEnd;vm.runInContext(source.slice(a,b),c);}
+function load(c,name){if(typeof c.svFechaLocalISO!=='function')require('./helpers/app-functions.cjs').load(c,[]);let a=source.indexOf('function '+name+'(');if(source.slice(a-6,a)==='async ')a-=6;let b=source.indexOf('\nfunction ',a+20);const asyncEnd=source.indexOf('\nasync function ',a+20);if(asyncEnd>=0&&asyncEnd<b)b=asyncEnd;vm.runInContext(source.slice(a,b),c);}
 test('confirmación propia no causa conflicto; otra edición de proveedor sigue protegida',async()=>{
  const original={proveedores:[{url:'https://local/p',precio:10}]};let current=structuredClone(original);
  const c={_productoEditorBase:structuredClone(original),editingProdId:'p',prodProveedoresActuales:[{url:'https://local/p',precio:12}],prodData:{},currentUser:'Prueba',FB_PATHS:{productos:'productos'},urlsProveedorEquivalentes:(a,b)=>a===b,window:{fbDB:{},fbRef:(_,p)=>p,fbUpdate:async(_,change)=>Object.assign(current.proveedores[0],change)}};

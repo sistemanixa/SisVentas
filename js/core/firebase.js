@@ -48,14 +48,17 @@
         try { unsubscribe?.(); }
         finally { load?.cancel(); fbValueListeners.delete(trackedUnsubscribe); }
       };
-      const callback = args[1];
-      if (typeof callback === 'function') args[1] = function(snapshot) {
-        if (!active) return;
-        try { const result = callback(snapshot); Promise.resolve(result).then(() => { if(active)load?.ready(); }, () => { if(active)load?.error(); }); return result; }
-        catch (error) { if(active)load?.error(); throw error; }
-      };
       const errorCallback = typeof args[2] === 'function' ? args[2] : null;
       const options = errorCallback ? args[3] : args[2];
+      let deliveredOnce = false;
+      const callback = args[1];
+      if (typeof callback === 'function') args[1] = function(snapshot) {
+        if (!active || (options?.onlyOnce && deliveredOnce)) return;
+        deliveredOnce = true;
+        const finish = state => { if (!active) return; load?.[state](); if (options?.onlyOnce) trackedUnsubscribe(); };
+        try { const result = callback(snapshot); Promise.resolve(result).then(() => finish('ready'), () => finish('error')); return result; }
+        catch (error) { finish('error'); throw error; }
+      };
       args[2] = function(error) {
         if(!active)return;
         load?.error();

@@ -1,5 +1,11 @@
 # Control de consumo de SisVentas
 
+## Actualización: reserva permanente retirada
+
+Cotizador cotizador-events-b56470ce al100% y14 etiquetas, mínimo0 y CPU por solicitud. Los tres receptores Gen1 sólo reenvían eventos pequeños autenticados; entrega nativa probada y probeta retirada. Fuente b56470ceeee276c572f4315c4f2853f8010f3ff1, reversión cotizador-cost-ee5a02ed. No hay observador global activo en la revisión nueva. La reserva permanente descrita abajo corresponde a la preparación anterior y ya fue reemplazada.
+
+Escenario comunicado antes de crear:3.000 eventos de10s≈USD1,22 cómputo Cotizador, más USD0–2 de receptores; transferencia, base, otros servicios, registros e imágenes aparte. No equivale a costo total ni límite exacto; pendiente medir consumo real posterior. Alertas30 y corte60 desde noviembre permanecen sin modificaciones. Octubre sigue operativo.
+
 ## Decisión del titular · 18/10/2026
 
 - Mantener el sistema operativo durante octubre. No suspenderlo por el gasto ya acumulado.
@@ -49,3 +55,32 @@ Alertas por correo: sin cargo adicional de Cloud Billing. Estimación comunicada
 - Revisar transferencia/costo agregado antes/después; no descargar la base entera para medirla. Detalles de facturación y evidencia privada quedan fuera de Git.
 
 Fuentes: [presupuestos y avisos](https://docs.cloud.google.com/billing/docs/how-to/budgets), [precio de Cloud Billing](https://cloud.google.com/billing/v1/pricing), [avisos programáticos y demoras](https://docs.cloud.google.com/billing/docs/how-to/budgets-programmatic-notifications), [deshabilitar RTDB](https://firebase.google.com/docs/reference/rest/database/database-management/rest/v1beta/projects.locations.instances/disable), [escala manual y tags](https://docs.cloud.google.com/run/docs/configuring/services/manual-scaling), [límites nativos](https://docs.cloud.google.com/billing/docs/how-to/budgets-spend-caps).
+
+## Inventario funcional del ajuste urgente
+
+Comparación de18 publicada con19 y el candidato20. Se distingue cambio de comportamiento de eliminación de una función comercial. El ahorro no se consigue prometiendo que no habrá lecturas: ingreso, navegación, eventos, reconexión y autenticación aún requieren red.
+
+| Función | Cambio y consecuencia | Estado |
+|---|---|---|
+| Ventas/Presupuestos | Sin consulta cada15s. Actualizan al entrar, guardar, Sincronizar ahora, regresar a la pestaña y reconectar. Cambios de otra PC no aparecen solos mientras la pantalla queda inmóvil |19 publicada |
+| Directorios de usuarios/empleados/proveedores | Sin consulta cada30s. Lectura inicial, acciones/refresco y señales reales de directorio/rol;20 comparte solicitudes y descarta sesiones antiguas |19; barreras20 |
+| Indicador de conexión | Sin prueba HTTP cada10s. Conserva eventos offline/online, retorno y errores de operaciones. Una caída silenciosa sin evento puede detectarse en la siguiente acción |19 publicada |
+| Avisos de vencimiento de presupuestos | Sin revisión horaria por reloj; revisión de ingreso/datos. Una pantalla inmóvil puede conservar el aviso hasta el siguiente refresco |19 publicada |
+| Notificaciones | Sin revisión cada30s; eventos/datos, navegación/foco e inicio.20 evita bucles de reenvío de preferencias y conserva la decisión concurrente más nueva |19; recuperación20 |
+| Versiones de la web | Sin comprobación HTTP cada minuto ni actualización del Service Worker cada15min. Se mantienen apertura, aviso de publicación y comprobación de retorno/foco/red |19 publicada |
+| Cotización del dólar | Sin actualización horaria de fondo. Actualizar ahora sigue; configuración diaria puede consultar al ingresar si venció. No se reescriben precios históricos |19 publicada |
+| Catálogo público: cotización | Sin consulta cada minuto; al abrir/volver al catálogo. Puede conservar cotización anterior si permanece inmóvil |19 publicada |
+| Presencia/conectados | Sin latido periódico. Inicio/desconexión y actividad de usuario en chat; el criterio de antigüedad puede presentar como inactiva una sesión abierta sin interacción |19 publicada; revisar semántica pendiente |
+| Estadísticas de uso de usuarios | Sin escritura cada30s. Eventos de visibilidad/salida y sesión. El cómputo anterior limita intervalos a60s: con envíos menos frecuentes pierde precisión. Pendiente corregir acumulación local; no usar como control horario |19 publicada; precisión pendiente |
+| Comisiones automáticas | Sin barrido global ni instancia permanentemente reservada. Tres eventos de pago/estado/habilitación entregan al servidor; conserva reglas, participantes, idempotencia y reintentos concretos. Funciona sin navegadores | Servidor activo |
+| Arranque del servidor | Mínimo0 y cobro por solicitud; primera solicitud después de reposo puede tener arranque en frío | Servidor activo |
+| Borradores | Captura periódica sólo local; envío por cambio, ordenado y sin bucle de rollback. La vista compartida no tiene latidos de borrador vacío |20 candidato |
+| Lecturas de módulos/fichas | Reutiliza escucha activa, libera lectura única y recupera sólo fuente fallida. Se impiden resultados de una sesión anterior; no cambia autorización |20 candidato |
+| Configuración Distribuidora | Consulta de Guaraní y configuración sólo al entrar/por acción, no desde Dashboard |20 candidato |
+| Migraciones al leer | Ya no asigna legajos, migra porcentajes ni borra proveedores de mano de obra como consecuencia de cargar listas. Faltante de legajo se muestra sin inventarlo |20 candidato |
+| Fechas automáticas |54 lugares más Caja usan fecha/mes local, no día UTC. No reescribe manuales ni históricos |20 candidato |
+| Offline opcional | Protege caché/cola por sesión; continúa apagado por defecto, no se habilitó como sustituto de sincronización |20 candidato |
+| Menú y carteles | Geometría estable de clic en menú; errores con semántica de alerta. Correcciones de interfaz sin eliminar operaciones |20 candidato |
+| Presupuesto/alertas/corte | Añadidos avisos30 y corte60 desde noviembre. Una suspensión impide sincronizar/comisionar hasta revisión y reactivación manual; no limita exactamente la factura por demora de avisos | Controlador activo, octubre excluido |
+
+No se retiraron ventas, presupuestos, cobros, cálculo de comisiones, stock, caja, PDF/IA ni permisos del servidor como medida de ahorro. Los datos existentes no se borraron ni recalcularon para probar. Continúan pendientes carga inicial amplia, transacciones laborales sobre raíz y carreras entre aperturas de fichas. Cada cambio futuro debe conservar este inventario y registrar regresiones reales, no asumir que menos consultas equivale a misma experiencia.

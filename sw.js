@@ -65,7 +65,7 @@ const SHELL = [
   './js/core/firebase.js?v=3.12.20',
   './js/modules/item-row-order.js?v=perf-3105',
   './js/core/data-query.js',
-  './js/modules/notifications.js?v=2.0.272&acciones=3.12.19',
+  './js/modules/notifications.js?v=3.12.20',
   './js/modules/push-notifications.js',
   './js/modules/offline-core.js',
   './js/modules/commercial-drafts.js?v=3.12.20',

@@ -1,5 +1,13 @@
 # Coherencia, sincronización y costo
 
+## Cierre parcial posterior · 2.107 pruebas
+
+Servidor por eventos ya activo: cotizador-events-b56470ce al100% con14 etiquetas, mínimo0 y facturación por solicitud. Entrega nativa ficticia y autenticada comprobada; función/registro de probeta retirados. Ninguna comisión real alterada. Detalle vigente en COMISIONES_EVENTOS.md. Las filas antiguas que describen migración pendiente conservan el estado de preparación anterior.
+
+Frontend20 pendiente de publicación: aislamiento de modo offline opcional, limpieza de lecturas únicas, recuperación parcial de Caja, notificaciones sin bucle de rollback ni sobrescritura de preferencias más nuevas. Leer Productos conserva proveedores de mano de obra.54 defaults de fecha/mes autorizados usan fecha local, además de movimientos/cierre de Caja; no se migraron registros.2.107 pruebas aprobadas, incluidos cambios nocturnos de mes/año y preservación de fecha/instante históricos. Los errores se presentan como alertas, sin tilde de éxito.
+
+Cuatro pruebas REST en emulador laboral: aportes concurrentes, reintento idempotente, aprobaciones solapadas y cambios externos preservados. No reemplazan autorización de servidor ni resuelven el costo de transacciones sobre raíz completa. Esa arquitectura, carga inicial amplia y carreras de fichas permanecen pendientes. Medir consumo real después del corte; no inferir USD30 de la cantidad de pruebas.
+
 Prioridad solicitada por el titular el18/10/2026. Este registro complementa las auditorías de seguridad, reconexión, interacciones y formularios; no convierte un recorrido visual en prueba financiera ni garantiza ausencia total de fallas.
 
 ## Requisitos de salida

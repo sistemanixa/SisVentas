@@ -3,13 +3,13 @@ const {load}=require('./helpers/app-functions.cjs');
 const fs=require('node:fs'),vm=require('node:vm');
 function fixture(exists=true){
  const timers=[],cleared=[],classes=new Set(),nodes=[],icon={style:{},setAttribute(key,value){this[key]=value;}};
- const toast={classList:{add:value=>classes.add(value),remove:value=>classes.delete(value)},replaceChildren(...children){nodes.splice(0,nodes.length,...children);},set innerHTML(_){throw Error('HTML must not be parsed');}};
+ const toast={setAttribute(key,value){this[key]=value;},classList:{add:value=>classes.add(value),remove:value=>classes.delete(value)},replaceChildren(...children){nodes.splice(0,nodes.length,...children);},set innerHTML(_){throw Error('HTML must not be parsed');}};
  const ctx={notifT:7,document:{getElementById:()=>exists?toast:null,createElement:tag=>{assert.equal(tag,'i');return icon;},createTextNode:text=>({nodeType:3,textContent:text})},setTimeout:(callback,ms)=>{timers.push({callback,ms});return 8;},clearTimeout:id=>cleared.push(id)};
  load(ctx,['notify']);return {ctx,timers,cleared,classes,nodes,icon};
 }
 test('mensajes y errores con etiquetas permanecen texto y no crean HTML ejecutable',()=>{
  for(const text of ['<img src=x onerror="alert(1)">','</div><script>alert(1)</script>','Nombre "de prueba" & saldo < 5','&lt;etiqueta&gt;',null]){
-  const f=fixture();f.ctx.notify(text);assert.equal(f.nodes.length,2);assert.equal(f.nodes[1].nodeType,3);assert.equal(f.nodes[1].textContent,' '+String(text||''));assert.equal(f.icon.className,'ti ti-check');assert.equal(f.icon.style.fontSize,'15px');assert.equal(f.icon['aria-hidden'],'true');
+  const f=fixture();f.ctx.notify(text);assert.equal(f.nodes.length,2);assert.equal(f.nodes[1].nodeType,3);assert.equal(f.nodes[1].textContent,' '+String(text||''));assert.equal(f.icon.className,'ti ti-info-circle');assert.equal(f.icon.style.fontSize,'15px');assert.equal(f.icon['aria-hidden'],'true');
  }
 });
 test('el aviso conserva su duración, reemplaza el anterior y se cierra con el mismo temporizador',()=>{
