@@ -1,5 +1,9 @@
 # Coherencia, sincronización y costo
 
+## Publicación del bloque20
+
+Fuente addec6ebd6ada4b107e46c1a066c510badbf0627 publicada por autorización expresa del titular.2.107 pruebas desde paquete limpio,380 activos,15 hashes,5 cabeceras y4 rutas internas404 comprobados. Aviso20 actualizado después. Sesión web conservada: Dashboard cargado, Ventas50 filas y Presupuestos8 con Sincronizado, sin operaciones financieras de prueba. El resto del documento describe la preparación y los pendientes; no considerar cerrada la auditoría completa. Continuar en nueva versión3.13.0 sin editar20 publicada.
+
 ## Cierre parcial posterior · 2.107 pruebas
 
 Servidor por eventos ya activo: cotizador-events-b56470ce al100% con14 etiquetas, mínimo0 y facturación por solicitud. Entrega nativa ficticia y autenticada comprobada; función/registro de probeta retirados. Ninguna comisión real alterada. Detalle vigente en COMISIONES_EVENTOS.md. Las filas antiguas que describen migración pendiente conservan el estado de preparación anterior.

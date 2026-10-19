@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Publicación completada · v3.12.20
+
+- Autorización explícita del titular: publicar hasta este bloque y continuar auditoría. Fuente addec6ebd6ada4b107e46c1a066c510badbf0627, rama codex/reduccion-consumo-firebase-20261018; origin/main4639a87bf7e6edd9f2d62af70317fdc5f9ac71b5 sin novedades. No integrado main ni alterado el cambio ajeno de la raíz.
+- Checkout limpio .local/publicacion-final-v31216 separado en SHA fuente. Primera suite detectó dependencia playwright ausente en esa copia; npm ci con lock e ignore-scripts, sin navegadores, y repetición2.107/2.107 aprobadas. Sintaxis/diff/coherencia20 correctos.
+- Firebase Hosting380 activos públicos,13 cargas;15 archivos comparados por hash con fuente,5 cabeceras y4 rutas internas404. Sólo después se actualizó sisventas/config/version20. No se cambiaron DNS, reglas, permisos ni configuración de servicios durante esta publicación. Backend eventos b56470ce permanece activo como documentado.
+- Misma pestaña reutilizada para producción, sesión propia conservada sin borrar navegación: Dashboard termina carga, Ventas50 filas visibles y Presupuestos8, Sincronizado, sin errores de consola observados. Sólo navegación; sin ventas/cobros/comisiones reales como prueba. Screenshot privado v31220-dashboard-web/v31220-presupuestos-web. Reversión frontend19 desde273945694f456c18960db3e5da95464bfea9eae8, conservada; no confundir con reversión servidor.
+- Inventario de funciones cambiadas en CONTROL_COSTOS.md. Riesgos pendientes reales: estadísticas de uso pierden precisión sin latidos porque acumulador limita60s; presencia de sesión inactiva; transacciones laborales amplias y carreras entre aperturas de fichas. Próximo trabajo aislado debe partir de3.13.0, sin modificar20 publicada. Costos posteriores aún no medidos; no afirmar total mensual menor30.
+
 ## Estado vigente posterior · eventos activos, frontend20 pendiente
 
 - Cotizador publicado desde b56470ceeee276c572f4315c4f2853f8010f3ff1: revisión cotizador-events-b56470ce al100% y las14 etiquetas existentes. Mínimo de servicio0, CPU por solicitud, observador desactivado. Secretos, identidad y recursos conservados.15 accesos rechazan consulta comercial anónima; endpoint interno rechaza anónimo. Reversión cotizador-cost-ee5a02ed. Asistente y otros servicios sin cambios.
