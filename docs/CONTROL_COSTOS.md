@@ -86,3 +86,20 @@ Comparación de18 publicada con19 y 20 publicada. Se distingue cambio de comport
 No se retiraron ventas, presupuestos, cobros, cálculo de comisiones, stock, caja, PDF/IA ni permisos del servidor como medida de ahorro. Los datos existentes no se borraron ni recalcularon para probar. Continúan pendientes carga inicial amplia, transacciones laborales sobre raíz y carreras entre aperturas de fichas. Cada cambio futuro debe conservar este inventario y registrar regresiones reales, no asumir que menos consultas equivale a misma experiencia.
 
 Continuación local13.0: la pérdida de precisión de métricas se reprodujo y corrigió sin restaurar escrituras por reloj. También se corrige orden de respuestas al abrir fichas.2.123 pruebas aprobadas; estos cambios posteriores no están en20 publicada. No se reconstruyen métricas históricas que no se registraron.
+
+Corte13.0 autorizado posteriormente: añade presencia moderna por conexión con retiro propio seguro, ocho colecciones a demanda por pantalla y omisión de PUT en reenvíos laborales ya confirmados. Las claves de presencia antiguas conservan TTL y las operaciones laborales nuevas todavía leen/transaccionan raíz; no se retiraron formularios ni controles financieros. Métricas siguen sin reloj remoto y fichas tardías se descartan. El detalle de publicación efectiva debe confirmarse en CONTEXTO_ACTUAL; una autorización no demuestra un despliegue terminado.
+
+## Medición agregada posterior al corte de eventos
+
+Consulta única de métricas existentes el18/10/2026 local (19/10 00:21UTC), sin leer registros comerciales ni crear monitores. Ventanas de20min: antes23:20–23:40UTC, después23:55–00:15UTC. El tráfico y las pruebas difieren entre ventanas; no son un experimento controlado ni una proyección mensual.
+
+| Métrica | Antes | Después | Interpretación |
+|---|---:|---:|---|
+| Tiempo facturable de Cotizador, instancias agregadas |3.043,952s |35,6s | Observación favorable; muestra reserva previa/múltiples instancias y solicitudes nuevas, no porcentaje de ahorro mensual |
+| Solicitudes de Cotizador |11 |44 | La actividad cambió entre ventanas |
+| Bytes enviados RTDB (incluye protocolo/cifrado) |18.109.669 |135.398.027 | Persisten ráfagas grandes; no afirmar resuelto consumo de base |
+| Payload RTDB |16.829.760 |134.972.308 | No representa por sí solo todo lo facturable |
+
+Las series RTDB son dispersas (puntos sólo cuando hay actividad), y las métricas tienen demora. La revisión anterior llega a0s facturables en su último punto23:57UTC; la revisión por eventos tiene0s en00:20UTC. Son puntos de medición, no garantía de apagado permanente. El período posterior incluye cargas reales de interfaz autorizadas; no se atribuye toda transferencia a un endpoint sin traza correlacionada. Falta observar días normales y la factura consolidada. Evidencia privada cost-postcut-metrics*.private.json, fuera de Git.
+
+Fuentes de definición: [uso RTDB](https://firebase.google.com/docs/database/usage/monitor-usage), [métricas Cloud Run](https://docs.cloud.google.com/monitoring/api/metrics_gcp_p_z#run). No se cambió infraestructura ni facturación con esta lectura.

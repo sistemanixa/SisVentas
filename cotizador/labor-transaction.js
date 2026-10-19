@@ -1,5 +1,9 @@
 'use strict';
 // Solo servidor. ETag conserva la atomicidad sin el límite de 16 MB del SDK.
+// Sólo una comprobación de idempotencia ya satisfecha puede omitir el PUT.
+// Retornar el mismo objeto no implica que esté sin cambios: los callbacks mutan.
+const UNCHANGED=Symbol('labor-transaction.UNCHANGED');
+const control=Object.freeze({UNCHANGED});
 function createRootTransaction({databaseURL,accessToken,fetchImpl=fetch}){
  return async function transaction(update){
   const token=await accessToken();const url=databaseURL.replace(/\/$/,'')+'/sisventas.json';
@@ -13,7 +17,8 @@ function createRootTransaction({databaseURL,accessToken,fetchImpl=fetch}){
     etag=read.headers.get('etag');if(!etag)throw Error('No se pudo verificar la versión de datos');
     actual=await read.json();
    }
-   const next=update(actual);if(next===undefined)return {committed:false};
+   const next=update(actual,control);if(next===UNCHANGED)return {committed:true,unchanged:true};
+   if(next===undefined)return {committed:false};
    if(next===null)return {committed:false};
    const body=JSON.stringify(next);if(Buffer.byteLength(body)>128*1024*1024)throw Error('La operación requiere una migración de almacenamiento');
    // Tanto el éxito como un conflicto pueden incluir una respuesta grande.

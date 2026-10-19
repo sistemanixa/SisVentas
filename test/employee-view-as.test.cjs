@@ -3,12 +3,13 @@ const assert=require('node:assert/strict');
 const {load}=require('./helpers/app-functions.cjs');
 
 function setup(){
- const elements={};
+ const elements={},presence=[];
  for(const id of ['dash-micuenta-card','dash-historial-mes-card','dash-historial-mes-body','ctaemp-base'])elements[id]={style:{},textContent:''};
  const user={uid:'admin-auth'};
  const c={currentUserUid:'admin-auth',currentUser:'Admin',currentRole:'admin',currentUserEmail:'admin@fixture.invalid',
   empData:{a:{fbKey:'a'},b:{fbKey:'b'},own:{fbKey:'own'}},ctaEmpActual:null,movsEmpData:[],
   document:{getElementById:id=>elements[id]||null,querySelector:()=>null},
+  limpiarPresenciaOnline(){presence.push({action:'clear',user:c.currentUser,role:c.currentRole});},registrarPresenciaOnline(){presence.push({action:'start',user:c.currentUser,role:c.currentRole});},
   notify(){},chatCerrar(){},applyRole(){},_actualizarCabeceraSesion(){},_mostrarBannerImpersonacion(){},
   chatActualizarBadges(){},aplicarVisibilidadBotonesFlotantes(){},showPage(){},
   _normalizarRolUsuarioSistema:r=>r,_emailUsuarioSistema:u=>u.mail||'',
@@ -16,7 +17,7 @@ function setup(){
    usuariosData:[{fbKey:'admin',uid:'admin-auth',empleadoFbKey:'own'},{fbKey:'u-a',uid:'auth-a',rol:'tecnico',empleadoFbKey:'a'},
     {fbKey:'u-b',uid:'auth-b',rol:'tecnico',empleadoFbKey:'b'}]},console};
  load(c,['svEmpleadoPropio','limpiarCtaEmpSinSeleccion','svLimpiarVistaCuentaPersonal','iniciarImpersonacionUsuario','finalizarImpersonacionUsuario']);
- return {c,elements,user};
+ return {c,elements,user,presence};
 }
 
 test('Ver como selecciona el vínculo explícito de cada usuario y conserva Auth y UID administrador',()=>{
@@ -95,3 +96,5 @@ test('Mi cuenta consulta el empleado seleccionado y rechaza snapshots de otra vi
  listener({val(){assert.fail('Snapshot cancelado de otra vista');}});
  assert.equal(c.movsEmpData.length,0);assert.equal(c.currentUserUid,'admin-auth');
 });
+
+test('Ver como retira presencia antes de cambiar actor y la restaura después de recuperar Admin',()=>{const {c,presence}=setup();c.iniciarImpersonacionUsuario('u-a');assert.deepEqual(presence,[{action:'clear',user:'Admin',role:'admin'}]);c.finalizarImpersonacionUsuario();assert.deepEqual(presence.at(-1),{action:'start',user:'Admin',role:'admin'});});

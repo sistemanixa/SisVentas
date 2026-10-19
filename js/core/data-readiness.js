@@ -2,6 +2,7 @@
   'use strict';
   var states={},generation=0,scheduled=false,deadlineTimer=null,sessionActive=false;
   var waitLimit=15000;
+  var demandPages=['informes','equipos','garantias','soporte','remitos','servicios','agenda','caja','historialcliente'];
   var dependencies={
     dashboard:['clientes','productos','ventas','pagos'],
     productos:['productos'],catalogo:['productos'],actualizadorprecios:['productos','proveedores'],
@@ -10,9 +11,13 @@
     gastos:['gastos','empleados'],comisiones:['gastos','empleados','ventas'],
     ordentrabajo:['ordenes_trabajo','clientes','productos'],
     balancecompra:['ventas','presupuestos','productos','proveedores'],ordenes:['productos','proveedores'],
-    proveedores:['proveedores'],empleados:['empleados'],usuarios:['usuarios']
+    proveedores:['proveedores'],empleados:['empleados'],usuarios:['usuarios'],
+    informes:['informes','clientes','empleados'],equipos:['equipos','clientes','empleados'],garantias:['garantias','equipos','clientes','ventas','productos'],
+    soporte:['reclamos','clientes','ordenes_trabajo','ventas','empleados'],remitos:['remitos','clientes'],servicios:['servicios','clientes'],
+    agenda:['agenda','ordenes_trabajo'],caja:['caja'],
+    historialcliente:['clientes','ventas','pagos','presupuestos','ordenes_trabajo','equipos','tickets','reclamos']
   };
-  var labels={ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores'};
+  var labels={ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
   function requirements(page){
     var keys=(dependencies[page]||[]).slice();
     if(page==='dashboard') {
@@ -25,6 +30,12 @@
       if(can('dashboard.grafico')||can('dashboard.miActividad'))keys.push('clientes','ventas');
       keys=Array.from(new Set(keys)).filter(function(key){return typeof global.svPuedeLeerDominio==='function'&&global.svPuedeLeerDominio(key);});
     }
+    // El historial combina módulos con permisos distintos. Una fuente que el
+    // rol no puede consultar tampoco puede retener su pantalla en "Cargando".
+    // Empleados y Proveedores conservan sus directorios reducidos autorizados.
+    if(demandPages.includes(page)&&typeof global.svPuedeLeerDominio==='function')keys=keys.filter(function(key){
+      return global.svPuedeLeerDominio(key)||(key==='empleados'&&['informes','equipos','soporte'].includes(page)&&(typeof global.permisoModulo!=='function'||global.permisoModulo(page)));
+    });
     return keys;
   }
   function ensure(key){
@@ -33,7 +44,7 @@
   }
   function failed(state){return !!state&&(state.timeout||state.failure||Array.from(state.sources).some(function(source){return source.error;}));}
   function collection(reference){
-    try{var path=new URL(String(reference)).pathname;if(/^\/sv_usuarios\/?$/.test(path))return 'usuarios';var match=path.match(/^\/sisventas\/([^/]+)\/?$/);return match?decodeURIComponent(match[1]):'';}catch(_){return '';}
+    try{var path=new URL(String(reference)).pathname;if(/^\/sv_usuarios\/?$/.test(path))return 'usuarios';if(/^\/sisventas\/caja\/\d{4}-\d{2}-\d{2}(?:\/[^/]+)?\/?$/.test(path))return 'caja';var match=path.match(/^\/sisventas\/([^/]+)\/?$/);return match?decodeURIComponent(match[1]):'';}catch(_){return '';}
   }
   function status(keys){
     var missing=keys.filter(function(k){return !states[k]||!states[k].ready;});
@@ -43,12 +54,12 @@
   function statusFor(page){return status(requirements(page));}
   function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(function(){scheduled=false;render();});}
   function begin(reference){
-    return beginSource(collection(reference));
+    return beginSource(collection(reference),String(reference));
   }
-  function beginSource(key){
+  function beginSource(key,reference){
     var epoch=generation,active=true;
     if(!key)return {ready:function(){},error:function(){},cancel:function(){}};
-    var state=ensure(key),source={ready:false,error:false};
+    var state=ensure(key),source={ready:false,error:false,reference:reference||''};
     state.sources.add(source);state.timeout=false;state.failure=false;state.since=Date.now();schedule();
     function finish(error){
       if(!active||epoch!==generation)return;
@@ -97,7 +108,23 @@
       title.textContent=state.errors.length?'No se pudieron cargar todos los datos':global.navigator.onLine===false?'Sin conexión. Esperando los datos…':'Cargando datos…';
       detail.textContent=state.errors.length?'No se pudieron completar '+state.errors.map(function(k){return labels[k]||k;}).join(', ')+'. '+(state.ready?'Se conserva la información recibida. Revisá la conexión y volvé a intentar.':'No se puede determinar todavía si hay registros. Revisá la conexión y volvé a intentar.'):'Esperando '+state.missing.map(function(k){return labels[k]||k;}).join(', ')+'. La información aparecerá al completar la carga.';
       box.append(title,detail);
-      var retry=document.createElement('button');retry.className='btn btn-sm';retry.textContent='Reintentar carga';retry.onclick=function(){global.location.reload();};box.append(retry);
+      var retry=document.createElement('button');retry.className='btn btn-sm';retry.textContent='Reintentar carga';retry.onclick=function(){
+        if(!sessionActive||!page.classList.contains('active')||(typeof global.permisoModulo==='function'&&!global.permisoModulo(name)))return;
+        function report(){global.notify?.('No se pudo reintentar la carga. Revisá la conexión y volvé a intentar.');schedule();}
+        try{
+          // Una recuperación explícita conserva página, filtros y formulario.
+          // Sólo las pantallas a demanda tienen su mapa completo en la app.
+          if(demandPages.includes(name)&&typeof global.svReintentarDatosDePagina==='function'){
+            var errors=status(requirements(name)).errors;
+            var timedOut=errors.filter(function(key){return states[key]?.timeout;});
+            var references=[];errors.forEach(function(key){Array.from(states[key]?.sources||[]).forEach(function(source){if(source.reference&&(source.error||(states[key].timeout&&!source.ready)))references.push({key:key,reference:source.reference});});});
+            Promise.resolve(global.svReintentarDatosDePagina(name,{errors:errors,timedOut:timedOut,references:references})).catch(report);
+          }
+          else if(demandPages.includes(name)&&typeof global.svCargarDatosDePaginaActual==='function')Promise.resolve(global.svCargarDatosDePaginaActual(name)).catch(report);
+          else if(typeof global.fbSincronizarAhora==='function')Promise.resolve(global.fbSincronizarAhora()).catch(report);
+          else global.location.reload();
+        }catch(_){report();}
+      };box.append(retry);
     });
     armDeadlines();
     document.dispatchEvent(new CustomEvent('sisventas:data-state-changed'));

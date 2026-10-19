@@ -5541,12 +5541,14 @@ function fbCargarUsuarios() {
 function resumenSesionUsuario(u, ahora) {
   ahora=Number(ahora)||Date.now();
   var email=String(u.mail||(String(u.login||'').includes('@')?u.login:(u.login||'')+'@sistemanixa.com')).toLowerCase();
-  var sesiones=Object.values(PRESENCIA_DATA||{}).filter(function(p){return String(p.email||'').toLowerCase()===email || (u.uid && p.uid===u.uid);});
+  var actuales = window.SVChatPresence?.sesionesActivas?.() || [];
+  var sesiones=actuales.concat(Object.values(PRESENCIA_DATA||{})).filter(function(p){return String(p.email||'').toLowerCase()===email || (u.uid && p.uid===u.uid);});
   sesiones.sort(function(a,b){return Number(presenciaEstaActiva(b,ahora))-Number(presenciaEstaActiva(a,ahora)) || Number(b.inicioSesion||b.ultimaDesconexion||b.ultimaConexion||0)-Number(a.inicioSesion||a.ultimaDesconexion||a.ultimaConexion||0);});
-  var sesion=sesiones[0]||{},activa=presenciaEstaActiva(sesion,ahora);
-  var inicio=Number(sesion.inicioSesion)||Number(u.ultimoAcceso||u.ultimoAccesoEn)||0;
+  var sesion=sesiones[0]||{},activa=u.activo!==false && presenciaEstaActiva(sesion,ahora);
+  var conexionModerna = !!window.SVChatPresence?.esConexionVigente?.(sesion);
+  var inicio=Number(sesion.inicioSesion)||(conexionModerna?Number(sesion.ultimaConexion):0)||Number(u.ultimoAcceso||u.ultimoAccesoEn)||0;
   var fin=activa?0:Number(sesion.ultimaDesconexion)||0;
-  return {inicio:inicio,fin:fin,activa:activa,duracion:sesion.inicioSesion && (activa||fin>=inicio) ? Math.max(0,(activa?ahora:fin)-inicio):null};
+  return {inicio:inicio,fin:fin,activa:activa,duracion:(sesion.inicioSesion || conexionModerna) && (activa||fin>=inicio) ? Math.max(0,(activa?ahora:fin)-inicio):null};
 }
 
 function renderTablaUsuarios() {
@@ -5779,11 +5781,20 @@ async function cargarMetricasUsoUsuarios(periodo) {
 }
 window.cargarMetricasUsoUsuarios = cargarMetricasUsoUsuarios;
 
-function svCargarDatosDePaginaActual() {
-  var pagina = typeof _svPaginaDesdeRuta === 'function' ? _svPaginaDesdeRuta() : '';
+function svCargarDatosDePaginaActual(pagina) {
+  pagina = pagina || (typeof _svPaginaDesdeRuta === 'function' ? _svPaginaDesdeRuta() : '');
+  if (!pagina) {
+    var activa = document.querySelector('.page.active');
+    pagina = activa ? String(activa.id || '').replace(/^page-/, '') : 'dashboard';
+  }
   if (!permisoModulo(pagina)) return;
+  // Cada entrada inicia sus fuentes aunque todavía no haya visitado el módulo.
+  // Equipos y Tickets también pertenecen al historial del cliente; Garantías
+  // combina su registro manual con los equipos instalados. Los cargadores
+  // conservan permisos, cancelación de sesión y una sola suscripción por fuente.
   var tareas = {
     clientes: [fbCargarClientes],
+    historialcliente: [fbCargarClientes, fbCargarVentas, fbCargarPagos, fbCargarPresupuestos, fbCargarOTs, fbCargarEquipos, fbCargarTickets, spCargar],
     kits: [cargarKits, fbCargarProductos],
     actualizadorprecios: [fbCargarProductos, fbCargarProveedores],
     productos: [fbCargarProductos, fbCargarProveedores, fbCargarCategorias],
@@ -5797,10 +5808,10 @@ function svCargarDatosDePaginaActual() {
     ordentrabajo: [fbCargarOTs, fbCargarClientes, fbCargarProductos],
     cobranzas: [fbCargarVentas, fbCargarClientes, fbCargarPagos],
     agenda: [fbCargarAgenda, fbCargarOTs],
-    soporte: [fbCargarTickets, fbCargarClientes],
-    garantias: [fbCargarGarantias, fbCargarEquipos],
-    equipos: [fbCargarEquipos, fbCargarClientes],
-    informes: [fbCargarInformes, fbCargarClientes],
+    soporte: [spCargar, fbCargarClientes, fbCargarOTs, fbCargarVentas, fbCargarEmpleados],
+    garantias: [fbCargarGarantias, fbCargarEquipos, fbCargarClientes, fbCargarVentas, fbCargarProductos],
+    equipos: [fbCargarEquipos, fbCargarClientes, fbCargarEmpleados],
+    informes: [fbCargarInformes, fbCargarClientes, fbCargarEmpleados],
     remitos: [fbCargarRemitos, fbCargarClientes],
     servicios: [fbCargarServicios, fbCargarClientes],
     caja: [fbCargarCaja],
@@ -5811,6 +5822,38 @@ function svCargarDatosDePaginaActual() {
     usuarios: [fbCargarUsuarios]
   };
   (tareas[pagina] || []).forEach(function(cargar) { cargar(); });
+}
+
+function svReintentarDatosDePagina(pagina, estado) {
+  if (!isAuthenticated || !permisoModulo(pagina)) return;
+  estado = estado || window.SVDataReadiness?.statusFor(pagina) || {};
+  var fallidas = (estado.errors || []).filter(function(key){return svPuedeLeerDominio(key) || (key === 'empleados' && ['informes','equipos','soporte'].includes(pagina));});
+  var vencidas = estado.timedOut || [];
+  // Los listeners globales antiguos no exponen una baja individual. Reiniciar
+  // sólo su bandera duplicaría la escucha: la recarga queda como último recurso
+  // cuando una de esas fuentes nunca respondió y no puede cancelarse con seguridad.
+  if (fallidas.some(function(key){return vencidas.includes(key) && ['clientes','ventas','pagos','presupuestos','ordenes_trabajo'].includes(key);})) {
+    window.location.reload(); return;
+  }
+  var claves = {informes:['informes'],equipos:['equipos'],garantias:['garantias'],tickets:['tickets'],reclamos:['reclamos'],remitos:['remitos'],servicios:['servicios'],empleados:[svPuedeLeerDominio('empleados') ? 'empleados' : 'directorio']};
+  var listeners = window._svModuleListeners || {};
+  fallidas.forEach(function(fuente) {
+    var cancelar = claves[fuente] || [];
+    if (fuente === 'agenda') {
+      if (typeof AG_UNSUBSCRIBE === 'function') AG_UNSUBSCRIBE();
+      AG_UNSUBSCRIBE = null; AG_LISTENER_FIRMA = '';
+    }
+    if (fuente === 'caja') {
+      // Caja personal combina saldo y movimientos. La referencia del intento
+      // permite conservar la parte sana y cancelar sólo la que sigue pendiente.
+      cancelar = (estado.references || []).filter(function(ref){return ref.key === 'caja';}).map(function(ref){
+        try { var path = new URL(ref.reference).pathname.replace(/\/$/, ''); return /\/caja\/[^/]+$/.test(path) ? 'cajaConsolidada' : /_movs$/.test(path) ? 'cajaMovimientos' : 'cajaPersonal'; } catch (_) { return ''; }
+      }).filter(Boolean);
+      if (!cancelar.length && vencidas.includes('caja')) cancelar = ['cajaConsolidada','cajaPersonal','cajaMovimientos'];
+    }
+    Array.from(new Set(cancelar)).forEach(function(key){if(typeof listeners[key] === 'function')listeners[key]();});
+  });
+  return svCargarDatosDePaginaActual(pagina);
 }
 
 function svPuedeLeerDominio(dominio) {
@@ -5836,12 +5879,14 @@ function fbCargarTodo() {
     fbCargarGastos(); fbCargarProveedores(); fbCargarPagos();
   }, 700);
   svProgramarTrabajoFondo(function() {
-    fbCargarPresupuestos(); fbCargarOTs(); fbCargarOrdenes(); fbCargarEquipos();
+    // Presupuestos/OT alimentan avisos y Dashboard; Compras también mantiene
+    // listas de materiales e inventario usados desde Ventas/Productos/OT.
+    fbCargarPresupuestos(); fbCargarOTs(); fbCargarOrdenes();
   }, 1800);
-  svProgramarTrabajoFondo(function() {
-    fbCargarInformes(); fbCargarGarantias(); fbCargarTickets(); fbCargarRemitos();
-    fbCargarAgenda(); fbCargarServicios(); fbCargarCaja();
-  }, 3800);
+  // Informes, Garantías, Tickets, Remitos, Equipos, Servicios, Caja y el
+  // calendario completo de Agenda se inician al visitar sus destinos. El
+  // Dashboard conserva su consulta acotada de agenda y los avisos no usan esas
+  // colecciones. Las otras fuentes compartidas conservan su arranque actual.
   return true;
 }
 
@@ -10446,6 +10491,9 @@ document.addEventListener('sisventas:session-ended',function(){
 
 function svActualizarLecturasPorAccion(id) {
   if (!isAuthenticated) return;
+  // El arranque se habilita recién después de resolver los permisos remotos.
+  // Si se navega antes, fbCargarTodo recoge la ruta vigente al comenzar.
+  if (window._fbCargaTodoActiva && id !== 'usuarios' && typeof svCargarDatosDePaginaActual === 'function') svCargarDatosDePaginaActual(id);
   var dominios = {dashboard:['ventas','presupuestos'],detalle:['ventas'],venta:['ventas'],presupuesto:['presupuestos'],cuentacorriente:['ventas'],cobranzas:['ventas']};
   (dominios[id]||[]).forEach(function(dominio){if(svPuedeLeerDominio(dominio))window.SVCommercialOwnership?.refresh(dominio,{joinPending:true});});
   var directorios=window._svModuleListeners||{};
@@ -10732,7 +10780,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.13.0',date:'18/10/2026',title:'Auditoría por eventos',notes:Object.freeze(['Medición de uso local y descarte de respuestas de fichas anteriores.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ir al inicio'})}),
+ Object.freeze({version:'v3.13.0',date:'18/10/2026',title:'Carga por pantalla y sesiones',notes:Object.freeze(['Los módulos cargan al abrirlos y permiten reintentar sin perder la pantalla.','Conectados y estadísticas de uso por eventos; las fichas descartan respuestas anteriores.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ir al inicio'})}),
  Object.freeze({version:'v3.12.20',date:'18/10/2026',title:'Coherencia de sincronización',notes:Object.freeze(['Borradores con envíos ordenados, recuperación de carga y descarte de tareas de otra sesión. El menú conserva la posición de sus opciones; las consultas no modifican fichas ni porcentajes.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ir al inicio'})}),
  Object.freeze({version:'v3.12.19',date:'18/10/2026',title:'Consultas por acción',notes:Object.freeze(['Se retiran las consultas periódicas de historiales y directorios. Actualizá los datos al abrir el módulo o desde Sincronizar ahora.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ir al inicio'})}),
  Object.freeze({version:'v3.12.18',date:'18/10/2026',title:'Pie del espacio personal',notes:Object.freeze(['El usuario y el retorno del espacio personal siguen el diseño compacto de Distribuidora.']),feature:Object.freeze({page:'gastospersonales',actionLabel:'Ver gastos personales'})}),
@@ -14447,45 +14495,93 @@ function detenerMedicionUsoUsuario() {
 }
 // y aplica el cambio a online:false automáticamente, sin depender de que el
 // a diferencia de simplemente registrar el último login.
-function registrarPresenciaOnline() {
-  if (!window.fbDB || !window.fbOnDisconnect || !currentUserUid) return;
-  var refPresencia = window.fbRef(window.fbDB, 'sisventas/presencia/' + clavePresenciaSesionActual());
-  var datosOnline = {
-    inicioSesion: Date.now(),
-    online: true,
-    nombre: currentUser || '',
-    email: currentUserEmail || '',
-    rol: currentRole || '',
-    uid: currentUserUid,
-    sesionId: obtenerIdSesionPresencia(),
-    ultimaConexion: window.fbServerTimestamp ? window.fbServerTimestamp() : Date.now()
-  };
-  window.fbSet(refPresencia, datosOnline);
-  iniciarMedicionUsoUsuario();
-  // Firebase aplica esto solo del lado del servidor.
-  window.fbOnDisconnect(refPresencia).update({
-    online: false,
-    nombre: currentUser || '',
-    email: currentUserEmail || '',
-    rol: currentRole || '',
-    uid: currentUserUid,
-    sesionId: obtenerIdSesionPresencia(),
-    ultimaDesconexion: window.fbServerTimestamp ? window.fbServerTimestamp() : Date.now()
-  });
-  clearInterval(window._presenciaLatidoTimer);
-  window._presenciaLatidoTimer = null; // Presencia inicial y onDisconnect conservados.
+var _presenciaConexionEstado = null;
+var _presenciaConexionContador = 0;
+var _presenciaConexionInstancia = Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+function svPresenciaConexionPermitida() {
+  return !window._impersonacionOriginal && !!currentUser && !!currentUserUid &&
+    window.fbAuth?.currentUser?.uid === currentUserUid &&
+    ['admin','administrativo','vendedor','tecnico','tecnico_vendedor'].includes(currentRole);
 }
-
+function svPresenciaConexionVigente(estado) {
+  return _presenciaConexionEstado === estado && estado.auth === window.fbAuth?.currentUser &&
+    estado.uid === currentUserUid && estado.rol === currentRole && svPresenciaConexionPermitida();
+}
+function svPresenciaCancelarDesconexion(intento) {
+  if (!intento.registrado || !intento.retirado || intento.cancelado) return;
+  intento.cancelado = true;
+  try { intento.desconexion.cancel?.().catch(function(){}); } catch (_) {}
+}
+function svPresenciaRetirarIntento(intento) {
+  if (!intento) return;
+  intento.descartado = true;
+  // No online write was even queued: cancel its server action without
+  // creating an empty offline history row through a client update.
+  if (!intento.enviando) {
+    intento.retirado = true;
+    svPresenciaCancelarDesconexion(intento);
+    return;
+  }
+  if (!intento.limpiando && intento.auth === window.fbAuth?.currentUser) {
+    intento.limpiando = true;
+    try {
+      window.fbUpdate(intento.ref, {
+        online: false,
+        ultimaDesconexion: window.fbServerTimestamp ? window.fbServerTimestamp() : Date.now()
+      }).then(function(){ intento.retirado = true; svPresenciaCancelarDesconexion(intento); }).catch(function(){});
+    } catch (_) {}
+  }
+  svPresenciaCancelarDesconexion(intento);
+}
+function registrarPresenciaOnline() {
+  if (!window.fbDB || !window.fbOnDisconnect || !window.fbOnValue || !svPresenciaConexionPermitida()) return;
+  if (_presenciaConexionEstado && svPresenciaConexionVigente(_presenciaConexionEstado)) return;
+  if (_presenciaConexionEstado) limpiarPresenciaOnline();
+  var estado = {
+    uid: currentUserUid, rol: currentRole, auth: window.fbAuth.currentUser,
+    nombre: currentUser || '', email: currentUserEmail || '', inicio: Date.now(),
+    sesionId: obtenerIdSesionPresencia(), clave: clavePresenciaSesionActual(), intento: null, detener: null
+  };
+  _presenciaConexionEstado = estado;
+  iniciarMedicionUsoUsuario();
+  var detener = window.fbOnValue(window.fbRef(window.fbDB, '.info/connected'), function(snap) {
+    if (!svPresenciaConexionVigente(estado)) return;
+    if (snap.val() !== true) { if (estado.intento) estado.intento.conectado = false; return; }
+    if (estado.intento?.conectado) return;
+    var ref = window.fbRef(window.fbDB, 'sisventas/presencia/' + estado.clave + '_' + _presenciaConexionInstancia + '_' + (++_presenciaConexionContador));
+    var intento = {ref: ref, auth: estado.auth, conectado: true, desconexion: window.fbOnDisconnect(ref)};
+    estado.intento = intento;
+    intento.desconexion.update({
+      online: false, uid: estado.uid, sesionId: estado.sesionId,
+      ultimaDesconexion: window.fbServerTimestamp ? window.fbServerTimestamp() : Date.now()
+    }).then(function() {
+      intento.registrado = true;
+      if (!svPresenciaConexionVigente(estado) || estado.intento !== intento || !intento.conectado || intento.descartado) {
+        svPresenciaRetirarIntento(intento); return;
+      }
+      intento.enviando = true;
+      window.fbSet(ref, {
+        inicioSesion: estado.inicio, online: true, nombre: estado.nombre, email: estado.email,
+        rol: estado.rol, uid: estado.uid, sesionId: estado.sesionId,
+        ultimaConexion: window.fbServerTimestamp ? window.fbServerTimestamp() : Date.now()
+      }).catch(function(){ svPresenciaRetirarIntento(intento); });
+    }).catch(function(){});
+  });
+  if (_presenciaConexionEstado === estado) estado.detener = detener;
+  else detener();
+  clearInterval(window._presenciaLatidoTimer);
+  window._presenciaLatidoTimer = null;
+}
 function limpiarPresenciaOnline() {
-  if (!window.fbDB || !currentUserUid) return;
   detenerMedicionUsoUsuario();
   clearInterval(window._presenciaLatidoTimer);
   window._presenciaLatidoTimer = null;
-  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/presencia/' + clavePresenciaSesionActual()), {
-    online: false,
-    ultimaDesconexion: window.fbServerTimestamp ? window.fbServerTimestamp() : Date.now()
-  }).catch(function(){});
+  var estado = _presenciaConexionEstado;
+  _presenciaConexionEstado = null;
+  estado?.detener?.();
+  svPresenciaRetirarIntento(estado?.intento);
 }
+document.addEventListener('sisventas:session-ended', limpiarPresenciaOnline);
 
 function _verificarHaberesPendientes() {
   if (!window.tienePermiso('empleados.avisarHaberes')) return;
@@ -24775,6 +24871,7 @@ var presenciaToastTimer = null;
 var PRESENCIA_VIGENCIA_MS = 90000;
 function presenciaEstaActiva(presencia, ahora) {
   if (!presencia || presencia.online !== true) return false;
+  if (typeof window !== 'undefined' && window.SVChatPresence?.esConexionVigente(presencia)) return true;
   var ts = Number(presencia.ultimaConexion || 0);
   if (!ts) return !!presencia.sesionId;
   return (Number(ahora || Date.now()) - ts) <= PRESENCIA_VIGENCIA_MS;
@@ -24872,6 +24969,9 @@ function cargarPresenciaUsuarios() {
 function estaUsuarioOnline(email) {
   if (!email) return false;
   var emailLower = String(email).toLowerCase();
+  var cuenta = (window.usuariosData || []).find(function(u){return String(u.mail || (String(u.login || '').includes('@') ? u.login : (u.login || '') + '@sistemanixa.com')).toLowerCase() === emailLower;});
+  if (cuenta?.activo === false) return false;
+  if (cuenta?.uid && window.SVChatPresence?.sesionesActivas?.().some(function(p){return p.uid === cuenta.uid && presenciaEstaActiva(p);})) return true;
   return Object.values(PRESENCIA_DATA).some(function(p) {
     return presenciaEstaActiva(p) && String(p.email||'').toLowerCase() === emailLower;
   });
@@ -40861,6 +40961,7 @@ function iniciarImpersonacionUsuario(fbKey) {
   if (!u) { notify('Usuario no encontrado'); return; }
   var nuevoRol = _normalizarRolUsuarioSistema(u.rol);
   if (nuevoRol === 'admin') { notify('Ya estás en vista administrador'); return; }
+  limpiarPresenciaOnline();
   if (!window._impersonacionOriginal) {
     window._impersonacionOriginal = {
       user: currentUser,
@@ -40896,6 +40997,7 @@ function finalizarImpersonacionUsuario() {
   currentUserEmail = orig.email || currentUserEmail;
   currentUserUid = orig.uid || currentUserUid;
   window._impersonacionOriginal = null;
+  registrarPresenciaOnline();
   svLimpiarVistaCuentaPersonal();
   chatActualizarBadges();
   aplicarVisibilidadBotonesFlotantes();

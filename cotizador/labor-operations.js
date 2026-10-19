@@ -17,13 +17,13 @@ function createLaborOperations({auth,db,transaction,now=Date.now}){
   const legacy=body.individual===true;if(legacy&&keys.length!==1)throw fail(400,'Solicitud individual inválida');
   const stamp=now(),date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(stamp));
   const sorted=[...keys].sort(),gastoKey=key('hextra',sorted);let error;
-  const result=await (transaction || (fn=>db.ref('sisventas').transaction(fn,undefined,false)))(root=>{
+  const result=await (transaction || (fn=>db.ref('sisventas').transaction(fn,undefined,false)))((root,control)=>{
    error=null;if(!root)return null;
    try{
     const requests=sorted.map(k=>({...root.hsextra_solicitudes?.[k],fbKey:k}));
     let target=gastoKey;
     if(legacy){const existing=Object.keys(root.gastos||{}).find(k=>root.gastos[k]?.legacyKey==='hsextra_solicitudes/'+sorted[0]);if(existing)target=existing;}
-    if(requests.every(s=>s.estado==='aprobado'&&s.gastoFbKey===target)&&root.gastos?.[target])return root;
+    if(requests.every(s=>s.estado==='aprobado'&&s.gastoFbKey===target)&&root.gastos?.[target])return control?.UNCHANGED??root;
     if(requests.some(s=>s.estado!=='pendiente'))throw fail(409,'Las solicitudes ya no están pendientes');
     const groups=group(requests);if(groups.length!==1)throw fail(400,'Las solicitudes deben pertenecer al mismo empleado y período');
     const g=groups[0],emp=root.empleados?.[g.empFbKey];if(!emp||emp.activo===false)throw fail(409,'Empleado no disponible');

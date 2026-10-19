@@ -12,7 +12,7 @@
     readyUid='';owner='';ownerName='';generation++;
     Object.values(groupStops).forEach(function(stop){stop();});groupStops={};
     stops.forEach(function(stop){stop();});stops=[];cache={};
-    window._chatRolServidor='';window._chatDirectorio={};
+    window._chatRolServidor='';window._chatDirectorio={};window._chatDirectorioListo=false;window._chatAccesoPresencia=null;
     Object.keys(_chatNoLeidos).forEach(function(channel){delete _chatNoLeidos[channel];});
     if(typeof _chatUltimoTsPorCanal!=='undefined')_chatUltimoTsPorCanal={};
     if(typeof chatActualizarBadges==='function')chatActualizarBadges();
@@ -69,6 +69,8 @@
     stops.push(window.fbOnValue(window.fbRef(window.fbDB,'sv_chat_roles/'+uid),function(snap){
       if(!valid())return;
       var role=snap.val();window._chatRolServidor=role&&role.activo!==false?role.rol:'';
+      window._chatAccesoPresencia={uid:uid,activo:role?.activo===true,rol:role?.rol||''};
+      document.dispatchEvent?.(new CustomEvent('sisventas:chat-access-changed',{detail:window._chatAccesoPresencia}));
       roleReady=true;syncGroups();
       if(typeof chatAplicarAccesos==='function')chatAplicarAccesos();
       if(typeof chatActualizarBadges==='function')chatActualizarBadges();
@@ -76,7 +78,8 @@
     var channels={};
     stops.push(window.fbOnValue(window.fbRef(window.fbDB,'sv_chat_directorio'),function(snap){
       if(!valid())return;
-      window._chatDirectorio=snap.val()||{};
+      window._chatDirectorio=snap.val()||{};window._chatDirectorioListo=true;
+      document.dispatchEvent?.(new CustomEvent('sisventas:chat-directory-ready',{detail:{uid:uid}}));
       directoryReady=true;syncGroups();refreshUnreadIdentity();
       Object.keys(window._chatDirectorio).filter(function(peer){return peer!==uid;}).forEach(function(peer){
         var channel=window.chatDirectoId(peer);if(channels[channel])return;

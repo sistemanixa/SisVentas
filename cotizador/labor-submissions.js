@@ -33,12 +33,12 @@ function createLaborSubmissions({auth,db,transaction,now=Date.now}){
  async function submit(identity,input){
   const body=validate(input);if(!identity.manager && body.empFbKey!==identity.empleadoFbKey)throw fail(403,'No podés cargar horas de otro empleado');
   const stamp=now();let error;
-  const result=await transaction(root=>{
+  const result=await transaction((root,control)=>{
    error=null;try{
     if(!root)return null;const emp=root.empleados?.[body.empFbKey];if(!emp||emp.activo===false)throw fail(409,'Empleado no disponible');
     const requests=root.hsextra_solicitudes||(root.hsextra_solicitudes={});
     const previous=Object.values(requests).find(s=>s.aportes?.[body.aporteId]);
-    if(previous){const a=previous.aportes[body.aporteId];if(previous.empFbKey!==body.empFbKey||String(previous.mes||previous.fecha).slice(0,7)!==body.mes||(a.enviadoUid&&a.enviadoUid!==identity.uid)||!isDeepStrictEqual(consolidate(a.detalleDias||[]),body.detalleDias)||String(a.observaciones||'').trim()!==body.observaciones)throw fail(409,'El identificador ya corresponde a otra carga');return root;}
+    if(previous){const a=previous.aportes[body.aporteId];if(previous.empFbKey!==body.empFbKey||String(previous.mes||previous.fecha).slice(0,7)!==body.mes||(a.enviadoUid&&a.enviadoUid!==identity.uid)||!isDeepStrictEqual(consolidate(a.detalleDias||[]),body.detalleDias)||String(a.observaciones||'').trim()!==body.observaciones)throw fail(409,'El identificador ya corresponde a otra carga');return control?.UNCHANGED??root;}
     let key=Object.keys(requests).find(k=>requests[k].estado==='pendiente'&&requests[k].empFbKey===body.empFbKey&&String(requests[k].mes||requests[k].fecha).slice(0,7)===body.mes);
     if(!key){const base='pend_'+body.empFbKey.replace(/[^a-zA-Z0-9_-]/g,'_')+'_'+body.mes.replace('-','');key=base;let i=2;while(requests[key])key=base+'_'+i++;}
     const old=requests[key]||{},aportes={...(old.aportes||{})};

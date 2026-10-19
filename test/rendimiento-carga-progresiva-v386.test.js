@@ -11,22 +11,24 @@ const dollarHistory = fs.readFileSync('js/modules/dolar-historico.js', 'utf8');
 const pwa = fs.readFileSync('js/modules/pwa-install.js', 'utf8');
 const css = fs.readFileSync('css/app.css', 'utf8');
 
-test('la carga inicial prioriza identidad y pantalla actual antes de los módulos secundarios', () => {
+test('la carga inicial prioriza identidad, pantalla actual y dependencias compartidas', () => {
   const inicio = app.indexOf('function fbCargarTodo()');
   const fin = app.indexOf('function fbSincronizarAhora()', inicio);
   const bloque = app.slice(inicio, fin);
   assert.ok(inicio >= 0 && fin > inicio);
   assert.match(bloque, /fbCargarUsuarios\(\);\s*fbCargarClientes\(\);\s*fbCargarProductos\(\);\s*fbCargarVentas\(\);/);
   assert.match(bloque, /svCargarDatosDePaginaActual\(\);/);
-  assert.equal((bloque.match(/svProgramarTrabajoFondo\(/g) || []).length, 3);
-  assert.ok(bloque.indexOf('svCargarDatosDePaginaActual();') < bloque.indexOf('fbCargarGarantias();'));
+  assert.equal((bloque.match(/svProgramarTrabajoFondo\(/g) || []).length, 2);
+  for (const cargar of ['Equipos','Informes','Garantias','Tickets','Remitos','Agenda','Servicios','Caja']) {
+    assert.doesNotMatch(bloque, new RegExp('fbCargar' + cargar + '\\(\\)'));
+  }
 });
 
 test('la pantalla directa carga sus dependencias sin esperar el lote general', () => {
   assert.match(app, /actualizadorprecios:\s*\[fbCargarProductos, fbCargarProveedores\]/);
   assert.match(app, /gastos:\s*\[fbCargarGastos, fbCargarEmpleados, fbCargarPagos\]/);
   assert.match(app, /venta:\s*\[fbCargarClientes, fbCargarProductos, fbCargarVentas\]/);
-  assert.match(app, /garantias:\s*\[fbCargarGarantias, fbCargarEquipos\]/);
+  assert.match(app, /garantias:\s*\[fbCargarGarantias, fbCargarEquipos, fbCargarClientes, fbCargarVentas, fbCargarProductos\]/);
   assert.match(app, /ordenes:\s*\[fbCargarOrdenes, fbCargarProductos, fbCargarProveedores\]/);
 });
 
@@ -35,7 +37,6 @@ test('los lotes tienen una demora mínima real antes de esperar tiempo ocioso', 
   assert.match(app, /\}, demoraMinima\);/);
   assert.match(app, /\}, 700\);/);
   assert.match(app, /\}, 1800\);/);
-  assert.match(app, /\}, 3800\);/);
 });
 
 test('listeners y lecturas de configuración tienen defensas contra duplicados', () => {

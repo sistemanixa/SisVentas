@@ -42,7 +42,9 @@ test('la búsqueda de presencia tolera mayúsculas y acentos del nombre', () => 
 });
 
 test('cada pestaña registra una clave de sesión propia y la cabecera no confunde conectividad con personas', () => {
-  assert.match(app, /sisventas\/presencia\/'\s*\+\s*clavePresenciaSesionActual\(\)/);
+  assert.match(app, /clave:\s*clavePresenciaSesionActual\(\)/);
+  assert.match(app, /sisventas\/presencia\/'\s*\+\s*estado\.clave/);
+  assert.match(app, /\+\+_presenciaConexionContador/);
   assert.match(app, /var label = fbOnline \? 'Sincronizado'/);
   assert.match(app, /Nadie más conectado/);
 });

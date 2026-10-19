@@ -25,6 +25,45 @@ document.addEventListener('DOMContentLoaded',()=>{
   ['Aviso de error ficticio',()=>notify('No se pudieron sincronizar los presupuestos')],
   ['Ver actividad',()=>{document.getElementById('module-audit-result').textContent=JSON.stringify(activity(),null,2);}]
  ]){const button=document.createElement('button');button.className='btn btn-sm';button.textContent=label;button.onclick=action;tools.insertBefore(button,tools.querySelector('details'));}
+ const demandTools=document.createElement('details');demandTools.id='audit-demand-tools';
+ demandTools.innerHTML='<summary>Carga a demanda · datos ficticios</summary><p style="margin:5px 0">Informes empieza con dos registros. Las fuentes quedan retenidas hasta liberarlas.</p><div id="audit-demand-buttons" style="display:flex;gap:4px;flex-wrap:wrap"></div><output id="audit-demand-state" style="display:block;margin-top:5px;white-space:pre-wrap"></output>';
+ tools.insertBefore(demandTools,tools.querySelector('details'));
+ tools.style.maxHeight='55vh';tools.style.overflow='auto';
+ const demandState=demandTools.querySelector('output');
+ function showDemandState(){
+  const page=document.querySelector('.page.active'),state=window.SVDataReadiness?.statusFor(page?.id.replace(/^page-/,''));
+  const subscriptions={};for(const row of __moduleAudit.subscriptions){if(!/\/sisventas\//.test('/'+row.path))continue;const count=subscriptions[row.path]??={opened:0,active:0};count.opened++;if(row.active)count.active++;}
+  demandState.textContent=JSON.stringify({page:page?.id,missing:state?.missing,errors:state?.errors,pending:window.__moduleAuditSourceControl.pending(),subscriptions},null,2);
+ }
+ function beginDemand(page,hold){
+  // Sólo cambia esta sesión ficticia; no llama a Firebase Auth ni a servicios.
+  document.dispatchEvent(new Event('sisventas:session-ended'));
+  window.fbStopAllValueListeners();svDetenerEscuchasModulo();svReiniciarBanderasLectura();svCancelarTrabajoFondo();
+  window.SVDataReadiness?.reset();window.__moduleAuditSourceControl.clear();window.__moduleAuditSourceControl.hold(hold);
+  clientesData=[{fbKey:'c',id:'c',nombre:'Cliente ficticio',dir:'Dirección ficticia',activo:true}];
+  informesData=[];equiposData=[];window._historialTickets=null;
+  isAuthenticated=true;currentRole='admin';currentUserUid='fixture';currentUser='Administrador ficticio';currentUserEmail='fixture@example.invalid';
+  window._fbCargaTodoActiva=true;
+  document.dispatchEvent(new CustomEvent('sisventas:session-ready',{detail:{uid:'fixture',rol:'admin',usuario:currentUser}}));
+  svCancelarTrabajoFondo();showPage(page);
+  if(page==='historialcliente')verHistorialCliente('c');
+  showDemandState();
+ }
+ for(const [label,action]of [
+  ['Retener Informes',()=>beginDemand('informes',['informes','clientes'])],
+  ['Liberar informes',()=>window.__moduleAuditSourceControl.release('informes')],
+  ['Liberar clientes',()=>window.__moduleAuditSourceControl.release('clientes')],
+  ['Fallar informes',()=>window.__moduleAuditSourceControl.fail('informes')],
+  ['Reintentar pantalla',()=>document.querySelector('.page.active [data-sv-data-status] button')?.click()],
+  ['Retener Historial',()=>{
+   fixtureRoot.sisventas.equipos={eq:{cliente:'Cliente ficticio',clienteFbKey:'c',descripcion:'Equipo ficticio del historial',serie:'SERIE-FICTICIA',fechaInstalacion:'2026-10-01',garantiaMeses:12}};
+   fixtureRoot.sisventas.tickets={ticket:{cliente:'Cliente ficticio',clienteFbKey:'c',numero:'T-FICTICIO',descripcion:'Ticket ficticio del historial',estado:'Abierto',prioridad:'Media'}};
+   beginDemand('historialcliente',['equipos','tickets']);
+  }],
+  ['Liberar equipos',()=>window.__moduleAuditSourceControl.release('equipos')],
+  ['Liberar tickets',()=>window.__moduleAuditSourceControl.release('tickets')],
+  ['Ver carga pendiente',showDemandState]
+ ]){const button=document.createElement('button');button.className='btn btn-sm';button.textContent=label;button.onclick=()=>{action();setTimeout(showDemandState,60);};demandTools.querySelector('#audit-demand-buttons').append(button);}
  function gestoLateralFicticio(x){
   for(const [tipo,dx]of [['touchstart',0],['touchmove',90],['touchend',90]]){
    const punto={identifier:1,clientX:x+dx,clientY:160};

@@ -18,6 +18,8 @@ Cuatro pruebas REST en emulador laboral: aportes concurrentes, reintento idempot
 
 Prioridad solicitada por el titular el18/10/2026. Este registro complementa las auditorías de seguridad, reconexión, interacciones y formularios; no convierte un recorrido visual en prueba financiera ni garantiza ausencia total de fallas.
 
+Actualización13.0: el titular autorizó publicar hasta el corte actual y seguir. Los estados «local20/sin publicar» de las tablas siguientes son antecedentes, sustituidos por CONTEXTO_ACTUAL. Presencia moderna `cx1_` exige primero checker compatible y regla exacta de retiro propio:67 pruebas relacionadas y10 de emulador aprobadas, sin revocar cuentas reales. Las claves antiguas mantienen TTL; no hay borrado/migración de historial. La revisión del checker prueba cada rama OR y acepta sólo la excepción exacta en su ruta. La transacción laboral amplia continúa pendiente como se explica al final.
+
 ## Requisitos de salida
 
 Cada lectura/escritura remota debe tener origen identificable: ingreso, navegación, acción, cambio real autorizado o reintento acotado de una operación concreta. Un reloj de dibujo local no debe reconectar, consultar ni reenviar sin límite. Los resultados tardíos deben descartarse al cambiar sesión, rol, vista o revisión. Las suscripciones deben cancelarse o reutilizarse, nunca acumularse al volver a una pantalla.
@@ -53,3 +55,23 @@ Evidencia privada de facturación, configuración completa, sesiones y datos rea
 Puerta local20:2.081 pruebas aprobadas. Se reprodujeron y corrigieron fuentes canceladas que conservaban error de carga y escuchas muertas que impedían reintentar; nueva lectura y Sincronizar ahora recuperan sin borrar navegación. Recorridos de42 entradas en tres tamaños,16 solapas de configuración,55s de reposo y reaperturas repetidas registrados por separado. No se probaron operaciones financieras reales; apertura de pantalla no certifica sus formularios ni sus cálculos. Observador candidato ignora comisiones ya generadas/ventas anuladas desde su snapshot, sin lecturas adicionales; la recuperación de trabajos incompletos permanece independiente. Sin publicar.
 
 Ventanas27 y editores9 recorridos con datos ficticios a1440x1000,820x1180 y390x844. Se distinguen cierres propios (Chat/Actualizador/Asistente/Kit) de cruces genéricas. La limpieza ficticia de escritura de Chat es un evento de cierre; no una operación financiera. Ninguna escritura real. El reemplazo de observador por eventos tiene receptor/pruebas locales preparados; entrega nativa y corte siguen pendientes.
+
+## Transacción laboral de raíz: alcance y límite técnico
+
+El servidor REST mantiene una operación atómica bajo sisventas para solicitar horas, aprobar horas, solicitar gasto y redistribuir comisiones. Una operación nueva descarga el ancestro y realiza PUT condicionado por ETag; no se sustituyó por PATCH sin condición. Un conflicto puede traer otra copia completa. El volumen informado (~96MB) corresponde al tamaño agregado observado antes; no se descargó la base para esta auditoría.
+
+Mejora candidata13.0: recibos idempotentes de solicitud de horas, aprobación ya confirmada y gasto ya registrado pueden devolver control.UNCHANGED tras validar actor/datos/estado. No serializan ni hacen PUT. La lectura inicial continúa. La versión anterior ya cancelaba el cuerpo de respuesta del éxito, por lo que no es correcto contar cada PUT omitido como96MB menos de descarga facturada. Redistribución nueva conserva la transacción completa.
+
+Verificación aislada:32 casos específicos y4 integraciones REST con emulador;5 de8 casos nuevos fallan antes y8/8 pasan después. Incluye UID/payload diferente, empleado inactivo, aprobación por otro aprobador autorizado conservando autor inicial, gasto faltante, conflicto externo e idempotencia tras confirmación concurrente. No se tocaron comisiones reales.
+
+### Por qué no se acota sólo la lectura
+
+Horas requiere unicidad de aporte, empleado activo y grupo emp/mes; aprobación cruza solicitudes/cargo/gasto; redistribución cruza grupo completo de gastos, pagos y ctaemp. Hay otros escritores directos de rechazo, edición, pago y baja, además de cambios de empleado/cargo y generador automático. Un lock sólo de los cuatro endpoints no los coordina. RTDB no admite if-match con PATCH: lecturas pequeñas separadas más PATCH pierden el control de concurrencia.
+
+### Corte de arquitectura aún no autorizado ni implementado
+
+La opción conservadora de infraestructura es preparar dominio canónico laboral separado en la RTDB existente, con fuentes mínimas de empleados/cargos/tope, solicitudes, gastos laborales y movimientos vinculados. Excluir catálogo, ventas completas y adjuntos del ancestro transaccionado. Deben migrarse todos los escritores y lectores a una sola autoridad, conservar claves/autorías/importes/pagos/recibos originales y volver proyecciones legacy sólo lectura. El dominio seguirá creciendo: medir tamaño, no prometer lectura por documento ni costo mensual fijo. No se creó ese dominio ni se copiaron datos reales.
+
+Si se exige transacción por documentos exactos, la alternativa es un almacén transaccional por documento: recibos de aporte, índice de grupo emp/mes, solicitud, alias de gasto histórico, empleado/config mínimos autoritativos, gastos/movimientos y membresía/revisión de grupos de comisión. Requiere evaluar ubicación, IAM, nuevo costo, respaldo, migración y bloqueo coordinado de escritores heredados; no crear servicios como efecto incidental de esta auditoría.
+
+Antes del corte: inventario de todos los escritores y tamaño por rama sin valores en logs; simulacro ficticio de concurrencia, compatibilidad, detección de duplicados ambiguos (bloquear y conciliar), comparación por claves/revisiones/hashes, reversión sin doble escritura y sin restaurar la base completa. No se eliminó el GET/PUT de raíz de las operaciones nuevas. Este pendiente no está resuelto por reducir reenvíos.
