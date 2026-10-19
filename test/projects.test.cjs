@@ -57,6 +57,48 @@ test('el servidor verifica sesión, módulo, identidad activa y bandera antes de
  f.data.sv_permisos={vendedor:{bloqueados:['proyectos']}};await assert.rejects(f.service.authorize(f.request('owner')),e=>e.statusCode===403);
  const disabled=createProjects({auth:{verifyIdToken:async()=>({uid:'reader'})},db:f.db});await assert.rejects(disabled.authorize(f.request('reader')),e=>e.statusCode===503);
 });
+
+test('permisos y nombre empiezan juntos después del rol válido y la autorización espera ambos',async()=>{
+ for(const order of [['sv_permisos/vendedor','sv_chat_directorio/owner/nombre'],['sv_chat_directorio/owner/nombre','sv_permisos/vendedor']]){
+  const f=fixture(),reads=[],gates=new Map();let finished=false;
+  for(const path of order){let resolve;const promise=new Promise(done=>resolve=done);gates.set(path,{promise,resolve});}
+  const original=f.db.ref;f.db.ref=path=>{const ref=original(path);return {...ref,get:()=>{reads.push(path);return gates.get(path)?.promise||ref.get();}};};
+  const task=f.service.authorize(f.request('owner')).then(value=>{finished=true;return value;});
+  await new Promise(setImmediate);
+  assert.deepEqual(reads,['sv_chat_roles/owner','sv_permisos/vendedor','sv_chat_directorio/owner/nombre']);assert.equal(finished,false);
+  const values={'sv_permisos/vendedor':{acciones:{proyectos:{crear:false,editar:true,presupuestar:false}}},'sv_chat_directorio/owner/nombre':'Nombre actual'};
+  gates.get(order[0]).resolve({val:()=>values[order[0]]});await new Promise(setImmediate);assert.equal(finished,false);
+  gates.get(order[1]).resolve({val:()=>values[order[1]]});const result=await task;
+  assert.equal(result.name,'Nombre actual');assert.equal(result.createAllowed,false);assert.equal(result.editAllowed,true);assert.equal(result.quoteAllowed,false);
+  assert.equal(reads.includes('sv_proyectos'),false);
+ }
+});
+
+test('una petición nueva vuelve a verificar revocación y permisos sin reutilizar la autorización previa',async()=>{
+ const {createBusinessAuth}=require('../cotizador/user-access'),f=fixture(),reads=[],checks=[];let revoked=false;
+ f.data.sv_proyectos={one:project()};const original=f.db.ref;f.db.ref=path=>{reads.push(path);return original(path);};
+ const auth=createBusinessAuth({verifyIdToken:async(token,checkRevoked)=>{checks.push(checkRevoked);if(revoked)throw Error('Revocada');return {uid:token};}},f.db);
+ const service=createProjects({auth,db:f.db,enabled:true}),list=async()=>service.list(await service.authorize(f.request('owner')));
+ assert.equal((await list()).projects.length,1);assert.ok(reads.includes('sv_access_resets/owner'));
+ reads.length=0;f.data.sv_permisos={vendedor:{bloqueados:['proyectos']}};await assert.rejects(list(),e=>e.statusCode===403);
+ assert.ok(reads.includes('sv_access_resets/owner'));assert.ok(reads.includes('sv_permisos/vendedor'));assert.equal(reads.includes('sv_proyectos'),false);
+ reads.length=0;revoked=true;await assert.rejects(list(),e=>e.statusCode===401);assert.deepEqual(reads,[]);assert.deepEqual(checks,[true,true,true]);
+});
+
+test('rol inactivo, servicio apagado y acceso restablecido pendiente no consultan auxiliares ni devuelven proyectos',async()=>{
+ const {createBusinessAuth}=require('../cotizador/user-access');
+ for(const scenario of ['inactivo','apagado','clave-pendiente','version-antigua']){
+  const f=fixture(),reads=[];f.data.sv_proyectos={one:project()};
+  if(scenario==='inactivo')f.data.sv_chat_roles.owner.activo=false;
+  if(scenario==='clave-pendiente')f.data.sv_access_resets={owner:{required:true}};
+  if(scenario==='version-antigua')f.data.sv_access_resets={owner:{required:false,version:'nueva'}};
+  const original=f.db.ref;f.db.ref=path=>{reads.push(path);return original(path);};
+  const auth=createBusinessAuth({verifyIdToken:async(_,checkRevoked)=>{assert.equal(checkRevoked,true);return {uid:'owner',svAccessVersion:'anterior'};}},f.db);
+  const service=createProjects({auth,db:f.db,enabled:scenario!=='apagado'});
+  await assert.rejects(async()=>service.list(await service.authorize(f.request('owner'))),e=>e.statusCode===({inactivo:403,apagado:503,'clave-pendiente':401,'version-antigua':401})[scenario]);
+  assert.ok(reads.includes('sv_access_resets/owner'));assert.equal(reads.includes('sv_permisos/vendedor'),false);assert.equal(reads.some(path=>path.startsWith('sv_chat_directorio/')),false);assert.equal(reads.includes('sv_proyectos'),false);
+ }
+});
 test('el servidor filtra la lista, omite datos privados y resiste dos escrituras concurrentes',async()=>{
  const f=fixture(),owner=await f.service.authorize(f.request('owner'));const saved=await f.service.save(owner,{type:'create',data:{name:'Seguridad',clientId:'c',members:[{uid:'reader',access:'viewer'}]}});
  assert.equal((await f.service.list(await f.service.authorize(f.request('outside')))).projects.length,0);

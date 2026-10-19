@@ -10,10 +10,10 @@ function createProjects({auth,db,enabled=false,now=Date.now,uuid=crypto.randomUU
   let user;try{user=await auth.verifyIdToken(token[1],true);}catch(_){throw fail(401,'Sesión inválida');}
   Model.key(user.uid);const identity=await read('sv_chat_roles/'+user.uid);if(identity?.activo!==true||!roles.includes(identity.rol))throw fail(403,'Usuario sin acceso');
   if(!enabled)throw fail(503,'Proyectos todavía no está habilitado en el servidor');
-  const stored=await read('sv_permisos/'+identity.rol),cfg=stored||{},blocked=Object.values(cfg.bloqueados||{}),mod=m=>stored?!blocked.includes(m):['clientes','presupuesto'].includes(m)?commercial.includes(identity.rol):true;
+  const [stored,ownName]=await Promise.all([read('sv_permisos/'+identity.rol),read('sv_chat_directorio/'+user.uid+'/nombre')]);
+  const cfg=stored||{},blocked=Object.values(cfg.bloqueados||{}),mod=m=>stored?!blocked.includes(m):['clientes','presupuesto'].includes(m)?commercial.includes(identity.rol):true;
   if(!mod('proyectos'))throw fail(403,'Proyectos está bloqueado para tu rol');
   const action=(name,defaults)=>typeof cfg.acciones?.proyectos?.[name]==='boolean'?cfg.acciones.proyectos[name]:defaults.includes(identity.rol);
-  const ownName=await read('sv_chat_directorio/'+user.uid+'/nombre');
   return {uid:user.uid,name:String(ownName||'Usuario').slice(0,100),role:identity.rol,enabled:true,createAllowed:action('crear',commercial),editAllowed:action('editar',roles),quoteAllowed:mod('presupuesto')&&action('presupuestar',commercial),clientAllowed:mod('clientes')};
  }
  async function directory(){
