@@ -13,9 +13,6 @@
     if (x && typeof x === 'object') return Object.values(x);
     return [];
   }
-  function svCurrentUserName(){
-    return String(window.currentUserName || window.currentUser || window.currentUserEmail || 'Sistema');
-  }
   // OT: dirección robusta + no falso aviso + regreso al listado
   var DIR_FIELDS = [
     'dir','direccion','domicilio','domicilioCliente','direccionCliente','direccion_cliente',
@@ -41,21 +38,30 @@
   }
 
 
-  function guardarDireccionResuelta(ot, dir){
-    if (!ot || !dir || !window.fbDB || !ot.fbKey) return;
-    if (pickDireccion(ot)) return;
-    window._otGuardandoLocalHasta = Date.now() + 4000;
-    window.fbUpdate(window.fbRef(window.fbDB, (window.FB_PATHS&&FB_PATHS.ordenesTrabajo?FB_PATHS.ordenesTrabajo:'sisventas/ordenesTrabajo') + '/' + ot.fbKey), {
-      dir: dir,
-      direccion: dir,
-      usuarioUltimaEdicion: svCurrentUserName(),
-      tsUltimaEdicion: Date.now()
-    }).catch(function(e){ console.warn('[OT] No se pudo guardar dirección resuelta', e); });
+  var revisionVistaOT = 0;
+  function capturarVistaOT(id) {
+    var revision = revisionVistaOT, vista = window._impersonacionOriginal;
+    var vigente = window.svCapturarContextoOperacion();
+    var detalle = document.getElementById('ot-detalle-view');
+    var campo = document.getElementById('ot-det-dir');
+    var pagina = document.querySelector?.('.page.active');
+    return function() {
+      return vigente() && revision === revisionVistaOT && vista === window._impersonacionOriginal &&
+        String(window.otActualId || '') === String(id || '') && !!id &&
+        detalle === document.getElementById('ot-detalle-view') && detalle?.isConnected !== false && detalle?.style.display !== 'none' &&
+        campo === document.getElementById('ot-det-dir') && campo?.isConnected !== false &&
+        pagina === document.querySelector?.('.page.active');
+    };
   }
+  document.addEventListener('sisventas:session-ended',function(){ revisionVistaOT++; });
   document.addEventListener('sisventas:ot-opened',function(event){
       var id=event.detail&&event.detail.id;
+      revisionVistaOT++;
+      var vigente = capturarVistaOT(id);
       setTimeout(function(){
-        var ot = svArray(window.otData).find(function(o){ return o && (o.fbKey===window.otActualId || o.id===window.otActualId || o.fbKey===id || o.id===id); });
+        if (!vigente()) return;
+        var ot = svArray(window.otData).find(function(o){ return o && (o.fbKey===id || o.id===id); });
+        if (!ot) return;
         var dir = window._otResolverDireccionCliente(ot);
         var inp = document.getElementById('ot-det-dir');
         if (inp) {
@@ -63,7 +69,6 @@
           if (dir && (!actual || actual==='—' || actual==='Sin dirección')) {
             inp.value = dir;
             window._otDireccionActual = dir;
-            guardarDireccionResuelta(ot, dir);
           }
           inp.placeholder = dir ? '' : 'Sin dirección cargada en la ficha del cliente';
         }
@@ -84,9 +89,11 @@
   var _sv269_completarOT = window.completarOT;
   if (typeof _sv269_completarOT === 'function') {
     window.completarOT = function(){
+      var vigente = capturarVistaOT(window.otActualId);
       window._otGuardandoLocalHasta = Date.now() + 5000;
       var r = _sv269_completarOT.apply(this, arguments);
       setTimeout(function(){
+        if (!vigente()) return;
         var det = document.getElementById('ot-detalle-view');
         var list = document.getElementById('ot-list-view');
         if (det && det.style.display !== 'none') {

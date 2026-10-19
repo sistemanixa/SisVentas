@@ -4,7 +4,7 @@ const source=fs.readFileSync(appPath,'utf8');
 const routine=source.slice(source.indexOf('function actualizarAutomaticamente('),source.indexOf('function restaurarPaginaPostActualizacion('));
 function setup(options={}) {
   let now=1000,id=0;const timers=new Map(),nodes=new Map(),storage=new Map(),redirects=[],messages=[];
-  const context={URL,encodeURIComponent,APP_CONFIG:{VERSION:'v3.8.7-firebase'},_actualizandoAhora:false,
+  const context={URL,encodeURIComponent,APP_CONFIG:{VERSION:'v3.8.7-firebase'},_actualizandoAhora:false,_reintentoVersionTimer:null,
     Date:{now:()=>now},sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},
     setTimeout:(fn,ms)=>{timers.set(++id,{fn,at:now+ms});return id;},clearTimeout:i=>timers.delete(i),
     document:{getElementById:k=>nodes.get(k),querySelector:()=>({id:'page-balancecompra'}),

@@ -1,5 +1,16 @@
 'use strict';
 const fields=['nombre','rubro','web','tipo','activo','habilitado','lecturaHabilitada','moneda','sinIva','ivaAlicuota','base','favorito','condPago','contacto','telefono','tel','verificado','verificacionEstado'];
 function project(data){return Object.fromEntries(Object.entries(data||{}).map(([key,p])=>{const row=Object.fromEntries(fields.filter(f=>p[f]!==undefined&&['string','number','boolean'].includes(typeof p[f])).map(f=>[f,p[f]]));if(p.condicionComercial)row.condicionComercial={activa:p.condicionComercial.activa===true,descuentoPorcentaje:Number(p.condicionComercial.descuentoPorcentaje)||0};return [key,row];}));}
-function createSupplierDirectory({authorize,db}){async function read(who){const role=(await db.ref('sv_chat_roles/'+who.uid).get()).val(),cfg=(await db.ref('sv_permisos/'+role.rol).get()).val(),blocked=Object.values(cfg?.bloqueados||{});const modes=['productos','proveedores','actualizadorprecios','ordenes','balancecompra'];const defaults={productos:['admin','administrativo','vendedor','tecnico_vendedor'],proveedores:['admin','administrativo'],actualizadorprecios:['admin','administrativo'],ordenes:['admin','administrativo'],balancecompra:['admin']};if(!modes.some(m=>cfg?!blocked.includes(m):defaults[m].includes(role.rol)))throw Object.assign(Error('Sin acceso a proveedores'),{statusCode:403});return project((await db.ref('sisventas/proveedores').get()).val());}return {authorize,read};}
+function createSupplierDirectory({authorize,db}){
+ async function read(who){
+  const role=(await db.ref('sv_chat_roles/'+who.uid).get()).val();
+  if(role?.activo!==true||!['admin','administrativo','vendedor','tecnico','tecnico_vendedor'].includes(role.rol))throw Object.assign(Error('Sin acceso a proveedores'),{statusCode:403});
+  const cfg=(await db.ref('sv_permisos/'+role.rol).get()).val(),blocked=Object.values(cfg?.bloqueados||{});
+  const modes=['productos','proveedores','actualizadorprecios','ordenes','balancecompra'];
+  const defaults={productos:['admin','administrativo','vendedor','tecnico_vendedor'],proveedores:['admin','administrativo'],actualizadorprecios:['admin','administrativo'],ordenes:['admin','administrativo'],balancecompra:['admin']};
+  if(!modes.some(m=>cfg?!blocked.includes(m)&&(cfg.indiceVersion!==2||cfg.indiceModulos?.[m]===true):defaults[m].includes(role.rol)))throw Object.assign(Error('Sin acceso a proveedores'),{statusCode:403});
+  return project((await db.ref('sisventas/proveedores').get()).val());
+ }
+ return {authorize,read};
+}
 module.exports={createSupplierDirectory,project};

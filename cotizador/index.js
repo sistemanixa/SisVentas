@@ -19,7 +19,7 @@ const LOCAL_DEVELOPMENT_ORIGINS = new Set([
   'http://127.0.0.1:8765', 'http://localhost:8765',
   'http://127.0.0.1:8766', 'http://localhost:8766'
 ]);
-const REQUIRE_FIREBASE_AUTH = String(process.env.REQUIRE_FIREBASE_AUTH || '').toLowerCase() === 'true';
+const REQUIRE_FIREBASE_AUTH = process.env.REQUIRE_FIREBASE_AUTH !== 'false';
 const ML_CLIENT_ID = process.env.ML_CLIENT_ID || '';
 const ML_CLIENT_SECRET = process.env.ML_CLIENT_SECRET || '';
 const ML_REDIRECT_URI = process.env.ML_REDIRECT_URI || 'https://cotizador-171899432710.southamerica-east1.run.app/mercadolibre/oauth/callback';
@@ -2210,7 +2210,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 if (require.main === module) {
-  if(process.env.COMMISSION_OBSERVER_ENABLED!=='false')commissionGeneration.start();
+  if(process.env.COMMISSION_OBSERVER_ENABLED==='true')commissionGeneration.start();
   else if(process.env.COMMISSION_GENERATION_ENABLED==='true'&&process.env.COMMISSION_EVENT_ENABLED!=='true')throw Error('No se puede detener el observador sin habilitar el receptor de eventos');
   server.listen(PORT, () => {
     console.log(`Cotizador NIXA listo en puerto ${PORT}`);

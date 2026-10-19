@@ -93,7 +93,20 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
   }finally{if(listener)ref.off('value',listener);}
  }
  async function visibleRecords(actor,domain){const {c,records,budgets}=await recordsContext(domain);return Object.fromEntries(Object.entries(records).filter(([,r])=>actor.role==='admin'||recordOwner(r,domain,c,budgets)===actor.uid));}
- async function assertRecord(actor,domain,id){const rows=await visibleRecords(actor,domain);if(!rows[id])throw fail(404,'Registro no disponible');return rows[id];}
+ async function assertRecord(actor,domain,id){
+  if(!['ventas','presupuestos'].includes(domain)||!key(id))throw fail(404,'Registro no disponible');
+  // Comprobar una ficha no necesita construir todo el listado comercial.
+  // El contexto se relee por operación; no se reutiliza una autorización vieja.
+  const [c,record]=await Promise.all([context(),read('sisventas/'+domain+'/'+id)]);
+  if(!record||typeof record!=='object'||Array.isArray(record))throw fail(404,'Registro no disponible');
+  const budgets=Object.create(null),source=record.presupuestoFbKey;
+  if(actor.role!=='admin'&&domain==='ventas'&&!Object.hasOwn(record,'responsableUid')&&source&&['string','number','boolean'].includes(typeof source)){
+   const reference=String(source);
+   if(Buffer.byteLength(reference)<=768&&!/[.#$\[\]\/\x00-\x1f\x7f]/.test(reference))budgets[reference]=await read('sisventas/presupuestos/'+reference);
+  }
+  if(actor.role!=='admin'&&recordOwner(record,domain,c,budgets)!==actor.uid)throw fail(404,'Registro no disponible');
+  return record;
+ }
  return {authorize,list,options,assign:(a,b)=>mutate(a,b,true),prepare:(a,b)=>mutate(a,b,false),visibleRecords,assertRecord};
 }
 module.exports={createCommercialOwnership,moduleAllowed,eligible,profiles,owner,originalAuthor};

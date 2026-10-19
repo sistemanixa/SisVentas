@@ -1,6 +1,6 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.13.2';
+const CACHE = 'sisventas-v3.13.3';
 const SHELL = [
  './js/core/foreground-session.js?v=3.13.2',
  './js/core/session-recovery.js?v=3.12.8-local-server',
@@ -25,7 +25,7 @@ const SHELL = [
  './css/roles-help.css?v=3.10.35',
  './js/core/domain-read-policy.js?v=3.10.34',
  './js/core/service-auth.js?v=3.12.20',
-  './js/modules/catalog-promotions-config.js?v=20261011-edit',
+  './js/modules/catalog-promotions-config.js?v=3.13.3-context',
   './js/modules/distribuidora-sales-balance.js?v=3.13.1-center',
   './js/modules/serial-camera-scanner.js?v=3.12.10-encuadre',
   './js/vendor/zxing/zxing-browser-0.1.5.min.js',
@@ -52,7 +52,7 @@ const SHELL = [
   './js/modules/commercial-approval.js?v=3.9.29',
   './js/core/guarded-writes.js?v=3.9.24-server-check2',
   './js/core/session-assets.js?v=3.13.1-center',
-  './js/app.v3.13.2.js',
+  './js/app.v3.13.3.js',
   './js/modules/navigation-back.js?v=perf-3105',
   './js/modules/product-url-import.js?v=3.9.15-dual-shipping',
   './js/modules/keyboard-actions.js',
@@ -60,7 +60,7 @@ const SHELL = [
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js?v=3.12.20',
   './js/core/version.js',
-  './js/core/version.v3.13.2.js',
+  './js/core/version.v3.13.3.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.10.32',
@@ -97,12 +97,12 @@ const SHELL = [
   './js/core/error-monitor.js?v=3.12.0-text',
   './js/core/relation-compatibility.js',
   './js/modules/treasury.js',
-  './js/modules/ot-data-sync.js?v=perf-31010',
+  './js/modules/ot-data-sync.js?v=3.13.3-context',
   './js/modules/finance-details.js',
   './js/modules/ot-workflow.js',
   './js/modules/dashboard-permissions.js?v=perf-31010',
   './js/modules/sales-metrics.js',
-  './js/modules/action-permissions.js?v=3.11.18',
+  './js/modules/action-permissions.js?v=3.13.3-audit',
   './js/modules/commissions.js?v=3.10.33-preview',
   './js/modules/image-paste-drop.js',
   './js/modules/quantity-wheel.js?v=2',
@@ -126,7 +126,7 @@ const SHELL = [
   './js/modules/resizable-tables.js?v=3.10.33',
   './js/modules/grid-default-order.js',
   './js/modules/dolar-month-chart.js?v=history-cursor-2',
-  './js/modules/dolar-historico.js?v=3.12.19-acciones',
+  './js/modules/dolar-historico.js?v=3.13.3-context',
   './js/modules/ops-hardening.js',
   './js/modules/v2-readiness.js',
   './js/modules/v2-audit.js',

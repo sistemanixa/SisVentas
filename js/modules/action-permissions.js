@@ -363,70 +363,10 @@
     if (typeof window.registrarActividad === 'function') window.registrarActividad(accion, payload);
   };
 
-  function getVentaActualEditando(){
-    var k = window._ventaEditandoFbKey;
-    if (!k) return null;
-    return arr(window.ventasList || window.ventasData).find(function(v){ return v && (String(v.fbKey||'') === String(k) || String(v.id||'') === String(k)); }) || window._ventaEditandoOriginal || null;
-  }
-
-  var confirmarPrev311 = window.confirmarVenta;
-  if (typeof confirmarPrev311 === 'function' && !confirmarPrev311._sv311) {
-    window.confirmarVenta = function(){
-      var editandoKey = window._ventaEditandoFbKey || '';
-      var antes = editandoKey ? (window._ventaEditandoOriginal || getVentaActualEditando()) : null;
-      document.dispatchEvent(new CustomEvent('sisventas:sale-before-confirm'));
-      var r = confirmarPrev311.apply(this, arguments);
-      setTimeout(function(){
-        if (editandoKey) {
-          var despues = arr(window.ventasList || window.ventasData).find(function(v){ return v && (String(v.fbKey||'') === String(editandoKey) || String(v.id||'') === String(editandoKey)); }) || null;
-          SV.Audit.registrar('Venta editada', 'Venta ' + editandoKey, antes, despues);
-        } else {
-          SV.Audit.registrar('Venta creada', 'Confirmación de venta');
-        }
-      }, 900);
-      return r;
-    };
-    window.confirmarVenta._sv311 = true;
-  }
-
-  var eliminarPrev311 = window.eliminarVenta;
-  if (typeof eliminarPrev311 === 'function' && !eliminarPrev311._sv311) {
-    window.eliminarVenta = function(fbKey){
-      var antes = arr(window.ventasList || window.ventasData).find(function(v){ return v && (String(v.fbKey||'') === String(fbKey) || String(v.id||'') === String(fbKey)); }) || null;
-      var r = eliminarPrev311.apply(this, arguments);
-      setTimeout(function(){ SV.Audit.registrar('Venta eliminada/anulada', 'Venta ' + (fbKey || ''), antes, null); }, 800);
-      return r;
-    };
-    window.eliminarVenta._sv311 = true;
-  }
-
-  var registrarPagoPrev311 = window.registrarPago;
-  if (typeof registrarPagoPrev311 === 'function' && !registrarPagoPrev311._sv311) {
-    window.registrarPago = function(){
-      var venta = (document.getElementById('cob-venta') || {}).value || '';
-      var monto = (document.getElementById('cob-monto') || {}).value || '';
-      var medio = (document.getElementById('cob-medio') || {}).value || '';
-      var r = registrarPagoPrev311.apply(this, arguments);
-      setTimeout(function(){ SV.Audit.registrar('Cobro registrado', 'Venta: ' + venta + ' · Monto: ' + monto + ' · Medio: ' + medio); }, 700);
-      return r;
-    };
-    window.registrarPago._sv311 = true;
-  }
-
+  // Las operaciones registran su resultado al confirmar la persistencia.
+  // Envolverlas con un reloj produciría éxitos falsos y registros duplicados.
   aplicarProtecciones();
   setTimeout(aplicarProtecciones, 1800);
-
-  var guardarProductoPrev311 = window.guardarProducto;
-  if (typeof guardarProductoPrev311 === 'function' && !guardarProductoPrev311._sv311) {
-    window.guardarProducto = function(){ var r = guardarProductoPrev311.apply(this, arguments); setTimeout(function(){ SV.Audit.registrar('Producto guardado', 'Alta o edición de producto'); }, 700); return r; };
-    window.guardarProducto._sv311 = true;
-  }
-
-  var guardarPresupuestoPrev311 = window.guardarPresupuesto;
-  if (typeof guardarPresupuestoPrev311 === 'function' && !guardarPresupuestoPrev311._sv311) {
-    window.guardarPresupuesto = function(modo){ var r = guardarPresupuestoPrev311.apply(this, arguments); setTimeout(function(){ SV.Audit.registrar('Presupuesto guardado', 'Modo: ' + (modo || '')); }, 700); return r; };
-    window.guardarPresupuesto._sv311 = true;
-  }
 
   SV.Cache.get = function(nombre){
     if (nombre === 'ventas') return arr(window.ventasList || window.ventasData);

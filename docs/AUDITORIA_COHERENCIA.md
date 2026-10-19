@@ -1,5 +1,36 @@
 # Coherencia, sincronización y costo
 
+## Alcance por operación · candidato v3.13.3
+
+El inventario de [Cotizador](AUDITORIA_COTIZADOR.md) identifica 51 patrones de
+ruta en 15 familias. Es un servidor compartido, aunque conserva el nombre del
+cotizador original. El inventario de fuente no prueba su frecuencia ni permite
+atribuir dólares a cada función. No se consultó producción en este bloque.
+
+Correcciones locales reproducidas: verificar una venta lee el registro solicitado
+y sólo su eventual presupuesto de origen; Proveedores respeta el índice moderno
+de módulos; una carga anterior no modifica otra OT ni persiste cambios al abrirla;
+Ofertas deja de iniciar consultas tras cerrar el panel; el histórico del dólar
+comparte la carga y descarta otra sesión. La comprobación HTTP de versión agrupa
+avisos simultáneos. El observador continuo requiere activación explícita; la
+configuración productiva ya lo mantiene desactivado. Los wrappers de auditoría
+retirados eran peligrosos al cargarse tarde, pero inertes en el orden publicado.
+
+Puerta final 2.428/2.428 y Cotizador 94/94; la revisión independiente cerró
+respuestas tardías de versión ocultas, plazos de20s/30s y suspensión del reloj.
+La validación completa no inicia activos oculta y tiene como máximo tres
+reintentos automáticos por señal visible. Autenticación exigida por defecto
+en cotización, conservando las comprobaciones propias de los demás módulos.
+Estado de publicación y verificación definitiva en CONTEXTO_ACTUAL.
+
+Pendientes de fondo: listados comerciales, opciones de Proyectos/Distribuidora,
+carga inicial compartida y transacción laboral de raíz. Los cuatro comandos
+laborales todavía usan GET/PUT condicionado del ancestro completo. El
+[plan de dominio laboral](PLAN_DOMINIO_LABORAL.md) demuestra por qué sustituirlo
+por lecturas pequeñas y PATCH sin coordinar todos los escritores perdería
+protección frente a cambios simultáneos. No se migraron datos ni se añadieron
+servicios, reglas o permisos para ocultar ese problema.
+
 ## Reanudación y cierre de cobro · candidato v3.13.2
 
 El reposo nocturno conservó al menos un cliente conectado. Las dos tandas de Android

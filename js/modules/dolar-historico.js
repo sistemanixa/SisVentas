@@ -6,9 +6,66 @@
   var timer = null;
   var cargando = false;
   var historial = [], pagina = 0, pageSize = 25;
+  var sesionActiva = true, generacion = 0, cargaPendiente = null, cargaProgramada = null;
+  var controladores = new Set();
 
   function sesionDisponible(){
-    return !!(window.fbAuth && window.fbAuth.currentUser && !document.body.classList.contains('sv-sesion-cerrada'));
+    return !!(sesionActiva && window.fbAuth && window.fbAuth.currentUser && !document.body.classList.contains('sv-sesion-cerrada'));
+  }
+  function capturarContexto(){
+    var rol = window.currentRole;
+    return {generacion:generacion, usuario:window.fbAuth && window.fbAuth.currentUser, uid:window.currentUserUid,
+      rol:rol, revision:window.PERMISOS_ROLES?.[rol]?.indiceRevision, vista:window._impersonacionOriginal,
+      autenticado:typeof isAuthenticated === 'undefined' ? undefined : isAuthenticated};
+  }
+  function contextoVigente(contexto){
+    return sesionDisponible() && contexto.generacion === generacion && contexto.usuario === window.fbAuth.currentUser &&
+      contexto.uid === window.currentUserUid && contexto.rol === window.currentRole &&
+      contexto.revision === window.PERMISOS_ROLES?.[contexto.rol]?.indiceRevision && contexto.vista === window._impersonacionOriginal &&
+      contexto.autenticado !== false && contexto.autenticado === (typeof isAuthenticated === 'undefined' ? undefined : isAuthenticated) &&
+      (!contexto.uid || !contexto.usuario.uid || contexto.uid === contexto.usuario.uid);
+  }
+  function nuevoControlador(){
+    var controlador = typeof AbortController === 'function' ? new AbortController() : null;
+    if(controlador) controladores.add(controlador);
+    return controlador;
+  }
+  function errorCancelado(){ return Object.assign(new Error('Carga cancelada'), {name:'AbortError'}); }
+  function esperarResultado(promesa, signal){
+    if(!signal) return Promise.resolve(promesa);
+    return new Promise(function(resolve,reject){
+      function limpiar(){signal.removeEventListener('abort', cancelar);}
+      function cancelar(){limpiar();reject(errorCancelado());}
+      Promise.resolve(promesa).then(function(value){limpiar();resolve(value);},function(error){limpiar();reject(error);});
+      if(signal.aborted){cancelar();return;}
+      signal.addEventListener('abort', cancelar, {once:true});
+    });
+  }
+  function esperarVisible(signal){
+    if(window.SVForegroundSession?.waitVisible) return window.SVForegroundSession.waitVisible({signal:signal});
+    if(signal?.aborted) return Promise.reject(errorCancelado());
+    if(document.hidden !== true && document.visibilityState !== 'hidden') return Promise.resolve();
+    return new Promise(function(resolve,reject){
+      function limpiar(){document.removeEventListener('visibilitychange', revisar);signal?.removeEventListener('abort',cancelar);}
+      function revisar(){if(document.hidden !== true && document.visibilityState !== 'hidden'){limpiar();resolve();}}
+      function cancelar(){limpiar();reject(errorCancelado());}
+      document.addEventListener('visibilitychange',revisar);signal?.addEventListener('abort',cancelar,{once:true});
+    });
+  }
+  function invalidarCargas(){
+    generacion++;
+    if(cargaProgramada !== null) clearTimeout(cargaProgramada); cargaProgramada = null;
+    controladores.forEach(function(controlador){controlador.abort();}); controladores.clear();
+    cargaPendiente = null; cargando = false;
+    estado('');
+  }
+  function programarCarga(demora){
+    if(cargaProgramada !== null) clearTimeout(cargaProgramada);
+    var contexto = capturarContexto();
+    cargaProgramada = setTimeout(function(){
+      cargaProgramada = null;
+      if(contextoVigente(contexto)) cargar();
+    }, demora);
   }
 
   function pad(n){ return String(n).padStart(2, '0'); }
@@ -48,6 +105,8 @@
 
   async function guardarPunto(datos, origen){
     if(!window.fbDB || !window.fbRef || !window.fbUpdate) return null;
+    var contexto = capturarContexto();
+    if(!contextoVigente(contexto)) return null;
     datos = datos || cfgActual();
     var partes = ahoraPartes();
     var punto = {
@@ -74,9 +133,10 @@
       fuente: punto.fuente
     };
     await window.fbUpdate(window.fbRef(window.fbDB), updates);
+    if(!contextoVigente(contexto)) return punto;
     renderResumen([punto]);
     estado('Guardado ' + new Date(partes.ts).toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}));
-    if(typeof window.dolarHistoricoCargar === 'function') setTimeout(window.dolarHistoricoCargar, 250);
+    cargar({refrescar:true});
     return punto;
   }
 
@@ -132,28 +192,55 @@
     }
   }
 
-  async function cargar(){
-    if(!sesionDisponible() || !window.fbDB || !window.fbGet || !window.fbRef) return;
-    try {
-      estado('Cargando histórico...');
-      var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/dolarHistorico'));
-      var rows = flatten(snap.val() || {});
-      pagina = 0;
-      renderTabla(rows);
-      if(window.SisVentasDolarMensual) window.SisVentasDolarMensual.update(rows);
-      estado(rows.length ? 'Último punto: ' + (rows[0].fecha || '') + ' ' + (rows[0].hora || '') : 'Sin registros');
-    } catch(e){
-      estado('Error al cargar histórico');
-      if(typeof notify === 'function') notify('No se pudo cargar histórico del dólar: ' + e.message);
+  function cargar(opciones){
+    var contexto = capturarContexto();
+    if(!contextoVigente(contexto) || !window.fbDB || !window.fbGet || !window.fbRef) return Promise.resolve(false);
+    if(cargaProgramada !== null) clearTimeout(cargaProgramada); cargaProgramada = null;
+    if(cargaPendiente && contextoVigente(cargaPendiente.contexto)) {
+      if(opciones?.refrescar === true) cargaPendiente.refrescar = true;
+      return cargaPendiente.promesa;
     }
+    var controlador = nuevoControlador(), signal = controlador?.signal;
+    var solicitud = {contexto:contexto, controlador:controlador, refrescar:false, promesa:null};
+    cargaPendiente = solicitud;
+    solicitud.promesa = (async function(){
+      try {
+        await esperarVisible(signal);
+        if(cargaPendiente !== solicitud || !contextoVigente(contexto)) return false;
+        estado('Cargando histórico...');
+        var snap = await esperarResultado(window.fbGet(window.fbRef(window.fbDB, 'sisventas/dolarHistorico')),signal);
+        await esperarVisible(signal);
+        if(cargaPendiente !== solicitud || !contextoVigente(contexto)) return false;
+        var rows = flatten(snap.val() || {});
+        pagina = 0;
+        renderTabla(rows);
+        if(window.SisVentasDolarMensual) window.SisVentasDolarMensual.update(rows);
+        estado(rows.length ? 'Último punto: ' + (rows[0].fecha || '') + ' ' + (rows[0].hora || '') : 'Sin registros');
+        return true;
+      } catch(e){
+        if(cargaPendiente === solicitud && contextoVigente(contexto) && e.name !== 'AbortError') {
+          estado('Error al cargar histórico');
+          if(typeof notify === 'function') notify('No se pudo cargar histórico del dólar: ' + e.message);
+        }
+        return false;
+      } finally {
+        if(controlador) controladores.delete(controlador);
+        if(cargaPendiente === solicitud) {
+          cargaPendiente = null;
+          if(solicitud.refrescar && contextoVigente(contexto)) cargar();
+        }
+      }
+    })();
+    return solicitud.promesa;
   }
 
   async function guardarAhora(){
+    var contexto = capturarContexto();
     try {
-      await guardarPunto(cfgActual(), 'manual');
-      if(typeof notify === 'function') notify('✓ Punto del dólar guardado');
+      var punto = await guardarPunto(cfgActual(), 'manual');
+      if(punto && contextoVigente(contexto) && typeof notify === 'function') notify('✓ Punto del dólar guardado');
     } catch(e){
-      if(typeof notify === 'function') notify('No se pudo guardar histórico: ' + e.message);
+      if(contextoVigente(contexto) && typeof notify === 'function') notify('No se pudo guardar histórico: ' + e.message);
     }
   }
 
@@ -161,37 +248,47 @@
     if(!sesionDisponible() || !window.fbDB || !window.fbGet || !window.fbRef) return false;
     var cfg = cfgActual();
     if(cfg.actualizacionAuto !== 'hora') return false;
+    var contexto = capturarContexto(), controlador = nuevoControlador(), signal = controlador?.signal;
     try {
-      var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/dolarHistoricoUltimo'));
+      await esperarVisible(signal);
+      if(!contextoVigente(contexto)) return false;
+      var snap = await esperarResultado(window.fbGet(window.fbRef(window.fbDB, 'sisventas/config/dolarHistoricoUltimo')),signal);
+      await esperarVisible(signal);
+      if(!contextoVigente(contexto)) return false;
       var ultimo = snap.val() || {};
       return !ultimo.ts || (Date.now() - Number(ultimo.ts || 0)) >= INTERVALO_MS;
     } catch(_e){
-      return true;
+      return contextoVigente(contexto) && _e.name !== 'AbortError';
+    } finally {
+      if(controlador) controladores.delete(controlador);
     }
   }
 
   async function tick(){
     if(cargando || !sesionDisponible()) return;
+    var contexto = capturarContexto();
     cargando = true;
     try {
-      if(await debeActualizarPorHora()){
+      if(await debeActualizarPorHora() && contextoVigente(contexto)){
         if(typeof window.actualizarDolarAPI === 'function') await window.actualizarDolarAPI(true);
         else await guardarPunto(cfgActual(), 'auto');
       }
     } finally {
-      cargando = false;
+      if(contextoVigente(contexto)) cargando = false;
     }
   }
 
   function iniciar(){
+    invalidarCargas(); sesionActiva = true;
     if(timer) clearInterval(timer);
     timer = null;
     if(!sesionDisponible()) return;
-    setTimeout(cargar, 400);
+    programarCarga(400);
     // La actualización de cotización queda vinculada a una acción explícita.
   }
 
   function detener(){
+    sesionActiva = false; invalidarCargas();
     if(timer) clearInterval(timer);
     timer = null;
     cargando = false;
@@ -209,7 +306,8 @@
 
   document.addEventListener('sisventas:session-ready', iniciar);
   document.addEventListener('sisventas:session-ended', detener);
+  document.addEventListener('sisventas:role-changed', invalidarCargas);
   document.addEventListener('sisventas:page-changed', function(e){
-    if(!e.detail || e.detail.page === 'configuracion') setTimeout(cargar, 250);
+    if(!e.detail || e.detail.page === 'configuracion') programarCarga(250);
   });
 })();

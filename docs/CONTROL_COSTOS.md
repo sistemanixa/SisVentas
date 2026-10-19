@@ -1,5 +1,20 @@
 # Control de consumo de SisVentas
 
+## Auditoría de alcance · 19/10/2026 · candidato13.3
+
+Estado externo según CONTEXTO_ACTUAL: web13.2 y Cotizador
+`cotizador-projects-66a77036`, mínimo0, CPU por solicitud, eventos activos y
+observador continuo explícitamente apagado. Las secciones anteriores de
+preparación/publicación que siguen conservan sus cifras y fechas históricas.
+
+El [inventario de Cotizador](AUDITORIA_COTIZADOR.md) separa 15 familias de
+operaciones. El candidato13.3 reduce el alcance de comprobar una venta puntual,
+comparte cargas simultáneas y cancela continuaciones de vistas obsoletas. No
+agrega servicios ni reserva permanente. No se midieron ahorro mensual, bytes
+productivos ni facturación en esta revisión local; no atribuirle un importe.
+La transacción laboral de raíz, los listados/opciones amplios y parte del
+arranque permanecen pendientes. Cambios locales no prueban reducción aplicada.
+
 ## Comprobación manual · 19/10/2026
 
 Producción vigente: Cotizador `cotizador-audit-518425db` (100% y14 accesos) y web13.0, como registra CONTEXTO_ACTUAL. Conserva mínimo0, cobro por solicitud y eventos de comisiones. Las revisiones de preparación que siguen son antecedentes, no un cambio de tráfico pendiente.

@@ -1,5 +1,13 @@
 # Cotizador NIXA
 
+Servicio Cloud Run existente para cotización y operaciones protegidas de
+SisVentas: Usuarios/acceso, comerciales, Proyectos, documentos, chat, laboral,
+finanzas privadas y comisiones. El mapa de rutas, consumidores, disparadores y
+pendientes está en [AUDITORIA_COTIZADOR.md](../docs/AUDITORIA_COTIZADOR.md).
+La configuración y revisión publicadas se registran en
+[CONTEXTO_ACTUAL.md](../docs/CONTEXTO_ACTUAL.md); el código local no acredita
+que una función o bandera esté activa en producción.
+
 ## Directorio y chat protegidos (v3.11.11)
 
 `USER_DIRECTORY_ENABLED=true` habilita las rutas nuevas; si falta, permanecen
@@ -17,15 +25,13 @@ Todas las respuestas son `no-store`. No publicar el cliente nuevo antes de
 activar este API. Las reglas por mensaje/directorio requieren el cliente
 compatible; ensayarlas con los fixtures, nunca enviando mensajes reales de prueba.
 
-Servicio Cloud Run separado para cotizar proveedores por su URL exacta.
-
 ## Qué hace
 
 - Recibe `proveedorKey` y URL exacta del producto.
 - Lee `sisventas/proveedores/{proveedorKey}` desde Firebase.
 - Usa `usuario` y `password` cuando el proveedor requiere acceso.
 - Inicia sesión en Biosegur, Free Electron o Tecnoprices.
-- Para Mercado Libre usa OAuth y la API oficial; renueva el acceso automáticamente.
+- Para Mercado Libre usa OAuth y la API oficial; renueva el acceso cuando una consulta lo necesita, sin un reloj de renovación.
 - Abre la URL exacta del producto.
 - Extrae el precio visible en ARS y la disponibilidad.
 - Bloquea variaciones anormales para conservar el precio anterior.
@@ -33,10 +39,10 @@ Servicio Cloud Run separado para cotizar proveedores por su URL exacta.
 ## Variables de entorno
 
 - `FRONTEND_KEY`: misma clave que usa el frontend para autorizar llamadas.
-- `FIREBASE_DATABASE_URL`: `https://nixa-sisventas-default-rtdb.firebaseio.com`
+- `FIREBASE_DATABASE_URL`: instancia autorizada para ese entorno. La fuente conserva un destino productivo por defecto; las pruebas locales deben configurar un emulador o instancia ficticia y credenciales aisladas antes de ejecutar el servicio.
 - `ALLOW_ORIGIN`: `https://ventas.sistemanixa.com`
-- `REQUIRE_FIREBASE_AUTH`: `true` en producción; exige un ID token Firebase válido además de `FRONTEND_KEY`
-- Gestión de acceso de Usuarios, **preparada en local, sin activar**: `USER_ACCESS_ENABLED` apagada por defecto y `FIREBASE_WEB_API_KEY` para solicitar la plantilla de recuperación Firebase. No habilitar solo la bandera: exige revisar/desplegar verificadores y guard de reglas antes del cliente. Configuración, IAM, endpoints y pruebas demo en [GESTION_ACCESO_USUARIOS.md](../docs/GESTION_ACCESO_USUARIOS.md).
+- `REQUIRE_FIREBASE_AUTH`: exige un ID token válido y comprueba revocación en cada operación; además conserva la comprobación existente de `FRONTEND_KEY`. Omitirla, dejarla vacía o darle un valor inválido mantiene la autenticación exigida. Sólo el texto exacto `false` permite la compatibilidad sin token de las rutas de cotización, para pruebas aisladas; no desactiva los controles propios de los módulos protegidos. En producción conservar `true`.
+- Gestión de acceso de Usuarios: `USER_ACCESS_ENABLED` apagada por defecto y `FIREBASE_WEB_API_KEY` para solicitar la plantilla de recuperación Firebase. No habilitar sólo la bandera: exige los verificadores y el guard de reglas compatibles. Estado publicado en CONTEXTO_ACTUAL; configuración, IAM, endpoints y pruebas demo en [GESTION_ACCESO_USUARIOS.md](../docs/GESTION_ACCESO_USUARIOS.md).
 - `ML_CLIENT_ID`: Client ID de la aplicación de Mercado Libre.
 - `ML_CLIENT_SECRET`: secreto de la aplicación (configurarlo en Cloud, nunca en Git).
 - `ML_REDIRECT_URI`: callback registrado en Mercado Libre.
@@ -82,6 +88,7 @@ Headers:
 ```http
 Content-Type: application/json
 X-Frontend-Key: ...
+Authorization: Bearer ...
 ```
 
 Body:

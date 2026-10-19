@@ -22,6 +22,14 @@ Cubre identidad del cobro, agrupación/adjuntos, retorno con período y scroll,
 permiso de Cobranzas, visor solo lectura y saldos con el historial completo.
 Recorrido aislado en `dev-module-audit.cjs`, botón Cuenta corriente de prueba.
 
+Alcance de consultas y sesión: `node --test test/commercial-single-record-read.test.cjs test/supplier-directory.test.cjs test/commission-observer-startup.test.cjs test/cotizador-auth-default.test.cjs test/version-http-single-flight.test.cjs test/ot-data-sync-context.test.cjs test/catalog-promotions-context.test.cjs test/dolar-history-session.test.cjs test/audit-confirmed-operations.test.cjs`.
+Comprueba autorización del registro exacto y de proveedores, arranque explícito del
+observador, consultas simultáneas compartidas y respuestas de otra vista/sesión.
+Abrir una OT no persiste una reparación histórica; las ediciones siguen siendo
+explícitas. Los wrappers de bitácora retirados estaban inactivos con el orden
+publicado: la prueba de carga tardía es preventiva, no evidencia de tráfico real.
+Inventario y límites: [AUDITORIA_COTIZADOR.md](../docs/AUDITORIA_COTIZADOR.md).
+
 Pantalla bloqueada y preparación de acceso: `node --test test/auth-foreground.test.cjs test/background-foreground.test.cjs test/foreground-session.test.cjs test/firebase-write-foreground.test.cjs`.
 La regresión integrada usa perfil, almacenamiento protegido y plazo real con reloj
 ficticio: esperar oculto no consume el plazo ni deja un GET huérfano al volver.
