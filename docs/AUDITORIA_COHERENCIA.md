@@ -1,5 +1,9 @@
 # Coherencia, sincronización y costo
 
+## Continuación13.0 · sólo local
+
+Reproducción20:600.000ms de uso se reducían a60.000ms y respuesta de ficha anterior podía reemplazar la última solicitud. Candidato13.0 conserva acumulación local sin sondeos de red y ordena persistencia; descarta fichas tardías tras solicitud/apertura/cierre/navegación/sesión/rol/revisión.2.123 pruebas aprobadas con16 nuevas funcionales. Nueve editores completos en escritorio/tablet/celular ficticios sin desbordes ni errores. No publicado. Permanecen presencia90s, arranque amplio, transacciones laborales amplias y medición de costos reales.
+
 ## Publicación del bloque20
 
 Fuente addec6ebd6ada4b107e46c1a066c510badbf0627 publicada por autorización expresa del titular.2.107 pruebas desde paquete limpio,380 activos,15 hashes,5 cabeceras y4 rutas internas404 comprobados. Aviso20 actualizado después. Sesión web conservada: Dashboard cargado, Ventas50 filas y Presupuestos8 con Sincronizado, sin operaciones financieras de prueba. El resto del documento describe la preparación y los pendientes; no considerar cerrada la auditoría completa. Continuar en nueva versión3.13.0 sin editar20 publicada.

@@ -44,7 +44,8 @@ test('el API conserva el guard de contraseña temporal y versión de acceso ante
 test('editar usuario usa la proyección administrativa y conserva intactos los campos privados',async()=>{
  const source=require('./helpers/active-app').readActiveApp().source,start=source.indexOf('function editarUsuario('),end=source.indexOf('\n}',start)+2;
  let shown;const window={fbDB:{},SVUserDirectory:{enabled:true,adminProfile:async key=>({fbKey:key,nombre:'Persona ficticia',rol:'tecnico',mail:'fixture@example.test'})},fbOnValue:()=>assert.fail('No leer ficha cruda')};
- const context={window,document:{getElementById:()=>null},abrirModalNuevo:(kind,data,key)=>{shown={kind,data,key};},notify:m=>assert.fail(m)};vm.runInNewContext(source.slice(start,end),context);
+ window.fbAuth={currentUser:{uid:'admin'}};
+ const context={window,currentUserUid:'admin',currentRole:'admin',document:{getElementById:()=>null},abrirModalNuevo:(kind,data,key)=>{shown={kind,data,key};},notify:m=>assert.fail(m)};require('./helpers/app-functions.cjs').load(context,['svCapturarContextoOperacion','svSolicitudFichaModal']);vm.runInContext(source.slice(start,end),context);
  await context.editarUsuario('w');assert.equal(shown.key,'w');assert.equal(shown.data.nm,'Persona ficticia');assert.equal(shown.data.pass,'');
 });
 function client(){

@@ -84,3 +84,5 @@ Comparación de18 publicada con19 y 20 publicada. Se distingue cambio de comport
 | Presupuesto/alertas/corte | Añadidos avisos30 y corte60 desde noviembre. Una suspensión impide sincronizar/comisionar hasta revisión y reactivación manual; no limita exactamente la factura por demora de avisos | Controlador activo, octubre excluido |
 
 No se retiraron ventas, presupuestos, cobros, cálculo de comisiones, stock, caja, PDF/IA ni permisos del servidor como medida de ahorro. Los datos existentes no se borraron ni recalcularon para probar. Continúan pendientes carga inicial amplia, transacciones laborales sobre raíz y carreras entre aperturas de fichas. Cada cambio futuro debe conservar este inventario y registrar regresiones reales, no asumir que menos consultas equivale a misma experiencia.
+
+Continuación local13.0: la pérdida de precisión de métricas se reprodujo y corrigió sin restaurar escrituras por reloj. También se corrige orden de respuestas al abrir fichas.2.123 pruebas aprobadas; estos cambios posteriores no están en20 publicada. No se reconstruyen métricas históricas que no se registraron.

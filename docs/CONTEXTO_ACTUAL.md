@@ -1,5 +1,14 @@
 # Continuidad de SisVentas
 
+## Continuación local · v3.13.0, sin publicar
+
+- Tras publicar20, el titular pidió continuar. Rama nueva codex/auditoria-eventos-v3130 desde573cc6feb54e7e51bf5e281611a685e18fced1e3;20 publicada e inmutable se conserva. Siguiente número calculado con script (parche20 rota menor).
+- Reproducción aislada sobre20: diez minutos de actividad guardaban60.000ms en lugar de600.000ms; dos solicitudes de proveedor con respuestas invertidas abrían segundo y luego primero. Evidencia privada coherencia-v3130-reproduccion.private.json. No se probaron sobre registros reales.
+- Métricas nuevas: acumulación local por eventos sin lecturas/escrituras por actividad ni reloj remoto; separa120s de actividad/inactividad, visibilidad y medianoche local. Persistencia sólo en los eventos existentes, ordenada, sin reenviar versiones iguales, sin bucle de fallo y con barrera de sesión. No modifica estadísticas históricas; no es un reloj de asistencia y cerrar bruscamente el navegador aún puede perder lo no enviado.
+- Fichas Proveedor/Empleado/Usuario y fallback de Orden: última solicitud vigente, mismo formulario/página/sesión/rol/revisión. Abrir/cerrar otro modal o navegar invalida la respuesta pendiente; error antiguo no aparece en la sesión nueva. Mantiene consulta protegida y no habilita ficha cruda de Usuarios.
+-2.123 pruebas aprobadas, sintaxis/diff/coherencia13.0 locales correctos. Nuevas16 pruebas funcionales: ocho de uso y ocho de fichas, incluidos fallos, solapamiento, cambio de sesión y medianoche. Nueve editores recorridos completos con datos ficticios en390x844,820x1180 y1440x1000 sin errores/desbordes; no equivale a guardar operaciones financieras.
+- Producción sigue20 y servidor por eventos b56470ce; no publicar este nuevo bloque por analogía ni darlo como aplicado. Pendientes: presencia sin latidos conserva vencimiento90s; carga inicial amplia; transacción laboral de raíz; consumo agregado real posterior al corte. Preservar inventario funcional en CONTROL_COSTOS.md y no garantizar total mensual bajo30.
+
 ## Publicación completada · v3.12.20
 
 - Autorización explícita del titular: publicar hasta este bloque y continuar auditoría. Fuente addec6ebd6ada4b107e46c1a066c510badbf0627, rama codex/reduccion-consumo-firebase-20261018; origin/main4639a87bf7e6edd9f2d62af70317fdc5f9ac71b5 sin novedades. No integrado main ni alterado el cambio ajeno de la raíz.
