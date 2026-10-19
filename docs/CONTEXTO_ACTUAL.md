@@ -1,6 +1,14 @@
 # Continuidad de SisVentas
 
-## Reanudación en primer plano y confirmación de comisiones · candidato v3.13.2
+## Publicación completada · v3.13.2 · 19/10/2026
+
+- Fuente `1ee57c4d4824bc53f88dbbed7cb6bab02d750b21`, rama `codex/auditoria-arranques-nocturnos-v3132`, push confirmado. Checkout público limpio `.local/publicacion-final-v31216` separado en ese SHA. `origin/main` continúa `4639a87b`; se conserva la otra PC y no hubo integración a main.
+- Puerta vigente 2.350/2.350 tanto en copia de trabajo como en checkout limpio; sintaxis, diff y coherencia local correctos. Hosting publicó385 archivos públicos/12 cargas, versión `82a8dfea1da0e34f`. Diecisiete activos contrastados por hash, cinco cabeceras y cuatro rutas privadas404. Sólo después se actualizó y confirmó `sisventas/config/version` a `v3.13.2-firebase`.
+- Sin nuevas funciones, servidores, recursos mínimos, reglas, IAM, secretos ni DNS. Cotizador y comisiones por eventos conservan el estado13.1. El cambio de confirmación usa una solicitud directa que ya existía; no añade sondeos. No se guardaron cobros, ventas ni comisiones reales de prueba; el ingreso conserva los metadatos habituales de acceso/presencia.
+- Verificación web con sesión conservada, sin borrar navegación: Dashboard termina de cargar; Ventas50 filas y Presupuestos8 visibles, Sincronizado, sin avisos de error de consola observados en esa comprobación. La pestaña temporal se cerró. En la original se comprobó primero que sólo estaba el listado, sin formulario/modal abierto; se actualizó a13.2 conservando Presupuestos y sus ocho filas. La prueba no ejecutó un cobro real ni acredita todos los dispositivos físicos.
+- Evidencia privada `v3132-tests-final.private.log`, `v3132-clean-tests.private.log`, `v3132-web-verified.private.json` y capturas en `C:/SisVentas/tmp/v3131-release/`, fuera de Git. La fuente13.1 `135ec2d5` y la versión Hosting anterior se conservan para reversión. Las notas de candidato siguientes son antecedentes, superadas por esta publicación.
+
+## Reanudación en primer plano y confirmación de comisiones · preparación v3.13.2
 
 - Rama `codex/auditoria-arranques-nocturnos-v3132`, base `2f99c055`. Producción sigue v3.13.1; no se cambiaron Cloud Run, funciones, reglas, permisos, secretos, DNS ni operaciones reales. El candidato mantiene aplicación inmutable, índice, core, SW y URLs de activos coherentes. No se integró main ni se alteró la raíz de la otra PC.
 - Comparación única de reposo terminada y seguimiento pausado. El titular aclaró que Proyectos quedó abierto en Codex y pudo quedar un celular bloqueado: no fue una prueba con todos los clientes cerrados. Las métricas tienen huecos y no determinan un importe monetario de esas siete horas. Evidencia privada en `C:/SisVentas/tmp/v3131-release/`; no repetir ni sobrescribir las referencias.
