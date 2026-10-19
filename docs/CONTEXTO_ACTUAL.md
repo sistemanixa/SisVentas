@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Publicación v3.13.1 autorizada · preparación final · 19/10/2026
+
+- El titular pidió revisar el pedido de Harvy y publicar al terminar; luego agregó apertura de toda la tarjeta de Proyectos y una comparación de consumo con todo cerrado durante siete horas. Pedido de Harvy identificado en «Revisar chat principal SisVentas»: Deuda clientes debe abrir el listado general de Cuenta corriente, conservando importe, cálculos, permisos y filtros. No se enviaron mensajes a otro chat ni se integró main.
+- Candidato: tarjeta completa de Proyectos operable con clic/Enter/Espacio, foco visible y sin botones anidados; Deuda clientes usa navegación autorizada al listado general de Cuenta corriente. Mantenimiento también retira su error al ocultar la solapa en clientes con app13.0, sin depender del evento nuevo; con core anterior conserva aviso inline. Observadores DOM se liberan al cerrar, sin consultas o relojes nuevos.
+- Puerta final: 2.265/2.265, sintaxis/diff/coherencia v3.13.1 correctos; Cotizador 94/94 previamente en el mismo árbol de servidor. Prueba UI ficticia: clic en cliente y en espacio vacío de la tarjeta abren el mismo proyecto; Enter en tablet 820 y Espacio en móvil 390 funcionan, sin desborde móvil. Deuda clientes abre Cuenta corriente general. Sin guardar operaciones. Las pruebas previas de avisos en 390/820/1280 siguen vigentes.
+- Servidor construido desde 66a7703678f7e7583e6b2bbf17e45ffea76b3c17, cuyo árbol Cotizador es idéntico al candidato final. Sólo paraleliza dos lecturas autorizadas; no reduce su cantidad ni elimina revocación. Se informó antes de aplicar: construcción/pruebas puntuales estimadas menores a USD1, máquina e2-standard-2 a USD0,006/min y construcción limitada a 15min; conserva mínimo0 y cobro por solicitud. Sin servicios, IAM, reglas, secretos ni capacidad permanente nuevos. Verificar y registrar el resultado efectivo antes de anunciar publicación.
+- Al terminar publicación y verificación, tomar línea base privada con hora exacta, informe de facturación y métricas agregadas; programar una única comparación tras siete horas, sin consultas intermedias, sin reabrir SisVentas ni datos comerciales. Un importe de factura idéntico no prueba ausencia de consultas: distinguir registro diferido, almacenamiento y eventos legítimos. No prometer auditoría 100% ni mensual menor a USD30.
+
 ## Avisos centrados y revisión de Proyectos · v3.13.1 local · 19/10/2026
 
 - Rama aislada `codex/avisos-carga-centrados-v3131` desde578769f0. Fetch confirma `origin/main`4639a87bf7e6edd9f2d62af70317fdc5f9ac71b5 sin novedades. Producción continúa13.0, fuente518425db; esta preparación NO está publicada ni integrada en main. Cambio desconocido de la raíz y trabajo de ambas PC conservados.

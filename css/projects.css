@@ -1,4 +1,5 @@
 #page-proyectos{--px-accent:var(--blue,#71a8ff);--px-soft:rgba(100,155,255,.09)}
+.px-card[role=button]{cursor:pointer}.px-card[role=button]:focus-visible{outline:2px solid var(--px-accent);outline-offset:4px;border-color:var(--px-accent)}
 .px-dialog{--px-accent:var(--blue,#71a8ff);--px-soft:rgba(100,155,255,.09)}.px-primary{background:var(--px-accent)!important;color:#0b1525!important;border-color:transparent!important;font-weight:650!important}
 .px-shell{max-width:1440px;margin:0 auto;padding-bottom:28px;color:var(--text)}
 .px-stage-control{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.px-stage-label{font-size:11px;color:var(--text2)}

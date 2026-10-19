@@ -10780,7 +10780,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.13.1',date:'19/10/2026',title:'Avisos de carga centrados',notes:Object.freeze(['Los avisos de carga inicial aparecen en el centro de la pantalla y se retiran al terminar o cambiar de módulo.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ir al inicio'})}),
+ Object.freeze({version:'v3.13.1',date:'19/10/2026',title:'Avisos de carga centrados',notes:Object.freeze(['Los avisos de carga inicial aparecen centrados y se retiran al terminar o cambiar de módulo.','Podés abrir un proyecto tocando cualquier parte de su tarjeta. Deuda clientes lleva a Cuenta corriente.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ir al inicio'})}),
  Object.freeze({version:'v3.13.0',date:'18/10/2026',title:'Carga por pantalla y sesiones',notes:Object.freeze(['Los módulos cargan al abrirlos y permiten reintentar sin perder la pantalla.','Conectados y estadísticas de uso por eventos; las fichas descartan respuestas anteriores.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ir al inicio'})}),
  Object.freeze({version:'v3.12.20',date:'18/10/2026',title:'Coherencia de sincronización',notes:Object.freeze(['Borradores con envíos ordenados, recuperación de carga y descarte de tareas de otra sesión. El menú conserva la posición de sus opciones; las consultas no modifican fichas ni porcentajes.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ir al inicio'})}),
  Object.freeze({version:'v3.12.19',date:'18/10/2026',title:'Consultas por acción',notes:Object.freeze(['Se retiran las consultas periódicas de historiales y directorios. Actualizá los datos al abrir el módulo o desde Sincronizar ahora.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ir al inicio'})}),
@@ -51034,8 +51034,7 @@ function kpiNavegar(tipo) {
     showPage('cobranzas', document.querySelector('[onclick*="cobranzas"]'));
     setTimeout(function() { if (typeof setFiltroCob === 'function') setFiltroCob('hoy'); }, 150);
   } else if (tipo === 'deuda') {
-    showPage('detalle', document.querySelector('[onclick*="detalle"]'));
-    setTimeout(function() { if (typeof tabVentas === 'function') tabVentas('cobrar', document.getElementById('vtab-cobrar')); }, 150);
+    svNavegarDirecto('cuentacorriente', volverListaCuentaCorriente, document.querySelector('[onclick*="cuentacorriente"]'));
   } else if (tipo === 'presupuestos') {
     showPage('presupuesto', document.querySelector('[onclick*="presupuesto"]'));
   } else if (tipo === 'iva') {

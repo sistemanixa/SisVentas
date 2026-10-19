@@ -79,7 +79,7 @@
  function cards(){
   const target=host().querySelector('[data-px-cards]');if(!target)return;
   const filtered=state.projects.filter(p=>(state.filter==='all'||(state.filter==='approved'?p.stage==='aprobado':!['aprobado','descartado'].includes(p.stage)))&&norm([p.name,p.clientName,p.address].join(' ')).includes(norm(state.search)));
-  target.innerHTML=filtered.map(p=>{const s=M.stats(p);return '<article class="px-card"><div class="px-card-top"><span class="px-project-icon">'+icon('folder')+'</span>'+pill(p.stage,M.stages[p.stage])+'</div><div><div class="px-code">'+esc(p.number)+'</div><button type="button" class="px-card-open" data-px="open" data-id="'+esc(p.id)+'"><h3>'+esc(p.name)+'</h3></button><div class="px-muted">'+esc(p.clientName||'Cliente a definir')+'</div><p class="px-goal">'+esc(p.goal||'Comenzá definiendo el objetivo del proyecto.')+'</p></div><div><div class="px-progress-label"><span>Necesidades definidas</span><span>'+s.defined+' de '+s.all+'</span></div><div class="px-track"><span style="width:'+s.percent+'%"></span></div></div><div class="px-card-foot">'+avatars(p)+'<small>'+icon('file-description')+' '+p.budgets.length+' · '+date(p.updatedAt)+'</small></div></article>';}).join('')||empty(state.projects.length?'No encontramos proyectos':'Tu próximo proyecto empieza acá',state.projects.length?'Probá otro texto o cambiá el filtro.':'Definí el objetivo, organizá las necesidades y sumá a tu equipo.',!state.projects.length&&state.canCreate?button('Crear primer proyecto','new','px-primary'):'');
+  target.innerHTML=filtered.map(p=>{const s=M.stats(p);return '<article class="px-card" role="button" tabindex="0" data-px="open" data-id="'+esc(p.id)+'" aria-label="Abrir proyecto: '+esc(p.name)+'"><div class="px-card-top"><span class="px-project-icon">'+icon('folder')+'</span>'+pill(p.stage,M.stages[p.stage])+'</div><div><div class="px-code">'+esc(p.number)+'</div><h3>'+esc(p.name)+'</h3><div class="px-muted">'+esc(p.clientName||'Cliente a definir')+'</div><p class="px-goal">'+esc(p.goal||'Comenzá definiendo el objetivo del proyecto.')+'</p></div><div><div class="px-progress-label"><span>Necesidades definidas</span><span>'+s.defined+' de '+s.all+'</span></div><div class="px-track"><span style="width:'+s.percent+'%"></span></div></div><div class="px-card-foot">'+avatars(p)+'<small>'+icon('file-description')+' '+p.budgets.length+' · '+date(p.updatedAt)+'</small></div></article>';}).join('')||empty(state.projects.length?'No encontramos proyectos':'Tu próximo proyecto empieza acá',state.projects.length?'Probá otro texto o cambiá el filtro.':'Definí el objetivo, organizá las necesidades y sumá a tu equipo.',!state.projects.length&&state.canCreate?button('Crear primer proyecto','new','px-primary'):'');
  }
  function details(){
   const p=current();if(!p){state.selected='';overview();return;}
@@ -190,6 +190,8 @@
   }catch(err){report(err);}
  });
  document.addEventListener('keydown',e=>{
+  const card=e.target.closest?.('#page-proyectos .px-card[data-px="open"]');
+  if(card&&e.target===card&&['Enter',' '].includes(e.key)){e.preventDefault();if(!e.repeat)card.click();return;}
   const tab=e.target.closest?.('#page-proyectos [role=tab]');if(!tab||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
   const tabs=[...host().querySelectorAll('[role=tab]')],at=tabs.indexOf(tab),next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(at+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
   e.preventDefault();selectTab(tabs[next].dataset.id);tabs[next].focus();

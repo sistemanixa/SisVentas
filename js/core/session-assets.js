@@ -49,12 +49,15 @@
     await Promise.all(modules.map(load));
     return !isCurrent || isCurrent();
   }
-  var maintenanceCurrent = null, maintenanceRevision = 0, maintenanceSessionActive = true;
+  var maintenanceCurrent = null, maintenanceRevision = 0, maintenanceSessionActive = true, maintenanceObserver = null;
   function maintenanceAuthenticated() { return typeof isAuthenticated === 'undefined' ? undefined : isAuthenticated; }
   function maintenanceVisible(panel) {
+    if (!panel || panel.isConnected === false) return false;
+    for (var node = panel; node; node = node.parentElement || node.parentNode) {
+      if (node.hidden || node.style?.display === 'none' || (node.classList?.contains('page') && !node.classList.contains('active'))) return false;
+    }
     var page = document.getElementById('page-configuracion');
-    return !!panel && panel.isConnected !== false && panel.style.display !== 'none' &&
-      (!page || !page.classList || page.classList.contains('active'));
+    return !page || !page.classList || page.classList.contains('active');
   }
   function maintenanceContext() {
     return {uid:window.currentUserUid, role:window.currentRole, auth:window.fbAuth?.currentUser,
@@ -68,14 +71,22 @@
   }
   function maintenanceCurrentRequest(state) {
     return maintenanceCurrent === state && state.revision === maintenanceRevision && maintenanceContextCurrent(state.context) &&
-      document.getElementById('cfg-mantenimiento') === state.panel && maintenanceVisible(state.panel);
+      state.status.isConnected !== false && document.getElementById('cfg-mantenimiento') === state.panel && maintenanceVisible(state.panel);
   }
   function clearMaintenance() {
     maintenanceRevision++;
     var previous = maintenanceCurrent; maintenanceCurrent = null;
+    if (maintenanceObserver) { maintenanceObserver.disconnect(); maintenanceObserver = null; }
     if (previous) { previous.status.remove(); if (previous.layer) previous.layer.remove(); }
   }
   function discardMaintenance(state) { if (maintenanceCurrent === state) clearMaintenance(); }
+  function watchMaintenance() {
+    if (!window.MutationObserver || !document.body) return;
+    maintenanceObserver = new window.MutationObserver(function() {
+      if (maintenanceCurrent && !maintenanceCurrentRequest(maintenanceCurrent)) clearMaintenance();
+    });
+    maintenanceObserver.observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['hidden','class','style']});
+  }
   function renderMaintenanceStatus(state, error) {
     var status = state.status, message = error ? String(error.message || 'No se pudo completar la carga. Reintentá.').replace(/\s+\[diagnostics\]$/, '') : 'Cargando auditoría de mantenimiento…';
     status.className = 'sv-data-status' + (error ? ' sv-data-error' : '');
@@ -106,12 +117,14 @@
     clearMaintenance();
     var status = document.createElement('div'), layer = null;
     status.id = 'mnt-diagnostics-loading';
-    if (document.body) {
+    // Un índice/core anterior no conoce el portal ni su hoja de estilos.
+    // Conserva el aviso dentro de la solapa hasta recibir el core nuevo.
+    if (document.body && typeof window.SVScreenLoading?.start === 'function') {
       layer = document.createElement('div'); layer.id = 'mnt-diagnostics-loading-layer'; layer.className = 'sv-load-status-layer';
       layer.appendChild(status); document.body.appendChild(layer);
     } else panel.appendChild(status);
     var state = {panel:panel, context:context, revision:maintenanceRevision, status:status, layer:layer, phase:'loading', task:null};
-    maintenanceCurrent = state; renderMaintenanceStatus(state);
+    maintenanceCurrent = state; renderMaintenanceStatus(state); watchMaintenance();
     state.task = (async function() {
       try {
         await load('diagnostics');
