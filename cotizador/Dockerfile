@@ -16,6 +16,7 @@ COPY chat-operations.js ./
 COPY user-access.js password-email.js password-policy.js ./
 COPY oauth-authorization.js ./
 COPY labor-calculations.js labor-operations.js labor-submissions.js labor-transaction.js ./
+COPY labor-guard.js labor-index.js labor-rtdb-store.js labor-scoped-transaction.js labor-db.js labor-runtime.js labor-write-gateway.js labor-fence-policy.js labor-commission-limit.js ./
 COPY employee-availability.js ./
 COPY employee-directory.js ./
 COPY personal-expenses.js ./

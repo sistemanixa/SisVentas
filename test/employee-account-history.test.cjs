@@ -117,27 +117,28 @@ test('Totales e historial de pagos excluyen anulados sin cambiar claves del orig
 });
 
 test('Comprobante y corrección explícita conservan el pago seleccionado en array y mapa',async()=>{
+ const {createBackend,copy}=require('./helpers/labor-ui-flow.cjs');
  for(const format of ['array','map']) {
   const p1={fecha:'2026-10-12',monto:40,ts:1,medio:'Transferencia',comprobante:{data:'fixture:first'}},p2={fecha:'2026-10-13',monto:20,ts:2,medio:'Efectivo',comprobante:{data:'fixture:second'}};
-  const record=commission('fixture-payment',{pagos:format==='array'?[p1,p2]:{first:p1,second:p2}});
-  const h=setup([record]),before=JSON.stringify(h.context.movsEmpData),opened=[],saved=[];
+  const pagos=format==='array'?[p1,p2]:{first:p1,second:p2},record=commission('fixture-payment',{pagos,gastoFbKey:'g',monto:100,montoPagado:60}),gasto={tipoPagable:'comision',monto:100,montoPagado:60,pagos:copy(pagos),legacyKey:'ctaemp/e/fixture-payment',empleadoFbKey:'e',aprobadoPor:'Autor original'};
+  const backend=createBackend({ctaemp:{e:{'fixture-payment':record}},gastos:{g:gasto}}),p=backend.page(),h={context:p.context,el:p.node};h.context.movsEmpData=[copy(record)];h.context.ctaEmpActual='e';
+  const before=JSON.stringify(h.context.movsEmpData),opened=[];
   h.context.abrirVisorComprobanteSistema=(comp,title)=>opened.push({comp,title});
   h.context.window.tienePermiso=()=>true;
-  h.context.window.fbDB={};h.context.window.fbRef=(_db,p)=>p;
-  h.context.window.fbUpdate=async(p,values)=>{saved.push({p,values});};
-  h.context.window.fbGet=async()=>({val:()=>h.context.movsEmpData[0]});
   h.context._adelantoAprobarCtx=null;h.context.poblarSelectoresMediosPago=()=>{};h.context.cerrarAprobacionAdelanto=()=>{};h.context.fbCargarGastos=()=>{};
+  h.context.formatoMedioPago=x=>x;h.context.escapeHTML=x=>String(x);
   load(h.context,['abrirComprobanteMovEmp','corregirMedioPagoMovEmp','confirmarAprobacionAdelanto']);
   h.context.abrirComprobanteMovEmp('fixture-payment',0);
   assert.equal(opened[0].comp.data,format==='array'?'fixture:first':'fixture:second');
   h.context.corregirMedioPagoMovEmp('fixture-payment',0);
-  assert.equal(JSON.stringify(h.context.movsEmpData),before);assert.equal(saved.length,0);
+  assert.equal(JSON.stringify(h.context.movsEmpData),before);assert.equal(backend.commits.length,0);
   h.el('adelanto-medio').value='Transferencia confirmada';
-  h.context.confirmarAprobacionAdelanto();
-  for(let i=0;i<8;i++)await Promise.resolve();
-  assert.equal(saved.length,1);
-  assert.equal(saved[0].p,'sisventas/ctaemp/fixture-e/fixture-payment');
-  assert.equal(saved[0].values['pagos/'+(format==='array'?'0':'second')+'/medio'],'Transferencia confirmada');
+  await h.context.confirmarAprobacionAdelanto();
+  assert.equal(backend.commits.length,1);assert.equal(backend.commands[0].kind,'atomic');
+  const token=format==='array'?'0':'second';
+  assert.equal(backend.get('sisventas/ctaemp/e/fixture-payment').pagos[token].medio,'Transferencia confirmada');
+  assert.equal(backend.get('sisventas/gastos/g').pagos[token].medio,'Transferencia confirmada');
+  assert.equal(backend.get('sisventas/gastos/g').montoPagado,60);
   assert.equal(JSON.stringify(h.context.movsEmpData),before);
  }
 });

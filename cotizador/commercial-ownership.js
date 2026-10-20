@@ -69,6 +69,9 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
   });
   if(!canRead)throw fail(403,'Módulo no habilitado para este rol');
   const actor={uid,realUid:u.uid,role:identity.rol,name:person.name,domain,viewing:uid!==u.uid};
+  Object.defineProperty(actor,'claims',{value:u});
+  Object.defineProperty(actor,'permissionRevision',{value:c.permissions[identity.rol]?.indiceRevision??null});
+  Object.defineProperty(actor,'permissionDigest',{value:require('./labor-guard').digest(c.permissions[identity.rol]||{})});
   requestContexts.set(actor,c);return actor;
  }
  async function recordsContext(domain,authorizedContext){const [c,records,budgets]=await Promise.all([authorizedContext||context(),read('sisventas/'+domain),domain==='ventas'?read('sisventas/presupuestos'):Promise.resolve(null)]);return {c,records:records||{},budgets};}

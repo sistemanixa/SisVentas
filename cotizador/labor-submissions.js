@@ -28,7 +28,7 @@ function createLaborSubmissions({auth,db,transaction,now=Date.now}){
   const profiles=(await db.ref('sv_usuarios').orderByChild('uid').equalTo(token.uid).get()).val()||{};
   const matches=Object.values(profiles).filter(p=>p.uid===token.uid&&p.activo!==false);
   if(!manager && (matches.length!==1||!matches[0].empleadoFbKey))throw fail(403,'Sin vínculo laboral verificado');
-  return {uid:token.uid,nombre:identity.nombre||token.name||token.uid,manager,empleadoFbKey:matches.length===1?matches[0].empleadoFbKey:''};
+  return {uid:token.uid,nombre:identity.nombre||token.name||token.uid,manager,empleadoFbKey:matches.length===1?matches[0].empleadoFbKey:'',claims:token,role:identity.rol,permissionRevision:cfg.indiceRevision??null,permissionDigest:require('./labor-guard').digest(cfg||{})};
  }
  async function submit(identity,input){
   const body=validate(input);if(!identity.manager && body.empFbKey!==identity.empleadoFbKey)throw fail(403,'No podés cargar horas de otro empleado');
@@ -47,7 +47,7 @@ function createLaborSubmissions({auth,db,transaction,now=Date.now}){
     const details=consolidate(Object.values(aportes).flatMap(a=>a.detalleDias||[])),observations=Object.values(aportes).map(a=>String(a.observaciones||'').trim()).filter(Boolean).join(' · ');
     requests[key]={...old,empFbKey:body.empFbKey,empNombre:emp.nombre||'',fecha:details[0]?.fecha||body.mes+'-01',mes:body.mes,horas:details.reduce((sum,d)=>sum+d.horas,0),descripcion:describe(details,observations),detalleDias:details,aportes,estado:'pendiente',ts:old.ts||stamp,actualizadoTs:stamp,enviadoPor:old.enviadoPor||identity.nombre};return root;
    }catch(e){error=e;return;}
-  });
+  },{kind:'solicitar-horas',identity,body});
   if(!result.committed)throw error||fail(409,'No se pudo confirmar la solicitud');return {committed:true};
  }
  return {authorize,submit};

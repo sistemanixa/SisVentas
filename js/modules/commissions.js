@@ -362,10 +362,22 @@
   }
 
   async function rehabilitarComision(gastoKey) {
+    if(!window.tienePermiso('comisiones.aprobar')){window.notify('No tenés permiso para rehabilitar comisiones');return;}
     var g=(window.gastosData||[]).find(function(x){return x.fbKey===gastoKey;}); if(!g)return;
-    var cambios={estado:'pendiente_aprobacion',requiereAprobacion:true,rehabilitadoPor:window.currentUser||'',rehabilitadoTs:Date.now(),rechazadoPor:null,fechaRechazo:null,motivoRechazo:null}; var updates={}; Object.keys(cambios).forEach(function(k){updates['sisventas/gastos/'+gastoKey+'/'+k]=cambios[k];});
-    var mov=movimientosDetalle[gastoKey]||await cargarMovimiento(g); if(mov&&mov.empFbKey&&mov.movFbKey)Object.keys(cambios).forEach(function(k){updates['sisventas/ctaemp/'+mov.empFbKey+'/'+mov.movFbKey+'/'+k]=cambios[k];});
-    await window.fbUpdate(window.fbRef(window.fbDB),updates); window.notify('✓ Comisión rehabilitada y pendiente de aprobación'); if(window.fbCargarGastos)window.fbCargarGastos(); cerrarDetalleComision(); setTimeout(renderModuloComisiones,200);
+    try{
+      if(typeof window.SVLaborWrites?.atomic!=='function')throw new Error('Recargá la aplicación antes de guardar');
+      var mov=movimientosDetalle[gastoKey]||await cargarMovimiento(g),gastoPath='sisventas/gastos/'+gastoKey;
+      var movPath=mov&&mov.empFbKey&&mov.movFbKey?'sisventas/ctaemp/'+mov.empFbKey+'/'+mov.movFbKey:'',paths=[gastoPath];if(movPath)paths.push(movPath);
+      await window.SVLaborWrites.atomic({paths:paths,build:function(values){
+        var actual=values[gastoPath],cuenta=movPath?values[movPath]:null;
+        if(!actual||!esComision(actual)||estado(actual)!=='rechazado'||String(actual.legacyKey||'')!==String(g.legacyKey||'')||String(actual.empleadoFbKey||actual.empleadoId||'')!==String(g.empleadoFbKey||g.empleadoId||''))throw new Error('La comisión cambió. Actualizá la pantalla antes de rehabilitarla.');
+        if((window.totalPagadoGasto(actual)||0)>0||movPath&&!cuenta||(cuenta&&((parseFloat(cuenta.montoPagado)||0)>0||window.totalPagadoGasto(cuenta)>0||['pagado','pagado_parcial','anulado'].includes(String(cuenta.estado||'').toLowerCase()))))throw new Error('La comisión tiene pagos o cambió su cuenta. Se conservaron sus datos.');
+        var cambios={estado:'pendiente_aprobacion',requiereAprobacion:true,rehabilitadoPor:window.currentUser||'',rehabilitadoTs:Date.now(),rechazadoPor:null,fechaRechazo:null,motivoRechazo:null},updates={};
+        Object.keys(cambios).forEach(function(k){updates[gastoPath+'/'+k]=cambios[k];if(movPath)updates[movPath+'/'+k]=cambios[k];});
+        return updates;
+      }});
+      window.notify('✓ Comisión rehabilitada y pendiente de aprobación');if(window.fbCargarGastos)window.fbCargarGastos();cerrarDetalleComision();setTimeout(renderModuloComisiones,200);
+    }catch(error){window.notify('No se pudo rehabilitar: '+error.message);}
   }
 
   function abrirComisionDesdeGasto(gastoKey) {

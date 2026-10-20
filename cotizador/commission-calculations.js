@@ -21,7 +21,7 @@ function totalPagadoGasto(g) {
   if (!g) return 0;
   var pagos = _gastoPagosArray(g);
   if (pagos && pagos.length) {
-    return pagos.reduce(function(s,p){
+    return Math.max(0,parseFloat(g.saldoPagadoLegacy)||0) + pagos.reduce(function(s,p){
       return s + (pagoGastoEstaAnulado(p) ? 0 : (parseFloat(p && p.monto) || 0));
     }, 0);
   }
@@ -64,4 +64,4 @@ function baseGanancia(gasto, movimiento) {
 function registroComparable(record){
     var copy=Object.assign({},record||{});delete copy.fbKey;delete copy.empFbKey;delete copy.movFbKey;return copy;
   }
-module.exports={normalizarEstadoGasto,esComision,claveGrupo,porcentaje,baseGanancia,registroComparable};
+module.exports={totalPagadoGasto,normalizarEstadoGasto,esComision,claveGrupo,porcentaje,baseGanancia,registroComparable};

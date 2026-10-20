@@ -6,4 +6,10 @@ test('doble clic guarda una sola vez',async()=>{const db={},c=client(db);const r
 test('dos equipos simultáneos no duplican',async()=>{const db={};const r=await Promise.allSettled([client(db)._crearGastoSinDuplicar(gasto),client(db)._crearGastoSinDuplicar(gasto)]);assert.equal(r.filter(x=>x.status==='fulfilled').length,1);assert.equal(Object.keys(db).length,1);});
 test('admite otro importe, fecha o descripción',async()=>{const db={},c=client(db);for(const g of [gasto,{...gasto,monto:5744},{...gasto,fecha:'2026-10-01'},{...gasto,descripcion:'Uber de regreso'}])await c._crearGastoSinDuplicar(g);assert.equal(Object.keys(db).length,4);});
 test('un fallo libera la protección local para reintentar',async()=>{const db={},c=client(db,true);await assert.rejects(c._crearGastoSinDuplicar(gasto),/Sin conexión/);c.window.fbRunTransaction=client(db).window.fbRunTransaction;await c._crearGastoSinDuplicar(gasto);assert.equal(Object.keys(db).length,1);});
-test('las tres altas manuales usan la protección',()=>{assert.equal((app.match(/_crearGastoSinDuplicar\(datos\)/g)||[]).length,4);assert.ok(!app.includes("fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'), datos)"));});
+test('alta rápida y alta completa desde dos equipos comparten identidad y no duplican el gasto',async()=>{
+ const {createBackend}=require('./helpers/labor-ui-flow.cjs'),backend=createBackend(),quick=backend.page(),complete=backend.page();
+ for(const page of [quick,complete]){page.context._gastosAltasEnCurso=new Set();page.load(['_gastoIdentidad','_crearGastoSinDuplicar','_gastoBaseEdicion','_gastoEmpleadosVinculados','_gastoMovimientosDesdeValores','_guardarGastoCompletoAtomico']);}
+ const data={...gasto,empleadoId:'e',montoPagado:0,estado:'pendiente',ts:1};
+ const results=await Promise.allSettled([quick.context._crearGastoSinDuplicar({...data}),complete.context._guardarGastoCompletoAtomico(null,null,{...data},null)]);
+ assert.equal(results.filter(result=>result.status==='fulfilled').length,1);assert.equal(Object.keys(backend.state.sisventas.gastos).length,1);assert.equal(backend.commits.length,1);assert.deepEqual(backend.direct,[]);
+});

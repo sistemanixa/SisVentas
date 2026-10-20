@@ -221,5 +221,7 @@
     window.fbGetDownloadURL = getDownloadURL;
     window.fbDeleteObject = deleteObject;
 
+    if(!window.SVLaborWrites) throw Error('No se pudo preparar el guardado seguro');
+    window.SVLaborWrites.install({sdk:{set:window.fbSet,update:window.fbUpdate,push:window.fbPush,remove:window.fbRemove,runTransaction:window.fbRunTransaction,get,ref}});
     window.firebaseReady = true;
     document.dispatchEvent(new Event('firebase-ready'));

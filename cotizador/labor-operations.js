@@ -9,7 +9,7 @@ function createLaborOperations({auth,db,transaction,now=Date.now}){
   if(identity?.activo!==true||!['admin','administrativo','vendedor','tecnico','tecnico_vendedor'].includes(identity.rol))throw fail(403,'Usuario sin acceso');
   const cfg=(await db.ref('sv_permisos/'+identity.rol).get()).val()||{};
   if(Object.values(cfg.bloqueados||{}).includes('ctaemp')||(typeof cfg.acciones?.empleados?.autorizarHoras==='boolean'? !cfg.acciones.empleados.autorizarHoras:identity.rol!=='admin'))throw fail(403,'Sin permiso para aprobar horas extra');
-  return {uid:token.uid,nombre:identity.nombre||token.name||token.email||token.uid};
+  return {uid:token.uid,nombre:identity.nombre||token.name||token.email||token.uid,claims:token,role:identity.rol,permissionRevision:cfg.indiceRevision??null,permissionDigest:require('./labor-guard').digest(cfg||{})};
  }
  async function approve(identity,body){
   const keys=body?.claves;
@@ -37,7 +37,7 @@ function createLaborOperations({auth,db,transaction,now=Date.now}){
     for(const s of requests){const approved={...root.hsextra_solicitudes[s.fbKey],estado:'aprobado',aprobadoPor:identity.nombre,aprobadoTs:stamp,monto:legacy?amount:Math.round(amount*(Number(s.horas)||0)/hours),gastoFbKey:target};if(!legacy)Object.assign(approved,{montoGrupo:amount,grupoAprobacion:sorted,valorHoraExtraAplicado:rate,cargoIdAplicado:emp.cargoId||''});root.hsextra_solicitudes[s.fbKey]=approved;}
     return root;
    }catch(e){error=e;return;}
-  });
+  },{kind:'aprobar-horas',identity,body});
   if(!result.committed)throw error||fail(409,'No se pudo confirmar la aprobación');
   return {committed:true};
  }
