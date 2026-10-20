@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Gastos personales v3.13.5 · publicación autorizada en curso · 20/10/2026
+
+- El titular autorizó publicar ahora la tanda y corregir el período de Mercado Pago para registrar el pago informado. Alcance: año del lector/ciclo diciembre–enero, mínimo pendiente automático editable y conciliación solo ante diferencias. No incluye auditoría laboral ni Cotizador de otras ramas. Se reserva13.5 porque13.4 está en preparación independiente.
+- Base pública efectiva13.3 contrastada por HTTP; Asistente activo `asistente-categories-e805d330`. Raíz y trabajo de otras ramas conservados.
+- Mínimo respeta moneda del resumen y pagos previos; cambio manual de moneda no convierte valores. Conciliación oculta/deshabilitada para pagos normales, obligatoria en excedentes/saldo desconocido. Validaciones de servidor conservadas.
+- Pruebas ficticias: puerta2.443/2.443 y coherencia local13.5. Chrome local confirmó mínimo automático, edición del importe y aparición de conciliación por excedente; sin datos reales. Prueba de viewport móvil inconclusa por fallos de CDP: no atribuir validación móvil completa.
+- Falta terminar compilación/revisión de Asistente, Hosting, verificación HTTP y aviso; luego recarga efectiva y corrección puntual del resumen/pago. No se consideran aplicados por este bloque de preparación.
+
 ## Gastos personales · próxima tanda de mejoras · 20/10/2026
 
 - Pedido del titular: anotar y acumular cambios, sin implementar ni publicar este todavía.
