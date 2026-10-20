@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Valores por producto al tocar · v3.13.14 · publicación autorizada en preparación
+
+- Nuevo ajuste del titular: lista sólo foto/nombre/cantidad; importe del renglón, precio y descuento se ven al tocar ese producto. El botón del detalle y el espacio de la fila abren un diálogo breve de lectura; la foto conserva su ampliación independiente. Los totales generales permanecen destacados y no cambian cálculos/datos.
+- Puerta2.526/2.526, sintaxis/diff/coherencia correctos. Fixture real de vista/CSS, escritorio y390px: valores ausentes de la lista/árbol accesible; detalle correcto del producto seleccionado; foco y posición conservados al cerrar. Detalle consulta sólo el modelo en memoria, sin GET/guardados.
+- Se inició integración grande en `.local/actualizacion-grande-v31314`, rama `codex/actualizacion-grande-v31314`, desde ccbd87a5. Merge local64d7a605 aún sin completar (conflictos en índice/SW/version/contexto), ninguna activación. Su número de versión debe recalcularse al finalizar para conservar esta14; no publicar ese árbol parcial. Cambio ajeno de la rama laboral original intacto. El titular precisa que la falla OT ocurre al finalizar y enviará captura.
+- Pendiente publicar Hosting/aviso14 y comprobar la ventana real de lectura.13.13 permanece el último cierre completo hasta terminar estas comprobaciones.
+
 ## Visualizador compacto · v3.13.13 · publicado y verificado · 20/10/2026
 
 - Fuente `d6bb3e63be2774b872d4d980c5d233895861d44b`, rama `codex/visualizador-presupuesto` subida. Hosting `6c29deb32a67b0f6`,401 activos/6cargas desde ese SHA limpio;12 activos contrastados por hash,5cabeceras y4rutas privadas404. Sólo después el script de versión confirmó web, SW y Firebase en13.13. No se cambiaron servidores, reglas, IAM, DNS ni datos de negocio.

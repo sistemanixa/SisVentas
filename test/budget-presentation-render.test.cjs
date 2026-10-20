@@ -120,3 +120,9 @@ test('producto sin foto o con foto fallida no ofrece ampliación vacía',()=>{
  const f=fixture();f.view.render(snapshot([item('A','')]));let picture=f.find('.sv-bp-picture');assert.equal(picture.disabled,true);picture.dispatch('click');assert.equal(f.document.body.querySelector('.sv-bp-zoom'),null);
  f.view.render(snapshot([item('A')]));picture=f.find('.sv-bp-picture');assert.equal(picture.disabled,false);f.images[0].dispatch('error');assert.equal(picture.disabled,true);picture.dispatch('click');assert.equal(f.document.body.querySelector('.sv-bp-zoom'),null);assert.equal(f.modalOpens,1);
 });
+
+test('la lista oculta valores por renglón y el botón del producto muestra sólo su detalle actualizado',()=>{
+ const f=fixture(),base=snapshot();f.view.render(base);const detail=f.find('.sv-bp-item-detail'),pricing=f.find('.sv-bp-item-pricing');assert.equal(detail.tagName,'BUTTON');assert.equal(pricing.hidden,true);assert.equal(detail.getAttribute('aria-label'),'Ver detalle de Producto A');
+ f.view.render({...base,items:[{...base.items[0],quantity:3,discountPct:10,subtotal:270},base.items[1]]});detail.focus();detail.dispatch('click');const dialog=f.document.body.querySelector('.sv-bp-product-dialog');assert.ok(dialog.open);assert.match(dialog.textContent,/Cantidad3 Unidad/);assert.match(dialog.textContent,/Precio unitario\$ 100,00/);assert.match(dialog.textContent,/Descuento10%/);assert.match(dialog.textContent,/Subtotal\$ 270,00/);assert.doesNotMatch(dialog.textContent,/Producto B/);assert.equal(f.srcWrites.length,2);
+ dialog.querySelector('.sv-bp-close').dispatch('click');assert.equal(f.document.activeElement,detail);assert.equal(f.view.element.open,true);assert.equal(f.document.body.style.getPropertyValue('overflow'),'hidden');
+});
