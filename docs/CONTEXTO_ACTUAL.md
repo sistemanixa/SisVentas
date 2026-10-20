@@ -5,6 +5,7 @@
 - Pedido del titular: anotar y acumular cambios, sin implementar ni publicar este todavía.
 - **Autocompletar pago mínimo:** al seleccionar «Mínimo» en Registrar pago, completar Importe con el mínimo pendiente del resumen seleccionado y su moneda, descontando pagos ya registrados. Mantener el importe editable; recalcular al cambiar de resumen o moneda sin presentar un mínimo de otra moneda como equivalente. Si está cubierto o es desconocido, indicar la situación sin inventar un importe. Verificar mínimo completo, parcialmente cubierto, cubierto y monedas diferentes antes de integrarlo.
 - Estado: pendiente de implementación para una tanda conjunta. La corrección de año del bloque siguiente sigue preparada sin publicar; no confundir ambos estados.
+- **Motivo de conciliación solo ante excepciones:** pedido confirmado por el titular. Ocultar el campo en un pago normal y mostrarlo cuando una diferencia realmente exija explicación (por ejemplo, pago mayor al saldo estimado o saldo desconocido). Conservar las validaciones y la exigencia de motivo del servidor; no ampliar permisos ni aceptar diferencias sin justificar. Pendiente para la misma tanda, sin implementar ni publicar ahora.
 
 ## Corrección de año de resúmenes · preparada · 20/10/2026
 
