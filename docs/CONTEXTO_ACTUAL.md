@@ -1,5 +1,14 @@
 # Continuidad de SisVentas
 
+## Observaciones de cuotas v3.13.7 · publicado y carga autorizada completada · 20/10/2026
+
+- Fuente `254e69d73e8004651abed37c76fab326b63080cd`, subida en rama aislada. Campo Observaciones, columna propia y búsqueda; conceptos separados. Notas conservadas al revisar PDF y al guardar desde clientes anteriores. Puerta2.459/2.459; sintaxis/diff/coherencia correctos.
+- UI ficticia Chrome: guardar/reabrir nota en escritorio, columna y formulario390px con scroll horizontal; no teléfono físico. Construcción caf1962f-3c70-4dab-b73e-8180a5bece74 SUCCESS59s sobre imagen activa, sustituyendo sólo el modelo. Cotizador `cotizador-quota-notes-254e69d7` al100%,14 etiquetas/configuración conservadas; seis rechazos y CORS en candidata,15 rechazos al activar. Reversión a cotizador-insurance-ca7e6426. Otros servicios/reglas/IAM/DNS intactos.
+- Hosting389 activos/9 cargas;11 activos contrastados por hash, cinco cabeceras y cuatro rutas privadas404. Aviso confirmado13.7 después de web. Ventana real recargada, sesión e iframe13.7 comprobados; restaurada Compras en cuotas.
+- Completada por UI la carga expresamente autorizada de ocho observaciones y restaurados los cinco conceptos que habían recibido una descripción durante el enfoque inicial. Verificados uno por uno concepto, observación, importe, cuota y fechas sin cambios financieros. No se alteraron los otros seis registros ni movimientos originales. Datos privados permanecen en el sistema y evidencia local, nunca en Git.
+- Evidencia privada `C:/SisVentas/tmp/quota-notes-release/`, captura observaciones-guardadas.png. Árbol de publicación limpio; servidor ficticio se detiene al cerrar. Próximo paso: seguir revisión de cuotas de a un problema; identificación de otras compras sigue pendiente. Este cierre supera el bloque de preparación siguiente.
+
+
 ## Observaciones de cuotas v3.13.7 · autorizado en curso · 20/10/2026
 
 - El titular corrigió el enfoque: campo Observaciones y columna propia; conservar concepto del resumen. Implementado note opcional2000 caracteres, búsqueda por observaciones, conservación en revisiones PDF y clientes anteriores. Sin cambiar movimientos ni cálculos.
