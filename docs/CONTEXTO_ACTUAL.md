@@ -1,5 +1,11 @@
 # Continuidad de SisVentas
 
+## Privacidad dashboard admin v3.13.8 · autorizado en curso · 20/10/2026
+
+- Pedido urgente del titular: ojito independiente en Ventas hoy, Cobrado hoy, Deuda clientes y Podés facturar hasta, sólo administrador en sesión propia. Preferencia local por UID y tarjeta; no se guardan importes ni se cambia ningún cálculo/dato remoto. Subtextos se ocultan junto al importe, también del árbol accesible; navegación de tarjeta conservada sin dispararse al tocar el ojo.
+- Puerta2.459/2.459, sintaxis/diff/coherencia correctos. Fixture ficticia comprobó cuatro ojos independientes, persistencia al recargar, cero navegación por el botón y retorno admin/vendedor sin cambiar permisos. Sin servidor ni backend nuevos. Falta publicar Hosting/aviso y comprobar ventana real.
+
+
 ## Observaciones de cuotas v3.13.7 · publicado y carga autorizada completada · 20/10/2026
 
 - Fuente `254e69d73e8004651abed37c76fab326b63080cd`, subida en rama aislada. Campo Observaciones, columna propia y búsqueda; conceptos separados. Notas conservadas al revisar PDF y al guardar desde clientes anteriores. Puerta2.459/2.459; sintaxis/diff/coherencia correctos.
