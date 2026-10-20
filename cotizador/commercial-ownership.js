@@ -3,6 +3,9 @@ const reads=require('./domain-read-policy');
 const fail=(statusCode,message)=>Object.assign(Error(message),{statusCode});
 const roles=['admin','administrativo','vendedor','tecnico_vendedor','tecnico'];
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
+// Las identidades siguen siendo ASCII; las claves de registros heredados admiten
+// espacios y Unicode como Proyectos, sin permitir segmentos ni propiedades especiales.
+const recordKey=v=>typeof v==='string'&&v.length>0&&v.length<=128&&!/[.#$\[\]\/\x00-\x1f\x7f]/.test(v)&&!['__proto__','constructor','prototype','hasOwnProperty'].includes(v);
 const normalize=v=>String(v||'').trim().normalize('NFC').toLocaleLowerCase('es');
 const role=v=>normalize(v).replace(/^administrador$/,'admin').replace(/^tecnico-vendedor$/,'tecnico_vendedor');
 function moduleAllowed(r,m,permissions){
@@ -46,7 +49,12 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
  // No es una caché entre consultas: cada authorize vuelve a verificar Auth y roles.
  const requestContexts=new WeakMap();
  const read=async p=>(await db.ref(p).get()).val();
- async function context(){const [users,identities,permissions]=await Promise.all([read('sv_usuarios'),read('sv_chat_roles'),read('sv_permisos')]);return {people:profiles(users,identities),identities:identities||{},permissions:permissions||{}};}
+ async function context(){
+  const results=await Promise.allSettled([read('sv_usuarios'),read('sv_chat_roles'),read('sv_permisos')]);
+  const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
+  const [users,identities,permissions]=results.map(result=>result.value);
+  return {people:profiles(users,identities),identities:identities||{},permissions:permissions||{}};
+ }
  async function authorize(req,domain,viewUid){
   if(!['ventas','presupuestos'].includes(domain))throw fail(404,'Módulo no disponible');
   const token=String(req.headers.authorization||'').match(/^Bearer\s+(\S+)$/i);if(!token)throw fail(401,'Sesión requerida');
@@ -93,11 +101,7 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
   }finally{if(listener)ref.off('value',listener);}
  }
  async function visibleRecords(actor,domain){const {c,records,budgets}=await recordsContext(domain);return Object.fromEntries(Object.entries(records).filter(([,r])=>actor.role==='admin'||recordOwner(r,domain,c,budgets)===actor.uid));}
- async function assertRecord(actor,domain,id){
-  if(!['ventas','presupuestos'].includes(domain)||!key(id))throw fail(404,'Registro no disponible');
-  // Comprobar una ficha no necesita construir todo el listado comercial.
-  // El contexto se relee por operación; no se reutiliza una autorización vieja.
-  const [c,record]=await Promise.all([context(),read('sisventas/'+domain+'/'+id)]);
+ async function authorizedRecord(actor,domain,record,c){
   if(!record||typeof record!=='object'||Array.isArray(record))throw fail(404,'Registro no disponible');
   const budgets=Object.create(null),source=record.presupuestoFbKey;
   if(actor.role!=='admin'&&domain==='ventas'&&!Object.hasOwn(record,'responsableUid')&&source&&['string','number','boolean'].includes(typeof source)){
@@ -107,6 +111,31 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
   if(actor.role!=='admin'&&recordOwner(record,domain,c,budgets)!==actor.uid)throw fail(404,'Registro no disponible');
   return record;
  }
- return {authorize,list,options,assign:(a,b)=>mutate(a,b,true),prepare:(a,b)=>mutate(a,b,false),visibleRecords,assertRecord};
+ async function assertRecord(actor,domain,id){
+  if(!['ventas','presupuestos'].includes(domain)||!recordKey(id))throw fail(404,'Registro no disponible');
+  // Comprobar una ficha no necesita construir todo el listado comercial.
+  // El contexto se relee por operación; no se reutiliza una autorización vieja.
+  const results=await Promise.allSettled([context(),read('sisventas/'+domain+'/'+id)]);
+  const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
+  const [c,record]=results.map(result=>result.value);
+  return authorizedRecord(actor,domain,record,c);
+ }
+ async function visibleRecordsByIds(actor,domain,ids){
+  if(!['ventas','presupuestos'].includes(domain)||!Array.isArray(ids))throw fail(404,'Registros no disponibles');
+  const selected=[...new Set(ids.filter(recordKey))],result=Object.create(null);
+  if(!selected.length)return result;
+  // Un contexto fresco para este conjunto exacto, nunca para otra operación.
+  const c=await context();let cursor=0,error;
+  await Promise.all(Array.from({length:Math.min(6,selected.length)},async()=>{
+   while(!error&&cursor<selected.length){
+    const id=selected[cursor++];
+    try{result[id]=await authorizedRecord(actor,domain,await read('sisventas/'+domain+'/'+id),c);}
+    catch(e){if(e.statusCode!==404)error=e;}
+   }
+  }));
+  if(error)throw error;
+  return result;
+ }
+ return {authorize,list,options,assign:(a,b)=>mutate(a,b,true),prepare:(a,b)=>mutate(a,b,false),visibleRecords,assertRecord,visibleRecordsByIds};
 }
 module.exports={createCommercialOwnership,moduleAllowed,eligible,profiles,owner,originalAuthor};

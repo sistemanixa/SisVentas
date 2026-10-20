@@ -8,7 +8,7 @@ function env() {
   const elements = {};
   const events = {};
   const c = { console, setTimeout() {}, document: {
-    getElementById(id) { return elements[id] ||= {style:{},textContent:''}; },
+    getElementById(id) { return elements[id] ||= {style:{},textContent:'',remove(){delete elements[id];}}; },
     addEventListener(name, fn) { (events[name] ||= []).push(fn); }
   }};
   c.window = c;

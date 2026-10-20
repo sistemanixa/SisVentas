@@ -31,3 +31,26 @@ test('otra persona, registro inexistente o identificador inválido no obtienen u
  for(const id of ['../one','one/nested','',null])await assert.rejects(f.api.assertRecord(actor,'ventas',id),{statusCode:404});
  noCollections(f.reads);
 });
+test('ficha puntual conserva claves heredadas con espacios o Unicode y sigue comprobando propietario',async()=>{
+ const f=setup(),actor=await f.auth('a','presupuestos');
+ for(const id of ['presupuesto legado','Presupuesto ñ 日本語']){
+  f.db.root.sisventas.presupuestos[id]={responsableUid:'a',total:100};f.reads.length=0;
+  assert.equal((await f.api.assertRecord(actor,'presupuestos',id)).total,100);noCollections(f.reads);
+  assert.deepEqual(f.reads.filter(p=>p.startsWith('sisventas/')),['sisventas/presupuestos/'+id]);
+  await assert.rejects(f.api.assertRecord(await f.auth('b','presupuestos'),'presupuestos',id),{statusCode:404});
+ }
+});
+test('ficha puntual rechaza propiedades especiales y controles sin consultar la base',async()=>{
+ const f=setup(),actor=await f.auth('a','presupuestos');f.reads.length=0;
+ for(const id of ['__proto__','constructor','prototype','hasOwnProperty','a\u007fb','x'.repeat(129)])await assert.rejects(f.api.assertRecord(actor,'presupuestos',id),{statusCode:404});
+ assert.deepEqual(f.reads,[]);
+});
+test('fallo puntual espera el otro trabajo enviado antes de devolver el error original',async()=>{
+ for(const failed of ['sv_usuarios','sisventas/presupuestos/budget']){
+  const f=setup(),actor=await f.auth('a','presupuestos'),pending=[],error=Object.assign(Error('Fallo ficticio'),{code:'UNAVAILABLE'}),ref=f.db.ref.bind(f.db);
+  f.db.ref=path=>{const target=ref(path);return {...target,get:async()=>{if(path===failed)throw error;await new Promise(resolve=>pending.push(resolve));return target.get();}};};
+  let ended=false;const result=f.api.assertRecord(actor,'presupuestos','budget');result.catch(()=>{ended=true;});
+  await new Promise(setImmediate);assert.equal(ended,false);assert.equal(pending.length,3);
+  for(const release of pending)release();await assert.rejects(result,e=>e===error);
+ }
+});

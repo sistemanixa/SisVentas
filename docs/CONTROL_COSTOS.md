@@ -1,5 +1,9 @@
 # Control de consumo de SisVentas
 
+## Continuación local13.4, sin nuevo despliegue
+
+Después de publicar13.3 se acotan cotización al emitir Distribuidora y presupuestos vinculados al listar/guardar Proyectos; se retira la migración de comisiones que se ejecutaba al consultar. No se crean recursos, reservas mínimas, sondeos ni cachés de permisos. La medición ficticia de Distribuidora reduce bytes JSON con más GET pequeños; no se traduce a dólares ni se promete menor latencia. El detalle y los límites están en AUDITORIA_COTIZADOR. Producción sigue13.3/e897dede; la transacción laboral de raíz y listados amplios siguen pendientes. No se volvió a consultar facturación ni se guardaron operaciones de prueba para medir este cambio.
+
 ## Publicación13.3 · 19/10/2026
 
 Cotizador `cotizador-audit-e897dede` y web13.3 activos y verificados desde fuente `e897dede350f1f56795c60d657bad994f6a395a3`; mínimo0, CPU por solicitud, eventos activos y observador apagado. Sin recursos mínimos ni servicios nuevos. Construcción única79,725s en e2-standard-2; unos USD0,008 de compilación antes de franquicias, almacenamiento/transferencia aparte. No equivale a factura ni ahorro mensual medido. Estado técnico y reversión en CONTEXTO_ACTUAL; las secciones candidatas siguientes son antecedentes.

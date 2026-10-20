@@ -136,6 +136,6 @@ test('listado vacío, proyectos ajenos o sin presupuesto vinculado no leen el hi
  f.data.sv_proyectos={one:project()};paths.length=0;assert.equal((await f.service.list(actor('outside'))).projects.length,0);assert.deepEqual(paths,['sv_proyectos']);
  paths.length=0;assert.equal((await f.service.list(own)).projects.length,1);assert.deepEqual(paths,['sv_proyectos']);
  f.data.sv_proyectos.one.budgets=[{id:'linked',kind:'linked',sourceId:'quote',title:'Vinculado',needIds:[]}];paths.length=0;
- assert.equal((await f.service.list(own)).projects[0].budgets[0].quote.total,100);assert.ok(paths.includes('sisventas/presupuestos'));
+ assert.equal((await f.service.list(own)).projects[0].budgets[0].quote.total,100);assert.ok(paths.includes('sisventas/presupuestos/quote'));assert.ok(!paths.includes('sisventas/presupuestos'));
  paths.length=0;await f.service.list({...own,quoteAllowed:false});assert.deepEqual(paths,['sv_proyectos']);
 });

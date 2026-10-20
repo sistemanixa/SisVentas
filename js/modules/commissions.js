@@ -4,7 +4,6 @@
   var detalleActual = null;
   var movimientosDetalle = {};
   var guardandoDetalle = false;
-  var sincronizacionSolicitada = false;
   var formatoMoneda = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   function moneda(valor) {
@@ -148,19 +147,37 @@
       var guardar=document.getElementById('com-det-guardar');if(guardar)guardar.disabled=true;
     }
   }
+  function puedeVerCuentasAnteriores() {
+    return typeof window.tienePermiso === 'function' && window.tienePermiso('mantenimiento.normalizar') &&
+      window.tienePermiso('empleados.verCuentas') && typeof window.permisoModulo === 'function' && window.permisoModulo('ctaemp');
+  }
+  function actualizarAvisoCuentasAnteriores() {
+    var aviso = document.getElementById('comisiones-cuentas-anteriores');
+    var permitido = typeof window.tienePermiso === 'function' && window.tienePermiso('mantenimiento.normalizar');
+    if (!permitido) { if (aviso) aviso.remove(); return; }
+    if (!aviso) {
+      var tabla = document.getElementById('comisiones-tbl');
+      var contenedor = tabla && typeof tabla.closest === 'function' && tabla.closest('.table-wrap');
+      if (!contenedor || !contenedor.parentNode) return;
+      aviso = document.createElement('div');
+      aviso.id = 'comisiones-cuentas-anteriores';
+      aviso.style.cssText = 'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 14px;border-bottom:0.5px solid var(--border);color:var(--text3);font-size:11px';
+      contenedor.parentNode.insertBefore(aviso, contenedor);
+    }
+    aviso.innerHTML = '<span>Las comisiones anteriores sin incorporar se consultan en Cuentas de empleados.</span>' +
+      (puedeVerCuentasAnteriores() ? '<button type="button" class="btn btn-sm" onclick="verCuentasAnterioresComisiones()"><i class="ti ti-users"></i> Ver cuentas</button>' : '');
+  }
+  function verCuentasAnterioresComisiones() {
+    if (!puedeVerCuentasAnteriores() || typeof window.svNavegarDirecto !== 'function') return false;
+    return window.svNavegarDirecto('ctaemp');
+  }
   function renderModuloComisiones() {
     comprobarDetalleAbierto();
     var tbody = document.getElementById('comisiones-tbody');
     if (!tbody) return;
-    if (!sincronizacionSolicitada && typeof window.sincronizarComisionesLegacyConModulo === 'function') {
-      sincronizacionSolicitada = true;
-      window.sincronizarComisionesLegacyConModulo().then(function(cantidad) {
-        if (cantidad && window.fbCargarGastos) window.fbCargarGastos();
-      }).catch(function(error) {
-        sincronizacionSolicitada = false;
-        console.warn('[Comisiones] No se pudieron incorporar registros históricos', error);
-      });
-    }
+    // Consultar la lista nunca incorpora ni modifica comisiones históricas.
+    // Las cuentas conservan esos registros y Mantenimiento su migración explícita.
+    actualizarAvisoCuentasAnteriores();
     var buscar = String((document.getElementById('com-f-buscar') || {}).value || '').toLowerCase();
     var filtroEstado = String((document.getElementById('com-f-estado') || {}).value || '');
     var todos = grupos();
@@ -363,7 +380,8 @@
   window.actualizarBadgeComisiones=actualizarBadgeComisiones;
   document.addEventListener('sisventas:session-ready', actualizarBadgeComisiones);
   document.addEventListener('sisventas:session-ended', function() {
-    cerrarDetalleComision();sincronizacionSolicitada=false;
+    cerrarDetalleComision();
+    var aviso = document.getElementById('comisiones-cuentas-anteriores'); if (aviso) aviso.remove();
     var badge = document.getElementById('badge-nav-comisiones');
     if (badge) { badge.textContent = '0'; badge.style.display = 'none'; }
   });
@@ -373,6 +391,7 @@
   window.abrirComisionDesdeGasto=abrirComisionDesdeGasto; window.aprobarComisionGestion=aprobarComisionGestion; window.rechazarComisionGestion=rechazarComisionGestion;
   window.actualizarResumenMargenComision=actualizarResumenMargenComision; window.abrirVentaDesdeComisiones=abrirVentaDesdeComisiones;
   window.filtrarComisionesPorEstado=filtrarComisionesPorEstado;
+  window.verCuentasAnterioresComisiones=verCuentasAnterioresComisiones;
   // Si la aplicación entró directamente por #/comisiones, showPage puede
   // ejecutarse antes que este módulo. Renderizar al terminar la carga evita
   // dejar el estado inicial "Cargando..." esperando otra navegación.
