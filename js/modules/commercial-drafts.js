@@ -303,6 +303,9 @@
     if (d.data.edit && (!current || !(d.kind === 'venta' ? puedeEditarVentaPermiso(current) : puedeEditarPresupuestoPermiso(current)))) { notify('La operación ya no está disponible para edición.'); return; }
     var changed = current && !same(current,d.original);
     if (changed && (d.kind !== 'venta' || !d.original || typeof cargarRegistroVentaEnEditor !== 'function')) { notify('La operación original cambió. Revisala antes de recuperar este borrador para no sobrescribir cambios posteriores.'); return; }
+    // La navegación puede esperar la carga del módulo y el registro en memoria
+    // puede actualizarse entretanto. La base corresponde a esta validación.
+    var presupuestoBase = d.kind === 'presupuesto' && current ? JSON.parse(JSON.stringify(current)) : null;
     flush(); restoring = true; if (dialog) { dialog.close(); dialog.remove(); }
     svNavegarDirecto(d.kind === 'venta' ? 'venta' : 'presupuesto', function () {
       try {
@@ -328,7 +331,13 @@
           if (d.kind === 'presupuesto') tr.querySelectorAll('.qty,.price,.disc').forEach(function (el) { el.addEventListener('input', calcPpTotales); });
         });
         if (d.kind === 'venta') { window._ventaEditandoFbKey = d.data.edit || null; window._ventaEditandoOriginal = current; var preview=document.getElementById('vf-numero-preview'); if(current && preview)preview.value=current.id || ''; _ventaMonedaActual = d.data.currency; _ventaImpConDetalle = d.data.detail; aplicarEstadoIvaVenta(d.data.iva, false); actualizarVisualMonedaVenta(); calcTotals(); }
-        else { window._pptoEditandoFbKey = d.data.edit || null; window._pptoEditandoId = d.data.editId || null; _pptoMonedaActual = d.data.currency; _pptoConDetalle = d.data.detail; _pptoConIva = d.data.iva; calcPpTotales(); }
+        else {
+          window._pptoEditandoFbKey = d.data.edit || null; window._pptoEditandoId = d.data.editId || null;
+          // abrirNuevoPresupuesto limpió la base. Recuperar la misma versión
+          // validada arriba conserva el control de concurrencia al guardar.
+          window._pptoEditorBase = presupuestoBase ? JSON.parse(JSON.stringify(presupuestoBase)) : null;
+          _pptoMonedaActual = d.data.currency; _pptoConDetalle = d.data.detail; _pptoConIva = d.data.iva; calcPpTotales();
+        }
         var ivaButton = document.getElementById(d.kind === 'venta' ? 'btn-toggle-iva-venta' : 'btn-toggle-iva-ppto');
         if (ivaButton) ivaButton.innerHTML = '<i class="ti ti-receipt-tax"></i> ' + (d.data.iva ? 'Con IVA' : 'Sin IVA');
         var detailLabel = document.getElementById(d.kind === 'venta' ? 'label-detalle-venta' : 'ppto-detalle-label');
@@ -338,7 +347,7 @@
           var label = document.getElementById('pmt-label'); if (label) label.textContent = d.data.currency;
           var thumb = document.getElementById('pmt-thumb'); if (thumb) thumb.style.transform = d.data.currency === 'USD' ? 'translateX(16px)' : 'translateX(0)';
         }
-        sessions[d.kind] = { id: conflicts.length ? Date.now()+'-'+Math.random().toString(36).slice(2) : d.id, base: '', baseData:baseData, last: JSON.stringify(capture(d.kind)), original: current ? JSON.parse(JSON.stringify(current)) : d.original };
+        sessions[d.kind] = { id: conflicts.length ? Date.now()+'-'+Math.random().toString(36).slice(2) : d.id, base: '', baseData:baseData, last: JSON.stringify(capture(d.kind)), original: presupuestoBase ? JSON.parse(JSON.stringify(presupuestoBase)) : current ? JSON.parse(JSON.stringify(current)) : d.original };
         notify(conflicts.length ? 'Borrador recuperado conservando los valores actuales en: '+conflicts.join(', ')+'. El borrador original queda disponible para revisar esas diferencias.' : 'Borrador recuperado. Se conservaron los cambios posteriores de la venta. Revisá y guardá para confirmar.');
       } finally { restoring = false; }
     });

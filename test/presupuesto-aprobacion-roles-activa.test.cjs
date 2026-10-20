@@ -66,7 +66,6 @@ function fixture(options = {}) {
   load(c,['guardarPresupuesto']);
   return {c,config,original,nodes,writes,notices,lifecycle,async save(mode = 'aprobado_int') {
     await c.guardarPresupuesto(mode);
-    // El guardado activo termina su cadena de persistencia después del retorno.
     await settle();
     return writes[0]?.record;
   }};
@@ -151,12 +150,14 @@ for (const edit of [false,true]) {
     let reject;
     const pending = new Promise((resolve,rejectPromise) => {reject = rejectPromise;});
     const f = fixture({edit,persist:() => pending});
-    await f.save();
+    const task = f.c.guardarPresupuesto('aprobado_int');
+    await settle();
     assert.equal(f.writes.length,1);
     assert.equal(f.c._pptoGuardadoEnCurso,true);
     assert.equal(f.lifecycle.complete,0);
     assert.equal(f.lifecycle.closed,0);
     reject(new Error('Conexión ficticia interrumpida'));
+    await task;
     await settle();
     assert.equal(f.c._pptoGuardadoEnCurso,false);
     assert.equal(f.lifecycle.complete,0);

@@ -15,12 +15,14 @@ test('no compara por orden de propiedades ni borra campos ajenos',()=>{
  assert.deepEqual(merge({a:1,b:2,c:3},{a:1,b:2},{a:null}),{b:2,c:3});
 });
 function runtime(initial,retry){
- let data=initial,attempts=0;const w={fbDB:{},fbRef:(_,p)=>p,fbGet:async()=>({val:()=>data}),fbRunTransaction:async(_,fn,options)=>{
+ let data=initial,attempts=0;const w={fbDB:{},fbRef:(_,p)=>'https://fixture.invalid/'+p,fbGet:async()=>({val:()=>data}),fbRunTransaction:async(_,fn,options)=>{
    assert.equal(options.applyLocally,false);let next=fn(data);attempts++;
    if(retry){data=retry(data);next=fn(data);attempts++;}
    if(next===undefined)return {committed:false};data=next;return {committed:true,snapshot:{val:()=>data}};
  }};
- vm.runInNewContext(fs.readFileSync('js/core/guarded-writes.js','utf8'),{window:w});
+ w.currentUserUid='u';w.fbAuth={currentUser:{uid:'u',getIdToken:async()=>'fake'}};
+ w.fetch=async(_url,options)=>{assert.equal(options.method,undefined,'un conflicto real no escribe por REST');return {ok:true,headers:{get:()=> 'v-current'},json:async()=>structuredClone(data)};};
+ vm.runInNewContext(fs.readFileSync('js/core/guarded-writes.js','utf8'),{window:w,URL,AbortSignal,TextEncoder});
  return {api:w.SVGuardedWrites,get data(){return data},get attempts(){return attempts}};
 }
 test('reintento de Firebase vuelve a verificar el conflicto',async()=>{

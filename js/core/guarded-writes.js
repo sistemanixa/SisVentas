@@ -26,13 +26,12 @@
     if(!root.fbDB||typeof root.fbRunTransaction!=='function')throw new Error('No hay conexión segura para guardar');
     // Precargar evita abortar una transacción por la primera llamada con caché vacía.
     const ref=root.fbRef(root.fbDB,path);
-    const uid=root.currentUserUid;
+    const uid=root.currentUserUid,user=root.fbAuth?.currentUser,role=root.currentRole;
+    const sessionChanged=()=>uid!==root.currentUserUid||user!==root.fbAuth?.currentUser||role!==root.currentRole;
     await root.fbGet(ref);
-    if(uid!==root.currentUserUid)throw conflict();
-    let sawServerRecord=false;
+    if(sessionChanged())throw conflict();
     const result=await root.fbRunTransaction(ref,current=>{
-      if(current!==null)sawServerRecord=true;
-      if(uid!==root.currentUserUid)return undefined;
+      if(sessionChanged())return undefined;
       if(requireUnchanged){
         const original=comparable(baseline);
         const latest=comparable(current);
@@ -41,9 +40,11 @@
       return mergeCurrent(current);
     },{applyLocally:false});
     if(!result.committed){
-      if(sawServerRecord||uid!==root.currentUserUid)throw conflict();
-      // Firebase puede invocar el actualizador con caché local vacía aunque get() haya leído el servidor.
-      // Verificar la misma precondición contra el servidor antes de atribuirlo a otro editor.
+      if(sessionChanged())throw conflict();
+      // El primer callback también puede contener una caché antigua NO nula.
+      // Abortar localmente no prueba que otro editor haya cambiado el servidor.
+      // Verificar allí la MISMA base y confirmar con ETag, sin reemplazar la base
+      // por los valores nuevos ni sobrescribir modificaciones concurrentes.
       const verified=await restTransaction(ref,current=>{
         if(requireUnchanged){
           const original=comparable(baseline);
@@ -88,12 +89,12 @@
   // El SDK corta escrituras de más de 16 MB; REST admite hasta 256 MB y preserva
   // concurrencia con ETag. Reservar esto para aplicar/cancelar, nunca para borradores.
   async function restTransaction(ref, transform){
-    const user=root.fbAuth?.currentUser,uid=root.currentUserUid;
+    const user=root.fbAuth?.currentUser,uid=root.currentUserUid,role=root.currentRole;
     if(!user||user.uid!==uid)throw new Error('La sesión cambió. Volvé a ingresar.');
     const token=await user.getIdToken();
     const url=new URL(ref.toString().replace(/\/$/,'')+'.json');
     url.searchParams.set('auth',token);
-    const checkSession=()=>{if(root.currentUserUid!==uid||root.fbAuth.currentUser!==user)throw new Error('La sesión cambió. Volvé a ingresar.');};
+    const checkSession=()=>{if(root.currentUserUid!==uid||root.fbAuth.currentUser!==user||root.currentRole!==role)throw new Error('La sesión cambió. Volvé a ingresar.');};
     for(let attempt=0;attempt<2;attempt++){
       checkSession();
       const response=await root.fetch(url.href,{headers:{'X-Firebase-ETag':'true'},cache:'no-store',signal:AbortSignal.timeout(90000)});
