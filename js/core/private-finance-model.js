@@ -5,6 +5,7 @@
  const copy=v=>JSON.parse(JSON.stringify(v));
  const key=v=>{if(typeof v!=='string'||!v||v.length>128||!/^[a-zA-Z0-9_-]+$/.test(v)||['__proto__','constructor','prototype'].includes(v))fail(400,'Identificador inválido');return v;};
  const text=(v,max=500,required=false)=>{if(typeof v!=='string'||v.length>max||required&&!v.trim())fail(400,'Revisá los textos requeridos y su longitud');return v.trim();};
+ function portalUrl(value){const v=text(value,1000);if(!v)return '';let u;try{u=new URL(v);}catch(_){fail(400,'Indicá una dirección web válida del portal');}if(!['https:','http:'].includes(u.protocol)||u.username||u.password||/[?&#](?:access_token|token|id_token|code|session|sid|password|key)=/i.test(u.href))fail(400,'Usá la dirección del portal sin credenciales ni datos de sesión');return u.href;}
  const one=(v,list)=>{if(!list.includes(v))fail(400,'Opción inválida');return v;};
  const money=(v,nullable=false,signed=false)=>{if(v==null&&nullable)return null;if(!Number.isSafeInteger(v)||Math.abs(v)>1e13||!signed&&v<0)fail(400,'Importe inválido: debe conservar centavos');return v;};
  const currency=v=>one(v,['ARS','USD']);
@@ -76,8 +77,8 @@
     if(m.category==='Seguro'||!m.category&&['Seguro','Débito a confirmar'].includes(m.kind)){
      const existing=input.insuranceId?find('insurances',input.insuranceId):s.insurances.find(i=>Object.values(i.charges||{}).includes(m.id));
      if(existing&&existing.currency!==m.currency)fail(400,'La moneda del seguro vinculado no coincide');
-     if(existing)save('insurances',{...existing,charges:[...new Set([...Object.values(existing.charges||{}),m.id])]});
-     else save('insurances',{id:key(m.id+'-insurance'),name:m.concept,ref:m.ref,coverage:'',amount:Math.abs(m.amount),currency:m.currency,card,classification:'Por confirmar',decision:'Evaluar',cancelDate:null,note:'Candidato del resumen: verificar identidad y cobertura.',charges:[m.id],history:[],origin:'PDF + revisión manual'});
+     if(existing)save('insurances',{...existing,...(m.category==='Seguro'?{classification:'Seguro'}:{}),charges:[...new Set([...Object.values(existing.charges||{}),m.id])]});
+     else save('insurances',{id:key(m.id+'-insurance'),name:m.concept,ref:m.ref,coverage:'',amount:Math.abs(m.amount),currency:m.currency,card,classification:m.category==='Seguro'?'Seguro':'Por confirmar',decision:'Evaluar',cancelDate:null,note:'Candidato del resumen: verificar identidad y cobertura.',charges:[m.id],history:[],origin:'PDF + revisión manual'});
     }
     if(m.kind==='Cuota'){
      const existing=input.installmentId?find('installments',input.installmentId):s.installments.find(q=>q.movement===m.id);
@@ -105,13 +106,13 @@
    if(!canClassify(movement))fail(400,'Sólo se clasifican consumos del resumen');
    const category=resolveCategory(s,d.category);
    save('movements',{...movement,category});
-   if(category==='Seguro'&&!s.insurances.some(i=>Object.values(i.charges||{}).includes(movement.id))){
-    save('insurances',{id:key(movement.id+'-insurance'),name:movement.concept,ref:movement.ref||'',coverage:'',amount:movement.amount,currency:movement.currency,card:movement.card,classification:'Por confirmar',decision:'Evaluar',cancelDate:null,note:'Clasificado desde el resumen. Cobertura y periodicidad pendientes.',charges:[movement.id],history:[],origin:'Clasificación de movimiento'});
+   if(category==='Seguro'){const linked=s.insurances.find(i=>Object.values(i.charges||{}).includes(movement.id));if(linked){if(linked.classification!=='Seguro')save('insurances',{...linked,classification:'Seguro'});}else{
+    save('insurances',{id:key(movement.id+'-insurance'),name:movement.concept,ref:movement.ref||'',coverage:'',amount:movement.amount,currency:movement.currency,card:movement.card,classification:'Seguro',decision:'Evaluar',cancelDate:null,note:'Clasificado desde el resumen. Cobertura y periodicidad pendientes.',charges:[movement.id],history:[],origin:'Clasificación de movimiento'});}
    }
   }else if(command.type==='insurance-save'){
    const old=s.insurances.find(i=>i.id===entityId),decision=one(d.decision,['Mantener','Evaluar','Solicitar baja','Baja solicitada','Baja confirmada']),cancelDate=date(d.cancelDate,true);if(['Baja solicitada','Baja confirmada'].includes(decision)&&!cancelDate||cancelDate&&cancelDate>today(stamp))fail(400,'Indicá una fecha real de baja');
    const charges=Object.values(d.charges||old?.charges||[]).map(x=>find('movements',x).id);
-   save('insurances',{id:entityId,name:text(d.name,180,true),ref:text(d.ref||'',160),coverage:text(d.coverage||'',300),amount:money(d.amount),currency:currency(d.currency||'ARS'),card:cardId(d.card),decision,classification:one(d.classification,['Seguro','Por confirmar','No es seguro']),cancelDate,note:note(),charges,history:[...Object.values(old?.history||[]),...(old?[{at:stamp,previous:{card:old.card,decision:old.decision,amount:old.amount,cancelDate:old.cancelDate}}]:[])],origin:old?.origin||'Manual'});
+   save('insurances',{id:entityId,name:text(d.name,180,true),ref:text(d.ref||'',160),coverage:text(d.coverage||'',300),portalUrl:portalUrl(d.portalUrl===undefined?old?.portalUrl||'':d.portalUrl),amount:money(d.amount),currency:currency(d.currency||'ARS'),card:cardId(d.card),decision,classification:one(d.classification,['Seguro','Por confirmar','No es seguro']),cancelDate,note:note(),charges,history:[...Object.values(old?.history||[]),...(old?[{at:stamp,previous:{card:old.card,decision:old.decision,amount:old.amount,cancelDate:old.cancelDate}}]:[])],origin:old?.origin||'Manual'});
   }else if(command.type==='charge-save'){
    const insurance=find('insurances',d.insurance),st=latest(s,cardId(d.card)),dt=date(d.date),v=money(d.amount);if(!st||dt<=st.close||dt>today(stamp)||!v)fail(400,'El cargo debe ser posterior al último cierre y no futuro');
    if(s.movements.some(m=>m.postClose&&m.card===st.card&&m.date===dt&&m.amount===v&&m.concept===insurance.name))fail(409,'Ese cargo ya está registrado');

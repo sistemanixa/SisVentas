@@ -30,9 +30,9 @@ test('clasificar guarda sólo categoría, conserva contabilidad, original y audi
  for(const group of ['statements','payments','documents','installments','insurances'])assert.deepEqual(after[group],before[group]);assert.equal(M.totalDebt(after),M.totalDebt(before));assert.equal(after.history[0].action,'movement-classify');assert.equal(after.history[0].changes[0].before[0].category,'');assert.equal(after.history[0].changes[0].after[0].category,'Servicios');
  assert.equal(before.movements[0].category,'');
 });
-test('seguro crea un único candidato, no póliza confirmada, ni pagos ni nuevos cargos',()=>{
+test('clasificación manual confirma un único seguro sin inventar cobertura, pagos ni cargos',()=>{
  let s=initial();s=run(s,'movement-classify',{id:movement.id,category:'Seguro'});const insurance=structuredClone(s.insurances);
- assert.equal(s.insurances.length,1);assert.equal(s.insurances[0].classification,'Por confirmar');assert.equal(s.insurances[0].coverage,'');assert.equal(s.payments.length,0);assert.equal(s.movements.length,1);
+ assert.equal(s.insurances.length,1);assert.equal(s.insurances[0].classification,'Seguro');assert.equal(s.insurances[0].coverage,'');assert.equal(s.payments.length,0);assert.equal(s.movements.length,1);
  s=run(s,'movement-classify',{id:movement.id,category:'Seguro'});assert.deepEqual(s.insurances,insurance);
  s=run(s,'movement-classify',{id:movement.id,category:'Otros'});assert.deepEqual(s.insurances,insurance); // Las decisiones del registro se gestionan por separado.
 });

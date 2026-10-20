@@ -95,7 +95,7 @@
   if(document.getElementById('popup-actualizado'))return;
   oldOverflow=document.body.style.overflow;oldScroll=root.scrollY;previousHash=location.hash==='#/gastospersonales'?'#/dashboard':location.hash||'#/dashboard';
   overlay=document.createElement('div');overlay.id='sv-private-finance-space';overlay.style.cssText='position:fixed;inset:0;z-index:11000;background:#06111f;overflow:hidden;overscroll-behavior:none';
-  frame=document.createElement('iframe');frame.title='Gastos personales · espacio privado';frame.src='./personal-finance.html?v=3.13.5';frame.style.cssText='display:block;border:0;width:100%;height:100%;background:#06111f';
+  frame=document.createElement('iframe');frame.title='Gastos personales · espacio privado';frame.src='./personal-finance.html?v=3.13.6';frame.style.cssText='display:block;border:0;width:100%;height:100%;background:#06111f';
   overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Gastos personales');returnFocus=document.activeElement;
   for(const element of document.body.children){if(['SCRIPT','STYLE','LINK'].includes(element.tagName))continue;inertElements.set(element,element.inert);element.inert=true;}
   overlay.appendChild(frame);document.body.appendChild(overlay);document.body.style.overflow='hidden';history.replaceState(null,'',location.pathname+location.search+'#/gastospersonales');frame.addEventListener('load',()=>frame?.focus(),{once:true});

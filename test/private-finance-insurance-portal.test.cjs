@@ -1,0 +1,5 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const {seed,run}=require('./helpers/private-finance-fixtures.cjs');
+const data={id:'insurance-web',name:'Seguro ficticio',card:'card-a',amount:1200,currency:'ARS',classification:'Seguro',decision:'Evaluar'};
+test('portal acepta web, conserva al guardar con cliente anterior y permite retirarlo',()=>{let s=run(seed(),'insurance-save',{...data,portalUrl:'https://example.com/portal'});assert.equal(s.insurances[0].portalUrl,'https://example.com/portal');s=run(s,'insurance-save',data);assert.equal(s.insurances[0].portalUrl,'https://example.com/portal');s=run(s,'insurance-save',{...data,portalUrl:''});assert.equal(s.insurances[0].portalUrl,'');});
+test('portal rechaza esquemas ejecutables, credenciales y sesión',()=>{for(const portalUrl of ['javascript:alert(1)','data:text/html,x','https://user:pass@example.com','https://example.com/?token=private','no web'])assert.throws(()=>run(seed(),'insurance-save',{...data,portalUrl}),e=>e.statusCode===400);});

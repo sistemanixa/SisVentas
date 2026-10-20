@@ -1,5 +1,14 @@
 # Continuidad de SisVentas
 
+## Gastos personales v3.13.6 · publicación autorizada en curso · 20/10/2026
+
+- El titular autorizó integrar y publicar la tanda de seguros, actividad de botones y barra lateral ocultable. Base13.5, sin integrar el rediseño laboral ni cambios ajenos.
+- Clasificación manual confirma el seguro (también el ya vinculado); automático conserva pendiente. Etiquetas claras y confirmado verde. Portal opcional validado en servidor con enlace seguro; clientes anteriores conservan el portal al guardar. Sin migración retrospectiva de datos reales.
+- Botones integrados desde f7d7e6f5 resolviendo el conflicto sin perder mínimos, conciliación ni calendario13.5. Navegación ocultable en escritorio y móvil; cierre, Escape, fondo bloqueado y retorno de foco.
+- Puerta vigente2.458/2.458, sintaxis/diff y coherencia local correctos. UI ficticia en Chrome escritorio y marco390px: ocultar/mostrar, cierre al navegar/Escape, formulario de seguro, portal y estado confirmado. No acredita teléfono físico ni operaciones reales.
+- Falta publicar modelo sobre la imagen activa de Cotizador conservando configuración, Hosting y aviso; verificar web y recargar la ventana real antes de declarar terminado.
+
+
 ## Gastos personales · nueva tanda pendiente · 20/10/2026
 
 - El titular pidió acumular mejoras para más adelante, sin implementar ni publicar ahora.
