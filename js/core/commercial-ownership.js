@@ -29,7 +29,7 @@
   const s=subscriptions.get(domain);if(!s||root.navigator?.onLine===false)return;
   if(root.SVConnectionMonitor?.canSync()===false){await root.SVConnectionMonitor.check?.();if(subscriptions.get(domain)!==s||root.SVConnectionMonitor.canSync()===false)return;joinPending=true;}
   if(s.pending){if(!joinPending)s.again=true;return s.pending;}
-  const c=context(),writeRevision=s.writeRevision||0;
+  const c=context(),writeRevision=s.writeRevision||0,permissionRevision=root.PERMISOS_ROLES?.[c.role]?.indiceRevision||0;
   const current=()=>valid(c)&&subscriptions.get(domain)===s;
   const currentRead=()=>current()&&writeRevision===(s.writeRevision||0);
   s.pending=(async()=>{try{
@@ -41,7 +41,7 @@
     accessBlocked.delete(domain);
     const snapshot=JSON.stringify(data.records||{});
     if(snapshot!==s.snapshot){await s.callback({val:()=>data.records});if(!currentRead())return;s.snapshot=snapshot;if(c.role!=='admin')forgetDetail(domain,data.records);}
-    s.etag=data._svEtag;
+    s.etag=data._svEtag;s.cachedContext=c;s.cachedPermissionRevision=permissionRevision;
    }
    s.loading?.ready();
   }catch(e){
@@ -62,6 +62,13 @@
  function refreshVisible(){if(document.hidden||root.navigator?.onLine===false)return;for(const domain of subscriptions.keys())refresh(domain,{joinPending:true});}
  function onValue(domain,callback,error){contextChanged();subscriptions.get(domain)?.loading?.cancel();const s={callback,error,loading:root.SVDataReadiness?.beginSource(domain)};subscriptions.set(domain,s);refresh(domain);return ()=>{if(subscriptions.get(domain)===s){s.loading?.cancel();subscriptions.delete(domain);}};}
  function belongs(r){return !!r&&(r.responsableUid||r._svOwnerUid)===root.currentUserUid;}
+ // Sólo devuelve la proyección ya autorizada de esta sesión. No inicia lecturas
+ // ni permite que una advertencia del catálogo dependa de acceso global a ventas.
+ function cachedRecords(domain){
+  const s=subscriptions.get(domain);
+  if(!s?.snapshot||!s.cachedContext||!valid(s.cachedContext)||accessBlocked.has(domain)||s.cachedPermissionRevision!==(root.PERMISOS_ROLES?.[root.currentRole]?.indiceRevision||0))return null;
+  try{return JSON.parse(s.snapshot);}catch(_){return null;}
+ }
  function author(r){return r?._svOriginalAuthor?.name||r?.creadorOriginalNombre||r?.creadaPor||r?.creadoPor||r?.usuario||'Sin registrar';}
  function stamp(r){r=root.SVCommissionGeneration?.snapshotCosts(r)||r;return {...clean(r),responsableUid:root.currentUserUid,responsableNombre:root.currentUser||root.currentUserEmail||'Usuario',responsableRol:root.currentRole,responsableRevision:1,creadorOriginalUid:root.currentUserUid,creadorOriginalNombre:root.currentUser||root.currentUserEmail||'Usuario',creadoEn:r?.ts||Date.now()};}
  function captureWriteContext(domain='presupuestos'){return Object.freeze({...context(),domain,accessRevision:accessRevisions.get(domain)||0,permissionRevision:root.PERMISOS_ROLES?.[root.currentRole]?.indiceRevision||0});}
@@ -89,5 +96,5 @@
  async function prepare(domain,id,baseline){const result=await request(domain,'preparar',{id});const current=result.record,metadata=['responsableUid','responsableNombre','responsableRol','responsableRevision','responsableActualizadoEn','creadorOriginalUid','creadorOriginalNombre','creadoEn','audit'];const base=baseline?clean(baseline):null;if(base)for(const k of metadata){if(current[k]!==undefined)base[k]=current[k];}return {record:current,baseline:base};}
  async function assign(domain,record,uid){const result=await request(domain,'reasignar',{id:record.fbKey,uid,revision:Number(record.responsableRevision||0),owner:record.responsableUid||''});refresh(domain);return result.record;}
  document.addEventListener('sisventas:session-ended',stop);document.addEventListener('visibilitychange',refreshVisible);root.addEventListener?.('online',refreshVisible);root.addEventListener?.('sisventas:connection-restored',refreshVisible);root.addEventListener?.('sisventas:connection-lost',()=>{for(const controller of readControllers)controller.abort();});
- root.SVCommercialOwnership={onValue,request,refresh,stop,contextChanged,belongs,author,stamp,clean,prepare,assign,captureWriteContext,isWriteContext,confirmWrite,options:async domain=>(await request(domain,'opciones')).users};
+ root.SVCommercialOwnership={onValue,request,refresh,stop,contextChanged,belongs,cachedRecords,author,stamp,clean,prepare,assign,captureWriteContext,isWriteContext,confirmWrite,options:async domain=>(await request(domain,'opciones')).users};
 })(window);
