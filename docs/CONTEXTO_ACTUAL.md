@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Observaciones de cuotas v3.13.7 · autorizado en curso · 20/10/2026
+
+- El titular corrigió el enfoque: campo Observaciones y columna propia; conservar concepto del resumen. Implementado note opcional2000 caracteres, búsqueda por observaciones, conservación en revisiones PDF y clientes anteriores. Sin cambiar movimientos ni cálculos.
+- Puerta2.459/2.459, sintaxis/diff y coherencia13.7 correctos. UI local ficticia comprobó campo y columna; falta cerrar verificación visual, publicar modelo y Hosting, recargar ventana real y cargar únicamente las referencias autorizadas.
+- Durante el intento previo se agregaron descripciones al concepto de algunas compras. Restaurar esos conceptos y guardar las descripciones en Observaciones mediante la UI una vez publicado; no guardar información privada en Git. No declarar carga completa antes de comprobarla.
+
+
 ## Gastos personales v3.13.6 · publicado y verificado · 20/10/2026
 
 - Tanda autorizada y completada: seguros confirmados manualmente sin segunda pregunta, etiquetas claras/verde, portal web opcional, círculos de espera y barra lateral ocultable en escritorio/móvil. Fuentes1b193f52 y ajuste final de ancho `ca7e6426101c15b7d8d24c81cc576a1d42e1b974`, subidos a `codex/corregir-anio-resumen`. No se integraron main, rediseño laboral ni cambios históricos ajenos.

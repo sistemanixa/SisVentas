@@ -83,7 +83,7 @@
     if(m.kind==='Cuota'){
      const existing=input.installmentId?find('installments',input.installmentId):s.installments.find(q=>q.movement===m.id);
      if(existing&&(existing.card!==card||existing.currency!==m.currency))fail(400,'La compra vinculada no coincide en tarjeta y moneda');
-     save('installments',{id:existing?.id||key(m.id+'-installment'),concept:existing?.concept||m.concept,card,amount:Math.abs(m.amount),currency:m.currency,current:m.current,total:m.total,period:p,movement:m.id,originMovement:existing?.originMovement||existing?.movement||m.id,status:existing?.status||'Activa',origin:'PDF + revisión manual'});
+     save('installments',{id:existing?.id||key(m.id+'-installment'),concept:existing?.concept||m.concept,note:existing?.note||'',card,amount:Math.abs(m.amount),currency:m.currency,current:m.current,total:m.total,period:p,movement:m.id,originMovement:existing?.originMovement||existing?.movement||m.id,status:existing?.status||'Activa',origin:'PDF + revisión manual'});
     }
    }
   }else if(command.type==='payment-save'){
@@ -120,7 +120,7 @@
   }else if(command.type==='installment-save'){
    const cur=Number(d.current),total=Number(d.total);if(!Number.isInteger(cur)||!Number.isInteger(total)||cur<1||cur>total||total>120)fail(400,'Revisá cuota actual y total (hasta 120)');
    const old=s.installments.find(q=>q.id===entityId),movement=d.movement?find('movements',d.movement).id:old?.movement||null;
-   save('installments',{id:entityId,concept:text(d.concept,180,true),card:cardId(d.card),amount:money(d.amount),currency:currency(d.currency||'ARS'),current:cur,total,period:period(d.period),movement,originMovement:old?.originMovement||old?.movement||movement,status:one(d.status||old?.status||'Activa',['Activa','Anulada']),origin:'Manual'});
+   save('installments',{id:entityId,concept:text(d.concept,180,true),note:text(d.note===undefined?old?.note||'':d.note,2000),card:cardId(d.card),amount:money(d.amount),currency:currency(d.currency||'ARS'),current:cur,total,period:period(d.period),movement,originMovement:old?.originMovement||old?.movement||movement,status:one(d.status||old?.status||'Activa',['Activa','Anulada']),origin:'Manual'});
   }else if(command.type==='expense-save'){
    const v=money(d.amount),c=currency(d.currency||'ARS'),dt=date(d.date),status=one(d.status,['Pendiente','Pagado']),link=d.linkedMovement?find('movements',d.linkedMovement):null;if(!v||status==='Pagado'&&dt>today(stamp))fail(400,'Importe o fecha del gasto inválidos');
    if(link&&(link.amount!==v||link.currency!==c||s.expenses.some(e=>e.id!==entityId&&e.linkedMovement===link.id)))fail(409,'El vínculo debe coincidir en moneda e importe y no estar asignado');

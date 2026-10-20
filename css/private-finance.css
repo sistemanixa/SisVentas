@@ -57,3 +57,5 @@ dialog [data-retry][hidden]{display:none}
 
 body.nav-open{overflow:hidden}.sidebar{overflow-y:auto}
 .layout.nav-hidden .main{grid-column:1}
+
+.quota-note{min-width:170px;max-width:300px;white-space:pre-wrap;overflow-wrap:anywhere}
