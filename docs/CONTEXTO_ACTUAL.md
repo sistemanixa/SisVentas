@@ -1,5 +1,15 @@
 # Continuidad de SisVentas
 
+## Gastos personales v3.13.6 · publicado y verificado · 20/10/2026
+
+- Tanda autorizada y completada: seguros confirmados manualmente sin segunda pregunta, etiquetas claras/verde, portal web opcional, círculos de espera y barra lateral ocultable en escritorio/móvil. Fuentes1b193f52 y ajuste final de ancho `ca7e6426101c15b7d8d24c81cc576a1d42e1b974`, subidos a `codex/corregir-anio-resumen`. No se integraron main, rediseño laboral ni cambios históricos ajenos.
+- Pruebas2.458/2.458 y sintaxis/diff/coherencia correctos. UI ficticia: formulario, guardado de portal, enlace, confirmado verde; ancho completo sin barra, reapertura; marco390px con Escape, fondo bloqueado y foco restaurado. No equivale a teléfono físico ni todos los formularios.
+- Cotizador `cotizador-insurance-ca7e6426` al100%,14 etiquetas conservadas, configuración/recursos/secretos/identidad/escala sin cambios. Imagen construida sobre digest activo anterior `cotizador-audit-e897dede`, sustituyendo sólo `/app/private-finance-model.js`; build74647025-5cf3-444e-af8f-bf5fca06c55b SUCCESS,57s,e2-standard-2,timeout900s. Modelo del commit de construcción1b193f52 idéntico al del SHA final. Seis rechazos anónimos y CORS en candidata;15 rechazos después de activar. Reversión disponible a revisión previa. Asistente, reglas, IAM y DNS intactos.
+- Hosting publicó388 activos/9 cargas desde checkout limpio ca7e6426. Once activos contrastados por hash normalizado, cinco cabeceras y cuatro rutas privadas404. Aviso sincronizado y leído en `v3.13.6-firebase` sólo después de verificar web.
+- Ventana real recargada, sesión conservada, iframe13.6 comprobado. Restaurada solapa Seguros; estados/coberturas conservados y barra ocultada mediante su botón para verificarlo. No se guardaron operaciones reales como prueba ni se migraron clasificaciones históricas. Portal permanece opcional y vacío hasta que el titular lo configure. Evidencia privada `C:/SisVentas/tmp/insurance-release/`, fuera de Git.
+- Próximo paso: continuar la revisión de Compras en cuotas y demás solapas de a un problema. Pendientes de identificación y pagos permanecen en el sistema; esta publicación no los resuelve ni cambia sus datos. Los bloques de preparación siguientes son antecedentes superados.
+
+
 ## Gastos personales v3.13.6 · publicación autorizada en curso · 20/10/2026
 
 - El titular autorizó integrar y publicar la tanda de seguros, actividad de botones y barra lateral ocultable. Base13.5, sin integrar el rediseño laboral ni cambios ajenos.
