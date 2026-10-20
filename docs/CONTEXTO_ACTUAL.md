@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Visualizador · v3.13.15 · reparaciones publicadas y comprobadas
+
+- Fuente `c8d387e80b2509ebd0b35ea0a3b7470d2fd7fcf0`, rama subida; Hosting403activos/8cargas desde SHA limpio,10activos contrastados por hash y aviso web/SW/Firebase15 confirmado. Puerta2.529/2.529. Sólo web, sin cambios de servidor/reglas/IAM/DNS ni guardados de negocio.
+- En ventana real conservada: actualización14→15, diez presupuestos; mismo visualizador recibió el borrador existente de otro cliente. Rueda sobre producto movió scroll0→710 y regreso0; fondo0. Pantalla completa local ocupó1178x1004 y regresó al tamaño habitual, botón con estado correcto y sin alerta de API. No se cambió el descuento real para probar0: ese caso se comprobó con fixture/modelo ficticios. Se conserva sólo lectura y no se atribuyen los guardados del titular al agente.
+- Demos cerradas, servidores detenidos y viewport normal. Una sola ventana real dejada abierta en el visualizador. Captura privada `C:/SisVentas/tmp/budget-presentation-web15-fullscreen.private.png` y verificación HTTP privada, nunca Git.
+- La integración grande debe partir de este cierre15 y recalcularse como16 o siguiente disponible. Su puerta anterior2882/27corresponde a base14; faltan incorporar esta reparación, cerrar commit, revalidar backend/reglas/emulador/paquete/configuración y confirmar la ventana sin pagos/emisiones antes del corte. Sigue SIN activar.
+
 ## Reparaciones del visualizador · v3.13.15 · publicación autorizada en preparación
 
 - Tres fallas informadas: descuento vacío equivale ahora a0 (igual que el editor) y se muestra siempre Descuento0%/$0,00; scroll retenido por filas con overflow:hidden y la regla global overscroll:contain; pantalla completa nativa denegada por IAB/iOS. Filas/fotos usan overflow:clip y encadenan sólo hacia el scroll de productos; ampliación local de toda la vista funciona aun sin API nativa, con regreso y estado del botón correctos. No afecta otros modales.
