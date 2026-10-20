@@ -1,5 +1,9 @@
 # Control de consumo de SisVentas
 
+## Publicación13.3 · 19/10/2026
+
+Cotizador `cotizador-audit-e897dede` y web13.3 activos y verificados desde fuente `e897dede350f1f56795c60d657bad994f6a395a3`; mínimo0, CPU por solicitud, eventos activos y observador apagado. Sin recursos mínimos ni servicios nuevos. Construcción única79,725s en e2-standard-2; unos USD0,008 de compilación antes de franquicias, almacenamiento/transferencia aparte. No equivale a factura ni ahorro mensual medido. Estado técnico y reversión en CONTEXTO_ACTUAL; las secciones candidatas siguientes son antecedentes.
+
 ## Auditoría de alcance · 19/10/2026 · candidato13.3
 
 Estado externo según CONTEXTO_ACTUAL: web13.2 y Cotizador

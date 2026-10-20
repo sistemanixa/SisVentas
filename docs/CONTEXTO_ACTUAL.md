@@ -1,5 +1,14 @@
 # Continuidad de SisVentas
 
+## Publicación completada · v3.13.3 · 19/10/2026
+
+- Fuente `e897dede350f1f56795c60d657bad994f6a395a3`, rama `codex/auditoria-cotizador-v3133`, publicada por autorización explícita. Checkout público limpio en ese SHA; puerta 2.428/2.428 aprobada también allí, servidor 94/94 sobre el mismo árbol probado, coherencia local correcta. `main` y la raíz de la otra PC conservados.
+- Compilación única `adbc71f4-1f18-4291-b710-df99ca538cab` SUCCESS, e2-standard-2,79,725s. Costo orientativo de compilación USD0,008 antes de franquicias; límite aplicado900s (USD0,09 de cómputo a USD0,006/min), almacenamiento/transferencia aparte. No es una medición de factura ni del costo mensual.
+- Cotizador `cotizador-audit-e897dede` activo al100% y14 etiquetas existentes; temporal retirada. Antes del corte: seis rechazos anónimos y CORS correctos sin tráfico general. Después: quince accesos rechazan anónimos. Configuración de entorno/secretos/identidad/recursos/concurrencia/plazo/escala conservada, mínimo0 y CPU por solicitud; Auth/generación/eventos activos y observadorfalse. Reversión `cotizador-projects-66a77036`. No se crearon servicios, funciones, reglas, IAM ni DNS.
+- Hosting `6c9eb1a87790fe01`,386 activos públicos y8 cargas. Veintiún activos contrastados por hash, cinco cabeceras y cuatro rutas privadas404; sólo después se confirmó `sisventas/config/version=v3.13.3-firebase`. La copia de trabajo posterior ya está separada en `codex/lecturas-acotadas-v3134`; no confundir sus cambios nuevos con esta publicación.
+- Web real, misma sesión y sin borrar navegación: actualización automática13.2→13.3 conservó el listado de Presupuestos y sus filtros. Se cerró su aviso antes de verificar navegación. Dashboard termina; Ventas50 filas y Presupuestos8, Sincronizado, sin errores/warnings observados en esa comprobación. Se vuelve a Presupuestos. No se abrieron operaciones ni se guardaron cobros/ventas/comisiones reales; el acceso conserva los metadatos habituales de sesión/presencia. Cambios concurrentes de otros usuarios no forman parte de esta prueba.
+- Evidencia privada `C:/SisVentas/tmp/v3133-audit/`: fuente exacta, configuración previa/candidata/activa, construcción, hashes y captura web. No subirla a Git. Estado siguiente: reducir lecturas al emitir Distribuidora y responder guardados de Proyectos; retirar migración pasiva al abrir Comisiones. Las cuatro transacciones laborales de raíz y los listados/opciones amplios siguen pendientes; no se migraron históricos ni se prometió un costo mensual fijo.
+
 ## Auditoría por operación · v3.13.3 local · 19/10/2026
 
 - Rama `codex/auditoria-cotizador-v3133`, base `98abeb60`. Producción conserva web13.2 y Cotizador `cotizador-projects-66a77036`; este bloque todavía no está publicado. La raíz de la otra PC y `main` permanecen sin modificar. No se hicieron consultas a Google ni lecturas/escrituras de negocio reales durante esta auditoría.

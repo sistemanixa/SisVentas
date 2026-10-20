@@ -1,5 +1,7 @@
 # Alcance de Cotizador
 
+Publicación13.3 completada desde `e897dede350f1f56795c60d657bad994f6a395a3` el19/10/2026. Cotizador `cotizador-audit-e897dede`, mínimo0/CPU por solicitud,100% y14 accesos; web/aviso verificados. Ver CONTEXTO_ACTUAL para evidencia y límites. El estado de preparación que sigue conserva el registro de la auditoría, anterior a ese corte. La continuación13.4 está separada y no publicada.
+
 Auditoría local del 19/10/2026, base `98abeb60` y cliente publicado 13.2. El candidato 13.3 se prepara después de esa base y todavía no está publicado. Puerta vigente aprobada: 2.428/2.428 pruebas generales y 94/94 de backend. No se consultaron producción, credenciales ni datos de negocio para este inventario. El estado externo se toma de `CONTEXTO_ACTUAL.md`: servidor 13.1 `cotizador-projects-66a77036`, mínimo 0 y CPU por solicitud; 13.2 sólo actualizó cliente. Las pruebas locales no acreditan despliegue del servidor.
 
 ## Mapa de rutas y consumidores
