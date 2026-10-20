@@ -1,5 +1,11 @@
 # Continuidad de SisVentas
 
+## Gastos personales · próxima tanda de mejoras · 20/10/2026
+
+- Pedido del titular: anotar y acumular cambios, sin implementar ni publicar este todavía.
+- **Autocompletar pago mínimo:** al seleccionar «Mínimo» en Registrar pago, completar Importe con el mínimo pendiente del resumen seleccionado y su moneda, descontando pagos ya registrados. Mantener el importe editable; recalcular al cambiar de resumen o moneda sin presentar un mínimo de otra moneda como equivalente. Si está cubierto o es desconocido, indicar la situación sin inventar un importe. Verificar mínimo completo, parcialmente cubierto, cubierto y monedas diferentes antes de integrarlo.
+- Estado: pendiente de implementación para una tanda conjunta. La corrección de año del bloque siguiente sigue preparada sin publicar; no confundir ambos estados.
+
 ## Corrección de año de resúmenes · preparada · 20/10/2026
 
 - Rama aislada `codex/corregir-anio-resumen`, base pública `00338e21`. El titular autorizó corregir el lector: año explícito del documento tiene prioridad; si falta, usar el ciclo más reciente no futuro respecto de la fecha argentina. Diciembre importado en enero conserva el año anterior y el vencimiento puede caer en enero siguiente. Sin pedir año rutinariamente.
