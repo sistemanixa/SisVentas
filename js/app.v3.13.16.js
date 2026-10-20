@@ -159,31 +159,6 @@ function _svCrearDialogoSistema(opciones) {
 
     var acciones = document.createElement('div');
     acciones.className = 'sv-system-dialog-actions';
-    if (opciones.centrado === true) {
-      // Excepción explícita al posicionamiento móvil de los avisos habituales.
-      overlay.style.setProperty('align-items', 'center', 'important');
-      overlay.style.justifyContent = 'center';
-      overlay.style.padding = '16px';
-      panel.style.setProperty('width', 'min(500px, calc(100vw - 32px))', 'important');
-      panel.style.setProperty('max-width', 'calc(100vw - 32px)', 'important');
-      panel.style.borderRadius = '20px';
-    }
-    if (opciones.desplazable === true) {
-      panel.style.maxHeight = 'calc(100vh - 32px)';
-      panel.style.maxHeight = 'calc(100dvh - 32px)';
-      panel.style.display = 'flex';
-      panel.style.flexDirection = 'column';
-      panel.style.minHeight = '0';
-      panel.style.overflow = 'hidden';
-      cabecera.style.flexShrink = '0';
-      mensaje.style.flex = '1 1 auto';
-      mensaje.style.minHeight = '0';
-      mensaje.style.overflowY = 'auto';
-      mensaje.style.overflowWrap = 'anywhere';
-      mensaje.style.overscrollBehavior = 'contain';
-      mensaje.tabIndex = 0;
-      acciones.style.flexShrink = '0';
-    }
     var terminado = false;
     function cerrar(valor) {
       if (terminado) return;
@@ -4410,32 +4385,55 @@ async function confirmarRegistroHaberes() {
   finally { cerrarCarga(); }
 }
 
-async function _registrarHaberesAtomico(filas, mesISO, fechaGasto, mesLbl) {
-  if (!window.fbDB || typeof window.SVLaborWrites?.atomic !== 'function') throw new Error('No hay conexión segura para registrar haberes');
-  var mesKey=mesISO.replace('-','_'), rutas=new Set(), cuentas={}, claves=new Set();
-  filas=(filas||[]).filter(function(f){return f?.e?.fbKey && (parseFloat(f.sueldo)||0)+Math.max(0,parseFloat(f.bonificacion)||0)>0;});
-  if (!filas.length) return {committed:false,contador:0};
-  // La lectura previa sólo descubre referencias legacy. El cálculo y la
-  // verificación de membresía usan nuevamente la cuenta bajo atomic/CAS.
-  for (var fila of filas) {
-    var empKey=String(fila.e.fbKey);
-    if(claves.has(empKey))throw new Error('Hay empleados repetidos en los haberes');
-    claves.add(empKey);
-    var cuentaPath='sisventas/ctaemp/' + empKey;
-    cuentas[empKey]=(await window.fbGet(window.fbRef(window.fbDB,cuentaPath))).val()||{};
-    [cuentaPath,'sisventas/empleados/' + empKey,'sisventas/haberes/' + empKey + '/' + mesKey,'sisventas/gastos/haber_' + empKey + '_' + mesKey].forEach(function(path){rutas.add(path);});
-    Object.entries(cuentas[empKey]).forEach(function(entry){if(_adelantoEsEntregaLegacy(entry[1]))rutas.add('sisventas/gastos/adelanto_' + empKey.replace(/[^a-zA-Z0-9_-]/g,'_') + '_' + entry[0].replace(/[^a-zA-Z0-9_-]/g,'_'));});
+async function _svCargaOperacion_confirmarRegistroHaberes() {
+  if (_habRegistroEnCurso) return;
+  if (!window.tienePermiso('empleados.registrarHaberes')) { notify('Solo el administrador puede registrar haberes'); return; }
+  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var sel = document.getElementById('hab-mes-sel');
+  var mesISO = sel ? sel.value : _habMesActualLocal();
+  var d = new Date(mesISO + '-01T12:00:00');
+  var mesLbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  var fechaGasto = mesISO + '-' + String(new Date(d.getFullYear(), d.getMonth()+1, 0).getDate()).padStart(2,'0'); // último día del mes
+
+  var btnConfirmar = document.getElementById('hab-confirmar-btn');
+  _habRegistroEnCurso = true;
+  if (btnConfirmar) { btnConfirmar.disabled = true; btnConfirmar.innerHTML = '<i class="ti ti-loader-2 ti-spin"></i> Verificando y registrando...'; }
+
+  var habData;
+  var ctaData;
+  try {
+    var snapsHaberes = await Promise.all([
+      window.fbGet(window.fbRef(window.fbDB, 'sisventas/haberes')),
+      window.fbGet(window.fbRef(window.fbDB, 'sisventas/ctaemp'))
+    ]);
+    habData = snapsHaberes[0].val() || {};
+    ctaData = snapsHaberes[1].val() || {};
+  } catch (errorLectura) {
+    _habRegistroEnCurso = false;
+    if (btnConfirmar) { btnConfirmar.disabled = false; btnConfirmar.innerHTML = '<i class="ti ti-check"></i> Confirmar y registrar gastos'; }
+    notify('No se pudo verificar si el mes ya estaba registrado: ' + errorLectura.message);
+    return;
   }
-  var resultado=await window.SVLaborWrites.atomic({paths:Array.from(rutas),build:function(valores){
-    var actualizaciones={},contador=0,ctaData={};
-    var filasARegistrar=filas.filter(function(f){
-      var empKey=String(f.e.fbKey),emp=valores['sisventas/empleados/' + empKey];
-      if(valores['sisventas/haberes/' + empKey + '/' + mesKey])return false;
-      if(valores['sisventas/gastos/haber_' + empKey + '_' + mesKey])throw new Error('Ya existe un gasto de sueldo para este mes. Se conservaron sus importes y pagos.');
-      if(valores['sisventas/ctaemp/' + empKey]?.['haber_' + mesKey])throw new Error('Ya existe un movimiento de sueldo para este mes. Se conservaron sus importes y pagos.');
-      if(!emp||emp.activo===false)throw new Error('Un empleado cambió o ya no está activo. Actualizá los haberes.');
-      ctaData[empKey]=valores['sisventas/ctaemp/' + empKey]||{};return true;
-    });
+  var mesKey = mesISO.replace('-','_');
+  var yaRegistradas = _habFilasActuales.filter(function(f) {
+    return habData[f.e.fbKey] && habData[f.e.fbKey][mesKey];
+  });
+  var filasARegistrar = _habFilasActuales.filter(function(f) {
+    return !(habData[f.e.fbKey] && habData[f.e.fbKey][mesKey]);
+  });
+  if (!filasARegistrar.length) {
+    _habRegistroEnCurso = false;
+    if (btnConfirmar) { btnConfirmar.disabled = false; btnConfirmar.innerHTML = '<i class="ti ti-check"></i> Confirmar y registrar gastos'; }
+    notify('Los haberes de ' + mesLbl + ' ya estaban registrados. No se creó ningún duplicado.');
+    return;
+  }
+
+  /* v20.342: el haber registra SOLO el sueldo base. Las horas extra se liquidan
+     exclusivamente por solicitudes aprobadas (aprobarHsExtra), que ya generan
+     su propio gasto y su movimiento en la cuenta del empleado. */
+  var actualizaciones = {};
+  var contador = 0;
+
   filasARegistrar.forEach(function(f) {
     var e      = f.e;
     var sueldo = f.sueldo;
@@ -4522,36 +4520,26 @@ async function _registrarHaberesAtomico(filas, mesISO, fechaGasto, mesLbl) {
     });
     contador++;
   });
-    if(!contador)return;
-    for(var path of Object.keys(actualizaciones))if(path.indexOf('sisventas/gastos/adelanto_')===0){
-      if(!rutas.has(path))throw new Error('Los adelantos cambiaron. Volvé a abrir los haberes antes de registrarlos.');
-      if(valores[path])throw new Error('Un adelanto ya tiene un gasto registrado. Se conservaron sus datos; revisá el vínculo antes de registrar haberes.');
-    }
-    return actualizaciones;
-  }});
-  var contador=resultado?.committed?filas.filter(function(f){return Object.hasOwn(resultado.value||{},'sisventas/haberes/' + f.e.fbKey + '/' + mesKey);}).length:0;
-  return {committed:resultado?.committed===true,contador:contador,omitidos:filas.length-contador};
-}
 
-async function _svCargaOperacion_confirmarRegistroHaberes() {
-  if (_habRegistroEnCurso) return;
-  if (!window.tienePermiso('empleados.registrarHaberes')) { notify('Solo el administrador puede registrar haberes'); return; }
-  if (!window.fbDB) { notify('Sin conexión'); return; }
-  var mesISO=(document.getElementById('hab-mes-sel')||{}).value||_habMesActualLocal();
-  var d=new Date(mesISO + '-01T12:00:00'),mesLbl=d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-  var fechaGasto=mesISO + '-' + String(new Date(d.getFullYear(),d.getMonth()+1,0).getDate()).padStart(2,'0');
-  var btnConfirmar=document.getElementById('hab-confirmar-btn');
-  _habRegistroEnCurso=true;
-  if(btnConfirmar){btnConfirmar.disabled=true;btnConfirmar.innerHTML='<i class="ti ti-loader-2 ti-spin"></i> Verificando y registrando...';}
   try {
-    var resultado=await _registrarHaberesAtomico(_habFilasActuales,mesISO,fechaGasto,mesLbl);
-    if(!resultado.contador){notify('Los haberes ya estaban registrados o no hay importes para registrar. No se creó ningún duplicado.');return;}
+    if (!contador) {
+      notify('No hay importes de sueldo configurados para registrar. Revisá los cargos.');
+      return;
+    }
+    await window.fbUpdate(window.fbRef(window.fbDB), actualizaciones);
     document.getElementById('modal-haberes-mes').remove();
-    notify('✓ Haberes de ' + mesLbl + ' registrados (' + resultado.contador + ' empleados)' + (resultado.omitidos?' · ' + resultado.omitidos + ' ya existentes se omitieron':''));
-    if(typeof registrarActividad==='function')registrarActividad('Haberes registrados',mesLbl + ' — ' + resultado.contador + ' empleados');
-  } catch(err){notify('Error al registrar haberes: ' + err.message);}
-  finally{_habRegistroEnCurso=false;if(btnConfirmar?.isConnected){btnConfirmar.disabled=false;btnConfirmar.innerHTML='<i class="ti ti-check"></i> Confirmar y registrar gastos';}}
+    notify('✓ Haberes de ' + mesLbl + ' registrados (' + contador + ' empleados)' + (yaRegistradas.length ? ' · ' + yaRegistradas.length + ' ya existentes se omitieron' : ''));
+    if (typeof registrarActividad === 'function') registrarActividad('Haberes registrados', mesLbl + ' — ' + contador + ' empleados');
+  } catch(err) {
+    notify('Error al registrar haberes: ' + err.message);
+  } finally {
+    _habRegistroEnCurso = false;
+    if (btnConfirmar && btnConfirmar.isConnected) { btnConfirmar.disabled = false; btnConfirmar.innerHTML = '<i class="ti ti-check"></i> Confirmar y registrar gastos'; }
+  }
 }
+// ══════════════════════════════════════════════════════════════════════════════
+// HORAS EXTRA — carga por empleado + aprobación admin
+
 function abrirModalHsExtra() {
   var esAdmin = window.tienePermiso('empleados.autorizarHoras');
   if (esAdmin) {
@@ -5351,13 +5339,11 @@ function _claveOperacionConcurrente(prefijo, partes) {
 }
 
 function _guardarAguinaldosAtomico(filas, semKey, fechaGasto, semLbl, operacionKey, permitirDuplicado) {
-  if (!window.fbDB || typeof window.SVLaborWrites?.atomic !== 'function') return Promise.reject(new Error('No hay conexión segura para registrar aguinaldos'));
+  if (!window.fbDB || typeof window.fbRunTransaction !== 'function') return Promise.reject(new Error('No hay conexión segura para registrar aguinaldos'));
   var ahora = Date.now();
-  // Hasta disponer de un índice compuesto con cobertura comprobada, el CAS de
-  // Gastos conserva también los duplicados legacy con claves no deterministas.
-  // El PATCH escribe únicamente los registros nuevos, nunca la colección.
-  return window.SVLaborWrites.atomic({paths:['sisventas/gastos'],build:function(valores) {
-    var raiz={gastos:valores['sisventas/gastos'] || {}},updates={};
+  return window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas/gastos'), function(gastos) {
+    var raiz={gastos:gastos || {}};
+    raiz = raiz || {}; raiz.gastos = raiz.gastos || {};
     filas.forEach(function(f, indice) {
       if (!(parseFloat(f.aguinaldo) > 0) || !f.e || !f.e.fbKey) return;
       var clave = _claveOperacionConcurrente('aguinaldo', permitirDuplicado ? [f.e.fbKey, semKey, operacionKey] : [f.e.fbKey, semKey]);
@@ -5368,10 +5354,9 @@ function _guardarAguinaldosAtomico(filas, semKey, fechaGasto, semLbl, operacionK
       });
       if (existe && !permitirDuplicado) return;
       raiz.gastos[clave] = _pagableGastoBase({ fecha:fechaGasto, tipo:'Fijo', tipoPagable:'aguinaldo', descripcion:'Aguinaldo ' + (f.e.nombre || '') + ' — ' + semLbl, monto:f.aguinaldo, medio:'Transferencia', empleadoFbKey:f.e.fbKey, empleadoNombre:f.e.nombre || '', semestre:semKey, mejorSueldo:f.mejorSueldo, legacyKey:'sac/' + f.e.fbKey + '/' + semKey, ts:ahora + indice });
-      updates['sisventas/gastos/' + clave]=raiz.gastos[clave];
     });
-    return Object.keys(updates).length?updates:undefined;
-  }}).then(function(resultado){return resultado?.committed?resultado:{committed:true,unchanged:true};});
+    return raiz.gastos;
+  });
 }
 
 async function confirmarRegistroAguinaldo() {
@@ -8420,9 +8405,7 @@ async function emitirFactura(venta, tipoComprobante, opciones) {
       }
       return null;
     }
-    if (data.persistenciaPendiente === true) {
-      notify('Comprobante autorizado. Falta vincularlo a la venta; no hace falta emitirlo otra vez.');
-    } else if (data.integridadFiscalCompleta === false) {
+    if (data.integridadFiscalCompleta === false) {
       notify('Factura autorizada con CAE ' + (data.cae || '—') + ', pero quedó bloqueada para verificación fiscal. No vuelvas a emitirla.');
     } else {
       notify('✓ Factura emitida — CAE: ' + data.cae);
@@ -8433,26 +8416,6 @@ async function emitirFactura(venta, tipoComprobante, opciones) {
     console.error('[emitirFactura]', e);
     return null;
   }
-}
-
-function mostrarVinculacionFiscalPendiente(data, ventaId) {
-  var enlaces=[];
-  if(data.pdf_url||data.comprobante_pdf_url)enlaces.push({texto:'Ver comprobante original',abrir:function(){_abrirFuentePdfFactura(data.pdf_url||data.comprobante_pdf_url,'Comprobante-' + (ventaId||''));}});
-  if(data.vinculacionDisponible&&data.emisionOperacionId)enlaces.push({texto:'Vincular a la venta',abrir:function(){return vincularEmisionFiscalPendiente(data.emisionOperacionId,ventaId);}});
-  return _svCrearDialogoSistema({tipo:'alert',titulo:'Comprobante autorizado',mensaje:data.vinculacionDisponible?'El comprobante se emitió correctamente. Falta vincularlo a la venta. No hace falta emitirlo otra vez.':'Conservá el comprobante original. La vinculación necesita una revisión; no vuelvas a emitirlo.',enlaces:enlaces,centrado:true,desplazable:true});
-}
-
-async function vincularEmisionFiscalPendiente(operacionId, ventaId) {
-  var cerrarCarga=window.SisVentas?.carga?.mostrar('Vinculando comprobante…',{persistirAlNavegar:true});
-  try {
-    var resp=await fetch(SISVENTAS_FUNCTIONS.emitirFactura,{method:'POST',headers:await window.SVServiceAuth.headers({'Content-Type':'application/json','X-Frontend-Key':SISVENTAS_FUNCTIONS.frontendKey}),body:JSON.stringify({accion:'vincular_emision',operacionId:operacionId})});
-    var data=await resp.json();
-    if(!resp.ok||data.error)throw new Error(data.mensaje||'No se pudo vincular el comprobante. No vuelvas a emitirlo.');
-    if(data.persistenciaPendiente){mostrarVinculacionFiscalPendiente(data,ventaId);return data;}
-    notify('✓ Comprobante vinculado a la venta');
-    verFacturaEmitida(data.pdf_url||'',data.cae||'',ventaId);return data;
-  } catch(error){notify(error.message||'No se pudo vincular el comprobante. No vuelvas a emitirlo.');return null;}
-  finally{if(typeof cerrarCarga==='function')cerrarCarga();}
 }
 
 // Abrir modal para elegir tipo de factura
@@ -8738,9 +8701,8 @@ async function _svCargaOperacion_emitirNotaCredito(ventaId) {
       notify('Error al emitir NC: ' + (data.mensaje || 'Error desconocido'));
       return;
     }
-    if(data.persistenciaPendiente){mostrarVinculacionFiscalPendiente(data,v.id||v.fbKey||ventaId);return;}
     notify('✓ Nota de crédito emitida — CAE: ' + data.cae);
-    if (window.fbDB && v.fbKey && !data.gestionFiscalServidor) {
+    if (window.fbDB && v.fbKey) {
       await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ventas/' + v.fbKey), {
         facturaAnulada: true,
         notaCredito: {
@@ -9858,9 +9820,8 @@ async function _svCargaOperacion_confirmarEmisionFactura(ventaId) {
   }
   var data = await emitirFactura(venta, tipoSeleccionado, opcionesEmision);
   if (!data) return;
-  if(data.persistenciaPendiente){mostrarVinculacionFiscalPendiente(data,venta.id||venta.fbKey||ventaId);return;}
 
-  if (opcionesEmision.refacturar && venta.fbKey && window.fbDB && !data.gestionFiscalServidor) {
+  if (opcionesEmision.refacturar && venta.fbKey && window.fbDB) {
     try {
       var auditNC = Array.isArray(venta.audit) ? venta.audit.slice() : [];
       var historialFiscal = Array.isArray(venta.historialFiscal) ? venta.historialFiscal.slice() : [];
@@ -10844,7 +10805,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.13.16',date:'20/10/2026',title:'Pagos y comisiones con confirmación segura',notes:Object.freeze(['Pagos y cuentas se confirman juntos.','Ante una interrupción podés comprobar el guardado antes de repetirlo.','El historial de empleados se conserva y las consultas usan sólo los datos necesarios.']),feature:Object.freeze({page:'comisiones',actionLabel:'Ver comisiones'})}),
+ Object.freeze({version:'v3.13.16',date:'20/10/2026',title:'Aprobación y edición de presupuestos',notes:Object.freeze(['Aprobar y guardar confirma los importes del administrador en un solo paso.','Los cambios pendientes se distinguen de la versión aprobada y los avisos respetan los permisos.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
  Object.freeze({version:'v3.13.15',date:'20/10/2026',title:'Desplazamiento y ampliación del visualizador',notes:Object.freeze(['Descuento vacío equivale a cero.','La lista se desplaza al pasar sobre productos e imágenes.','Pantalla completa amplía la vista aunque el navegador no permita la API nativa.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
  Object.freeze({version:'v3.13.14',date:'20/10/2026',title:'Detalle de producto en el visualizador',notes:Object.freeze(['La lista muestra productos y cantidades; tocá uno para ver su precio y subtotal. El total, descuento e IVA quedan siempre destacados.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
  Object.freeze({version:'v3.13.13',date:'20/10/2026',title:'Presupuestos en modo presentación',notes:Object.freeze(['Productos en lista compacta, total y descuentos destacados, e imágenes que se amplían al tocarlas.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
@@ -23956,6 +23917,7 @@ function calcPpTotales() {
   if (ivaRow) ivaRow.style.display = resumen.conIva ? '' : 'none';
   _set('pp-iva', importeComprobanteVenta(resumen.iva));
   _set('pp-total', importeComprobanteVenta(resumen.total));
+  checkAprobacion(resumen);
   if (typeof calcMargenPpto === 'function') calcMargenPpto();
   actualizarComparacionEditor('pp-body');
 }
@@ -31552,11 +31514,6 @@ function _gastoIdentidad(datos) {
 }
 var _gastosAltasEnCurso = new Set();
 async function _crearGastoSinDuplicar(datos) {
-  var camposCortos={categoria:'La categoría',proveedor:'El proveedor',medio:'El medio de pago',comprobante:'El comprobante',vencimiento:'El vencimiento'};
-  Object.keys(camposCortos).forEach(function(campo){
-    if(datos?.[campo]!==undefined&&typeof datos[campo]!=='string')throw new Error('Datos inválidos en ' + campo);
-    if(typeof datos?.[campo]==='string'&&datos[campo].length>500)throw new Error(camposCortos[campo] + ' admite hasta 500 caracteres');
-  });
   if (!window.tienePermiso('gastos.administrar')) {
     var response=await fetch(SISVENTAS_FUNCTIONS.cotizadorProveedor+'/laboral/solicitar-gasto',{method:'POST',headers:await window.SVServiceAuth.headers({'Content-Type':'application/json'}),body:JSON.stringify(datos)});
     var data=await response.json();
@@ -31998,16 +31955,14 @@ window._ctaEmpPeriodoOffset = 0;
 window._ctaEmpVista = 'pendientes';
 function _ctaEmpPeriodoMes() { return _mesSistema(window._ctaEmpPeriodoOffset || 0); }
 function setCtaEmpPeriodo(tipo) {
-  window._ctaEmpVista = ['anterior','actual','todos'].includes(tipo) ? tipo : 'pendientes';
+  window._ctaEmpVista = tipo === 'anterior' ? 'anterior' : (tipo === 'actual' ? 'actual' : 'pendientes');
   window._ctaEmpPeriodoOffset = (tipo === 'anterior') ? -1 : 0;
   var bAnt = document.getElementById('ctaemp-btn-mes-ant');
   var bAct = document.getElementById('ctaemp-btn-mes-act');
   var bPen = document.getElementById('ctaemp-btn-pendientes');
-  var bTodos = document.getElementById('ctaemp-btn-historial');
   if (bAnt) bAnt.className = 'btn btn-sm' + (window._ctaEmpVista === 'anterior' ? ' btn-primary' : '');
   if (bAct) bAct.className = 'btn btn-sm' + (window._ctaEmpVista === 'actual' ? ' btn-primary' : '');
   if (bPen) bPen.className = 'btn btn-sm' + (window._ctaEmpVista === 'pendientes' ? ' btn-primary' : '');
-  if (bTodos) bTodos.className = 'btn btn-sm' + (window._ctaEmpVista === 'todos' ? ' btn-primary' : '');
   var emp = Object.values(empData || {}).find(function(e){ return (e.fbKey||e.id) == ctaEmpActual; });
   if (emp) renderComisionesDelMes(emp);
   renderMovsEmp();
@@ -32060,8 +32015,8 @@ function renderComisionesDelMes(emp) {
 
 function _movEmpPagosArray(m) {
   var pagos = m && m.pagos ? m.pagos : {};
-  if (Array.isArray(pagos)) return pagos.map(function(p,i){ return Object.assign({}, p || {}, {_idx:i}); });
-  return Object.keys(pagos).map(function(k){ return Object.assign({}, pagos[k] || {}, {_key:k}); }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+  if (Array.isArray(pagos)) return pagos.map(function(p,i){ p._idx=i; return p; });
+  return Object.keys(pagos).map(function(k){ var p = pagos[k] || {}; p._key = k; return p; }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
 }
 
 function _ctaEmpPagosRealizadosEnMes(movs, mes) {
@@ -32369,66 +32324,8 @@ function _ctaEmpAdelantosPendientes(mesHasta) {
   });
 }
 
-async function _aplicarAdelantosAlHaberAtomico(empKey, mes, sueldoVista, adelantosVista) {
-  if (!window.fbDB || typeof window.SVLaborWrites?.atomic !== 'function') throw new Error('No hay conexión segura para aplicar adelantos');
-  var mesKey = mes.replace('-','_'), cuentaPath = 'sisventas/ctaemp/' + empKey, haberPath = 'sisventas/haberes/' + empKey + '/' + mesKey;
-  var gastoKey = sueldoVista.gastoFbKey || ('haber_' + empKey + '_' + mesKey), gastoPath = 'sisventas/gastos/' + gastoKey;
-  var rutas = new Set([cuentaPath,haberPath,gastoPath]), aplicacion;
-  (adelantosVista || []).forEach(function(adelanto) {
-    if (adelanto.gastoFbKey) rutas.add('sisventas/gastos/' + adelanto.gastoFbKey);
-    var legacy = {};
-    _normalizarAdelantoLegacyAlAplicar(legacy,empKey,adelanto.empleadoNombre || '',adelanto.fbKey,adelanto);
-    Object.keys(legacy).forEach(function(path){if (path.startsWith('sisventas/gastos/')) rutas.add(path);});
-  });
-  var resultado = await window.SVLaborWrites.atomic({paths:Array.from(rutas),build:function(valores) {
-    var cuenta = valores[cuentaPath] || {}, sueldo = cuenta[sueldoVista.fbKey], haber = valores[haberPath], gasto = valores[gastoPath];
-    if (!sueldo || !haber || !gasto || window.SVLaborWrites.canonical(_gastoBaseEdicion(sueldo)) !== window.SVLaborWrites.canonical(_gastoBaseEdicion(sueldoVista))) throw new Error('El haber cambió o falta un registro vinculado. Actualizá la cuenta.');
-    var sueldos = Object.entries(cuenta).filter(function(entry){return _ctaEmpEsSueldoMovimiento(entry[1]) && _movEmpEnPeriodo(entry[1],mes);}).sort(function(a,b){return (b[1].ts||0)-(a[1].ts||0);});
-    if (!sueldos.length || sueldos[0][0] !== sueldoVista.fbKey || sueldo.gastoFbKey && sueldo.gastoFbKey !== gastoKey || haber.gastoFbKey && haber.gastoFbKey !== gastoKey) throw new Error('El haber vinculado cambió. Actualizá la cuenta.');
-    if (_movEmpTotalPagado(sueldo)>0 || Number(sueldo.saldoPagadoLegacy)>0 || String(sueldo.estado || '').toLowerCase()==='pagado' && !Object.keys(sueldo.pagos || {}).length || totalPagadoGasto(gasto)>0 || Number(gasto.montoPagado)>0 || Number(gasto.saldoPagadoLegacy)>0 || String(gasto.estado || '').toLowerCase()==='pagado' && !Object.keys(gasto.pagos || {}).length || totalPagadoGasto(haber)>0) throw new Error('No se puede recalcular un haber que ya tiene pagos');
-    if (Number(gasto.monto)!==Number(sueldo.monto) || haber.total !== undefined && Number(haber.total)!==Number(sueldo.monto)) throw new Error('Los importes del haber y sus registros vinculados cambiaron. Revisá la cuenta.');
-    var pendientes = Object.entries(cuenta).map(function(entry){return Object.assign({},entry[1],{fbKey:entry[0]});}).filter(function(m){return _ctaEmpMovVisibleParaRol(m) && _ctaEmpMovHastaPeriodo(m,undefined) && _ctaEmpMontoAdelantoACompensar(m)>0;}).sort(function(a,b){return String(a.fecha || a.ts || '').localeCompare(String(b.fecha || b.ts || ''));});
-    var vistas = new Map((adelantosVista || []).map(function(m){return [m.fbKey,m];}));
-    if (pendientes.length !== vistas.size || pendientes.some(function(m){return !vistas.has(m.fbKey) || window.SVLaborWrites.canonical(_gastoBaseEdicion(m)) !== window.SVLaborWrites.canonical(_gastoBaseEdicion(vistas.get(m.fbKey)));})) throw new Error('Los pagos o las compensaciones de los adelantos cambiaron. Actualizá la cuenta.');
-    var disponible = pendientes.reduce(function(sum,m){return sum + _ctaEmpMontoAdelantoACompensar(m);},0);
-    var bruto = parseFloat(sueldo.sueldoBase || sueldo.sueldoBruto) || ((parseFloat(sueldo.monto)||0)+(parseFloat(sueldo.adelantoCompensado)||0));
-    var yaAplicado = parseFloat(sueldo.adelantoCompensado)||0, aplicar = Math.min(Math.max(0,bruto-yaAplicado),disponible);
-    if (!(aplicar>0)) throw new Error('No hay adelantos pendientes para aplicar. Actualizá la cuenta.');
-    var updates = {}, restante = aplicar, detalle = Object.assign({},sueldo.adelantosAplicados || {});
-    pendientes.forEach(function(adelanto) {
-      if (!(restante>0)) return;
-      var parte = Math.min(restante,_ctaEmpMontoAdelantoACompensar(adelanto));
-      var legacy = {};
-      _normalizarAdelantoLegacyAlAplicar(legacy,empKey,adelanto.empleadoNombre || '',adelanto.fbKey,adelanto);
-      Object.entries(legacy).forEach(function(entry) {
-        if (entry[0].startsWith('sisventas/gastos/') && (!rutas.has(entry[0]) || valores[entry[0]])) throw new Error('Ya existe un gasto para este adelanto histórico. Se conservó el registro para revisión.');
-        updates[entry[0]] = entry[1];
-      });
-      if (adelanto.gastoFbKey) {
-        var adelantoPath = 'sisventas/gastos/' + adelanto.gastoFbKey, gastoAdelanto = valores[adelantoPath];
-        if (!rutas.has(adelantoPath) || !gastoAdelanto || totalPagadoGasto(gastoAdelanto)+0.01 < _adelantoMontoEntregado(adelanto)) throw new Error('El pago del adelanto cambió o falta su gasto vinculado. Revisá la cuenta.');
-      }
-      var path = cuentaPath + '/' + adelanto.fbKey;
-      updates[path + '/montoCompensado'] = (parseFloat(adelanto.montoCompensado)||0)+parte;
-      updates[path + '/compensaciones/' + mesKey] = (parseFloat(adelanto.compensaciones && adelanto.compensaciones[mesKey])||0)+parte;
-      updates[path + '/compensadoTs'] = Date.now();
-      var previo = detalle[adelanto.fbKey] || {};
-      detalle[adelanto.fbKey] = {adelantoFbKey:adelanto.fbKey,monto:(parseFloat(previo.monto)||0)+parte,fecha:adelanto.fechaPago || adelanto.fecha || previo.fecha || '',descripcion:adelanto.descripcion || adelanto.desc || previo.descripcion || 'Adelanto de personal',montoOriginal:parseFloat(adelanto.monto) || parseFloat(previo.montoOriginal) || 0};
-      restante -= parte;
-    });
-    var compensado = yaAplicado + aplicar, neto = Math.max(0,bruto-compensado), sueldoPath = cuentaPath + '/' + sueldoVista.fbKey;
-    [[sueldoPath,{monto:neto,sueldoBase:bruto,sueldoBruto:bruto,adelantoCompensado:compensado,adelantosAplicados:detalle}],[haberPath,{sueldoBruto:bruto,adelantoCompensado:compensado,adelantosAplicados:detalle,total:neto}],[gastoPath,{monto:neto,sueldoBruto:bruto,adelantoCompensado:compensado,adelantosAplicados:detalle}]].forEach(function(entry){Object.entries(entry[1]).forEach(function(field){updates[entry[0] + '/' + field[0]] = field[1];});});
-    aplicacion = {aplicar:aplicar,neto:neto};
-    return updates;
-  }});
-  if (!resultado || !resultado.committed) throw new Error('No se pudo confirmar la aplicación de adelantos');
-  return aplicacion;
-}
-
 async function aplicarAdelantosAlHaberActual() {
   if (!window.tienePermiso('empleados.aplicarAdelantos') || !ctaEmpActual || !window.fbDB) return;
-  if (window._adelantosAplicando) { notify('Ya se están aplicando los adelantos'); return; }
-  var empKey = ctaEmpActual, vigente = typeof svCapturarContextoOperacion === 'function' ? svCapturarContextoOperacion() : function(){return true;};
   var mes = _ctaEmpPeriodoMes();
   var sueldo = (movsEmpData || []).filter(function(m) {
     return _ctaEmpEsSueldoMovimiento(m) && _movEmpEnPeriodo(m, mes);
@@ -32441,14 +32338,52 @@ async function aplicarAdelantosAlHaberActual() {
   var yaAplicado = parseFloat(sueldo.adelantoCompensado) || 0;
   var aplicar = Math.min(Math.max(0, bruto - yaAplicado), disponible);
   if (aplicar <= 0) { notify('No hay adelantos pendientes para aplicar'); return; }
-  window._adelantosAplicando = true;
+  var updates = {};
+  var restante = aplicar;
+  var detalleAplicados = Object.assign({}, sueldo.adelantosAplicados || {});
+  pendientes.forEach(function(adelanto) {
+    if (restante <= 0) return;
+    var saldo = _ctaEmpMontoAdelantoACompensar(adelanto);
+    var parte = Math.min(restante, saldo);
+    _normalizarAdelantoLegacyAlAplicar(updates, ctaEmpActual, adelanto.empleadoNombre || '', adelanto.fbKey, adelanto);
+    var totalCompensado = (parseFloat(adelanto.montoCompensado)||0) + parte;
+    updates['sisventas/ctaemp/' + ctaEmpActual + '/' + adelanto.fbKey + '/montoCompensado'] = totalCompensado;
+    updates['sisventas/ctaemp/' + ctaEmpActual + '/' + adelanto.fbKey + '/compensaciones/' + mes.replace('-','_')] = parte;
+    updates['sisventas/ctaemp/' + ctaEmpActual + '/' + adelanto.fbKey + '/compensadoTs'] = Date.now();
+    var detallePrevio = detalleAplicados[adelanto.fbKey] || {};
+    detalleAplicados[adelanto.fbKey] = {
+      adelantoFbKey: adelanto.fbKey,
+      monto: (parseFloat(detallePrevio.monto)||0) + parte,
+      fecha: adelanto.fechaPago || adelanto.fecha || detallePrevio.fecha || '',
+      descripcion: adelanto.descripcion || adelanto.desc || detallePrevio.descripcion || 'Adelanto de personal',
+      montoOriginal: parseFloat(adelanto.monto) || parseFloat(detallePrevio.montoOriginal) || 0
+    };
+    restante -= parte;
+  });
+  var compensadoTotal = yaAplicado + aplicar;
+  var neto = Math.max(0, bruto - compensadoTotal);
+  var sueldoPath = 'sisventas/ctaemp/' + ctaEmpActual + '/' + sueldo.fbKey;
+  updates[sueldoPath + '/monto'] = neto;
+  updates[sueldoPath + '/sueldoBase'] = bruto;
+  updates[sueldoPath + '/sueldoBruto'] = bruto;
+  updates[sueldoPath + '/adelantoCompensado'] = compensadoTotal;
+  updates[sueldoPath + '/adelantosAplicados'] = detalleAplicados;
+  var mesKey = mes.replace('-','_');
+  updates['sisventas/haberes/' + ctaEmpActual + '/' + mesKey + '/sueldoBruto'] = bruto;
+  updates['sisventas/haberes/' + ctaEmpActual + '/' + mesKey + '/adelantoCompensado'] = compensadoTotal;
+  updates['sisventas/haberes/' + ctaEmpActual + '/' + mesKey + '/adelantosAplicados'] = detalleAplicados;
+  updates['sisventas/haberes/' + ctaEmpActual + '/' + mesKey + '/total'] = neto;
+  var gastoKey = sueldo.gastoFbKey || ('haber_' + ctaEmpActual + '_' + mesKey);
+  updates['sisventas/gastos/' + gastoKey + '/monto'] = neto;
+  updates['sisventas/gastos/' + gastoKey + '/sueldoBruto'] = bruto;
+  updates['sisventas/gastos/' + gastoKey + '/adelantoCompensado'] = compensadoTotal;
+  updates['sisventas/gastos/' + gastoKey + '/adelantosAplicados'] = detalleAplicados;
   try {
-    var resultado = await _aplicarAdelantosAlHaberAtomico(empKey,mes,JSON.parse(JSON.stringify(sueldo)),JSON.parse(JSON.stringify(pendientes)));
-    if (vigente() && ctaEmpActual === empKey) notify('Adelanto aplicado: $' + Math.round(resultado.aplicar).toLocaleString('es-AR') + ' · haber neto $' + Math.round(resultado.neto).toLocaleString('es-AR'));
+    await window.fbUpdate(window.fbRef(window.fbDB), updates);
+    notify('Adelanto aplicado: $' + Math.round(aplicar).toLocaleString('es-AR') + ' · haber neto $' + Math.round(neto).toLocaleString('es-AR'));
   } catch(error) {
-    if (vigente() && ctaEmpActual === empKey) notify('No se pudo aplicar el adelanto: ' + error.message);
+    notify('No se pudo aplicar el adelanto: ' + error.message);
   }
-  finally { window._adelantosAplicando = false; }
 }
 
 function _puedeAprobarMovEmp(m) {
@@ -32516,13 +32451,13 @@ function renderMovsEmp() {
   var lista = movsEmpData.filter(function(m) {
     if (!_ctaEmpMovVisibleParaRol(m)) return false;
     var estadoCalcFiltro = _movEmpEstadoCalculado(m);
-    var coincidePeriodo = vistaCta === 'todos' || (vistaCta === 'pendientes'
+    var coincidePeriodo = vistaCta === 'pendientes'
       ? (_ctaEmpMovHastaPeriodo(m, mesCta) && _movEmpEsCobrable(m) && _movEmpSaldoPendiente(m) > 0)
-      : _movEmpEnPeriodo(m, mesCta));
+      : _movEmpEnPeriodo(m, mesCta);
     return (!filtroTipo || m.tipo === filtroTipo) && (!filtroEstado || estadoCalcFiltro === filtroEstado || String(m.estado||'').toLowerCase() === filtroEstado) && coincidePeriodo;
   });
   var tituloListado = document.getElementById('ctaemp-listado-titulo');
-  if (tituloListado) tituloListado.textContent = vistaCta === 'todos' ? 'Movimientos · todo el historial' : (vistaCta === 'pendientes' ? 'Movimientos pendientes acumulados' : (vistaCta === 'anterior' ? 'Movimientos · mes anterior' : 'Movimientos · mes actual'));
+  if (tituloListado) tituloListado.textContent = vistaCta === 'pendientes' ? 'Movimientos pendientes acumulados' : (vistaCta === 'anterior' ? 'Movimientos · mes anterior' : 'Movimientos · mes actual');
   _renderPagosRealizadosEmp(movsEmpData.filter(_ctaEmpMovVisibleParaRol), mesCta);
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">'+(vistaCta === 'pendientes' ? 'Sin saldos pendientes hasta este período' : 'Sin movimientos registrados')+'</td></tr>';
@@ -32561,7 +32496,7 @@ function renderMovsEmp() {
         '<td class="tr">'+ fotoBtn +'</td>' +
         '<td style="white-space:nowrap">' +
           (m.tipo === 'comision'
-            ? (m.gastoFbKey ? '<button class="btn btn-sm" onclick="event.stopPropagation();abrirComisionDesdeGasto(\''+escapeHTML(m.gastoFbKey)+'\')" style="color:var(--blue);border-color:var(--blue)"><i class="ti ti-percentage"></i> Gestionar</button>' : '<button class="btn btn-sm" data-fbkey="'+escapeHTML(m.fbKey)+'" onclick="event.stopPropagation();verDetalleMovEmp(this)"><i class="ti ti-eye"></i> Ver detalle</button>')
+            ? (m.gastoFbKey ? '<button class="btn btn-sm" onclick="event.stopPropagation();abrirComisionDesdeGasto(\''+escapeHTML(m.gastoFbKey)+'\')" style="color:var(--blue);border-color:var(--blue)"><i class="ti ti-percentage"></i> Gestionar</button>' : '<span style="font-size:10px;color:var(--text3)">Disponible en Comisiones</span>')
             : (_puedeAprobarMovEmp(m) ? '<button class="btn btn-sm" onclick="event.stopPropagation();aprobarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" title="Aprobar" style="color:var(--green);border-color:var(--green)"><i class="ti ti-check"></i> Aprobar</button>' : '')) +
           (puedeAbonar ? '<button class="btn btn-sm" onclick="event.stopPropagation();abonarMovEmp(\''+m.fbKey+'\',\''+ctaEmpActual+'\')" style="color:var(--green);border-color:var(--green)"><i class="ti ti-cash"></i> Abonar</button>' : '') +
           (puedeGestionarGasto ? '<button class="btn btn-sm" onclick="event.stopPropagation();irAGastoDesdeCtaEmp(\''+escapeHTML(m.gastoFbKey)+'\')" style="color:var(--blue);border-color:var(--blue)"><i class="ti ti-external-link"></i> Revisar</button>' : '') +
@@ -32572,8 +32507,8 @@ function renderMovsEmp() {
   }
   var TIPOS_HABER = ['sueldo','aguinaldo','comision','hextra','bonificacion','transporte','materiales','gasto_empresa','otro'];
   var listaPeriodo = movsEmpData.filter(function(m){ return _ctaEmpMovVisibleParaRol(m) && _movEmpEnPeriodo(m, mesCta); });
-  // El resumen conserva el período seleccionado, incluso al consultar toda
-  // la grilla histórica; no convierte esa consulta en un total de meses distintos.
+  // La grilla sigue mostrando sólo el mes seleccionado, pero este resumen es
+  // el saldo de cuenta corriente acumulado hasta ese mes.
   var listaSaldoAcumulado = movsEmpData.filter(function(m) {
     return _ctaEmpMovVisibleParaRol(m) && _ctaEmpMovHastaPeriodo(m, mesCta);
   });
@@ -32659,44 +32594,11 @@ function abonarMovEmp(movKey, empKey) {
   }).catch(function(error){ notify('No se pudo preparar el pago: ' + error.message); });
 }
 
-function _ctaEmpMostrarComisionAnterior(mov) {
-  if (!isAuthenticated || !currentUserUid || !ctaEmpActual || typeof window.permisoModulo !== 'function' || !window.permisoModulo('ctaemp') || typeof window.svAlert !== 'function') return;
-  var propia = typeof svEmpleadoPropio === 'function' ? svEmpleadoPropio() : null;
-  if (!window.tienePermiso('empleados.verCuentas') && (!propia || String(propia.fbKey || propia.id) !== String(ctaEmpActual))) return;
-  if (!_ctaEmpMovVisibleParaRol(mov)) return;
-  function numero(valor) { return valor !== null && valor !== undefined && typeof valor !== 'boolean' && String(valor).trim() !== '' && Number.isFinite(Number(valor)) ? Number(valor) : null; }
-  function importe(valor) { return '$' + valor.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
-  function fecha(valor) { var texto = String(valor || ''); return /^\d{4}-\d{2}-\d{2}/.test(texto) ? texto.slice(0,10).split('-').reverse().join('/') : texto || 'Sin fecha'; }
-  var monto = numero(mov.monto), porcentaje = numero(mov.pct != null ? mov.pct : mov.porcentaje), base = numero(mov.gananciaBase);
-  var lineas = [fecha(mov.fecha), String(mov.descripcion || mov.desc || mov.detalle || 'Comisión anterior')];
-  if (monto !== null) lineas.push('Importe original: ' + importe(monto));
-  if (porcentaje !== null) lineas.push('Porcentaje: ' + porcentaje.toLocaleString('es-AR', {maximumFractionDigits:6}) + '%');
-  if (base !== null) lineas.push('Ganancia base: ' + importe(base));
-  var pagos = Object.values(mov.pagos || {}).filter(function(p) { return p && typeof p === 'object'; });
-  var pagosConMonto = pagos.filter(function(p) { return numero(p.monto) !== null; });
-  var directo = numero(mov.montoPagado);
-  if (directo !== null || pagosConMonto.length) {
-    var pagado = Math.max(0, directo || 0, pagosConMonto.reduce(function(s,p) { return s + (pagoGastoEstaAnulado(p) ? 0 : numero(p.monto)); },0));
-    lineas.push('Pagado registrado: ' + importe(pagado));
-    if (monto !== null) lineas.push('Saldo: ' + importe(Math.max(0, monto - pagado)));
-  } else if (String(mov.estado || '').toLowerCase() === 'pagado') lineas.push('Pagado · sin desglose de pago guardado');
-  if (mov.aprobadoPor || mov.fechaAprobacion) lineas.push('Aprobación: ' + [mov.aprobadoPor, mov.fechaAprobacion ? fecha(mov.fechaAprobacion) : ''].filter(Boolean).join(' · '));
-  if (pagos.length) {
-    lineas.push('', 'Pagos registrados');
-    pagos.forEach(function(p) {
-      var montoPago = numero(p.monto), medio = p.medio || p.medioPago || '';
-      lineas.push(fecha(p.fecha) + (montoPago !== null ? ' · ' + importe(montoPago) : ' · Sin importe guardado') + (medio ? ' · ' + medio : '') + (pagoGastoEstaAnulado(p) ? ' · Anulado' : ''));
-    });
-  }
-  return window.svAlert(lineas.join('\n'), {titulo:'Comisión anterior', textoAceptar:'Cerrar', centrado:true, desplazable:true});
-}
-
 function verDetalleMovEmp(tr) {
   // Mostrar un tooltip/notify con el detalle del movimiento
   var fbKey = tr.dataset.fbkey;
   var mov = movsEmpData.find(function(m){ return m.fbKey === fbKey; });
   if (!mov) return;
-  if (String(mov.tipo || '').toLowerCase() === 'comision' && !mov.gastoFbKey && !mov.gastoKey) return _ctaEmpMostrarComisionAnterior(mov);
   var tipoLabel = {sueldo:'Sueldo',aguinaldo:'Aguinaldo',comision:'Comisión',hextra:'H. extra',bonificacion:'Bonificación',adelanto:'Adelanto',transporte:'Transporte',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'}[mov.tipo]||mov.tipo;
   var desc = mov.descripcion || mov.desc || mov.detalle || 'Sin descripción';
   var fechaRaw = _movEmpFechaVisual(mov);
@@ -32868,108 +32770,102 @@ function onFotoSeleccionada(input) {
   reader.readAsDataURL(file);
 }
 
-function _gastoLaboralDesdeMovimiento(empFbKey, movFbKey, mov, clase) {
-  var monto=parseFloat(mov.monto)||0,legacyKey='ctaemp/' + empFbKey + '/' + movFbKey;
-  if(clase==='comision'){
-    var emp=_buscarEmpleadoPorKeyCta(empFbKey),pagado=parseFloat(mov.montoPagado)||0,estado=_estadoGastoComisionDesdeMovimiento(mov,monto,pagado);
-    var gasto={fecha:_comisionNormFecha(mov.fechaAprobacion||mov.fecha),descripcion:mov.descripcion||('Comisión venta ' + (mov.ventaId||'')),categoria:'Personal',tipo:'Comisión',tipoPagable:'comision',monto:monto,montoPagado:pagado,estado:estado,requiereAprobacion:estado==='pendiente_aprobacion',aprobadoPor:mov.aprobadoPor||'',aprobadoTs:mov.aprobadoTs||null,fechaAprobacion:mov.fechaAprobacion||'',empleadoId:empFbKey,empleadoFbKey:empFbKey,empleadoNombre:mov.empleadoNombre||emp.nombre||'',ventaId:mov.ventaId||'',ventaFbKey:mov.ventaFbKey||'',pct:parseFloat(mov.pct)||0,pctOriginal:parseFloat(mov.pctOriginal)||parseFloat(mov.pct)||0,gananciaBase:parseFloat(mov.gananciaBase)||0,cliente:mov.cliente||'',origen:'comision',origenLegacy:'ctaemp',legacyKey:legacyKey,generadoPor:currentUser||'',ts:mov.ts||Date.now()};
-    if(mov.pagos)gasto.pagos=JSON.parse(JSON.stringify(mov.pagos));
-    else if(pagado>0)gasto.saldoPagadoLegacy=pagado;
-    return gasto;
-  }
-  if(clase==='adelanto'){
-    var pagos=mov.pagos||{},lista=Object.values(pagos),medio=mov.medioPago||(lista[0]&&lista[0].medio)||'';
-    if(!medio)throw new Error('Falta el medio de pago del adelanto');
-    var nombre=mov.empleadoNombre||'',detalle=String(mov.descripcion||'').trim();
-    return {fecha:mov.fechaPago||mov.fecha||svFechaLocalISO(),vencimiento:'',tipo:'Variable',tipoPagable:'adelanto',categoria:'Personal',descripcion:'Adelanto de personal'+(nombre?' — '+nombre:'')+(detalle?' · '+detalle:''),monto:monto,montoPagado:monto,estado:'pagado',medio:medio,pagos:JSON.parse(JSON.stringify(pagos)),comprobanteSolicitudUrl:mov.fotoUrl||null,fotoBase64:mov.fotoBase64||mov.fotoUrl||null,empleadoId:empFbKey,empleadoFbKey:empFbKey,empleadoNombre:nombre,origen:'adelanto_personal',origenLegacy:'ctaemp',legacyKey:legacyKey,usuario:mov.usuario||currentUser||'',ts:mov.ts||Date.now()};
-  }
-  var estadoMov=String(mov.estado||'').toLowerCase(),requiere=estadoMov==='pendiente',categorias={transporte:'Movilidad',materiales:'Materiales',gasto_empresa:'Gasto empresa',otro:'Otro'};
-  var empresa={fecha:mov.fecha||svFechaLocalISO(),tipo:'Variable',tipoPagable:'gasto_empresa',categoria:categorias[mov.tipo]||'Otro',descripcion:mov.descripcion||mov.desc||'Gasto solicitado por empleado',monto:monto,montoPagado:parseFloat(mov.montoPagado)||0,estado:estadoMov==='pagado'?'pagado':(estadoMov==='rechazado'?'rechazado':(requiere?'pendiente_aprobacion':'aprobado')),requiereAprobacion:requiere,empleadoId:empFbKey,empleadoFbKey:empFbKey,empleadoNombre:mov.empleadoNombre||'',solicitadoPor:mov.usuario||'',solicitadoTs:mov.ts||Date.now(),movimientoCtaKey:movFbKey,comprobanteSolicitudUrl:mov.fotoUrl||null,ts:mov.ts||Date.now()};
-  if(mov.pagos)empresa.pagos=JSON.parse(JSON.stringify(mov.pagos));
-  if(mov.medioPago)empresa.medio=mov.medioPago;
-  return empresa;
-}
-
-function _guardarMovimientoVinculadoAtomico(empKey, movKey, vista, opciones) {
-  opciones=opciones||{};
-  if(!window.fbDB||typeof window.SVLaborWrites?.atomic!=='function')return Promise.reject(new Error('No está disponible el guardado seguro del movimiento'));
-  var clase=opciones.clase||(vista.tipo==='adelanto'?'adelanto':vista.tipo==='comision'?'comision':'empresa');
-  var movPath='sisventas/ctaemp/'+empKey+'/'+movKey,empPath='sisventas/empleados/'+empKey,legacyKey='ctaemp/'+empKey+'/'+movKey;
-  var enlace=vista.gastoFbKey||vista.gastoKey||'',gastoKey=enlace||(clase==='comision'?_claveOperacionConcurrente('gasto_comision_legacy',[empKey,movKey]):(clase==='adelanto'?'adelanto_':'solicitud_emp_')+String(empKey).replace(/[^a-zA-Z0-9_-]/g,'_')+'_'+String(movKey).replace(/[^a-zA-Z0-9_-]/g,'_'));
-  var gastoPath='sisventas/gastos/'+gastoKey,rutas=[movPath,empPath,gastoPath],legacyCompleto=clase==='comision'&&!enlace;
-  if(legacyCompleto)rutas.push('sisventas/gastos');
-  var reglaPath=opciones.reglaPeriodica?'sisventas/gastos_periodicos_emp/'+empKey+'/'+opciones.reglaPeriodica.key:'';
-  if(reglaPath)rutas.push(reglaPath);
-  var seleccionado=Object.assign({},vista);delete seleccionado.fbKey;delete seleccionado._fuente;
-  return window.SVLaborWrites.atomic({paths:rutas,build:function(valores){
-    var actual=valores[movPath],empleado=valores[empPath];
-    if(!empleado||opciones.nuevo&&empleado.activo===false)throw new Error('El empleado ya no está disponible. Actualizá la pantalla.');
-    if(opciones.nuevo){if(actual)throw new Error('El movimiento ya existe. Se conservaron sus datos.');actual=JSON.parse(JSON.stringify(seleccionado));}
-    else if(!actual)throw new Error('El movimiento ya no está disponible. Actualizá la pantalla.');
-    if((actual.gastoFbKey||actual.gastoKey||'')!==enlace&&!opciones.nuevo)throw new Error('El vínculo del movimiento cambió. Actualizá la pantalla.');
-    if(actual.tipo!==vista.tipo)throw new Error('El tipo de movimiento cambió. Actualizá la pantalla.');
-    var salida=opciones.transformar?opciones.transformar(JSON.parse(JSON.stringify(actual))):JSON.parse(JSON.stringify(actual));
-    var elegida=gastoKey,gasto=valores[gastoPath];
-    if(legacyCompleto){
-      var todos=valores['sisventas/gastos']||{},monto=Math.round(parseFloat(actual.monto)||0);
-      var encontrada=Object.keys(todos).find(function(key){var g=todos[key]||{};if(String(g.legacyKey||'')===legacyKey)return true;if(String(g.tipoPagable||'').toLowerCase()!=='comision'||String(g.empleadoFbKey||g.empleadoId||'')!==String(empKey))return false;if((actual.ventaFbKey||actual.ventaId)&&(String(g.ventaFbKey||'')===String(actual.ventaFbKey||'')||String(g.ventaId||'')===String(actual.ventaId||'')))return true;return Math.abs((parseFloat(g.monto)||0)-monto)<=1&&String(g.descripcion||'')===String(actual.descripcion||'');});
-      if(!encontrada&&todos[gastoKey])throw new Error('El gasto de destino está ocupado. Se conservaron sus datos.');
-      elegida=encontrada||gastoKey;
-      gasto=todos[elegida]||null;
-    }
-    var destino='sisventas/gastos/'+elegida,updates={},tieneGasto=!!gasto;
-    if(reglaPath){if(valores[reglaPath])throw new Error('La regla periódica ya existe. No se reemplazaron sus datos.');updates[reglaPath]=opciones.reglaPeriodica.data;}
-    if(gasto&&opciones.nuevo)throw new Error('El gasto de destino ya existe. Se conservaron sus pagos y datos.');
-    if(gasto&&!legacyCompleto&&gasto.legacyKey&&gasto.legacyKey!==legacyKey)throw new Error('El gasto está vinculado a otro movimiento. Se conservaron sus datos.');
-    if(opciones.estado){
-      if(totalPagadoGasto(gasto)>0||_movEmpPagosArray(actual).some(function(p){return !pagoGastoEstaAnulado(p)&&(parseFloat(p.monto)||0)>0;})||(parseFloat(actual.montoPagado)||0)>0)throw new Error('Un movimiento con pagos no puede cambiar su aprobación. Se conservaron los pagos.');
-      if(String(actual.estado||'').toLowerCase()==='anulado'||gasto&&normalizarEstadoGasto(gasto)==='anulado')throw new Error('El movimiento está anulado. Actualizá la pantalla.');
-      Object.assign(salida,opciones.movCambios||{});
-      if(gasto)gasto=Object.assign({},gasto,opciones.gastoCambios||{});
-    }
-    if(opciones.corregirMedio){
-      var ctx=opciones.corregirMedio,pago=ctx.pago,token=pago?_pagoGastoToken(pago,ctx.pagoIdx):null;
-      if(pago){
-        var original=Object.assign({},pago);delete original._key;delete original._idx;
-        if(!actual.pagos?.[token]||window.SVLaborWrites.canonical(actual.pagos[token])!==window.SVLaborWrites.canonical(original))throw new Error('El pago cambió. Actualizá la pantalla antes de corregirlo.');
-        if(gasto&&(!gasto.pagos?.[token]||Number(gasto.pagos[token].monto)!==Number(actual.pagos[token].monto)))throw new Error('El historial del gasto y del movimiento requiere revisión. No se modificó ningún pago.');
-        salida.pagos[token]=Object.assign({},salida.pagos[token],{medio:ctx.medio});
-        if(gasto){gasto=JSON.parse(JSON.stringify(gasto));gasto.pagos[token]=Object.assign({},gasto.pagos[token],{medio:ctx.medio});}
-      }else if(_movEmpPagosArray(actual).length)throw new Error('El historial cambió. Seleccioná el pago que querés corregir.');
-      salida.medioPago=ctx.medio;if(gasto)gasto.medio=ctx.medio;
-    }
-    if(!gasto){
-      if(clase==='adelanto'&&String(salida.estado||'').toLowerCase()!=='pagado'){
-        updates[movPath]=salida;return updates;
-      }
-      gasto=_gastoLaboralDesdeMovimiento(empKey,movKey,salida,clase);
-    }
-    salida.gastoFbKey=elegida;salida.migradoAGastos=true;
-    if(clase==='comision')salida.legacyKey=legacyKey;
-    if(!tieneGasto||opciones.estado||opciones.corregirMedio)updates[destino]=gasto;
-    updates[movPath]=salida;
-    if(tieneGasto&&!opciones.estado&&!opciones.corregirMedio&&window.SVLaborWrites.canonical(actual)===window.SVLaborWrites.canonical(salida))return;
-    return updates;
-  }}).then(function(resultado){var patch=resultado?.value||{},path=Object.keys(patch).find(function(p){return p.indexOf('sisventas/gastos/')===0;});return {gastoKey:(resultado?.value?.[movPath]||{}).gastoFbKey||gastoKey,gasto:path?patch[path]:null,committed:resultado?.committed===true};});
-}
-
 function _crearGastoAdelantoDesdeMovimiento(empFbKey, movFbKey, mov) {
-  if(!empFbKey||!movFbKey||!mov||mov.tipo!=='adelanto'||!(parseFloat(mov.monto)>0)||String(mov.estado||'').toLowerCase()!=='pagado')return Promise.resolve(null);
-  return _guardarMovimientoVinculadoAtomico(empFbKey,movFbKey,mov,{clase:'adelanto'}).then(function(r){return r.gastoKey;});
+  if (!window.fbDB || !empFbKey || !movFbKey || !mov || mov.tipo !== 'adelanto') return Promise.resolve(null);
+  var monto = parseFloat(mov.monto) || 0;
+  if (monto <= 0 || String(mov.estado||'').toLowerCase() !== 'pagado') return Promise.resolve(null);
+  var pagos = mov.pagos || {};
+  var pagosArr = Array.isArray(pagos) ? pagos : Object.keys(pagos).map(function(k){ return pagos[k] || {}; });
+  var medio = mov.medioPago || (pagosArr[0] && pagosArr[0].medio) || '';
+  if (!medio) return Promise.reject(new Error('Falta el medio de pago del adelanto'));
+  var gastoKey = mov.gastoFbKey || ('adelanto_' + String(empFbKey).replace(/[^a-zA-Z0-9_-]/g,'_') + '_' + String(movFbKey).replace(/[^a-zA-Z0-9_-]/g,'_'));
+  var fecha = mov.fechaPago || mov.fecha || svFechaLocalISO();
+  var nombre = mov.empleadoNombre || '';
+  var detalle = String(mov.descripcion||'').trim();
+  var gasto = {
+    fecha: fecha,
+    vencimiento: '',
+    tipo: 'Variable',
+    tipoPagable: 'adelanto',
+    categoria: 'Personal',
+    descripcion: 'Adelanto de personal' + (nombre ? ' — ' + nombre : '') + (detalle ? ' · ' + detalle : ''),
+    monto: monto,
+    montoPagado: monto,
+    estado: 'pagado',
+    medio: medio,
+    pagos: pagos,
+    comprobanteSolicitudUrl: mov.fotoUrl || null,
+    fotoBase64: mov.fotoBase64 || mov.fotoUrl || null,
+    empleadoId: empFbKey,
+    empleadoFbKey: empFbKey,
+    empleadoNombre: nombre,
+    origen: 'adelanto_personal',
+    origenLegacy: 'ctaemp',
+    legacyKey: 'ctaemp/' + empFbKey + '/' + movFbKey,
+    usuario: mov.usuario || currentUser || '',
+    ts: mov.ts || Date.now()
+  };
+  return window.fbSet(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoKey), gasto).then(function(){
+    return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), {
+      gastoFbKey: gastoKey,
+      migradoAGastos: true,
+      medioPago: medio
+    });
+  }).then(function(){ return gastoKey; });
 }
 
-function _guardarMovimientoEmpleado(nuevo, mensaje, reglaPeriodica) {
-  var empleado=ctaEmpActual,refMov=window.fbPush(window.fbRef(window.fbDB,'sisventas/ctaemp/'+empleado));
-  var esVinculado=['adelanto','transporte','materiales','gasto_empresa','otro'].includes(String(nuevo.tipo||'').toLowerCase());
-  if(!esVinculado)return Promise.reject(new Error('Ese movimiento se registra desde su circuito específico'));
-  return _guardarMovimientoVinculadoAtomico(empleado,refMov.key,nuevo,{nuevo:true,reglaPeriodica:reglaPeriodica}).then(function(){
-    notify(mensaje||'Movimiento guardado');cerrarModalMovEmp();if(typeof fbCargarGastos==='function')fbCargarGastos();
+function _guardarMovimientoEmpleado(nuevo, mensaje) {
+  var refMov = window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + ctaEmpActual));
+  return window.fbSet(refMov, nuevo).then(function(){
+    if (nuevo.tipo === 'adelanto' && nuevo.estado === 'pagado') {
+      return _crearGastoAdelantoDesdeMovimiento(ctaEmpActual, refMov.key, nuevo);
+    }
+    if (['transporte','materiales','gasto_empresa','otro'].includes(String(nuevo.tipo || '').toLowerCase())) {
+      return _crearGastoEmpresaDesdeMovimiento(ctaEmpActual, refMov.key, nuevo);
+    }
+    return null;
+  }).then(function(){
+    notify(mensaje || 'Movimiento guardado');
+    cerrarModalMovEmp();
+    if (typeof fbCargarGastos === 'function') fbCargarGastos();
   });
 }
 
 function _crearGastoEmpresaDesdeMovimiento(empFbKey, movFbKey, mov) {
-  if(!empFbKey||!movFbKey||!mov||!(parseFloat(mov.monto)>0))return Promise.resolve(null);
-  return _guardarMovimientoVinculadoAtomico(empFbKey,movFbKey,mov,{clase:'empresa'}).then(function(r){return r.gastoKey;});
+  if (!window.fbDB || !empFbKey || !movFbKey || !mov) return Promise.resolve(null);
+  var monto = parseFloat(mov.monto) || 0;
+  if (monto <= 0) return Promise.resolve(null);
+  var key = mov.gastoFbKey || ('solicitud_emp_' + String(empFbKey).replace(/[^a-zA-Z0-9_-]/g,'_') + '_' + String(movFbKey).replace(/[^a-zA-Z0-9_-]/g,'_'));
+  var estadoMov = String(mov.estado || '').toLowerCase();
+  var requiereAprobacion = estadoMov === 'pendiente';
+  var categoriaPorTipo = { transporte:'Movilidad', materiales:'Materiales', gasto_empresa:'Gasto empresa', otro:'Otro' };
+  var gasto = {
+    fecha: mov.fecha || svFechaLocalISO(),
+    tipo: 'Variable',
+    tipoPagable: 'gasto_empresa',
+    categoria: categoriaPorTipo[mov.tipo] || 'Otro',
+    descripcion: mov.descripcion || mov.desc || 'Gasto solicitado por empleado',
+    monto: monto,
+    montoPagado: parseFloat(mov.montoPagado) || 0,
+    estado: estadoMov === 'pagado' ? 'pagado' : (requiereAprobacion ? 'pendiente_aprobacion' : 'aprobado'),
+    requiereAprobacion: requiereAprobacion,
+    empleadoId: empFbKey,
+    empleadoFbKey: empFbKey,
+    empleadoNombre: mov.empleadoNombre || '',
+    solicitadoPor: mov.usuario || '',
+    solicitadoTs: mov.ts || Date.now(),
+    movimientoCtaKey: movFbKey,
+    comprobanteSolicitudUrl: mov.fotoUrl || null,
+    ts: mov.ts || Date.now()
+  };
+  if (mov.pagos) gasto.pagos = mov.pagos;
+  if (mov.medioPago) gasto.medio = mov.medioPago;
+  return window.fbSet(window.fbRef(window.fbDB, 'sisventas/gastos/' + key), gasto).then(function(){
+    return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), {
+      gastoFbKey: key,
+      migradoAGastos: true
+    });
+  }).then(function(){ return key; });
 }
 
 function guardarMovEmp() {
@@ -33038,12 +32934,11 @@ function guardarMovEmp() {
     };
   }
   var esPeriodico = !soloAdelanto && esAdmin && document.getElementById('movi-periodico') && document.getElementById('movi-periodico').checked;
-  var reglaPeriodica = null;
   if (esPeriodico) {
     var dia = parseInt(document.getElementById('movi-periodico-dia').value) || 1;
     nuevo.periodico = true;
     nuevo.periodicoDia = dia;
-    reglaPeriodica = {key:window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos_periodicos_emp/' + ctaEmpActual)).key,data:{
+    window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos_periodicos_emp/' + ctaEmpActual), {
       tipo: nuevo.tipo,
       descripcion: nuevo.descripcion,
       monto: monto,
@@ -33053,11 +32948,11 @@ function guardarMovEmp() {
       empleadoNombre: nuevo.empleadoNombre,
       creadoPor: currentUser || 'admin',
       ts: Date.now()
-    }};
+    }).then(function(){ notify('✓ Gasto periódico registrado — se repetirá el día ' + dia + ' de cada mes'); });
   }
   window._movEmpGuardando = true;
   _movEmpBotonGuardar(true, 'Guardando...');
-  _guardarMovimientoEmpleado(nuevo, nuevo.fotoUrl ? 'Movimiento guardado con comprobante' : 'Movimiento guardado', reglaPeriodica)
+  _guardarMovimientoEmpleado(nuevo, nuevo.fotoUrl ? 'Movimiento guardado con comprobante' : 'Movimiento guardado')
     .catch(function(e){ notify('Error al guardar el movimiento: ' + e.message); })
     .finally(function(){ window._movEmpGuardando = false; _movEmpBotonGuardar(false); });
 }
@@ -33074,8 +32969,8 @@ function _buscarEmpleadoPorKeyCta(empFbKey) {
 
 function _estadoGastoComisionDesdeMovimiento(mov, monto, pagado) {
   mov = mov || {};
-  monto = parseFloat(monto) || 0;
-  pagado = parseFloat(pagado) || 0;
+  monto = Math.round(parseFloat(monto) || 0);
+  pagado = Math.round(parseFloat(pagado) || 0);
   var estadoMov = String(mov.estado || '').toLowerCase();
   if (estadoMov === 'rechazado' || estadoMov === 'anulado') return estadoMov;
   if (estadoMov === 'pagado' || (monto > 0 && pagado >= monto)) return 'pagado';
@@ -33085,10 +32980,65 @@ function _estadoGastoComisionDesdeMovimiento(mov, monto, pagado) {
 }
 
 async function _crearGastoComisionDesdeMovimiento(empFbKey, movFbKey, mov, gastosPrecargados) {
-  if(!empFbKey||!movFbKey||!mov||!(parseFloat(mov.monto)>0))return null;
-  var resultado=await _guardarMovimientoVinculadoAtomico(empFbKey,movFbKey,mov,{clase:'comision'});
-  if(gastosPrecargados&&resultado.gasto)gastosPrecargados[resultado.gastoKey]=resultado.gasto;
-  return resultado.gastoKey;
+  if (!window.fbDB || !empFbKey || !mov) return null;
+  var monto = Math.round(parseFloat(mov.monto)||0);
+  if (monto <= 0) return null;
+  var legacyKey = 'ctaemp/' + empFbKey + '/' + movFbKey;
+  var gastosObj = gastosPrecargados || await window.fbGet(window.fbRef(window.fbDB, 'sisventas/gastos')).then(function(s){return s.val()||{};}).catch(function(){return {};});
+  var claveExistente = Object.keys(gastosObj).find(function(k){
+    var g = gastosObj[k] || {};
+    if (String(g.legacyKey||'') === legacyKey) return true;
+    if (String(g.tipoPagable||'').toLowerCase() !== 'comision') return false;
+    if (String(g.empleadoFbKey||g.empleadoId||'') !== String(empFbKey)) return false;
+    if ((mov.ventaFbKey || mov.ventaId) && (String(g.ventaFbKey||'') === String(mov.ventaFbKey||'') || String(g.ventaId||'') === String(mov.ventaId||''))) return true;
+    return Math.abs((parseFloat(g.monto)||0)-monto) <= 1 && String(g.descripcion||'') === String(mov.descripcion||'');
+  });
+  if (claveExistente) {
+    await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), { gastoFbKey:claveExistente, migradoAGastos:true, legacyKey:legacyKey }).catch(function(){});
+    return claveExistente;
+  }
+  var emp = _buscarEmpleadoPorKeyCta(empFbKey);
+  var fecha = _comisionNormFecha(mov.fechaAprobacion || mov.fecha);
+  var pagado = Math.round(parseFloat(mov.montoPagado)||0);
+  var estadoGasto = _estadoGastoComisionDesdeMovimiento(mov, monto, pagado);
+  var gasto = {
+    fecha: fecha,
+    descripcion: mov.descripcion || ('Comisión venta ' + (mov.ventaId||'')),
+    categoria: 'Personal',
+    tipo: 'Comisión',
+    tipoPagable: 'comision',
+    monto: monto,
+    montoPagado: pagado || 0,
+    estado: estadoGasto,
+    requiereAprobacion: estadoGasto === 'pendiente_aprobacion',
+    aprobadoPor: mov.aprobadoPor || '',
+    aprobadoTs: mov.aprobadoTs || null,
+    fechaAprobacion: mov.fechaAprobacion || '',
+    empleadoId: empFbKey,
+    empleadoFbKey: empFbKey,
+    empleadoNombre: mov.empleadoNombre || emp.nombre || '',
+    ventaId: mov.ventaId || '',
+    ventaFbKey: mov.ventaFbKey || '',
+    pct: parseFloat(mov.pct) || 0,
+    pctOriginal: parseFloat(mov.pctOriginal) || parseFloat(mov.pct) || 0,
+    gananciaBase: parseFloat(mov.gananciaBase) || 0,
+    cliente: mov.cliente || '',
+    origen: 'comision',
+    origenLegacy: 'ctaemp',
+    legacyKey: legacyKey,
+    generadoPor: currentUser || '',
+    ts: mov.ts || Date.now()
+  };
+  if (estadoGasto === 'pagado' || estadoGasto === 'pagado_parcial') {
+    var pagoKey = 'pago_' + Date.now();
+    gasto.pagos = {};
+    gasto.pagos[pagoKey] = { fecha: mov.fechaPago || fecha, ts: Date.now(), monto: pagado || monto, medio: mov.medioPago || '', usuario: currentUser || '', rol: currentRole || '', comprobante: mov.comprobante || null };
+  }
+  var refNuevo = window.fbPush(window.fbRef(window.fbDB, 'sisventas/gastos'));
+  await window.fbSet(refNuevo, gasto);
+  gastosObj[refNuevo.key] = gasto;
+  await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), { gastoFbKey: refNuevo.key, migradoAGastos:true, legacyKey:legacyKey }).catch(function(){});
+  return refNuevo.key;
 }
 
 var _sincronizacionComisionesLegacyPromesa = null;
@@ -33121,24 +33071,38 @@ async function sincronizarComisionesLegacyConModulo() {
 window.sincronizarComisionesLegacyConModulo = sincronizarComisionesLegacyConModulo;
 
 async function aprobarComision(movFbKey, empFbKey) {
-  if(!window.tienePermiso('empleados.aprobarMovimiento')){notify('Solo el administrador puede aprobar comisiones');return;}
-  if(!await svConfirm('¿Aprobar esta comisión?'))return;
-  try{
-    var mov=(await window.fbGet(window.fbRef(window.fbDB,'sisventas/ctaemp/'+empFbKey+'/'+movFbKey))).val();if(!mov)throw new Error('Movimiento no encontrado');
-    var cambios={estado:'aprobado',requiereAprobacion:false,aprobadoPor:currentUser||'',fechaAprobacion:svFechaLocalISO(),aprobadoTs:Date.now()};
-    await _guardarMovimientoVinculadoAtomico(empFbKey,movFbKey,mov,{clase:'comision',estado:true,movCambios:cambios,gastoCambios:Object.assign({},cambios,{estado:'pendiente_pago'})});
-    notify('✓ Comisión aprobada — gasto generado y pendiente de pago');if(typeof fbCargarGastos==='function')fbCargarGastos();if(typeof cargarCtaEmp==='function')cargarCtaEmp();
-  }catch(error){notify('Error aprobando comisión: '+error.message);}
+  if (!window.fbDB) return;
+  if (!window.tienePermiso('empleados.aprobarMovimiento')) { notify('Solo el administrador puede aprobar comisiones'); return; }
+  if (!await svConfirm('¿Aprobar esta comisión?')) return;
+  var refMov = window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey);
+  window.fbGet(refMov).then(function(snap){
+    var mov = snap.val() || {};
+    var fechaApr = svFechaLocalISO();
+    mov.estado = 'aprobado';
+    mov.aprobadoPor = currentUser || '';
+    mov.fechaAprobacion = fechaApr;
+    return window.fbUpdate(refMov, {
+      estado: 'aprobado',
+      aprobadoPor: currentUser || '',
+      fechaAprobacion: fechaApr
+    }).then(function(){ return _crearGastoComisionDesdeMovimiento(empFbKey, movFbKey, mov); });
+  }).then(function(){
+    notify('✓ Comisión aprobada — gasto generado y pendiente de pago');
+    if (typeof fbCargarGastos === 'function') fbCargarGastos();
+    if (typeof cargarCtaEmp === 'function') cargarCtaEmp();
+  }).catch(function(e){ notify('Error aprobando comisión: ' + e.message); });
 }
 
 async function rechazarComision(movFbKey, empFbKey) {
-  if(!window.tienePermiso('empleados.aprobarMovimiento')){notify('Solo el administrador puede rechazar comisiones');return;}
-  var motivo=await svPrompt('Motivo del rechazo (opcional):');if(motivo===null)return;
-  try{
-    var mov=(await window.fbGet(window.fbRef(window.fbDB,'sisventas/ctaemp/'+empFbKey+'/'+movFbKey))).val();if(!mov)throw new Error('Movimiento no encontrado');
-    var cambios={estado:'rechazado',requiereAprobacion:false,rechazadoPor:currentUser||'',motivoRechazo:motivo,fechaRechazo:svFechaLocalISO(),aprobadoPor:null,fechaAprobacion:null,aprobadoTs:null};
-    await _guardarMovimientoVinculadoAtomico(empFbKey,movFbKey,mov,{clase:'comision',estado:true,movCambios:cambios,gastoCambios:cambios});notify('Comisión rechazada');
-  }catch(error){notify('No se pudo rechazar la comisión: '+error.message);}
+  if (!window.fbDB) return;
+  if (!window.tienePermiso('empleados.aprobarMovimiento')) { notify('Solo el administrador puede rechazar comisiones'); return; }
+  var motivo = await svPrompt('Motivo del rechazo (opcional):') || '';
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empFbKey + '/' + movFbKey), {
+    estado: 'rechazado',
+    rechazadoPor: currentUser || '',
+    motivoRechazo: motivo,
+    fechaRechazo: svFechaLocalISO()
+  }).then(function(){ notify('Comisión rechazada'); });
 }
 
 var _adelantoAprobarCtx = null;
@@ -33167,35 +33131,101 @@ function corregirMedioPagoMovEmp(movKey, pagoIdx) {
   if (modal) modal.style.display = 'flex';
 }
 
-async function aprobarMovEmp(movKey, empKey) {
-  if(!window.tienePermiso('empleados.aprobarMovimiento')){notify('Solo el administrador puede aprobar movimientos');return;}
-  var mov=(movsEmpData||[]).find(function(m){return String(m.fbKey)===String(movKey);});if(!mov){notify('Movimiento no encontrado');return;}
-  if(mov.tipo==='adelanto'){
-    _adelantoAprobarCtx={movKey:movKey,empKey:empKey,mov:mov};if(typeof poblarSelectoresMediosPago==='function')poblarSelectoresMediosPago();
-    var medio=document.getElementById('adelanto-medio');if(medio)medio.value='';var titulo=document.getElementById('adelanto-modal-titulo');if(titulo)titulo.innerHTML='<i class="ti ti-cash"></i> Entregar adelanto';
-    var resumen=document.getElementById('adelanto-aprobar-resumen');if(resumen)resumen.innerHTML='<strong>'+escapeHTML(mov.empleadoNombre||'Empleado')+'</strong><br>Adelanto: <strong>$'+Math.round(parseFloat(mov.monto)||0).toLocaleString('es-AR')+'</strong>'+(mov.descripcion?'<br><span style="font-size:11px">'+escapeHTML(mov.descripcion)+'</span>':'');
-    var modal=document.getElementById('modal-aprobar-adelanto');if(modal)modal.style.display='flex';return;
+function aprobarMovEmp(movKey, empKey) {
+  if (!window.fbDB) return;
+  if (!window.tienePermiso('empleados.aprobarMovimiento')) { notify('Solo el administrador puede aprobar movimientos'); return; }
+  var mov = (movsEmpData || []).find(function(m){ return String(m.fbKey) === String(movKey); });
+  var esAdelanto = mov && mov.tipo === 'adelanto';
+  var monto = mov ? (parseFloat(mov.monto) || 0) : 0;
+  if (esAdelanto) {
+    _adelantoAprobarCtx = { movKey:movKey, empKey:empKey, mov:mov };
+    if (typeof poblarSelectoresMediosPago === 'function') poblarSelectoresMediosPago();
+    var medioSel = document.getElementById('adelanto-medio');
+    if (medioSel) medioSel.value = '';
+    var titulo = document.getElementById('adelanto-modal-titulo');
+    if (titulo) titulo.innerHTML = '<i class="ti ti-cash"></i> Entregar adelanto';
+    var resumen = document.getElementById('adelanto-aprobar-resumen');
+    if (resumen) resumen.innerHTML = '<strong>' + escapeHTML(mov.empleadoNombre || 'Empleado') + '</strong><br>Adelanto: <strong>$' + Math.round(monto).toLocaleString('es-AR') + '</strong>' + (mov.descripcion ? '<br><span style="font-size:11px">'+escapeHTML(mov.descripcion)+'</span>' : '');
+    var modal = document.getElementById('modal-aprobar-adelanto');
+    if (modal) modal.style.display = 'flex';
+    return;
   }
-  if(mov.tipo==='comision')return aprobarComision(movKey,empKey);
-  var cambios={estado:'aprobado',requiereAprobacion:false,aprobadoPor:currentUser||'',fechaAprobacion:svFechaLocalISO(),aprobadoTs:Date.now()};
-  try{await _guardarMovimientoVinculadoAtomico(empKey,movKey,mov,{estado:true,movCambios:cambios,gastoCambios:cambios});notify('Movimiento aprobado — queda pendiente de pago');}
-  catch(error){notify('No se pudo aprobar el movimiento: '+error.message);}
+  var cambios = {
+    estado: 'aprobado',
+    aprobadoPor: currentUser || '',
+    fechaAprobacion: svFechaLocalISO()
+  };
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + empKey + '/' + movKey), cambios)
+    .then(function(){
+      if (mov && ['transporte','materiales','gasto_empresa','otro'].includes(String(mov.tipo || '').toLowerCase())) {
+        return _crearGastoEmpresaDesdeMovimiento(empKey, movKey, Object.assign({}, mov, cambios));
+      }
+      return null;
+    }).then(function(){ notify('Movimiento aprobado — queda pendiente de pago'); });
 }
 
-async function confirmarAprobacionAdelanto() {
-  if(!_adelantoAprobarCtx||!window.fbDB)return;
-  if(!window.tienePermiso(_adelantoAprobarCtx.modo==='corregir'?'empleados.pagarMovimiento':'empleados.aprobarMovimiento')){notify('No tenés permiso para esta operación');return;}
-  var medio=String((document.getElementById('adelanto-medio')||{}).value||'').trim();if(!medio){notify('Seleccioná el medio de pago');return;}
-  var ctx=_adelantoAprobarCtx,mov=ctx.mov||{},ahora=Date.now(),fecha=svFechaLocalISO(),pagoKey='pago_'+ahora+'_'+Math.random().toString(36).slice(2,9);
-  try{
-    var opciones=ctx.modo==='corregir'?{corregirMedio:{medio:medio,pago:ctx.pago||null,pagoIdx:ctx.pagoIdx}}:{transformar:function(actual){
-      if(actual.tipo!=='adelanto'||String(actual.estado||'').toLowerCase()!=='pendiente'||Number(actual.monto)!==Number(mov.monto)||(parseFloat(actual.montoPagado)||0)>0||_movEmpPagosArray(actual).length||(parseFloat(actual.montoCompensado)||0)>0)throw new Error('El adelanto cambió o ya fue entregado. Actualizá la pantalla.');
-      var pago={fecha:fecha,monto:parseFloat(actual.monto)||0,medio:medio,concepto:'adelanto',usuario:currentUser||'',rol:currentRole||'admin',ts:ahora};
-      actual.estado='pagado';actual.aprobadoPor=currentUser||'';actual.fechaAprobacion=fecha;actual.montoPagado=pago.monto;actual.fechaPago=fecha;actual.medioPago=medio;actual.pagos={};actual.pagos[pagoKey]=pago;return actual;
-    }};
-    await _guardarMovimientoVinculadoAtomico(ctx.empKey,ctx.movKey,mov,opciones);
-    cerrarAprobacionAdelanto();notify(ctx.modo==='corregir'?'✓ Medio corregido a '+formatoMedioPago(medio):'✓ Adelanto entregado por '+formatoMedioPago(medio)+' y registrado en Gastos');if(typeof fbCargarGastos==='function')fbCargarGastos();
-  }catch(error){notify('No se pudo completar el movimiento: '+error.message);}
+function confirmarAprobacionAdelanto() {
+  if (!_adelantoAprobarCtx || !window.fbDB) return;
+  var medio = String((document.getElementById('adelanto-medio')||{}).value||'').trim();
+  if (!medio) { notify('Seleccioná el medio de pago'); return; }
+  var ctx = _adelantoAprobarCtx;
+  var mov = ctx.mov || {};
+  if (ctx.modo === 'corregir') {
+    var cambiosMedio = { medioPago:medio };
+    var pago = ctx.pago || null;
+    if (pago && pago._key) cambiosMedio['pagos/' + pago._key + '/medio'] = medio;
+    else if (pago && Number.isInteger(pago._idx)) cambiosMedio['pagos/' + pago._idx + '/medio'] = medio;
+    else {
+      var nuevoPagoKey = 'pago_' + Date.now();
+      cambiosMedio['pagos/' + nuevoPagoKey] = {
+        fecha: mov.fechaPago || mov.fecha || svFechaLocalISO(),
+        monto: parseFloat(mov.montoPagado)||parseFloat(mov.monto)||0,
+        medio: medio,
+        concepto: mov.tipo || '',
+        usuario: currentUser||'',
+        rol: currentRole||'admin',
+        ts: Date.now()
+      };
+    }
+    var refCorreccion = window.fbRef(window.fbDB, 'sisventas/ctaemp/' + ctx.empKey + '/' + ctx.movKey);
+    window.fbUpdate(refCorreccion, cambiosMedio).then(function(){ return window.fbGet(refCorreccion); }).then(function(snap){
+      var actualizado = Object.assign({}, snap.val()||{}, { medioPago:medio });
+      return actualizado.tipo === 'adelanto' ? _crearGastoAdelantoDesdeMovimiento(ctx.empKey, ctx.movKey, actualizado) : null;
+    }).then(function(){
+      cerrarAprobacionAdelanto();
+      notify('✓ Medio corregido a ' + formatoMedioPago(medio));
+      if (typeof fbCargarGastos === 'function') fbCargarGastos();
+    }).catch(function(e){ notify('Error al corregir el medio: ' + e.message); });
+    return;
+  }
+  var monto = parseFloat(mov.monto) || 0;
+  var fechaPago = svFechaLocalISO();
+  var pagoKey = 'pago_' + Date.now();
+  var cambios = {
+    estado: 'pagado',
+    aprobadoPor: currentUser || '',
+    fechaAprobacion: fechaPago,
+    montoPagado: monto,
+    fechaPago: fechaPago,
+    medioPago: medio,
+    pagos: {}
+  };
+  cambios.pagos[pagoKey] = {
+    fecha: fechaPago,
+    monto: monto,
+    medio: medio,
+    concepto: 'adelanto',
+    usuario: currentUser || '',
+    rol: currentRole || 'admin',
+    ts: Date.now()
+  };
+  window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + ctx.empKey + '/' + ctx.movKey), cambios).then(function(){
+    return _crearGastoAdelantoDesdeMovimiento(ctx.empKey, ctx.movKey, Object.assign({}, mov, cambios));
+  }).then(function(){
+    cerrarAprobacionAdelanto();
+    notify('✓ Adelanto entregado por ' + formatoMedioPago(medio) + ' y registrado en Gastos');
+    if (typeof fbCargarGastos === 'function') fbCargarGastos();
+  }).catch(function(e){ notify('Error al aprobar el adelanto: ' + e.message); });
 }
 
 async function eliminarMovEmp(movKey, empKey) {
@@ -41202,17 +41232,31 @@ function editarUsuario(fbKey) {
   }
 }
 function _eliminarBonificacionGastoVinculada(gasto, gastoFbKey) {
-  return _eliminarGastoAtomico(gasto,gastoFbKey);
+  if (!gasto || !window.fbDB || typeof window.fbUpdate !== 'function') {
+    return Promise.reject(new Error('No hay conexión segura para eliminar la bonificación'));
+  }
+  var empleadoFbKey = String(gasto.empleadoFbKey || gasto.empleadoId || '');
+  var movimientoCtaKey = String(gasto.movimientoCtaKey || '');
+  if ((!empleadoFbKey || !movimientoCtaKey) && String(gasto.legacyKey || '').indexOf('ctaemp/') === 0) {
+    var partesLegacy = String(gasto.legacyKey).split('/');
+    empleadoFbKey = empleadoFbKey || String(partesLegacy[1] || '');
+    movimientoCtaKey = movimientoCtaKey || String(partesLegacy[2] || '');
+  }
+  if (!empleadoFbKey || !movimientoCtaKey) {
+    return Promise.reject(new Error('La bonificación no tiene un vínculo válido con la cuenta del empleado'));
+  }
+  var actualizaciones = {};
+  actualizaciones['sisventas/gastos/' + gastoFbKey] = null;
+  actualizaciones['sisventas/ctaemp/' + empleadoFbKey + '/' + movimientoCtaKey] = null;
+  return window.fbUpdate(window.fbRef(window.fbDB), actualizaciones);
 }
 
 async function eliminarRegistro(coleccion, fbKey) {
-  var vigente = typeof svCapturarContextoOperacion === 'function' ? svCapturarContextoOperacion() : function(){return true;};
   // No permitir eliminar gastos ya pagados
   var g = null;
   var esBonificacionVinculada = false;
   if (coleccion === 'gastos') {
-    var vista = (gastosData||[]).find(function(x){ return x.fbKey === fbKey; });
-    g = vista ? JSON.parse(JSON.stringify(vista)) : null;
+    g = (gastosData||[]).find(function(x){ return x.fbKey === fbKey; });
     if (g && (normalizarEstadoGasto(g) === 'pagado' || Number(g.montoPagado || 0) > 0)) {
       notify('No se puede eliminar un gasto que ya fue pagado');
       return;
@@ -41228,16 +41272,17 @@ async function eliminarRegistro(coleccion, fbKey) {
     ? '¿Eliminar esta bonificación? También se quitará de la cuenta del empleado. Esta acción no se puede deshacer.'
     : '¿Eliminar ' + nombre + '? Esta acción no se puede deshacer.';
   if (!await svConfirm(pregunta)) return;
-  if (!vigente()) return;
   if (!window.fbDB) { notify('Sin conexión'); return; }
-  var eliminacion = coleccion === 'gastos'
-    ? _eliminarGastoAtomico(g, fbKey)
+  var eliminacion = coleccion === 'gastos' && _esGastoAdelanto(g)
+    ? _eliminarAdelantoGastoVinculado(g, fbKey)
+    : esBonificacionVinculada
+    ? _eliminarBonificacionGastoVinculada(g, fbKey)
     : (coleccion === 'proveedores'
       ? proveedorPersistirEliminar(fbKey)
       : window.fbRemove(window.fbRef(window.fbDB, 'sisventas/' + coleccion + '/' + fbKey)));
-  return eliminacion
-    .then(function(){ if (vigente()) notify(esBonificacionVinculada ? 'Bonificación eliminada de Gastos y de la cuenta del empleado' : 'Eliminado correctamente'); })
-    .catch(function(e){ if (vigente()) notify('Error al eliminar: ' + e.message); });
+  eliminacion
+    .then(function(){ notify(esBonificacionVinculada ? 'Bonificación eliminada de Gastos y de la cuenta del empleado' : 'Eliminado correctamente'); })
+    .catch(function(e){ notify('Error al eliminar: ' + e.message); });
 }
 
 async function eliminarCliente(el) {
@@ -42241,90 +42286,76 @@ async function generarGastosFijosMesSeguro() {
   var mes = _gastoFijoMesActual();
   if (_gastosFijosMesProcesado === mes) return;
   _gastosFijosMesProcesado = mes;
+  var actuales = (gastosData||[]).filter(function(g){ return String(g.fecha||'').slice(0,7) === mes; });
+  var firmasActuales = {};
+  actuales.forEach(function(g){ firmasActuales[_gastoFijoFirma(g)] = true; });
+  var basesPorFirma = {};
+  (gastosData||[]).filter(_gastoEsBaseFijaValida).forEach(function(g) {
+    var firma = _gastoFijoFirma(g);
+    if (!firma) return;
+    var previa = basesPorFirma[firma];
+    if (!previa || String(g.fecha||'') > String(previa.fecha||'') || (g.ts||0) > (previa.ts||0)) basesPorFirma[firma] = g;
+  });
+  var updates = {};
+  actuales.filter(function(g){ return g && g.fijoGenerado === true && g.fbKey; }).forEach(function(g) {
+    var descripcionCorrecta = _gastoFijoDescripcionMes(g.descripcion, mes);
+    if (descripcionCorrecta !== String(g.descripcion || '')) {
+      updates['sisventas/gastos/' + g.fbKey + '/descripcion'] = descripcionCorrecta;
+    }
+  });
+  var creados = 0;
+  Object.keys(basesPorFirma).forEach(function(firma) {
+    if (firmasActuales[firma]) return;
+    var base = basesPorFirma[firma];
+    var copia = Object.assign({}, base);
+    delete copia.fbKey; delete copia.pagos; delete copia.fotoBase64; delete copia.comprobante;
+    copia.fecha = _gastoFijoFechaMes(base.fecha, mes, 1);
+    copia.descripcion = _gastoFijoDescripcionMes(base.descripcion, mes);
+    copia.vencimiento = base.vencimiento ? _gastoFijoFechaMes(base.vencimiento, mes, 10) : '';
+    copia.montoPagado = 0;
+    copia.estado = 'pendiente';
+    copia.esFijoBase = false;
+    copia.fijoGenerado = true;
+    copia.fijoMes = mes;
+    copia.fijoBaseFbKey = base.fbKey;
+    copia.usuario = 'Sistema';
+    copia.ts = Date.now();
+    var key = 'fijo_' + _gastoFijoHash(firma) + '_' + mes.replace('-','_');
+    updates['sisventas/gastos/' + key] = copia;
+    creados++;
+  });
+  // Las reglas recurrentes creadas desde la cuenta de un empleado vivían en
+  // una rama separada y no tenían consumidor. Se materializan con una clave
+  // determinística para que reabrir Gastos nunca duplique el mes.
   try {
-    if (!window.SVLaborWrites || typeof window.SVLaborWrites.atomic !== 'function') throw new Error('No está listo el guardado seguro de recurrencias.');
-    var actuales = (gastosData || []).filter(function(g){ return String(g.fecha || '').slice(0,7) === mes; });
-    var firmasActuales = {};
-    actuales.forEach(function(g){ firmasActuales[_gastoFijoFirma(g)] = true; });
-    var basesPorFirma = {};
-    (gastosData || []).filter(_gastoEsBaseFijaValida).forEach(function(g){
-      var firma = _gastoFijoFirma(g), previa = basesPorFirma[firma];
-      if (firma && (!previa || String(g.fecha || '') > String(previa.fecha || '') || (g.ts || 0) > (previa.ts || 0))) basesPorFirma[firma] = g;
-    });
-    var planes = [], corregir = [], paths = new Set();
-    Object.keys(basesPorFirma).forEach(function(firma){
-      if (firmasActuales[firma]) return;
-      var base = basesPorFirma[firma];
-      if (!base.fbKey) throw new Error('La plantilla no tiene una referencia válida.');
-      var source = 'sisventas/gastos/' + base.fbKey;
-      var target = 'sisventas/gastos/fijo_' + _gastoFijoHash(firma) + '_' + mes.replace('-','_');
-      planes.push({clase:'fijo', source:source, target:target, firma:firma, baseKey:base.fbKey});
-      paths.add(source); paths.add(target);
-    });
-    actuales.filter(function(g){ return g && g.fijoGenerado === true && g.fbKey; }).forEach(function(g){
-      if (_gastoFijoDescripcionMes(g.descripcion, mes) === String(g.descripcion || '')) return;
-      var target = 'sisventas/gastos/' + g.fbKey;
-      corregir.push(target); paths.add(target);
-    });
-    // La consulta prepara el conjunto de reglas. Cada regla y destino se
-    // vuelven a leer y comparar dentro de la operación atómica.
-    var periodicos = (await window.fbGet(window.fbRef(window.fbDB, 'sisventas/gastos_periodicos_emp'))).val() || {};
-    Object.keys(periodicos).forEach(function(empKey){
-      Object.keys(periodicos[empKey] || {}).forEach(function(reglaKey){
+    var periodicosSnap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/gastos_periodicos_emp'));
+    var periodicos = periodicosSnap.val() || {};
+    Object.keys(periodicos).forEach(function(empKey) {
+      Object.keys(periodicos[empKey] || {}).forEach(function(reglaKey) {
         var regla = periodicos[empKey][reglaKey] || {};
         if (regla.activo === false || !(parseFloat(regla.monto) > 0)) return;
-        var source = 'sisventas/gastos_periodicos_emp/' + empKey + '/' + reglaKey;
-        var target = 'sisventas/gastos/periodico_emp_' + _gastoFijoHash(empKey + '|' + reglaKey) + '_' + mes.replace('-','_');
-        planes.push({clase:'empleado', source:source, target:target, empKey:empKey, reglaKey:reglaKey});
-        paths.add(source); paths.add(target);
+        var key = 'periodico_emp_' + _gastoFijoHash(empKey + '|' + reglaKey) + '_' + mes.replace('-','_');
+        if ((gastosData||[]).some(function(g){ return g.fbKey === key; })) return;
+        var categoriaPorTipo = { transporte:'Movilidad', materiales:'Materiales', gasto_empresa:'Gasto empresa', otro:'Otro' };
+        updates['sisventas/gastos/' + key] = {
+          fecha: _gastoFijoFechaMes('', mes, Math.max(1, Math.min(28, parseInt(regla.dia,10) || 1))),
+          vencimiento: '', tipo:'Variable', tipoPagable:'gasto_empresa',
+          categoria: categoriaPorTipo[String(regla.tipo||'').toLowerCase()] || 'Otro',
+          descripcion: regla.descripcion || 'Gasto recurrente de empleado',
+          monto: parseFloat(regla.monto) || 0, montoPagado:0,
+          estado:'aprobado', requiereAprobacion:false,
+          empleadoId:empKey, empleadoFbKey:empKey, empleadoNombre:regla.empleadoNombre || '',
+          origen:'periodico_empleado', reglaPeriodicaFbKey:reglaKey,
+          usuario:'Sistema', recurrenciaGenerada:true, recurrenciaMes:mes, ts:Date.now()
+        };
+        creados++;
       });
     });
-    if (paths.size > 128) throw new Error('Hay demasiadas recurrencias para confirmar juntas. Revisá las reglas antes de generar el mes.');
-    var creados = 0, ahora = Date.now();
-    if (paths.size) await window.SVLaborWrites.atomic({paths:Array.from(paths), build:function(values){
-      var updates = {}; creados = 0;
-      corregir.forEach(function(target){
-        var g = values[target];
-        if (!g || !g.fijoGenerado || String(g.fecha || '').slice(0,7) !== mes || totalPagadoGasto(g) > 0 || /^pagado(?:_parcial)?$/.test(String(g.estado || '').toLowerCase())) return;
-        var descripcion = _gastoFijoDescripcionMes(g.descripcion, mes);
-        if (descripcion !== String(g.descripcion || '')) updates[target + '/descripcion'] = descripcion;
-      });
-      planes.forEach(function(plan){
-        // Cualquier destino ocupado se conserva, incluidos pagos, rechazos,
-        // registros de otro origen y el resultado de una sesión concurrente.
-        if (values[plan.target] != null || Object.prototype.hasOwnProperty.call(updates, plan.target)) return;
-        var source = values[plan.source];
-        if (!source) return;
-        var copia;
-        if (plan.clase === 'fijo') {
-          if (!_gastoEsBaseFijaValida(source)) return;
-          if (_gastoFijoFirma(source) !== plan.firma) throw new Error('Cambió la plantilla. Actualizá Gastos antes de generar el mes.');
-          copia = Object.assign({}, source);
-          delete copia.fbKey; delete copia.pagos; delete copia.saldoPagadoLegacy; delete copia.fotoBase64; delete copia.comprobante;
-          copia.fecha = _gastoFijoFechaMes(source.fecha, mes, 1);
-          copia.descripcion = _gastoFijoDescripcionMes(source.descripcion, mes);
-          copia.vencimiento = source.vencimiento ? _gastoFijoFechaMes(source.vencimiento, mes, 10) : '';
-          copia.montoPagado = 0; copia.estado = 'pendiente'; copia.esFijoBase = false;
-          copia.fijoGenerado = true; copia.fijoMes = mes; copia.fijoBaseFbKey = plan.baseKey;
-          copia.usuario = 'Sistema'; copia.ts = ahora;
-        } else {
-          if (source.activo === false || !(parseFloat(source.monto) > 0)) return;
-          var categoriaPorTipo = {transporte:'Movilidad', materiales:'Materiales', gasto_empresa:'Gasto empresa', otro:'Otro'};
-          copia = {
-            fecha:_gastoFijoFechaMes('', mes, Math.max(1, Math.min(28, parseInt(source.dia,10) || 1))),
-            vencimiento:'', tipo:'Variable', tipoPagable:'gasto_empresa',
-            categoria:categoriaPorTipo[String(source.tipo || '').toLowerCase()] || 'Otro',
-            descripcion:source.descripcion || 'Gasto recurrente de empleado',
-            monto:parseFloat(source.monto) || 0, montoPagado:0, estado:'aprobado', requiereAprobacion:false,
-            empleadoId:plan.empKey, empleadoFbKey:plan.empKey, empleadoNombre:source.empleadoNombre || '',
-            origen:'periodico_empleado', reglaPeriodicaFbKey:plan.reglaKey,
-            usuario:'Sistema', recurrenciaGenerada:true, recurrenciaMes:mes, ts:ahora
-          };
-        }
-        updates[plan.target] = copia; creados++;
-      });
-      return Object.keys(updates).length ? updates : undefined;
-    }});
+  } catch(errorPeriodicos) {
+    console.warn('[Gastos recurrentes] No se pudieron leer las reglas de empleados', errorPeriodicos);
+  }
+  try {
+    if (Object.keys(updates).length) await window.fbUpdate(window.fbRef(window.fbDB), updates);
     _mostrarEstadoGastosFijos(creados ? ('Se generaron ' + creados + ' gastos fijos de ' + mesLabel() + ' sin duplicar registros.') : ('Gastos fijos de ' + mesLabel() + ' al día.'), 'ok');
   } catch(error) {
     _gastosFijosMesProcesado = '';
@@ -42520,7 +42551,7 @@ function totalPagadoGasto(g) {
   if (!g) return 0;
   var pagos = _gastoPagosArray(g);
   if (pagos && pagos.length) {
-    return Math.max(0,parseFloat(g.saldoPagadoLegacy)||0) + pagos.reduce(function(s,p){
+    return pagos.reduce(function(s,p){
       return s + (pagoGastoEstaAnulado(p) ? 0 : (parseFloat(p && p.monto) || 0));
     }, 0);
   }
@@ -42611,36 +42642,19 @@ function gastoSeleccionableParaPago(g) {
   return !['pagado','pendiente_aprobacion','rechazado','anulado'].includes(estado) && restoGasto(g) > 0;
 }
 
-function _cambiarEstadoGastoVinculadoAtomico(gastoKey, cambiosGasto, cambiosMov, comision) {
-  if(!window.fbDB||typeof window.SVLaborWrites?.atomic!=='function')return Promise.reject(new Error('No está disponible el guardado seguro'));
-  var vista=(gastosData||[]).find(function(g){return g.fbKey===gastoKey;});
-  if(!vista)return Promise.reject(new Error('Gasto no encontrado'));
-  function empleados(g){var legacy=String(g.legacyKey||'').split('/');return Array.from(new Set([g.empleadoId,g.empleadoFbKey,legacy[0]==='ctaemp'?legacy[1]:''].filter(Boolean).map(String)));}
-  var path='sisventas/gastos/'+gastoKey,cuentas=empleados(vista).map(function(emp){return 'sisventas/ctaemp/'+emp;});
-  return window.SVLaborWrites.atomic({paths:[path].concat(cuentas),build:function(valores){
-    var actual=valores[path];
-    if(!actual||comision&&String(actual.tipoPagable||'').toLowerCase()!=='comision')throw new Error('El gasto cambió. Actualizá la pantalla.');
-    empleados(actual).forEach(function(emp){if(cuentas.indexOf('sisventas/ctaemp/'+emp)<0)throw new Error('El empleado vinculado cambió. Actualizá la pantalla.');});
-    if(totalPagadoGasto(actual)>0||normalizarEstadoGasto(actual)==='anulado')throw new Error('Un gasto con pagos o anulado no puede cambiar su aprobación. Se conservaron sus datos.');
-    var updates={},encontrados=0;updates[path]=Object.assign({},actual,cambiosGasto);
-    cuentas.forEach(function(cuenta){Object.entries(valores[cuenta]||{}).forEach(function(entry){
-      var mov=entry[1],legacy=cuenta.slice('sisventas/'.length)+'/'+entry[0];
-      if(!mov||!(mov.gastoFbKey===gastoKey||mov.gastoKey===gastoKey||actual.legacyKey===legacy||actual.movimientoCtaKey===entry[0]))return;
-      if((parseFloat(mov.montoPagado)||0)>0||_movEmpPagosArray(mov).some(function(p){return !pagoGastoEstaAnulado(p)&&(parseFloat(p.monto)||0)>0;})||String(mov.estado||'').toLowerCase()==='anulado')throw new Error('El movimiento tiene pagos o está anulado. Se conservaron sus datos.');
-      encontrados++;updates[cuenta+'/'+entry[0]]=Object.assign({},mov,cambiosMov,{gastoFbKey:gastoKey,migradoAGastos:true});
-    });});
-    if((actual.movimientoCtaKey||actual.legacyKey)&&cuentas.length&&!encontrados)throw new Error('No se encontró la cuenta vinculada. Revisá el vínculo antes de aprobar.');
-    return updates;
-  }});
-}
-
 async function aprobarGastoSolicitado(gastoFbKey) {
-  if(!window.tienePermiso('gastos.aprobar')){notify('Solo el administrador puede aprobar solicitudes');return;}
-  var g=(gastosData||[]).find(function(item){return item.fbKey===gastoFbKey;});if(!g){notify('Gasto no encontrado');return;}
-  if(!await svConfirm('¿Aprobar este gasto por $'+Math.round(parseFloat(g.monto)||0).toLocaleString('es-AR')+'? Quedará pendiente de pago.'))return;
-  var cambios={estado:'aprobado',requiereAprobacion:false,aprobadoPor:currentUser||'',fechaAprobacion:svFechaLocalISO(),aprobadoTs:Date.now()};
-  try{await _cambiarEstadoGastoVinculadoAtomico(gastoFbKey,cambios,cambios,false);notify('Gasto aprobado — queda pendiente de pago');if(typeof generarNotificaciones==='function')generarNotificaciones();}
-  catch(error){notify('No se pudo aprobar: '+error.message);}
+  if (!window.tienePermiso('gastos.aprobar')) { notify('Solo el administrador puede aprobar solicitudes'); return; }
+  var g = (gastosData || []).find(function(item){ return item.fbKey === gastoFbKey; });
+  if (!g) { notify('Gasto no encontrado'); return; }
+  if (!await svConfirm('¿Aprobar este gasto por $' + Math.round(parseFloat(g.monto) || 0).toLocaleString('es-AR') + '? Quedará pendiente de pago.')) return;
+  var fecha = svFechaLocalISO();
+  var cambios = { estado:'aprobado', requiereAprobacion:false, aprobadoPor:currentUser || '', fechaAprobacion:fecha, aprobadoTs:Date.now() };
+  var tareas = [window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), cambios)];
+  if (g.empleadoId && g.movimientoCtaKey) tareas.push(window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/ctaemp/' + g.empleadoId + '/' + g.movimientoCtaKey), cambios));
+  Promise.all(tareas).then(function(){
+    notify('Gasto aprobado — queda pendiente de pago');
+    if (typeof generarNotificaciones === 'function') generarNotificaciones();
+  }).catch(function(error){ notify('No se pudo aprobar: ' + error.message); });
 }
 
 function togglePagoMultipleGastos() {
@@ -42797,22 +42811,39 @@ function _buscarCtaempMovimientoPorLegacyKey(legacyKey) {
 }
 
 async function aprobarComisionDesdeGasto(gastoFbKey) {
-  if(!window.tienePermiso('comisiones.aprobar')){notify('Solo el administrador puede aprobar comisiones');return;}
-  var g=(gastosData||[]).find(function(x){return x.fbKey===gastoFbKey;});if(!g||String(g.tipoPagable||'').toLowerCase()!=='comision'){notify('No es una comisión');return;}
-  if(!await svConfirm('¿Aprobar esta comisión?'))return;
-  var cambios={estado:'pendiente_pago',requiereAprobacion:false,aprobadoPor:currentUser||'',fechaAprobacion:svFechaLocalISO(),aprobadoTs:Date.now()};
-  try{await _cambiarEstadoGastoVinculadoAtomico(gastoFbKey,cambios,Object.assign({},cambios,{estado:'aprobado'}),true);notify('✓ Comisión aprobada — pendiente de pago');if(typeof fbCargarGastos==='function')fbCargarGastos();if(typeof cargarCtaEmp==='function')cargarCtaEmp();}
-  catch(error){notify('Error aprobando comisión: '+error.message);}
+  if (!window.tienePermiso('comisiones.aprobar')) { notify('Solo el administrador puede aprobar comisiones'); return; }
+  var g = (gastosData||[]).find(function(x){ return x.fbKey === gastoFbKey; });
+  if (!g) { notify('Gasto no encontrado'); return; }
+  if (String(g.tipoPagable||'').toLowerCase() !== 'comision') { notify('No es una comisión'); return; }
+  if (!await svConfirm('¿Aprobar esta comisión?')) return;
+  var fechaApr = svFechaLocalISO();
+  var upG = { estado:'pendiente_pago', requiereAprobacion:false, aprobadoPor:currentUser||'', fechaAprobacion:fechaApr, aprobadoTs:Date.now() };
+  var prom = window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), upG);
+  prom = prom.then(function(){ return _buscarCtaempMovimientoPorLegacyKey(g.legacyKey); }).then(function(info){
+    if (info && info.ref) return window.fbUpdate(info.ref, { estado:'aprobado', aprobadoPor:currentUser||'', fechaAprobacion:fechaApr, aprobadoTs:Date.now(), gastoFbKey:gastoFbKey, migradoAGastos:true });
+  });
+  prom.then(function(){ notify('✓ Comisión aprobada — pendiente de pago'); if(typeof fbCargarGastos==='function') fbCargarGastos(); if(typeof cargarCtaEmp==='function') cargarCtaEmp(); })
+      .catch(function(e){ notify('Error aprobando comisión: ' + e.message); });
 }
 
 async function rechazarComisionDesdeGasto(gastoFbKey) {
-  if(!window.tienePermiso('comisiones.aprobar')){notify('Solo el administrador puede rechazar comisiones');return;}
-  var g=(gastosData||[]).find(function(x){return x.fbKey===gastoFbKey;});if(!g||String(g.tipoPagable||'').toLowerCase()!=='comision'){notify('No es una comisión');return;}
-  var estado=normalizarEstadoGasto(g);if(['pagado','pagado_parcial'].includes(estado)){notify('Una comisión con pagos registrados no se puede rechazar');return;}if(estado==='rechazado'){notify('La comisión ya está rechazada');return;}
-  var motivo=await svPrompt('Motivo del rechazo (opcional):','',{sugerencias:['No corresponde']});if(motivo===null)return;
-  var cambios={estado:'rechazado',requiereAprobacion:false,rechazadoPor:currentUser||'',fechaRechazo:svFechaLocalISO(),rechazadoTs:Date.now(),motivoRechazo:motivo,aprobacionRevertida:estado==='pendiente_pago',aprobadoPor:null,fechaAprobacion:null,aprobadoTs:null};
-  try{await _cambiarEstadoGastoVinculadoAtomico(gastoFbKey,cambios,cambios,true);notify('Comisión rechazada');if(typeof fbCargarGastos==='function')fbCargarGastos();if(typeof cargarCtaEmp==='function')cargarCtaEmp();}
-  catch(error){notify('Error rechazando comisión: '+error.message);}
+  if (!window.tienePermiso('comisiones.aprobar')) { notify('Solo el administrador puede rechazar comisiones'); return; }
+  var g = (gastosData||[]).find(function(x){ return x.fbKey === gastoFbKey; });
+  if (!g) { notify('Gasto no encontrado'); return; }
+  if (String(g.tipoPagable||'').toLowerCase() !== 'comision') { notify('No es una comisión'); return; }
+  var estadoActual = normalizarEstadoGasto(g);
+  if (estadoActual === 'pagado' || estadoActual === 'pagado_parcial') { notify('Una comisión con pagos registrados no se puede rechazar'); return; }
+  if (estadoActual === 'rechazado') { notify('La comisión ya está rechazada'); return; }
+  var motivo = await svPrompt('Motivo del rechazo (opcional):', '', { sugerencias:['No corresponde'] });
+  if (motivo === null) return;
+  var fechaRech = svFechaLocalISO();
+  var datosRechazo = { estado:'rechazado', requiereAprobacion:false, rechazadoPor:currentUser||'', fechaRechazo:fechaRech, rechazadoTs:Date.now(), motivoRechazo:motivo, aprobacionRevertida:estadoActual === 'pendiente_pago', aprobadoPor:null, fechaAprobacion:null, aprobadoTs:null };
+  var prom = window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/' + gastoFbKey), datosRechazo);
+  prom = prom.then(function(){ return _buscarCtaempMovimientoPorLegacyKey(g.legacyKey); }).then(function(info){
+    if (info && info.ref) return window.fbUpdate(info.ref, Object.assign({}, datosRechazo, { gastoFbKey:gastoFbKey, migradoAGastos:true }));
+  });
+  prom.then(function(){ notify('Comisión rechazada'); if(typeof fbCargarGastos==='function') fbCargarGastos(); if(typeof cargarCtaEmp==='function') cargarCtaEmp(); })
+      .catch(function(e){ notify('Error rechazando comisión: ' + e.message); });
 }
 
 function _gastoDesgloseHaberHTML(g) {
@@ -43056,7 +43087,6 @@ function buscarGastos() {
 }
 
 function abrirFormGasto(fbKey) {
-  window._gastoFormVista = {key:fbKey || '',valor:null};
   gastoActualFbKey = fbKey;
   gastoFotoBase64  = null;
   var hoy = svFechaLocalISO();
@@ -43098,7 +43128,6 @@ function abrirFormGasto(fbKey) {
   if (fbKey) {
     var g = gastosData.find(function(x){ return x.fbKey===fbKey; });
     if (g) {
-      window._gastoFormVista = {key:fbKey,valor:JSON.parse(JSON.stringify(g))};
       document.getElementById('g-fecha').value       = g.fecha||hoy;
       document.getElementById('g-vencimiento').value = g.vencimiento||'';
       document.getElementById('g-tipo').value        = g.tipo||'Variable';
@@ -43257,168 +43286,45 @@ async function _movimientosVinculadosGasto(g, gastoKey) {
   return encontrados;
 }
 
-function _gastoBaseEdicion(gasto) {
-  if (!gasto) return null;
-  var base = {};
-  ['fecha','vencimiento','tipo','categoria','descripcion','desc','monto','medio','proveedor','comprobante','empleadoId','empleadoFbKey','empleadoNombre','esFijoBase','recurrenciaActiva','tipoPagable','origen','legacyKey','movimientoCtaKey','gastoFbKey','gastoKey','montoPagado','saldoPagadoLegacy','pagos','estado','reembolsado','montoCompensado','compensaciones','adelantoCompensado','adelantosAplicados','sueldoBase','sueldoBruto','bonificacion','mes','fechaPago','requiereAprobacion','aprobadoPor','aprobadoTs','fechaAprobacion'].forEach(function(campo) {
-    if (gasto[campo] !== undefined) base[campo] = gasto[campo];
-  });
-  return base;
-}
-
-function _gastoEmpleadosVinculados(gasto) {
-  var legacy = String(gasto && gasto.legacyKey || '').split('/');
-  return Array.from(new Set([gasto && gasto.empleadoId,gasto && gasto.empleadoFbKey,legacy[0] === 'ctaemp' ? legacy[1] : ''].filter(Boolean).map(String)));
-}
-
-function _gastoMovimientosDesdeValores(valores, cuentas, gasto, key, compatibilidadMedio) {
-  var refs = [], posibles = [];
-  cuentas.forEach(function(emp) {
-    Object.entries(valores['sisventas/ctaemp/' + emp] || {}).forEach(function(entry) {
-      var mov = entry[1];
-      if (!mov) return;
-      var ref = {empKey:emp,key:entry[0],mov:mov};
-      if (mov.gastoFbKey === key || mov.gastoKey === key || gasto.legacyKey === 'ctaemp/' + emp + '/' + entry[0] || gasto.movimientoCtaKey === entry[0] && _gastoEmpleadosVinculados(gasto).includes(emp)) refs.push(ref);
-      else if (compatibilidadMedio && !mov.gastoFbKey && !mov.gastoKey && mov.descripcion && mov.descripcion === gasto.descripcion && Math.abs((parseFloat(mov.monto)||0)-(parseFloat(gasto.monto)||0)) < 1) posibles.push(ref);
-    });
-  });
-  if (!refs.length && posibles.length > 1) throw new Error('No se pudo identificar un único movimiento. Revisá la cuenta del empleado.');
-  return refs.length ? refs : posibles;
-}
-
-async function _guardarGastoCompletoAtomico(vista, key, datos, foto) {
-  var vigente = typeof svCapturarContextoOperacion === 'function' ? svCapturarContextoOperacion() : function(){return true;};
-  if (!key && !window.tienePermiso('gastos.administrar')) {
-    var solicitud = Object.assign({}, datos);
-    if (foto) solicitud.fotoBase64 = foto;
-    return _crearGastoSinDuplicar(solicitud);
-  }
-  if (!window.fbDB || typeof window.SVLaborWrites?.atomic !== 'function') throw new Error('No hay conexión segura para guardar el gasto');
-  if (key && (!vista || Number(datos.montoPagado || 0) !== Number(vista.montoPagado || 0))) throw new Error('Corregí el pago desde Historial de pagos para conservar su auditoría.');
-  var nuevo = !key, identidad, rutas = new Set(), cuentas = _gastoEmpleadosVinculados(vista || datos);
-  if (datos.empleadoId && !cuentas.includes(String(datos.empleadoId))) cuentas.push(String(datos.empleadoId));
-  if (nuevo) {
-    ['categoria','proveedor','medio','comprobante','vencimiento'].forEach(function(campo){if (datos[campo] !== undefined && typeof datos[campo] !== 'string') throw new Error('Datos inválidos en ' + campo);if (typeof datos[campo] === 'string' && datos[campo].length > 500) throw new Error('El campo ' + campo + ' admite hasta 500 caracteres');});
-    identidad = _gastoIdentidad(datos);
-    var digest = await window.crypto.subtle.digest('SHA-256',new TextEncoder().encode(identidad));
-    if (!vigente()) throw new Error('La sesión cambió. Volvé a revisar el gasto antes de guardar.');
-    key = 'gasto_' + Array.from(new Uint8Array(digest)).map(function(byte){return byte.toString(16).padStart(2,'0');}).join('');
-    // El alta administrativa ya revisaba todos los gastos para detectar claves
-    // históricas aleatorias; su hash ahora también protege esa membresía.
-    rutas.add('sisventas/gastos');
-  }
-  var gastoPath = 'sisventas/gastos/' + key, fotoPath = 'sisventas/gastos_adjuntos/' + key + '/fotoBase64';
-  rutas.add(gastoPath);
-  cuentas.forEach(function(emp){rutas.add('sisventas/ctaemp/' + emp);});
-  var empleadoPath = datos.empleadoId ? 'sisventas/empleados/' + datos.empleadoId : '';
-  if (empleadoPath && (nuevo || String(datos.empleadoId) !== String(vista.empleadoId || ''))) rutas.add(empleadoPath);
-  if (foto) rutas.add(fotoPath);
-  var auditar = !nuevo && (_esGastoAdelanto(vista) || datos.medio !== vista.medio || Number(datos.monto)!==Number(vista.monto) || String(datos.empleadoId || '')!==String(vista.empleadoId || vista.empleadoFbKey || ''));
-  var auditPath = auditar ? 'sisventas/auditoria_pagos/' + window.fbPush(window.fbRef(window.fbDB,'sisventas/auditoria_pagos')).key : '';
-  if (auditPath) rutas.add(auditPath);
-  function medios(pagos){return Object.fromEntries(Object.entries(pagos || {}).map(function(entry){return [entry[0],entry[1] && entry[1].medio || ''];}));}
-  var baseVista = _gastoBaseEdicion(vista), movimientoNuevo = 'gasto_empresa_' + key;
-  var resultado = await window.SVLaborWrites.atomic({paths:Array.from(rutas),build:function(valores) {
-    var actual = valores[gastoPath], updates = {};
-    if (nuevo) {
-      if (actual || Object.values(valores['sisventas/gastos'] || {}).some(function(g){return _gastoIdentidad(g) === identidad;})) throw new Error('Ya existe un gasto con estos mismos datos. No se volvió a guardar.');
-      actual = JSON.parse(JSON.stringify(datos));
-      if (datos.empleadoId) {
-        var emp = valores[empleadoPath], cuentaPath = 'sisventas/ctaemp/' + datos.empleadoId;
-        if (!emp || emp.activo === false) throw new Error('El empleado cambió o ya no está activo. Actualizá la pantalla.');
-        if ((valores[cuentaPath] || {})[movimientoNuevo]) throw new Error('Ya existe el movimiento de este gasto. Actualizá la pantalla.');
-        actual.empleadoNombre = emp.nombre || datos.empleadoNombre || '';
-        updates[cuentaPath + '/' + movimientoNuevo] = {tipo:'gasto_empresa',monto:datos.monto,desc:'Gasto empresa: ' + datos.descripcion,fecha:datos.fecha,estado:Number(datos.montoPagado)>0 ? datos.estado : 'aprobado',montoPagado:Number(datos.montoPagado)||0,pagos:datos.pagos || {},gastoFbKey:key,empleadoId:datos.empleadoId,empleadoNombre:actual.empleadoNombre,ts:datos.ts || Date.now(),usuario:currentUser || ''};
-      }
-    } else {
-      if (!actual || window.SVLaborWrites.canonical(_gastoBaseEdicion(actual)) !== window.SVLaborWrites.canonical(baseVista)) throw new Error('El gasto o sus pagos cambiaron. Actualizá el formulario antes de guardar.');
-      var refs = _gastoMovimientosDesdeValores(valores,cuentas,actual,key,true), medioAnterior = actual.medio;
-      var cambiaMonto = Number(datos.monto)!==Number(actual.monto), cambiaEmpleado = String(datos.empleadoId || '')!==String(actual.empleadoId || actual.empleadoFbKey || '');
-      if (cambiaMonto && String(actual.estado || '').toLowerCase()==='pagado' && !Object.keys(actual.pagos || {}).length) throw new Error('El importe de este gasto pagado histórico debe corregirse desde Historial de pagos.');
-      if (cambiaMonto && Number(datos.monto)+0.01 < totalPagadoGasto(actual)) throw new Error('El importe no puede ser menor que el total ya pagado. Revisá Historial de pagos.');
-      var antes = {monto:actual.monto,medio:actual.medio || '',empleadoId:actual.empleadoId || actual.empleadoFbKey || '',legacyKey:actual.legacyKey || '',pagosMedios:medios(actual.pagos)};
-      var movimientosAntes = refs.map(function(ref){return {ruta:'sisventas/ctaemp/' + ref.empKey + '/' + ref.key,monto:ref.mov.monto,medio:ref.mov.medioPago || '',pagosMedios:medios(ref.mov.pagos)};});
-      ['fecha','vencimiento','tipo','categoria','descripcion','monto','medio','proveedor','comprobante','empleadoId','empleadoNombre','esFijoBase','usuario','recurrenciaActiva'].forEach(function(campo){if (datos[campo] !== undefined) actual[campo] = datos[campo];});
-      if (foto || actual.fotoBase64 || actual.fotoAdjunta) actual.fotoAdjunta = true;
-      if (Number(actual.monto) !== Number(vista.monto)) actual.estado = normalizarEstadoGasto(actual);
-      if (actual.medio !== medioAnterior && actual.pagos) Object.keys(actual.pagos).forEach(function(pago){actual.pagos[pago] = Object.assign({},actual.pagos[pago],{medio:actual.medio});});
-      if (_esGastoAdelanto(vista)) {
-        if (refs.length !== 1 || !datos.empleadoId) throw new Error('No se pudo identificar un único adelanto y su empleado. Revisá la cuenta.');
-        var ref = refs[0], mov = ref.mov, cambio = String(datos.empleadoId) !== ref.empKey, empleadoAnterior = ref.empKey, movimientoAnterior = JSON.parse(JSON.stringify(mov));
-        if ((parseFloat(mov.montoCompensado)||0)>0 && (cambio || Number(actual.monto)!==Number(vista.monto))) throw new Error('El adelanto ya fue compensado en haberes. Primero corregí esa compensación.');
-        if (cambio && (valores['sisventas/ctaemp/' + datos.empleadoId] || {})[ref.key]) throw new Error('Ya existe ese movimiento en la cuenta destino. No se sobrescribió.');
-        if (cambio && (!valores[empleadoPath] || valores[empleadoPath].activo === false)) throw new Error('El empleado destino ya no está disponible.');
-        actual.empleadoFbKey = datos.empleadoId;actual.legacyKey = 'ctaemp/' + datos.empleadoId + '/' + ref.key;
-        if (cambio && actual.descripcion === vista.descripcion && vista.empleadoNombre) actual.descripcion = actual.descripcion.replace(vista.empleadoNombre,actual.empleadoNombre || '');
-        Object.assign(mov,{empleadoId:datos.empleadoId,empleadoNombre:actual.empleadoNombre,gastoFbKey:key,monto:actual.monto,fecha:actual.fecha,medioPago:actual.medio});
-        if (cambio) updates['sisventas/ctaemp/' + ref.empKey + '/' + ref.key] = null;
-        ref.empKey = String(datos.empleadoId);
-        updates[auditPath] = {accion:'editar_adelanto_vinculado',gastoFbKey:key,empleadoAnterior:empleadoAnterior,empleadoNuevo:datos.empleadoId,movimientoAnterior:movimientoAnterior,usuario:currentUser || '',ts:Date.now()};
-      } else if (cambiaEmpleado && refs.length) {
-        if (!datos.empleadoId || refs.length !== 1) throw new Error('El gasto tiene movimientos vinculados. Revisá la cuenta del empleado antes de quitar o cambiar ese vínculo.');
-        var ref = refs[0], destinoPath = 'sisventas/ctaemp/' + datos.empleadoId;
-        if (!valores[empleadoPath] || valores[empleadoPath].activo === false) throw new Error('El empleado destino ya no está disponible.');
-        if ((valores[destinoPath] || {})[ref.key]) throw new Error('Ya existe ese movimiento en la cuenta destino. No se sobrescribió.');
-        updates['sisventas/ctaemp/' + ref.empKey + '/' + ref.key] = null;
-        ref.empKey = String(datos.empleadoId);
-        Object.assign(ref.mov,{empleadoId:datos.empleadoId,empleadoNombre:datos.empleadoNombre || '',gastoFbKey:key});
-        actual.empleadoFbKey = datos.empleadoId;actual.legacyKey = 'ctaemp/' + datos.empleadoId + '/' + ref.key;
-      }
-      refs.forEach(function(ref) {
-        if (cambiaMonto) ref.mov.monto = actual.monto;
-        if (actual.fecha !== vista.fecha) ref.mov.fecha = actual.fecha;
-        if (actual.medio !== medioAnterior) {
-          ref.mov.medioPago = actual.medio;
-          if (ref.mov.pagos) Object.keys(ref.mov.pagos).forEach(function(pago){ref.mov.pagos[pago] = Object.assign({},ref.mov.pagos[pago],{medio:actual.medio});});
-        }
-        updates['sisventas/ctaemp/' + ref.empKey + '/' + ref.key] = ref.mov;
-      });
-      if (auditPath && (actual.medio !== medioAnterior || cambiaEmpleado || cambiaMonto && refs.length)) {
-        updates[auditPath] = Object.assign(updates[auditPath] || {accion:'editar_gasto_vinculado',gastoFbKey:key,usuario:currentUser || '',ts:Date.now()},{anterior:antes,posterior:{monto:actual.monto,medio:actual.medio || '',empleadoId:actual.empleadoId || actual.empleadoFbKey || '',legacyKey:actual.legacyKey || '',pagosMedios:medios(actual.pagos)},movimientosAnteriores:movimientosAntes,movimientosPosteriores:refs.map(function(ref){return {ruta:'sisventas/ctaemp/' + ref.empKey + '/' + ref.key,monto:ref.mov.monto,medio:ref.mov.medioPago || '',pagosMedios:medios(ref.mov.pagos)};})});
-      }
-    }
-    updates[gastoPath] = actual;
-    if (foto && foto !== actual.fotoBase64 && foto !== valores[fotoPath]) updates[fotoPath] = foto;
-    return updates;
-  }});
-  if (!resultado || !resultado.committed) throw new Error('No se pudo confirmar el guardado del gasto');
-  return {key:key};
-}
-
-async function _eliminarGastoAtomico(vista, key) {
-  if (!vista || !window.fbDB || typeof window.SVLaborWrites?.atomic !== 'function') throw new Error('No hay conexión segura para eliminar el gasto');
-  var path = 'sisventas/gastos/' + key, cuentas = _gastoEmpleadosVinculados(vista), rutas = [path];
-  cuentas.forEach(function(emp){rutas.push('sisventas/ctaemp/' + emp);});
-  var auditPath = _esGastoAdelanto(vista) ? 'sisventas/auditoria_pagos/' + window.fbPush(window.fbRef(window.fbDB,'sisventas/auditoria_pagos')).key : '';
-  if (auditPath) rutas.push(auditPath);
-  return window.SVLaborWrites.atomic({paths:rutas,build:function(valores) {
-    var actual = valores[path];
-    if (!actual || window.SVLaborWrites.canonical(_gastoBaseEdicion(actual)) !== window.SVLaborWrites.canonical(_gastoBaseEdicion(vista))) throw new Error('El gasto o sus pagos cambiaron. Actualizá la pantalla antes de eliminar.');
-    if (totalPagadoGasto(actual)>0 || Number(actual.montoPagado)>0 || Number(actual.saldoPagadoLegacy)>0 || normalizarEstadoGasto(actual)==='pagado' || String(actual.estado || '').toLowerCase()==='pagado' && !Object.keys(actual.pagos || {}).length) throw new Error('No se puede eliminar un gasto que ya fue pagado');
-    var refs = _gastoMovimientosDesdeValores(valores,cuentas,actual,key,false), tipo = String(actual.tipoPagable || actual.origen || '').toLowerCase(), updates = {};
-    if ((_esGastoAdelanto(actual) || tipo==='bonificacion') && !refs.length) throw new Error('El gasto no tiene un vínculo válido con la cuenta del empleado. Revisá la cuenta.');
-    refs.forEach(function(ref) {
-      if (_movEmpTotalPagado(ref.mov)>0 || Number(ref.mov.montoPagado)>0 || Number(ref.mov.saldoPagadoLegacy)>0 || Number(ref.mov.montoCompensado)>0 || String(ref.mov.estado || '').toLowerCase()==='pagado' && !Object.keys(ref.mov.pagos || {}).length) throw new Error('Primero revisá los pagos y las compensaciones de la cuenta del empleado.');
-      updates['sisventas/ctaemp/' + ref.empKey + '/' + ref.key] = null;
-    });
-    updates[path] = null;
-    if (auditPath) updates[auditPath] = {accion:'eliminar_adelanto_vinculado',gastoFbKey:key,gastoAnterior:actual,movimientosAnteriores:refs,usuario:currentUser || '',ts:Date.now()};
-    return updates;
-  }});
-}
-
 async function _guardarEdicionGastoAdelanto(g, key, datos) {
-  return _guardarGastoCompletoAtomico(g,key,datos,null);
+  var refs = await _movimientosVinculadosGasto(g, key);
+  if (refs.length !== 1) throw new Error('No se pudo identificar un único adelanto vinculado. Revisá la cuenta del empleado.');
+  var ref = refs[0], mov = ref.mov;
+  if (!datos.empleadoId) throw new Error('Seleccioná el empleado que recibió el adelanto.');
+  var cambioEmpleado = datos.empleadoId !== ref.empKey;
+  if ((parseFloat(mov.montoCompensado) || 0) > 0 && (cambioEmpleado || datos.monto !== g.monto || datos.montoPagado !== g.montoPagado)) throw new Error('El adelanto ya fue compensado en haberes. Primero debe corregirse esa compensación.');
+  if (Number(datos.montoPagado) !== Number(g.montoPagado || 0)) throw new Error('Corregí el pago desde Historial de pagos para conservar su auditoría.');
+  var destino = 'sisventas/ctaemp/' + datos.empleadoId + '/' + ref.key;
+  if (cambioEmpleado) {
+    var existente = await window.fbGet(window.fbRef(window.fbDB, destino));
+    if (existente.val()) throw new Error('Ya existe ese movimiento en la cuenta destino. No se sobrescribió.');
+  }
+  datos.empleadoFbKey = datos.empleadoId;
+  datos.legacyKey = 'ctaemp/' + datos.empleadoId + '/' + ref.key;
+  if (cambioEmpleado && datos.descripcion === g.descripcion && g.empleadoNombre) datos.descripcion = datos.descripcion.replace(g.empleadoNombre, datos.empleadoNombre);
+  var nuevo = Object.assign({}, mov, {empleadoId:datos.empleadoId, empleadoNombre:datos.empleadoNombre, gastoFbKey:key, monto:datos.monto, fecha:datos.fecha, medioPago:datos.medio, pagos:datos.pagos || mov.pagos || {}});
+  var updates = {};
+  Object.keys(datos).forEach(function(campo){ updates['sisventas/gastos/' + key + '/' + campo] = datos[campo]; });
+  updates[destino] = nuevo;
+  if (cambioEmpleado) updates['sisventas/ctaemp/' + ref.empKey + '/' + ref.key] = null;
+  var audit = window.fbPush(window.fbRef(window.fbDB, 'sisventas/auditoria_pagos')).key;
+  updates['sisventas/auditoria_pagos/' + audit] = {accion:'editar_adelanto_vinculado', gastoFbKey:key, empleadoAnterior:ref.empKey, empleadoNuevo:datos.empleadoId, movimientoAnterior:mov, usuario:currentUser || '', ts:Date.now()};
+  return window.fbUpdate(window.fbRef(window.fbDB), updates);
 }
 
 async function _eliminarAdelantoGastoVinculado(g, key) {
-  return _eliminarGastoAtomico(g,key);
+  var refs = await _movimientosVinculadosGasto(g, key);
+  if (!refs.length) throw new Error('No se encontró el adelanto vinculado; no se eliminó el gasto.');
+  if ((parseFloat(g.montoPagado)||0)>0 || refs.some(function(ref){ return (parseFloat(ref.mov.montoPagado)||0)>0 || (parseFloat(ref.mov.montoCompensado)||0)>0; })) throw new Error('Primero anulá los pagos y revisá las compensaciones del adelanto.');
+  var updates = {};
+  updates['sisventas/gastos/' + key] = null;
+  refs.forEach(function(ref){ updates['sisventas/ctaemp/' + ref.empKey + '/' + ref.key] = null; });
+  var audit = window.fbPush(window.fbRef(window.fbDB, 'sisventas/auditoria_pagos')).key;
+  updates['sisventas/auditoria_pagos/' + audit] = {accion:'eliminar_adelanto_vinculado', gastoFbKey:key, gastoAnterior:g, movimientosAnteriores:refs, usuario:currentUser || '', ts:Date.now()};
+  return window.fbUpdate(window.fbRef(window.fbDB), updates);
 }
 
-async function guardarGastoCompleto() {
-  if (window._gastoCompletoGuardando) { notify('Ya se está guardando este gasto'); return; }
-  var editandoKey = gastoActualFbKey, formulario = window._gastoFormVista;
-  var vigente = typeof svCapturarContextoOperacion === 'function' ? svCapturarContextoOperacion() : function(){return true;};
+function guardarGastoCompleto() {
   var monto  = getMontoRaw(document.getElementById('g-monto'));
   var pagado = getMontoRaw(document.getElementById('g-monto-pagado'));
   var desc   = document.getElementById('g-descripcion').value.trim();
@@ -43460,10 +43366,23 @@ async function guardarGastoCompleto() {
     fotoAdjunta:   !!gastoFotoBase64,
     usuario:       currentUser || ''
   };
-  var gastoOriginal = editandoKey && formulario && formulario.key === editandoKey ? formulario.valor : null;
-  if (editandoKey && !gastoOriginal) { notify('Volvé a abrir el formulario para revisar el gasto actual.'); return; }
+  var gastoOriginal = gastoActualFbKey
+    ? (gastosData||[]).find(function(gasto){ return gasto.fbKey === gastoActualFbKey; })
+    : null;
   if (gastoOriginal && (gastoOriginal.fotoAdjunta || gastoOriginal.fotoBase64)) datos.fotoAdjunta = true;
   if (tipo === 'Fijo' && gastoOriginal && gastoOriginal.recurrenciaActiva === false) datos.recurrenciaActiva = false;
+  if (gastoOriginal && gastoOriginal.pagos) {
+    if (Array.isArray(gastoOriginal.pagos)) {
+      datos.pagos = gastoOriginal.pagos.map(function(pago){
+        return Object.assign({}, pago || {}, { medio: datos.medio });
+      });
+    } else {
+      datos.pagos = {};
+      Object.keys(gastoOriginal.pagos).forEach(function(key){
+        datos.pagos[key] = Object.assign({}, gastoOriginal.pagos[key] || {}, { medio: datos.medio });
+      });
+    }
+  }
   if (!gastoActualFbKey && pagado > 0) {
     var pagoInicialTs = Date.now();
     datos.pagos = {};
@@ -43477,19 +43396,39 @@ async function guardarGastoCompleto() {
     };
   }
   if (!window.fbDB) { notify('Sin conexión'); return; }
-  if (!editandoKey) datos.ts = Date.now();
-  window._gastoCompletoGuardando = true;
-  try {
-    var refGuardada = await _guardarGastoCompletoAtomico(gastoOriginal,editandoKey,datos,gastoFotoBase64);
-    if (!vigente() || window._gastoFormVista !== formulario) return refGuardada;
-    if (typeof registrarActividad === 'function') {
-      registrarActividad(editandoKey ? 'Gasto editado' : 'Gasto creado', desc + ' · $' + Math.round(monto).toLocaleString('es-AR') + ' · ' + datos.tipo + ' · ' + datos.estado);
+  var promesa = gastoActualFbKey
+    ? (_esGastoAdelanto(gastoOriginal) ? _guardarEdicionGastoAdelanto(gastoOriginal, gastoActualFbKey, datos) : window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/gastos/'+gastoActualFbKey), datos))
+    : (datos.ts = Date.now(), _crearGastoSinDuplicar(datos));
+  promesa.then(function(refGuardada) {
+    var claveGuardada = gastoActualFbKey || (refGuardada && refGuardada.key) || '';
+    if (claveGuardada && gastoFotoBase64) {
+      window.fbSet(window.fbRef(window.fbDB, 'sisventas/gastos_adjuntos/' + claveGuardada + '/fotoBase64'), gastoFotoBase64).catch(function(errorAdjunto){
+        console.warn('[Gastos] El gasto se guardó, pero no su comprobante', errorAdjunto);
+        notify('El gasto se guardó, pero no se pudo guardar el comprobante');
+      });
     }
-    notify(editandoKey ? 'Gasto actualizado' : 'Gasto registrado');
+    if (gastoActualFbKey && gastoOriginal && !_esGastoAdelanto(gastoOriginal)) {
+      sincronizarMedioPagoCuentaEmpleado(gastoOriginal, gastoActualFbKey, datos.medio);
+    }
+    if (typeof registrarActividad === 'function') {
+      registrarActividad(gastoActualFbKey ? 'Gasto editado' : 'Gasto creado', desc + ' · $' + Math.round(monto).toLocaleString('es-AR') + ' · ' + datos.tipo + ' · ' + datos.estado);
+    }
+    notify(gastoActualFbKey ? 'Gasto actualizado' : 'Gasto registrado');
+    if (tecnicoId && !gastoActualFbKey) {
+      var mov = {
+        tipo:      'gasto_empresa',
+        monto:     monto,
+        desc:      'Gasto empresa: '+desc,
+        fecha:     datos.fecha,
+        estado:    'aprobado',
+        ts:        Date.now(),
+        usuario:   currentUser||''
+      };
+      window.fbPush(window.fbRef(window.fbDB, 'sisventas/ctaemp/'+tecnicoId), mov);
+      notify('✓ Acreditado $'+monto.toLocaleString('es-AR')+' a '+tecnicoNom);
+    }
     cerrarFormGasto();
-    return refGuardada;
-  } catch(e) { if (vigente()) notify('Error: '+e.message); }
-  finally { window._gastoCompletoGuardando = false; }
+  }).catch(function(e){ notify('Error: '+e.message); });
 }
 
 var _gastoFbKeyPago = null;
@@ -43577,7 +43516,7 @@ function cerrarModalBonificacionEmpleado() {
 }
 
 function _guardarBonificacionEmpleadoAtomica(emp, movimiento, operacionId) {
-  if (!window.fbDB || typeof window.SVLaborWrites?.atomic !== 'function') return Promise.reject(new Error('No hay conexión segura para registrar la bonificación'));
+  if (!window.fbDB || typeof window.fbUpdate !== 'function') return Promise.reject(new Error('No hay conexión segura para registrar la bonificación'));
   var movKey = _claveOperacionConcurrente('bonificacion', [emp.fbKey, operacionId]);
   var gastoKey = _claveOperacionConcurrente('gasto_bonificacion', [emp.fbKey, operacionId]);
   var movGuardado = Object.assign({}, movimiento, {
@@ -43604,20 +43543,10 @@ function _guardarBonificacionEmpleadoAtomica(emp, movimiento, operacionId) {
   gastoGuardado.movimientoCtaKey = movKey;
   gastoGuardado.origen = 'bonificacion';
   gastoGuardado.operacionId = operacionId;
-  var movPath='sisventas/ctaemp/' + emp.fbKey + '/' + movKey,gastoPath='sisventas/gastos/' + gastoKey,empPath='sisventas/empleados/' + emp.fbKey;
-  return window.SVLaborWrites.atomic({paths:[movPath,gastoPath,empPath],build:function(valores){
-    var m=valores[movPath],g=valores[gastoPath],empleado=valores[empPath];
-    if(!empleado||empleado.activo===false)throw new Error('El empleado ya no está disponible. Actualizá la pantalla.');
-    if(m||g){
-      function coincide(actual,esperado){return actual&&actual.operacionId===operacionId&&Number(actual.monto)===Number(esperado.monto)&&actual.fecha===esperado.fecha&&actual.descripcion===esperado.descripcion;}
-      if(coincide(m,movGuardado)&&coincide(g,gastoGuardado)&&m.gastoFbKey===gastoKey&&g.legacyKey===movGuardado.legacyKey)return;
-      throw new Error('La bonificación ya existe o tiene datos distintos. Se conservaron sus importes y pagos.');
-    }
-    var actualizaciones={};
-    actualizaciones[movPath]=Object.assign({},movGuardado,{empleadoNombre:empleado.nombre||''});
-    actualizaciones[gastoPath]=Object.assign({},gastoGuardado,{empleadoNombre:empleado.nombre||''});
-    return actualizaciones;
-  }}).then(function() {
+  var actualizaciones = {};
+  actualizaciones['ctaemp/' + emp.fbKey + '/' + movKey] = movGuardado;
+  actualizaciones['gastos/' + gastoKey] = gastoGuardado;
+  return window.fbUpdate(window.fbRef(window.fbDB, 'sisventas'), actualizaciones).then(function() {
     return { movimientoKey:movKey, gastoKey:gastoKey };
   });
 }
@@ -43879,6 +43808,7 @@ async function guardarComisionManualVenta() {
     };
     if (btn) btn.innerHTML = '<i class="ti ti-loader-2"></i> Guardando...';
     await _generarComisionVentaAtomica(emp, movimiento);
+    if (venta.fbKey) await ventasPagosPersistirActualizarVenta(venta.fbKey, { comisionesGeneradas:true });
     notify('✓ Comisión vinculada a la venta y pendiente de aprobación');
     _comisionManualGuardando = false;
     cerrarModalComisionVenta();
@@ -43912,31 +43842,21 @@ function _ventaTieneComisionGenerada(empFbKey, venta) {
 }
 
 function _generarComisionVentaAtomica(emp, movimiento) {
-  if (!window.fbDB || typeof window.SVLaborWrites?.atomic !== 'function') return Promise.reject(new Error('No hay conexión segura para generar la comisión'));
-  if (!emp?.fbKey || !movimiento?.ventaFbKey) return Promise.reject(new Error('Actualizá la venta y el empleado antes de registrar la comisión'));
+  if (!window.fbDB || typeof window.fbRunTransaction !== 'function' || typeof window.fbUpdate !== 'function') return Promise.reject(new Error('No hay conexión segura para generar la comisión'));
   var ventaKey = movimiento.ventaFbKey || movimiento.ventaId;
   var movKey = _claveOperacionConcurrente('comision', [ventaKey, emp.fbKey]);
   var gastoKey = _claveOperacionConcurrente('gasto_comision', [ventaKey, emp.fbKey]);
-  var controlPath = 'sisventas/comisiones_generacion/' + movKey;
-  var cuentaPath = 'sisventas/ctaemp/' + emp.fbKey;
-  var gastoPath = 'sisventas/gastos/' + gastoKey;
-  var ventaPath = 'sisventas/ventas/' + movimiento.ventaFbKey;
-  var empleadoPath = 'sisventas/empleados/' + emp.fbKey;
-  var maxPath = 'sisventas/config/maxComisionPct';
+  var controlRef = window.fbRef(window.fbDB, 'sisventas/comisiones_generacion/' + movKey);
   var ahora = Date.now();
-  return window.SVLaborWrites.atomic({paths:[controlPath,cuentaPath,gastoPath,ventaPath,empleadoPath,maxPath],build:function(valores) {
-    var control = valores[controlPath], cuenta = valores[cuentaPath] || {}, venta = valores[ventaPath], empleado = valores[empleadoPath];
-    if (control && control.generacionServidorId) throw new Error('La venta ya tiene una comisión reservada por el servidor. Actualizá la pantalla.');
-    if (control && (control.estado === 'completada' || control.estado === 'procesando' && ahora - Number(control.ts || 0) < 120000)) throw new Error('La venta ya tiene una comisión registrada o en proceso');
-    if (valores[gastoPath] || cuenta[movKey] || Object.values(cuenta).some(function(m) {
-      return m && m.tipo === 'comision' && ((movimiento.ventaId && String(m.ventaId || '') === String(movimiento.ventaId)) || String(m.ventaFbKey || '') === String(movimiento.ventaFbKey));
-    })) throw new Error('La venta ya tiene una comisión registrada. Se conservaron sus importes y pagos.');
-    if (!empleado || empleado.activo === false || !venta || venta.comisionHabilitada !== true) throw new Error('El empleado o la venta cambió. Actualizá la pantalla.');
-    var pct = Number(movimiento.pct), maxPct = parseFloat(valores[maxPath]) || 10, calculo = _calcularBaseComisionVenta(venta);
-    var montoVigente = Math.round((calculo.ganancia * pct / 100) * 100) / 100;
-    if (!(pct > 0) || !Number.isFinite(pct) || pct > maxPct || !(calculo.ganancia > 0) || !Number.isFinite(Number(movimiento.gananciaBase)) || !Number.isFinite(Number(movimiento.monto)) || Math.abs(calculo.ganancia-Number(movimiento.gananciaBase)) > 0.009 || Math.abs(montoVigente-Number(movimiento.monto)) > 0.009) throw new Error('La base o el porcentaje de la comisión cambió. Actualizá la venta antes de registrarla.');
+  return window.fbRunTransaction(controlRef, function(control) {
+    if (control && control.generacionServidorId) return;
+    if (control && control.estado === 'completada') return;
+    if (control && control.estado === 'procesando' && ahora - Number(control.ts || 0) < 120000) return;
+    return { estado:'procesando', ts:ahora, ventaId:movimiento.ventaId || '', ventaFbKey:movimiento.ventaFbKey || '', empleadoFbKey:emp.fbKey };
+  }).then(function(resultado) {
+    if (!resultado || resultado.committed === false) throw new Error('La venta ya tiene una comisión registrada o en proceso');
     var movGuardado = Object.assign({}, movimiento, { fbKey:movKey, gastoFbKey:gastoKey, legacyKey:'ctaemp/' + emp.fbKey + '/' + movKey });
-    var gasto = _pagableGastoBase({ fecha:movimiento.fecha, tipo:'Comisión', tipoPagable:'comision', descripcion:movimiento.descripcion, monto:movimiento.monto, empleadoFbKey:emp.fbKey, empleadoNombre:empleado.nombre || '', legacyKey:movGuardado.legacyKey, ts:movimiento.ts });
+    var gasto = _pagableGastoBase({ fecha:movimiento.fecha, tipo:'Comisión', tipoPagable:'comision', descripcion:movimiento.descripcion, monto:movimiento.monto, empleadoFbKey:emp.fbKey, empleadoNombre:emp.nombre || '', legacyKey:movGuardado.legacyKey, ts:movimiento.ts });
     gasto.estado = 'pendiente_aprobacion';
     gasto.requiereAprobacion = true;
     gasto.ventaId = movimiento.ventaId || '';
@@ -43949,14 +43869,13 @@ function _generarComisionVentaAtomica(emp, movimiento) {
     if (movimiento.origenCarga) gasto.origenCarga = movimiento.origenCarga;
     if (movimiento.usuarioCarga) gasto.usuarioCarga = movimiento.usuarioCarga;
     var updates = {};
-    updates[cuentaPath + '/' + movKey] = movGuardado;
-    updates[gastoPath] = gasto;
-    updates[controlPath] = { estado:'completada', ts:ahora, ventaId:movimiento.ventaId || '', ventaFbKey:movimiento.ventaFbKey || '', empleadoFbKey:emp.fbKey };
-    updates[ventaPath + '/comisionesGeneradas'] = true;
-    return updates;
-  }}).then(function(resultado) {
-    if (!resultado || resultado.committed !== true) throw new Error('No se pudo confirmar la comisión. Revisá el estado antes de reintentar.');
-    return resultado;
+    updates['sisventas/ctaemp/' + emp.fbKey + '/' + movKey] = movGuardado;
+    updates['sisventas/gastos/' + gastoKey] = gasto;
+    updates['sisventas/comisiones_generacion/' + movKey] = { estado:'completada', ts:Date.now(), ventaId:movimiento.ventaId || '', ventaFbKey:movimiento.ventaFbKey || '', empleadoFbKey:emp.fbKey };
+    if (movimiento.ventaFbKey) updates['sisventas/ventas/' + movimiento.ventaFbKey + '/comisionesGeneradas'] = true;
+    return window.fbUpdate(window.fbRef(window.fbDB), updates).catch(function(error) {
+      return window.fbSet(controlRef, { estado:'error', ts:Date.now(), mensaje:String(error && error.message || 'Error de escritura') }).then(function(){ throw error; });
+    });
   });
 }
 
@@ -44026,88 +43945,60 @@ function _pagoGastoBotonGuardar(ocupado) {
   }
 }
 
-function _registrarPagosGastosAtomico(cargas, medio, comprobante, loteKey) {
-  if (!window.fbDB || typeof window.SVLaborWrites?.atomic !== 'function') return Promise.reject(new Error('No hay conexión segura para registrar el pago'));
-  var rutas = new Set(), cuentas = new Set(), ahora = Date.now();
+function _registrarPagoGastoUnitario(fbKey, montoNuevo, medio, comprobante, loteKey) {
+  var g = (gastosData||[]).find(function(x){ return x.fbKey===fbKey; });
+  if (!g || !window.fbDB || typeof window.fbRunTransaction !== 'function') return Promise.reject(new Error('No hay conexión segura para registrar el pago'));
+  var montoTotal = parseFloat(g.monto)||0;
+  var pagoKey = 'pago_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
   var comprobanteNormalizado = _normalizarComprobantePagoGasto(comprobante);
   var comprobanteData = comprobanteNormalizado && comprobanteNormalizado.data || '';
   var comprobanteLigero = comprobanteNormalizado
     ? { nombre:comprobanteNormalizado.nombre, tipo:comprobanteNormalizado.tipo, externo:!!comprobanteData || comprobanteNormalizado.externo }
     : null;
-  function empleados(g) {
-    var legacy = String(g.legacyKey || '').split('/');
-    return Array.from(new Set([g.empleadoId, g.empleadoFbKey, legacy[0] === 'ctaemp' ? legacy[1] : ''].filter(Boolean).map(String)));
-  }
-  var usadas = new Set();
-  var items;
-  try {
-    items = (cargas || []).map(function(carga, indice) {
-      var key = String(carga.fbKey || ''), monto = parseFloat(carga.monto) || 0;
-      var g = (gastosData || []).find(function(x){ return x.fbKey === key; });
-      if (!g || usadas.has(key) || !(monto > 0)) throw new Error('Revisá los gastos y el importe del pago.');
-      usadas.add(key);rutas.add('sisventas/gastos/' + key);
-      empleados(g).forEach(function(emp){ cuentas.add('sisventas/ctaemp/' + emp); });
-      var pagoKey = 'pago_' + ahora + '_' + indice + '_' + Math.random().toString(36).slice(2,9);
-      var adjuntoPath = 'sisventas/gastos_adjuntos/' + key + '/pagos/' + pagoKey + '/comprobanteData';
-      if (comprobanteData) rutas.add(adjuntoPath);
-      return { key:key, monto:monto, pagoKey:pagoKey, adjuntoPath:adjuntoPath, pago:{fecha:svFechaLocalISO(),ts:ahora,monto:monto,medio:medio,usuario:currentUser || '',rol:currentRole || '',lotePagoKey:loteKey || null,comprobante:comprobanteLigero} };
-    });
-    if (!items.length) throw new Error('No hay gastos para pagar.');
-  } catch (error) { return Promise.reject(error); }
-  cuentas.forEach(function(path){ rutas.add(path); });
-  var lotePath = loteKey ? 'sisventas/pagos_realizados/' + loteKey : '';
-  if (lotePath) rutas.add(lotePath);
-  // La cuenta de cada empleado es el agregado de membresía: su hash también
-  // detecta un vínculo nuevo o cambiado mientras se confirma el pago.
-  return window.SVLaborWrites.atomic({paths:Array.from(rutas),build:function(valores) {
-    var updates = {}, detalleLote = [];
-    if (lotePath && valores[lotePath]) throw new Error('Este lote ya fue registrado. Actualizá la pantalla.');
-    items.forEach(function(item) {
-      var path = 'sisventas/gastos/' + item.key, actual = valores[path];
-      if (!actual) throw new Error('El gasto ya no está disponible. Actualizá la pantalla.');
-      if (['pendiente_aprobacion','rechazado','anulado','pagado'].includes(normalizarEstadoGasto(actual))) throw new Error('El estado del gasto cambió o requiere aprobación. Actualizá la pantalla antes de pagar.');
-      empleados(actual).forEach(function(emp){ if (!cuentas.has('sisventas/ctaemp/' + emp)) throw new Error('El empleado vinculado al gasto cambió. Actualizá la pantalla.'); });
-      var total = parseFloat(actual.monto) || 0;
-      var pagos = Array.isArray(actual.pagos) ? actual.pagos.reduce(function(mapa,p,indice){mapa['legacy_' + indice]=p || {};return mapa;},{}) : (actual.pagos || {});
-      var baseLegacy = Math.max(0,parseFloat(actual.saldoPagadoLegacy)||0);
-      if (!Object.keys(pagos).length && baseLegacy === 0) baseLegacy=Math.max(0,parseFloat(actual.montoPagado)||0);
-      var pagado = baseLegacy + Object.keys(pagos).reduce(function(sum,key){var p=pagos[key] || {};return pagoGastoEstaAnulado(p) ? sum : sum+(parseFloat(p.monto)||0);},0);
-      if (item.monto > Math.max(0,total-pagado)+0.01) throw new Error('El saldo del gasto cambió. Actualizá la pantalla antes de pagar.');
-      if (pagos[item.pagoKey]) throw new Error('Este pago ya fue registrado. Actualizá la pantalla.');
-      var nuevoPagado = Math.min(total,Math.round((pagado+item.monto)*100)/100), estado = nuevoPagado >= total-0.01 ? 'pagado' : 'pagado_parcial';
-      actual.pagos=pagos;actual.pagos[item.pagoKey]=item.pago;actual.montoPagado=nuevoPagado;actual.estado=estado;actual.medio=medio;
-      // Conserva el resumen histórico sin inventar fecha, medio ni comprobante
-      // de pagos anteriores que nunca tuvieron un historial detallado.
-      if (baseLegacy > 0) actual.saldoPagadoLegacy=baseLegacy;
-      if (estado === 'pagado') actual.reembolsado=true;
-      updates[path]=actual;
-      empleados(actual).forEach(function(emp) {
-        var cuentaPath='sisventas/ctaemp/' + emp;
-        Object.entries(valores[cuentaPath] || {}).forEach(function(entry) {
-          var m=entry[1], movPath=cuentaPath + '/' + entry[0];
-          if (!m || !(m.gastoFbKey === item.key || m.gastoKey === item.key || actual.legacyKey === 'ctaemp/' + emp + '/' + entry[0])) return;
-          m.estado=estado;m.fechaPago=item.pago.fecha;m.medioPago=medio;m.montoPagado=nuevoPagado;
-          if (baseLegacy > 0) m.saldoPagadoLegacy=baseLegacy;
-          m.pagos=Array.isArray(m.pagos) ? m.pagos.reduce(function(mapa,p,indice){mapa['legacy_' + indice]=p || {};return mapa;},{}) : (m.pagos || {});
-          m.pagos[item.pagoKey]=item.pago;updates[movPath]=m;
-        });
-      });
-      if (comprobanteData) {
-        if (valores[item.adjuntoPath] !== null && valores[item.adjuntoPath] !== comprobanteData) throw new Error('La referencia del comprobante cambió. Reintentá el pago.');
-        updates[item.adjuntoPath]=comprobanteData;
-      }
-      detalleLote.push({gastoFbKey:item.key,descripcion:actual.descripcion || '',monto:total,saldoPagado:item.monto});
-    });
-    if (lotePath) updates[lotePath]={fecha:svFechaLocalISO(),ts:ahora,medio:medio,monto:items.reduce(function(sum,item){return sum+item.monto;},0),usuario:currentUser||'',rol:currentRole||'',comprobante:comprobante||null,gastos:detalleLote};
-    return updates;
-  }}).then(function(resultado) {
-    if (!resultado || resultado.committed !== true) throw new Error('No se pudo confirmar el pago del gasto');
-    return true;
+  var pago = {
+    fecha: svFechaLocalISO(),
+    ts: Date.now(),
+    monto: montoNuevo,
+    medio: medio,
+    usuario: currentUser || '',
+    rol: currentRole || '',
+    lotePagoKey: loteKey || null,
+    comprobante: comprobanteLigero
+  };
+  var prepararComprobante = comprobanteData
+    ? window.fbSet(window.fbRef(window.fbDB, 'sisventas/gastos_adjuntos/' + fbKey + '/pagos/' + pagoKey + '/comprobanteData'), comprobanteData)
+    : Promise.resolve();
+  return prepararComprobante.then(function(){ return window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas/gastos/' + fbKey), function(actual) {
+    if (!actual) return;
+    var total = parseFloat(actual.monto) || 0;
+    var pagos = Array.isArray(actual.pagos) ? actual.pagos.reduce(function(mapa, item, indice) {
+      mapa['legacy_' + indice] = item || {};
+      return mapa;
+    }, {}) : (actual.pagos || {});
+    var pagado = Object.keys(pagos).reduce(function(s, key) {
+      var p = pagos[key] || {};
+      return pagoGastoEstaAnulado(p) ? s : s + (parseFloat(p.monto) || 0);
+    }, 0);
+    // Gastos históricos sin historial de pagos conservan su saldo previo; para
+    // los pagos nuevos, el resumen queda siempre calculado desde su historial.
+    if (!Object.keys(pagos).length) pagado = parseFloat(actual.montoPagado) || 0;
+    var importe = parseFloat(montoNuevo) || 0;
+    if (!(importe > 0) || importe > Math.max(0, total - pagado) + 0.01) return;
+    var nuevoPagado = Math.min(total, Math.round((pagado + importe) * 100) / 100);
+    actual.pagos = pagos;
+    actual.pagos[pagoKey] = pago;
+    actual.montoPagado = nuevoPagado;
+    actual.estado = nuevoPagado >= total - 0.01 ? 'pagado' : 'pagado_parcial';
+    actual.medio = medio;
+    return actual;
+  }); }).then(function(resultado){
+    if (!resultado || resultado.committed === false) throw new Error('El saldo del gasto cambió antes de confirmar el pago. Actualizá la pantalla e intentá nuevamente.');
+    var gastoActualizado = resultado.snapshot && resultado.snapshot.val ? resultado.snapshot.val() : null;
+    if (!gastoActualizado) throw new Error('No se pudo confirmar el pago del gasto');
+    var nuevoPagado = parseFloat(gastoActualizado.montoPagado) || 0;
+    var nuevoEstado = gastoActualizado.estado || 'pagado_parcial';
+    return _actualizarCtaEmpPorPagoGasto(gastoActualizado, fbKey, montoTotal, nuevoPagado, nuevoEstado, medio, pagoKey, pago).then(function(){ return true; });
   });
-}
-
-function _registrarPagoGastoUnitario(fbKey, montoNuevo, medio, comprobante, loteKey) {
-  return _registrarPagosGastosAtomico([{fbKey:fbKey,monto:montoNuevo}],medio,comprobante,loteKey);
 }
 
 function confirmarPagoGasto() {
@@ -44122,7 +44013,7 @@ function confirmarPagoGasto() {
 
   var loteKey = keys.length > 1 ? ('lote_' + Date.now()) : null;
   var restanteAPagar = montoNuevo;
-  var cargas = [];
+  var promesas = [];
 
   keys.forEach(function(k){
     var g = (gastosData||[]).find(function(x){ return x.fbKey===k; });
@@ -44130,14 +44021,20 @@ function confirmarPagoGasto() {
     var resta = restoGasto(g);
     var pagoEste = keys.length > 1 ? Math.min(resta, restanteAPagar) : Math.min(resta, montoNuevo);
     restanteAPagar -= pagoEste;
-    if (pagoEste > 0) cargas.push({fbKey:k,monto:pagoEste});
+    if (pagoEste > 0) promesas.push(_registrarPagoGastoUnitario(k, pagoEste, medio, _pagoGastoComprobante, loteKey));
   });
 
-  if (!cargas.length) { notify('No hay saldo pendiente para pagar'); return; }
-  if (restanteAPagar > 0.01) { notify('El importe supera el saldo pendiente de los gastos seleccionados'); return; }
+  if (!promesas.length) { notify('No hay saldo pendiente para pagar'); return; }
   window._pagoGastoGuardadoEnCurso = true;
   _pagoGastoBotonGuardar(true);
-  _registrarPagosGastosAtomico(cargas,medio,_pagoGastoComprobante,loteKey).then(function(){
+  Promise.all(promesas).then(function(){
+    if (loteKey && window.fbDB) {
+      var gastosIncluidos = keys.map(function(k){ var g = (gastosData||[]).find(function(x){ return x.fbKey===k; }) || {}; return { gastoFbKey:k, descripcion:g.descripcion||'', monto:parseFloat(g.monto)||0, saldoPagado:Math.min(restoGasto(g), montoNuevo) }; });
+      return window.fbSet(window.fbRef(window.fbDB, 'sisventas/pagos_realizados/' + loteKey), {
+        fecha:svFechaLocalISO(), ts:Date.now(), medio:medio, monto:montoNuevo, usuario:currentUser||'', rol:currentRole||'', comprobante:_pagoGastoComprobante||null, gastos:gastosIncluidos
+      }).catch(function(){});
+    }
+  }).then(function(){
     if (typeof registrarActividad === 'function') {
       registrarActividad(keys.length > 1 ? 'Pago múltiple de gastos' : 'Pago de gasto', keys.length + ' gasto(s) · $' + Math.round(montoNuevo).toLocaleString('es-AR') + ' · ' + medio);
     }
@@ -44181,7 +44078,7 @@ function _pagoGastoResumenSimulado(gasto, token, cambios) {
     return _pagoGastoToken(p, idx) === String(token) ? Object.assign({}, p, cambios || {}) : p;
   });
   var activos = pagos.filter(function(p){ return !pagoGastoEstaAnulado(p); });
-  var pagado = Math.max(0,parseFloat(gasto && gasto.saldoPagadoLegacy)||0) + activos.reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
+  var pagado = activos.reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
   var monto = parseFloat(gasto && gasto.monto) || 0;
   var estado = pagado >= monto - 0.01 && monto > 0 ? 'pagado' : pagado > 0 ? 'pagado_parcial' : 'pendiente_pago';
   var ultimo = activos.slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); })[0] || {};
@@ -44288,45 +44185,59 @@ async function _persistirAjustePagoGasto(gasto, pago, token, cambios, accion, mo
 }
 
 async function _svCargaOperacion__persistirAjustePagoGasto(gasto, pago, token, cambios, accion, motivo) {
-  if (!gasto || !pago || !window.fbDB || typeof window.SVLaborWrites?.atomic !== 'function') throw new Error('No se encontro el pago o la conexión segura');
+  if (!gasto || !pago || !window.fbDB) throw new Error('No se encontro el pago');
   cambios = Object.assign({}, cambios || {});
   var comprobanteNuevo = _normalizarComprobantePagoGasto(cambios.comprobante);
-  var adjuntoPath='sisventas/gastos_adjuntos/' + gasto.fbKey + '/pagos/' + token + '/comprobanteData';
   if (comprobanteNuevo && comprobanteNuevo.data) {
+    await window.fbSet(window.fbRef(window.fbDB, 'sisventas/gastos_adjuntos/' + gasto.fbKey + '/pagos/' + token + '/comprobanteData'), comprobanteNuevo.data);
     cambios.comprobante = { nombre:comprobanteNuevo.nombre, tipo:comprobanteNuevo.tipo, externo:true };
   }
-  function empleados(g){var legacy=String(g.legacyKey||'').split('/');return Array.from(new Set([g.empleadoId,g.empleadoFbKey,legacy[0]==='ctaemp'?legacy[1]:''].filter(Boolean).map(String)));}
-  var gastoPath='sisventas/gastos/' + gasto.fbKey,auditKey=window.fbPush(window.fbRef(window.fbDB,'sisventas/auditoria_pagos')).key,auditPath='sisventas/auditoria_pagos/' + auditKey;
-  var cuentaPaths=empleados(gasto).map(function(emp){return 'sisventas/ctaemp/' + emp;}),rutas=[gastoPath,auditPath].concat(cuentaPaths);
-  if(comprobanteNuevo?.data)rutas.push(adjuntoPath);
-  var lotePath=pago.lotePagoKey?'sisventas/pagos_realizados/' + pago.lotePagoKey + '/ajustes/' + auditKey:'';
-  if(lotePath)rutas.push(lotePath);
-  var pagoPrevio=Object.assign({},pago);delete pagoPrevio._key;delete pagoPrevio._idx;
-  var ahora=Date.now();
-  var resultado=await window.SVLaborWrites.atomic({paths:rutas,build:function(valores){
-    var actual=valores[gastoPath],pagoActual=actual?.pagos?.[token];
-    if(!actual||!pagoActual||window.SVLaborWrites.canonical(pagoActual)!==window.SVLaborWrites.canonical(pagoPrevio))throw new Error('El pago cambió. Actualizá la pantalla antes de corregirlo.');
-    empleados(actual).forEach(function(emp){if(cuentaPaths.indexOf('sisventas/ctaemp/' + emp)<0)throw new Error('El empleado vinculado cambió. Actualizá la pantalla.');});
-    if(valores[auditPath]||lotePath&&valores[lotePath])throw new Error('La corrección ya fue registrada. Actualizá la pantalla.');
-    var resumen=_pagoGastoResumenSimulado(actual,token,cambios),updates={};
-    if(resumen.pagado>(parseFloat(actual.monto)||0)+0.01)throw new Error('La suma de pagos no puede superar el total del gasto');
-    actual.pagos[token]=Object.assign({},pagoActual,cambios);actual.montoPagado=resumen.pagado;actual.estado=resumen.estado;actual.reembolsado=resumen.reembolsado;
-    if(resumen.ultimo.medio)actual.medio=resumen.ultimo.medio;
-    updates[gastoPath]=actual;
-    cuentaPaths.forEach(function(cuentaPath){Object.entries(valores[cuentaPath]||{}).forEach(function(entry){
-      var mov=entry[1],movPath=cuentaPath + '/' + entry[0];
-      if(!mov||!(mov.gastoFbKey===gasto.fbKey||mov.gastoKey===gasto.fbKey||actual.legacyKey===cuentaPath.replace(/^sisventas\//,'') + '/' + entry[0]))return;
-      if(_esGastoAdelanto(actual)&&resumen.pagado<(parseFloat(mov.montoCompensado)||0))throw new Error('El pago ya fue compensado en haberes. Corregí primero la compensación.');
-      mov.pagos=mov.pagos||{};mov.pagos[token]=Object.assign({},mov.pagos[token]||{},cambios);mov.montoPagado=resumen.pagado;mov.estado=resumen.pagado<=0?'aprobado':resumen.estado;
-      mov.fechaPago=resumen.ultimo.fecha||null;mov.medioPago=resumen.ultimo.medio||null;updates[movPath]=mov;
-    });});
-    updates[auditPath]={accion:accion,gastoFbKey:gasto.fbKey,pagoKey:token,descripcion:actual.descripcion||'',anterior:{monto:parseFloat(pagoActual.monto)||0,fecha:pagoActual.fecha||'',medio:pagoActual.medio||'',estado:pagoActual.estado||''},nuevo:{monto:parseFloat(cambios.monto!=null?cambios.monto:pagoActual.monto)||0,fecha:cambios.fecha!=null?cambios.fecha:pagoActual.fecha||'',medio:cambios.medio!=null?cambios.medio:pagoActual.medio||'',estado:cambios.estado!=null?cambios.estado:pagoActual.estado||''},motivo:motivo||'',usuario:currentUser||'',rol:currentRole||'',ts:ahora};
-    if(lotePath)updates[lotePath]={accion:accion,gastoFbKey:gasto.fbKey,pagoKey:token,motivo:motivo||'',usuario:currentUser||'',ts:ahora};
-    if(comprobanteNuevo?.data)updates[adjuntoPath]=comprobanteNuevo.data;
-    return updates;
-  }});
-  if(!resultado?.committed||!resultado.value?.[gastoPath])throw new Error('No se pudo confirmar la corrección del pago');
-  Object.assign(gasto,resultado.value[gastoPath]);
+  var resumen = _pagoGastoResumenSimulado(gasto, token, cambios);
+  var auditRef = window.fbPush(window.fbRef(window.fbDB, 'sisventas/auditoria_pagos'));
+  var auditKey = auditRef.key;
+  var basePago = 'sisventas/gastos/' + gasto.fbKey + '/pagos/' + token;
+  var updates = {};
+  Object.keys(cambios || {}).forEach(function(campo){ updates[basePago + '/' + campo] = cambios[campo]; });
+  updates['sisventas/gastos/' + gasto.fbKey + '/montoPagado'] = resumen.pagado;
+  updates['sisventas/gastos/' + gasto.fbKey + '/estado'] = resumen.estado;
+  updates['sisventas/gastos/' + gasto.fbKey + '/reembolsado'] = resumen.reembolsado;
+  if (resumen.ultimo.medio) updates['sisventas/gastos/' + gasto.fbKey + '/medio'] = resumen.ultimo.medio;
+  updates['sisventas/auditoria_pagos/' + auditKey] = {
+    accion:accion,
+    gastoFbKey:gasto.fbKey,
+    pagoKey:token,
+    descripcion:gasto.descripcion || '',
+    anterior:{ monto:parseFloat(pago.monto)||0, fecha:pago.fecha||'', medio:pago.medio||'', estado:pago.estado||'' },
+    nuevo:{ monto:parseFloat(cambios.monto != null ? cambios.monto : pago.monto)||0, fecha:cambios.fecha != null ? cambios.fecha : (pago.fecha||''), medio:cambios.medio != null ? cambios.medio : (pago.medio||''), estado:cambios.estado != null ? cambios.estado : (pago.estado||'') },
+    motivo:motivo || '',
+    usuario:currentUser || '',
+    rol:currentRole || '',
+    ts:Date.now()
+  };
+  if (pago.lotePagoKey) {
+    updates['sisventas/pagos_realizados/' + pago.lotePagoKey + '/ajustes/' + auditKey] = { accion:accion, gastoFbKey:gasto.fbKey, pagoKey:token, motivo:motivo||'', usuario:currentUser||'', ts:Date.now() };
+  }
+  var vinculados = await _movimientosVinculadosGasto(gasto, gasto.fbKey);
+  vinculados.forEach(function(ref) {
+    var mov = ref.mov;
+    if (_esGastoAdelanto(gasto) && resumen.pagado < (parseFloat(mov.montoCompensado)||0)) throw new Error('El pago ya fue compensado en haberes. Corregí primero la compensación.');
+    var baseMov = 'sisventas/ctaemp/' + ref.empKey + '/' + ref.key;
+    Object.keys(cambios).forEach(function(campo){ updates[baseMov + '/pagos/' + token + '/' + campo] = cambios[campo]; });
+    updates[baseMov + '/montoPagado'] = resumen.pagado;
+    updates[baseMov + '/estado'] = resumen.pagado <= 0 ? 'aprobado' : resumen.estado;
+    updates[baseMov + '/fechaPago'] = resumen.ultimo.fecha || null;
+    updates[baseMov + '/medioPago'] = resumen.ultimo.medio || null;
+  });
+  await window.fbUpdate(window.fbRef(window.fbDB), updates);
+  if (Array.isArray(gasto.pagos)) {
+    gasto.pagos[parseInt(token, 10)] = Object.assign({}, gasto.pagos[parseInt(token, 10)] || {}, cambios || {});
+  } else {
+    gasto.pagos = gasto.pagos || {};
+    gasto.pagos[token] = Object.assign({}, gasto.pagos[token] || {}, cambios || {});
+  }
+  gasto.montoPagado = resumen.pagado;
+  gasto.estado = resumen.estado;
+  gasto.reembolsado = resumen.reembolsado;
   if (_gastosPagosCache) _gastosPagosCache.delete(gasto);
   if (_gastosFechaImputacionCache) _gastosFechaImputacionCache.delete(gasto);
 }
@@ -44346,7 +44257,7 @@ async function _svCargaOperacion_guardarEdicionPagoGasto() {
   var motivo = String((document.getElementById('epg-motivo') || {}).value || '').trim();
   if (!(monto > 0) || !fecha || !medio) { notify('Completa monto, fecha y medio de pago'); return; }
   if (!motivo) { notify('Indica el motivo de la correccion'); return; }
-  var otros = Math.max(0,parseFloat(ctx.gasto.saldoPagadoLegacy)||0) + _gastoPagosArray(ctx.gasto).reduce(function(s,p,idx){
+  var otros = _gastoPagosArray(ctx.gasto).reduce(function(s,p,idx){
     return s + (_pagoGastoToken(p,idx) === ctx.token || pagoGastoEstaAnulado(p) ? 0 : (parseFloat(p.monto)||0));
   }, 0);
   if (otros + monto > (parseFloat(ctx.gasto.monto)||0) + 0.01) { notify('La suma de pagos no puede superar el total del gasto'); return; }
@@ -44953,17 +44864,22 @@ function reservarSiguientePptoId() {
 }
 window.reservarSiguientePptoId = reservarSiguientePptoId;
 
-function checkAprobacion() {
-  var _ptt=document.getElementById('pp-total'); const total = parseFloat(normalizarNumeroExcel(_ptt?_ptt.textContent:'0')) || 0;
-  var _d2=document.getElementById('pp-descuento'); const desc  = parseFloat(_d2?_d2.value:0) || 0;
+function checkAprobacion(resumen) {
   const alerta = document.getElementById('form-alerta-aprobacion');
-  const txt    = document.getElementById('form-alerta-txt');
+  const txt = document.getElementById('form-alerta-txt');
   if (!alerta) return;
-  let motivo = '';
-  if (total > APROBACION_CONFIG.montoLimite) motivo = `Total $${Math.round(total).toLocaleString('es-AR')} supera el límite de aprobación ($${(parseFloat(APROBACION_CONFIG.montoLimite)||0).toLocaleString('es-AR')}).`;
-  if (desc > APROBACION_CONFIG.descuentoLimite) motivo = `Descuento ${desc}% supera el máximo permitido sin aprobación (${APROBACION_CONFIG.descuentoLimite}%).`;
+  var totalEl = document.getElementById('pp-total');
+  var descEl = document.getElementById('pp-descuento');
+  var total = resumen ? resumen.total : (parseFloat(normalizarNumeroExcel(totalEl ? totalEl.textContent : '0')) || 0);
+  var descuento = SVCommercialApproval.discount({items:getPpItems(),descuentoGeneral:parseFloat(descEl ? descEl.value : 0) || 0}, 'presupuesto');
+  var motivo = '';
+  if (descuento.invalid) motivo = 'El descuento debe estar entre 0% y 100%.';
+  else if (!window.tienePermiso('presupuestos.aprobar')) {
+    if (descuento.maximum > APROBACION_CONFIG.descuentoLimite + 0.000001) motivo = 'El descuento supera el máximo de ' + APROBACION_CONFIG.descuentoLimite + '%. Requiere aprobación del administrador.';
+    else if (total > APROBACION_CONFIG.montoLimite) motivo = 'El total supera el límite de aprobación. Requiere aprobación del administrador.';
+  }
   alerta.style.display = motivo ? 'flex' : 'none';
-  if (txt) txt.textContent = motivo + ' Al guardar se enviará a revisión del administrador.';
+  if (txt) txt.textContent = motivo;
 }
 
 function pptoStateBadge(estado, registro) {
@@ -46891,7 +46807,7 @@ async function guardarPresupuesto(modo) {
     nuevo.empFbKey = pptoOriginalEdit.empFbKey || '';
     nuevo.ventaId = pptoOriginalEdit.ventaId || '';
     var auditEdit = (pptoOriginalEdit.audit || []).slice();
-    var auditNuevo = { fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || 'Admin', accion: modo === 'borrador' ? 'Presupuesto guardado como borrador' : (aprobacionDirectaAdmin ? 'Presupuesto editado y aprobado por administrador' : 'Presupuesto editado y enviado a revisión') };
+    var auditNuevo = { fecha: new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), usuario: currentUser || 'Admin', accion: modo === 'borrador' ? 'Presupuesto guardado como borrador' : (aprobacionDirectaAdmin ? 'Presupuesto editado y aprobado por administrador' : (estadoFinal === 'aprobado_int' ? 'Presupuesto editado dentro del límite configurado, sin requerir aprobación' : 'Presupuesto editado y enviado a revisión')) };
     var ultimoAudit = auditEdit.length ? auditEdit[auditEdit.length - 1] : null;
     if (!ultimoAudit || ultimoAudit.accion !== auditNuevo.accion || ultimoAudit.usuario !== auditNuevo.usuario || ultimoAudit.fecha !== auditNuevo.fecha) auditEdit.push(auditNuevo);
     nuevo.audit = auditEdit;
@@ -46916,6 +46832,7 @@ async function guardarPresupuesto(modo) {
     if (aprobacionDirectaAdmin) notify('Presupuesto aprobado y guardado como ' + nuevo.id);
     else if (reqAprobacion) notify('Presupuesto enviado a revisión — requiere aprobación del admin');
     else if (modo === 'borrador') notify('Borrador guardado como ' + nuevo.id);
+    else if (estadoFinal === 'aprobado_int') notify('Presupuesto guardado como ' + nuevo.id);
     else notify('Enviado a revisión como ' + nuevo.id);
     volverListaPpto();
   }

@@ -8,6 +8,24 @@ test('notas de crédito y recuperación respetan permisos de acción del servido
 test('chat técnico conserva acceso y respeta la desactivación explícita',async()=>{await authorize({admin:fake({role:'tecnico'}),authorization:'Bearer good',service:'chat'});await assert.rejects(authorize({admin:fake({role:'tecnico',cfg:{acciones:{dashboard:{asistente:false}}}}),authorization:'Bearer good',service:'chat'}),e=>e.statusCode===403);});
 test('aprendizaje solo admin e importación solo con módulo habilitado',async()=>{await assert.rejects(authorize({admin:fake({role:'vendedor'}),authorization:'Bearer good',service:'learn'}),e=>e.statusCode===403);await authorize({admin:fake(),authorization:'Bearer good',service:'learn'});await assert.rejects(authorize({admin:fake({role:'vendedor'}),authorization:'Bearer good',service:'purchase-import'}),e=>e.statusCode===403);await authorize({admin:fake({role:'vendedor',cfg:{bloqueados:[]}}),authorization:'Bearer good',service:'purchase-import'});});
 test('un módulo bloqueado gana sobre el permiso de acción',()=>{assert.equal(permitted('admin',{bloqueados:['facturas'],acciones:{facturas:{notaCredito:true}}},'facturas','facturas.notaCredito',['admin']),false);});
+test('bloqueos en array y objeto disperso de RTDB se respetan también para admin',async()=>{
+ for(const bloqueados of [['facturas'],{9:'facturas'},[null,'facturas'],{9:' facturas '}]){
+  const cfg={bloqueados,acciones:{facturas:{notaCredito:true}}};
+  assert.equal(permitted('admin',cfg,'facturas'),false);
+  assert.equal(permitted('admin',cfg,'facturas','facturas.notaCredito',['admin']),false);
+  await assert.rejects(authorize({admin:fake({cfg}),authorization:'Bearer good',service:'fiscal'}),error=>error.statusCode===403);
+ }
+});
+test('configuración de bloqueos malformada falla cerrada y la ausencia conserva defaults',async()=>{
+ for(const cfg of [false,5,'facturas',[],{bloqueados:false},{bloqueados:5},{bloqueados:'facturas'},{bloqueados:{9:{modulo:'facturas'}}},{bloqueados:[true]},{bloqueados:['']}]){
+  assert.equal(permitted('admin',cfg,'facturas'),false);
+  await assert.rejects(authorize({admin:fake({cfg}),authorization:'Bearer good',service:'fiscal'}),error=>error.statusCode===403);
+ }
+ assert.equal(permitted('admin',{},'facturas'),true);
+ assert.equal(permitted('vendedor',{},'facturas'),false);
+ assert.equal(permitted('vendedor',{bloqueados:[]},'facturas'),true);
+ assert.equal(permitted('vendedor',{bloqueados:{}},'facturas'),true);
+});
 const fs=require('fs'),vm=require('vm');
 test('cliente obtiene token actual y conserva headers sin afectar payload',async()=>{const window={setTimeout,clearTimeout,fbAuth:{currentUser:{getIdToken:async()=>'token'}}};vm.runInNewContext(fs.readFileSync('js/core/service-auth.js','utf8'),{window});const h=await window.SVServiceAuth.headers({'Content-Type':'application/json'});assert.equal(h.Authorization,'Bearer token');assert.equal(h['Content-Type'],'application/json');window.fbAuth.currentUser=null;await assert.rejects(window.SVServiceAuth.headers({}));});
 test('backend fiscal y cliente coordinan todas las llamadas protegidas',()=>{const backend=fs.readFileSync('cloud-functions/emitir-factura/index.js','utf8');assert.equal((backend.match(/await chequearAuth/g)||[]).length,2);assert.ok(backend.includes('X-Frontend-Key, Authorization'));const app=fs.readFileSync('js/app.v3.10.19.js','utf8');assert.ok(app.includes('headers: await window.SVServiceAuth.headers'));assert.equal(fs.readFileSync('cloud-functions/asistente/service-auth.cjs','utf8'),fs.readFileSync('cloud-functions/emitir-factura/service-auth.cjs','utf8'));});

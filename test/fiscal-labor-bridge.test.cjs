@@ -24,6 +24,7 @@ function fixture(initial={}){
   if(name.startsWith('firebase-functions/'))return {};
   if(name==='firebase-admin')return admin;
   if(name==='./service-auth.cjs')return authModule;
+  if(name==='./fiscal-contract.cjs')return require('../cloud-functions/emitir-factura/fiscal-contract.cjs');
   if(name==='./labor-bridge.cjs')return {runtime:()=>bridge};
   return require(name);
  }};
@@ -170,6 +171,54 @@ test('NC usa el importe fiscal original aun si cambió la venta comercial y bloq
 test('El estado de rechazo con CAE tampoco habilita reemisión automática',async()=>{
  const f=fixture();f.setProvider(()=>({ok:true,status:200,json:async()=>({error:'S',cae:'CAE-DEVUELTO-CON-AVISO',errores:['Verificar']})}));
  await f.send();const repeated=await f.send();assert.equal(repeated.code,409);assert.equal(f.providerCalls,1);
+});
+
+test('Tipo fiscal y bandera contradictorios se rechazan antes del permiso, fence o proveedor',async()=>{
+ const invalid=[
+  {tipoComprobante:'NOTA DE CREDITO B',esNotaCredito:false},
+  {tipoComprobante:'FACTURA B',esNotaCredito:true},
+  {tipoComprobante:'NOTA DE CREDITO B',esNotaCredito:'true'},
+  {tipoComprobante:'NOTA DE DEBITO B'},
+  {tipoComprobante:'FACTURA Z'},
+  {tipoComprobante:{tipo:'FACTURA B'}}
+ ];
+ for(const change of invalid){
+  const f=fixture(),input={...request(),...change};
+  f.state.sv_chat_roles.u.rol='administrativo';f.state.sv_permisos={administrativo:{acciones:{facturas:{notaCredito:false}}}};
+  const business=copy(f.state.sisventas),res=await f.send(input);
+  assert.equal(res.code,400);assert.equal(f.providerCalls,0);assert.deepEqual(f.state.sisventas,business);assert.equal(f.commits.length,0);assert.equal(f.get('sv_fiscal_emissions'),null);
+ }
+});
+
+test('Omitir la bandera de NC no evita el permiso específico y conserva el negocio',async()=>{
+ for(const tipo of ['NOTA DE CREDITO A','NOTA DE CREDITO B','NOTA DE CREDITO C',3,8,13]){
+  const f=fixture(),input={...request(),tipoComprobante:tipo};
+  f.state.sv_chat_roles.u.rol='administrativo';f.state.sv_permisos={administrativo:{acciones:{facturas:{notaCredito:false}}}};
+  const before=copy(f.state.sisventas),res=await f.send(input);
+  assert.equal(res.code,403);assert.equal(f.providerCalls,0);assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,0);
+ }
+});
+
+test('Los seis tipos actuales y sus códigos conservan clase fiscal canónica y las facturas admitidas',async()=>{
+ const fiscal=require('../cloud-functions/emitir-factura/fiscal-contract.cjs');
+ const types=[[1,'FACTURA A'],[6,'FACTURA B'],[11,'FACTURA C'],[3,'NOTA DE CREDITO A'],[8,'NOTA DE CREDITO B'],[13,'NOTA DE CREDITO C']];
+ for(const [code,type]of types)for(const raw of [type,code,String(code).padStart(3,'0')]){
+  const normalized=fiscal.normalizarSolicitudEmisionFiscal({tipoComprobante:raw},true);
+  assert.equal(normalized.tipoComprobante,type);assert.equal(normalized.esNotaCredito,type.startsWith('NOTA DE CREDITO'));
+ }
+ for(const type of ['FACTURA A','FACTURA B','FACTURA C']){
+  const f=fixture(),input={...request(),tipoComprobante:type};
+  input.venta.clienteCuit='20111111112';input.venta.clienteRazonSocial='Cliente fiscal ficticio';
+  f.state.sv_chat_roles.u.rol='administrativo';
+  const res=await f.send(input);assert.equal(res.code,200);assert.equal(res.body.tipo,type);assert.equal(f.providerCalls,1);
+ }
+});
+
+test('El puente fiscal también impide una clase contradictoria antes de reservar',async()=>{
+ const f=fixture(),data={...request(),tipoComprobante:'NOTA DE CREDITO B',esNotaCredito:false};
+ await assert.rejects(f.bridge.begin({data,provider:{comprobante:{tipo:'NOTA DE CREDITO B'}}}),error=>error.statusCode===400);
+ await assert.rejects(f.bridge.begin({data:request(),provider:{comprobante:{tipo:'NOTA DE CREDITO B'}}}),error=>error.statusCode===400);
+ assert.equal(f.commits.length,0);assert.equal(f.get('sv_fiscal_emissions'),null);
 });
 
 module.exports={fixture,request,sale,authorized};

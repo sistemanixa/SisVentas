@@ -1,0 +1,47 @@
+# Preparación del corte · v3.13.19
+
+Estado: integración y verificación local. **Sin activación ni publicación.** El titular pidió terminar la preparación y avisar antes del corte; no se debe iniciar una pausa operativa por inferencia.
+
+## Paquete y comportamiento
+
+La base es la web publicada v3.13.18. Conserva el visualizador, aprobación confirmada de presupuestos, F5, seguros/cuotas y las reparaciones de sincronización. Los cuatro comandos laborales dejan el GET/PUT de toda `sisventas` y usan conjuntos de registros, con las mismas funciones de cálculo. Pago, cuenta del empleado, adjunto, lote, auditoría, índice y acuse se confirman en la misma operación cuando corresponden.
+
+Conserva pagos anteriores, centavos, comisiones pagadas, participantes y permisos. Una respuesta perdida exige consultar el intento antes de repetirlo. No agrega consultas periódicas ni instancias mínimas. SAC, incorporación explícita de comisiones antiguas y algunos mantenimientos conservan lecturas amplias de Gastos para detectar históricos: este corte no demuestra eliminación de toda lectura amplia ni un costo mensual garantizado.
+
+La revisión final añadió dos defensas de autorización: bloqueos RTDB como objetos dispersos se respetan en redistribución y servicios fiscales; configuraciones malformadas se deniegan. La clase de factura/NC se deriva del tipo fiscal, evitando que una bandera falsa eluda el permiso de nota de crédito. Los cálculos fiscales canónicos permanecen intactos. El espejo fuente de autorización de Asistente también está corregido para conservar paridad, pero no es un escritor financiero y este corte no requiere desplegarlo.
+
+## Verificación reproducible
+
+- Puerta vigente mediante `scripts/test-current.ps1`, con Node24.17.0 y las dependencias locales existentes. Los 27 casos opt-in de reglas/runtime se ejecutan además explícitamente en emulador demo; no se convierten en ceros por omitirlos en la puerta normal.
+- Cotizador: `node --test test/*.test.js` desde su carpeta;94/94. HTTP comercial y firmas OIDC efímeras:8/8, sin Google ni datos reales.
+- Emulador:43/43, secuencial, proyecto `demo-sisventas-fence-proof`, loopback9017, reglas completas generadas desde la base exacta. Incluye revocación, cambios de rol/revisión, fence vencido, escapes Admin/callbacks tardíos, pagos concurrentes, tombstone/respuesta perdida y generación de comisión idempotente. Otras16 pruebas puras de política/bootstrap también aprobadas.
+- Fiscal/permisos/paridad:45/45; revisión independiente42/42 y matriz del handler con Facturas y NC A/B/C. Sólo proveedor ficticio. Empaquetador fiscal12/12. No son emisiones reales.
+- Aviso de recuperación con CSS/módulo reales, transporte en memoria y CSP `connect-src none`: escritorio1280x720 y móvil390x844; centrado, foco, Escape, fondo bloqueado y recuperación sin reenviar. Demo y servidor cerrados; viewport restaurado. No se recargó ni modificó la pestaña comercial del titular durante estas pruebas.
+
+Los logs, capturas, reglas y manifiestos privados quedan en `C:/SisVentas/tmp/big-update19/` y `C:/SisVentas/tmp/big-update-preflight/`, fuera de Git. El resultado final y el SHA se registran en CONTEXTO_ACTUAL al cerrar la preparación.
+
+## Preflight externo de sólo lectura · 20/10/2026
+
+Reglas vigentes leídas a18:30UTC, hash semántico `136954197b29137f0f92f0765dedace395c84d19c316ed02d33958316e83822a`. Candidata regenerada idéntica a la ya compilada sin aplicar: `978cea4169880cd9b5d2782fbe17b7243a2fea562cb1737cb15292ebaa2e1782`. No se aplicó ninguna regla. Repetir la comparación inmediatamente antes del corte; un cambio exige revisar y probar otra candidata.
+
+Los dos escritores están en `southamerica-east1`:
+
+| Servicio | Revisión lista/última | Tráfico y accesos | Inventario completo |
+| --- | --- | --- | --- |
+| Cotizador | `cotizador-quota-notes-254e69d7` |100% y14 tags a esa revisión |114 revisiones |
+| emitirFactura | `emitirfactura-00027-yed` |100% a LATEST, sin tags |27 revisiones |
+
+Cotizador tiene `COMMISSION_OBSERVER_ENABLED=false`; ninguno tiene el modo acotado activo. Ambos usan CPU por solicitud y mínimo0 implícito en la configuración leída. No se cambió capacidad, tráfico, etiquetas, secretos, IAM ni DNS. Este inventario es una foto de configuración, **no acredita ausencia de solicitudes ni drenaje**. No se consultaron operaciones financieras ni se leyeron datos de clientes para obtenerlo.
+
+## Orden del corte posterior
+
+Aplicar el protocolo completo de [REDISENO_CIRCUITO_LABORAL.md](REDISENO_CIRCUITO_LABORAL.md), sin saltarse estas condiciones:
+
+1. Confirmar con el titular una ventana sin pagos, comisiones o emisiones en curso. Resolver previamente intentos ambiguos con sus acuses. Guardar SHA completo, paquetes, configuración e inventario actualizados; no lanzar scripts Admin de mantenimiento.
+2. Preparar los dos servicios desde la fuente revisada, con circuito acotado y modo de revisión activos; conservar cobro por solicitud/mínimo0 y los demás límites existentes. No activar el observador por reloj. No cambia el resto de servicios.
+3. Cerrar clientes antiguos mediante las reglas exactas probadas. Dirigir tráfico y todos los tags al código protegido o retirar tags que ya no correspondan. Retirar escritores Admin anteriores conforme al protocolo y acreditar terminación; un timeout o migrar tráfico no demuestra cierre de una solicitud. Si falta evidencia, conservar modo revisión y no ejecutar bootstrap.
+4. Sólo después, preparación explícita de índices/configuración con hash de reglas exacto. No migra ni reemplaza pagos/ventas/gastos/comisiones. Límite8MiB/60s y verificación de cobertura; no usar una descarga de la raíz como alternativa.
+5. Habilitar guardados protegidos; publicar Hosting desde el SHA limpio, comparar activos, y sólo después actualizar el aviso de versión. Verificación de producción en lectura, sin operaciones ficticias. Mantener sesión, borradores y navegación.
+6. Ante fallo, conservar reglas y modo revisión; corregir hacia adelante. No volver a Admin/PUT raíz ni restaurar negocio sobre operaciones nuevas.
+
+Preparar los paquetes es local y no construye imágenes en Google. La estimación anterior para la futura compilación era menor aUSD1 y la preparación del índice aproximadamenteUSD0,007, según la medición privada anterior; no es una tarifa fija ni una lectura nueva de facturación. Reconfirmar el alcance/costo informado antes de activar. No se agrega un servicio ni costo fijo de infraestructura.

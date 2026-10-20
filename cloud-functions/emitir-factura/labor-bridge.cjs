@@ -67,6 +67,8 @@ function createFiscalLaborBridge({db,guard,now=Date.now,uuid=crypto.randomUUID})
   return {...copy(result),gestionFiscalServidor:true,emisionOperacionId:job.operationId,persistenciaPendiente:pending,vinculacionDisponible:pending&&durable};
  }
  async function begin({data,provider,uid='',usuario=''}){
+  data=Fiscal.normalizarSolicitudEmisionFiscal(data,true);
+  if(provider.comprobante?.tipo!==data.tipoComprobante)throw fail(400,'El tipo del comprobante fiscal no coincide con la operación.');
   const key=saleKey(data.venta?.fbKey),salePath='sisventas/ventas/'+key;let sale,cycle,operationId;
   // El fence de preflight no abarca la llamada externa. Si el circuito no está
   // listo o está en revisión, no se contacta al proveedor fiscal.

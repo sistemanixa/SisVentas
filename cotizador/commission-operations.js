@@ -1,8 +1,16 @@
 'use strict';
 const {isDeepStrictEqual}=require('node:util'),{normalizarEstadoGasto:state,esComision,claveGrupo,porcentaje:pct,baseGanancia:base,registroComparable:clean}=require('./commission-calculations');
 const fail=(statusCode,message)=>Object.assign(Error(message),{statusCode});
+function blockedModules(config){
+ if(!config||typeof config!=='object'||Array.isArray(config))return null;
+ if(config.bloqueados==null)return [];
+ if(typeof config.bloqueados!=='object')return null;
+ const values=Object.values(config.bloqueados).filter(value=>value!==null);
+ if(values.some(value=>typeof value!=='string'||!value.trim()))return null;
+ return values.map(value=>value.trim());
+}
 function createCommissionOperations({auth,db,transaction,now=Date.now}){
- async function authorize(req){const m=String(req.headers.authorization||'').match(/^Bearer\s+(\S+)$/i);if(!m)throw fail(401,'Sesión requerida');let token;try{token=await auth.verifyIdToken(m[1],true);}catch(_){throw fail(401,'Sesión inválida');}const i=(await db.ref('sv_chat_roles/'+token.uid).get()).val();if(i?.activo!==true||!['admin','administrativo','tecnico','vendedor','tecnico_vendedor'].includes(i.rol))throw fail(403,'Sin acceso');const cfg=(await db.ref('sv_permisos/'+i.rol).get()).val()||{};if(cfg.bloqueados?.includes('comisiones')||(typeof cfg.acciones?.comisiones?.distribuir==='boolean'?!cfg.acciones.comisiones.distribuir:i.rol!=='admin'))throw fail(403,'Sin permiso para distribuir comisiones');return {uid:token.uid,nombre:i.nombre||token.name||token.email||token.uid,claims:token,role:i.rol,permissionRevision:cfg.indiceRevision??null,permissionDigest:require('./labor-guard').digest(cfg||{})};}
+ async function authorize(req){const m=String(req.headers.authorization||'').match(/^Bearer\s+(\S+)$/i);if(!m)throw fail(401,'Sesión requerida');let token;try{token=await auth.verifyIdToken(m[1],true);}catch(_){throw fail(401,'Sesión inválida');}const i=(await db.ref('sv_chat_roles/'+token.uid).get()).val();if(i?.activo!==true||!['admin','administrativo','tecnico','vendedor','tecnico_vendedor'].includes(i.rol))throw fail(403,'Sin acceso');const cfg=(await db.ref('sv_permisos/'+i.rol).get()).val()??{},blocked=blockedModules(cfg);if(!blocked||blocked.includes('comisiones')||(typeof cfg.acciones?.comisiones?.distribuir==='boolean'?!cfg.acciones.comisiones.distribuir:i.rol!=='admin'))throw fail(403,'Sin permiso para distribuir comisiones');return {uid:token.uid,nombre:i.nombre||token.name||token.email||token.uid,claims:token,role:i.rol,permissionRevision:cfg.indiceRevision??null,permissionDigest:require('./labor-guard').digest(cfg||{})};}
  async function redistribute(identity,body){const group=body?.grupo,values=body?.valores,moves=body?.movimientos||{};
  if(!group||typeof group.clave!=='string'||!Array.isArray(group.items)||!group.items.length||group.items.length>100||new Set(group.items.map(g=>g?.fbKey)).size!==group.items.length||!Array.isArray(values)||values.length>100||values.some(v=>!v||typeof v.fbKey!=='string')||new Set(values.map(v=>v.fbKey)).size!==values.length)throw fail(400,'Distribución inválida');let error;
  const result=await transaction(root=>{error=null;if(!root)return null;try{

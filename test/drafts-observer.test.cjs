@@ -32,6 +32,13 @@ function fixture(initial={}){
   renderGrid(){grid=true;c.svDrafts.renderGrid();}};
 }
 
+test('una edición pendiente no presenta al presupuesto aprobado como borrador',()=>{
+ const d=draft('edicion','Cliente ficticio');d.data.edit='presupuesto-ficticio';d.original={id:'PP-FICTICIO',estado:'aprobado_int'};
+ const f=fixture({[key('propio',d.id)]:JSON.stringify(d)});f.renderGrid();
+ assert.equal(f.body.children[0].children[6].textContent,'Cambios sin guardar');
+ assert.equal(d.original.estado,'aprobado_int');assert.equal(f.writes.length,0);assert.equal(f.storageWrites,0);
+});
+
 test('dos observadores reciben estado inicial local sin conectar, escribir ni crear timers',()=>{
  const f=fixture({[key('propio','real')]:JSON.stringify(draft('real','Cliente ficticio'))}),a=[],b=[];
  const stopA=f.c.svDrafts.subscribe(state=>a.push(state)),stopB=f.c.svDrafts.subscribe(state=>b.push(state));

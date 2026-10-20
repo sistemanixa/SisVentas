@@ -178,6 +178,12 @@ exports.emitirFactura = onRequest(
     setCors(req, res);
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     if (req.method !== 'POST') { res.status(405).json({ error: true, mensaje: 'Método no permitido' }); return; }
+    // La clase fiscal se deriva del tipo antes de autorizar: el navegador no
+    // puede convertir una NC en una factura omitiendo o falseando su bandera.
+    if (req.body?.tipoComprobante !== undefined) {
+      try { req.body=require('./fiscal-contract.cjs').normalizarSolicitudEmisionFiscal(req.body); }
+      catch(errorTipo) { res.status(errorTipo.statusCode||400).json({error:true,mensaje:errorTipo.message}); return; }
+    }
     if (!await chequearAuth(req, res, 'fiscal')) return;
 
     var data = req.body || {};

@@ -1,6 +1,8 @@
-# Circuito laboral acotado · candidato v3.13.4
+# Circuito laboral acotado · candidato v3.13.19
 
 Implementación y pruebas locales; **no aplicado a producción**. Complementa [PLAN_DOMINIO_LABORAL.md](PLAN_DOMINIO_LABORAL.md). No acredita auditoría completa ni un importe mensual fijo.
+
+El cierre integrado sobre la web publicada v3.13.18, su evidencia y las condiciones operativas vigentes están en [CORTE_CIRCUITO_LABORAL_V31319.md](CORTE_CIRCUITO_LABORAL_V31319.md). Las fuentes y paquetes anteriores no sustituyen el SHA final revisado.
 
 ## Contrato
 

@@ -1,6 +1,21 @@
 'use strict';
 // Proyección pura del contrato fiscal canónico de la aplicación activa.
 // La prueba de paridad exige conservar las mismas funciones, descuentos e IVA.
+function normalizarSolicitudEmisionFiscal(data, requerirTipo = false) {
+  data = data || {};
+  if (['consultar_cuit', 'consultar_comprobante', 'recuperar_identidad_fiscal', 'regenerar_pdf', 'vincular_emision'].includes(data.accion)) return data;
+  var raw = data.tipoComprobante;
+  if ((raw === undefined || raw === null || raw === '') && !requerirTipo) return data;
+  var tipo = typeof raw === 'string' || typeof raw === 'number' ? String(raw).trim().toUpperCase().replace(/\s+/g, ' ') : '';
+  var codigos = { '1':'FACTURA A', '6':'FACTURA B', '11':'FACTURA C', '3':'NOTA DE CREDITO A', '8':'NOTA DE CREDITO B', '13':'NOTA DE CREDITO C' };
+  tipo = codigos[tipo.replace(/^0+/, '')] || tipo;
+  function invalidar(mensaje) { throw Object.assign(new Error(mensaje), { statusCode:400 }); }
+  if (!/^(FACTURA|NOTA DE CREDITO) [ABC]$/.test(tipo)) invalidar('El tipo de comprobante fiscal no es válido.');
+  var esNotaCredito = tipo.startsWith('NOTA DE CREDITO ');
+  if (data.esNotaCredito !== undefined && (typeof data.esNotaCredito !== 'boolean' || data.esNotaCredito !== esNotaCredito)) invalidar('El tipo de comprobante y la operación fiscal no coinciden.');
+  return Object.assign({}, data, { tipoComprobante:tipo, esNotaCredito:esNotaCredito });
+}
+
 function normalizarNumeroExcel(texto) {
   if (!texto) return '';
   var t = String(texto).trim();
@@ -478,4 +493,4 @@ function prepararVentaParaNotaCredito(venta, snapshot) {
     origenNotaCredito:'factura-original'
   });
 }
-module.exports={names:["normalizarNumeroExcel","pptoNumeroGuardado","descripcionVisibleItemDocumento","pptoNormalizarItemGuardado","ventaSubtotalBruto","ventaTieneDescuentoItem","ventaNormalizarDescuentoParaVista","ventaPorcentajeDescuentoEfectivo","ventaEsSinCargo","resumenEconomicoComprobanteVenta","resumenFiscalParaComprobanteVenta","importeComprobanteVenta","prepararVentaParaFacturacion","_resumenSnapshotFiscal","prepararVentaParaNotaCredito"],prepararVentaParaFacturacion,prepararVentaParaNotaCredito,resumenEconomicoComprobanteVenta,resumenFiscalParaComprobanteVenta};
+module.exports={names:["normalizarNumeroExcel","pptoNumeroGuardado","descripcionVisibleItemDocumento","pptoNormalizarItemGuardado","ventaSubtotalBruto","ventaTieneDescuentoItem","ventaNormalizarDescuentoParaVista","ventaPorcentajeDescuentoEfectivo","ventaEsSinCargo","resumenEconomicoComprobanteVenta","resumenFiscalParaComprobanteVenta","importeComprobanteVenta","prepararVentaParaFacturacion","_resumenSnapshotFiscal","prepararVentaParaNotaCredito"],normalizarSolicitudEmisionFiscal,prepararVentaParaFacturacion,prepararVentaParaNotaCredito,resumenEconomicoComprobanteVenta,resumenFiscalParaComprobanteVenta};

@@ -1,13 +1,14 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const {load}=require('./helpers/app-functions.cjs');
 function session(store,uid){
- const c={currentUserUid:uid,fbDB:{},FB_PATHS:{ventas:'ventas',presupuestos:'presupuestos'},fbRef:(_,p)=>p,
- fbGet:async()=>({}),fbRunTransaction:async(path,fn)=>{
+ const c={URL,AbortSignal,TextEncoder,currentUserUid:uid,fbAuth:{currentUser:{uid,getIdToken:async()=>'fake-token'}},fbDB:{},FB_PATHS:{ventas:'ventas',presupuestos:'presupuestos'},fbRef:(_,p)=>({path:p,toString:()=>'https://fixture.invalid/'+p}),
+ fbGet:async()=>({}),fbRunTransaction:async(ref,fn)=>{const path=ref.path;
   const next=fn(structuredClone(store[path]));if(next===undefined)return {committed:false};
   store[path]=next;return {committed:true,snapshot:{val:()=>structuredClone(next)}};
  },ventasPagosV3Invocar(){throw Error('No debe evadir la comprobación');},pptoV3Invocar(){throw Error('No debe evadir la comprobación');}};
+ c.fetch=async(url,options)=>{assert.equal(options.method,undefined,'la comprobación de conflicto no escribe');const path=new URL(url).pathname.slice(1).replace(/\.json$/,'');return {ok:true,headers:{get:()=> 'v-current'},json:async()=>structuredClone(store[path])};};
  c.window=c;vm.createContext(c);vm.runInContext(fs.readFileSync('js/core/guarded-writes.js','utf8'),c);
- c.refreshes=[];c.SVCommercialOwnership={refresh:domain=>c.refreshes.push(domain),clean:r=>Object.fromEntries(Object.entries(r||{}).filter(([k])=>k!=='fbKey'&&!k.startsWith('_sv'))),prepare:async(domain,id,baseline)=>({record:structuredClone(store[domain+'/'+id]),baseline:baseline?structuredClone(baseline):null})};
+ c.refreshes=[];c.SVCommercialOwnership={captureWriteContext:()=>({uid}),isWriteContext:token=>token.uid===c.currentUserUid,confirmWrite:(_domain,record)=>record,refresh:domain=>c.refreshes.push(domain),clean:r=>Object.fromEntries(Object.entries(r||{}).filter(([k])=>k!=='fbKey'&&!k.startsWith('_sv'))),prepare:async(domain,id,baseline)=>({record:structuredClone(store[domain+'/'+id]),baseline:baseline?structuredClone(baseline):null})};
  vm.runInContext(fs.readFileSync('js/modules/commercial-document-controls.js','utf8'),c);
  load(c,['pptoPersistirGuardar','ventasPagosPersistirGuardarVenta']);return c;
 }

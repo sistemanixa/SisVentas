@@ -2,7 +2,17 @@
 const known=['admin','administrativo','vendedor','tecnico_vendedor','tecnico'];
 const defaultBlocked={admin:[],administrativo:['configuracion'],vendedor:['configuracion','facturas','ordenes'],tecnico_vendedor:['configuracion','facturas','ordenes'],tecnico:['configuracion','facturas','ordenes','clientes']};
 function fail(status,message){const e=Error(message);e.statusCode=status;throw e;}
-function permitted(role,cfg,module,action,defaults){if(!known.includes(role))return false;const blocked=Array.isArray(cfg?.bloqueados)?cfg.bloqueados:defaultBlocked[role];if(blocked.includes(module))return false;if(!action)return true;const [group,...name]=action.split('.'),override=cfg?.acciones?.[group]?.[name.join('_')];return typeof override==='boolean'?override:defaults.includes(role);}
+function blockedModules(role,cfg){
+ if(cfg==null)return defaultBlocked[role];
+ if(typeof cfg!=='object'||Array.isArray(cfg))return null;
+ if(cfg.bloqueados==null)return defaultBlocked[role];
+ const raw=cfg.bloqueados;
+ if(typeof raw!=='object')return null;
+ const values=Object.values(raw).filter(value=>value!==null);
+ if(values.some(value=>typeof value!=='string'||!value.trim()))return null;
+ return values.map(value=>value.trim());
+}
+function permitted(role,cfg,module,action,defaults){if(!known.includes(role))return false;const blocked=blockedModules(role,cfg);if(!blocked||blocked.includes(module))return false;if(!action)return true;const [group,...name]=action.split('.'),override=cfg?.acciones?.[group]?.[name.join('_')];return typeof override==='boolean'?override:defaults.includes(role);}
 function policy(service,body={}){
  if(service==='fiscal-test')return {module:'configuracion'};
  if(service==='fiscal'){
@@ -22,7 +32,7 @@ async function authorize({admin,authorization,service,body,personalOwnerUid='',p
  const identity=(await admin.database().ref('sv_chat_roles/'+user.uid).get()).val();
  if(identity?.activo!==true||!known.includes(identity.rol))fail(403,'Usuario sin acceso al servicio');
  if(service==='statement-import'){if(!personalEnabled||!personalOwnerUid)fail(503,'Lectura privada con IA todavía no habilitada');if(user.uid!==personalOwnerUid||viewAs)fail(403,'Espacio privado no disponible');return {uid:user.uid,role:identity.rol};}
- const cfg=(await admin.database().ref('sv_permisos/'+identity.rol).get()).val()||{};
+ const cfg=(await admin.database().ref('sv_permisos/'+identity.rol).get()).val()??{};
  const p=policy(service,body);if(!permitted(identity.rol,cfg,p.module,p.action,p.defaults))fail(403,'Sin permiso para esta operación');
  return {uid:user.uid,role:identity.rol};
 }
