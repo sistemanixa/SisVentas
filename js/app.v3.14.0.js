@@ -4722,6 +4722,23 @@ function otOrdenesEmpleado(empleado, soloAbiertas) {
   return otData.filter(function(ot){return scope.assigned(ot, empleado, directorio) && (!soloAbiertas || !otEstaCerrada(ot));});
 }
 
+function _hsexFechaProgramadaOT(ot) {
+  if (!ot) return '';
+  // Una fecha vacía es una OT sin programar, aunque conserve datos legacy.
+  var valor = Object.prototype.hasOwnProperty.call(ot, 'fecha') ? ot.fecha : ot.fechaProgramada;
+  if (typeof valor !== 'string') return '';
+  var texto = valor.trim();
+  var partes = texto.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!partes) {
+    var dmy = texto.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    if (!dmy) return '';
+    partes = [texto, dmy[3], dmy[2].padStart(2, '0'), dmy[1].padStart(2, '0')];
+  }
+  var iso = partes[1] + '-' + partes[2] + '-' + partes[3];
+  var fecha = new Date(iso + 'T12:00:00');
+  return fecha.getFullYear() === Number(partes[1]) && fecha.getMonth() + 1 === Number(partes[2]) && fecha.getDate() === Number(partes[3]) ? iso : '';
+}
+
 function _hsexOTPendientesVencidas(empleado) {
   if (!empleado || !Array.isArray(otData)) return [];
   var hoyISO = typeof svFechaLocalISO === 'function' ? svFechaLocalISO() : new Date().toLocaleDateString('en-CA');
@@ -4729,12 +4746,10 @@ function _hsexOTPendientesVencidas(empleado) {
   limite.setDate(limite.getDate() - 10);
   var limiteISO = typeof svFechaLocalISO === 'function' ? svFechaLocalISO(limite) : limite.toLocaleDateString('en-CA');
   return otOrdenesEmpleado(empleado, true).filter(function(ot) {
-    var fecha = typeof otFechaEstadisticaISO === 'function'
-      ? otFechaEstadisticaISO(ot.fecha || ot.fechaProgramada || ot.createdAt || ot.ts)
-      : String(ot.fecha || '').slice(0, 10);
+    var fecha = _hsexFechaProgramadaOT(ot);
     return !!fecha && fecha < limiteISO;
   }).sort(function(a, b) {
-    return String(a.fecha || a.fechaProgramada || '').localeCompare(String(b.fecha || b.fechaProgramada || ''));
+    return _hsexFechaProgramadaOT(a).localeCompare(_hsexFechaProgramadaOT(b));
   });
 }
 
@@ -4768,7 +4783,7 @@ function abrirFormCargaHsExtra() {
     bloqueo.style.display = 'flex';
     bloqueo.innerHTML = '<div class="modal" style="max-width:520px">' +
       '<div class="modal-head"><div><div class="modal-title"><i class="ti ti-clipboard-alert" style="color:var(--amber);margin-right:7px"></i>Primero completá tus OT</div><div style="font-size:12px;color:var(--text3);margin-top:4px">La carga de horas extra está temporalmente bloqueada.</div></div><button class="btn btn-icon" onclick="document.getElementById(\'modal-hsextra\').remove()"><i class="ti ti-x"></i></button></div>' +
-      '<div class="modal-body"><div style="padding:12px 14px;border:1px solid var(--amber);background:var(--amber-bg);border-radius:var(--radius);color:var(--text2)">Tenés <strong style="color:var(--amber)">' + otVencidas.length + ' OT pendiente' + (otVencidas.length === 1 ? '' : 's') + '</strong> desde hace más de 10 días.<div style="font-size:12px;margin-top:7px">' + escapeHTML(idsOT + adicionales) + '</div></div><p style="font-size:12px;color:var(--text3);margin:12px 0 0">Cerrá y completá esas órdenes para poder presentar las horas extra.</p></div>' +
+      '<div class="modal-body"><div style="padding:12px 14px;border:1px solid var(--amber);background:var(--amber-bg);border-radius:var(--radius);color:var(--text2)">Tenés <strong style="color:var(--amber)">' + otVencidas.length + ' OT pendiente' + (otVencidas.length === 1 ? '' : 's') + '</strong> con fecha programada vencida hace más de 10 días.<div style="font-size:12px;margin-top:7px">' + escapeHTML(idsOT + adicionales) + '</div></div><p style="font-size:12px;color:var(--text3);margin:12px 0 0">Cerrá y completá esas órdenes para poder presentar las horas extra.</p></div>' +
       '<div class="modal-foot"><button class="btn" onclick="document.getElementById(\'modal-hsextra\').remove()">Cerrar</button><button class="btn btn-primary" onclick="irAOTPendientesHsExtra()"><i class="ti ti-external-link"></i> Ver OT pendientes</button></div>' +
     '</div>';
     document.body.appendChild(bloqueo);
@@ -4822,7 +4837,7 @@ async function enviarSolicitudHsExtra(empFbKey, empNombre) {
     var empleadoActual = _hsexEmpleadoActual();
     var otVencidas = _hsexOTPendientesVencidas(empleadoActual);
     if (otVencidas.length) {
-      notify('No se pueden enviar horas extra: tenés ' + otVencidas.length + ' OT pendiente' + (otVencidas.length === 1 ? '' : 's') + ' de más de 10 días');
+      notify('No se pueden enviar horas extra: tenés ' + otVencidas.length + ' OT vencida' + (otVencidas.length === 1 ? '' : 's') + ' hace más de 10 días');
       abrirFormCargaHsExtra();
       return;
     }
@@ -10864,7 +10879,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.14.0',date:'20/10/2026',title:'Órdenes pendientes del técnico',notes:Object.freeze(['Tus órdenes se actualizan al terminar de cargar, sin tener que salir y volver.','Dashboard, órdenes y horas extra reconocen la misma asignación y excluyen las órdenes cerradas.']),feature:Object.freeze({page:'ordentrabajo',actionLabel:'Ver órdenes'})}),
+ Object.freeze({version:'v3.14.0',date:'20/10/2026',title:'Órdenes pendientes del técnico',notes:Object.freeze(['Tus órdenes se actualizan al terminar de cargar, sin tener que salir y volver.','Dashboard, órdenes y horas extra reconocen la misma asignación y excluyen las órdenes cerradas.','Sólo las OT con fecha programada vencida hace más de diez días bloquean las horas extra. Las que están sin fecha no bloquean.']),feature:Object.freeze({page:'ordentrabajo',actionLabel:'Ver órdenes'})}),
  Object.freeze({version:'v3.13.20',date:'20/10/2026',title:'Eliminación de productos según permisos',notes:Object.freeze(['Eliminar un producto respeta los permisos de tu rol sin exigir acceso a todas las ventas.','Las ventas y presupuestos guardados se conservan.']),feature:Object.freeze({page:'productos',actionLabel:'Ver productos'})}),
  Object.freeze({version:'v3.13.19',date:'20/10/2026',title:'Pagos y comisiones con confirmación segura',notes:Object.freeze(['Pagos y cuentas se confirman juntos.','Ante una interrupción podés comprobar el guardado antes de repetirlo.','El historial de empleados se conserva y las consultas usan sólo los datos necesarios.']),feature:Object.freeze({page:'comisiones',actionLabel:'Ver comisiones'})}),
  Object.freeze({version:'v3.13.18',date:'20/10/2026',title:'Guardar presupuestos con el teclado',notes:Object.freeze(['F5 utiliza la acción principal del presupuesto: Aprobar y guardar, Guardar presupuesto o Enviar a revisión según tus permisos.','El atajo respeta las ventanas abiertas y evita guardar un borrador por error.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),

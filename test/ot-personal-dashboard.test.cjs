@@ -9,7 +9,7 @@ function setup(){
  node('dash-mis-ots');node('page-dashboard');node('page-ordentrabajo');
  const employee={fbKey:'employee-demo',nombre:'Técnico Ficticio'},c={window:null,console:{error(){}},Date,isAuthenticated:true,currentUserUid:'user-demo',currentUser:'login-tecnico',currentRole:'tecnico',fbAuth:{currentUser:{uid:'user-demo'}},PERMISOS_ROLES:{tecnico:{indiceRevision:2}},usuariosData:[{uid:'user-demo',empleadoFbKey:'employee-demo'}],empData:{e:employee},otData:[],fbDB:{},FB_PATHS:{ordenesTrabajo:'sisventas/ordenesTrabajo'},SVOTPersonalScope:scope,
   DASHBOARD_DATOS_REVISION:0,DASHBOARD_ULTIMA_REVISION:-1,DASHBOARD_RENDER_PROGRAMADO:false,document:{getElementById:id=>nodes[id]||null,querySelector:()=>nodes[active]||null},setTimeout:fn=>{timers.push(fn);return timers.length;},svFechaLocalISO:date=>date?[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-'):'2026-10-20',svMesLocalISO:()=> '2026-10',tienePermiso:key=>key==='dashboard.misOT',svPuedeLeerDominio:()=>true,_chequearCambioHistCliente(){},fbRef:(_,p)=>p,fbOnValue:(_,ok,bad)=>{calls.listeners++;success=ok;failure=bad;},fbGet:()=>assert.fail('No agregar lecturas'),fbUpdate:()=>{calls.writes++;assert.fail('No modificar OT ni horas');},renderKPIsDashboard:()=>calls.kpi++,escapeHTML:value=>String(value||''),nombreClienteVigente:(o,fallback)=>o.cliente||fallback,_svResolverClienteRegistro:()=>null,notify(){},_gastosUnsubscribe:()=>{},invalidarCacheClientes(){},_otTarjeta:o=>'<article>'+o.id+'</article>'};
- c.window=c;load(c,['svEmpleadoPropio','_hsexEmpleadoActual','otOrdenesEmpleado','otEstadoNormalizado','otEstaCerrada','otEstadoParaMostrar','otBadge','otFechaEstadisticaISO','otFechaOperativaEstadistica','_hsexOTPendientesVencidas','renderDashMisOTs','marcarDashboardDatosSucios','solicitarRenderDashboard','svCapturarContextoOperacion','svReiniciarBanderasLectura','svActualizarCuentaTrasDatos','fbCargarOTs','_renderOTVistaTenico','renderOTTabla','dashFechaISO','dashDatosOTResumen']);
+ c.window=c;load(c,['svEmpleadoPropio','_hsexEmpleadoActual','otOrdenesEmpleado','otEstadoNormalizado','otEstaCerrada','otEstadoParaMostrar','otBadge','otFechaEstadisticaISO','otFechaOperativaEstadistica','_hsexFechaProgramadaOT','_hsexOTPendientesVencidas','renderDashMisOTs','marcarDashboardDatosSucios','solicitarRenderDashboard','svCapturarContextoOperacion','svReiniciarBanderasLectura','svActualizarCuentaTrasDatos','fbCargarOTs','_renderOTVistaTenico','renderOTTabla','dashFechaISO','dashDatosOTResumen']);
  return {c,calls,nodes,timers,node,employee,hide:()=>{active='page-ordentrabajo';},show:()=>{active='page-dashboard';},flush(){while(timers.length)timers.shift()();},deliver(records){success({val:()=>records});},fail(){failure(Error('Falla ficticia'));},get html(){return nodes['dash-mis-ots'].innerHTML;}};
 }
 const order=(id,extra={})=>({id,estado:'en_progreso',tecnicoFbKey:'employee-demo',tecnico:'Nombre antiguo',cliente:'Cliente ficticio '+id,fecha:'2026-10-01',...extra});
@@ -57,13 +57,33 @@ test('el administrador conserva el alcance global de métricas y resumen',()=>{
 
 test('el bloqueo conserva la frontera local: diez días no bloquean y once sí',()=>{
  const f=setup();f.c.otData=[order('TEN',{fecha:'2026-10-10'}),order('ELEVEN',{fecha:'2026-10-09'}),order('CLOSED',{fecha:'2026-10-01',estado:'con_observaciones'}),order('UNSCHEDULED',{fecha:'',createdAt:'2026-10-01'})];
- assert.deepEqual(Array.from(f.c._hsexOTPendientesVencidas(f.employee),o=>o.id).sort(),['ELEVEN','UNSCHEDULED']);assert.equal(f.calls.writes,0);
+ assert.deepEqual(Array.from(f.c._hsexOTPendientesVencidas(f.employee),o=>o.id),['ELEVEN']);assert.equal(f.calls.writes,0);
+});
+
+test('sin programación no bloquea por creación, timestamp ni programación legacy borrada',()=>{
+ const f=setup();f.c.otData=[order('CREATED',{fecha:'',createdAt:'2026-01-01'}),order('TS',{fecha:null,ts:1}),order('CLEARED',{fecha:'',fechaProgramada:'2026-01-01'}),order('WHITESPACE',{fecha:'  ',fechaProgramada:'2026-01-01'})];
+ const missing=order('MISSING',{createdAt:'2026-01-01',ts:1});delete missing.fecha;f.c.otData.push(missing);
+ assert.deepEqual(Array.from(f.c._hsexOTPendientesVencidas(f.employee)),[]);assert.equal(f.calls.writes,0);
+});
+
+test('programación legacy sólo si falta fecha y las OT futuras o ajenas no bloquean',()=>{
+ const f=setup(),legacy=order('LEGACY',{fechaProgramada:'09/10/2026'});delete legacy.fecha;
+ f.c.otData=[order('FUTURE',{fecha:'2026-10-21'}),order('RECENT',{fecha:'2026-10-19',createdAt:'2026-01-01'}),order('FOREIGN',{tecnicoFbKey:'other-employee'}),legacy,order('EARLIER',{fecha:'2026-10-01'})];
+ assert.deepEqual(Array.from(f.c._hsexOTPendientesVencidas(f.employee),o=>o.id),['EARLIER','LEGACY']);assert.equal(f.calls.writes,0);
+});
+
+for(const value of ['2026-02-31','2026-13-01','31/02/2026','2026-00-10','2026-10-00','2026-10-01 basura','ayer',true,1,{},[]])test('fecha programada inválida no se interpreta como vencida: '+JSON.stringify(value),()=>{
+ const f=setup();f.c.otData=[order('INVALID',{fecha:value,createdAt:'2026-01-01'})];assert.deepEqual(Array.from(f.c._hsexOTPendientesVencidas(f.employee)),[]);assert.equal(f.calls.writes,0);
+});
+
+test('programación válida conserva formatos calendario y años bisiestos',()=>{
+ const f=setup();assert.equal(f.c._hsexFechaProgramadaOT({fecha:' 2024-02-29 '}),'2024-02-29');assert.equal(f.c._hsexFechaProgramadaOT({fecha:'9-10-2026'}),'2026-10-09');assert.equal(f.c._hsexFechaProgramadaOT({fecha:'2025-02-29'}),'');
 });
 
 test('Dashboard, vista técnica, indicadores y bloqueo usan el mismo empleado y estados cerrados canónicos',()=>{
  const f=setup();f.c.otData=[order('OT-DEMO-A',{fbKey:'a'}),order('OT-DEMO-B',{fbKey:'b',fecha:'' ,createdAt:'2026-10-01'}),order('CLOSED',{estado:'Con observaciones',fechaCierre:'2026-10-19'}),order('FOREIGN',{tecnicoFbKey:'other-employee',tecnico:'Técnico Ficticio'})];f.c._otsDatosCargados=true;
  f.c.renderDashMisOTs();assert.match(f.html,/OT-DEMO-A/);assert.match(f.html,/OT-DEMO-B/);assert.doesNotMatch(f.html,/CLOSED|FOREIGN|con_observaciones/);
- assert.deepEqual(Array.from(f.c.dashDatosOTResumen().abiertas,o=>o.id),['OT-DEMO-A','OT-DEMO-B']);assert.deepEqual(Array.from(f.c._hsexOTPendientesVencidas(f.employee),o=>o.id).sort(),['OT-DEMO-A','OT-DEMO-B']);
+ assert.deepEqual(Array.from(f.c.dashDatosOTResumen().abiertas,o=>o.id),['OT-DEMO-A','OT-DEMO-B']);assert.deepEqual(Array.from(f.c._hsexOTPendientesVencidas(f.employee),o=>o.id),['OT-DEMO-A']);
  for(const id of ['ot-tec-atrasadas','ot-tec-atrasadas-box','ot-tec-hoy','ot-tec-hoy-box','ot-tec-pendientes','ot-tec-pendientes-box','ot-tec-vacia','ot-vista-tecnico','ot-vista-admin','ot-met-abiertas','ot-met-comp','ot-met-hoy'])f.node(id);
  f.c.renderOTTabla();assert.equal(f.nodes['ot-met-abiertas'].textContent,2);assert.equal(f.nodes['ot-met-comp'].textContent,1);assert.match(f.nodes['ot-tec-atrasadas'].innerHTML,/OT-DEMO-A/);assert.match(f.nodes['ot-tec-pendientes'].innerHTML,/OT-DEMO-B/);assert.equal(f.calls.writes,0);
 });
