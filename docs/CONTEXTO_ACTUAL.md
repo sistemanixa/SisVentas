@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Gastos personales · nueva tanda pendiente · 20/10/2026
+
+- El titular pidió acumular mejoras para más adelante, sin implementar ni publicar ahora.
+- **Confirmación de seguros sin pregunta duplicada:** clasificar manualmente un movimiento como «Seguro» debe confirmar directamente su condición de seguro en la ficha vinculada. Reservar «Pendiente de confirmar» para detecciones automáticas. La cobertura/póliza puede seguir pendiente sin invalidar la confirmación manual del usuario.
+- Aclarar las etiquetas visibles de verificación: «Seguro confirmado», «Pendiente de confirmar» y «No corresponde a un seguro». No usar «No verificado» como sinónimo de «No es seguro»; son conceptos distintos.
+- Estado: sólo anotado. Al implementar, conservar identidad, cargos, decisiones, coberturas e historial; no reclasificar retrospectivamente detecciones automáticas ni modificar datos reales sin revisar su evidencia. Los cambios previos de pagos/calendario ya están publicados en13.5 y no pertenecen a esta nueva tanda.
+
 ## Gastos personales v3.13.5 · publicado y corrección puntual aplicada · 20/10/2026
 
 - Fuente pública `dc960f193931a496e168f6bd4cbf1f9198f278b6`, rama `codex/corregir-anio-resumen`, desde la publicación13.3. Autorización explícita del titular para publicar la tanda y corregir el resumen/pago de Mercado Pago. No se integró main ni la rama laboral13.4; raíz y cambio histórico ajeno conservados.
