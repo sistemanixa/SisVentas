@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prueba aislada · Visualizador</title><link rel="icon" href="/nixa-icon-192.png"><link rel="stylesheet" href="/test/fixtures/budget-presentation-fixture.css"></head>
+<body data-fixture-role="notebook">
+ <header class="fixture-heading"><div><p class="eyebrow">Prueba local aislada</p><h1>Notebook → visualizador</h1><p>Todos los datos son ficticios. Sin Firebase, sin servicios comerciales y sin guardar en el navegador.</p></div><a href="/viewer" target="_blank" rel="noopener">Abrir vista sola ↗</a></header>
+ <main class="fixture-layout">
+  <section class="notebook" aria-label="Editor ficticio">
+   <div class="section-head"><h2>Notebook · edición</h2><button id="open-viewer" type="button">◉ Visualizar</button></div>
+   <p class="hint">El ojo abre el diálogo real en el panel de al lado. Podés seguir cambiando estos campos mientras está abierto.</p>
+   <label>Título<input id="demo-title" value="Conectividad y seguridad · ejemplo"></label>
+   <label>Cliente<input id="demo-client" value="Cliente ficticio · Taller del Sur"></label>
+   <div class="fields-row"><label>Moneda<select id="demo-currency"><option>ARS</option><option>USD</option></select></label><label>Descuento general %<input id="demo-discount" type="number" min="0" max="100" value="10" step="0.5"></label></div>
+   <label class="check"><input id="demo-iva" type="checkbox" checked> Aplicar IVA 21%</label>
+   <div id="demo-items"></div>
+   <div class="fixture-actions"><button id="many-items" type="button">Mostrar 12 productos</button><button id="reverse-items" type="button">Invertir orden</button><button id="second-draft" type="button">Agregar segunda edición</button></div>
+   <div class="fixture-actions"><button id="save-demo" type="button" class="primary">Guardar ficticiamente</button><button id="discard-demo" type="button">Descartar edición</button></div>
+   <div class="fixture-actions"><button id="connection-demo" type="button">Simular sin conexión</button><button id="ready-demo" type="button">Pausar sincronización</button><button id="repeat-demo" type="button">Repetir mismo estado</button></div>
+   <div class="fixture-actions"><button id="logout-demo" type="button">Simular salida</button><button id="reset-demo" type="button">Reiniciar demo</button></div>
+   <p id="editor-status" class="fixture-note" role="status">Preparando datos ficticios…</p><p id="viewer-metrics" class="fixture-note">Visor todavía cerrado.</p>
+  </section>
+  <section class="viewer-section" aria-label="Pantalla de presentación"><div class="section-head"><h2>Tablet · visualizador</h2><label>Tamaño<select id="frame-size"><option value="fluid">Adaptable</option><option value="tablet">Tablet 820 px</option><option value="phone">Celular 390 px</option></select></label></div><div id="viewer-wrap" data-size="fluid"><iframe id="viewer-frame" src="/viewer?embedded=1" title="Visualizador real con datos ficticios"></iframe></div></section>
+ </main>
+ <script src="/js/v3/budget-read-model.js"></script><script src="/test/fixtures/budget-presentation-fixture.js"></script>
+</body></html>

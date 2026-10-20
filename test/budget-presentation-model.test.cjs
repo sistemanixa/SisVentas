@@ -1,6 +1,7 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const Model=require('../js/core/budget-presentation-model'),Budget=require('../js/v3/budget-read-model');
+const {load}=require('./helpers/app-functions.cjs');
 const topKeys=['number','title','client','currency','items','subtotal','discountPct','discount','iva','ivaRate','includesIva','total','valid','warning'].sort();
 const itemKeys=['code','description','quantity','unit','unitPrice','discountPct','subtotal','image'].sort();
 const warning='Este presupuesto necesita revisión';
@@ -33,8 +34,16 @@ test('histórico inconsistente conserva exactamente su total y subtotales en lug
  assert.equal(value.valid,false);assert.equal(value.warning,warning);assert.equal(source.total,999.123456);
 });
 
-test('un centavo de diferencia histórica se advierte sin sustituir el importe guardado',()=>{
- const source=record();source.total=207.13;const value=Model.fromRecord(source);assert.equal(value.total,207.13);assert.equal(value.valid,false);assert.equal(value.warning,warning);
+test('tolera el centavo histórico admitido por V3 sin sustituir el importe guardado',()=>{
+ const source=record();source.total=207.13;const value=Model.fromRecord(source);assert.equal(Budget.moneyValuesEqual(source.total,207.12),true);assert.equal(value.total,207.13);assert.equal(value.valid,true);assert.equal(value.warning,'');
+ source.total=207.14;const conflict=Model.fromRecord(source);assert.equal(conflict.total,207.14);assert.equal(conflict.valid,false);assert.equal(conflict.warning,warning);
+});
+
+test('redondeos históricos al peso conservan todos sus importes sin una revisión ajena al criterio V3',()=>{
+ const source={id:'PP-LEGADO',cliente:'Cliente legado',conIva:true,subtotal:100,descuentoGeneral:0,descuentoAmt:0,iva:21,total:121,items:[{cod:'P1',desc:'Equipo legado',qty:1,punit:100.10,disc:0,sub:100}]};
+ assert.equal(Budget.build(source).ready,true);const value=Model.fromRecord(source);assert.equal(value.valid,true);assert.equal(value.warning,'');
+ assert.equal(value.items[0].unitPrice,100.10);assert.equal(value.items[0].subtotal,100);assert.equal(value.subtotal,100);assert.equal(value.iva,21);assert.equal(value.total,121);
+ source.total=120;assert.equal(Budget.build(source).ready,false);const different=Model.fromRecord(source);assert.equal(different.total,120);assert.equal(different.valid,false);
 });
 
 test('totales o subtotal de línea faltantes quedan pendientes, incluso con ítems completos',()=>{
@@ -104,6 +113,14 @@ test('fotos faltantes no invalidan y códigos ambiguos no inventan una foto ni u
  const products=[product(),{...product(),fbKey:'another-private-key',imagenUrl:'https://images.fixture.invalid/otro.png',unidad:'Metro'}];
  const ambiguous=Model.fromDraft(input,null,products);assert.equal(ambiguous.items[0].image,'');assert.equal(ambiguous.items[0].unit,'');
  input.data.rows[0].data.productoFbKey='another-private-key';const exact=Model.fromDraft(input,null,products);assert.equal(exact.items[0].image,products[1].imagenUrl);assert.equal(exact.items[0].unit,'Metro');
+});
+
+test('código de producto histórico usa la misma equivalencia de la app y exige coincidencia única',()=>{
+ const source=record();delete source.items[0].productoFbKey;source.items[0].cod='60876';const products=[{codigo:'P-60876',imagenUrl:'https://images.fixture.invalid/legado.jpg',unidad:'Metro'}];
+ const context={prodData:products};load(context,['_codigoProductoComparable','productoRefDesdeItem','productoDesdeItem','urlImagenProductoVisual']);
+ const expected=context.urlImagenProductoVisual(context.productoDesdeItem(source.items[0]),'');const value=Model.fromRecord(source,products);assert.equal(value.items[0].image,expected);assert.equal(value.items[0].unit,'Unidad');
+ delete source.items[0].unidad;assert.equal(Model.fromRecord(source,products).items[0].unit,'Metro');source.items[0].unidad='Unidad';
+ products.push({codigo:'060876',imagenUrl:'https://images.fixture.invalid/otra.jpg',unidad:'Otra'});const ambiguous=Model.fromRecord(source,products);assert.equal(ambiguous.items[0].image,'');assert.equal(ambiguous.items[0].unit,'Unidad');
 });
 
 test('fotos web válidas se resuelven en memoria, con alternativa si la archivada es data URL',()=>{

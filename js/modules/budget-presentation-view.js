@@ -143,7 +143,7 @@
       saved.hidden=typeof options.onSaved!=='function'||!['En edición','Edición finalizada'].includes(viewStatus.label);
       const alternatives=Array.isArray(state.alternatives)?state.alternatives:[];
       choices.hidden=alternatives.length<=1;
-      if(alternatives.length>1){reconcileOptions(alternatives);const desired=state.selectedDraft===null||state.selectedDraft===undefined?selected:String(state.selectedDraft);if(alternatives.some(item=>String(item.id??'')===desired)&&select.value!==desired)select.value=desired;}
+      if(alternatives.length>1){const entries=[{id:'',label:'Elegí una edición'},...alternatives];reconcileOptions(entries);const desired=state.selectedDraft===null||state.selectedDraft===undefined?selected:String(state.selectedDraft);if(entries.some(item=>String(item.id??'')===desired)&&select.value!==desired)select.value=desired;}
       showWarning(snapshot.warning||(snapshot.valid===false?'Revisá los importes de este presupuesto.':''));
       const items=Array.isArray(snapshot.items)?snapshot.items:[];
       reconcileItems(items,currency);

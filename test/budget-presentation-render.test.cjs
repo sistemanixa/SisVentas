@@ -88,7 +88,14 @@ test('selector, foco y scroll se conservan al actualizar estado y etiquetas de l
  const chosen=[],f=fixture({onChooseDraft:value=>chosen.push(value)}),base=snapshot(),alternatives=[{id:'d1',label:'Edición 1'},{id:'d2',label:'Edición 2'}];f.view.render(base,{alternatives,selectedDraft:'d2'});
  const select=f.find('.sv-bp-select'),options=[...select.children],content=f.find('.sv-bp-content');select.focus();content.scrollTop=174;content.scrollLeft=8;
  f.view.render({...base,total:250},{status:'offline',alternatives:[{id:'d1',label:'Edición 1 actualizada'},alternatives[1]]});
- assert.equal(f.document.activeElement,select);assert.equal(select.value,'d2');assert.deepEqual(select.children,options);assert.equal(options[0].textContent,'Edición 1 actualizada');assert.equal(content.scrollTop,174);assert.equal(content.scrollLeft,8);select.dispatch('change');assert.deepEqual(chosen,['d2']);assert.equal(f.srcWrites.length,2);
+ assert.equal(f.document.activeElement,select);assert.equal(select.value,'d2');assert.deepEqual(select.children,options);assert.equal(options[1].textContent,'Edición 1 actualizada');assert.equal(content.scrollTop,174);assert.equal(content.scrollLeft,8);select.dispatch('change');assert.deepEqual(chosen,['d2']);assert.equal(f.srcWrites.length,2);
+});
+
+test('dos ediciones sin elegir muestran una opción neutra y permiten seleccionar la primera',()=>{
+ const chosen=[],f=fixture({onChooseDraft:value=>chosen.push(value)});
+ f.view.render(snapshot(),{alternatives:[{id:'d1',label:'Edición 1'},{id:'d2',label:'Edición 2'}],selectedDraft:''});
+ const select=f.find('.sv-bp-select');assert.equal(select.value,'');assert.equal(select.children[0].textContent,'Elegí una edición');
+ select.value='d1';select.dispatch('change');assert.deepEqual(chosen,['d1']);
 });
 
 test('lista vacía reutiliza su aviso y render después de cerrar no crea nodos ni imágenes',()=>{
