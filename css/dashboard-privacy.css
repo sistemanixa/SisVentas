@@ -6,3 +6,5 @@
 .dashboard-private .m-value,.dashboard-private .m-sub{visibility:hidden}
 .dashboard-private .m-value{position:relative}
 .dashboard-private .m-value::after{content:'\2022\2022\2022\2022\2022\2022';visibility:visible;position:absolute;left:0;top:0;letter-spacing:3px;color:var(--text3)}
+
+#dash-metricas-globales .metric:has(.dashboard-eye){overflow:clip}

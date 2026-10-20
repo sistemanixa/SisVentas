@@ -1,5 +1,10 @@
 # Continuidad de SisVentas
 
+## Ojitos dashboard · ajuste visual v3.13.9 · 20/10/2026
+
+-13.8 publicada, siete activos y marcador comprobados. En la ventana real se detectó scroll horizontal interno de las tarjetas por el adorno que desborda al enfocar el ojo.13.9 usa overflow:clip en esas tarjetas para impedir ese desplazamiento; conserva botones y máscaras. Pendiente terminar publicación y comprobar de nuevo. Los cuatro importes quedaron ocultos por acción del titular autorizada en esta sesión.
+
+
 ## Privacidad dashboard admin v3.13.8 · autorizado en curso · 20/10/2026
 
 - Pedido urgente del titular: ojito independiente en Ventas hoy, Cobrado hoy, Deuda clientes y Podés facturar hasta, sólo administrador en sesión propia. Preferencia local por UID y tarjeta; no se guardan importes ni se cambia ningún cálculo/dato remoto. Subtextos se ocultan junto al importe, también del árbol accesible; navegación de tarjeta conservada sin dispararse al tocar el ojo.
