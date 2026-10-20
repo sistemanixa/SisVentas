@@ -14,7 +14,7 @@
   fields:[{id:'pp-numero',value:saved.id},{id:'pp-titulo-solucion',value:data.title},{id:'pp-cli',value:data.client},{id:'pp-descuento',value:String(data.discount)}],
   rows:data.rows.map(row=>({cod:row.code,desc:row.description,qty:String(row.quantity),price:row.price,disc:String(row.discount),data:{unidad:row.unit,imagenUrl:row.image}}))}};}
  function productData(data){return Object.fromEntries(data.rows.map((row,index)=>['ficticio-'+index,{codigo:row.code,unidad:row.unit,imagenUrl:row.image}]));}
- function initial(){const data=defaults(),record=recordFrom(data);return {record,products:productData(data),connected:true,ready:true,authenticated:true,event:{ownerUid:uid,ready:true,records:[draftFrom(data,record,'edicion-ficticia-1',Date.now())],deletedIds:[]}};}
+ function initial(){const data=defaults();if(new URL(location.href).searchParams.get('rows')==='12')for(let i=4;i<=12;i++)data.rows.push({code:'FICT-EX-'+i,description:'Producto ficticio adicional '+i+' para probar scroll',quantity:1,price:100,discount:0,unit:'Unidad',image:photo('camera')});const record=recordFrom(data);return {record,products:productData(data),connected:true,ready:true,authenticated:true,event:{ownerUid:uid,ready:true,records:[draftFrom(data,record,'edicion-ficticia-1',Date.now())],deletedIds:[]}};}
  if(role==='viewer'){
   let state=initial(),reads=0,loads=0;const observers=new Set(),fakeUser={uid};
   root.isAuthenticated=true;root.currentUserUid=uid;root.currentRole='admin';root.fbAuth={currentUser:fakeUser};root._impersonacionOriginal=null;root.prodData=copy(state.products);

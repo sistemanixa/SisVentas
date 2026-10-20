@@ -1,9 +1,10 @@
 # Continuidad de SisVentas
 
-## Integración grande13.16 · local en curso
+## Actualización grande16 · integración local en preparación
 
-- Retomada por pedido del titular tras publicar el visualizador13.14. Integra candidato laboral64d7a605 conservando toda la web vigente, seguros/cuotas y visualizador. No activado ni publicado. La falla informada de OT ocurre al finalizar; se espera captura para diagnóstico, sin guardar ni finalizar una OT real como prueba.
-- Estado externo vigente: Hosting13.14 y servidores de seguros/cuotas existentes. Los bloques antiguos que dicen producción13.3 describen su preparación histórica y no el estado remoto actual. Main y ambas PC conservados; cambio ajeno del test laboral fuera de esta integración.
+- Base web publicada15 completa y candidato laboral64d7a605 integrados. Incluye visualizador, seguros/cuotas, privacidad y la reparación de scroll/descuento/ampliación. No activado ni publicado. No hay cambios remotos de servicios/reglas ni guardados financieros.
+- La puerta anterior2882aprobados/27omitidos fue sobre base14; ejecutar nuevamente conjunto final y backend, reglas/remoto/emulador y paquete fiscal antes de activar. El titular autorizó retomar la actualización, pero falta confirmar ausencia de operaciones justo antes del corte. Falla OT precisada al finalizar; captura todavía pendiente.
+- Rama codex/actualizacion-grande-v31314 mantiene su nombre original pero candidato16; main, raíz y el test ajeno de la rama laboral original conservados.
 
 ## Rediseño laboral preparado y probado · 20/10/2026 · no activado
 
@@ -32,6 +33,22 @@
 - Pendiente prioritario real: cuatro transacciones laborales aún descargan/escriben raíz. Nueve contratos ficticios adicionales descartan recibos o snapshots mezclados que perderían controles de bajas/duplicados/miembros/pagos concurrentes; diseño en PLAN_DOMINIO_LABORAL. También siguen amplios la lectura de proyectos, opciones comerciales/catálogo y otros listados/arranque inventariados. Este bloque no demuestra consumo de reposo cero, auditoría100% ni mensual≤USD30. Siguiente paso: revisar/publicar13.4 por separado y continuar el cierre de escritores laborales antes de cualquier migración, sin recalcular comisiones históricas.
 
 
+
+
+
+## Visualizador · v3.13.15 · reparaciones publicadas y comprobadas
+
+- Fuente `c8d387e80b2509ebd0b35ea0a3b7470d2fd7fcf0`, rama subida; Hosting403activos/8cargas desde SHA limpio,10activos contrastados por hash y aviso web/SW/Firebase15 confirmado. Puerta2.529/2.529. Sólo web, sin cambios de servidor/reglas/IAM/DNS ni guardados de negocio.
+- En ventana real conservada: actualización14→15, diez presupuestos; mismo visualizador recibió el borrador existente de otro cliente. Rueda sobre producto movió scroll0→710 y regreso0; fondo0. Pantalla completa local ocupó1178x1004 y regresó al tamaño habitual, botón con estado correcto y sin alerta de API. No se cambió el descuento real para probar0: ese caso se comprobó con fixture/modelo ficticios. Se conserva sólo lectura y no se atribuyen los guardados del titular al agente.
+- Demos cerradas, servidores detenidos y viewport normal. Una sola ventana real dejada abierta en el visualizador. Captura privada `C:/SisVentas/tmp/budget-presentation-web15-fullscreen.private.png` y verificación HTTP privada, nunca Git.
+- La integración grande debe partir de este cierre15 y recalcularse como16 o siguiente disponible. Su puerta anterior2882/27corresponde a base14; faltan incorporar esta reparación, cerrar commit, revalidar backend/reglas/emulador/paquete/configuración y confirmar la ventana sin pagos/emisiones antes del corte. Sigue SIN activar.
+
+## Reparaciones del visualizador · v3.13.15 · publicación autorizada en preparación
+
+- Tres fallas informadas: descuento vacío equivale ahora a0 (igual que el editor) y se muestra siempre Descuento0%/$0,00; scroll retenido por filas con overflow:hidden y la regla global overscroll:contain; pantalla completa nativa denegada por IAB/iOS. Filas/fotos usan overflow:clip y encadenan sólo hacia el scroll de productos; ampliación local de toda la vista funciona aun sin API nativa, con regreso y estado del botón correctos. No afecta otros modales.
+- Reproducción real anterior: rueda sobre texto de una fila dejó scrollTop0→0. Con CSS reales y12productos ficticios, rueda sobre texto0→720 y sobre foto720→0, documento0; ampliación ocupa1280x720 y vuelve al margen16px. Descuento vacío mostrado0 y totales conservados; prueba de modelo cubre raw vacío/espacios/0 explícitos. Puerta2.529/2.529, sintaxis/diff/coherencia correctos. Sin cambios de servidor ni guardados de negocio.
+- En la ventana real13.14 se observó llegar una edición de descuento desde otro cliente de la misma cuenta; el agente no creó ni guardó esa edición. No copiar sus datos privados a Git. La integración grande local aprobó2882casos/27omitidos/0fallos (2909totales) sobre su base14, pero sigue sin commit de integración ni activación, y debe incorporar esta reparación/recalcular versión antes de su corte. No equivale a reglas/emulador actualizados contra producción.
+- Pendiente Hosting/aviso15 y revalidar scroll/ampliación en la ventana real. Pruebas locales no acreditan gesto físico Android/iOS; no afirmar cero fallas por la suite.
 
 ## Visualizador · v3.13.14 · último ajuste publicado y verificado
 

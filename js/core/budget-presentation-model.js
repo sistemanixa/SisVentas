@@ -107,7 +107,8 @@
     var data=object(object(draft).data),saved=object(record),fields=Object.create(null),list=productsList(products);
     (Array.isArray(data.fields)?data.fields:[]).forEach(function(field){if(field&&typeof field.id==='string')fields[field.id]=field.value;});
     function field(id,fallback){return Object.prototype.hasOwnProperty.call(fields,id)?fields[id]:fallback;}
-    var curr=currency(data.currency,false),iva=typeof data.iva==='boolean'?{value:data.iva,valid:true}:includesIva(saved),discountPct=percent(field('pp-descuento',first(saved,DISCOUNT,0)),true),valid=!!curr&&iva.valid&&discountPct!==null;
+    var rawDiscount=field('pp-descuento',first(saved,DISCOUNT,0));if(typeof rawDiscount==='string'&&!rawDiscount.trim())rawDiscount=0;
+    var curr=currency(data.currency,false),iva=typeof data.iva==='boolean'?{value:data.iva,valid:true}:includesIva(saved),discountPct=percent(rawDiscount,true),valid=!!curr&&iva.valid&&discountPct!==null;
     if(data.iva!==undefined&&typeof data.iva!=='boolean')valid=false;
     var items=(Array.isArray(data.rows)?data.rows:[]).map(function(row){
       row=object(row);var meta=object(row.data),code=text(row.cod,120),description=text(meta.descripcionPersonalizada||row.desc||'',2000),qty=numeric(row.qty,true),price=money(row.price,true),discount=percent(row.disc===''||row.disc==null?0:row.disc,true);

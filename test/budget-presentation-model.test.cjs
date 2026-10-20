@@ -98,6 +98,10 @@ test('descuento100 y sin IVA respetan los límites inclusivos sin alterar regist
  const value=Model.fromDraft(input);assert.equal(value.valid,true);assert.equal(value.total,0);assert.equal(value.discount,190.19);assert.equal(value.includesIva,false);assert.equal(value.iva,0);
 });
 
+test('descuento vacío del editor equivale a cero y conserva totales válidos',()=>{
+ for(const discount of ['', ' ', '0', 0]){const input=draft();input.data.fields.find(f=>f.id==='pp-descuento').value=discount;const value=Model.fromDraft(input,record());assert.equal(value.valid,true);assert.equal(value.discountPct,0);assert.equal(value.discount,0);assert.equal(value.total,230.13);}
+});
+
 test('valores finitos cuyo cálculo desborda no se convierten en un total cero válido',()=>{
  for(const [qty,price]of [[1e308,1e308],[1,1e308]]){
   const input=draft();input.data.rows[0].qty=qty;input.data.rows[0].price=price;const value=Model.fromDraft(input);

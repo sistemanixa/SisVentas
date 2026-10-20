@@ -36,7 +36,7 @@
     const frame=node('div','sv-bp-frame'),header=node('header','sv-bp-header'),toolbar=node('div','sv-bp-toolbar'),back=button('Volver','back','sv-bp-back'),actions=node('div','sv-bp-actions');
     const saved=button('Ver versión guardada','saved','sv-bp-saved'),fullscreen=button('Pantalla completa','fullscreen','sv-bp-fullscreen'),exit=button('Cerrar','close','sv-bp-close');
     exit.setAttribute('aria-label','Cerrar visualizador');exit.title='Cerrar visualizador';
-    fullscreen.setAttribute('aria-pressed','false');fullscreen.hidden=typeof options.onFullscreen!=='function';saved.hidden=true;
+    fullscreen.setAttribute('aria-pressed','false');saved.hidden=true;
     actions.append(saved,fullscreen,exit);toolbar.append(back,actions);
     const heading=node('div','sv-bp-heading'),headingText=node('div','sv-bp-heading-text'),number=node('p','sv-bp-number'),title=node('h1','sv-bp-title'),client=node('p','sv-bp-client'),meta=node('div','sv-bp-meta'),status=node('span','sv-bp-status'),updated=node('span','sv-bp-updated');
     title.id=id+'-title';client.id=id+'-client';status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.setAttribute('aria-atomic','true');
@@ -48,7 +48,7 @@
     const list=node('div','sv-bp-items');list.setAttribute('role','list');content.append(warning,list);
     const footer=node('footer','sv-bp-footer'),summary=node('dl','sv-bp-summary'),totalBox=node('div','sv-bp-total'),totalLabel=node('span','sv-bp-total-label','Total'),totalValue=node('strong','sv-bp-total-value','—');
     totalBox.append(totalLabel,totalValue);footer.append(summary,totalBox);frame.append(header,content,footer);element.appendChild(frame);
-    let closed=false,opened=false,previous=null,scrollX=0,scrollY=0,lock=null,itemViews=new Map(),optionViews=new Map(),emptyItem=null,zoom=null;
+    let closed=false,opened=false,previous=null,scrollX=0,scrollY=0,lock=null,itemViews=new Map(),optionViews=new Map(),emptyItem=null,zoom=null,hadNativeFullscreen=false;
     function closeImage(){if(!zoom)return;const current=zoom;zoom=null;try{if(current.element.open)current.element.close();}finally{current.element.remove();if(!closed&&current.origin.isConnected)current.origin.focus({preventScroll:true});}}
     function openImage(view){
       if(closed||!view.image||view.picture.disabled)return;closeImage();
@@ -83,7 +83,14 @@
       if(document.fullscreenElement===element&&typeof document.exitFullscreen==='function'){try{Promise.resolve(document.exitFullscreen()).catch(()=>{});}catch(_){/* Cerrar sigue disponible fuera de pantalla completa. */}}
       if(element.open){try{element.close();}finally{release();}}else release();
     }
-    function fullscreenState(){const active=document.fullscreenElement===element;fullscreen.setAttribute('aria-pressed',String(active));fullscreen.querySelector('span').textContent=active?'Salir de pantalla completa':'Pantalla completa';}
+    function fullscreenState(){const native=document.fullscreenElement===element;if(hadNativeFullscreen&&!native)element.classList.toggle('is-expanded',false);hadNativeFullscreen=native;const active=native||element.classList.contains('is-expanded');fullscreen.setAttribute('aria-pressed',String(active));fullscreen.querySelector('span').textContent=active?'Salir de pantalla completa':'Pantalla completa';}
+    function toggleFullscreen(){
+      if(closed)return;const active=document.fullscreenElement===element||element.classList.contains('is-expanded');element.classList.toggle('is-expanded',!active);fullscreenState();
+      if(active){if(document.fullscreenElement===element&&typeof document.exitFullscreen==='function')Promise.resolve(document.exitFullscreen()).catch(()=>{});return;}
+      // La vista ocupa el espacio disponible aunque iOS/IAB denieguen la API.
+      // La ampliación local no consulta ni cambia datos y siempre puede cerrarse.
+      try{Promise.resolve(options.onFullscreen?.(element)).catch(()=>{});}catch(_){}
+    }
     function open(){
       if(opened||closed)return;
       previous=document.activeElement;scrollX=root.scrollX||0;scrollY=root.scrollY||0;
@@ -166,14 +173,14 @@
       const items=Array.isArray(snapshot.items)?snapshot.items:[];
       reconcileItems(items,currency);
       summary.replaceChildren();metric('Subtotal',amount(snapshot.subtotal,currency));
-      if(numeric(snapshot.discountPct)>0||numeric(snapshot.discount)>0)metric('Descuento'+(numeric(snapshot.discountPct)>0?' '+quantity(snapshot.discountPct)+'%':''),numeric(snapshot.discount)===null?'—':'− '+amount(snapshot.discount,currency));
+      metric('Descuento'+(numeric(snapshot.discountPct)!==null?' '+quantity(snapshot.discountPct)+'%':''),numeric(snapshot.discount)===null?'—':(numeric(snapshot.discount)>0?'− ':'')+amount(snapshot.discount,currency));
       if(snapshot.includesIva===true||numeric(snapshot.iva)>0)metric('IVA'+(numeric(snapshot.ivaRate)>0?' '+quantity(snapshot.ivaRate)+'%':''),amount(snapshot.iva,currency));
       totalLabel.textContent=snapshot.valid===false?'Total por revisar':'Total';totalValue.textContent=amount(snapshot.total,currency);totalBox.classList.toggle('is-invalid',snapshot.valid===false);
       content.scrollTop=top;content.scrollLeft=left;open();
     }
     back.addEventListener('click',close);exit.addEventListener('click',close);
     saved.addEventListener('click',()=>invoke(options.onSaved,[],'No se pudo abrir la versión guardada. Volvé a intentarlo.'));
-    fullscreen.addEventListener('click',()=>invoke(options.onFullscreen,[element],'No se pudo abrir la pantalla completa.'));
+    fullscreen.addEventListener('click',toggleFullscreen);
     select.addEventListener('change',()=>invoke(options.onChooseDraft,[select.value],'No se pudo abrir esa edición. Volvé a intentarlo.'));
     element.addEventListener('cancel',event=>{event.preventDefault();close();});element.addEventListener('close',release);
     for(const event of ['click','pointerdown','pointerup'])element.addEventListener(event,e=>e.stopPropagation());

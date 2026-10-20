@@ -56,7 +56,7 @@
   if(!model()||!root.SVBudgetPresentationView||!root.svDrafts?.subscribe){root.notify?.('El visualizador todavía no está disponible.');return;}
   close();
   const session={id:++sequence,key:record.fbKey,record:JSON.parse(JSON.stringify(record)),context:context(),pinned:'',records:[],candidates:[],snapshot:model().fromRecord(record,products()),ready:false,ended:false,request:0,loading:false,updated:null};active=session;
-  session.view=root.SVBudgetPresentationView.create({onClose:close,onSaved:()=>loadSaved(session),onChooseDraft:chooseDraft,onFullscreen:element=>{if(valid(session)&&element.requestFullscreen)Promise.resolve(element.requestFullscreen()).catch(()=>root.notify?.('No se pudo abrir la pantalla completa.'));}});
+  session.view=root.SVBudgetPresentationView.create({onClose:close,onSaved:()=>loadSaved(session),onChooseDraft:chooseDraft,onFullscreen:element=>{if(valid(session)&&element.requestFullscreen)return element.requestFullscreen();}});
   draw(session);
   session.unsubscribe=root.svDrafts.subscribe(event=>receive(session,event));
   if(active!==session)session.unsubscribe?.();
