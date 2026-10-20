@@ -1,5 +1,15 @@
 # Continuidad de SisVentas
 
+## Gastos personales · actividad de botones · 20/10/2026 · sólo local
+
+- Rama aislada codex/gastos-personales-actividad-botones desde la fuente publicada e897dede350f1f56795c60d657bad994f6a395a3. Producción continúa v3.13.3; no se modifican servicios, reglas, configuración, permisos ni datos reales. Main y ambas PC conservados. El titular pidió esperar el corte laboral porque hay operaciones en curso; ese rediseño no se publica ni se activa por este ajuste.
+- Círculo integrado en los botones durante guardados de tarjeta/pago/seguro/cargo/cuotas/gasto/categoría/escenario, anulación, guardado de resumen/cola, lectura/relectura y descarga de PDF, exportación y recuperación explícita de base. Se conserva el texto y el estado original; no se confunde un botón deshabilitado por validación o última página con una carga pendiente. La cola muestra actividad al guardar y vuelve al estado final. Navegación/aperturas locales inmediatas no simulan esperas. Movimiento reducido respetado; no se usa el cursor de espera como único aviso.
+- Guardas de doble clic/Enter conservan UUID/revisión/pendingCommand. No se alteran cálculos financieros, contenido ni frecuencia de peticiones. Errores liberan el botón y conservan formulario/reintento. Doce pruebas funcionales nuevas y una del visor cubren respuesta retenida, error síncrono/asíncrono, reintento idéntico, validación sin peticiones y última página sin carga permanente.
+- Puerta vigente:2441/2441, cero fallos; sintaxis/diff correctos. La primera ejecución no tenía acceso a loopback y la siguiente carecía de playwright en este checkout nuevo; se repitió con loopback habilitado y NODE_PATH de las dependencias ya instaladas del mismo lockfile, sin instalar paquetes ni modificar expectativas. No se ejecutaron pruebas contra Firebase real.
+- UI real del módulo en fixture aislada sin Firebase, guardados ficticios sólo en memoria, demora artificial de6s para observar actividad:1280x720 y390x844. Círculo visible en ambos tamaños; alta ficticia de tarjeta cierra tras respuesta en escritorio. En móvil el formulario queda abierto con el botón liberado (cero botones ocupados), sin afirmar que se registró el pago. Capturas/evidencia privada en C:/SisVentas/tmp/gp-button-*.private.*; fuera de Git. No se recargó ni modificó la pestaña productiva Presupuestos.
+- No se preparó una publicación nueva: index/app/core/SW conservan la versión productiva13.3 y sus URLs. Antes de publicar hay que integrar únicamente este alcance en el candidato elegido, versionar los activos UI/CSS y comprobar Hosting/version coherentes; no desplegar por accidente el rediseño laboral pausado. La auditoría general sigue abierta.
+
+
 ## Auditoría por operación · v3.13.3 local · 19/10/2026
 
 - Rama `codex/auditoria-cotizador-v3133`, base `98abeb60`. Producción conserva web13.2 y Cotizador `cotizador-projects-66a77036`; este bloque todavía no está publicado. La raíz de la otra PC y `main` permanecen sin modificar. No se hicieron consultas a Google ni lecturas/escrituras de negocio reales durante esta auditoría.
