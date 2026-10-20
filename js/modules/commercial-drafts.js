@@ -32,8 +32,65 @@
   if (typeof module !== 'undefined' && module.exports) { module.exports = { valid: valid, TTL: TTL, same:same, mergeForm:mergeForm }; return; }
   var sessions = {}, restoring = false, owner = user(), failed = false;
   var cloudOwner = '', unsubscribe = null, cloudReady = false, pending = {}, cloudTimer = null, cloudEpoch = 0, cloudSending = null, suspended = false, cloudWriteBlocked = false;
+  var observers = new Set(), deliveringObservers = false, observersPending = false;
   function canSync() {
     return !suspended && typeof currentRole !== 'undefined' && !!currentRole && currentRole !== 'distribuidora' && currentRole !== 'compras_paraguay';
+  }
+  function observerRole() { return typeof currentRole === 'undefined' ? '' : currentRole; }
+  function observerContext(observer) { return !suspended && observer.uid === user() && observer.role === observerRole(); }
+  function observerSnapshot() {
+    var uid = user(), available = !!uid && owner === uid && canSync(), deletedIds = [], now = Date.now();
+    if (available) {
+      var p = prefix();
+      try {
+        Object.keys(localStorage).filter(function(k) { return k.indexOf(p) === 0; }).forEach(function(k) {
+          var d; try { d = JSON.parse(localStorage.getItem(k)); } catch (_) { return; }
+          if (d && d.deleted === true && d.id === k.slice(p.length) && typeof d.updated === 'number' && d.updated <= now && now - d.updated < TTL) deletedIds.push(d.id);
+        });
+      } catch (_) {}
+    }
+    return { ownerUid: uid, ready: available && cloudReady && cloudOwner === uid, records: available ? records() : [], deletedIds: deletedIds.sort() };
+  }
+  function freezeSnapshot(value) {
+    if (value && typeof value === 'object') { Object.keys(value).forEach(function(k) { freezeSnapshot(value[k]); }); Object.freeze(value); }
+    return value;
+  }
+  function deliverObserver(observer, snapshot) {
+    var signature = JSON.stringify(stable(snapshot));
+    if (!observers.has(observer) || observer.last === signature) return;
+    observer.last = signature;
+    // Cada observador recibe su propia copia; ni una mutación ni un error suyo
+    // puede alterar el borrador, otros observadores o el guardado existente.
+    try { observer.callback(freezeSnapshot(JSON.parse(JSON.stringify(snapshot)))); } catch (_) {}
+  }
+  function notifyObservers() {
+    if (!observers.size) return;
+    if (deliveringObservers) { observersPending = true; return; }
+    deliveringObservers = true;
+    try {
+      do {
+        observersPending = false;
+        var snapshot = observerSnapshot();
+        for (var observer of Array.from(observers)) {
+          if (!observerContext(observer)) {
+            deliverObserver(observer, { ownerUid: user(), ready: false, records: [], deletedIds: [] });
+            observers.delete(observer);
+          } else deliverObserver(observer, snapshot);
+          // Un observador puede completar/descartar el borrador en su callback.
+          // No entregar después a otro observador la instantánea ya obsoleta.
+          if (observersPending) break;
+        }
+      } while (observersPending && observers.size);
+    } finally { deliveringObservers = false; }
+  }
+  function notifyObserverContext() {
+    if (Array.from(observers).some(function(observer) { return !observerContext(observer); })) notifyObservers();
+  }
+  function subscribe(callback) {
+    if (typeof callback !== 'function') throw new TypeError('El observador de borradores debe ser una función');
+    var observer = { callback: callback, uid: user(), role: observerRole(), last: null };
+    observers.add(observer); notifyObservers();
+    return function() { observers.delete(observer); };
   }
   function publish(d) {
     if (d.deleted) localStorage.setItem(prefix()+d.id,JSON.stringify(d));
@@ -42,6 +99,7 @@
     connect();
     if (cloudTimer) clearTimeout(cloudTimer);
     if (typeof setTimeout === 'function') cloudTimer = setTimeout(sendPending, 500);
+    notifyObservers();
   }
   function sendPending() {
     if (cloudWriteBlocked || cloudSending || window.navigator?.onLine === false || !canSync() || !cloudReady || cloudOwner !== user() || !window.fbUpdate) return;
@@ -68,6 +126,7 @@
     cloudEpoch++; if (cloudTimer) clearTimeout(cloudTimer); cloudTimer = null;
     if (unsubscribe) unsubscribe(); unsubscribe = null;
     cloudOwner = ''; cloudReady = false; cloudSending = null; pending = {}; cloudWriteBlocked = false;
+    notifyObservers();
   }
   function tombstone(id) { return {id:id,deleted:true,updated:Date.now()}; }
   function connect() {
@@ -94,7 +153,7 @@
       });
       records().forEach(function(d) { if (!remote[d.id] || (!remote[d.id].deleted && d.updated > remote[d.id].updated)) pending[d.id]=d; });
       Object.keys(localStorage).filter(function(k){return k.indexOf(prefix())===0;}).forEach(function(k){var d;try{d=JSON.parse(localStorage.getItem(k));}catch(_){}if(d&&d.deleted&&(!remote[d.id]||!remote[d.id].deleted))pending[d.id]=d;});
-      cloudReady = true; failed = false; badges(); sendPending();
+      cloudReady = true; failed = false; badges(); sendPending(); notifyObservers();
     }, function() { if (epoch !== cloudEpoch || user() !== uid || !canSync()) return; stopCloud(); if (!failed) {failed=true;notify('No se pudieron sincronizar los borradores. Se conserva la copia local.');} });
     if (epoch === cloudEpoch) unsubscribe = stop; else stop?.();
   }
@@ -164,7 +223,7 @@
       var saved = JSON.parse(localStorage.getItem(prefix() + s.id));
       if ((saved && !saved.deleted) || (pending[s.id] && !pending[s.id].deleted) || cloudSending?.ids.includes(s.id)) publish(tombstone(s.id));
     } catch (_) { warn(); } }
-    delete sessions[kind]; badges();
+    delete sessions[kind]; badges(); notifyObservers();
   }
   function badges() {
     var counts = {venta:0,presupuesto:0};
@@ -177,7 +236,7 @@
     localStorage.removeItem(prefix() + d.id);
     publish(tombstone(d.id));
     Object.keys(sessions).forEach(function (k) { if (sessions[k].id === d.id) delete sessions[k]; });
-    badges();
+    badges(); notifyObservers();
   }
   function renderGrid(kind) {
     kind = kind || 'presupuesto';
@@ -284,7 +343,7 @@
       } finally { restoring = false; }
     });
   }
-  window.svDrafts = { begin: begin, flush: flush, complete: complete, renderGrid:renderGrid, leave: function (kind) { flush(); delete sessions[kind]; } };
+  window.svDrafts = { begin: begin, flush: flush, complete: complete, renderGrid:renderGrid, subscribe: subscribe, leave: function (kind) { flush(); delete sessions[kind]; } };
   document.addEventListener('input', function () { flush(); });
   document.addEventListener('change', function () { flush(); });
   document.addEventListener('click', flush, true);
@@ -295,12 +354,13 @@
       Object.keys(sessions).forEach(function(k) { if (prefix() + sessions[k].id === e.key) delete sessions[k]; });
     }
     badges();
+    if (!e.key || e.key.indexOf(prefix()) === 0) notifyObservers();
   });
   window.addEventListener('focus', resumeCloud);
   window.addEventListener('online', resumeCloud);
   document.addEventListener('sisventas:session-ready', function() { suspended = false; resumeCloud(); });
   document.addEventListener('sisventas:session-ended', function() { suspended = true; stopCloud(); owner = ''; sessions = {}; });
-  document.addEventListener('sisventas:role-changed', resumeCloud);
+  document.addEventListener('sisventas:role-changed', function() { notifyObserverContext(); resumeCloud(); });
   document.addEventListener('sisventas:page-changed', resumeCloud);
   document.addEventListener('visibilitychange', function() { if (!document.hidden) resumeCloud(); });
   setInterval(function () {

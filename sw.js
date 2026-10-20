@@ -2,6 +2,10 @@
    Estrategia: red primero con cache de respaldo. */
 const CACHE = 'sisventas-v3.13.9';
 const SHELL = [
+ './css/budget-presentation.css?v=budget-viewer-1',
+ './js/core/budget-presentation-model.js?v=budget-viewer-1',
+ './js/modules/budget-presentation-view.js?v=budget-viewer-1',
+ './js/modules/budget-presentation.js?v=budget-viewer-1',
  './css/dashboard-privacy.css?v=3.13.9',
  './js/modules/dashboard-privacy.js?v=3.13.9',
  './js/core/foreground-session.js?v=3.13.2',
@@ -72,7 +76,7 @@ const SHELL = [
   './js/modules/notifications.js?v=3.12.20',
   './js/modules/push-notifications.js',
   './js/modules/offline-core.js',
-  './js/modules/commercial-drafts.js?v=3.12.20',
+  './js/modules/commercial-drafts.js?v=budget-viewer-1',
   './js/modules/chat-access.js?v=3.13.0-events',
   './js/modules/chat-presence.js?v=3.13.0-events',
   './js/modules/security-storage.js?v=3.13.2-foreground',
