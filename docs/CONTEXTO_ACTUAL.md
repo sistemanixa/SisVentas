@@ -1,5 +1,14 @@
 # Continuidad de SisVentas
 
+## Corrección de año de resúmenes · preparada · 20/10/2026
+
+- Rama aislada `codex/corregir-anio-resumen`, base pública `00338e21`. El titular autorizó corregir el lector: año explícito del documento tiene prioridad; si falta, usar el ciclo más reciente no futuro respecto de la fecha argentina. Diciembre importado en enero conserva el año anterior y el vencimiento puede caer en enero siguiente. Sin pedir año rutinariamente.
+- Cliente normaliza período/cierre/vencimiento y fechas sin año, sin alterar importes ni cuotas. Asistente recibe fecha de referencia del servidor e instrucciones consistentes; no usa un año proporcionado arbitrariamente por el cliente. Los años completados quedan diferenciados de texto impreso. Fechas inválidas o evidencia explícita contradictoria se rechazan.
+- Se agregó corrección explícita de año para resúmenes guardados con documento y evidencia de cierre; conserva IDs, original y versión previa mediante `statement-save`, que actualiza el período de cuotas vinculadas. Cuotas con correcciones manuales diferentes bloquean ese atajo para evitar sobrescribirlas. No se ejecutó sobre datos reales.
+- Pruebas ficticias de septiembre, diciembre/enero antes y después de año nuevo, período enero con cierre diciembre, histórico con año explícito, movimiento con año explícito, fecha argentina, día inválido y guardado conservando IDs/cuotas/original/versiones. Puerta vigente **2.438/2.438**, sintaxis y diff correctos. Primer pase sin dependencias/conectividad local falló en tres pruebas ajenas; pase con NODE_PATH instalado y loopback permitido aprobado. No se cambiaron expectativas de esas pruebas.
+- UI local: el navegador integrado no pudo alcanzar loopback8879; no afirmar validación visual escritorio/móvil ni recarga real. Pruebas de formulario y guardado en VM sí completadas. La pestaña real del titular se conserva sin recargar.
+- **No publicado**: Hosting, servicio Asistente, marcador de versión y resumen real conservan el estado anterior. Para publicar: integrar sobre la fuente pública vigente, asignar la siguiente versión disponible (otra rama prepara13.4), mantener app/índice/versiones/SW/Novedades coherentes, completar UI, protocolo de Hosting y despliegue del Asistente; después corregir exclusivamente el resumen autorizado y verificar sus cuotas. No mezclar la auditoría de Cotizador ni el histórico ajeno de la raíz. No copiar PDF ni información financiera privada al repositorio.
+
 ## Publicación completada · v3.13.3 · 19/10/2026
 
 - Fuente `e897dede350f1f56795c60d657bad994f6a395a3`, rama `codex/auditoria-cotizador-v3133`, publicada por autorización explícita. Checkout público limpio en ese SHA; puerta 2.428/2.428 aprobada también allí, servidor 94/94 sobre el mismo árbol probado, coherencia local correcta. `main` y la raíz de la otra PC conservados.
