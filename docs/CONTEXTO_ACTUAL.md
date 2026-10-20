@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Presentación compacta · v3.13.13 · publicación autorizada en preparación
+
+- El titular corrigió el diseño antes del cierre: productos discretos en lista, prioridad a total/descuentos/IVA y tocar foto para ampliarla.13.13 sustituye la presentación de tarjetas grandes13.12. Aquella fuente5dc730b0 llegó a Hosting400activos/10cargas, pero no se completó su aviso ni se dio por verificada/publicada al titular; no confundir ese intermedio con el cierre final.
+- Lista de miniaturas54–72px, cantidad y subtotal por renglón; resumen lateral destacado en computadora y pie fijo en tablet/celular. Foto abre diálogo nativo independiente con Volver/cruz/Escape, vuelve al mismo foco/scroll, mantiene bloqueo del fondo y se cierra al cerrar/cambiar sesión del visor. Sin foto o con error no hay acción vacía. Ampliación descendiente del visor para conservar contexto de pantalla completa.
+- Puerta final2.525/2.525, sintaxis/diff/coherencia correctos. Navegador ficticio con CSS reales en1280x720/820x1180/390x844: lista compacta, totales sin desbordes y foto ampliada/cierre con foco correcto. Pantalla completa fue rechazada por el navegador integrado y mostró aviso breve; no afirmar validación física de esa API. Evidencia privada `budget-presentation-compact-tablet.private.png` y `budget-presentation-zoom.private.png`.
+- La mecánica de borradores, lecturas puntuales, cálculos y límites del bloque13.12 siguen vigentes. Pendiente completar Hosting/hash/aviso13.13 y prueba real de sólo lectura. Después retomar la actualización grande/OT solicitada, sin aplicar a ciegas el paquete laboral antiguo sobre los servidores actuales.
+
 ## Visualizador de presupuestos · v3.13.12 · publicación autorizada en preparación
 
 - Rama aislada `codex/visualizador-presupuesto`, integrada con la fuente publicada13.11 y su cierre68148a98. Conserva privacidad del dashboard, cambios de Gastos personales y los servidores vigentes. No incluye el rediseño laboral pausado ni el arreglo local de conflicto de caché de otra rama. El titular pidió terminar/publicar primero este visualizador; después retomar la actualización grande y diagnosticar fallas de OT, sin asumir que actualizar las corrige.

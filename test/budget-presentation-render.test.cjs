@@ -108,3 +108,15 @@ test('IVA se etiqueta como componente separado y cierre nativo libera la vista u
  let closes=0;const f=fixture({onClose:()=>closes++});f.view.render(snapshot());const summary=f.find('.sv-bp-summary');assert.match(summary.textContent,/IVA 21%/);assert.doesNotMatch(summary.textContent,/IVA incluido/);
  f.view.element.close();assert.equal(closes,1);assert.equal(f.view.element.isConnected,false);f.view.close();assert.equal(closes,1);
 });
+
+test('tocar foto abre ampliación y cerrar restaura foco y scroll sin cerrar el presupuesto',()=>{
+ const f=fixture();f.view.render(snapshot());const content=f.find('.sv-bp-content'),picture=f.find('.sv-bp-picture');content.scrollTop=142;picture.focus();picture.dispatch('click');
+ const zoom=f.document.body.querySelector('.sv-bp-zoom');assert.ok(zoom?.open);assert.equal(zoom.querySelector('img').src,item('A').image);assert.match(zoom.getAttribute('aria-label'),/Producto A/);assert.equal(f.view.element.open,true);assert.equal(f.modalOpens,2);
+ zoom.querySelector('.sv-bp-close').dispatch('click');assert.equal(zoom.isConnected,false);assert.equal(f.document.activeElement,picture);assert.equal(content.scrollTop,142);assert.equal(f.document.body.style.getPropertyValue('overflow'),'hidden');assert.equal(f.view.element.open,true);
+ picture.dispatch('click');const second=f.document.body.querySelector('.sv-bp-zoom');f.view.close();assert.equal(second.isConnected,false);assert.equal(f.document.body.style.getPropertyValue('overflow'),'');
+});
+
+test('producto sin foto o con foto fallida no ofrece ampliación vacía',()=>{
+ const f=fixture();f.view.render(snapshot([item('A','')]));let picture=f.find('.sv-bp-picture');assert.equal(picture.disabled,true);picture.dispatch('click');assert.equal(f.document.body.querySelector('.sv-bp-zoom'),null);
+ f.view.render(snapshot([item('A')]));picture=f.find('.sv-bp-picture');assert.equal(picture.disabled,false);f.images[0].dispatch('error');assert.equal(picture.disabled,true);picture.dispatch('click');assert.equal(f.document.body.querySelector('.sv-bp-zoom'),null);assert.equal(f.modalOpens,1);
+});
