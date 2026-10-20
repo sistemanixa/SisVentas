@@ -4,7 +4,6 @@
   var detalleActual = null;
   var movimientosDetalle = {};
   var guardandoDetalle = false;
-  var sincronizacionSolicitada = false;
   var formatoMoneda = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   function moneda(valor) {
@@ -148,19 +147,37 @@
       var guardar=document.getElementById('com-det-guardar');if(guardar)guardar.disabled=true;
     }
   }
+  function puedeVerCuentasAnteriores() {
+    return typeof window.tienePermiso === 'function' && window.tienePermiso('mantenimiento.normalizar') &&
+      window.tienePermiso('empleados.verCuentas') && typeof window.permisoModulo === 'function' && window.permisoModulo('ctaemp');
+  }
+  function actualizarAvisoCuentasAnteriores() {
+    var aviso = document.getElementById('comisiones-cuentas-anteriores');
+    var permitido = typeof window.tienePermiso === 'function' && window.tienePermiso('mantenimiento.normalizar');
+    if (!permitido) { if (aviso) aviso.remove(); return; }
+    if (!aviso) {
+      var tabla = document.getElementById('comisiones-tbl');
+      var contenedor = tabla && typeof tabla.closest === 'function' && tabla.closest('.table-wrap');
+      if (!contenedor || !contenedor.parentNode) return;
+      aviso = document.createElement('div');
+      aviso.id = 'comisiones-cuentas-anteriores';
+      aviso.style.cssText = 'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 14px;border-bottom:0.5px solid var(--border);color:var(--text3);font-size:11px';
+      contenedor.parentNode.insertBefore(aviso, contenedor);
+    }
+    aviso.innerHTML = '<span>Las comisiones anteriores sin incorporar se consultan en Cuentas de empleados.</span>' +
+      (puedeVerCuentasAnteriores() ? '<button type="button" class="btn btn-sm" onclick="verCuentasAnterioresComisiones()"><i class="ti ti-users"></i> Ver cuentas</button>' : '');
+  }
+  function verCuentasAnterioresComisiones() {
+    if (!puedeVerCuentasAnteriores() || typeof window.svNavegarDirecto !== 'function') return false;
+    return window.svNavegarDirecto('ctaemp');
+  }
   function renderModuloComisiones() {
     comprobarDetalleAbierto();
     var tbody = document.getElementById('comisiones-tbody');
     if (!tbody) return;
-    if (!sincronizacionSolicitada && typeof window.sincronizarComisionesLegacyConModulo === 'function') {
-      sincronizacionSolicitada = true;
-      window.sincronizarComisionesLegacyConModulo().then(function(cantidad) {
-        if (cantidad && window.fbCargarGastos) window.fbCargarGastos();
-      }).catch(function(error) {
-        sincronizacionSolicitada = false;
-        console.warn('[Comisiones] No se pudieron incorporar registros históricos', error);
-      });
-    }
+    // Consultar la lista nunca incorpora ni modifica comisiones históricas.
+    // Las cuentas conservan esos registros y Mantenimiento su migración explícita.
+    actualizarAvisoCuentasAnteriores();
     var buscar = String((document.getElementById('com-f-buscar') || {}).value || '').toLowerCase();
     var filtroEstado = String((document.getElementById('com-f-estado') || {}).value || '');
     var todos = grupos();
@@ -345,10 +362,22 @@
   }
 
   async function rehabilitarComision(gastoKey) {
+    if(!window.tienePermiso('comisiones.aprobar')){window.notify('No tenés permiso para rehabilitar comisiones');return;}
     var g=(window.gastosData||[]).find(function(x){return x.fbKey===gastoKey;}); if(!g)return;
-    var cambios={estado:'pendiente_aprobacion',requiereAprobacion:true,rehabilitadoPor:window.currentUser||'',rehabilitadoTs:Date.now(),rechazadoPor:null,fechaRechazo:null,motivoRechazo:null}; var updates={}; Object.keys(cambios).forEach(function(k){updates['sisventas/gastos/'+gastoKey+'/'+k]=cambios[k];});
-    var mov=movimientosDetalle[gastoKey]||await cargarMovimiento(g); if(mov&&mov.empFbKey&&mov.movFbKey)Object.keys(cambios).forEach(function(k){updates['sisventas/ctaemp/'+mov.empFbKey+'/'+mov.movFbKey+'/'+k]=cambios[k];});
-    await window.fbUpdate(window.fbRef(window.fbDB),updates); window.notify('✓ Comisión rehabilitada y pendiente de aprobación'); if(window.fbCargarGastos)window.fbCargarGastos(); cerrarDetalleComision(); setTimeout(renderModuloComisiones,200);
+    try{
+      if(typeof window.SVLaborWrites?.atomic!=='function')throw new Error('Recargá la aplicación antes de guardar');
+      var mov=movimientosDetalle[gastoKey]||await cargarMovimiento(g),gastoPath='sisventas/gastos/'+gastoKey;
+      var movPath=mov&&mov.empFbKey&&mov.movFbKey?'sisventas/ctaemp/'+mov.empFbKey+'/'+mov.movFbKey:'',paths=[gastoPath];if(movPath)paths.push(movPath);
+      await window.SVLaborWrites.atomic({paths:paths,build:function(values){
+        var actual=values[gastoPath],cuenta=movPath?values[movPath]:null;
+        if(!actual||!esComision(actual)||estado(actual)!=='rechazado'||String(actual.legacyKey||'')!==String(g.legacyKey||'')||String(actual.empleadoFbKey||actual.empleadoId||'')!==String(g.empleadoFbKey||g.empleadoId||''))throw new Error('La comisión cambió. Actualizá la pantalla antes de rehabilitarla.');
+        if((window.totalPagadoGasto(actual)||0)>0||movPath&&!cuenta||(cuenta&&((parseFloat(cuenta.montoPagado)||0)>0||window.totalPagadoGasto(cuenta)>0||['pagado','pagado_parcial','anulado'].includes(String(cuenta.estado||'').toLowerCase()))))throw new Error('La comisión tiene pagos o cambió su cuenta. Se conservaron sus datos.');
+        var cambios={estado:'pendiente_aprobacion',requiereAprobacion:true,rehabilitadoPor:window.currentUser||'',rehabilitadoTs:Date.now(),rechazadoPor:null,fechaRechazo:null,motivoRechazo:null},updates={};
+        Object.keys(cambios).forEach(function(k){updates[gastoPath+'/'+k]=cambios[k];if(movPath)updates[movPath+'/'+k]=cambios[k];});
+        return updates;
+      }});
+      window.notify('✓ Comisión rehabilitada y pendiente de aprobación');if(window.fbCargarGastos)window.fbCargarGastos();cerrarDetalleComision();setTimeout(renderModuloComisiones,200);
+    }catch(error){window.notify('No se pudo rehabilitar: '+error.message);}
   }
 
   function abrirComisionDesdeGasto(gastoKey) {
@@ -363,7 +392,8 @@
   window.actualizarBadgeComisiones=actualizarBadgeComisiones;
   document.addEventListener('sisventas:session-ready', actualizarBadgeComisiones);
   document.addEventListener('sisventas:session-ended', function() {
-    cerrarDetalleComision();sincronizacionSolicitada=false;
+    cerrarDetalleComision();
+    var aviso = document.getElementById('comisiones-cuentas-anteriores'); if (aviso) aviso.remove();
     var badge = document.getElementById('badge-nav-comisiones');
     if (badge) { badge.textContent = '0'; badge.style.display = 'none'; }
   });
@@ -373,6 +403,7 @@
   window.abrirComisionDesdeGasto=abrirComisionDesdeGasto; window.aprobarComisionGestion=aprobarComisionGestion; window.rechazarComisionGestion=rechazarComisionGestion;
   window.actualizarResumenMargenComision=actualizarResumenMargenComision; window.abrirVentaDesdeComisiones=abrirVentaDesdeComisiones;
   window.filtrarComisionesPorEstado=filtrarComisionesPorEstado;
+  window.verCuentasAnterioresComisiones=verCuentasAnterioresComisiones;
   // Si la aplicación entró directamente por #/comisiones, showPage puede
   // ejecutarse antes que este módulo. Renderizar al terminar la carga evita
   // dejar el estado inicial "Cargando..." esperando otra navegación.

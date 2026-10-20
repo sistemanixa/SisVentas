@@ -159,8 +159,12 @@ test('el reintento del servidor recupera un corte sin depender de una nueva soli
  const s=setup();s.failAt('sisventas/gastos/gasto_comision_sale_e');await assert.rejects(s.svc.generate(await s.actor(),{ventaFbKey:'sale'}));s.advance(61000);await s.svc.retryPending();assert.equal(s.db.root.sv_commission_generation.sale.estado,'completada');assert.equal(Object.keys(s.db.root.sisventas.gastos).length,1);assert.equal(s.sale.audit.length,1);
 });
 test('la carga manual no toma una reserva del servidor aunque haya vencido el plazo anterior',async()=>{
- const {load}=require('./helpers/app-functions.cjs');let writes=0;const c={_claveOperacionConcurrente:M.key,window:{fbDB:{},fbRef:(_,p)=>p,fbUpdate:async()=>writes++,fbRunTransaction:async(_,fn)=>({committed:fn({generacionServidorId:'srv-demo',estado:'procesando',ts:0})!==undefined})}};
- load(c,['_generarComisionVentaAtomica']);await assert.rejects(c._generarComisionVentaAtomica({fbKey:'e'},{ventaFbKey:'s',ventaId:'V-DEMO'}),/ya tiene una comisión/);assert.equal(writes,0);
+ const {createBackend,copy}=require('./helpers/labor-ui-flow.cjs');
+ for(const reserva of [{generacionServidorId:'srv-demo',estado:'procesando',ts:0},{generacionServidorId:'srv-demo',estado:'error',ts:0}]){
+  const f=createBackend({comisiones_generacion:{comision_v_e:reserva}}),p=f.page(),before=copy(f.state.sisventas);
+  await assert.rejects(p.context._generarComisionVentaAtomica(p.context.empData.e,{ventaFbKey:'v',ventaId:'V-FICTICIA'}),/ya tiene una comisión/);
+  assert.equal(f.commands.length,0);assert.equal(f.commits.length,0);assert.deepEqual(f.state.sisventas,before);assert.deepEqual(f.direct,[]);
+ }
 });
 test('control previo sin movimiento no se confunde con una comisión generada',async()=>{
  const s=setup();s.db.root.sisventas.comisiones_generacion.comision_sale_e={estado:'error'};const before=JSON.stringify(s.db.root);assert.equal((await s.svc.generate(await s.actor(),{ventaFbKey:'sale'})).status,'revision');assert.equal(JSON.stringify(s.db.root),before);

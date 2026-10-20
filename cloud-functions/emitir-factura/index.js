@@ -30,6 +30,11 @@ admin.initializeApp({
   databaseURL: 'https://nixa-sisventas-default-rtdb.firebaseio.com'
 });
 const db = admin.database();
+let fiscalLaborBridge;
+function fiscalBridge() {
+  if (!fiscalLaborBridge) fiscalLaborBridge=require('./labor-bridge.cjs').runtime(admin);
+  return fiscalLaborBridge;
+}
 
 const TFAPP_USERTOKEN = defineSecret('TFAPP_USERTOKEN');
 const TFAPP_APITOKEN  = defineSecret('TFAPP_APITOKEN');
@@ -164,7 +169,7 @@ function setCors(req, res) {
 }
 
 async function chequearAuth(req,res,service){
- try{await require('./service-auth.cjs').authorize({admin,authorization:req.get('Authorization'),service,body:req.body||{}});return true;}
+ try{req._svFiscalActor=await require('./service-auth.cjs').authorize({admin,authorization:req.get('Authorization'),service,body:req.body||{}});return true;}
  catch(error){res.status(error.statusCode||503).json({error:true,mensaje:error.statusCode?error.message:'No se pudo verificar el permiso; reintentá'});return false;}
 }
 exports.emitirFactura = onRequest(
@@ -176,6 +181,15 @@ exports.emitirFactura = onRequest(
     if (!await chequearAuth(req, res, 'fiscal')) return;
 
     var data = req.body || {};
+    if (data.accion === 'vincular_emision') {
+      try {
+        var vinculada=await fiscalBridge().resume(data.operacionId,async function(job){
+          await require('./service-auth.cjs').authorize({admin,authorization:req.get('Authorization'),service:'fiscal',body:{esNotaCredito:job.clase==='nota_credito'}});
+        });
+        res.status(200).json(vinculada);
+      } catch(errorVinculo) {res.status(errorVinculo.statusCode||503).json({error:true,mensaje:errorVinculo.statusCode?errorVinculo.message:'No se pudo vincular el comprobante. No vuelvas a emitirlo.'});}
+      return;
+    }
     if (data.accion === 'consultar_cuit') {
       var cuitConsulta = String(data.cuit || '').replace(/\D/g, '');
       if (!/^\d{11}$/.test(cuitConsulta)) {
@@ -428,6 +442,12 @@ exports.emitirFactura = onRequest(
       }
     };
 
+    var emisionFiscal;
+    try {
+      emisionFiscal=await fiscalBridge().begin({data:data,provider:body,uid:req._svFiscalActor?.uid||'',usuario:data.usuario||''});
+      if(!emisionFiscal.dispatch){res.status(200).json(emisionFiscal.result);return;}
+    } catch(errorPreflight) {res.status(errorPreflight.statusCode||503).json({error:true,mensaje:errorPreflight.statusCode?errorPreflight.message:'La facturación está temporalmente en revisión. No se emitió el comprobante.'});return;}
+
     var resp, respData;
     try {
       resp = await fetch(ENDPOINT_FACTURACION, {
@@ -437,19 +457,20 @@ exports.emitirFactura = onRequest(
       });
       respData = await resp.json();
     } catch (e) {
-      res.status(502).json({ error: true, mensaje: 'Error de conexión con TusFacturasApp: ' + e.message }); return;
+      res.status(409).json({ error: true, mensaje: 'No se pudo confirmar la respuesta fiscal. No vuelvas a emitir este comprobante; requiere verificación.' }); return;
     }
 
     if (!resp.ok) {
-      res.status(502).json({ error: true, mensaje: 'TusFacturasApp no está respondiendo (HTTP ' + resp.status + ')' }); return;
+      res.status(409).json({ error: true, mensaje: 'El proveedor no confirmó el resultado fiscal. No vuelvas a emitir este comprobante; requiere verificación.' }); return;
     }
     if (respData.error !== 'N') {
+      var caeEnRechazo=primerCampoFiscal([respData.comprobante||{},respData.factura||{},respData.resultado||{},respData],['cae','CAE','codigo_autorizacion','codigoAutorizacion']);
+      if (String(respData.error).toUpperCase() === 'S' && !caeEnRechazo) {
+        try { await fiscalBridge().rejected(emisionFiscal.job); } catch (_) { /* Conservar la reserva es más seguro que volver a emitir. */ }
+      }
       var errores = Array.isArray(respData.errores) ? respData.errores.join(', ') : (respData.errores || 'Error desconocido');
       res.status(422).json({ error: true, mensaje: 'Error AFIP/ARCA: ' + errores }); return;
     }
-
-    // Log completo para debug — ver estructura exacta de respData
-    console.log('[TFApp respuesta completa]', JSON.stringify(respData));
 
     // El proveedor es la fuente fiscal. Normalizamos la respuesta completa y
     // guardamos los importes que este mismo servidor calculó y envió. Así no
@@ -468,7 +489,7 @@ exports.emitirFactura = onRequest(
       ? String(puntoFiscal).padStart(5, '0') + '-' + String(nroComp).padStart(8, '0') : '';
     // Tipo y punto se conocen desde el pedido original; el único dato que no
     // puede inferirse es el número autorizado. Si el proveedor cambia el
-    // nombre del campo, se guarda la respuesta cruda y se marca pendiente,
+    // nombre del campo, se guarda la identidad disponible y se marca pendiente,
     // pero nunca se pretende que el comprobante esté completo silenciosamente.
     var integridadFiscalCompleta = !!(cae && caeVto && numeroCompleto && fechaFiscal && totalFiscal > 0);
 
@@ -500,7 +521,7 @@ exports.emitirFactura = onRequest(
       integridadFiscalCompleta:  integridadFiscalCompleta,
       estadoIntegridadFiscal:    integridadFiscalCompleta ? 'completa' : 'pendiente_verificacion',
       datos_fiscales: {
-        cliente: respData.cliente || {},
+        cliente: respData.cliente || body.cliente || {},
         comprobante: respData.comprobante || {},
         tipo: tipoComprobante,
         punto_venta: puntoFiscal,
@@ -510,27 +531,26 @@ exports.emitirFactura = onRequest(
         vencimiento_cae: caeVto,
         neto: netoFiscal,
         iva: ivaFiscal,
-        total: totalFiscal
-      },
-      _respuesta_raw: JSON.stringify(respData).slice(0, 500)
+        total: totalFiscal,
+        detalle: preparacionFiscal.detalle.map(function(linea){return {codigo:linea.producto.codigo,descripcion:linea.producto.descripcion,cantidad:linea.cantidad,precio_unitario:linea.producto.precio_unitario_sin_iva,precio_total:redondearDinero(linea.cantidad*linea.producto.precio_unitario_sin_iva),alicuota:linea.producto.alicuota};})
+      }
     };
 
+    var respuestaFiscal;
+    try { respuestaFiscal=await fiscalBridge().complete(emisionFiscal.job,resultado); }
+    catch (_) { respuestaFiscal={...resultado,gestionFiscalServidor:true,emisionOperacionId:emisionFiscal.job.operationId,persistenciaPendiente:true,vinculacionDisponible:false}; }
     if (venta.fbKey) {
-      // Una NC pertenece a la factura original pero no debe reemplazarla: el
-      // cliente conserva el comprobante emitido y la UI registra la NC en su
-      // campo específico después de recibir esta respuesta.
-      if (!data.esNotaCredito) await db.ref('sisventas/ventas/' + venta.fbKey).update({ factura: resultado });
-      await db.ref('sisventas/log_actividad').push({
+      try { await db.ref('sisventas/log_actividad').push({
         usuario: data.usuario || 'Desconocido',
         email: data.email || '',
         accion: data.esNotaCredito ? 'Nota de crédito emitida' : 'Factura emitida',
         detalle: (venta.id || '') + ' — ' + tipoComprobante + ' — CAE ' + resultado.cae,
         timestamp: admin.database.ServerValue.TIMESTAMP,
         fecha: new Date().toISOString()
-      });
+      }); } catch (_) { console.warn('[Fiscal] Comprobante autorizado; actividad pendiente de registro'); }
     }
 
-    res.status(200).json(resultado);
+    res.status(200).json(respuestaFiscal);
   }
 );
 

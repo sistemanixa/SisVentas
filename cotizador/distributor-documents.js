@@ -22,6 +22,12 @@ function input(body){
  return {id:key(body.id),type:body.type,currency:body.currency,client,items,method,notes:text(body.notes||'',1500),warrantyReport:includeWarranty};
 }
 function catalogImage(value){if(typeof value!=='string'||value.length>2400||/[\u0000-\u001f\u007f]/.test(value))return '';try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:'';}catch(_){return '';}}
+function exchangeRate(exchange){const value=Number(exchange?.[exchange?.dolarConversion||'oficial']||exchange?.oficial||exchange?.blue||exchange?.mep)||0;return Number.isFinite(value)&&value>0?value:0;}
+function issuer(company){return Object.fromEntries(['nombre','dir','cuit','tel','email'].map(k=>[k,String(company?.[k]||'').slice(0,240)]));}
+function projectProduct(id,p,m,rate){
+ if(!p||m?.categoria!=='COMPRAS PARAGUAY'||m.activo===false||['Inactivo','inactivo'].includes(m.estado)||m.esManoDeObra||m.catalogoVisible===false||!Number.isFinite(p.precioUSD)||p.precioUSD<=0||p.precioUSD>1e9)return null;
+ return {id,name:String(p.nombre||'Producto').slice(0,250),code:String(m.codigo||'').slice(0,60),image:catalogImage(p.imagenUrl),brand:String(p.marca||'').slice(0,160),description:String(p.descripcion||'').slice(0,500),warranty:warranty(m.garantiaConfig),usd:p.precioUSD,ars:rate>0&&Number.isFinite(rate)&&Number.isSafeInteger(Math.round(p.precioUSD*rate*100))?round(p.precioUSD*rate):null};
+}
 function createDistributorDocuments({auth,db,enabled=false,now=Date.now}){
  const read=async p=>(await db.ref(p).get()).val();
  async function authorize(req){
@@ -36,17 +42,27 @@ function createDistributorDocuments({auth,db,enabled=false,now=Date.now}){
  }
  async function options(){
   const [catalog,exchange,company,master]=await Promise.all([read('sv_catalogo_publico'),read('sisventas/config/tipoCambio'),read('sisventas/config/empresa'),read('sisventas/productos')]);
-  const rateValue=Number(exchange?.[exchange?.dolarConversion||'oficial']||exchange?.oficial||exchange?.blue||exchange?.mep)||0;
-  const rate=Number.isFinite(rateValue)&&rateValue>0?rateValue:0;
-  const products=Object.entries(catalog||{}).filter(([id,p])=>{const m=master?.[id];return m?.categoria==='COMPRAS PARAGUAY'&&m.activo!==false&&!['Inactivo','inactivo'].includes(m.estado)&&!m.esManoDeObra&&m.catalogoVisible!==false&&Number.isFinite(p.precioUSD)&&p.precioUSD>0&&p.precioUSD<=1e9;}).map(([id,p])=>({id,name:String(p.nombre||'Producto').slice(0,250),code:String(master[id].codigo||'').slice(0,60),image:catalogImage(p.imagenUrl),brand:String(p.marca||'').slice(0,160),description:String(p.descripcion||'').slice(0,500),warranty:warranty(master[id].garantiaConfig),usd:p.precioUSD,ars:rate>0&&Number.isFinite(rate)&&Number.isSafeInteger(Math.round(p.precioUSD*rate*100))?round(p.precioUSD*rate):null}));
-  const issuer=Object.fromEntries(['nombre','dir','cuit','tel','email'].map(k=>[k,String(company?.[k]||'').slice(0,240)]));
-  return {products,rate,company:issuer,quotedAt:now()};
+  const rate=exchangeRate(exchange),products=Object.entries(catalog||{}).map(([id,p])=>projectProduct(id,p,master?.[id],rate)).filter(Boolean);
+  return {products,rate,company:issuer(company),quotedAt:now()};
+ }
+ async function selectedOptions(ids){
+  // input() ya validó hasta 50 claves distintas. El límite abarca todos los GET,
+  // también configuración; no crea dos consultas simultáneas por trabajador.
+  const paths=['sisventas/config/tipoCambio','sisventas/config/empresa',...ids.flatMap(id=>['sv_catalogo_publico/'+id,'sisventas/productos/'+id])],values=new Map();
+  let cursor=0,failure;
+  await Promise.all(Array.from({length:Math.min(6,paths.length)},async()=>{
+   while(cursor<paths.length&&!failure){const path=paths[cursor++];try{values.set(path,await read(path));}catch(error){failure=error;}}
+  }));
+  if(failure)throw failure;
+  const rate=exchangeRate(values.get('sisventas/config/tipoCambio'));
+  const products=ids.map(id=>projectProduct(id,values.get('sv_catalogo_publico/'+id),values.get('sisventas/productos/'+id),rate)).filter(Boolean);
+  return {products,rate,company:issuer(values.get('sisventas/config/empresa')),quotedAt:now()};
  }
  async function list(actor){const data=await read('sv_distribuidora_comprobantes/'+actor.uid)||{};return {documents:Object.values(data).sort((a,b)=>b.createdAt-a.createdAt)};}
  async function issue(actor,body){
   const payload=input(body),hash=crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex'),path='sv_distribuidora_comprobantes/'+actor.uid+'/'+payload.id;
   const existing=await read(path);if(existing){if(existing.requestHash!==hash)throw fail(409,'Este envío ya fue utilizado con otros datos');return {document:existing};}
-  const quote=await options(),items=payload.items.map(i=>{const p=quote.products.find(p=>p.id===i.id),price=p?.[payload.currency.toLowerCase()];if(!(price>0))throw fail(409,'Un producto ya no tiene precio disponible. Revisá el catálogo');if(price!==i.price)throw fail(409,'Cambió el precio del catálogo. Actualizá los precios y revisá antes de emitir');if(payload.warrantyReport){if(JSON.stringify(i.warranty)!==JSON.stringify(p.warranty))throw fail(409,'Cambió la garantía del producto. Actualizá el catálogo y revisá el informe');if(p.warranty.state==='sin_definir')throw fail(400,'Falta configurar la garantía de '+p.name);if(p.warranty.serialRequired&&(i.serials.length!==i.qty||i.serials.some(s=>!s)))throw fail(400,'Completá las series de '+p.name);if(new Set(i.serials.filter(Boolean)).size!==i.serials.filter(Boolean).length)throw fail(400,'Hay series repetidas en '+p.name);}return {id:i.id,code:p.code,name:p.name,qty:i.qty,unitPrice:price,catalogPriceUSD:p.usd,total:round(price*i.qty),warranty:p.warranty,...(payload.warrantyReport?{serials:i.serials}:{})};});
+  const quote=await selectedOptions(payload.items.map(i=>i.id)),items=payload.items.map(i=>{const p=quote.products.find(p=>p.id===i.id),price=p?.[payload.currency.toLowerCase()];if(!(price>0))throw fail(409,'Un producto ya no tiene precio disponible. Revisá el catálogo');if(price!==i.price)throw fail(409,'Cambió el precio del catálogo. Actualizá los precios y revisá antes de emitir');if(payload.warrantyReport){if(JSON.stringify(i.warranty)!==JSON.stringify(p.warranty))throw fail(409,'Cambió la garantía del producto. Actualizá el catálogo y revisá el informe');if(p.warranty.state==='sin_definir')throw fail(400,'Falta configurar la garantía de '+p.name);if(p.warranty.serialRequired&&(i.serials.length!==i.qty||i.serials.some(s=>!s)))throw fail(400,'Completá las series de '+p.name);if(new Set(i.serials.filter(Boolean)).size!==i.serials.filter(Boolean).length)throw fail(400,'Hay series repetidas en '+p.name);}return {id:i.id,code:p.code,name:p.name,qty:i.qty,unitPrice:price,catalogPriceUSD:p.usd,total:round(price*i.qty),warranty:p.warranty,...(payload.warrantyReport?{serials:i.serials}:{})};});
   if(!Number.isSafeInteger(Math.round(items.reduce((n,i)=>n+i.total,0)*100)))throw fail(400,'El importe excede el límite del comprobante');
   const sequence=await db.ref('sv_distribuidora_comprobantes_contadores/'+payload.type).transaction(value=>value==null?1:Number.isSafeInteger(value)&&value>=0&&value<999999999?value+1:undefined,undefined,false);
   if(!sequence.committed)throw fail(409,'No se pudo reservar el número del comprobante');

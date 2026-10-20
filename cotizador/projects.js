@@ -22,12 +22,35 @@ function createProjects({auth,db,enabled=false,now=Date.now,uuid=crypto.randomUU
  }
  function budget(id,p){return {id,number:String(p.numero||p.id||id).slice(0,80),title:String(p.tituloSolucion||p.cliente||'Presupuesto').slice(0,160),clientId:String(p.clienteFbKey||p.clienteKey||p.clienteId||''),total:p.total!=null&&Number.isFinite(Number(p.total))?Number(p.total):null,currency:p.moneda==='USD'?'USD':'ARS',status:String(p.estado||'borrador').slice(0,40),items:(Array.isArray(p.items)?p.items:Object.values(p.items||{})).slice(0,200).map(i=>({description:String(i.desc||i.descripcion||'').slice(0,200),qty:Number(i.qty)||0,unitPrice:Number(i.punit)||0}))};}
  async function quotes(actor){if(!actor.quoteAllowed)return [];const records=process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'?await require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true}).visibleRecords(actor,'presupuestos'):await read('sisventas/presupuestos')||{};return Object.entries(records).filter(([,p])=>!p.eliminado).map(([id,p])=>budget(id,p));}
+ async function quoteRecord(actor,id){return process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'?require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true}).assertRecord(actor,'presupuestos',id):read('sisventas/presupuestos/'+id);}
+ async function legacyLinkedRecords(ids){
+  const records=Object.create(null);let cursor=0,failed=false,failure;
+  await Promise.all(Array.from({length:Math.min(6,ids.length)},async()=>{
+   while(!failed&&cursor<ids.length){
+    const id=ids[cursor++];
+    try{records[id]=await read('sisventas/presupuestos/'+id);}
+    catch(error){if(!failed){failed=true;failure=error;}}
+   }
+  }));
+  if(failed)throw failure;return records;
+ }
+ async function linkedQuotes(actor,projects){
+  if(!actor.quoteAllowed)return [];
+  const ids=[...new Set(projects.flatMap(project=>Object.values(project.budgets||{})).filter(b=>b.kind==='linked').map(b=>b.sourceId))].filter(id=>{
+   // Un vínculo legado inválido conserva la proyección restringida; nunca se
+   // convierte en una ruta de lectura ni obliga a descargar el historial.
+   try{Model.key(id);return true;}catch(error){if(error.statusCode===400)return false;throw error;}
+  });
+  if(!ids.length)return [];
+  const records=process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'
+   ?await require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true}).visibleRecordsByIds(actor,'presupuestos',ids)
+   :await legacyLinkedRecords(ids);
+  return Object.entries(records).filter(([,record])=>record&&!record.eliminado).map(([id,record])=>budget(id,record));
+ }
  async function list(actor){
   const data=await read('sv_proyectos')||{},visible=Object.values(data).filter(p=>Model.view(p,actor));
-  // Un listado vacío o sin vínculos no necesita leer el historial comercial.
-  // Si hay vínculos visibles se resuelven con los mismos permisos actuales.
-  const linked=actor.quoteAllowed&&visible.some(p=>Object.values(p.budgets||{}).some(b=>b.kind==='linked'));
-  const q=linked?await quotes(actor):[];
+  // Sólo los proyectos visibles aportan referencias al conjunto autorizado.
+  const q=await linkedQuotes(actor,visible);
   return {canCreate:actor.createAllowed,projects:visible.map(p=>Model.project(p,actor,q)).sort((a,b)=>b.updatedAt-a.updatedAt)};
  }
  async function options(actor,projectId){
@@ -38,10 +61,10 @@ function createProjects({auth,db,enabled=false,now=Date.now,uuid=crypto.randomUU
   return {people,clients:Object.entries(clients||{}).filter(([,c])=>c.activo!==false&&!c.eliminado).map(([id,c])=>({id,name:String(c.nombre||c.empresa||'Cliente').slice(0,160),address:String(c.dir||c.direccion||'').slice(0,240)})),budgets};
  }
  async function save(actor,body){
-  const create=body.type==='create',id=create?uuid():Model.key(body.projectId);const directoryData=await directory();
+  const create=body.type==='create',id=create?uuid():Model.key(body.projectId);const directoryData=create||body.type==='members'?await directory():[];
   const stamp=now(),operation=uuid();let quote;
   if(body.type==='budget-link'){
-   if(!actor.quoteAllowed)throw fail(403,'Sin permiso para presupuestos');const key=Model.key(body.data?.sourceId),record=process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'?await require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true}).assertRecord(actor,'presupuestos',key):await read('sisventas/presupuestos/'+key);if(!record||record.eliminado)throw fail(404,'Presupuesto no disponible');quote=budget(key,record);
+   if(!actor.quoteAllowed)throw fail(403,'Sin permiso para presupuestos');const key=Model.key(body.data?.sourceId),record=await quoteRecord(actor,key);if(!record||record.eliminado)throw fail(404,'Presupuesto no disponible');quote=budget(key,record);
   }
   let error,listener;const ref=db.ref('sv_proyectos/'+id);
   try{
@@ -52,7 +75,8 @@ function createProjects({auth,db,enabled=false,now=Date.now,uuid=crypto.randomUU
    error=null;try{if(create&&current)throw fail(409,'El proyecto ya existe');return Model.apply(current,body,actor,{directory:directoryData,quote,now:stamp,id:create?id:operation});}catch(e){error=e;return;}
   },undefined,false);
   if(error)throw error;if(!result.committed)throw fail(409,'No se pudo confirmar el proyecto. Actualizá y reintentá.');
-  return {project:Model.project(result.snapshot.val(),actor,await quotes(actor))};
+  const saved=result.snapshot.val();
+  return {project:Model.project(saved,actor,await linkedQuotes(actor,[saved]))};
   }finally{if(listener)ref.off('value',listener);}
  }
  return {authorize,list,options,save};

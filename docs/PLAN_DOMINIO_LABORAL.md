@@ -1,5 +1,7 @@
 # Reducir la transacción laboral sin perder coherencia
 
+Continuación local13.4, posterior a la publicación13.3: se retira la migración pasiva de Comisiones y se conserva consulta explícita del histórico por empleado. No cambia las cuatro transacciones de raíz. Nueve pruebas de contrato privadas con el código real y datos ficticios confirman que devolver sólo un recibo o mezclar snapshots perdería validaciones de empleados inactivos, gastos ausentes/duplicados, solicitudes rechazadas, miembros y pagos concurrentes. No se aplicaron esos atajos, no se migraron registros ni se ejecutaron operaciones reales. El cierre de escritores y el corte descritos aquí siguen pendientes; el inventario que sigue corresponde a su fuente histórica.
+
 Inventario local sobre la fuente `518425db`, aplicación activa `js/app.v3.13.0.js`, 18/10/2026. Complementa el pendiente de transacción raíz de [AUDITORIA_COHERENCIA.md](AUDITORIA_COHERENCIA.md) y [CONTROL_COSTOS.md](CONTROL_COSTOS.md). Es diseño previo al siguiente bloque: no crea servicios, no aplica reglas, no migra registros y no acredita el estado externo de una publicación en curso. Las búsquedas cubrieron aplicación activa, módulos cargados, Cotizador, funciones separadas y herramientas versionadas; las referencias de línea son orientativas de esa fuente. No es una declaración de exhaustividad de clientes instalados, código antiguo, herramientas privadas ni configuración remota.
 
 ## Resultado del inventario

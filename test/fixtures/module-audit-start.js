@@ -90,6 +90,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   }],
   ['Gesto desde borde (ficticio)',()=>gestoLateralFicticio(6)],
   ['Gesto fuera del borde (ficticio)',()=>gestoLateralFicticio(40)],
+  ['Cuenta de empleado de prueba',()=>{
+   fixtureRoot.sisventas.ctaemp={e:{comisionAntigua:{tipo:'comision',fecha:'2026-07-01',descripcion:'Comisión histórica ficticia',monto:123.45,pct:5,gananciaBase:2469,estado:'pagado',montoPagado:123.45,pagos:{p1:{fecha:'2026-07-02',monto:123.45,medio:'Transferencia'}}},comisionLarga:{tipo:'comision',fecha:'2026-07-01',descripcion:'Comisión ficticia con 24 pagos',monto:2400,pct:10,gananciaBase:24000,estado:'pagado',montoPagado:2400,pagos:Object.fromEntries(Array.from({length:24},(_,i)=>['p'+i,{fecha:'2026-07-'+String(i+1).padStart(2,'0'),monto:100,medio:'Transferencia'}]))}}};
+   showPage('ctaemp');document.getElementById('ctaemp-sel').value='e';cargarCtaEmp('e');tools.hidden=true;showTools.hidden=false;
+  }],
   ['Cuenta corriente de prueba',async()=>{
    window.TIPO_CAMBIO_CONFIG={oficial:1500,dolarConversion:'oficial'};
    const ventas=[{fbKey:'v1',id:'V-DEMO',clienteFbKey:'c',cliente:'Cliente ficticio',fecha:'2026-10-01',total:1000},{fbKey:'v2',id:'V-OTRA',clienteFbKey:'other',cliente:'Otro cliente ficticio',fecha:'2026-10-01',total:1500}];

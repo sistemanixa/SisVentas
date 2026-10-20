@@ -88,6 +88,7 @@
   // El SDK corta escrituras de más de 16 MB; REST admite hasta 256 MB y preserva
   // concurrencia con ETag. Reservar esto para aplicar/cancelar, nunca para borradores.
   async function restTransaction(ref, transform){
+    if(root.SVLaborWrites?.intersects(ref))return root.SVLaborWrites.restTransaction(ref,transform);
     const user=root.fbAuth?.currentUser,uid=root.currentUserUid;
     if(!user||user.uid!==uid)throw new Error('La sesión cambió. Volvé a ingresar.');
     const token=await user.getIdToken();

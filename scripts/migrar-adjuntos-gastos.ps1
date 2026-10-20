@@ -1,6 +1,9 @@
 param([switch]$Apply, [switch]$Restore)
 
 $ErrorActionPreference = 'Stop'
+if ($Apply -or $Restore) {
+  throw 'Esta herramienta de escritura directa fue retirada. Los adjuntos deben modificarse mediante el circuito financiero coordinado; no se ejecutó ninguna lectura ni cambio.'
+}
 $gcloud = 'C:\Users\gon_s\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd'
 if (!(Test-Path -LiteralPath $gcloud)) { throw 'No se encontro Google Cloud SDK.' }
 $token = & $gcloud auth print-access-token

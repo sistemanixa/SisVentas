@@ -136,6 +136,60 @@ function mntGastoExiste(gastos, tipoPagable, empKey, monto, fecha, semKey, legac
   });
 }
 async function mntGet(path){ var snap=await window.fbGet(window.fbRef(window.fbDB,path)).catch(function(){return {val:function(){return null;}};}); return snap.val()||null; }
+async function mntSnapshotsSeguros(paths){
+  var result=await Promise.allSettled(paths.map(async function(path){
+    var value=(await window.fbGet(window.fbRef(window.fbDB,path))).val();
+    if(value!==null&&(typeof value!=='object'||!value)) throw new Error('No se pudo comprobar la colección de mantenimiento.');
+    return value;
+  }));
+  var error=result.find(function(item){return item.status==='rejected';}); if(error) throw error.reason;
+  return Object.fromEntries(paths.map(function(path,index){return [path,result[index].value];}));
+}
+function mntRutaAuditoria(tipo){
+  var ref=window.fbPush(window.fbRef(window.fbDB,'sisventas/mantenimiento/'+tipo));
+  if(!ref||!ref.key) throw new Error('No se pudo preparar la auditoría.');
+  return 'sisventas/mantenimiento/'+tipo+'/'+ref.key;
+}
+async function mntGuardarSnapshotAtomico(sources,updates,auditPath,audit){
+  var service=window.SVLaborWrites;
+  if(!service||typeof service.atomic!=='function'||typeof service.canonical!=='function') throw new Error('No está listo el guardado seguro de mantenimiento.');
+  var paths=Object.keys(sources); if(!paths.includes(auditPath)) paths.push(auditPath);
+  if(paths.length>128) throw new Error('Esta limpieza necesita una revisión específica por su tamaño.');
+  return service.atomic({paths:paths,build:function(values){
+    Object.keys(sources).forEach(function(path){
+      if(service.canonical(values[path])!==service.canonical(sources[path])) throw new Error('Los datos cambiaron. Volvé a auditar antes de confirmar.');
+    });
+    if(values[auditPath]!=null) throw new Error('La auditoría ya existe. Volvé a revisar la operación.');
+    var patch=Object.assign({},updates); patch[auditPath]=audit; return patch;
+  }});
+}
+function mntGastoTieneHistorial(g,key,auditoria){
+  if(!g) return true;
+  if((parseFloat(g.montoPagado)||0)>0||(parseFloat(g.saldoPagadoLegacy)||0)>0||/^(?:pagado(?:_parcial)?|anulado|rechazado)$/i.test(String(g.estado||''))) return true;
+  if(['pagos','audit','auditoria','historial','historialPagos','pagosHistorial'].some(function(field){var value=g[field];return value&&typeof value==='object'&&Object.keys(value).length||typeof value==='string'&&value.trim();})) return true;
+  return Object.values(auditoria||{}).some(function(row){return row&&String(row.gastoFbKey||row.gastoKey||'')===String(key);});
+}
+function mntGruposDuplicadosSeguros(gastosObj,auditoria){
+  var mapa=Object.create(null);
+  Object.entries(gastosObj||{}).forEach(function(entry){
+    var g=Object.assign({},entry[1],{fbKey:entry[0]});
+    if(!mntEsFijoDuplicable(g)||!mntMesGasto(g)||!(parseFloat(g.monto)>0)) return;
+    var key=mntDupKeyGastoFijo(g); if(!mapa[key]) mapa[key]=[]; mapa[key].push(g);
+  });
+  return Object.keys(mapa).filter(function(key){return mapa[key].length>1&&!mapa[key].some(function(g){return mntGastoTieneHistorial(g,g.fbKey,auditoria);});}).map(function(key){
+    var arr=mapa[key];arr.sort(function(a,b){return (parseFloat(a.ts)||0)-(parseFloat(b.ts)||0)||String(a.fbKey).localeCompare(String(b.fbKey));});
+    return {key:key,keep:arr[0],dups:arr.slice(1)};
+  });
+}
+function mntTieneGastoMigradoSeguro(gastos,legacyKey,gastoKey,tipo,empKey){
+  var alias=function(value){return String(value||'').replace(/^hsextra_grupo\//,'hsextra_solicitudes/');};
+  return Object.entries(gastos||{}).some(function(entry){
+    var g=entry[1]; if(!g||typeof g!=='object') return false;
+    var link=String(gastoKey||'')===entry[0]||alias(g.legacyKey)===alias(legacyKey);
+    var emp=String(g.empleadoFbKey||g.empleadoId||'');
+    return link&&String(g.tipoPagable||'').toLowerCase()===tipo&&(!empKey||emp===String(empKey));
+  });
+}
 async function mntAnalizarBase(){
   if(!window.fbDB){ notify('Sin conexión Firebase'); return; }
   mntSetEstado('Analizando...','b-amber'); mntLog('Analizando base de datos...');
@@ -299,7 +353,7 @@ function mntEsFijoDuplicable(g){
 }
 function mntDupKeyGastoFijo(g){
   var mes=mntMesGasto(g);
-  var monto=Math.round(parseFloat(g.monto)||0);
+  var monto=Math.round((parseFloat(g.monto)||0)*100);
   var desc=mntNormDupTxt(g.descripcion||'');
   var cat=mntNormDupTxt(g.categoria||'');
   var emp=String(g.empleadoFbKey||g.empleadoId||'');
@@ -331,18 +385,19 @@ async function mntAnalizarDuplicadosGastosFijos(){
   if(!mntRequireAdmin('auditoria de duplicados')) return;
   if(!window.fbDB){ notify('Sin conexión Firebase'); return; }
   mntLog('Buscando duplicados de gastos fijos...');
-  var gastosObj=await mntGet('sisventas/gastos')||{};
-  var gastos=Object.keys(gastosObj).map(function(k){return Object.assign({fbKey:k},gastosObj[k]);});
+  var snapshot=await mntSnapshotsSeguros(['sisventas/gastos','sisventas/auditoria_pagos']);
+  var gastosObj=snapshot['sisventas/gastos']||{};
+  var gastos=Object.keys(gastosObj).map(function(k){return Object.assign({},gastosObj[k],{fbKey:k});});
   var mapa={};
   gastos.forEach(function(g){
     if(!mntEsFijoDuplicable(g)) return;
     var mes=mntMesGasto(g); if(!mes) return;
-    var monto=Math.round(parseFloat(g.monto)||0); if(monto<=0) return;
+    var monto=parseFloat(g.monto)||0; if(monto<=0) return;
     var key=mntDupKeyGastoFijo(g); if(!mapa[key]) mapa[key]=[]; mapa[key].push(g);
   });
   var grupos=[];
   Object.keys(mapa).forEach(function(k){
-    var arr=mapa[k]; if(arr.length<2) return;
+    var arr=mapa[k]; if(arr.length<2||arr.some(function(g){return mntGastoTieneHistorial(g,g.fbKey,snapshot['sisventas/auditoria_pagos']);})) return;
     arr.sort(function(a,b){ return (parseFloat(a.ts)||0)-(parseFloat(b.ts)||0) || String(a.fbKey||'').localeCompare(String(b.fbKey||'')); });
     grupos.push({key:k,keep:arr[0],dups:arr.slice(1)});
   });
@@ -360,15 +415,16 @@ async function mntEliminarDuplicadosGastosFijos(){
   if(!keys.length){ notify('No hay duplicados para eliminar'); return; }
   if(!await window.svConfirm('Se eliminarán '+keys.length+' copia(s) duplicada(s) de gastos fijos. Se conserva siempre el registro más antiguo de cada grupo. ¿Continuar?')) return;
   var clave=await window.svPrompt('Escribí DUPLICADOS para confirmar:'); if(clave!=='DUPLICADOS'){ notify('Eliminación cancelada'); return; }
-  mntLog('Eliminando duplicados de gastos fijos: '+keys.length+'...');
-  var updates={}; keys.forEach(function(k){ updates['sisventas/gastos/'+k]=null; });
-  await window.fbUpdate(window.fbRef(window.fbDB),updates).then(function(){
-    mntLog('Duplicados eliminados: '+keys.length);
-    return window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/duplicados_fijos/'+Date.now()),{version:mntVersion(),fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:keys.length,keys:keys});
-  }).catch(function(e){ mntLog('Error eliminando duplicados: '+e.message); notify('Error: '+e.message); });
-  notify('✓ Duplicados fijos eliminados');
-  await mntAnalizarDuplicadosGastosFijos();
-  if(typeof fbCargarGastos==='function') fbCargarGastos();
+  try{
+    var sources=await mntSnapshotsSeguros(['sisventas/gastos','sisventas/auditoria_pagos']);
+    var requested=new Set(keys),safe=[];
+    mntGruposDuplicadosSeguros(sources['sisventas/gastos'],sources['sisventas/auditoria_pagos']).forEach(function(grupo){grupo.dups.forEach(function(g){if(requested.has(g.fbKey))safe.push(g.fbKey);});});
+    if(!safe.length){notify('Se conservaron los registros con pagos o historial; no hay duplicados seguros para eliminar.');return;}
+    var updates={};safe.forEach(function(key){updates['sisventas/gastos/'+key]=null;});
+    await mntGuardarSnapshotAtomico(sources,updates,mntRutaAuditoria('duplicados_fijos'),{version:mntVersion(),fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:safe.length,keys:safe});
+    mntLog('Duplicados eliminados: '+safe.length);notify('✓ Duplicados fijos eliminados');
+    try{await mntAnalizarDuplicadosGastosFijos();if(typeof fbCargarGastos==='function')fbCargarGastos();}catch(refreshError){mntLog('Eliminación confirmada; no se pudo actualizar la auditoría: '+refreshError.message);}
+  }catch(e){mntLog('No se eliminaron los duplicados: '+e.message);notify('No se pudo confirmar la eliminación: '+e.message);}
 }
 
 function mntFechaPagoActivaMasReciente(gasto){
@@ -400,7 +456,8 @@ async function mntAuditarFechasGastos(btn){
   var original=btn&&btn.innerHTML;
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .9s linear infinite"></i> Auditando...';}
   try{
-    var gastosObj=await mntGet('sisventas/gastos')||{};
+    window._mntFechasGastosSnapshot=null;
+    var gastosObj=(await mntSnapshotsSeguros(['sisventas/gastos']))['sisventas/gastos']||{};
     var pendientes=[];
     Object.keys(gastosObj).forEach(function(key){
       var g=gastosObj[key]||{};
@@ -411,6 +468,7 @@ async function mntAuditarFechasGastos(btn){
       if(fecha!==fechaPago||imputacion!==fechaPago) pendientes.push({key:key,fechaPago:fechaPago,fecha:fecha,imputacion:imputacion,fechaOriginal:mntFecha(g.fechaOriginal||'')});
     });
     window._mntFechasGastosPendientes=pendientes;
+    window._mntFechasGastosSnapshot=JSON.parse(JSON.stringify(gastosObj));
     var total=Object.keys(gastosObj).length;
     if(pendientes.length){
       mntPintarEstadoFechasGastos('pendiente','Se auditaron <strong>'+total+'</strong> gastos. Hay <strong>'+pendientes.length+'</strong> registro(s) cuya fecha contable no coincide con el último pago.',pendientes.length);
@@ -421,6 +479,7 @@ async function mntAuditarFechasGastos(btn){
     }
     return pendientes;
   }catch(e){
+    window._mntFechasGastosPendientes=[];window._mntFechasGastosSnapshot=null;
     mntPintarEstadoFechasGastos('error','No se pudo completar la auditoría: '+escapeHTML(e&&e.message?e.message:String(e)),0);
     notify('Error auditando fechas: '+(e&&e.message?e.message:e));
     return [];
@@ -435,6 +494,8 @@ async function mntMigrarFechasGastos(btn){
   var original=btn&&btn.innerHTML;
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .9s linear infinite"></i> Corrigiendo...';}
   try{
+    var snapshot=window._mntFechasGastosSnapshot;
+    if(!snapshot) throw new Error('Volvé a auditar las fechas antes de confirmar.');
     var ahora=Date.now(), updates={};
     pendientes.forEach(function(p){
       var base='sisventas/gastos/'+p.key;
@@ -443,8 +504,9 @@ async function mntMigrarFechasGastos(btn){
       updates[base+'/fechaImputacion']=p.fechaPago;
       updates[base+'/imputacionNormalizadaEn']=ahora;
     });
-    updates['sisventas/config/migraciones/gastos_fecha_pago_v1']={estado:'completada',ejecutadaEn:ahora,registrosCorregidos:pendientes.length,gastosAuditados:Object.keys((await mntGet('sisventas/gastos'))||{}).length,criterio:'fecha efectiva del ultimo pago',usuario:currentUser||'Admin',version:mntVersion()};
-    await window.fbUpdate(window.fbRef(window.fbDB),updates);
+    var marca={estado:'completada',ejecutadaEn:ahora,registrosCorregidos:pendientes.length,gastosAuditados:Object.keys(snapshot).length,criterio:'fecha efectiva del ultimo pago',usuario:currentUser||'Admin',version:mntVersion()};
+    updates['sisventas/config/migraciones/gastos_fecha_pago_v1']=marca;
+    await mntGuardarSnapshotAtomico({'sisventas/gastos':snapshot},updates,mntRutaAuditoria('fechas_gastos'),marca);
     mntLog('Migración manual de fechas completada: '+pendientes.length+' registro(s).');
     notify('✓ Fechas contables corregidas');
     window._mntFechasGastosPendientes=[];
@@ -459,55 +521,35 @@ async function mntLimpiarLegacy(){
   if(!await window.svConfirm('Vas a limpiar estructuras antiguas ya migradas. No se borrarán solicitudes pendientes ni rechazadas. ¿Continuar?')) return;
   var clave=await window.svPrompt('Escribí LIMPIAR para confirmar la limpieza definitiva:'); if(clave!=='LIMPIAR'){ notify('Limpieza cancelada'); return; }
   mntSetEstado('Limpiando...','b-amber'); mntLog('Iniciando limpieza segura de legacy migrado...'); var borrados=0;
-
-  var gastosObj=await mntGet('sisventas/gastos')||{};
-  var gastos=Object.keys(gastosObj).map(function(k){return Object.assign({fbKey:k},gastosObj[k]);});
-
-  var agu=await mntGet('sisventas/aguinaldos')||{};
-  var aguPend=[];
-  Object.keys(agu).forEach(function(empKey){Object.keys(agu[empKey]||{}).forEach(function(semKey){
-    var r=agu[empKey][semKey]||{}; var monto=mntMoney(r.aguinaldo||r.monto||0); if(monto<=0) return;
-    var leg='aguinaldos/'+empKey+'/'+semKey;
-    if(!mntGastoExiste(gastos,'aguinaldo',empKey,monto,r.fecha,semKey,leg)) aguPend.push(leg);
-  });});
-  if(!aguPend.length && Object.keys(agu).length){
-    await window.fbRemove(window.fbRef(window.fbDB,'sisventas/aguinaldos')).then(function(){borrados++; mntLog('Eliminado: /sisventas/aguinaldos');}).catch(function(e){mntLog('No se pudo borrar aguinaldos: '+e.message);});
-  } else if(aguPend.length){
-    mntLog('No se borró /sisventas/aguinaldos: hay '+aguPend.length+' registro(s) sin gasto real.');
-  }
-
-  var hs=await mntGet('sisventas/hsextra_solicitudes')||{};
-  var hsUpdates={}, hsOmitidas=0;
-  Object.keys(hs).forEach(function(k){
-    var sol=hs[k]||{};
-    if(String(sol.estado||'').toLowerCase()!=='aprobado') return;
-    var empKey=sol.empFbKey||sol.empleadoFbKey||sol.empleadoId||'';
-    var monto=mntMoney(sol.monto||0);
-    var leg='hsextra_solicitudes/'+k;
-    var existeGasto = !!(sol.gastoFbKey||sol.migradoAGastos) || mntGastoExiste(gastos,'hextra',empKey,monto,sol.fecha,'',leg);
-    if(existeGasto) hsUpdates['sisventas/hsextra_solicitudes/'+k]=null;
-    else hsOmitidas++;
-  });
-  if(Object.keys(hsUpdates).length){
-    await window.fbUpdate(window.fbRef(window.fbDB),hsUpdates).then(function(){borrados+=Object.keys(hsUpdates).length; mntLog('Eliminadas horas extra aprobadas migradas: '+Object.keys(hsUpdates).length);});
-  }
-  if(hsOmitidas) mntLog('Horas extra aprobadas conservadas por no tener gasto real: '+hsOmitidas);
-
-  var cta=await mntGet('sisventas/ctaemp')||{}; var ctaUpdates={}, ctaOmitidos=0;
-  Object.keys(cta).forEach(function(empKey){Object.keys(cta[empKey]||{}).forEach(function(mKey){
-    var m=cta[empKey][mKey]||{}; var tipo=String(m.tipo||'').toLowerCase(); if(tipo!=='hextra'&&tipo!=='aguinaldo') return;
-    var monto=mntMoney(m.monto||0); if(monto<=0) return;
-    var leg='ctaemp/'+empKey+'/'+mKey;
-    var existeGasto=!!(m.gastoFbKey||m.migradoAGastos)||mntGastoExiste(gastos,tipo,empKey,monto,m.fecha,m.semestre||'',leg);
-    if(existeGasto) ctaUpdates['sisventas/ctaemp/'+empKey+'/'+mKey]=null; else ctaOmitidos++;
-  });});
-  if(Object.keys(ctaUpdates).length){
-    await window.fbUpdate(window.fbRef(window.fbDB),ctaUpdates).then(function(){borrados+=Object.keys(ctaUpdates).length; mntLog('Eliminados movimientos ctaemp legacy migrados: '+Object.keys(ctaUpdates).length);});
-  }
-  if(ctaOmitidos) mntLog('Movimientos ctaemp conservados por no tener gasto real: '+ctaOmitidos);
-
-  await window.fbUpdate(window.fbRef(window.fbDB,'sisventas/mantenimiento/limpiezas/'+Date.now()),{version:mntVersion(),fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados});
-  mntLog('Limpieza finalizada. Elementos removidos: '+borrados); notify('✓ Limpieza legacy finalizada'); await mntAnalizarBase();
+  try{
+    var sources=await mntSnapshotsSeguros(['sisventas/gastos','sisventas/aguinaldos','sisventas/hsextra_solicitudes','sisventas/ctaemp']);
+    var gastos=sources['sisventas/gastos']||{},agu=sources['sisventas/aguinaldos']||{},hs=sources['sisventas/hsextra_solicitudes']||{},cta=sources['sisventas/ctaemp']||{};
+    var updates={},conAportes=0,sinVinculo=0;
+    Object.keys(agu).forEach(function(empKey){Object.keys(agu[empKey]||{}).forEach(function(semKey){
+      var r=agu[empKey][semKey]||{},leg='aguinaldos/'+empKey+'/'+semKey;
+      if(mntMoney(r.aguinaldo||r.monto||0)<=0||!mntTieneGastoMigradoSeguro(gastos,leg,r.gastoFbKey,'aguinaldo',empKey)){sinVinculo++;return;}
+      updates['sisventas/'+leg]=null;
+    });});
+    Object.keys(hs).forEach(function(key){
+      var sol=hs[key]||{};
+      // Los aportes son comprobantes de idempotencia globales, aun si el
+      // gasto ya existe o la solicitud fue aprobada hace mucho tiempo.
+      if(sol.aportes&&typeof sol.aportes==='object'&&Object.keys(sol.aportes).length){conAportes++;return;}
+      if(String(sol.estado||'').toLowerCase()!=='aprobado')return;
+      var empKey=sol.empFbKey||sol.empleadoFbKey||sol.empleadoId||'',leg='hsextra_solicitudes/'+key;
+      if(mntTieneGastoMigradoSeguro(gastos,leg,sol.gastoFbKey,'hextra',empKey))updates['sisventas/'+leg]=null;else sinVinculo++;
+    });
+    Object.keys(cta).forEach(function(empKey){Object.keys(cta[empKey]||{}).forEach(function(key){
+      var m=cta[empKey][key]||{},tipo=String(m.tipo||'').toLowerCase(),leg='ctaemp/'+empKey+'/'+key;
+      if(tipo!=='hextra'&&tipo!=='aguinaldo')return;
+      if(mntMoney(m.monto||0)>0&&mntTieneGastoMigradoSeguro(gastos,leg,m.gastoFbKey,tipo,empKey))updates['sisventas/'+leg]=null;else sinVinculo++;
+    });});
+    borrados=Object.keys(updates).length;
+    if(borrados)await mntGuardarSnapshotAtomico(sources,updates,mntRutaAuditoria('limpiezas'),{version:mntVersion(),fecha:new Date().toISOString(),usuario:currentUser||'Admin',borrados:borrados,solicitudesConAportesConservadas:conAportes,registrosSinVinculoConservados:sinVinculo});
+    mntLog('Solicitudes conservadas por comprobante de aporte: '+conAportes+'. Sin vínculo comprobado: '+sinVinculo+'.');
+    mntLog('Limpieza finalizada. Elementos removidos: '+borrados);notify('✓ Limpieza legacy finalizada · '+conAportes+' solicitud(es) conservadas por comprobante de aporte');
+    try{await mntAnalizarBase();}catch(refreshError){mntLog('Limpieza confirmada; no se pudo actualizar el diagnóstico: '+refreshError.message);}
+  }catch(error){MNT_STATE.integridadOK=false;mntSetEstado('Limpieza no confirmada','b-red');mntLog('No se completó la limpieza: '+error.message);notify('No se pudo confirmar la limpieza: '+error.message);}
 }
 
 

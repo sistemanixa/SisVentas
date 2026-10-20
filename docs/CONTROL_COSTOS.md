@@ -1,5 +1,19 @@
 # Control de consumo de SisVentas
 
+## Circuito financiero acotado · preparación 20/10/2026
+
+La candidata13.4 sustituye los cuatro GET/PUT de toda `sisventas` por lecturas puntuales, índices de referencias y un PATCH coordinado. Incluye los escritores relacionados de pagos, cuentas, comisiones y vinculación fiscal. No agrega servicios, instancias mínimas ni consultas por reloj. Producción continúa13.3: el ahorro todavía no está aplicado ni medido.
+
+Para dimensionar la preparación se leyeron una vez sólo Gastos/Solicitudes:6,853MB. El índice derivado ocupa51.122bytes. Estimación a USD1/GB descargado y USD5/GB almacenado: unos USD0,007 de descarga al preparar y USD0,00026/mes por ese índice, antes de franquicias/impuestos. No incluye compilaciones, cómputo, logs, recibos posteriores ni otros consumos. No se guardaron payloads financieros para la medición ni se modificó negocio. Reglas candidatas compiladas en simulación contra la base remota y comprobadas sin cambios; aún no aplicadas.
+
+Cambios de uso propuestos: una operación sin respuesta exige consultar su confirmación antes de guardar otra; editar un total pagado exige Historial de pagos; mantenimiento conserva registros con pagos/auditoría y solicitudes con aportes; el antiguo migrador Admin de adjuntos rechaza Apply/Restore. Las funciones de cobro, aprobación, comisión y consulta se conservan. NC/facturas inciertas se revisan o vinculan: no se reemiten automáticamente. Detalle y ventana de activación en [REDISENO_CIRCUITO_LABORAL.md](REDISENO_CIRCUITO_LABORAL.md).
+
+Quedan lecturas amplias explícitas de Gastos en alta administrativa, SAC, incorporación legacy y Mantenimiento para no omitir duplicados antiguos. No son un GET de toda la base ni un trabajo por reloj; requieren un siguiente bloque de reducción con índices completos. Los listados/arranque generales continúan en la auditoría abierta.
+
+## Continuación local13.4, sin nuevo despliegue
+
+Después de publicar13.3 se acotan cotización al emitir Distribuidora y presupuestos vinculados al listar/guardar Proyectos; se retira la migración de comisiones que se ejecutaba al consultar. No se crean recursos, reservas mínimas, sondeos ni cachés de permisos. La medición ficticia de Distribuidora reduce bytes JSON con más GET pequeños; no se traduce a dólares ni se promete menor latencia. El detalle y los límites están en AUDITORIA_COTIZADOR. Producción sigue13.3/e897dede; la transacción laboral de raíz y listados amplios siguen pendientes. No se volvió a consultar facturación ni se guardaron operaciones de prueba para medir este cambio.
+
 ## Publicación13.3 · 19/10/2026
 
 Cotizador `cotizador-audit-e897dede` y web13.3 activos y verificados desde fuente `e897dede350f1f56795c60d657bad994f6a395a3`; mínimo0, CPU por solicitud, eventos activos y observador apagado. Sin recursos mínimos ni servicios nuevos. Construcción única79,725s en e2-standard-2; unos USD0,008 de compilación antes de franquicias, almacenamiento/transferencia aparte. No equivale a factura ni ahorro mensual medido. Estado técnico y reversión en CONTEXTO_ACTUAL; las secciones candidatas siguientes son antecedentes.

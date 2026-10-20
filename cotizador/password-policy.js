@@ -1,4 +1,5 @@
 'use strict';
+const {recognizedRule:recognizedLaborFenceRule}=require('./labor-fence-policy');
 const GUARD = "(auth == null || (auth.token.svPasswordChangeRequired !== true && root.child('sv_access_resets').child(auth.uid).child('required').val() !== true && (!root.child('sv_access_resets').child(auth.uid).child('version').exists() || auth.token.svAccessVersion === root.child('sv_access_resets').child(auth.uid).child('version').val())))";
 // Only a connection record already owned by this authenticated UID may be
 // removed after revocation. This grants no reads, creations, or edits.
@@ -47,6 +48,7 @@ function rulesProtectPasswords(policy) {
     if(value===false||value==='false')return true;
     if(typeof value!=='string')return false;
     if(passwordGuardRequired(value))return true;
+    if(recognizedLaborFenceRule(value,path,key,passwordGuardRequired))return true;
     const prefix='('+PRESENCE_RETIRE_OWN+') || (';
     return key==='.write'&&path==='sv_chat_presencia/$uid/$session'&&value.startsWith(prefix)&&value.endsWith(')')&&passwordGuardRequired(value.slice(prefix.length,-1));
   }

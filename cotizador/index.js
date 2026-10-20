@@ -33,7 +33,10 @@ if (!admin.apps.length) {
   });
 }
 
-const db = admin.database();
+const laborScopedEnabled=process.env.LABOR_SCOPED_ENABLED==='true';
+if(laborScopedEnabled&&process.env.COMMISSION_OBSERVER_ENABLED==='true')throw Error('El circuito acotado requiere el observador periódico apagado');
+const laborRuntime=require('./labor-runtime').createLaborRuntime({db:admin.database(),databaseURL:DATABASE_URL,enabled:laborScopedEnabled,readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true',accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
+const db = laborRuntime.db;
 // Resolve Auth only when handling an authenticated operation. Importing pure
 // parsers (or their tests) must not instantiate extra SDK services.
 const firebaseAuth = Object.fromEntries(['verifyIdToken','getUser','updateUser','setCustomUserClaims','revokeRefreshTokens'].map(method => [method,(...args)=>admin.auth()[method](...args)]));
@@ -50,7 +53,8 @@ const privateFinanceDocuments=require('./private-finance-storage').createPrivate
 const privateFinance=require('./private-finance').createPrivateFinance({auth:businessAuth,db,ownerUid:process.env.PERSONAL_FINANCE_OWNER_UID||'',enabled:process.env.PERSONAL_FINANCE_ENABLED==='true',documents:privateFinanceDocuments});
 const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,db,enabled:process.env.USER_ACCESS_ENABLED==='true',emailConfigured:!!process.env.FIREBASE_WEB_API_KEY,sendResetEmail:require('./password-email').createPasswordEmail({apiKey:process.env.FIREBASE_WEB_API_KEY})});
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
-const laborTransaction = require('./labor-transaction').createRootTransaction({databaseURL:DATABASE_URL,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
+const laborTransaction = laborRuntime.transaction;
+const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 const laborOperations = require('./labor-operations').createLaborOperations({auth:businessAuth,db,transaction:laborTransaction});
 const laborSubmissions = require('./labor-submissions').createLaborSubmissions({auth:businessAuth,db,transaction:laborTransaction});
 const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:businessAuth,db});
@@ -58,12 +62,16 @@ const employeeDirectory = require('./employee-directory').createEmployeeDirector
 const personalExpenses = require('./personal-expenses').createPersonalExpenses({authorize:laborSubmissions.authorize,transaction:laborTransaction});
 const supplierDirectory = require('./supplier-directory').createSupplierDirectory({authorize:employeeDirectory.authorize,db});
 const commissionOperations = require('./commission-operations').createCommissionOperations({auth:businessAuth,db,transaction:laborTransaction});
-const commissionGeneration = require('./commission-generation').createCommissionGeneration({db,commercial:commercialOwnership,enabled:process.env.COMMISSION_GENERATION_ENABLED==='true',from:Date.parse(process.env.COMMISSION_GENERATION_FROM||''),logger:status=>console.log(JSON.stringify(status))});
+const commissionGenerationBase = require('./commission-generation').createCommissionGeneration({db,commercial:commercialOwnership,enabled:process.env.COMMISSION_GENERATION_ENABLED==='true',from:Date.parse(process.env.COMMISSION_GENERATION_FROM||''),logger:status=>console.log(JSON.stringify(status))});
+const commissionGeneration={...commissionGenerationBase,
+ generate:(actor,body)=>laborRuntime.run(actor,'generate-commission',body,()=>commissionGenerationBase.generate(actor,body)),
+ systemGenerate:id=>laborRuntime.run(null,'system-commission',{id},()=>commissionGenerationBase.systemGenerate(id),{system:true}),
+ retryPending:id=>laborRuntime.run(null,'retry-commission',{id:id??null},()=>commissionGenerationBase.retryPending(id),{system:true})};
 let commissionEventOidc;
 const commissionEvent=require('./commission-event').createCommissionEvent({db,commissions:commissionGeneration,enabled:process.env.COMMISSION_EVENT_ENABLED==='true',audience:process.env.COMMISSION_EVENT_AUDIENCE,caller:process.env.COMMISSION_EVENT_CALLER,instance:process.env.COMMISSION_EVENT_INSTANCE,probeRef:process.env.COMMISSION_EVENT_PROBE_REF||'',verifyToken:async(token,audience)=>{
   commissionEventOidc ||= new (require('google-auth-library').OAuth2Client)();
   return (await commissionEventOidc.verifyIdToken({idToken:token,audience})).getPayload();
-},logger:status=>console.log(JSON.stringify(status))});
+},coordinate:(event,work)=>laborRuntime.run(null,'commission-event',event,work,{system:true}),logger:status=>console.log(JSON.stringify(status))});
 const catalogRequests = require('./catalog-request').createCatalogRequest({db,periodsAPI:require('./catalog-promotions')});
 const { consultarAutomatico, firmaAcceso, aplicarCondicionComercial } = require('./proveedor-automatico');
 const { esProveedorPublicoComprasParaguay } = require('./compras-paraguay');
@@ -2010,8 +2018,7 @@ const server = http.createServer(async (req, res) => {
       const actor=await commercialOwnership.authorize(req,match[1],view);let result;
       if(req.method==='GET'&&!match[2])result=await commercialOwnership.list(actor);
       else if(req.method==='GET'&&match[2]==='opciones')result=await commercialOwnership.options(actor);
-      else if(req.method==='POST'&&match[2]==='reasignar')result=await commercialOwnership.assign(actor,await readBody(req,16384));
-      else if(req.method==='POST'&&match[2]==='preparar')result=await commercialOwnership.prepare(actor,await readBody(req,16384));
+      else if(req.method==='POST'&&['reasignar','preparar'].includes(match[2])){const body=await readBody(req,16384),method=match[2]==='reasignar'?'assign':'prepare';result=match[1]==='ventas'?await laborRuntime.run(actor,'commercial-'+method,body,()=>commercialOwnership[method](actor,body)):await commercialOwnership[method](actor,body);}
       else{send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
       if(req.method==='GET'&&!match[2])await sendCommercial(req,res,{ok:true,...result});
       else send(res,200,{ok:true,...result});
@@ -2110,6 +2117,11 @@ const server = http.createServer(async (req, res) => {
       send(res,200,{ok:true,...result});
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'La generación quedó pendiente de reintento seguro'});}
     return;
+  }
+  if(['/laboral/escritura','/laboral/operacion'].includes(pathname)){
+    res.setHeader('Cache-Control','private, no-store');
+    try{const actor=await laborWriteGateway.authorize(req),body=await readBody(req,pathname.endsWith('/operacion')?2048:16*1024*1024);send(res,200,await laborWriteGateway[pathname.endsWith('/operacion')?'resolve':'write'](actor,body));}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el guardado. Comprobá el intento antes de repetirlo.',...(error.code?{code:error.code}:{})});}return;
   }
   if(req.method==='POST' && pathname==='/comisiones/redistribuir'){
     try{const identity=await commissionOperations.authorize(req);const body=await readBody(req,2000000);send(res,200,{ok:true,...await commissionOperations.redistribute(identity,body)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la distribución'});}return;

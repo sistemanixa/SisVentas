@@ -6,7 +6,7 @@ const fault=(statusCode,message)=>Object.assign(Error(message),{statusCode});
 
 // Candidate only. A signed delivery identifies an event; amounts and eligibility
 // always come from the existing canonical server calculation, never its payload.
-function createCommissionEvent({db,commissions,verifyToken,audience,caller,instance,probeRef='',enabled=false,now=Date.now,logger=()=>{}}){
+function createCommissionEvent({db,commissions,verifyToken,audience,caller,instance,probeRef='',enabled=false,now=Date.now,logger=()=>{},coordinate=async(_event,work)=>work()}){
  async function authorize(req){
   if(!enabled||!audience||!caller||!instance)throw fault(503,'Receptor de eventos no habilitado');
   if(req.method!=='POST')throw fault(405,'Método no permitido');
@@ -33,7 +33,11 @@ function createCommissionEvent({db,commissions,verifyToken,audience,caller,insta
   if(!match)throw fault(400,'Ruta de evento no admitida');
   if(match[3]&&(match[1]==='pagos'?match[3]!=='monto':!['estadoPago','comisionHabilitada'].includes(match[3])))throw fault(400,'Campo de evento no admitido');
   const digest=crypto.createHash('sha256').update(JSON.stringify([source,id,match[1],match[2]])).digest('hex');
-  const ref=db.ref('sv_commission_events/'+digest),stamp=now(),leaseMs=120000,token=crypto.randomUUID();let reason;
+  const event={id,source,domain:match[1],key:match[2]},ref=db.ref('sv_commission_events/'+digest),leaseMs=120000,token=crypto.randomUUID();let reason;
+  // Reserve the attempt durably before starting business work. Counting only
+  // after rollback would let concurrent instances exceed the five-attempt cap.
+  let reservationResult;try{reservationResult=await coordinate({...event,phase:'reserve'},async()=>{
+  const stamp=now();
   const reservation=await transaction(ref,current=>{
    reason=null;
    if(current?.state==='completed'||current?.state==='review'){reason=current.state;return;}
@@ -46,6 +50,12 @@ function createCommissionEvent({db,commissions,verifyToken,audience,caller,insta
    if(reason==='exhausted'){await transaction(ref,current=>current?.state!=='completed'&&Number(current?.attempts)>=5?{...current,state:'review',leaseUntil:0}:undefined);logger({event:'commission_event_review',eventHash:digest,reason:'attempts'});}
    return {status:'ignored',reason};
   }
+  return {reserved:true};
+  });}catch(_){throw fault(503,'No se pudo reservar el evento');}
+  if(!reservationResult.reserved)return reservationResult;
+  try{return await coordinate({...event,phase:'generation'},async()=>{
+  const current=(await ref.get()).val();
+  if(current?.token!==token||current.state!=='processing')throw fault(503,'La reserva del evento cambió');
   async function finish(fields){const result=await transaction(ref,current=>current?.token===token?{...current,...fields,leaseUntil:0}:undefined);if(!result.committed)throw fault(503,'La reserva del evento cambió');}
   try{
    let saleKey=match[2];
@@ -65,10 +75,23 @@ function createCommissionEvent({db,commissions,verifyToken,audience,caller,insta
    await finish({state:result.status==='revision'?'review':'completed',completedAt:now(),result:result.status});
    return {status:'completed',result:result.status};
   }catch(error){
-   // A conflict may be a live generation lease. Keep delivery recoverable; an
-   // unchanged failed event reaches review after five actual attempts.
-   await finish({state:'error',lastError:'generation_interrupted'}).catch(()=>{});
    throw fault(503,'No se pudo completar el evento');
+  }
+  });}catch(error){
+   try{
+    // The failed financial scope must finish aborting before this ledger starts.
+    // Committing its error state inside that scope would either lose the attempt
+    // on rollback or publish a partially staged commission. This final scope
+    // writes only this authenticated event's bookkeeping, never business data.
+    await coordinate({...event,phase:'failure-ledger'},async()=>{
+     const saved=await transaction(ref,current=>{
+      if(current?.token!==token||current.state==='completed'||current.state==='review')return;
+      return {...current,state:'error',leaseUntil:0,lastError:'generation_interrupted'};
+     });
+     return {recorded:saved.committed};
+    });
+   }catch(_){logger({event:'commission_event_error_ledger_failed',eventHash:digest});}
+   throw error;
   }
  }
  return {handle,probe};
