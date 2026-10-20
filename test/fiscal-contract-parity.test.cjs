@@ -2,7 +2,9 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {functionSource,load}=require('./helpers/app-functions.cjs');
 const Fiscal=require('../cloud-functions/emitir-factura/fiscal-contract.cjs');
-const source=fs.readFileSync('cloud-functions/emitir-factura/fiscal-contract.cjs','utf8');
+// Git puede materializar CRLF en Windows; el helper de app entrega LF.
+// La comparación sigue siendo literal tras normalizar sólo los saltos de línea.
+const source=fs.readFileSync('cloud-functions/emitir-factura/fiscal-contract.cjs','utf8').replace(/\r\n/g,'\n');
 test('La preparación fiscal desplegable conserva exactamente las funciones canónicas activas',()=>{
  for(const name of Fiscal.names)assert.ok(source.includes(functionSource(name)),name+' debe conservar sus reglas canónicas');
 });
