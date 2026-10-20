@@ -1,6 +1,6 @@
 # Preparación del corte · v3.13.19
 
-Estado: integración y verificación local. **Sin activación ni publicación.** El titular pidió terminar la preparación y avisar antes del corte; no se debe iniciar una pausa operativa por inferencia.
+Estado: preparación terminada y lista para coordinar el corte. **Sin activación ni publicación.** El titular pidió terminar la preparación y avisar antes del corte; no se debe iniciar una pausa operativa por inferencia. Fuente y hashes finales en CONTEXTO_ACTUAL; los paquetes privados se generaron desde ese SHA limpio. No se hicieron compilaciones en Google.
 
 ## Paquete y comportamiento
 
@@ -12,9 +12,10 @@ La revisión final añadió dos defensas de autorización: bloqueos RTDB como ob
 
 ## Verificación reproducible
 
-- Puerta vigente mediante `scripts/test-current.ps1`, con Node24.17.0 y las dependencias locales existentes. Los 27 casos opt-in de reglas/runtime se ejecutan además explícitamente en emulador demo; no se convierten en ceros por omitirlos en la puerta normal.
+- Puerta vigente mediante `scripts/test-current.ps1`:2.967aprobadas,27opt-in,0fallos (2.994casos), con Node24.17.0 y las dependencias locales existentes. Los 27 casos opt-in de reglas/runtime se ejecutan además explícitamente en emulador demo; no se convierten en ceros por omitirlos en la puerta normal.
 - Cotizador: `node --test test/*.test.js` desde su carpeta;94/94. HTTP comercial y firmas OIDC efímeras:8/8, sin Google ni datos reales.
 - Emulador:43/43, secuencial, proyecto `demo-sisventas-fence-proof`, loopback9017, reglas completas generadas desde la base exacta. Incluye revocación, cambios de rol/revisión, fence vencido, escapes Admin/callbacks tardíos, pagos concurrentes, tombstone/respuesta perdida y generación de comisión idempotente. Otras16 pruebas puras de política/bootstrap también aprobadas.
+- Borradores representativos de presupuesto/venta guardados y editados en emulador:60 comprobaciones contra base actual y candidata; aislamiento entre UID, revocación, ID y tombstone. Relevamientos/configuración ajena y huellas de negocio ficticio conservados. No se guardó un borrador real.
 - Fiscal/permisos/paridad:45/45; revisión independiente42/42 y matriz del handler con Facturas y NC A/B/C. Sólo proveedor ficticio. Empaquetador fiscal12/12. No son emisiones reales.
 - Aviso de recuperación con CSS/módulo reales, transporte en memoria y CSP `connect-src none`: escritorio1280x720 y móvil390x844; centrado, foco, Escape, fondo bloqueado y recuperación sin reenviar. Demo y servidor cerrados; viewport restaurado. No se recargó ni modificó la pestaña comercial del titular durante estas pruebas.
 
