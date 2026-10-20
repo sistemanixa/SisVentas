@@ -126,3 +126,11 @@ test('la lista oculta valores por renglón y el botón del producto muestra sól
  f.view.render({...base,items:[{...base.items[0],quantity:3,discountPct:10,subtotal:270},base.items[1]]});detail.focus();detail.dispatch('click');const dialog=f.document.body.querySelector('.sv-bp-product-dialog');assert.ok(dialog.open);assert.match(dialog.textContent,/Cantidad3 Unidad/);assert.match(dialog.textContent,/Precio unitario\$ 100,00/);assert.match(dialog.textContent,/Descuento10%/);assert.match(dialog.textContent,/Subtotal\$ 270,00/);assert.doesNotMatch(dialog.textContent,/Producto B/);assert.equal(f.srcWrites.length,2);
  dialog.querySelector('.sv-bp-close').dispatch('click');assert.equal(f.document.activeElement,detail);assert.equal(f.view.element.open,true);assert.equal(f.document.body.style.getPropertyValue('overflow'),'hidden');
 });
+
+test('descuento cero se muestra explícitamente con importe cero',()=>{
+ const f=fixture();f.view.render(snapshot());const summary=f.find('.sv-bp-summary');assert.match(summary.textContent,/Descuento 0%\$ 0,00/);
+});
+
+test('pantalla completa amplía y restaura la vista aunque la API nativa no exista o rechace',async()=>{
+ for(const onFullscreen of [undefined,()=>Promise.reject(Error('API no permitida')),()=>{throw Error('API no disponible');}]){const f=fixture({onFullscreen});f.view.render(snapshot());const toggle=f.find('.sv-bp-fullscreen');assert.equal(toggle.hidden,false);toggle.dispatch('click');await Promise.resolve();assert.equal(f.view.element.classList.contains('is-expanded'),true);assert.equal(toggle.getAttribute('aria-pressed'),'true');assert.match(toggle.textContent,/Salir de pantalla completa/);assert.equal(f.find('.sv-bp-warning').hidden,true);toggle.dispatch('click');assert.equal(f.view.element.classList.contains('is-expanded'),false);assert.equal(toggle.getAttribute('aria-pressed'),'false');f.view.close();assert.equal(f.document.body.style.getPropertyValue('overflow'),'');}
+});

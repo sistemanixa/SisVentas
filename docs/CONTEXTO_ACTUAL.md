@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Reparaciones del visualizador · v3.13.15 · publicación autorizada en preparación
+
+- Tres fallas informadas: descuento vacío equivale ahora a0 (igual que el editor) y se muestra siempre Descuento0%/$0,00; scroll retenido por filas con overflow:hidden y la regla global overscroll:contain; pantalla completa nativa denegada por IAB/iOS. Filas/fotos usan overflow:clip y encadenan sólo hacia el scroll de productos; ampliación local de toda la vista funciona aun sin API nativa, con regreso y estado del botón correctos. No afecta otros modales.
+- Reproducción real anterior: rueda sobre texto de una fila dejó scrollTop0→0. Con CSS reales y12productos ficticios, rueda sobre texto0→720 y sobre foto720→0, documento0; ampliación ocupa1280x720 y vuelve al margen16px. Descuento vacío mostrado0 y totales conservados; prueba de modelo cubre raw vacío/espacios/0 explícitos. Puerta2.529/2.529, sintaxis/diff/coherencia correctos. Sin cambios de servidor ni guardados de negocio.
+- En la ventana real13.14 se observó llegar una edición de descuento desde otro cliente de la misma cuenta; el agente no creó ni guardó esa edición. No copiar sus datos privados a Git. La integración grande local aprobó2882casos/27omitidos/0fallos (2909totales) sobre su base14, pero sigue sin commit de integración ni activación, y debe incorporar esta reparación/recalcular versión antes de su corte. No equivale a reglas/emulador actualizados contra producción.
+- Pendiente Hosting/aviso15 y revalidar scroll/ampliación en la ventana real. Pruebas locales no acreditan gesto físico Android/iOS; no afirmar cero fallas por la suite.
+
 ## Visualizador · v3.13.14 · último ajuste publicado y verificado
 
 - Fuente `c4e16d0cc658aadf97d69bb81ea73b0024db1a0f`, rama subida. Hosting402activos/6cargas,12 activos contrastados por hash; aviso web/SW/Firebase14 confirmado tras verificar web. Puerta2.526/2.526 y comprobaciones del bloque siguiente. Sin despliegue de servidores/reglas/IAM/DNS ni guardados de negocio.
