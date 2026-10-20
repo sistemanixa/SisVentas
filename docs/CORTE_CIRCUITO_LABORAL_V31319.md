@@ -1,6 +1,10 @@
-# Preparación del corte · v3.13.19
+# Corte aplicado · v3.13.19
 
-Estado: preparación terminada y lista para coordinar el corte. **Sin activación ni publicación.** El titular pidió terminar la preparación y avisar antes del corte; no se debe iniciar una pausa operativa por inferencia. Fuente y hashes finales en CONTEXTO_ACTUAL; los paquetes privados se generaron desde ese SHA limpio. No se hicieron compilaciones en Google.
+Estado: **corte autorizado, aplicado y web publicada/verificada el20/10/2026**. El titular confirmó que no había pagos ni emisiones en curso. Guardados habilitados; misma sesión y pestaña conservadas. Estado externo, SHA, hashes, pruebas y límites registrados en el primer bloque de [CONTEXTO_ACTUAL.md](CONTEXTO_ACTUAL.md).
+
+Cotizador activo `cotizador-scoped19-9c6b3126` con14 tags y modo acotado; emitirFactura `emitirfactura-00029-pob`. Ambos fuera del modo revisión, mínimo0/CPU por solicitud y configuración ajena conservada. Reglas exactas aplicadas `978cea4169880cd9b5d2782fbe17b7243a2fea562cb1737cb15292ebaa2e1782`;141 escritores antiguos retirados antes de la preparación única de índices, confirmada y verificada sin cambiar registros financieros. Hosting `918f982124142fff`,16/16 activos y aviso19 comprobados. Se conservaron revisiones nuevas protegidas en revisión para contención.
+
+**No repetir bootstrap ni ejecutar este protocolo como si siguiera pendiente.** Los apartados siguientes conservan la preparación y la secuencia histórica revisada. La web real se comprobó en lectura; las pruebas de operaciones financieras y concurrencia fueron aisladas con datos ficticios. No se registraron pagos, comisiones ni emisiones reales de prueba.
 
 ## Paquete y comportamiento
 
