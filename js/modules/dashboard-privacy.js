@@ -9,12 +9,13 @@
   Object.entries(fields).forEach(([id,label])=>{
    const value=document.getElementById(id),card=value?.closest('.metric');if(!card)return;
    let button=card.querySelector('.dashboard-eye');
-   if(!button){button=document.createElement('button');button.type='button';button.className='dashboard-eye';card.append(button);button.addEventListener('click',event=>{event.stopPropagation();if(!admin())return;preferences[id]=!preferences[id];try{localStorage.setItem('sv-dashboard-privacy:'+identity,JSON.stringify(preferences));}catch(_){}refresh();});button.addEventListener('keydown',event=>event.stopPropagation());}
+   if(!button){button=document.createElement('button');button.type='button';button.className='dashboard-eye';button.dataset.metricId=id;card.append(button);}
    const hidden=admin()&&preferences[id]===true;
    button.hidden=!admin();button.setAttribute('aria-label',(hidden?'Mostrar':'Ocultar')+' importe de '+label);button.title=button.getAttribute('aria-label');button.setAttribute('aria-pressed',String(hidden));button.innerHTML='<i aria-hidden="true" class="ti ti-eye'+(hidden?'-off':'')+'"></i>';
    card.classList.toggle('dashboard-private',hidden);card.querySelectorAll('.m-value,.m-sub').forEach(el=>{if(hidden)el.setAttribute('aria-hidden','true');else el.removeAttribute('aria-hidden');});
   });
  }
+ document.addEventListener('click',event=>{const button=event.target.closest?.('.dashboard-eye');if(!button)return;event.preventDefault();event.stopImmediatePropagation();if(!admin())return;const id=button.dataset.metricId;if(!fields[id])return;preferences[id]=!preferences[id];try{localStorage.setItem('sv-dashboard-privacy:'+identity,JSON.stringify(preferences));}catch(_){}refresh();},true);
  ['sisventas:session-ready','sisventas:role-changed','sisventas:page-changed'].forEach(name=>document.addEventListener(name,refresh));
  document.addEventListener('sisventas:session-ended',()=>{identity='';preferences={};document.querySelectorAll('.dashboard-eye').forEach(el=>el.hidden=true);});
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',refresh);else refresh();
