@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Visualizador compacto · v3.13.13 · publicado y verificado · 20/10/2026
+
+- Fuente `d6bb3e63be2774b872d4d980c5d233895861d44b`, rama `codex/visualizador-presupuesto` subida. Hosting `6c29deb32a67b0f6`,401 activos/6cargas desde ese SHA limpio;12 activos contrastados por hash,5cabeceras y4rutas privadas404. Sólo después el script de versión confirmó web, SW y Firebase en13.13. No se cambiaron servidores, reglas, IAM, DNS ni datos de negocio.
+- Puerta2.525/2.525 y verificaciones descritas debajo. En la web real se conservó la sesión y se cerró el aviso13.11→13.13. Diez presupuestos visibles; ojo abre la versión guardada, trece renglones, miniaturas reales y total que coincide con el listado. Foto real ampliada y cerrada correctamente, foco devuelto al producto, sin errores/warnings observados. No se abrió el editor ni se guardó un presupuesto o borrador real para probar.
+- Navegador terminó sin las pestañas anteriores disponibles; se abrió una sola de SisVentas y se dejó el visualizador publicado abierto para el titular. Captura privada `C:/SisVentas/tmp/budget-presentation-web-final.private.png`; log/hash privados, fuera de Git. Demos temporales cerradas y servidores detenidos; viewport restablecido.
+- Uso: misma cuenta en notebook/tablet; en tablet abrir el ojo de un presupuesto guardado, en notebook editar ese mismo presupuesto. Cambios sin guardar siguen su borrador. La prueba remota simultánea entre dos dispositivos físicos queda para el titular; la integración local y el transporte existente se probaron por separado, no afirmar que se ejecutó una edición remota real.
+- Siguiente alcance solicitado: actualización grande y fallas de OT. El paquete laboral64d7a605/ff52be87 sigue SIN activar y su documentación de producción13.3 está desactualizada frente a web13.13/Cotizador de seguros/cuotas. Integrar conservando esos cambios, diagnosticar OT por causa y volver a verificar reglas/configuración/operaciones en vuelo antes del corte. El cambio local ajeno `test/labor-payment-final-review.test.cjs` en esa rama se conserva; no incluirlo a ciegas.
+
 ## Presentación compacta · v3.13.13 · publicación autorizada en preparación
 
 - El titular corrigió el diseño antes del cierre: productos discretos en lista, prioridad a total/descuentos/IVA y tocar foto para ampliarla.13.13 sustituye la presentación de tarjetas grandes13.12. Aquella fuente5dc730b0 llegó a Hosting400activos/10cargas, pero no se completó su aviso ni se dio por verificada/publicada al titular; no confundir ese intermedio con el cierre final.
