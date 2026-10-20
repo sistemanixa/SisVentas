@@ -1,5 +1,11 @@
 # Continuidad de SisVentas
 
+## Visualizador · v3.13.14 · último ajuste publicado y verificado
+
+- Fuente `c4e16d0cc658aadf97d69bb81ea73b0024db1a0f`, rama subida. Hosting402activos/6cargas,12 activos contrastados por hash; aviso web/SW/Firebase14 confirmado tras verificar web. Puerta2.526/2.526 y comprobaciones del bloque siguiente. Sin despliegue de servidores/reglas/IAM/DNS ni guardados de negocio.
+- Ventana real actualizada conservando sesión y listado; se cerró el aviso y se abrió el mismo presupuesto. Trece filas sólo con producto/cantidad, importes generales coincidentes. Clic en producto mostró su precio/subtotal correcto y al cerrar devolvió foco al producto; ampliación de foto independiente conserva el comportamiento13.13. No se editó ni guardó registro/borrador real. Captura privada `budget-presentation-web14-final.private.png`. Demos/servidores cerrados, viewport restaurado y una sola ventana real dejada abierta.
+- Aclarado al titular: esta publicación completa únicamente el visualizador. El corte grande de servidores y guardados NO está aplicado; la integración aislada sigue en preparación. No atribuirle las pruebas del paquete anterior ni darlo por activado.
+
 ## Valores por producto al tocar · v3.13.14 · publicación autorizada en preparación
 
 - Nuevo ajuste del titular: lista sólo foto/nombre/cantidad; importe del renglón, precio y descuento se ven al tocar ese producto. El botón del detalle y el espacio de la fila abren un diálogo breve de lectura; la foto conserva su ampliación independiente. Los totales generales permanecen destacados y no cambian cálculos/datos.
