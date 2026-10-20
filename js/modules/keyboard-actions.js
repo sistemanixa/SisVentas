@@ -3,7 +3,14 @@
   function visible(n) { return n && n.getClientRects().length > 0 && getComputedStyle(n).visibility !== 'hidden'; }
   function texto(n) { return (n.textContent || n.value || '').replace(/[\uE000-\uF8FF]/g, '').trim(); }
   function ambito() {
-    var modales = Array.from(document.querySelectorAll('[role="dialog"],.modal-overlay.open,[id^="modal-"],[id$="-modal"]')).filter(visible);
+    var modales = Array.from(document.querySelectorAll('dialog[open],[role="dialog"],.modal-overlay.open,[id^="modal-"],[id$="-modal"]')).filter(visible);
+    // Un diálogo modal nativo está en la capa superior aunque el fondo tenga
+    // un z-index mayor. El atajo debe permanecer en el último diálogo abierto.
+    var nativos = modales.filter(function(n) {
+      if (n.tagName !== 'DIALOG' || !n.open) return false;
+      try { return n.matches(':modal'); } catch (_) { return true; }
+    });
+    if (nativos.length) return nativos[nativos.length - 1];
     modales.sort(function(a,b) { return (parseInt(getComputedStyle(b).zIndex) || 0) - (parseInt(getComputedStyle(a).zIndex) || 0); });
     return modales[0] || document.querySelector('.page.active');
   }
@@ -11,6 +18,13 @@
     return Array.from(root.querySelectorAll('button,input[type="submit"]')).filter(function(b) { return visible(b) && patron.test(texto(b)); });
   }
   function guardar(root) {
+    // Presupuestos tiene también «Guardar borrador». Usar la acción principal
+    // configurada por los permisos, sin deducir el modo por su texto.
+    var principal = root.querySelector && root.querySelector('#btn-guardar-principal-ppto');
+    if (visible(principal)) {
+      if (!principal.disabled && principal.getAttribute('aria-busy') !== 'true') principal.click();
+      return;
+    }
     var lista = botones(root, /^Guardar(?:\s|$)/i);
     if (lista.length !== 1) { notify(lista.length ? 'Seleccioná el botón Guardar de la sección que querés guardar' : 'Esta ventana no tiene un botón Guardar'); return; }
     if (!lista[0].disabled) lista[0].click();
