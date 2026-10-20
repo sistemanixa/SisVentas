@@ -1,5 +1,15 @@
 # Continuidad de SisVentas
 
+## Aprobación del administrador · v3.13.16 · preparada para publicar
+
+- Rama aislada codex/correccion-aprobacion-admin desde 7caabd9c, última web publicada15. Inspección de la ventana real mostró el presupuesto señalado aprobado al10% y una edición pendiente al15%; ninguna escritura comercial del agente. El guardado principal, editor e inicialización no cambiaron entre13.3/13.11/13.15: no se reprodujo degradación automática a borrador por superar5%.
+- Causa comprobada de confusión: aviso de revisión mostrado incluso al aprobador y respaldo automático etiquetado Borrador · Edición. Ahora quien tiene presupuestos.aprobar conserva Aprobar y guardar sin pedirse autorización propia; usuario sin ese permiso ve el mismo límite efectivo (general+ítem/monto) usado al guardar. Se recalcula el aviso después de los totales y se limpia al corregir. Un porcentaje inválido sigue bloqueado. Ediciones pendientes dicen Cambios sin guardar; nuevos borradores y Guardar borrador explícito conservados.
+- Corregidos éxito y auditoría del administrativo dentro del límite: no se informa revisión cuando quedó aprobado_int. No cambian decisiones de guardado, cálculos, permisos, servidor, reglas, sincronización, comisiones ni documentos existentes.
+- Puerta final2.549/2.549,0fallos; incluye20regresiones nuevas sobre app activa, guardado real extraído y cálculo V3 con negocio ficticio: admin crea/edita15% y montos altos, sello exacto, autor/fecha/auditoría, exceso por rol, combinación de descuentos, borrador explícito, fallo de persistencia y etiquetas. Primera ejecución sin NODE_PATH falló por dos dependencias Playwright ausentes en el checkout nuevo; repetición con instalación existente aprobada. No se omitieron fallos ni se cambiaron tests históricos.
+- UI con formulario/funciones/CSS reales aislados en loopback y connect-src none:1280x900 y390x844, admin aprobado15%, administrativo en revisión. Capturas privadas tmp/admin-approval-{desktop,mobile}.private.png; sin Firebase ni cuentas en fixture. Coherencia/sintaxis/diff correctos. Pendiente Hosting/aviso16 y comprobar web conservando sesión y visualizador.
+- La actualización grande del servidor permanece local, sin corte/activación: candidato16 en codex/actualizacion-grande-v31314 debe incorporar este arreglo y recalcularse17 o siguiente disponible. No publicar ese candidato homónimo antiguo ni mezclar su rediseño en esta reparación. Main y cambios desconocidos de ambas PC conservados.
+
+
 ## Visualizador · v3.13.15 · reparaciones publicadas y comprobadas
 
 - Fuente `c8d387e80b2509ebd0b35ea0a3b7470d2fd7fcf0`, rama subida; Hosting403activos/8cargas desde SHA limpio,10activos contrastados por hash y aviso web/SW/Firebase15 confirmado. Puerta2.529/2.529. Sólo web, sin cambios de servidor/reglas/IAM/DNS ni guardados de negocio.

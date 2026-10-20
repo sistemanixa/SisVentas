@@ -251,8 +251,8 @@
     list.forEach(function(d) {
       var row = document.createElement('tr');
       var customer = d.data.fields.find(function(f) { return f.id === 'cli-inp' || f.id === 'pp-cli'; });
-      var values = [((d.original || {}).id || (d.kind === 'venta' ? 'Nueva venta' : 'Nuevo presupuesto')),new Date(d.updated).toLocaleString('es-AR'),customer && customer.value || 'CONSUMIDOR FINAL','—','—',new Date(d.updated + TTL).toLocaleDateString('es-AR'),'Borrador · ' + (d.data.edit ? 'Edición' : 'Nuevo'),typeof currentUser !== 'undefined' ? currentUser : 'Mi usuario'];
-      if (sale) values = [values[0],values[2],'Borrador · '+(d.data.edit ? 'Edición' : 'Nuevo'),values[1],'—','—','—',values[7],'—'];
+      var values = [((d.original || {}).id || (d.kind === 'venta' ? 'Nueva venta' : 'Nuevo presupuesto')),new Date(d.updated).toLocaleString('es-AR'),customer && customer.value || 'CONSUMIDOR FINAL','—','—',new Date(d.updated + TTL).toLocaleDateString('es-AR'),(d.data.edit ? 'Cambios sin guardar' : 'Borrador · Nuevo'),typeof currentUser !== 'undefined' ? currentUser : 'Mi usuario'];
+      if (sale) values = [values[0],values[2],(d.data.edit ? 'Cambios sin guardar' : 'Borrador · Nuevo'),values[1],'—','—','—',values[7],'—'];
       values.forEach(function(text) { var cell=document.createElement('td'); cell.textContent=text; row.appendChild(cell); });
       var actions=document.createElement('td');
       var resume=document.createElement('button');resume.className='btn btn-sm btn-primary';resume.textContent='Continuar';resume.onclick=function(){restore(d);};actions.appendChild(resume);
