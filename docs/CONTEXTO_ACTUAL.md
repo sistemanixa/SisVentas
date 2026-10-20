@@ -1,5 +1,14 @@
 # Continuidad de SisVentas
 
+## Ojitos admin v3.13.11 · publicado y verificado · 20/10/2026
+
+- Pedido urgente completado: cuatro controles independientes sólo para admin en sesión propia. Ocultan importe y subtexto del dashboard, no datos de negocio; preferencia local por UID/tarjeta. Fuente final `4543a36fc4fb5359f9e5219dafafabe461922e76`, rama aislada subida.
+- Puerta2.459/2.459 posterior al ajuste final, sintaxis/diff y versión coherentes. Fixture probó independencia, persistencia y roles. La validación real detectó desplazamiento por overflow y texto por encima del ojo: corregidos con overflow:clip, prioridad z-index y manejador delegado de captura. No atribuir la fixture aislada a una prueba completa de estilos productivos. Sin validación móvil física.
+- Hosting395 activos/5 cargas desde SHA limpio; siete activos13.11 idénticos a fuente. Marcador web/SW/Firebase13.11 verificado. Revisiones13.8–13.10 son intermedias superadas. No hubo despliegue de servicios ni reglas/IAM/DNS ni escrituras financieras.
+- Ventana real recargada y dejada en Dashboard admin: cuatro ojos presentes, cuatro importes ocultos. Mostrar/ocultar Ventas hoy comprobado por controles reales sin navegar, dashboard activo y scroll interno0. Captura privada `C:/SisVentas/tmp/dashboard-ojitos-publicados.png`. Preferencia conservada tras recarga. Servidor ficticio se detiene al cerrar.
+- El conflicto de guardado de presupuesto de la captura anterior sigue sin diagnóstico específico ni arreglo en este alcance. No se probó guardando presupuestos reales ni se sobrescribieron sus datos. Continuar de a un problema con el titular.
+
+
 ## Ojitos dashboard · ajuste visual v3.13.9 · 20/10/2026
 
 -13.8 publicada, siete activos y marcador comprobados. En la ventana real se detectó scroll horizontal interno de las tarjetas por el adorno que desborda al enfocar el ojo.13.9 usa overflow:clip en esas tarjetas para impedir ese desplazamiento; conserva botones y máscaras. Pendiente terminar publicación y comprobar de nuevo. Los cuatro importes quedaron ocultos por acción del titular autorizada en esta sesión.
