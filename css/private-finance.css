@@ -56,3 +56,4 @@ dialog [data-retry][hidden]{display:none}
 @media(max-width:700px){.nav-backdrop:not([hidden]){display:block;position:fixed;inset:0;background:#020914b0;border:0;z-index:19}.sidebar{z-index:20}}
 
 body.nav-open{overflow:hidden}.sidebar{overflow-y:auto}
+.layout.nav-hidden .main{grid-column:1}
