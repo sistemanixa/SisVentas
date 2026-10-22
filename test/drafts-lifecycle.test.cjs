@@ -49,3 +49,20 @@ test('un formulario vacío no publica tombstones por cambiar valores auxiliares;
  f.fields[1].value='2026-10-20';f.c.svDrafts.flush();f.runTimers();await settle();assert.equal(f.writes.length,2);assert.equal(JSON.parse(Object.values(f.storage)[0]).deleted,true);
 });
 test('abrir y reiniciar un formulario sin guardado previo no crea eliminaciones remotas',async()=>{const f=fixture();for(let i=0;i<20;i++){f.c.svDrafts.begin('presupuesto');f.c.svDrafts.complete('presupuesto');f.runTimers();await settle();}assert.equal(f.writes.length,0);assert.equal(Object.keys(f.storage).length,0);});
+
+test('rechazos sucesivos al editar conservan el último cambio y avisan una vez hasta recuperar la escritura',async()=>{
+ let reject=true;const f=fixture(()=>reject?Promise.reject(Error('Rechazo ficticio')):Promise.resolve());f.c.svDrafts.begin('presupuesto');
+ for(let i=1;i<=20;i++){f.edit('Edición ficticia '+i);f.runTimers();await settle();}
+ assert.equal(f.messages.length,1);assert.equal(f.writes.length,20);
+ assert.equal(JSON.parse(Object.values(f.storage)[0]).data.fields[0].value,'Edición ficticia 20');
+ for(let i=0;i<120;i++){f.c.tick();f.runTimers();await settle();}assert.equal(f.writes.length,20);
+ reject=false;f.emit('online');await settle();assert.equal(f.writes.length,21);
+ reject=true;f.edit('Cambio tras recuperación');f.runTimers();await settle();assert.equal(f.messages.length,2);
+});
+
+test('leer la nube o reconectar sin poder escribir no repite el aviso de sincronización pendiente',async()=>{
+ const f=fixture(()=>Promise.reject(Error('Rechazo ficticio')));f.c.svDrafts.begin('presupuesto');f.edit('Conservar');f.runTimers();await settle();
+ f.subscriptions[0].next({val:()=>({})});f.edit('Conservar último');f.runTimers();await settle();
+ f.subscriptions[0].error(Error('Escucha ficticia fallida'));f.emit('focus');await settle();f.runTimers();await settle();
+ assert.equal(f.messages.length,1);assert.equal(JSON.parse(Object.values(f.storage)[0]).data.fields[0].value,'Conservar último');
+});
