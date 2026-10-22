@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## v3.14.5 publicada y verificada · 22/10/2026
+
+- Fuente limpia revisada e074ee4d5fa423ef82fb9a3951504e4d054520c3, subida a origin/codex/bonificaciones-reutilizables. Hosting nixa-sisventas-seguro, versión1179a3802335aacb:420activos públicos/7cargas. Dominio personalizado y mirror comprobados:15activos idénticos y5cabeceras. Script oficial confirmó web/marcador/SW/Firebase v3.14.5-firebase. No se compiló ni desplegó backend; Cotizador y banderas financieras conservan su estado anterior.
+- Reglas frescas respaldadas antes de aplicar y verificadas después:dc05032c…→2cf231b8…; único cambio tipoPagable en Gastos/.indexOn, permisos/validaciones intactos. Sin migración ni lectura/escritura de registros comerciales por ese paso. Backup y evidencia en tmp/v3145-release, privados fueraGit. No ETag en endpoint de reglas: comparación fresca y publicador exclusivo, no CAS del proveedor.
+- Misma pestaña del titular actualizada de Dashboard4 a5, sin formulario abierto ni borrar navegación. Carga terminada/Sincronizado; aviso cerrado. Maestro comprobado ocultar/mostrar los cinco controles; ojo propio oculta resumen completo y vuelve a mostrarlo. Glifos reales presentes. Se restauraron preferencias previas:Ventas hoy/Cobrado hoy/capacidad fiscal ocultos, deuda y resumen visibles. Capturas privadas web-dashboard-eyes y web-dashboard-summary-hidden. No hubo operaciones financieras reales para probar.
+- Local8766 reiniciado exclusivamente sobre la misma lista de activos públicos; índice/app5/bonificaciones200, documentación interna404. No se recargó una segunda sesión comercial local. Validación funcional con datos ficticios y límites en el bloque de preparación inferior. Esta publicación no declara terminada la auditoría de rendimiento ni publica los patches posteriores.
+
 ## Bonificaciones reutilizables y ojos del Dashboard · candidata v3.14.5 · 22/10/2026
 
 - Pedido directo: publicar primero conceptos de bonificación reutilizables con crear/editar/guardar/eliminar y usos, luego continuar listados amplios; confirmó esa interpretación. Rama nueva codex/bonificaciones-reutilizables desde896c1411. Posteriormente agregó ojo para el resumen operativo y maestro arriba a la derecha que controle todos los ojos del Dashboard; se incorpora en esta misma candidata. No confundir estos pedidos con avisos de bonos/comisiones y diagnóstico técnico OT/Soporte recibidos por coordinación: esos quedan para una tanda posterior.
