@@ -79,10 +79,14 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
  async function list(actor){const authorizedContext=requestContexts.get(actor);requestContexts.delete(actor);const {c,records,budgets}=await recordsContext(actor.domain,authorizedContext);const result={};for(const [id,r]of Object.entries(records)){const uid=recordOwner(r,actor.domain,c,budgets);if(actor.role==='admin'||uid===actor.uid){result[id]={...r,_svOwnerUid:uid||'',_svOriginalAuthor:originalAuthor(r,actor.domain,budgets)};const event=actor.domain==='ventas'?historicalConversionAudit(r,budgets):null;if(event)result[id]._svConversionAudit=event;}}return {records:result};}
  async function options(actor){if(actor.role!=='admin'||actor.viewing)throw fail(403,'Solo el administrador puede reasignar');const c=await context();return {users:c.people.filter(p=>eligible(p.role,actor.domain,c.permissions)).map(p=>({uid:p.uid,nombre:p.name,rol:p.role})).sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))};}
  async function mutate(actor,body,assign){
+  // Preparar consume una sola vez la instantánea de esta misma petición,
+  // obtenida por authorize. Otra operación requiere un contexto fresco;
+  // reasignar conserva su revalidación propia y nunca utiliza esta instantánea.
+  const authorizedContext=!assign?requestContexts.get(actor):null;if(!assign)requestContexts.delete(actor);
   if(actor.viewing)throw fail(403,'Volvé a tu cuenta para modificar el responsable');
   if(assign&&actor.role!=='admin')throw fail(403,'Solo el administrador puede reasignar');
   if(!key(body?.id))throw fail(400,'Registro inválido');
-  const c=await context(),budgets=actor.domain==='ventas'?await read('sisventas/presupuestos'):null;let target;
+  const c=authorizedContext||await context(),budgets=actor.domain==='ventas'?await read('sisventas/presupuestos'):null;let target;
   if(assign){target=c.people.find(p=>p.uid===body.uid);if(!target||!eligible(target.role,actor.domain,c.permissions))throw fail(403,'La persona ya no tiene habilitado este módulo');}
   const ref=db.ref('sisventas/'+actor.domain+'/'+body.id),stamp=now();let error,listener;
   try{

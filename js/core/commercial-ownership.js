@@ -93,8 +93,22 @@
   }
   return visible;
  }
+ function confirmDelete(domain,id,c){
+  if(!isWriteContext(c))throw Error('La sesión cambió. La eliminación confirmada pertenece a la sesión anterior.');
+  if(domain!=='presupuestos'||c.domain!==domain||typeof id!=='string'||!id||/[.#$\[\]\/\x00-\x1f\x7f]/.test(id))throw Error('Acuse de eliminación de presupuesto inválido');
+  // El remove ya fue confirmado. Aplicar sólo esa clave, sin descargar otra
+  // vez el historial ni depender de una escucha RTDB que esta lista no usa.
+  root.pptoData=(Array.isArray(root.pptoData)?root.pptoData:[]).filter(record=>record?.fbKey!==id);
+  const s=subscriptions.get(domain);
+  if(s){
+   let records={};try{records=JSON.parse(s.snapshot||'{}');}catch(_){}
+   delete records[id];s.snapshot=JSON.stringify(records);
+   s.writeRevision=(s.writeRevision||0)+1;delete s.etag;
+  }
+  return id;
+ }
  async function prepare(domain,id,baseline){const result=await request(domain,'preparar',{id});const current=result.record,metadata=['responsableUid','responsableNombre','responsableRol','responsableRevision','responsableActualizadoEn','creadorOriginalUid','creadorOriginalNombre','creadoEn','audit'];const base=baseline?clean(baseline):null;if(base)for(const k of metadata){if(current[k]!==undefined)base[k]=current[k];}return {record:current,baseline:base};}
  async function assign(domain,record,uid){const result=await request(domain,'reasignar',{id:record.fbKey,uid,revision:Number(record.responsableRevision||0),owner:record.responsableUid||''});refresh(domain);return result.record;}
  document.addEventListener('sisventas:session-ended',stop);document.addEventListener('visibilitychange',refreshVisible);root.addEventListener?.('online',refreshVisible);root.addEventListener?.('sisventas:connection-restored',refreshVisible);root.addEventListener?.('sisventas:connection-lost',()=>{for(const controller of readControllers)controller.abort();});
- root.SVCommercialOwnership={onValue,request,refresh,stop,contextChanged,belongs,cachedRecords,author,stamp,clean,prepare,assign,captureWriteContext,isWriteContext,confirmWrite,options:async domain=>(await request(domain,'opciones')).users};
+ root.SVCommercialOwnership={onValue,request,refresh,stop,contextChanged,belongs,cachedRecords,author,stamp,clean,prepare,assign,captureWriteContext,isWriteContext,confirmWrite,confirmDelete,options:async domain=>(await request(domain,'opciones')).users};
 })(window);
