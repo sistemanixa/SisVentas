@@ -1,5 +1,11 @@
 # Continuidad de SisVentas
 
+## Paquete corregido e integrado en candidata4 · 22/10/2026 · sin publicar
+
+- Corrección de empaquetado585ed978 integrada como197c703, conservando los dos módulos de baja administrativa. La prueba rechaza el Docker anterior sin commercial-collection-reader y acepta el corregido. Revisión AST independiente:57fuentes/95enlaces, único faltante el lector; no imports dinámicos ni externos sin declarar. No se ejecutó index/ADC como parte de esas pruebas y no equivalen a arrancar la imagen.
+- Puerta final de esta fuente:3.867aprobadas/27opt-in/0fallos (3.894total),28,95s; `tmp/admin-paid-expense-container-final-gate.private.log`. Coherencia local4 y diff correctos. README documenta la cobertura y los límites del chequeo del paquete.
+- Otro chat reconstruye la primera tanda desde585ed978 y comprobará OPTIONS204 por etiqueta de la revisión exacta antes de promover. Estado observado por ese chat: tráfico y14etiquetas siguen en revisión anterior, sin Hosting/SW/aviso. Este chat no desplegó ni cambió tráfico, permisos, datos ni la ventana del titular. Baja de Gastos4 continúa sin activar.
+
 ## Preparación backend y contenedor · 22/10/2026
 
 - Conjunto bb32 + aviso c38df7c + splash a098e54 + hotfix 0efbf0ba validado: 3.689 pruebas aprobadas, 27 omitidas, sin fallos; versión local3.14.3 coherente. La web no se publicó:3.14.0 puede recargarse automáticamente al detectar índice/SW nuevos y no garantiza proteger el editor de venta. Primero corregir servidor; después el titular guarda su venta y se completa Hosting/Asistente/aviso.

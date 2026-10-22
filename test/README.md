@@ -17,6 +17,13 @@ Las pruebas funcionales vigentes deben leer la aplicación declarada por
 `index.html` mediante `test/helpers/active-app.js`, nunca el espejo legado
 `js/app.js` ni un nombre de versión fijado a mano.
 
+Paquete Cotizador: `node --test test/cotizador-container-dependencies.test.cjs`.
+Comprueba que los archivos JS del Dockerfile actual incluyan sus `require`
+relativos literales. Detecta la omisión del lector comercial en la imagen;
+no ejecuta Firebase ni reemplaza construir y comprobar el arranque de la
+revisión exacta antes de mover tráfico. Cambios de etapas, destinos o sintaxis
+COPY requieren revisar también el alcance de esta prueba.
+
 Cobros y altas de Gastos acotadas:
 `node --test test/payment-commands.test.cjs test/payment-membership-index.test.cjs test/payment-index-preparation.test.cjs test/payment-guard-integration.test.cjs test/admin-expense-create.test.cjs test/admin-expense-client.test.cjs test/financial-commands.test.cjs test/payment-entry-idempotency.test.cjs test/payment-related-frontend-contract.test.cjs test/relationship-normalization-atomic.test.cjs test/relationship-normalization-gateway.test.cjs`.
 Usan datos ficticios, preservan los criterios contables publicados y verifican
