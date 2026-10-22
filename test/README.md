@@ -161,6 +161,14 @@ errores sin datos obsoletos, fuente modificada y 304 tardío frente a respuesta 
 Sólo reduce cuerpos repetidos de una fuente sin cambios; la primera consulta sigue
 leyendo el historial completo. No mide red productiva ni factura.
 
+Bonificaciones por unidades y varios empleados: modelo decimal, flujo real sobre
+gateway/guard en memoria y permisos de lote en `bonus-quantity-model.test.cjs`,
+`bonus-grant-flow.test.cjs`, `bonus-batch-backend.test.cjs` y
+`bonus-batch-rules.test.cjs`. Integraciones RTDB opt-in separadas
+`bonus-batch-emulator.integration.cjs` y `bonus-batch-runtime-emulator.integration.cjs`;
+usan reglas locales/namespace demo y nunca datos reales. Contrato, comandos,
+orden de activación y límites en [BONIFICACIONES_UNIDADES_EMPLEADOS.md](../docs/BONIFICACIONES_UNIDADES_EMPLEADOS.md).
+
 SAC sin suscripción huérfana: `node --test test/payroll-orphan-listener.test.cjs`.
 Carga los cuatro módulos de Haberes en orden real sobre funciones activas: roles,
 render/KPI/filtros, baja de escuchas y alta SAC con gateway/guard en memoria.

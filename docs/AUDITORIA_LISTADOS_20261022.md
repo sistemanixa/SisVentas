@@ -98,10 +98,67 @@ referencias malformadas antes/dentro del sufijo. El fallo de indexación vuelve 
 bucle original; no omite registros. Se añadió la guarda de lista realmente array
 para preservar null/undefined con índice cero.
 
-No está aplicado ni versionado como función activa. La corrida de rendimiento
-no completó el primer escenario y se detuvo; no hay resultado de benchmark ni
-se atribuye una mejora de tiempo. Continúan las limitaciones de una venta que
-concentre casi todo el historial y de memoria para grupos. Evidencia/prototipo
-privados en los archivos `cobranzas-saldo-*` de la misma carpeta tmp. Antes de
-integrarlo hacen falta prueba permanente sobre aplicación activa, comparación
-de rendimiento completa y una versión nueva; no editar la app5 ya publicada.
+No está aplicado ni versionado como función activa. El seguimiento del22/10
+completó dos benchmarks privados sobre la app candidata6:1.000 y5.000 pagos,
+50filas visibles,10pares alternados por escenario y2calentamientos excluidos.
+Cada par comprobó fuera del intervalo medido HTML, paginación, contador y
+objetos visibles exactos. Los contadores instrumentados por separado confirmaron
+el mismo número de adiciones IEEE y0lecturas/escrituras de red.
+
+| Caso | p50 con1.000 pagos, anterior → candidata | p50 con5.000 pagos, anterior → candidata |
+|---|---:|---:|
+| Ventas dispersas | 220,42 → 8,67ms | 3.562,62 → 63,83ms |
+| Una sola venta | 225,10 → 9,18ms | 3.751,10 → 108,13ms |
+| Saldos ya guardados | 3,083 → 3,080ms | 12,83 → 13,01ms |
+| Alias compartidos adversos | 254,75 → 260,21ms | 3.380,14 → 3.692,62ms |
+
+Se mide el render síncrono real, cálculos de sufijos y formato monetario con DOM
+ficticio. Se excluyen fixtures, compilación/creación deVM, aserciones, red y
+arranque. El escenario adverso de5.000 pagos empeoró9,24%; su p95 pasó de
+3.961,22 a4.127,15ms. Los grupos densos también retienen más memoria durante el
+render. Por ese resultado **la candidata no queda aprobada para integrar en6**;
+hay que mitigar ese caso y repetir su cobertura antes de incorporarla. No es una
+mejora universal ni una reducción de la raíz de pagos descargada.
+
+Los SHA del balance, matcher y helper siguen siendo exactamente los del corpus
+anterior de2.620 comparaciones; esos casos no se contabilizan como una nueva
+ejecución. Los benchmarks nuevos compararon cada render medido, sin repetir el
+corpus completo. Evidencia privada: `cobranzas-saldo-followup-1000.private.json`,
+`cobranzas-saldo-followup-5000.private.json`, sus runners/logs y
+`listing-followup-20261022.private.md`, en la misma carpeta tmp. Una integración
+futura requiere pruebas permanentes sobre la aplicación activa y una versión
+nueva; no editar la app5 ya publicada.
+
+### Próxima raíz histórica: Haberes de SAC
+
+`abrirModalAguinaldo` descarga `sisventas/haberes` completo para mostrar empleados
+activos y seis meses. `recalcularAguinaldo` vuelve a descargar esa raíz tanto al
+cambiar el semestre como por cada `oninput` del máximo por empleado. El módulo
+`payroll-selector.js` envuelve y delega el original, conservando esa lectura.
+La confirmación activa de `payroll.js` también descarga la raíz aun cuando sólo
+se eligieron uno o pocos destinatarios.
+
+Una prueba offline del cálculo/render activo con SDK ficticio reprodujo cinco
+lecturas de esa raíz al escribir cinco valores del máximo. Con200empleados y
+132meses ficticios por empleado, cada JSON completo ocupa4.068.891B; conservar
+los seis meses de12empleados activos ocupa11.271B y produce exactamente las
+mismas filas del cálculo. Es tamaño de JSON local, no tráfico real ni factura;
+las lecturas puntuales pueden aumentar el número de solicitudes.
+
+Propuesta sin aplicar: cargar los meses del semestre para los empleados que se
+deben mostrar al abrir/cambiar semestre y recalcular el máximo sobre ese snapshot
+efímero del modal. Al confirmar se debe releer el semestre de los destinatarios
+seleccionados y conservar la validación financiera y CAS de duplicados de Gastos.
+Falta probar respuestas tardías, selección, frescura, concurrencia, revocaciones,
+cierre y errores; una copia de presentación no debe autorizar la escritura ni
+presentar un total recortado como completo. Evidencia privada:
+`haberes-repeated-read-proof.private.cjs/.json`.
+
+También se identificó `_verificarHaberesPendientes`: el inicio de sesión lo
+programa una vez con `setTimeout(...,6000)` y, sólo los días1–5 y con permiso
+`empleados.avisarHaberes`, lee Haberes completo para comprobar un único mes.
+Es una consulta retrasada por inicio de sesión, no un proceso recurrente del
+servidor ni evidencia de la causa de cargos anteriores. Se propone revisar el
+disparador para una acción explícita en Empleados/avisos y leer sólo el mes
+necesario por empleado autorizado, conservando el aviso y su permiso. No se
+modificó este circuito ni se retiró su información durante el diagnóstico.

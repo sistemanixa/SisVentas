@@ -1,0 +1,20 @@
+.bonus-grant-modal{padding:0!important;max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain}
+.bonus-grant-modal>.modal-head{position:sticky;top:0;z-index:3;margin:0;padding:18px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.bonus-grant-body{padding:18px;min-width:0}
+.bonus-grant-fieldset{min-width:0;padding:0;border:0;margin:18px 0 14px}
+.bonus-grant-fieldset>legend{font-size:12px;font-weight:600;color:var(--text2)}
+.bonus-grant-fieldset>p{font-size:12px;color:var(--text3);margin:5px 0 10px}
+#bonificacion-destinatarios{display:grid;gap:8px;max-height:300px;overflow:auto;overscroll-behavior:contain;padding:1px}
+.bonus-grant-row{display:grid;grid-template-columns:minmax(0,1fr)100px 138px;align-items:center;gap:14px;padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg3)}
+.bonus-grant-person{display:flex;align-items:center;gap:10px;min-width:0;min-height:38px;font-size:13px;cursor:pointer}
+.bonus-grant-person>input{flex:0 0 auto;width:18px;height:18px;margin:0;accent-color:var(--blue)}
+.bonus-grant-person>span{overflow-wrap:anywhere}
+.bonus-grant-units{display:grid;gap:4px;min-width:0;font-size:11px;color:var(--text3)}
+.bonus-grant-units>input{width:100%;min-width:0;margin:0;text-align:center}
+.bonus-grant-row>output{font-size:13px;font-weight:600;text-align:right;color:var(--text);overflow-wrap:anywhere}
+#bonificacion-resumen{padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg3);font-size:13px;line-height:1.5}
+#bonificacion-error{font-size:12px;color:var(--red);margin:10px 0 0}
+#bonificacion-error:empty{display:none}
+.bonus-grant-footer{position:sticky;bottom:0;z-index:3;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:14px 18px;border-top:1px solid var(--border);background:var(--bg2)}
+.bonus-grant-modal input:disabled{cursor:default}
+@media(max-width:560px){.bonus-grant-row{grid-template-columns:minmax(0,1fr)92px;gap:8px 12px}.bonus-grant-row>output{grid-column:1/-1;padding-top:4px;border-top:1px solid var(--border)}.bonus-grant-person{min-height:44px}.bonus-grant-units>input{min-height:40px}#bonificacion-destinatarios{max-height:260px}.bonus-grant-footer>.btn{min-height:42px}.bonus-grant-body{padding:14px}.bonus-grant-modal>.modal-head{padding:14px}}

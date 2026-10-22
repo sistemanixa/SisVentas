@@ -3,7 +3,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const recoverySource=fs.readFileSync('js/core/labor-write-recovery.js','utf8'),writesSource=fs.readFileSync('js/core/labor-writes.js','utf8');
 const clone=value=>value==null?null:structuredClone(value),response=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>clone(data)});
 class Element{constructor(tag){this.tag=tag;this.children=[];this.attributes={};this.style={};this.listeners=new Map();this.isConnected=true;}setAttribute(k,v){this.attributes[k]=v;}append(...nodes){for(const node of nodes){node.parent=this;this.children.push(node);}}remove(){if(this.parent)this.parent.children=this.parent.children.filter(node=>node!==this);this.isConnected=false;}addEventListener(k,fn){this.listeners.set(k,fn);}contains(node){return node===this||this.children.some(child=>child.contains(node));}focus(options){this.focusOptions=options;this.focusCalls=(this.focusCalls||0)+1;}}
-function fixture({storage=new Map(),mode='loss',status='confirmed'}={}){
+function fixture({storage=new Map(),mode='loss',status='confirmed',rejectionCode='SV_BONUS_BATCH_CONFLICT',rejectionStatus=409}={}){
  const state={sisventas:{gastos:{g:{monto:100,montoPagado:0}},ctaemp:{emp:{m:{monto:100}}}}},commands=[],queries=[],receipts=new Map(),listeners=new Map(),nodes=[];
  const waiters=new Set();
  const wake=()=>{for(const waiter of waiters){try{if(waiter.condition()){waiters.delete(waiter);waiter.resolve();}}catch(error){waiters.delete(waiter);waiter.reject(error);}}};
@@ -19,6 +19,7 @@ function fixture({storage=new Map(),mode='loss',status='confirmed'}={}){
   async fetch(url,options){const body=JSON.parse(options.body);if(url.endsWith('/operacion')){queries.push(body);wake();return response({ok:true,status});}
    commands.push(body);wake();const stored=JSON.parse(storage.get(root.SVLaborWriteRecovery.STORAGE_KEY));assert.ok(stored.some(item=>item.id===body.id));if(transportGate)await transportGate;
    if(mode==='forbidden')return response({ok:false,code:'DENIED'},403);
+   if(mode==='bonus-rejected')return response({ok:false,code:rejectionCode},rejectionStatus);
    if(mode==='cancelled')return response({ok:false,committed:false,code:'SV_LABOR_CANCELLED'});
    if(mode!=='unapplied'){if(body.kind==='set'||body.kind==='compare')put(body.path,body.value);else for(const [path,value]of Object.entries(body.value))put(path,value);receipts.set(body.id,true);}
    if(mode==='ok')return response({ok:true,committed:true});if(mode==='uncertain409')return response({ok:false,code:'SV_LABOR_COMMIT_UNCONFIRMED'},409);throw Error('Failed to fetch');
@@ -79,6 +80,16 @@ test('logout limpia memoria/UI y conserva sólo metadata para consultar al reing
 test('rechazo HTTP403 y fallo local previo a POST no quedan como intento incierto',async()=>{
  const f=fixture({mode:'forbidden'});await assert.rejects(f.root.fbSet(f.ref('sisventas/gastos/g'),{monto:20}),{statusCode:403});assert.equal(f.root.SVLaborWriteRecovery.state(),null);assert.equal(f.storage.size,0);
  await assert.rejects(f.root.fbSet(f.ref('sisventas/gastos/g'),{foto:'x'.repeat(17*1024*1024)}),{code:'SV_LABOR_SIZE'});assert.equal(f.commands.length,1);assert.equal(f.storage.size,0);
+});
+
+for(const code of ['SV_BONUS_BATCH_CONFLICT','SV_BONUS_EMPLOYEE_UNAVAILABLE'])test('rechazo previo al commit del grupo '+code+' no pide otra consulta ni duplica el envío',async()=>{
+ const f=fixture({mode:'bonus-rejected',rejectionCode:code}),before=clone(f.state);
+ await assert.rejects(f.root.SVLaborWrites.atomic({purpose:'employee-bonus-batch',paths:['sisventas/gastos/g','sisventas/ctaemp/emp/m'],build:values=>Object.fromEntries(Object.entries(values).map(([path,value])=>[path,{...value,bonificacionCantidad:5}]))}),{code,statusCode:409});
+ assert.deepEqual(f.state,before);assert.equal(f.commands.length,1);assert.equal(f.commands[0].purpose,'employee-bonus-batch');assert.equal(f.queries.length,0);assert.equal(f.root.SVLaborWriteRecovery.state(),null);assert.equal(f.storage.size,0);assert.equal(f.root.document.body.children.length,0);
+});
+test('un código de bonificación en HTTP500 sigue siendo ambiguo hasta consultar expresamente',async()=>{
+ const f=fixture({mode:'bonus-rejected',rejectionStatus:500,status:'rejected'}),pending=f.root.fbSet(f.ref('sisventas/gastos/g'),{monto:20}),rejected=assert.rejects(pending,{code:'SV_LABOR_REJECTED'});
+ await f.when(()=>f.root.SVLaborWriteRecovery.state());assert.equal(f.commands.length,1);assert.equal(f.queries.length,0);assert.ok(f.storage.size);await f.root.SVLaborWriteRecovery.check();await rejected;assert.equal(f.queries.length,1);assert.equal(f.storage.size,0);assert.equal(f.get('sisventas/gastos/g').monto,100);
 });
 
 test('atomic confirmado tras pérdida de respuesta vuelve con el mismo conjunto sin duplicarlo',async()=>{
