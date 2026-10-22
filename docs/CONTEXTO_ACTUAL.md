@@ -1,5 +1,11 @@
 # Continuidad de SisVentas
 
+## Incidente de venta y aviso de borradores · 22/10/2026 · sin publicar
+
+- La publicación de la primera tanda bb32b46 queda detenida por un rechazo HTTP409 en `/comerciales/ventas/preparar` de la revisión activa `cotizador-scoped19-9c6b3126`. La incompatibilidad de identidad de servicio y validaciones comerciales se investiga en emulador por el chat coordinado; no se certifica todavía la causa del registro real ni su persistencia. No hubo reintentos de la venta real ni recarga del editor. Copia de campos visibles y captura preservadas en `tmp/venta-preservada-20261022`, privadas, fuera de Git; no son un respaldo completo del estado interno.
+- Corregido por separado el aviso de sincronización repetido en cada edición: el éxito de captura local reiniciaba también el aviso de fallo remoto. Ahora el aviso remoto tiene estado independiente y se restablece tras una escritura remota confirmada o un cambio de usuario. Leer la nube o seguir editando no simula recuperación. Se mantienen la captura local, los envíos existentes y la separación entre cuentas; no se añadieron consultas, reintentos ni servicios.
+- Dos regresiones nuevas reproducen veinte ediciones rechazadas, preservación del último contenido, reposo sin reenvíos y recuperación real; también lectura/reconexión sin permiso de escritura. Los 40 casos de borradores pasan; suite vigente: 3.669 aprobadas, 27 opt-in omitidas, cero fallos. Se usaron dependencias ya instaladas vía NODE_PATH y permiso para crear repositorios temporales ficticios; sintaxis y diff correctos. Pendiente integrar este cambio con el arreglo del servidor y validar la publicación conjunta. El formulario real y la simulación financiera del titular deben conservarse sin recargar.
+
 ## Cierre integrado local · candidata3.14.3 · 22/10/2026
 
 - Bloque financiero/recibo conservado en `fcdfd10687ffc02345f5501c47736e3c0b1ef5d5`; fechas62b191c integradas como44cfa1b y tablas31982fd como d919ca4, conservando ambas secciones de contexto. No se tocó main ni el cambio ajeno de la raíz. Se renovaron URLs CSS/portal/iframe/activos privados y SHELL; marcadores/app inmutables3.14.3 coherentes, ValidarLocal correcto.

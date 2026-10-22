@@ -30,7 +30,7 @@
     return {data:result,conflicts:conflicts};
   }
   if (typeof module !== 'undefined' && module.exports) { module.exports = { valid: valid, TTL: TTL, same:same, mergeForm:mergeForm }; return; }
-  var sessions = {}, restoring = false, owner = user(), failed = false;
+  var sessions = {}, restoring = false, owner = user(), failed = false, cloudWarned = false;
   var cloudOwner = '', unsubscribe = null, cloudReady = false, pending = {}, cloudTimer = null, cloudEpoch = 0, cloudSending = null, suspended = false, cloudWriteBlocked = false;
   var observers = new Set(), deliveringObservers = false, observersPending = false;
   function canSync() {
@@ -108,11 +108,11 @@
     var uid = cloudOwner, flight = {uid:uid,epoch:cloudEpoch,ids:Object.keys(batch)}, success = false, task;
     cloudSending = flight;
     try { task = window.fbUpdate(window.fbRef(window.fbDB, 'sv_borradores/' + uid), batch); } catch (error) { task = Promise.reject(error); }
-    Promise.resolve(task).then(function() { success = true; }, function() {
+    Promise.resolve(task).then(function() { success = true; if (user() === uid && flight.epoch === cloudEpoch) cloudWarned = false; }, function() {
       if (user() !== uid || flight.epoch !== cloudEpoch) return;
       cloudWriteBlocked = true;
       Object.keys(batch).forEach(function(id) { if (!pending[id] || pending[id].updated < batch[id].updated) pending[id] = batch[id]; });
-      if (!failed) { failed = true; notify('Borrador guardado en este navegador. La sincronización está pendiente.'); }
+      if (!cloudWarned) { cloudWarned = true; notify('Borrador guardado en este navegador. La sincronización está pendiente.'); }
     }).finally(function() {
       if (cloudSending !== flight) return;
       cloudSending = null;
@@ -154,11 +154,11 @@
       records().forEach(function(d) { if (!remote[d.id] || (!remote[d.id].deleted && d.updated > remote[d.id].updated)) pending[d.id]=d; });
       Object.keys(localStorage).filter(function(k){return k.indexOf(prefix())===0;}).forEach(function(k){var d;try{d=JSON.parse(localStorage.getItem(k));}catch(_){}if(d&&d.deleted&&(!remote[d.id]||!remote[d.id].deleted))pending[d.id]=d;});
       cloudReady = true; failed = false; badges(); sendPending(); notifyObservers();
-    }, function() { if (epoch !== cloudEpoch || user() !== uid || !canSync()) return; stopCloud(); if (!failed) {failed=true;notify('No se pudieron sincronizar los borradores. Se conserva la copia local.');} });
+    }, function() { if (epoch !== cloudEpoch || user() !== uid || !canSync()) return; stopCloud(); if (!cloudWarned) {cloudWarned=true;notify('No se pudieron sincronizar los borradores. Se conserva la copia local.');} });
     if (epoch === cloudEpoch) unsubscribe = stop; else stop?.();
   }
   function resumeCloud() {
-    if (owner !== user()) { stopCloud(); owner = user(); sessions = {}; }
+    if (owner !== user()) { stopCloud(); owner = user(); sessions = {}; cloudWarned = false; }
     cloudWriteBlocked = false;
     connect(); flush(); sendPending(); if (!document.hidden) { installButtons(); badges(); }
   }
@@ -373,7 +373,7 @@
   document.addEventListener('sisventas:page-changed', resumeCloud);
   document.addEventListener('visibilitychange', function() { if (!document.hidden) resumeCloud(); });
   setInterval(function () {
-    if (owner !== user()) { stopCloud(); owner = user(); sessions = {}; }
+    if (owner !== user()) { stopCloud(); owner = user(); sessions = {}; cloudWarned = false; }
     // Sólo captura local: sin reconexión ni reenvío por reloj. La publicación
     // debounced existe únicamente cuando el contenido del borrador cambió.
     if (!canSync()) { if (unsubscribe || cloudOwner) stopCloud(); }
