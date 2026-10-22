@@ -79,7 +79,7 @@ test('un fallo de origen espera todo el trabajo enviado y no entrega una lista p
 });
 
 test('preparar una Venta carga su origen puntual y conserva una sola transacción normal',async()=>{
- const f=setup(),before=copy(f.db.root.sisventas.ventas.converted);const result=await f.api.prepare(await f.auth('a'),{id:'converted'});
+ const f=setup(),before=copy(f.db.root.sisventas.ventas.converted);const result=await f.api.prepare(await f.auth(),{id:'converted'});
  assert.equal(result.record.responsableUid,'a');assert.equal(result.record.creadorOriginalNombre,'Persona a');assert.equal(result.record.total,before.total);assert.equal(result.record.usuario,before.usuario);
  assert.deepEqual(f.reads.filter(path=>path.startsWith('sisventas/')),['sisventas/ventas/converted [on]','sisventas/presupuestos/budget']);assert.equal(f.transactions.length,1);assert.deepEqual(f.off,['sisventas/ventas/converted']);
 });
@@ -111,14 +111,14 @@ test('asignar Venta conserva contexto fresco, autor original y decisión concurr
 test('collectionReader sólo recibe raíces de list; fichas, contexto, visibleRecords y preparar siguen usando SDK',async()=>{
  const calls=[],f=setup({collectionReader:{read:async path=>{calls.push(path);return copy(path==='sisventas/ventas'?f.db.root.sisventas.ventas:f.db.root.sisventas.presupuestos);}}});
  await f.api.list(await f.auth());await f.api.list(await f.auth('a','presupuestos'));assert.ok(!f.reads.includes('sisventas/ventas'));assert.ok(!f.reads.includes('sisventas/presupuestos'));
- await f.api.prepare(await f.auth('a'),{id:'converted'});await f.api.visibleRecords(await f.auth('a'),'ventas');await f.api.visibleRecords(await f.auth('a','presupuestos'),'presupuestos');
+ await f.api.prepare(await f.auth(),{id:'converted'});await f.api.visibleRecords(await f.auth('a'),'ventas');await f.api.visibleRecords(await f.auth('a','presupuestos'),'presupuestos');
  assert.deepEqual(calls,['sisventas/ventas','sisventas/presupuestos']);assert.ok(f.reads.includes('sisventas/ventas'));assert.ok(f.reads.includes('sisventas/presupuestos'));assert.ok(f.reads.includes('sv_usuarios'));assert.ok(f.reads.includes('sv_chat_roles'));assert.ok(f.reads.includes('sv_permisos'));assert.ok(f.reads.includes('sisventas/presupuestos/budget'));assert.ok(f.reads.includes('sisventas/ventas/converted [on]'));
 });
 
 test('un collectionReader que rechaza nunca intercepta visibleRecords, preparar ni reasignar',async()=>{
  const f=setup({collectionReader:{read:async()=>{throw Error('El lector condicional no puede entrar al guardado');}}});
  await f.api.visibleRecords(await f.auth('a'),'ventas');await f.api.visibleRecords(await f.auth('a','presupuestos'),'presupuestos');
- const saved=(await f.api.prepare(await f.auth('a'),{id:'converted'})).record;assert.equal(saved.responsableUid,'a');
+ const saved=(await f.api.prepare(await f.auth(),{id:'converted'})).record;assert.equal(saved.responsableUid,'a');
  const assigned=(await f.api.assign(await f.auth(),{id:'converted',uid:'b',revision:1,owner:'a'})).record;assert.equal(assigned.responsableUid,'b');assert.equal(assigned.creadorOriginalNombre,'Persona a');
 });
 
