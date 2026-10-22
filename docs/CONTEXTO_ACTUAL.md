@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Listados posteriores a6 · diagnóstico privado, sin nuevas modificaciones funcionales
+
+- Nueva rama codex/listados-haberes-semestre desde0500715f0fd648538297a3f01dd68fdd4b11af9f. La publicación6 autorizada ya quedó cumplida; no se publica otro bloque por esa autorización. El chat coordinador no tiene reservada7, pero se conservan módulos/parches sin número hasta acordar una tanda concreta. Main, fuente6 histórica y producción intactas en esta rama de diagnóstico.
+- Confirmado en código/fixture: abrir/cambiar semestre y cada tecla del máximo de SAC descargan raízHaberes; confirmar también. Se prepara sólo en tmp un controlador por generación/contexto con rango semestral por empleado, cálculo local y lectura puntual de elegidos al confirmar. Se descartó presentar SDKget como red garantizada: puede devolver caché. La variante REST autenticada/no-store no agrega servicio/endpoint ni permisos y sigue privada; no confundir sus resultados con las26 pruebas anteriores de SDK.
+- Revisión financiera independiente demostró una carrera previa: _guardarAguinaldosAtomico haceCASGastos, no de sueldos usados por el cálculo. REST fresco alGET no protege el intervalo posterior. Se estudiaron seisCASmensuales (hasta21personas) y padres por empleado (hasta127, con más historia), sin integrar ni reducir capacidad. Empleado/cargo/fallback también necesitan cobertura si se amplía ese contrato. Evidencia privada y límites ampliados en AUDITORIA_LISTADOS_20261022.md. No anunciar la auditoría ni ese circuito como terminado.
+- Archivos candidatos/runner/informes permanecen exclusivamente en tmp/listings-next-private. No se aplicaron parches funcionales, no se desplegó, no se disparó un SAC real ni se cambiaron comisiones/pagos. Siguiente paso: terminar prueba REST, definir protección coherente de fuentes al guardar, pruebas permanentes y revisión antes de integrar; no trasladar prototipos como si fueran fuente publicada.
+
 ## v3.14.6 publicada y verificada · 22/10/2026
 
 - Autorización humana recibida por coordinación: publicar primero servidor/seguridad y después web; publicador exclusivo de este chat. Fuente limpia revisada cd5597ac39f8fb826a5f102a78190903ec2f6272, subida a origin/codex/bonificaciones-unidades-empleados. App5 histórica intacta. La fuente incluye80940db más la terminación visual del input Unidades y su QA repetida; no se publicaron los prototipos posteriores de Cobranzas o Haberes.

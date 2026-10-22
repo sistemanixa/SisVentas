@@ -162,3 +162,38 @@ servidor ni evidencia de la causa de cargos anteriores. Se propone revisar el
 disparador para una acción explícita en Empleados/avisos y leer sólo el mes
 necesario por empleado autorizado, conservando el aviso y su permiso. No se
 modificó este circuito ni se retiró su información durante el diagnóstico.
+
+### Revisión de frescura de SAC posterior a la publicación6
+
+La publicación6 está cerrada; lo siguiente es diagnóstico privado separado, sin
+cambios funcionales aplicados. `fbGet` es el `get` del SDK: puede devolver caché
+cuando no alcanza al servidor. Repetir la query al confirmar no acredita por sí
+solo una respuesta de red. El patrón REST autenticado/no-store de GuardedWrites
+existe, pero su transacción intercepta Haberes hacia el adaptador laboral; no se
+lo debe invocar como si fuera un lector sin efectos. Un GET REST acotado al rango
+del semestre, sin fallback SDK, es una propuesta local de lectura, no un servicio
+nuevo ni una autorización para publicar otro servidor.
+
+Hay además un límite financiero previo independiente de la velocidad: el helper
+actual `_guardarAguinaldosAtomico` compara Gastos, no los salarios mensuales con
+que se calcularon las filas. Una prueba con helper/adaptador/gateway/guard reales
+en memoria reprodujo que, si el sueldo cambia entre cálculo y commit, no se
+recalcula el SAC por ese CAS. No se usaron datos ni red reales. Un GET REST fresco
+soluciona la posible caché al leer, pero no cierra esa carrera posterior; no se
+debe anunciar una garantía de concurrencia de Haberes que no existe.
+
+La variante privada de CAS de seis hojas mensuales detectó el cambio y recalculó
+una única alta; con una fuente SDK permanentemente obsoleta rechazó sin escrituras.
+El presupuesto128 admite21personas más Gastos con esa forma. Comparar un padre
+por empleado amplía a127 pero vuelve a leer su historia al confirmar; un fallback
+de raíz para conservar grupos mayores recuperaría una lectura global. No se
+integró ninguna opción ni se redujo silenciosamente la capacidad. Empleado,
+cargo y valores de respaldo concurrentes requieren revisión propia si se amplía
+la protección. Evidencia privada: `sac-source-cas-review.private.cjs/.json` y
+`sac-source-freshness-review.private.md`.
+
+Por tanto la propuesta del controlador del modal y su lector permanece privada
+hasta completar la prueba REST, la revisión de esta ventana de concurrencia y
+sus límites. Ninguna cifra de la fixture anterior con SDK certifica el lector
+REST posterior. No se publicó una corrección parcial ni se modificaron sueldos,
+aguinaldos, pagos, permisos o comisiones reales durante este diagnóstico.
