@@ -18,6 +18,19 @@ fixture no equivale a menor factura ni a menor latencia medida en producción.
 Mediciones, pruebas y límites: [Auditoría de listados](AUDITORIA_LISTADOS_20261021.md).
 Los estados de preparación más antiguos que siguen son antecedentes.
 
+La continuación de la auditoría también retiró dos escrituras automáticas al
+recibir datos: generación de gastos recurrentes y reparación de números de
+adicionales de OT. Los recurrentes pasan a una acción explícita con preview y
+confirmación; la reparación queda como mantenimiento pendiente. No se ejecutó
+ninguna de esas operaciones sobre datos reales durante las pruebas.
+
+Pagos y ciertas altas de Gastos aún requieren lecturas amplias por compatibilidad
+legacy y concurrencia. Está definido el diseño de membresía/cobertura para
+Pagos, sin implementación, migración ni activación. No se atribuye ahorro a una
+consulta que omita históricos, ni se promete un costo mensual por extrapolar
+bytes de una fixture. Las matrices de acciones conservan pendientes explícitos;
+la auditoría integral y la publicación siguen abiertas.
+
 ## Circuito financiero acotado · preparación 20/10/2026
 
 La candidata13.4 sustituye los cuatro GET/PUT de toda `sisventas` por lecturas puntuales, índices de referencias y un PATCH coordinado. Incluye los escritores relacionados de pagos, cuentas, comisiones y vinculación fiscal. No agrega servicios, instancias mínimas ni consultas por reloj. Producción continúa13.3: el ahorro todavía no está aplicado ni medido.

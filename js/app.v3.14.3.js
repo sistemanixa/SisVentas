@@ -6147,8 +6147,10 @@ function _chequearCambioHistCliente() {
   }
 }
 
-function sincronizarDireccionClienteEnOTs(clienteAnterior, clienteNuevo) {
+function sincronizarDireccionClienteEnOTs(clienteAnterior, clienteNuevo, opciones) {
   if (!window.fbDB || !clienteNuevo) return Promise.resolve(0);
+  opciones = opciones || {};
+  var vigente = opciones.vigente || function(){ return true; };
   var direccionAnterior = String((clienteAnterior && (clienteAnterior.dir || clienteAnterior.direccion)) || '').trim();
   var direccionNueva = String(clienteNuevo.dir || clienteNuevo.direccion || '').trim();
   if (!direccionNueva || direccionNueva === direccionAnterior) return Promise.resolve(0);
@@ -6164,31 +6166,71 @@ function sincronizarDireccionClienteEnOTs(clienteAnterior, clienteNuevo) {
     clienteNuevo.nombre,
     clienteAnterior && clienteAnterior.nombre
   ].filter(Boolean).map(normalizar);
-  var estadosCerrados = ['COMPLETADA','COMPLETADO','FINALIZADA','FINALIZADO','CANCELADA','CANCELADO','ANULADA','ANULADO'];
+  var estadosCerrados = ['COMPLETADA','COMPLETADO','FINALIZADA','FINALIZADO','CANCELADA','CANCELADO','ANULADA','ANULADO','CERRADA','CERRADO','TERMINADA','TERMINADO'];
   var ordenes = Array.isArray(otData) ? otData : Object.values(otData || {});
-  var actualizaciones = [];
-
-  ordenes.forEach(function(ot) {
-    if (!ot || !ot.fbKey || estadosCerrados.indexOf(normalizar(ot.estado)) >= 0) return;
+  var clientes = Array.isArray(clientesData) ? clientesData : Object.values(clientesData || {});
+  function corresponde(ot) {
+    if (!ot || !ot.fbKey || /[.#$\[\]\/\x00-\x1f\x7f]/.test(ot.fbKey) || estadosCerrados.indexOf(normalizar(ot.estado)) >= 0) return false;
+    // El domicilio explícito tiene prioridad sobre un nombre o cliente principal.
+    var domicilios = [ot.domicilioFbKey, ot.sedeFbKey, ot.clienteSedeFbKey, ot.domicilioId, ot.sedeId].filter(Boolean).map(String);
+    if (domicilios.length && !domicilios.every(function(valor){ return referenciasCliente.indexOf(valor) >= 0; })) return false;
     var referenciasOT = [ot.clienteFbKey, ot.clienteKey, ot.clienteId, ot.idCliente, ot.id_cli].filter(Boolean).map(String);
-    var vinculada = referenciasOT.length
-      ? referenciasOT.some(function(valor){ return referenciasCliente.indexOf(valor) >= 0; })
-      : nombresCliente.indexOf(normalizar(ot.cliente || ot.clienteNombre || ot.nombreCliente)) >= 0;
-    if (!vinculada) return;
-
+    var referencias = domicilios.length ? domicilios : referenciasOT;
+    if (referencias.length) {
+      if (!referencias.some(function(valor){ return referenciasCliente.indexOf(valor) >= 0; })) return false;
+      // Un ID legacy repetido o referencias a dos clientes no identifican una sede.
+      if (referencias.some(function(valor){ return clientes.some(function(cli){
+        return cli && [cli.fbKey, cli.id].filter(Boolean).map(String).indexOf(valor) >= 0 && referenciasCliente.indexOf(String(cli.fbKey || cli.id)) < 0;
+      }); })) return false;
+    } else {
+      var nombre = normalizar(ot.cliente || ot.clienteNombre || ot.nombreCliente);
+      if (!nombre || nombresCliente.indexOf(nombre) < 0) return false;
+      var coincidencias = clientes.filter(function(cli){ return cli && normalizar(cli.nombre) === nombre; });
+      var claves = Array.from(new Set(coincidencias.map(function(cli){ return String(cli.fbKey || cli.id || ''); }).filter(Boolean)));
+      if (claves.length > 1) return false;
+    }
     var direccionOT = String(ot.dir || ot.direccion || ot.domicilio || ot.direccionInstalacion || '').trim();
     // Si la OT tiene otra dirección escrita expresamente, se conserva como dirección de instalación.
-    if (direccionOT && (!direccionAnterior || normalizar(direccionOT) !== normalizar(direccionAnterior))) return;
-
-    ot.dir = direccionNueva;
-    ot.direccion = direccionNueva;
-    actualizaciones.push(window.fbUpdate(
-      window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey),
-      { dir: direccionNueva, direccion: direccionNueva, tsUltimaEdicion: Date.now(), usuarioUltimaEdicion: currentUser || 'Sistema' }
-    ));
+    return !direccionOT || !!direccionAnterior && normalizar(direccionOT) === normalizar(direccionAnterior);
+  }
+  var clavesPendientes = Array.from(new Set(ordenes.filter(corresponde).map(function(ot){ return String(ot.fbKey); })));
+  var cursor = 0, confirmadas = 0, fallo = null;
+  return Promise.all(Array.from({length:Math.min(6, clavesPendientes.length)}, async function(){
+    while (!fallo && cursor < clavesPendientes.length) {
+      if (!vigente()) { fallo = new Error('La vista o la sesión cambió; hay OT pendientes de sincronizar'); break; }
+      var key = clavesPendientes[cursor++];
+      var actuales = Array.isArray(otData) ? otData : Object.values(otData || {});
+      var ot = actuales.find(function(registro){ return registro && String(registro.fbKey) === key; });
+      if (!corresponde(ot)) continue;
+      try {
+        if (typeof svTransaccionConEstadoActual !== 'function' || !window.fbRunTransaction) throw new Error('No está disponible la sincronización protegida de OT');
+        var ref = window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + key);
+        // El SDK necesita mantener esta clave mientras resuelve el CAS. Un GET
+        // aislado no retiene su caché y puede simular que una OT existente falta.
+        // La escucha puntual termina con el acuse/error/plazo/contexto, sin
+        // reemplazar la base ni reconstruir una OT que haya sido eliminada.
+        var acuse = await svTransaccionConEstadoActual(ref, function(actual){
+          if (fallo || !vigente() || !actual || !corresponde(Object.assign({}, actual, {fbKey:key}))) return;
+          return Object.assign({}, actual, {dir:direccionNueva, direccion:direccionNueva, tsUltimaEdicion:Date.now(), usuarioUltimaEdicion:currentUser || 'Sistema'});
+        }, function(){ return !fallo && vigente(); });
+        if (!acuse.committed) {
+          if (!vigente()) throw new Error('La sesión cambió antes de confirmar una OT');
+          continue;
+        }
+        confirmadas++;
+        if (vigente()) {
+          var locales = Array.isArray(otData) ? otData : Object.values(otData || {});
+          var local = locales.find(function(registro){ return registro && String(registro.fbKey) === key; });
+          if (corresponde(local)) { local.dir = direccionNueva; local.direccion = direccionNueva; }
+        }
+      } catch (error) { if (!fallo) fallo = error; }
+    }
+  })).then(function(){
+    // Esperar todos los vuelos iniciados incluso si uno falla: no anunciar un
+    // resultado mientras otras escrituras de esta misma operación siguen pendientes.
+    if (fallo) { fallo.otConfirmadas = confirmadas; fallo.otPendientes = clavesPendientes.length - confirmadas; throw fallo; }
+    return confirmadas;
   });
-
-  return Promise.all(actualizaciones).then(function(){ return actualizaciones.length; });
 }
 
 function sincronizarClienteEnEstructura(cli, clienteKeyForzado) {
@@ -6214,43 +6256,84 @@ function sincronizarClienteEnEstructura(cli, clienteKeyForzado) {
   return window.fbUpdate(window.fbRef(window.fbDB), actualizacion);
 }
 
-function fbGuardarCliente(cli) {
-  if (!window.fbDB) { notify('Sin conexión Firebase'); return; }
+function _clienteContextoPersistencia(esEdicion) {
+  var uid = window.currentUserUid, auth = window.fbAuth && window.fbAuth.currentUser, rol = window.currentRole;
+  var revision = ((window.PERMISOS_ROLES || {})[rol] || {}).indiceRevision || 0;
+  var epoch = window._svOperacionesSesionEpoch || 0, vista = window._impersonacionOriginal;
+  return function(){
+    var permitido = esEdicion
+      ? typeof window.tienePermiso === 'function' && window.tienePermiso('clientes.editar')
+      : typeof permisoModulo === 'function' && permisoModulo('clientes');
+    return !vista && !!uid && !!auth && auth.uid === uid && auth === (window.fbAuth && window.fbAuth.currentUser) && uid === window.currentUserUid && rol === window.currentRole &&
+      revision === (((window.PERMISOS_ROLES || {})[rol] || {}).indiceRevision || 0) && epoch === (window._svOperacionesSesionEpoch || 0) && vista === window._impersonacionOriginal && permitido;
+  };
+}
+
+function _clienteFirmaAlta(datos) {
+  var contenido = Object.assign({}, datos);
+  delete contenido.id; delete contenido.fbKey;
+  return JSON.stringify(contenido, function(clave, valor){
+    if (!valor || typeof valor !== 'object' || Array.isArray(valor)) return valor;
+    return Object.keys(valor).sort().reduce(function(obj, key){ obj[key] = valor[key]; return obj; }, {});
+  });
+}
+
+function fbGuardarCliente(cli, opciones) {
+  opciones = opciones || {};
+  var contexto = _clienteContextoPersistencia(!!(cli && cli.fbKey));
+  var vigente = function(){ return contexto() && (!opciones.vigente || opciones.vigente()); };
+  if (!window.fbDB) return Promise.reject(new Error('Sin conexión Firebase'));
+  if (!vigente()) return Promise.reject(new Error('La sesión o el permiso cambió. Volvé a abrir el cliente.'));
+  if (window.navigator && window.navigator.onLine === false) return Promise.reject(new Error('Sin conexión. Volvé a intentar cuando vuelva Internet.'));
   var clienteKeyEstructura = cli && cli._clienteEstructuraDestinoKey || '';
-  if (cli && Object.prototype.hasOwnProperty.call(cli, '_clienteEstructuraDestinoKey')) delete cli._clienteEstructuraDestinoKey;
+  var datos = Object.assign({}, cli);
+  delete datos._clienteEstructuraDestinoKey;
   var r = window.fbRef(window.fbDB, FB_PATHS.clientes);
-  if (cli.fbKey) {
-    var clienteAnterior = (clientesData || []).find(function(actual){ return actual.fbKey === cli.fbKey; });
-    clienteAnterior = clienteAnterior ? Object.assign({}, clienteAnterior) : null;
-    window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + cli.fbKey), cli)
-      .then(function() { return sincronizarDireccionClienteEnOTs(clienteAnterior, cli); })
-      .then(function(cantidadOT) { return sincronizarClienteEnEstructura(cli, clienteKeyEstructura).then(function(){ return cantidadOT; }); })
-      .then(function(cantidadOT) {
-        var ficha = document.getElementById('page-historialcliente');
-        var clienteVisible = (clientesData || []).find(function(c){ return String(c.fbKey || c.id) === String(clienteActualId); });
-        var perteneceFicha = clienteVisible && clientesDelGrupo(clienteVisible).some(function(c){ return String(c.fbKey) === String(cli.fbKey); });
-        if (ficha && ficha.classList.contains('active') && perteneceFicha) {
-          var indiceLocal = (clientesData || []).findIndex(function(c){ return String(c.fbKey) === String(cli.fbKey); });
-          if (indiceLocal >= 0) clientesData[indiceLocal] = Object.assign({}, clientesData[indiceLocal], cli);
-          var pesta = document.querySelector('.hist-tab-btn.active');
-          var accion = pesta && pesta.getAttribute('onclick') || '';
-          var tab = accion.match(/switchHistTab\(['"]([^'"]+)/);
-          verHistorialCliente(clienteActualId);
-          if (tab) switchHistTab(tab[1], pesta);
-        }
-        notify('Cliente actualizado ✓' + (cantidadOT ? ' · ' + cantidadOT + ' OT abierta' + (cantidadOT === 1 ? '' : 's') + ' sincronizada' + (cantidadOT === 1 ? '' : 's') : ''));
-      })
-      .catch(function(e) { notify('Error: ' + e.message); });
-  } else {
-    // Nuevo cliente
-    window.fbPush(r, cli)
-      .then(function(refNuevo) {
-        cli.fbKey = refNuevo && refNuevo.key;
-        return sincronizarClienteEnEstructura(cli, clienteKeyEstructura);
-      })
-      .then(function() { notify('Cliente guardado ✓'); })
-      .catch(function(e) { notify('Error: ' + e.message); });
-  }
+  var anterior = (clientesData || []).find(function(actual){ return actual.fbKey === datos.fbKey; });
+  anterior = anterior ? Object.assign({}, anterior) : null;
+  return Promise.resolve().then(async function(){
+    if (!vigente()) throw new Error('La vista o la sesión cambió antes de guardar');
+    if (datos.fbKey) await svEsperarRespuestaGuardado(window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.clientes + '/' + datos.fbKey), datos));
+    else {
+      if (!window.fbRunTransaction) throw new Error('Recargá la aplicación para confirmar el cliente con seguridad');
+      var intento = opciones.intento || {};
+      if (intento.contexto && !intento.contexto()) throw new Error('La sesión del intento anterior cambió. Volvé a abrir el cliente.');
+      var firmaAlta = _clienteFirmaAlta(datos);
+      if (intento.ref && intento.firmaDatos !== firmaAlta) throw new Error('Hay un cliente sin confirmar. Restablecé sus datos anteriores y reintentá antes de crear otro.');
+      if (!intento.ref) {
+        // Reservar una clave no escribe. El mismo formulario la conserva si se
+        // pierde el acuse, sin crear otro cliente ni pisar una edición ajena.
+        intento.ref = window.fbPush(r);
+        if (!intento.ref || !intento.ref.key) throw new Error('No se pudo preparar el cliente');
+        delete datos.fbKey;
+        intento.datos = JSON.parse(JSON.stringify(datos));
+        intento.firmaDatos = firmaAlta;
+      }
+      function firmaRegistro(valor){
+        return JSON.stringify(valor, function(clave, item){ return item && typeof item === 'object' && !Array.isArray(item) ? Object.keys(item).sort().reduce(function(obj,k){ obj[k] = item[k]; return obj; }, {}) : item; });
+      }
+      var firmaEsperada = firmaRegistro(intento.datos);
+      var confirmado = await svEsperarRespuestaGuardado(window.fbRunTransaction(intento.ref, function(actual){
+        if (!vigente()) return;
+        if (actual === null) return intento.datos;
+        if (firmaRegistro(actual) === firmaEsperada) return actual;
+      }, {applyLocally:false}));
+      if (!confirmado || !confirmado.committed || firmaRegistro(confirmado.snapshot && confirmado.snapshot.val()) !== firmaEsperada) throw new Error('El cliente cambió. Revisá el registro antes de reintentar.');
+      datos = Object.assign({}, intento.datos, {fbKey:intento.ref.key});
+      cli.fbKey = datos.fbKey;
+    }
+    var resultado = { cliente:datos, cantidadOT:0, pendientes:[] };
+    // El cliente ya está confirmado. Un fallo de una proyección posterior no
+    // revierte ese acuse ni debe invitar a repetir un alta que ya existe.
+    if (!vigente()) { resultado.pendientes.push('OT y domicilios'); return resultado; }
+    if (opciones.etapa) { try { opciones.etapa('Actualizando domicilios…'); } catch (_) {} }
+    try { if (anterior) resultado.cantidadOT = await sincronizarDireccionClienteEnOTs(anterior, datos, { vigente:vigente }); }
+    catch (errorOT) { resultado.cantidadOT = errorOT.otConfirmadas || 0; resultado.pendientes.push('direcciones de OT'); }
+    if (!vigente()) { resultado.pendientes.push('estructura de domicilios'); return resultado; }
+    try { await sincronizarClienteEnEstructura(datos, clienteKeyEstructura); }
+    catch (errorEstructura) { resultado.pendientes.push('estructura de domicilios'); }
+    return resultado;
+  });
 }
 
 function normalizarProductosFirebase(data) {
@@ -6502,7 +6585,8 @@ function procesarVentasSnapshot(data, opciones) {
     venta.fechaOrden = ventaFechaOrden(venta);
     return venta;
   });
-  _repararVentasAdicionalesOTSinNumero(rows, data);
+  // Recibir o consultar ventas sólo prepara la vista. Las reparaciones de
+  // numeración y vínculos requieren una acción de mantenimiento explícita.
   if (opciones.filtrarPeriodo !== false) {
     rows = rows.filter(function(v){ return ventaDentroPeriodoReciente(v, desdeISO); });
   }
@@ -10891,7 +10975,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.14.3',date:'21/10/2026',title:'Listados y carga más ágiles',notes:Object.freeze(['El inicio prioriza la pantalla abierta y muestra una sola espera con el estado real de sus datos.','Los listados conservan su historial y evitan descargarlo otra vez cuando no cambió.','Proyectos pide los presupuestos al abrir Vincular; guardar un presupuesto actualiza su lista con la confirmación recibida.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
+ Object.freeze({version:'v3.14.3',date:'21/10/2026',title:'Carga y guardados más claros',notes:Object.freeze(['El inicio prioriza la pantalla abierta y muestra el estado real de sus datos.','Ventas consulta sólo los presupuestos vinculados y Proyectos los pide al abrir Vincular.','Clientes, Agenda, Servicios, Equipos e Informes muestran el avance y esperan la confirmación del guardado.','Los gastos recurrentes del mes se generan desde su gestor, después de revisar y confirmar el importe.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
  Object.freeze({version:'v3.14.2',date:'21/10/2026',title:'Eliminación de presupuestos confirmada',notes:Object.freeze(['Al eliminar un presupuesto se muestra el progreso y la fila se retira al confirmar la operación.','La lista conserva sus filtros y evita repetir la eliminación mientras se está procesando.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
  Object.freeze({version:'v3.14.1',date:'21/10/2026',title:'Bonificaciones con mes de cómputo',notes:Object.freeze(['En Empleados podés dar una bonificación adicional aunque el sueldo ya esté liquidado.','Elegí el mes de cómputo; el sueldo y los pagos anteriores se conservan.']),feature:Object.freeze({page:'empleados',actionLabel:'Ver empleados'})}),
  Object.freeze({version:'v3.14.0',date:'20/10/2026',title:'Órdenes pendientes del técnico',notes:Object.freeze(['Tus órdenes se actualizan al terminar de cargar, sin tener que salir y volver.','Dashboard, órdenes y horas extra reconocen la misma asignación y excluyen las órdenes cerradas.','Sólo las OT con fecha programada vencida hace más de diez días bloquean las horas extra. Las que están sin fecha no bloquean.']),feature:Object.freeze({page:'ordentrabajo',actionLabel:'Ver órdenes'})}),
@@ -29278,6 +29362,8 @@ function abrirModalNuevo(tipo, datosExistentes, fbKeyExistente) {
   // que usa el mismo modal con sus propios botones y oculta este)
   var modalEl = document.getElementById('modal-nuevo');
   if (modalEl) {
+    if (modalEl._registroSimpleSaving?.liberar) modalEl._registroSimpleSaving.liberar();
+    if (modalEl._clienteSaving && modalEl._clienteSaving.liberar) modalEl._clienteSaving.liberar();
     var remitoGuardandoAntes = modalEl._remitoSaving;
     modalEl._svFormToken = {};
     modalEl._remitoSaving = false;
@@ -29506,6 +29592,8 @@ function cerrarModalNuevoGenerico(){
   window._svSolicitudFichaRevision = (window._svSolicitudFichaRevision || 0) + 1;
   var tipoCerrado = window._modalTipo;
   var m=document.getElementById('modal-nuevo');
+  if (m?._registroSimpleSaving?.liberar) m._registroSimpleSaving.liberar();
+  if (m && m._clienteSaving && m._clienteSaving.liberar) m._clienteSaving.liberar();
   if(m){ m.classList.remove('open'); m.classList.remove('secure-modal'); }
   document.body.classList.remove('modal-secure-open');
   if (window._modalTipo === 'proveedor') {
@@ -29517,6 +29605,97 @@ function cerrarModalNuevoGenerico(){
   }
   if (tipoCerrado === 'cliente') { window._editingClienteId = null; _clienteEstructuraDestinoKey = ''; }
 }
+function guardarClienteDesdeModal(nuevo) {
+  var modal = document.getElementById('modal-nuevo');
+  if (!modal || window._modalTipo !== 'cliente') return Promise.resolve(false);
+  var token = modal._svFormToken, anterior = modal._clienteSaving;
+  if (anterior && anterior.token === token) return anterior.promise;
+  var contexto = _clienteContextoPersistencia(!!nuevo.fbKey);
+  var pagina = document.querySelector('.page.active'), ruta = window.location && window.location.hash;
+  var revision = window._svSolicitudFichaRevision || 0;
+  var vigente = function(){
+    return contexto() && modal === document.getElementById('modal-nuevo') && token === modal._svFormToken && window._modalTipo === 'cliente' &&
+      revision === (window._svSolicitudFichaRevision || 0) && modal.classList.contains('open') && pagina === document.querySelector('.page.active') && ruta === (window.location && window.location.hash);
+  };
+  if (!vigente()) { notify('La sesión o el permiso cambió. Volvé a abrir el cliente.'); return Promise.resolve(false); }
+  var intento = modal._clienteIntento;
+  var firmaFormulario = JSON.stringify((FORMS_CFG.cliente.fields || []).map(function(campo){ var el = document.getElementById(campo.id); return el ? el.value.trim() : ''; }));
+  if (!nuevo.fbKey) {
+    if (intento && intento.token === token && intento.ref) {
+      if (!intento.contexto() || intento.firma !== firmaFormulario) { notify('Hay un cliente sin confirmar. Restablecé los datos anteriores y reintentá, o cerrá este formulario para crear otro cliente.'); return Promise.resolve(false); }
+    } else {
+      intento = { token:token, firma:firmaFormulario, contexto:contexto };
+      modal._clienteIntento = intento;
+    }
+  }
+  var controles = Array.from(modal.querySelectorAll('button, input, select, textarea')).map(function(el){ return {el:el, disabled:el.disabled}; });
+  var boton = modal.querySelector('button[onclick="guardarNuevoGenerico()"]');
+  var textoBoton = boton && boton.innerHTML;
+  var estado = document.createElement('p');
+  if (modal._clienteEstado && modal._clienteEstado.token === token) modal._clienteEstado.elemento.remove();
+  modal._clienteEstado = { token:token, elemento:estado };
+  estado.className = 'cliente-guardado-estado';
+  estado.setAttribute('role','status'); estado.setAttribute('aria-live','polite');
+  estado.style.cssText = 'margin:12px 0 0;color:var(--text2);font-size:12px';
+  estado.textContent = 'Guardando cliente…';
+  var cuerpo = document.getElementById('modal-nuevo-body');
+  if (cuerpo) cuerpo.appendChild(estado);
+  controles.forEach(function(item){ item.el.disabled = true; });
+  if (boton) { boton.setAttribute('aria-busy','true'); boton.innerHTML = '<i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite" aria-hidden="true"></i> Guardando…'; }
+  var operacion = { token:token, promise:null, confirmado:false };
+  operacion.liberar = function(){
+    if (modal._clienteSaving !== operacion || modal._svFormToken !== token) return;
+    modal._clienteSaving = null;
+    controles.forEach(function(item){ item.el.disabled = item.disabled; });
+    if (boton) { boton.innerHTML = textoBoton; boton.removeAttribute('aria-busy'); }
+    if (estado.isConnected !== false && operacion.confirmado) estado.remove();
+  };
+  modal._clienteSaving = operacion;
+  operacion.promise = Promise.resolve().then(function(){
+    return fbGuardarCliente(nuevo, { vigente:vigente, intento:intento, etapa:function(texto){ if (vigente()) estado.textContent = texto; } });
+  }).then(function(resultado){
+    operacion.confirmado = true;
+    if (!vigente()) return true;
+    var guardado = resultado.cliente;
+    // Incluso si falla luego una vista, el siguiente intento edita esta clave
+    // confirmada en lugar de crear por segunda vez un cliente nuevo.
+    window._editingClienteId = guardado.fbKey;
+    var indice = (clientesData || []).findIndex(function(cli){ return String(cli.fbKey) === String(guardado.fbKey); });
+    if (indice >= 0) clientesData[indice] = Object.assign({}, clientesData[indice], guardado);
+    else clientesData.push(guardado);
+    if (typeof invalidarCacheClientes === 'function') invalidarCacheClientes();
+    if (typeof registrarActividad === 'function') registrarActividad('Cliente guardado', guardado.nombre || guardado.razonSocial);
+    var ficha = document.getElementById('page-historialcliente');
+    var clienteVisible = (clientesData || []).find(function(cli){ return String(cli.fbKey || cli.id) === String(clienteActualId); });
+    if (ficha && ficha.classList.contains('active') && clienteVisible && clientesDelGrupo(clienteVisible).some(function(cli){ return String(cli.fbKey) === String(guardado.fbKey); })) {
+      var pesta = document.querySelector('.hist-tab-btn.active');
+      var accion = pesta && pesta.getAttribute('onclick') || '';
+      var tab = accion.match(/switchHistTab\(['"]([^'"]+)/);
+      verHistorialCliente(clienteActualId);
+      if (tab) switchHistTab(tab[1], pesta);
+    } else if (pagina && pagina.id === 'page-clientes' && typeof renderTablaClientes === 'function') {
+      var busqueda = document.querySelector('#page-clientes .search-input');
+      renderTablaClientes(busqueda ? busqueda.value : '');
+    }
+    window._clienteArcaConsulta = null;
+    _clienteEstructuraDestinoKey = '';
+    cerrarModalNuevoGenerico();
+    if (resultado.pendientes.length) notify('Cliente guardado. Quedó pendiente sincronizar: ' + resultado.pendientes.join(' y ') + '. Revisá esas direcciones; no hace falta crear el cliente nuevamente.');
+    else notify('Cliente guardado ✓' + (resultado.cantidadOT ? ' · ' + resultado.cantidadOT + ' OT sincronizada' + (resultado.cantidadOT === 1 ? '' : 's') : ''));
+    return true;
+  }).catch(function(error){
+    if (vigente()) {
+      var mensaje = operacion.confirmado ? 'El cliente se guardó. Actualizá la vista para ver los cambios.' : 'No se pudo confirmar el guardado del cliente: ' + error.message;
+      estado.textContent = mensaje;
+      notify(mensaje);
+    }
+    return operacion.confirmado;
+  }).finally(function(){
+    operacion.liberar();
+  });
+  return operacion.promise;
+}
+
 function guardarNuevoGenerico() {
   var tipo = window._modalTipo;
   var cfg  = FORMS_CFG[tipo];
@@ -29574,24 +29753,12 @@ function guardarNuevoGenerico() {
     }
     if (!cliExistente && _clienteEstructuraDestinoKey) nuevo._clienteEstructuraDestinoKey = _clienteEstructuraDestinoKey;
 
-    window._editingClienteId = null; // limpiar para la próxima vez
-    window._clienteArcaConsulta = null;
-    _clienteEstructuraDestinoKey = '';
     if (!nuevo.nombre.trim() && !nuevo.razonSocial) {
       notify('Ingresá al menos nombre o razón social del cliente');
       return;
     }
 
-    if (typeof fbGuardarCliente === 'function') {
-      fbGuardarCliente(nuevo);
-    } else {
-      clientesData.push(nuevo);
-      invalidarCacheClientes();
-      if (typeof renderTablaClientes === 'function') renderTablaClientes();
-    }
-    if (typeof registrarActividad === 'function') {
-      registrarActividad('Cliente guardado', nuevo.nombre || nuevo.razonSocial);
-    }
+    return guardarClienteDesdeModal(nuevo);
 
   } else if (tipo === 'producto') {
     var pv  = parseFloat(obj.pv  || 0);
@@ -29850,14 +30017,14 @@ function guardarNuevoGenerico() {
 
   } else if (tipo === 'servicio') {
     var numSv = obj.num || ('SV-' + String((window._servData||[]).length + 1).padStart(4,'0'));
-    guardarServicio({ numero:numSv, cliente:obj.cli, descripcion:obj.desc, tecnico:obj.tec||'Sin asignar', fecha:obj.fecha||svFechaLocalISO(), garantia:obj.garantia||'—', estado:obj.estado||'En curso' });
+    return guardarRegistroSimpleDesdeModal(tipo, { numero:numSv, cliente:obj.cli, descripcion:obj.desc, tecnico:obj.tec||'Sin asignar', fecha:obj.fecha||svFechaLocalISO(), garantia:obj.garantia||'—', estado:obj.estado||'En curso' }, JSON.stringify(obj));
 
   } else if (tipo === 'evento') {
-    guardarEvento({ fecha:obj.f, hora:obj.h, descripcion:obj.desc, cliente:obj.cli, empleado:obj.emp, tipo:obj.tipo, estado:'pendiente' });
+    return guardarRegistroSimpleDesdeModal(tipo, { fecha:obj.f, hora:obj.h, descripcion:obj.desc, cliente:obj.cli, empleado:obj.emp, tipo:obj.tipo, estado:'pendiente' }, JSON.stringify(obj));
 
   } else if (tipo === 'ticket') {
     var numTkt = obj.num || ('TK-' + String((window.usuariosData||[]).length + Date.now()).slice(-4));
-    guardarTicket({ numero:numTkt, cliente:obj.cli, equipo:obj.eq, descripcion:obj.desc, prioridad:obj.p, estado:obj.est||'Abierto', tecnico:obj.tec||'Sin asignar' });
+    return guardarRegistroSimpleDesdeModal(tipo, { numero:numTkt, cliente:obj.cli, equipo:obj.eq, descripcion:obj.desc, prioridad:obj.p, estado:obj.est||'Abierto', tecnico:obj.tec||'Sin asignar' }, JSON.stringify(obj));
 
   } else if (tipo === 'ordencompra') {
     // Compatibilidad para cualquier botón antiguo que todavía intente abrir el
@@ -31193,9 +31360,90 @@ function renderEquiposCards() {
 function filtrarEquipos() { renderEquiposCards(); }
 
 // Abrir ficha
+function svPostventaFormulario(clave, renovar, id, base) {
+  var formularios=window._svPostventaFormularios=window._svPostventaFormularios||{};
+  if(renovar||!formularios[clave]){
+    formularios[clave]?.operacion?.retirar();
+    formularios[clave]={id:id||null,base:base?JSON.parse(JSON.stringify(base)):null,fotos:new Map(),operacion:null,sesion:svCapturarContextoOperacion()};
+  }
+  return formularios[clave];
+}
+function svPostventaOperacion(clave, formularioId, selector, id, base) {
+  var estado=svPostventaFormulario(clave,false,id,base),formulario=document.getElementById(formularioId);
+  if(estado.operacion?.vigente())return estado.operacion;
+  estado.operacion?.retirar();
+  var contexto=svCapturarContextoOperacion(),auth=window.fbAuth?.currentUser,vista=window._impersonacionOriginal,pagina=document.querySelector('.page.active'),ruta=window.location?.hash,retirada=false,liberada=false,retiros=new Set();
+  var controles=Array.from(formulario?.querySelectorAll('input,select,textarea,'+selector)||[]),previos=controles.map(function(c){return c.disabled;});
+  var activo=document.activeElement,boton=activo?.matches?.(selector)&&formulario?.contains?.(activo)?activo:formulario?.querySelector(selector),progreso=svCrearProgresoBoton(boton,'Guardando…');
+  function contextoVigente(){return contexto()&&auth===window.fbAuth?.currentUser&&auth?.uid===currentUserUid&&!vista&&vista===window._impersonacionOriginal&&typeof window.permisoModulo==='function'&&window.permisoModulo(clave)===true;}
+  function vigente(){return !retirada&&contextoVigente()&&window._svPostventaFormularios?.[clave]===estado&&estado.operacion===operacion&&formulario===document.getElementById(formularioId)&&formulario?.isConnected!==false&&formulario?.style.display!=='none'&&pagina===document.querySelector('.page.active')&&ruta===window.location?.hash;}
+  function liberar(){
+    if(liberada)return;liberada=true;
+    ['sisventas:session-ended','sisventas:role-changed','sisventas:page-changed'].forEach(function(nombre){document.removeEventListener(nombre,retirar);});
+    if(estado.operacion!==operacion)return;
+    progreso.finalizar();controles.forEach(function(c,index){c.disabled=previos[index];});formulario?.removeAttribute('aria-busy');estado.operacion=null;
+  }
+  function retirar(){if(retirada)return;retirada=true;retiros.forEach(function(fn){fn();});retiros.clear();liberar();}
+  function alRetirar(fn){if(retirada){fn();return function(){};}retiros.add(fn);return function(){retiros.delete(fn);};}
+  var operacion={estado:estado,contextoVigente:contextoVigente,vigente:vigente,retirar:retirar,alRetirar:alRetirar,liberar:liberar,progreso:progreso,promesa:null};
+  estado.operacion=operacion;controles.forEach(function(c){c.disabled=true;});formulario?.setAttribute('aria-busy','true');
+  ['sisventas:session-ended','sisventas:role-changed','sisventas:page-changed'].forEach(function(nombre){document.addEventListener(nombre,retirar);});
+  return operacion;
+}
+function svPostventaPersistir(clave, estado, datos, vigente) {
+  if(!vigente())return Promise.reject(new Error('La sesión o el permiso cambió antes de guardar'));
+  if(typeof window.fbRunTransaction!=='function')return Promise.reject(new Error('Recargá la aplicación para guardar con protección de cambios'));
+  var nueva=!estado.id;
+  if(nueva){var preparada=window.fbPush(window.fbRef(window.fbDB,'sisventas/'+clave));if(!preparada?.key)return Promise.reject(new Error('No se pudo preparar el registro'));estado.id=preparada.key;estado.creada=true;}
+  var claves=Object.keys(datos),esperados=[estado.base,estado.ultimoIntento].filter(Boolean).map(function(value){return JSON.parse(JSON.stringify(value));});
+  function coincide(actual,esperado){return claves.every(function(key){return JSON.stringify(actual?.[key]??null)===JSON.stringify(esperado?.[key]??null);});}
+  estado.ultimoIntento=JSON.parse(JSON.stringify(datos));
+  var referencia=window.fbRef(window.fbDB,'sisventas/'+clave+'/'+estado.id);
+  function transformar(actual){
+    if(!vigente())return;
+    if(actual===null)return estado.creada?datos:undefined;
+    if(!actual||typeof actual!=='object'||Array.isArray(actual))return;
+    if(coincide(actual,datos)||esperados.some(function(esperado){return coincide(actual,esperado);}))return Object.assign({},actual,datos);
+  }
+  var escritura=estado.creada?svPostventaEsperar(window.fbRunTransaction(referencia,transformar,{applyLocally:false})):svTransaccionConEstadoActual(referencia,transformar,vigente,estado.operacion?.alRetirar);
+  return escritura.then(function(resultado){
+    if(!resultado?.committed)throw new Error('Otro usuario modificó este registro. Volvé a abrirlo para revisar los cambios.');
+    var confirmado=resultado.snapshot?.val();if(!confirmado||!coincide(confirmado,datos))throw new Error('No se recibió la confirmación completa del guardado');
+    estado.base=JSON.parse(JSON.stringify(confirmado));estado.creada=false;return {fbKey:estado.id,record:confirmado};
+  });
+}
+function svTransaccionConEstadoActual(referencia, transformar, vigente, registrarRetiro) {
+  // El SDK puede entregar null local antes de conocer un registro existente.
+  // Conservamos sólo esta clave mientras el CAS obtiene/valida su estado real.
+  var detener=null,quitarRetiro=null,iniciada=false,finalizada=false,cancelar=null;
+  var eventos=['sisventas:session-ended','sisventas:role-changed','sisventas:page-changed'];
+  function limpiar(){if(detener){var baja=detener;detener=null;try{baja();}catch(error){console.warn('[Persistencia] No se pudo retirar la escucha puntual');}}if(quitarRetiro){quitarRetiro();quitarRetiro=null;}eventos.forEach(function(nombre){document.removeEventListener?.(nombre,cancelar);});}
+  var espera=new Promise(function(resolve,reject){
+    function fallar(error){if(finalizada)return;finalizada=true;reject(error);}
+    cancelar=function(){fallar(new Error('El formulario o la sesión cambió antes de confirmar el guardado'));};
+    eventos.forEach(function(nombre){document.addEventListener?.(nombre,cancelar);});
+    if(typeof registrarRetiro==='function')quitarRetiro=registrarRetiro(cancelar);
+    if(finalizada)return;
+    if(typeof window.fbOnValue!=='function'){fallar(new Error('Recargá la aplicación para comprobar el registro antes de guardar'));return;}
+    try{detener=window.fbOnValue(referencia,function(){
+      if(iniciada||finalizada)return;
+      if(!vigente()){cancelar();return;}
+      iniciada=true;
+      Promise.resolve().then(function(){if(finalizada||!vigente())throw new Error('La sesión o el permiso cambió antes de guardar');return window.fbRunTransaction(referencia,transformar,{applyLocally:false});}).then(function(resultado){if(finalizada)return;finalizada=true;resolve(resultado);},fallar);
+    },fallar);}catch(error){fallar(error);}
+  });
+  return svPostventaEsperar(espera,function(){finalizada=true;limpiar();}).finally(function(){finalizada=true;limpiar();});
+}
+function svPostventaEsperar(promesa, alVencer) {
+  return new Promise(function(resolve,reject){
+    var terminado=false,timer=setTimeout(function(){if(terminado)return;terminado=true;if(alVencer)alVencer();reject(Object.assign(new Error('La confirmación demoró demasiado. Revisá la conexión y reintentá.'),{code:'SV_ACK_TIMEOUT'}));},20000);
+    Promise.resolve(promesa).then(function(value){if(terminado)return;terminado=true;clearTimeout(timer);resolve(value);},function(error){if(terminado)return;terminado=true;clearTimeout(timer);reject(error);});
+  });
+}
 function abrirFichaEquipo(fbKey) {
   var eq = equiposData.find(function(e){ return e.fbKey === fbKey; });
   if (!eq) return;
+  svPostventaFormulario('equipos',true,fbKey,eq);
   equipoActual = fbKey;
   eqFotosTemp = [];
   document.getElementById('eq-ficha-titulo').textContent = eq.descripcion || 'Ficha de equipo';
@@ -31231,6 +31479,7 @@ function abrirFichaEquipo(fbKey) {
 }
 
 function abrirNuevoEquipo() {
+  svPostventaFormulario('equipos',true);
   equipoActual = null;
   eqFotosTemp = [];
   var _c = function(id){ var el=document.getElementById(id); if(el) el.value=''; };
@@ -31252,13 +31501,18 @@ function abrirNuevoEquipo() {
 }
 
 function volverListaEquipos() {
+  svPostventaFormulario('equipos',true);
   document.getElementById('eq-ficha-view').style.display = 'none';
   document.getElementById('eq-lista-view').style.display = '';
   equipoActual = null;
 }
 
 function guardarEquipo() {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var estado=svPostventaFormulario('equipos',false,equipoActual,(equiposData||[]).find(function(eq){return eq.fbKey===equipoActual;}));
+  if(estado.operacion?.vigente())return estado.operacion.promesa;
+  if(!estado.sesion()){notify('La sesión cambió. Volvé a abrir la ficha del equipo antes de guardar.');return Promise.resolve(false);}
+  if(window._impersonacionOriginal){notify('Volvé a tu usuario para guardar el equipo.');return Promise.resolve(false);}
+  if (!window.fbDB||window.navigator?.onLine===false) { notify('Sin conexión. El equipo no se guardó.'); return Promise.resolve(false); }
   var g = function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
   var datos = {
     categoria:       g('eq-f-cat'),
@@ -31275,15 +31529,25 @@ function guardarEquipo() {
     venta:           g('eq-f-venta'),
     obs:             g('eq-f-obs'),
   };
-  if (!datos.descripcion && !datos.modelo) { notify('Ingresá descripción o modelo'); return; }
-  var promesa = equipoActual
-    ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/equipos/'+equipoActual), datos)
-    : (datos.ts = Date.now(), window.fbPush(window.fbRef(window.fbDB, 'sisventas/equipos'), datos).then(function(ref){ equipoActual = ref.key; return ref; }));
-  promesa.then(function(){
-    // Subir fotos pendientes
-    if (eqFotosTemp.length) subirFotosEquipo();
-    else { notify(equipoActual ? 'Equipo actualizado' : 'Equipo guardado'); volverListaEquipos(); }
-  }).catch(function(e){ notify('Error: '+e.message); });
+  if (!datos.descripcion && !datos.modelo) { notify('Ingresá descripción o modelo'); return Promise.resolve(false); }
+  if(!estado.id||estado.creada)datos.ts=estado.ultimoIntento?.ts||Date.now();
+  var operacion=svPostventaOperacion('equipos','eq-ficha-view','button[onclick*="guardarEquipo"]',estado.id,estado.base),fotos=eqFotosTemp.slice(),usuario=currentUser||'',principalConfirmado=false;
+  operacion.promesa=Promise.resolve().then(function(){return svPostventaPersistir('equipos',estado,datos,operacion.contextoVigente);}).then(async function(confirmado){
+    principalConfirmado=true;
+    if(operacion.vigente())equipoActual=confirmado.fbKey;
+    if(operacion.vigente())operacion.progreso.actualizar?.('Guardando fotos…');
+    var resultado=await subirFotosEquipo({id:confirmado.fbKey,files:fotos,usuario:usuario,estado:estado,vigente:operacion.contextoVigente});
+    if(operacion.vigente()){
+      var guardadas=new Set(resultado.guardadas);eqFotosTemp=eqFotosTemp.filter(function(file){return !guardadas.has(file);});
+      if(resultado.fallidas.length){notify('El equipo se guardó. Faltan '+resultado.fallidas.length+' fotos; reintentá sin cerrar la ficha.');}
+      else{try{notify(fotos.length?'Equipo y fotos guardados':'Equipo guardado');volverListaEquipos();}catch(errorVista){console.warn('[Equipos] Guardado confirmado; no se pudo actualizar la vista');}}
+    }
+    return resultado.fallidas.length===0;
+  }).catch(function(error){
+    if(operacion.vigente())notify((principalConfirmado?'El equipo se guardó. No se pudieron completar las fotos: ':'No se pudo guardar el equipo: ')+(error.message||'Reintentá cuando vuelva la conexión.'));
+    return false;
+  }).finally(operacion.liberar);
+  return operacion.promesa;
 }
 
 // Fotos del equipo
@@ -31321,21 +31585,32 @@ function renderFotosEquipo(fotosObj) {
   }).join('');
 }
 
-function subirFotosEquipo() {
-  if (!equipoActual || !eqFotosTemp.length || !window.fbStorage) return;
-  var pendientes = eqFotosTemp.length;
-  eqFotosTemp.forEach(function(file) {
-    var path = 'sisventas/equipos/'+equipoActual+'/fotos/'+Date.now()+'_'+file.name;
-    var ref = window.fbStorageRef(window.fbStorage, path);
-    window.fbUploadBytes(ref, file).then(function(snap){ return window.fbGetDownloadURL(snap.ref); })
-    .then(function(url){
-      window.fbPush(window.fbRef(window.fbDB, 'sisventas/equipos/'+equipoActual+'/fotos'), {
-        url: url, fecha: new Date().toLocaleDateString('es-AR'), tecnico: currentUser||''
-      });
-      pendientes--;
-      if (pendientes === 0) { notify('Equipo y fotos guardados'); eqFotosTemp = []; volverListaEquipos(); }
-    }).catch(function(){ pendientes--; if(pendientes===0){ notify('Equipo guardado (error en algunas fotos)'); volverListaEquipos(); } });
-  });
+function subirFotosEquipo(opciones) {
+  if(!opciones)return guardarEquipo();
+  var files=opciones.files.slice(),guardadas=[],fallidas=[],cursor=0,detenido=false;
+  return Promise.all(Array.from({length:Math.min(2,files.length)},async function(){
+    while(cursor<files.length&&!detenido){
+      let file=files[cursor++];
+      try{
+        if(!opciones.vigente())throw new Error('La sesión cambió');
+        if(!window.fbStorage)throw new Error('No está disponible el almacenamiento de fotos');
+        let foto=opciones.estado.fotos.get(file);
+        if(!foto){var ref=window.fbPush(window.fbRef(window.fbDB,'sisventas/equipos/'+opciones.id+'/fotos'));if(!ref?.key)throw new Error('No se pudo preparar la foto');foto={ref:ref,path:'sisventas/equipos/'+opciones.id+'/fotos/'+ref.key+'_'+String(file.name||'foto').replace(/[^\w.\-]/g,'_')};opciones.estado.fotos.set(file,foto);}
+        if(!foto.url){
+          if(!foto.subida)foto.subida=Promise.resolve(window.fbUploadBytes(window.fbStorageRef(window.fbStorage,foto.path),file)).catch(function(error){foto.subida=null;throw error;});
+          var subida=await svPostventaEsperar(foto.subida);if(!opciones.vigente())throw new Error('La sesión cambió');
+          if(!foto.enlace)foto.enlace=Promise.resolve(window.fbGetDownloadURL(subida.ref)).catch(function(error){foto.enlace=null;throw error;});
+          foto.url=await svPostventaEsperar(foto.enlace);
+        }
+        if(!opciones.vigente())throw new Error('La sesión cambió');
+        foto.datos=foto.datos||{url:foto.url,fecha:new Date().toLocaleDateString('es-AR'),tecnico:opciones.usuario};
+        var resultado=await svPostventaEsperar(window.fbRunTransaction(foto.ref,function(actual){if(!opciones.vigente())return;if(actual===null)return foto.datos;if(actual.url===foto.datos.url&&actual.fecha===foto.datos.fecha&&actual.tecnico===foto.datos.tecnico)return actual;},{applyLocally:false}));
+        var metadata=resultado?.snapshot?.val();
+        if(!resultado?.committed||!metadata||metadata.url!==foto.datos.url||metadata.fecha!==foto.datos.fecha||metadata.tecnico!==foto.datos.tecnico)throw new Error('No se recibió la confirmación completa de la foto');
+        guardadas.push(file);
+      }catch(error){if(error.code==='SV_ACK_TIMEOUT')detenido=true;fallidas.push(file);}
+    }
+  })).then(function(){return {guardadas:guardadas,fallidas:fallidas.concat(files.slice(cursor))};});
 }
 function abrirRelevamiento() {
   if (!equipoActual) { notify('Guardá el equipo primero'); return; }
@@ -36980,9 +37255,91 @@ function spVerVenta(ventaId) {
 }
 
 function guardarTicket(datos) {
-  if (!window.fbDB) return;
-  window.fbPush(window.fbRef(window.fbDB, 'sisventas/tickets'), Object.assign(datos||{}, { ts: Date.now(), usuario: currentUser }))
-    .then(function(){ notify('Ticket registrado'); });
+  return guardarRegistroSimple('ticket', datos);
+}
+
+function guardarRegistroSimple(tipo, datos, intento, vigente) {
+  var rutas = {ticket:'tickets',evento:'agenda',servicio:'servicios'};
+  if (!rutas[tipo]) return Promise.reject(new Error('Formulario no disponible'));
+  if (!window.fbDB || navigator.onLine === false) return Promise.reject(new Error('Sin conexión. Conservamos el formulario.'));
+  if (!vigente) {
+    var contexto = svCapturarContextoOperacion(), vista = window._impersonacionOriginal, auth = window.fbAuth?.currentUser;
+    vigente = function(){return contexto() && auth?.uid === currentUserUid && !vista && vista === window._impersonacionOriginal && permisoModulo(tipo === 'ticket' ? 'soporte' : tipo === 'evento' ? 'agenda' : 'servicios') && (tipo !== 'evento' || tienePermiso('agenda.crear'));};
+  }
+  return Promise.resolve().then(function(){
+    if (!vigente()) throw new Error('La sesión o el permiso cambió. Volvé a abrir el formulario.');
+    if (!window.fbRunTransaction) throw new Error('Recargá la aplicación para guardar con protección de cambios.');
+    intento = intento || {};
+    if (!intento.ref) {
+      intento.ref = window.fbPush(window.fbRef(window.fbDB, 'sisventas/' + rutas[tipo]));
+      intento.datos = JSON.parse(JSON.stringify(Object.assign({}, datos || {}, {ts:Date.now(), usuario:currentUser || ''})));
+    }
+    // La misma clave permite confirmar un acuse perdido sin duplicar el alta
+    // ni sobrescribir una edición posterior hecha desde otra computadora.
+    function firma(valor){return JSON.stringify(valor, function(clave, item){return item && typeof item === 'object' && !Array.isArray(item) ? Object.keys(item).sort().reduce(function(obj,k){obj[k]=item[k];return obj;},{}) : item;});}
+    return svEsperarRespuestaGuardado(window.fbRunTransaction(intento.ref, function(actual){
+      if (!vigente()) return;
+      if (actual === null) return intento.datos;
+      if (firma(actual) === firma(intento.datos)) return actual;
+    }, {applyLocally:false})).then(function(resultado){
+      if (!resultado.committed) throw new Error('El registro cambió. Revisá los datos antes de reintentar.');
+      return {fbKey:intento.ref.key, datos:resultado.snapshot.val()};
+    });
+  });
+}
+
+function svEsperarRespuestaGuardado(promesa) {
+  return new Promise(function(resolve, reject){
+    var finalizado = false;
+    var timer = setTimeout(function(){
+      if (finalizado) return;finalizado = true;
+      reject(new Error('No recibimos la confirmación. Conservamos el intento; revisá la conexión y reintentá con los mismos datos.'));
+    }, 20000);
+    Promise.resolve(promesa).then(function(resultado){
+      if (finalizado) return;finalizado = true;clearTimeout(timer);resolve(resultado);
+    }, function(error){
+      if (finalizado) return;finalizado = true;clearTimeout(timer);reject(error);
+    });
+  });
+}
+
+function guardarRegistroSimpleDesdeModal(tipo, datos, firmaFormulario) {
+  var modal = document.getElementById('modal-nuevo');
+  if (!modal || window._modalTipo !== tipo || !modal.classList.contains('open')) return Promise.resolve(false);
+  var token = modal._svFormToken, anterior = modal._registroSimpleSaving;
+  if (anterior && anterior.token === token) return anterior.promise;
+  var contexto = svCapturarContextoOperacion(), vista = window._impersonacionOriginal, auth = window.fbAuth?.currentUser;
+  var pagina = document.querySelector('.page.active'), ruta = window.location && window.location.hash;
+  function vigente(){return contexto() && auth?.uid === currentUserUid && !vista && vista === window._impersonacionOriginal && modal === document.getElementById('modal-nuevo') && token === modal._svFormToken && window._modalTipo === tipo && modal.classList.contains('open') && pagina === document.querySelector('.page.active') && ruta === (window.location && window.location.hash) && permisoModulo(tipo === 'ticket' ? 'soporte' : tipo === 'evento' ? 'agenda' : 'servicios') && (tipo !== 'evento' || tienePermiso('agenda.crear'));}
+  if (!vigente()) {notify('La sesión o el permiso cambió. Volvé a abrir el formulario.');return Promise.resolve(false);}
+  var firma = firmaFormulario === undefined ? JSON.stringify(datos) : String(firmaFormulario), reintento = modal._registroSimpleReintento;
+  if (reintento && reintento.token === token && reintento.tipo === tipo && reintento.firma !== firma && reintento.ref) {
+    notify('Hay un guardado pendiente de confirmar. Reintentá con los datos originales; para crear otro registro, cerrá y abrí un formulario nuevo.');
+    return Promise.resolve(false);
+  }
+  if (!reintento || reintento.token !== token || reintento.tipo !== tipo || reintento.firma !== firma) reintento = modal._registroSimpleReintento = {token:token,tipo:tipo,firma:firma};
+  var controles = Array.from(modal.querySelectorAll('button, input, select, textarea')).map(function(el){return {el:el, disabled:el.disabled};});
+  var boton = modal.querySelector('button[onclick="guardarNuevoGenerico()"]');
+  var progreso = svCrearProgresoBoton(boton, 'Guardando…'), liberada = false;
+  controles.forEach(function(item){item.el.disabled = true;});
+  var operacion = {token:token, promise:null, liberar:function(){
+    if (liberada) return;liberada = true;
+    if (modal._registroSimpleSaving !== operacion || modal._svFormToken !== token) return;
+    progreso.finalizar();controles.forEach(function(item){item.el.disabled = item.disabled;});modal._registroSimpleSaving = null;
+  }};
+  modal._registroSimpleSaving = operacion;
+  operacion.promise = guardarRegistroSimple(tipo, datos, reintento, vigente).then(function(){
+    if (modal._registroSimpleReintento === reintento) delete modal._registroSimpleReintento;
+    if (vigente()) {
+      try {cerrarModalNuevoGenerico();notify(tipo === 'ticket' ? 'Ticket registrado' : tipo === 'evento' ? 'Evento guardado' : 'Orden de servicio guardada');}
+      catch(errorVista) {console.warn('[Guardado] Registro confirmado; no se pudo actualizar la vista');}
+    }
+    return true;
+  }).catch(function(error){
+    if (vigente()) notify('No se pudo confirmar el guardado: ' + (error.message || 'Revisá la conexión y reintentá.'));
+    return false;
+  }).finally(operacion.liberar);
+  return operacion.promise;
 }
 
 function guardarRemito(datos) {
@@ -37015,15 +37372,11 @@ function guardarRemitoDesdeModal(datos) {
 }
 
 function guardarEvento(datos) {
-  if (!window.fbDB) return;
-  window.fbPush(window.fbRef(window.fbDB, 'sisventas/agenda'), Object.assign(datos||{}, { ts: Date.now(), usuario: currentUser }))
-    .then(function(){ notify('Evento guardado'); });
+  return guardarRegistroSimple('evento', datos);
 }
 
 function guardarServicio(datos) {
-  if (!window.fbDB) return;
-  window.fbPush(window.fbRef(window.fbDB, 'sisventas/servicios'), Object.assign(datos||{}, { ts: Date.now(), usuario: currentUser }))
-    .then(function(){ notify('Orden de servicio guardada'); });
+  return guardarRegistroSimple('servicio', datos);
 }
 function _garantiaClaveComparable(g) {
   var normalizar = function(v) {
@@ -37717,11 +38070,33 @@ function agAbrirNuevoEvento() {
   document.getElementById('ag-modal-nuevo').style.display = 'flex';
 }
 
+function svAgendaRetenerIntento(modal, intento) {
+  var observador=null,retirado=false;
+  function descartar(){
+    if(retirado)return;retirado=true;observador?.disconnect();modal.removeEventListener('click',cerrar);
+    ['sisventas:session-ended','sisventas:role-changed','sisventas:page-changed'].forEach(function(nombre){document.removeEventListener(nombre,descartar);});
+    if(modal._svAgendaReintento===intento)delete modal._svAgendaReintento;
+  }
+  function revisar(cambios){if(modal.style.display==='none'||modal.hidden||(cambios||[]).some(function(cambio){return cambio.attributeName==='style'&&/(?:^|;)\s*display\s*:\s*none\s*(?:;|$)/i.test(cambio.oldValue||'');}))descartar();}
+  function cerrar(event){var control=event.target.closest?.('button');if(control&&String(control.getAttribute('onclick')||'').includes("_hide('ag-modal-nuevo')"))descartar();}
+  intento.descartar=descartar;intento.revisar=function(){revisar(observador?.takeRecords()||[]);};
+  modal.addEventListener('click',cerrar);
+  ['sisventas:session-ended','sisventas:role-changed','sisventas:page-changed'].forEach(function(nombre){document.addEventListener(nombre,descartar);});
+  if(typeof MutationObserver==='function'){observador=new MutationObserver(revisar);observador.observe(modal,{attributes:true,attributeOldValue:true,attributeFilter:['style','class','hidden']});}
+  return intento;
+}
 function agGuardarEvento() {
+  var modal=document.getElementById('ag-modal-nuevo'),anterior=modal?._svAgendaGuardado;
+  modal?._svAgendaReintento?.revisar();
+  if(anterior?.vigente())return anterior.promesa;
+  anterior?.retirar();
+  if(!modal||modal.style.display==='none')return Promise.resolve(false);
+  if(window._impersonacionOriginal){notify('Volvé a tu usuario para guardar el evento.');return Promise.resolve(false);}
+  if(typeof window.tienePermiso!=='function'||!window.tienePermiso('agenda.crear')){notify('No tenés permiso para crear eventos');return Promise.resolve(false);}
   var desc  = document.getElementById('ag-ev-desc').value.trim();
   var fecha = document.getElementById('ag-ev-fecha').value;
-  if (!desc) { notify('Ingresá la descripción del evento'); return; }
-  if (!fecha) { notify('Ingresá la fecha'); return; }
+  if (!desc) { notify('Ingresá la descripción del evento'); return Promise.resolve(false); }
+  if (!fecha) { notify('Ingresá la fecha'); return Promise.resolve(false); }
   var ev = {
     descripcion: desc,
     fecha, hora: document.getElementById('ag-ev-hora').value,
@@ -37729,10 +38104,68 @@ function agGuardarEvento() {
     notas: document.getElementById('ag-ev-notas').value,
     tipo: 'interno', ts: Date.now(), usuario: currentUser||''
   };
-  if (!window.fbDB) { notify('Sin conexión'); return; }
-  window.fbPush(window.fbRef(window.fbDB, 'sisventas/agenda'), ev)
-    .then(function(){ notify('✓ Evento guardado'); document.getElementById('ag-modal-nuevo').style.display='none'; })
-    .catch(function(e){ notify('Error: '+e.message); });
+  if (!window.fbDB||window.navigator?.onLine===false) { notify('Sin conexión. El evento no se guardó.'); return Promise.resolve(false); }
+  var contexto=svCapturarContextoOperacion(),usuario=window.fbAuth?.currentUser,vista=window._impersonacionOriginal;
+  var pagina=document.querySelector('.page.active'),ruta=window.location?.hash,retirado=false,observer=null;
+  var campos=['ag-ev-desc','ag-ev-fecha','ag-ev-hora','ag-ev-empleado','ag-ev-notas'].map(function(id){return document.getElementById(id);});
+  var firma=JSON.stringify(campos.map(function(campo){return campo?.value||'';}));
+  var boton=modal.querySelector('button[onclick*="agGuardarEvento"]'),controles=campos.concat(boton?[boton]:[]),estados=controles.map(function(campo){return campo?.disabled;});
+  var progreso=svCrearProgresoBoton(boton,'Guardando evento…'),operacion={vigente:vigente,retirar:retirar,promesa:null},liberada=false;
+  function sesionVigente(){return contexto()&&usuario===window.fbAuth?.currentUser&&usuario?.uid===currentUserUid&&vista===window._impersonacionOriginal&&window.tienePermiso('agenda.crear');}
+  function revisarDialogo(cambios){
+    if(modal.style.display==='none'||modal.hidden||(cambios||[]).some(function(cambio){return cambio.attributeName==='style'&&/(?:^|;)\s*display\s*:\s*none\s*(?:;|$)/i.test(cambio.oldValue||'');}))retirar();
+  }
+  function vigente(){
+    if(observer)revisarDialogo(observer.takeRecords());
+    return !retirado&&modal._svAgendaGuardado===operacion&&sesionVigente()&&modal===document.getElementById('ag-modal-nuevo')&&modal.isConnected!==false&&modal.style.display!=='none'&&pagina===document.querySelector('.page.active')&&ruta===window.location?.hash&&firma===JSON.stringify(campos.map(function(campo){return campo?.value||'';}));
+  }
+  function liberar(){
+    if(liberada)return;liberada=true;
+    observer?.disconnect();
+    ['sisventas:session-ended','sisventas:role-changed','sisventas:page-changed'].forEach(function(nombre){document.removeEventListener(nombre,retirar);});
+    modal.removeEventListener('click',cerrar);
+    if(modal._svAgendaGuardado!==operacion)return;
+    progreso.finalizar();controles.forEach(function(campo,index){if(campo)campo.disabled=estados[index];});
+    modal.removeAttribute('aria-busy');delete modal._svAgendaGuardado;
+  }
+  function retirar(){retirado=true;if(modal._svAgendaReintento===reintento)reintento?.descartar();liberar();}
+  function cerrar(event){var control=event.target.closest?.('button');if(control&&String(control.getAttribute('onclick')||'').includes("_hide('ag-modal-nuevo')"))retirar();}
+  modal._svAgendaGuardado=operacion;controles.forEach(function(campo){if(campo)campo.disabled=true;});modal.setAttribute('aria-busy','true');
+  modal.addEventListener('click',cerrar);
+  ['sisventas:session-ended','sisventas:role-changed','sisventas:page-changed'].forEach(function(nombre){document.addEventListener(nombre,retirar);});
+  if(typeof MutationObserver==='function'){observer=new MutationObserver(revisarDialogo);observer.observe(modal,{attributes:true,attributeOldValue:true,attributeFilter:['style','class','hidden']});}
+  var reintento=modal._svAgendaReintento;
+  operacion.promesa=Promise.resolve().then(function(){
+    if(!vigente())return false;
+    if(reintento&&reintento.firma!==firma)throw new Error('Hay un evento sin confirmar. Restablecé los datos anteriores y reintentá, o cerrá este formulario para crear otro evento.');
+    // Una clave estable conserva el mismo evento si el acuse se pierde. Editar
+    // o cerrar el formulario descarta esa identidad para el próximo evento.
+    if(!reintento||!reintento.contexto()){
+      var ref=window.fbPush(window.fbRef(window.fbDB,'sisventas/agenda'));
+      if(!ref?.key)throw new Error('No se pudo preparar el evento');
+      reintento=svAgendaRetenerIntento(modal,{ref:ref,firma:firma,contexto:sesionVigente,datos:ev});modal._svAgendaReintento=reintento;
+    }
+    if(typeof window.fbRunTransaction!=='function')throw new Error('Recargá la aplicación para guardar el evento con seguridad');
+    var clavesEvento=Object.keys(reintento.datos).sort();
+    function mismoEvento(actual){return !!actual&&typeof actual==='object'&&!Array.isArray(actual)&&JSON.stringify(Object.keys(actual).sort())===JSON.stringify(clavesEvento)&&clavesEvento.every(function(clave){return actual[clave]===reintento.datos[clave];});}
+    return svPostventaEsperar(window.fbRunTransaction(reintento.ref,function(actual){
+      if(!sesionVigente())return;
+      if(actual===null)return reintento.datos;
+      return mismoEvento(actual)?actual:undefined;
+    },{applyLocally:false})).then(function(resultado){
+      if(!resultado?.committed||!mismoEvento(resultado.snapshot?.val()))throw new Error('El evento cambió. Revisá los datos antes de reintentar.');
+      if(modal._svAgendaReintento===reintento)reintento.descartar();
+      if(vigente()){
+        try{notify('✓ Evento guardado');modal.style.display='none';}
+        catch(errorVista){console.warn('[Agenda] Evento guardado; no se pudo actualizar la vista');}
+      }
+      return true;
+    });
+  }).catch(function(error){
+    if(vigente())notify('No se pudo confirmar el evento: '+(error.message||'Revisá la conexión y reintentá.'));
+    return false;
+  }).finally(liberar);
+  return operacion.promesa;
 }
 
 async function agEliminarEvento(fbKey) {
@@ -37743,25 +38176,53 @@ async function agEliminarEvento(fbKey) {
 }
 
 function imprimirRemito(fbKey) {
-  if (!window.fbDB) return;
-  window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/remitos/'+fbKey), function(snap) {
+  if(!window.fbDB||window.navigator?.onLine===false){notify('Sin conexión. No se pudo cargar el remito.');return Promise.resolve(false);}
+  if(typeof fbKey!=='string'||!fbKey||/[.#$\[\]\/\x00-\x1f\x7f]/.test(fbKey))return Promise.resolve(false);
+  if(typeof window.permisoModulo==='function'&&!window.permisoModulo('remitos'))return Promise.resolve(false);
+  var contexto=svCapturarContextoOperacion(),usuario=window.fbAuth?.currentUser,vista=window._impersonacionOriginal,pagina=document.querySelector('.page.active'),ruta=window.location?.hash;
+  function vigente(){return contexto()&&usuario===window.fbAuth?.currentUser&&usuario?.uid===currentUserUid&&vista===window._impersonacionOriginal&&pagina===document.querySelector('.page.active')&&ruta===window.location?.hash&&(typeof window.permisoModulo!=='function'||window.permisoModulo('remitos'));}
+  if(!vigente())return Promise.resolve(false);
+  var w;try{w=window.open('','_blank','width=700,height=500');}catch(errorVentana){}
+  if(!w){notify('Permití las ventanas emergentes para imprimir el remito.');return Promise.resolve(false);}
+  return new Promise(function(resolve){
+    var terminada=false,detener=null,timer=null,espera=null;
+    function terminar(resultado,mensaje){
+      if(terminada)return;terminada=true;
+      if(timer!==null)clearTimeout(timer);if(espera!==null)clearTimeout(espera);
+      detener?.();
+      ['sisventas:session-ended','sisventas:role-changed','sisventas:page-changed'].forEach(function(nombre){document.removeEventListener(nombre,cancelar);});
+      if(!resultado){try{w.close();}catch(_){}if(mensaje&&vigente())notify(mensaje);}
+      resolve(resultado);
+    }
+    function cancelar(){terminar(false);}
+    ['sisventas:session-ended','sisventas:role-changed','sisventas:page-changed'].forEach(function(nombre){document.addEventListener(nombre,cancelar);});
+    espera=setTimeout(function(){terminar(false,'No se pudo cargar el remito. Revisá la conexión y volvé a intentar.');},15000);
+    try{detener=window.fbOnValue(window.fbRef(window.fbDB, 'sisventas/remitos/'+fbKey), function(snap) {
+    if(terminada||!vigente()||w.closed){terminar(false);return;}
     var r = snap.val();
-    if (!r) { notify('Remito no encontrado'); return; }
+    if (!r) { terminar(false,'Remito no encontrado'); return; }
+    clearTimeout(espera);espera=null;
+    try{
     var empresa = { nombre: (document.getElementById('cfg-empresa-nombre')||{}).value||'Nixa', dir: (document.getElementById('cfg-empresa-dir')||{}).value||'Patagones 390' };
     var logoImpresion = logoImpresionActualUrl();
-    var logo = logoImpresion ? '<img src="'+logoImpresion+'" style="height:45px;object-fit:contain">' : '<div style="font-size:20px;font-weight:700">'+empresa.nombre+'</div>';
-    var w = window.open('','_blank','width=700,height=500');
-    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Remito '+r.numero+'</title>'+
+    var logo = logoImpresion ? '<img src="'+escapeHTML(logoImpresion)+'" style="height:45px;object-fit:contain">' : '<div style="font-size:20px;font-weight:700">'+escapeHTML(empresa.nombre)+'</div>';
+    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Remito '+escapeHTML(r.numero||'')+'</title>'+
       '<style>body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:40px}.header{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:14px;margin-bottom:24px}.firma{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:60px}.firma-line{border-top:1px solid #222;padding-top:6px;font-size:11px;color:#666;text-align:center}@media print{body{margin:20px}}</style></head><body>'+
-      '<div class="header"><div>'+logo+'<div style="font-size:11px;color:#666">'+empresa.dir+'</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:700">REMITO</div><div>'+escapeHTML(r.numero||'—')+'</div><div style="font-size:12px;color:#666">'+escapeHTML(r.fecha||'')+'</div></div></div>'+
+      '<div class="header"><div>'+logo+'<div style="font-size:11px;color:#666">'+escapeHTML(empresa.dir)+'</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:700">REMITO</div><div>'+escapeHTML(r.numero||'—')+'</div><div style="font-size:12px;color:#666">'+escapeHTML(r.fecha||'')+'</div></div></div>'+
       '<p><strong>Cliente:</strong> '+escapeHTML(nombreClienteVigente(r,'—'))+'</p>'+
       '<p><strong>Venta vinculada:</strong> '+escapeHTML(r.venta||'—')+'</p>'+
       '<p><strong>Descripción:</strong> '+escapeHTML(r.descripcion||'—')+'</p>'+
       '<div class="firma"><div><div class="firma-line">Firma receptor</div></div><div><div class="firma-line">Firma Nixa</div></div></div>'+
       '</body></html>');
     w.document.close();
-    setTimeout(function(){ w.print(); }, 500);
-  }, { onlyOnce: true });
+    timer=setTimeout(function(){
+      if(terminada||!vigente()||w.closed){terminar(false);return;}
+      try{w.print();terminar(true);}catch(errorImpresion){terminar(false,'No se pudo abrir la impresión del remito. Volvé a intentar.');}
+    },500);
+    }catch(errorDocumento){terminar(false,'No se pudo preparar el remito para imprimir. Volvé a intentar.');}
+  },function(){terminar(false,'No se pudo cargar el remito. Revisá la conexión y volvé a intentar.');},{onlyOnce:true});if(terminada)detener?.();}
+    catch(errorLectura){terminar(false,'No se pudo cargar el remito. Revisá la conexión y volvé a intentar.');}
+  });
 }
 function toggleActivoRegistro(coleccion, fbKey, estadoActual) {
   if (!window.fbDB) return;
@@ -41690,6 +42151,7 @@ function renderTablaInformes() {
 function filtrarInformes() { renderTablaInformes(); }
 
 function abrirNuevoInforme() {
+  svPostventaFormulario('informes',true);
   informeActualId = null;
   document.getElementById('inf-form-titulo').textContent = 'Nuevo informe técnico';
   ['inf-numero','inf-fecha','inf-cliente','inf-dir','inf-equipo','inf-serie','inf-venta',
@@ -41719,6 +42181,7 @@ function editarInforme(fbKey) {
   var inf = informesData.find(function(i){ return i.fbKey === fbKey; });
   if (!inf) return;
   abrirNuevoInforme();
+  svPostventaFormulario('informes',true,fbKey,inf);
   // abrirNuevoInforme limpia deliberadamente la identidad para que un alta no
   // pueda reutilizar una edición anterior. Restaurarla sólo después de preparar
   // el formulario mantiene inequívoca la ruta de UPDATE.
@@ -41744,6 +42207,7 @@ function editarInforme(fbKey) {
 }
 
 function volverListaInformes() {
+  svPostventaFormulario('informes',true);
   // Cancelar/cerrar no deja una identidad de edición latente para la próxima alta.
   informeActualId = null;
   document.getElementById('informes-lista-view').style.display = '';
@@ -41751,7 +42215,11 @@ function volverListaInformes() {
 }
 
 function guardarInforme(estado) {
-  if (!window.fbDB) { notify('Sin conexión'); return; }
+  var formulario=svPostventaFormulario('informes',false,informeActualId,(informesData||[]).find(function(inf){return inf.fbKey===informeActualId;}));
+  if(formulario.operacion?.vigente())return formulario.operacion.promesa;
+  if(!formulario.sesion()){notify('La sesión cambió. Volvé a abrir el informe antes de guardar.');return Promise.resolve(false);}
+  if(window._impersonacionOriginal){notify('Volvé a tu usuario para guardar el informe.');return Promise.resolve(false);}
+  if (!window.fbDB||window.navigator?.onLine===false) { notify('Sin conexión. El informe no se guardó.'); return Promise.resolve(false); }
   var g = function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
   var inf = {
     numero:      g('inf-numero'),
@@ -41775,19 +42243,27 @@ function guardarInforme(estado) {
     estado:      estado,
     ts:          Date.now()
   };
-  if (!inf.cliente) { notify('Ingresá el cliente'); return; }
-  var promesa = informeActualId
-    ? window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/informes/'+informeActualId), inf)
-    : window.fbPush(window.fbRef(window.fbDB, 'sisventas/informes'), inf);
-  promesa.then(function(){
-    notify('Informe ' + (estado==='borrador'?'guardado como borrador':estado==='enviado'?'marcado como enviado':'completado'));
-    volverListaInformes();
-  }).catch(function(e){ notify('Error: '+e.message); });
+  if (!inf.cliente) { notify('Ingresá el cliente'); return Promise.resolve(false); }
+  var operacion=svPostventaOperacion('informes','informes-form-view','button[onclick*="guardarInforme"]',formulario.id,formulario.base);
+  operacion.promesa=Promise.resolve().then(function(){return svPostventaPersistir('informes',formulario,inf,operacion.contextoVigente);}).then(function(confirmado){
+    if(operacion.vigente()){
+      informeActualId=confirmado.fbKey;
+      try{notify('Informe ' + (estado==='borrador'?'guardado como borrador':estado==='enviado'?'marcado como enviado':'completado'));volverListaInformes();}
+      catch(errorVista){console.warn('[Informes] Guardado confirmado; no se pudo actualizar la vista');}
+    }
+    return true;
+  }).catch(function(error){if(operacion.vigente())notify('No se pudo guardar el informe: '+(error.message||'Reintentá cuando vuelva la conexión.'));return false;}).finally(operacion.liberar);
+  return operacion.promesa;
 }
 
 function imprimirInforme() {
-  var g = function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
-  var w = window.open('','_blank','width=800,height=900');
+  var g = function(id){ var el=document.getElementById(id); return escapeHTML(el?el.value.trim():''); };
+  var contexto=svCapturarContextoOperacion(),auth=window.fbAuth?.currentUser,formulario=svPostventaFormulario('informes',false),ruta=window.location?.hash;
+  if(!contexto()||!formulario.sesion()||auth?.uid!==currentUserUid||(typeof window.permisoModulo==='function'&&!window.permisoModulo('informes')))return Promise.resolve(false);
+  var w;try{w=window.open('','_blank','width=800,height=900');}catch(errorVentana){}
+  if(!w){notify('Permití las ventanas emergentes para imprimir el informe.');return Promise.resolve(false);}
+  var logoInforme=logoImpresionActualUrl();
+  try{var urlLogoInforme=new URL(logoInforme,document.baseURI||window.location?.href);if(!['http:','https:','blob:'].includes(urlLogoInforme.protocol)&&!/^data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,/i.test(logoInforme))logoInforme='';}catch(errorLogo){logoInforme='';}
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Informe '+g('inf-numero')+'</title>' +
     '<style>body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:40px}h1{font-size:20px;margin:0}' +
     '.header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:16px;margin-bottom:24px}' +
@@ -41797,9 +42273,9 @@ function imprimirInforme() {
     '.firma-line{border-top:1px solid #000;padding-top:8px;font-size:11px;color:#555}' +
     '@media print{body{margin:20px}}</style></head><body>' +
     '<div class="header"><div>' +
-    (logoImpresionActualUrl() ? '<img src="'+logoImpresionActualUrl()+'" style="height:50px;object-fit:contain;margin-bottom:4px"><br>' : '<div class="logo">NIXA</div>') +
+    (logoInforme ? '<img src="'+escapeHTML(logoInforme)+'" style="height:50px;object-fit:contain;margin-bottom:4px"><br>' : '<div class="logo">NIXA</div>') +
     '<div style="font-size:11px;color:#555">Seguridad y Automatización del Hogar</div>' +
-    (g('cfg-empresa-dir') ? '<div style="font-size:11px">'+escapeHTML(g('cfg-empresa-dir'))+'</div>' : '') + '</div>' +
+    (g('cfg-empresa-dir') ? '<div style="font-size:11px">'+g('cfg-empresa-dir')+'</div>' : '') + '</div>' +
     '<div style="text-align:right"><div style="font-size:16px;font-weight:600">Informe Técnico</div><div style="font-size:13px">N° '+g('inf-numero')+'</div><div style="font-size:12px;color:#555">Fecha: '+g('inf-fecha').split('-').reverse().join('/')+'</div></div></div>' +
     '<section><h2>Datos del servicio</h2><div class="grid"><div><label>Cliente</label><p>'+g('inf-cliente')+'</p></div><div><label>Dirección</label><p>'+g('inf-dir')+'</p></div><div><label>Equipo / Sistema</label><p>'+g('inf-equipo')+'</p></div><div><label>N° serie / Modelo</label><p>'+g('inf-serie')+'</p></div><div><label>Técnico</label><p>'+g('inf-tecnico')+'</p></div><div><label>Tipo de informe</label><p>'+g('inf-tipo')+'</p></div></div></section>' +
     (g('inf-motivo') ? '<section><h2>Motivo de la visita</h2><p>'+g('inf-motivo').replace(/\n/g,'<br>')+'</p></section>' : '') +
@@ -41811,9 +42287,11 @@ function imprimirInforme() {
     '<section><h2>Conformidad del cliente</h2><div class="grid"><div><label>Nombre quien recibe</label><p>'+g('inf-receptor')+'</p></div><div><label>DNI</label><p>'+g('inf-receptor-dni')+'</p></div><div><label>Resultado</label><p>'+g('inf-resultado')+'</p></div></div></section>' +
     '<div class="firma"><div><div class="firma-line">Firma del técnico: '+g('inf-tecnico')+'</div></div><div><div class="firma-line">Firma del cliente: '+g('inf-receptor')+'</div></div></div>' +
     '</body></html>';
-  w.document.write(html);
-  w.document.close();
-  setTimeout(function(){ w.print(); }, 500);
+  try{w.document.write(html);w.document.close();}catch(errorDocumento){try{w.close();}catch(_){}notify('No se pudo preparar el informe para imprimir.');return Promise.resolve(false);}
+  return new Promise(function(resolve){setTimeout(function(){
+    if(w.closed||!contexto()||auth!==window.fbAuth?.currentUser||formulario!==window._svPostventaFormularios?.informes||ruta!==window.location?.hash){try{w.close();}catch(_){}resolve(false);return;}
+    try{w.print();resolve(true);}catch(errorImpresion){notify('No se pudo abrir la impresión del informe. Volvé a intentar.');resolve(false);}
+  },500);});
 }
 // MÓDULO GASTOS — lógica completa
 
@@ -42276,7 +42754,8 @@ function _programarTareasSecundariasGastos() {
   _gastosTareasDiferidasTimer = setTimeout(function() {
     var paginaComisiones = document.getElementById('page-comisiones');
     if (paginaComisiones && paginaComisiones.classList.contains('active') && typeof window.renderModuloComisiones === 'function') window.renderModuloComisiones();
-    generarGastosFijosMesSeguro();
+    // Recibir datos sólo actualiza la pantalla. Crear el mes requiere la acción
+    // y la confirmación del usuario en el gestor de recurrencias.
     if (typeof generarNotificaciones === 'function') setTimeout(generarNotificaciones, 300);
   }, 900);
 }
@@ -42416,18 +42895,40 @@ function _mostrarEstadoGastosFijos(texto, tipo) {
   box.innerHTML = '<div style="padding:10px 12px;border:1px solid ' + color + ';background:var(--bg2);border-radius:var(--radius);font-size:12px;color:var(--text2)"><i class="ti ti-calendar-check" style="color:' + color + ';margin-right:6px"></i>' + escapeHTML(texto) + '</div>';
 }
 
-async function generarGastosFijosMesSeguro() {
-  if (!window.fbDB || !window.tienePermiso('gastos.recurrencias')) return;
+async function generarGastosFijosMesSeguro(opciones) {
+  opciones = opciones || {};
+  var vigente = opciones.vigente || (typeof svCapturarContextoOperacion === 'function' ? svCapturarContextoOperacion() : function(){return true;});
+  function comprobar() {
+    if (!vigente()) throw new Error('La sesión o la ventana cambió. Volvé a revisar las recurrencias.');
+    if (window._impersonacionOriginal) throw new Error('Volvé a tu cuenta para generar gastos recurrentes.');
+    if (!window.fbDB || !window.tienePermiso('gastos.recurrencias')) throw new Error('No tenés permiso para generar gastos recurrentes.');
+    if (window.navigator && window.navigator.onLine === false) throw new Error('Sin conexión. Volvé a intentar cuando tengas Internet.');
+    if (mes !== _gastoFijoMesActual()) throw new Error('Cambió el mes. Volvé a revisar los gastos antes de generarlos.');
+  }
+  if (!window.fbDB || !window.tienePermiso('gastos.recurrencias')) {
+    if (opciones.preparar || opciones.preparacion) throw new Error('No tenés permiso para generar gastos recurrentes.');
+    return;
+  }
   var mes = _gastoFijoMesActual();
-  if (_gastosFijosMesProcesado === mes) return;
-  _gastosFijosMesProcesado = mes;
+  if (!opciones.preparar && !opciones.preparacion && _gastosFijosMesProcesado === mes) return;
+  if (!opciones.preparar) _gastosFijosMesProcesado = mes;
   try {
+    comprobar();
     if (!window.SVLaborWrites || typeof window.SVLaborWrites.atomic !== 'function') throw new Error('No está listo el guardado seguro de recurrencias.');
-    var actuales = (gastosData || []).filter(function(g){ return String(g.fecha || '').slice(0,7) === mes; });
+    var preparacion = opciones.preparacion, gastosFuente = gastosData || [], gastosLectura = null;
+    if (preparacion) {
+      if (preparacion.mes !== mes || !preparacion.gastos || !preparacion.periodicos) throw new Error('Volvé a preparar los gastos del mes.');
+      gastosLectura = preparacion.gastos;
+    } else if (opciones.preparar) {
+      gastosLectura = (await window.fbGet(window.fbRef(window.fbDB, 'sisventas/gastos'))).val() || {};
+      comprobar();
+    }
+    if (gastosLectura) gastosFuente = Object.entries(gastosLectura).map(function(entry){return Object.assign({},entry[1],{fbKey:entry[0]});});
+    var actuales = gastosFuente.filter(function(g){ return String(g.fecha || '').slice(0,7) === mes; });
     var firmasActuales = {};
     actuales.forEach(function(g){ firmasActuales[_gastoFijoFirma(g)] = true; });
     var basesPorFirma = {};
-    (gastosData || []).filter(_gastoEsBaseFijaValida).forEach(function(g){
+    gastosFuente.filter(_gastoEsBaseFijaValida).forEach(function(g){
       var firma = _gastoFijoFirma(g), previa = basesPorFirma[firma];
       if (firma && (!previa || String(g.fecha || '') > String(previa.fecha || '') || (g.ts || 0) > (previa.ts || 0))) basesPorFirma[firma] = g;
     });
@@ -42448,7 +42949,8 @@ async function generarGastosFijosMesSeguro() {
     });
     // La consulta prepara el conjunto de reglas. Cada regla y destino se
     // vuelven a leer y comparar dentro de la operación atómica.
-    var periodicos = (await window.fbGet(window.fbRef(window.fbDB, 'sisventas/gastos_periodicos_emp'))).val() || {};
+    var periodicos = preparacion ? preparacion.periodicos : (await window.fbGet(window.fbRef(window.fbDB, 'sisventas/gastos_periodicos_emp'))).val() || {};
+    comprobar();
     Object.keys(periodicos).forEach(function(empKey){
       Object.keys(periodicos[empKey] || {}).forEach(function(reglaKey){
         var regla = periodicos[empKey][reglaKey] || {};
@@ -42460,20 +42962,39 @@ async function generarGastosFijosMesSeguro() {
       });
     });
     if (paths.size > 128) throw new Error('Hay demasiadas recurrencias para confirmar juntas. Revisá las reglas antes de generar el mes.');
-    var creados = 0, ahora = Date.now();
+    if (opciones.preparar) {
+      var cantidad = 0, importeCentavos = 0, fuentes = {}, destinos = new Set();
+      planes.forEach(function(plan){
+        var source = plan.clase === 'fijo' ? gastosLectura[plan.baseKey] : (periodicos[plan.empKey] || {})[plan.reglaKey];
+        fuentes[plan.source] = source;
+        if (gastosLectura[plan.target.slice('sisventas/gastos/'.length)] != null) return;
+        if (destinos.has(plan.target)) throw new Error('Dos reglas comparten un destino. Revisá las recurrencias antes de generar el mes.');
+        destinos.add(plan.target);
+        var monto = Number(source && source.monto);
+        if (!Number.isFinite(monto) || monto <= 0 || !Number.isSafeInteger(Math.round(monto * 100))) throw new Error('Una regla tiene un importe inválido. Revisala antes de generar el mes.');
+        if (Math.abs(monto * 100 - Math.round(monto * 100)) > 0.000001) throw new Error('Una regla tiene más de dos decimales. Revisá su importe antes de confirmar el mes.');
+        cantidad++; importeCentavos += Math.round(monto * 100);
+      });
+      if (!Number.isSafeInteger(importeCentavos)) throw new Error('El importe del mes requiere revisión.');
+      var ajustes = corregir.filter(function(target){var g=gastosLectura[target.slice('sisventas/gastos/'.length)];return g && totalPagadoGasto(g) <= 0 && !/^pagado(?:_parcial)?$/.test(String(g.estado || '').toLowerCase());}).length;
+      return {mes:mes,cantidad:cantidad,importeCentavos:importeCentavos,ajustes:ajustes,gastos:gastosLectura,periodicos:periodicos,fuentes:fuentes};
+    }
+    var creados = 0, ajustados = 0, ahora = Date.now();
     if (paths.size) await window.SVLaborWrites.atomic({paths:Array.from(paths), build:function(values){
-      var updates = {}; creados = 0;
+      comprobar();
+      var updates = {}; creados = 0; ajustados = 0;
       corregir.forEach(function(target){
         var g = values[target];
         if (!g || !g.fijoGenerado || String(g.fecha || '').slice(0,7) !== mes || totalPagadoGasto(g) > 0 || /^pagado(?:_parcial)?$/.test(String(g.estado || '').toLowerCase())) return;
         var descripcion = _gastoFijoDescripcionMes(g.descripcion, mes);
-        if (descripcion !== String(g.descripcion || '')) updates[target + '/descripcion'] = descripcion;
+        if (descripcion !== String(g.descripcion || '')) { updates[target + '/descripcion'] = descripcion; ajustados++; }
       });
       planes.forEach(function(plan){
         // Cualquier destino ocupado se conserva, incluidos pagos, rechazos,
         // registros de otro origen y el resultado de una sesión concurrente.
         if (values[plan.target] != null || Object.prototype.hasOwnProperty.call(updates, plan.target)) return;
         var source = values[plan.source];
+        if (preparacion && window.SVLaborWrites.canonical(source) !== window.SVLaborWrites.canonical(preparacion.fuentes[plan.source])) throw new Error('Cambió una regla o su importe. Volvé a preparar el mes antes de confirmar.');
         if (!source) return;
         var copia;
         if (plan.clase === 'fijo') {
@@ -42505,10 +43026,17 @@ async function generarGastosFijosMesSeguro() {
       });
       return Object.keys(updates).length ? updates : undefined;
     }});
-    _mostrarEstadoGastosFijos(creados ? ('Se generaron ' + creados + ' gastos fijos de ' + mesLabel() + ' sin duplicar registros.') : ('Gastos fijos de ' + mesLabel() + ' al día.'), 'ok');
+    // El acuse anterior determina la persistencia. Un fallo al presentar el
+    // resultado no cambia el guardado ni habilita otra generación silenciosa.
+    try {
+      if (vigente()) _mostrarEstadoGastosFijos(creados ? ('Se generaron ' + creados + ' gastos fijos de ' + mesLabel() + ' sin duplicar registros.') : ('Gastos fijos de ' + mesLabel() + ' al día.'), 'ok');
+    } catch(errorVista) { console.warn('[Gastos] Generación confirmada; no se pudo actualizar el aviso.'); }
+    return {creados:creados,ajustados:ajustados,mes:mes};
   } catch(error) {
     _gastosFijosMesProcesado = '';
-    _mostrarEstadoGastosFijos('No se pudieron verificar los gastos fijos: ' + error.message, 'error');
+    try { if (vigente()) _mostrarEstadoGastosFijos('No se pudieron verificar los gastos fijos: ' + error.message, 'error'); }
+    catch(errorVista) { console.warn('[Gastos] No se pudo presentar el error de generación.'); }
+    if (opciones.preparar || opciones.preparacion) throw error;
   }
 }
 
@@ -44820,14 +45348,57 @@ function cerrarGestorGastosRecurrentes() {
   if (typeof svSincronizarPilaModales === 'function') svSincronizarPilaModales();
 }
 
+async function confirmarGeneracionGastosMes() {
+  var modal = document.getElementById('modal-gastos-recurrentes');
+  if (!modal || !modal.isConnected) return;
+  var contexto = typeof svCapturarContextoOperacion === 'function' ? svCapturarContextoOperacion() : function(){return true;};
+  var vista = window._impersonacionOriginal;
+  var operacion = {vigente:function(){return contexto() && !window._impersonacionOriginal && vista === window._impersonacionOriginal && modal.isConnected && document.getElementById('modal-gastos-recurrentes') === modal;}};
+  if (window._gastosGeneracionManual && window._gastosGeneracionManual.vigente()) return;
+  if (vista) { notify('Volvé a tu cuenta para generar gastos recurrentes.'); return; }
+  if (!window.tienePermiso('gastos.recurrencias')) { notify('No tenés permiso para generar gastos recurrentes.'); return; }
+  if (!window.fbDB || window.navigator && window.navigator.onLine === false) { notify('Sin conexión. Volvé a intentar cuando tengas Internet.'); return; }
+  window._gastosGeneracionManual = operacion;
+  var boton = document.getElementById('gastos-recurrentes-generar'), estado = document.getElementById('gastos-recurrentes-generacion-estado');
+  var original = boton && boton.innerHTML;
+  function mostrar(texto) { if (operacion.vigente() && estado) estado.textContent=texto; }
+  if (boton) { boton.disabled=true; boton.innerHTML='<i class="ti ti-loader-2"></i> Preparando…'; }
+  mostrar('Revisando las reglas y los gastos que ya existen…');
+  try {
+    var preview = await generarGastosFijosMesSeguro({preparar:true,vigente:operacion.vigente});
+    if (!operacion.vigente() || !window.tienePermiso('gastos.recurrencias')) return;
+    if (!preview.cantidad && !preview.ajustes) { mostrar('No hay gastos nuevos para generar en '+preview.mes+'.'); return; }
+    var importe = (preview.importeCentavos / 100).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    var detalle = preview.cantidad+' gasto'+(preview.cantidad===1?'':'s')+' nuevo'+(preview.cantidad===1?'':'s')+' por $'+importe+'.';
+    if (preview.ajustes) detalle+=' Además, '+preview.ajustes+' descripción'+(preview.ajustes===1?'':'es')+' de gastos pendientes se actualizará'+(preview.ajustes===1?'':'n')+' al mes, sin cambiar importes ni pagos.';
+    mostrar('Mes '+preview.mes+' · '+detalle);
+    var aceptado = await svConfirm('Generar los gastos del mes '+preview.mes+': '+detalle+' Las plantillas, los pagos y los gastos existentes se conservan.', {titulo:'Generar gastos del mes',textoAceptar:'Generar gastos'});
+    if (!aceptado) { mostrar('Generación cancelada. No se guardó ningún gasto.'); return; }
+    if (!operacion.vigente() || !window.tienePermiso('gastos.recurrencias')) return;
+    if (boton) boton.innerHTML='<i class="ti ti-loader-2"></i> Generando…';
+    mostrar('Confirmando los gastos del mes…');
+    var resultado = await generarGastosFijosMesSeguro({preparacion:preview,vigente:operacion.vigente});
+    if (!operacion.vigente()) return;
+    var mensaje = resultado.creados ? 'Se generaron '+resultado.creados+' gastos de '+resultado.mes+'.' : 'No se generaron gastos nuevos.';
+    if (resultado.ajustados) mensaje+=' Se actualizaron '+resultado.ajustados+' descripciones, sin cambiar importes ni pagos.';
+    if (!resultado.creados && !resultado.ajustados) mensaje='Los gastos del mes ya estaban registrados. No se duplicaron.';
+    mostrar(mensaje);
+  } catch(error) {
+    if (operacion.vigente()) mostrar('No se pudo completar: '+error.message);
+  } finally {
+    if (window._gastosGeneracionManual === operacion) window._gastosGeneracionManual = null;
+    if (boton && boton.isConnected && document.getElementById('gastos-recurrentes-generar') === boton) { boton.disabled=false; boton.innerHTML=original; }
+  }
+}
+
 function _filaGestorGastoRecurrente(datos) {
   var activo = datos.activo !== false;
   var plantillas = parseInt(datos.plantillas, 10) || 1;
   var avisoConsolidado = plantillas > 1 ? '<span class="badge b-amber">'+plantillas+' plantillas antiguas consolidadas</span>' : '';
-  return '<div style="display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:12px;align-items:center;padding:12px;background:var(--bg3);border:0.5px solid var(--border);border-radius:10px">' +
-    '<div style="min-width:0"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="font-size:13px">'+escapeHTML(datos.descripcion||'Sin descripción')+'</strong><span class="badge '+(activo?'b-green':'b-amber')+'">'+(activo?'Activa':'Pausada')+'</span><span class="badge b-blue">'+escapeHTML(datos.origenLabel)+'</span>'+avisoConsolidado+'</div>'+
+  return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px;background:var(--bg3);border:0.5px solid var(--border);border-radius:10px">' +
+    '<div style="min-width:0;overflow-wrap:anywhere"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="font-size:13px">'+escapeHTML(datos.descripcion||'Sin descripción')+'</strong><span class="badge '+(activo?'b-green':'b-amber')+'">'+(activo?'Activa':'Pausada')+'</span><span class="badge b-blue">'+escapeHTML(datos.origenLabel)+'</span>'+avisoConsolidado+'</div>'+
     '<div style="font-size:11px;color:var(--text2);margin-top:5px">$'+(parseFloat(datos.monto)||0).toLocaleString('es-AR')+' · día '+datos.dia+' · '+escapeHTML(datos.categoria||'Otro')+(datos.generados!=null?' · '+datos.generados+' gasto'+(datos.generados===1?'':'s')+' ya generado'+(datos.generados===1?'':'s'):'')+'</div>'+
-    '<div style="font-size:10px;color:var(--text3);margin-top:5px"><i class="ti ti-shield-check"></i> Regla automática: cambiarla o quitarla no modifica los gastos reales ya registrados.</div></div>'+
+    '<div style="font-size:10px;color:var(--text3);margin-top:5px"><i class="ti ti-shield-check"></i> Se genera al confirmar el mes. Cambiar la regla no modifica los gastos ya registrados.</div></div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">'+
       '<button class="btn btn-sm" onclick="editarReglaGastoRecurrente(\''+datos.clase+'\',\''+datos.empKey+'\',\''+datos.key+'\')"><i class="ti ti-edit"></i> Editar</button>'+
       '<button class="btn btn-sm" onclick="cambiarEstadoGastoRecurrente(\''+datos.clase+'\',\''+datos.empKey+'\',\''+datos.key+'\','+(!activo)+')"><i class="ti '+(activo?'ti-player-pause':'ti-player-play')+'"></i> '+(activo?'Pausar':'Reactivar')+'</button>'+
@@ -44842,7 +45413,8 @@ async function abrirGestorGastosRecurrentes() {
   overlay.id = 'modal-gastos-recurrentes';
   overlay.className = 'modal-overlay open';
   overlay.innerHTML = '<div class="modal" style="width:min(900px,calc(100% - 24px));max-height:calc(100vh - 30px);display:flex;flex-direction:column">'+
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px;border-bottom:0.5px solid var(--border)"><div><h3 style="margin:0">Reglas automáticas de gastos</h3><div style="font-size:12px;color:var(--text2);margin-top:5px;max-width:720px"><strong>Esto no es el listado de gastos registrados.</strong> Cada tarjeta controla qué gasto se generará en los próximos meses. Pausar o quitar una regla conserva intactos los gastos, pagos y comprobantes históricos.</div></div><button class="icon-btn" onclick="cerrarGestorGastosRecurrentes()"><i class="ti ti-x"></i></button></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px;border-bottom:0.5px solid var(--border)"><div><h3 style="margin:0">Gastos recurrentes</h3><div style="font-size:12px;color:var(--text2);margin-top:5px;max-width:720px">Las reglas se conservan. Para crear los gastos del mes, revisá y confirmá la generación. Abrir el sistema o consultar este listado no genera gastos.</div></div><button class="icon-btn" onclick="cerrarGestorGastosRecurrentes()" aria-label="Cerrar gastos recurrentes"><i class="ti ti-x"></i></button></div>'+
+    '<div style="padding:12px 18px;border-bottom:0.5px solid var(--border);display:flex;justify-content:flex-end;gap:10px;align-items:center;flex-wrap:wrap"><span id="gastos-recurrentes-generacion-estado" role="status" aria-live="polite" style="flex:1;min-width:180px;font-size:12px;color:var(--text2)">Se mostrará el mes, la cantidad y el importe antes de guardar.</span><button type="button" id="gastos-recurrentes-generar" class="btn btn-sm" onclick="confirmarGeneracionGastosMes()"><i class="ti ti-calendar-plus"></i> Generar gastos del mes</button></div>'+
     '<div id="gastos-recurrentes-lista" style="padding:16px;overflow:auto;display:grid;gap:9px"><div style="padding:24px;text-align:center;color:var(--text3)"><i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite"></i> Cargando reglas…</div></div></div>';
   overlay.addEventListener('mousedown', function(e){ if(e.target===overlay) cerrarGestorGastosRecurrentes(); });
   document.body.appendChild(overlay);
