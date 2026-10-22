@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Cierre de candidata4 integrada · 22/10/2026 · pendiente de activación
+
+- Rama `codex/admin-gastos-pagados`: conserva baja de Gastos e90f9953, carga oscura f0e75e53, hotfix comercial e507bd63 integrado como1e23abe y borradores c38df7c3 integrado como3792339. El conflicto de CONTEXTO conservó ambos bloques; no hubo reset/clean ni integración en main.
+- Puerta conjunta final:3.866aprobadas/27opt-in/0fallos (3.893total),58,58s, `tmp/admin-paid-expense-integrated-gate.private.log`. Sintaxis, diff y coherencia local4 correctos. QA y emuladores ficticios del bloque descritos abajo; no eliminaciones, cobros ni guardados reales. No suma de conjuntos solapados ni certificación integral del sistema.
+- La primera tanda continúa por separado en el chat coordinado: informa fuente limpia0efbf0ba (bb32+borradores+carga oscura+hotfix) y puerta3.689/27/0; prepara Cotizador sin tráfico. Hosting/SW/aviso se conservan mientras exista el editor de Venta con cambios, porque clientes anteriores pueden recargarse al detectar activos nuevos. No presentar ese build como promoción o publicación comprobada por este chat.
+- Gastos4 exige servidor y candidata de reglas coordinados; aún sin aplicar ni autorizar su activación en esta tanda. No activar payment/admin-expense scoped, índices, backfill ni corte fiscal por extensión. La pestaña original se conservó sin recargar; sólo8766 queda sirviendo activos públicos4. Previews8892/8894 y emuladores9017/9037 detenidos; evidencia privada fuera de Git. Próximo paso: completar primera publicación por el chat dueño y luego acordar activación de baja de Gastos4, con las reglas remotas exactas verificadas.
+
 ## Gastos pagados y carga oscura · candidata3.14.4 · sin publicar
 
 - Pedido del titular: permitir al administrador eliminar un gasto pagado después de una advertencia; y mantener siempre oscura la pantalla inicial de carga. Rama `codex/admin-gastos-pagados` desde bb32b46a6a2f987a59278e5dd280339af39b87d4. Primera tanda3.14.3 congelada por separado; no integrar esta baja en esa publicación. Main y cambios ajenos conservados.
