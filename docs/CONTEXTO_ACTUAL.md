@@ -1,6 +1,12 @@
 # Continuidad de SisVentas
 
-## Servidor corregido publicado · 22/10/2026 · web pendiente por editor abierto
+## Venta guardada y primera tanda web preparada · 22/10/2026
+
+- El titular confirmó explícitamente «Se guardó correctamente» después del arreglo backend585ed978. Queda resuelto el bloqueo del editor anterior; se puede continuar la publicación web/Asistente/aviso previamente autorizada, sin incluir Gastos pagados. No se guardó la venta desde pruebas del agente.
+- Reporte adicional F5: el atajo buscaba texto Guardar, mientras Venta usa Confirmar. Se reconoce sólo su botón principal explícito dentro de page-venta, respetando visibilidad, disabled, aria-busy, ámbito modal y teclas repetidas/modificadores. No cambia F8 ni Presupuestos, ni se dispara un guardado real para probarlo.20focales correctas; URL del módulo renovada en índice/SW.
+- Puerta posterior completa:3.695aprobadas/27omitidas/0fallos,3.722total. La primera corrida tuvo dos esperas de fixture agotadas bajo concurrencia; ambos archivos pasaron aislados y la repetición íntegra pasó sin modificar código ni expectativas. No presentar el bloqueo temporal del test como fallo financiero demostrado ni ocultar esa limitación. Sintaxis y diff correctos. Publicación web aún pendiente al registrar este bloque.
+
+## Servidor corregido activo · 22/10/2026 · editor pendiente
 
 - El chat encargado de publicar informa verificación de Cotizador `cotizador-venta-fix-585ed978` al 100%, las 14 etiquetas existentes en esa revisión y eliminación de la etiqueta temporal. Comprobó ReadyTrue y OPTIONS204 por la etiqueta exacta antes de promover. Fuente585ed978; imagen SHA2562905917f3fd38f28580230190738f0fd6b05fa1baff0ab307e28ae60b3fb5bb9. Este chat registra esa evidencia coordinada; no duplicó despliegues ni consultas de negocio.
 - Flags PAYMENT_SCOPED_ENABLED y ADMIN_EXPENSE_SCOPED_ENABLED false. Según la comparación del chat publicador se conservaron identidad de servicio, secretos, resto de variables, 1CPU/2Gi, concurrencia1, mínimo0, máximo12 y timeout300. La revisión fallida anterior no recibió tráfico; la revisión previa atendió hasta la promoción corregida. No se reintentó ni guardó una venta real como prueba.

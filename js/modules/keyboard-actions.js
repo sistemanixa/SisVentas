@@ -21,6 +21,7 @@
     // Presupuestos tiene también «Guardar borrador». Usar la acción principal
     // configurada por los permisos, sin deducir el modo por su texto.
     var principal = root.querySelector && root.querySelector('#btn-guardar-principal-ppto');
+    if (!visible(principal) && root.id === 'page-venta' && root.querySelector) principal = root.querySelector('button[onclick="confirmarVenta()"]');
     if (visible(principal)) {
       if (!principal.disabled && principal.getAttribute('aria-busy') !== 'true') principal.click();
       return;
