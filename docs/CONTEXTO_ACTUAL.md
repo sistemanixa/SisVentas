@@ -1,5 +1,11 @@
 # Continuidad de SisVentas
 
+## Venta guardada y primera tanda web preparada · 22/10/2026
+
+- El titular confirmó explícitamente «Se guardó correctamente» después del arreglo backend585ed978. Queda resuelto el bloqueo del editor anterior; se puede continuar la publicación web/Asistente/aviso previamente autorizada, sin incluir Gastos pagados. No se guardó la venta desde pruebas del agente.
+- Reporte adicional F5: el atajo buscaba texto Guardar, mientras Venta usa Confirmar. Se reconoce sólo su botón principal explícito dentro de page-venta, respetando visibilidad, disabled, aria-busy, ámbito modal y teclas repetidas/modificadores. No cambia F8 ni Presupuestos, ni se dispara un guardado real para probarlo.20focales correctas; URL del módulo renovada en índice/SW.
+- Puerta posterior completa:3.695aprobadas/27omitidas/0fallos,3.722total. La primera corrida tuvo dos esperas de fixture agotadas bajo concurrencia; ambos archivos pasaron aislados y la repetición íntegra pasó sin modificar código ni expectativas. No presentar el bloqueo temporal del test como fallo financiero demostrado ni ocultar esa limitación. Sintaxis y diff correctos. Publicación web aún pendiente al registrar este bloque.
+
 ## Servidor corregido activo · 22/10/2026 · editor pendiente
 
 - Cotizador activo al100% en `cotizador-venta-fix-585ed978`, fuente `585ed9780ad5c4345375ce6063dc8034e54b9ffc`, imagen `sha256:2905917f3fd38f28580230190738f0fd6b05fa1baff0ab307e28ae60b3fb5bb9`. Las14etiquetas anteriores apuntan a esa misma revisión; ruta temporal de prueba retirada. Primero se probó arranque real con OPTIONS204 por etiqueta aislada sin tráfico principal; después se confirmó tráfico y OPTIONS204 en URL principal y acceso-v3119. No se usaron endpoints comerciales autenticados como pruebas.

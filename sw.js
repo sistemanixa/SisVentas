@@ -62,7 +62,7 @@ const SHELL = [
   './js/app.v3.14.3.js',
   './js/modules/navigation-back.js?v=perf-3105',
   './js/modules/product-url-import.js?v=3.9.15-dual-shipping',
-  './js/modules/keyboard-actions.js?v=3.13.18-budget',
+  './js/modules/keyboard-actions.js?v=3.14.3-sale-keyboard',
   './js/modules/sidebar-search.js?v=3.8.20',
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js?v=3.12.20',
