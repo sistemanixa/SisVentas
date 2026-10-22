@@ -17,6 +17,12 @@ Las pruebas funcionales vigentes deben leer la aplicación declarada por
 `index.html` mediante `test/helpers/active-app.js`, nunca el espejo legado
 `js/app.js` ni un nombre de versión fijado a mano.
 
+Atajos de guardado: `node --test test/keyboard-actions.test.js test/keyboard-budget-primary.test.cjs test/keyboard-sale-primary.test.cjs`.
+F5 usa la acción principal explícita de Venta o Presupuesto en el ámbito
+visible, respeta modales y estado ocupado; F8 conserva su comportamiento.
+La prueba de doble tecla verifica la fase ocupada del botón, sin ejecutar
+un guardado real ni alterar la validación financiera de confirmarVenta.
+
 Paquete Cotizador: `node --test test/cotizador-container-dependencies.test.cjs`.
 Comprueba que los archivos JS del Dockerfile actual incluyan sus `require`
 relativos literales. Detecta la omisión del lector comercial en la imagen;

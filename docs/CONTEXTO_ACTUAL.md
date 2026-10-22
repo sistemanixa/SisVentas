@@ -1,5 +1,11 @@
 # Continuidad de SisVentas
 
+## Atajo de Venta integrado en candidata4 · 22/10/2026 · sin publicar esta candidata
+
+- Fuente2d8b0cf0 integrada como3da3d13, conservando los bloques de continuidad. F5 reconoce el botón Confirmar venta únicamente dentro de page-venta; utiliza las mismas validaciones del botón y conserva modal, visibilidad, disabled, aria-busy, repetición y modificadores. No cambia F8 ni Presupuestos ni genera operaciones al cargar la pantalla.
+- Veinte focales de atajos correctas y puerta vigente final3.872aprobadas/27opt-in/0fallos (3.899total),26,22s; `tmp/admin-paid-expense-keyboard-final-gate.private.log`. Sintaxis, diff y coherencia local4 correctos. No se pulsó F5 ni se confirmó una venta real para probar; el doble disparo probado corresponde a la fase ocupada, sin modificar el await de fecha previo.
+- El titular confirmó que su venta se guardó correctamente tras el hotfix del servidor. El chat publicador continúa primera tanda web/Asistente/aviso desde2d8b0cf0, con autorización previa y fuera de Gastos4. Este chat no desplegó, no recargó el editor y no activó reglas/circuitos nuevos; no anunciar web publicada hasta recibir la verificación exacta.
+
 ## Venta guardada y primera tanda web preparada · 22/10/2026
 
 - El titular confirmó explícitamente «Se guardó correctamente» después del arreglo backend585ed978. Queda resuelto el bloqueo del editor anterior; se puede continuar la publicación web/Asistente/aviso previamente autorizada, sin incluir Gastos pagados. No se guardó la venta desde pruebas del agente.
