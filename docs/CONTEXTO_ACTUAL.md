@@ -6,6 +6,12 @@
 - Corregido por separado el aviso de sincronización repetido en cada edición: el éxito de captura local reiniciaba también el aviso de fallo remoto. Ahora el aviso remoto tiene estado independiente y se restablece tras una escritura remota confirmada o un cambio de usuario. Leer la nube o seguir editando no simula recuperación. Se mantienen la captura local, los envíos existentes y la separación entre cuentas; no se añadieron consultas, reintentos ni servicios.
 - Dos regresiones nuevas reproducen veinte ediciones rechazadas, preservación del último contenido, reposo sin reenvíos y recuperación real; también lectura/reconexión sin permiso de escritura. Los 40 casos de borradores pasan; suite vigente: 3.669 aprobadas, 27 opt-in omitidas, cero fallos. Se usaron dependencias ya instaladas vía NODE_PATH y permiso para crear repositorios temporales ficticios; sintaxis y diff correctos. Pendiente integrar este cambio con el arreglo del servidor y validar la publicación conjunta. El formulario real y la simulación financiera del titular deben conservarse sin recargar.
 
+## Pantalla de carga oscura · 22/10/2026 · preparada
+
+- Pedido directo del titular: que la carga inicial mantenga siempre la estética oscura, aun con tema claro. Paleta localizada en screen-loading, fondo crítico anterior a scripts/CSS y URL CSS renovada; no cambia preferencias ni login ni datos.
+- QA aislado sin Firebase ni conexiones comerciales: escritorio1280x720 y móvil390x844; tema claro/v3 y oscuro/clásico. Fondo e interior del indicador RGB6/17/31, texto claro y sin desborde. Capturas privadas boot-dark-desktop.private.png y boot-dark-mobile.private.png en tmp.
+- La revisión automática bloqueó la recarga real por el editor de Venta pendiente en otra ventana; se respetó y no se perdió ni se restauró ningún formulario. Se probó en una pestaña temporal, luego cerrada. No afirmar recarga ni publicación. Este commit visual está separado de Gastos pagados y no activa servidor/reglas/capacidades nuevas.
+
 ## Cierre integrado local · candidata3.14.3 · 22/10/2026
 
 - Bloque financiero/recibo conservado en `fcdfd10687ffc02345f5501c47736e3c0b1ef5d5`; fechas62b191c integradas como44cfa1b y tablas31982fd como d919ca4, conservando ambas secciones de contexto. No se tocó main ni el cambio ajeno de la raíz. Se renovaron URLs CSS/portal/iframe/activos privados y SHELL; marcadores/app inmutables3.14.3 coherentes, ValidarLocal correcto.
