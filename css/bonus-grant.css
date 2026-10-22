@@ -10,7 +10,8 @@
 .bonus-grant-person>input{flex:0 0 auto;width:18px;height:18px;margin:0;accent-color:var(--blue)}
 .bonus-grant-person>span{overflow-wrap:anywhere}
 .bonus-grant-units{display:grid;gap:4px;min-width:0;font-size:11px;color:var(--text3)}
-.bonus-grant-units>input{width:100%;min-width:0;margin:0;text-align:center}
+.bonus-grant-units>input{width:100%;min-width:0;min-height:36px;margin:0;text-align:center;box-sizing:border-box;background:var(--bg3);border:.5px solid var(--border);border-radius:var(--radius);padding:8px 11px;color:var(--text);font-size:13px;font-family:inherit;line-height:1.45;outline:none}
+.bonus-grant-units>input:focus{border-color:var(--border3);background:var(--bg2)}
 .bonus-grant-row>output{font-size:13px;font-weight:600;text-align:right;color:var(--text);overflow-wrap:anywhere}
 #bonificacion-resumen{padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg3);font-size:13px;line-height:1.5}
 #bonificacion-error{font-size:12px;color:var(--red);margin:10px 0 0}
