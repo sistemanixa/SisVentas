@@ -87,3 +87,21 @@ ramas financieras legacy que requieren cobertura de índices y escritores
 coordinados. No recortar filas/fechas ni omitir refrescos para aparentar totales
 completos. Cuenta corriente ya agrupa referencias y no se informa falsamente
 como un cruce completo por cada venta.
+
+### Prototipo privado de saldos de Cobranzas
+
+Se preparó aparte un índice efímero por render, conservando el matcher canónico y
+la suma desde cero en el orden publicado. Un acumulado inverso puede cambiar un
+centavo y se descartó. La comparación privada incluye alias, prioridad técnica,
+saldo guardado, anulados, objetos repetidos, HTML, mutaciones entre renders y
+referencias malformadas antes/dentro del sufijo. El fallo de indexación vuelve al
+bucle original; no omite registros. Se añadió la guarda de lista realmente array
+para preservar null/undefined con índice cero.
+
+No está aplicado ni versionado como función activa. La corrida de rendimiento
+no completó el primer escenario y se detuvo; no hay resultado de benchmark ni
+se atribuye una mejora de tiempo. Continúan las limitaciones de una venta que
+concentre casi todo el historial y de memoria para grupos. Evidencia/prototipo
+privados en los archivos `cobranzas-saldo-*` de la misma carpeta tmp. Antes de
+integrarlo hacen falta prueba permanente sobre aplicación activa, comparación
+de rendimiento completa y una versión nueva; no editar la app5 ya publicada.
