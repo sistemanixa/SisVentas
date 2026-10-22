@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Primera tanda publicada y verificada · v3.14.3 · 22/10/2026
+
+- Web pública fuente `2d8b0cf05a8babab9a3a6da9ef2791a23d4b1b94`, rama `codex/borradores-aviso-sync-unico`, push normal y checkout limpio. Firebase Hosting release `sites/nixa-sisventas-seguro/versions/7f8615f5bb2701b8`:417activos públicos/29cargas, sin archivos privados ni DNS modificado.14activos del dominio principal coinciden por SHA256 UTF8/LF con el paquete probado, índice de web.app coincidente y cinco cabeceras verificadas. Después el script oficial confirmó web/marcador/SW y aviso Firebase en `v3.14.3-firebase`.
+- Cotizador continúa al100% en `cotizador-venta-fix-585ed978`,14etiquetas preservadas, capacidades nuevas de Cobros/Gastos OFF. Asistente activo al100% en `asistente-calendar-2d8b0cf0`, tres etiquetas anteriores preservadas y temporal retirada; imagen `sha256:ce29187e7da14d9205111d49f4a2c6fe2ddf0a2bc664f630c693bf68b8e8197f`. Arranque OPTIONS204 en ruta aislada antes de promover, ReadyTrue y configuración/secretos/recursos sin cambios respecto de calendar-dc960f19. No se invocó IA ni se importaron documentos reales para probar la publicación.
+- El titular confirmó el guardado de su venta tras el hotfix. F5 reconoce su acción Confirmar y el aviso de borradores no se repite por cada edición rechazada; ambos arreglos están ahora en los archivos públicos. La nueva UI incluye primera tanda previa, fechas de tarjetas, recibos/tablas y carga oscura. Históricos PDF no se rellenaron retroactivamente. No se guardaron escenarios ni pagos personales incidentalmente.
+- Puerta final3.695PASS/27opt-in/0fallos,3.722total;20focales de teclado. Los límites de QA y la primera corrida con dos esperas de fixture agotadas se conservan en el apartado siguiente. No se certifican todas las operaciones reales ni una factura futura. No se publicaron Gastos pagados, reglas/índices/cobertura nuevos, migraciones ni funciones fiscales; esos trabajos requieren su bloque independiente. Las ventanas reales no se recargaron manualmente desde el agente.
+
 ## Venta guardada y primera tanda web preparada · 22/10/2026
 
 - El titular confirmó explícitamente «Se guardó correctamente» después del arreglo backend585ed978. Queda resuelto el bloqueo del editor anterior; se puede continuar la publicación web/Asistente/aviso previamente autorizada, sin incluir Gastos pagados. No se guardó la venta desde pruebas del agente.
