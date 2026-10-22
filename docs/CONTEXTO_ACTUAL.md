@@ -1,5 +1,11 @@
 # Continuidad de SisVentas
 
+## Pantalla de carga oscura · 22/10/2026 · preparada
+
+- Pedido directo del titular: que la carga inicial mantenga siempre la estética oscura, aun con tema claro. Paleta localizada en screen-loading, fondo crítico anterior a scripts/CSS y URL CSS renovada; no cambia preferencias ni login ni datos.
+- QA aislado sin Firebase ni conexiones comerciales: escritorio1280x720 y móvil390x844; tema claro/v3 y oscuro/clásico. Fondo e interior del indicador RGB6/17/31, texto claro y sin desborde. Capturas privadas boot-dark-desktop.private.png y boot-dark-mobile.private.png en tmp.
+- La revisión automática bloqueó la recarga real por el editor de Venta pendiente en otra ventana; se respetó y no se perdió ni se restauró ningún formulario. Se probó en una pestaña temporal, luego cerrada. No afirmar recarga ni publicación. Este commit visual está separado de Gastos pagados y no activa servidor/reglas/capacidades nuevas.
+
 ## Cierre integrado local · candidata3.14.3 · 22/10/2026
 
 - Bloque financiero/recibo conservado en `fcdfd10687ffc02345f5501c47736e3c0b1ef5d5`; fechas62b191c integradas como44cfa1b y tablas31982fd como d919ca4, conservando ambas secciones de contexto. No se tocó main ni el cambio ajeno de la raíz. Se renovaron URLs CSS/portal/iframe/activos privados y SHELL; marcadores/app inmutables3.14.3 coherentes, ValidarLocal correcto.
