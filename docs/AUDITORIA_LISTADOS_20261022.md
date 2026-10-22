@@ -192,8 +192,16 @@ cargo y valores de respaldo concurrentes requieren revisión propia si se amplí
 la protección. Evidencia privada: `sac-source-cas-review.private.cjs/.json` y
 `sac-source-freshness-review.private.md`.
 
-Por tanto la propuesta del controlador del modal y su lector permanece privada
-hasta completar la prueba REST, la revisión de esta ventana de concurrencia y
-sus límites. Ninguna cifra de la fixture anterior con SDK certifica el lector
-REST posterior. No se publicó una corrección parcial ni se modificaron sueldos,
+La prueba privada posterior del controlador/lector REST completó44casos, con
+fuentes reales sobre transporte ficticio, sin SDKfallback ni red comercial.
+Comprueba cinco cambios del máximo sin consultas adicionales, rango/empleados,
+contexto, abort/cierre, errores y confirmación por el helper previo en memoria.
+Runners/navegador cerrados; sintaxis y apply-check del patch correctos. Esa prueba
+no certifica el CAS de los salarios ni sustituye pruebas permanentes de una
+integración. Informe/patch/hashes privados `payroll-semester-*` en tmp.
+
+Por tanto el controlador y su lector permanecen privados hasta revisar la
+ventana de concurrencia y sus límites. La fixture anterior de26casos con SDK
+queda distinguida de esta última prueba REST. No se publicó una corrección
+parcial ni se modificaron sueldos,
 aguinaldos, pagos, permisos o comisiones reales durante este diagnóstico.
