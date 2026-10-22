@@ -1,5 +1,11 @@
 # Continuidad de SisVentas
 
+## Preparación backend y contenedor · 22/10/2026
+
+- Conjunto bb32 + aviso c38df7c + splash a098e54 + hotfix 0efbf0ba validado: 3.689 pruebas aprobadas, 27 omitidas, sin fallos; versión local3.14.3 coherente. La web no se publicó:3.14.0 puede recargarse automáticamente al detectar índice/SW nuevos y no garantiza proteger el editor de venta. Primero corregir servidor; después el titular guarda su venta y se completa Hosting/Asistente/aviso.
+- La primera imagen compilada falló al arrancar: Dockerfile omitía `commercial-collection-reader.js`, requerido por index. Se conserva tráfico100% y14etiquetas en `cotizador-scoped19-9c6b3126`, confirmado con RoutesReadyTrue. Revisión fallida `cotizador-venta-fix2-0efbf0ba` no atendió ese tráfico. No se probó ni reintentó la venta real.
+- Se agregó COPY faltante y prueba de cobertura de dependencias relativas para todos los módulos JS copiados. Suite posterior:3.690aprobadas/27omitidas/0fallos. Respuesta real sin sesión401 correcta, sin acceder a una venta. Nueva imagen pendiente de verificar arranque real. Los dos flags financieros deben estar explícitamente false; recursos, secretos y resto de variables se compararon en memoria contra la revisión anterior, sin imprimir valores. Usar lanzador gcloud.ps1 con argumentos entrecomillados: PowerShell y batch alteran comas/carets si se mezclan sus sintaxis. No anunciar publicación completada hasta verificar tráfico y arranque.
+
 ## Cierre de candidata4 integrada · 22/10/2026 · pendiente de activación
 
 - Rama `codex/admin-gastos-pagados`: conserva baja de Gastos e90f9953, carga oscura f0e75e53, hotfix comercial e507bd63 integrado como1e23abe y borradores c38df7c3 integrado como3792339. El conflicto de CONTEXTO conservó ambos bloques; no hubo reset/clean ni integración en main.
