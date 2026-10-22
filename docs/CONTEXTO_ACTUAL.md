@@ -1,5 +1,11 @@
 # Continuidad de SisVentas
 
+## Primera tanda v3.14.3 publicada · 22/10/2026 · candidata4 aún sin activar
+
+- Cierre recibido del chat publicador «Abrir SisVentas en ventana nueva»: web v3.14.3 desde2d8b0cf05a8babab9a3a6da9ef2791a23d4b1b94, Firebase Hosting release7f8615f5bb2701b8;417activos/29cargas. Ese chat comprobó14activos y hash de índice/app en el dominio personalizado, cinco cabeceras y coincidencia web/marcador/SW/Firebase v3.14.3-firebase mediante el script de versión. Este chat registra la verificación coordinada; no repitió despliegue ni pruebas sobre datos reales.
+- Cotizador cotizador-venta-fix-585ed978 sigue al100%,14etiquetas existentes y flags nuevos false. Asistente asistente-calendar-2d8b0cf0 al100% con sus tres etiquetas, OPTIONS204 por etiqueta antes de promover y comparación exacta de configuración, secretos y recursos, según el chat encargado. Publicados el fondo inicial oscuro, F5 de Ventas, aviso de borradores, recibo y demás cambios de la primera tanda; no afirmar optimización financiera nueva activa.
+- El titular confirmó guardado de la venta antes de completar la web; no hubo guardados reales como pruebas ni recarga manual por los agentes. Se respetó el editor. Main, permisos/reglas remotos, corte fiscal, índice/backfill y baja administrativa de Gastos4 no se activan por esta publicación. La rama local codex/admin-gastos-pagados conserva candidata4 con sus pruebas y requiere activación separada del servidor/reglas antes de usar la baja en producción.
+
 ## Atajo de Venta integrado en candidata4 · 22/10/2026 · sin publicar esta candidata
 
 - Fuente2d8b0cf0 integrada como3da3d13, conservando los bloques de continuidad. F5 reconoce el botón Confirmar venta únicamente dentro de page-venta; utiliza las mismas validaciones del botón y conserva modal, visibilidad, disabled, aria-busy, repetición y modificadores. No cambia F8 ni Presupuestos ni genera operaciones al cargar la pantalla.
