@@ -8,3 +8,17 @@
 .dashboard-private .m-value::after{content:'\2022\2022\2022\2022\2022\2022';visibility:visible;position:absolute;left:0;top:0;letter-spacing:3px;color:var(--text3)}
 
 #dash-metricas-globales .metric:has(.dashboard-eye){overflow:clip}
+.dashboard-privacy-toolbar{display:flex;justify-content:flex-end;margin:0 0 8px;min-width:0}
+.dashboard-privacy-toolbar[hidden]{display:none}
+.dashboard-eye-master{position:static;display:inline-flex;width:auto;gap:7px;padding:6px 9px;min-height:32px;height:auto;font-size:16px;border:1px solid var(--border);background:var(--bg2)}
+.dashboard-eye-master span{font-size:11px;font-weight:500}
+#dash-rentabilidad-card{position:relative}
+#dash-rentabilidad-card>.card-head{position:relative;padding-right:52px}
+#dash-rentabilidad-card>.card-head>.dashboard-eye{top:50%;transform:translateY(-50%);right:10px}
+.dashboard-private-content{min-width:0}
+.dashboard-section-mask{display:none;align-items:center;justify-content:center;padding:28px 20px;color:var(--text3);font-size:14px;pointer-events:none}
+.dashboard-private-section{background:var(--bg2)!important;border-color:var(--border)!important}
+.dashboard-private-section>.dashboard-private-content{display:none!important}
+.dashboard-private-section .dashboard-private-content,.dashboard-private-section .dashboard-private-content *{visibility:hidden!important;pointer-events:none!important}
+.dashboard-private-section>.dashboard-section-mask{display:flex}
+@media(pointer:coarse){.dashboard-eye-master{min-height:44px}.dashboard-eye{min-width:32px}}

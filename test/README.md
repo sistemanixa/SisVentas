@@ -66,6 +66,21 @@ Eje mensual del simulador: `node --test test/private-finance-plan-chart.test.cjs
 Comprueba Inicio/meses 1–12, los trece puntos y la tabla/resultados sin fechas inventadas
 ni cambios de saldos. La legibilidad en anchos móviles se verifica visualmente aparte.
 
+Conceptos reutilizables: `node --test test/bonus-concepts.test.cjs test/bonificacion-concepto-integration.test.cjs test/bonus-history-index.test.cjs`.
+Prueba catálogo separado, CAS, acuse ambiguo, baja sin resurrección, permisos,
+lectura puntual al Usar, historial desconocido y metadatos de CTA/Gasto conservados
+al pagar. El módulo no genera comisiones ni modifica Haberes al editar un concepto.
+Los opt-in `bonus-config-emulator.integration.cjs` y
+`bonus-concept-financial-emulator.integration.cjs` requieren loopback9037 y
+`SV_BONUS_RULES_TEST_FILE` con la base revisada dc05032c…; sus namespaces demo
+son exclusivos. Prueban reglas existentes de configuración y el nuevo índice,
+sin publicar ni ejecutar operaciones productivas. Un skip no prueba integración.
+
+Privacidad Dashboard: `node --test test/dashboard-privacy.test.cjs`.
+Verifica los controles individuales y maestro, estado mixto, preferencias por
+cuenta, roles, repintados y ocultación accesible del resumen completo. No consulta
+datos ni cambia cálculos; la distribución y los glifos se revisan en navegador.
+
 Opt-in RTDB: `test/payment-scoped-emulator.integration.cjs` requiere
 `FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:9037`, `SV_RULES_TEST_FILE` con la
 base local coordinada revisada y `SV_EMULATOR_DEPENDENCIES` con una ruta local

@@ -1,13 +1,14 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.14.4';
+const CACHE = 'sisventas-v3.14.5';
 const SHELL = [
+ './js/modules/bonus-concepts.js?v=3.14.5',
  './css/budget-presentation.css?v=3.13.19',
  './js/core/budget-presentation-model.js?v=3.13.19',
  './js/modules/budget-presentation-view.js?v=3.13.19',
  './js/modules/budget-presentation.js?v=3.13.19',
- './css/dashboard-privacy.css?v=3.13.19',
- './js/modules/dashboard-privacy.js?v=3.13.19',
+ './css/dashboard-privacy.css?v=3.14.5',
+ './js/modules/dashboard-privacy.js?v=3.14.5',
  './js/core/foreground-session.js?v=3.13.2',
  './js/core/session-recovery.js?v=3.12.8-local-server',
  './js/core/permission-index.js?v=3.11.11',
@@ -59,7 +60,7 @@ const SHELL = [
   './js/core/guarded-writes.js?v=3.13.19-labor',
   './js/core/session-assets.js?v=3.13.15-insurance',
   './js/core/ot-personal-scope.js?v=3.14.0',
-  './js/app.v3.14.4.js',
+  './js/app.v3.14.5.js',
   './js/modules/navigation-back.js?v=perf-3105',
   './js/modules/product-url-import.js?v=3.9.15-dual-shipping',
   './js/modules/keyboard-actions.js?v=3.14.3-sale-keyboard',
@@ -67,7 +68,7 @@ const SHELL = [
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js?v=3.12.20',
   './js/core/version.js',
-  './js/core/version.v3.14.4.js',
+  './js/core/version.v3.14.5.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.10.32',

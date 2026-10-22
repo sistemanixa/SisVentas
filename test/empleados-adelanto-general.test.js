@@ -11,7 +11,7 @@ assert.equal((html.match(/data-permiso="empleados\.gestionarAdelantos" onclick="
 assert.match(permisos, /'empleados\.gestionarAdelantos': \{modulo:'ctaemp',label:'Registrar adelantos de empleados',roles:\['admin','administrativo'\]\}/, 'Roles debe permitir delegar adelantos al perfil administrativo');
 assert.match(permisos, /\['abrirModalAdelantoGeneral','empleados\.gestionarAdelantos'\]/, 'la apertura debe estar protegida por el permiso');
 assert.match(permisos, /\['continuarAdelantoGeneral','empleados\.gestionarAdelantos'\]/, 'la continuación debe estar protegida por el permiso');
-assert.match(html, /data-permiso="empleados\.bonificar" onclick="abrirModalBonificacionEmpleado\(\)"/, 'la bonificación independiente debe conservar su acceso y permiso separado del adelanto');
+assert.match(html, /data-permiso="empleados\.bonificar" onclick="abrirBonificacionesEmpleado\(\)"/, 'el listado de bonificaciones debe conservar su acceso y permiso separado del adelanto');
 assert.match(app, /function abrirModalAdelantoGeneral\(\)/, 'debe existir el selector general de empleado');
 assert.match(app, /function continuarAdelantoGeneral\(\)/, 'el selector debe continuar al formulario del adelanto');
 
