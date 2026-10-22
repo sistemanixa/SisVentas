@@ -1,4 +1,12 @@
 # Continuidad de SisVentas
+## Hotfix de preparación de Ventas · 22/10/2026 · validado en emulador, sin publicar
+
+- Incidente real observado sólo por metadatos: dos POST comerciales/ventas/preparar HTTP409 en revisión cotizador-scoped19-9c6b3126, antes del guardado principal. Se preserva el editor real y sus campos; no se reintentó, recargó ni consultó/modificó la venta real como prueba. La publicación de bb32 quedó detenida al detectar esta incompatibilidad.
+- Fuente publicada9c6b3126 y reglas exactas978cea… reproducen SV_LABOR_COMMIT_UNCONFIRMED con datos ficticios: modo command usa UID de servicio, pero las validaciones de autoría/responsable evalúan auth.uid humano. El permiso de escritura de servidor no omite esas validaciones.
+- Solamente preparar/reasignar Ventas usan ahora identidad humana y modo user verificados por el servidor, dentro del fence y las reglas originales. Se revisan rol, módulo, revisión/digest y claims antes de trabajar y antes de PATCH. Presupuestos y los demás comandos conservan su modo anterior. Recibo corto de acuse; resultado de la ficha vuelve después del commit sin duplicarse en el recibo.
+- El noadmin con responsable canónico conserva su edición. Si una venta antigua carece de responsableUid, las reglas vigentes exigen vinculación del administrador: se informa403 claro antes de escribir. No se amplían reglas para eludirlo. Autoría histórica existente no se reemplaza; un nuevo UID requiere coincidencia del directorio puntual y un nombre ya inmutable distinto se conserva sin UID, con advertencia.
+- Validación focal119/119 y emulador RTDB local9017 con10/10: fuente publicada falla, candidata confirma, pagos/comisiones intactos, recibo corto, vendedor canónico, autoría y cuatro carreras al commit sin parciales. Evidencia privada en C:/SisVentas/tmp/commercial-incident-20261022, fuera de Git;9017 detenido. Sintaxis/diff correctos. Puerta general limpia en ejecución al preparar este commit; resultado posterior debe registrarse antes de promover.
+- Límite: la revisión de permisos se comprueba justo antes de enviar y el lease impide cambios ordinarios concurrentes. Las reglas originales revalidan rol/módulo/acceso al commit; una modificación privilegiada AdminSDK sólo de revisión después de ese preflight no está ligada al token user y no se anuncia cubierta. No nuevas reglas, migración, servicios, consultas periódicas, Hosting, tráfico ni datos reales modificados. No incluye baja de Gastos4 ni altera pagos/comisiones.
 
 ## Incidente de venta y aviso de borradores · 22/10/2026 · sin publicar
 
