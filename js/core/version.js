@@ -1,5 +1,5 @@
 // SisVentas PWA version publicada.
-window.SISVENTAS_PWA_VERSION = 'v3.14.7';
+window.SISVENTAS_PWA_VERSION = 'v3.14.8';
 
 // Única fuente de texto para todas las etiquetas visibles de versión.
 (function () {
