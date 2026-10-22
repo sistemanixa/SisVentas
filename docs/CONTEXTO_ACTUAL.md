@@ -1,4 +1,10 @@
 # Continuidad de SisVentas
+
+## Preparación backend y contenedor · 22/10/2026
+
+- Conjunto bb32 + aviso c38df7c + splash a098e54 + hotfix 0efbf0ba validado: 3.689 pruebas aprobadas, 27 omitidas, sin fallos; versión local3.14.3 coherente. La web no se publicó:3.14.0 puede recargarse automáticamente al detectar índice/SW nuevos y no garantiza proteger el editor de venta. Primero corregir servidor; después el titular guarda su venta y se completa Hosting/Asistente/aviso.
+- La primera imagen compilada falló al arrancar: Dockerfile omitía `commercial-collection-reader.js`, requerido por index. Se conserva tráfico100% y14etiquetas en `cotizador-scoped19-9c6b3126`, confirmado con RoutesReadyTrue. Revisión fallida `cotizador-venta-fix2-0efbf0ba` no atendió ese tráfico. No se probó ni reintentó la venta real.
+- Se agregó COPY faltante y prueba de cobertura de dependencias relativas para todos los módulos JS copiados. Suite posterior:3.690aprobadas/27omitidas/0fallos. Respuesta real sin sesión401 correcta, sin acceder a una venta. Nueva imagen pendiente de verificar arranque real. Los dos flags financieros deben estar explícitamente false; recursos, secretos y resto de variables se compararon en memoria contra la revisión anterior, sin imprimir valores. Usar lanzador gcloud.ps1 con argumentos entrecomillados: PowerShell y batch alteran comas/carets si se mezclan sus sintaxis. No anunciar publicación completada hasta verificar tráfico y arranque.
 ## Hotfix de preparación de Ventas · 22/10/2026 · validado en emulador, sin publicar
 
 - Incidente real observado sólo por metadatos: dos POST comerciales/ventas/preparar HTTP409 en revisión cotizador-scoped19-9c6b3126, antes del guardado principal. Se preserva el editor real y sus campos; no se reintentó, recargó ni consultó/modificó la venta real como prueba. La publicación de bb32 quedó detenida al detectar esta incompatibilidad.
