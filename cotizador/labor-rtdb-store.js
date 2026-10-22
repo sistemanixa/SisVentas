@@ -20,6 +20,10 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   let response;try{response=await request('PUT','sv_labor_guard',lease,{override:service('acquire',lease)});}catch(error){if(error.statusCode===403){const current=await read('sv_labor_guard');if(current?.expiresAt>now())throw fail(423,'Hay otro guardado en curso. Reintentá en unos segundos.','SV_LABOR_BUSY');}throw error;}await response.body?.cancel();
  }
  async function commit(patch,lease,actor){
+  if(actor?.commercialContext===true){
+   const checked=await Promise.allSettled([read('sv_chat_roles/'+actor.uid),read('sv_permisos/'+actor.role)]),failed=checked.find(result=>result.status==='rejected');if(failed)throw failed.reason;
+   require('./commercial-ownership').validateCommercialActor(actor,checked[0].value,checked[1].value);
+  }
   const token=await accessToken(),destination=target('.json');destination.searchParams.set('auth_variable_override',JSON.stringify(service('commit',lease,actor)));destination.searchParams.set('print','silent');
   const response=await fetchImpl(destination,{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(patch),signal:AbortSignal.timeout(requestMs)});
   if(response.ok){await response.body?.cancel();return;}

@@ -20,6 +20,11 @@ function moduleAllowed(r,m,permissions){
  return !reads.restrictedDefaults[m]||reads.restrictedDefaults[m].includes(r);
 }
 function eligible(r,domain,permissions){return (domain==='ventas'?['venta','detalle']:['presupuesto']).some(m=>moduleAllowed(r,m,permissions));}
+function validateCommercialActor(actor,profile,permissions){
+ if(actor?.mode!=='user'||actor.commercialContext!==true||actor.domain!=='ventas'||!actor.uid||actor.claims?.uid!==actor.uid||actor.claims?.svPasswordChangeRequired===true||profile?.activo!==true||profile.rol!==actor.role||!roles.includes(actor.role))throw Object.assign(fail(403,'La sesión comercial cambió. Volvé a ingresar.'),{code:'SV_LABOR_AUTH_CHANGED'});
+ if((permissions?.indiceRevision??null)!==(actor.permissionRevision??null)||require('./labor-guard').digest(permissions||{})!==actor.permissionDigest)throw Object.assign(fail(409,'Los permisos cambiaron. Volvé a revisar la operación.'),{code:'SV_LABOR_AUTH_CHANGED'});
+ if(!moduleAllowed(actor.role,'venta',{[actor.role]:permissions})||actor.operation==='commercial-assign'&&actor.role!=='admin')throw fail(403,'El módulo de ventas ya no está habilitado para esta operación');
+}
 function profiles(users,identities){
  const counts={};for(const u of Object.values(users||{}))if(key(u.uid))counts[u.uid]=(counts[u.uid]||0)+1;
  return Object.entries(users||{}).filter(([,u])=>counts[u.uid]===1&&u.activo!==false&&identities?.[u.uid]?.activo===true&&role(u.rol)===identities[u.uid].rol&&roles.includes(identities[u.uid].rol)).map(([id,u])=>({uid:u.uid,id,name:String(u.nombre||u.login||'Usuario').slice(0,160),role:identities[u.uid].rol,aliases:[u.nombre,u.login,u.email,u.mail,u.empleadoFbKey,u.empleadoId,u.empFbKey].filter(Boolean).map(normalize)}));
@@ -112,32 +117,47 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   if(!key(body?.id))throw fail(400,'Registro inválido');
   const c=authorizedContext||await context(),budgets=actor.domain==='ventas'?Object.create(null):null;let target;
   if(assign){target=c.people.find(p=>p.uid===body.uid);if(!target||!eligible(target.role,actor.domain,c.permissions))throw fail(403,'La persona ya no tiene habilitado este módulo');}
-  const ref=db.ref('sisventas/'+actor.domain+'/'+body.id),stamp=now();let error,listener,initial;
+  const ref=db.ref('sisventas/'+actor.domain+'/'+body.id),stamp=now(),authorDirectory=new Map();let error,listener,initial;
   try{
    await new Promise((resolve,reject)=>{listener=snapshot=>{initial=snapshot.val();resolve();};ref.on('value',listener,reject);});
    if(budgets)Object.assign(budgets,await linkedBudgets([initial]));
+   if(actor.domain==='ventas'&&actor.role==='admin'&&initial&&(assign||!initial.responsableUid)&&!Object.hasOwn(initial,'creadorOriginalUid')){
+    const source=originalAuthor(initial,actor.domain,budgets),matches=c.people.filter(p=>p.aliases.includes(normalize(source.name))),authorUid=source.uid||(matches.length===1?matches[0].uid:null);
+    if(key(authorUid))authorDirectory.set(authorUid,await read('sv_chat_directorio/'+authorUid));
+   }
    for(let attempt=0;attempt<3;attempt++){
-   let missingSource;
+   let missingSource,missingAuthor,authorReview=false;
    const result=await ref.transaction(current=>{
     try{
-     error=null;missingSource=null;if(!current)throw fail(404,'Registro no disponible');
+     error=null;missingSource=null;missingAuthor=null;authorReview=false;if(!current)throw fail(404,'Registro no disponible');
      const sourceKey=actor.domain==='ventas'?linkedBudgetKey(current.presupuestoFbKey):null;
      // Si cambió la referencia durante la preparación, no decidir propiedad
      // ni autoría con otro presupuesto. Cargar esa ficha y revalidar el mismo
      // registro en una transacción nueva, con un límite por solicitud.
      if(sourceKey&&!Object.hasOwn(budgets,sourceKey)){missingSource=sourceKey;return;}
      const currentOwner=recordOwner(current,actor.domain,c,budgets);
-     if(!assign){if(actor.role!=='admin'&&currentOwner!==actor.uid)throw fail(403,'Este registro no está asignado a tu cuenta');if(current.responsableUid)return current;target=c.people.find(p=>p.uid===currentOwner);if(!target)return current;}
+     if(!assign){if(actor.role!=='admin'&&currentOwner!==actor.uid)throw fail(403,'Este registro no está asignado a tu cuenta');if(current.responsableUid)return current;if(actor.domain==='ventas'&&actor.role!=='admin')throw fail(403,'Un administrador debe vincular el responsable de este registro histórico antes de editarlo');target=c.people.find(p=>p.uid===currentOwner);if(!target)return current;}
      if(assign&&(Number(body.revision||0)!==Number(current.responsableRevision||0)||String(body.owner||'')!==String(current.responsableUid||'')))throw fail(409,'Cambió el responsable. Actualizá antes de reasignar');
      if(current.responsableUid===target.uid)return current;
-     const audit=Object.values(current.audit||{}).concat([{fecha:new Date(stamp).toISOString(),ts:stamp,usuario:actor.name,actorUid:actor.realUid,accion:assign?'Reasignación comercial':'Vinculación de identidad histórica',responsableAnterior:currentOwner||null,responsableNuevo:target.uid}]);
-     const source=originalAuthor(current,actor.domain,budgets),matches=c.people.filter(p=>p.aliases.includes(normalize(source.name))),authorUid=source.uid||(matches.length===1?matches[0].uid:null);
-     const original={};if(!current.creadorOriginalUid&&authorUid){original.creadorOriginalUid=authorUid;original.creadorOriginalNombre=source.name;}if(!current.creadoEn&&Number.isFinite(current.ts))original.creadoEn=current.ts;
+     const source=originalAuthor(current,actor.domain,budgets),matches=c.people.filter(p=>p.aliases.includes(normalize(source.name))),resolvedAuthor=source.uid||(matches.length===1?matches[0].uid:null),authorUid=actor.domain==='ventas'&&!key(resolvedAuthor)?null:resolvedAuthor,canAddAuthor=actor.domain==='ventas'?!Object.hasOwn(current,'creadorOriginalUid'):!current.creadorOriginalUid;
+     const original={};if(canAddAuthor&&authorUid){
+      if(actor.domain!=='ventas'){original.creadorOriginalUid=authorUid;original.creadorOriginalNombre=source.name;}
+      else{
+       if(!authorDirectory.has(authorUid)){missingAuthor=authorUid;return;}
+       const directoryName=authorDirectory.get(authorUid)?.nombre;
+       if(typeof directoryName==='string'&&directoryName&&(current.creadorOriginalNombre===undefined||current.creadorOriginalNombre===directoryName)){
+        original.creadorOriginalUid=authorUid;if(current.creadorOriginalNombre===undefined)original.creadorOriginalNombre=directoryName;
+       }else authorReview=true;
+      }
+     }else if(actor.domain==='ventas'&&canAddAuthor&&(current.creadorOriginalNombre!==undefined||source.uid))authorReview=true;
+     if((actor.domain==='ventas'?!Object.hasOwn(current,'creadoEn'):!current.creadoEn)&&Number.isFinite(current.ts))original.creadoEn=current.ts;
+     const audit=Object.values(current.audit||{}).concat([{fecha:new Date(stamp).toISOString(),ts:stamp,usuario:actor.name,actorUid:actor.realUid,accion:assign?'Reasignación comercial':'Vinculación de identidad histórica',responsableAnterior:currentOwner||null,responsableNuevo:target.uid,...(authorReview?{autorOriginalPendiente:true}:{})}]);
      return {...current,...original,responsableUid:target.uid,responsableNombre:target.name,responsableRol:target.role,responsableRevision:Number(current.responsableRevision||0)+1,responsableActualizadoEn:stamp,audit};
     }catch(e){error=e;return;}
    },undefined,false);
    if(missingSource){if(attempt===2)throw fail(409,'Cambió el presupuesto de origen. Actualizá el registro');Object.assign(budgets,await linkedBudgets([{presupuestoFbKey:missingSource}]));continue;}
-   if(error)throw error;if(!result.committed)throw fail(409,'No se pudo confirmar. Actualizá el registro');return {record:result.snapshot.val()};
+   if(missingAuthor){if(attempt===2)throw fail(409,'Cambió la autoría original. Actualizá el registro');authorDirectory.set(missingAuthor,await read('sv_chat_directorio/'+missingAuthor));continue;}
+   if(error)throw error;if(!result.committed)throw fail(409,'No se pudo confirmar. Actualizá el registro');return {record:result.snapshot.val(),...(authorReview?{warnings:[{code:'SV_COMMERCIAL_AUTHOR_REVIEW',mensaje:'Se conservó la autoría histórica sin agregar una identidad que no coincide con el directorio.'}]}:{})};
    }
   }finally{if(listener)ref.off('value',listener);}
  }
@@ -176,4 +196,4 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
  }
  return {authorize,list,options,assign:(a,b)=>mutate(a,b,true),prepare:(a,b)=>mutate(a,b,false),visibleRecords,assertRecord,visibleRecordsByIds};
 }
-module.exports={createCommercialOwnership,moduleAllowed,eligible,profiles,owner,originalAuthor};
+module.exports={createCommercialOwnership,moduleAllowed,eligible,profiles,owner,originalAuthor,validateCommercialActor};
