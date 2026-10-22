@@ -1,5 +1,11 @@
 # Bonificaciones por unidades y varios empleados
 
+Publicada y verificada el22/10/2026 desde `cd5597ac39f8fb826a5f102a78190903ec2f6272`.
+Primero Cotizador/regla de recibo y después Hosting/aviso6. El bloque de activación
+inferior describe el requisito previo y la evidencia de preparación; el estado
+externo final, revisiones y límites están en CONTEXTO_ACTUAL. La comprobación web
+abrió/canceló el formulario sin destinatarios ni guardados financieros reales.
+
 ## Uso preparado para v3.14.6
 
 Desde Empleados → Bonificaciones se elige un concepto guardado y se pulsa Usar.
@@ -51,7 +57,8 @@ su valor por defecto; otros roles internos necesitan la concesión explícita.
 Ver como no permite registrar. Los registros antiguos sin unidades conservan su
 circuito anterior; no hay migración ni recálculo histórico de comisiones.
 
-La candidata de reglas **no está aplicada**. Su builder offline cambia sólo
+La regla se preparó como candidata offline y se aplicó en el corte autorizado
+descrito al inicio. Su builder cambia sólo
 `sv_labor_receipts/$op/.write`: añade la comprobación final de bonificar al recibo
 obligatorio, preservando la restricción anterior de eliminar Gastos. No concede
 lecturas/escrituras nuevas ni cambia pagos, índices o reglas fiscales.
@@ -95,5 +102,6 @@ del primer plano con fondo inmóvil. La fuente externa de iconos queda bloqueada
 en la fixture; los glifos reales requieren la verificación web posterior.
 
 Evidencia privada en `tmp/v3146-release` y `tmp/bonus-quantity-multi-private`, fuera
-de Git. La publicación vigente sigue siendo v3.14.5; ninguna bonificación real,
-pago, permiso remoto o comisión se modificó para estas pruebas.
+de Git. La publicación vigente es v3.14.6. No se concedieron bonificaciones ni se
+modificaron pagos o comisiones reales para estas pruebas; el cambio remoto de
+seguridad se limitó a la restricción autorizada de recibos.
