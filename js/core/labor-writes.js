@@ -148,10 +148,10 @@
     }
    });
   }
-  function atomic({paths,build}={}){
+  function atomic({paths,build,purpose}={}){
    return held(async()=>{
     const check=capture();check();available();
-    if(!Array.isArray(paths)||!paths.length||paths.length>128||typeof build!=='function')throw fail('SV_LABOR_ATOMIC','El guardado requiere hasta 128 registros y una transformación.');
+    if(!Array.isArray(paths)||!paths.length||paths.length>128||typeof build!=='function'||purpose!==undefined&&purpose!=='relationship-normalization')throw fail('SV_LABOR_ATOMIC','El guardado requiere hasta 128 registros y una transformación.');
     const selected=paths.map(pathOf);if(new Set(selected).size!==selected.length)throw fail('SV_LABOR_ATOMIC','Hay registros repetidos en el guardado.');
     for(const path of selected)requireScoped(path);
     for(let attempt=0;attempt<3;attempt++){
@@ -167,10 +167,10 @@
      const flat=flattenPatch('',changes),prepared=Object.create(null);
      if(!Object.keys(flat).length)throw fail('SV_LABOR_ATOMIC','El guardado no tiene cambios.');
      for(const [path,value]of Object.entries(flat)){
-      if(intersectsPath(path)){requireScoped(path);if(!selected.some(before=>path===before||path.startsWith(before+'/')))throw fail('SV_LABOR_ATOMIC','Falta verificar un registro del guardado.');}
+      if(purpose||intersectsPath(path)){requireScoped(path);if(!selected.some(before=>path===before||path.startsWith(before+'/')))throw fail('SV_LABOR_ATOMIC','Falta verificar un registro del guardado.');}
       prepared[path]=prepareValue(value);
      }
-     check();try{await send({id:uuid(),kind:'atomic',path:'',value:prepared,expectedHashes},check);return {committed:true,value:copy(prepared)};}
+     check();try{await send({id:uuid(),kind:'atomic',path:'',value:prepared,expectedHashes,...(purpose?{purpose}:{})},check);return {committed:true,value:copy(prepared)};}
      catch(error){if(error.statusCode===409&&error.code==='SV_CAS_CONFLICT'&&attempt<2){check();continue;}throw error;}
     }
    });

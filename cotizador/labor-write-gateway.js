@@ -3,6 +3,9 @@ const {affected,parts,digest}=require('./labor-guard');
 const {flatten}=require('./labor-db');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const forbidden=path=>/^(sv_labor_[^/]*|sv_commission_generation|sv_commission_events)(\/|$)/.test(path);
+const normalizationFields={ventas:['clienteFbKey','clienteKey','clienteId'],presupuestos:['clienteFbKey','clienteKey','ventaFbKey','ventaGeneradaFbKey'],pagos:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],ordenesTrabajo:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],ordenes_trabajo:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],reclamos:['clienteFbKey','clienteKey'],productos:['categoriaFbKey','categoriaKey']};
+function normalizationTarget(path,value){const p=parts(path);return p[0]==='sisventas'&&p.length===4&&normalizationFields[p[1]]?.includes(p[3])&&(typeof value==='string'&&!!value.trim()||typeof value==='number'&&Number.isFinite(value))||p.length===4&&p[0]==='sisventas'&&p[1]==='mantenimiento'&&p[2]==='normalizaciones'&&value&&typeof value==='object'&&!Array.isArray(value);}
+function normalizationSource(path){const p=parts(path);return p[0]==='sisventas'&&p.length===3&&[...Object.keys(normalizationFields),'clientes','clientes_unificados','clientes_unificados_indice','categorias'].includes(p[1])||p.length===4&&p[0]==='sisventas'&&p[1]==='mantenimiento'&&p[2]==='normalizaciones';}
 function validate(value,depth=0){
  if(depth>30||value===undefined||typeof value==='number'&&!Number.isFinite(value)||!['object','string','number','boolean'].includes(typeof value))throw fail(400,'Datos de guardado inválidos');
  if(value&&typeof value==='object')for(const [key,child]of Object.entries(value)){parts(key);validate(child,depth+1);}
@@ -22,31 +25,42 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
   return {uid:identity.uid,claims:identity};
  }
  async function write(actor,body){
-  if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['id','kind','path','value','expectedHash','expectedHashes'].includes(k))||!/^[A-Za-z0-9_-]{8,160}$/.test(body.id)||!['set','patch','compare','atomic'].includes(body.kind)||typeof body.path!=='string')throw fail(400,'Solicitud de guardado inválida');
+  if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['id','kind','path','value','expectedHash','expectedHashes','purpose'].includes(k))||!/^[A-Za-z0-9_-]{8,160}$/.test(body.id)||!['set','patch','compare','atomic'].includes(body.kind)||typeof body.path!=='string')throw fail(400,'Solicitud de guardado inválida');
   if(!actor?.uid||!actor.claims||actor.claims.uid!==actor.uid)throw fail(403,'Sesión requerida');
   if(Buffer.byteLength(JSON.stringify(body))>16*1024*1024)throw fail(413,'El guardado supera el tamaño permitido');
+  const normalization=body.purpose==='relationship-normalization';
+  if(body.purpose!==undefined&&(!normalization||body.kind!=='atomic'))throw fail(400,'Propósito de guardado inválido');
   let patch;
   if(['patch','atomic'].includes(body.kind)){
    if(body.expectedHash!==undefined)throw fail(400,'Comparación inválida');
    if(body.path)parts(body.path);patch=flatten(body.path,body.value);
    if(!Object.keys(patch).length||Object.keys(patch).length>10000)throw fail(400,'Cambios de guardado inválidos');
    for(const [path,value]of Object.entries(patch)){specific(path);validate(value);}
-   if(!Object.keys(patch).some(affected))throw fail(400,'La operación no pertenece a este circuito');
+   if(!Object.keys(patch).some(affected)&&!normalization)throw fail(400,'La operación no pertenece a este circuito');
+   if(normalization&&Object.entries(patch).some(([p,v])=>!normalizationTarget(p,v)))throw fail(400,'El plan de normalización excede sus referencias permitidas');
   }else{specific(body.path);if(!affected(body.path))throw fail(400,'La operación no pertenece a este circuito');validate(body.value);patch={[body.path]:body.value};}
   if(body.kind==='compare'&&!/^[a-f0-9]{64}$/.test(body.expectedHash))throw fail(400,'Falta verificar la versión del registro');
   if(body.kind!=='atomic'&&body.expectedHashes!==undefined)throw fail(400,'Comparación inválida');
   const expected=body.kind==='compare'?{[body.path]:body.expectedHash}:body.kind==='atomic'?body.expectedHashes:{};
   if(body.kind==='atomic'){
    if(!expected||typeof expected!=='object'||Array.isArray(expected)||!Object.keys(expected).length||Object.keys(expected).length>128)throw fail(400,'Comparación de registros inválida');
-   for(const [path,hash]of Object.entries(expected)){specific(path);if(!/^[a-f0-9]{64}$/.test(hash))throw fail(400,'Comparación de registros inválida');}
-   for(const path of Object.keys(patch))if(affected(path)&&!Object.keys(expected).some(base=>path===base||path.startsWith(base+'/')))throw fail(400,'Falta verificar un registro del guardado');
+   for(const [path,hash]of Object.entries(expected)){specific(path);if(!/^[a-f0-9]{64}$/.test(hash)||normalization&&!normalizationSource(path))throw fail(400,'Comparación de registros inválida');}
+   for(const path of Object.keys(patch))if((normalization||affected(path))&&!Object.keys(expected).some(base=>path===base||path.startsWith(base+'/')))throw fail(400,'Falta verificar un registro del guardado');
   }
-  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',opId:body.id,transportDigest:digest(body),operation:'legacy-'+body.kind,input:body},async scope=>{
+  async function normalizationAccess(read){const profile=await read('sv_chat_roles/'+actor.uid),cfg=await read('sv_permisos/admin');if(profile?.activo!==true||profile.rol!=='admin'||cfg&&(cfg.indiceVersion!==2||cfg.indiceModulos?.configuracion!==true||Object.values(cfg.bloqueados||{}).includes('configuracion'))||cfg?.acciones?.mantenimiento?.normalizar===false)throw fail(403,'Sólo el administrador autorizado puede aplicar la normalización');return {role:'admin',permissionRevision:cfg?.indiceRevision??null,permissionDigest:digest(cfg||{})};}
+  const normalizationContext=normalization?await normalizationAccess(async path=>(await db.ref(path).get()).val()):null;
+  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',...(normalization?{...normalizationContext,financialAction:'mantenimiento.normalizar'}:{}),opId:body.id,transportDigest:digest(body),operation:'legacy-'+body.kind,input:body},async scope=>{
+   if(normalization&&digest(await normalizationAccess(path=>scope.get(path)))!==digest(normalizationContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
    for(const [path,hash]of Object.entries(expected)){
     // La lectura conserva el permiso del usuario, además del control de escritura
     // evaluado por Firebase para el PATCH final, nunca un resultado Admin público.
-    const current=await store.readAsUser(path,actor);
+    const current=scope.getAsUser?await scope.getAsUser(path):await store.readAsUser(path,actor);
     if(digest(current)!==hash)throw fail(409,'El registro cambió. Se volverá a comprobar.','SV_CAS_CONFLICT');
+   }
+   if(normalization)for(const [path,value]of Object.entries(patch)){
+    const p=parts(path);if(p[1]==='mantenimiento')continue;
+    const current=await scope.get(path);
+    if(current!==null&&current!==''&&current!==value)throw fail(409,'Una referencia ya cambió. Revisá el plan antes de aplicar.','SV_CAS_CONFLICT');
    }
    await scope.update(patch);
    return {ok:true,committed:true};

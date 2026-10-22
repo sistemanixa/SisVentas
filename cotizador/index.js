@@ -56,6 +56,8 @@ const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
 const laborTransaction = laborRuntime.transaction;
 const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
+const paymentCommands=require('./payment-commands').createPaymentCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.PAYMENT_SCOPED_ENABLED==='true'});
+const adminExpenseCreate=require('./admin-expense-create').createAdminExpenseCreate({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.ADMIN_EXPENSE_SCOPED_ENABLED==='true'});
 const laborOperations = require('./labor-operations').createLaborOperations({auth:businessAuth,db,transaction:laborTransaction});
 const laborSubmissions = require('./labor-submissions').createLaborSubmissions({auth:businessAuth,db,transaction:laborTransaction});
 const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:businessAuth,db});
@@ -2118,6 +2120,17 @@ const server = http.createServer(async (req, res) => {
       send(res,200,{ok:true,...result});
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'La generación quedó pendiente de reintento seguro'});}
     return;
+  }
+  if(['/laboral/capacidades','/laboral/gastos/crear-administrativo','/cobranzas/operacion'].includes(pathname)){
+    res.setHeader('Cache-Control','private, no-store');
+    try{
+      const service=pathname==='/cobranzas/operacion'?paymentCommands:pathname==='/laboral/gastos/crear-administrativo'?adminExpenseCreate:laborWriteGateway;
+      const actor=await service.authorize(req),body=await readBody(req,pathname==='/laboral/capacidades'?128:16*1024*1024);
+      if(pathname==='/laboral/capacidades'){
+        if(!body||Array.isArray(body)||Object.keys(body).length)throw Object.assign(Error('Solicitud inválida'),{statusCode:400});
+        send(res,200,{ok:true,payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability()});
+      }else send(res,200,await service[pathname==='/cobranzas/operacion'?'execute':'create'](actor,body));
+    }catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el guardado. Comprobá el intento antes de repetirlo.',...(error.code?{code:error.code}:{})});}return;
   }
   if(['/laboral/escritura','/laboral/operacion'].includes(pathname)){
     res.setHeader('Cache-Control','private, no-store');

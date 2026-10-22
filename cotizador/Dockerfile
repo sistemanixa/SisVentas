@@ -20,6 +20,7 @@ COPY labor-guard.js labor-index.js labor-rtdb-store.js labor-scoped-transaction.
 COPY employee-availability.js ./
 COPY employee-directory.js ./
 COPY personal-expenses.js ./
+COPY admin-expense-create.js payment-membership-matcher.js payment-membership-index.js payment-snapshot.js payment-commands.js ./
 COPY supplier-directory.js ./
 COPY commission-calculations.js commission-operations.js ./
 COPY commission-generation.js commission-generation-model.js commercial-ownership.js domain-read-policy.js ./

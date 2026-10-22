@@ -1,5 +1,22 @@
 # Control de consumo de SisVentas
 
+## Cobros y altas de Gastos · candidata local · 22/10/2026
+
+Se implementó el circuito puntual, todavía sin activar ni publicar. Cobros usa
+membresías verificadas que conservan las referencias legacy; el alta de Gastos
+reutiliza el índice de identidad existente. Negocio, índice y recibo se guardan
+en el mismo PATCH. La recuperación usa el mismo intento y no repite un cobro
+por otra vía ante un error. No se agregaron servicios ni tareas por reloj.
+
+La puerta final R100/recibo dio3.644 aprobadas/27opt-in/0fallos; emulador local35/35.
+No hay backfill real ni nuevas consultas de Billing. Las banderas están apagadas
+y la web productiva conserva el circuito anterior. El cambio añade tamaño de
+índice y trabajo de escritura: menos bytes de lectura en pruebas no garantiza
+un importe mensual ni que cada operación tarde menos. La activación necesita
+actualizar todos los escritores laborales/fiscales y verificar cobertura/reglas
+en un corte aparte. Evidencia, mediciones y límites en
+[Auditoría de Cobros y Gastos](AUDITORIA_COBROS_GASTOS_20261022.md).
+
 ## Listados y arranque · candidata3.14.3 local · 21/10/2026
 
 Producción sigue3.14.0 y Cotizador `cotizador-scoped19-9c6b3126`, según

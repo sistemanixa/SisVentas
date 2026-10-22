@@ -6,12 +6,14 @@
  'use strict';const STORAGE_KEY='sisventas:labor-write-attempts:v1';
  const fail=(code,message)=>Object.assign(Error(message),{code});
  return function create(root){
-  const attempts=new Map();let loadedUid=null,checking=false,layer=null,previousFocus=null,restoreScroll=null,keyboard=null,focusin=null;
+  const attempts=new Map(),removed=new Set();let loadedUid=null,checking=false,layer=null,previousFocus=null,restoreScroll=null,keyboard=null,focusin=null;
   function uid(){return root.currentUserUid&&root.fbAuth?.currentUser?.uid===root.currentUserUid?root.currentUserUid:null;}
   const metadata=()=>[...attempts.values()].map(({uid,id,digest})=>({uid,id,digest}));
-  function persist(required=false){try{if(attempts.size)root.sessionStorage.setItem(STORAGE_KEY,JSON.stringify(metadata()));else root.sessionStorage.removeItem(STORAGE_KEY);}catch(error){if(required)throw fail('SV_LABOR_RECOVERY_STORAGE','No se pudo preparar el guardado. Reintentá.');}}
-  function pending(){return [...attempts.values()].find(attempt=>attempt.status!=='sending');}
-  function state(){const attempt=pending();return attempt?{uid:attempt.uid,id:attempt.id,digest:attempt.digest,status:checking?'checking':'unknown',count:[...attempts.values()].filter(a=>a.status!=='sending').length}:null;}
+  const storageId=attempt=>JSON.stringify([attempt.uid,attempt.id]);
+  function stored(){let rows=[];try{rows=JSON.parse(root.sessionStorage.getItem(STORAGE_KEY)||'[]');}catch(_){return[];}return Array.isArray(rows)?rows.filter(a=>typeof a?.uid==='string'&&a.uid.length>0&&a.uid.length<=128&&/^[a-zA-Z0-9_-]{8,160}$/.test(a.id||'')&&/^[a-f0-9]{64}$/.test(a.digest||'')).map(({uid,id,digest})=>({uid,id,digest})):[];}
+  function persist(required=false){try{const all=new Map(stored().filter(a=>!removed.has(storageId(a))).map(a=>[storageId(a),a]));for(const a of metadata())all.set(storageId(a),a);if(all.size)root.sessionStorage.setItem(STORAGE_KEY,JSON.stringify([...all.values()]));else root.sessionStorage.removeItem(STORAGE_KEY);removed.clear();}catch(error){if(required)throw fail('SV_LABOR_RECOVERY_STORAGE','No se pudo preparar el guardado. Reintentá.');}}
+  function pending(){const current=uid();return [...attempts.values()].find(attempt=>attempt.uid===current&&attempt.status!=='sending');}
+  function state(){const attempt=pending();return attempt?{uid:attempt.uid,id:attempt.id,digest:attempt.digest,status:checking?'checking':'unknown',count:[...attempts.values()].filter(a=>a.uid===attempt.uid&&a.status!=='sending').length}:null;}
   function render(){
    const current=state(),document=root.document;
    if(!current){
@@ -52,20 +54,19 @@
   }
   function restore(){
    const current=uid();if(!current||loadedUid===current)return;loadedUid=current;
-   let stored=[];try{stored=JSON.parse(root.sessionStorage.getItem(STORAGE_KEY)||'[]');}catch(_){stored=[];}
-   if(Array.isArray(stored))for(const item of stored)if(item?.uid===current&&/^[a-zA-Z0-9_-]{8,160}$/.test(item.id||'')&&/^[a-f0-9]{64}$/.test(item.digest||''))attempts.set(item.id,{uid:current,id:item.id,digest:item.digest,status:'unknown'});
+   for(const item of stored())if(item.uid===current)attempts.set(item.id,{uid:current,id:item.id,digest:item.digest,status:'unknown'});
    persist();emit();
   }
   function assertAvailable(){restore();if(pending())throw fail('SV_LABOR_PENDING_OPERATION','Hay un guardado sin confirmar. Consultá la operación antes de volver a guardar.');}
   function finish(attempt,result,error){
    if(attempts.get(attempt.id)!==attempt)return;
-   attempts.delete(attempt.id);persist();emit();
+   attempts.delete(attempt.id);removed.add(storageId(attempt));persist();emit();
    if(!attempt.resolve)return;
    if(!error)try{attempt.validate();}catch(changed){error=changed;}
    if(error)attempt.reject(error);else attempt.resolve(result);
   }
   function uncertain(error){
-   if(['SV_LABOR_BUSY','SV_LABOR_AUTH_CHANGED','SV_LABOR_COMMISSION_LIMIT','SV_LABOR_LEASE_EXPIRED','SV_LABOR_READ_ONLY'].includes(error?.code))return false;
+   if(['SV_LABOR_BUSY','SV_LABOR_AUTH_CHANGED','SV_LABOR_COMMISSION_LIMIT','SV_LABOR_LEASE_EXPIRED','SV_LABOR_READ_ONLY','SV_PAYMENTS_NOT_ENABLED','SV_PAYMENT_INDEX_INVALID','SV_PAYMENT_INDEX_INPUT','SV_PAYMENT_SCOPE_SIZE','SV_PAYMENT_SALE_MISSING','SV_PAYMENT_BALANCE_CHANGED','SV_PAYMENT_GROUP_EXISTS','SV_PAYMENT_KEY_EXISTS','SV_PAYMENT_WRITER_VERSION','SV_PAYMENT_RELATION_MAINTENANCE_REQUIRED','SV_ADMIN_EXPENSE_DISABLED','SV_GASTO_INDEX_UNREADY','SV_GASTO_INDEX_INVALID','SV_GASTO_DUPLICATE'].includes(error?.code))return false;
    if(error?.svLaborAttempted===false)return false;
    if(error?.code==='SV_LABOR_CANCELLED')return false;
    if(error?.code==='SV_LABOR_COMMIT_UNCONFIRMED')return true;
@@ -99,7 +100,9 @@
    }finally{checking=false;emit();}
   }
   function clear(){
-   const error=fail('SV_LABOR_SESSION','La sesión terminó.');for(const attempt of attempts.values())attempt.reject?.(error);attempts.clear();loadedUid=null;persist();emit();
+   // Ending the UI/session is not evidence that an in-flight commit failed.
+   // Retain only uid/id/digest for an explicit check on that user's next login.
+   persist();const error=fail('SV_LABOR_SESSION','La sesión terminó.');for(const attempt of attempts.values())attempt.reject?.(error);attempts.clear();loadedUid=null;checking=false;emit();
   }
   root.document?.addEventListener?.('sisventas:session-ended',clear);
   root.document?.addEventListener?.('sisventas:session-ready',restore);

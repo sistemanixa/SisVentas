@@ -65,10 +65,15 @@ test('409 de commit incierto no se confunde con rechazo y controles muestran con
  await button.onclick();await pending;assert.equal(f.commands.length,1);assert.equal(f.queries.length,1);assert.equal(f.root.document.body.children.length,0);
 });
 
-test('logout limpia memoria/metadata y respuesta tardía no confirma otra sesión',async()=>{
+test('logout limpia memoria/UI y conserva sólo metadata para consultar al reingresar',async()=>{
  const f=fixture(),pending=f.root.fbSet(f.ref('sisventas/gastos/g/montoPagado'),20);await f.when(()=>f.root.SVLaborWriteRecovery.state());
  const stopped=assert.rejects(pending,{code:'SV_LABOR_SESSION'});f.root.fbAuth.currentUser=null;f.listeners.get('sisventas:session-ended')();await stopped;
- assert.equal(f.storage.size,0);assert.equal(f.root.SVLaborWriteRecovery.state(),null);assert.equal(f.root.document.body.children.length,0);
+ assert.equal(f.storage.size,1);assert.equal(f.root.SVLaborWriteRecovery.state(),null);assert.equal(f.root.document.body.children.length,0);
+ const saved=JSON.parse(f.storage.get(f.root.SVLaborWriteRecovery.STORAGE_KEY));assert.deepEqual(Object.keys(saved[0]).sort(),['digest','id','uid']);
+ f.root.currentUserUid='other';f.root.fbAuth.currentUser={uid:'other'};f.root.SVLaborWriteRecovery.restore();assert.equal(f.root.SVLaborWriteRecovery.state(),null);assert.deepEqual(JSON.parse(f.storage.get(f.root.SVLaborWriteRecovery.STORAGE_KEY)),saved);assert.equal(f.queries.length,0);
+ f.root.SVLaborWriteRecovery.clear();f.root.currentUserUid='u';f.root.fbAuth.currentUser={uid:'u'};f.root.SVLaborWriteRecovery.restore();assert.ok(f.root.SVLaborWriteRecovery.state());
+ await assert.rejects(f.root.fbSet(f.ref('sisventas/gastos/g'),{monto:200}),{code:'SV_LABOR_PENDING_OPERATION'});assert.equal(f.commands.length,1);assert.equal(f.queries.length,0);
+ await f.root.SVLaborWriteRecovery.check();assert.equal(f.queries.length,1);assert.equal(f.storage.size,0);assert.equal(f.commands.length,1);
 });
 
 test('rechazo HTTP403 y fallo local previo a POST no quedan como intento incierto',async()=>{

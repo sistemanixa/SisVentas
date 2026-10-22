@@ -17,6 +17,26 @@ Las pruebas funcionales vigentes deben leer la aplicación declarada por
 `index.html` mediante `test/helpers/active-app.js`, nunca el espejo legado
 `js/app.js` ni un nombre de versión fijado a mano.
 
+Cobros y altas de Gastos acotadas:
+`node --test test/payment-commands.test.cjs test/payment-membership-index.test.cjs test/payment-index-preparation.test.cjs test/payment-guard-integration.test.cjs test/admin-expense-create.test.cjs test/admin-expense-client.test.cjs test/financial-commands.test.cjs test/payment-entry-idempotency.test.cjs test/payment-related-frontend-contract.test.cjs test/relationship-normalization-atomic.test.cjs test/relationship-normalization-gateway.test.cjs`.
+Usan datos ficticios, preservan los criterios contables publicados y verifican
+permisos, concurrencia, referencias legacy, reintento y errores posteriores al
+acuse. Recuperación complementaria: `test/labor-write-recovery.test.cjs`.
+Recibo PDF: `node --test test/payment-receipt-pdf-layout.test.cjs`; comprueba
+clon de exportación, contenido largo, mismo blob para descargar/compartir,
+impresión y recuperación ante errores. La prueba raster real y sus PDFs/PNG
+son evidencia privada complementaria, no se descargan librerías en la puerta.
+
+Opt-in RTDB: `test/payment-scoped-emulator.integration.cjs` requiere
+`FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:9037`, `SV_RULES_TEST_FILE` con la
+base local coordinada revisada y `SV_EMULATOR_DEPENDENCIES` con una ruta local
+de resolución de `@firebase/rules-unit-testing`; Firebase Admin se resuelve desde
+las dependencias existentes de Cotizador. El archivo valida el hash de la base y deriva reglas
+candidatas restringidas. Sólo usa el namespace `demo-payment-scoped-proof` y
+loopback explícito; no ADC ni datos productivos. No ejecutar contra una base
+real ni interpretar un skip como una integración aprobada. Detalle y estado en
+[Auditoría financiera](../docs/AUDITORIA_COBROS_GASTOS_20261022.md).
+
 Cuenta corriente y cobros: `node --test test/cuenta-corriente-payment-actions.test.cjs`.
 Cubre identidad del cobro, agrupación/adjuntos, retorno con período y scroll,
 permiso de Cobranzas, visor solo lectura y saldos con el historial completo.

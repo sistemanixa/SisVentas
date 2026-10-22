@@ -7082,6 +7082,43 @@ function _cobroNuevaClave(prefijo) {
   return String(prefijo || 'cobro') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
 }
 
+function _cobroPrepararIntento(firma, datos, slot) {
+  if (!window._cobroIntentosEscucha) {
+    if (typeof document.addEventListener === 'function') document.addEventListener('sisventas:session-ended', _cobroLimpiarIntentosSesion);
+    window._cobroIntentosEscucha = true;
+  }
+  var nombre = slot === 'cuenta' ? '_ccPagoIntento' : '_cobroIntento';
+  var previo = window[nombre];
+  if (previo && previo.datos) {
+    if (!previo.vigente()) throw Object.assign(new Error('La sesión cambió. Volvé a abrir el formulario antes de registrar otro cobro.'), {code:'SV_PAYMENT_ATTEMPT_CHANGED'});
+    if (previo.firma !== firma) throw Object.assign(new Error('Hay un cobro anterior sin confirmar. Consultá esa operación antes de cambiar sus datos.'), {code:'SV_PAYMENT_ATTEMPT_CHANGED'});
+    return previo.datos;
+  }
+  var uid = typeof currentUserUid === 'undefined' ? '' : currentUserUid;
+  var user = window.fbAuth?.currentUser, rol = typeof currentRole === 'undefined' ? '' : currentRole;
+  var revision = window.PERMISOS_ROLES?.[rol]?.indiceRevision, epoch = window._svOperacionesSesionEpoch || 0;
+  var vista = window._impersonacionOriginal, contexto = svCapturarContextoOperacion();
+  function vigente() { return !!uid && !!user && user.uid === uid && contexto() && !vista && !window._impersonacionOriginal && uid === currentUserUid && user === window.fbAuth?.currentUser && rol === currentRole && revision === window.PERMISOS_ROLES?.[rol]?.indiceRevision && epoch === (window._svOperacionesSesionEpoch || 0); }
+  if (!vigente()) throw Object.assign(new Error('Volvé a tu cuenta para registrar el cobro.'), {code:'SV_LABOR_SESSION',svLaborAttempted:false});
+  var payload = JSON.parse(JSON.stringify(typeof datos === 'function' ? datos() : datos));
+  window[nombre] = {firma:firma,datos:payload,vigente:vigente,grupoPago:payload.grupoPago,grupo:payload.grupoPago,pagoKey:payload.solicitudes?.[0]?.pago?.fbKey};
+  return payload;
+}
+
+function _cobroLimpiarIntentosSesion() {
+  window._cobroIntento = null;window._ccPagoIntento = null;
+  window._cobroOperacionGuardado = null;window._pagoCuentaOperacion = null;
+  window._cobroGuardadoEnCurso = false;window._pagoCuentaGuardando = false;
+}
+
+function _cobroReiniciarIntento(slot) {
+  window.SVLaborWriteRecovery?.assertAvailable();
+  var cuenta = slot === 'cuenta';
+  if (cuenta ? window._pagoCuentaGuardando : window._cobroGuardadoEnCurso) throw new Error('Hay un cobro en proceso. Esperá su confirmación antes de abrir otro.');
+  if (cuenta) { window._ccPagoIntento = null;window._pagoCuentaOperacion = null; }
+  else { window._cobroIntento = null;window._cobroOperacionGuardado = null;if (typeof _cobroBotonGuardar === 'function') _cobroBotonGuardar(false); }
+}
+
 function _cobroPagoPorKey(fbKey) {
   return (window._historialPagosCompleto || []).find(function(pago) {
     return pago && String(pago.fbKey || '') === String(fbKey || '');
@@ -7117,6 +7154,10 @@ async function registrarCobrosCanonicos(opciones) {
 
 async function _svCargaOperacion_registrarCobrosCanonicos(opciones) {
   opciones = opciones || {};
+  if (window.SVFinancialCommands) {
+    var cobrosAcotados = await window.SVFinancialCommands.register(opciones);
+    if (cobrosAcotados) { _svModeloVentasV3Cache = null; return cobrosAcotados; }
+  }
   var solicitudes = Array.isArray(opciones.solicitudes) ? opciones.solicitudes : [];
   if (!solicitudes.length) throw new Error('No hay ventas para imputar el cobro');
   if (!window.fbDB || !window.fbGet || !window.fbUpdate || !window.fbRunTransaction) {
@@ -10729,6 +10770,9 @@ function showPage(id, el) {
   var aperturaDirecta = window._svProximaVistaDirecta === id;
   var paginaActual = document.querySelector('.page.active');
   var paginaActualId = paginaActual ? String(paginaActual.id || '').replace(/^page-/, '') : '';
+  if (id === 'cobranzas' && paginaActualId !== id) {
+    try { _cobroReiniciarIntento('cobranzas'); } catch (errorCobroPendiente) { notify(errorCobroPendiente.message);return; }
+  }
   if (paginaActualId && paginaActualId !== id) _svCerrarUITransitoriaAlNavegar();
   // Preparar contenido y preferencias antes de hacer visible el módulo evita
   // que la tabla aparezca con una distribución y se acomode un instante luego.
@@ -10975,7 +11019,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Ventas y presupuestos propios, reasignación administrativa y autoría original conservada.']),
   RELEASE_FEATURE: Object.freeze({page:'detalle',actionLabel:'Ver ventas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.14.3',date:'21/10/2026',title:'Carga y guardados más claros',notes:Object.freeze(['El inicio prioriza la pantalla abierta y muestra el estado real de sus datos.','Ventas consulta sólo los presupuestos vinculados y Proyectos los pide al abrir Vincular.','Clientes, Agenda, Servicios, Equipos e Informes muestran el avance y esperan la confirmación del guardado.','Los gastos recurrentes del mes se generan desde su gestor, después de revisar y confirmar el importe.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
+ Object.freeze({version:'v3.14.3',date:'22/10/2026',title:'Carga y guardados más claros',notes:Object.freeze(['El inicio prioriza la pantalla abierta y muestra el estado real de sus datos.','Ventas consulta sólo los presupuestos vinculados y Proyectos los pide al abrir Vincular.','Clientes, Agenda, Servicios, Equipos e Informes muestran el avance y esperan la confirmación del guardado.','Cobros y gastos muestran la confirmación y permiten comprobar un intento interrumpido antes de repetirlo.','El recibo se descarga y comparte sin agregar una hoja vacía, conservando el contenido largo.','Los gastos recurrentes del mes se generan desde su gestor, después de revisar y confirmar el importe.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
  Object.freeze({version:'v3.14.2',date:'21/10/2026',title:'Eliminación de presupuestos confirmada',notes:Object.freeze(['Al eliminar un presupuesto se muestra el progreso y la fila se retira al confirmar la operación.','La lista conserva sus filtros y evita repetir la eliminación mientras se está procesando.']),feature:Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'})}),
  Object.freeze({version:'v3.14.1',date:'21/10/2026',title:'Bonificaciones con mes de cómputo',notes:Object.freeze(['En Empleados podés dar una bonificación adicional aunque el sueldo ya esté liquidado.','Elegí el mes de cómputo; el sueldo y los pagos anteriores se conservan.']),feature:Object.freeze({page:'empleados',actionLabel:'Ver empleados'})}),
  Object.freeze({version:'v3.14.0',date:'20/10/2026',title:'Órdenes pendientes del técnico',notes:Object.freeze(['Tus órdenes se actualizan al terminar de cargar, sin tener que salir y volver.','Dashboard, órdenes y horas extra reconocen la misma asignación y excluyen las órdenes cerradas.','Sólo las OT con fecha programada vencida hace más de diez días bloquean las horas extra. Las que están sin fecha no bloquean.']),feature:Object.freeze({page:'ordentrabajo',actionLabel:'Ver órdenes'})}),
@@ -24265,6 +24309,7 @@ function selVentaCob(ventaId, cliente, total, cobrado, saldo) {
 // Navega a Cobranzas y precarga el formulario con los datos reales de la venta,
 // para no tener que volver a buscarla y tipear todo de nuevo.
 function irACobranzasConVenta(ventaId, origen) {
+  try { _cobroReiniciarIntento('cobranzas'); } catch (errorCobroPendiente) { notify(errorCobroPendiente.message);return; }
   var vid = String(ventaId||'').trim();
   var num = vid.replace(/[^0-9]/g,'');
   var venta = (ventasList||[]).find(function(v){
@@ -27624,6 +27669,14 @@ async function anularPago(fbKey) {
     anuladoPor: currentUser || 'Admin',
     anuladoMotivo: motivo
   };
+  if (window.SVFinancialCommands) {
+    var finalizarAnulacion = window.SisVentas.carga.mostrar('Anulando cobro…', {persistirAlNavegar:true});
+    try {
+      var anulacionAcotada = await window.SVFinancialCommands.annul(fbKey, venta.fbKey, {motivo:motivo,fecha:cambiosAnulacion.anuladoFecha});
+      if (anulacionAcotada) { _svModeloVentasV3Cache = null; notify('✓ Cobro anulado · saldo de la venta recalculado'); return; }
+    } catch (errorAnulacion) { notify('Error: ' + errorAnulacion.message); return; }
+    finally { finalizarAnulacion(); }
+  }
   var pagosTrasAnulacion = (window._historialPagosCompleto || []).map(function(item) {
     return item && item.fbKey === fbKey ? Object.assign({}, item, cambiosAnulacion) : item;
   });
@@ -28251,6 +28304,7 @@ function actualizarVistaPagoCuentaCorriente() {
 }
 
 function cerrarPagoCuentaCorriente() {
+  if (!window._pagoCuentaGuardando) { try { _cobroReiniciarIntento('cuenta'); } catch (_) { /* Un intento incierto se conserva al cerrar; abrir otro sigue bloqueado. */ } }
   var modal = document.getElementById('modal-pago-cuenta');
   if (modal) {
     clearTimeout(modal._ccFocoTimer);
@@ -28356,6 +28410,7 @@ function prepararVentanaPagoCuentaCorriente(modal) {
 }
 
 function abrirPagoCuentaCorriente() {
+  try { _cobroReiniciarIntento('cuenta'); } catch (errorCobroPendiente) { notify(errorCobroPendiente.message);return; }
   var ventas = _ccVentasPendientesActuales();
   if (!ventas.length) { notify('Este cliente no tiene ventas con saldo pendiente'); return; }
   cerrarPagoCuentaCorriente();
@@ -28402,6 +28457,7 @@ async function _ccGuardarPagoAcotado(grupo, solicitudes, cabecera, comprobante) 
 
 async function confirmarPagoCuentaCorriente() {
   if (window._pagoCuentaGuardando) return;
+  if (window._ccPagoIntento?.confirmado) { notify('Este pago ya está guardado. Abrí una nueva carga para registrar otro.');return; }
   var monto = getMontoRaw(document.getElementById('ccp-monto'));
   var fecha = (document.getElementById('ccp-fecha')||{}).value || '';
   var medio = (document.getElementById('ccp-medio')||{}).value || '';
@@ -28414,43 +28470,47 @@ async function confirmarPagoCuentaCorriente() {
   if (!window.fbDB || !window.fbRunTransaction || !window.fbPush || !window.fbUpdate || !window.fbGet || !window.fbOnDisconnect) { notify('Sin conexión segura para registrar el pago'); return; }
 
   var boton = document.getElementById('ccp-guardar');
-  var contextoPagoCuenta = svCapturarContextoOperacion();
+  var contextoCuentaBase = svCapturarContextoOperacion(), campoCuenta = document.getElementById('ccp-monto');
+  var operacionCuenta = {};
+  window._pagoCuentaOperacion = operacionCuenta;
+  function contextoPagoCuenta() { return contextoCuentaBase() && window._pagoCuentaOperacion === operacionCuenta && campoCuenta === document.getElementById('ccp-monto') && campoCuenta?.isConnected !== false; }
   window._pagoCuentaGuardando = true;
   if (boton) { boton.disabled=true; boton.innerHTML='<i class="ti ti-loader-2"></i> Imputando...'; }
-  var grupo = 'cc_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
   var pagosGuardados = [];
-  var solicitudes = [];
-  resultado.plan.forEach(function(item, indice) {
-    var venta = item.venta;
-    var pagoKey = window.fbPush(window.fbRef(window.fbDB, 'sisventas/pagos')).key;
-    var pago = {
-      fbKey:pagoKey, venta:venta.id||venta.fbKey, ventaId:venta.id||venta.fbKey, ventaFbKey:venta.fbKey,
-      cliente:window._ccNombreActual||venta.cliente||'', clienteFbKey:venta.clienteFbKey||venta.clienteKey||window._ccClienteKeyActual||'',
-      monto:item.monto, moneda:'ARS', montoOriginal:item.monto, tipoCambio:1, totalVenta:_svTotalVentaCanonico(venta),
-      saldoAnterior:item.saldoAnterior, saldoRestante:item.saldoRestante, medio:medio, fecha:fecha, obs:referencia,
-      usuario:currentUser||'', ts:Date.now()+indice, origen:'cuenta_corriente', grupoPago:grupo,
-      pagoCuentaTotal:monto, imputacionOrden:indice+1, imputacionesTotal:resultado.plan.length
-    };
-    solicitudes.push({ ventaFbKey:venta.fbKey, ventaId:venta.id||venta.fbKey, monto:item.monto, pago:pago });
-  });
-  var cabecera = {
-    cliente:window._ccNombreActual||'', clienteFbKey:window._ccClienteKeyActual||'', monto:monto, fecha:fecha,
-    medio:medio, referencia:referencia, usuario:currentUser||'', ts:Date.now(), cantidadImputaciones:resultado.plan.length,
-    imputaciones:resultado.plan.map(function(item){ return {ventaFbKey:item.venta.fbKey,ventaId:item.venta.id||'',monto:item.monto,saldoRestante:item.saldoRestante}; })
-  };
   try {
     var inputComprobante = document.getElementById('ccp-comprobante');
     var comprobanteCuenta = await _ccLeerComprobante(inputComprobante && inputComprobante.files && inputComprobante.files[0]);
-    var firmaIntento = JSON.stringify([window._ccClienteKeyActual, monto, fecha, medio, referencia, comprobanteCuenta]);
-    if (window._ccPagoIntento && window._ccPagoIntento.firma === firmaIntento) grupo = window._ccPagoIntento.grupo;
-    else window._ccPagoIntento = {firma:firmaIntento, grupo:grupo};
-    solicitudes.forEach(function(s){ s.pago.grupoPago = grupo; });
-    if (comprobanteCuenta) {
-      cabecera.comprobante = {nombre:comprobanteCuenta.nombre, tipo:comprobanteCuenta.tipo};
-    }
-    pagosGuardados = await _ccGuardarPagoAcotado(grupo, solicitudes, cabecera, comprobanteCuenta);
     if (!contextoPagoCuenta()) return;
-    window._ccPagoIntento = null;
+    var firmaIntento = JSON.stringify([window._ccClienteKeyActual, monto, fecha, medio, referencia,
+      resultado.plan.map(function(item){return [item.venta.fbKey,item.monto];}),
+      comprobanteCuenta && [comprobanteCuenta.nombre,comprobanteCuenta.tipo,comprobanteCuenta.data]]);
+    var intentoCuenta = _cobroPrepararIntento(firmaIntento, function() {
+      var grupo = 'cc_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+      var solicitudes = resultado.plan.map(function(item, indice) {
+        var venta = item.venta;
+        var pagoKey = window.fbPush(window.fbRef(window.fbDB, 'sisventas/pagos')).key;
+        var pago = {
+          fbKey:pagoKey, venta:venta.id||venta.fbKey, ventaId:venta.id||venta.fbKey, ventaFbKey:venta.fbKey,
+          cliente:window._ccNombreActual||venta.cliente||'', clienteFbKey:venta.clienteFbKey||venta.clienteKey||window._ccClienteKeyActual||'',
+          monto:item.monto, moneda:'ARS', montoOriginal:item.monto, tipoCambio:1, totalVenta:_svTotalVentaCanonico(venta),
+          saldoAnterior:item.saldoAnterior, saldoRestante:item.saldoRestante, medio:medio, fecha:fecha, obs:referencia,
+          usuario:currentUser||'', ts:Date.now()+indice, origen:'cuenta_corriente', grupoPago:grupo,
+          pagoCuentaTotal:monto, imputacionOrden:indice+1, imputacionesTotal:resultado.plan.length
+        };
+        return {ventaFbKey:venta.fbKey,ventaId:venta.id||venta.fbKey,monto:item.monto,pago:pago};
+      });
+      var cabecera = {
+        cliente:window._ccNombreActual||'', clienteFbKey:window._ccClienteKeyActual||'', monto:monto, fecha:fecha,
+        medio:medio, referencia:referencia, usuario:currentUser||'', ts:Date.now(), cantidadImputaciones:resultado.plan.length,
+        imputaciones:resultado.plan.map(function(item){ return {ventaFbKey:item.venta.fbKey,ventaId:item.venta.id||'',monto:item.monto,saldoRestante:item.saldoRestante}; })
+      };
+      if (comprobanteCuenta) cabecera.comprobante = {nombre:comprobanteCuenta.nombre,tipo:comprobanteCuenta.tipo};
+      return {grupoPago:grupo,solicitudes:solicitudes,cabecera:cabecera,comprobante:comprobanteCuenta};
+    }, 'cuenta');
+    pagosGuardados = await _ccGuardarPagoAcotado(intentoCuenta.grupoPago, intentoCuenta.solicitudes, intentoCuenta.cabecera, intentoCuenta.comprobante);
+    if (!contextoPagoCuenta()) return;
+    if (!Array.isArray(pagosGuardados) || !pagosGuardados.length) throw new Error('No se confirmó el pago');
+    if (window._ccPagoIntento) window._ccPagoIntento.confirmado = true;
     var comisionesPorConfirmar = [];
     pagosGuardados.forEach(function(item) {
       asegurarOTVentaConPago(item.venta, item.venta.totalPagado);
@@ -28466,11 +28526,17 @@ async function confirmarPagoCuentaCorriente() {
     if (typeof registrarActividad === 'function') registrarActividad('Pago de cuenta corriente', (window._ccNombreActual||'Cliente')+' · $'+monto.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+' · '+resultado.plan.length+' venta(s)');
     cerrarPagoCuentaCorriente();
     notify(_svMensajeConfirmacionComisiones('✓ Pago aplicado a '+resultado.plan.length+' venta'+(resultado.plan.length===1?'':'s'), confirmacionesComision));
+    window._ccPagoIntento = null;
   } catch (error) {
-    if (contextoPagoCuenta()) notify('No se pudo registrar el pago: '+error.message);
+    if (contextoPagoCuenta()) {
+      if (window._ccPagoIntento?.confirmado) notify('El pago se guardó. No se pudo completar un paso posterior: '+error.message+'. No vuelvas a registrar el mismo pago.');
+      else { if (error?.svFinancialRejected === true || error?.svLaborAttempted === false || ['SV_LABOR_REJECTED','SV_LABOR_CANCELLED'].includes(error?.code)) window._ccPagoIntento = null;notify('No se pudo registrar el pago: '+error.message); }
+    }
   } finally {
-    window._pagoCuentaGuardando = false;
-    if (boton) { boton.disabled=false; boton.innerHTML='<i class="ti ti-check"></i> Registrar e imputar'; }
+    if (window._pagoCuentaOperacion === operacionCuenta) {
+      window._pagoCuentaGuardando = false;
+      if (contextoPagoCuenta() && boton === document.getElementById('ccp-guardar')) { boton.disabled=false; boton.innerHTML='<i class="ti ti-check"></i> Registrar e imputar'; }
+    }
   }
 }
 
@@ -31954,9 +32020,13 @@ async function _crearGastoSinDuplicar(datos) {
     return {key:data.key};
   }
   var identidad = _gastoIdentidad(datos);
+  var contextoAlta = typeof svCapturarContextoOperacion === 'function' ? svCapturarContextoOperacion() : function(){return true;};
   if (_gastosAltasEnCurso.has(identidad)) throw new Error('Este gasto ya se está guardando. Esperá un momento.');
   _gastosAltasEnCurso.add(identidad);
   try {
+    var viaIndice = await window.SVFinancialCommands?.createExpense(datos,null,'expense-only');
+    if (!contextoAlta()) throw new Error('La sesión cambió. Revisá el estado del gasto antes de reintentar.');
+    if (viaIndice) return {key:viaIndice.key};
     // Revisar también los gastos históricos, guardados con claves aleatorias.
     var snap = await window.fbGet(window.fbRef(window.fbDB, 'sisventas/gastos'));
     var existentes = snap.val() || {};
@@ -34664,6 +34734,7 @@ async function verOAdjuntarDocumentoCobro(fbKey, tieneAdjunto) {
 
 function registrarPago() {
   if (window._cobroGuardadoEnCurso) { notify('Ya se está registrando este cobro'); return; }
+  if (window._cobroIntento?.confirmado) { notify('Este cobro ya está guardado. Abrí una nueva carga para registrar otro.');return; }
   var venta  = document.getElementById('cob-venta').value.trim();
   var estadoMonto = _cobranzaEstadoMonto();
   var monto  = estadoMonto.montoARS;
@@ -34720,41 +34791,43 @@ function registrarPago() {
   // el mismo bloqueo que usa Cuenta Corriente.
   if (!ventaObj || !ventaObj.fbKey) { notify('No se encontró la clave interna de la venta. Volvé a seleccionarla.'); return; }
   window._cobroGuardadoEnCurso = true;
-  var contextoConfirmacionCobro = svCapturarContextoOperacion();
+  var contextoCobroBase = svCapturarContextoOperacion(), campoCobro = document.getElementById('cob-venta');
+  var operacionCobro = {};
+  window._cobroOperacionGuardado = operacionCobro;
+  function contextoConfirmacionCobro() { return contextoCobroBase() && window._cobroOperacionGuardado === operacionCobro && campoCobro === document.getElementById('cob-venta') && campoCobro?.isConnected !== false; }
   _cobroBotonGuardar(true);
   var documentoCobro = null;
   return _leerDocumentoGestion(archivoSeleccionado)
     .then(function(documento) {
+      if (!contextoConfirmacionCobro()) throw Object.assign(new Error('La sesión cambió antes de registrar el cobro.'),{code:'SV_LABOR_SESSION',svLaborAttempted:false});
       documentoCobro = documento;
       var firmaIntento = JSON.stringify([
         ventaObj.fbKey, monto, fecha, medio, obs, pago.moneda, pago.montoOriginal, pago.tipoCambio,
-        documento && documento.nombre || '', archivoSeleccionado && archivoSeleccionado.size || 0
+        documento && [documento.nombre,documento.tipo,documento.data]
       ]);
-      if (!window._cobroIntento || window._cobroIntento.firma !== firmaIntento) {
-        window._cobroIntento = {
-          firma:firmaIntento,
-          grupoPago:_cobroNuevaClave('cobro'),
-          pagoKey:window.fbPush(window.fbRef(window.fbDB, 'sisventas/pagos')).key
+      var intentoCobro = _cobroPrepararIntento(firmaIntento, function() {
+        var grupo = _cobroNuevaClave('cobro');
+        pago.fbKey = window.fbPush(window.fbRef(window.fbDB, 'sisventas/pagos')).key;
+        pago.grupoPago = grupo;
+        return {
+          grupoPago:grupo,
+          origen:pago.origen,
+          solicitudes:[{ventaFbKey:ventaObj.fbKey,ventaId:ventaIdGuardar,monto:monto,pago:pago}],
+          comprobante:documentoCobro,
+          adjuntoKey:grupo,
+          montoTotal:monto,
+          cabecera:{cliente:pago.cliente,clienteFbKey:pago.clienteFbKey,fecha:fecha,medio:medio,referencia:obs},
+          usuario:currentUser || '',
+          ts:pago.ts
         };
-      }
-      pago.fbKey = window._cobroIntento.pagoKey;
-      pago.grupoPago = window._cobroIntento.grupoPago;
-      return registrarCobrosCanonicos({
-        grupoPago:window._cobroIntento.grupoPago,
-        origen:pago.origen,
-        solicitudes:[{ventaFbKey:ventaObj.fbKey,ventaId:ventaIdGuardar,monto:monto,pago:pago}],
-        comprobante:documentoCobro,
-        adjuntoKey:window._cobroIntento.grupoPago,
-        montoTotal:monto,
-        cabecera:{cliente:pago.cliente,clienteFbKey:pago.clienteFbKey,fecha:fecha,medio:medio,referencia:obs},
-        usuario:currentUser || '',
-        ts:pago.ts
-      });
+      }, 'cobranzas');
+      pago = intentoCobro.solicitudes[0].pago;
+      return registrarCobrosCanonicos(intentoCobro);
     })
     .then(function(resultados) {
       if (!contextoConfirmacionCobro()) return null;
       if (!resultados || !resultados.length) throw new Error('No se confirmó el cobro');
-      window._cobroIntento = null;
+      if (window._cobroIntento) window._cobroIntento.confirmado = true;
       return resultados[0];
     })
     .then(async function(resultado) {
@@ -34788,9 +34861,10 @@ function registrarPago() {
       var medioReset = document.getElementById('cob-medio');
       if (medioReset) medioReset.value = '';
       iniciarMonedaCobranza();
+      window._cobroIntento = null;
     })
-    .catch(function(e){ if (contextoConfirmacionCobro()) notify('Error al guardar: ' + e.message); })
-    .finally(function(){ window._cobroGuardadoEnCurso = false; _cobroBotonGuardar(false); });
+    .catch(function(e){ if (contextoConfirmacionCobro()) { if (window._cobroIntento?.confirmado) notify('El cobro se guardó. No se pudo completar un paso posterior: '+e.message+'. No vuelvas a registrar el mismo cobro.');else { if (e?.svFinancialRejected === true || e?.svLaborAttempted === false || ['SV_LABOR_REJECTED','SV_LABOR_CANCELLED'].includes(e?.code)) window._cobroIntento = null;notify('Error al guardar: ' + e.message); } } })
+    .finally(function(){ if (window._cobroOperacionGuardado !== operacionCobro) return; window._cobroGuardadoEnCurso = false; if (contextoConfirmacionCobro()) _cobroBotonGuardar(false); });
 }
 
 function verReciboDesdeHistorial(idx) {
@@ -34857,7 +34931,7 @@ function imprimirRecibo() {
     '.resumen{margin:16px 0;break-inside:avoid}.resumen h2{font-size:15px}.resumen p{display:flex;justify-content:space-between;gap:16px;padding:8px 0;margin:0;border-bottom:1px solid #ddd}.resumen .saldo{font-size:17px;font-weight:bold}.firma{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:36px}'+
     '.firma-line{border-top:1px solid #222;padding-top:6px;font-size:11px;color:#666;text-align:center}'+
     '.header{border-color:#183d48;padding-bottom:22px;margin-bottom:28px;gap:24px}.field{background:transparent;padding:10px 0;border-bottom:1px solid #e2e8f0;border-radius:0}.field strong{font-size:15px}label{letter-spacing:1px;color:#64748b;margin-bottom:7px}.monto-box{background:#f0fdf4;border:2px solid #66bb6a;border-radius:8px;text-align:center;padding:20px 24px;margin:12px 0 26px}.monto-box>div:nth-child(2){color:#55a35a!important;font-variant-numeric:tabular-nums}.resumen{width:100%;margin:0 0 22px}.resumen h2{font-size:15px;margin:0 0 5px;color:#183d48}.subtitulo{font-size:11px;color:#64748b;margin-bottom:16px}.resumen p{padding:10px 0;border-color:#e2e8f0}.resumen strong{font-variant-numeric:tabular-nums;white-space:nowrap}.resumen .saldo{background:#f1f6f6;border-top:2px solid #183d48;padding:15px 12px;margin-top:8px;color:#183d48}.resumen .estado{justify-content:flex-end;border:0;font-size:12px;color:#24736b;font-weight:600}.firma{padding-top:50px;gap:65px}.firma-line{border-color:#94a3b8;color:#64748b}.recibo{color:#334155}'+
-    '@page{size:A4;margin:0}@media print{body{margin:0;background:white}.recibo{margin:0;border:none}.acciones-recibo{display:none}}@media screen and (max-width:800px){body{overflow-x:auto}}</style><script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script></head><body>'+
+    '@page{size:A4;margin:0}@media print{body{margin:0;background:white}.recibo{margin:0;border:none;min-height:0;height:auto;padding-bottom:0;display:block}.acciones-recibo{display:none}}@media screen and (max-width:800px){body{overflow-x:auto}}</style><script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script></head><body>'+
     '<main class="recibo" id="recibo-pdf">'+
     '<div class="header"><div>'+logoHTML+
     '<div style="font-size:11px;color:#666;margin-top:4px">'+empresa.dir+'</div>'+
@@ -34890,7 +34964,7 @@ function imprimirRecibo() {
     '<div><div class="firma-line">Firma Nixa</div></div>'+
     '</div>'+
     '<nav class="acciones-recibo" data-html2canvas-ignore="true"><button onclick="window.print()" style="background:#1e293b"><span>🖨</span> Imprimir</button><button onclick="pdfRecibo(false,this)" style="background:#2563eb"><span>⬇</span> Descargar PDF</button><button onclick="pdfRecibo(true,this)" style="background:#16a34a"><span>↗</span> Compartir PDF</button></nav></main>'+
-    '<script>async function pdfRecibo(compartir,boton){boton.disabled=true;try{if(typeof html2pdf!=="function")throw new Error("No se pudo cargar el generador de PDF");await Promise.all(Array.from(document.images).map(function(i){return i.decode?i.decode().catch(function(){}):Promise.resolve()}));var nombre='+JSON.stringify(nombrePdf).replace(/</g,'\u003c')+';var blob=await html2pdf().set({margin:0,filename:nombre,html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}}).from(document.getElementById("recibo-pdf")).outputPdf("blob");var archivo=new File([blob],nombre,{type:"application/pdf"});if(compartir&&navigator.share&&navigator.canShare&&navigator.canShare({files:[archivo]})){await navigator.share({files:[archivo],title:document.title});return;}if(compartir)alert("Se descargará el PDF para que puedas compartirlo.");if(window.opener&&!window.opener.closed&&typeof window.opener._svDescargarBlobPresupuesto==="function"){await window.opener._svDescargarBlobPresupuesto(blob,nombre);return;}var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=nombre;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},60000);}catch(e){if(e.name!=="AbortError")alert(e.message);}finally{boton.disabled=false;}}</script></body></html>';
+    '<script>async function pdfRecibo(compartir,boton){boton.disabled=true;try{if(typeof html2pdf!=="function")throw new Error("No se pudo cargar el generador de PDF");await Promise.all(Array.from(document.images).map(function(i){return i.decode?i.decode().catch(function(){}):Promise.resolve()}));var recibo=document.getElementById("recibo-pdf");if(!recibo)throw new Error("No se encontró el recibo para exportar");var contenido=recibo.cloneNode(true);contenido.style.minHeight="0";contenido.style.height="auto";contenido.style.margin="0";contenido.style.paddingBottom="0";contenido.style.display="block";contenido.querySelectorAll(".acciones-recibo,[data-html2canvas-ignore]").forEach(function(el){el.remove()});var nombre='+JSON.stringify(nombrePdf).replace(/</g,'\u003c')+';var blob=await html2pdf().set({margin:0,filename:nombre,html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}}).from(contenido).outputPdf("blob");var archivo=new File([blob],nombre,{type:"application/pdf"});if(compartir&&navigator.share&&navigator.canShare&&navigator.canShare({files:[archivo]})){await navigator.share({files:[archivo],title:document.title});return;}if(compartir)alert("Se descargará el PDF para que puedas compartirlo.");if(window.opener&&!window.opener.closed&&typeof window.opener._svDescargarBlobPresupuesto==="function"){await window.opener._svDescargarBlobPresupuesto(blob,nombre);return;}var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=nombre;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},60000);}catch(e){if(e.name!=="AbortError")alert(e.message);}finally{boton.disabled=false;}}</script></body></html>';
   w.document.write(htmlRecibo);
   w.document.close();
   var vistaUrl = URL.createObjectURL(new Blob([htmlRecibo], {type:'text/html;charset=utf-8'}));
@@ -44009,6 +44083,9 @@ async function _guardarGastoCompletoAtomico(vista, key, datos, foto) {
   if (datos.empleadoId && !cuentas.includes(String(datos.empleadoId))) cuentas.push(String(datos.empleadoId));
   if (nuevo) {
     ['categoria','proveedor','medio','comprobante','vencimiento'].forEach(function(campo){if (datos[campo] !== undefined && typeof datos[campo] !== 'string') throw new Error('Datos inválidos en ' + campo);if (typeof datos[campo] === 'string' && datos[campo].length > 500) throw new Error('El campo ' + campo + ' admite hasta 500 caracteres');});
+    var viaIndice = await window.SVFinancialCommands?.createExpense(datos,foto,'complete');
+    if (!vigente()) throw new Error('La sesión cambió. Revisá el estado del gasto antes de reintentar.');
+    if (viaIndice) return {key:viaIndice.key};
     identidad = _gastoIdentidad(datos);
     var digest = await window.crypto.subtle.digest('SHA-256',new TextEncoder().encode(identidad));
     if (!vigente()) throw new Error('La sesión cambió. Volvé a revisar el gasto antes de guardar.');

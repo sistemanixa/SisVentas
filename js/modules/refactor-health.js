@@ -202,56 +202,102 @@
     return { version:'v2.0.15', fecha:new Date().toISOString(), total:issues.length, porTipo:porTipo, porSeveridad:porSev, issues:issues };
   };
 
+  var camposRelacion=['id','numero','codigo','idOriginal','numeroOriginal','ventaIdOriginal','ventaId','idVenta','nro','venta','nroVenta','numeroVenta','ventaNumero','ventaFbKey','ventaKey','ventaGeneradaFbKey','ventaOrigenFbKey','ventaGeneradaId','clienteFbKey','clienteKey','clienteId','idCliente','idClienteOriginal','fbKeyCliente','id_cli','cliente','clienteNombre','nombreCliente','nombre','empresa','razonSocial','apellidos','apellido','categoria','categoriaId','categoriaFbKey','categoriaKey','descripcion','anulado','estado'];
+  var camposPermitidosNormalizacion={ventas:['clienteFbKey','clienteKey','clienteId'],presupuestos:['clienteFbKey','clienteKey','ventaFbKey','ventaGeneradaFbKey'],pagos:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],ordenes_trabajo:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],reclamos:['clienteFbKey','clienteKey'],productos:['categoriaFbKey','categoriaKey']};
+  function claveNormalizacionValida(key){return typeof key==='string' && !!key && key.length<=768 && !/[.#$\[\]\/\x00-\x1f\x7f]/.test(key);}
+  function vacioRelacion(value){return value==null || typeof value==='string' && !value.trim();}
+  function canonRelacion(value){if(value==null)return 'null';if(Array.isArray(value))return '['+value.map(canonRelacion).join(',')+']';if(typeof value==='object')return '{'+Object.keys(value).sort().map(function(key){return JSON.stringify(key)+':'+canonRelacion(value[key]);}).join(',')+'}';return JSON.stringify(value);}
+  function imagenRelacion(record){var image={};camposRelacion.forEach(function(key){image[key]=record[key]==null?null:JSON.parse(JSON.stringify(record[key]));});return image;}
+  function construirNormalizacionRelaciones(plan, valores, rutaAuditoria, meta){
+    if(!plan || !plan.baselines || !valores || !/^sisventas\/mantenimiento\/normalizaciones\/[^/]+$/.test(rutaAuditoria) || !claveNormalizacionValida(rutaAuditoria.split('/')[3]))throw new Error('El plan requiere una nueva revisión antes de aplicar.');
+    var paths=Object.keys(plan.baselines).concat(rutaAuditoria);
+    if(paths.length>128)throw new Error('El plan supera 128 registros. Revisalo en un lote menor; no se guardó ningún cambio.');
+    Object.keys(plan.baselines).forEach(function(path){
+      var p=path.split('/');if(p.length!==3 || p[0]!=='sisventas' || !claveNormalizacionValida(p[2]) || !['ventas','presupuestos','pagos','ordenes_trabajo','reclamos','productos','clientes','categorias'].includes(p[1]))throw new Error('El plan requiere registros y referencias puntuales.');
+      var current=valores[path];if(!current || typeof current!=='object' || Array.isArray(current))throw new Error('Un registro del plan ya no existe. Volvé a revisar la normalización.');
+      var baseline=plan.baselines[path];
+      if(camposRelacion.some(function(key){return canonRelacion(current[key])!==canonRelacion(baseline[key]);}))throw new Error('Un destino o una referencia cambió desde la revisión. Volvé a generar el plan.');
+    });
+    if(valores[rutaAuditoria]!=null)throw new Error('El comprobante de la normalización ya existe. Revisá el resultado antes de repetir.');
+    var patch={};
+    Object.keys(plan.updates||{}).forEach(function(path){
+      var p=path.split('/'),recordPath=p.slice(0,3).join('/'),field=p[3];
+      if(p.length!==4 || p[0]!=='sisventas' || !claveNormalizacionValida(p[2]) || !camposPermitidosNormalizacion[p[1]] || camposPermitidosNormalizacion[p[1]].indexOf(field)<0 || !Object.prototype.hasOwnProperty.call(plan.baselines,recordPath))throw new Error('El plan contiene un destino fuera de la normalización de relaciones.');
+      if(!vacioRelacion(valores[recordPath][field]))throw new Error('Un campo del plan ya tiene un valor. Se conserva y requiere una nueva revisión.');
+      var value=plan.updates[path];if(value==null || value==='' || !['string','number'].includes(typeof value))throw new Error('Una referencia del plan no es válida.');
+      patch[path]=value;
+    });
+    if(!Object.keys(patch).length)throw new Error('No hay referencias vacías para completar.');
+    patch[rutaAuditoria]=Object.assign({},meta,{updatesLista:planBackupSeguro(plan),referenciasVerificadas:Object.keys(plan.baselines),verificacion:{ok:true,metodo:'commit-atomico'}});
+    return patch;
+  }
+  window.svConstruirNormalizacionRelaciones=construirNormalizacionRelaciones;
   window.svGenerarPlanNormalizacionRelaciones = function(){
     var updates = {};
+    var baselines = {};
     var notas = [];
     function nota(txt){ notas.push(txt); }
+    function capturar(col, rec){
+      if(!rec || !claveNormalizacionValida(rec.fbKey)) return false;
+      var path='sisventas/'+col+'/'+rec.fbKey;
+      if(!baselines[path]) baselines[path]=imagenRelacion(rec);
+      return true;
+    }
+    function proponer(col, rec, campo, valor, fuentes){
+      if(!rec || !vacioRelacion(rec[campo]) || !claveNormalizacionValida(rec.fbKey)) return;
+      if((fuentes||[]).some(function(fuente){return fuente && fuente[1] && !claveNormalizacionValida(fuente[1].fbKey);}))return;
+      var path='sisventas/'+col+'/'+rec.fbKey+'/'+campo;
+      put(updates,path,valor);
+      if(!Object.prototype.hasOwnProperty.call(updates,path)) return;
+      capturar(col,rec);
+      (fuentes||[]).forEach(function(fuente){ if(fuente && fuente[1]) capturar(fuente[0],fuente[1]); });
+    }
     arr(window.ventasList || window.ventasData).forEach(function(v){
       if(!v || !v.fbKey) return;
       var c = resolverCliente(v);
       if(c && c.fbKey && !hasAny(v,['clienteFbKey','clienteKey'])){
-        put(updates,'sisventas/ventas/'+v.fbKey+'/clienteFbKey',c.fbKey);
-        put(updates,'sisventas/ventas/'+v.fbKey+'/clienteKey',c.fbKey);
-        if(!v.clienteId && !v.idCliente && c.id) put(updates,'sisventas/ventas/'+v.fbKey+'/clienteId',c.id);
+        proponer('ventas',v,'clienteFbKey',c.fbKey,[['clientes',c]]);
+        proponer('ventas',v,'clienteKey',c.fbKey,[['clientes',c]]);
+        if(!v.clienteId && !v.idCliente && c.id) proponer('ventas',v,'clienteId',c.id,[['clientes',c]]);
       }
     });
     arr(window.pptoData || window.presupuestosData).forEach(function(p){
       if(!p || !p.fbKey) return;
       var c = resolverCliente(p);
       if(c && c.fbKey && !hasAny(p,['clienteFbKey','clienteKey'])){
-        put(updates,'sisventas/presupuestos/'+p.fbKey+'/clienteFbKey',c.fbKey);
-        put(updates,'sisventas/presupuestos/'+p.fbKey+'/clienteKey',c.fbKey);
+        proponer('presupuestos',p,'clienteFbKey',c.fbKey,[['clientes',c]]);
+        proponer('presupuestos',p,'clienteKey',c.fbKey,[['clientes',c]]);
       }
       var v = resolverVenta({ ventaFbKey:p.ventaFbKey || p.ventaGeneradaFbKey, ventaId:p.ventaId || p.ventaGeneradaId });
       if(v && v.fbKey && (p.ventaId || p.ventaGeneradaId) && !hasAny(p,['ventaFbKey','ventaGeneradaFbKey'])){
-        put(updates,'sisventas/presupuestos/'+p.fbKey+'/ventaFbKey',v.fbKey);
-        put(updates,'sisventas/presupuestos/'+p.fbKey+'/ventaGeneradaFbKey',v.fbKey);
+        proponer('presupuestos',p,'ventaFbKey',v.fbKey,[['ventas',v]]);
+        proponer('presupuestos',p,'ventaGeneradaFbKey',v.fbKey,[['ventas',v]]);
       }
     });
     arr(window._pagosListaActual || window._historialPagosCompleto || window.pagosData || window.pagosList).forEach(function(p){
       if(!p || !p.fbKey || p.anulado) return;
       var v = resolverVenta(p);
       if(v && v.fbKey && !hasAny(p,['ventaFbKey','ventaKey'])){
-        put(updates,'sisventas/pagos/'+p.fbKey+'/ventaFbKey',v.fbKey);
-        put(updates,'sisventas/pagos/'+p.fbKey+'/ventaKey',v.fbKey);
+        proponer('pagos',p,'ventaFbKey',v.fbKey,[['ventas',v]]);
+        proponer('pagos',p,'ventaKey',v.fbKey,[['ventas',v]]);
       }
       var c = resolverCliente(p) || (v ? resolverCliente(v) : null);
       if(c && c.fbKey && !hasAny(p,['clienteFbKey','clienteKey'])){
-        put(updates,'sisventas/pagos/'+p.fbKey+'/clienteFbKey',c.fbKey);
-        put(updates,'sisventas/pagos/'+p.fbKey+'/clienteKey',c.fbKey);
+        proponer('pagos',p,'clienteFbKey',c.fbKey,[['clientes',c],['ventas',v]]);
+        proponer('pagos',p,'clienteKey',c.fbKey,[['clientes',c],['ventas',v]]);
       }
     });
     arr(window.otData || window.ordenesTrabajoData).forEach(function(o){
       if(!o || !o.fbKey) return;
       var v = resolverVenta(o);
       if(v && v.fbKey && !hasAny(o,['ventaFbKey','ventaKey'])){
-        put(updates,'sisventas/ordenesTrabajo/'+o.fbKey+'/ventaFbKey',v.fbKey);
-        put(updates,'sisventas/ordenesTrabajo/'+o.fbKey+'/ventaKey',v.fbKey);
+        proponer('ordenes_trabajo',o,'ventaFbKey',v.fbKey,[['ventas',v]]);
+        proponer('ordenes_trabajo',o,'ventaKey',v.fbKey,[['ventas',v]]);
       }
       var c = resolverCliente(o) || (v ? resolverCliente(v) : null);
       if(c && c.fbKey && !hasAny(o,['clienteFbKey','clienteKey'])){
-        put(updates,'sisventas/ordenesTrabajo/'+o.fbKey+'/clienteFbKey',c.fbKey);
-        put(updates,'sisventas/ordenesTrabajo/'+o.fbKey+'/clienteKey',c.fbKey);
+        proponer('ordenes_trabajo',o,'clienteFbKey',c.fbKey,[['clientes',c],['ventas',v]]);
+        proponer('ordenes_trabajo',o,'clienteKey',c.fbKey,[['clientes',c],['ventas',v]]);
       }
       if((o.origen === 'reclamo' || String(o.tipoVisita||'').toLowerCase().indexOf('reclamo') >= 0) && !o.reclamoKey) nota('OT '+(o.id||o.fbKey)+' parece reclamo pero requiere elegir reclamo original manualmente.');
     });
@@ -259,16 +305,16 @@
       if(!r || !r.fbKey) return;
       var c = resolverCliente(r);
       if(c && c.fbKey && !hasAny(r,['clienteFbKey','clienteKey'])){
-        put(updates,'sisventas/reclamos/'+r.fbKey+'/clienteFbKey',c.fbKey);
-        put(updates,'sisventas/reclamos/'+r.fbKey+'/clienteKey',c.fbKey);
+        proponer('reclamos',r,'clienteFbKey',c.fbKey,[['clientes',c]]);
+        proponer('reclamos',r,'clienteKey',c.fbKey,[['clientes',c]]);
       }
     });
     arr(window.prodData || window.productosData).forEach(function(p){
       if(!p || !p.fbKey) return;
       var c = resolverCategoria(p);
       if(c && c.fbKey && (p.categoria || p.categoriaId) && !hasAny(p,['categoriaFbKey','categoriaKey'])){
-        put(updates,'sisventas/productos/'+p.fbKey+'/categoriaFbKey',c.fbKey);
-        put(updates,'sisventas/productos/'+p.fbKey+'/categoriaKey',c.fbKey);
+        proponer('productos',p,'categoriaFbKey',c.fbKey,[['categorias',c]]);
+        proponer('productos',p,'categoriaKey',c.fbKey,[['categorias',c]]);
       }
     });
     return {
@@ -276,6 +322,7 @@
       fecha:new Date().toISOString(),
       totalCambios:Object.keys(updates).length,
       updates:updates,
+      baselines:baselines,
       notas:notas,
       instrucciones:'Plan seguro de normalizacion. Revisar antes de aplicar. No incluye casos ambiguos ni reclamoKey sin certeza.'
     };
@@ -378,6 +425,7 @@
       presupuestos: [window.pptoData, window.presupuestosData],
       pagos: [window._pagosListaActual, window._historialPagosCompleto, window.pagosData, window.pagosList],
       ordenesTrabajo: [window.otData, window.ordenesTrabajoData],
+      ordenes_trabajo: [window.otData, window.ordenesTrabajoData],
       reclamos: [window.SP_DATA],
       productos: [window.prodData, window.productosData]
     }[col] || [];
@@ -410,55 +458,35 @@
     descargarJSON('sisventas-plan-normalizacion', plan);
     if(typeof notify==='function') notify('Plan descargado: '+plan.totalCambios+' cambio(s)');
   };
-  window.svAplicarPlanNormalizacionRelaciones = async function(){
-    if(!window.tienePermiso('mantenimiento.normalizar')) { if(typeof notify==='function') notify('Solo el administrador puede aplicar el plan'); return false; }
-    if(!window.fbDB || typeof window.fbUpdate !== 'function' || typeof window.fbRef !== 'function') { if(typeof notify==='function') notify('Sin conexion Firebase'); return false; }
-    var auditoria = window.svAuditarRelaciones();
-    if((auditoria.porSeveridad.critico || 0) > 0) {
-      if(typeof notify==='function') notify('No se aplica: hay avisos criticos para resolver primero');
-      return false;
-    }
-    var plan = window.svGenerarPlanNormalizacionRelaciones();
-    if(!plan.totalCambios) { if(typeof notify==='function') notify('No hay cambios seguros para aplicar'); return false; }
-    if(!await window.svConfirm('Se aplicaran '+plan.totalCambios+' cambio(s) seguros de normalizacion. No se borran datos. Continuar?')) return false;
-    var clave = await window.svPrompt('Para confirmar escribi NORMALIZAR:');
-    if(clave !== 'NORMALIZAR') { if(typeof notify==='function') notify('Normalizacion cancelada'); return false; }
-    var usuario = window.currentUser || (window.currentUserData && window.currentUserData.nombre) || 'Admin';
-    var stamp = Date.now();
-    var meta = {
-      version: plan.version,
-      fecha: new Date().toISOString(),
-      usuario: usuario,
-      totalCambios: plan.totalCambios,
-      notas: plan.notas || []
-    };
-    try {
-      var backupLista = planBackupSeguro(plan);
-      await window.fbSet(window.fbRef(window.fbDB, 'sisventas/mantenimiento/normalizaciones/'+stamp), Object.assign({}, meta, { updatesLista: backupLista }));
-      await window.fbUpdate(window.fbRef(window.fbDB), plan.updates);
-      var verificacion = await verificarPlanAplicado(plan);
-      if(!verificacion.ok) {
-        await window.fbSet(window.fbRef(window.fbDB, 'sisventas/mantenimiento/normalizaciones/'+stamp+'/verificacion'), verificacion).catch(function(){});
-        if(typeof notify==='function') notify('Plan escrito parcialmente: '+verificacion.pendientes.length+' ruta(s) no verificadas');
-        if(typeof window.mntLog === 'function') window.mntLog('Plan seguro con pendientes de verificacion: '+verificacion.pendientes.length);
-        return false;
-      }
-      backupLista.forEach(function(x){
-        marcarRutaVerificada(x.ruta, x.valor);
-        aplicarUpdateEnMemoria(x.ruta, x.valor);
-      });
-      if(typeof window.registrarActividad === 'function') window.registrarActividad('Normalizacion relaciones', plan.totalCambios+' cambio(s) aplicados');
-      if(typeof notify==='function') notify('Normalizacion verificada: '+plan.totalCambios+' cambio(s)');
-      if(typeof window.mntLog === 'function') window.mntLog('Plan seguro verificado: '+plan.totalCambios+' cambio(s) - '+resumenPlan(plan));
-      setTimeout(function(){
-        if(typeof window.fbCargarTodo === 'function') window.fbCargarTodo();
-        if(typeof window.svRenderAuditoriaRelaciones === 'function') window.svRenderAuditoriaRelaciones();
-      }, 1200);
+  window.svAplicarPlanNormalizacionRelaciones = function(){
+    if(window._svNormalizacionRelacionesPromesa)return window._svNormalizacionRelacionesPromesa;
+    var uid=window.currentUserUid,auth=window.fbAuth && window.fbAuth.currentUser,role=window.currentRole,epoch=window._svOperacionesSesionEpoch||0,revision=window.PERMISOS_ROLES && window.PERMISOS_ROLES[role] && window.PERMISOS_ROLES[role].indiceRevision;
+    var contexto=typeof window.svCapturarContextoOperacion==='function'?window.svCapturarContextoOperacion():function(){return true;};
+    function vigente(){return !!uid && auth && auth.uid===uid && window.currentUserUid===uid && window.fbAuth && window.fbAuth.currentUser===auth && role==='admin' && window.currentRole===role && !window._impersonacionOriginal && (window._svOperacionesSesionEpoch||0)===epoch && (window.PERMISOS_ROLES && window.PERMISOS_ROLES[role] && window.PERMISOS_ROLES[role].indiceRevision)===revision && contexto() && window.tienePermiso('mantenimiento.normalizar');}
+    var promesa=(async function(){
+      if(!vigente()){if(typeof notify==='function')notify('Solo el administrador en su cuenta puede aplicar el plan');return false;}
+      if(!window.fbDB || !window.SVLaborWrites || typeof window.SVLaborWrites.atomic!=='function'){if(typeof notify==='function')notify('Recargá la aplicación para normalizar con protección de cambios.');return false;}
+      var auditoria=window.svAuditarRelaciones();
+      if((auditoria.porSeveridad.critico||0)>0){if(typeof notify==='function')notify('No se aplica: hay avisos críticos para resolver primero.');return false;}
+      var plan=window.svGenerarPlanNormalizacionRelaciones();
+      if(!plan.totalCambios){if(typeof notify==='function')notify('No hay cambios seguros para aplicar');return false;}
+      var stamp=Date.now(),key=String(stamp)+(window.crypto && typeof window.crypto.randomUUID==='function'?'_'+window.crypto.randomUUID():''),ruta='sisventas/mantenimiento/normalizaciones/'+key,paths=Object.keys(plan.baselines||{}).concat(ruta);
+      if(paths.length>128){if(typeof notify==='function')notify('El plan supera 128 registros. Revisalo en un lote menor; no se guardó ningún cambio.');return false;}
+      if(!await window.svConfirm('Se aplicarán '+plan.totalCambios+' cambio(s) de relaciones en una única confirmación. ¿Continuar?') || !vigente())return false;
+      if(await window.svPrompt('Para confirmar escribí NORMALIZAR:')!=='NORMALIZAR' || !vigente())return false;
+      var meta={version:plan.version,fecha:new Date(stamp).toISOString(),usuario:window.currentUser||'Admin',totalCambios:plan.totalCambios,notas:plan.notas||[]};
+      var resultado=await window.SVLaborWrites.atomic({paths:paths,purpose:'relationship-normalization',build:function(values){if(!vigente())throw new Error('La sesión o el permiso cambió. Volvé a revisar el plan.');return construirNormalizacionRelaciones(plan,values,ruta,meta);}});
+      if(!resultado || resultado.committed!==true)throw new Error('No se recibió la confirmación del plan. Revisá el estado antes de repetir.');
+      if(vigente())try{
+        planBackupSeguro(plan).forEach(function(x){marcarRutaVerificada(x.ruta,x.valor);aplicarUpdateEnMemoria(x.ruta,x.valor);});
+        if(typeof window.registrarActividad==='function')window.registrarActividad('Normalización relaciones',plan.totalCambios+' cambio(s) aplicados');
+        if(typeof notify==='function')notify('Normalización confirmada: '+plan.totalCambios+' cambio(s)');
+        if(typeof window.mntLog==='function')window.mntLog('Plan confirmado: '+resumenPlan(plan));
+        if(typeof window.svRenderAuditoriaRelaciones==='function')window.svRenderAuditoriaRelaciones();
+      }catch(errorVista){if(window.console)console.warn('[Normalización] Guardado confirmado; vista pendiente de actualizar');}
       return true;
-    } catch(e) {
-      if(typeof notify==='function') notify('Error aplicando plan: '+e.message);
-      return false;
-    }
+    })().catch(function(error){if(vigente() && typeof notify==='function')notify('No se confirmó la normalización: '+error.message);return false;}).finally(function(){if(window._svNormalizacionRelacionesPromesa===promesa)window._svNormalizacionRelacionesPromesa=null;});
+    window._svNormalizacionRelacionesPromesa=promesa;return promesa;
   };
 
   window.svRenderAuditoriaRelaciones = function(){

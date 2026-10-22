@@ -1,0 +1,86 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
+const {createBackend,copy,apply}=require('./helpers/labor-ui-flow.cjs');
+const {functionSource}=require('./helpers/app-functions.cjs');
+const {createAdminExpenseCreate,allowed}=require('../cotizador/admin-expense-create');
+const {identity}=require('../cotizador/personal-expenses');
+const {createLaborGuard}=require('../cotizador/labor-guard');
+const Index=require('../cotizador/labor-index');
+const Permissions=require('../js/core/permission-index');
+const fresh={fecha:'2026-10-22',vencimiento:'',tipo:'Variable',categoria:'Servicios',descripcion:'Gasto administrativo ficticio',monto:1234.567,montoPagado:0,estado:'pendiente',medio:'Efectivo',proveedor:'Ficticio',comprobante:'F-FICTICIO',empleadoId:null,empleadoNombre:null,reembolsado:false,esFijoBase:false,fotoAdjunta:false,usuario:'Titular ficticio',ts:1792627200000};
+function fixture(initial={},options={}){
+ const f=createBackend(initial);f.state.sv_permisos=Permissions.build({admin:{bloqueados:[],acciones:{}}});const reads=[],actors=[],read=f.store.read.bind(f.store),commit=f.store.commit.bind(f.store);
+ f.store.read=async p=>{reads.push(p);return read(p);};f.store.commit=async(p,l,a)=>{actors.push(a);return commit(p,l,a);};
+ const db={ref:p=>({get:async()=>{reads.push('authorization:'+p);return{val:()=>copy(f.get(p))};}})};
+ const api=createAdminExpenseCreate({authorize:f.gateway.authorize,db,guard:f.guard,enabled:true,now:()=>1792627200000,...options});
+ return {...f,api,reads,actors,body(data={},projection='complete',id='fixture-operation-001'){return {id,projection,datos:{...copy(fresh),...copy(data)}};},async actor(){return api.authorize({method:'POST',url:'/laboral/gastos/crear-administrativo',headers:{authorization:'Bearer fixture-token'}});}};
+}
+function checkIndex(f){for(const [p,v]of Object.entries(Index.buildIndex(f.state.sisventas)))assert.equal(f.get(p),v,p);}
+
+test('alta completa sin empleado conserva precisión y sólo lee índice/fichas exactas bajo guard real',async()=>{
+ const history=Object.fromEntries(Array.from({length:200},(_,i)=>['legacy-'+i,{...fresh,descripcion:'Gasto histórico ficticio '+i,monto:i+.123,pagos:{p:{monto:1}},comprobante:'F-'+i}])),f=fixture({gastos:history}),before=copy(f.state.sisventas);const actor=await f.actor(),body=f.body();const result=await f.api.create(actor,body);
+ assert.deepEqual(result,{ok:true,committed:true,key:result.key});assert.match(result.key,/^gasto_[a-f0-9]{64}$/);assert.deepEqual(f.get('sisventas/gastos/'+result.key),body.datos);assert.equal(f.get('sisventas/gastos/'+result.key).monto,1234.567);for(const [k,g]of Object.entries(history))assert.deepEqual(f.get('sisventas/gastos/'+k),g);assert.deepEqual(f.state.sisventas.ctaemp,before.ctaemp);assert.deepEqual(f.state.sisventas.ventas,before.ventas);assert.equal(f.commits.length,1);assert.equal(f.actors[0].mode,'user');assert.equal(f.actors[0].financialAction,'gastos.administrar');assert.equal(f.actors[0].role,'admin');assert.equal(f.actors[0].permissionRevision,1);assert.match(f.actors[0].permissionDigest,/^[a-f0-9]{64}$/);assert.ok(!f.reads.includes('sisventas/gastos'));assert.ok(!f.reads.some(p=>p==='sisventas'||p==='sisventas/ctaemp'));checkIndex(f);
+});
+test('gasto, pagos iniciales, movimiento, foto, índice y recibo se confirman juntos',async()=>{
+ const f=fixture(),body=f.body({empleadoId:'e',empleadoNombre:'Nombre antiguo',montoPagado:234.56,estado:'pagado_parcial',fotoAdjunta:true,pagos:{inicial:{monto:234.56,medio:'Efectivo',fecha:fresh.fecha,ts:10}}});body.foto='data:image/png;base64,QQ==';const result=await f.api.create(await f.actor(),body),g=f.get('sisventas/gastos/'+result.key),m=f.get('sisventas/ctaemp/e/gasto_empresa_'+result.key),patch=f.commits[0];assert.equal(f.commits.length,1);assert.equal(g.empleadoNombre,'Persona ficticia');assert.equal(m.monto,fresh.monto);assert.equal(m.estado,'pagado_parcial');assert.deepEqual(m.pagos,body.datos.pagos);assert.equal(f.get('sisventas/gastos_adjuntos/'+result.key+'/fotoBase64'),body.foto);for(const prefix of ['sisventas/gastos/','sisventas/ctaemp/e/','sisventas/gastos_adjuntos/','sv_labor_indexes/','sv_labor_receipts/'])assert.ok(Object.keys(patch).some(k=>k.startsWith(prefix)));assert.equal(patch.sv_labor_guard,null);assert.ok(!f.reads.includes('sisventas/ctaemp/e'));checkIndex(f);
+});
+test('expense-only conserva foto inline y empleado ingresado sin crear cuenta ni proyecciones adicionales',async()=>{
+ const f=fixture(),body=f.body({empleadoId:'sin-empleado-vivo',empleadoNombre:'Nombre capturado',fotoBase64:'data:image/png;base64,QQ=='},'expense-only');const result=await f.api.create(await f.actor(),body);assert.deepEqual(f.get('sisventas/gastos/'+result.key),body.datos);assert.deepEqual(f.state.sisventas.ctaemp,{e:{}});assert.equal(f.state.sisventas.gastos_adjuntos,undefined);assert.ok(!f.reads.some(p=>p.startsWith('sisventas/empleados/')||p.startsWith('sisventas/ctaemp/')));checkIndex(f);
+});
+test('duplicados históricos de clave aleatoria y todos los estados se detectan sin modificar pagos',async()=>{
+ for(const estado of ['pendiente','pagado','rechazado','anulado']){const legacy={...fresh,descripcion:' '+fresh.descripcion+' ',monto:1234.567,estado,pagos:{p:{monto:1234.567}},legacyKey:'ctaemp/e/historico'},f=fixture({gastos:{random:legacy}}),before=copy(f.state.sisventas);await assert.rejects(f.api.create(await f.actor(),f.body()),{code:'SV_GASTO_DUPLICATE'});assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,0);assert.ok(f.reads.includes('sisventas/gastos/random'));assert.ok(!f.reads.includes('sisventas/gastos'));}
+});
+test('membresía RTDB de claves numéricas densas admite array y sigue detectando cada duplicado legacy',async()=>{
+ const f=fixture({gastos:{0:{...fresh,pagos:{p:{monto:12}}},1:{...fresh,estado:'pagado'},2:{...fresh,estado:'rechazado'}}}),body=f.body(),bucket=Index.bucketPath('gastos','identity',identity(body.datos));apply(f.state,{[bucket]:[true,true,true]});const before=copy(f.state.sisventas);await assert.rejects(f.api.create(await f.actor(),body),{code:'SV_GASTO_DUPLICATE'});assert.equal(f.commits.length,0);assert.deepEqual(f.state.sisventas,before);assert.ok(f.reads.includes('sisventas/gastos/0'));assert.ok(f.reads.includes('sisventas/gastos/1'));assert.ok(f.reads.includes('sisventas/gastos/2'));
+ apply(f.state,{[bucket]:[true,false,true]});await assert.rejects(f.api.create(await f.actor(),body),{code:'SV_GASTO_INDEX_INVALID'});assert.equal(f.commits.length,0);
+ const holes=fixture({gastos:{0:{...fresh},2:{...fresh},3:{...fresh}}});apply(holes.state,{[bucket]:[true,null,true,true]});await assert.rejects(holes.api.create(await holes.actor(),body),{code:'SV_GASTO_DUPLICATE'});assert.equal(holes.commits.length,0);assert.ok(!holes.reads.includes('sisventas/gastos/1'));assert.ok(holes.reads.includes('sisventas/gastos/3'));
+});
+test('dos intentos concurrentes de igual identidad se serializan; un replay idéntico recupera sólo su recibo',async()=>{
+ const f=fixture(),actor=await f.actor(),a=f.body(),b=f.body({},'complete','fixture-operation-002');const results=await Promise.allSettled([f.api.create(actor,a),f.api.create(actor,b)]);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);assert.equal(results.find(r=>r.status==='rejected').reason.code,'SV_GASTO_DUPLICATE');assert.equal(f.commits.length,1);const replay=await f.api.create(await f.actor(),a);assert.deepEqual(replay,results[0].value);assert.equal(f.commits.length,1);assert.equal(Object.keys(f.state.sisventas.gastos).length,1);await assert.rejects(f.api.create(actor,{...a,datos:{...a.datos,monto:2000}}),/identificador corresponde a otra operación/);assert.equal(f.commits.length,1);
+});
+test('revocar permiso antes de replay no entrega un resultado guardado a un contexto ya denegado',async()=>{
+ const f=fixture(),actor=await f.actor(),body=f.body();await f.api.create(actor,body);f.state.sv_permisos.admin.acciones={gastos:{administrar:false}};await assert.rejects(f.api.create(actor,body),{statusCode:403});assert.equal(f.commits.length,1);
+});
+test('autorizar usa permiso actual configurable, no sólo el nombre del rol',async()=>{
+ for(const [rol,override,blocked,expected]of [['admin',false,false,false],['administrativo',undefined,false,true],['tecnico',true,false,true],['vendedor',true,false,true],['admin',true,true,false],['tecnico',undefined,false,false]]){const f=fixture();f.state.sv_chat_roles.u.rol=rol;f.state.sv_permisos=Permissions.build({[rol]:{bloqueados:blocked?['gastos']:[],acciones:override===undefined?{}:{gastos:{administrar:override}}}});assert.equal(allowed(rol,f.state.sv_permisos[rol]),expected);if(expected)assert.equal((await f.actor()).uid,'u');else await assert.rejects(f.actor(),{statusCode:403});assert.equal(f.commits.length,0);}
+});
+test('perfil inactivo, permiso perdido dentro del fence y falta de claims bloquean antes de escribir',async()=>{
+ const f=fixture(),actor=await f.actor();f.state.sv_chat_roles.u.activo=false;await assert.rejects(f.api.create(actor,f.body()),{statusCode:403});f.state.sv_chat_roles.u.activo=true;await assert.rejects(f.api.create({uid:'u'},f.body()),{statusCode:403});const read=f.store.read;f.store.read=async p=>{if(p==='sv_chat_roles/u')f.state.sv_permisos.admin.acciones={gastos:{administrar:false}};return read(p);};await assert.rejects(f.api.create(actor,f.body()),{statusCode:403});assert.equal(f.commits.length,0);
+});
+
+for(const changed of ['role','revision'])test('cambiar '+changed+' dentro del fence rechaza el contexto aun si el nuevo permiso también permite administrar',async()=>{
+ const f=fixture(),actor=await f.actor(),read=f.store.read;let mutated=false;
+ f.state.sv_permisos.administrativo=Permissions.build({administrativo:{bloqueados:[],acciones:{}}}).administrativo;
+ f.store.read=async p=>{if(p==='sv_chat_roles/u'&&!mutated){mutated=true;if(changed==='role')f.state.sv_chat_roles.u.rol='administrativo';else f.state.sv_permisos.admin.indiceRevision=2;}return read(p);};
+ const before=copy(f.state.sisventas);await assert.rejects(f.api.create(actor,f.body()),{statusCode:409,code:'SV_LABOR_AUTH_CHANGED'});assert.equal(f.commits.length,0);assert.deepEqual(f.state.sisventas,before);
+});
+test('falta de cobertura o membresía corrupta nunca se interpreta como índice vacío ni solicita fallback',async()=>{
+ for(const kind of ['missing','schema','not-ready','ghost','false','wrong-signature','scalar']){const f=fixture(),body=f.body(),bucket=Index.bucketPath('gastos','identity',identity(body.datos));if(kind==='missing')delete f.state.sv_labor_config;if(kind==='schema')f.state.sv_labor_config.schema=2;if(kind==='not-ready')f.state.sv_labor_config.ready=false;if(kind==='ghost')apply(f.state,{[bucket+'/ghost']:true});if(kind==='false')apply(f.state,{[bucket+'/ghost']:false});if(kind==='wrong-signature'){apply(f.state,{[bucket+'/other']:true,'sisventas/gastos/other':{...fresh,descripcion:'Otro'}});}if(kind==='scalar')apply(f.state,{[bucket]:'corrupto'});const before=copy(f.state.sisventas);await assert.rejects(f.api.create(await f.actor(),body),e=>['SV_GASTO_INDEX_UNREADY','SV_GASTO_INDEX_INVALID'].includes(e.code));assert.equal(f.commits.length,0);assert.deepEqual(f.state.sisventas,before);}
+});
+test('referencia determinista o movimiento ya ocupados se conservan aunque no figure membresía',async()=>{
+ for(const which of ['target','movement']){const f=fixture(),body=f.body({empleadoId:'e'}),signature=identity(body.datos),key='gasto_'+require('node:crypto').createHash('sha256').update(signature).digest('hex'),value={nota:'Conservar',pagos:{p:{monto:999}}};apply(f.state,{[which==='target'?'sisventas/gastos/'+key:'sisventas/ctaemp/e/gasto_empresa_'+key]:value});const before=copy(f.state.sisventas);await assert.rejects(f.api.create(await f.actor(),body),e=>e.statusCode===409);assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,0);}
+});
+test('empleado ausente/inactivo y commit rechazado conservan gasto, cuenta y adjunto inexistentes',async()=>{
+ for(const mode of ['missing','inactive','commit']){const f=fixture(),body=f.body({empleadoId:'e'});body.foto='data:image/png;base64,QQ==';if(mode==='missing')delete f.state.sisventas.empleados.e;if(mode==='inactive')f.state.sisventas.empleados.e.activo=false;if(mode==='commit')f.setRejectPatch(()=>{throw Object.assign(Error('Permiso final revocado'),{statusCode:403});});const before=copy(f.state.sisventas);await assert.rejects(f.api.create(await f.actor(),body));assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,0);}
+});
+test('fence expirado durante lookup aborta y no deja un índice o gasto parcial',async()=>{
+ const f=fixture();let clock=Date.now();const original=f.store.read;f.store.read=async p=>{const out=await original(p);if(p.startsWith('sv_labor_indexes/'))clock+=40000;return out;};const guard=createLaborGuard({store:f.store,now:()=>clock,uuid:()=> 'lease-fixture-001'}),api=createAdminExpenseCreate({authorize:f.gateway.authorize,db:{ref:p=>({get:async()=>({val:()=>f.get(p)})})},guard,enabled:true});await assert.rejects(api.create(await f.actor(),f.body()),{code:'SV_LABOR_LEASE_EXPIRED'});assert.equal(f.commits.length,0);assert.deepEqual(f.state.sisventas.gastos,{});
+});
+test('capacidad desactivada y request sin projection no llegan a lecturas financieras ni guardados',async()=>{
+ const f=fixture({}, {enabled:false});assert.equal(f.api.capability().enabled,false);await assert.rejects(f.actor(),{code:'SV_ADMIN_EXPENSE_DISABLED'});const active=fixture();const body=active.body();delete body.projection;await assert.rejects(active.api.create(await active.actor(),body),{statusCode:400});assert.equal(active.commits.length,0);assert.ok(!active.reads.includes('sisventas/gastos'));
+});
+test('campos extra, tipos inválidos, rutas de empleado y foto expense-only se rechazan sin escribir',async()=>{
+ const changes=[b=>b.id=12345678,b=>b.extra=true,b=>b.datos.legacyKey='ctaemp/e/m',b=>b.datos.monto=Infinity,b=>b.datos.categoria='x'.repeat(501),b=>b.datos.empleadoId='../otra',b=>b.datos.pagos=[],b=>{b.projection='expense-only';b.foto='foto';}];for(const change of changes){const f=fixture(),body=f.body();change(body);await assert.rejects(f.api.create(await f.actor(),body));assert.equal(f.commits.length,0);}
+});
+test('escritores existentes gateway mantienen altas, ediciones y borrados en la misma membresía que usa el comando',async()=>{
+ const f=fixture(),actor=await f.actor(),body=f.body(),legacy={...fresh,nota:'Histórico ficticio con pagos',pagos:{p:{monto:12.34}}};
+ await f.gateway.write(actor,{id:'legacy-insert-001',kind:'set',path:'sisventas/gastos/random-legacy',value:legacy});checkIndex(f);await assert.rejects(f.api.create(actor,body),{code:'SV_GASTO_DUPLICATE'});assert.equal(f.commits.length,1);
+ const edited={...legacy,descripcion:'Otro gasto histórico'};await f.gateway.write(actor,{id:'legacy-change-001',kind:'set',path:'sisventas/gastos/random-legacy',value:edited});checkIndex(f);assert.equal(f.get(Index.bucketPath('gastos','identity',identity(fresh))+'/random-legacy'),null);const result=await f.api.create(actor,body);assert.ok(result.key);assert.deepEqual(f.get('sisventas/gastos/random-legacy').pagos,legacy.pagos);checkIndex(f);
+ await f.gateway.write(actor,{id:'legacy-delete-001',kind:'set',path:'sisventas/gastos/random-legacy',value:null});assert.equal(f.get(Index.bucketPath('gastos','identity',identity(edited))+'/random-legacy'),null);checkIndex(f);
+});
+test('una alta legacy concurrente bajo gateway se indexa antes de que el comando valide su identidad',async()=>{
+ const f=fixture(),actor=await f.actor(),body=f.body();const results=await Promise.allSettled([f.gateway.write(actor,{id:'legacy-parallel-001',kind:'set',path:'sisventas/gastos/random-legacy',value:{...fresh,pagos:{p:{monto:12.34}}}}),f.api.create(actor,body)]);assert.equal(results[0].status,'fulfilled');assert.equal(results[1].status,'rejected');assert.equal(results[1].reason.code,'SV_GASTO_DUPLICATE');assert.equal(f.commits.length,1);assert.equal(Object.keys(f.state.sisventas.gastos).length,1);checkIndex(f);
+});
+test('800 identidades sintéticas conservan el algoritmo activo y su redondeo legacy exacto',()=>{
+ const c={};vm.runInNewContext(functionSource('_gastoIdentidad'),c);for(let i=0;i<800;i++){const g={fecha:'2026-10-'+String(1+i%28).padStart(2,'0'),descripcion:i%2?' Gasto ficticio '+i%20+' ':'Gasto ficticio '+i%20,monto:[10.004,10.005,10.006,0.1+0.2,100,-1,0,'10.00'][i%8],tipo:'Variable',categoria:'Servicios',proveedor:i%5?'Ficticio':'',empleadoId:i%4?'empleado_'+i%3:'',medio:i%3?'Efectivo':'',comprobante:'F-'+i%10,vencimiento:'',estado:i%2?'pagado':'pendiente',ts:i};assert.equal(identity(g),c._gastoIdentidad(g));assert.equal(Index.indexEntries('gastos','legacy-'+i,g)[Index.bucketPath('gastos','identity',c._gastoIdentidad(g))+'/legacy-'+i],true);}
+});

@@ -43,7 +43,8 @@ test('el pago de cuenta se imputa primero a la venta más antigua y admite saldo
 test('el pago general deja trazabilidad grupal y delega al núcleo canónico', () => {
   const confirmar = sourceOfFunction('confirmarPagoCuentaCorriente');
   const guardar = sourceOfFunction('_ccGuardarPagoAcotado');
-  assert.match(confirmar, /await _ccGuardarPagoAcotado\(grupo, solicitudes, cabecera, comprobanteCuenta\)/);
+  assert.match(confirmar, /await _ccGuardarPagoAcotado\(intentoCuenta\.grupoPago, intentoCuenta\.solicitudes, intentoCuenta\.cabecera, intentoCuenta\.comprobante\)/);
+  assert.match(confirmar, /_cobroPrepararIntento\(firmaIntento/);
   assert.match(confirmar, /grupoPago:grupo/);
   assert.match(confirmar, /origen:'cuenta_corriente'/);
   assert.match(guardar, /registrarCobrosCanonicos/);

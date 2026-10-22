@@ -52,7 +52,7 @@ function setup(kind, options={}){
   for(const [id,value]of Object.entries({'ccp-fecha':'2026-10-19','ccp-medio':'Efectivo','cob-venta':'V-DEMO','cob-medio':'Efectivo','cob-fecha':'2026-10-19','cli-inp':'Cliente ficticio','id-cli':'C-DEMO','cli-fbkey':'client'}))node(id).value=value;
   node('venta-generar-comision').checked=sale.comisionHabilitada;
   nodes['ccp-guardar']=button;
-  load(c,['svCapturarContextoOperacion','_svConfirmarGeneracionComision','_svMensajeConfirmacionComisiones','generarComisionesVenta',kind==='cobranzas'?'registrarPago':kind==='cuenta'?'confirmarPagoCuentaCorriente':'confirmarVenta']);
+  load(c,['svCapturarContextoOperacion','_cobroPrepararIntento','_svConfirmarGeneracionComision','_svMensajeConfirmacionComisiones','generarComisionesVenta',kind==='cobranzas'?'registrarPago':kind==='cuenta'?'confirmarPagoCuentaCorriente':'confirmarVenta']);
   return {c,generation,events,notices,timers,stages,nodes,button,sale,get paymentCalls(){return paymentCalls;},get generationCalls(){return generationCalls;},get saleWrites(){return saleWrites;},get closed(){return closed;},start:()=>kind==='cobranzas'?c.registrarPago():kind==='cuenta'?c.confirmarPagoCuentaCorriente():c.confirmarVenta()};
 }
 
