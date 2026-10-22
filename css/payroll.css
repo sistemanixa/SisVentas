@@ -1,0 +1,71 @@
+/* Sólo el diálogo de SAC: el historial desplaza dentro del primer plano. */
+#modal-aguinaldo .sac-dialog {
+  min-width: 0;
+  min-height: 0;
+}
+#modal-aguinaldo .sac-header {
+  gap: 12px;
+  background: var(--bg2);
+}
+#modal-aguinaldo .sac-header > div {
+  min-width: 0;
+}
+#modal-aguinaldo .sac-header > button {
+  flex-shrink: 0;
+}
+#modal-aguinaldo .sac-maximum {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+#modal-aguinaldo .sac-maximum input {
+  max-width: 100%;
+}
+#modal-aguinaldo #agu-tabla-body {
+  min-height: 0;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+}
+#modal-aguinaldo #agu-tabla-body table {
+  min-width: 540px;
+}
+#modal-aguinaldo #agu-tabla-body th,
+#modal-aguinaldo #agu-tabla-body td {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+#modal-aguinaldo #agu-tabla-body th:first-child,
+#modal-aguinaldo #agu-tabla-body td:first-child {
+  padding-left: 0 !important;
+}
+#modal-aguinaldo #agu-tabla-body th:last-child,
+#modal-aguinaldo #agu-tabla-body td:last-child {
+  padding-right: 0 !important;
+}
+#modal-aguinaldo .sac-footer {
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--bg2);
+}
+#modal-aguinaldo .sac-footer > button {
+  margin-left: auto;
+  max-width: 100%;
+  white-space: normal;
+}
+#modal-aguinaldo[aria-busy="true"] .sac-footer > button {
+  opacity: 1;
+  background: var(--bg3);
+  border-color: var(--border2);
+  color: var(--text2);
+  cursor: default;
+}
+@media (max-width: 480px) {
+  #modal-aguinaldo .sac-maximum {
+    flex: 1 1 100%;
+    margin-left: 0 !important;
+  }
+  #modal-aguinaldo .sac-maximum input {
+    flex: 1 1 100px;
+    min-width: 0;
+  }
+}

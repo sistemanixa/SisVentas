@@ -35,8 +35,21 @@ test('un conflicto reutiliza datos vigentes y su ETag, preservando la actualizac
 });
 
 test('El módulo que se carga al final usa el guardado atómico y bloquea doble clic',async()=>{
- const vm=require('vm');let saves=0,pushes=0;
- const nodes={'agu-sem-sel':{value:'2026-2'},'agu-fecha':{value:'2026-12-01'},'modal-aguinaldo':{dataset:{},remove(){}}};
- const window={fbDB:{},empData:{e:{fbKey:'e',nombre:'Empleado'}},gastosData:[],tienePermiso:()=>true,fbGet:async()=>({val:()=>({})}),fbRef:(_,p)=>p,fbPush:()=>{pushes++;}};
- const c={window,document:{addEventListener(){},querySelector:()=>({checked:true}),getElementById:id=>nodes[id]},notify(){},_sv348EmpleadoSeleccionado:()=>true,_calcularFilasAguinaldo:()=>[{e:{fbKey:'e',nombre:'Empleado'},aguinaldo:500}],_guardarAguinaldosAtomico:async()=>{saves++;return {committed:true};},Date,Set,Object,Array,Number,Math,parseInt};vm.createContext(c);vm.runInContext(fs.readFileSync('js/modules/payroll.js','utf8'),c);await Promise.all([window.confirmarRegistroAguinaldo(),window.confirmarRegistroAguinaldo()]);assert.equal(saves,1);assert.equal(pushes,0);assert.equal(window._aguinaldoGuardando,false);
+ const vm=require('vm'),{createBackend}=require('./helpers/labor-ui-flow.cjs');
+ const employee={nombre:'Persona ficticia',cargoId:'c'},haberes={e:{'2026_07':{sueldo:1000}}};
+ const backend=createBackend({empleados:{e:employee},haberes}),page=backend.page(),c=page.context;
+ c.empData={e:{...employee,fbKey:'e'}};
+ page.node('agu-sem-sel').value='2026-2';page.node('agu-fecha').value='2026-12-01';
+ page.load(['_mesesDelSemestre','_mesesTrabajadosEnSemestre','_calcularFilasAguinaldo']);
+ vm.runInContext(fs.readFileSync('js/core/payroll-source-snapshot.js','utf8'),c);
+ vm.runInContext(fs.readFileSync('js/modules/payroll.js','utf8'),c);
+ // Modal lifecycle is covered separately; this adapter invokes the real final
+ // handler, source builder and gateway instead of mocking the saved amount.
+ c.SVPayrollSemester={captureConfirmation:()=>({employees:[c.empData.e],haberes,period:{year:2026,half:2},maximum:''}),
+  assertConfirmation(){},saving(){},confirmed:()=>true,close(){}};
+ await Promise.all([c.confirmarRegistroAguinaldo(),c.confirmarRegistroAguinaldo()]);
+ assert.equal(backend.commands.length,1);assert.equal(backend.commits.length,1);
+ assert.equal(backend.get('sisventas/gastos/aguinaldo_e_2026_S2').monto,500);
+ assert.ok(Object.hasOwn(backend.commands[0].expectedHashes,'sisventas/haberes/e'));
+ assert.deepEqual(backend.direct,[]);assert.equal(c._aguinaldoGuardando,false);
 });

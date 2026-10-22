@@ -131,6 +131,11 @@
     var lbl=document.getElementById('agu-total-lbl'); if(lbl) lbl.textContent='$'+Math.round(total).toLocaleString('es-AR');
     var cnt=document.getElementById('agu-select-count-322'); if(cnt) cnt.textContent=count+' seleccionado'+(count!==1?'s':'');
   }
+  window.SVPayrollSelector = Object.freeze({
+    reset:function(){aguSelKeys322=null;},
+    apply:aplicarSelectorAguinaldo322,
+    selectedKeys:function(){return activos322().filter(function(e){return !aguSelKeys322||aguSelKeys322.has(e.fbKey);}).map(function(e){return e.fbKey;});}
+  });
   window.aguSeleccionarTodos322=function(){ aguSelKeys322=new Set(activos322().map(function(e){return e.fbKey;})); aplicarSelectorAguinaldo322(); };
   window.aguSeleccionarNinguno322=function(){ aguSelKeys322=new Set(); aplicarSelectorAguinaldo322(); };
   document.addEventListener('sisventas:payroll-modal-opened',function(){ aguSelKeys322=null; setTimeout(aplicarSelectorAguinaldo322,0); });

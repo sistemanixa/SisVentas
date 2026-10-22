@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.14.6-firebase' -->
+<!-- VERSION: 'v3.14.7-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,7 +21,7 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.14.6.js"></script>
+<script src="./js/core/version.v3.14.7.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.13.1-cards"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.11.18"></script>
@@ -54,11 +54,12 @@
   <script src="./js/core/data-readiness.js?v=3.14.3-startup"></script>
   <script src="./js/core/foreground-session.js?v=3.13.2"></script>
   <script src="./js/core/labor-write-recovery.js?v=3.14.6-bonus"></script>
-  <script src="./js/core/labor-writes.js?v=3.14.6-bonus"></script>
+  <script src="./js/core/labor-writes.js?v=3.14.7-sac"></script>
   <script src="./js/core/financial-commands.js?v=3.14.3"></script>
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=3.13.19-labor"></script>
 <link rel="stylesheet" href="./css/dashboard-privacy.css?v=3.14.5">
 <link rel="stylesheet" href="./css/bonus-grant.css?v=3.14.6">
+<link rel="stylesheet" href="./css/payroll.css?v=3.14.7">
 <link rel="stylesheet" href="./css/budget-presentation.css?v=3.13.19">
 </head>
 <body>
@@ -4525,6 +4526,7 @@ Listo para analizar.
             <div class="card-head">
               <span class="card-title">Empleados</span>
               <div class="emp-actions-358">
+                <button class="btn btn-sm" id="btn-revisar-haberes" data-permiso="empleados.avisarHaberes" onclick="_verificarHaberesPendientes()" title="Revisar haberes pendientes del mes anterior"><i class="ti ti-list-check"></i> Revisar haberes</button>
                 <button class="btn btn-sm emp-action-haberes admin-only" onclick="abrirModalHaberesMes()" title="Registrar los haberes del mes"><i class="ti ti-cash"></i> Haberes</button>
                 <button class="btn btn-sm" data-permiso="empleados.bonificar" onclick="abrirBonificacionesEmpleado()"><i class="ti ti-gift"></i> Bonificaciones</button>
                 <button class="btn btn-sm" data-permiso="empleados.gestionarAdelantos" onclick="abrirModalAdelantoGeneral()" style="color:var(--amber);border-color:var(--amber)" title="Registrar un adelanto para un empleado"><i class="ti ti-cash-banknote"></i> Cargar adelanto</button>
@@ -4535,6 +4537,7 @@ Listo para analizar.
               </div>
             </div>
             <div style="margin-bottom:14px">
+              <div id="emp-haberes-review-status" role="status" aria-live="polite" style="padding:0 0 12px;font-size:12px;color:var(--text2)" hidden></div>
               <input class="search-input" style="width:100%" placeholder="Buscar empleado..." oninput="buscarEmpleado(this.value)">
             </div>
             <table id="emp-tbl">
@@ -5772,7 +5775,7 @@ Listo para analizar.
 <script src="js/modules/commercial-document-controls.js?v=3.12.15"></script>
 <script src="./js/core/ot-personal-scope.js?v=3.14.0"></script>
 <script src="./js/core/bonus-quantity-model.js?v=3.14.6"></script>
-<script src="./js/app.v3.14.6.js"></script>
+<script src="./js/app.v3.14.7.js"></script>
 <script src="./js/modules/bonus-concepts.js?v=3.14.6"></script>
 <script src="./js/modules/bonus-grant.js?v=3.14.6"></script>
 <script src="./js/modules/projects.js?v=3.14.3-demand"></script>
@@ -6182,7 +6185,9 @@ Listo para analizar.
 <script src="./js/modules/activity-history.js?v=3.3.17"></script>
 
 
-<script src="./js/modules/payroll-selector.js?v=2.0.154"></script>
+<script src="./js/core/payroll-source-snapshot.js?v=3.14.7"></script>
+<script src="./js/core/payroll-legacy-sac-model.js?v=3.14.7"></script>
+<script src="./js/modules/payroll-selector.js?v=3.14.7"></script>
 
 
 
@@ -6285,10 +6290,12 @@ Listo para analizar.
 <script src="./js/modules/payroll-legacy-migration.js?v=history-20261022"></script>
 
 
-<script src="./js/modules/payroll.js?v=3.10.28"></script>
+<script src="./js/modules/payroll.js?v=3.14.7"></script>
+<script src="./js/modules/payroll-legacy-sac.js?v=3.14.7"></script>
+<script src="./js/modules/payroll-pending-review.js?v=3.14.7"></script>
 
 
-<script src="./js/modules/maintenance.js?v=3.13.19-financial"></script>
+<script src="./js/modules/maintenance.js?v=3.14.7"></script>
 
 
 <script src="./js/modules/refactor-health.js?v=3.14.3-finance"></script>

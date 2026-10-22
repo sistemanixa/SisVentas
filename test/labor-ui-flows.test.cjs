@@ -5,6 +5,17 @@ const expense=()=>({monto:100,montoPagado:0,estado:'pendiente_pago',empleadoId:'
 const movement=()=>({tipo:'sueldo',monto:100,estado:'aprobado',gastoFbKey:'g',fecha:'2026-10-01'});
 function payment(){const backend=createBackend({gastos:{g:expense()},ctaemp:{e:{m:movement()}}}),page=backend.page();page.refresh();return {...backend,...page};}
 const commission=()=>({tipo:'comision',monto:50,pct:5,pctOriginal:5,gananciaBase:1000,fecha:'2026-10-20',ventaId:'V-FICTICIA',ventaFbKey:'v',descripcion:'Comisión ficticia',ts:1000});
+function installSacSources(backend,page,ids=['e']){
+ const fs=require('node:fs'),vm=require('node:vm');
+ page.load(['_mesesDelSemestre','_mesesTrabajadosEnSemestre','_calcularFilasAguinaldo']);
+ vm.runInContext(fs.readFileSync('js/core/payroll-source-snapshot.js','utf8'),page.context);
+ vm.runInContext(fs.readFileSync('js/modules/payroll.js','utf8'),page.context);
+ page.context.SVPayrollSemester={
+  captureConfirmation:()=>({employees:ids.map(id=>({...backend.get('sisventas/empleados/'+id),fbKey:id})),
+   haberes:backend.get('sisventas/haberes'),period:{year:2026,half:2},maximum:''}),
+  assertConfirmation(){},saving(){},confirmed:()=>true,close(){}
+ };
+}
 
 test('Pago parcial y total recorren aplicación activa, adaptador, gateway y guard sin escrituras SDK',async()=>{
  const f=payment(),sentinel=copy(f.state.sisventas.sentinel);
@@ -169,22 +180,27 @@ test('Bonificación nueva y replay conservan sueldo e importes pagados; un cambi
 
 test('SAC conserva duplicados legacy por tipo, empleado y semestre, incluso pagados/anulados',async()=>{
  for(const estado of ['pagado','anulado','pendiente']){
-  const old={tipoPagable:'AGUINALDO',empleadoFbKey:1,semestre:'2026_S2',monto:50,estado},f=createBackend({gastos:{randomLegacy:old}}),p=f.page(),before=copy(f.state.sisventas);
+  const old={tipoPagable:'AGUINALDO',empleadoFbKey:1,semestre:'2026_S2',monto:50,estado},f=createBackend({empleados:{'1':{nombre:'Ficticio'}},haberes:{'1':{'2026_07':{sueldo:150}}},gastos:{randomLegacy:old}}),p=f.page(),before=copy(f.state.sisventas);
+  installSacSources(f,p,['1']);
   const result=await p.context._guardarAguinaldosAtomico([{e:{fbKey:'1',nombre:'Ficticio'},aguinaldo:75,mejorSueldo:150}],'2026_S2','2026-12-01','2do semestre 2026');assert.equal(result.committed,true);assert.deepEqual(f.state.sisventas,before);assert.equal(f.commands.length,0);
  }
 });
 
 test('SAC con duplicado explícito usa operación estable y escribe sólo el gasto nuevo',async()=>{
- const f=createBackend({gastos:{old:{tipoPagable:'aguinaldo',empleadoId:'e',semestre:'2026_S2',monto:50,estado:'pagado'}}}),p=f.page(),rows=[{e:p.context.empData.e,aguinaldo:75,mejorSueldo:150}];
+ const f=createBackend({haberes:{e:{'2026_07':{sueldo:150}}},gastos:{old:{tipoPagable:'aguinaldo',empleadoId:'e',semestre:'2026_S2',monto:50,estado:'pagado'}}}),p=f.page(),rows=[{e:p.context.empData.e,aguinaldo:75,mejorSueldo:150}];
+ installSacSources(f,p);
  await p.context._guardarAguinaldosAtomico(rows,'2026_S2','2026-12-01','2do semestre 2026','fixture-sac',true);const before=copy(f.state.sisventas);await p.context._guardarAguinaldosAtomico(rows,'2026_S2','2026-12-01','2do semestre 2026','fixture-sac',true);
  assert.deepEqual(f.state.sisventas,before);assert.equal(Object.keys(f.get('sisventas/gastos')).length,2);assert.equal(f.commits.length,1);assert.ok(!Object.hasOwn(f.commands[0].value,'sisventas/gastos'));
 });
 
 test('SAC detecta un duplicado legacy agregado después de leer y conserva el pago existente',async()=>{
- const f=createBackend(),p=f.page(),other=f.page(),legacy={tipoPagable:'aguinaldo',empleadoId:'e',semestre:'2026_S2',monto:100,montoPagado:100,estado:'pagado',pagos:{p:{monto:100}}};let inserted=false;
- f.setHook(async command=>{if(!inserted&&command.kind==='atomic'){inserted=true;await other.context.fbSet(other.context.fbRef(other.context.fbDB,'sisventas/gastos/aleatorio'),legacy);}});
+ const f=createBackend({haberes:{e:{'2026_07':{sueldo:200}}}}),p=f.page(),legacy={tipoPagable:'aguinaldo',empleadoId:'e',semestre:'2026_S2',monto:100,montoPagado:100,estado:'pagado',pagos:{p:{monto:100}}};let inserted=false;
+ installSacSources(f,p);
+ // Simulate a historical import completed after the client snapshot. Generic
+ // creation of a paid SAC is now forbidden; it is not a legitimate UI writer.
+ f.setHook(async command=>{if(!inserted&&command.kind==='atomic'){inserted=true;f.state.sisventas.gastos.aleatorio=copy(legacy);}});
  await p.context._guardarAguinaldosAtomico([{e:p.context.empData.e,aguinaldo:100,mejorSueldo:200}],'2026_S2','2026-12-01','2do semestre 2026');
- assert.deepEqual(f.get('sisventas/gastos/aleatorio'),legacy);assert.equal(f.get('sisventas/gastos/aguinaldo_e_2026_S2'),null);assert.equal(f.commits.length,1);assert.equal(f.commands.filter(c=>c.kind==='atomic').length,1);
+ assert.deepEqual(f.get('sisventas/gastos/aleatorio'),legacy);assert.equal(f.get('sisventas/gastos/aguinaldo_e_2026_S2'),null);assert.equal(f.commits.length,0);assert.equal(f.commands.filter(c=>c.kind==='atomic').length,1);
 });
 
 test('El formulario de pago real confirma un lote completo y rechaza un importe superior al saldo',async()=>{

@@ -4,6 +4,7 @@ const Index=require('./labor-index');
 const PaymentIndex=require('./payment-membership-index');
 const {validateExpenseRemovals}=require('./expense-removal-guard');
 const {validateBonusBatch}=require('./labor-bonus-batch');
+const {validateSACWrites}=require('./labor-sac-batch');
 const failure=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const copy=v=>v==null?null:structuredClone(v);
 function canonical(v){if(v==null)return 'null';if(Array.isArray(v))return '['+v.map(canonical).join(',')+']';if(typeof v==='object')return '{'+Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';return JSON.stringify(v);}
@@ -24,8 +25,8 @@ function affected(path){const p=parts(path);return ['sv_commission_generation','
 function validateFinancialContext(actor,profile,permissions){
  if(profile?.activo!==true)throw failure(403,'Usuario sin acceso');
  if(profile.rol!==actor.role)throw failure(409,'La sesión cambió. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
- const actions={'cobranzas.registrar':['cobranzas','cobranzas','registrar',['admin','administrativo']],'cobranzas.anular':['cobranzas','cobranzas','anular',['admin']],'gastos.administrar':['gastos','gastos','administrar',['admin','administrativo']],'gastos.eliminar':['gastos','gastos','eliminar',['admin']],'mantenimiento.normalizar':['configuracion','mantenimiento','normalizar',['admin']],'empleados.bonificar':['empleados','empleados','bonificar',['admin']]},action=actions[actor.financialAction];
- if(!action||actor.financialAction==='gastos.eliminar'&&profile.rol!=='admin')throw failure(403,'Acción financiera no autorizada');
+ const actions={'cobranzas.registrar':['cobranzas','cobranzas','registrar',['admin','administrativo']],'cobranzas.anular':['cobranzas','cobranzas','anular',['admin']],'gastos.administrar':['gastos','gastos','administrar',['admin','administrativo']],'gastos.eliminar':['gastos','gastos','eliminar',['admin']],'mantenimiento.normalizar':['configuracion','mantenimiento','normalizar',['admin']],'mantenimiento.migrar':['configuracion','mantenimiento','migrar',['admin']],'empleados.bonificar':['empleados','empleados','bonificar',['admin']],'empleados.registrarHaberes':['empleados','empleados','registrarHaberes',['admin']]},action=actions[actor.financialAction];
+ if(!action||['gastos.eliminar','mantenimiento.migrar'].includes(actor.financialAction)&&profile.rol!=='admin')throw failure(403,'Acción financiera no autorizada');
  const [module,group,name,defaults]=action,cfg=permissions||{},override=cfg.acciones?.[group]?.[name];
  if(Object.values(cfg.bloqueados||{}).includes(module)||permissions&&(cfg.indiceVersion!==2||cfg.indiceModulos?.[module]!==true)||(typeof override==='boolean'?!override:!defaults.includes(profile.rol)))throw failure(403,'El permiso de la operación ya no está habilitado');
  if((cfg.indiceRevision??null)!==(actor.permissionRevision??null)||digest(cfg)!==actor.permissionDigest)throw failure(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
@@ -44,7 +45,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
   if(actor.mode==='user'&&actor.opId){const receipt=await store.read('sv_labor_receipts/'+opId);if(receipt){if(receipt.actorUid!==actor.uid||receipt.digest!==requestDigest)throw failure(409,'El identificador corresponde a otra operación');return copy(receipt.result);}}
   const lease={fence:uuid(),opId,digest:requestDigest,expiresAt:now()+leaseMs,actorUid:actor.uid,mode:actor.mode};
   for(let attempt=0;;attempt++){lease.expiresAt=now()+leaseMs;try{await store.acquire(lease);break;}catch(error){if(error.statusCode!==423||attempt>=4)throw error;await delay(100*2**attempt);}}
-  const staged=new Map(),reads=new Map(),authReads=new Map(),readTree={children:new Map(),path:null};let completed=false,phase='working';
+  const staged=new Map(),reads=new Map(),authReads=new Map(),authorizedSnapshots=new Map(),readTree={children:new Map(),path:null};let completed=false,phase='working';
   const authenticatedActor=actor.mode==='user'&&actor.claims?.uid===actor.uid?{uid:actor.uid,claims:copy(actor.claims)}:null;
   function live(){if(phase==='closed')throw failure(409,'Este guardado ya terminó.','SV_LABOR_SCOPE_CLOSED');if(now()>=lease.expiresAt)throw failure(409,'El plazo del guardado terminó. Revisá el estado antes de reintentar.','SV_LABOR_LEASE_EXPIRED');}
   function working(){live();if(phase!=='working')throw failure(409,'El guardado ya se está confirmando.','SV_LABOR_SCOPE_CLOSED');}
@@ -55,7 +56,16 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
    const pending=[...node.children.values()];while(pending.length){const next=pending.pop();if(next.path)matches.push(next.path);for(const child of next.children.values())pending.push(child);}
    return matches;
   }
-  async function raw(path){parts(path);live();if(!reads.has(path))rememberRead(path,Promise.resolve().then(()=>store.read(path)));const value=await reads.get(path);live();return copy(value);}
+  async function raw(path){
+   const keys=parts(path);live();
+   if(!reads.has(path)){
+    // A successfully authorized ancestor belongs to this UID and this fence.
+    // It supplies data only; getAsUser still performs every expected live read.
+    let base='';for(let i=keys.length-1;i>0;i--){const candidate=keys.slice(0,i).join('/');if(authorizedSnapshots.has(candidate)){base=candidate;break;}}
+    rememberRead(path,base?Promise.resolve(child(authorizedSnapshots.get(base),keys.slice(parts(base).length))):Promise.resolve().then(()=>store.read(path)));
+   }
+   const value=await reads.get(path);live();return copy(value);
+  }
   function overlay(path,value){for(const [p,v]of staged){if(p===path)value=copy(v);else if(path.startsWith(p+'/'))value=child(v,parts(path.slice(p.length+1)));else if(p.startsWith(path+'/'))value=put(value,parts(p.slice(path.length+1)),v);}return copy(value);}
   async function get(path){return overlay(path,await raw(path));}
   async function getAsUser(path){
@@ -70,7 +80,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
      if(cached===path||path.startsWith(cached+'/')){const before=await promise;working();if(canonical(cached===path?before:child(before,parts(path.slice(cached.length+1))))!==canonical(value))throw failure(409,'El registro cambió durante la verificación de acceso','SV_CAS_CONFLICT');}
      else if(cached.startsWith(path+'/')){const before=await promise;working();if(canonical(before)!==canonical(child(value,parts(cached.slice(path.length+1)))))throw failure(409,'El registro cambió durante la verificación de acceso','SV_CAS_CONFLICT');}
     }
-    if(!reads.has(path))rememberRead(path,Promise.resolve(copy(value)));return value;
+    if(!reads.has(path))rememberRead(path,Promise.resolve(copy(value)));authorizedSnapshots.set(path,copy(value));return value;
    }));
    const value=await authReads.get(path);working();return overlay(path,copy(value));
   }
@@ -105,7 +115,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
      else if(path.startsWith(root+'/'))records.add(domain+'/'+parts(path.slice(root.length+1))[0]);
     }
     const changes=[];for(const record of records){const slash=record.indexOf('/'),domain=record.slice(0,slash),key=record.slice(slash+1),path='sisventas/'+record;changes.push({domain,key,before:await raw(path),after:await get(path)});}
-    const patch=Object.fromEntries(staged);await validateExpenseRemovals({actor,raw,changes,patch});await validateBonusBatch({actor,raw,get,changes,patch,digest});await require('./labor-commission-limit').validateCommissionLimit({raw,get,changes,patch});Object.assign(patch,Index.planIndexDelta(changes));
+    const patch=Object.fromEntries(staged);await validateExpenseRemovals({actor,raw,changes,patch});await validateSACWrites({actor,raw,get,changes,patch,digest});await validateBonusBatch({actor,raw,get,changes,patch,digest});await require('./labor-commission-limit').validateCommissionLimit({raw,get,changes,patch});Object.assign(patch,Index.planIndexDelta(changes));
     const paymentKeys=PaymentIndex.paymentKeysForPatch(Object.fromEntries([...staged].filter(([path])=>path.startsWith('sisventas/pagos/'))));
     if(paymentKeys.length){
      const coverage=await get(PaymentIndex.COVERAGE_PATH);

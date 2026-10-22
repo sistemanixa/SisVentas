@@ -127,7 +127,8 @@ function page(role = 'admin', options = {}) {
   }
   return { context, nodes, listeners, reads, directWrites, renders, commands, messages, confirmations, events, emit, snapshot,
     revoke() { allowed = false; fullDomain = false; }, setActive(value) { pageActive = value; },
-    select(keys) { selected = new Set(keys); }, salaries(value) { salariesNow = copy(value); } };
+    select(keys) { selected = new Set(keys); }, selectedKeys() { return [...selected]; },
+    salaries(value) { salariesNow = copy(value); } };
 }
 
 for (const [role, expectedSources, expectedKeys] of [
@@ -206,7 +207,27 @@ function financialPage(initial = {}) {
     ctaemp: { e1: { old: { tipo: 'sueldo', monto: 500, montoPagado: 500, pagos: { p: { monto: 500 } } } }, e2: {} },
     aguinaldos: copy(legacyMarks), ...copy(initial) });
   const transport = backend.page();
-  const env = page('admin', { save: (...args) => transport.context._guardarAguinaldosAtomico(...args) });
+  const env = page('admin');
+  // These financial regressions isolate the modal adapter; the real controller,
+  // REST range reads and modal lifecycle are exercised in payroll-semester-reads.
+  // The actual new builder, browser CAS transport, gateway and guard run below.
+  vm.runInContext(fs.readFileSync(path.join(repo, 'js/core/payroll-source-snapshot.js'), 'utf8'), env.context);
+  env.context._claveOperacionConcurrente = transport.context._claveOperacionConcurrente;
+  env.context._pagableGastoBase = transport.context._pagableGastoBase;
+  env.context.SVLaborWrites = { atomic: options => {
+    env.commands.push({ paths: [...options.paths] });
+    return transport.context.SVLaborWrites.atomic(options);
+  } };
+  env.context.SVPayrollSemester = {
+    captureConfirmation() {
+      const [year, half] = env.nodes['agu-sem-sel'].value.split('-').map(Number);
+      return { employees: Object.values(env.context.empData).filter(e => e.activo !== false && env.selectedKeys().includes(e.fbKey)),
+        haberes: copy(salaries), maximum: env.nodes['agu-maximo'].value, period: { year, half } };
+    },
+    assertConfirmation() { if (!env.context.tienePermiso('empleados.registrarHaberes')) throw Error('Sin permiso'); },
+    saving() {}, confirmed: () => true, invalidate() {},
+    close() { env.nodes['modal-aguinaldo'].remove(); }
+  };
   env.context.fbCargarGastos(); env.emit('sisventas/gastos', backend.get('sisventas/gastos'));
   env.emit('sisventas/aguinaldos', backend.get('sisventas/aguinaldos'));
   return { backend, transport, env };
@@ -222,9 +243,11 @@ test('SAC por acción humana usa haberes del semestre, genera un solo commit y n
   await Promise.all([env.context.confirmarRegistroAguinaldo(), env.context.confirmarRegistroAguinaldo()]);
   assert.equal(env.commands.length, 1); assert.equal(backend.commits.length, 1);
   assert.equal(env.confirmations.length, 0, 'Las marcas SAC de otra colección no son duplicados pagables');
-  assert.deepEqual(env.reads, ['sisventas/haberes']);
-  const rows = env.commands[0][0];
-  assert.deepEqual(rows.map(row => [row.e.fbKey, row.mejorSueldo, row.mesesTrabajados, row.aguinaldo]), [['e1', 1200, 6, 600], ['e2', 1800, 4, 600]]);
+  assert.deepEqual(env.reads, [], 'Confirmar no vuelve a descargar la raíz de Haberes');
+  assert.ok(env.commands[0].paths.includes('sisventas/haberes/e1'));
+  assert.ok(env.commands[0].paths.includes('sisventas/empleados/e2'));
+  assert.equal(backend.get('sisventas/gastos/aguinaldo_e1_2026_S2').mejorSueldo, 1200);
+  assert.equal(backend.get('sisventas/gastos/aguinaldo_e2_2026_S2').mejorSueldo, 1800);
   const result = backend.get('sisventas/gastos');
   assert.deepEqual(Object.keys(result).sort(), ['aguinaldo_e1_2026_S2', 'aguinaldo_e2_2026_S2']);
   for (const [key, gasto] of Object.entries(result)) {
@@ -242,13 +265,15 @@ test('SAC por acción humana usa haberes del semestre, genera un solo commit y n
 
 test('SAC lee el sueldo fresco, respeta empleados seleccionados y aplica el tope editable', async () => {
   const { backend, env } = financialPage(), fresh = copy(salaries); fresh.e1['2026_10'].sueldo = 2400;
-  env.salaries(fresh); env.select(['e1']);
+  backend.state.sisventas.haberes = copy(fresh); env.select(['e1']);
   await env.context.confirmarRegistroAguinaldo();
   assert.equal(backend.commits.length, 1);
   assert.deepEqual(Object.keys(backend.get('sisventas/gastos')), ['aguinaldo_e1_2026_S2']);
   const saved = backend.get('sisventas/gastos/aguinaldo_e1_2026_S2');
   assert.equal(saved.monto, 700); assert.equal(saved.mejorSueldo, 2400);
-  assert.deepEqual(env.reads, ['sisventas/haberes']); assert.equal(env.commands[0][0].length, 1);
+  assert.deepEqual(env.reads, []);
+  assert.ok(env.commands[0].paths.includes('sisventas/haberes/e1'));
+  assert.ok(!env.commands[0].paths.some(p => p === 'sisventas/haberes/e2' || p.startsWith('sisventas/haberes/e2/')));
 });
 
 test('Duplicado pagado exige confirmación; Cancelar o perder permiso antes de guardar no consulta ni escribe', async () => {
@@ -270,7 +295,8 @@ test('Duplicado expresamente aprobado retiene ID de operación y conserva el pag
   const old = backend.get('sisventas/gastos/legacyReal'), untouched = financialUntouched(backend);
   await env.context.confirmarRegistroAguinaldo();
   assert.equal(env.confirmations.length, 1); assert.match(env.confirmations[0], /Ya existe aguinaldo registrado en Gastos/);
-  assert.deepEqual(env.commands[0].slice(1), ['2026_S2', '2026-12-01', '2do semestre 2026', 'fixture-sac', true]);
+  assert.ok(Object.keys(backend.get('sisventas/gastos')).some(key => key.includes('fixture-sac')),
+    'El duplicado autorizado conserva la identidad de operación del formulario');
   assert.equal(backend.commits.length, 1); assert.equal(Object.keys(backend.get('sisventas/gastos')).length, 3);
   await env.context.confirmarRegistroAguinaldo();
   assert.equal(backend.commits.length, 1); assert.equal(Object.keys(backend.get('sisventas/gastos')).length, 3);
@@ -278,20 +304,22 @@ test('Duplicado expresamente aprobado retiene ID de operación y conserva el pag
 });
 
 test('El CAS real conserva un duplicado legacy agregado por otra operación entre lectura y commit', async () => {
-  const { backend, env } = financialPage(), other = backend.page(); env.select(['e1']);
+  const { backend, env } = financialPage(); env.select(['e1']);
   const old = { tipoPagable: 'AGUINALDO', empleadoId: 'e1', semestre: '2026_S2', monto: 600,
     montoPagado: 600, estado: 'pagado', pagos: { original: { monto: 600, fecha: '2026-10-01' } } };
   let inserted = false;
   backend.setHook(async command => {
     if (!inserted && command.kind === 'atomic') {
       inserted = true;
-      await other.context.fbSet(other.context.fbRef(other.context.fbDB, 'sisventas/gastos/legacyConcurrente'), old);
+      // A historical import appears after the client snapshot. A generic new
+      // paid SAC is no longer accepted by the protected UI transport.
+      backend.state.sisventas.gastos.legacyConcurrente = copy(old);
     }
   });
   await env.context.confirmarRegistroAguinaldo();
   assert.equal(inserted, true); assert.deepEqual(backend.get('sisventas/gastos/legacyConcurrente'), old);
   assert.equal(backend.get('sisventas/gastos/aguinaldo_e1_2026_S2'), null);
-  assert.equal(backend.commits.length, 1, 'Sólo se confirmó el duplicado de la otra operación');
+  assert.equal(backend.commits.length, 0, 'El cliente no agrega ningún SAC sobre el importado');
   assert.equal(backend.commands.filter(command => command.kind === 'atomic').length, 1);
 });
 

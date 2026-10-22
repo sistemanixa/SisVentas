@@ -302,6 +302,7 @@ function mntRenderMigraciones(migr){
 async function mntMigrarLegacy(){
   if(!mntRequireAdmin('migraciones de mantenimiento','mantenimiento.migrar')) return;
   if(!window.fbDB){ notify('Sin conexión Firebase'); return; }
+  try {
   if(!MNT_STATE.analizado) await mntAnalizarBase();
   mntSetEstado('Migrando...','b-amber'); mntLog('Iniciando migración controlada...'); var antes=Date.now();
   var creadosAntes=window._ultimaMigracionPagablesLegacy&&window._ultimaMigracionPagablesLegacy.creados?window._ultimaMigracionPagablesLegacy.creados:0;
@@ -328,6 +329,12 @@ async function mntMigrarLegacy(){
   var ver=mntVersion();
   await window.fbUpdate(window.fbRef(window.fbDB),{'sisventas/migraciones/001-sac-gastos':{estado:'OK',version:ver,fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/002-horasextras-gastos':{estado:'OK',version:ver,fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/003-ctaemp-pagables-gastos':{estado:'OK',version:ver,fecha:fecha,usuario:usuario,registrosNuevos:creados},'sisventas/migraciones/004-comisiones-gastos':{estado:'OK',version:ver,fecha:fecha,usuario:usuario,registrosNuevos:comCreadas}}).catch(function(e){mntLog('No se pudo guardar historial: '+e.message);});
   mntLog('Migración finalizada. Registros nuevos creados: '+creados+'. Tiempo: '+((Date.now()-antes)/1000).toFixed(2)+' s'); notify('✓ Migración finalizada'); await mntAnalizarBase();
+  } catch (error) {
+    mntSetEstado('Migración incompleta','b-amber');
+    mntLog('No se confirmó la migración: ' + (error && error.message || 'Error de lectura o guardado'));
+    notify('No se completó la migración. Revisá el resultado antes de reintentar.');
+    return false;
+  }
 }
 async function mntVerificarIntegridad(){ if(!MNT_STATE.analizado) await mntAnalizarBase(); mntLog('Verificando integridad...'); var d=MNT_STATE.diag||{}; var issues=[]; if((d.aguPend||0)>0) issues.push('Aguinaldos sin gasto: '+d.aguPend); if((d.hsPend||0)>0) issues.push('Horas extra aprobadas sin gasto: '+d.hsPend); if((d.ctaPend||0)>0) issues.push('Movimientos de cuenta empleado sin gasto: '+d.ctaPend); if(!issues.length){MNT_STATE.integridadOK=true; mntSetEstado('Integridad OK','b-green'); var btn=document.getElementById('mnt-btn-limpiar'); if(btn) btn.disabled=false; mntLog('Integridad OK. La limpieza segura ya está habilitada.'); notify('✓ Integridad OK');} else {MNT_STATE.integridadOK=false; mntSetEstado('Integridad pendiente','b-amber'); var btn2=document.getElementById('mnt-btn-limpiar'); if(btn2) btn2.disabled=true; issues.forEach(mntLog); notify('Hay pendientes por migrar');} }
 

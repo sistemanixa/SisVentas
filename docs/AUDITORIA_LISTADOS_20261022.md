@@ -1,5 +1,10 @@
 # Listados: transferencias repetidas y suscripción SAC
 
+Estado posterior: las dos primeras mejoras se publicaron en v3.14.6. La siguiente
+tanda Haberes/SAC se documenta en [HABERES_LECTURA_SEMESTRAL.md](HABERES_LECTURA_SEMESTRAL.md)
+y se prepara como candidata v3.14.7; todavía no está publicada. Las secciones de
+prototipos y bases anteriores conservan su alcance histórico.
+
 Preparación posterior a la publicación verificada v3.14.5. Rama
 `codex/listados-historial-condicional`, base `e788385dba8d0843fae16c0310c306b3bdbd8193`.
 Estos cambios todavía no están publicados. No modifican operaciones comerciales,
