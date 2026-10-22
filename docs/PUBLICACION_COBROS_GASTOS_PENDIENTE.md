@@ -5,6 +5,16 @@ documento no ejecuta ni acredita una migración, una publicación o un ahorro.
 El código de planificación y reglas es offline; no debe apuntarse a producción
 como prueba. Mantener la pausa de guardados hasta completar el conjunto.
 
+Una primera publicación de web/servidor con las capacidades nuevas apagadas
+conserva el circuito financiero anterior y **no activa** el ahorro candidato de
+Cobros/Gastos. El cliente consulta capacidades una vez por contexto y puede
+seleccionar la compatibilidad anterior antes de escribir; el guard nuevo también
+puede comprobar cobertura. Hay ese trabajo adicional, aunque no se creen
+servicios ni sondeos. No anunciar cero IO adicional ni costo igual garantizado.
+Las mejoras previas de listados/guardados y la interfaz/recibo/fechas son alcances
+distintos. No aplicar la regla de escritor ni crear cobertura para publicar esa
+primera tanda: requiere el corte completo siguiente y autorización específica.
+
 1. Fijar un SHA completo revisado y checkout limpio. Ejecutar la puerta vigente,
    pruebas focales, integración RTDB ficticia y comprobación de activos. Revisar
    explícitamente el alcance, sin incluir `tmp/`, sesiones o credenciales.

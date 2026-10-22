@@ -26,6 +26,9 @@ Recibo PDF: `node --test test/payment-receipt-pdf-layout.test.cjs`; comprueba
 clon de exportación, contenido largo, mismo blob para descargar/compartir,
 impresión y recuperación ante errores. La prueba raster real y sus PDFs/PNG
 son evidencia privada complementaria, no se descargan librerías en la puerta.
+Plan de cancelación: `node --test test/private-finance-plan-rate-source.test.cjs`;
+13 casos de procedencia de TEM manual/resumen, vacío/cero, escenarios y cambio
+de tarjeta sin modificar los resúmenes ficticios.
 
 Opt-in RTDB: `test/payment-scoped-emulator.integration.cjs` requiere
 `FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:9037`, `SV_RULES_TEST_FILE` con la

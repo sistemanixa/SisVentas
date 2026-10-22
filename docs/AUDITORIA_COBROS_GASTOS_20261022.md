@@ -116,6 +116,10 @@ La primera pasada encontró dos expectativas estáticas de los argumentos
 retenidos y un fixture de empaquetado que omitía dos dependencias nuevas; se
 actualizaron esos contratos y se repitió la puerta completa. No se alteró una
 expectativa contable para obtener aprobación.
+Tras integrar próximas fechas de tarjetas, CSS móvil y procedencia de tasa del
+escenario, la puerta conjunta final dio3.694casos:3.667aprobados,27opt-in,0fallos.
+Log privado `cobros-gastos-integrated-final-gate.private.log`. El cambio posterior
+de app es una nota de Novedades; no cambia funciones financieras del benchmark.
 
 Emulador RTDB real local: 35/35, con rutas HTTP y módulos reales, reglas
 candidatas sobre la base local revisada `978cea4169880cd9b5d2782fbe17b7243a2fea562cb1737cb15292ebaa2e1782`.
