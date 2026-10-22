@@ -1,0 +1,31 @@
+.personal-notices{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-bottom:12px;min-width:0;color:var(--text,#eaf1fb)}
+.personal-notices[hidden]{display:none}
+.personal-notices-card{min-width:0;display:flex;flex-direction:column;padding:15px 16px;border:1px solid var(--border,#2b3c55);border-radius:var(--radius,14px);background:var(--bg2,#101c2e)}
+.personal-notices-card--bonificacion{border-top:2px solid var(--blue,#8bb8ff)}
+.personal-notices-card--comision{border-top:2px solid var(--green,#8bd69d)}
+.personal-notices-header h3{margin:0;font-size:14px;font-weight:650;line-height:1.35}
+.personal-notices-header p{margin:4px 0 0;color:var(--text3,#a5b6cf);font-size:11px;line-height:1.5}
+.personal-notices-list{display:flex;flex-direction:column;gap:0;list-style:none;margin:10px 0 0;padding:0;min-width:0}
+.personal-notices-item{min-width:0;padding:11px 0;border-top:1px solid var(--border,#2b3c55)}
+.personal-notices-item-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;min-width:0}
+.personal-notices-description{min-width:0;flex:1;font-size:12px;font-weight:550;line-height:1.5;overflow-wrap:anywhere}
+.personal-notices-badge{max-width:50%;flex:0 0 auto;padding:3px 7px;border-radius:7px;background:rgba(139,184,255,.12);color:var(--blue,#8bb8ff);font-size:10px;font-weight:550;line-height:1.35;text-align:right;overflow-wrap:anywhere}
+.personal-notices-badge--pendiente{color:var(--amber,#efc761);background:rgba(239,199,97,.1)}
+.personal-notices-badge--pagado,.personal-notices-badge--pagado_parcial{color:var(--green,#8bd69d);background:rgba(139,214,157,.1)}
+.personal-notices-figures{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin-top:7px}
+.personal-notices-amount-label{font-size:10px;color:var(--text3,#a5b6cf)}
+.personal-notices-amount{font-size:16px;font-weight:650;line-height:1.45;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.personal-notices-detail,.personal-notices-dates,.personal-notices-note{margin:4px 0 0;font-size:11px;line-height:1.5;color:var(--text2,#c4d1e3);overflow-wrap:anywhere}
+.personal-notices-dates{display:flex;flex-wrap:wrap;gap:2px 12px;color:var(--text3,#a5b6cf)}
+.personal-notices-note{color:var(--amber,#efc761)}
+.personal-notices-empty{margin:14px 0;font-size:12px;line-height:1.5;color:var(--text3,#a5b6cf)}
+.personal-notices-more{margin:0 0 10px;font-size:11px;line-height:1.5;color:var(--text3,#a5b6cf)}
+.personal-notices-open{align-self:flex-start;margin-top:auto;padding:7px 10px;min-height:34px;border:1px solid var(--border2,#3b5273);border-radius:8px;background:var(--bg3,#17263d);color:var(--text2,#c4d1e3);font:inherit;font-size:11px;line-height:1.4;text-align:left;cursor:pointer;touch-action:manipulation}
+.personal-notices-open:hover{border-color:var(--blue,#8bb8ff);color:var(--text,#eaf1fb)}
+.personal-notices-open:focus-visible{outline:2px solid var(--blue,#8bb8ff);outline-offset:3px}
+.personal-notices-state,.personal-notices-issues{grid-column:1/-1;margin:0;padding:14px 16px;border:1px solid var(--border,#2b3c55);border-radius:var(--radius,14px);background:var(--bg2,#101c2e);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.personal-notices-state{display:flex;flex-direction:column;gap:4px}
+.personal-notices-state span{color:var(--text3,#a5b6cf)}
+.personal-notices-state--error strong,.personal-notices-state--incomplete strong,.personal-notices-issues{color:var(--amber,#efc761)}
+@media(min-width:768px){.personal-notices{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:359px){.personal-notices-card{padding:13px 12px}.personal-notices-item-top{flex-wrap:wrap}.personal-notices-badge{max-width:100%;text-align:left}}
