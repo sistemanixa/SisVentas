@@ -59,3 +59,5 @@ body.nav-open{overflow:hidden}.sidebar{overflow-y:auto}
 .layout.nav-hidden .main{grid-column:1}
 
 .quota-note{min-width:170px;max-width:300px;white-space:pre-wrap;overflow-wrap:anywhere}
+
+.cycle-dates{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0;align-items:center}.cycle-dates>div{display:grid;gap:4px;flex:1;min-width:130px}.cycle-dates span,.cycle-dates small{font-size:12px;color:var(--muted,#a5b0c5)}.cycle-dates strong{font-size:14px}

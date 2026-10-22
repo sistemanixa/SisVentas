@@ -120,6 +120,8 @@
   set('close',atYear(close,closeYear));
   if(p)set('period',String(year)+p.slice(4));
   if(due)set('due',atYear(due,closeYear+(due.slice(5)<close.slice(5)?1:0)));
+  for(const key of ['nextClose','nextDue']){const f=fields[key];if(!f||explicit(f))continue;const anchor=key==='nextDue'&&fields.nextClose?fields.nextClose.value:fields.close.value;set(key,atYear(f.value,Number(anchor.slice(0,4))+(f.value.slice(5)<anchor.slice(5)?1:0)));}
+
   result.movements=(result.movements||[]).map(m=>{
    if(!m.date)return m;
    // Los años explícitos de cada movimiento nunca se sustituyen.
@@ -131,6 +133,25 @@
   });
   return result;
  }
+ // Sólo rótulos explícitos. No deduce un próximo cierre a partir de una fecha suelta.
+ function cycleEvidence(pages,anchor){
+  const found={nextClose:[],nextDue:[]},warnings=[],ambiguous=[];
+  const months={enero:'01',febrero:'02',marzo:'03',abril:'04',mayo:'05',junio:'06',julio:'07',agosto:'08',septiembre:'09',setiembre:'09',octubre:'10',noviembre:'11',diciembre:'12'};
+  pages.forEach((page,i)=>{const lines=page.split(/\r?\n/).map(x=>x.trim().replace(/\s+/g,' '));for(let n=0;n<lines.length;n++){
+   const m=lines[n].normalize('NFD').replace(/[\u0300-\u036f]/g,'').match(/^(?:fecha (?:de )?)?proxim[oa]\s+(cierre|vencimiento)\s*:?\s*(.*)$/i);if(!m)continue;
+   const raw=m[2]||lines[n+1]||'',key=m[1].toLowerCase()==='cierre'?'nextClose':'nextDue';let value=sectionDate(raw),inferred=false;
+   if(!value){const d=raw.toLowerCase().match(/^(\d{1,2})\s+de\s+([a-z]+)(?:\s+de\s+(\d{4}))?$/);if(d&&months[d[2]]){const year=d[3]||anchor?.slice(0,4);if(year){value=iso(d[1].padStart(2,'0')+'/'+months[d[2]]+'/'+year);inferred=!d[3];}}}
+   if(value)found[key].push({value,original:lines[n]+(!m[2]?' '+raw:''),page:i+1,origin:'PDF',...(inferred?{inferred:true}:{} )});
+  }});
+  const fields={};for(const key of ['nextClose','nextDue']){const values=found[key];if(new Set(values.map(x=>x.value)).size>1){ambiguous.push(key);warnings.push('Hay fechas diferentes para '+key+'; revisá el próximo ciclo.');}else if(values.length)fields[key]=values[0];}
+  for(const key of ['nextClose','nextDue']){const f=fields[key],base=key==='nextDue'&&fields.nextClose?fields.nextClose.value:anchor;if(f?.inferred&&base)f.value=String(Number(base.slice(0,4))+(f.value.slice(5)<base.slice(5)?1:0))+f.value.slice(4);}
+  return {fields,warnings,ambiguous};
+ }
+ function mergeCycleEvidence(reading,evidence){
+  const out=structuredClone(reading);out.fields||={};out.warnings||=[];
+  for(const key of ['nextClose','nextDue']){const local=evidence?.fields?.[key],ai=out.fields[key];if(evidence?.ambiguous?.includes(key)){delete out.fields[key];}else if(local&&ai&&local.value!==ai.value){delete out.fields[key];out.warnings.push('El próximo ciclo difiere del texto del PDF; revisalo manualmente.');}else if(local)out.fields[key]=local;}
+  out.warnings.push(...(evidence?.warnings||[]));return out;
+ }
  function parse(pages,positionedPages=[]){
   const result={fields:{},movements:[],warnings:[],pages:pages.length,automaticDebits:debitEvidence(pages),statementEvidence:statementEvidence(pages,positionedPages)},ambiguous=new Set();
   const labels={previous:/^saldo anterior(?: (?:ars|pesos))?\s*[:$]*\s*(-?[\d.,]+)$/i,total:/^saldo (?:actual|al cierre)(?: (?:ars|pesos))\s*[:$]*\s*(-?[\d.,]+)$/i,usd:/^saldo (?:actual|al cierre) (?:usd|d[oó]lares)\s*[:$]*\s*(-?[\d.,]+)$/i,minimum:/^pago m[ií]nimo(?: (?:ars|pesos))?\s*[:$]*\s*([\d.,]+)$/i,close:/^(?:fecha de )?cierre\s*:?\s*(\d{2}\/\d{2}\/\d{4})$/i,due:/^(?:fecha de )?vencimiento\s*:?\s*(\d{2}\/\d{2}\/\d{4})$/i,period:/^per[ií]odo\s*:?\s*(\d{4}-(?:0[1-9]|1[0-2]))$/i,tem:/^tem\s*:?\s*(\d{1,2}(?:[.,]\d{1,2})?)\s*%$/i};
@@ -138,6 +159,7 @@
   pages.forEach((content,page)=>{for(const raw of content.split(/\r?\n/)){const line=raw.trim().replace(/\s+/g,' ');for(const [key,re]of Object.entries(labels)){const m=line.match(re);if(!m||ambiguous.has(key))continue;let value=['close','due'].includes(key)?iso(m[1]):key==='period'?m[1]:['tem','tna','cft'].includes(key)?Number(m[1].replace(',','.')):decimal(m[1]);if(value==null)continue;if(result.fields[key]&&result.fields[key].value!==value){result.warnings.push('Hay valores diferentes para '+key+'; revisar contra el original');ambiguous.add(key);delete result.fields[key];continue;}result.fields[key]={value,original:raw,page:page+1,origin:'PDF',unit:key==='tem'?'Porcentaje mensual':key==='tna'?'Porcentaje nominal anual':key==='cft'?'Porcentaje; periodicidad a confirmar en el PDF':''};}
    const movement=line.match(/^(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+(ARS|USD)\s+(-?[\d.,]+)$/);if(movement){const amount=decimal(movement[4]),date=iso(movement[1]);if(amount!=null&&date)result.movements.push({date,concept:movement[2],currency:movement[3],amount,page:page+1,kind:/pago/i.test(movement[2])&&amount<0?'Pago del período anterior':/seguro/i.test(movement[2])?'Débito a confirmar':/inter[eé]s/i.test(movement[2])?'Interés':/impuesto|percepci[oó]n|iva/i.test(movement[2])?'Impuesto':'Consumo',origin:'PDF'});}
   }});
+  result.cycleEvidence=cycleEvidence(pages,result.fields.close?.value);Object.assign(result.fields,result.cycleEvidence.fields);result.warnings.push(...result.cycleEvidence.warnings);
   result.warnings.push('Extracción conservadora: los campos no reconocidos quedan pendientes. Revisá saldos y movimientos; no es un lector universal de bancos.');return result;
  }
  async function open(bytes){
@@ -148,5 +170,5 @@
   const pdf=await open(bytes);
   try{if(pdf.numPages>150)throw Error('El PDF supera 150 páginas');const pages=[],positionedPages=[];for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),content=await p.getTextContent(),lines=[];positionedPages.push(content.items);let y=null,line=[];for(const item of content.items){if(!('str'in item))continue;const next=Math.round(item.transform[5]);if(y!=null&&Math.abs(y-next)>3){lines.push(line.join(' '));line=[];}line.push(item.str);y=next;if(item.hasEOL){lines.push(line.join(' '));line=[];y=null;}}if(line.length)lines.push(line.join(' '));pages.push(lines.join('\n'));}const result=parse(pages,positionedPages);if(!pages.some(p=>p.trim().length>30))result.warnings.unshift('No hay texto suficiente: archivo escaneado u OCR necesario. Completá manualmente.');return result;}finally{await pdf.destroy();}
  }
- return {decimal,parse,extract,open,debitEvidence,classifyAutomaticDebits,statementEvidence,reconcileEvidence,currencyReferences,calendar};
+ return {cycleEvidence,mergeCycleEvidence,decimal,parse,extract,open,debitEvidence,classifyAutomaticDebits,statementEvidence,reconcileEvidence,currencyReferences,calendar};
 });

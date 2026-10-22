@@ -21,7 +21,7 @@
   // Nombres identificables: una sugerencia no confirma póliza, cobertura ni periodicidad.
   return /\b(?:MAPFRE|ZURICH|LA CAJA|FEDERACION PAT(?:RONAL)?|FEDE PAT|GALICIA SEGUROS?|SEGUROS? SUDAM(?:ERICANA)?|BBVA SEGUROS?|SANCOR SEGUROS?|SAN CRISTOBAL SEGUROS?|SEGUROS?)\b/.test(name)?'Seguro':'';
  }
- function extracted(input){if(input==null)return {};const out={};for(const name of ['bank','brand','previousUSD','temUSD','tnaUSD','previous','total','usd','minimum','minimumCurrency','close','due','period','tem','tna','cft']){const f=input[name];if(f==null)continue;if(!f||typeof f!=='object'||Array.isArray(f))fail(400,'Procedencia inválida');if(!['string','number'].includes(typeof f.value)||typeof f.value==='number'&&!Number.isFinite(f.value))fail(400,'Valor extraído inválido');out[name]={value:typeof f.value==='string'?text(f.value,80):f.value,original:text(f.original||'',500),page:money(f.page),origin:f.origin==='PDF · IA'?'PDF · IA':'PDF',unit:text(f.unit||'',120)};}return out;}
+ function extracted(input){if(input==null)return {};const out={};for(const name of ['bank','brand','previousUSD','temUSD','tnaUSD','previous','total','usd','minimum','minimumCurrency','close','due','nextClose','nextDue','period','tem','tna','cft']){const f=input[name];if(f==null)continue;if(!f||typeof f!=='object'||Array.isArray(f))fail(400,'Procedencia inválida');if(!['string','number'].includes(typeof f.value)||typeof f.value==='number'&&!Number.isFinite(f.value))fail(400,'Valor extraído inválido');out[name]={value:typeof f.value==='string'?text(f.value,80):f.value,original:text(f.original||'',500),page:money(f.page),origin:f.origin==='PDF · IA'?'PDF · IA':'PDF',unit:text(f.unit||'',120)};}return out;}
  const date=(v,optional=false)=>{if(optional&&(v==null||v===''))return null;if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v)||!Number.isFinite(Date.parse(v+'T12:00:00Z'))||new Date(v+'T12:00:00Z').toISOString().slice(0,10)!==v)fail(400,'Fecha inválida');return v;};
 
  function printedMovementDate(m){
@@ -44,6 +44,12 @@
  function shift(p,n){period(p);const [y,m]=p.split('-').map(Number),d=new Date(Date.UTC(y,m-1+n,15));return d.toISOString().slice(0,7);}
  function quota(q){return {last:shift(q.period,q.total-q.current),release:shift(q.period,q.total-q.current+1)};}
  function project(base,tem,monthly,n=12){money(base);money(monthly);rate(tem);if(tem==null)fail(400,'Falta TEM');const values=[base];let interest=0;for(let i=0;i<n;i++){const f=fee(values.at(-1),tem);interest=money(interest+f);values.push(money(Math.max(0,values.at(-1)+f-monthly)));}return {values,interest};}
+ function cycleDates(input,close,old={}){
+  const out={};for(const k of ['nextClose','nextDue'])out[k]=date(Object.hasOwn(input,k)?input[k]:old[k],true);
+  if(out.nextClose&&out.nextClose<=close||out.nextDue&&out.nextDue<=close||out.nextClose&&out.nextDue&&out.nextDue<out.nextClose)fail(400,'Revisá las fechas del próximo ciclo: deben ser posteriores al cierre del resumen');
+  return out;
+ }
+ function daysUntil(value,reference=today(Date.now())){if(!value)return null;date(value);date(reference);return Math.round((Date.parse(value+'T00:00:00Z')-Date.parse(reference+'T00:00:00Z'))/86400000);}
  function apply(previous,command,actor,ctx){
   key(actor.uid);const s=hydrate(previous,actor.uid),stamp=ctx.now,id=key(command.id),d=command.data||{},before=copy(s);
   if(s.operations[id]){if(s.operations[id].digest!==ctx.digest)fail(409,'El reintento no coincide con la operación original');return {state:s,replayed:true};}
@@ -62,7 +68,7 @@
    if(s.statements.some(x=>x.id!==entityId&&x.card===card&&x.period===p))fail(409,'Ese período ya existe: revisá su resumen para conservar pagos y versiones');
    const file=d.file?find('documents',d.file).id:null;
    if(!d.reviewed)fail(400,'Confirmá la revisión del resumen');
-   const current={id:entityId,card,period:p,close,due,previous:money(d.previous,true),total:money(d.total,true),usd:money(d.usd,true),minimum:money(d.minimum,true),minimumCurrency:currency(d.minimumCurrency||'ARS'),tem:rate(d.tem),source:old?'PDF + corrección manual':one(d.source||'Manual desde PDF',['Manual','Manual desde PDF','PDF + revisión manual','PDF + corrección manual']),file,files:[...new Set([...Object.values(old?.files||[]),...(file?[file]:[])])],reviewed:true,reconciliation:text(d.reconciliation||'',1000),extracted:d.extracted?extracted(d.extracted):old?.extracted||{},versions:Object.values(old?.versions||{})};
+   const current={id:entityId,card,period:p,close,due,...cycleDates(d,close,old),previous:money(d.previous,true),total:money(d.total,true),usd:money(d.usd,true),minimum:money(d.minimum,true),minimumCurrency:currency(d.minimumCurrency||'ARS'),tem:rate(d.tem),source:old?'PDF + corrección manual':one(d.source||'Manual desde PDF',['Manual','Manual desde PDF','PDF + revisión manual','PDF + corrección manual']),file,files:[...new Set([...Object.values(old?.files||[]),...(file?[file]:[])])],reviewed:true,reconciliation:text(d.reconciliation||'',1000),extracted:d.extracted?extracted(d.extracted):old?.extracted||{},versions:Object.values(old?.versions||{})};
    if(file&&file!==old?.file)current.extracted=extracted(d.extracted);
    if(old)current.versions.push({at:stamp,previous:{...old,versions:undefined}});
    for(const c of ['ARS','USD']){const base=c==='ARS'?current.total:current.usd;if(base!=null&&base<paid(s,current,c)&&!current.reconciliation)fail(409,'El saldo es menor que los pagos registrados. Explicá la conciliación antes de continuar');}
@@ -86,6 +92,10 @@
      save('installments',{id:existing?.id||key(m.id+'-installment'),concept:existing?.concept||m.concept,note:existing?.note||'',card,amount:Math.abs(m.amount),currency:m.currency,current:m.current,total:m.total,period:p,movement:m.id,originMovement:existing?.originMovement||existing?.movement||m.id,status:existing?.status||'Activa',origin:'PDF + revisión manual'});
     }
    }
+  }else if(command.type==='statement-cycle-save'){
+   const st=find('statements',entityId),dates=cycleDates(d,st.close,st);
+   const versions=Object.values(st.versions||{});versions.push({at:stamp,previous:{...st,versions:undefined}});
+   save('statements',{...st,...dates,cycleSource:'Manual',versions});
   }else if(command.type==='payment-save'){
    const st=find('statements',d.statement),value=money(d.amount),c=currency(d.currency),dt=date(d.date,!!d.declared),type=one(d.type,['Mínimo','Total','Parcial','Extraordinario']);if(!value)fail(400,'El pago debe ser mayor a cero');
    if(d.declared&&type!=='Mínimo')fail(400,'Solo un mínimo declarado puede quedar sin fecha');if(dt&&(dt<st.close||dt>today(stamp)))fail(400,'La fecha debe estar entre el cierre y hoy');
@@ -137,5 +147,5 @@
   if(JSON.stringify(s).length>6e6||Object.keys(s.operations).length>10000)fail(413,'El espacio requiere archivo histórico antes de agregar más registros');
   return {state:copy(s),replayed:false};
  }
- return {groups,key,text,money,date,period,amount,rate,fee,empty,hydrate,latest,paid,balance,totalDebt,quota,shift,project,apply,movementCategories,canClassify,suggestCategory,categoryNames,resolveCategory};
+ return {daysUntil,cycleDates,groups,key,text,money,date,period,amount,rate,fee,empty,hydrate,latest,paid,balance,totalDebt,quota,shift,project,apply,movementCategories,canClassify,suggestCategory,categoryNames,resolveCategory};
 });
