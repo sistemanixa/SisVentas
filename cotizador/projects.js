@@ -53,11 +53,15 @@ function createProjects({auth,db,enabled=false,now=Date.now,uuid=crypto.randomUU
   const q=await linkedQuotes(actor,visible);
   return {canCreate:actor.createAllowed,projects:visible.map(p=>Model.project(p,actor,q)).sort((a,b)=>b.updatedAt-a.updatedAt)};
  }
- async function options(actor,projectId){
+ async function options(actor,projectId,kind='all'){
+  if(!['all','base','budgets'].includes(kind))throw fail(400,'Opciones de proyecto inválidas');
+  if(kind==='budgets'&&(!projectId||!actor.quoteAllowed))throw fail(!projectId?400:403,!projectId?'Elegí un proyecto para vincular presupuestos':'Sin permiso para presupuestos');
   let allowed=actor.createAllowed;
   if(projectId){Model.key(projectId);const p=await read('sv_proyectos/'+projectId);if(!p||!Model.view(p,actor))throw fail(404,'Proyecto no disponible');allowed=Model.edit(p,actor);}
   if(!allowed)throw fail(403,'Solo lectura');
-  const [people,clients,budgets]=await Promise.all([directory(),actor.clientAllowed?read('sisventas/clientes'):Promise.resolve({}),quotes(actor)]);
+  // Los formularios de ficha e integrantes no necesitan el historial comercial.
+  // El selector de vínculos lo solicita de manera explícita y con permiso vigente.
+  const [people,clients,budgets]=await Promise.all([kind==='budgets'?Promise.resolve([]):directory(),kind!=='budgets'&&actor.clientAllowed?read('sisventas/clientes'):Promise.resolve({}),kind==='base'?Promise.resolve([]):quotes(actor)]);
   return {people,clients:Object.entries(clients||{}).filter(([,c])=>c.activo!==false&&!c.eliminado).map(([id,c])=>({id,name:String(c.nombre||c.empresa||'Cliente').slice(0,160),address:String(c.dir||c.direccion||'').slice(0,240)})),budgets};
  }
  async function save(actor,body){

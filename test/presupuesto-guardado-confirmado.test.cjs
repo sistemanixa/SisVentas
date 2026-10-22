@@ -11,7 +11,8 @@ for(const mode of ['hold','fail'])test('borrador duplicado aprobado: el listado 
  assert.equal(f.list().find(r=>r.fbKey==='otro').estado,'borrador');
  assert.equal(f.calls.complete,1);assert.equal(f.calls.closed,1);
  assert.ok(f.calls.notices.every(n=>n.state==='aprobado_int'));
- if(mode==='hold'){f.pending[0].resolve();await settle();assert.equal(f.renderedState(),'aprobado_int');}
+ assert.equal(f.calls.reads.length,1,'El acuse evita otro GET global cuando la colección inicial ya está completa');
+ assert.equal(f.pending.length,0);
 });
 
 test('una lectura que comenzó antes del guardado no repone el estado borrador ni su ETag',async()=>{
@@ -20,8 +21,10 @@ test('una lectura que comenzó antes del guardado no repone el estado borrador n
  await f.save();assert.equal(f.renderedState(),'aprobado_int');
  f.pending[0].resolve();await previous;await settle();
  assert.equal(f.list().find(r=>r.fbKey==='budget-ficticio').estado,'aprobado_int');
+ assert.equal(f.pending.length,1,'Guardar no programa una descarga redundante del historial');
+ const explicit=f.c.SVCommercialOwnership.refresh('presupuestos');await settle();
  assert.equal(f.pending.length,2);assert.equal(f.calls.reads.at(-1).headers['If-None-Match'],undefined);
- f.pending[1].resolve();await settle();assert.equal(f.renderedState(),'aprobado_int');
+ f.pending[1].resolve();await explicit;await settle();assert.equal(f.renderedState(),'aprobado_int');
 });
 
 test('acuse reemplaza el snapshot completo y quita campos eliminados, sin conservar el candidato optimista',async()=>{
@@ -91,7 +94,8 @@ for(const status of [401,403])test('revocación '+status+' antes del acuse impid
 test('revocación posterior al acuse borra el presupuesto confirmado y bloquea su reutilización',async()=>{
  const f=await createBudgetSaveFixture();f.mode('hold');await f.save();
  const token=f.c.SVCommercialOwnership.captureWriteContext();assert.equal(f.renderedState(),'aprobado_int');
- f.pending[0].reject(Object.assign(new Error('Acceso ficticio revocado'),{status:403}));await settle();
+ const explicit=f.c.SVCommercialOwnership.refresh('presupuestos');await settle();
+ f.pending[0].reject(Object.assign(new Error('Acceso ficticio revocado'),{status:403}));await explicit;await settle();
  assert.equal(f.list().length,0);assert.equal(f.c.SVCommercialOwnership.isWriteContext(token),false);
  assert.throws(()=>f.c.SVCommercialOwnership.confirmWrite('presupuestos',{...f.records['budget-ficticio'],fbKey:'budget-ficticio'},token),/sesión cambió/);
 });

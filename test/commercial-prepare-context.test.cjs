@@ -111,5 +111,5 @@ test('preparar Ventas usa el contexto de su solicitud y conserva su resolución 
  const result=await f.api.prepare(await f.authorize('a','ventas'),{id:'converted'});
  assert.equal(contexts(f.reads).length,3);assert.equal(result.record.responsableUid,'a');assert.equal(result.record.total,before.total);
  assert.equal(result.record.presupuestoFbKey,before.presupuestoFbKey);assert.equal(result.record.usuario,before.usuario);assert.equal(result.record.creadorOriginalNombre,'Persona a');
- assert.deepEqual(f.reads.filter(path=>path.startsWith('sisventas/')),['sisventas/presupuestos','sisventas/ventas/converted [on]']);
+ assert.deepEqual(f.reads.filter(path=>path.startsWith('sisventas/')),['sisventas/ventas/converted [on]','sisventas/presupuestos/budget']);
 });

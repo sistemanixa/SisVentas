@@ -45,7 +45,8 @@ const userDirectory = require('./user-directory').createUserDirectory({auth:busi
 const chatOperations = require('./chat-operations').createChatOperations({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
 const projects = require('./projects').createProjects({auth:businessAuth,db,enabled:process.env.PROJECTS_ENABLED==='true'});
 const distributorDocuments=require('./distributor-documents').createDistributorDocuments({auth:businessAuth,db,enabled:process.env.DISTRIBUTOR_DOCUMENTS_ENABLED==='true'});
-const commercialOwnership=require('./commercial-ownership').createCommercialOwnership({auth:businessAuth,db,enabled:process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'});
+const commercialCollectionReader=require('./commercial-collection-reader').createCommercialCollectionReader({databaseURL:DATABASE_URL,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
+const commercialOwnership=require('./commercial-ownership').createCommercialOwnership({auth:businessAuth,db,collectionReader:commercialCollectionReader,enabled:process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'});
 // Bucket dedicado, privado y sin enlaces de Firebase Storage. Nunca reutilizar
 // el bucket compartido de adjuntos: sus reglas no pertenecen a este dominio.
 const personalBucket=process.env.PERSONAL_FINANCE_BUCKET||'';
@@ -2069,7 +2070,7 @@ const server = http.createServer(async (req, res) => {
     try{
       const actor=await projects.authorize(req);let result;
       if(req.method==='GET'&&pathname==='/proyectos')result=await projects.list(actor);
-      else if(req.method==='GET'&&pathname==='/proyectos/opciones')result=await projects.options(actor,requestUrl.searchParams.get('proyecto')||'');
+      else if(req.method==='GET'&&pathname==='/proyectos/opciones')result=await projects.options(actor,requestUrl.searchParams.get('proyecto')||'',requestUrl.searchParams.get('kind')||'all');
       else if(req.method==='POST'&&pathname==='/proyectos/guardar')result=await projects.save(actor,await readBody(req,60000));
       else {send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
       send(res,200,{ok:true,...result});

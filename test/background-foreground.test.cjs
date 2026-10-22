@@ -85,7 +85,7 @@ test('el arranque completo diferido no abre fuentes ocultas y dos intentos se co
  const f=bootstrapFixture();assert.equal(f.context.fbCargarTodo(),false);assert.equal(f.context.fbCargarTodo(),false);
  await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(f.reads,[]);assert.equal(f.context.window._fbCargaTodoActiva,undefined);
  f.document.hidden=false;f.document.emit('visibilitychange');await new Promise(resolve=>setImmediate(resolve));
- assert.deepEqual(f.reads,['fbCargarUsuarios','fbCargarClientes','fbCargarProductos','fbCargarVentas','svCargarDatosDePaginaActual']);
+ assert.deepEqual(f.reads,['svCargarDatosDePaginaActual','fbCargarUsuarios','fbCargarClientes','fbCargarProductos','fbCargarVentas']);
  assert.equal(f.context.window._fbCargaTodoActiva,true);f.advance(1800);f.fireIdle();f.fireIdle();
  assert.equal(f.reads.filter(name=>name==='fbCargarUsuarios').length,1);f.clean();
 });

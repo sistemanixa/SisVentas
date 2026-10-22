@@ -70,7 +70,7 @@ async function createBudgetSaveFixture(options={}){
  };
  c.window=c;vm.createContext(c);
  for(const file of ['js/core/commercial-ownership.js','js/modules/commercial-document-controls.js','js/core/guarded-writes.js'])vm.runInContext(fs.readFileSync(path.resolve(__dirname,'../..',file),'utf8'),c);
- load(c,['pptoPersistirGuardar','fbGuardarPresupuesto','guardarPresupuesto','volverListaPpto']);
+ load(c,['_pptoDatosActualizados','pptoPersistirGuardar','fbGuardarPresupuesto','guardarPresupuesto','volverListaPpto']);
  c.SVCommercialOwnership.onValue('presupuestos',snapshot=>{c.pptoData=Object.entries(snapshot.val()||{}).map(([fbKey,value])=>({...clone(value),fbKey}));c.renderPptoTabla();});
  await settle();
  c._pptoEditandoFbKey='budget-ficticio';c._pptoEditandoId=original.id;c._pptoEditorBase={...clone(records['budget-ficticio']),fbKey:'budget-ficticio'};

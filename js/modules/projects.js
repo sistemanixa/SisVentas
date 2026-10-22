@@ -40,19 +40,39 @@
   });return all;
  }
  function demoData(){const raw=localStorage.getItem(DEMO_KEY);if(raw===null){const data=seed();localStorage.setItem(DEMO_KEY,JSON.stringify(data));return data;}let data;try{data=JSON.parse(raw);}catch(_){throw Error('No se pudo leer la vista previa guardada. Conservá los datos del navegador.');}if(!Array.isArray(data))throw Error('La vista previa guardada tiene un formato no válido');return data;}
- async function request(path,body){
+ async function request(path,body,options={}){
   if(window._impersonacionOriginal)throw Error('Para verificar Proyectos usá una sesión propia, fuera de «Ver como».');
   const user=window.fbAuth?.currentUser,uid=window.currentUserUid;if(!user||user.uid!==uid)throw Error('La sesión cambió. Volvé a ingresar.');
   const base=window.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('No está disponible el servicio de Proyectos');
-  const token=await user.getIdToken();if(window.fbAuth.currentUser!==user||window.currentUserUid!==uid)throw Error('La sesión cambió.');
-  const r=await fetch(base+'/proyectos'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',signal:AbortSignal.timeout(20000)});
-  const value=await r.json().catch(()=>({}));if(window.fbAuth.currentUser!==user||window.currentUserUid!==uid)throw Error('La sesión cambió.');if(!r.ok||value.ok===false)throw Object.assign(Error(value.mensaje||'No se pudo sincronizar Proyectos. Reintentá.'),{status:r.status});return value;
+  const valid=()=>window.fbAuth.currentUser===user&&window.currentUserUid===uid&&(!options.valid||options.valid());
+  const token=await user.getIdToken();if(!valid())throw Error('La sesión cambió.');
+  const timeout=AbortSignal.timeout(20000);let signal=timeout,cleanup=()=>{};
+  if(options.signal){
+   if(typeof AbortSignal.any==='function')signal=AbortSignal.any([options.signal,timeout]);
+   else{const controller=new AbortController(),abort=event=>controller.abort(event.target.reason);for(const source of [options.signal,timeout]){if(source.aborted)controller.abort(source.reason);else source.addEventListener('abort',abort,{once:true});}signal=controller.signal;cleanup=()=>{options.signal.removeEventListener('abort',abort);timeout.removeEventListener('abort',abort);};}
+  }
+  try{
+   const r=await fetch(base+'/proyectos'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',signal});
+   const value=await r.json().catch(()=>({}));if(!valid())throw Error('La sesión cambió.');if(!r.ok||value.ok===false)throw Object.assign(Error(value.mensaje||'No se pudo sincronizar Proyectos. Reintentá.'),{status:r.status});return value;
+  }finally{cleanup();}
  }
- async function options(){
-  const epoch=state.epoch,selected=state.selected;
-  if(preview())return {people,clients:sampleClients,budgets:sampleQuotes};
-  const result=await request('/opciones'+(selected?'?proyecto='+encodeURIComponent(selected):''));
-  if(epoch!==state.epoch||selected!==state.selected)throw Error('La vista cambió. Volvé a abrir la acción.');return result;
+ async function options(kind='base'){
+  const epoch=state.epoch,selected=state.selected,page=host(),user=window.fbAuth?.currentUser,uid=window.currentUserUid,role=window.currentRole,revision=window.PERMISOS_ROLES?.[role]?.indiceRevision||0;
+  const current=()=>epoch===state.epoch&&selected===state.selected&&page===host()&&page?.isConnected!==false&&page?.classList.contains('active')&&user===window.fbAuth?.currentUser&&uid===window.currentUserUid&&role===window.currentRole&&revision===(window.PERMISOS_ROLES?.[role]?.indiceRevision||0)&&!window._impersonacionOriginal&&window.permisoModulo?.('proyectos');
+  if(preview())return Object.assign({people:kind==='budgets'?[]:people,clients:kind==='budgets'?[]:sampleClients,budgets:kind==='budgets'?sampleQuotes:[]},{_current:current});
+  if(!current()||!user||user.uid!==uid||window._impersonacionOriginal)throw Error('La sesión o el permiso cambió. Volvé a abrir la acción.');
+  const loading=modal(kind==='budgets'?'Vincular presupuesto':'Datos del proyecto','<p data-px-options-status role="status" aria-live="polite"><i class="ti ti-loader-2" style="display:inline-block;animation:spin 1s linear infinite" aria-hidden="true"></i> '+(kind==='budgets'?'Cargando presupuestos…':'Cargando clientes e integrantes…')+'</p>',null);
+  const token=dialogEpoch,controller=new AbortController();optionsRequest=controller;
+  const valid=()=>current()&&dialog===loading&&dialogEpoch===token;
+  try{
+   const result=await request('/opciones?kind='+encodeURIComponent(kind)+(selected?'&proyecto='+encodeURIComponent(selected):''),undefined,{signal:controller.signal,valid});
+   if(!valid())throw Error('La vista cambió.');
+   Object.defineProperty(result,'_current',{value:current});return result;
+  }catch(error){
+   if(!valid()||controller.signal.aborted){if(dialog===loading&&dialogEpoch===token)closeDialog();throw Object.assign(Error('Lectura cancelada'),{code:'PX_OPTIONS_CANCELLED'});}
+   loading.querySelector('[data-px-options-status]').textContent='No se pudieron cargar los datos.';loading.querySelector('.px-error').textContent=error.message;
+   error._pxReported=true;throw error;
+  }finally{if(optionsRequest===controller)optionsRequest=null;}
  }
  async function mutate(command){
   const p=current();if(command.type!=='create'){command.projectId=state.selected;command.revision=p.revision;}
@@ -99,8 +119,8 @@
    el.innerHTML='<div class="px-panel-header"><div><h3>Presupuestos del proyecto</h3><p class="px-muted">Prepará el alcance o vinculá una propuesta comercial existente.</p></div><div class="px-inline-actions">'+(p.access.quote?button(icon('link')+' Vincular','link')+button(icon('plus')+' Preparar','brief','px-primary'):'')+'</div></div>'+p.budgets.map(b=>'<article class="px-budget">'+icon(b.kind==='brief'?'file-pencil':'file-description')+'<div class="px-budget-info"><h3>'+esc(b.title)+'</h3><small>'+esc(b.kind==='restricted'?'Acceso limitado por tu rol':b.kind==='brief'?b.needIds.length+' necesidades · borrador de alcance':(b.quote?.number||'Referencia no disponible'))+'</small></div><div class="px-budget-total">'+(b.kind==='restricted'?'':b.kind==='brief'?'Por cotizar':money(b.quote?.total,b.quote?.currency))+'<small>'+esc(b.kind==='brief'?'Sin importe todavía':quoteStatus(b.quote?.status)||'')+'</small></div>'+(b.kind!=='restricted'?'<div class="px-inline-actions">'+button('Ver','budget','btn-sm','data-id="'+esc(b.id)+'"')+(p.access.quote?button(icon('unlink'),'unlink','btn-sm btn-icon','data-id="'+esc(b.id)+'" aria-label="Quitar vínculo de '+esc(b.title)+'"'):'')+'</div>':'')+'</article>').join('')+(p.budgets.length?'':empty('Del alcance a una propuesta','Elegí las necesidades que querés cotizar o vinculá un presupuesto del mismo cliente.'));
   }
  }
- let dialog=null,oldOverflow='',dialogEpoch=0;
- function closeDialog(){if(!dialog)return;dialog.remove();dialog=null;dialogEpoch++;document.body.style.overflow=oldOverflow;}
+ let dialog=null,oldOverflow='',dialogEpoch=0,optionsRequest=null;
+ function closeDialog(){optionsRequest?.abort();optionsRequest=null;if(!dialog)return;dialog.remove();dialog=null;dialogEpoch++;document.body.style.overflow=oldOverflow;}
  function modal(title,body,submit,label='Guardar',after){
   closeDialog();oldOverflow=document.body.style.overflow;document.body.style.overflow='hidden';dialog=document.createElement('dialog');dialog.setAttribute('data-sv-escape-owner','true');dialog.className='px-dialog';dialog.setAttribute('aria-labelledby','px-modal-title');
   dialog.innerHTML='<form><header class="px-dialog-head"><h2 id="px-modal-title">'+esc(title)+'</h2><button type="button" class="px-icon" data-px-close aria-label="Cerrar">'+icon('x')+'</button></header><div class="px-dialog-body">'+body+'<p class="px-error" role="status" aria-live="polite"></p></div><footer class="px-dialog-foot">'+button('Cancelar','close')+(submit?'<button type="submit" class="btn px-primary">'+esc(label)+'</button>':'')+'</footer></form>';
@@ -118,12 +138,13 @@
  function readMembers(f){return f.getAll('member').map(uid=>({uid,access:f.get('access-'+uid)}));}
  function wirePeople(el){el.querySelector('[data-px-person-search]')?.addEventListener('input',e=>{el.querySelectorAll('[data-person]').forEach(row=>row.hidden=!row.dataset.person.includes(norm(e.target.value)));});}
  async function editProject(isNew){
-  state.options=await options();const p=isNew?{}:current(),actor=preview()?'preview-admin':window.currentUserUid;
+  const loaded=await options('base');state.options=loaded;const p=isNew?{}:current(),actor=preview()?'preview-admin':window.currentUserUid;
   const clientChoices={'':'Cliente a definir',...Object.fromEntries(state.options.clients.map(c=>[c.id,c.name]))};if(p.clientId&&!clientChoices[p.clientId])clientChoices[p.clientId]=p.clientName;
   modal(isNew?'Nuevo proyecto':'Editar proyecto',field('name','Nombre del proyecto',p.name||'','text',true)+select('clientId','Cliente',clientChoices,p.clientId||'')+field('address','Domicilio o sector',p.address||'')+textarea('goal','¿Qué queremos resolver?',p.goal||'')+field('due','Fecha objetivo',p.due||'','date')+(isNew?'<span class="px-form-label">Integrantes</span>'+memberPicker({},actor):''),async f=>{
-   const client=state.options.clients.find(c=>c.id===f.get('clientId'));
+   if(loaded._current?.()===false)throw Error('La sesión o el permiso cambió. Volvé a abrir la acción.');
+   const client=loaded.clients.find(c=>c.id===f.get('clientId'));
    await mutate({type:isNew?'create':'update',data:{name:f.get('name'),clientId:f.get('clientId'),clientName:client?.name||(p.clientId===f.get('clientId')?p.clientName:''),address:f.get('address'),goal:f.get('goal'),due:f.get('due'),stage:p.stage,...(isNew?{members:readMembers(f)}:{})}});state.tab='resumen';
-  },isNew?'Crear proyecto':'Guardar cambios',el=>{wirePeople(el);el.querySelector('[name=clientId]').onchange=e=>{const c=state.options.clients.find(c=>c.id===e.target.value);if(c)el.querySelector('[name=address]').value=c.address;};});
+  },isNew?'Crear proyecto':'Guardar cambios',el=>{wirePeople(el);el.querySelector('[name=clientId]').onchange=e=>{const c=loaded.clients.find(c=>c.id===e.target.value);if(c)el.querySelector('[name=address]').value=c.address;};});
  }
  function stageDialog(){
   const p=current();if(!p?.access.edit)return;
@@ -139,12 +160,12 @@
   const p=current(),n=p.needs.find(n=>n.id===id)||{};
   modal(n.id?'Editar necesidad':'Agregar necesidad',field('title','¿Qué hace falta?',n.title||'','text',true)+'<div class="px-form-grid">'+field('area','Sector o etapa',n.area||'General','text',true)+select('kind','Tipo',M.kinds,n.kind||'equipo')+'</div><div class="px-form-grid">'+field('qty','Cantidad · puede quedar pendiente',n.qty??'','number')+field('unit','Unidad',n.unit||'unid.','text',true)+'</div>'+select('status','Definición',M.needStates,n.status||'pendiente')+textarea('notes','Notas para cotizar',n.notes||'')+(n.id?'<div class="px-label-row"><span class="px-help">Quitarla no modifica productos ni stock.</span>'+button('Quitar necesidad','remove-need','btn-sm','data-id="'+esc(n.id)+'"')+'</div>':''),async f=>mutate({type:'need-save',data:{id:n.id,title:f.get('title'),area:f.get('area'),kind:f.get('kind'),qty:f.get('qty'),unit:f.get('unit'),status:f.get('status'),notes:f.get('notes'),productId:n.productId||''}}),'Guardar necesidad',el=>{el.querySelector('[name=qty]').min='.001';el.querySelector('[name=qty]').step='any';const remove=el.querySelector('[data-px=remove-need]');if(remove)remove.onclick=async()=>{if(await confirm('¿Quitar esta necesidad del proyecto?')){try{await mutate({type:'need-remove',id:n.id});closeDialog();details();}catch(e){el.querySelector('.px-error').textContent=e.message;}}};});
  }
- async function membersDialog(){state.options=await options();const p=current();modal('Integrantes del proyecto',memberPicker(p.members,p.owner),async f=>mutate({type:'members',members:readMembers(f)}),'Guardar integrantes',wirePeople);}
+ async function membersDialog(){const loaded=await options('base');state.options=loaded;const p=current();modal('Integrantes del proyecto',memberPicker(p.members,p.owner),async f=>{if(loaded._current?.()===false)throw Error('La sesión o el permiso cambió. Volvé a abrir la acción.');return mutate({type:'members',members:readMembers(f)});},'Guardar integrantes',wirePeople);}
  function briefDialog(){const p=current();if(!p.needs.length){state.tab='necesidades';details();return;}
   modal('Preparar presupuesto',field('title','Nombre de la propuesta',p.name,'text',true)+'<p class="px-help">Elegí el alcance de este borrador. Los importes y las condiciones se trabajan en Presupuestos.</p>'+p.needs.map(n=>'<label class="px-pick"><input type="checkbox" name="need" value="'+esc(n.id)+'" checked><span class="px-pick-text">'+esc(n.title)+'<small>'+esc(n.area)+' · '+(n.qty==null?'Cantidad a definir':esc(n.qty)+' '+esc(n.unit))+'</small></span></label>').join('')+textarea('notes','Condiciones o alternativas'),async f=>{await mutate({type:'budget-brief',data:{title:f.get('title'),needIds:f.getAll('need'),notes:f.get('notes')}});state.tab='presupuestos';},'Guardar borrador');
  }
- async function linkDialog(briefId){state.options=await options();const p=current(),available=state.options.budgets.filter(b=>b.clientId===p.clientId&&!p.budgets.some(x=>x.sourceId===b.id));
-  modal('Vincular presupuesto','<p class="px-help">Se vincula un presupuesto existente del mismo cliente. No se cambia su contenido ni sus permisos comerciales.</p>'+(available.length?available.map((b,i)=>'<label class="px-pick"><input type="radio" name="budget" value="'+esc(b.id)+'" '+(!i?'checked':'')+'><span class="px-pick-text">'+esc(b.number)+' · '+esc(b.title)+'<small>'+money(b.total,b.currency)+' · '+esc(quoteStatus(b.status))+'</small></span></label>').join(''):'<p class="px-notice">'+(p.clientId?'No hay otros presupuestos de este cliente para vincular.':'Primero elegí el cliente en la ficha del proyecto.')+'</p>'),available.length?async f=>{await mutate({type:'budget-link',data:{sourceId:f.get('budget'),briefId}});state.tab='presupuestos';}:null,'Vincular presupuesto');
+ async function linkDialog(briefId){const loaded=await options('budgets');state.options=loaded;const p=current(),available=loaded.budgets.filter(b=>b.clientId===p.clientId&&!p.budgets.some(x=>x.sourceId===b.id));
+  modal('Vincular presupuesto','<p class="px-help">Se vincula un presupuesto existente del mismo cliente. No se cambia su contenido ni sus permisos comerciales.</p>'+(available.length?available.map((b,i)=>'<label class="px-pick"><input type="radio" name="budget" value="'+esc(b.id)+'" '+(!i?'checked':'')+'><span class="px-pick-text">'+esc(b.number)+' · '+esc(b.title)+'<small>'+money(b.total,b.currency)+' · '+esc(quoteStatus(b.status))+'</small></span></label>').join(''):'<p class="px-notice">'+(p.clientId?'No hay otros presupuestos de este cliente para vincular.':'Primero elegí el cliente en la ficha del proyecto.')+'</p>'),available.length?async f=>{if(loaded._current?.()===false)throw Error('La sesión o el permiso cambió. Volvé a abrir la acción.');await mutate({type:'budget-link',data:{sourceId:f.get('budget'),briefId}});state.tab='presupuestos';}:null,'Vincular presupuesto');
  }
  function budgetDialog(id){const p=current(),b=p.budgets.find(x=>x.id===id);if(!b||b.kind==='restricted')return;
   const needs=p.needs.filter(n=>b.needIds.includes(n.id));
@@ -164,7 +185,7 @@
   pendingBudget={projectId:p.id,briefId:brief.id,uid:window.currentUserUid,nonce:crypto.randomUUID()};document.getElementById('ppto-form-view').dataset.projectBrief=pendingBudget.nonce;window.notify('Alcance preparado. Revisá productos, precios y condiciones antes de guardar.');
  }
  async function confirm(message){return window.svConfirm?window.svConfirm(message):window.confirm(message);}
- function report(e){window.notify?.(e.message||'No se pudo completar la acción');}
+ function report(e){if(e.code!=='PX_OPTIONS_CANCELLED'&&!e._pxReported)window.notify?.(e.message||'No se pudo completar la acción');}
  let loadingClose=null;
  function stopLoading(){state.epoch++;state.loading=false;loadingClose?.();loadingClose=null;}
  async function load(){
@@ -198,6 +219,7 @@
  });
  document.addEventListener('sisventas:page-changed',e=>{if(e.detail.page==='proyectos')open();else{stopLoading();closeDialog();}});
  document.addEventListener('sisventas:role-changed',stopLoading);
+ document.addEventListener('sisventas:role-changed',()=>{state.options=null;closeDialog();});
  document.addEventListener('sisventas:session-ended',()=>{stopLoading();state.projects=[];state.selected='';state.options=null;pendingBudget=null;closeDialog();if(host())host().innerHTML='';});
  document.addEventListener('sisventas:budget-saved',async e=>{
   const pending=pendingBudget;if(!pending||pending.uid!==window.currentUserUid||preview()||e.detail.context!==pending.nonce)return;pendingBudget=null;

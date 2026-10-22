@@ -41,9 +41,17 @@ test('La carga de permisos espera Firebase y no aplica resultados de otra sesió
  ctx.currentUserUid='otra';resolve({val:()=>({})});assert.equal(await pending,false);assert.equal(applied,0);
  const next=ctx.cargarPermisosRoles();resolve({val:()=>null});assert.equal(await next,true);assert.equal(applied,1);
 });
-test('El arranque abre listeners solamente después de confirmar permisos',()=>{
- const start=source.indexOf('var uidArranque = currentUserUid;'),fragment=source.slice(start,start+510);
- assert.match(fragment,/_svPermisosCargaInicial = cargarPermisosRoles\(\)/);
- assert.match(fragment,/\.then\(function\(listos\)/);
- assert.match(fragment,/listos && uidArranque === currentUserUid\) fbCargarTodo\(\)/);
+test('El arranque abre listeners solamente después de confirmar permisos',async()=>{
+ const {functionSource}=require('./helpers/app-functions.cjs');
+ let release,loads=0;
+ const ctx={Promise,AbortController,setTimeout,clearTimeout,isAuthenticated:true,currentUserUid:'fixture',currentRole:'admin',
+  document:{hidden:false,getElementById:()=>null,querySelector:()=>null,addEventListener(){},removeEventListener(){}},console:{warn(){}},
+  fbAuth:{currentUser:{uid:'fixture'}},SVDataReadiness:{holdStartup:()=>()=>{},waitForPage:async()=>({ready:true})},
+  cargarPermisosRoles:()=>new Promise(resolve=>release=resolve),svCapturarContextoOperacion:()=>()=>true,
+  _svAbrirRutaActual(){},_svPaginaDesdeRuta:()=> 'ordentrabajo',_svActualizarRuta(){},fbCargarTodo:()=>loads++};
+ ctx.window=ctx;vm.runInNewContext(functionSource('svIniciarCargaPantalla'),ctx);
+ const denied=ctx.svIniciarCargaPantalla();await new Promise(resolve=>setImmediate(resolve));assert.equal(loads,0);
+ release(false);assert.equal((await denied).ready,false);assert.equal(loads,0);
+ const allowed=ctx.svIniciarCargaPantalla();await new Promise(resolve=>setImmediate(resolve));assert.equal(loads,0);
+ release(true);assert.equal((await allowed).ready,true);assert.equal(loads,1);
 });

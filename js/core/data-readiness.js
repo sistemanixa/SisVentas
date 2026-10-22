@@ -55,7 +55,7 @@
     return {start:start,reset:reset};
   }
   var screenLoading=global.SVScreenLoading=global.SVScreenLoading||createScreenLoading();
-  var states={},generation=0,scheduled=false,deadlineTimer=null,sessionActive=false;
+  var states={},generation=0,scheduled=false,deadlineTimer=null,sessionActive=false,startupHolds=new Set();
   var statusLayer=null,statusBox=null,statusTitle=null,statusDetail=null,statusRetry=null;
   var waitLimit=15000;
   var demandPages=['informes','equipos','garantias','soporte','remitos','servicios','agenda','caja','historialcliente'];
@@ -108,6 +108,57 @@
     return {ready:!missing.length,missing:missing,errors:errors};
   }
   function statusFor(page){return status(requirements(page));}
+  function holdStartup(){
+    var token={},epoch=generation,released=false;startupHolds.add(token);clearStatus();schedule();
+    return function(){
+      if(released)return;released=true;
+      if(epoch!==generation||!startupHolds.delete(token))return;
+      // Los nodos aún no solicitados no consumen su plazo durante permisos.
+      Object.keys(states).forEach(function(key){var state=states[key];if(!state.ready&&!state.sources.size&&!state.failure){state.since=Date.now();state.timeout=false;}});
+      schedule();
+    };
+  }
+  function presentation(state){
+    var title=state.errors.length?'No se pudieron cargar todos los datos':state.ready?'Datos listos':global.navigator.onLine===false?'Sin conexión. Esperando los datos…':'Cargando datos…';
+    var detail=state.errors.length?'No se pudieron completar '+state.errors.map(function(k){return labels[k]||k;}).join(', ')+'. '+(state.ready?'Se conserva la información recibida. Revisá la conexión y volvé a intentar.':'Revisá la conexión y volvé a intentar.'):state.ready?'': 'Esperando '+state.missing.map(function(k){return labels[k]||k;}).join(', ')+'.';
+    return {title:title,detail:detail};
+  }
+  // El arranque y la pantalla visible observan el mismo estado. No hay otro
+  // reloj que declare un ingreso completo mientras las fuentes siguen pendientes.
+  function waitForPage(page,options){
+    options=options||{};
+    var epoch=generation,events=['sisventas:data-state-changed','sisventas:page-changed','sisventas:role-changed','sisventas:session-ended'];
+    return new Promise(function(resolve){
+      var settled=false,last='';
+      function finish(result){
+        if(settled)return;settled=true;
+        events.forEach(function(name){document.removeEventListener?.(name,check);});
+        options.signal?.removeEventListener?.('abort',cancel);
+        resolve(result);
+      }
+      function cancel(){finish({ready:false,missing:[],errors:[],cancelled:true});}
+      function check(){
+        if(settled)return;
+        var name,current;
+        try{current=!options.isCurrent||options.isCurrent()===true;name=typeof page==='function'?page():page;}catch(_){cancel();return;}
+        if(epoch!==generation||!sessionActive||options.signal?.aborted||!current){cancel();return;}
+        if(!name||(typeof global.permisoModulo==='function'&&!global.permisoModulo(name))){cancel();return;}
+        var keys=requirements(name);keys.forEach(ensure);
+        var state=status(keys),copy={page:name,ready:state.ready,missing:state.missing.slice(),errors:state.errors.slice(),total:keys.length,received:keys.length-state.missing.length};
+        Object.assign(copy,presentation(state));
+        var signature=JSON.stringify(copy);
+        if(signature!==last){
+          last=signature;
+          // Un fallo al pintar el progreso no debe alterar el resultado de la lectura.
+          try{options.onState?.(copy);}catch(_){global.console?.warn?.('[Carga inicial] No se pudo actualizar el progreso');}
+        }
+        if(state.ready||state.errors.length)finish(copy);
+      }
+      events.forEach(function(name){document.addEventListener(name,check);});
+      options.signal?.addEventListener?.('abort',cancel,{once:true});
+      check();if(!settled)schedule();
+    });
+  }
   function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(function(){scheduled=false;render();});}
   function begin(reference){
     return beginSource(collection(reference),String(reference));
@@ -161,10 +212,9 @@
     }
     statusBox.dataset.svDataPage=name;
     statusBox.classList.toggle('sv-data-error',!!state.errors.length);
-    var title=state.errors.length?'No se pudieron cargar todos los datos':global.navigator.onLine===false?'Sin conexión. Esperando los datos…':'Cargando datos…';
-    var detail=state.errors.length?'No se pudieron completar '+state.errors.map(function(k){return labels[k]||k;}).join(', ')+'. '+(state.ready?'Se conserva la información recibida. Revisá la conexión y volvé a intentar.':'Revisá la conexión y volvé a intentar.'):'Esperando '+state.missing.map(function(k){return labels[k]||k;}).join(', ')+'.';
-    if(statusTitle.textContent!==title)statusTitle.textContent=title;
-    if(statusDetail.textContent!==detail)statusDetail.textContent=detail;
+    var text=presentation(state);
+    if(statusTitle.textContent!==text.title)statusTitle.textContent=text.title;
+    if(statusDetail.textContent!==text.detail)statusDetail.textContent=text.detail;
     statusRetry.onclick=function(){
       if(!sessionActive||!page.classList.contains('active')||(typeof global.permisoModulo==='function'&&!global.permisoModulo(name)))return;
       function report(){global.notify?.('No se pudo reintentar la carga. Revisá la conexión y volvé a intentar.');schedule();}
@@ -196,11 +246,11 @@
     if(focused&&document.activeElement!==focused)focused.focus({preventScroll:true});
   }
   function render(){
-    var visible=null;
+    var visible=null,held=startupHolds.size>0;
     Object.keys(dependencies).forEach(function(name){
       var page=document.getElementById('page-'+name);if(!page)return;
       var allowed=typeof global.permisoModulo!=='function'||global.permisoModulo(name);
-      var keys=sessionActive&&allowed?requirements(name):[];
+      var keys=sessionActive&&allowed&&!held?requirements(name):[];
       if(sessionActive&&page.classList.contains('active'))keys.forEach(ensure);
       var state=status(keys);
       var show=!state.ready||state.errors.length>0;
@@ -209,10 +259,10 @@
       if(show&&sessionActive&&allowed&&page.classList.contains('active'))visible={page:page,name:name,state:state};
     });
     if(visible)mountStatus(visible.page,visible.name,visible.state);else clearStatus();
-    armDeadlines();
+    if(held){if(deadlineTimer!==null)global.clearTimeout(deadlineTimer);deadlineTimer=null;}else armDeadlines();
     document.dispatchEvent(new CustomEvent('sisventas:data-state-changed'));
   }
-  function reset(){generation++;states={};sessionActive=false;clearStatus();screenLoading.reset();if(deadlineTimer!==null&&typeof global.clearTimeout==='function')global.clearTimeout(deadlineTimer);deadlineTimer=null;schedule();}
+  function reset(){generation++;states={};startupHolds.clear();sessionActive=false;clearStatus();screenLoading.reset();if(deadlineTimer!==null&&typeof global.clearTimeout==='function')global.clearTimeout(deadlineTimer);deadlineTimer=null;schedule();}
   document.addEventListener('sisventas:session-ended',reset);
   document.addEventListener('sisventas:session-ready',function(){sessionActive=true;schedule();});
   document.addEventListener('sisventas:page-changed',function(){clearStatus();schedule();});
@@ -220,5 +270,5 @@
   document.addEventListener('visibilitychange',schedule);
   document.addEventListener('DOMContentLoaded',schedule);
   global.addEventListener('online',schedule);global.addEventListener('offline',schedule);
-  global.SVDataReadiness={begin:begin,beginSource:beginSource,status:status,statusFor:statusFor,requirementsFor:requirements,reset:reset,render:schedule};
+  global.SVDataReadiness={begin:begin,beginSource:beginSource,status:status,statusFor:statusFor,requirementsFor:requirements,holdStartup:holdStartup,waitForPage:waitForPage,reset:reset,render:schedule};
 })(window);

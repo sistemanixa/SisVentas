@@ -1,5 +1,23 @@
 # Control de consumo de SisVentas
 
+## Listados y arranque · candidata3.14.3 local · 21/10/2026
+
+Producción sigue3.14.0 y Cotizador `cotizador-scoped19-9c6b3126`, según
+CONTEXTO_ACTUAL. El recorte nuevo de orígenes de Ventas evita descargar todos
+los presupuestos; los formularios básicos de Proyectos tampoco los piden.
+El lector condicional de colecciones valida cada GET contra RTDB y conserva
+sólo datos en memoria, con límite por raíz; no almacena autorizaciones ni sirve
+la copia anterior al fallar. Guardar un presupuesto confirmado evita una
+relectura completa cuando la lista ya estaba cargada.
+
+No se agregaron servicios, instancias mínimas, tareas por reloj ni recursos
+remotos. Las mejoras de servidor no están activas hasta un despliegue posterior
+autorizado. La primera lectura y las colecciones modificadas aún necesitan
+el historial para preservar saldos, métricas y comisiones. Menos bytes en una
+fixture no equivale a menor factura ni a menor latencia medida en producción.
+Mediciones, pruebas y límites: [Auditoría de listados](AUDITORIA_LISTADOS_20261021.md).
+Los estados de preparación más antiguos que siguen son antecedentes.
+
 ## Circuito financiero acotado · preparación 20/10/2026
 
 La candidata13.4 sustituye los cuatro GET/PUT de toda `sisventas` por lecturas puntuales, índices de referencias y un PATCH coordinado. Incluye los escritores relacionados de pagos, cuentas, comisiones y vinculación fiscal. No agrega servicios, instancias mínimas ni consultas por reloj. Producción continúa13.3: el ahorro todavía no está aplicado ni medido.

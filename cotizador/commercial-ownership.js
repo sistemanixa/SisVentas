@@ -6,6 +6,11 @@ const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
 // Las identidades siguen siendo ASCII; las claves de registros heredados admiten
 // espacios y Unicode como Proyectos, sin permitir segmentos ni propiedades especiales.
 const recordKey=v=>typeof v==='string'&&v.length>0&&v.length<=128&&!/[.#$\[\]\/\x00-\x1f\x7f]/.test(v)&&!['__proto__','constructor','prototype','hasOwnProperty'].includes(v);
+function linkedBudgetKey(value){
+ if(!value||!['string','number','boolean'].includes(typeof value))return null;
+ const id=String(value);
+ return id&&Buffer.byteLength(id)<=768&&!/[.#$\[\]\/\x00-\x1f\x7f]/.test(id)&&!['__proto__','constructor','prototype','hasOwnProperty'].includes(id)?id:null;
+}
 const normalize=v=>String(v||'').trim().normalize('NFC').toLocaleLowerCase('es');
 const role=v=>normalize(v).replace(/^administrador$/,'admin').replace(/^tecnico-vendedor$/,'tecnico_vendedor');
 function moduleAllowed(r,m,permissions){
@@ -31,24 +36,26 @@ function owner(record,domain,people){
  return matches.size===1?[...matches][0]:null;
 }
 function originalAuthor(record,domain,budgets){
- const source=domain==='ventas'&&record.presupuestoFbKey?budgets?.[record.presupuestoFbKey]:null;
+ const sourceKey=domain==='ventas'?linkedBudgetKey(record.presupuestoFbKey):null,source=sourceKey?budgets?.[sourceKey]:null;
  const candidate=source||record;
  const created=Object.values(candidate.audit||{}).find(a=>/^(?:presupuesto\s+creado|venta\s+(?:adicional\s+)?creada|creado\b)/i.test(a.accion||'')&&a.usuario);
  return {name:String(candidate.creadorOriginalNombre||created?.usuario||candidate.creadaPor||candidate.creadoPor||candidate.usuario||candidate.empleado||'Sin registrar'),uid:candidate.creadorOriginalUid||candidate.creadaPorUid||candidate.creadoPorUid||candidate.empleadoUid||''};
 }
 function historicalConversionAudit(record,budgets){
  if(Object.values(record.audit||{}).some(e=>e.tipo==='conversion_presupuesto_venta'))return null;
- const source=budgets?.[record.presupuestoFbKey];if(!source)return null;
+ const sourceKey=linkedBudgetKey(record.presupuestoFbKey),source=sourceKey?budgets?.[sourceKey]:null;if(!source)return null;
  const events=Object.values(source.audit||{}).filter(e=>e.usuario&&e.fecha&&(/Cliente considerado visto y aceptado al convertir a venta/i.test(e.accion||'')||e.tipo==='conversion_presupuesto_venta'));
  if(events.length!==1)return null;
  const event=events[0],author=originalAuthor(record,'ventas',budgets);
  return {tipo:'conversion_presupuesto_venta',fecha:event.fecha,usuario:event.usuario,accion:'Conversión histórica de '+(source.id||'presupuesto de origen')+' a '+(record.id||'venta')+' · Creador original: '+author.name+' · Según auditoría del presupuesto',referenciaHistorica:true};
 }
-function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
+function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectionReader}){
  // Instantánea privada, de un solo uso dentro de la petición que autorizó al actor.
  // No es una caché entre consultas: cada authorize vuelve a verificar Auth y roles.
  const requestContexts=new WeakMap();
  const read=async p=>(await db.ref(p).get()).val();
+ const readCollection=(p,conditional)=>conditional&&collectionReader&&typeof collectionReader.read==='function'&&['sisventas/ventas','sisventas/presupuestos'].includes(p)
+  ?collectionReader.read(p):read(p);
  async function context(){
   const results=await Promise.allSettled([read('sv_usuarios'),read('sv_chat_roles'),read('sv_permisos')]);
   const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
@@ -74,9 +81,26 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
   Object.defineProperty(actor,'permissionDigest',{value:require('./labor-guard').digest(c.permissions[identity.rol]||{})});
   requestContexts.set(actor,c);return actor;
  }
- async function recordsContext(domain,authorizedContext){const [c,records,budgets]=await Promise.all([authorizedContext||context(),read('sisventas/'+domain),domain==='ventas'?read('sisventas/presupuestos'):Promise.resolve(null)]);return {c,records:records||{},budgets};}
- function recordOwner(r,domain,c,budgets){if(Object.hasOwn(r,'responsableUid'))return owner(r,domain,c.people);const source=domain==='ventas'&&r.presupuestoFbKey?budgets?.[r.presupuestoFbKey]:null;return owner(source||r,source?'presupuestos':domain,c.people);}
- async function list(actor){const authorizedContext=requestContexts.get(actor);requestContexts.delete(actor);const {c,records,budgets}=await recordsContext(actor.domain,authorizedContext);const result={};for(const [id,r]of Object.entries(records)){const uid=recordOwner(r,actor.domain,c,budgets);if(actor.role==='admin'||uid===actor.uid){result[id]={...r,_svOwnerUid:uid||'',_svOriginalAuthor:originalAuthor(r,actor.domain,budgets)};const event=actor.domain==='ventas'?historicalConversionAudit(r,budgets):null;if(event)result[id]._svConversionAudit=event;}}return {records:result};}
+ async function linkedBudgets(records){
+  const ids=[...new Set(Object.values(records||{}).map(record=>linkedBudgetKey(record?.presupuestoFbKey)).filter(Boolean))],budgets=Object.create(null);
+  let cursor=0,failed=false,failure;
+  await Promise.all(Array.from({length:Math.min(6,ids.length)},async()=>{
+   while(!failed&&cursor<ids.length){
+    const id=ids[cursor++];
+    try{budgets[id]=await read('sisventas/presupuestos/'+id);}
+    catch(error){if(!failed){failed=true;failure=error;}}
+   }
+  }));
+  if(failed)throw failure;return budgets;
+ }
+ async function recordsContext(domain,authorizedContext,useCollectionReader=false){
+  const results=await Promise.allSettled([authorizedContext||context(),readCollection('sisventas/'+domain,useCollectionReader)]);
+  const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
+  const [c,records]=results.map(result=>result.value),budgets=domain==='ventas'?await linkedBudgets(records):null;
+  return {c,records:records||{},budgets};
+ }
+ function recordOwner(r,domain,c,budgets){if(Object.hasOwn(r,'responsableUid'))return owner(r,domain,c.people);const sourceKey=domain==='ventas'?linkedBudgetKey(r.presupuestoFbKey):null,source=sourceKey?budgets?.[sourceKey]:null;return owner(source||r,source?'presupuestos':domain,c.people);}
+ async function list(actor){const authorizedContext=requestContexts.get(actor);requestContexts.delete(actor);const {c,records,budgets}=await recordsContext(actor.domain,authorizedContext,true);const result={};for(const [id,r]of Object.entries(records)){const uid=recordOwner(r,actor.domain,c,budgets);if(actor.role==='admin'||uid===actor.uid){result[id]={...r,_svOwnerUid:uid||'',_svOriginalAuthor:originalAuthor(r,actor.domain,budgets)};const event=actor.domain==='ventas'?historicalConversionAudit(r,budgets):null;if(event)result[id]._svConversionAudit=event;}}return {records:result};}
  async function options(actor){if(actor.role!=='admin'||actor.viewing)throw fail(403,'Solo el administrador puede reasignar');const c=await context();return {users:c.people.filter(p=>eligible(p.role,actor.domain,c.permissions)).map(p=>({uid:p.uid,nombre:p.name,rol:p.role})).sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))};}
  async function mutate(actor,body,assign){
   // Preparar consume una sola vez la instantánea de esta misma petición,
@@ -86,14 +110,22 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
   if(actor.viewing)throw fail(403,'Volvé a tu cuenta para modificar el responsable');
   if(assign&&actor.role!=='admin')throw fail(403,'Solo el administrador puede reasignar');
   if(!key(body?.id))throw fail(400,'Registro inválido');
-  const c=authorizedContext||await context(),budgets=actor.domain==='ventas'?await read('sisventas/presupuestos'):null;let target;
+  const c=authorizedContext||await context(),budgets=actor.domain==='ventas'?Object.create(null):null;let target;
   if(assign){target=c.people.find(p=>p.uid===body.uid);if(!target||!eligible(target.role,actor.domain,c.permissions))throw fail(403,'La persona ya no tiene habilitado este módulo');}
-  const ref=db.ref('sisventas/'+actor.domain+'/'+body.id),stamp=now();let error,listener;
+  const ref=db.ref('sisventas/'+actor.domain+'/'+body.id),stamp=now();let error,listener,initial;
   try{
-   await new Promise((resolve,reject)=>{listener=()=>resolve();ref.on('value',listener,reject);});
+   await new Promise((resolve,reject)=>{listener=snapshot=>{initial=snapshot.val();resolve();};ref.on('value',listener,reject);});
+   if(budgets)Object.assign(budgets,await linkedBudgets([initial]));
+   for(let attempt=0;attempt<3;attempt++){
+   let missingSource;
    const result=await ref.transaction(current=>{
     try{
-     error=null;if(!current)throw fail(404,'Registro no disponible');
+     error=null;missingSource=null;if(!current)throw fail(404,'Registro no disponible');
+     const sourceKey=actor.domain==='ventas'?linkedBudgetKey(current.presupuestoFbKey):null;
+     // Si cambió la referencia durante la preparación, no decidir propiedad
+     // ni autoría con otro presupuesto. Cargar esa ficha y revalidar el mismo
+     // registro en una transacción nueva, con un límite por solicitud.
+     if(sourceKey&&!Object.hasOwn(budgets,sourceKey)){missingSource=sourceKey;return;}
      const currentOwner=recordOwner(current,actor.domain,c,budgets);
      if(!assign){if(actor.role!=='admin'&&currentOwner!==actor.uid)throw fail(403,'Este registro no está asignado a tu cuenta');if(current.responsableUid)return current;target=c.people.find(p=>p.uid===currentOwner);if(!target)return current;}
      if(assign&&(Number(body.revision||0)!==Number(current.responsableRevision||0)||String(body.owner||'')!==String(current.responsableUid||'')))throw fail(409,'Cambió el responsable. Actualizá antes de reasignar');
@@ -104,17 +136,16 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now}){
      return {...current,...original,responsableUid:target.uid,responsableNombre:target.name,responsableRol:target.role,responsableRevision:Number(current.responsableRevision||0)+1,responsableActualizadoEn:stamp,audit};
     }catch(e){error=e;return;}
    },undefined,false);
+   if(missingSource){if(attempt===2)throw fail(409,'Cambió el presupuesto de origen. Actualizá el registro');Object.assign(budgets,await linkedBudgets([{presupuestoFbKey:missingSource}]));continue;}
    if(error)throw error;if(!result.committed)throw fail(409,'No se pudo confirmar. Actualizá el registro');return {record:result.snapshot.val()};
+   }
   }finally{if(listener)ref.off('value',listener);}
  }
  async function visibleRecords(actor,domain){const {c,records,budgets}=await recordsContext(domain);return Object.fromEntries(Object.entries(records).filter(([,r])=>actor.role==='admin'||recordOwner(r,domain,c,budgets)===actor.uid));}
  async function authorizedRecord(actor,domain,record,c){
   if(!record||typeof record!=='object'||Array.isArray(record))throw fail(404,'Registro no disponible');
-  const budgets=Object.create(null),source=record.presupuestoFbKey;
-  if(actor.role!=='admin'&&domain==='ventas'&&!Object.hasOwn(record,'responsableUid')&&source&&['string','number','boolean'].includes(typeof source)){
-   const reference=String(source);
-   if(Buffer.byteLength(reference)<=768&&!/[.#$\[\]\/\x00-\x1f\x7f]/.test(reference))budgets[reference]=await read('sisventas/presupuestos/'+reference);
-  }
+  const budgets=Object.create(null),source=linkedBudgetKey(record.presupuestoFbKey);
+  if(actor.role!=='admin'&&domain==='ventas'&&!Object.hasOwn(record,'responsableUid')&&source)budgets[source]=await read('sisventas/presupuestos/'+source);
   if(actor.role!=='admin'&&recordOwner(record,domain,c,budgets)!==actor.uid)throw fail(404,'Registro no disponible');
   return record;
  }
