@@ -9,10 +9,11 @@ const appActivo = (html.match(/<script src="\.\/js\/(app\.v[^"?]+\.js)(?:\?[^\"]
 assert.ok(appActivo, 'index.html debe declarar el archivo principal activo');
 const app = fs.readFileSync(path.join(raiz, 'js', appActivo), 'utf8');
 
-test('Empleados concentra haberes y mantiene comisiones vinculadas sin acciones redundantes', () => {
+test('Empleados permite una bonificación adicional con mes elegido y mantiene comisiones vinculadas', () => {
   assert.match(html, /<i class="ti ti-cash"><\/i>\s*Haberes<\/button>/);
   assert.doesNotMatch(html, /Haberes y bonificaciones/);
-  assert.doesNotMatch(html, /onclick="abrirModalBonificacionEmpleado\(\)"/);
+  assert.match(html, /data-permiso="empleados.bonificar" onclick="abrirModalBonificacionEmpleado\(\)"/);
+  assert.match(html, /<input type="month" id="bonificacion-mes" required>/);
   assert.match(html, /onclick="abrirModalComisionVenta\(\)"/);
   assert.match(html, /id="modal-bonificacion-empleado"/);
   assert.match(html, /id="modal-comision-venta"/);
