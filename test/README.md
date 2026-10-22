@@ -30,6 +30,15 @@ Plan de cancelación: `node --test test/private-finance-plan-rate-source.test.cj
 13 casos de procedencia de TEM manual/resumen, vacío/cero, escenarios y cambio
 de tarjeta sin modificar los resúmenes ficticios.
 
+Baja administrativa de Gastos: `node --test test/paid-expense-admin-removal.test.cjs test/expense-removal-policy.test.cjs test/expense-removal-guard.test.cjs test/expense-removal-rules.test.cjs test/labor-expense-edit-delete-compensation.test.cjs`.
+Comprueba permiso real de administrador, pagos/compensaciones conservados,
+tabla operativa, acuse, reintentos y protección del gateway genérico.
+`test/expense-removal-emulator.integration.cjs` es opt-in: requiere
+`FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:9037` y `SV_RULES_TEST_FILE` con
+la base coordinada revisada (hash verificado). Sólo usa datos ficticios en
+`demo-expense-removal-proof`; deriva y prueba la candidata sin aplicarla en
+producción. Diez casos con permiso eliminar sin administrar y revocación al commit.
+
 Opt-in RTDB: `test/payment-scoped-emulator.integration.cjs` requiere
 `FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:9037`, `SV_RULES_TEST_FILE` con la
 base local coordinada revisada y `SV_EMULATOR_DEPENDENCIES` con una ruta local

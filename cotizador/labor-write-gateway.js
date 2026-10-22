@@ -1,6 +1,7 @@
 'use strict';
 const {affected,parts,digest}=require('./labor-guard');
 const {flatten}=require('./labor-db');
+const ExpenseRemoval=require('./expense-removal-policy');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const forbidden=path=>/^(sv_labor_[^/]*|sv_commission_generation|sv_commission_events)(\/|$)/.test(path);
 const normalizationFields={ventas:['clienteFbKey','clienteKey','clienteId'],presupuestos:['clienteFbKey','clienteKey','ventaFbKey','ventaGeneradaFbKey'],pagos:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],ordenesTrabajo:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],ordenes_trabajo:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],reclamos:['clienteFbKey','clienteKey'],productos:['categoriaFbKey','categoriaKey']};
@@ -28,8 +29,8 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
   if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['id','kind','path','value','expectedHash','expectedHashes','purpose'].includes(k))||!/^[A-Za-z0-9_-]{8,160}$/.test(body.id)||!['set','patch','compare','atomic'].includes(body.kind)||typeof body.path!=='string')throw fail(400,'Solicitud de guardado inválida');
   if(!actor?.uid||!actor.claims||actor.claims.uid!==actor.uid)throw fail(403,'Sesión requerida');
   if(Buffer.byteLength(JSON.stringify(body))>16*1024*1024)throw fail(413,'El guardado supera el tamaño permitido');
-  const normalization=body.purpose==='relationship-normalization';
-  if(body.purpose!==undefined&&(!normalization||body.kind!=='atomic'))throw fail(400,'Propósito de guardado inválido');
+  const normalization=body.purpose==='relationship-normalization',removal=body.purpose==='expense-removal';
+  if(body.purpose!==undefined&&(!(normalization||removal)||body.kind!=='atomic'))throw fail(400,'Propósito de guardado inválido');
   let patch;
   if(['patch','atomic'].includes(body.kind)){
    if(body.expectedHash!==undefined)throw fail(400,'Comparación inválida');
@@ -47,10 +48,13 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
    for(const [path,hash]of Object.entries(expected)){specific(path);if(!/^[a-f0-9]{64}$/.test(hash)||normalization&&!normalizationSource(path))throw fail(400,'Comparación de registros inválida');}
    for(const path of Object.keys(patch))if((normalization||affected(path))&&!Object.keys(expected).some(base=>path===base||path.startsWith(base+'/')))throw fail(400,'Falta verificar un registro del guardado');
   }
+  if(removal)ExpenseRemoval.describe(body);
   async function normalizationAccess(read){const profile=await read('sv_chat_roles/'+actor.uid),cfg=await read('sv_permisos/admin');if(profile?.activo!==true||profile.rol!=='admin'||cfg&&(cfg.indiceVersion!==2||cfg.indiceModulos?.configuracion!==true||Object.values(cfg.bloqueados||{}).includes('configuracion'))||cfg?.acciones?.mantenimiento?.normalizar===false)throw fail(403,'Sólo el administrador autorizado puede aplicar la normalización');return {role:'admin',permissionRevision:cfg?.indiceRevision??null,permissionDigest:digest(cfg||{})};}
-  const normalizationContext=normalization?await normalizationAccess(async path=>(await db.ref(path).get()).val()):null;
-  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',...(normalization?{...normalizationContext,financialAction:'mantenimiento.normalizar'}:{}),opId:body.id,transportDigest:digest(body),operation:'legacy-'+body.kind,input:body},async scope=>{
+  async function removalAccess(read){const profile=await read('sv_chat_roles/'+actor.uid),cfg=await read('sv_permisos/admin');if(profile?.activo!==true||profile.rol!=='admin'||cfg&&(cfg.indiceVersion!==2||cfg.indiceModulos?.gastos!==true||Object.values(cfg.bloqueados||{}).includes('gastos'))||cfg?.acciones?.gastos?.eliminar===false)throw fail(403,'Sólo el administrador autorizado puede eliminar gastos');return {role:'admin',permissionRevision:cfg?.indiceRevision??null,permissionDigest:digest(cfg||{})};}
+  const initialRead=async path=>(await db.ref(path).get()).val(),normalizationContext=normalization?await normalizationAccess(initialRead):null,removalContext=removal?await removalAccess(initialRead):null;
+  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',...(normalization?{...normalizationContext,financialAction:'mantenimiento.normalizar'}:{}),...(removal?{...removalContext,financialAction:'gastos.eliminar'}:{}),opId:body.id,transportDigest:digest(body),operation:'legacy-'+body.kind,input:body},async scope=>{
    if(normalization&&digest(await normalizationAccess(path=>scope.get(path)))!==digest(normalizationContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
+   if(removal&&digest(await removalAccess(path=>scope.get(path)))!==digest(removalContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
    for(const [path,hash]of Object.entries(expected)){
     // La lectura conserva el permiso del usuario, además del control de escritura
     // evaluado por Firebase para el PATCH final, nunca un resultado Admin público.

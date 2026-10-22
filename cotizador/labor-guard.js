@@ -2,6 +2,7 @@
 const crypto=require('node:crypto'),{AsyncLocalStorage}=require('node:async_hooks');
 const Index=require('./labor-index');
 const PaymentIndex=require('./payment-membership-index');
+const {validateExpenseRemovals}=require('./expense-removal-guard');
 const failure=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const copy=v=>v==null?null:structuredClone(v);
 function canonical(v){if(v==null)return 'null';if(Array.isArray(v))return '['+v.map(canonical).join(',')+']';if(typeof v==='object')return '{'+Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';return JSON.stringify(v);}
@@ -22,8 +23,8 @@ function affected(path){const p=parts(path);return ['sv_commission_generation','
 function validateFinancialContext(actor,profile,permissions){
  if(profile?.activo!==true)throw failure(403,'Usuario sin acceso');
  if(profile.rol!==actor.role)throw failure(409,'La sesión cambió. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
- const actions={'cobranzas.registrar':['cobranzas','cobranzas','registrar',['admin','administrativo']],'cobranzas.anular':['cobranzas','cobranzas','anular',['admin']],'gastos.administrar':['gastos','gastos','administrar',['admin','administrativo']],'mantenimiento.normalizar':['configuracion','mantenimiento','normalizar',['admin']]},action=actions[actor.financialAction];
- if(!action)throw failure(403,'Acción financiera no autorizada');
+ const actions={'cobranzas.registrar':['cobranzas','cobranzas','registrar',['admin','administrativo']],'cobranzas.anular':['cobranzas','cobranzas','anular',['admin']],'gastos.administrar':['gastos','gastos','administrar',['admin','administrativo']],'gastos.eliminar':['gastos','gastos','eliminar',['admin']],'mantenimiento.normalizar':['configuracion','mantenimiento','normalizar',['admin']]},action=actions[actor.financialAction];
+ if(!action||actor.financialAction==='gastos.eliminar'&&profile.rol!=='admin')throw failure(403,'Acción financiera no autorizada');
  const [module,group,name,defaults]=action,cfg=permissions||{},override=cfg.acciones?.[group]?.[name];
  if(Object.values(cfg.bloqueados||{}).includes(module)||permissions&&(cfg.indiceVersion!==2||cfg.indiceModulos?.[module]!==true)||(typeof override==='boolean'?!override:!defaults.includes(profile.rol)))throw failure(403,'El permiso de la operación ya no está habilitado');
  if((cfg.indiceRevision??null)!==(actor.permissionRevision??null)||digest(cfg)!==actor.permissionDigest)throw failure(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
@@ -103,7 +104,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
      else if(path.startsWith(root+'/'))records.add(domain+'/'+parts(path.slice(root.length+1))[0]);
     }
     const changes=[];for(const record of records){const slash=record.indexOf('/'),domain=record.slice(0,slash),key=record.slice(slash+1),path='sisventas/'+record;changes.push({domain,key,before:await raw(path),after:await get(path)});}
-    const patch=Object.fromEntries(staged);await require('./labor-commission-limit').validateCommissionLimit({raw,get,changes,patch});Object.assign(patch,Index.planIndexDelta(changes));
+    const patch=Object.fromEntries(staged);await validateExpenseRemovals({actor,raw,changes,patch});await require('./labor-commission-limit').validateCommissionLimit({raw,get,changes,patch});Object.assign(patch,Index.planIndexDelta(changes));
     const paymentKeys=PaymentIndex.paymentKeysForPatch(Object.fromEntries([...staged].filter(([path])=>path.startsWith('sisventas/pagos/'))));
     if(paymentKeys.length){
      const coverage=await get(PaymentIndex.COVERAGE_PATH);

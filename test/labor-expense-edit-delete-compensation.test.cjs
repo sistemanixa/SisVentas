@@ -4,7 +4,7 @@ const {createBackend,copy,apply}=require('./helpers/labor-ui-flow.cjs');
 const {load,functionSource}=require('./helpers/app-functions.cjs');
 const expense=()=>({fecha:'2026-10-20',tipo:'Variable',categoria:'Otro',descripcion:'Gasto ficticio',monto:100,montoPagado:20,estado:'pagado_parcial',medio:'Efectivo',proveedor:'',comprobante:'',vencimiento:'',empleadoId:'e',empleadoNombre:'Persona ficticia',pagos:{p1:{monto:20,medio:'Efectivo',ts:1}},nota:'Conservar'});
 const movement=g=>({tipo:'gasto_empresa',descripcion:g.descripcion,monto:g.monto,montoPagado:g.montoPagado,estado:g.estado,gastoFbKey:'g',pagos:copy(g.pagos)});
-const names=['_esGastoAdelanto','_movEmpPagosArray','_movEmpTotalPagado','_movEmpEstadoCalculado','_ctaEmpMontoAdelantoACompensar','_ctaEmpAdelantosPendientes','_eliminarBonificacionGastoVinculada','_eliminarAdelantoGastoVinculado','_gastoIdentidad','_crearGastoSinDuplicar','sincronizarMedioPagoCuentaEmpleado','_guardarEdicionGastoAdelanto','_gastoBaseEdicion','_gastoEmpleadosVinculados','_gastoMovimientosDesdeValores','_guardarGastoCompletoAtomico','_eliminarGastoAtomico','_aplicarAdelantosAlHaberAtomico','guardarGastoCompleto','eliminarRegistro','aplicarAdelantosAlHaberActual'];
+const names=['rolActualNormalizado','esAdmin','_esGastoAdelanto','_gastoTieneHistoriaLiquidada','_gastoEstaRetirado','_movEmpPagosArray','_movEmpTotalPagado','_movEmpEstadoCalculado','_ctaEmpMontoAdelantoACompensar','_ctaEmpAdelantosPendientes','_eliminarBonificacionGastoVinculada','_eliminarAdelantoGastoVinculado','_gastoIdentidad','_crearGastoSinDuplicar','sincronizarMedioPagoCuentaEmpleado','_guardarEdicionGastoAdelanto','_gastoBaseEdicion','_gastoEmpleadosVinculados','_gastoMovimientosDesdeValores','_guardarGastoCompletoAtomico','_eliminarGastoAtomico','_aplicarAdelantosAlHaberAtomico','guardarGastoCompleto','eliminarRegistro','aplicarAdelantosAlHaberActual'];
 function fixture(initial={}){
  const g=expense(),backend=createBackend({gastos:{g},ctaemp:{e:{m:movement(g)}},...initial}),page=backend.page(),c=page.context,tasks=[];
  for(const name of names){try{functionSource(name);load(c,[name]);}catch(error){if(!/^Falta función activa/.test(error.message))throw error;}}
@@ -30,9 +30,9 @@ test('a payment that arrives during delete confirmation prevents deletion',async
  const g=expense();g.montoPagado=0;g.pagos={};g.estado='pendiente';const f=fixture({gastos:{g},ctaemp:{e:{}}});let confirm;
  f.c.svConfirm=()=>new Promise(resolve=>{confirm=resolve;});const task=f.c.eliminarRegistro('gastos','g');apply(f.state,{'sisventas/gastos/g/pagos/late':{monto:20},'sisventas/gastos/g/montoPagado':20});confirm(true);await f.settle(task);assert.equal(f.get('sisventas/gastos/g/pagos/late/monto'),20);assert.equal(f.commits.length,0);
 });
-test('a bonus with a paid linked movement cannot be deleted even if its expense summary is stale',async()=>{
+test('an admin retires a bonus with a paid linked movement without deleting that movement or its payments',async()=>{
  const g={...expense(),montoPagado:0,pagos:{},estado:'pendiente',tipoPagable:'bonificacion',movimientoCtaKey:'m'},f=fixture({gastos:{g},ctaemp:{e:{m:{...movement(g),montoPagado:20,pagos:{paid:{monto:20}}}}}});
- await f.settle(f.c.eliminarRegistro('gastos','g'));assert.ok(f.get('sisventas/gastos/g'));assert.ok(f.get('sisventas/ctaemp/e/m'));assert.equal(f.commits.length,0);
+ const account=copy(f.get('sisventas/ctaemp'));await f.settle(f.c.eliminarRegistro('gastos','g'));const saved=f.get('sisventas/gastos/g');assert.equal(saved.bajaAdministrativa.uid,'u');delete saved.bajaAdministrativa;assert.deepEqual(saved,g);assert.deepEqual(f.get('sisventas/ctaemp'),account);assert.equal(f.commits.length,1);
 });
 test('an unpaid bonus and its linked movement are deleted in one atomic commit',async()=>{
  const g={...expense(),montoPagado:0,pagos:{},estado:'pendiente',tipoPagable:'bonificacion',movimientoCtaKey:'m'},f=fixture({gastos:{g},ctaemp:{e:{m:movement(g)}}});
@@ -114,11 +114,11 @@ test('a new session during expense hashing cannot start the previous form operat
  const f=fixture({gastos:{},ctaemp:{e:{}}});newForm(f);const subtle=f.c.crypto.subtle;f.c.crypto.subtle={async digest(...args){f.c.currentUserUid='another';f.c.fbAuth.currentUser={uid:'another'};return subtle.digest(...args);}};
  await f.c.guardarGastoCompleto();assert.equal(f.commits.length,0);assert.equal(f.commands.length,0);assert.deepEqual(f.state.sisventas.gastos,{});
 });
-test('a historical expense marked paid without detailed payments is not deleted',async()=>{
- const g={...expense(),estado:'Pagado',montoPagado:0,pagos:{}},f=fixture({gastos:{g},ctaemp:{e:{}}});await f.c.eliminarRegistro('gastos','g');assert.ok(f.get('sisventas/gastos/g'));assert.equal(f.commits.length,0);
+test('an admin retires a historical paid expense while preserving its undetailed original paid marker',async()=>{
+ const g={...expense(),estado:'Pagado',montoPagado:0,pagos:{}},f=fixture({gastos:{g},ctaemp:{e:{}}});await f.c.eliminarRegistro('gastos','g');const saved=f.get('sisventas/gastos/g');assert.equal(saved.bajaAdministrativa.uid,'u');delete saved.bajaAdministrativa;assert.deepEqual(saved,g);assert.equal(f.commits.length,1);
 });
-test('a historical bonus account marked paid without detailed payments is not deleted',async()=>{
- const g={...expense(),tipoPagable:'bonificacion',movimientoCtaKey:'m',estado:'pendiente',montoPagado:0,pagos:{}},f=fixture({gastos:{g},ctaemp:{e:{m:{...movement(g),estado:'pagado'}}}});await f.c.eliminarRegistro('gastos','g');assert.ok(f.get('sisventas/gastos/g'));assert.ok(f.get('sisventas/ctaemp/e/m'));assert.equal(f.commits.length,0);
+test('an admin retires a bonus whose account only has a historical paid marker without clearing that account',async()=>{
+ const g={...expense(),tipoPagable:'bonificacion',movimientoCtaKey:'m',estado:'pendiente',montoPagado:0,pagos:{}},f=fixture({gastos:{g},ctaemp:{e:{m:{...movement(g),estado:'pagado'}}}}),account=copy(f.get('sisventas/ctaemp'));await f.c.eliminarRegistro('gastos','g');const saved=f.get('sisventas/gastos/g');assert.equal(saved.bajaAdministrativa.uid,'u');delete saved.bajaAdministrativa;assert.deepEqual(saved,g);assert.deepEqual(f.get('sisventas/ctaemp'),account);assert.equal(f.commits.length,1);
 });
 test('a historical salary marked paid without detailed payments cannot be recalculated by compensation',async()=>{
  const f=compensation();apply(f.state,{'sisventas/ctaemp/e/salary/estado':'pagado'});f.c.movsEmpData[0].estado='pagado';const before=copy(f.state.sisventas);await f.c.aplicarAdelantosAlHaberActual();assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,0);

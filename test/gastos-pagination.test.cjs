@@ -5,7 +5,7 @@ function setup(){
  const data=Array.from({length:123},(_,i)=>({fbKey:String(i),descripcion:'Gasto '+i,monto:100,fecha:'2026-10-10',categoria:'Otro'}));
  const elements={'gastos-tbody':{dataset:{},innerHTML:'',scrollIntoView(){}},'gastos-paginacion':{innerHTML:''},'gas-buscar':{value:''}};
  const c={window:{},document:{getElementById:id=>elements[id]},gastosData:data,_gastosDataReady:true,_gastosPagoMultipleActivo:false,_gastosSeleccionadosPago:{},gastosFiltradosActuales:()=>data.filter(g=>g.descripcion.includes(elements['gas-buscar'].value)),gastoVisibleEnModuloGastos:()=>true,actualizarResumenPagoMultiple(){},normalizarEstadoGasto:()=> 'pendiente_pago',normalizarTipoGasto:()=> 'Variable',fechaImputacionGasto:g=>g.fecha,_gastoDesgloseHaberHTML:()=>'',restoGasto:()=>100,totalPagadoGasto:()=>0,gastoSeleccionableParaPago:()=>true,_gastoPagosArray:()=>[],escapeHTML:String,_claveGastoKpi:g=>g.fbKey};
- vm.createContext(c);['renderTablaGastos','cambiarPaginaGastos','seleccionarTodosGastosVisibles'].forEach(n=>vm.runInContext(fn(n),c));
+ vm.createContext(c);['_gastoEstaRetirado','renderTablaGastos','cambiarPaginaGastos','seleccionarTodosGastosVisibles'].forEach(n=>vm.runInContext(fn(n),c));
  return {c,e:elements,data,count:()=>(elements['gastos-tbody'].innerHTML.match(/class="gas-row"/g)||[]).length};
 }
 test('páginas 50/50/23 mantienen total filtrado y búsqueda sobre todos los gastos',()=>{
