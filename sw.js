@@ -91,7 +91,7 @@ const SHELL = [
   './js/modules/business-break-even.js?v=perf-3105',
   './push-sw.js',
   './js/modules/private-finance-portal.js?v=3.14.3-cycle',
-  './js/modules/private-finance-ui.js?v=3.14.3-cycle',
+  './js/modules/private-finance-ui.js?v=3.14.4-plan-axis',
   './js/core/private-finance-model.js?v=3.14.3-cycle',
   './js/core/private-finance-pdf.js?v=3.14.3-cycle',
   './js/core/private-finance-import-queue.js?v=3.12.6',

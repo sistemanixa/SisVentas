@@ -52,6 +52,20 @@ la base coordinada revisada (hash verificado). Sólo usa datos ficticios en
 `demo-expense-removal-proof`; deriva y prueba la candidata sin aplicarla en
 producción. Diez casos con permiso eliminar sin administrar y revocación al commit.
 
+La publicación independiente de Gastos usa `scripts/prepare-expense-removal-rules.cjs`,
+sin activar los cambios de Pagos/índices del builder combinado. Su prueba
+`test/expense-removal-standalone-rules.test.cjs` verifica el alcance de cinco
+reglas y el recibo condicionado; `test/expense-removal-standalone-emulator.integration.cjs`
+es opt-in con las mismas variables de loopback/base, namespace exclusivo
+`demo-expense-removal-only-proof`. Incluye revocación final con administrar habilitado
+y otra acción financiera intacta. El caso de compatibilidad del vendor fiscal anterior
+requiere además `SV_FISCAL_LABOR_VENDOR` apuntando al paquete privado local indicado
+en la prueba; su ausencia produce skip, no aprobación de compatibilidad.
+
+Eje mensual del simulador: `node --test test/private-finance-plan-chart.test.cjs`.
+Comprueba Inicio/meses 1–12, los trece puntos y la tabla/resultados sin fechas inventadas
+ni cambios de saldos. La legibilidad en anchos móviles se verifica visualmente aparte.
+
 Opt-in RTDB: `test/payment-scoped-emulator.integration.cjs` requiere
 `FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:9037`, `SV_RULES_TEST_FILE` con la
 base local coordinada revisada y `SV_EMULATOR_DEPENDENCIES` con una ruta local
