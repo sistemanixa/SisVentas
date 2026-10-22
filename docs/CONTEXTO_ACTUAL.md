@@ -1,5 +1,11 @@
 # Continuidad de SisVentas
 
+## Servidor corregido publicado · 22/10/2026 · web pendiente por editor abierto
+
+- El chat encargado de publicar informa verificación de Cotizador `cotizador-venta-fix-585ed978` al 100%, las 14 etiquetas existentes en esa revisión y eliminación de la etiqueta temporal. Comprobó ReadyTrue y OPTIONS204 por la etiqueta exacta antes de promover. Fuente585ed978; imagen SHA2562905917f3fd38f28580230190738f0fd6b05fa1baff0ab307e28ae60b3fb5bb9. Este chat registra esa evidencia coordinada; no duplicó despliegues ni consultas de negocio.
+- Flags PAYMENT_SCOPED_ENABLED y ADMIN_EXPENSE_SCOPED_ENABLED false. Según la comparación del chat publicador se conservaron identidad de servicio, secretos, resto de variables, 1CPU/2Gi, concurrencia1, mínimo0, máximo12 y timeout300. La revisión fallida anterior no recibió tráfico; la revisión previa atendió hasta la promoción corregida. No se reintentó ni guardó una venta real como prueba.
+- Hosting, SW, Asistente y nodo de versión siguen sin publicar. Se conserva el editor y el titular debe guardar una sola vez sin recargar; el chat publicador hace ese handoff y espera confirmación de que el editor quedó resuelto antes de publicar frontend. El fondo oscuro está preparado en esa tanda; no anunciarlo aún visible en la web. Gastos4 y las reglas candidatas continúan sin activar.
+
 ## Paquete corregido e integrado en candidata4 · 22/10/2026 · sin publicar
 
 - Corrección de empaquetado585ed978 integrada como197c703, conservando los dos módulos de baja administrativa. La prueba rechaza el Docker anterior sin commercial-collection-reader y acepta el corregido. Revisión AST independiente:57fuentes/95enlaces, único faltante el lector; no imports dinámicos ni externos sin declarar. No se ejecutó index/ADC como parte de esas pruebas y no equivalen a arrancar la imagen.
