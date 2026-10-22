@@ -13,6 +13,13 @@ function fixture(){
  return {context,counts,file,result,requests,resolve:(value=result,index=0)=>requests[index].resolve(structuredClone(value)),reject:(error,index=0)=>requests[index].reject(error)};
 }
 const settle=()=>new Promise(r=>setTimeout(r,15));
+test('importación toma próximos del PDF y los transfiere al resumen sin cambiar las fechas actuales',async()=>{
+ const f=fixture(),P=require('../js/core/private-finance-pdf');
+ f.context.window.SVPrivateFinancePDF={...P,extract:async()=>({cycleEvidence:P.cycleEvidence(['Próximo cierre: 22/10/2026\nPróximo vencimiento: 02/11/2026'],'2026-09-24')})};
+ f.result.fields.close={value:'2026-09-24',original:'24/09/2026',page:1};
+ const task=f.context.processFiles([f.file()]);await waitFor(()=>f.counts.calls===1);f.resolve();await task;
+ const st=f.context.importQueue.entries[0].result.statement;assert.equal(st.nextClose,'2026-10-22');assert.equal(st.nextDue,'2026-11-02');assert.equal(st.close,'2026-09-24');assert.equal(st.due,'2026-10-05');assert.equal(st.extracted.nextClose.page,1);assert.equal(f.context.state.statements.length,0);
+});
 async function waitFor(predicate){const deadline=Date.now()+3000;while(!predicate()){assert.ok(Date.now()<deadline,'La lectura ficticia no alcanzó el estado esperado');await new Promise(setImmediate);}}
 test('tres PDF se leen de a uno, sin guardar, y conservan resultados separados',async()=>{const f=fixture(),task=f.context.processFiles(['a','b','c'].map(n=>f.file(n+'.pdf')));await waitFor(()=>f.counts.calls===1);assert.equal(f.counts.calls,1);assert.deepEqual(f.context.importQueue.entries.map(e=>e.status),['reading','waiting','waiting']);for(let i=0;i<3;i++){f.resolve({...f.result,fields:{total:{value:(i+1)*100}}},i);if(i<2)await waitFor(()=>f.counts.calls===i+2);assert.equal(f.counts.calls,Math.min(i+2,3));}await task;assert.deepEqual(f.context.importQueue.entries.map(e=>e.result.statement.total),[100,200,300]);assert.equal(new Set(f.context.importQueue.entries.map(e=>e.result.statement.id)).size,3);assert.equal(f.counts.preview,0);assert.equal(f.context.stage,null);});
 test('abrir el primer resultado no es reemplazado por la lectura de los siguientes',async()=>{const f=fixture(),task=f.context.processFiles([f.file('a.pdf'),f.file('b.pdf')]);await settle();f.resolve();await settle();const first=f.context.importQueue.entries[0].result;f.context.stage=first;f.context.page='statement';f.resolve({...f.result,fields:{total:{value:90000}}},1);await task;assert.equal(f.context.stage,first);assert.equal(first.statement.total,25000);assert.equal(f.context.page,'statement');});

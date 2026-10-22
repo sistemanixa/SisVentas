@@ -10,7 +10,7 @@ function fixture(hasBridge=true){
  const context={SVPrivateFinanceModel:M,SVPrivateFinanceImportQueue:{create:()=>({destroy(){}})},
   document:{body:{style:{overflow:'auto'}},getElementById:id=>nodes[id],addEventListener(){}},
   parent:{location:{origin:'https://fixture.invalid'},SVPrivateFinancePortal:hasBridge?bridge:null},location:{origin:'https://fixture.invalid'},
-  addEventListener(){},setTimeout,clearTimeout,URL,AbortController,console};
+  addEventListener(){},setTimeout,clearTimeout,setInterval:()=>1,clearInterval(){},URL,AbortController,console};
  context.window=context;vm.runInNewContext(source,context);return {context,nodes,calls,resolve,reject};
 }
 const settle=()=>new Promise(setImmediate);
