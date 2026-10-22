@@ -2,8 +2,7 @@
 
 Estado posterior: las dos primeras mejoras se publicaron en v3.14.6. La siguiente
 tanda Haberes/SAC se documenta en [HABERES_LECTURA_SEMESTRAL.md](HABERES_LECTURA_SEMESTRAL.md)
-y quedó publicada/verificada como v3.14.7. La continuación HorasExtra8 está
-preparada sin publicar en [HORAS_EXTRA_CONSULTA_PENDIENTES.md](HORAS_EXTRA_CONSULTA_PENDIENTES.md). Las secciones de
+y quedó publicada/verificada como v3.14.7. La continuación HorasExtra8 también quedó publicada y verificada, como consta en [HORAS_EXTRA_CONSULTA_PENDIENTES.md](HORAS_EXTRA_CONSULTA_PENDIENTES.md). Las secciones de
 prototipos y bases anteriores conservan su alcance histórico.
 
 Preparación posterior a la publicación verificada v3.14.5. Rama

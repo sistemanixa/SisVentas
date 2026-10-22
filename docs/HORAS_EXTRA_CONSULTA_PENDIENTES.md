@@ -1,6 +1,9 @@
 # Horas Extra: consulta de pendientes
 
-La candidata v3.14.8 reduce las lecturas del panel de aprobación y de su contador
+Publicada y verificada el22/10/2026 desde el SHA
+1ec60e65b872590cbf7f064e4d9023f68cf4a10d.
+
+La v3.14.8 reduce las lecturas del panel de aprobación y de su contador
 global. Ambos consultaban todas las solicitudes y luego descartaban aprobadas y
 rechazadas. Ahora comparten una consulta por estado igual a pendiente, sin límite
 de fecha, personas o filas. La clave Firebase conserva la identidad; el agrupador,
@@ -26,14 +29,15 @@ demás índices, permisos, validaciones y nodos. La base revisada de v3.14.7 es
 cf03c8023e13b0eebb28419c84b6ada82524f79e7f12e40dfa68c23ed0e3b064 y la candidata
 derivada es 4a859ae7ac48ff46554dcbc2b35ca9dab3057794630758b4674c1cf8c856c8a7.
 
-El índice todavía no está aplicado. Una futura publicación requiere respaldo
+El índice se aplicó y se releyó exactamente durante la publicación8. Una futura
+publicación requiere respaldo
 remoto nuevo, comparación exacta antes del cambio y relectura después. Si la
 base difiere, revisar y conservar los cambios ajenos; nunca restaurar reglas6 o
 reglas7 históricas a ciegas. No hay concesiones nuevas, backfill ni migración.
 No hace falta reconstruir Cotizador o emitirFactura para esta tanda. Después
 del índice corresponden Hosting desde SHA limpio, hashes/cabeceras/SW y aviso
-oficial, según PUBLICACION_HOSTING_SEGURO.md. La autorización de publicar7 no
-se extiende automáticamente a publicar8.
+oficial, según PUBLICACION_HOSTING_SEGURO.md. La publicación8 contó con
+autorización humana específica posterior a7.
 
 ## Pruebas y evidencia
 
