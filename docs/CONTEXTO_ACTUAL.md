@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Listados: lector condicional y SAC · preparados después de5, sin publicar
+
+- Rama nueva codex/listados-historial-condicional desdee788385dba8d0843fae16c0310c306b3bdbd8193. Publicación vigente5 y backend anterior conservados. Selector Vincular de Proyectos reutiliza el lector ETag existente, con identidad/permisos/perfiles frescos y DTO completo. No cambia guardar/vincular ni fichas puntuales; fallos sin fallback obsoleto. Primera consulta/cambio siguen leyendo la raíz: no anunciar paginación o mejora universal.
+- Gastos deja de iniciar el listener huérfano Aguinaldos; carga/tabla/KPI, alta/cálculo/duplicados/SAC, historial pagado y fuentes legítimas intactos. Es retiro de suscripción push, no evidencia de un reloj causante de cargos. Query del módulo y SHELL renovadas para la próxima publicación; versión activa de trabajo continúa5, sin republicar activos antiguos. Local8766 sirve esa rama de desarrollo, no acredita backend candidato activo.
+- Once regresiones selector y17SAC nuevas;103focales correctas, puerta4.032PASS/27opt-in/0fallos(4.059total),38,43s y Cotizador94/94. Sintaxis/diff/coherencia local correctos. DTO exacto en72pares de benchmark contraGitbase:fuente sin cambios1.296.269→898B,8GET iguales; respuesta344.267Bigual. Cold/cambio conservan cuerpo completo y tienen mayor CPU local de copia. SAC24paresidénticos ylistenerssobrantes1→0, sin quitar escuchaGastos. No extrapolar a factura o latencia productiva.
+- Evidencia/límites en [AUDITORIA_LISTADOS_20261022.md](AUDITORIA_LISTADOS_20261022.md), artefactos privados tmp/listings-next-private. No servicios, IAM, datos reales ni flags financieros cambiados. Antes de activar: versión nueva coordinada, paquete limpio y revisión de servidor; no interpretar push como publicación.
+- Coordinación saliente al otro chat fue rechazada por revisión automática por falta de autorización explícita para ese destino; no se envió ni se buscó un canal alternativo. Este trabajo posterior queda aislado, sin publicación simultánea. Diagnóstico OT/Soporte y avisos de bono/comisiones permanecen separados; no declarar resuelto cierre técnico por quitar un mensaje.
+
 ## v3.14.5 publicada y verificada · 22/10/2026
 
 - Fuente limpia revisada e074ee4d5fa423ef82fb9a3951504e4d054520c3, subida a origin/codex/bonificaciones-reutilizables. Hosting nixa-sisventas-seguro, versión1179a3802335aacb:420activos públicos/7cargas. Dominio personalizado y mirror comprobados:15activos idénticos y5cabeceras. Script oficial confirmó web/marcador/SW/Firebase v3.14.5-firebase. No se compiló ni desplegó backend; Cotizador y banderas financieras conservan su estado anterior.

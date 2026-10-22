@@ -155,6 +155,18 @@ Proyectos: `node --test test/projects.test.cjs`; integración demo con
 `test/browser/projects.cjs` y `test/browser/projects-bridge.cjs`.
 Configuración, permisos y límites de validación en [PROYECTOS.md](../docs/PROYECTOS.md).
 
+Selector de Proyectos: `node --test test/projects-selector-etag.test.cjs`.
+Lector real con transporte ficticio: DTO completo, pertenencia/perfiles actuales,
+errores sin datos obsoletos, fuente modificada y 304 tardío frente a respuesta nueva.
+Sólo reduce cuerpos repetidos de una fuente sin cambios; la primera consulta sigue
+leyendo el historial completo. No mide red productiva ni factura.
+
+SAC sin suscripción huérfana: `node --test test/payroll-orphan-listener.test.cjs`.
+Carga los cuatro módulos de Haberes en orden real sobre funciones activas: roles,
+render/KPI/filtros, baja de escuchas y alta SAC con gateway/guard en memoria.
+Conserva el cálculo, duplicados, CAS y pagos anteriores. Todo dato es ficticio;
+el alta sigue usando sus validaciones históricas completas por acción explícita.
+
 Transporte comercial: `node --test test/commercial-transport.integration.cjs test/commercial-ownership-session.test.cjs`.
 HTTP real en loopback con datos ficticios, sin credenciales. La integración no
 forma parte del glob general `.test.*`: ejecutar explícitamente. Alcance y límites

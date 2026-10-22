@@ -130,7 +130,7 @@ const SHELL = [
   './js/modules/dashboard-polish.js',
   './js/modules/pwa-install.js?v=3.12.19-acciones',
   './js/modules/payroll-duplicate-guard.js?v=perf-31010',
-  './js/modules/payroll-legacy-migration.js?v=perf-31010',
+  './js/modules/payroll-legacy-migration.js?v=history-20261022',
   './js/modules/payroll.js',
   './js/modules/maintenance.js?v=3.13.19-financial',
   './js/modules/refactor-health.js?v=3.14.3-finance',

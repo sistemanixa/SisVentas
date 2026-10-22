@@ -91,12 +91,10 @@
   var oldFbCargarGastos = window.fbCargarGastos;
   window.fbCargarGastos = function(){
     var r = oldFbCargarGastos ? oldFbCargarGastos.apply(this, arguments) : undefined;
-    sv347StartAguListener();
+    // La tabla activa y el alta SAC tienen sus propias fuentes y validaciones.
+    // Esta copia histórica no tiene consumidores: no suscribir otra colección.
     return r;
   };
-  // El aguinaldo sólo se necesita junto con Gastos. El wrapper anterior lo
-  // conecta al abrir/cargar ese módulo, sin mantener otra colección activa en
-  // sesiones que nunca consultan finanzas.
 
   var oldEliminar = window.eliminarRegistro;
   window.eliminarRegistro = async function(coleccion, fbKey){
