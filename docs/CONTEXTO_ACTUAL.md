@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Servidor corregido activo · 22/10/2026 · editor pendiente
+
+- Cotizador activo al100% en `cotizador-venta-fix-585ed978`, fuente `585ed9780ad5c4345375ce6063dc8034e54b9ffc`, imagen `sha256:2905917f3fd38f28580230190738f0fd6b05fa1baff0ab307e28ae60b3fb5bb9`. Las14etiquetas anteriores apuntan a esa misma revisión; ruta temporal de prueba retirada. Primero se probó arranque real con OPTIONS204 por etiqueta aislada sin tráfico principal; después se confirmó tráfico y OPTIONS204 en URL principal y acceso-v3119. No se usaron endpoints comerciales autenticados como pruebas.
+- Conservados exactamente CPU1/2Gi, concurrencia1, mínimo0/máximo12, timeout300, cuenta de servicio, secretos y resto de variables de la revisión anterior (comparación en memoria sin registrar valores). `PAYMENT_SCOPED_ENABLED=false` y `ADMIN_EXPENSE_SCOPED_ENABLED=false` explícitos. No hay servicios nuevos, reglas, índices, backfill, cambios fiscales, IAM ni DNS. Recursos iguales no certifican una factura futura ni cero IO adicional.
+- Corregidos preparación de Ventas con identidad humana verificada y empaquetado del lector comercial. Prueba conjunta3.690aprobadas/27omitidas/0fallos; reproducción10casosRTDB ficticios con reglas978cea y código anterior9c6. Presupuestos conserva transporte anterior. Los intentos de imagen anteriores fallaron sin sustituir tráfico real, estado estable confirmado antes de la promoción definitiva.
+- Hosting/Service Worker/aviso de versión y Asistente NO se publicaron; la web sigue3.14.0. El editor abierto no se recargó ni se reintentó desde el agente. El titular debe intentar guardar una sola vez sin recargar y confirmar el resultado; si falla, conservar formulario y diagnosticar sin reintentos automáticos. Campos visibles originales y actualizados respaldados privadamente, sin afirmar copia completa del estado interno. Pendiente esa confirmación antes de completar publicación web, que puede disparar recarga automática.
+- El aviso repetido de borradores ya está corregido/probado en la candidata web pero todavía no llega a la pestaña antigua. No confundirlo con el arreglo del servidor ya activo. Gastos pagados permanece en la rama independiente del otro chat y fuera de esta primera tanda.
+
 ## Preparación backend y contenedor · 22/10/2026
 
 - Conjunto bb32 + aviso c38df7c + splash a098e54 + hotfix 0efbf0ba validado: 3.689 pruebas aprobadas, 27 omitidas, sin fallos; versión local3.14.3 coherente. La web no se publicó:3.14.0 puede recargarse automáticamente al detectar índice/SW nuevos y no garantiza proteger el editor de venta. Primero corregir servidor; después el titular guarda su venta y se completa Hosting/Asistente/aviso.
