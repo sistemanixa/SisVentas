@@ -1516,7 +1516,7 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
   #dash-ot-pendientes td:first-child{font-weight:600!important;color:var(--text)!important}
 
   /* Tablas muy anchas: mantienen scroll horizontal pero sin romper la pantalla. */
-  #page-venta table,#page-presupuesto table,#page-detalle table,#page-ordentrabajo table,#page-cobranzas table,#page-tesoreria table,#page-empleados table,#page-productos table,#page-clientes table{min-width:680px!important}
+  #page-venta table:not(.sv-mobile-card-grid),#page-presupuesto table:not(.sv-mobile-card-grid),#page-detalle table:not(.sv-mobile-card-grid),#page-ordentrabajo table:not(.sv-mobile-card-grid),#page-cobranzas table:not(.sv-mobile-card-grid),#page-tesoreria table:not(.sv-mobile-card-grid),#page-empleados table:not(.sv-mobile-card-grid),#page-productos table:not(.sv-mobile-card-grid),#page-clientes table:not(.sv-mobile-card-grid){min-width:680px!important}
   #page-dashboard table{min-width:0!important}
 
   /* Botones flotantes menos invasivos y fuera del contenido principal. */
