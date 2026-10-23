@@ -62,6 +62,7 @@ const laborOperations = require('./labor-operations').createLaborOperations({aut
 const laborSubmissions = require('./labor-submissions').createLaborSubmissions({auth:businessAuth,db,transaction:laborTransaction});
 const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:businessAuth,db});
 const employeeDirectory = require('./employee-directory').createEmployeeDirectory({auth:businessAuth,db});
+const personalHoursReader = require('./personal-hours-reader').createPersonalHoursReader({auth:businessAuth,db});
 const personalExpenses = require('./personal-expenses').createPersonalExpenses({authorize:laborSubmissions.authorize,transaction:laborTransaction});
 const supplierDirectory = require('./supplier-directory').createSupplierDirectory({authorize:employeeDirectory.authorize,db});
 const commissionOperations = require('./commission-operations').createCommissionOperations({auth:businessAuth,db,transaction:laborTransaction});
@@ -2142,6 +2143,12 @@ const server = http.createServer(async (req, res) => {
   }
   if(req.method==='POST' && pathname==='/laboral/solicitar-horas'){
     try{const identity=await laborSubmissions.authorize(req);const body=await readBody(req,25000);send(res,200,{ok:true,...await laborSubmissions.submit(identity,body)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo guardar la solicitud de horas'});}return;
+  }
+  if(pathname==='/laboral/horas-propias'){
+    res.setHeader('Cache-Control','private, no-store');
+    try{send(res,200,{ok:true,...await personalHoursReader.read(req)});}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudieron consultar tus horas extra.'});}
+    return;
   }
   if(req.method==='GET' && pathname==='/laboral/disponibilidad'){
     try{await employeeAvailability.authorize(req);res.setHeader('Cache-Control','no-store');send(res,200,{ok:true,periodos:await employeeAvailability.read()});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo consultar disponibilidad'});}return;

@@ -5,6 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {source}=require('./helpers/active-app').readActiveApp();
 const Model=require('../js/core/dashboard-personal-notices.v1.js');
+const Hours=require('../js/core/dashboard-personal-hours.v1.js');
 function extract(text,name){
  const start=text.search(new RegExp('^(?:async )?function '+name+'\\(','m'));
  assert.ok(start>=0,name);const end=/^\}/gm;end.lastIndex=start;
@@ -15,9 +16,10 @@ function fixture(text=source){
  const elements=new Map(),events=new Map(),requests=[],subscriptions=[],states=[],writes=[];
  for(const id of ['dash-personal-notices','dash-micuenta-card','dash-mc-hsextra-box','ctaemp-filtro-tipo','ctaemp-filtro-estado','ctaemp-volver-empleados','ctaemp-btn-historial'])elements.set(id,{style:{},dataset:{},textContent:'',innerHTML:'',value:'',className:''});
  const scroll={scrollTop:280},page={id:'page-dashboard'},auth={uid:'u'},permissions=new Set(['dashboard.miCuenta']);
- const document={hidden:false,getElementById:id=>elements.get(id)||null,querySelector:selector=>selector==='.content'?scroll:selector==='.page.active'?page:null,addEventListener:(type,fn)=>{if(!events.has(type))events.set(type,[]);events.get(type).push(fn);}};
- const c={console,Date,Math,Set,Map,WeakMap,Promise,Object,String,Array,Number,JSON,document,currentUserUid:'u',currentRole:'tecnico',currentUser:'Persona ficticia',gastosData:[],empData:{e:{fbKey:'e'}},ctaEmpActual:'',movsEmpData:[],_gastosUnsubscribe:null,_gastosDataReady:false,_gastosCargaError:'',_gastosPagosCache:null,_gastosFechaImputacionCache:null,_gastosTareasDiferidasTimer:null,
-  _dashAvisosCTA:null,_dashAvisosGastosFuente:null,_dashAvisosGeneracion:0,_dashAvisosOrigen:null,
+ const document={hidden:false,body:{},documentElement:{},getElementById:id=>elements.get(id)||null,querySelector:selector=>selector==='.content'?scroll:selector==='.page.active'?page:null,addEventListener:(type,fn)=>{if(!events.has(type))events.set(type,[]);events.get(type).push(fn);},removeEventListener:(type,fn)=>{events.set(type,(events.get(type)||[]).filter(value=>value!==fn));}};
+ document.activeElement=document.body;
+ const c={console,Date,Math,Set,Map,WeakMap,Promise,Object,String,Array,Number,JSON,document,isAuthenticated:true,currentUserUid:'u',currentRole:'tecnico',currentUser:'Persona ficticia',gastosData:[],empData:{e:{fbKey:'e'}},ctaEmpActual:'',movsEmpData:[],_gastosUnsubscribe:null,_gastosDataReady:false,_gastosCargaError:'',_gastosPagosCache:null,_gastosFechaImputacionCache:null,_gastosTareasDiferidasTimer:null,
+  _dashAvisosCTA:null,_dashAvisosGastosFuente:null,_dashAvisosGeneracion:0,_dashAvisosOrigen:null,_dashAvisosRetorno:null,_dashHorasPropias:null,
   _svOperacionesSesionEpoch:0,_impersonacionOriginal:null,PERMISOS_ROLES:{tecnico:{indiceRevision:1}},
   fbAuth:{currentUser:auth},fbDB:{},tienePermiso:p=>permissions.has(p),permisoModulo:p=>p==='ctaemp',own:{fbKey:'e'},svEmpleadoPropio:()=>c.own,
   svPuedeLeerDominio:()=>false,_paginaGastosActiva:()=>false,_actualizarBadgeSolicitudesGastos:()=>{},_programarTareasSecundariasGastos:()=>{},actualizarTarjetaComisionadosVenta:()=>{},marcarDashboardDatosSucios:()=>{},solicitarRenderDashboard:()=>{},
@@ -26,17 +28,20 @@ function fixture(text=source){
   _ctaEmpMovimientoLegacyDuplicadoPorGasto:()=>false,_movEmpEnPeriodo:()=>true,_movEmpEsCobrable:()=>false,_ctaEmpTotalAdelantosRegistradosEnMes:()=>0,_ctaEmpMontoAdelantoACompensar:()=>0,
   _movEmpEstadoCalculado:m=>m.estado||'pendiente',_movEmpSaldoPendiente:m=>Number(m.monto)||0,
   SVPersonalNotices:Model,SVPersonalNoticesView:{clear:()=>states.push({status:'none',items:[]}),render:(_box,state,options)=>states.push({...state,options})},
+  SVPersonalHours:Hours,SVSessionRecovery:{deadline:task=>task},SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://example.invalid'},SVServiceAuth:{headers:async()=>({Authorization:'Bearer ficticio'})},
+  fetch:(p,options)=>new Promise((resolve,reject)=>requests.push({p,options,transport:'http',resolve,reject})),
   fbRef:(_db,p)=>p,fbGet:p=>new Promise((resolve,reject)=>requests.push({p,resolve,reject})),
   _svSuscribirGastos:(next,error)=>{const sub={next,error};subscriptions.push(sub);return()=>{sub.closed=true;};},
   fbSet:()=>{writes.push('set');assert.fail('No write');},fbUpdate:()=>{writes.push('update');assert.fail('No write');},fbRemove:()=>assert.fail('No write')};
  c.window=c;vm.createContext(c);
  const names=['svCapturarContextoOperacion','_ctaEmpNormalizarTxt','_ctaEmpTipoDesdeGasto','pagoGastoEstaAnulado','_gastoPagosArray','totalPagadoGasto','normalizarEstadoGasto','_ctaEmpEstadoDesdeGasto','_ctaEmpMovVisibleParaRol','fbCargarGastos','renderDashMiCuenta'];
- if(text===source)names.push('svContextoAvisosCuenta','svLimpiarAvisosCuentaPersonal','svAvisosReferenciaCuenta','svAvisosCuentaRegistro','svRenderAvisosCuentaPersonal','svOrigenAvisoCuentaVigente','svAbrirAvisoCuentaPersonal','svAplicarFiltroAvisoCuentaPersonal','actualizarBotonVolverCtaEmp');
+ if(text===source)names.push('svContextoAvisosCuenta','svLimpiarAvisosCuentaPersonal','svAvisosReferenciaCuenta','svAvisosCuentaRegistro','svRenderAvisosCuentaPersonal','svOrigenAvisoCuentaVigente','svAbrirAvisoCuentaPersonal','svAplicarFiltroAvisoCuentaPersonal','actualizarBotonVolverCtaEmp','svCapturarHorasPersonalesDashboard','svLectorHorasPersonalesDashboard','svConsultarHorasPersonalesDashboard','svLimpiarHorasPersonalesDashboard','svPresentarHorasPersonalesTrasVisibilidad');
+ if(text===source)names.push('svCancelarRetornoAvisoCuentaPersonal','svPrepararRetornoAvisoCuentaPersonal','svPaginaRetornoAvisoCuentaPersonal','svRestaurarRetornoAvisoCuentaPersonal');
  for(const name of names)vm.runInContext(extract(text,name),c);
  if(text===source){const a=source.indexOf("document.addEventListener('sisventas:session-ended',svLimpiarAvisosCuentaPersonal)");vm.runInContext(source.slice(a,source.indexOf('function renderDashMiCuenta()',a)),c);}
- const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
+ const flush=async()=>{for(let i=0;i<32;i++)await Promise.resolve();};
  const nextGastos=data=>subscriptions.at(-1).next({val:()=>data});
- const resolveCTA=async(data,index=requests.findIndex(r=>!r.done&&r.p.startsWith('sisventas/ctaemp/')))=>{requests[index].done=true;requests[index].resolve({val:()=>data});await flush();for(const r of requests.filter(r=>!r.done&&r.p==='sisventas/hsextra_solicitudes')){r.done=true;r.resolve({val:()=>({})});}await flush();};
+ const resolveCTA=async(data,index=requests.findIndex(r=>!r.done&&r.p.startsWith('sisventas/ctaemp/')))=>{requests[index].done=true;requests[index].resolve({val:()=>data});await flush();for(const r of requests.filter(r=>!r.done&&(r.p==='sisventas/hsextra_solicitudes'||r.transport==='http'))){r.done=true;r.resolve(r.transport==='http'?{ok:true,status:200,json:async()=>({ok:true,employeeId:'e',records:[]})}:{val:()=>({})});}await flush();};
  return {c,elements,events,requests,subscriptions,states,writes,flush,nextGastos,resolveCTA,permissions,scroll,page,last:()=>states.at(-1)};
 }
 function pair(overrides={}){
@@ -70,15 +75,19 @@ test('la comisión legacy con rutaCTA completa y sin backlink corto se reconoce 
  f.c.fbCargarGastos();f.nextGastos(p.gastos);f.c.renderDashMiCuenta();await f.resolveCTA(p.cta);
  assert.equal(f.last().status,'ready');assert.equal(f.last().items.length,1);assert.equal(f.last().items[0].sourceRefs.ctaKey,'m');
 });
-test('la misma secuencia normal conserva GET y suscripciones de8 y agrega cero escrituras',async()=>{
+test('el mismo recorrido conserva cuatro invocaciones del cliente y una suscripción; cambia la raíz Hs.extra por el endpoint propio',async()=>{
  const baseline=fs.readFileSync(path.join(__dirname,'../js/app.v3.14.8.js'),'utf8'),results=[];
  for(const text of [baseline,source]){
   const f=fixture(text);f.c.fbCargarGastos();f.nextGastos({});
   for(let i=0;i<2;i++){f.c.renderDashMiCuenta();await f.resolveCTA({});}
   f.nextGastos({});f.c.fbCargarGastos();
-  results.push({paths:f.requests.map(r=>r.p),listeners:f.subscriptions.length,writes:f.writes});
+  results.push({paths:f.requests.map(r=>r.p),http:f.requests.filter(r=>r.transport==='http').map(r=>r.options),listeners:f.subscriptions.length,writes:f.writes});
  }
- assert.deepEqual(results[1],results[0]);assert.equal(results[1].paths.length,4);assert.equal(results[1].listeners,1);
+ assert.deepEqual(results[0].paths,['sisventas/ctaemp/e','sisventas/hsextra_solicitudes','sisventas/ctaemp/e','sisventas/hsextra_solicitudes']);
+ assert.deepEqual(results[1].paths,['sisventas/ctaemp/e','https://example.invalid/laboral/horas-propias','sisventas/ctaemp/e','https://example.invalid/laboral/horas-propias']);
+ assert.equal(results[1].paths.length,4);assert.equal(results[1].listeners,results[0].listeners);assert.equal(results[1].listeners,1);assert.deepEqual(results[1].writes,results[0].writes);assert.deepEqual(results[1].writes,[]);
+ for(const options of results[1].http){assert.equal(options.method,'GET');assert.equal(options.cache,'no-store');assert.equal(options.body,undefined);}
+ // Server authorization reads are measured by the reader's tests, separately.
 });
 test('un snapshot de Gastos reevalúa pagos localmente sin GET y descarta pagos anulados',async()=>{
  const f=fixture(),p=pair();f.c.fbCargarGastos();f.nextGastos(p.gastos);f.c.renderDashMiCuenta();await f.resolveCTA(p.cta);
@@ -152,15 +161,40 @@ test('ocultar, volver y preparar el filtro sólo renderizan memoria; la navegaci
  assert.equal(f.requests.length,n);assert.equal(f.subscriptions.length,1);assert.deepEqual(f.writes,[]);
  f.c._svOperacionesSesionEpoch++;f.c.svAbrirAvisoCuentaPersonal('comision');assert.equal(f.c._dashAvisosOrigen.type,'bonificacion');
 });
-test('el retorno restaura filtros, scroll y foco sin comandos financieros ni lectores adicionales del aviso',async()=>{
+test('retorno humano restaura filtros y espera la recarga normal antes de restituir scroll y foco',async()=>{
  const f=fixture(),p=pair();f.c.fbCargarGastos();f.nextGastos(p.gastos);f.c.renderDashMiCuenta();await f.resolveCTA(p.cta);
  f.c._ctaEmpVista='pendientes';f.c._ctaEmpPeriodoOffset=0;f.elements.get('ctaemp-filtro-tipo').value='sueldo';
  f.c.svAbrirAvisoCuentaPersonal('bonificacion');f.c.svAplicarFiltroAvisoCuentaPersonal(f.c.own);
  assert.ok(f.c.svOrigenAvisoCuentaVigente());f.c._ctaEmpDestinoVolver=()=> 'dashboard';f.c.actualizarBotonVolverCtaEmp();assert.equal(f.elements.get('ctaemp-volver-empleados').style.display,'');
- let focused=false;const query=f.c.document.querySelector;f.c.document.querySelector=s=>s==='[data-personal-notices-open="bonificacion"]'?{focus:options=>{focused=options.preventScroll;}}:query(s);
- f.scroll.scrollTop=0;f.page.id='page-dashboard';for(const fn of f.events.get('sisventas:page-changed'))fn({detail:{page:'dashboard'}});
- assert.equal(f.scroll.scrollTop,280);assert.equal(focused,true);assert.equal(f.elements.get('ctaemp-filtro-tipo').value,'sueldo');assert.equal(f.c._ctaEmpVista,'pendientes');assert.equal(f.c._dashAvisosOrigen,null);assert.equal(f.requests.length,2);assert.deepEqual(f.writes,[]);
+ const doc=f.c.document,box=f.elements.get('dash-personal-notices'),oldRender=f.c.SVPersonalNoticesView.render;
+ let focused=false,action=null;
+ doc.activeElement=f.elements.get('ctaemp-volver-empleados');
+ box.querySelector=()=>action;
+ f.c.SVPersonalNoticesView.render=(element,state,options)=>{
+  if(doc.activeElement===action)doc.activeElement=doc.body;
+  action=['ready','incomplete'].includes(state.status)&&state.items.some(item=>item.type==='bonificacion')
+   ?{isConnected:true,disabled:false,focus(opts){focused=opts.preventScroll;doc.activeElement=this;}}:null;
+  box.hidden=state.status==='none';oldRender(element,state,options);
+ };
+ f.c.svPrepararRetornoAvisoCuentaPersonal({isTrusted:true});
+ f.scroll.scrollTop=0;f.page.id='page-dashboard';for(const fn of [...f.events.get('sisventas:page-changed')])fn({detail:{page:'dashboard'}});
+ const before=f.requests.length;
+ f.c.svRenderAvisosCuentaPersonal(); // Cached Dashboard paint before its normal delayed load.
+ assert.equal(focused,false);assert.equal(f.requests.length,before);assert.equal(f.scroll.scrollTop,0);
+ assert.equal(f.elements.get('ctaemp-filtro-tipo').value,'sueldo');assert.equal(f.c._ctaEmpVista,'pendientes');assert.equal(f.c._dashAvisosOrigen,null);
+ f.c.renderDashMiCuenta(); // The existing showPage 40ms callback; no additional reader in the notice.
+ assert.equal(focused,false);assert.equal(action,null);assert.equal(f.last().status,'loading');
+ const normalRequests=f.requests.length;
+ await f.resolveCTA(p.cta);
+ assert.equal(focused,true);assert.equal(doc.activeElement,action);assert.equal(f.scroll.scrollTop,280);assert.equal(f.c._dashAvisosRetorno,null);
+ assert.equal(f.requests.filter(r=>r.p.startsWith('sisventas/ctaemp/')).length,2);
+ // Include the ordinary Hs.extra reader started by renderDashMiCuenta in the
+ // shared fixture's expected transport counts; do not present it as an extra
+ // read added by the notice. A pure presentation call below must add none.
+ const completeRequests=f.requests.length;assert.equal(completeRequests,4);assert.equal(normalRequests,3);
+ f.c.svRenderAvisosCuentaPersonal();assert.equal(f.requests.length,completeRequests);assert.equal(f.subscriptions.length,1);assert.deepEqual(f.writes,[]);
 });
+
 test('los eventos de fin de sesión y cambio de rol borran la caché, acciones y datos personales',async()=>{
  for(const event of ['sisventas:session-ended','sisventas:role-changed']){
   const f=fixture(),p=pair();f.c.fbCargarGastos();f.nextGastos(p.gastos);f.c.renderDashMiCuenta();await f.resolveCTA(p.cta);f.c._svOperacionesSesionEpoch++;

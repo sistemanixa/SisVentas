@@ -8,7 +8,7 @@ function setup(){
  const user={uid:'admin-auth'};
  const c={currentUserUid:'admin-auth',currentUser:'Admin',currentRole:'admin',currentUserEmail:'admin@fixture.invalid',
   empData:{a:{fbKey:'a'},b:{fbKey:'b'},own:{fbKey:'own'}},ctaEmpActual:null,movsEmpData:[],
-  _dashAvisosCTA:null,_dashAvisosGastosFuente:null,_dashAvisosGeneracion:0,_dashAvisosOrigen:null,
+  _dashAvisosCTA:null,_dashAvisosGastosFuente:null,_dashAvisosGeneracion:0,_dashAvisosOrigen:null,_dashAvisosRetorno:null,_dashHorasPropias:null,
   document:{getElementById:id=>elements[id]||null,querySelector:()=>null},
   limpiarPresenciaOnline(){presence.push({action:'clear',user:c.currentUser,role:c.currentRole});},registrarPresenciaOnline(){presence.push({action:'start',user:c.currentUser,role:c.currentRole});},
   notify(){},chatCerrar(){},applyRole(){},_actualizarCabeceraSesion(){},_mostrarBannerImpersonacion(){},
@@ -17,7 +17,7 @@ function setup(){
   window:{fbAuth:{currentUser:user},fbDB:{},tienePermiso:key=>key==='usuarios.impersonar'||key==='dashboard.miCuenta',
    usuariosData:[{fbKey:'admin',uid:'admin-auth',empleadoFbKey:'own'},{fbKey:'u-a',uid:'auth-a',rol:'tecnico',empleadoFbKey:'a'},
     {fbKey:'u-b',uid:'auth-b',rol:'tecnico',empleadoFbKey:'b'}]},console};
- load(c,['svCapturarContextoOperacion','svContextoAvisosCuenta','svRenderAvisosCuentaPersonal','svLimpiarAvisosCuentaPersonal',
+ load(c,['svCapturarContextoOperacion','svContextoAvisosCuenta','svRenderAvisosCuentaPersonal','svLimpiarAvisosCuentaPersonal','svCancelarRetornoAvisoCuentaPersonal','svLimpiarHorasPersonalesDashboard',
   'svEmpleadoPropio','limpiarCtaEmpSinSeleccion','svLimpiarVistaCuentaPersonal','iniciarImpersonacionUsuario','finalizarImpersonacionUsuario']);
  return {c,elements,user,presence};
 }

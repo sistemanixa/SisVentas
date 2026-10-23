@@ -22,6 +22,7 @@ COPY labor-bonus-batch.js bonus-quantity-model.js ./
 COPY labor-sac-batch.js payroll-legacy-sac-model.js ./
 COPY employee-availability.js ./
 COPY employee-directory.js ./
+COPY personal-hours-reader.js ./
 COPY personal-expenses.js ./
 COPY admin-expense-create.js payment-membership-matcher.js payment-membership-index.js payment-snapshot.js payment-commands.js ./
 COPY expense-removal-policy.js expense-removal-guard.js ./

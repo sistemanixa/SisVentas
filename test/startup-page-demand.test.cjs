@@ -102,7 +102,8 @@ function listeningEnvironment(){
   fbRef:(_,path)=>path,fbOnValue:(path,fn,error)=>{opens.push(path);callbacks[path]=fn;errors[path]=error;return ()=>{};},
   renderEquiposCards(){},actualizarMetricasEquipos(){},refrescarHistorialClienteLectura(){},
   renderGarantiasUnificadas(){rendered.push(c._listaGarantiasUnificada().map(row=>row.serie).sort());}});
- load(c,['_suscribirModuloUnaVez','svDetenerEscuchasModulo','fbCargarEquipos','fbCargarGarantias',
+ c._dashHorasPropias=null;
+ load(c,['_suscribirModuloUnaVez','svDetenerEscuchasModulo','svLimpiarHorasPersonalesDashboard','fbCargarEquipos','fbCargarGarantias',
   '_garantiaFechaLocal','_garantiaVencimientoEquipo','_garantiaFechaISO','_garantiaClaveComparable','_garantiasDesdeEquipos','_listaGarantiasUnificada']);
  return {c,opens,rendered,send(path,data){callbacks['sisventas/'+path]({val:()=>data});},fail(path){errors['sisventas/'+path](new Error('Fallo ficticio'));}};
 }
