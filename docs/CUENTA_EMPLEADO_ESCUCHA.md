@@ -8,8 +8,11 @@ publicar, conservando pagos, permisos, comisiones e historial. La implementació
 comparte candidata11 con los avisos compactos pedidos directamente en este chat.
 Producción entrega11, con Hosting/SW/aviso oficial verificados. No hay cambios de
 servidor, reglas, índices ni datos reales. La navegación web se comprobó con la
-sesión administrativa existente; el aviso personal de un destinatario no se
-considera probado en esa sesión. Véase CONTEXTO_ACTUAL.md.
+sesión administrativa y luego con la sesión técnica destinataria iniciada por el
+titular: aviso de bonificación existente, apertura de Mi cuenta propia con tipo
+Bonificación y Todo el historial, una fila y retorno al Dashboard con foco
+restituido. La vista390 quedó sin desborde; tamaño original restaurado. No se
+guardaron operaciones ni se probó una comisión no vacía. Véase CONTEXTO_ACTUAL.md.
 
 ## Cambio de lectura
 

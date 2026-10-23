@@ -30,9 +30,13 @@ está validada por separado con fuentes reales sobre SDK/DOM ficticios y la puer
 vigente; su alcance y límites constan en CUENTA_EMPLEADO_ESCUCHA.md. No acredita
 operaciones financieras productivas. La publicación11 está verificada por hashes
 en el dominio real, con Service Worker y aviso oficial11. El Dashboard web se
-comprobó con la sesión administrativa existente; aún falta una sesión destinataria
-para verificar un aviso personal real sin crear datos de prueba. Detalles y
-límites en CONTEXTO_ACTUAL.md.
+comprobó primero con la sesión administrativa y después con la sesión técnica
+destinataria, iniciada por el titular: bonificación existente visible, Comisiones
+reciente vacío oculto y acceso a Mi cuenta filtrado. El regreso restituyó aviso y
+foco. En ancho390 no hubo desborde y el botón quedó debajo del texto; viewport
+restituido. No se crearon ni modificaron datos reales. El caso productivo no
+acredita una comisión no vacía ni todas las operaciones financieras. Capturas y
+acta privadas en `tmp/v31411-release`; detalles en CONTEXTO_ACTUAL.md.
 
 ## Antecedente: alcance inicial de la candidata v3.14.9
 
