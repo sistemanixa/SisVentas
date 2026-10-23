@@ -1,12 +1,15 @@
 # Mi cuenta: una escucha por empleado y contexto
 
-## Candidata v3.14.11, sin publicar
+## v3.14.11, publicada el 23/10/2026
 
 El titular autorizó por coordinación con «Abrir SisVentas en ventana nueva»
 corregir las escuchas de Cuenta del empleado y dejar la actualización lista para
 publicar, conservando pagos, permisos, comisiones e historial. La implementación
 comparte candidata11 con los avisos compactos pedidos directamente en este chat.
-Producción conserva10. No hay cambios de servidor, reglas, índices ni datos reales.
+Producción entrega11, con Hosting/SW/aviso oficial verificados. No hay cambios de
+servidor, reglas, índices ni datos reales. La navegación web se comprobó con la
+sesión administrativa existente; el aviso personal de un destinatario no se
+considera probado en esa sesión. Véase CONTEXTO_ACTUAL.md.
 
 ## Cambio de lectura
 

@@ -1,6 +1,6 @@
 # Avisos personales de bonificaciones y comisiones
 
-## Rediseño de la candidata v3.14.11 · sin publicar
+## Rediseño v3.14.11 · publicado el 23/10/2026
 
 El titular pidió el mismo formato del aviso de aumento de valor hora: una franja
 horizontal con icono, título alentador y acción a la derecha en computadora.
@@ -28,7 +28,11 @@ desborde, activación por Enter y recorrido Tab. Capturas y medición privadas e
 `tmp/listings-next-private/notices11-ui`. La integración de la escucha de Mi cuenta
 está validada por separado con fuentes reales sobre SDK/DOM ficticios y la puerta
 vigente; su alcance y límites constan en CUENTA_EMPLEADO_ESCUCHA.md. No acredita
-operaciones financieras productivas ni una publicación. Producción conserva10.
+operaciones financieras productivas. La publicación11 está verificada por hashes
+en el dominio real, con Service Worker y aviso oficial11. El Dashboard web se
+comprobó con la sesión administrativa existente; aún falta una sesión destinataria
+para verificar un aviso personal real sin crear datos de prueba. Detalles y
+límites en CONTEXTO_ACTUAL.md.
 
 ## Antecedente: alcance inicial de la candidata v3.14.9
 
