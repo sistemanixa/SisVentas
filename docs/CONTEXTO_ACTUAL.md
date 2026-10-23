@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Continuación de listados · candidata v3.14.14 preservada, QA pendiente · 23/10/2026
+
+- Pedido humano directo: publicar11 y después seguir los listados lentos, sin tocar datos reales ni romper sincronización/comisiones. Rama aislada `codex/listados-vacaciones-v31414`, base11 `963b333fdf13281a722bd94e8d4177c3527594cb` y constancia11 `a2207d88`.12/13 permanecen separadas.14 calculada con el script oficial después de las reservas12/13; NO se publica ni cambia el espejo8766 por este trabajo.
+- Reproducción ficticia sobre código11: Vacaciones mantiene una escucha y además dispara6GET de la raíz entre3renders pendientes y3renders con vacío confirmado. Una respuestaGET vieja puede sustituir períodos más recientes entregados por la escucha. No es medida de tráfico físico ni factura. La corrección comparte estado/contexto de la fuente y conserva historial y consumidores; implementación/pruebas en curso.
+- Corrección fuente congelada `f6059ca69aa48be0d1388f6e5955d2ad5cef22cff3585a43a20a0e3ed36c501b`:68focales, revisión cruzada,7escenarios comparativos,29funciones sensibles idénticas. Puerta final4.943PASS/27opt-in/0fallos,4.970total,35,31s. Primera corrida falló sólo por11 fixtures de arranque sin stub del cargador nuevo; dependencias y prueba de ruta directa corregidas, sin quitar aserciones previas.
+- QA visual incompleta: fixture inicialmente sin envoltorio/style v3 y luego CSPnonce que bloquea handlersinline del botón, frente a la CSP real que los permite. Además, en320px el estado/error de tabla ancha puede quedar desplazado horizontalmente; presentación pendiente. No declarar lista para publicación. Nueva prioridad humana coordinada: terminar12 de OT/garantías;14 queda preservada y sin despliegue mientras se cierra ese alcance.
+- Sin servidor, reglas, permisos, flags, índices, servicios o datos reales modificados. Publicación externa vigente11 según el bloque siguiente. Antes de cualquier versión futura se debe integrar el alcance autorizado vigente y revisar la compatibilidad con las candidatas12/13; esta rama aislada no demuestra esa integración. Detalle en [VACACIONES_LECTURA.md](VACACIONES_LECTURA.md).
+
 ## v3.14.11 publicada y verificada · 23/10/2026
 
 - Autorización humana directa en este chat: publicar11, verificar avisos web sin datos reales y después continuar los listados lentos. Publicador exclusivo coordinado con «Abrir SisVentas en ventana nueva». Fuente limpia/pushed `963b333fdf13281a722bd94e8d4177c3527594cb`, código `6c54cc7649dbcc392401c3100ced3f3a62620212`, checkout `.local/publicacion-v31411`, rama `codex/publicar-v31411`. No se fusionó main ni se incluyeron las candidatas12/13.

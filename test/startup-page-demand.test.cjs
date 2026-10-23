@@ -12,6 +12,8 @@ function environment(page='dashboard'){
   document:{querySelector:()=>({id:'page-'+page})},fbDB:{},svProgramarTrabajoFondo:fn=>jobs.push(fn)};
  c.window=c;
  for(const name of names)c[name]=()=>calls.push(name);
+ // Vacaciones es una dependencia de su ruta, no una carga global del ingreso.
+ c.fbCargarVacaciones=()=>calls.push('fbCargarVacaciones');
  load(c,['fbCargarTodo','svCargarDatosDePaginaActual','svActualizarLecturasPorAccion']);
  return {c,calls,jobs,runJobs(){while(jobs.length)jobs.shift()();}};
 }
@@ -19,6 +21,7 @@ function environment(page='dashboard'){
 test('el ingreso no conecta ocho colecciones de pantallas sin visitar',()=>{
  const e=environment();assert.equal(e.c.fbCargarTodo(),true);e.runJobs();
  for(const name of deferred)assert.ok(!e.calls.includes(name),'No iniciar '+name+' desde Dashboard');
+ assert.ok(!e.calls.includes('fbCargarVacaciones'),'No tratar la fuente de la ruta Vacaciones como dependencia global');
  for(const name of names.filter(n=>!deferred.includes(n)&&!['cargarKits','spCargar'].includes(n)))assert.ok(e.calls.includes(name),'Conservar dependencia global '+name);
  const count=e.calls.length;assert.equal(e.c.fbCargarTodo(),false);e.runJobs();assert.equal(e.calls.length,count);
 });
@@ -27,7 +30,7 @@ test('cada pantalla inicia sus fuentes al navegar después del ingreso',()=>{
  const cases={equipos:['fbCargarEquipos','fbCargarClientes','fbCargarEmpleados'],informes:['fbCargarInformes','fbCargarClientes','fbCargarEmpleados'],
   garantias:['fbCargarGarantias','fbCargarEquipos','fbCargarClientes','fbCargarVentas','fbCargarProductos'],soporte:['spCargar','fbCargarClientes','fbCargarOTs','fbCargarVentas','fbCargarEmpleados'],
   remitos:['fbCargarRemitos','fbCargarClientes'],agenda:['fbCargarAgenda','fbCargarOTs'],
-  servicios:['fbCargarServicios','fbCargarClientes'],caja:['fbCargarCaja']};
+  servicios:['fbCargarServicios','fbCargarClientes'],caja:['fbCargarCaja'],vacaciones:['fbCargarEmpleados','fbCargarVacaciones']};
  for(const [page,expected] of Object.entries(cases)){
   const e=environment();e.c._fbCargaTodoActiva=true;e.c.svActualizarLecturasPorAccion(page);
   for(const name of expected)assert.ok(e.calls.includes(name),page+' requiere '+name);
@@ -38,6 +41,14 @@ test('cada pantalla inicia sus fuentes al navegar después del ingreso',()=>{
 test('la ruta directa prioriza su colección antes de ejecutar trabajos diferidos',()=>{
  const e=environment('informes');e.c.fbCargarTodo();
  assert.ok(e.calls.includes('fbCargarInformes'));assert.ok(!e.calls.includes('fbCargarEquipos'));
+});
+
+test('la ruta directa de Vacaciones inicia su fuente antes de los trabajos diferidos',()=>{
+ const e=environment('vacaciones');assert.equal(e.c.fbCargarTodo(),true);
+ assert.ok(e.calls.includes('fbCargarVacaciones'));assert.ok(e.calls.includes('fbCargarEmpleados'));
+ assert.equal(e.calls.filter(name=>name==='fbCargarVacaciones').length,1);
+ assert.ok(!e.calls.includes('fbCargarEquipos'));assert.ok(!e.calls.includes('fbCargarInformes'));
+ e.runJobs();assert.equal(e.calls.filter(name=>name==='fbCargarVacaciones').length,1);
 });
 
 test('la página activa cubre el arranque sin hash',()=>{
