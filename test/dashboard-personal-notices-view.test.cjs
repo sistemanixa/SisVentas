@@ -66,11 +66,12 @@ test('incomplete sin movimientos verificados comunica estado general sin importe
   assert.match(container.textContent, /Información incompleta/); assert.doesNotMatch(container.textContent, /\$|\b0\b|Sin bonificaciones/);
   assert.equal(buttons(container).length, 0); assert.equal(nodes(container, 'personal-notices-card').length, 0);
 });
-test('incomplete con subconjunto verificado conserva las tarjetas y advierte cobertura parcial', () => {
+test('incomplete con subconjunto verificado muestra sólo el tipo presente y advierte cobertura parcial', () => {
   const {container} = fixture(); view.render(container, {status:'incomplete',items:[item()],issues:[{message:'detalle privado'}]}, {canOpen:true,onOpen(){}});
   assert.match(container.textContent, /Hay movimientos por confirmar; mostramos sólo los verificados\./);
-  assert.equal(nodes(container, 'personal-notices-card').length, 2); assert.equal(nodes(container, 'personal-notices-item').length, 1);
-  assert.match(container.textContent, /No hay novedades verificadas de este tipo\./); assert.doesNotMatch(container.textContent, /Sin comisiones recientes|detalle privado/);
+  assert.equal(nodes(container, 'personal-notices-card').length, 1); assert.equal(nodes(container, 'personal-notices-item').length, 1);
+  assert.equal(nodes(container, 'personal-notices-card--comision').length, 0);
+  assert.doesNotMatch(container.textContent, /No hay novedades|Sin comisiones recientes|detalle privado/);
   assert.equal(buttons(container).length, 1); assert.equal(container.getAttribute('aria-busy'), 'false');
 });
 test('un estado inválido queda incompleto y none retira información anterior', () => {
@@ -78,10 +79,11 @@ test('un estado inválido queda incompleto y none retira información anterior',
   view.render(container, ready([item()])); view.render(container, {status:'none'});
   assert.equal(container.hidden, true); assert.equal(container.children.length, 0); assert.equal(container.getAttribute('data-personal-notices-state'), 'none');
 });
-test('vacío confirmado muestra dos tarjetas sin total monetario inventado', () => {
+test('vacío confirmado se oculta sin tarjetas, texto, acciones ni total monetario inventado', () => {
   const {container} = fixture(); view.render(container, ready([]), { canOpen:true, onOpen(){ assert.fail('Sin movimiento no hay acción'); } });
-  assert.equal(nodes(container, 'personal-notices-card').length, 2); assert.match(container.textContent, /Sin bonificaciones recientes/);
-  assert.match(container.textContent, /Sin comisiones recientes/); assert.doesNotMatch(container.textContent, /\$/); assert.equal(buttons(container).length, 0);
+  assert.equal(container.hidden, true); assert.equal(container.children.length, 0); assert.equal(container.textContent, '');
+  assert.equal(nodes(container, 'personal-notices-card').length, 0); assert.equal(buttons(container).length, 0);
+  assert.equal(container.getAttribute('data-personal-notices-state'), 'ready'); assert.equal(container.getAttribute('aria-busy'), 'false');
 });
 test('cada tipo muestra sólo el primero de la fuente ordenada y cuenta los otros recientes', () => {
   const {container} = fixture(); const data = [1,2,3,4,5].map(id => item({id:'b'+id, description:'B'+id})).concat([1,2,3,4].map(id => item({id:'c'+id,type:'comision',description:'C'+id})));
@@ -90,8 +92,9 @@ test('cada tipo muestra sólo el primero de la fuente ordenada y cuenta los otro
   assert.deepEqual(nodes(cards[0], 'personal-notices-item').map(row => row.getAttribute('data-personal-notice-id')), ['b1']);
   assert.deepEqual(nodes(cards[1], 'personal-notices-item').map(row => row.getAttribute('data-personal-notice-id')), ['c1']);
   assert.match(cards[0].textContent, /4 movimientos recientes más/); assert.match(cards[1].textContent, /3 movimientos recientes más/);
-  assert.match(cards[0].textContent, /Últimos 30 días · Reconocimientos por tu trabajo\./);
-  assert.match(cards[1].textContent, /Últimos 30 días · El resultado de tus ventas\./);
+  assert.equal(nodes(cards[0], 'personal-notices-title')[0].textContent, '¡Tenés una nueva bonificación aprobada!');
+  assert.equal(nodes(cards[1], 'personal-notices-title')[0].textContent, '¡Tenés una nueva comisión aprobada!');
+  assert.equal(nodes(container, 'personal-notices-header').length, 0);
 });
 test('contador del único movimiento adicional usa singular y no modifica el alcance de los botones', () => {
   const {container} = fixture(); view.render(container, ready([item(),item({id:'second'})]), {canOpen:true,onOpen(){}});
@@ -111,7 +114,7 @@ test('pendiente no se presenta como monto aprobado, cobrado ni saldo pendiente d
 });
 test('pago manual sin importe confirmado no afirma dinero cobrado ni muestra saldo como cierto', () => {
   const {container} = fixture(); view.render(container, ready([item({status:'pagado',paidAmountUnknown:true,paidAmount:5000,remaining:0})]));
-  assert.match(container.textContent, /Marcada como pagada/); assert.match(container.textContent, /Importe abonado sin confirmar/);
+  assert.match(container.textContent, /figura marcada como pagada/); assert.match(container.textContent, /Importe abonado sin confirmar/);
   assert.doesNotMatch(container.textContent, /Pagado:|Pendiente de pago:|Cobraste|Recibiste/);
 });
 test('pago parcial usa importes provistos y no calcula un neto propio', () => {
@@ -174,8 +177,98 @@ test('issues presenta un aviso general sin volcar detalles técnicos o datos aje
   const {container} = fixture(); view.render(container, {status:'ready',items:[item()],issues:[{employeeId:'otro',message:'token secreto'}]});
   assert.match(container.textContent, /Hay movimientos por revisar/); assert.doesNotMatch(container.textContent, /token secreto|otro/);
 });
-test('estilo queda acotado al componente y cambia a dos columnas desde 768px', () => {
+test('CSS conserva una lista en todos los anchos, botón a derecha en desktop y distribución móvil acotada', () => {
   const css = fs.readFileSync(path.join(__dirname, '../css/dashboard-personal-notices.css'), 'utf8');
-  assert.match(css, /@media\(min-width:768px\).*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css, /\.personal-notices\{[^}]*display:flex;[^}]*flex-direction:column;/);
+  assert.match(css, /\.personal-notices-card\{[^}]*display:flex;[^}]*align-items:center;/);
+  assert.match(css, /\.personal-notices-content\{[^}]*min-width:0;[^}]*flex:1/);
+  assert.match(css, /\.personal-notices-open\{[^}]*flex:0 0 auto;[^}]*max-width:100%/);
+  assert.match(css, /\.personal-notices\[hidden\]\{display:none\}/);
+  assert.match(css, /@media\(max-width:600px\)\{\.personal-notices-card\{[^}]*display:grid;grid-template-columns:30px minmax\(0,1fr\)/);
+  assert.match(css, /@media\(max-width:600px\).*\.personal-notices-open\{[^}]*grid-column:2;justify-self:end;min-height:40px/);
+  assert.doesNotMatch(css, /grid-template-columns:repeat\(2|@media\(min-width:768px\)/);
   assert.match(css, /overflow-wrap:anywhere/); assert.match(css, /:focus-visible/); assert.doesNotMatch(css, /@import|url\(|position:fixed|overflow:hidden/);
+});
+
+for (const [type, title, icon] of [['bonificacion','¡Tenés una nueva bonificación aprobada!','🎉'],['comision','¡Tenés una nueva comisión aprobada!','🙌']]) {
+  test(type + ' reciente muestra únicamente su aviso alentador y el botón autorizado', () => {
+    const {container} = fixture(); view.render(container, ready([item({type})]), {canOpen:true,onOpen(){}});
+    assert.equal(container.hidden, false); assert.equal(nodes(container, 'personal-notices-card').length, 1);
+    assert.equal(nodes(container, 'personal-notices-card--' + type).length, 1);
+    assert.deepEqual(nodes(container, 'personal-notices-title').map(node => node.textContent), [title]);
+    assert.deepEqual(nodes(container, 'personal-notices-icon').map(node => [node.textContent,node.getAttribute('aria-hidden')]), [[icon,'true']]);
+    assert.equal(buttons(container)[0].getAttribute('data-personal-notices-open'), type);
+    assert.doesNotMatch(container.textContent, /Sin (bonificaciones|comisiones)|No hay novedades|Últimos 30 días/);
+  });
+}
+
+test('ready con issues y sin novedades conserva advertencia neutral sin fingir vacío confirmado', () => {
+  const {container} = fixture(); view.render(container, {status:'ready',items:[],issues:[{employeeId:'otra-persona',message:'detalle privado'}]}, {canOpen:true,onOpen(){assert.fail();}});
+  assert.equal(container.hidden, false); assert.equal(container.getAttribute('aria-busy'), 'false');
+  assert.equal(nodes(container, 'personal-notices-card').length, 0); assert.equal(buttons(container).length, 0);
+  assert.equal(all(container, node => node.getAttribute('role') === 'status').length, 1);
+  assert.match(container.textContent, /Hay movimientos por revisar/); assert.doesNotMatch(container.textContent, /\$|Sin bonificaciones|Sin comisiones|otra-persona|detalle privado/);
+});
+
+for (const [type, subject] of [['bonificacion','bonificación'],['comision','comisión']]) {
+  for (const [status, unknown, expected] of [
+    ['aprobado',false,'¡Tenés una nueva ' + subject + ' aprobada!'],
+    ['pendiente',false,'Tenés una ' + subject + ' pendiente de aprobación'],
+    ['pagado_parcial',false,'Tu ' + subject + ' tiene un pago parcial'],
+    ['pagado',false,'¡Tu ' + subject + ' ya está pagada!'],
+    ['pagado',true,'Tu ' + subject + ' figura marcada como pagada']
+  ]) test(type + ': el título distingue ' + status + (unknown ? ' manual sin importe confirmado' : ''), () => {
+    const paidAmount = unknown ? null : status === 'pagado' ? 5000 : status === 'pagado_parcial' ? 2000 : 0;
+    const remaining = unknown ? null : 5000 - paidAmount;
+    const {container} = fixture(); view.render(container, ready([item({type,status,paidAmount,remaining,paidAmountUnknown:unknown})]));
+    assert.equal(nodes(container, 'personal-notices-title')[0].textContent, expected);
+    assert.equal(nodes(container, 'personal-notices-item')[0].getAttribute('data-personal-notice-status'), status);
+    if (status === 'pendiente') {
+      assert.equal(nodes(container, 'personal-notices-icon')[0].textContent, '⏳');
+      assert.doesNotMatch(container.textContent, /nueva .* aprobada|ya está pagada|Cobraste|Recibiste|Pendiente de pago:/);
+      assert.match(container.textContent, /el importe todavía no está autorizado/);
+    }
+    if (unknown) {
+      assert.match(container.textContent, /Importe abonado sin confirmar/);
+      assert.doesNotMatch(container.textContent, /ya está pagada|Pagado:|Pendiente de pago:|Cobraste|Recibiste/);
+    }
+  });
+}
+
+test('al desaparecer un tipo retira sus handlers y sólo el botón nuevo conserva el destino vigente', () => {
+  const {container} = fixture(), calls = [];
+  view.render(container, ready([item(),item({id:'c1',type:'comision'})]), {canOpen:true,onOpen:type=>calls.push('anterior:' + type)});
+  const old = buttons(container);
+  view.render(container, ready([item({id:'c2',type:'comision'})]), {canOpen:true,onOpen:type=>calls.push('actual:' + type)});
+  assert.equal(nodes(container, 'personal-notices-card--bonificacion').length, 0); assert.equal(buttons(container).length, 1);
+  for (const button of old) { button.click(); assert.equal(button.listeners.get('click').size, 0); }
+  assert.deepEqual(calls, []); buttons(container)[0].click(); assert.deepEqual(calls, ['actual:comision']);
+});
+
+for (const next of [{status:'loading'},{status:'error'},{status:'incomplete',items:[],issues:[{}]},ready([]),{status:'none'}]) {
+  test('una transición de aviso a ' + next.status + (next.status === 'ready' ? ' vacío' : '') + ' retira datos y acciones anteriores', () => {
+    const {container} = fixture(); let calls = 0;
+    view.render(container, ready([item()]), {canOpen:true,onOpen(){calls++;}}); const old = buttons(container)[0];
+    view.render(container, next, {canOpen:true,onOpen(){calls++;}}); old.click();
+    assert.equal(calls, 0); assert.equal(old.listeners.get('click').size, 0); assert.equal(buttons(container).length, 0);
+    assert.equal(nodes(container, 'personal-notices-item').length, 0); assert.doesNotMatch(container.textContent, /5\.000,00|TAREA DE CARPINTERIA/);
+    assert.equal(container.hidden, ['none','ready'].includes(next.status));
+  });
+}
+
+test('revocar el permiso de apertura retira el handler previamente autorizado sin ocultar el reconocimiento', () => {
+  const {container} = fixture(); let calls = 0;
+  view.render(container, ready([item()]), {canOpen:true,onOpen(){calls++;}}); const old = buttons(container)[0];
+  view.render(container, ready([item()]), {canOpen:false,onOpen(){calls++;}}); old.click();
+  assert.equal(calls, 0); assert.equal(old.listeners.get('click').size, 0); assert.equal(buttons(container).length, 0);
+  assert.equal(nodes(container, 'personal-notices-card').length, 1); assert.equal(container.hidden, false);
+});
+
+test('cada aviso mantiene icono, contenido y botón como hermanos para la fila desktop', () => {
+  const {container} = fixture(); view.render(container, ready([item(),item({id:'c1',type:'comision'})]), {canOpen:true,onOpen(){}});
+  assert.equal(nodes(container, 'personal-notices-card').length, 2);
+  for (const card of nodes(container, 'personal-notices-card')) {
+    assert.deepEqual(card.children.map(node => node.className), ['personal-notices-icon','personal-notices-content','personal-notices-open']);
+    assert.equal(nodes(card, 'personal-notices-list').length, 1); assert.equal(nodes(card, 'personal-notices-item').length, 1);
+  }
 });

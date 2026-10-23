@@ -1,6 +1,36 @@
 # Avisos personales de bonificaciones y comisiones
 
-## Alcance de la candidata v3.14.9
+## Rediseño de la candidata v3.14.11 · sin publicar
+
+El titular pidió el mismo formato del aviso de aumento de valor hora: una franja
+horizontal con icono, título alentador y acción a la derecha en computadora.
+Bonificaciones y Comisiones aparecen por separado sólo si hay movimientos
+recientes verificados del tipo correspondiente. Un resultado vacío confirmado
+oculta el contenedor completo; no quedan tarjetas vacías ni botones sin destino.
+En celular el botón pasa debajo del texto, conservando el área táctil.
+
+Se conserva el primer movimiento ya ordenado por el modelo, su importe individual,
+mes de cómputo, fecha y unidades cuando existen, más el contador de otros recientes.
+El detalle completo sigue en Mi cuenta. No se suman reconocimientos ni se recalcula
+el importe a partir de unidades. Los encabezados distinguen aprobación, pago
+parcial, pago confirmado y marca manual sin desglose; un pendiente administrativo
+no se presenta como dinero autorizado. Los datos, fechas y permisos del modelo
+anterior permanecen iguales.
+
+Carga, error y cobertura incompleta mantienen un mensaje neutral breve: ocultar un
+tipo vacío no significa esconder fallos de lectura. Una transición retira los
+handlers del aviso anterior; apertura y regreso conservan su tipo, filtros y foco.
+El componente no añade consultas, almacenamiento, temporizadores ni escrituras.
+
+La presentación está probada con datos ficticios y CSP sin conexiones en
+320/390/768/1280: filas en escritorio, acción a la derecha, ajuste móvil sin
+desborde, activación por Enter y recorrido Tab. Capturas y medición privadas en
+`tmp/listings-next-private/notices11-ui`. La integración de la escucha de Mi cuenta
+está validada por separado con fuentes reales sobre SDK/DOM ficticios y la puerta
+vigente; su alcance y límites constan en CUENTA_EMPLEADO_ESCUCHA.md. No acredita
+operaciones financieras productivas ni una publicación. Producción conserva10.
+
+## Antecedente: alcance inicial de la candidata v3.14.9
 
 Inicio presenta el último reconocimiento reciente de cada tipo, su importe individual, estado, unidades/valor unitario cuando existen, fecha de novedad y mes de cómputo. El contador indica los otros movimientos recientes del mismo tipo, después de conciliar sus referencias. La acción abre Mi cuenta propia con el tipo seleccionado y la vista de historial; el retorno conserva filtros, scroll y foco.
 
@@ -32,6 +62,6 @@ En el mismo guion de dos cargas de Mi cuenta y entregas de Gastos, base8 y candi
 
 QA con navegador: 320/390/768/1280 píxeles, textos largos, columnas y ancho, teclado/acciones, carga/error/incompleto, retiro de permiso y limpieza. La acción de la fixture sólo confirma un callback local; el destino y retorno reales se validan con las funciones activas en memoria. No acredita un dispositivo físico, una operación financiera productiva ni una prueba física de gestos.
 
-La auditoría general sigue abierta. El Dashboard aún tiene su lectura de la raíz de horas extra y sus puntos de recarga anteriores; Mi cuenta mantiene sus lectores y deduplicadores legacy. Las contrapartes temporalmente desfasadas se presentan como información por confirmar hasta la próxima carga normal de CTA. No se añaden consultas para resolverlas ni se promete una conciliación de todo el historial legacy sin referencias técnicas.
+En el corte inicial9 la auditoría general seguía abierta: el Dashboard aún leía la raíz de horas extra y Mi cuenta mantenía sus lectores y deduplicadores legacy. La publicación10 sustituyó esa lectura de horas por el endpoint propio, como documenta HORAS_PERSONALES_DASHBOARD.md. Las contrapartes temporalmente desfasadas se presentan como información por confirmar hasta la próxima carga normal de CTA. No se añaden consultas para resolverlas ni se promete una conciliación de todo el historial legacy sin referencias técnicas.
 
-La candidata sólo requiere activos web. No necesita servidor, reglas, servicios, índices, migraciones, backfill, tareas por reloj ni cambios de permisos. Se prepara para revisión; publicar requiere una autorización posterior y el procedimiento vigente de Hosting/activos/aviso. Producción continúa en v3.14.8 hasta completar ese procedimiento.
+La presentación sólo requiere activos web. No necesita servidor, reglas, servicios, índices, migraciones, backfill, tareas por reloj ni cambios de permisos. Publicar una nueva candidata requiere autorización posterior y el procedimiento vigente de Hosting/activos/aviso. El estado actual de producción y las tandas posteriores están en CONTEXTO_ACTUAL.md.

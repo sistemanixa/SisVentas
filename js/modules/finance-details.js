@@ -220,8 +220,12 @@
   document.addEventListener('sisventas:treasury-rendered', agregarDetalleTesoreria270);
   document.addEventListener('sisventas:page-changed', function(event){
       var page=event.detail&&event.detail.page;
-      if (page === 'ctaemp') setTimeout(function(){
-        if (window.ctaEmpActual && typeof cargarCtaEmp === 'function') cargarCtaEmp(window.ctaEmpActual);
-      }, 250);
+      if (page === 'ctaemp') {
+        var entrada=window._ctaEmpEntradaActual,auth=window.fbAuth?.currentUser,vista=window._impersonacionOriginal;
+        var vigente=typeof svCapturarContextoOperacion==='function'?svCapturarContextoOperacion():function(){return false;};
+        setTimeout(function(){
+          if(entrada && entrada===window._ctaEmpEntradaActual && vigente() && auth===window.fbAuth?.currentUser && vista===window._impersonacionOriginal && typeof svCtaEmpVisible==='function' && svCtaEmpVisible() && window.ctaEmpActual && typeof cargarCtaEmp==='function')cargarCtaEmp(window.ctaEmpActual);
+        },250);
+      }
   });
 })();

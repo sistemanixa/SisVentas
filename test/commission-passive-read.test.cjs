@@ -131,11 +131,23 @@ test('Un movimiento sólo legacy no se convierte en gasto ni se suma como un reg
 
 test('Consultar la cuenta del empleado conserva el movimiento legacy con una lectura de esa cuenta',()=>{
  const legacy={tipo:'comision',monto:123.45,pct:3.5,gananciaBase:3527.142857,estado:'pagado_parcial',montoPagado:50,pagos:{p:{monto:50,fecha:'2026-10-12'}},aprobadoPor:'Actor original',aprobadoTs:1000};
- const getPaths=[],writes=[];let listener;
- const element={style:{},textContent:'',innerHTML:''};
- const context=load({window:{fbDB:{},tienePermiso:()=>true,fbRef:(_,p)=>p,fbOnValue:(p,fn)=>{getPaths.push(p);listener=fn;return ()=>{};},fbSet:(...a)=>writes.push(a),fbUpdate:(...a)=>writes.push(a)},document:{getElementById:id=>id==='ctaemp-migracion-banner'?null:element},svEmpleadoPropio:()=>null,empData:{},movsEmpData:[],currentUserUid:'fixture-admin',ctaEmpActual:null,gastosData:[],_ctaEmpMovimientoLegacyDuplicadoPorGasto:()=>null,_ctaEmpActualizarBannerDuplicadosLegacy(){},renderMovsEmp(){},notify(){}},['cargarCtaEmp']);
+ const getPaths=[],writes=[],listeners=new Map(),elements=new Map();let renders=0;
+ const element=id=>{if(!elements.has(id))elements.set(id,{style:{},textContent:'',innerHTML:''});return elements.get(id);};
+ const context=load({
+  window:{fbDB:{},fbAuth:{currentUser:{uid:'fixture-admin'}},tienePermiso:()=>true,fbRef:(_,p)=>p,
+   fbOnValue:(p,fn)=>{getPaths.push(p);listeners.set(p,fn);return ()=>{};},
+   fbSet:(...a)=>writes.push(a),fbUpdate:(...a)=>writes.push(a),fbPush:(...a)=>writes.push(a),fbRemove:(...a)=>writes.push(a),fbRunTransaction:(...a)=>writes.push(a)},
+  document:{hidden:false,getElementById:id=>id==='page-ctaemp'?{classList:{contains:name=>name==='active'}}:id.startsWith('page-')||id==='ctaemp-migracion-banner'?null:element(id)},
+  isAuthenticated:true,currentUserUid:'fixture-admin',currentRole:'admin',permisoModulo:()=>true,svEmpleadoPropio:()=>null,svPuedeLeerDominio:()=>true,
+  empData:{},movsEmpData:[],ctaEmpActual:null,gastosData:[],_gastosUnsubscribe:null,_gastosDataReady:false,_gastosCargaError:'',
+  _ctaEmpMovimientoLegacyDuplicadoPorGasto:()=>null,_ctaEmpActualizarBannerDuplicadosLegacy(){},renderMovsEmp(){renders++;},notify(){},escapeHTML:String,
+  _paginaGastosActiva:()=>false,_actualizarBadgeSolicitudesGastos(){},_programarTareasSecundariasGastos(){},actualizarTarjetaComisionadosVenta(){},marcarDashboardDatosSucios(){},solicitarRenderDashboard(){}
+ },['svCapturarContextoOperacion','_svEsPaginaActiva','svCtaEmpVisible','svCapturarContextoLecturaCtaEmp','svMostrarEstadoLecturaCtaEmp','svDetenerLecturaCtaEmp',
+  'svCrearOrigenGastosCuenta','svOrigenGastosCompatible','svMarcarSnapshotGastosCuenta','svRepintarCtaEmpDesdeFuentes','svAplicarCtaEmpDesdeSnapshot','_svSuscribirGastos','fbCargarGastos','cargarCtaEmp']);
+ context.fbCargarGastos();listeners.get('sisventas/gastos')({val:()=>({})});
  context.cargarCtaEmp('fixture-e');
- listener({val:()=>({'fixture-old':structuredClone(legacy)})});
- assert.deepEqual(getPaths,['sisventas/ctaemp/fixture-e']);assert.deepEqual(writes,[]);
+ listeners.get('sisventas/ctaemp/fixture-e')({val:()=>({'fixture-old':structuredClone(legacy)})});
+ assert.deepEqual(getPaths,['sisventas/gastos','sisventas/ctaemp/fixture-e']);assert.deepEqual(writes,[]);
+ assert.equal(context.window._ctaEmpLectura.status,'ready');assert.equal(context.window._ctaEmpGastosSnapshot.valid(),true);assert.equal(renders,1);
  assert.deepEqual(JSON.parse(JSON.stringify(context.movsEmpData)),[{fbKey:'fixture-old',_fuente:'ctaemp',...legacy}]);
 });

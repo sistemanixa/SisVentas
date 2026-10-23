@@ -3,12 +3,12 @@ const {load}=require('./helpers/app-functions.cjs');
 function setup(page='page-ctaemp'){
  const select={innerHTML:'',value:'',disabled:false,style:{}},calls=[];
  const c={isAuthenticated:true,currentUserUid:'auth-tech',currentRole:'tecnico',empData:{},_gastosUnsubscribe:null,
-  document:{getElementById:id=>id==='ctaemp-sel'?select:null,querySelector:()=>({id:page})},
-  window:{usuariosData:[],_usuariosDatosListos:false,_empleadosDatosListos:false,tienePermiso:k=>k==='dashboard.miCuenta'},
+  document:{hidden:false,getElementById:id=>id==='ctaemp-sel'?select:id.startsWith('page-')?{classList:{contains:name=>name==='active'&&id===page}}:null,querySelector:()=>({id:page})},
+  window:{fbAuth:{currentUser:{uid:'auth-tech'}},usuariosData:[],_usuariosDatosListos:false,_empleadosDatosListos:false,tienePermiso:k=>k==='dashboard.miCuenta'},
   permisoModulo:()=>true,svPuedeLeerDominio:()=>false,limpiarCtaEmpSinSeleccion:()=>calls.push('clear'),
   fbCargarGastos(){calls.push('own-expenses');c._gastosUnsubscribe=()=>{};},fbCargarVacaciones:()=>calls.push('own-leave'),
   cargarCtaEmp:key=>calls.push('account:'+key),renderDashMiCuenta:()=>calls.push('dashboard'),escapeHTML:String};
- load(c,['svEmpleadoPropio','iniciarCtaEmp','svActualizarCuentaTrasDatos']);
+ load(c,['_svEsPaginaActiva','svCtaEmpVisible','svEmpleadoPropio','iniciarCtaEmp','svActualizarCuentaTrasDatos']);
  function profile(){c.window.usuariosData=[{uid:'auth-tech',empleadoFbKey:'employee-one'}];c.window._usuariosDatosListos=true;}
  function directory(){c.empData={e:{fbKey:'employee-one',nombre:'Empleado ficticio'}};c.window._empleadosDatosListos=true;}
  return {c,select,calls,profile,directory};
@@ -37,6 +37,11 @@ test('el administrador conserva su selección y una sesión cerrada no inicia le
 test('la llegada tardía actualiza Dashboard y no abre el selector de otras cuentas',()=>{
  const s=setup('page-dashboard');s.profile();s.directory();s.c.svActualizarCuentaTrasDatos();
  assert.ok(s.calls.includes('dashboard'));assert.equal(s.calls.some(x=>x.startsWith('account:')),false);
+});
+
+test('el inicializador no abre una cuenta mientras la pantalla no está visible',()=>{
+ const s=setup();s.profile();s.directory();s.c.document.hidden=true;s.c.iniciarCtaEmp();
+ assert.deepEqual(s.calls,[]);assert.equal(s.select.value,'');
 });
 test('el listener de perfiles descarta otra sesión y notifica también un directorio vacío',()=>{
  let receive,updates=0;const c={currentUserUid:'auth-tech',window:{fbDB:{},fbRef:()=>'',svRutaUsuarios:()=> 'sv_usuarios',fbOnValue:(_,cb)=>receive=cb,usuariosData:[{}]},svActualizarCuentaTrasDatos:()=>updates++};

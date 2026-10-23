@@ -9,8 +9,8 @@
   var money = new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS', minimumFractionDigits:2, maximumFractionDigits:2 });
   var months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   var types = [
-    { key:'bonificacion', title:'Tus bonificaciones', subtitle:'Últimos 30 días · Reconocimientos por tu trabajo.', empty:'Sin bonificaciones recientes.', button:'Ver bonificaciones' },
-    { key:'comision', title:'Tus comisiones', subtitle:'Últimos 30 días · El resultado de tus ventas.', empty:'Sin comisiones recientes.', button:'Ver comisiones' }
+    { key:'bonificacion', title:'Tus bonificaciones', subject:'bonificación', icon:'🎉', button:'Ver bonificaciones' },
+    { key:'comision', title:'Tus comisiones', subject:'comisión', icon:'🙌', button:'Ver comisiones' }
   ];
   function amount(value) { return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? money.format(value) : null; }
   function node(doc, tag, name, text) {
@@ -60,35 +60,41 @@
   function movement(doc, item, type) {
     var state = ['aprobado','pagado_parcial','pagado','pendiente'].includes(item.status) ? item.status : 'pendiente';
     var unknownPaid = item.paidAmountUnknown === true;
-    var labels = { aprobado:'Aprobada', pagado_parcial:'Pago parcial', pagado:unknownPaid ? 'Marcada como pagada' : 'Pagada', pendiente:'Pendiente' };
+    var headings = {
+      aprobado:'¡Tenés una nueva ' + type.subject + ' aprobada!',
+      pagado_parcial:'Tu ' + type.subject + ' tiene un pago parcial',
+      pagado:unknownPaid ? 'Tu ' + type.subject + ' figura marcada como pagada' : '¡Tu ' + type.subject + ' ya está pagada!',
+      pendiente:'Tenés una ' + type.subject + ' pendiente de aprobación'
+    };
     var row = node(doc, 'li', 'personal-notices-item');
     row.setAttribute('data-personal-notice-id', String(item.id || ''));
-    var top = node(doc, 'div', 'personal-notices-item-top');
-    top.append(node(doc, 'strong', 'personal-notices-description', item.description || (type === 'bonificacion' ? 'Bonificación' : 'Comisión')),
-      node(doc, 'span', 'personal-notices-badge personal-notices-badge--' + state, labels[state]));
-    row.append(top);
+    row.setAttribute('data-personal-notice-status', state);
+    row.append(node(doc, 'h3', 'personal-notices-title', headings[state]));
     var value = amount(item.amount);
-    var figures = node(doc, 'div', 'personal-notices-figures');
-    figures.append(node(doc, 'span', 'personal-notices-amount-label', state === 'pendiente' ? 'Importe informado · ARS' : 'Importe · ARS'),
+    var summary = node(doc, 'p', 'personal-notices-summary');
+    summary.append(node(doc, 'span', 'personal-notices-description', item.description || (type.key === 'bonificacion' ? 'Bonificación' : 'Comisión')),
+      node(doc, 'span', '', ' · ' + (state === 'pendiente' ? 'Importe informado · ARS ' : 'ARS ')),
       node(doc, 'strong', 'personal-notices-amount', value || 'Importe por confirmar'));
-    row.append(figures);
+    row.append(summary);
+    var details = [];
+    var computed = period(item.period), granted = date(item.date);
+    details.push(computed ? 'Cómputo: ' + computed : 'Mes de cómputo sin confirmar');
+    if (granted) details.push('Fecha: ' + granted);
     var unit = amount(item.unitAmount);
     if (typeof item.quantity === 'number' && Number.isFinite(item.quantity) && item.quantity > 0 && unit !== null) {
-      row.append(node(doc, 'div', 'personal-notices-detail', new Intl.NumberFormat('es-AR', { maximumFractionDigits:6 }).format(item.quantity) + ' × ' + unit + ' por unidad'));
+      details.push(new Intl.NumberFormat('es-AR', { maximumFractionDigits:6 }).format(item.quantity) + ' × ' + unit + ' por unidad');
     }
-    var computed = period(item.period), granted = date(item.date);
-    var dates = node(doc, 'div', 'personal-notices-dates');
-    dates.append(node(doc, 'span', '', computed ? 'Cómputo: ' + computed : 'Mes de cómputo sin confirmar'));
-    if (granted) dates.append(node(doc, 'span', '', 'Fecha: ' + granted));
-    row.append(dates);
+    row.append(node(doc, 'p', 'personal-notices-detail', details.join(' · ')));
     if (state === 'pendiente') {
       row.append(node(doc, 'p', 'personal-notices-note', 'Pendiente de aprobación; el importe todavía no está autorizado.'));
     } else if (unknownPaid) {
       row.append(node(doc, 'p', 'personal-notices-note', 'Importe abonado sin confirmar.'));
-    } else {
+    } else if (state === 'pagado_parcial') {
+      var payments = ['Pago parcial'];
       var paid = amount(item.paidAmount), remaining = amount(item.remaining);
-      if (paid !== null && (item.paidAmount > 0 || state === 'pagado')) row.append(node(doc, 'div', 'personal-notices-detail', 'Pagado: ' + paid));
-      if (remaining !== null && item.remaining > 0 && state !== 'pagado') row.append(node(doc, 'div', 'personal-notices-detail', 'Pendiente de pago: ' + remaining));
+      if (paid !== null && item.paidAmount > 0) payments.push('Pagado: ' + paid);
+      if (remaining !== null && item.remaining > 0) payments.push('Pendiente de pago: ' + remaining);
+      row.append(node(doc, 'p', 'personal-notices-detail', payments.join(' · ')));
     }
     return row;
   }
@@ -106,6 +112,10 @@
     container.setAttribute('aria-busy', String(status === 'loading'));
     var items = Array.isArray(state.items) ? state.items : [];
     var verified = items.some(function(item) { return item && ['bonificacion','comision'].includes(item.type); });
+    if (status === 'ready' && !verified && !(Array.isArray(state.issues) && state.issues.length)) {
+      container.hidden = true;
+      return true;
+    }
     if (status !== 'ready' && !(status === 'incomplete' && verified)) { message(doc, container, status); return true; }
     var mounted = { active:true, buttons:[] };
     mounts.set(container, mounted);
@@ -115,28 +125,28 @@
     }
     types.forEach(function(type) {
       var matching = items.filter(function(item) { return item && item.type === type.key; });
+      if (!matching.length) return;
       var card = node(doc, 'section', 'personal-notices-card personal-notices-card--' + type.key);
       card.setAttribute('aria-label', type.title);
-      var header = node(doc, 'header', 'personal-notices-header');
-      header.append(node(doc, 'h3', '', type.title), node(doc, 'p', '', type.subtitle));
-      card.append(header);
-      if (!matching.length) card.append(node(doc, 'p', 'personal-notices-empty', status === 'incomplete' ? 'No hay novedades verificadas de este tipo.' : type.empty));
-      else {
-        var list = node(doc, 'ul', 'personal-notices-list');
-        matching.slice(0,1).forEach(function(item) { list.append(movement(doc, item, type.key)); });
-        card.append(list);
-        if (matching.length > 1) card.append(node(doc, 'p', 'personal-notices-more', (matching.length - 1) + ' movimiento' + (matching.length - 1 === 1 ? '' : 's') + ' reciente' + (matching.length - 1 === 1 ? '' : 's') + ' más en tu cuenta.'));
-        if (options.canOpen === true && typeof options.onOpen === 'function') {
-          var button = node(doc, 'button', 'personal-notices-open', type.button);
-          button.type = 'button';
-          button.setAttribute('data-personal-notices-open', type.key);
-          var handler = function() {
-            if (mounted.active && mounts.get(container) === mounted && !container.hidden && !button.disabled) options.onOpen(type.key, button);
-          };
-          button.addEventListener('click', handler);
-          mounted.buttons.push({ type:type.key, button:button, handler:handler });
-          card.append(button);
-        }
+      var icon = node(doc, 'span', 'personal-notices-icon', matching[0].status === 'pendiente' ? '⏳' : type.icon);
+      icon.setAttribute('aria-hidden', 'true');
+      card.append(icon);
+      var content = node(doc, 'div', 'personal-notices-content');
+      var list = node(doc, 'ul', 'personal-notices-list');
+      matching.slice(0,1).forEach(function(item) { list.append(movement(doc, item, type)); });
+      content.append(list);
+      if (matching.length > 1) content.append(node(doc, 'p', 'personal-notices-more', (matching.length - 1) + ' movimiento' + (matching.length - 1 === 1 ? '' : 's') + ' reciente' + (matching.length - 1 === 1 ? '' : 's') + ' más en tu cuenta.'));
+      card.append(content);
+      if (options.canOpen === true && typeof options.onOpen === 'function') {
+        var button = node(doc, 'button', 'personal-notices-open', type.button);
+        button.type = 'button';
+        button.setAttribute('data-personal-notices-open', type.key);
+        var handler = function() {
+          if (mounted.active && mounts.get(container) === mounted && !container.hidden && !button.disabled) options.onOpen(type.key, button);
+        };
+        button.addEventListener('click', handler);
+        mounted.buttons.push({ type:type.key, button:button, handler:handler });
+        card.append(button);
       }
       container.append(card);
     });
