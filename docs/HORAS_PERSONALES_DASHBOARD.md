@@ -1,8 +1,11 @@
-# Horas personales de Inicio · candidata v3.14.10
+# Horas personales de Inicio · v3.14.10 publicada
 
-Preparada después de publicar y verificar v3.14.9. No está desplegada: la web,
-el marcador de actualización y el espejo local del titular conservan v3.14.9.
-No activar esta candidata con una publicación aislada del frontend.
+Publicada el 23/10/2026 con autorización humana específica y coordinación de
+publicador exclusivo. Fuente `2952ae512fed2d45474dfec8f722a6f5bf38af89`:
+primero Cotizador y su índice, después Hosting y aviso oficial. El despliegue
+detallado y los límites constan en `CONTEXTO_ACTUAL.md`; la evidencia privada
+permanece fuera de Git en `tmp/v31410-release`. El espejo local8766 conserva
+los mismos437activos públicos del SHA publicado, sin servir fuentes privadas.
 
 ## Problema y comportamiento
 
@@ -93,26 +96,39 @@ Comparación privada de cuerpos JSON lógicos, incluyendo esas verificaciones:
 Coincidieron claves y sumas en los tres escenarios. No se midieron cabeceras,
 TLS, red productiva, Auth o cómputo de Cloud Run: no es factura ni promesa de
 menor latencia o ahorro universal. No reduce la historia propia cuando ésta es
-grande. No agrega costo fijo de un servicio nuevo; una activación futura debe
-informar compilación e invocaciones del servidor existente antes de aplicarse.
+grande. No agrega costo fijo de un servicio nuevo. La compilación única de la
+publicación duró80,734s; ese tiempo no permite deducir el importe facturado.
 
 QA visual aislada a 320, 390, 768 vertical y 1280: sin desborde horizontal,
 pendiente histórica, período aprobado largo, carga/error/vacío diferenciados y
 Tab nativo. Tarjeta, CSS y modelo reales; transporte y personas ficticios, CSP
 sin conexiones y consola sin errores. La corrección de foco tiene cobertura del
-renderer real en DOM simulado; no se presenta como una operación productiva10
-ya verificada. Capturas y medición privada fuera de Git, en
+renderer real en DOM simulado. Capturas y medición privada fuera de Git, en
 `tmp/listings-next-private/dashboard-hsex10`.
 
-## Activación futura y alcance conservado
+La QA autenticada posterior al despliegue usó la sesión técnica existente sin
+impersonar: horas propias cargadas, avisos ready y apertura de Bonificaciones
+con empleado bloqueado/tipo correcto/una fila. Volver a Inicio conservó el foco
+en el botón del aviso después de la recarga normal; el lector volvió a terminar.
+Ancho390 sin desborde, una columna y viewport restituido. No se realizaron
+guardados, pagos, aprobaciones, rechazos ni eliminaciones reales.
 
-Antes de activar: revisión del SHA limpio, estimación de costo y autorización
-concreta; respaldo/comparación fresca de reglas para el índice; Cotizador
-compatible conservando configuración y accesos; Hosting y verificación HTTP/SW;
-sólo entonces marcador oficial de actualización. La base local revisada del
-builder no sustituye una lectura fresca del estado remoto.
+Abrir Cargar hs extra mostró el bloqueo vigente por dos OT programadas vencidas
+más de diez días. Se cerró sin presentar nada, liberando el scroll. Ese aviso
+legacy deja el foco en BODY al cerrar; el markup es idéntico al de9 y queda como
+pendiente separado del retorno de avisos corregido. No se acredita el formulario
+de presentación ni operaciones financieras productivas con ese recorrido.
+
+## Activación comprobada y alcance conservado
+
+Se revisó el SHA limpio y la autorización concreta, se respaldó/comparó otra vez
+la base remota, se aplicó sólo el índice y se verificó su relectura. Cotizador
+conserva configuración/IAM y14accesos. Hosting437activos,34hashes y cabeceras
+comprobados; sólo después se actualizó el marcador oficial. La base local del
+builder no sustituyó la lectura fresca del estado remoto.
 
 No se modifican pagos, permisos concedidos, solicitudes, sueldos, bonificaciones,
 comisiones ni su generación. Tampoco flags financieros, fiscal, IAM, DNS,
-servicios, migraciones, backfills o reglas remotas. La auditoría sigue abierta:
+servicios, migraciones o backfills. Las reglas remotas sólo añadieron el índice
+descrito, sin cambiar permisos. La auditoría sigue abierta:
 otras raíces CTA/listados y escrituras CAS necesitan sus revisiones separadas.
