@@ -1,4 +1,4 @@
-# Comisiones: privacidad de presentación y respuestas · candidata v3.14.20
+# Comisiones: privacidad de presentación y respuestas · v3.14.20 publicada
 
 Pedido urgente del titular del 24/10/2026: quien cobra una comisión debe ver la venta, el cliente y su importe. El porcentaje también se retira de la vista personal, porque junto al importe permite deducir la ganancia.
 
