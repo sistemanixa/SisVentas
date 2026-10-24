@@ -1,6 +1,6 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.14.16';
+const CACHE = 'sisventas-v3.14.17';
 const SHELL = [
  './js/core/print-layout.v1.js',
  './js/core/dashboard-personal-hours.v1.js',
@@ -69,7 +69,7 @@ const SHELL = [
   './js/core/guarded-writes.js?v=3.13.19-labor',
   './js/core/session-assets.js?v=3.14.16-print',
   './js/core/ot-personal-scope.js?v=3.14.0',
-  './js/app.v3.14.16.js',
+  './js/app.v3.14.17.js',
   './js/core/activity-period.v1.js',
   './js/core/dashboard-account-read.v1.js',
   './js/modules/navigation-back.js?v=perf-3105',
@@ -79,7 +79,7 @@ const SHELL = [
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js?v=3.12.20',
   './js/core/version.js',
-  './js/core/version.v3.14.16.js',
+  './js/core/version.v3.14.17.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.10.32',
@@ -135,7 +135,7 @@ const SHELL = [
   './js/core/payroll-source-snapshot.js?v=3.14.7',
   './js/core/payroll-legacy-sac-model.js?v=3.14.7',
   './js/modules/payroll-selector.js?v=3.14.7',
-  './js/modules/configuration-mobile.js?v=3.11.0-keyboard-v3.14.16',
+  './js/modules/configuration-mobile.js?v=3.11.0-keyboard-v3.14.17',
   './js/modules/sales-dashboard.js?v=perf-3105',
   './js/modules/dashboard-ot-layout.js',
   './js/modules/executive-charts.js?v=perf-3105',

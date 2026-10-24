@@ -82,3 +82,18 @@ propuesto de reglas para Actividad es sólo un índice y requiere su comprobaci�
 remota exacta. Reducir el resto de primeras descargas exige diseño y pruebas de
 cobertura; quedan identificadas aquí para continuar sin falsear saldos,
 permisos, sincronización, comisiones o historia financiera.
+
+## Ajuste posterior de QA real: candidata v3.14.17
+
+Al comprobar16 en la sesión técnica real, salir de Agenda retiró la fuente pero
+registró ese cierre normal como un error. La versión17 distingue el código propio
+`SV_AGENDA_SOURCE_RETIRED`: deja estado neutral y KPI desconocidos sin alerta ni
+log falso. Un fallo real de lectura conserva su mensaje, Reintentar y registro.
+Sólo cambia `fbCargarAgenda`; no se modifica el servidor, índice, permisos,
+pagos ni comisiones. La versión16 publicada permanece inmutable.
+
+La puerta17 aprobó 5.298 pruebas, 27 opt-in omitidas y 0 fallos (5.325 total). Agenda
+tiene 56 casos y QA aislada en320/390/768/1280 de carga/error/retiro/retorno explícito;
+se mantiene la cobertura de foco y scroll de Hs.extra. El resultado real del
+despliegue se registra en CONTEXTO_ACTUAL. Este ajuste no cierra los trabajos
+estructurales ni cambia el bloqueo de OT/garantías descritos arriba.
