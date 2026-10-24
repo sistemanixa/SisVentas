@@ -6,6 +6,7 @@ const path=require('node:path');
 const {source}=require('./helpers/active-app').readActiveApp();
 const Model=require('../js/core/dashboard-personal-notices.v1.js');
 const Hours=require('../js/core/dashboard-personal-hours.v1.js');
+const AccountRead=require('../js/core/dashboard-account-read.v1.js');
 function extract(text,name){
  const start=text.search(new RegExp('^(?:async )?function '+name+'\\(','m'));
  assert.ok(start>=0,name);const end=/^\}/gm;end.lastIndex=start;
@@ -21,12 +22,13 @@ function fixture(text=source){
  const c={console,Date,Math,Set,Map,WeakMap,Promise,Object,String,Array,Number,JSON,document,isAuthenticated:true,currentUserUid:'u',currentRole:'tecnico',currentUser:'Persona ficticia',gastosData:[],empData:{e:{fbKey:'e'}},ctaEmpActual:'',movsEmpData:[],_gastosUnsubscribe:null,_gastosDataReady:false,_gastosCargaError:'',_gastosPagosCache:null,_gastosFechaImputacionCache:null,_gastosTareasDiferidasTimer:null,
   _dashAvisosCTA:null,_dashAvisosGastosFuente:null,_dashAvisosGeneracion:0,_dashAvisosOrigen:null,_dashAvisosRetorno:null,_dashHorasPropias:null,
   _svOperacionesSesionEpoch:0,_impersonacionOriginal:null,PERMISOS_ROLES:{tecnico:{indiceRevision:1}},
-  fbAuth:{currentUser:auth},fbDB:{},tienePermiso:p=>permissions.has(p),permisoModulo:p=>p==='ctaemp',own:{fbKey:'e'},svEmpleadoPropio:()=>c.own,
+  fbAuth:{currentUser:auth},fbDB:{},tienePermiso:p=>permissions.has(p),permisoModulo:p=>p==='ctaemp'||p==='dashboard',own:{fbKey:'e'},svEmpleadoPropio:()=>c.own,
   svPuedeLeerDominio:()=>false,_paginaGastosActiva:()=>false,_actualizarBadgeSolicitudesGastos:()=>{},_programarTareasSecundariasGastos:()=>{},actualizarTarjetaComisionadosVenta:()=>{},marcarDashboardDatosSucios:()=>{},solicitarRenderDashboard:()=>{},
   _svEsPaginaActiva:p=>page.id==='page-'+p,requestAnimationFrame:fn=>fn(),
   showPage:p=>{page.id='page-'+p;},_mesSistema:()=>new Date().toISOString().slice(0,7),
   _ctaEmpMovimientoLegacyDuplicadoPorGasto:()=>false,_movEmpEnPeriodo:()=>true,_movEmpEsCobrable:()=>false,_ctaEmpTotalAdelantosRegistradosEnMes:()=>0,_ctaEmpMontoAdelantoACompensar:()=>0,
   _movEmpEstadoCalculado:m=>m.estado||'pendiente',_movEmpSaldoPendiente:m=>Number(m.monto)||0,
+  location:{hash:'#/dashboard'},SVDashboardAccountRead:AccountRead,
   SVPersonalNotices:Model,SVPersonalNoticesView:{clear:()=>states.push({status:'none',items:[]}),render:(_box,state,options)=>states.push({...state,options})},
   SVPersonalHours:Hours,SVSessionRecovery:{deadline:task=>task},SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://example.invalid'},SVServiceAuth:{headers:async()=>({Authorization:'Bearer ficticio'})},
   fetch:(p,options)=>new Promise((resolve,reject)=>requests.push({p,options,transport:'http',resolve,reject})),
@@ -41,7 +43,7 @@ function fixture(text=source){
  if(text===source){const a=source.indexOf("document.addEventListener('sisventas:session-ended',svLimpiarAvisosCuentaPersonal)");vm.runInContext(source.slice(a,source.indexOf('function renderDashMiCuenta()',a)),c);}
  const flush=async()=>{for(let i=0;i<32;i++)await Promise.resolve();};
  const nextGastos=data=>subscriptions.at(-1).next({val:()=>data});
- const resolveCTA=async(data,index=requests.findIndex(r=>!r.done&&r.p.startsWith('sisventas/ctaemp/')))=>{requests[index].done=true;requests[index].resolve({val:()=>data});await flush();for(const r of requests.filter(r=>!r.done&&(r.p==='sisventas/hsextra_solicitudes'||r.transport==='http'))){r.done=true;r.resolve(r.transport==='http'?{ok:true,status:200,json:async()=>({ok:true,employeeId:'e',records:[]})}:{val:()=>({})});}await flush();};
+ const resolveCTA=async(data,index)=>{await flush();if(index===undefined)index=requests.findIndex(r=>!r.done&&r.p.startsWith('sisventas/ctaemp/'));assert.ok(requests[index]);requests[index].done=true;requests[index].resolve({val:()=>data});await flush();for(const r of requests.filter(r=>!r.done&&(r.p==='sisventas/hsextra_solicitudes'||r.transport==='http'))){r.done=true;r.resolve(r.transport==='http'?{ok:true,status:200,json:async()=>({ok:true,employeeId:'e',records:[]})}:{val:()=>({})});}await flush();};
  return {c,elements,events,requests,subscriptions,states,writes,flush,nextGastos,resolveCTA,permissions,scroll,page,last:()=>states.at(-1)};
 }
 function pair(overrides={}){
@@ -138,13 +140,13 @@ test('un backlink cargado hacia otro beneficiario o contradictorio queda incompl
  }
 });
 for(const mutate of [c=>c.currentUserUid='other',c=>c.fbAuth.currentUser={uid:'u'},c=>c.fbAuth.currentUser.uid='other',c=>c.currentRole='admin',c=>c.PERMISOS_ROLES.tecnico.indiceRevision++,c=>c._svOperacionesSesionEpoch++,c=>c._impersonacionOriginal={},c=>c.own={fbKey:'other'}])test('respuesta tardía queda fuera del contexto: '+mutate.toString(),async()=>{
- const f=fixture(),p=pair();f.c.fbCargarGastos();f.nextGastos(p.gastos);f.c.renderDashMiCuenta();mutate(f.c);await f.resolveCTA(p.cta);
+ const f=fixture(),p=pair();f.c.fbCargarGastos();f.nextGastos(p.gastos);f.c.renderDashMiCuenta();await f.flush();mutate(f.c);await f.resolveCTA(p.cta);
  assert.ok(!f.states.some(s=>s.status==='ready'&&s.items.length));f.c.svRenderAvisosCuentaPersonal();assert.equal(f.last().status,'none');
 });
 test('la última petición CTA gana; el error no se transforma en vacío confirmado',async()=>{
  const f=fixture(),p=pair();f.c.fbCargarGastos();f.nextGastos(p.gastos);f.c.renderDashMiCuenta();f.c.renderDashMiCuenta();
- await f.resolveCTA(p.cta,1);assert.equal(f.last().items.length,1);await f.resolveCTA({},0);assert.equal(f.last().items.length,1);
- f.c.renderDashMiCuenta();f.requests.at(-1).reject(Error('offline'));await f.flush();assert.equal(f.last().status,'error');assert.equal(f.last().items.length,0);
+ await f.resolveCTA(p.cta);assert.equal(f.requests.filter(r=>r.p.startsWith('sisventas/ctaemp/')).length,1);assert.equal(f.last().items.length,1);
+ f.c.renderDashMiCuenta();await f.flush();f.requests.at(-1).reject(Error('offline'));await f.flush();assert.equal(f.last().status,'error');assert.equal(f.last().items.length,0);
 });
 test('error de Gastos, revocación y limpieza retiran avisos y acciones previos',async()=>{
  const f=fixture(),p=pair();f.c.fbCargarGastos();f.nextGastos(p.gastos);f.c.renderDashMiCuenta();await f.resolveCTA(p.cta);
@@ -184,6 +186,7 @@ test('retorno humano restaura filtros y espera la recarga normal antes de restit
  assert.equal(f.elements.get('ctaemp-filtro-tipo').value,'sueldo');assert.equal(f.c._ctaEmpVista,'pendientes');assert.equal(f.c._dashAvisosOrigen,null);
  f.c.renderDashMiCuenta(); // The existing showPage 40ms callback; no additional reader in the notice.
  assert.equal(focused,false);assert.equal(action,null);assert.equal(f.last().status,'loading');
+ await f.flush();
  const normalRequests=f.requests.length;
  await f.resolveCTA(p.cta);
  assert.equal(focused,true);assert.equal(doc.activeElement,action);assert.equal(f.scroll.scrollTop,280);assert.equal(f.c._dashAvisosRetorno,null);

@@ -77,6 +77,15 @@ test('Remito bloqueado informa ventanas emergentes sin lectura ni TypeError',asy
 test('Remito conserva onlyOnce y cancela la lectura al primer snapshot, sin imprimir de nuevo',async()=>{
  const f=fixture(),task=f.c.imprimirRemito('remito-ficticio');assert.equal(f.reads.length,1);assert.equal(f.reads[0][3].onlyOnce,true);const snap={val:()=>({numero:'R-FICTICIO',cliente:'Cliente ficticio',fecha:'2026-10-24'})};f.reads[0][1](snap);await settle();f.reads[0][1](snap);assert.equal(f.stats().stops,1);f.fire(500);assert.equal(await task,true);assert.equal(f.popups[0].printed,1);assert.equal(f.timers.size,0);
 });
+
+for(const changed of [false,true])test('Remito espera recursos sin otra lectura y revalida al terminar: '+changed,async()=>{
+ const f=fixture();let finishResources;
+ f.c.SVPrintLayout={ready:()=>new Promise(resolve=>{finishResources=resolve;})};
+ const task=f.c.imprimirRemito('remito-ficticio');f.reads[0][1]({val:()=>({numero:'R-FICTICIO'})});await settle();f.fire(500);await settle();
+ assert.equal(f.popups[0].printed,0);assert.equal(f.reads.length,1);
+ if(changed)f.c.PERMISOS_ROLES.admin.indiceRevision++;
+ finishResources();assert.equal(await task,!changed);assert.equal(f.popups[0].printed,changed?0:1);assert.equal(f.stats().stops,1);
+});
 for(const change of ['closed','session','revision','route'])test('Remito no imprime al retirarse el contexto: '+change,async()=>{
  const f=fixture(),task=f.c.imprimirRemito('remito-ficticio');f.reads[0][1]({val:()=>({numero:'R-FICTICIO'})});await settle();if(change==='closed')f.popups[0].closed=true;if(change==='session'){f.c.currentUserUid='otro';f.emit('sisventas:session-ended');}if(change==='revision')f.c.PERMISOS_ROLES.admin.indiceRevision++;if(change==='route')f.c.location.hash='#/clientes';f.fire(500);assert.equal(await task,false);assert.equal(f.popups[0].printed,0);assert.equal(f.timers.size,0);
 });

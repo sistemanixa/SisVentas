@@ -1,14 +1,17 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
 const {source,index}=require('./helpers/active-app').readActiveApp(),{functionSource}=require('./helpers/app-functions.cjs');
+const activityPeriod=require('../js/core/activity-period.v1.js');
 const start=source.indexOf('var LOG_ACTIVIDAD_DATA ='),end=source.indexOf('\nfunction cargarCargos()',start),chunk=source.slice(start,end);
 const tick=()=>new Promise(setImmediate);
 function deferred(){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};}
 function fixture({hidden=false,auth=true,allowed=true}={}){
  const requests=[],writes=[],audits=[],notifications=[],events=new Map();let access=allowed,domainAccess=allowed,cleanAccess=allowed,visible=!hidden,confirmValue=true,confirmations=0;
  function node(id){return {id,style:{display:''},isConnected:true,hidden:false,disabled:false,innerHTML:'',textContent:'',value:'',attributes:{},setAttribute(k,v){this.attributes[k]=v;},remove(){this.removed=true;delete nodes[id];},classList:{contains:()=>true}};}
- const nodes=Object.fromEntries(['page-configuracion','cfg-actividad','act-estado','act-tabla','act-tbody','act-actualizar','act-limpiar','act-filtro-usuario','act-filtro-accion','sv331-actividad-list'].map(id=>[id,node(id)]));
+ const nodes=Object.fromEntries(['page-configuracion','cfg-actividad','act-estado','act-tabla','act-tbody','act-actualizar','act-limpiar','act-filtro-periodo','act-filtro-usuario','act-filtro-accion','sv331-actividad-list'].map(id=>[id,node(id)]));
+ nodes['act-filtro-periodo'].value='all';
  const c={window:null,console,Promise,isAuthenticated:true,currentUserUid:'user-a',currentRole:'admin',PERMISOS_ROLES:{admin:{indiceRevision:7},tecnico:{indiceRevision:3}},_svOperacionesSesionEpoch:0,_impersonacionOriginal:null,
+  SVActivityPeriod:activityPeriod,svFechaLocalISO:()=> '2026-10-24',
   fbAuth:{currentUser:auth?{uid:'user-a'}:null},fbDB:{},SVForegroundSession:{isVisible:()=>visible},document:{hidden,getElementById:id=>nodes[id]||null,addEventListener(name,fn){if(!events.has(name))events.set(name,[]);events.get(name).push(fn);}},
   permisoModulo:name=>{assert.equal(name,'configuracion');return access;},svPuedeLeerDominio:name=>{assert.equal(name,'log_actividad');return domainAccess;},tienePermiso:name=>{assert.equal(name,'actividad.limpiar');return cleanAccess;},
   fbRef:(_db,p)=>p,fbGet(p){const d=deferred();requests.push({...d,path:p});return d.promise;},fbSet(p,value){const d=deferred();writes.push({...d,path:p,value});return d.promise;},

@@ -13,19 +13,20 @@ function setup(role='tecnico'){
   const nodes={},calls={calendar:0,saves:[],messages:[],network:0,formReads:0};
   const employee={fbKey:'employee-demo',nombre:'Técnico ficticio'};
   const button={disabled:false,innerHTML:'Enviar para aprobación',isConnected:true};
-  function element(){return {id:'',innerHTML:'',className:'',style:{},dataset:{},isConnected:false,addEventListener(){},querySelector:selector=>selector==='.btn-primary'?button:null,remove(){this.isConnected=false;delete nodes[this.id];}};}
+  function element(){return {id:'',innerHTML:'',className:'',style:{},dataset:{},isConnected:false,addEventListener(){},removeEventListener(){},setAttribute(){},focus(){c.document.activeElement=this;},querySelector:selector=>selector==='.btn-primary'?button:null,remove(){this.isConnected=false;delete nodes[this.id];if(c.document.activeElement===this)c.document.activeElement=c.document.body;}};}
   const row={dataset:{fecha:'2026-10-19'},querySelector:selector=>({value:selector==='.hsex-horas-input'?'2':'Cliente ficticio'})};
   nodes['hsex-desc']={value:'Trabajo ficticio'};nodes['hsex-mes']={value:'2026-10'};
-  const c={window:null,Date,Math,console,currentRole:role,currentUserUid:'user-demo',empData:{employee},usuariosData:[{uid:'user-demo',empleadoFbKey:'employee-demo'}],otData:[],SVOTPersonalScope:scope,
+  const page={id:'page-dashboard'};
+  const c={window:null,Date,Math,console,isAuthenticated:true,fbAuth:{currentUser:{uid:'user-demo'}},location:{hash:'#/dashboard'},addEventListener(){},removeEventListener(){},currentRole:role,currentUserUid:'user-demo',empData:{employee},usuariosData:[{uid:'user-demo',empleadoFbKey:'employee-demo'}],otData:[],SVOTPersonalScope:scope,
     PERMISOS_ROLES:Object.fromEntries(['tecnico','tecnico_vendedor','admin','administrativo','vendedor'].map(name=>[name,{bloqueados:[],acciones:{}}])),
-    document:{getElementById:id=>nodes[id]||null,createElement:element,body:{appendChild(node){node.isConnected=true;nodes[node.id]=node;}},querySelectorAll:selector=>{assert.equal(selector,'#hsex-calendar-body .hsex-day-row');calls.formReads++;return [row];}},
+    document:{hidden:false,visibilityState:'visible',addEventListener(){},removeEventListener(){},querySelector:selector=>selector==='.page.active'?page:null,getElementById:id=>nodes[id]||null,createElement:element,body:{appendChild(node){node.isConnected=true;nodes[node.id]=node;}},querySelectorAll:selector=>{assert.equal(selector,'#hsex-calendar-body .hsex-day-row');calls.formReads++;return [row];}},
     svFechaLocalISO:date=>date?[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-'):'2026-10-20',
     escapeHTML:value=>String(value||''),renderHsExtraCalendarGrid:()=>calls.calendar++,notify:message=>calls.messages.push(message),
     _hsexGuardarSolicitudUnificada:async(...args)=>{calls.saves.push(plain(args));return {committed:true};},
     fetch:()=>{calls.network++;assert.fail('No consultar la red');},fbGet:()=>{calls.network++;assert.fail('No leer datos reales');},fbUpdate:()=>{calls.network++;assert.fail('No modificar datos reales');}};
   c.window=c;vm.createContext(c);
   vm.runInContext(permissions.slice(0,permissions.indexOf('  function proteger('))+'})();',c);
-  load(c,['svEmpleadoPropio','_hsexEmpleadoActual','otOrdenesEmpleado','otEstadoNormalizado','otEstaCerrada','_hsexFechaProgramadaOT','_hsexOTPendientesVencidas','abrirFormCargaHsExtra','enviarSolicitudHsExtra']);
+  load(c,['svEmpleadoPropio','_hsexEmpleadoActual','otOrdenesEmpleado','otEstadoNormalizado','otEstaCerrada','_hsexFechaProgramadaOT','_hsexOTPendientesVencidas','cerrarBloqueoOTPendientesHsExtra','_hsexActivarDialogoBloqueoOT','abrirFormCargaHsExtra','enviarSolicitudHsExtra']);
   return {c,calls,nodes,employee,get html(){return nodes['modal-hsextra']?.innerHTML||'';},submit:()=>c.enviarSolicitudHsExtra(employee.fbKey,employee.nombre),override(value){c.PERMISOS_ROLES[role].acciones.empleados={horasConOTPendiente:value};}};
 }
 const order=(extra={})=>({id:'OT-DEMO',estado:'en_progreso',tecnicoFbKey:'employee-demo',fecha:'2026-10-09',...extra});

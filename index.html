@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.14.15-firebase' -->
+<!-- VERSION: 'v3.14.16-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,7 +21,7 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.14.15.js"></script>
+<script src="./js/core/version.v3.14.16.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.13.1-cards"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.11.18"></script>
@@ -2628,6 +2628,10 @@ Listo para analizar.
               Acciones importantes registradas por usuario: ventas creadas, pagos registrados, altas y ediciones de clientes, productos y empleados, inicios y cierres de sesión.
             </div>
             <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+              <select id="act-filtro-periodo" aria-label="Período de actividad" style="max-width:220px" onchange="cargarLogActividad()">
+                <option value="30d">Últimos 30 días</option>
+                <option value="all">Todo el historial</option>
+              </select>
               <select id="act-filtro-usuario" style="max-width:220px" onchange="renderLogActividad()">
                 <option value="">— Todos los usuarios —</option>
               </select>
@@ -2635,6 +2639,10 @@ Listo para analizar.
                 <option value="">— Todas las acciones —</option>
               </select>
               <button id="act-actualizar" class="btn btn-sm" onclick="cargarLogActividad()"><i class="ti ti-refresh"></i> Actualizar</button>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;border:1px solid var(--amber);border-radius:8px;background:var(--amber-bg);color:var(--amber)">
+              <span id="act-alcance" style="font-size:12px;flex:1;min-width:0">Filtro aplicado: últimos 30 días. Los registros con fecha incompleta se consultan en Todo el historial.</span>
+              <button id="act-ver-todo" type="button" class="btn btn-sm" onclick="document.getElementById('act-filtro-periodo').value='all';cargarLogActividad()">Ver todo el historial</button>
             </div>
             <div id="act-estado" role="status" aria-live="polite" hidden style="padding:24px 12px;text-align:center;color:var(--text3)"></div>
             <table id="act-tabla">
@@ -5767,7 +5775,7 @@ Listo para analizar.
 <script src="./js/core/guarded-writes.js?v=3.13.19-labor"></script>
 <script src="./js/core/public-catalog-entry.js?v=3.11.8-catalog-entry"></script>
 <script src="./js/core/session-recovery.js?v=3.12.8-local-server"></script>
-<script src="./js/core/session-assets.js?v=3.13.19-insurance"></script>
+<script src="./js/core/session-assets.js?v=3.14.16-print"></script>
 <link rel="stylesheet" href="./css/user-access.css?v=3.11.9">
 <script src="./js/core/user-access.js?v=3.12.3"></script>
 <script src="./js/core/service-auth.js?v=3.12.20"></script>
@@ -5783,7 +5791,10 @@ Listo para analizar.
 <script src="./js/core/dashboard-personal-hours.v1.js"></script>
 <script src="./js/core/dashboard-personal-notices.v1.js"></script>
 <script src="./js/modules/dashboard-personal-notices.js?v=3.14.11"></script>
-<script src="./js/app.v3.14.15.js"></script>
+<script src="./js/core/print-layout.v1.js"></script>
+<script src="./js/core/activity-period.v1.js"></script>
+<script src="./js/core/dashboard-account-read.v1.js"></script>
+<script src="./js/app.v3.14.16.js"></script>
 <script src="./js/modules/bonus-concepts.js?v=3.14.6"></script>
 <script src="./js/modules/bonus-grant.js?v=3.14.6"></script>
 <script src="./js/modules/projects.js?v=3.14.3-demand"></script>
@@ -5808,7 +5819,7 @@ Listo para analizar.
 <script src="./js/modules/provider-verification.js?v=3.9.3"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
 <script src="./js/modules/surveys.js?v=3.13.19-insurance"></script>
-<script src="./js/core/data-query.js?v=2.0.154"></script>
+<script src="./js/core/data-query.js?v=3.14.16"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
 <div id="user-panel-overlay" style="display:none;position:fixed;inset:0;z-index:9990" onclick="cerrarUserPanel()"></div>
@@ -6199,7 +6210,7 @@ Listo para analizar.
 
 
 
-<script src="./js/modules/configuration-mobile.js?v=3.11.0-keyboard-v3.14.15"></script>
+<script src="./js/modules/configuration-mobile.js?v=3.11.0-keyboard-v3.14.16"></script>
 <script src="./js/modules/paraguay-config.js?v=3.12.20"></script>
 
 
@@ -6360,9 +6371,9 @@ Listo para analizar.
 <script src="./js/modules/performance-diagnostics.js?v=1"></script>
 <script src="./js/modules/distribuidora-sales-balance.js?v=3.13.19-insurance"></script><script src="./js/modules/exterior-user-lists.js?v=3.11.11-directory"></script><script src="./js/modules/public-catalog-requests.js?v=3.11.1-usd"></script><script src="./js/catalog-promotions.js?v=20261011-edit"></script><script src="./js/modules/catalog-order-periods-config.js?v=1"></script>
 <script src="./js/modules/catalog-promotions-config.js?v=3.13.3-context"></script>
-<script src="./js/modules/employee-cash-receipt.js?v=1"></script>
+<script src="./js/modules/employee-cash-receipt.js?v=3.14.16-print"></script>
 <script src="./js/modules/private-finance-portal.js?v=3.14.3-cycle"></script>
-<script src="./js/modules/serial-camera-scanner.js?v=3.12.10-encuadre"></script><script src="./js/modules/product-code-search.js?v=3.12.3"></script><script src="./js/modules/catalog-product-picker.js?v=3.12.3"></script><script src="./js/modules/distributor-documents.js?v=3.13.19-insurance"></script>
+<script src="./js/modules/serial-camera-scanner.js?v=3.12.10-encuadre"></script><script src="./js/modules/product-code-search.js?v=3.12.3"></script><script src="./js/modules/catalog-product-picker.js?v=3.12.3"></script><script src="./js/modules/distributor-documents.js?v=3.14.16-print"></script>
 <script src="./js/modules/dashboard-privacy.js?v=3.14.5"></script>
 <script src="./js/core/budget-presentation-model.js?v=3.13.19"></script>
 <script src="./js/modules/budget-presentation-view.js?v=3.13.19"></script>

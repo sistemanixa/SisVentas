@@ -99,6 +99,13 @@ test('Imprimir informe escapa campos y título, conservando saltos de línea com
 test('Informe no inserta un protocolo activo en la URL del logo y explica popup bloqueado',async()=>{
  const f=fixture();f.c.logoImpresionActualUrl=()=> 'javascript:alert(1)';const task=f.c.imprimirInforme();assert.ok(!f.popups[0].html.includes('javascript:'));f.fire(500);assert.equal(await task,true);f.c.open=()=>null;assert.equal(await f.c.imprimirInforme(),false);assert.match(f.notices.at(-1),/ventanas emergentes/);
 });
+
+for(const changed of [false,true])test('Informe espera recursos y no imprime tras cambiar la sesión: '+changed,async()=>{
+ const f=fixture();let finishResources;f.c.SVPrintLayout={ready:()=>new Promise(resolve=>{finishResources=resolve;})};
+ const task=f.c.imprimirInforme();f.fire(500);await settle();assert.equal(f.popups[0].printed,0);assert.equal(f.reads.length,0);assert.equal(f.transactions.length,0);
+ if(changed)f.c.fbAuth.currentUser={uid:'otro'};
+ finishResources();assert.equal(await task,!changed);assert.equal(f.popups[0].printed,changed?0:1);
+});
 for(const action of ['guardarEquipo','guardarInforme'])test('Un render fallido después de '+action+' no se informa como escritura rechazada',async()=>{
  const f=fixture(),task=f.c[action]('borrador');await settle();f.c.notify=()=>{throw Error('Vista ficticia fallida');};f.finish(0);assert.equal(await task,true);assert.equal(f.records.size,1);
 });
