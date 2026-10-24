@@ -41420,14 +41420,19 @@ function svPintarEstadoVacaciones() {
   if(!svVacacionesEnPrimerPlano()||!pagina?.classList.contains('active'))return;
   var state=window._vacLectura,permitido=svPuedeLeerDominio('vacaciones'),error=state?.active&&state.context.valid()&&state.status==='error';
   var mensaje=!permitido?'No tenés acceso a Vacaciones.':error?'No se pudieron cargar los períodos.':'Cargando períodos de vacaciones…';
-  var retry=error?' <button type="button" class="btn btn-sm" onclick="svReintentarVacaciones()">Reintentar</button>':'';
-  [['vac-tbody',8],['vac-periodos-tbody',6]].forEach(function(entry,index){var el=document.getElementById(entry[0]);if(el)el.innerHTML='<tr><td colspan="'+entry[1]+'" role="status" style="text-align:center;color:var(--text3);padding:24px">'+mensaje+(index===0?retry:'')+'</td></tr>';});
-  ['vac-total','vac-pendientes','vac-activas'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='—';});
+  var retry=error?'<button type="button" class="btn btn-sm" style="margin-top:12px" onclick="svReintentarVacaciones()">Reintentar</button>':'';
+  ['vac','vac-periodos'].forEach(function(id,index){
+    var estado=document.getElementById(id+'-estado'),tabla=document.getElementById(id+'-tabla'),body=document.getElementById(id==='vac'?'vac-tbody':'vac-periodos-tbody');
+    if(estado){estado.hidden=false;estado.innerHTML='<div>'+mensaje+'</div>'+(index===0?retry:'');}
+    if(tabla)tabla.style.display='none';if(body)body.innerHTML='';
+  });
+  ['vac-total','vac-pendientes','vac-activas'].forEach(function(id){var el=document.getElementById(id);if(el){el.textContent='—';var metric=el.closest('.metric'),sub=metric?.querySelector('.m-sub');if(sub)sub.textContent='—';if(metric)metric.removeAttribute('title');}});
 }
 function svVacacionesListaPreparada() {
   var state=window._vacLectura,pagina=document.getElementById('page-vacaciones');
   if(!svVacacionesEnPrimerPlano()||!pagina?.classList.contains('active'))return false;
   if(!state?.active||!state.context.valid()||!state.context.completa||state.status!=='ready'){svPintarEstadoVacaciones();return false;}
+  ['vac','vac-periodos'].forEach(function(id){var estado=document.getElementById(id+'-estado'),tabla=document.getElementById(id+'-tabla');if(estado){estado.hidden=true;estado.innerHTML='';}if(tabla)tabla.style.display='';});
   return true;
 }
 function svRepintarVacaciones() {

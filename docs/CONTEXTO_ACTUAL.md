@@ -1,5 +1,16 @@
 # Continuidad de SisVentas
 
+## Vacaciones · candidata v3.14.14 lista para publicación autorizada · 24/10/2026
+
+- Pedido humano directo: terminar QA visual de Vacaciones, publicar esa mejora y luego continuar listados lentos, sin datos reales/sincronización/comisiones alterados. Publicador exclusivo coordinado con «Abrir SisVentas en ventana nueva». Se conservan las reservas12/13 separadas y bloqueadas: no forman parte de14, que parte del código11 publicado.
+- Corregido el pendiente320px: carga/error y Reintentar viven fuera de la tabla horizontal; filas anteriores retiradas y tablas ocultas hasta ready. Un solo reintento manual; KPI y subtítulos/tooltips antiguos se retiran mientras no hay datos confirmados. Vacío confirmado conserva las tablas y saldos calculados. No cambian los guardados ni el historial.
+- App final SHA256 `c854506882e69f15090adbb847f388e55dd49646927127db194e4eb6d28ef0dd`. QA aislada real de los renderers/markup/CSS, SDK/personas ficticios y CSP sin conexiones:320/390/768/1280, carga/vacío/historia2016/2030/error/reintento/Enter, sin desborde, sin erroresJS ni tráfico externo. Una escucha hasta error, segunda sólo al reintentar. Capturas/acta privadas `tmp/listings-next-private/vacaciones14-ui`.
+- Puerta final de publicación:4.946PASS/27opt-in/0fallos,4.973total,73,66s; sintaxis/diff y script oficial `-ValidarLocal14` correctos.26 pruebas de fuente incluyen estados exteriores y limpieza/restauración de KPI; revisión independiente previa92focales y138 funciones sensibles byteidénticas11, incluidos pagos/comisiones/guardados/OT/cálculos. El ajuste posterior sólo cambia presentación de estado. La comparación ficticia previa6GET→0 conserva1escucha; no es una medición de factura o latencia productiva.
+- Preflight24 confirmó Hosting `557cd960d5d66e77`, web/aviso11 y configuración exacta sin cambios. Evidencia privada `tmp/v31414-release`. La pestaña IAB está en error de acceso y el control del navegador rechazó observarla; no se reintentó por otro navegador. Se pidió al titular reabrirla para QA de sesión, sin frenar los controles de estáticos/fixture. No atribuir QA productiva de Vacaciones a una sesión inaccesible.
+- Antes de aplicar Hosting falta commit/push limpio y verificación finitaHTTP; aviso oficial sólo después. No servidor/reglas/índices/IAM/DNS/flags ni operaciones comerciales. La próxima mejora identificada es compartir lecturas pendientes de Configuración→Actividad, aún sin implementar/publicar.
+
+Los apartados anteriores siguientes conservan la secuencia y sus pendientes de aquel momento; este encabezado define el estado actual.
+
 ## Continuación de listados · candidata v3.14.14 preservada, QA pendiente · 23/10/2026
 
 - Pedido humano directo: publicar11 y después seguir los listados lentos, sin tocar datos reales ni romper sincronización/comisiones. Rama aislada `codex/listados-vacaciones-v31414`, base11 `963b333fdf13281a722bd94e8d4177c3527594cb` y constancia11 `a2207d88`.12/13 permanecen separadas.14 calculada con el script oficial después de las reservas12/13; NO se publica ni cambia el espejo8766 por este trabajo.

@@ -1,5 +1,20 @@
 # Lectura compartida de Vacaciones
 
+## Revisión final y publicación autorizada · 24/10/2026
+
+El titular autorizó terminar la revisión y publicar sólo esta mejora. Se resolvió
+la presentación móvil: carga/error/reintento fuera de la tabla horizontal,
+filas antiguas retiradas, KPI/subtítulos/tooltips desconocidos neutralizados y
+tablas restauradas al recibir datos válidos. No cambia el orden ni los cálculos.
+
+QA aislada de fuente real con datos ficticios y conexiones bloqueadas en
+320/390/768/1280: carga, vacío, historia2016/2030, error, reintento y Enter
+correctos, sin desborde ni erroresJS. Fuente final `c8545068…`; puerta final
+4.946PASS/27opt-in/0fallos. Las capturas/acta privadas están en
+`tmp/listings-next-private/vacaciones14-ui`. Pruebas funcionales nuevas cubren
+la limpieza de nombres anteriores y el reintento único; no son operaciones
+productivas. El estado externo y cierre exacto constan en CONTEXTO_ACTUAL.md.
+
 ## Alcance de la candidata14
 
 Continuación autorizada después de publicar la3.14.11: corregir consultas
