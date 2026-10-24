@@ -1,6 +1,6 @@
 # Lectura compartida de Vacaciones
 
-## Revisión final y publicación autorizada · 24/10/2026
+## Publicada y verificada · 24/10/2026
 
 El titular autorizó terminar la revisión y publicar sólo esta mejora. Se resolvió
 la presentación móvil: carga/error/reintento fuera de la tabla horizontal,
@@ -14,6 +14,13 @@ correctos, sin desborde ni erroresJS. Fuente final `c8545068…`; puerta final
 `tmp/listings-next-private/vacaciones14-ui`. Pruebas funcionales nuevas cubren
 la limpieza de nombres anteriores y el reintento único; no son operaciones
 productivas. El estado externo y cierre exacto constan en CONTEXTO_ACTUAL.md.
+
+Fuente publicada `9ba46ecd988493d4acd4653effca65bb3568db29`, Hosting
+`b3cb1fb37d3a5647`:439 activos/4cargas,14hashesHTTP/mirror/7cabeceras/6privadas404
+correctos; marcador oficial14 confirmado después. Sin servidor ni reglas nuevas.
+La sesión productiva en IAB sigue pendiente porque la pestaña está en error y el
+control del navegador rechazó observarla. No se usó otra superficie ni se borró
+navegación. QA de los datos y cálculos se limita a fixtures ficticias descritas.
 
 ## Alcance de la candidata14
 
