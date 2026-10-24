@@ -15,7 +15,112 @@
     return String(valor == null ? '' : valor).replace(/[&<>"']/g, function (c) { return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]; });
   }
 
+
+  function commissionPresentation(){return window.SVCommissionPresentation;}
+  function commissionCaption(record){var api=commissionPresentation();return api&&typeof api.caption==='function'?api.caption(record):'Comisión';}
+  function realCommissionAdmin(){return String(window.currentRole||'').toLowerCase()==='admin'&&!window._impersonacionOriginal&&typeof window.permisoModulo==='function'&&window.permisoModulo('comisiones');}
+
+  function ownCommissionItems(items){
+    var own=typeof window.svEmpleadoPropio==='function'?window.svEmpleadoPropio():null,key=String(own&&(own.fbKey||own.id)||'');if(!key)return [];
+    return items.filter(function(g){
+      var first=String(g.empleadoFbKey||''),second=String(g.empleadoId||''),legacy=String(g.legacyKey||'').match(/^ctaemp\/([^/]+)\/[^/]+$/),owner=first||second||(legacy&&legacy[1])||'';
+      if(first&&second&&first!==second||owner!==key)return false;
+      var state=typeof window._ctaEmpEstadoDesdeGasto==='function'?window._ctaEmpEstadoDesdeGasto(g):String(estado(g)||'').toLowerCase();
+      return ['aprobado','pagado','pagado_parcial'].indexOf(state)>=0||state==='pendiente_pago'&&!!(g.aprobadoTs||g.aprobadoPor||g.fechaAprobacion);
+    });
+  }
+  var ultimaListaPersonal=null,ultimoDetallePersonal=null;
+  function estadoDatosComisionesPersonales(){
+    var own=window.svEmpleadoPropio&&window.svEmpleadoPropio(),role=window.currentRole,view=window._impersonacionOriginal;
+    return {ready:window._gastosDataReady,error:window._gastosCargaError,origin:window._ctaEmpGastosOrigen,sourceReady:fuenteComisionesLista(),management:gestionDelegadaComisiones(),approval:!!(window.tienePermiso&&window.tienePermiso('comisiones.aprobar')),payment:!!(window.tienePermiso&&window.tienePermiso('gastos.pagar')),auth:window.fbAuth&&window.fbAuth.currentUser,authUid:window.fbAuth&&window.fbAuth.currentUser&&window.fbAuth.currentUser.uid,uid:window.currentUserUid,role:role,view:view,profile:view&&view.usuarioFbKey,employeeId:String(own&&(own.fbKey||own.id)||''),revision:window.PERMISOS_ROLES&&window.PERMISOS_ROLES[role]&&window.PERMISOS_ROLES[role].indiceRevision,permissions:JSON.stringify(window.PERMISOS_ROLES&&window.PERMISOS_ROLES[role]||null),epoch:window._svOperacionesSesionEpoch||0,dataEpoch:window._svDataEpoch||0,data:window.gastosData};
+  }
+  function mismosDatosComisionesPersonales(first,second){return !!first&&Object.keys(second).every(function(key){return first[key]===second[key];});}
+  function gestionDelegadaComisiones(){
+    var role=String(window.currentRole||'').trim(),config=window.PERMISOS_ROLES&&window.PERMISOS_ROLES[role],known=['admin','administrativo','vendedor','tecnico','tecnico_vendedor'].indexOf(role)>=0||!!(config&&typeof config==='object'&&!Array.isArray(config));
+    if(!role||!known||typeof window.tienePermiso!=='function'||typeof window.permisoModulo!=='function')return false;
+    var page=typeof document.querySelector==='function'&&document.querySelector('.page.active'),name=page&&String(page.id||'').replace(/^page-/,'');if(['gastos','comisiones','ctaemp'].indexOf(name)<0)name='comisiones';
+    return window.permisoModulo(name)&&(window.tienePermiso('comisiones.aprobar')||window.tienePermiso('gastos.pagar'));
+  }
+  function fuenteComisionesLista(){var origin=window._ctaEmpGastosOrigen;return window._gastosDataReady!==false&&!window._gastosCargaError&&(!origin||typeof origin.valid==='function'&&origin.valid());}
+  function itemsDetalleSeguro(items){if(!fuenteComisionesLista())return [];return gestionDelegadaComisiones()?items.filter(esComision):ownCommissionItems(items);}
+  function accionesGestionComision(g){
+    if(!gestionDelegadaComisiones())return '';var state=estado(g),key=esc(g.fbKey),buttons=[];
+    if(window.tienePermiso('comisiones.aprobar')){
+      if(state==='pendiente_aprobacion')buttons.push('<button class="btn btn-sm" onclick="aprobarComisionGestion(\''+key+'\')">Aprobar</button>');
+      if(state==='pendiente_aprobacion'||state==='pendiente_pago')buttons.push('<button class="btn btn-sm" onclick="rechazarComisionGestion(\''+key+'\')">'+(state==='pendiente_pago'?'Revertir aprobación':'Rechazar')+'</button>');
+      if(state==='rechazado')buttons.push('<button class="btn btn-sm" onclick="rehabilitarComision(\''+key+'\')">Rehabilitar</button>');
+    }
+    if(window.tienePermiso('gastos.pagar')&&['pendiente_pago','pagado_parcial','aprobado'].indexOf(state)>=0&&typeof window.abrirPagoGasto==='function')buttons.push('<button class="btn btn-sm" onclick="abonarComisionGestion(\''+key+'\')">Abonar</button>');
+    return buttons.join(' ');
+  }
+  function abonarComisionGestion(key){
+    if(!gestionDelegadaComisiones()||!window.tienePermiso('gastos.pagar')||typeof window.abrirPagoGasto!=='function')return;
+    var g=(window.gastosData||[]).find(function(item){return item.fbKey===key;});if(!g||!esComision(g)||['pendiente_pago','pagado_parcial','aprobado'].indexOf(estado(g))<0)return;
+    cerrarDetalleComision();return window.abrirPagoGasto(key);
+  }
+  var adminTableHeader=null;
+  function commissionTableHeader(personal){
+    var table=document.getElementById('comisiones-tbl'),head=table&&typeof table.querySelector==='function'&&table.querySelector('thead');if(!head)return;
+    if(adminTableHeader===null)adminTableHeader=head.innerHTML;
+    head.innerHTML=personal?'<tr><th>Venta</th><th>Cliente</th><th>Comisión</th>'+(gestionDelegadaComisiones()?'<th>Empleado</th><th>Estado</th><th>Acciones</th>':'')+'</tr>':adminTableHeader;
+  }
+  function personalCommissionRow(g){
+    var api=commissionPresentation(),id=api&&typeof api.saleId==='function'?api.saleId(g):'',client=id&&api&&typeof api.clientName==='function'?api.clientName(g):'',amount=parseFloat(g.monto);
+    var manage=gestionDelegadaComisiones();
+    return '<tr><td data-label="Venta">'+esc(id?'#'+id:'Comisión')+'</td><td data-label="Cliente">'+esc(client)+'</td><td data-label="Comisión"><strong>'+(Number.isFinite(amount)?moneda(amount):'Importe no disponible')+'</strong></td>'+(manage?'<td data-label="Empleado">'+esc(g.empleadoNombre||'Sin asignar')+'</td><td data-label="Estado">'+badgeEstado(estado(g))+'</td><td data-label="Acciones">'+accionesGestionComision(g)+'</td>':'')+'</tr>';
+  }
+  function renderPersonalCommissionList(){
+    commissionTableHeader(true);var body=document.getElementById('comisiones-tbody'),items=itemsDetalleSeguro((window.gastosData||[]).filter(esComision));
+    var own=window.svEmpleadoPropio&&window.svEmpleadoPropio();
+    var empty=window._gastosCargaError?'No se pudieron cargar las comisiones.':!fuenteComisionesLista()?'Cargando las comisiones…':own||gestionDelegadaComisiones()?'Sin comisiones confirmadas':'Esperando los datos de tu cuenta…';
+    if(body)body.innerHTML=items.length?items.map(personalCommissionRow).join(''):'<tr><td colspan="'+(gestionDelegadaComisiones()?6:3)+'" style="text-align:center;padding:24px;color:var(--text3)">'+empty+'</td></tr>';
+    ['pendientes','aprobadas','rechazadas','total'].forEach(function(id){var value=document.getElementById('com-kpi-'+id),sub=document.getElementById('com-kpi-'+id+'-sub');if(value)value.textContent='—';if(sub)sub.textContent='';});
+    ultimaListaPersonal=estadoDatosComisionesPersonales();
+  }
+  var detallePersonalFoco=null,detallePersonalClave='';
+  function prepararFocoDetallePersonal(){
+    var modal=document.getElementById('modal-comision-gestion');if(!modal||typeof modal.querySelectorAll!=='function')return;
+    if(detallePersonalFoco){if(!detallePersonalFoco.employeeId)detallePersonalFoco.employeeId=String((window.svEmpleadoPropio&&window.svEmpleadoPropio()||{}).fbKey||'');return;}
+    var opener=document.activeElement,role=window.currentRole,uid=window.currentUserUid,auth=window.fbAuth&&window.fbAuth.currentUser,authUid=auth&&auth.uid,view=window._impersonacionOriginal,epoch=window._svOperacionesSesionEpoch||0,check=typeof window.svCapturarContextoOperacion==='function'?window.svCapturarContextoOperacion():function(){return true;};
+    var state={modal:modal,opener:opener,employeeId:String((window.svEmpleadoPropio&&window.svEmpleadoPropio()||{}).fbKey||'')};
+    state.valid=function(){var own=window.svEmpleadoPropio&&window.svEmpleadoPropio();return check()&&role===window.currentRole&&uid===window.currentUserUid&&auth===(window.fbAuth&&window.fbAuth.currentUser)&&authUid===(auth&&auth.uid)&&view===window._impersonacionOriginal&&epoch===(window._svOperacionesSesionEpoch||0)&&(!state.employeeId||String(own&&own.fbKey||'')===state.employeeId);};
+    function controls(){return Array.from(modal.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter(function(el){return el.getClientRects().length&&!el.closest('[inert]');});}
+    state.keyboard=function(event){
+      if(detallePersonalFoco!==state||event.isComposing||event.defaultPrevented||modal.classList.contains('sv-modal-underlay')||!modal.contains(event.target))return;
+      if(!state.valid()){cerrarDetalleComision();return;}
+      if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();cerrarDetalleComision();return;}
+      if(event.key!=='Tab')return;
+      var items=controls(),first=items[0],last=items[items.length-1];
+      if(first&&(!modal.contains(document.activeElement)||event.shiftKey&&document.activeElement===first||!event.shiftKey&&document.activeElement===last)){event.preventDefault();(event.shiftKey?last:first).focus({preventScroll:true});}
+    };
+    detallePersonalFoco=state;document.addEventListener('keydown',state.keyboard,true);
+    var close=modal.querySelector('.modal-head button');if(close)close.setAttribute('aria-label','Cerrar comisión');
+    if(typeof window.svSincronizarPilaModales==='function')window.svSincronizarPilaModales();
+    var items=controls();if(items[0])items[0].focus({preventScroll:true});
+  }
+  function limpiarComisionesDeSesion(){
+    ultimaListaPersonal=null;ultimoDetallePersonal=null;cerrarDetalleComision();var body=document.getElementById('comisiones-tbody');if(body)body.innerHTML='';
+    ['pendientes','aprobadas','rechazadas','total'].forEach(function(id){var value=document.getElementById('com-kpi-'+id),sub=document.getElementById('com-kpi-'+id+'-sub');if(value)value.textContent='—';if(sub)sub.textContent='';});
+  }
+  function repintarComisionesPersonalesTrasDatos(){
+    if(detallePersonalFoco&&!detallePersonalFoco.valid()){cerrarDetalleComision();return;}
+    if(realCommissionAdmin()||document.hidden)return;
+    var state=estadoDatosComisionesPersonales(),page=typeof document.querySelector==='function'&&document.querySelector('.page.active');
+    if(page&&page.id==='page-comisiones'&&!mismosDatosComisionesPersonales(ultimaListaPersonal,state))renderPersonalCommissionList();
+    if(detallePersonalClave&&!mismosDatosComisionesPersonales(ultimoDetallePersonal,state)){var group=grupos().find(function(item){return item.clave===detallePersonalClave;});if(group)pintarDetallePersonal(group);else cerrarDetalleComision();}
+  }
+  function pintarDetallePersonal(group){
+    group=group||detalleActual;if(!group)return;
+    var title=document.getElementById('com-det-titulo'),sub=document.getElementById('com-det-sub'),info=document.getElementById('com-det-info'),items=itemsDetalleSeguro(group.items),api=commissionPresentation();
+    if(title)title.textContent='Comisión';if(sub)sub.textContent='';
+    if(info)info.innerHTML=items.length?'<table style="width:100%;border-collapse:collapse"><thead><tr><th>Venta</th><th>Cliente</th><th>Comisión</th>'+(gestionDelegadaComisiones()?'<th>Empleado</th><th>Estado</th><th>Acciones</th>':'')+'</tr></thead><tbody>'+items.map(personalCommissionRow).join('')+'</tbody></table>':'No se encontró una comisión confirmada de tu cuenta.';
+    ['com-det-participantes','com-det-agregar'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML='';});
+    var save=document.getElementById('com-det-guardar');if(save){save.disabled=true;save.style.display='none';}
+    prepararFocoDetallePersonal();ultimoDetallePersonal=estadoDatosComisionesPersonales();
+  }
+
   function esComision(gasto) {
+    var api=commissionPresentation();if(api&&typeof api.isCommission==='function')return api.isCommission(gasto);
     return String((gasto && (gasto.tipoPagable || gasto.origen || gasto.tipo)) || '').toLowerCase().indexOf('comisi') >= 0;
   }
 
@@ -172,6 +277,8 @@
     return window.svNavegarDirecto('ctaemp');
   }
   function renderModuloComisiones() {
+    if(!realCommissionAdmin()){cerrarDetalleComision();var notice=document.getElementById('comisiones-cuentas-anteriores');if(notice){if(typeof notice.remove==='function')notice.remove();else notice.innerHTML='';}renderPersonalCommissionList();return;}
+    commissionTableHeader(false);
     comprobarDetalleAbierto();
     var tbody = document.getElementById('comisiones-tbody');
     if (!tbody) return;
@@ -226,6 +333,8 @@
     var guardar = document.getElementById('com-det-guardar');
     if (guardar) guardar.disabled = true;
     if (modal) modal.style.display = 'flex';
+    if(!realCommissionAdmin()){detallePersonalClave=detalleActual.clave;pintarDetallePersonal();detalleActual=null;movimientosDetalle={};return;}
+    if(guardar)guardar.style.display='';
     try {
       var movimientos = await Promise.all(grupoCargando.items.map(cargarMovimiento));
       if (detalleActual !== grupoCargando) return;
@@ -243,6 +352,7 @@
 
   function pintarDetalle() {
     if (!detalleActual) return;
+    if(!realCommissionAdmin()){detallePersonalClave=detalleActual.clave;pintarDetallePersonal();detalleActual=null;movimientosDetalle={};return;}
     var maxPct = parseFloat((window.APROBACION_CONFIG && window.APROBACION_CONFIG.maxComisionPct) || 10) || 10;
     var titulo = document.getElementById('com-det-titulo'); if (titulo) titulo.textContent = 'Comisión ' + (detalleActual.ventaId || 'sin venta');
     var sub = document.getElementById('com-det-sub'); if (sub) sub.textContent = window.nombreClienteVigente ? window.nombreClienteVigente(detalleActual, 'Cliente no informado') : detalleActual.cliente || 'Cliente no informado';
@@ -305,7 +415,15 @@
     }, document.querySelector('[onclick*="detalle"]'));
   }
 
-  function cerrarDetalleComision() { var modal=document.getElementById('modal-comision-gestion'); if(modal) modal.style.display='none'; detalleActual=null; movimientosDetalle={}; }
+  function cerrarDetalleComision() {
+    var focus=detallePersonalFoco;detallePersonalFoco=null;detallePersonalClave='';
+    if(focus&&typeof document.removeEventListener==='function')document.removeEventListener('keydown',focus.keyboard,true);
+    var modal=document.getElementById('modal-comision-gestion');if(modal)modal.style.display='none';detalleActual=null;movimientosDetalle={};
+    ['com-det-info','com-det-sub','com-det-titulo','com-det-participantes','com-det-agregar'].forEach(function(id){var el=document.getElementById(id);if(el){el.innerHTML='';el.textContent='';}});
+    var save=document.getElementById('com-det-guardar');if(save){save.disabled=true;save.style.display='none';}
+    if(typeof window.svSincronizarPilaModales==='function')window.svSincronizarPilaModales();
+    if(focus&&focus.valid()&&focus.opener&&focus.opener.isConnected!==false&&!focus.opener.closest('[inert]'))focus.opener.focus({preventScroll:true});
+  }
 
   async function guardarDistribucionComision() {
     if (!detalleActual || guardandoDetalle || !window.tienePermiso('comisiones.distribuir')) return;
@@ -391,8 +509,10 @@
 
   window.actualizarBadgeComisiones=actualizarBadgeComisiones;
   document.addEventListener('sisventas:session-ready', actualizarBadgeComisiones);
+  document.addEventListener('sisventas:role-changed', limpiarComisionesDeSesion);
+  document.addEventListener('sisventas:data-state-changed', repintarComisionesPersonalesTrasDatos);
   document.addEventListener('sisventas:session-ended', function() {
-    cerrarDetalleComision();
+    limpiarComisionesDeSesion();
     var aviso = document.getElementById('comisiones-cuentas-anteriores'); if (aviso) aviso.remove();
     var badge = document.getElementById('badge-nav-comisiones');
     if (badge) { badge.textContent = '0'; badge.style.display = 'none'; }
@@ -402,6 +522,7 @@
   window.guardarDistribucionComision=guardarDistribucionComision; window.agregarParticipanteComision=agregarParticipanteComision; window.rehabilitarComision=rehabilitarComision;
   window.abrirComisionDesdeGasto=abrirComisionDesdeGasto; window.aprobarComisionGestion=aprobarComisionGestion; window.rechazarComisionGestion=rechazarComisionGestion;
   window.actualizarResumenMargenComision=actualizarResumenMargenComision; window.abrirVentaDesdeComisiones=abrirVentaDesdeComisiones;
+  window.abonarComisionGestion=abonarComisionGestion;
   window.filtrarComisionesPorEstado=filtrarComisionesPorEstado;
   window.verCuentasAnterioresComisiones=verCuentasAnterioresComisiones;
   // Si la aplicación entró directamente por #/comisiones, showPage puede

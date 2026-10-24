@@ -1,8 +1,8 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 function setup(items,inputs){
  const messages=[];let writes=0;const data={gastos:Object.fromEntries(items.map(g=>{const v={...g};delete v.fbKey;return [g.fbKey,v]}))};
- const w={currentUserUid:'u',currentUser:'Admin',gastosData:items,empData:{},APROBACION_CONFIG:{maxComisionPct:10},tienePermiso:()=>true,fbDB:{},fbRef:(_,p)=>p,fbGet:async()=>({val:()=>data}),fbRunTransaction:async(_,fn)=>{const next=fn(data);if(next===undefined)return{committed:false};writes++;Object.assign(data,next);return{committed:true,snapshot:{val:()=>data}};},notify:m=>messages.push(m)};
- const button={disabled:false,innerHTML:'Guardar distribución'};
+ const w={currentUserUid:'u',currentUser:'Admin',currentRole:'admin',permisoModulo:()=>true,gastosData:items,empData:{},APROBACION_CONFIG:{maxComisionPct:10},tienePermiso:()=>true,fbDB:{},fbRef:(_,p)=>p,fbGet:async()=>({val:()=>data}),fbRunTransaction:async(_,fn)=>{const next=fn(data);if(next===undefined)return{committed:false};writes++;Object.assign(data,next);return{committed:true,snapshot:{val:()=>data}};},notify:m=>messages.push(m)};
+ const button={disabled:false,innerHTML:'Guardar distribución',style:{}};
  const document={addEventListener(){},getElementById:id=>id==='com-det-guardar'?button:null,querySelectorAll:()=>inputs.map(x=>({dataset:{gasto:x.key},value:String(x.pct)}))};
  const svc=require('../cotizador/commission-operations').createCommissionOperations({auth:{},db:{},transaction:async fn=>{const next=fn(structuredClone(data));if(!next)return {committed:false};writes++;Object.assign(data,next);return {committed:true};}});
  w.SVServiceAuth={headers:async h=>h};

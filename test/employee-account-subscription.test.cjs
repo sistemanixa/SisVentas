@@ -55,22 +55,31 @@ function data(){
   foreign:{empleadoId:'other',monto:99999,estado:'pagado',fecha:'2026-10-01'}};
  return{cta,gastos};
 }
+function expectedPrivateLabels(view){
+ const result=structuredClone(view),presentation=require('../js/core/commission-presentation.v1.js');
+ const esc=value=>String(value??'').replace(/[&<>\"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[char]));
+ for(const record of result.rows.concat(result.duplicates)){if(!presentation.isCommission(record))continue;const before=esc(record.descripcion||record.desc||record.detalle||''),after=esc(presentation.caption(record));for(const key of ['html','paymentHTML'])if(before)result[key]=result[key].split('>'+before+'<').join('>'+after+'<');}
+ return result;
+}
+
 test('la proyección compartida conserva los helpers monetarios y de membresía publicados10',()=>{
  assert.match(extract(active,'svAplicarCtaEmpDesdeSnapshot'),/svProyectarCTA\(data,empFbKey\)/);
  assert.match(extract(active,'renderDashMiCuenta'),/svRepintarCuentaDashboard\(\)/);
  assert.match(extract(active,'svRepintarCuentaDashboard'),/svPintarCuentaDashboard\(state.data\|\|\{\},key\)/);
  assert.match(extract(active,'svPintarCuentaDashboard'),/svProyectarCTA\(data,empFbKey\)/);
- for(const name of ['_movEmpTotalPagado','_movEmpSaldoPendiente','_ctaEmpMovimientoLegacyDuplicadoPorGasto','_ctaEmpEstadoDesdeGasto','_ctaEmpPagosRealizadosEnMes'])assert.equal(extract(active,name),extract(baseline,name),name);
+ for(const name of ['_movEmpTotalPagado','_movEmpSaldoPendiente','_ctaEmpMovimientoLegacyDuplicadoPorGasto','_ctaEmpEstadoDesdeGasto'])assert.equal(extract(active,name),extract(baseline,name),name);
+ const expectedPaymentHelper=extract(baseline,'_ctaEmpPagosRealizadosEnMes').split("concepto: m.descripcion || m.desc || m.detalle || ''").join('concepto: svDescripcionMovimientoVisible(m)');
+ assert.equal(extract(active,'_ctaEmpPagosRealizadosEnMes'),expectedPaymentHelper,'Sólo cambia la etiqueta pública; aritmética/selección/orden/anulados permanecen byteidénticos');
 });
 test('paridad rica10/11 de registros/orden/HTML/KPI y todos los filtros sin escribir ni recortar',()=>{
  const input=data(),before=structuredClone(input),old=fixture(baseline,{manager:true}),next=fixture(active,{manager:true});
  for(const f of [old,next]){f.deliverGastos(input.gastos);f.c.cargarCtaEmp('e');f.deliverCTA(input.cta);}
  assert.equal(next.c._ctaEmpLectura.status,'ready');assert.ok(next.c.movsEmpData.length>5);
  assert.match(next.el('ctaemp-tbody').innerHTML,/class="ctaemp-periodo-descuento"[^>]*>Descuento: octubre de 2026/);
- assert.deepEqual(next.output(),old.output());
+ assert.deepEqual(next.output(),expectedPrivateLabels(old.output()));
  for(const period of ['actual','anterior','todos','pendientes'])for(const type of ['','comision','bonificacion','hextra'])for(const state of ['','aprobado','pagado_parcial','pagado']){
   for(const f of [old,next]){f.el('ctaemp-filtro-tipo').value=type;f.el('ctaemp-filtro-estado').value=state;f.c.setCtaEmpPeriodo(period);}
-  const expected=old.output();
+  const expected=expectedPrivateLabels(old.output());
   // This fixture delivered its advance in September: the new authorized rule
   // starts deducting it in October, while every payment/row stays unchanged.
   if(period==='anterior'){expected.kpi[3]='$34,03';assert.equal(next.c._adelantoDescontableEnMes(input.cta.advance,'2026-09'),false);}
@@ -83,7 +92,7 @@ test('mismo guion: tres entregas Gastos conservan la cuenta sin recrear su escuc
  for(const source of [baseline,active]){const f=fixture(source,{manager:true});f.c.cargarCtaEmp('e');f.deliverCTA(input.cta);f.c.fbCargarGastos();
   const states=[];for(let i=0;i<3;i++){const gastos=structuredClone(input.gastos);gastos.reimburse.pagos.live.monto=10+i;f.deliverGastos(gastos);if(source===baseline)f.deliverCTA(input.cta);states.push(f.output());}
   results.push({states,registrations:f.cta().length,stops:f.cta().reduce((sum,row)=>sum+row.stops,0),writes:f.writes});}
- assert.deepEqual(results[1].states,results[0].states);assert.equal(results[0].registrations,7);assert.equal(results[1].registrations,1);assert.equal(results[1].stops,0);assert.deepEqual(results[1].writes,[]);
+ assert.deepEqual(results[1].states,results[0].states.map(expectedPrivateLabels));assert.equal(results[0].registrations,7);assert.equal(results[1].registrations,1);assert.equal(results[1].stops,0);assert.deepEqual(results[1].writes,[]);
 });
 for(const order of ['CTA-first','Gastos-first'])test(order+' espera ambas fuentes, distingue error/vacío y conserva un solo listener',()=>{
  const f=fixture(active,{ready:false}),input=data();f.c.cargarCtaEmp('e');f.c.fbCargarGastos();

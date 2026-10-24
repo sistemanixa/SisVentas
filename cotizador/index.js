@@ -2,6 +2,7 @@ const { normalizarFicha, fichaDesdeApi, extraerFichaPagina, validarUrlFicha, ide
 const http = require('http');
 const crypto = require('crypto');
 const {sendCommercial}=require('./commercial-response');
+const commissionPublic=require('./commission-public-response');
 const { adquirirNavegador } = require('./navegador-compartido');
 const { crearCache, claveConsulta } = require('./consulta-cache');
 const cacheConsultas = crearCache();
@@ -2118,8 +2119,8 @@ const server = http.createServer(async (req, res) => {
       const actor=await commissionGeneration.authorize(req),body=await readBody(req,4096);
       if(Object.keys(body||{}).some(k=>!['ventaFbKey','digest'].includes(k)))throw Object.assign(Error('Solicitud inválida'),{statusCode:400});
       const result=pathname.endsWith('/revisar')?await commissionGeneration.inspect(actor,body.ventaFbKey):await commissionGeneration.generate(actor,body);
-      send(res,200,{ok:true,...result});
-    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'La generación quedó pendiente de reintento seguro'});}
+      send(res,200,{ok:true,...commissionPublic.response(result)});
+    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:commissionPublic.errorMessage(e)});}
     return;
   }
   if(['/laboral/capacidades','/laboral/gastos/crear-administrativo','/cobranzas/operacion'].includes(pathname)){

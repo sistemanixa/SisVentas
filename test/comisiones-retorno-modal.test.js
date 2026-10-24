@@ -8,7 +8,7 @@ function entorno(origen = 'gastos') {
   const modal = {style:{display:'none'}};
   const pagina = {id:'page-' + origen};
   const calls = [];
-  const window = {gastosData:[{fbKey:'g1',tipo:'comision',ventaId:'V1',monto:100}],
+  const window = {currentRole:'admin',permisoModulo:()=>true,gastosData:[{fbKey:'g1',tipo:'comision',ventaId:'V1',monto:100}],
     showPage(){throw new Error('No debe cambiar de módulo al consultar');},
     notify(m){calls.push(m);}, irAVentaDesdeGastoComision(key){calls.push(key);},
     svNavegarDirecto(id, callback){calls.push(id);callback();},

@@ -1,22 +1,23 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {load}=require('./helpers/app-functions.cjs');
+const CommissionPresentation=require('../js/core/commission-presentation.v1.js');
 
 function setup(records,manager=true) {
  const elements=new Map(),reads=[],writes=[],alerts=[],messages=[];
  const el=id=>{if(!elements.has(id))elements.set(id,{id,style:{},value:'',textContent:'',innerHTML:'',className:''});return elements.get(id);};
- const context={window:{_ctaEmpVista:'pendientes',_ctaEmpPeriodoOffset:0,tienePermiso:p=>manager&&p==='empleados.verCuentas',permisoModulo:()=>true,svAlert:(message,options)=>{alerts.push({message,options});return Promise.resolve(true);},fbGet:p=>{reads.push(p);throw Error('Sin nuevas lecturas');},fbSet:(...a)=>{writes.push(a);throw Error('Sin escrituras');},fbUpdate:(...a)=>{writes.push(a);throw Error('Sin escrituras');}},document:{getElementById:el},isAuthenticated:true,currentUserUid:'fixture-user',ctaEmpActual:'fixture-e',empData:{},movsEmpData:structuredClone(records),gastosData:[],svEmpleadoPropio:()=>({fbKey:'fixture-e'}),_mesSistema:offset=>offset===-1?'2026-09':'2026-10',_buscarGastoRelacionadoMovEmp:()=>null,_renderPagosRealizadosEmp(){},_ctaEmpPagosRealizadosEnMes:()=>[],_ctaEmpAdelantosPendientes:()=>[],_ctaEmpAdelantosAplicadosEnMes:()=>[],renderComisionesDelMes(){},_puedeAprobarMovEmp:()=>false,_ctaEmpDescripcionHaberConDescuento:(_m,desc)=>String(desc),escapeHTML:v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),notify:m=>messages.push(m)};
- load(context,['_fechaCalendarioLocal','_fechaMes','_fechaEnMes','_ctaEmpNormalizarTxt','_ctaEmpFechaLocalDesdeTs','_ctaEmpFechaMovimiento','_ctaEmpEsCargo','_ctaEmpEsSueldoMovimiento','_movEmpPagosArray','pagoGastoEstaAnulado','_movEmpTotalPagado','_movEmpSaldoPendiente','_movEmpEstadoCalculado','_movEmpEstaPagado','_movEmpEsCobrable','_movEmpEnPeriodo','_ctaEmpMovHastaPeriodo','_ctaEmpMovVisibleParaRol','_movEmpFechaVisual','_ctaEmpPeriodoMes','ctaEmpPesos','renderMovsEmp','setCtaEmpPeriodo','verDetalleMovEmp']);
+ const context={window:{SVCommissionPresentation:CommissionPresentation,_ctaEmpVista:'pendientes',_ctaEmpPeriodoOffset:0,tienePermiso:p=>manager&&p==='empleados.verCuentas',permisoModulo:()=>true,svAlert:(message,options)=>{alerts.push({message,options});return Promise.resolve(true);},fbGet:p=>{reads.push(p);throw Error('Sin nuevas lecturas');},fbSet:(...a)=>{writes.push(a);throw Error('Sin escrituras');},fbUpdate:(...a)=>{writes.push(a);throw Error('Sin escrituras');}},document:{getElementById:el},isAuthenticated:true,currentUserUid:'fixture-user',ctaEmpActual:'fixture-e',empData:{},movsEmpData:structuredClone(records),gastosData:[],svEmpleadoPropio:()=>({fbKey:'fixture-e'}),_mesSistema:offset=>offset===-1?'2026-09':'2026-10',_buscarGastoRelacionadoMovEmp:()=>null,_renderPagosRealizadosEmp(){},_ctaEmpPagosRealizadosEnMes:()=>[],_ctaEmpAdelantosPendientes:()=>[],_ctaEmpAdelantosAplicadosEnMes:()=>[],renderComisionesDelMes(){},_puedeAprobarMovEmp:()=>false,_ctaEmpDescripcionHaberConDescuento:(_m,desc)=>String(desc),escapeHTML:v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),notify:m=>messages.push(m)};
+ load(context,['svEsComisionMovimiento','svDescripcionMovimientoVisible','_fechaCalendarioLocal','_fechaMes','_fechaEnMes','_ctaEmpNormalizarTxt','_ctaEmpFechaLocalDesdeTs','_ctaEmpFechaMovimiento','_ctaEmpEsCargo','_ctaEmpEsSueldoMovimiento','_movEmpPagosArray','pagoGastoEstaAnulado','_movEmpTotalPagado','_movEmpSaldoPendiente','_movEmpEstadoCalculado','_movEmpEstaPagado','_movEmpEsCobrable','_movEmpEnPeriodo','_ctaEmpMovHastaPeriodo','_ctaEmpMovVisibleParaRol','_movEmpFechaVisual','_ctaEmpPeriodoMes','ctaEmpPesos','renderMovsEmp','setCtaEmpPeriodo','verDetalleMovEmp']);
  load(context,['_ctaEmpMostrarComisionAnterior','_adelantoMesSiguiente','_adelantoPeriodoDescuento','_adelantoDescontableEnMes']);
  return {context,el,reads,writes,alerts,messages};
 }
-const commission=(key,changes={})=>({fbKey:key,_fuente:'ctaemp',tipo:'comision',fecha:'2025-02-10',descripcion:'Comisión histórica ficticia',estado:'pagado',monto:123.45,montoPagado:123.45,pct:3.5,gananciaBase:3527.142857,aprobadoPor:'Autor original',aprobadoTs:1000,...changes});
+const commission=(key,changes={})=>({fbKey:key,_fuente:'ctaemp',tipo:'comision',fecha:'2025-02-10',descripcion:'Comisión histórica ficticia',ventaId:'#V-'+key,cliente:'Cliente '+key,estado:'pagado',monto:123.45,montoPagado:123.45,pct:3.5,gananciaBase:3527.142857,aprobadoPor:'Autor original',aprobadoTs:1000,...changes});
 
 test('Todo el historial muestra una comisión pagada anterior al mes pasado con render real',()=>{
  const h=setup([commission('fixture-old')]),before=JSON.stringify(h.context.movsEmpData);
- for(const period of ['pendientes','actual','anterior']){h.context.setCtaEmpPeriodo(period);assert.doesNotMatch(h.el('ctaemp-tbody').innerHTML,/Comisión histórica ficticia/);}
+ for(const period of ['pendientes','actual','anterior']){h.context.setCtaEmpPeriodo(period);assert.doesNotMatch(h.el('ctaemp-tbody').innerHTML,/Venta #V-fixture-old · Cliente fixture-old/);}
  h.context.setCtaEmpPeriodo('todos');
- assert.match(h.el('ctaemp-tbody').innerHTML,/Comisión histórica ficticia/);
+ assert.match(h.el('ctaemp-tbody').innerHTML,/Venta #V-fixture-old · Cliente fixture-old/);
  assert.match(h.el('ctaemp-tbody').innerHTML,/10\/02\/2025/);
  assert.match(h.el('ctaemp-tbody').innerHTML,/123,45/);
  assert.match(h.el('ctaemp-tbody').innerHTML,/>Pagado</);
@@ -30,17 +31,17 @@ test('Historial conserva filtros de tipo y estado sin traer otras cuentas ni cam
  h.context.setCtaEmpPeriodo('actual');const summary=h.el('ctaemp-periodo').textContent;
  h.el('ctaemp-filtro-tipo').value='comision';h.el('ctaemp-filtro-estado').value='pagado';
  h.context.setCtaEmpPeriodo('todos');
- assert.match(h.el('ctaemp-tbody').innerHTML,/Comisión histórica ficticia/);
- assert.doesNotMatch(h.el('ctaemp-tbody').innerHTML,/Comisión aprobada ficticia|Horas ficticias/);
+ assert.match(h.el('ctaemp-tbody').innerHTML,/Venta #V-fixture-paid · Cliente fixture-paid/);
+ assert.doesNotMatch(h.el('ctaemp-tbody').innerHTML,/Venta #V-fixture-unpaid|Comisión aprobada ficticia|Horas ficticias/);
  assert.equal(h.el('ctaemp-periodo').textContent,summary);assert.deepEqual(h.reads,[]);assert.deepEqual(h.writes,[]);
 });
 
 test('Historial respeta la visibilidad de pendientes/rechazados para el empleado',()=>{
  const h=setup([commission('paid',{descripcion:'Pagada propia'}),commission('pending',{descripcion:'Pendiente privada',estado:'pendiente',montoPagado:0}),commission('rejected',{descripcion:'Rechazada privada',estado:'rechazado',montoPagado:0}),commission('approved',{descripcion:'Aprobada propia',estado:'aprobado',montoPagado:0})],false);
  h.context.setCtaEmpPeriodo('todos');
- assert.match(h.el('ctaemp-tbody').innerHTML,/Pagada propia/);
- assert.match(h.el('ctaemp-tbody').innerHTML,/Aprobada propia/);
- assert.doesNotMatch(h.el('ctaemp-tbody').innerHTML,/Pendiente privada|Rechazada privada/);
+ assert.match(h.el('ctaemp-tbody').innerHTML,/Venta #V-paid · Cliente paid/);
+ assert.match(h.el('ctaemp-tbody').innerHTML,/Venta #V-approved · Cliente approved/);
+ assert.doesNotMatch(h.el('ctaemp-tbody').innerHTML,/Venta #V-pending|Venta #V-rejected|Pendiente privada|Rechazada privada/);
  assert.deepEqual(h.reads,[]);assert.deepEqual(h.writes,[]);
 });
 
@@ -49,18 +50,21 @@ test('La opción concreta del selector abre historial y volver a mes actual cons
  const button=html.match(/<button[^>]*id="ctaemp-btn-historial"[^>]*onclick="setCtaEmpPeriodo\('([^']+)'\)"[^>]*>Todo el historial<\/button>/);
  assert.ok(button,'Falta el control de historial de la cuenta');
  const h=setup([commission('fixture-old'),commission('fixture-current',{fecha:'2026-10-12',descripcion:'Comisión actual ficticia'})]);
- h.context.setCtaEmpPeriodo(button[1]);assert.match(h.el('ctaemp-tbody').innerHTML,/Comisión histórica ficticia/);
- h.context.setCtaEmpPeriodo('actual');assert.doesNotMatch(h.el('ctaemp-tbody').innerHTML,/Comisión histórica ficticia/);assert.match(h.el('ctaemp-tbody').innerHTML,/Comisión actual ficticia/);
+ h.context.setCtaEmpPeriodo(button[1]);assert.match(h.el('ctaemp-tbody').innerHTML,/Venta #V-fixture-old · Cliente fixture-old/);
+ h.context.setCtaEmpPeriodo('actual');assert.doesNotMatch(h.el('ctaemp-tbody').innerHTML,/Venta #V-fixture-old · Cliente fixture-old/);assert.match(h.el('ctaemp-tbody').innerHTML,/Venta #V-fixture-current · Cliente fixture-current/);
  assert.doesNotMatch(h.el('ctaemp-btn-historial').className,/btn-primary/);assert.deepEqual(h.reads,[]);assert.deepEqual(h.writes,[]);
 });
 
-test('La comisión sólo legacy abre detalle readonly con valores, aprobación y pagos originales',()=>{
+test('La comisión legacy presenta sólo venta, cliente e importe y conserva aprobación/pagos originales',()=>{
  const record=commission('fixture-old',{montoPagado:50,estado:'pagado_parcial',fechaAprobacion:'2025-02-11',pagos:{p1:{fecha:'2025-02-12',monto:50,medio:'Transferencia'},p2:{fecha:'2025-02-13',monto:20,medio:'Efectivo',anulado:true}}});
  const h=setup([record]),before=JSON.stringify(h.context.movsEmpData);
  h.context.verDetalleMovEmp({dataset:{fbkey:'fixture-old'}});
  assert.equal(h.alerts.length,1);const {message,options}=h.alerts[0];
- assert.equal(options.titulo,'Comisión anterior');assert.equal(options.textoAceptar,'Cerrar');assert.equal(options.centrado,true);assert.equal(options.desplazable,true);
- for(const text of ['123,45','3,5%','3.527,14','Pagado registrado: $50,00','Saldo: $73,45','Autor original','11/02/2025','12/02/2025 · $50,00 · Transferencia','13/02/2025 · $20,00 · Efectivo · Anulado'])assert.ok(message.includes(text),text);
+ assert.equal(options.titulo,'Comisión');assert.equal(options.textoAceptar,'Cerrar');assert.equal(options.centrado,true);assert.equal(options.desplazable,true);
+ assert.equal(message,'Comisión · Venta #V-fixture-old · Cliente fixture-old\nImporte de comisión: $123,45');
+ assert.doesNotMatch(message,/3,5%|3\.527,14|Porcentaje|Ganancia|Autor original|Transferencia|Efectivo/);
+ assert.equal(h.context._movEmpTotalPagado(h.context.movsEmpData[0]),50);assert.equal(h.context._movEmpSaldoPendiente(h.context.movsEmpData[0]),73.45);
+ assert.equal(h.context.movsEmpData[0].aprobadoPor,'Autor original');assert.equal(h.context._movEmpPagosArray(h.context.movsEmpData[0]).length,2);
  assert.equal(JSON.stringify(h.context.movsEmpData),before);assert.deepEqual(h.messages,[]);assert.deepEqual(h.reads,[]);assert.deepEqual(h.writes,[]);
 });
 
@@ -69,7 +73,8 @@ test('El detalle no inventa porcentaje, base ni desglose de un pago legado marca
  const h=setup([record]);h.context.verDetalleMovEmp({dataset:{fbkey:'fixture-old'}});
  assert.equal(h.alerts.length,1);const {message}=h.alerts[0];
  assert.doesNotMatch(message,/Porcentaje:|Ganancia base:|Pagado registrado:|Saldo:/);
- assert.match(message,/Pagado · sin desglose de pago guardado/);
+ assert.equal(message,'Comisión · Venta #V-fixture-old · Cliente fixture-old\nImporte de comisión: $123,45');
+ assert.equal(h.context.movsEmpData[0].estado,'pagado');assert.equal(h.context.movsEmpData[0].montoPagado,undefined);assert.equal(h.context.movsEmpData[0].pct,undefined);assert.equal(h.context.movsEmpData[0].gananciaBase,undefined);
  assert.deepEqual(h.reads,[]);assert.deepEqual(h.writes,[]);
 });
 
@@ -79,11 +84,12 @@ test('El detalle legado comprueba sesión, módulo, cuenta y estado permitido si
  const own=setup([commission('fixture-old')],false);own.context.verDetalleMovEmp({dataset:{fbkey:'fixture-old'}});assert.equal(own.alerts.length,1);
 });
 
-test('El resto de movimientos conserva su detalle habitual y la comisión con gasto usa su gestión existente',()=>{
+test('El resto conserva su detalle y la comisión enlazada usa también presentación privada',()=>{
  const h=setup([commission('fixture-ordinary',{tipo:'hextra',descripcion:'Horas ficticias'}),commission('fixture-modern',{gastoFbKey:'fixture-gasto'})]);
  h.context.verDetalleMovEmp({dataset:{fbkey:'fixture-ordinary'}});
  assert.equal(h.messages.length,1);assert.match(h.messages[0],/H\. extra/);assert.deepEqual(h.alerts,[]);
- h.context.setCtaEmpPeriodo('todos');assert.match(h.el('ctaemp-tbody').innerHTML,/abrirComisionDesdeGasto\('fixture-gasto'\)/);
+ h.context.setCtaEmpPeriodo('todos');assert.match(h.el('ctaemp-tbody').innerHTML,/verDetalleMovEmp/);
+ h.context.verDetalleMovEmp({dataset:{fbkey:'fixture-modern'}});assert.equal(h.alerts.length,1);assert.match(h.alerts[0].message,/Venta #V-fixture-modern · Cliente fixture-modern/);assert.doesNotMatch(h.alerts[0].message,/Porcentaje|Ganancia|3,5%/);
  assert.deepEqual(h.reads,[]);assert.deepEqual(h.writes,[]);
 });
 
@@ -157,14 +163,17 @@ function dialogFixture() {
 test('El detalle centrado con muchos pagos reserva cabecera/Cerrar y desplaza sólo su mensaje',async()=>{
  const payments=Object.fromEntries(Array.from({length:300},(_,i)=>['p'+i,{fecha:'2025-02-12',monto:1,medio:'Transferencia ficticia '+i}]));
  const h=setup([commission('fixture-long',{pagos:payments})]);h.context.verDetalleMovEmp({dataset:{fbkey:'fixture-long'}});
- const {message,options}=h.alerts[0],f=dialogFixture(),pending=f.open({...options,tipo:'alert',mensaje:message});
+ const {message,options}=h.alerts[0];assert.doesNotMatch(message,/Transferencia ficticia|Porcentaje|Ganancia/);assert.equal(h.context._movEmpPagosArray(h.context.movsEmpData[0]).length,300);assert.deepEqual(h.context.movsEmpData[0].pagos,payments);
+ // Shared scrolling is exercised with a separate long generic notice; the
+ // personal commission view deliberately excludes that payment history.
+ const longMessage=message+'\n'+Object.values(payments).map(p=>p.medio).join('\n'),f=dialogFixture(),pending=f.open({...options,tipo:'alert',mensaje:longMessage});
  const overlay=f.document.body.children[0],panel=overlay.children[0],head=panel.children[0],body=panel.children[1],actions=panel.children[2];
  assert.equal(overlay.style.getPropertyValue('align-items'),'center');assert.equal(overlay.style.getPropertyPriority('align-items'),'important');
  assert.equal(panel.style.getPropertyValue('width'),'min(500px, calc(100vw - 32px))');assert.equal(panel.style.getPropertyPriority('width'),'important');assert.equal(panel.style.getPropertyPriority('max-width'),'important');
  assert.equal(panel.style.maxHeight,'calc(100dvh - 32px)');assert.equal(panel.style.overflow,'hidden');assert.equal(panel.style.display,'flex');assert.equal(panel.style.flexDirection,'column');
  assert.equal(head.style.flexShrink,'0');assert.equal(body.style.minHeight,'0');assert.equal(body.style.overflowY,'auto');assert.equal(body.style.overscrollBehavior,'contain');assert.equal(actions.style.flexShrink,'0');
  assert.equal(body.tabIndex,0);
- assert.equal(body.textContent,message);assert.ok(body.textContent.includes('Transferencia ficticia 299'));
+ assert.equal(body.textContent,longMessage);assert.ok(body.textContent.includes('Transferencia ficticia 299'));
  assert.equal(actions.children[0].textContent,'Cerrar');actions.children[0].onclick();assert.equal(await pending,true);assert.equal(f.document.body.children.length,0);
  assert.deepEqual(h.reads,[]);assert.deepEqual(h.writes,[]);
 });

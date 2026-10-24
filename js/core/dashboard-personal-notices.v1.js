@@ -1,9 +1,9 @@
 (function(root, factory) {
   'use strict';
-  const api = factory();
+  const api = factory(typeof module === 'object' && module.exports ? require('./commission-presentation.v1.js') : root && root.SVCommissionPresentation);
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.SVPersonalNotices = api;
-})(typeof window === 'object' ? window : null, function() {
+})(typeof window === 'object' ? window : null, function(commissionPresentation) {
   'use strict';
 
   const DAY = 86400000;
@@ -200,6 +200,9 @@
       const ctaKey = [...ctaKeys][0] || null, gastoKey = [...gastoKeys][0] || null;
       const id = (gastoKey ? 'gasto:' : 'cta:') + encodeURIComponent(input.employeeId) + ':' + encodeURIComponent(gastoKey || ctaKey);
       const descriptions = [...new Set(records.map(record => text(record.description)).filter(Boolean))].sort();
+      const commissionRecord = {...records[0], tipo:'comision', descripcion:descriptions[0] || ''};
+      const commissionId = records[0].type === 'comision' && commissionPresentation ? commissionPresentation.saleId(commissionRecord) : '';
+      const commissionClient = records[0].type === 'comision' && commissionPresentation ? commissionPresentation.clientName(commissionRecord) : '';
       items.push({
         id, type:records[0].type, employeeId:input.employeeId,
         sourceRefs:{ctaKey, gastoKey}, amount:amounts[0] / 100,
@@ -207,7 +210,8 @@
         remaining:unknown[0] ? null : Math.max(0, amounts[0] - payments[0]) / 100,
         paidAmountUnknown:unknown[0], status:records[0].status,
         period:metadata[0][0] || null, date:event.date,
-        description:descriptions[0] || '', quantity:metadata[1][0] ?? null,
+        description:records[0].type === 'comision' ? (commissionPresentation ? commissionPresentation.caption(commissionRecord) : 'Comisión') : descriptions[0] || '',
+        saleId:commissionId, clientName:commissionClient, quantity:metadata[1][0] ?? null,
         unitAmount:metadata[2].length ? metadata[2][0] / 100 : null,
         _order:event.stamp ?? event.day * DAY
       });

@@ -19,10 +19,9 @@ test('comprobante sin detalle elimina columnas y conserva estructura con y sin i
   const header=html.match(/<thead><tr>(.*?)<\/tr><\/thead>/s)[1];
   const count=(header.match(/<th[ >]/g)||[]).length;
   assert.equal(count,3+(image?1:0)+(detail?2:0));
-  for(const row of html.match(/<tfoot>(.*?)<\/tfoot>/s)[1].matchAll(/<tr[^>]*>(.*?)<\/tr>/gs)){
-   const cols=[...row[1].matchAll(/<td(?:\s[^>]*)?>/g)].reduce((sum,m)=>sum+Number((m[0].match(/colspan="(\d+)"/)||[])[1]||1),0);
-   assert.equal(cols,count);
-  }
+  const footer=html.match(/<tfoot><tr><td class="ppto-summary-cell" colspan="(\d+)"><table class="ppto-totals"[^>]*><tbody>(.*?)<\/tbody><\/table><\/td><\/tr><\/tfoot>/s);
+  assert.ok(footer,'el resumen se separa de las columnas de productos');assert.equal(Number(footer[1]),count);
+  for(const row of footer[2].matchAll(/<tr[^>]*>(.*?)<\/tr>/gs))assert.equal((row[1].match(/<td /g)||[]).length,2);
  }
 });
 test('editar conserva origen y deja evidencia del cambio de comisión',async()=>{

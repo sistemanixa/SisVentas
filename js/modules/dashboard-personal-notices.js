@@ -1,9 +1,9 @@
 (function(root, factory) {
   'use strict';
-  var api = factory();
+  var api = factory(typeof module === 'object' && module.exports ? require('../core/commission-presentation.v1.js') : root && root.SVCommissionPresentation);
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.SVPersonalNoticesView = api;
-})(typeof window === 'object' ? window : null, function() {
+})(typeof window === 'object' ? window : null, function(commissionPresentation) {
   'use strict';
   var mounts = new WeakMap();
   var money = new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS', minimumFractionDigits:2, maximumFractionDigits:2 });
@@ -72,7 +72,7 @@
     row.append(node(doc, 'h3', 'personal-notices-title', headings[state]));
     var value = amount(item.amount);
     var summary = node(doc, 'p', 'personal-notices-summary');
-    summary.append(node(doc, 'span', 'personal-notices-description', item.description || (type.key === 'bonificacion' ? 'Bonificación' : 'Comisión')),
+    summary.append(node(doc, 'span', 'personal-notices-description', type.key === 'comision' ? (commissionPresentation ? commissionPresentation.caption(Object.assign({tipo:'comision'},item)) : 'Comisión') : item.description || 'Bonificación'),
       node(doc, 'span', '', ' · ' + (state === 'pendiente' ? 'Importe informado · ARS ' : 'ARS ')),
       node(doc, 'strong', 'personal-notices-amount', value || 'Importe por confirmar'));
     row.append(summary);

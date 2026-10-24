@@ -1,5 +1,11 @@
 (function(root){
   'use strict';
+
+  let commissionModel=null;if(typeof module==='object'&&module.exports){try{commissionModel=require('../core/commission-presentation.v1.js');}catch(_){}}
+  function commissionAPI(){return root.SVCommissionPresentation||commissionModel;}
+  function isCommission(record){const api=commissionAPI();if(api&&typeof api.isCommission==='function')return api.isCommission(record);const kind=String(record.tipoPagable||record.origen||record.tipo||'').trim();return /comisi/i.test(kind)||(!kind||/^(Variable|Fijo|Compra|Gasto)$/i.test(kind))&&/^\s*comisi[oó]n(?:\s|$)/i.test(String(record.descripcion||record.desc||''));}
+  function safeConcept(record){const api=commissionAPI();return isCommission(record)?api&&typeof api.caption==='function'?api.caption(record):'Comisión':String(record.descripcion||record.tipoPagable||'Pago a empleado');}
+
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const cash=value=>String(value||'').trim().toLowerCase()==='efectivo';
   const employeeKey=g=>String(g.empleadoFbKey||g.empleadoId||(String(g.legacyKey||'').startsWith('ctaemp/')?g.legacyKey.split('/')[1]:'')||'');
@@ -13,7 +19,7 @@
     if(!name)throw Error('Falta identificar al empleado que recibe el efectivo.');
     return {reference:'RE-'+key+'-'+token,employee:String(name),dni:String(employee.dni||''),
       employeeKey:employeeKey(g),amount:Number(p.monto),date:String(p.fecha||''),
-      concept:String(g.descripcion||g.tipoPagable||'Pago a empleado'),period:String(g.periodoTrabajo||g.mes||''),
+      concept:safeConcept(g),period:isCommission(g)&&!/^\d{4}-\d{2}$/.test(String(g.periodoTrabajo||g.mes||''))?'':String(g.periodoTrabajo||g.mes||''),
       company:String(company.nombre||'Nixa'),address:String(company.dir||''),cuit:String(company.cuit||''),
       operator:String(p.usuario||''),corrected:!!p.editadoTs};
   }

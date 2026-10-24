@@ -1,5 +1,11 @@
 (function(){
 'use strict';
+
+function safeExpenseDescription(g){
+  var api=window.SVCommissionPresentation,kind=String(g.tipoPagable||g.origen||g.tipo||'').trim(),commission=api&&typeof api.isCommission==='function'?api.isCommission(g):/comisi/i.test(kind)||(!kind||/^(Variable|Fijo|Compra|Gasto)$/i.test(kind))&&/^\s*comisi[oó]n(?:\s|$)/i.test(String(g.descripcion||g.desc||''));
+  return commission?api&&typeof api.caption==='function'?api.caption(g):'Comisión':g.descripcion||'';
+}
+
 function generarExcel(titulo, boton) {
   boton = boton && boton.tagName === 'BUTTON' ? boton : null;
   var htmlAnterior = boton ? boton.innerHTML : '';
@@ -29,7 +35,7 @@ function generarExcel(titulo, boton) {
     } else if (titulo === 'Gastos del período') {
       rows = [['Fecha','Descripción','Categoría','Tipo','Monto','Estado']];
       gastosFiltradosActuales().filter(gastoVisibleEnModuloGastos).forEach(function(g) {
-        rows.push([fechaImputacionGasto(g).split('-').reverse().join('/'), g.descripcion || '', g.categoria || '', normalizarTipoGasto(g), parseFloat(g.monto) || 0, normalizarEstadoGasto(g)]);
+        rows.push([fechaImputacionGasto(g).split('-').reverse().join('/'), safeExpenseDescription(g), g.categoria || '', normalizarTipoGasto(g), parseFloat(g.monto) || 0, normalizarEstadoGasto(g)]);
       });
 
     } else {

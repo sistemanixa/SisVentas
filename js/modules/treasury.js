@@ -3,6 +3,19 @@
   window.tesVerComprobante=function(gastoKey,idx){
     if(typeof abrirComprobantePago==='function') abrirComprobantePago(gastoKey,idx);
   };
+  function tesRegistroConcepto(record){
+    return {tipoPagable:record.tipoPagable,tipo:record.tipo,origen:['gasto','ctaemp'].indexOf(record.origen)>=0?'':record.origen,descripcion:record.gastoDesc||record.concepto||record.descripcion||record.desc||record.detalle||'',ventaId:record.ventaId||record.numeroVenta||record.ventaNumero||record.saleId||'',cliente:record.cliente||record.clienteNombre||record.nombreCliente||record.clientName||''};
+  }
+  function tesEsComision(record){
+    var api=window.SVCommissionPresentation,entry=tesRegistroConcepto(record);if(api&&typeof api.isCommission==='function')return api.isCommission(entry);
+    var kind=String(entry.tipoPagable||entry.origen||entry.tipo||'').trim();return /comisi/i.test(kind)||(!kind||/^(Variable|Fijo|Compra|Gasto)$/i.test(kind))&&/^\s*comisi[oó]n(?:\s|$)/i.test(String(entry.descripcion));
+  }
+  function tesConceptoSeguro(record){
+    var api=window.SVCommissionPresentation,entry=tesRegistroConcepto(record);return tesEsComision(record)?api&&typeof api.caption==='function'?api.caption(entry):'Comisión':String(record.gastoDesc||record.concepto||record.descripcion||record.desc||record.detalle||record.tipo||'');
+  }
+  function tesMetadatosComision(record){
+    if(!tesEsComision(record))return {};var api=window.SVCommissionPresentation,entry=tesRegistroConcepto(record);return {tipoPagable:'comision',ventaId:api&&typeof api.saleId==='function'?api.saleId(entry):'',cliente:api&&typeof api.clientName==='function'?api.clientName(entry):''};
+  }
   function tesArray(value){
     if(Array.isArray(value)) return value;
     return value&&typeof value==='object'?Object.values(value):[];
@@ -36,7 +49,7 @@
     tesArray(window.gastosData).forEach(function(gasto){
       if(gasto&&gasto.fbKey) gastoKeys[gasto.fbKey]=true;
       tesPagosArray(gasto).forEach(function(pago,index){
-        out.push(Object.assign({},pago,{origen:'gasto',gastoKey:gasto.fbKey,gastoDesc:gasto.descripcion||gasto.desc||'',categoria:gasto.categoria||'',montoGasto:gasto.monto||0,loteId:pago.loteId||pago.pagoId||pago.pgId||'',_idx:index,empleadoId:gasto.empleadoId||'',empleadoNombre:gasto.empleadoNombre||''}));
+        out.push(Object.assign({},pago,tesMetadatosComision(gasto),{origen:'gasto',gastoKey:gasto.fbKey,gastoDesc:tesConceptoSeguro(gasto),categoria:gasto.categoria||'',montoGasto:gasto.monto||0,loteId:pago.loteId||pago.pagoId||pago.pgId||'',_idx:index,empleadoId:gasto.empleadoId||'',empleadoNombre:gasto.empleadoNombre||''}));
       });
     });
     tesArray(window.movsEmpData).forEach(function(movimiento){
@@ -44,7 +57,7 @@
       // Si el movimiento ya originó un gasto, Tesorería debe leer una sola fuente.
       if(movimiento.gastoFbKey&&gastoKeys[movimiento.gastoFbKey]) return;
       tesPagosArray(movimiento).forEach(function(pago,index){
-        out.push(Object.assign({},pago,{origen:'ctaemp',gastoKey:movimiento.gastoFbKey||movimiento.fbKey,gastoDesc:movimiento.descripcion||movimiento.desc||movimiento.detalle||movimiento.tipo||'',categoria:movimiento.tipo||'',montoGasto:movimiento.monto||0,loteId:pago.loteId||pago.pagoId||pago.pgId||'',_idx:index,empleadoId:window.ctaEmpActual||'',empleadoNombre:''}));
+        out.push(Object.assign({},pago,tesMetadatosComision(movimiento),{origen:'ctaemp',gastoKey:movimiento.gastoFbKey||movimiento.fbKey,gastoDesc:tesConceptoSeguro(movimiento),categoria:movimiento.tipo||'',montoGasto:movimiento.monto||0,loteId:pago.loteId||pago.pagoId||pago.pgId||'',_idx:index,empleadoId:window.ctaEmpActual||'',empleadoNombre:''}));
       });
     });
     var seen={};
@@ -94,7 +107,7 @@
 
     var pagos=pagosPeriodo.filter(function(p){
       if(medio && String(p.medio||p.medioPago||'')!==medio) return false;
-      var texto=[p.gastoDesc,p.medio,p.medioPago,formatoMedioPago(p.medio||p.medioPago||''),p.usuario,p.loteId,p.categoria].join(' ');
+      var texto=[tesConceptoSeguro(p),p.medio,p.medioPago,formatoMedioPago(p.medio||p.medioPago||''),p.usuario,p.loteId,p.categoria].join(' ');
       var nt=(typeof normTxt==='function'?normTxt(texto):_tesNorm(texto));
       if(q && !nt.includes(q)) return false;
       return true;
@@ -106,7 +119,7 @@
       var badge = tipo && tipo!=='otro' ? '<span class="badge b-blue">'+(tipo==='transferencia'?'Transferencia':tipo.charAt(0).toUpperCase()+tipo.slice(1))+'</span>' : '';
       var e=(typeof esc==='function'?esc:function(x){return String(x||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});});
       var m=(typeof money==='function'?money:function(n){return '$'+(parseFloat(n)||0).toLocaleString('es-AR');});
-      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg3);border-radius:var(--radius);padding:12px 14px;flex-wrap:wrap"><div><div style="font-size:13px;font-weight:600">'+m(p.monto)+' · '+e(formatoMedioPago(p.medio||p.medioPago||'—'))+' '+badge+' '+(p.loteId?'<span class="badge b-purple">'+e(p.loteId)+'</span>':'')+'</div><div style="font-size:12px;color:var(--text2);margin-top:3px">'+e(p.gastoDesc||'—')+'</div><div style="font-size:11px;color:var(--text3);margin-top:3px">'+e(String(p.fecha||'').split('-').reverse().join('/')||'')+' · '+e(p.usuario||'Sistema')+'</div></div><div>'+compBtn+'</div></div>';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg3);border-radius:var(--radius);padding:12px 14px;flex-wrap:wrap"><div><div style="font-size:13px;font-weight:600">'+m(p.monto)+' · '+e(formatoMedioPago(p.medio||p.medioPago||'—'))+' '+badge+' '+(p.loteId?'<span class="badge b-purple">'+e(p.loteId)+'</span>':'')+'</div><div style="font-size:12px;color:var(--text2);margin-top:3px">'+e(tesConceptoSeguro(p)||'—')+'</div><div style="font-size:11px;color:var(--text3);margin-top:3px">'+e(String(p.fecha||'').split('-').reverse().join('/')||'')+' · '+e(p.usuario||'Sistema')+'</div></div><div>'+compBtn+'</div></div>';
     }).join('');
     document.dispatchEvent(new CustomEvent('sisventas:treasury-rendered'));
   };

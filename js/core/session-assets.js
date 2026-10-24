@@ -4,7 +4,7 @@
   var assets = {
     sheetjs: {src:'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', ready:function(){return !!window.XLSX;}},
     usageMetrics: {src:'./js/modules/usage-metrics.js?v=3.10.0', ready:function(){return !!window.SVUsageMetrics;}},
-    excel: {src:'./js/modules/excel-export.js?v=3.10.0', ready:function(){return !!window.SVExcelExport;}},
+    excel: {src:'./js/modules/excel-export.js?v=3.14.20', ready:function(){return !!window.SVExcelExport;}},
     diagnostics: {src:'./js/v3/admin-diagnostics.js?v=3.3.17', ready:function(){return !!(window.SisVentas && window.SisVentas.V3Diagnostics);}},
     distribuidora: {src:'./js/modules/distribuidora-access.js?v=3.10.17-category', ready:function(){return !!window.SVDistribuidora;}},
     paraguay: {src:'./js/modules/paraguay-shopping-access.js?v=3.14.16-print', ready:function(){return !!window.SVParaguayPortal;}},

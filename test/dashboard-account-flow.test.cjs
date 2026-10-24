@@ -32,6 +32,7 @@ function fixture(text=source){
   setTimeout:()=>assert.fail('No added timer'),setInterval:()=>assert.fail('No polling'),fetch:()=>assert.fail('No added HTTP request')};
  for(const el of elements.values()){let html='',text='';Object.defineProperty(el,'innerHTML',{get:()=>html,set:value=>{html=value;text='';}});Object.defineProperty(el,'textContent',{configurable:true,get:()=>text,set:value=>{text=value;html='';}});}
  c.window=c;c.addEventListener=document.addEventListener;c._ctaEmpGastosSnapshot={origin:{employeeId:'e'},valid:()=>true,get data(){return c.gastosData;}};vm.createContext(c);
+ if(text===source){c.SVCommissionPresentation=require('../js/core/commission-presentation.v1.js');for(const name of ['svEsComisionMovimiento','svDescripcionMovimientoVisible'])vm.runInContext(extract(text,name),c);}
  for(const name of financialNames.concat(['svCapturarContextoOperacion','svContextoAvisosCuenta','svLimpiarAvisosCuentaPersonal']))vm.runInContext(extract(text,name),c);
  if(text===source){for(const name of helpers.concat(['svProyectarCTA','_adelantoMesSiguiente','_adelantoPeriodoDescuento','_adelantoDescontableEnMes','_ctaEmpPagosRealizadosEnMes']))vm.runInContext(extract(text,name),c);
   const start=source.indexOf("document.addEventListener('sisventas:session-ended',svLimpiarAvisosCuentaPersonal)"),end=source.indexOf("document.addEventListener('sisventas:session-ended',svLimpiarHorasPersonalesDashboard)",start);
@@ -108,7 +109,10 @@ for(const scenario of ['empty','rich','array','admin'])test('Dashboard keeps his
   outputs.push({html:f.output(),partial:f.c._movEmpTotalPagado(r.cta.salary),advance:f.c._ctaEmpMontoAdelantoACompensar(r.cta.advance),selection:f.c.ctaEmpActual});
   assert.equal(JSON.stringify({input,expenses:f.c.gastosData}),before);assert.deepEqual(f.writes,[]);
  }
- assert.deepEqual(outputs[1].html['dash-historial-mes-body'],outputs[0].html['dash-historial-mes-body']);
+ const expectedHistory=structuredClone(outputs[0].html['dash-historial-mes-body']),presentation=require('../js/core/commission-presentation.v1.js');
+ const escapeLabel=value=>String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
+ for(const record of Object.values(r.cta).concat(r.expenses)){if(!presentation.isCommission(record))continue;const before=escapeLabel(record.descripcion||record.desc||''),after=escapeLabel(presentation.caption(record));if(before)expectedHistory.html=expectedHistory.html.split('>'+before+'<').join('>'+after+'<');}
+ assert.deepEqual(outputs[1].html['dash-historial-mes-body'],expectedHistory);
  assert.equal(outputs[1].selection,outputs[0].selection);assert.equal(outputs[1].partial,outputs[0].partial);assert.equal(outputs[1].advance,outputs[0].advance);
  assert.equal(outputs[1].partial,0.1+0.2);assert.equal(outputs[1].advance,Math.max(0,300.15-100.05));
  assert.match(outputs[1].html['dash-mc-pagado'].text,/\$[\d.]+,\d{2}$/);

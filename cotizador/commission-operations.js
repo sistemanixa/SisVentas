@@ -1,5 +1,6 @@
 'use strict';
 const {isDeepStrictEqual}=require('node:util'),{normalizarEstadoGasto:state,esComision,claveGrupo,porcentaje:pct,baseGanancia:base,registroComparable:clean}=require('./commission-calculations');
+const {description:commissionDescription}=require('./commission-public-response');
 const fail=(statusCode,message)=>Object.assign(Error(message),{statusCode});
 function blockedModules(config){
  if(!config||typeof config!=='object'||Array.isArray(config))return null;
@@ -21,7 +22,7 @@ function createCommissionOperations({auth,db,transaction,now=Date.now}){
   const editable=actual.filter(g=>!['pagado','pagado_parcial'].includes(state(g)));if(values.length!==editable.length||editable.some(g=>!values.some(v=>v.fbKey===g.fbKey)))throw fail(409,'Los participantes editables cambiaron');
   for(const v of values){if(!Number.isFinite(v.pct)||v.pct<=0)throw fail(400,'Porcentaje inválido');const g=actual.find(g=>g.fbKey===v.fbKey);if(state(g)!=='rechazado')sum+=v.pct;}
   if(sum>max+0.001)throw fail(400,'La distribución supera el máximo global');
-  for(const v of values){const g=root.gastos[v.fbKey],link=linked[v.fbKey],gain=base(g,link?.movement),amount=Math.round(gain*v.pct)/100,changed=Math.abs(pct(g,link?.movement)-v.pct)>0.0001,rejected=state(g)==='rechazado';const fields={monto:amount,pct:v.pct,gananciaBase:gain,descripcion:'Comisión venta '+(actual.find(a=>a.fbKey===v.fbKey).ventaId||'')+' · '+v.pct+'% sobre ganancia $'+Math.round(gain).toLocaleString('es-AR')+' · distribución administrada',modificadoPor:identity.nombre,modificadoTs:now()};Object.assign(g,fields);if(changed&&!rejected){g.estado='pendiente_aprobacion';g.requiereAprobacion=true;delete g.aprobadoPor;delete g.aprobadoTs;delete g.fechaAprobacion;}if(link){Object.assign(link.movement,fields);if(changed&&!rejected){link.movement.estado='pendiente';delete link.movement.aprobadoPor;delete link.movement.aprobadoTs;delete link.movement.fechaAprobacion;}}}
+  for(const v of values){const g=root.gastos[v.fbKey],link=linked[v.fbKey],gain=base(g,link?.movement),amount=Math.round(gain*v.pct)/100,changed=Math.abs(pct(g,link?.movement)-v.pct)>0.0001,rejected=state(g)==='rechazado';const fields={monto:amount,pct:v.pct,gananciaBase:gain,descripcion:commissionDescription(actual.find(a=>a.fbKey===v.fbKey).ventaId,g.cliente||link?.movement.cliente),modificadoPor:identity.nombre,modificadoTs:now()};Object.assign(g,fields);if(changed&&!rejected){g.estado='pendiente_aprobacion';g.requiereAprobacion=true;delete g.aprobadoPor;delete g.aprobadoTs;delete g.fechaAprobacion;}if(link){Object.assign(link.movement,fields);if(changed&&!rejected){link.movement.estado='pendiente';delete link.movement.aprobadoPor;delete link.movement.aprobadoTs;delete link.movement.fechaAprobacion;}}}
   return root;
  }catch(e){error=e;return;}},{kind:'redistribuir-comisiones',identity,body});if(!result.committed)throw error||fail(409,'No se pudo confirmar la distribución');return {committed:true};}
  return {authorize,redistribute};

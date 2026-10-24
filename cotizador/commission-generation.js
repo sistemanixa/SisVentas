@@ -1,5 +1,6 @@
 'use strict';
 const crypto=require('node:crypto'),M=require('./commission-generation-model');
+const {description:commissionDescription}=require('./commission-public-response');
 const fail=(statusCode,message)=>Object.assign(Error(message),{statusCode});
 const validKey=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
 const leaseMs=120000;
@@ -70,7 +71,7 @@ function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date
    for(const emp of plan.participantes)await ensure('sisventas/comisiones_generacion/'+M.key('comision',[id,emp.empleadoFbKey]),{generacionServidorId:job.generacionServidorId,estado:'procesando',ts:job.creadoEn,ventaId:plan.ventaId,ventaFbKey:id,empleadoFbKey:emp.empleadoFbKey,monto:emp.monto,pct:emp.pct});
    for(const emp of plan.participantes){
     const movKey=M.key('comision',[id,emp.empleadoFbKey]),gastoKey=M.key('gasto_comision',[id,emp.empleadoFbKey]),legacy='ctaemp/'+emp.empleadoFbKey+'/'+movKey;
-    const fields={generacionServidorId:job.generacionServidorId,ventaId:plan.ventaId,ventaFbKey:id,empleadoFbKey:emp.empleadoFbKey,empleadoNombre:emp.nombre,cliente:initial.data.sale.cliente||'',monto:emp.monto,pct:emp.pct,pctOriginal:emp.pctOriginal,gananciaBase:plan.base.ganancia,ajustadoAlTope:emp.pct<emp.pctOriginal,descripcion:'Comisión venta '+plan.ventaId+' · '+emp.pct+'% sobre ganancia original · generación automática',fecha:date,ts:job.creadoEn,legacyKey:legacy,origenCarga:'automatica_servidor',usuarioCarga:job.actor.nombre,actorUid:job.actor.uid};
+    const fields={generacionServidorId:job.generacionServidorId,ventaId:plan.ventaId,ventaFbKey:id,empleadoFbKey:emp.empleadoFbKey,empleadoNombre:emp.nombre,cliente:initial.data.sale.cliente||'',monto:emp.monto,pct:emp.pct,pctOriginal:emp.pctOriginal,gananciaBase:plan.base.ganancia,ajustadoAlTope:emp.pct<emp.pctOriginal,descripcion:commissionDescription(plan.ventaId,initial.data.sale.cliente),fecha:date,ts:job.creadoEn,legacyKey:legacy,origenCarga:'automatica_servidor',usuarioCarga:job.actor.nombre,actorUid:job.actor.uid};
     await ensure('sisventas/ctaemp/'+emp.empleadoFbKey+'/'+movKey,{...fields,fbKey:movKey,tipo:'comision',estado:'pendiente',gastoFbKey:gastoKey});
     await ensure('sisventas/gastos/'+gastoKey,{...fields,tipo:'Comisión',tipoPagable:'comision',origen:'comision',categoria:'Personal',medio:'Transferencia',empleadoId:emp.empleadoFbKey,estado:'pendiente_aprobacion',requiereAprobacion:true,mes:date.slice(0,7),fechaImputacion:date});
     let controlChanged=false;

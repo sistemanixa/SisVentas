@@ -104,8 +104,55 @@
     return body;
   }
 
+
+  function commissionPresentation(){return window.SVCommissionPresentation;}
+  function commissionCaption(record){var api=commissionPresentation();return api&&typeof api.caption==='function'?api.caption(record):'Comisión';}
+  function realCommissionAdmin(){return String(window.currentRole||'').toLowerCase()==='admin'&&!window._impersonacionOriginal;}
+
+  function paymentConcept(record){
+    var api=commissionPresentation(),entry={tipoPagable:record.tipoPagable,tipo:record.tipo,origen:['gasto','ctaemp'].indexOf(record.origen)>=0?'':record.origen,descripcion:record.gastoDesc||record.concepto||record.descripcion||record.desc||record.detalle||'',ventaId:record.ventaId||record.numeroVenta||record.ventaNumero||record.saleId||'',cliente:record.cliente||record.clienteNombre||record.nombreCliente||record.clientName||''};
+    var kind=String(entry.tipoPagable||entry.origen||entry.tipo||'').trim(),commission=api&&typeof api.isCommission==='function'?api.isCommission(entry):/comisi/i.test(kind)||(!kind||/^(Variable|Fijo|Compra|Gasto)$/i.test(kind))&&/^\s*comisi[oó]n(?:\s|$)/i.test(String(entry.descripcion));
+    return commission?commissionCaption(entry):String(record.gastoDesc||record.concepto||'—');
+  }
+  function renderPersonalCommissionDetails(emp){
+    var card=document.getElementById('ctaemp-comision-card');if(!card)return;
+    ['ctaemp-com-lista','ctaemp-com-detalle-info'].forEach(function(id){var el=document.getElementById(id);if(el){el.innerHTML='';el.textContent='';}});
+    ['ctaemp-com-total','ctaemp-com-cobrado','ctaemp-com-pendiente','ctaemp-com-cant'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='—';});
+    if(!emp){card.style.display='none';return;}
+    var own=typeof window.svEmpleadoPropio==='function'?window.svEmpleadoPropio():null;
+    if(!own||String(own.fbKey||own.id||'')!==String(emp.fbKey||emp.id||'')){card.style.display='none';return;}
+    asegurarBloqueComisiones();
+    var mes=mesActualCta(),total=0,missing=false,api=commissionPresentation();
+    var movements=(window.movsEmpData||(typeof movsEmpData!=='undefined'?movsEmpData:[])||[]).filter(function(m){
+      return m&&(!m.empleadoId||String(m.empleadoId)===String(emp.fbKey||emp.id||''))&&(!m.empleadoFbKey||String(m.empleadoFbKey)===String(emp.fbKey||emp.id||''))&&String(m.tipo||'').toLowerCase()==='comision'&&['aprobado','pagado','pagado_parcial'].indexOf(String(m.estado||'').toLowerCase())>=0&&
+        (typeof window._movEmpEnPeriodo==='function'?window._movEmpEnPeriodo(m,mes):fechaEnMes(m.periodoComputo||m.mes||m.fecha,mes));
+    });
+    var rows=movements.map(function(m){
+      var sale=(window.ventasList||[]).find(function(v){return m.ventaFbKey&&String(v.fbKey||'')===String(m.ventaFbKey)||m.ventaId&&String(v.id||v.numero||'')===String(m.ventaId);});
+      var record={tipo:'comision',ventaId:m.ventaId||(sale&&(sale.id||sale.numero))||'',cliente:m.cliente||m.clienteNombre||m.nombreCliente||m.clientName||(sale&&sale.cliente)||'',descripcion:m.descripcion||m.desc||m.detalle||''};
+      var amount=parseFloat(m.monto);if(Number.isFinite(amount))total+=amount;else missing=true;
+      return '<div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:flex;justify-content:space-between;gap:12px;align-items:center"><span style="min-width:0;overflow-wrap:anywhere">'+esc(commissionCaption(record))+'</span><strong style="white-space:nowrap;color:var(--green)">'+(Number.isFinite(amount)?mon(amount):'Importe no disponible')+'</strong></div>';
+    });
+    var list=document.getElementById('ctaemp-com-lista'),info=document.getElementById('ctaemp-com-detalle-info');
+    if(list)list.innerHTML=rows.length?rows.join(''):'<div style="text-align:center;color:var(--text3);font-size:13px;padding:14px">Sin comisiones confirmadas en este período</div>';
+    if(info)info.textContent='';
+    ['ctaemp-com-total','ctaemp-com-cobrado'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=missing?'—':mon(total);});
+    var pending=document.getElementById('ctaemp-com-pendiente');if(pending)pending.textContent=mon(0);
+    var count=document.getElementById('ctaemp-com-cant');if(count)count.textContent=movements.length+' comisión'+(movements.length===1?'':'es')+' · '+mes;
+    card.style.display=movements.length?'':'none';
+  }
+
+  function limpiarComisionesPrivadasDeActor(){
+    ['ctaemp-com-lista','ctaemp-com-detalle-info'].forEach(function(id){var el=document.getElementById(id);if(el){el.innerHTML='';el.textContent='';}});
+    ['ctaemp-com-total','ctaemp-com-cobrado','ctaemp-com-pendiente','ctaemp-com-cant'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='—';});
+    var card=document.getElementById('ctaemp-comision-card');if(card)card.style.display='none';
+  }
+  document.addEventListener('sisventas:role-changed',limpiarComisionesPrivadasDeActor);
+  document.addEventListener('sisventas:session-ended',limpiarComisionesPrivadasDeActor);
+
   var oldRenderCom = window.renderComisionesDelMes;
   window.renderComisionesDelMes = function(emp){
+    if(!realCommissionAdmin()){renderPersonalCommissionDetails(emp);return;}
     if (typeof oldRenderCom === 'function') oldRenderCom.apply(this, arguments);
     var card = document.getElementById('ctaemp-comision-card');
     if (!card || !emp) return;
@@ -122,7 +169,7 @@
       if (m.ventaId) movimientosPorVenta[String(m.ventaId)] = m;
       if (m.ventaFbKey) movimientosPorVenta[String(m.ventaFbKey)] = m;
     });
-    var esAdmin = window.tienePermiso('empleados.verComisionesPendientes');
+    var esAdmin = realCommissionAdmin() && window.tienePermiso('empleados.verComisionesPendientes');
     var idsVisibles = esAdmin ? null : {};
     if (idsVisibles) Object.keys(movimientosPorVenta).forEach(function(key){
       var est = String(movimientosPorVenta[key].estado || '').toLowerCase();
@@ -190,7 +237,7 @@
       '<div class="metric"><div class="m-label">Lote</div><div class="m-value" style="font-size:18px">'+esc(p.loteId||'—')+'</div><div class="m-sub">pago múltiple</div></div></div>'+
       '<div style="background:var(--bg3);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px">'+
       '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Origen</div>'+
-      '<div style="font-size:13px;color:var(--text)">'+esc(p.gastoDesc||p.concepto||'—')+'</div>'+
+      '<div style="font-size:13px;color:var(--text)">'+esc(paymentConcept(p))+'</div>'+
       '<div style="font-size:12px;color:var(--text3);margin-top:4px">Usuario: '+esc(p.usuario||'Sistema')+' · Categoría: '+esc(p.categoria||'—')+'</div></div>'+
       '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">'+
       (comp ? '<button class="btn btn-primary" onclick="tesVerComprobante(\''+esc(p.gastoKey||'')+'\','+(p._idx||0)+')"><i class="ti ti-paperclip"></i> Ver comprobante</button>' : '<span style="font-size:12px;color:var(--text3);align-self:center">Sin comprobante adjunto</span>')+
@@ -205,7 +252,7 @@
     cards.forEach(function(card){
       if (!card || card.querySelector('[data-tes-detalle-270]')) return;
       var txt = norm(card.textContent||'');
-      var p = pagos.find(function(x){ return txt.includes(norm(x.gastoDesc||'')) && txt.includes(norm(x.medio||x.medioPago||'')); });
+      var p = pagos.find(function(x){ return txt.includes(norm(paymentConcept(x))) && txt.includes(norm(x.medio||x.medioPago||'')); });
       if (!p) return;
       var key = esc(pagoKey(p));
       var div = document.createElement('button');
