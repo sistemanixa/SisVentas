@@ -94,7 +94,7 @@ test('Proyectos no presenta respuestas de otro UID, rol, sesión o dueño retira
  }
 });
 function surveys(withHelper=true){
- const f=fixture('page-relevamientos',withHelper);f.run('js/modules/surveys.js');
+ const f=fixture('page-relevamientos',withHelper);f.root.isAuthenticated=true;f.root.PERMISOS_ROLES={admin:{indiceRevision:1}};f.root._svOperacionesSesionEpoch=1;f.run('js/modules/surveys.js');
  // El evento usa target directamente, sin abrir el borrador local ni su almacenamiento.
  f.list=()=>{const button={closest:selector=>selector==='button'?button:f.page,hasAttribute:name=>name==='data-list'};(f.events.get('click')||[]).forEach(fn=>fn({target:button}));};return f;
 }
@@ -115,7 +115,9 @@ test('Relevamientos se desuscribe al salir y callbacks viejos no afectan el list
 test('Relevamientos detiene el listado por rol/sesión y descarta otro dueño o permiso',()=>{
  for(const mode of ['role-event','session','uid','permission','detached']){const f=surveys();f.list();const pending=f.page.innerHTML;
   if(mode==='role-event')f.emit('sisventas:role-changed');else if(mode==='session')f.emit('sisventas:session-ended');else if(mode==='uid')f.root.currentUserUid='otro';else if(mode==='permission')f.root.permisoModulo=()=>false;else f.page.remove();
-  f.subscriptions[0].callback({val:()=>null});assert.equal(f.layers().length,0);assert.equal(f.page.innerHTML,pending,mode);if(['role-event','session'].includes(mode))assert.equal(f.subscriptions[0].active,false);
+  f.subscriptions[0].callback({val:()=>assert.fail('No decodificar una lectura retirada')});assert.equal(f.layers().length,0);
+  if(mode==='session')assert.equal(f.page.innerHTML,'');else if(mode==='detached')assert.equal(f.page.innerHTML,pending);else assert.match(f.page.innerHTML,/lectura del listado está pausada/);
+  assert.equal(f.subscriptions[0].active,false,mode);
  }
 });
 test('Relevamientos cierra un fallo síncrono y reentrar sólo conserva una suscripción activa',()=>{

@@ -25,31 +25,40 @@
   function actor(){return {uid:typeof currentUserUid==='undefined'?'':currentUserUid,role:typeof currentRole==='undefined'?'':currentRole,authenticated:typeof isAuthenticated!=='undefined'&&isAuthenticated===true};}
   function context(){
     var initialActor=actor(),doc=window.document,user=window.fbAuth&&window.fbAuth.currentUser,uid=initialActor.uid,role=initialActor.role;
-    var revision=window.PERMISOS_ROLES&&window.PERMISOS_ROLES[role]&&window.PERMISOS_ROLES[role].indiceRevision,epoch=window._svOperacionesSesionEpoch||0;
-    var view=window._impersonacionOriginal,profile=view&&view.usuarioFbKey,page=doc&&doc.querySelector('.page.active'),hash=window.location&&window.location.hash;
+    var revision=window.PERMISOS_ROLES&&window.PERMISOS_ROLES[role]&&window.PERMISOS_ROLES[role].indiceRevision,epoch=window._svOperacionesSesionEpoch||0,dataEpoch=window._svDataEpoch||0;
+    var view=window._impersonacionOriginal,profile=view&&view.usuarioFbKey;
     var db=window.fbDB,ref=window.fbRef,onValue=window.fbOnValue,moduleAccess=window.permisoModulo,domainAccess=window.svPuedeLeerDominio;
     function valid(){
       try{var currentActor=actor();return currentActor.authenticated&&!!uid&&!!user&&user.uid===uid&&user===window.fbAuth.currentUser&&uid===currentActor.uid&&role===currentActor.role&&
-        revision===(window.PERMISOS_ROLES&&window.PERMISOS_ROLES[role]&&window.PERMISOS_ROLES[role].indiceRevision)&&epoch===(window._svOperacionesSesionEpoch||0)&&view===window._impersonacionOriginal&&profile===(view&&view.usuarioFbKey)&&
+        revision===(window.PERMISOS_ROLES&&window.PERMISOS_ROLES[role]&&window.PERMISOS_ROLES[role].indiceRevision)&&epoch===(window._svOperacionesSesionEpoch||0)&&dataEpoch===(window._svDataEpoch||0)&&view===window._impersonacionOriginal&&profile===(view&&view.usuarioFbKey)&&
         db===window.fbDB&&!!db&&ref===window.fbRef&&typeof ref==='function'&&onValue===window.fbOnValue&&typeof onValue==='function'&&
-        moduleAccess===window.permisoModulo&&typeof moduleAccess==='function'&&moduleAccess('agenda')&&domainAccess===window.svPuedeLeerDominio&&typeof domainAccess==='function'&&domainAccess('agenda')&&
-        page===doc.querySelector('.page.active')&&page&&page.id==='page-agenda'&&page.isConnected!==false&&page.classList.contains('active')&&hash===(window.location&&window.location.hash)&&
+        moduleAccess===window.permisoModulo&&typeof moduleAccess==='function'&&domainAccess===window.svPuedeLeerDominio&&typeof domainAccess==='function'&&domainAccess('agenda')&&doc===window.document&&
         doc.hidden!==true&&doc.visibilityState!=='hidden'&&doc.visibilityState!=='prerender'&&(!window.SVForegroundSession||window.SVForegroundSession.isVisible()!==false);
       }catch(_){return false;}
     }
     return {valid:valid,db:db,ref:ref,onValue:onValue,doc:doc};
   }
+  function consumerContext(mode){
+    var doc=window.document,page=doc&&doc.querySelector('.page.active'),hash=window.location&&window.location.hash,moduleAccess=window.permisoModulo;
+    var module=mode==='all'?'dashboard':'agenda';
+    return {valid:function(){try{return doc===window.document&&page===doc.querySelector('.page.active')&&page&&page.id==='page-'+module&&page.isConnected!==false&&page.classList.contains('active')&&hash===(window.location&&window.location.hash)&&moduleAccess===window.permisoModulo&&typeof moduleAccess==='function'&&moduleAccess(module);}catch(_){return false;}}};
+  }
   function current(source){return !source.closed&&sources.get(source.path)===source&&source.context.valid();}
   function report(consumer,error){
     Promise.resolve().then(function(){
-      if(!consumer.active)return;
+      if(consumer.cancelled||consumer.reported)return;
       // A replacement established by an explicit action owns the caller now.
       // Its predecessor must not clear the replacement's loading signature.
       var replacement=sources.get(consumer.source.path);
-      consumer.active=false;
+      consumer.reported=true;
       if(replacement&&replacement!==consumer.source&&current(replacement))return;
       try{consumer.onError(error);}catch(callbackError){console.error('[DataQuery]',consumer.source.path,callbackError);}
     });
+  }
+  function retireConsumer(source,consumer,error){
+    if(!consumer.active)return;
+    consumer.active=false;source.consumers.delete(consumer);
+    if(error)report(consumer,error);
   }
   function stop(source,error){
     if(source.closed)return;
@@ -57,23 +66,28 @@
     if(sources.get(source.path)===source)sources.delete(source.path);
     source.listeners.forEach(function(entry){entry[0].removeEventListener(entry[1],entry[2]);});source.listeners=[];
     if(typeof source.unsubscribe==='function'){var unsubscribe=source.unsubscribe;source.unsubscribe=null;unsubscribe();}
-    var consumers=Array.from(source.consumers);source.consumers.clear();
-    if(error)consumers.forEach(function(consumer){report(consumer,error);});
+    Array.from(source.consumers).forEach(function(consumer){retireConsumer(source,consumer,error);});
   }
   function stopWhenUnused(source){
     var generation=++source.releaseGeneration;
     Promise.resolve().then(function(){if(!source.closed&&generation===source.releaseGeneration&&!source.consumers.size)stop(source);});
   }
+  function prune(source){
+    if(!current(source)){stop(source,retiredError());return false;}
+    Array.from(source.consumers).forEach(function(consumer){if(!consumer.context.valid())retireConsumer(source,consumer,retiredError());});
+    if(!source.consumers.size){stopWhenUnused(source);return false;}
+    return true;
+  }
   function deliver(source,consumer){
     if(!consumer.active||source.closed)return;
-    if(!current(source)){stop(source,retiredError());return;}
+    if(!prune(source)||!consumer.active)return;
     var bounds=consumer.bounds;
-    var rows=source.rows.filter(function(row){ return String(row.fecha||'').slice(0,10)>=bounds.start&&String(row.fecha||'').slice(0,10)<=bounds.end; });
-    if(!current(source)){stop(source,retiredError());return;}
+    var rows=consumer.mode==='all'?source.rows.slice():source.rows.filter(function(row){ return String(row.fecha||'').slice(0,10)>=bounds.start&&String(row.fecha||'').slice(0,10)<=bounds.end; });
+    if(!prune(source)||!consumer.active)return;
     try{consumer.onRows(rows,bounds);}catch(error){stop(source,error);}
   }
   function watch(source){
-    function check(){if(!current(source))stop(source,retiredError());}
+    function check(){prune(source);}
     function retire(){stop(source,retiredError());}
     function listen(target,type,callback){target.addEventListener(type,callback);source.listeners.push([target,type,callback]);}
     ['sisventas:session-ended','sisventas:role-changed'].forEach(function(type){listen(source.context.doc,type,retire);});
@@ -81,31 +95,36 @@
     listen(window,'hashchange',check);listen(window,'pagehide',retire);
     try{
       var unsubscribe=source.context.onValue(source.context.ref(source.context.db,source.path),function(snapshot){
-        if(!current(source)){stop(source,retiredError());return;}
-        if(!source.consumers.size)return;
+        if(!prune(source)){stop(source);return;}
         var rows;
         try{rows=toRows(snapshot.val());}catch(error){stop(source,error);return;}
-        if(!current(source)){stop(source,retiredError());return;}
+        if(!prune(source)){stop(source);return;}
         source.rows=rows;source.ready=true;source.version++;
         Array.from(source.consumers).forEach(function(consumer){deliver(source,consumer);});
-      },function(error){if(!source.closed)stop(source,error||retiredError());});
+      },function(error){if(prune(source))stop(source,error||retiredError());else stop(source);});
       if(source.closed){if(typeof unsubscribe==='function')unsubscribe();}else source.unsubscribe=unsubscribe;
     }catch(error){stop(source,error);}
   }
-  function subscribeDateRange(path,bounds,onRows,onError){
-    var captured=context(),source=sources.get(path);
+  function subscribe(path,mode,bounds,onRows,onError){
+    var captured=context(),capturedConsumer=consumerContext(mode),source=sources.get(path);
     if(source&&!current(source)){stop(source,retiredError());source=null;}
     if(!source){source={path:path,context:captured,consumers:new Set(),rows:null,ready:false,version:0,releaseGeneration:0,closed:false,listeners:[],unsubscribe:null};sources.set(path,source);}
-    var consumer={source:source,bounds:bounds,onRows:onRows,onError:onError||function(error){console.error('[DataQuery]',path,error);},active:true};
+    var consumer={source:source,context:capturedConsumer,mode:mode,bounds:bounds,onRows:onRows,onError:onError||function(error){if(error.code!=='SV_AGENDA_SOURCE_RETIRED')console.error('[DataQuery]',path,error);},active:true,cancelled:false,reported:false};
+    function unsubscribe(){consumer.cancelled=true;if(!consumer.active)return;consumer.active=false;source.consumers.delete(consumer);if(!source.consumers.size)stopWhenUnused(source);}
+    unsubscribe.valid=function(){return consumer.active&&current(source)&&consumer.context.valid();};
+    if(!captured.valid()||!capturedConsumer.valid()){
+      consumer.active=false;report(consumer,retiredError());
+      if(!source.consumers.size)stopWhenUnused(source);
+      return unsubscribe;
+    }
     source.consumers.add(consumer);source.releaseGeneration++;
-    function unsubscribe(){if(!consumer.active)return;consumer.active=false;source.consumers.delete(consumer);if(!source.consumers.size)stopWhenUnused(source);}
-    unsubscribe.valid=function(){return consumer.active&&current(source);};
-    if(!captured.valid()){stop(source,retiredError());return unsubscribe;}
-    // One authorized root source survives only a synchronous range handoff.
-    // Filtering remains local until a compatible fecha index is deployed.
+    // One authorized root source survives only a synchronous page/range handoff.
+    // Each consumer retains its exact page and the previous legacy date filter.
     if(source.ready){var version=source.version;Promise.resolve().then(function(){if(source.version===version)deliver(source,consumer);});}
     else if(source.consumers.size===1&&source.unsubscribe===null)watch(source);
     return unsubscribe;
   }
-  SV.DataQuery={iso:iso,range:range,subscribeDateRange:subscribeDateRange};
+  function subscribeDateRange(path,bounds,onRows,onError){return subscribe(path,'range',bounds,onRows,onError);}
+  function subscribeAll(path,onRows,onError){return subscribe(path,'all',undefined,onRows,onError);}
+  SV.DataQuery={iso:iso,range:range,subscribeDateRange:subscribeDateRange,subscribeAll:subscribeAll};
 })(window);

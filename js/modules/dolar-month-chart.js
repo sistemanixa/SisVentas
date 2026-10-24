@@ -37,6 +37,7 @@
     return Array.from(buckets.values()).sort(function(a,b){return a.position-b.position;});
   }
   var data=[],selected='',mode='month',enabled={oficial:true,blue:false,mep:false},revision=0,drawn='',pending=false;
+  var source=null,sourceStatus='ready';
   function format(n){return '$'+Number(n).toLocaleString('es-AR',{maximumFractionDigits:2});}
   function nearest(points,position){
     return points.reduce(function(best,p){return !best||Math.abs(p.position-position)<Math.abs(best.position-position)?p:best;},null);
@@ -76,7 +77,11 @@
     svg.onkeydown=function(e){if(e.key==='Escape'){hide();return;}if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;e.preventDefault();show(active[Math.max(0,Math.min(active.length-1,current+(e.key==='ArrowLeft'?-1:1)))]);};
   }
   function schedule(){if(pending)return;pending=true;requestAnimationFrame(function(){pending=false;render();});}
-  function update(rows){data=rows||[];revision++;schedule();}
+  function getSelection(){if(!selected)selected=iso(new Date());return {anchor:selected,mode:mode};}
+  function bindSource(callback){source=typeof callback==='function'?callback:null;}
+  function sourceState(status){sourceStatus=status;data=[];revision++;schedule();}
+  function changePeriod(){if(source)source();else render();}
+  function update(rows){data=rows||[];sourceStatus='ready';revision++;schedule();}
   function render(){
     var host=document.getElementById('cfg-dolar-historico-card');
     if(document.hidden||!host||!host.getClientRects().length)return;
@@ -87,9 +92,9 @@
       box.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><strong style="font-size:13px">Evolución del dólar</strong><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><select aria-label="Período del gráfico" class="search-input" style="width:auto;min-height:40px"><option value="day">Día</option><option value="week">Semana</option><option value="month" selected>Mes</option><option value="year">Año</option></select><button type="button" class="btn btn-sm" data-period-prev aria-label="Período anterior" style="min-width:40px;min-height:40px">←</button><strong data-period-label aria-live="polite" style="min-width:135px;text-align:center;font-size:13px"></strong><button type="button" class="btn btn-sm" data-period-next aria-label="Período siguiente" style="min-width:40px;min-height:40px">→</button></div></div><div data-period-plot></div><div data-period-legend style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px"></div><p data-period-note style="font-size:11px;color:var(--text3);margin:8px 0 0"></p>';
       host.prepend(box);
       box.querySelector('select').value=mode;
-      box.querySelector('select').onchange=function(e){mode=e.target.value;render();};
-      box.querySelector('[data-period-prev]').onclick=function(){selected=shift(selected,mode,-1);render();};
-      box.querySelector('[data-period-next]').onclick=function(){if(period(selected,mode).start<period(iso(new Date()),mode).start){selected=shift(selected,mode,1);render();}};
+      box.querySelector('select').onchange=function(e){mode=e.target.value;changePeriod();};
+      box.querySelector('[data-period-prev]').onclick=function(){selected=shift(selected,mode,-1);changePeriod();};
+      box.querySelector('[data-period-next]').onclick=function(){if(period(selected,mode).start<period(iso(new Date()),mode).start){selected=shift(selected,mode,1);changePeriod();}};
       var legend=box.querySelector('[data-period-legend]');
       fields.forEach(function(key,index){
         var label=document.createElement('label');label.style.cssText='display:flex;align-items:center;gap:6px;min-height:36px;cursor:pointer;color:'+colors[index];
@@ -107,9 +112,14 @@
     box.querySelector('[data-period-label]').textContent=label;
     box.querySelector('[data-period-next]').disabled=range.start>=period(iso(new Date()),mode).start;
     box.querySelector('[data-period-note]').textContent='ARS por USD · Última cotización registrada de cada '+(mode==='year'?'mes':mode==='day'?'hora':'día')+'. Sin registros no se agregan valores.';
+    var plot=box.querySelector('[data-period-plot]');
+    if(sourceStatus!=='ready'){
+      fields.forEach(function(key){box.querySelector('[data-rate-value="'+key+'"]').textContent='—';});
+      plot.innerHTML='<p role="status" style="text-align:center;padding:38px 12px;color:var(--text3)">'+(sourceStatus==='loading'?'Cargando cotizaciones del período…':sourceStatus==='error'?'No se pudo cargar el período. Reintentá con Actualizar historial.':'Abrí el histórico o actualizalo para consultar este período.')+'</p>';
+      return;
+    }
     var points=series(data,selected,mode),values=[];
     fields.forEach(function(key){var available=points.filter(function(p){return p[key];});box.querySelector('[data-rate-value="'+key+'"]').textContent=available.length?format(available[available.length-1][key].value):'—';if(enabled[key])available.forEach(function(p){values.push(p[key].value);});});
-    var plot=box.querySelector('[data-period-plot]');
     if(!values.length){plot.innerHTML='<p style="text-align:center;padding:38px 12px;color:var(--text3)">'+(fields.some(function(k){return enabled[k];})?'Sin cotizaciones registradas para la selección en este período.':'Activá al menos una cotización para ver el gráfico.')+'</p>';return;}
     var low=Math.min.apply(null,values),high=Math.max.apply(null,values),pad=Math.max((high-low)*0.15,1);low=Math.max(0,low-pad);high+=pad;
     function x(position){return 74+position/(range.count-1)*620;}
@@ -131,5 +141,5 @@
     document.addEventListener('sisventas:page-changed',schedule);
     document.addEventListener('visibilitychange',schedule);
   }
-  return {series:series,period:period,shift:shift,nearest:nearest,update:update};
+  return {series:series,period:period,shift:shift,nearest:nearest,update:update,getSelection:getSelection,bindSource:bindSource,sourceState:sourceState};
 });

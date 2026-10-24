@@ -1,4 +1,30 @@
-# Cierre de la tanda v3.14.16 · 24/10/2026
+# Cierre de pendientes · 24/10/2026
+
+## Estado de la candidata18
+
+La candidata18 agrega la fuente compartida de Dashboard/Agenda, elimina el GET
+con TTL30s del Dashboard, consulta Dólar por período explícito y aísla los
+borradores/listados de Relevamientos. Corrige además la comparación de hijos CTA
+ausentes que rechazaba bonificaciones nuevas. Detalle y límites en
+[LECTURAS_Y_BORRADORES_V31418.md](LECTURAS_Y_BORRADORES_V31418.md).
+El estado externo vigente se comprueba en CONTEXTO_ACTUAL. Las cifras y el cierre
+de16 que siguen conservan la evidencia de aquella publicación.
+
+No quedan pendientes de implementación del filtro Dólar ni de la fuente
+compartida de Agenda en esta candidata; sus primeras descargas y los contratos
+legacy conservan los límites descritos. Las proyecciones de las otras familias
+siguen siendo trabajo real, no se reclasifican como mejoras opcionales.
+
+Se reprodujo una redundancia adicional: `fbCargarProveedores` llama a
+`SVDistribuidora.syncProviders` al recibir el listado y reescribe todo el catálogo
+público incluso ante un cambio privado sin efecto público. No se elimina ese
+puente incompletamente: los escritores privados admiten roles habilitados y la
+ruta pública sólo admite admin. Moverlo a la acción exige autorización de escritura
+exacta, actualización atómica y cobertura de concurrencia/legacy. Un reemplazo
+ingenuo de la proyección tras leer una fila puede publicar un nombre viejo después
+de una edición concurrente. Ese circuito permanece abierto y no cambió en18.
+
+## Evidencia de la tanda16
 
 Este documento separa las mejoras implementadas y probadas localmente en la
 candidata v3.14.16 de las lecturas que todavía requieren trabajo. El pedido

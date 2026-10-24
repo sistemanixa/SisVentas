@@ -5,8 +5,8 @@
   var INTERVALO_MS = 60 * 60 * 1000;
   var timer = null;
   var cargando = false;
-  var historial = [], pagina = 0, pageSize = 25;
-  var sesionActiva = true, generacion = 0, cargaPendiente = null, cargaProgramada = null;
+  var historial = [], pagina = 0, pageSize = 25, lecturaConfirmada = null;
+  var sesionActiva = true, generacion = 0, cargaPendiente = null;
   var controladores = new Set();
 
   function sesionDisponible(){
@@ -54,18 +54,10 @@
   }
   function invalidarCargas(){
     generacion++;
-    if(cargaProgramada !== null) clearTimeout(cargaProgramada); cargaProgramada = null;
     controladores.forEach(function(controlador){controlador.abort();}); controladores.clear();
     cargaPendiente = null; cargando = false;
+    limpiarLectura('idle');
     estado('');
-  }
-  function programarCarga(demora){
-    if(cargaProgramada !== null) clearTimeout(cargaProgramada);
-    var contexto = capturarContexto();
-    cargaProgramada = setTimeout(function(){
-      cargaProgramada = null;
-      if(contextoVigente(contexto)) cargar();
-    }, demora);
   }
 
   function pad(n){ return String(n).padStart(2, '0'); }
@@ -81,6 +73,52 @@
   function money(n){ return '$' + Math.round(parseFloat(n) || 0).toLocaleString('es-AR'); }
   function setText(id, value){ var el = document.getElementById(id); if(el) el.textContent = value; }
   function estado(txt){ setText('dh-estado', txt); }
+  function lecturaVisible(){
+    var page=document.querySelector('.page.active'),card=document.getElementById('cfg-dolar-historico-card');
+    var user=window.fbAuth?.currentUser,uid=window.currentUserUid;
+    return typeof isAuthenticated!=='undefined' && isAuthenticated===true && typeof uid==='string' && uid.length>0 &&
+      !!user && typeof user.uid==='string' && user.uid.length>0 && user.uid===uid &&
+      document.hidden!==true && document.visibilityState!=='hidden' && window.SVForegroundSession?.isVisible?.()!==false &&
+      !!(page && page.id==='page-configuracion' && card && card.getClientRects().length) &&
+      typeof window.permisoModulo==='function' && window.permisoModulo('configuracion')===true;
+  }
+  function capturarLectura(){
+    if(!lecturaVisible())return null;
+    var model=window.SVDollarHistoryScope,chart=window.SisVentasDolarMensual,selector=document.getElementById('dh-history-scope');
+    if(!model||!chart?.getSelection)throw new Error('No se pudo preparar el período del histórico');
+    var selected=chart.getSelection(),scope=model.create(selector?.value||'period',selected.anchor,selected.mode);
+    return {contexto:capturarContexto(),model:model,chart:chart,selector:selector,scope:scope,
+      page:document.querySelector('.page.active'),card:document.getElementById('cfg-dolar-historico-card'),
+      hash:window.location.hash,epoch:window._svDataEpoch,operationEpoch:window._svOperacionesSesionEpoch,db:window.fbDB,get:window.fbGet,ref:window.fbRef,
+      query:window.fbQuery,order:window.fbOrderByKey,start:window.fbStartAt,end:window.fbEndAt};
+  }
+  function lecturaVigente(lectura){
+    if(!lectura||!contextoVigente(lectura.contexto)||!lecturaVisible()||lectura.model!==window.SVDollarHistoryScope||lectura.chart!==window.SisVentasDolarMensual||
+      lectura.selector!==document.getElementById('dh-history-scope')||lectura.page!==document.querySelector('.page.active')||
+      lectura.card!==document.getElementById('cfg-dolar-historico-card')||lectura.hash!==window.location.hash||lectura.epoch!==window._svDataEpoch||lectura.operationEpoch!==window._svOperacionesSesionEpoch||
+      lectura.db!==window.fbDB||lectura.get!==window.fbGet||lectura.ref!==window.fbRef||lectura.query!==window.fbQuery||
+      lectura.order!==window.fbOrderByKey||lectura.start!==window.fbStartAt||lectura.end!==window.fbEndAt)return false;
+    try{var selected=lectura.chart.getSelection();return lectura.scope.signature===lectura.model.create(lectura.selector?.value||'period',selected.anchor,selected.mode).signature;}
+    catch(_e){return false;}
+  }
+  function alcance(scope){
+    return scope.kind==='all'?'Todo el historial · incluye fechas antiguas o incompletas.':
+      'Período consultado: '+scope.start.split('-').reverse().join('/')+' – '+scope.end.split('-').reverse().join('/')+'. Fechas antiguas o incompletas: Todo el historial.';
+  }
+  function limpiarLectura(status){
+    historial=[];pagina=0;lecturaConfirmada=null;
+    document.getElementById('cfg-dolar-historico-card')?.setAttribute('aria-busy',status==='loading'?'true':'false');
+    ['dh-oficial','dh-blue','dh-mep','dh-count'].forEach(function(id){setText(id,'—');});
+    var tbody=document.getElementById('dolar-historico-tbody'),nav=document.getElementById('dh-history-pages');
+    if(tbody)tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:18px">'+(status==='loading'?'Cargando histórico…':status==='error'?'No se pudo cargar. Reintentá con Actualizar historial.':'Histórico pendiente de consulta')+'</td></tr>';
+    if(nav)nav.style.display='none';
+    window.SisVentasDolarMensual?.sourceState?.(status||'idle');
+  }
+  function retirarLectura(){
+    var anterior=cargaPendiente;cargaPendiente=null;
+    if(anterior?.controlador){anterior.controlador.abort();controladores.delete(anterior.controlador);}
+    limpiarLectura('idle');estado('');
+  }
   function cfgActual(){
     return Object.assign({}, window.TIPO_CAMBIO_CONFIG || {}, {
       oficial: parseFloat((document.getElementById('cfg-dolar-oficial') || {}).value) || parseFloat((window.TIPO_CAMBIO_CONFIG || {}).oficial) || 0,
@@ -167,6 +205,7 @@
       nav.querySelector('[data-older]').onclick=function(){pagina++;renderTabla(historial);};
     }
     nav.querySelector('[data-page-size]').value=String(pageSize);
+    nav.style.display='flex';
     nav.querySelector('[data-newer]').disabled=pagina===0;
     nav.querySelector('[data-older]').disabled=(pagina+1)*pageSize>=historial.length;
     nav.querySelector('[data-history-range]').textContent=historial.length ? 'Registros '+(pagina*pageSize+1)+'–'+Math.min((pagina+1)*pageSize,historial.length)+' de '+historial.length+' · Histórico desde '+historial[historial.length-1].fecha.split('-').reverse().join('/') : 'Sin registros';
@@ -193,32 +232,44 @@
   }
 
   function cargar(opciones){
-    var contexto = capturarContexto();
-    if(!contextoVigente(contexto) || !window.fbDB || !window.fbGet || !window.fbRef) return Promise.resolve(false);
-    if(cargaProgramada !== null) clearTimeout(cargaProgramada); cargaProgramada = null;
-    if(cargaPendiente && contextoVigente(cargaPendiente.contexto)) {
+    var lectura;
+    try{lectura=capturarLectura();}catch(error){retirarLectura();limpiarLectura('error');estado(error.message);return Promise.resolve(false);}
+    if(!lectura || !contextoVigente(lectura.contexto) || !window.fbDB || !window.fbGet || !window.fbRef){retirarLectura();return Promise.resolve(false);}
+    var contexto = lectura.contexto;
+    if(cargaPendiente && lecturaVigente(cargaPendiente.lectura) && cargaPendiente.lectura.scope.signature===lectura.scope.signature) {
       if(opciones?.refrescar === true) cargaPendiente.refrescar = true;
       return cargaPendiente.promesa;
     }
+    if(cargaPendiente)retirarLectura();
+    if(opciones?.grafico===true && lectura.scope.kind==='all' && lecturaConfirmada?.scope.kind==='all' && lecturaVigente(lecturaConfirmada)){
+      lectura.chart.update(historial);return Promise.resolve(true);
+    }
     var controlador = nuevoControlador(), signal = controlador?.signal;
-    var solicitud = {contexto:contexto, controlador:controlador, refrescar:false, promesa:null};
+    var solicitud = {contexto:contexto, lectura:lectura, controlador:controlador, refrescar:false, promesa:null};
     cargaPendiente = solicitud;
+    limpiarLectura('loading');setText('dh-scope-note',alcance(lectura.scope));
     solicitud.promesa = (async function(){
       try {
-        await esperarVisible(signal);
-        if(cargaPendiente !== solicitud || !contextoVigente(contexto)) return false;
+        await Promise.resolve();
+        if(cargaPendiente !== solicitud || !lecturaVigente(lectura)) return false;
         estado('Cargando histórico...');
-        var snap = await esperarResultado(window.fbGet(window.fbRef(window.fbDB, 'sisventas/dolarHistorico')),signal);
-        await esperarVisible(signal);
-        if(cargaPendiente !== solicitud || !contextoVigente(contexto)) return false;
-        var rows = flatten(snap.val() || {});
+        var ref=window.fbRef(window.fbDB, 'sisventas/dolarHistorico');
+        if(lectura.scope.kind==='period'){
+          if(typeof window.fbQuery!=='function'||typeof window.fbOrderByKey!=='function'||typeof window.fbStartAt!=='function'||typeof window.fbEndAt!=='function')throw new Error('Consulta por período no disponible');
+          ref=window.fbQuery(ref,window.fbOrderByKey(),window.fbStartAt(lectura.scope.start),window.fbEndAt(lectura.scope.end));
+        }
+        var snap = await esperarResultado(window.fbGet(ref),signal);
+        if(cargaPendiente !== solicitud || !lecturaVigente(lectura)) return false;
+        var rows = flatten(lectura.model.filter(snap.val() || {},lectura.scope));
         pagina = 0;
         renderTabla(rows);
+        lecturaConfirmada=lectura;lectura.card.setAttribute('aria-busy','false');
         if(window.SisVentasDolarMensual) window.SisVentasDolarMensual.update(rows);
         estado(rows.length ? 'Último punto: ' + (rows[0].fecha || '') + ' ' + (rows[0].hora || '') : 'Sin registros');
         return true;
       } catch(e){
-        if(cargaPendiente === solicitud && contextoVigente(contexto) && e.name !== 'AbortError') {
+        if(cargaPendiente === solicitud && lecturaVigente(lectura) && e.name !== 'AbortError') {
+          limpiarLectura('error');
           estado('Error al cargar histórico');
           if(typeof notify === 'function') notify('No se pudo cargar histórico del dólar: ' + e.message);
         }
@@ -226,8 +277,11 @@
       } finally {
         if(controlador) controladores.delete(controlador);
         if(cargaPendiente === solicitud) {
-          cargaPendiente = null;
-          if(solicitud.refrescar && contextoVigente(contexto)) cargar();
+          if(!lecturaVigente(lectura))retirarLectura();
+          else{
+            cargaPendiente = null;
+            if(solicitud.refrescar) cargar();
+          }
         }
       }
     })();
@@ -280,10 +334,10 @@
 
   function iniciar(){
     invalidarCargas(); sesionActiva = true;
+    var selector=document.getElementById('dh-history-scope');if(selector)selector.value='period';
     if(timer) clearInterval(timer);
     timer = null;
     if(!sesionDisponible()) return;
-    programarCarga(400);
     // La actualización de cotización queda vinculada a una acción explícita.
   }
 
@@ -306,8 +360,12 @@
 
   document.addEventListener('sisventas:session-ready', iniciar);
   document.addEventListener('sisventas:session-ended', detener);
-  document.addEventListener('sisventas:role-changed', invalidarCargas);
+  document.addEventListener('sisventas:role-changed', function(){invalidarCargas();retirarLectura();});
   document.addEventListener('sisventas:page-changed', function(e){
-    if(!e.detail || e.detail.page === 'configuracion') programarCarga(250);
+    if(e.detail?.page!=='configuracion')retirarLectura();
   });
+  document.addEventListener('sisventas:configuration-tab-changed', function(e){if(e.detail?.tab!=='general'||!lecturaVisible())retirarLectura();});
+  document.addEventListener('visibilitychange',function(){if(document.hidden===true||document.visibilityState==='hidden')retirarLectura();});
+  document.addEventListener('sisventas:foreground-paused',retirarLectura);
+  if(window.SisVentasDolarMensual?.bindSource)window.SisVentasDolarMensual.bindSource(function(){return cargar({grafico:true});});
 })();

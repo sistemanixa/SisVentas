@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.14.17-firebase' -->
+<!-- VERSION: 'v3.14.18-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,7 +21,7 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.14.17.js"></script>
+<script src="./js/core/version.v3.14.18.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.13.1-cards"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.11.18"></script>
@@ -2032,16 +2032,19 @@
             <div class="card-head">
               <span class="card-title"><i class="ti ti-chart-line"></i> Histórico del dólar</span>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <label for="dh-history-scope" style="font-size:12px;color:var(--text2)">Alcance</label>
+                <select id="dh-history-scope" class="search-input" onchange="dolarHistoricoCargar()" style="width:auto;max-width:100%;min-height:36px"><option value="period">Período del gráfico</option><option value="all">Todo el historial</option></select>
                 <span id="dh-estado" style="font-size:11px;color:var(--text3)">Sin cargar</span>
                 <button class="btn btn-sm" onclick="dolarHistoricoGuardarAhora()"><i class="ti ti-clock-plus"></i> Guardar punto ahora</button>
                 <button class="btn btn-sm" onclick="dolarHistoricoCargar()"><i class="ti ti-refresh"></i> Actualizar historial</button>
               </div>
             </div>
+            <div id="dh-scope-note" role="status" style="font-size:12px;color:var(--text2);margin-bottom:12px">Consultá el período del gráfico o elegí Todo el historial.</div>
             <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
               <div class="metric"><div class="m-label">Último oficial</div><div class="m-value" id="dh-oficial">$0</div><div class="m-sub">ARS/USD</div></div>
               <div class="metric"><div class="m-label">Último blue</div><div class="m-value" id="dh-blue" style="color:var(--blue)">$0</div><div class="m-sub">ARS/USD</div></div>
               <div class="metric"><div class="m-label">Último MEP</div><div class="m-value" id="dh-mep" style="color:var(--purple)">$0</div><div class="m-sub">ARS/USD</div></div>
-              <div class="metric"><div class="m-label">Registros</div><div class="m-value" id="dh-count">0</div><div class="m-sub">total del histórico</div></div>
+              <div class="metric"><div class="m-label">Registros</div><div class="m-value" id="dh-count">—</div><div class="m-sub">puntos del alcance</div></div>
             </div>
             <div class="table-wrap">
               <table id="dolar-historico-tbl">
@@ -5794,7 +5797,7 @@ Listo para analizar.
 <script src="./js/core/print-layout.v1.js"></script>
 <script src="./js/core/activity-period.v1.js"></script>
 <script src="./js/core/dashboard-account-read.v1.js"></script>
-<script src="./js/app.v3.14.17.js"></script>
+<script src="./js/app.v3.14.18.js"></script>
 <script src="./js/modules/bonus-concepts.js?v=3.14.6"></script>
 <script src="./js/modules/bonus-grant.js?v=3.14.6"></script>
 <script src="./js/modules/projects.js?v=3.14.3-demand"></script>
@@ -5818,8 +5821,8 @@ Listo para analizar.
 <script src="./js/modules/sidebar-search.js?v=3.8.20"></script>
 <script src="./js/modules/provider-verification.js?v=3.9.3"></script>
 <script src="./js/core/image-attachment-standard.js?v=2.0.340"></script>
-<script src="./js/modules/surveys.js?v=3.13.19-insurance"></script>
-<script src="./js/core/data-query.js?v=3.14.16"></script>
+<script src="./js/modules/surveys.js?v=3.14.18-context"></script>
+<script src="./js/core/data-query.js?v=3.14.18"></script>
 
 <!-- PANEL USUARIO (engranaje) -->
 <div id="user-panel-overlay" style="display:none;position:fixed;inset:0;z-index:9990" onclick="cerrarUserPanel()"></div>
@@ -6210,7 +6213,7 @@ Listo para analizar.
 
 
 
-<script src="./js/modules/configuration-mobile.js?v=3.11.0-keyboard-v3.14.17"></script>
+<script src="./js/modules/configuration-mobile.js?v=3.11.0-keyboard-v3.14.18"></script>
 <script src="./js/modules/paraguay-config.js?v=3.12.20"></script>
 
 
@@ -6324,8 +6327,9 @@ Listo para analizar.
 <script src="./js/modules/commissions.js?v=3.13.19-financial"></script>
 <script src="./js/modules/item-row-order.js?v=perf-3105"></script>
 
-<script src="./js/modules/dolar-month-chart.js?v=history-cursor-2"></script>
-<script src="./js/modules/dolar-historico.js?v=3.13.3-context"></script>
+<script src="./js/core/dollar-history-scope.v1.js?v=3.14.18"></script>
+<script src="./js/modules/dolar-month-chart.js?v=3.14.18-period"></script>
+<script src="./js/modules/dolar-historico.js?v=3.14.18-period"></script>
 <script src="./js/modules/ops-hardening.js?v=2.3.2-maintenance-guided-1"></script>
 <script src="./js/modules/v2-readiness.js?v=2.0.154"></script>
 <script src="./js/modules/v2-audit.js?v=2.0.399-audit1"></script>

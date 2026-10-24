@@ -9,18 +9,21 @@ const flush = async () => {for (let i = 0; i < 16; i++) await Promise.resolve();
 function fixture() {
   const listeners = {}, timers = new Map(), reads = [], writes = [], paints = [], notices = [];
   let nextTimer = 0, visible = true;
-  const waits = new Set(), state = {textContent: ''};
+  const waits = new Set(), state = {textContent: ''}, selector={value:'period'}, page={id:'page-configuracion'},card={getClientRects:()=>visible?[{}]:[],setAttribute(){}};
   const document = {
     body: {classList: {contains: () => false}},
-    getElementById: id => id === 'dh-estado' ? state : null,
+    querySelector:()=>page,
+    getElementById: id => id === 'dh-estado' ? state : id==='dh-history-scope'?selector:id==='cfg-dolar-historico-card'?card:null,
     addEventListener(name, callback) {(listeners[name] ||= []).push(callback);}
   };
   const window = {
-    currentUserUid: 'user-A', currentRole: 'admin', fbAuth: {currentUser: {uid: 'user-A'}}, fbDB: {},
+    currentUserUid: 'user-A', currentRole: 'admin', fbAuth: {currentUser: {uid: 'user-A'}}, fbDB: {},location:{hash:'#/configuracion'},
+    SVDollarHistoryScope:require('../js/core/dollar-history-scope.v1'),permisoModulo:()=>true,
+    fbQuery:(...query)=>query,fbOrderByKey:()=>({key:true}),fbStartAt:start=>({start}),fbEndAt:end=>({end}),
     fbRef: (_, path) => path,
     fbGet(path) {return new Promise((resolve, reject) => reads.push({path, resolve, reject}));},
     fbUpdate(path, value) {writes.push({path, value}); return Promise.resolve();},
-    SisVentasDolarMensual: {update(rows) {paints.push(rows);}},
+    SisVentasDolarMensual: {update(rows) {paints.push(rows);},getSelection:()=>({anchor:'2026-10-24',mode:'month'}),sourceState(){},bindSource(){}},
     SVForegroundSession: {
       isVisible: () => visible,
       waitVisible({signal} = {}) {
@@ -34,7 +37,7 @@ function fixture() {
       }
     }
   };
-  const context = {window, document, console, Date, AbortController, notify: message => notices.push(message),
+  const context = {window, document, console, Date, AbortController,isAuthenticated:true, notify: message => notices.push(message),
     setTimeout(callback) {const id = ++nextTimer; timers.set(id, callback); return id;}, clearTimeout(id) {timers.delete(id);}, clearInterval() {}};
   vm.runInNewContext(source, context);
   return {window, reads, writes, paints, notices, timers, waits, state,
@@ -56,9 +59,9 @@ test('salir cancela el inicio demorado sin iniciar consultas después', async ()
   await flush(); assert.equal(f.reads.length, 0); assert.equal(f.timers.size, 0);
 });
 
-test('oculta espera primer plano y logout retira la espera sin GET', async () => {
+test('oculta no inicia consultas ni programa una consulta al volver a primer plano', async () => {
   const f = fixture(); f.visible(false); const task = f.window.dolarHistoricoCargar();
-  await flush(); assert.equal(f.reads.length, 0); assert.equal(f.waits.size, 1);
+  await flush(); assert.equal(f.reads.length, 0); assert.equal(f.waits.size, 0);
   f.emit('sisventas:session-ended'); await task; f.visible(true); await flush();
   assert.equal(f.reads.length, 0); assert.equal(f.waits.size, 0);
 });
@@ -106,10 +109,10 @@ test('fallo vigente avisa una vez y permite reintento explícito', async () => {
   f.reads[1].resolve(snapshot(300)); await retry; assert.equal(f.paints.length, 1);
 });
 
-test('la respuesta recibida oculta no pinta hasta volver al primer plano', async () => {
+test('la respuesta recibida oculta se retira y volver visible no inicia otro GET', async () => {
   const f = fixture(), task = f.window.dolarHistoricoCargar(); await flush();
   f.visible(false); f.reads[0].resolve(snapshot(200)); await flush(); assert.equal(f.paints.length, 0);
-  f.visible(true); await task; assert.equal(f.paints.length, 1); assert.equal(f.reads.length, 1);
+  f.visible(true); await task; assert.equal(f.paints.length, 0); assert.equal(f.reads.length, 1);
 });
 
 test('logout conserva el guardado iniciado y suprime avisos y refrescos de la sesión vieja', async () => {

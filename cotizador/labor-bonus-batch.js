@@ -69,7 +69,7 @@ async function validateBonusBatch({actor,raw,get,changes=[],patch={},digest}){
  for(const path of Object.keys(patch)){
   if(!path.startsWith('sisventas/ctaemp/'))continue;const p=path.split('/');
   if(p.length>=4)moves.add(p.slice(0,4).join('/'));
-  else{const [before,after]=await Promise.all([raw(path),get(path)]);for(const key of new Set([...Object.keys(before||{}),...Object.keys(after||{})]))if(!same(before?.[key],after?.[key]))moves.add(path+'/'+key);}
+  else{const [before,after]=await Promise.all([raw(path),get(path)]);for(const key of new Set([...Object.keys(before||{}),...Object.keys(after||{})]))if(!same(before?.[key]??null,after?.[key]??null))moves.add(path+'/'+key);}
  }
  for(const path of moves)pairs.push({before:await raw(path),after:await get(path)});
  for(const {before,after}of pairs){
