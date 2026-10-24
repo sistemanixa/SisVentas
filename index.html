@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.14.14-firebase' -->
+<!-- VERSION: 'v3.14.15-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,7 +21,7 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.14.14.js"></script>
+<script src="./js/core/version.v3.14.15.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.13.1-cards"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.11.18"></script>
@@ -2622,7 +2622,7 @@ Listo para analizar.
         <div id="cfg-actividad" class="cfg-panel" style="display:none">
           <div class="card">
             <div class="card-head">
-              <span class="card-title">Historial de actividad</span><button class="btn btn-sm" onclick="limpiarLogActividad()" style="margin-left:auto"><i class="ti ti-trash"></i> Limpiar registro</button>
+              <span class="card-title">Historial de actividad</span><button id="act-limpiar" class="btn btn-sm" onclick="limpiarLogActividad()" style="margin-left:auto"><i class="ti ti-trash"></i> Limpiar registro</button>
             </div>
             <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
               Acciones importantes registradas por usuario: ventas creadas, pagos registrados, altas y ediciones de clientes, productos y empleados, inicios y cierres de sesión.
@@ -2634,9 +2634,10 @@ Listo para analizar.
               <select id="act-filtro-accion" style="max-width:220px" onchange="renderLogActividad()">
                 <option value="">— Todas las acciones —</option>
               </select>
-              <button class="btn btn-sm" onclick="cargarLogActividad()"><i class="ti ti-refresh"></i> Actualizar</button>
+              <button id="act-actualizar" class="btn btn-sm" onclick="cargarLogActividad()"><i class="ti ti-refresh"></i> Actualizar</button>
             </div>
-            <table>
+            <div id="act-estado" role="status" aria-live="polite" hidden style="padding:24px 12px;text-align:center;color:var(--text3)"></div>
+            <table id="act-tabla">
               <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
               <tbody id="act-tbody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px">Sin actividad registrada todavía</td></tr></tbody>
             </table>
@@ -5782,7 +5783,7 @@ Listo para analizar.
 <script src="./js/core/dashboard-personal-hours.v1.js"></script>
 <script src="./js/core/dashboard-personal-notices.v1.js"></script>
 <script src="./js/modules/dashboard-personal-notices.js?v=3.14.11"></script>
-<script src="./js/app.v3.14.14.js"></script>
+<script src="./js/app.v3.14.15.js"></script>
 <script src="./js/modules/bonus-concepts.js?v=3.14.6"></script>
 <script src="./js/modules/bonus-grant.js?v=3.14.6"></script>
 <script src="./js/modules/projects.js?v=3.14.3-demand"></script>
@@ -6198,7 +6199,7 @@ Listo para analizar.
 
 
 
-<script src="./js/modules/configuration-mobile.js?v=3.11.0-keyboard"></script>
+<script src="./js/modules/configuration-mobile.js?v=3.11.0-keyboard-v3.14.15"></script>
 <script src="./js/modules/paraguay-config.js?v=3.12.20"></script>
 
 

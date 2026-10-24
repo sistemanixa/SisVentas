@@ -146,6 +146,7 @@
     var panel=document.getElementById('cfg-actividad'); if(!panel) return;
     var old=document.getElementById('sv331-actividad-list'); if(old) old.remove();
     if(!isMob331()) return;
+    if(typeof window.svActividadListaConfirmada==='function'&&!window.svActividadListaConfirmada())return;
     var card=panel.querySelector('.card'); if(!card) return;
     var filtroUsu=(document.getElementById('act-filtro-usuario')||{}).value||'';
     var filtroAcc=(document.getElementById('act-filtro-accion')||{}).value||'';
