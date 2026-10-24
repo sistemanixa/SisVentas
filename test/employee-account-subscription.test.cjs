@@ -35,7 +35,7 @@ function fixture(source=active,{manager=false,ready=true,broad=false}={}){
  function deliverCTA(data,index=cta().length-1){cta()[index].next({val:()=>structuredClone(data)});}
  function deliverGastos(data){for(const row of subs.filter(row=>row.path==='sisventas/gastos')){const value=Object.fromEntries(Object.entries(data).filter(([,g])=>g[row.ref.field]===row.ref.value));row.next({val:()=>structuredClone(value)});}}
  function emit(name,detail={}){for(const fn of events.get(name)||[])fn({detail});}
- function output(){return{rows:JSON.parse(JSON.stringify(c.movsEmpData)),duplicates:JSON.parse(JSON.stringify(c._ctaEmpDuplicadosLegacy||[])),html:el('ctaemp-tbody').innerHTML,paymentHTML:el('ctaemp-pagos-tbody').innerHTML,paymentSummary:el('ctaemp-pagos-resumen').textContent,kpi:['ctaemp-base','ctaemp-haberes','ctaemp-adelantos','ctaemp-total','ctaemp-periodo'].map(id=>el(id).textContent)};}
+ function output(){return{rows:JSON.parse(JSON.stringify(c.movsEmpData)),duplicates:JSON.parse(JSON.stringify(c._ctaEmpDuplicadosLegacy||[])),html:el('ctaemp-tbody').innerHTML.replace(/<div class="ctaemp-periodo-descuento"[^>]*>Descuento: [^<]*<\/div>/g,''),paymentHTML:el('ctaemp-pagos-tbody').innerHTML,paymentSummary:el('ctaemp-pagos-resumen').textContent,kpi:['ctaemp-base','ctaemp-haberes','ctaemp-adelantos','ctaemp-total','ctaemp-periodo'].map(id=>el(id).textContent)};}
  if(ready){c.fbCargarGastos();deliverGastos({});}
  return{c,subs,cta,events,timers,writes,el,page,permissions,elements,deliverCTA,deliverGastos,emit,output,load,notifications};
 }
@@ -55,18 +55,26 @@ function data(){
   foreign:{empleadoId:'other',monto:99999,estado:'pagado',fecha:'2026-10-01'}};
  return{cta,gastos};
 }
-test('la proyección y helpers financieros conservan exactamente el cuerpo publicado10',()=>{
- const old=extract(baseline,'cargarCtaEmp'),body=old.slice(old.indexOf('    var ctaMovsOriginal'),old.lastIndexOf('\n  });'));
- assert.ok(extract(active,'svAplicarCtaEmpDesdeSnapshot').includes(body));
- for(const name of ['renderMovsEmp','_movEmpTotalPagado','_movEmpSaldoPendiente','_ctaEmpMovimientoLegacyDuplicadoPorGasto','_ctaEmpEstadoDesdeGasto'])assert.equal(extract(active,name),extract(baseline,name),name);
+test('la proyección compartida conserva los helpers monetarios y de membresía publicados10',()=>{
+ assert.match(extract(active,'svAplicarCtaEmpDesdeSnapshot'),/svProyectarCTA\(data,empFbKey\)/);
+ assert.match(extract(active,'renderDashMiCuenta'),/svRepintarCuentaDashboard\(\)/);
+ assert.match(extract(active,'svRepintarCuentaDashboard'),/svPintarCuentaDashboard\(state.data\|\|\{\},key\)/);
+ assert.match(extract(active,'svPintarCuentaDashboard'),/svProyectarCTA\(data,empFbKey\)/);
+ for(const name of ['_movEmpTotalPagado','_movEmpSaldoPendiente','_ctaEmpMovimientoLegacyDuplicadoPorGasto','_ctaEmpEstadoDesdeGasto','_ctaEmpPagosRealizadosEnMes'])assert.equal(extract(active,name),extract(baseline,name),name);
 });
 test('paridad rica10/11 de registros/orden/HTML/KPI y todos los filtros sin escribir ni recortar',()=>{
  const input=data(),before=structuredClone(input),old=fixture(baseline,{manager:true}),next=fixture(active,{manager:true});
  for(const f of [old,next]){f.deliverGastos(input.gastos);f.c.cargarCtaEmp('e');f.deliverCTA(input.cta);}
  assert.equal(next.c._ctaEmpLectura.status,'ready');assert.ok(next.c.movsEmpData.length>5);
+ assert.match(next.el('ctaemp-tbody').innerHTML,/class="ctaemp-periodo-descuento"[^>]*>Descuento: octubre de 2026/);
  assert.deepEqual(next.output(),old.output());
  for(const period of ['actual','anterior','todos','pendientes'])for(const type of ['','comision','bonificacion','hextra'])for(const state of ['','aprobado','pagado_parcial','pagado']){
-  for(const f of [old,next]){f.el('ctaemp-filtro-tipo').value=type;f.el('ctaemp-filtro-estado').value=state;f.c.setCtaEmpPeriodo(period);}assert.deepEqual(next.output(),old.output(),period+'/'+type+'/'+state);
+  for(const f of [old,next]){f.el('ctaemp-filtro-tipo').value=type;f.el('ctaemp-filtro-estado').value=state;f.c.setCtaEmpPeriodo(period);}
+  const expected=old.output();
+  // This fixture delivered its advance in September: the new authorized rule
+  // starts deducting it in October, while every payment/row stays unchanged.
+  if(period==='anterior'){expected.kpi[3]='$34,03';assert.equal(next.c._adelantoDescontableEnMes(input.cta.advance,'2026-09'),false);}
+  assert.deepEqual(next.output(),expected,period+'/'+type+'/'+state);
  }
  assert.deepEqual(input,before);assert.deepEqual(next.writes,[]);assert.equal(next.cta().length,1);
 });

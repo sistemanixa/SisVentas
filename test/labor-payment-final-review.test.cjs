@@ -80,10 +80,12 @@ test('Alta de movimiento entregado y gasto se confirman juntos, incluso si un de
 
 test('Entregar adelanto pendiente es una sola operación y dos usuarios no lo vuelven a entregar',async()=>{
  const m={tipo:'adelanto',estado:'pendiente',monto:100,fecha:'2026-10-01'},f=createBackend({ctaemp:{e:{m}}}),a=f.page(),b=f.page();
- for(const p of [a,b]){p.load(['confirmarAprobacionAdelanto']);p.node('adelanto-medio').value='Transferencia';p.context._adelantoAprobarCtx={empKey:'e',movKey:'m',mov:{...m,fbKey:'m'}};p.context.cerrarAprobacionAdelanto=()=>{};p.context.formatoMedioPago=x=>x;}
+ for(const p of [a,b]){p.load(['confirmarAprobacionAdelanto']);p.node('adelanto-medio').value='Transferencia';p.node('adelanto-periodo-descuento').value='2026-11';p.context._adelantoAprobarCtx={empKey:'e',movKey:'m',mov:{...m,fbKey:'m'}};p.context.cerrarAprobacionAdelanto=()=>{};p.context.formatoMedioPago=x=>x;}
  await Promise.all([a.context.confirmarAprobacionAdelanto(),b.context.confirmarAprobacionAdelanto()]);
  assert.equal(f.commits.length,1);const mov=f.get('sisventas/ctaemp/e/m'),g=f.get('sisventas/gastos/'+mov.gastoFbKey);assert.equal(g.montoPagado,100);assert.deepEqual(g.pagos,mov.pagos);assert.equal(Object.keys(mov.pagos).length,1);assert.ok([a,b].some(p=>p.messages.some(m=>/cambió|entregado/.test(m))));
 });
+test('the generic account-to-expense entry keeps a new advance mirror typed and preserves its discount month and payments',async()=>{const mov={tipo:'adelanto',monto:81.23,montoPagado:81.23,estado:'pagado',fecha:'2026-10-20',fechaPago:'2026-10-20',periodoDescuento:'2026-12',medioPago:'Efectivo',pagos:{p:{monto:81.23,medio:'Efectivo',fecha:'2026-10-20'}}},f=createBackend({ctaemp:{e:{m:mov}}}),p=f.page(),before=copy(mov),key=await p.context._crearGastoEmpresaDesdeMovimiento('e','m',mov),g=f.get('sisventas/gastos/'+key);assert.equal(g.tipoPagable,'adelanto');assert.equal(g.periodoDescuento,'2026-12');assert.deepEqual(g.pagos,before.pagos);assert.equal(f.get('sisventas/ctaemp/e/m').periodoDescuento,'2026-12');assert.equal(f.commits.length,1);});
+test('a concurrent change of a request discount month prevents delivery from an older approval form',async()=>{const mov={tipo:'adelanto',monto:81.23,estado:'pendiente',fecha:'2026-10-20',periodoDescuento:'2026-11'},f=createBackend({ctaemp:{e:{m:{...mov,periodoDescuento:'2026-12'}}}}),p=f.page();p.load(['confirmarAprobacionAdelanto']);p.node('adelanto-medio').value='Efectivo';p.node('adelanto-periodo-descuento').value='2026-11';p.context._adelantoAprobarCtx={empKey:'e',movKey:'m',mov};const before=copy(f.state.sisventas);await p.context.confirmarAprobacionAdelanto();assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,0);assert.match(p.messages.join(' '),/mes de descuento.*cambió/);});
 
 test('Incorporar comisión legacy conserva duplicados y base pagada sin inventar un pago anterior',async()=>{
  const m={tipo:'comision',monto:50,montoPagado:20,estado:'pagado_parcial',fecha:'2026-09-01',pct:5,gananciaBase:1000,descripcion:'Comisión anterior'},f=createBackend({ctaemp:{e:{m}}}),p=f.page();
@@ -122,7 +124,7 @@ test('El gasto de destino ocupado sin pertenencia no se vincula ni reemplaza y s
 });
 
 test('La entrega de adelanto falla cerrada sin adaptador seguro y no usa escrituras separadas',async()=>{
- const m={tipo:'adelanto',monto:50,estado:'pendiente'},f=createBackend({ctaemp:{e:{m}}}),p=f.page();p.load(['confirmarAprobacionAdelanto']);p.context._adelantoAprobarCtx={empKey:'e',movKey:'m',mov:m};p.node('adelanto-medio').value='Efectivo';p.context.SVLaborWrites=null;
+ const m={tipo:'adelanto',monto:50,estado:'pendiente'},f=createBackend({ctaemp:{e:{m}}}),p=f.page();p.load(['confirmarAprobacionAdelanto']);p.context._adelantoAprobarCtx={empKey:'e',movKey:'m',mov:m};p.node('adelanto-medio').value='Efectivo';p.node('adelanto-periodo-descuento').value='2026-11';p.context.SVLaborWrites=null;
  const before=copy(f.state.sisventas);await p.context.confirmarAprobacionAdelanto();assert.deepEqual(f.state.sisventas,before);assert.equal(f.commands.length,0);assert.deepEqual(f.direct,[]);assert.match(p.messages.at(-1),/guardado seguro/);
 });
 

@@ -166,7 +166,7 @@ test('Un movimiento sueldo pagado sin gasto ni control mensual tampoco se reempl
 });
 
 test('La aplicación de adelanto legacy conserva el neto y confirma sus vínculos con el haber',async()=>{
- const f=createBackend({ctaemp:{e:{a:{tipo:'adelanto',estado:'aprobado',monto:40,fecha:'2026-10-01'}}}}),p=f.page();
+ const f=createBackend({ctaemp:{e:{a:{tipo:'adelanto',estado:'aprobado',monto:40,fecha:'2026-09-01'}}}}),p=f.page();
  await p.context._registrarHaberesAtomico(salaryRows(p),'2026-10','2026-10-31','octubre de 2026');
  assert.equal(f.get('sisventas/gastos/haber_e_2026_10').monto,85);assert.equal(f.get('sisventas/haberes/e/2026_10').adelantoCompensado,40);assert.equal(f.get('sisventas/ctaemp/e/a').montoCompensado,40);assert.equal(f.get('sisventas/gastos/adelanto_e_a').monto,40);assert.equal(f.commits.length,1);
 });

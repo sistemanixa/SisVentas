@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.14.18-firebase' -->
+<!-- VERSION: 'v3.14.19-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,7 +21,7 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.14.18.js"></script>
+<script src="./js/core/version.v3.14.19.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.13.1-cards"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.11.18"></script>
@@ -352,16 +352,21 @@
             <span class="card-title"><i class="ti ti-wallet"></i> Mi cuenta</span>
             <button class="btn btn-sm" onclick="showPage('ctaemp',document.querySelector('[onclick*=ctaemp]'))"><i class="ti ti-external-link"></i> Ver completo</button>
           </div>
-          <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:8px">
+          <div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:8px">
             <div class="metric">
               <div class="m-label">Total a cobrar</div>
               <div class="m-value" id="dash-mc-total" style="color:var(--green)">—</div>
-              <div class="m-sub">sueldo + comisiones</div>
+              <div class="m-sub" id="dash-mc-total-sub">pendientes menos adelantos a descontar</div>
             </div>
             <div class="metric">
-              <div class="m-label">Comisiones aprobadas</div>
+              <div class="m-label">Total pagado del mes</div>
+              <div class="m-value" id="dash-mc-pagado" style="color:var(--blue)">—</div>
+              <div class="m-sub" id="dash-mc-pagado-sub">pagos registrados este mes</div>
+            </div>
+            <div class="metric">
+              <div class="m-label">Comisiones pendientes</div>
               <div class="m-value" id="dash-mc-comisiones" style="color:var(--amber)">—</div>
-              <div class="m-sub" id="dash-mc-comisiones-sub">0 aprobadas visibles</div>
+              <div class="m-sub" id="dash-mc-comisiones-sub">sin comisiones pendientes</div>
             </div>
             <div class="metric">
               <div class="m-label">Adelantos</div>
@@ -387,7 +392,7 @@
             <span class="card-title"><i class="ti ti-list"></i> Movimientos del mes</span>
             <button class="btn btn-sm" onclick="showPage('ctaemp',document.querySelector('[onclick*=ctaemp]'))"><i class="ti ti-external-link"></i> Ver completo</button>
           </div>
-          <div id="dash-historial-mes-body" style="font-size:13px">
+          <div id="dash-historial-mes-body" role="region" aria-label="Movimientos del mes" tabindex="0" style="font-size:13px;overflow-x:auto">
             <div style="text-align:center;color:var(--text3);padding:16px">Cargando...</div>
           </div>
         </div>
@@ -5314,14 +5319,15 @@ Listo para analizar.
 </div>
 
 <!-- MODAL NUEVO MOVIMIENTO EMPLEADO -->
-<div id="modal-movi-emp" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:600;align-items:center;justify-content:center">
-  <div style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-xl);width:480px;max-width:95vw;padding:28px;box-shadow:0 8px 40px rgba(0,0,0,.18)">
+<div id="modal-movi-emp" class="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:600;align-items:center;justify-content:center">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="movi-modal-titulo" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-xl);width:480px;max-width:95vw;padding:28px;box-shadow:0 8px 40px rgba(0,0,0,.18)">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <span id="movi-modal-titulo" style="font-size:15px;font-weight:600">Nuevo movimiento</span>
-      <button class="btn btn-sm" onclick="cerrarModalMovEmp()"><i class="ti ti-x"></i></button>
+      <button class="btn btn-sm" aria-label="Cerrar" onclick="cerrarModalMovEmp()"><i class="ti ti-x"></i></button>
     </div>
     <div class="form-grid">
-      <div class="fg"><label>Fecha</label><input type="date" id="movi-fecha"></div>
+      <div class="fg"><label>Fecha</label><input type="date" id="movi-fecha" onchange="actualizarPeriodoDescuentoMovEmp()"></div>
+      <div class="fg" id="movi-periodo-descuento-wrap"><label for="movi-periodo-descuento">Mes de descuento</label><input type="month" id="movi-periodo-descuento" onchange="this.dataset.editado='1'"><div style="font-size:11px;color:var(--text3)">Por defecto, el mes siguiente a la entrega.</div></div>
       <div class="fg" id="movi-tipo-wrap"><label>Tipo</label>
         <select id="movi-tipo" onchange="onMoviTipoChange()">
           <option value="adelanto">Adelanto</option>
@@ -5475,6 +5481,7 @@ Listo para analizar.
       <label>Medio de pago</label>
       <select id="adelanto-medio"><option value="">— Seleccionar —</option></select>
     </div>
+    <div class="fg" id="adelanto-periodo-descuento-wrap"><label for="adelanto-periodo-descuento">Mes de descuento</label><input type="month" id="adelanto-periodo-descuento"></div>
     <div style="font-size:11px;color:var(--text3);margin-top:7px">Se registrará como concepto “Adelanto de personal” y el medio quedará disponible para las estadísticas de tesorería.</div>
     <div class="flex-end" style="margin-top:18px">
       <button class="btn" onclick="cerrarAprobacionAdelanto()">Cancelar</button>
@@ -5792,12 +5799,12 @@ Listo para analizar.
 <script src="./js/core/ot-personal-scope.js?v=3.14.0"></script>
 <script src="./js/core/bonus-quantity-model.js?v=3.14.6"></script>
 <script src="./js/core/dashboard-personal-hours.v1.js"></script>
-<script src="./js/core/dashboard-personal-notices.v1.js"></script>
+<script src="./js/core/dashboard-personal-notices.v1.js?v=3.14.19"></script>
 <script src="./js/modules/dashboard-personal-notices.js?v=3.14.11"></script>
 <script src="./js/core/print-layout.v1.js"></script>
 <script src="./js/core/activity-period.v1.js"></script>
-<script src="./js/core/dashboard-account-read.v1.js"></script>
-<script src="./js/app.v3.14.18.js"></script>
+<script src="./js/core/dashboard-account-source.v1.js?v=3.14.19"></script>
+<script src="./js/app.v3.14.19.js"></script>
 <script src="./js/modules/bonus-concepts.js?v=3.14.6"></script>
 <script src="./js/modules/bonus-grant.js?v=3.14.6"></script>
 <script src="./js/modules/projects.js?v=3.14.3-demand"></script>
@@ -6213,7 +6220,7 @@ Listo para analizar.
 
 
 
-<script src="./js/modules/configuration-mobile.js?v=3.11.0-keyboard-v3.14.18"></script>
+<script src="./js/modules/configuration-mobile.js?v=3.11.0-keyboard-v3.14.19"></script>
 <script src="./js/modules/paraguay-config.js?v=3.12.20"></script>
 
 

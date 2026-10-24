@@ -1,5 +1,16 @@
 # Continuidad de SisVentas
 
+## Excepción urgente v3.14.19 · Mi cuenta y adelantos · 24/10/2026
+
+- El titular mantuvo la regla de publicar por tandas de20 y luego autorizó explícitamente esta excepción para ver Total pagado y Total a cobrar corregido en la web. Checkout aislado administrado C:/Users/gon_s/.codex/worktrees/urgente-mi-cuenta-v31419/SisVentas, rama codex/urgente-mi-cuenta-v31419, base18doc670943f. La candidata amplia en C:/SisVentas/.local/cierre-pendientes-v31416 conserva sus cambios, sin reset/clean ni mezcla con esta entrega.
+- Alcance: proyección CTA/Dashboard, pagos reales confirmados, neto/adelantos por período, contador de comisiones pendientes, aviso de aprobación por día local y fuente propia Sourcev1 con push/retiro/reintento manual. Detalle en [MI_CUENTA_ADELANTOS_V31419.md](MI_CUENTA_ADELANTOS_V31419.md). Precio/actualizador, automatismos Dólar-versión-Asistente, Cobranzas CPU y lifecycle externo NO forman parte de la excepción. OT/garantías12 sigue fuera y bloqueado.
+- Root portó25funciones financieras verificadas desde el snapshot8356 y los3archivos de backend (módulo9b583160, guard sólo require/callback/checkfinal y COPY). Source se porta por regiones finitas, no por el archivo grande mezclado. Los datos reales de la cuenta seleccionada permanecen privados. Ninguna operación financiera se guarda o elimina para probar.
+- Preflight urgente confirmó servicio18 cotizador-cta18-50269e2e, digest e19d7ca,14tags/config/IAM exactos, Hosting cd9febf369635c58, aviso18 y reglas626817. Evidencias privadas tmp/v31419-urgent-backend-release y tmp/v31419-urgent-release. Compilación19 todavía no iniciada; única build prevista E2_STANDARD_2/300s, costo de cómputo máximo informado USD0,03 más registro/probes, sin capacidad mínima ni servicios nuevos.
+- El estado externo sigue18 hasta completar pruebas exactas, commit/push limpio, build/package/no-traffic/probes/promoción, Hosting/hash y aviso oficial. No marcar publicado por el solo intento. La tanda amplia y las mediciones por módulo siguen reservadas después de esta entrega urgente.
+
+
+- Puerta exacta del checkout urgente: **5.784PASS/27opt-in/0fallos,5.811total**,116,27s; servicio94PASS; Source317focales y QAexacta5tamaños/20capturas correctas.26JS con sintaxis correcta, diff y versión oficial local19 coherentes. Revisión de alcance:2.237funciones originales intactas,25cuerpos modificados+15helpers dentro de MiCuenta/adelantos/Source únicamente. Hash canónico app19 152a9c615d82b7cf984a8c43f9686633c5d0039fd0da4243ec6b232154a4f8c7. Backend9b583160 y runtimes legacy preservados. Falta completar publicación remota; ningún dato financiero real usado para guardar/eliminar.
+
 ## v3.14.18 publicada · servidor y estáticos verificados · 24/10/2026
 
 - Fuente limpia/pushed `50269e2e39636ea653e5b746352fd486c05aff4e`, rama `codex/cierre-pendientes-v31418`. Hosting `cd9febf369635c58`:447activos/9cargas;27hashes HTTP del dominio, índice del mirror,7cabeceras y7rutas404 privadas/no retenidas correctos. Después script oficial confirmó web/core/SW y `sisventas/config/version=v3.14.18-firebase`. Evidencia privada `tmp/v31418-release`.

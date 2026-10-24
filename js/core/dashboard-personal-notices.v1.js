@@ -181,11 +181,16 @@
       const approved = distinct(records.map(record => timestamp(record.approvedTs)?.stamp ?? null));
       const created = distinct(records.map(record => timestamp(record.createdTs)?.stamp ?? null));
       const dates = distinct(records.map(record => calendar(record.grantDate)?.date ?? null));
-      if (approved.length > 1 || !approved.length && created.length > 1 || !approved.length && !created.length && dates.length > 1) {
+      // Personal notices use local calendar days for both novelty and the 30-day window.
+      // Exact linked mirrors may record the same approval a few milliseconds apart.
+      const approvedDates = distinct(approved.map(value => timestamp(value)?.date ?? null));
+      if (approvedDates.length > 1 || !approved.length && created.length > 1 || !approved.length && !created.length && dates.length > 1) {
         addIssue('CONFLICTING_DATE', records, 'Las fechas del movimiento requieren revisión.');
         continue;
       }
-      const event = approved.length ? timestamp(approved[0]) : created.length ? timestamp(created[0]) : dates.length ? calendar(dates[0]) : null;
+      // Earliest stamp makes presentation deterministic without changing stored values.
+      const approvalStamp = approved.length ? approved.reduce((earliest, value) => Math.min(earliest, value)) : null;
+      const event = approved.length ? timestamp(approvalStamp) : created.length ? timestamp(created[0]) : dates.length ? calendar(dates[0]) : null;
       if (!event) {
         addIssue('MISSING_DATE', records, 'El movimiento no tiene una fecha verificable de novedad.');
         continue;

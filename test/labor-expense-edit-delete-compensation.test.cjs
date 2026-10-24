@@ -39,7 +39,7 @@ test('an unpaid bonus and its linked movement are deleted in one atomic commit',
  await f.settle(f.c.eliminarRegistro('gastos','g'));assert.equal(f.get('sisventas/gastos/g'),null);assert.equal(f.get('sisventas/ctaemp/e/m'),null);assert.equal(f.commits.length,1);
 });
 function compensation(){
- const salary={tipo:'sueldo',monto:100,sueldoBruto:100,sueldoBase:100,estado:'aprobado',mes:'2026-10',gastoFbKey:'salary',ts:2},advance={tipo:'adelanto',monto:30,montoPagado:30,estado:'pagado',fecha:'2026-10-01',pagos:{p:{monto:30}},gastoFbKey:'advance'};
+ const salary={tipo:'sueldo',monto:100,sueldoBruto:100,sueldoBase:100,estado:'aprobado',mes:'2026-10',gastoFbKey:'salary',ts:2},advance={tipo:'adelanto',monto:30,montoPagado:30,estado:'pagado',fecha:'2026-09-01',pagos:{p:{monto:30}},gastoFbKey:'advance'};
  const f=fixture({gastos:{salary:{monto:100,estado:'pendiente_pago'},advance:{monto:30,montoPagado:30,pagos:{p:{monto:30}},tipoPagable:'adelanto'}},ctaemp:{e:{salary,advance}},haberes:{e:{'2026_10':{sueldoBruto:100,total:100,gastoFbKey:'salary'}}}});
  f.c.ctaEmpActual='e';f.c.movsEmpData=[{...copy(salary),fbKey:'salary'},{...copy(advance),fbKey:'advance'}];f.c._ctaEmpPeriodoMes=()=> '2026-10';f.c._ctaEmpEsSueldoMovimiento=m=>m.tipo==='sueldo';f.c._movEmpEnPeriodo=()=>true;f.c._ctaEmpMovVisibleParaRol=()=>true;f.c._ctaEmpMovHastaPeriodo=()=>true;return f;
 }
@@ -55,6 +55,7 @@ test('valid compensation updates salary, expense, monthly record and advances on
  const f=compensation();await f.c.aplicarAdelantosAlHaberActual();assert.equal(f.get('sisventas/ctaemp/e/salary/monto'),70);assert.equal(f.get('sisventas/ctaemp/e/advance/montoCompensado'),30);assert.equal(f.get('sisventas/gastos/salary/monto'),70);assert.equal(f.get('sisventas/haberes/e/2026_10/total'),70);assert.equal(f.commits.length,1);
  const after=copy(f.state.sisventas);await f.c.aplicarAdelantosAlHaberActual();assert.deepEqual(f.state.sisventas,after);assert.equal(f.commits.length,1);
 });
+test('changing the discount month after the account view cannot spend an advance through stale compensation',async()=>{const f=compensation();apply(f.state,{'sisventas/ctaemp/e/advance/periodoDescuento':'2026-11'});const before=copy(f.state.sisventas);await f.c.aplicarAdelantosAlHaberActual();assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,0);assert.match(f.page.messages.join(' '),/cambi|actualiz/i);});
 function newForm(f){f.c.gastoActualFbKey=null;f.c._gastoFormVista={key:'',valor:null};}
 test('new paid expense, attachment and deterministic employee movement share one commit and a repeated click cannot duplicate',async()=>{
  const f=fixture({gastos:{},ctaemp:{e:{}}});newForm(f);f.c.gastoFotoBase64='data:image/png;base64,QQ==';
@@ -86,7 +87,7 @@ test('deleting an unpaid advance keeps its previous expense and movement in the 
  await f.c.eliminarRegistro('gastos','g');assert.equal(f.get('sisventas/gastos/g'),null);assert.equal(f.get('sisventas/ctaemp/e/m'),null);const audit=Object.values(f.get('sisventas/auditoria_pagos'))[0];assert.equal(audit.accion,'eliminar_adelanto_vinculado');assert.equal(audit.gastoAnterior.monto,100);assert.equal(audit.movimientosAnteriores[0].mov.monto,100);assert.equal(f.commits.length,1);
 });
 test('compensation never replaces an occupied historical advance expense',async()=>{
- const f=compensation(),legacy={tipo:'adelanto',monto:30,estado:'aprobado',fecha:'2026-10-01'};apply(f.state,{'sisventas/ctaemp/e/advance':legacy,'sisventas/gastos/adelanto_e_advance':{monto:999,montoPagado:999,nota:'Histórico existente'}});f.c.movsEmpData[1]={...legacy,fbKey:'advance'};const before=copy(f.state.sisventas);
+ const f=compensation(),legacy={tipo:'adelanto',monto:30,estado:'aprobado',fecha:'2026-09-01'};apply(f.state,{'sisventas/ctaemp/e/advance':legacy,'sisventas/gastos/adelanto_e_advance':{monto:999,montoPagado:999,nota:'Histórico existente'}});f.c.movsEmpData[1]={...legacy,fbKey:'advance'};const before=copy(f.state.sisventas);
  await f.c.aplicarAdelantosAlHaberActual();assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,0);assert.match(f.page.messages.join(' '),/histórico|revisión/);
 });
 test('changing the expense amount below its existing payments is rejected without changing payment history',async()=>{

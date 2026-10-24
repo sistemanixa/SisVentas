@@ -143,7 +143,7 @@ test('Consultar la cuenta del empleado conserva el movimiento legacy con una lec
   _ctaEmpMovimientoLegacyDuplicadoPorGasto:()=>null,_ctaEmpActualizarBannerDuplicadosLegacy(){},renderMovsEmp(){renders++;},notify(){},escapeHTML:String,
   _paginaGastosActiva:()=>false,_actualizarBadgeSolicitudesGastos(){},_programarTareasSecundariasGastos(){},actualizarTarjetaComisionadosVenta(){},marcarDashboardDatosSucios(){},solicitarRenderDashboard(){}
  },['svCapturarContextoOperacion','_svEsPaginaActiva','svCtaEmpVisible','svCapturarContextoLecturaCtaEmp','svMostrarEstadoLecturaCtaEmp','svDetenerLecturaCtaEmp',
-  'svCrearOrigenGastosCuenta','svOrigenGastosCompatible','svMarcarSnapshotGastosCuenta','svRepintarCtaEmpDesdeFuentes','svAplicarCtaEmpDesdeSnapshot','_svSuscribirGastos','fbCargarGastos','cargarCtaEmp']);
+  'svCrearOrigenGastosCuenta','svOrigenGastosCompatible','svMarcarSnapshotGastosCuenta','svRepintarCtaEmpDesdeFuentes','svProyectarCTA','svAplicarCtaEmpDesdeSnapshot','_svSuscribirGastos','fbCargarGastos','cargarCtaEmp']);
  context.fbCargarGastos();listeners.get('sisventas/gastos')({val:()=>({})});
  context.cargarCtaEmp('fixture-e');
  listeners.get('sisventas/ctaemp/fixture-e')({val:()=>({'fixture-old':structuredClone(legacy)})});

@@ -5,6 +5,7 @@ const PaymentIndex=require('./payment-membership-index');
 const {validateExpenseRemovals}=require('./expense-removal-guard');
 const {validateBonusBatch}=require('./labor-bonus-batch');
 const {validateSACWrites}=require('./labor-sac-batch');
+const {validateAdvanceDiscount}=require('./labor-advance-discount');
 const failure=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const copy=v=>v==null?null:structuredClone(v);
 function canonical(v){if(v==null)return 'null';if(Array.isArray(v))return '['+v.map(canonical).join(',')+']';if(typeof v==='object')return '{'+Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';return JSON.stringify(v);}
@@ -115,7 +116,9 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
      else if(path.startsWith(root+'/'))records.add(domain+'/'+parts(path.slice(root.length+1))[0]);
     }
     const changes=[];for(const record of records){const slash=record.indexOf('/'),domain=record.slice(0,slash),key=record.slice(slash+1),path='sisventas/'+record;changes.push({domain,key,before:await raw(path),after:await get(path)});}
-    const patch=Object.fromEntries(staged);await validateExpenseRemovals({actor,raw,changes,patch});await validateSACWrites({actor,raw,get,changes,patch,digest});await validateBonusBatch({actor,raw,get,changes,patch,digest});await require('./labor-commission-limit').validateCommissionLimit({raw,get,changes,patch});Object.assign(patch,Index.planIndexDelta(changes));
+    const patch=Object.fromEntries(staged);await validateExpenseRemovals({actor,raw,changes,patch});await validateSACWrites({actor,raw,get,changes,patch,digest});await validateBonusBatch({actor,raw,get,changes,patch,digest});
+    const revalidateAdvancePeriod=await validateAdvanceDiscount({actor,raw,get,changes,patch,digest,readFresh:path=>store.read(path)});
+    await require('./labor-commission-limit').validateCommissionLimit({raw,get,changes,patch});Object.assign(patch,Index.planIndexDelta(changes));
     const paymentKeys=PaymentIndex.paymentKeysForPatch(Object.fromEntries([...staged].filter(([path])=>path.startsWith('sisventas/pagos/'))));
     if(paymentKeys.length){
      const coverage=await get(PaymentIndex.COVERAGE_PATH);
@@ -151,6 +154,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
      const checked=await Promise.allSettled([store.read('sv_chat_roles/'+actor.uid),store.read('sv_permisos/'+actor.role)]),failed=checked.find(value=>value.status==='rejected');live();
      if(failed)throw failed.reason;validateFinancialContext(actor,checked[0].value,checked[1].value);
     }
+    if(revalidateAdvancePeriod)await revalidateAdvancePeriod();
     live();await store.commit(patch,lease,actor);completed=true;return result;
    });
   }finally{phase='closed';if(!completed)await store.abort(lease).catch(()=>{});}

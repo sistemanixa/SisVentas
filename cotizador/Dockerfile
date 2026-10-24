@@ -20,6 +20,7 @@ COPY labor-calculations.js labor-operations.js labor-submissions.js labor-transa
 COPY labor-guard.js labor-index.js labor-rtdb-store.js labor-scoped-transaction.js labor-db.js labor-runtime.js labor-write-gateway.js labor-fence-policy.js labor-commission-limit.js ./
 COPY labor-bonus-batch.js bonus-quantity-model.js ./
 COPY labor-sac-batch.js payroll-legacy-sac-model.js ./
+COPY labor-advance-discount.js ./
 COPY employee-availability.js ./
 COPY employee-directory.js ./
 COPY personal-hours-reader.js ./
