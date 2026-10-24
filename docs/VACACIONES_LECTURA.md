@@ -18,9 +18,12 @@ productivas. El estado externo y cierre exacto constan en CONTEXTO_ACTUAL.md.
 Fuente publicada `9ba46ecd988493d4acd4653effca65bb3568db29`, Hosting
 `b3cb1fb37d3a5647`:439 activos/4cargas,14hashesHTTP/mirror/7cabeceras/6privadas404
 correctos; marcador oficial14 confirmado después. Sin servidor ni reglas nuevas.
-La sesión productiva en IAB sigue pendiente porque la pestaña está en error y el
-control del navegador rechazó observarla. No se usó otra superficie ni se borró
-navegación. QA de los datos y cálculos se limita a fixtures ficticias descritas.
+La pestaña inicialmente falló y el control del navegador rechazó observarla. El
+titular la reabrió y confirmó acceso; después la misma pestaña mostró14, Dashboard
+y Mi cuenta propia de Mauro cargados, con indicador Sincronizado y regreso
+correcto. Su rol técnico no tiene listado administrativo de Vacaciones. No se usó
+otra superficie ni Ver como, ni se borró navegación. La QA de ese listado y sus
+cálculos se limita a las fixtures ficticias descritas.
 
 ## Alcance de la candidata14
 
