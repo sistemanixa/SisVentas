@@ -5,7 +5,8 @@ const {create:createRecovery}=require('../js/core/labor-write-recovery');
 const copy=value=>value==null?value:structuredClone(value);
 const response=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>copy(data),body:{async cancel(){}}});
 const flush=()=>new Promise(setImmediate);
-async function until(check){for(let i=0;i<100;i++){if(check())return;await flush();}assert.fail('No llegó el estado esperado del fixture');}
+// WebCrypto finishes on a worker: a fixed count of setImmediate turns can expire in 1ms under a parallel suite.
+async function until(check){const deadline=performance.now()+2000;while(performance.now()<deadline){if(check())return;await new Promise(resolve=>setTimeout(resolve,2));}assert.fail('No llegó el estado esperado del fixture');}
 function fixture(options={}){
  const calls=[],receipts=new Map(),storage=new Map(),listeners=new Map(),commits=[],slots={caps:null,command:null};let count=0,holds=0,mode=options.mode||'ok',capMode=options.capMode||'ok';
  const root={currentUserUid:'u',currentRole:'admin',fbAuth:{currentUser:{uid:'u'}},PERMISOS_ROLES:{admin:{indiceRevision:1}},crypto:{subtle:crypto.webcrypto.subtle,randomUUID:()=> '00000000-0000-4000-8000-'+String(++count).padStart(12,'0')},
