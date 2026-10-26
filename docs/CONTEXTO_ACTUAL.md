@@ -1,5 +1,11 @@
 # Continuidad de SisVentas
 
+## v3.15.0 aislada preparada: inicio liviano · 25/10/2026
+
+- Rama codex/inicio-liviano-v3150 desde ad8a390284bc96bd3c92b164abd3b4e43e4d1b97. Contiene únicamente frontend de inicio, marcadores, Novedades y pruebas. App20 inmutable; sin servidor, reglas, índices, IAM, flags, bootstrap ni cambios de datos. La candidata amplia de privacidad queda preservada aparte y no se mezcla.
+- Puerta final 5.981PASS/27opt-in/0fallos,6.008total,45,78s; 66focales, sintaxis, diff y validación oficial -ValidarLocal correctos. Primer intento 14fallos por dependencia Playwright no resuelta; se corrigió NODE_PATH existente, sin instalaciones ni cambios de expectativas de esas pruebas. Auditoría AST: sólo tres funciones globales modificadas, cuatro auxiliares añadidos y 2.276 cuerpos idénticos20.
+- QA app completa con fixtures locales, normal/lenta ABBA, administrador/técnico, corte y cambio de sesión: importes iguales y cero errores JS. Administrador lento~4,94s→3,33s y55→46solicitudes; técnico~4,94s y36solicitudes sin cambio significativo. Datos pequeños, SDK ficticio y bytes de cuerpo HTTP local: no atribuir ahorro a la factura ni extrapolar a cada usuario real. Detalle en INICIO_LIVIANO_V3150.md; evidencia privada fuera de Git.
+- Estado externo sigue v3.14.20 hasta que el publicador exclusivo confirme Hosting, hashes HTTPS, aviso y recarga real. Publicación frontend autorizada; ningún despliegue de servidor ni preparación de vistas financieras está incluido. La auditoría general, el aislamiento raw y el bloqueo OT12 continúan abiertos.
 ## v3.14.20 publicada: comisiones y totales del presupuesto · 24/10/2026
 
 - Fuente limpia/pushed b27e251554d439bbe449794fb357fbb7421881c3, rama codex/privacidad-comisiones-v31420. Sólo privacidad visible/HTTP y corrección urgente del resumen de impresión de presupuesto. App19 inmutable; los seis cambios de la candidata amplia no se mezclan y la versión siguiente se calcula como v3.15.0. El aislamiento de originales financieros sigue ABIERTO: CTA/Gastos/controles, configuración de comisión y directorio propio exigen proyecciones y transición CAS/reglas. Esta publicación no acredita confidencialidad de transporte ni cierra esa auditoría.

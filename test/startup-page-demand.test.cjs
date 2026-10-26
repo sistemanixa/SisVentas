@@ -2,19 +2,21 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {load}=require('./helpers/app-functions.cjs');
+const Demand=require('../js/core/dashboard-startup-demand.v1.js');
 
 const deferred=['fbCargarEquipos','fbCargarInformes','fbCargarGarantias','fbCargarTickets','fbCargarRemitos','fbCargarAgenda','fbCargarServicios','fbCargarCaja'];
 const names=['fbCargarUsuarios','fbCargarClientes','fbCargarProductos','fbCargarVentas','fbCargarClientesUnificados','fbCargarEmpleados','fbCargarCategorias','fbCargarGastos','fbCargarProveedores','fbCargarPagos','fbCargarPresupuestos','fbCargarOTs','fbCargarOrdenes','cargarKits','spCargar',...deferred];
 function environment(page='dashboard'){
  const calls=[],jobs=[];
- const c={window:null,currentUserUid:'sesion-ficticia',isAuthenticated:true,rolActualNormalizado:()=> 'admin',
+ const c={window:null,currentRole:'admin',currentUserUid:'sesion-ficticia',isAuthenticated:true,rolActualNormalizado:()=> 'admin',
+  fbAuth:{currentUser:{uid:'sesion-ficticia'}},SVDashboardStartupDemand:Demand,tienePermiso:()=>true,
   permisoModulo:()=>true,svPuedeLeerDominio:()=>true,_svPaginaDesdeRuta:()=>page,
-  document:{querySelector:()=>({id:'page-'+page})},fbDB:{},svProgramarTrabajoFondo:fn=>jobs.push(fn)};
+  document:{hidden:false,addEventListener(){},querySelector:()=>({id:'page-'+page})},fbDB:{},svProgramarTrabajoFondo:fn=>jobs.push(fn)};
  c.window=c;
  for(const name of names)c[name]=()=>calls.push(name);
  // Vacaciones es una dependencia de su ruta, no una carga global del ingreso.
  c.fbCargarVacaciones=()=>calls.push('fbCargarVacaciones');
- load(c,['fbCargarTodo','svCargarDatosDePaginaActual','svActualizarLecturasPorAccion']);
+ load(c,['svCapturarContextoCargaDashboard','svPlanInicioDashboard','svCargarInicioDashboardDemandado','svInicioNecesitaAuxiliar','fbCargarTodo','svCargarDatosDePaginaActual','svActualizarLecturasPorAccion']);
  return {c,calls,jobs,runJobs(){while(jobs.length)jobs.shift()();}};
 }
 
@@ -22,7 +24,9 @@ test('el ingreso no conecta ocho colecciones de pantallas sin visitar',()=>{
  const e=environment();assert.equal(e.c.fbCargarTodo(),true);e.runJobs();
  for(const name of deferred)assert.ok(!e.calls.includes(name),'No iniciar '+name+' desde Dashboard');
  assert.ok(!e.calls.includes('fbCargarVacaciones'),'No tratar la fuente de la ruta Vacaciones como dependencia global');
- for(const name of names.filter(n=>!deferred.includes(n)&&!['cargarKits','spCargar'].includes(n)))assert.ok(e.calls.includes(name),'Conservar dependencia global '+name);
+ for(const name of names.filter(n=>!deferred.includes(n)&&!['cargarKits','spCargar','fbCargarCategorias','fbCargarOrdenes'].includes(n)))assert.ok(e.calls.includes(name),'Conservar consumidor visible '+name);
+ assert.ok(!e.calls.includes('fbCargarCategorias'),'No cargar selectores de productos desde Inicio');
+ assert.ok(!e.calls.includes('fbCargarOrdenes'),'No cargar compras desde Inicio');
  const count=e.calls.length;assert.equal(e.c.fbCargarTodo(),false);e.runJobs();assert.equal(e.calls.length,count);
 });
 

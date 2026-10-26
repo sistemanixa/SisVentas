@@ -74,6 +74,7 @@ function bootstrapFixture(){
  root.SVForegroundSession=require('../js/core/foreground-session.js').create(root);
  const permanent=f.document.waiting();
  f.context.currentRole='vendedor';f.context.rolActualNormalizado=()=>f.context.currentRole;
+ f.context._svPaginaDesdeRuta=()=> 'dashboard';f.context.svCargarInicioDashboardDemandado=()=>reads.push('dashboardDemand');
  for(const name of ['fbCargarUsuarios','fbCargarClientes','fbCargarProductos','fbCargarVentas','svCargarDatosDePaginaActual','fbCargarClientesUnificados','fbCargarEmpleados','fbCargarCategorias','fbCargarGastos','fbCargarProveedores','fbCargarPagos','fbCargarPresupuestos','fbCargarOTs','fbCargarOrdenes'])f.context[name]=()=>reads.push(name);
  for(const name of ['fbCargarTodo','svCapturarContextoOperacion','svInvalidarOperacionesSesion']){
   const start=source.indexOf('function '+name+'(');assert.ok(start>=0);vm.runInContext(source.slice(start,source.indexOf('\n}',start)+2),f.context);
@@ -85,9 +86,9 @@ test('el arranque completo diferido no abre fuentes ocultas y dos intentos se co
  const f=bootstrapFixture();assert.equal(f.context.fbCargarTodo(),false);assert.equal(f.context.fbCargarTodo(),false);
  await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(f.reads,[]);assert.equal(f.context.window._fbCargaTodoActiva,undefined);
  f.document.hidden=false;f.document.emit('visibilitychange');await new Promise(resolve=>setImmediate(resolve));
- assert.deepEqual(f.reads,['svCargarDatosDePaginaActual','fbCargarUsuarios','fbCargarClientes','fbCargarProductos','fbCargarVentas']);
- assert.equal(f.context.window._fbCargaTodoActiva,true);f.advance(1800);f.fireIdle();f.fireIdle();
- assert.equal(f.reads.filter(name=>name==='fbCargarUsuarios').length,1);f.clean();
+ assert.deepEqual(f.reads,['dashboardDemand']);
+ assert.equal(f.context.window._fbCargaTodoActiva,true);f.advance(1800);assert.equal(f.idles.size,0,'Dashboard no debe programar los dos lotes globales anteriores');
+ assert.equal(f.reads.filter(name=>name==='dashboardDemand').length,1);f.clean();
 });
 test('salir mientras el arranque completo espera impide revivir fuentes incluso al volver con el mismo UID',async()=>{
  const f=bootstrapFixture();f.context.fbCargarTodo();f.document.emit('sisventas:session-ended');
