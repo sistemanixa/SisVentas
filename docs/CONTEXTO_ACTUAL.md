@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Reserva amplia15.3; Agenda15.2 aislada · 26/10/2026
+
+- La corrección pequeña de Agenda se preparó desde15.1 en codex/agenda-inicio-v3152, fuente516ed4720d2163dc671f36eb64cde82c131418bc. Puerta6.021total/5.994PASS/27opt-in/0fallos y8QA de app completa ficticia; no publicada mientras se consulta excepción a la tanda20.
+- Esta candidata amplia pasa efectivamente a app/core/index/SW15.3; se preserva su contenido financiero/privado y se incorpora la reanudación de Agenda. La app/core15.2 aquí guardadas son exactamente la entrega pequeña, no la candidata amplia anterior. Dos mil funciones originales se compararon por AST: sólo el texto de pausa de Agenda cambia en un cuerpo; _completarLogin ya tenía retirado el reloj. No servidor, reglas, flags ni datos reales cambiados.
+- Los bloqueos de documentos fiscales y preparación/drenaje/corte siguen vigentes. Los apartados15.2 que siguen describen el checkpoint histórico79b52f7, no un despliegue de la versión pequeña ni cierre de privacidad.
+
+
 ## v3.15.1 urgente publicada · 26/10/2026
 
 - Publicada desde bb22d62759dc6edaf9b8450d43569194e0f53054, rama codex/inicio-liviano-v3151; Hosting7c3224684c2b43cd,454activos/6cargas,17hashesHTTPS/mirror/7cabeceras/7rutas404 y aviso oficial15.1 verificados. Backend/rules626817 intactos, sin guardados financieros de prueba. La puerta6.014total/5.987PASS/27opt-in/0fallos y QA ficticia completa antecedieron al despliegue.

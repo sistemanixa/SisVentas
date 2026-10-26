@@ -1,5 +1,7 @@
 # Cierre local de la candidata v3.15.2
 
+> Nota26/10: este checkpoint amplio se reservó como15.3. La versión15.2 queda para Agenda aislada desde15.1; este documento conserva la evidencia histórica del bloque amplio. Ninguno de los dos se activa por ese cambio de número.
+
 Estado: preparación local del 26/10/2026. **No publicada ni lista para activar.**
 La versión externa vigente es v3.15.1, cuyo arreglo de Gastos ya fue publicado
 y comprobado entrando directamente al Dashboard. La ventana local8766 sigue
