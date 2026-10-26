@@ -1,5 +1,16 @@
 # Continuidad de SisVentas
 
+## Agenda15.3: ingreso nuevo y permisos · 26/10/2026
+
+- Reproducción de la diferencia informada por el titular: el GET real de permisos emite role-changed después de iniciar Agenda; retiraba su fuente. Si la ruta ya era Dashboard, _svAbrirRutaActual no emite page-changed y quedaba Agenda en pausa. Volver visible disparaba otro evento y por eso la misma web podía verse bien en una pestaña usada y mal al ingresar de nuevo. No se atribuye a caché ni a datos diferentes.
+- La prueba anterior reemplazaba cargarPermisosRoles y no cubría ese tramo. La regresión permanente nueva ejecuta el coordinador, cargador de permisos, aplicación del rol, ruta real y DataQuery. Se comparten sin cambios las utilidades del fixture anterior. Agenda espera la confirmación de permisos y se inicia explícitamente aunque la ruta no cambie; un cambio real de permisos retira la fuente anterior y la reanuda una vez con contexto nuevo. Se conservan controles de identidad/rol/revisión/épocas/SDK/página/visibilidad. Sin sondeos nuevos, sin escrituras financieras.
+- Puerta vigente6.032total/6.005PASS/27opt-in/0fallos,35,83s. QA aislada16casos completos: administrador/técnico,1280/768/390/320, ingreso frío/recarga y ocultar/regresar/logout, GET de permisos600ms. Una fuente inicial,0activas oculto/logout y una al regresar. Funciones reales de permisos y autorización; transporte Auth/SDK ficticio y sólo loopback. Sin erroresJS ni guardados financieros; no es una medición de factura ni un teléfono físico.
+- Auditoría AST contra15.2:2.282funciones idénticas, sólo svIniciarCargaPantalla/dashPintarEstadoAgendaInterna/dashCargarAgendaInterna cambian;0altas/0bajas. Se modifica además el handler de cambio de rol. Cálculos, pagos, comisiones, permisos de negocio y DataQuery intactos. App canónicaa7e431ec917d1fd63b0e21533916db7d7b9338c150f36029039404bb3f3c807e;4activos servidos en8766 coinciden por hash.
+- CUA vuelve a fallar al escribir kernel assets; no se puede afirmar inspección/recarga de la sesión auténtica. No se borra navegación/almacenamiento. La comprobación externa se registrará después de Hosting/HTTPS/aviso. Evidencia privada tmp/agenda3153-release y tmp/listings-next-private/agenda3153-*.
+
+- Rama aislada codex/agenda-permisos-v3153 desde53c75a9b. Es la continuación correctiva del alcance Agenda autorizado, sin integrar servidor, reglas ni la candidata amplia. Estado externo sigue15.2 hasta publicar; candidata amplia reservada15.4 y no activada.
+
+
 ## Agenda15.2 publicada · 26/10/2026
 
 - Excepción a la tanda20 autorizada expresamente por el titular: sólo Agenda. Fuente limpia/pushed516ed4720d2163dc671f36eb64cde82c131418bc, rama codex/agenda-inicio-v3152. Hosting8c133e81f116bb4e,455activos/4cargas;19hashesHTTPS exactos, mirror,7cabeceras y7rutas privadas/no retenidas404 correctos. Después el script oficial verificó web/core/SW y confirmó aviso v3.15.2-firebase. No despliegue de servidor/reglas/flags/IAM/DNS ni guardados financieros de prueba.
