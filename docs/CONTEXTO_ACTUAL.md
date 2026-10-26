@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Movimientos15.4 publicada · 26/10/2026
+
+- El titular autorizó PUBLICALO como excepción a juntar20. Fuente limpia/pushed af4ac0eb4908aa18e83617275bab487580fc6daf, rama codex/movimientos-regreso-v3154. Hostingca5785bd608c3ba5:457activos/4cargas;19hashesHTTPS exactos, mirror/7cabeceras/7rutas404 correctos. Después el script oficial comprobó web/core/SW y confirmó aviso v3.15.4-firebase. Sin cambios remotos de servidor, reglas, flags, IAM, DNS, servicios o datos comerciales de prueba.
+- La fuente es exactamente la que pasó6.016PASS/27opt-in/0fallos y4QA completas ficticias del apartado siguiente. No se repitió la suite sin cambios de código. Preflight confirmó Hosting/aviso15.3 y reglas626817 exactos; el paquete cambia sólo index/core mutable/SW, añade app/core15.4 y retira del alojamiento app15.1 (sigue en Git). App15.2/15.3 preservadas.
+- Web entrega el arreglo y el aviso está actualizado; no equivale a que todas las pestañas abiertas ya lo recibieron. CUA volvió a fallar kernelassets: no se pudo recargar/inspeccionar la sesión real. No se borró navegación ni se hizo una operación financiera para probar. Evidencia privada tmp/movimientos3154-release.
+- La candidata amplia se reserva efectivamente como15.5, sin activar; sus2.294cuerpos de funciones son idénticos a la candidata4 anterior. App/core15.4 guardadas en esa rama son exactamente la entrega pequeña. Continúan la puerta amplia y los bloqueos fiscales/preparación/drenaje/OT/emulador. No presentar este arreglo como cierre de toda la auditoría.
+
+
 ## Movimientos del mes: regreso automático preparado en local · 26/10/2026
 
 - Pedido humano desde8766: al volver a la pantalla no exigir Actualizar cuenta. Causa reproducida contra15.3: ocultar retiraba la fuente propia, mientras visibilitychange/foreground-restored sólo repintaban el estado retirado. La entrada ahora adquiere explícitamente una fuente; avisos repetidos comparten la misma, renders ordinarios no reintentan y error real conserva Reintentar. Se espera a terminar permisos y se cubre la ruta que ya era Dashboard.
