@@ -11443,7 +11443,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Las comisiones muestran la venta, el cliente y el importe, conservando los cálculos y pagos privados.','Bonificaciones, haberes y aprobaciones mantienen sus permisos y comprobaciones antes de guardar.']),
   RELEASE_FEATURE: Object.freeze({page:'ctaemp',actionLabel:'Ver mi cuenta'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.15.4',date:'26/10/2026',title:'Acceso privado a comisiones',notes:Object.freeze(['Tu cuenta recibe los datos de comisión necesarios para cobrar, sin ganancias ni porcentajes internos.','Pagos, aprobaciones e historial conservan sus controles.']),feature:Object.freeze({page:'ctaemp',actionLabel:'Ver mi cuenta'})}),
+ Object.freeze({version:'v3.15.4',date:'26/10/2026',title:'Acceso privado a comisiones',notes:Object.freeze(['Movimientos del mes vuelve a cargar al regresar al Dashboard, sin actualización manual.','Tu cuenta recibe los datos de comisión necesarios para cobrar, sin ganancias ni porcentajes internos.','Pagos, aprobaciones e historial conservan sus controles.']),feature:Object.freeze({page:'ctaemp',actionLabel:'Ver mi cuenta'})}),
  Object.freeze({version:'v3.15.3',date:'26/10/2026',title:'Agenda desde un ingreso nuevo',notes:Object.freeze(['La agenda espera a que termine la verificación de permisos y carga los próximos eventos automáticamente.','Entrar de nuevo y regresar a una pestaña conservan el mismo circuito de carga.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ver agenda próxima'})}),
  Object.freeze({version:'v3.15.2',date:'26/10/2026',title:'Agenda próxima automática',notes:Object.freeze(['Los próximos eventos aparecen al entrar al Dashboard y al volver a la pantalla.','La agenda se pausa al ocultar la página y no realiza consultas por reloj.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ver agenda próxima'})}),
  Object.freeze({version:'v3.15.1',date:'25/10/2026',title:'Gastos del mes en el Dashboard',notes:Object.freeze(['El resumen de rentabilidad vuelve a cargar los gastos pagados del mes aunque Mi cuenta no esté habilitada.','Los importes pendientes de cargar o con error se identifican sin mostrarlos como cero.','No se cambian gastos, pagos ni cálculos históricos.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ver gastos del mes'})}),
@@ -15560,6 +15560,7 @@ function svIniciarCargaPantalla() {
       soltarInicio?.();soltarInicio=null;
       fbCargarTodo();
       if(paginaActual()==='dashboard'&&typeof dashCargarAgendaInterna==='function')dashCargarAgendaInterna(true);
+      if(paginaActual()==='dashboard'&&typeof renderDashMiCuenta==='function')renderDashMiCuenta(true);
       if(!window.SVDataReadiness?.waitForPage)throw new Error('No está disponible el estado de carga');
       return window.SVDataReadiness.waitForPage(paginaActual,{signal:controller.signal,isCurrent:function(){return vigente()&&guardDatos();},onState:function(estado){if(vigente()&&guardDatos()){inicio.estado=estado;pintar();}}});
     }).then(function(estado){
@@ -52777,9 +52778,9 @@ document.addEventListener('sisventas:role-changed',function(){
   if(!window.tienePermiso('dashboard.miCuenta') || _dashAvisosCTA && !_dashAvisosCTA.valid() || _dashAvisosGastosFuente && !_dashAvisosGastosFuente.valid())svLimpiarAvisosCuentaPersonal();
   if(changed&&svCuentaDashboardEnPrimerPlano())renderDashMiCuenta(true);
 });
-document.addEventListener('visibilitychange',function(){if(!svCuentaDashboardEnPrimerPlano())svRetirarCuentaDashboardPendiente();else svRepintarCuentaDashboard();svRenderAvisosCuentaPersonal();});
+document.addEventListener('visibilitychange',function(){if(!svCuentaDashboardEnPrimerPlano())svRetirarCuentaDashboardPendiente();else renderDashMiCuenta(true);svRenderAvisosCuentaPersonal();});
 document.addEventListener('sisventas:foreground-paused',svRetirarCuentaDashboardPendiente);
-document.addEventListener('sisventas:foreground-restored',svRepintarCuentaDashboard);
+document.addEventListener('sisventas:foreground-restored',function(){if(svCuentaDashboardEnPrimerPlano())renderDashMiCuenta(true);});
 document.addEventListener('sisventas:session-ready',function(){if(svCuentaDashboardEnPrimerPlano())renderDashMiCuenta(true);});
 document.addEventListener('firebase-ready',function(){window._svCuentaDashboardReader?.peek();});
 window.addEventListener('pagehide',svRetirarCuentaDashboardPendiente);
@@ -52862,6 +52863,13 @@ function svRepintarCuentaDashboard() {
   else{_dashAvisosCTA.data=state.data||{};_dashAvisosCTA.status='ready';}
   svRenderAvisosCuentaPersonal();
   if(!state.valid())return;
+  var originDisponible=window._ctaEmpGastosOrigen;
+  if(!svGastosCuentaDashboardVigentes(key)&&_gastosDataReady&&!_gastosCargaError&&typeof _gastosUnsubscribe==='function'&&typeof svOrigenGastosCompatible==='function'&&svOrigenGastosCompatible(originDisponible)&&
+    (originDisponible.employeeId===null?svPuedeLeerDominio('gastos'):originDisponible.employeeId===key)){
+    svMarcarSnapshotGastosCuenta(originDisponible,false);
+    _dashAvisosGastosFuente={valid:svContextoAvisosCuenta(),employeeId:originDisponible.employeeId,ready:true,error:false};
+    svRenderAvisosCuentaPersonal();
+  }
   if(!svGastosCuentaDashboardVigentes(key)){
     var origin=window._ctaEmpGastosOrigen,pending=!_gastosDataReady&&!_gastosCargaError&&origin&&origin.valid()&&(origin.employeeId===null||origin.employeeId===key)&&typeof _gastosUnsubscribe==='function';
     svMostrarEstadoCuentaDashboard(pending?'gastos-loading':'gastos');return;
@@ -52894,6 +52902,8 @@ function svReintentarGastosDashboard() {
 }
 
 function renderDashMiCuenta(explicito) {
+  var inicio=window._svInicioPantallaActual;
+  if(inicio&&(inicio.permisosListos!==true||!inicio.vigente?.()))return;
   if(!svCuentaDashboardEnPrimerPlano()){svRetirarCuentaDashboardPendiente();return;}
   var card = document.getElementById('dash-micuenta-card');
   if (!card) return;

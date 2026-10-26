@@ -1,5 +1,17 @@
 # Continuidad de SisVentas
 
+## Movimientos del mes: regreso automático preparado en local · 26/10/2026
+
+- Pedido humano desde8766: al volver a la pantalla no exigir Actualizar cuenta. Causa reproducida contra15.3: ocultar retiraba la fuente propia, mientras visibilitychange/foreground-restored sólo repintaban el estado retirado. La entrada ahora adquiere explícitamente una fuente; avisos repetidos comparten la misma, renders ordinarios no reintentan y error real conserva Reintentar. Se espera a terminar permisos y se cubre la ruta que ya era Dashboard.
+- La QA completa detectó además Gastos listo antes del directorio del propio empleado: la instantánea quedaba ligada a identidad todavía vacía. Se vuelve a vincular sólo una fuente existente, completa, sin error, compatible con la identidad/empleado/permiso actual. No se consulta otra raíz por esa operación; negativos de otro empleado, error, origen revocado y raíz global sin permiso permanecen desconocidos.
+- Antes del cambio,3regresiones nuevas fallaron (regreso pendiente/listo y permisos pendientes). Después: puerta6.043total/6.016PASS/27opt-in/0fallos,37,58s;65focales de cuenta+horas. Dos expectativas antiguas de visibilidad se actualizaron al circuito pedido, conservando descarte de respuestas tardías, errores, rechazo sin permiso y ausencia de consultas ocultas. No cambia el lector de horas ni sus cálculos; al regresar una CTA nueva habilita su lectura puntual, no un sondeo.
+- QA completa real de permisos/rol/ruta y módulos con Auth/SDK ficticio, sólo HTTP loopback: admin/técnico en1280/390,4casos, una CTA inicial/0activas oculto/una al regresar pese a avisos repetidos/0tras logout. Movimientos e importe ficticio reaparecen sin Actualizar cuenta. Sin erroresJS/escrituras financieras. Las primeras corridas corrigieron sólo fixture de acciones agrupadas y directorio; detectaron el caso de instantánea de Gastos descrito arriba, reparado y probado antes de cerrar.
+- Comparación AST contra15.3:2.282funciones idénticas; sólo svIniciarCargaPantalla/renderDashMiCuenta/svRepintarCuentaDashboard y los2handlers de regreso cambian.0altas/0bajas. Cálculos, pagos, comisiones, controles de fuente y permisos de negocio intactos. App local canónica12bad294298b03b3e080180caf071d3c490e7bec8607df915022847a60a5929f; cuatro activos HTTP8766 coinciden exactamente. Sin nuevo reloj, infraestructura o servicios.
+- NO publicado: se conserva la regla humana de juntar20. Producción sigue15.3 y no se consultó/guardó negocio real para probar. Evidencia privada tmp/listings-next-private/movimientos3154-*. CUA falló al escribir kernel assets incluso tras reset: servidor local verificado, pero no se pudo recargar/inspeccionar la pestaña auténtica. No afirmar visible en la sesión sin recarga.
+
+- Incorporado también en la candidata amplia15.4 sin reemplazar ninguno de sus otros cuerpos financieros. Conservado el helper financiero propio del fixture. Este port no acredita su puerta completa ni activa reglas/flags/preparación/drenaje; siguen los bloqueos anteriores.
+
+
 ## Agenda15.3 publicada: cierre del ingreso con permisos · 26/10/2026
 
 - Fuente limpia/pushed819382edcce7f3c6ae9dc3573a6cb7e889add7de, rama codex/agenda-permisos-v3153. Hosting1ee2551722bf9e14,456activos/4cargas.19hashesHTTPS del dominio exactos, mirrorIndex/7cabeceras/7rutas404 y script oficial web/core/SW/aviso v3.15.3-firebase verificados. Se continúa el alcance Agenda ya autorizado; sin servidor, reglas, IAM, DNS, flags, servicios ni guardados financieros de prueba.
