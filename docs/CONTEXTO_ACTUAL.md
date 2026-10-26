@@ -1,5 +1,24 @@
 # Continuidad de SisVentas
 
+## Agenda15.3 publicada: cierre del ingreso con permisos · 26/10/2026
+
+- Fuente limpia/pushed819382edcce7f3c6ae9dc3573a6cb7e889add7de, rama codex/agenda-permisos-v3153. Hosting1ee2551722bf9e14,456activos/4cargas.19hashesHTTPS del dominio exactos, mirrorIndex/7cabeceras/7rutas404 y script oficial web/core/SW/aviso v3.15.3-firebase verificados. Se continúa el alcance Agenda ya autorizado; sin servidor, reglas, IAM, DNS, flags, servicios ni guardados financieros de prueba.
+- Reproducción antes/después y límites en el apartado siguiente. La QA nueva usa el cargador real de permisos y sus controles en el arranque; no se usa la QA anterior que lo sustituía como evidencia de ese circuito.6.005PASS/27opt-in/0fallos y16casos completos aislados. Las cifras de red/tiempo son de fixtures, no de Firebase ni factura.
+- No se pudo inspeccionar/refrescar la sesión auténtica: CUA falló en kernel assets. No afirmar QA autenticada, igualdad de todas las cuentas, actualizaciones ya recibidas en cada dispositivo ni ausencia de fallas en todo el sistema. No se borró navegación o almacenamiento; una recarga ordinaria permite recibir la versión nueva. Gastos15.1, guardados, pagos, comisiones y permisos de negocio se conservan.
+- La candidata amplia se reservó como15.4 y NO se activó. Su port de Agenda pasó70focales; para usar el cargador real en su fixture se carga también el helper financiero real que existe sólo en esa candidata, sin cambiar permisos productivos. No se repitió su puerta completa y continúan los bloqueos fiscales/preparación/drenaje/OT/emulador. No confundir este cierre pequeño con la auditoría general terminada.
+
+
+## Agenda15.3: ingreso nuevo y permisos · 26/10/2026
+
+- Reproducción de la diferencia informada por el titular: el GET real de permisos emite role-changed después de iniciar Agenda; retiraba su fuente. Si la ruta ya era Dashboard, _svAbrirRutaActual no emite page-changed y quedaba Agenda en pausa. Volver visible disparaba otro evento y por eso la misma web podía verse bien en una pestaña usada y mal al ingresar de nuevo. No se atribuye a caché ni a datos diferentes.
+- La prueba anterior reemplazaba cargarPermisosRoles y no cubría ese tramo. La regresión permanente nueva ejecuta el coordinador, cargador de permisos, aplicación del rol, ruta real y DataQuery. Se comparten sin cambios las utilidades del fixture anterior. Agenda espera la confirmación de permisos y se inicia explícitamente aunque la ruta no cambie; un cambio real de permisos retira la fuente anterior y la reanuda una vez con contexto nuevo. Se conservan controles de identidad/rol/revisión/épocas/SDK/página/visibilidad. Sin sondeos nuevos, sin escrituras financieras.
+- Puerta vigente6.032total/6.005PASS/27opt-in/0fallos,35,83s. QA aislada16casos completos: administrador/técnico,1280/768/390/320, ingreso frío/recarga y ocultar/regresar/logout, GET de permisos600ms. Una fuente inicial,0activas oculto/logout y una al regresar. Funciones reales de permisos y autorización; transporte Auth/SDK ficticio y sólo loopback. Sin erroresJS ni guardados financieros; no es una medición de factura ni un teléfono físico.
+- Auditoría AST contra15.2:2.282funciones idénticas, sólo svIniciarCargaPantalla/dashPintarEstadoAgendaInterna/dashCargarAgendaInterna cambian;0altas/0bajas. Se modifica además el handler de cambio de rol. Cálculos, pagos, comisiones, permisos de negocio y DataQuery intactos. App canónicaa7e431ec917d1fd63b0e21533916db7d7b9338c150f36029039404bb3f3c807e;4activos servidos en8766 coinciden por hash.
+- CUA vuelve a fallar al escribir kernel assets; no se puede afirmar inspección/recarga de la sesión auténtica. No se borra navegación/almacenamiento. La comprobación externa se registrará después de Hosting/HTTPS/aviso. Evidencia privada tmp/agenda3153-release y tmp/listings-next-private/agenda3153-*.
+
+- Reserva amplia efectiva15.4: conserva los originales financieros/privados de15.3 y sólo incorpora estos tres cuerpos/handler de Agenda. App/core15.3 aquí conservadas son exactamente la entrega pequeña. No despliegue de candidato amplio, servidor, reglas, flags, bootstrap o drenaje; continúan bloqueos fiscales/OT/emulador anteriores. La puerta amplia debe repetirse antes de cualquier corte, no se acredita con la puerta pequeña.
+
+
 ## Agenda15.2 publicada · 26/10/2026
 
 - Excepción a la tanda20 autorizada expresamente por el titular: sólo Agenda. Fuente limpia/pushed516ed4720d2163dc671f36eb64cde82c131418bc, rama codex/agenda-inicio-v3152. Hosting8c133e81f116bb4e,455activos/4cargas;19hashesHTTPS exactos, mirror,7cabeceras y7rutas privadas/no retenidas404 correctos. Después el script oficial verificó web/core/SW y confirmó aviso v3.15.2-firebase. No despliegue de servidor/reglas/flags/IAM/DNS ni guardados financieros de prueba.
