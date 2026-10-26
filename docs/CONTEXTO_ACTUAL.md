@@ -1,5 +1,14 @@
 # Continuidad de SisVentas
 
+## Herramientas de pedido: publicación aislada preparada · 26/10/2026
+
+- Autorización humana para publicar las herramientas en los dos circuitos y verificar PDF/orden/precios sin datos reales. Rama codex/pedidos-publicacion-v3155 desde635ca0b4/producción15.4. Sólo diff de06ef0fa integrado; no se copia la candidata amplia ni su servidor/reglas/vistas/flags. Publicación externa pendiente hasta verificar Hosting/HTTPS/aviso.
+- Copiar para WhatsApp, PDF neutro, CSV y Compartir en Mi lista y Preparar compra. PDF/CSV conservan la lista completa en su orden, precios de compra y moneda de origen; proveedor seleccionado sólo filtra WhatsApp/Compartir. No guardar, recalcular históricos ni enviar mensajes por exportar. Contrato y cobertura en [PEDIDOS_EXPORTACION_V3155.md](PEDIDOS_EXPORTACION_V3155.md).
+- Puerta aislada6.067total/6.040PASS/27opt-in/0fallos,52,01s.4recorridos completos ficticios1280/390 con los dos módulos exactos de06ef0fa, PDFs de5productos y75filas hasta la última, cero escrituras/consultas de negocio adicionales. Datos y dependencias de prueba locales. No QA de cuentas reales ni WhatsApp/panel nativo real.
+- Comparación AST:2.285funciones de app idénticas15.4; sólo versión/Novedades cambian. Helper/adaptadores/prueba pura exactos06ef0fa. Session-assets sólo cambia dos URLs de los módulos del alcance. Sin nuevo sondeo, servicio o infraestructura. La candidata amplia se reservará15.6, sin activar.
+- CUA falla kernelassets: no se afirma inspección o recarga de la sesión real. La verificación funcional de web usará sólo los activos estáticos publicados y dependencia PDF pública, con negocio ficticio en loopback y toda solicitud comercial externa bloqueada. Evidencia privada tmp/order-tools3155-release y tmp/order-tools3155-public-qa.
+
+
 ## Movimientos15.4 publicada · 26/10/2026
 
 - El titular autorizó PUBLICALO como excepción a juntar20. Fuente limpia/pushed af4ac0eb4908aa18e83617275bab487580fc6daf, rama codex/movimientos-regreso-v3154. Hostingca5785bd608c3ba5:457activos/4cargas;19hashesHTTPS exactos, mirror/7cabeceras/7rutas404 correctos. Después el script oficial comprobó web/core/SW y confirmó aviso v3.15.4-firebase. Sin cambios remotos de servidor, reglas, flags, IAM, DNS, servicios o datos comerciales de prueba.
