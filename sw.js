@@ -3,6 +3,7 @@
 const CACHE = 'sisventas-v3.15.5';
 const SHELL = [
  './js/core/print-layout.v1.js',
+ './js/core/purchase-order-export.v1.js?v=3.15.5',
  './js/core/dashboard-personal-hours.v1.js',
  './js/core/commission-presentation.v1.js?v=3.14.20',
  './js/core/dashboard-startup-demand.v1.js?v=3.15.5',

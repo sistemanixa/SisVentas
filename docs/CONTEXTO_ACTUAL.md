@@ -1,4 +1,11 @@
 # Continuidad de SisVentas
+## Herramientas de pedido preparadas · 26/10/2026
+
+- Pedido humano coordinado: recuperar Copiar para WhatsApp, PDF, CSV y Compartir en Mi lista y Preparar compra. Precisión posterior: PDF neutro con la lista completa y su orden exacto, sin Ofertas/destacados ni presentación promocional. Implementación aislada en codex/herramientas-pedidos-v3155 sobre5501cfcc; NO publicada. Producción sigue15.4, candidata amplia15.5 sin activar.
+- Herramientas comunes debajo de la cabecera de Mi lista y en la cabecera del preparador, disponibles en sus tres solapas. WhatsApp/Compartir admiten selección manual de proveedor; PDF/CSV siempre incluyen toda la lista. Precios y monedas de compra, cantidades pedidas, stock existente excluido y extras incluidos; nada de ganancias, venta interna o comparación comercial. Sin guardar, comprar ni enviar mensajes automáticamente.
+- 24 regresiones nuevas; puerta final7.595total/7.568PASS/27opt-in/0fallos.4QA completas ficticias en1280/390, compartir texto/PDF/CSV, foco/teclado y payloads sin escrituras ni consultas de negocio adicionales. PDF real75filas/11páginas, fila75 y totales revisados, cero páginas vacías; estilos heredados y recorte largo se repararon sólo en este exportador. Detalle, semántica de precios y límites en [PEDIDOS_EXPORTACION_V3155.md](PEDIDOS_EXPORTACION_V3155.md).
+- No cambio de Hosting/servidor/reglas/flags/infraestructura ni operaciones reales de prueba. La publicación debe integrar sólo este alcance; los bloqueos de la candidata amplia siguen abiertos. Artefactos ficticios y evidencias privadas fuera de Git.
+
 
 ## Movimientos15.4 publicada · 26/10/2026
 

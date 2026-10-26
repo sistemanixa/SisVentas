@@ -182,12 +182,22 @@
       originals.forEach(wrapper=>wrapper.remove());return created;
     }catch(error){created.forEach(wrapper=>wrapper.remove());throw error;}
   }
+  function orderForExport(items,products,purchases={},title='Pedido de compra') {
+    const rows=Object.entries(items).map(([key,quantity])=>{
+      const p=products[key],actual=purchases[key]||{};
+      if(!eligible(p))throw Error('Revisá el producto '+key+' antes de preparar el pedido.');
+      const q=quote(p,actual.proveedor),agreed=actual.precioUnitario!==null&&actual.precioUnitario!==undefined&&actual.precioUnitario!=='';
+      return {code:p.codigo||key,name:p.nombre||p.descripcion||'',quantity,provider:actual.proveedor||q.store||p.proveedor||'',currency:agreed?(actual.moneda||'USD'):'USD',unitPrice:agreed?actual.precioUnitario:q.usd>0?q.usd:null,priceKind:agreed?'agreed':'reference'};
+    });
+    return {title,usdDecimals:0,rows};
+  }
   const csv = (items, products, purchases = {}) => '\uFEFF' + [['Código','Producto','Cantidad','USD unitario','Costo ARS unitario con envío','URL','Cantidad comprada','Precio unitario acordado','Moneda','Proveedor','Estado','Local'], ...Object.entries(items).map(([key, qty]) => {
     const p = products[key]; if (!eligible(p)) return null;
     const q = quote(p,purchases[key]?.proveedor); return [p.codigo || '', p.nombre || p.descripcion || '', qty, q.usd || '', q.ars || '', q.url, purchases[key]?.cantidad ?? '', purchases[key]?.precioUnitario ?? '', purchases[key]?.moneda || '', purchases[key]?.proveedor || '', purchaseStates[purchases[key]?.estado] || 'Pendiente',q.store||'Por identificar'];
   }).filter(Boolean)].map(row => row.map(csvCell).join(';')).join('\r\n');
-  if (typeof module !== 'undefined') module.exports = {filterBalanceRows,eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, paginateOfferSheets, providerSelection, subscribeExchangeRate, pdfComparisonText, listHistory, listSavings, listCostSummary, itemProfit, captureAgreedSale};
+  if (typeof module !== 'undefined') module.exports = {orderForExport,filterBalanceRows,eligible, quote, csv, salePrice, saleAmounts, mlComparison, removeShoppingList, pdfEntries, pdfPages, paginateOfferSheets, providerSelection, subscribeExchangeRate, pdfComparisonText, listHistory, listSavings, listCostSummary, itemProfit, captureAgreedSale};
   if (!root.document) return;
+  let orderTools=null;
   let adminListOptions=[], detailModal, pdfPreview, purchases = {}, panel, stops = [], products = {}, lists = {}, selected = {}, listKey = '', listBaseline = null, busy = false, generation = 0;
   let cartDraft = {productos:{}, comprasFinales:{}, nombre:''};
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -268,6 +278,7 @@
     try{root.verProducto(key,'ofertas');if(host.querySelector('#pd-codigo-lbl')?.textContent!==String(products[key].codigo||''))throw Error('Producto pendiente de cargar');host.querySelector('button')?.focus();}catch(e){returnFromProduct();root.alert('No se pudo abrir la ficha del producto.');}
   }
   function close() {
+    orderTools=null;
     root.SVDistributorDocuments?.reset();
     balanceRefresh=null;
     returnFromProduct(false);
@@ -300,6 +311,7 @@
       return (grouped && (index===0 || name!==brand(rows[index-1][1])) ? '<h3 class="py-brand-heading">'+esc(name)+' <small>'+counts.get(name)+(counts.get(name)===1?' producto':' productos')+'</small></h3>' : '')+card;
     }).join('') || '<div class="catalogo-vacio" style="display:flex;grid-column:1/-1"><strong>No hay productos para mostrar</strong><span>Probá otra búsqueda.</span></div>';
     renderSummary();
+    orderTools?.refresh();
     refreshOpenDetail();
   }
   function refreshOpenDetail() {
@@ -697,7 +709,8 @@
               <div class="metric"><div class="m-label">Costo total ARS</div><div class="m-value" data-total-ars style="color:var(--amber)">$ 0,00</div><div class="m-sub">incluye envío registrado</div></div>
             </div>
             <section class="card" data-list-card aria-label="Lista de compra">
-              <div class="card-head"><span class="card-title">Lista de compra</span><div class="py-actions"><button class="btn btn-sm" data-add-products>＋ Agregar productos</button><button class="btn btn-sm" data-pdf-list><i class="ti ti-file-type-pdf" aria-hidden="true"></i> Exportar PDF</button><button class="btn btn-sm" data-download><i class="ti ti-download" aria-hidden="true"></i> Descargar CSV</button><button class="btn btn-sm" data-delete-list disabled style="color:var(--red,#ef8585)"><i class="ti ti-trash" aria-hidden="true"></i> Eliminar lista</button><button class="btn btn-sm btn-primary" data-save><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar lista</button></div></div>
+              <div class="card-head"><span class="card-title">Lista de compra</span><div class="py-actions"><button class="btn btn-sm" data-add-products>＋ Agregar productos</button><button class="btn btn-sm" data-delete-list disabled style="color:var(--red,#ef8585)"><i class="ti ti-trash" aria-hidden="true"></i> Eliminar lista</button><button class="btn btn-sm btn-primary" data-save><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar lista</button></div></div>
+              <div data-order-tools style="padding:12px 0"></div>
               <div data-status role="status" aria-live="polite" style="min-height:20px;margin:6px 0 10px;font-size:12px;line-height:20px;overflow-wrap:anywhere"></div><div class="py-list-fields"><div class="fg"><label for="py-mis-listas">Mis listas</label><select id="py-mis-listas" data-lists><option value="">Nueva lista</option></select></div><div class="fg"><label for="py-lista-nombre">Nombre de la lista</label><input id="py-lista-nombre" data-name maxlength="120" placeholder="Ej. Próximo viaje"></div></div>
               <p class="py-note" data-list-dates></p><p class="py-note" data-progress role="status"></p><div style="display:flex;align-items:center;gap:12px;margin:8px 0"><input class="search-input" data-list-search aria-label="Buscar producto en la lista" placeholder="Buscar producto en la lista…" style="flex:1;min-width:0"><button type="button" class="btn btn-sm" data-collapse-items aria-expanded="false">Expandir todo</button></div><div data-cart-items class="py-items-compact" aria-label="Productos del carrito"></div><p class="py-note" data-summary></p>
             </section>
@@ -720,7 +733,7 @@
       const refreshPermissions=()=>{create.hidden=!root.SVDistribuidora.allowed('crear');if(detailModal)detailModal.remove();};refreshPermissions();document.addEventListener('sisventas:distribuidora-permissions',refreshPermissions);stops.push(()=>document.removeEventListener('sisventas:distribuidora-permissions',refreshPermissions));
     }
     panel.querySelector('[data-pdf-catalog]').onclick=()=>exportPDF(false);
-    panel.querySelector('[data-pdf-list]').onclick=()=>exportPDF(true);
+    if(root.SVPurchaseOrderExport)orderTools=root.SVPurchaseOrderExport.mount(panel.querySelector('[data-order-tools]'),{isCurrent:()=>valid()&&!busy,getOrder:()=>orderForExport(selected,products,purchases,panel.querySelector('[data-name]').value.trim()||'Pedido de compra')});
     const groupBrand = panel.querySelector('[data-group-brand]');
     try {groupBrand.checked=root.localStorage.getItem('sv_ofertas_group_brand')==='true';} catch (_) {}
     groupBrand.onchange=()=>{try {root.localStorage.setItem('sv_ofertas_group_brand',String(groupBrand.checked));} catch (_) {} renderProducts();};
@@ -995,11 +1008,6 @@
         if(valid()&&panel){editingPurchases.clear();explicitPurchaseEdits.clear();if(!listKey)cartDraft={productos:{},comprasFinales:{},nombre:''};lists[key]=structuredClone(saved);listKey=key;panel.querySelector('[data-add-context]').hidden=true;showView(true);renderLists();renderProducts();status('');}
       } catch (e) {if(valid())status(e.code==='SV_CONFLICT'?'La versión guardada de esta lista cambió desde que la abriste, posiblemente en otra ventana. Tus cambios siguen aquí; revisá la lista antes de reintentar.':(e.message||'No se pudo guardar la lista. Revisá la conexión y el acceso.'));}
       finally {if(valid()){busy=false;if(panel){panel.querySelector('[data-save]').textContent='Guardar lista';panel.querySelector('[data-save]').setAttribute('aria-busy','false');panel.querySelector('[data-save]').disabled=false;panel.querySelector('[data-lists]').disabled=false;renderLists();}}}
-    };
-    panel.querySelector('[data-download]').onclick = () => {
-      if (!Object.keys(selected).some(key=>eligible(products[key]))) {status('Elegí al menos un producto para descargar.');return;}
-      const blob = new Blob([csv(selected,products,purchases)],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
-      link.href=url;link.download='lista-compras-paraguay.csv';link.click();URL.revokeObjectURL(url);
     };
     const query = root.fbQuery(root.fbRef(root.fbDB,'sisventas/productos'),root.fbOrderByChild('categoria'),root.fbEqualTo(CATEGORY));
     stops.push(subscribeExchangeRate(root,valid,()=>{if(panel){renderExchangeReference();renderProducts();}},()=>status('No se pudo cargar la cotización. Revisá la conexión y volvé a ingresar.')));
