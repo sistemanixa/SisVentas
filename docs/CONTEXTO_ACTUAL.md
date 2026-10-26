@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Agenda15.3 publicada: cierre del ingreso con permisos · 26/10/2026
+
+- Fuente limpia/pushed819382edcce7f3c6ae9dc3573a6cb7e889add7de, rama codex/agenda-permisos-v3153. Hosting1ee2551722bf9e14,456activos/4cargas.19hashesHTTPS del dominio exactos, mirrorIndex/7cabeceras/7rutas404 y script oficial web/core/SW/aviso v3.15.3-firebase verificados. Se continúa el alcance Agenda ya autorizado; sin servidor, reglas, IAM, DNS, flags, servicios ni guardados financieros de prueba.
+- Reproducción antes/después y límites en el apartado siguiente. La QA nueva usa el cargador real de permisos y sus controles en el arranque; no se usa la QA anterior que lo sustituía como evidencia de ese circuito.6.005PASS/27opt-in/0fallos y16casos completos aislados. Las cifras de red/tiempo son de fixtures, no de Firebase ni factura.
+- No se pudo inspeccionar/refrescar la sesión auténtica: CUA falló en kernel assets. No afirmar QA autenticada, igualdad de todas las cuentas, actualizaciones ya recibidas en cada dispositivo ni ausencia de fallas en todo el sistema. No se borró navegación o almacenamiento; una recarga ordinaria permite recibir la versión nueva. Gastos15.1, guardados, pagos, comisiones y permisos de negocio se conservan.
+- La candidata amplia se reservó como15.4 y NO se activó. Su port de Agenda pasó70focales; para usar el cargador real en su fixture se carga también el helper financiero real que existe sólo en esa candidata, sin cambiar permisos productivos. No se repitió su puerta completa y continúan los bloqueos fiscales/preparación/drenaje/OT/emulador. No confundir este cierre pequeño con la auditoría general terminada.
+
+
 ## Agenda15.3: ingreso nuevo y permisos · 26/10/2026
 
 - Reproducción de la diferencia informada por el titular: el GET real de permisos emite role-changed después de iniciar Agenda; retiraba su fuente. Si la ruta ya era Dashboard, _svAbrirRutaActual no emite page-changed y quedaba Agenda en pausa. Volver visible disparaba otro evento y por eso la misma web podía verse bien en una pestaña usada y mal al ingresar de nuevo. No se atribuye a caché ni a datos diferentes.
