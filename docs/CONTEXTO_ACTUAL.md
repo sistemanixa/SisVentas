@@ -1,4 +1,19 @@
 # Continuidad de SisVentas
+
+## Herramientas15.5 publicadas y verificadas · 26/10/2026
+
+- Autorización directa del titular para ambos circuitos, PDF/orden/precios y sin tocar datos reales. Fuente limpia/pushed9bc483cffa3058236d00b1df012fa18586ce10b5, rama codex/pedidos-publicacion-v3155, desde15.4. Hosting09cc2c55f9d01218:459activos/8cargas;25hashesHTTPS exactos, mirror/7cabeceras/7rutas404 correctos. Después script oficial confirmó web/core/SW y aviso v3.15.5-firebase. Sin servidor/reglas/flags/IAM/DNS/servicios ni operaciones financieras reales cambiados.
+- La puerta aislada final6.067total/6.040PASS/27opt-in/0fallos y2.285cuerpos de app idénticos15.4 anteceden al despliegue. El archivo común y ambos adaptadores son exactamente los probados en06ef0fa. La candidata amplia permanece15.6, con sus2.294cuerpos preservados, sin activar.
+- Verificación funcional posterior usando los módulos reales publicados, CSS del dominio y dependencia PDF pública; transportes/datos de negocio ficticios en loopback, cualquier solicitud comercial exterior bloqueada.4recorridos1280/390, ambos circuitos: copiar, filtro manual para WhatsApp/Compartir, CSV/PDF de toda la lista y su orden/precios/monedas, compartir texto y archivos sólo al pulsar la acción, foco/Tab/Enter. Cero erroresJS/escrituras/lecturas comerciales externas, sin consultas de negocio adicionales por exportar. No se envió WhatsApp ni se hizo una compra.
+- PDFs descargados del recorrido con código publicado renderizados:5ítems mixtos en orden exacto, precios de compra y moneda de fuente, stock existente excluido/extras incluidos en preparador. Prueba75filas/11páginas: fila75/totales presentes y cero páginas vacías; primera/segunda/última revisadas visualmente. Sin cabecera promocional ni precios de venta. Evidencias ficticias privadas tmp/order-tools3155-web-qa y tmp/order-tools3155-release, fuera de Git.
+- Límite: CUA falló kernelassets; no se pudo inspeccionar/refrescar la sesión auténtica del titular ni cotejar una lista real concreta. Las pruebas web anteriores son de los activos publicados con negocio ficticio; no se presentan como QA autenticada de sus registros o panel nativo OS real. No se borró navegación. Las pestañas abiertas necesitan recibir la versión nueva mediante recarga ordinaria.
+
+
+## Reserva amplia15.6; herramientas15.5 aisladas · 26/10/2026
+
+- El titular autorizó publicar sólo las herramientas. Fuente pequeña9bc483cffa3058236d00b1df012fa18586ce10b5 desde15.4/635ca0b4, rama codex/pedidos-publicacion-v3155. Esta candidata amplia pasa a app/core/index/SW15.6, sin activarse. Todos sus2.294cuerpos de funciones son idénticos a la candidata5 anterior. App/core15.5 guardadas aquí son exactamente la entrega pequeña, no el paquete amplio anterior.
+- El navegador de pruebas incorpora un modo para usar sólo activos estáticos del dominio publicado y la dependencia PDF pública, con datos/SDK ficticios y bloqueo de cualquier llamada comercial exterior. La puerta pequeña fue6.067total/6.040PASS/27opt-in/0fallos; no se presenta como puerta ni activación amplia. Hosting/HTTPS/aviso se registrarán al terminar. Bloqueos fiscales/preparación/drenaje/OT/emulador continúan.
+
 ## Herramientas de pedido preparadas · 26/10/2026
 
 - Pedido humano coordinado: recuperar Copiar para WhatsApp, PDF, CSV y Compartir en Mi lista y Preparar compra. Precisión posterior: PDF neutro con la lista completa y su orden exacto, sin Ofertas/destacados ni presentación promocional. Implementación aislada en codex/herramientas-pedidos-v3155 sobre5501cfcc; NO publicada. Producción sigue15.4, candidata amplia15.5 sin activar.

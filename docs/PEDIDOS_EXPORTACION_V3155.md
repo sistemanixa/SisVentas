@@ -1,6 +1,6 @@
 # Herramientas de pedido preparadas · v3.15.5
 
-Estado: implementación y pruebas locales, **sin publicar**. Rama `codex/herramientas-pedidos-v3155`, sobre la candidata amplia `5501cfcc`. Producción continúa en v3.15.4. Esta mejora no activa la candidata amplia, sus reglas ni sus circuitos financieros pendientes.
+Estado: **publicada v3.15.5**, fuente9bc483cffa3058236d00b1df012fa18586ce10b5, Hosting09cc2c55f9d01218 y aviso oficial verificados. Se publicó sólo este alcance desde15.4, sin activar la candidata amplia15.6.
 
 ## Ubicación y comportamiento
 
@@ -33,9 +33,14 @@ El PDF promocional del **catálogo completo** continúa separado. El CSV de dato
 ## Verificación
 
 - **24 regresiones nuevas**: orden exacto de cinco códigos mixtos, precios/monedas, exclusión de otros productos y datos internos, fuente congelada/no-mutación, stock/extras, CSV con precisión/caracteres/fórmulas, precios pendientes, cantidades inválidas y cobertura completa de páginas. Incluye una descripción de 9.000 caracteres con continuación sin repetir cantidades ni precios.
-- Suite vigente final: **7.595 total / 7.568 aprobadas / 27 opt-in omitidas / 0 fallos**, 28,82 s. La primera puerta pasó antes de la reparación del render largo y no se usa como cobertura visual de la versión final.
+- Puerta de preparación en la candidata amplia: **7.595 total / 7.568 aprobadas / 27 opt-in omitidas / 0 fallos**, 28,82 s. La primera puerta pasó antes de la reparación del render largo y no se usa como cobertura visual de la versión final.
 - Navegador aislado: **4 recorridos completos**, ambos circuitos en 1280 y 390, módulos reales y transporte ficticio. Copia, selección de proveedor, CSV completo, PDF, compartir texto y archivos PDF/CSV, Tab/Shift+Tab, Enter en Cerrar y retorno del foco. Cero escrituras, cero consultas adicionales de negocio por exportar, cero errores JS y sin red comercial exterior. La dependencia PDF se sirvió desde una copia local de prueba.
 - Cinco productos mixtos y PDFs reales de ambos circuitos; prueba de 75 filas con nombres largos: **11 páginas**, última fila75 y totales presentes, ninguna página vacía. Se renderizaron todas las páginas; revisión visual de primera, segunda y última. El PDF nativo de referencia conserva los75códigos en orden; no sustituye la prueba del PDF descargado por el botón.
 - No teléfono físico, WhatsApp real ni panel nativo real del sistema operativo: esos canales se simulan para comprobar los payloads sin enviarlos. Tampoco se modificó ni navegó una sesión comercial real. Evidencia privada en `tmp/order-tools3155-qa` y `tmp/listings-next-private/order-tools3155-*`, fuera de Git.
 
-Antes de publicar, integrar expresamente sólo este alcance con la versión que corresponda. No usar esta rama como autorización para activar las otras modificaciones de la candidata amplia: sus bloqueos fiscales/preparación/drenaje/OT/emulador siguen vigentes.
+La publicación aislada ya se completó; próximas entregas deben integrar expresamente sólo su alcance con la versión que corresponda. No usar esta rama como autorización para activar las otras modificaciones de la candidata amplia: sus bloqueos fiscales/preparación/drenaje/OT/emulador siguen vigentes.
+
+
+## Comprobación posterior a Hosting
+
+25hashes HTTPS, mirror,7cabeceras y7rutas404 verificados; web/core/SW/aviso15.5 confirmados.4recorridos con los activos reales publicados y la dependencia PDF pública, datos/SDK ficticios y llamadas comerciales exteriores bloqueadas. PDFs/CSV revisados desde ese recorrido; lista de5ítems y documento de75filas completo. La sesión auténtica no pudo inspeccionarse porque CUA falló; no se modificaron datos reales ni se enviaron mensajes. Fuente/activos y límites detallados en CONTEXTO_ACTUAL.
