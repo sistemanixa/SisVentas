@@ -10,6 +10,7 @@
 
 ## Cierre local integrado15.2 · 26/10/2026
 
+- Fuente de preparación conservada y pushed79b52f755771c51cfe2c8a7a0bea1336bd4377af,135archivos revisados explícitamente; no incluye tmp/artefactos privados. El commit es un checkpoint no activado; producción y local8766 conservan15.1. Las dos líneas vacías finales retiradas tras la puerta no cambiaron cuerpos de código.
 - Puerta congelada7.542total/7.515PASS/27opt-in/0fallos,33,40s;128JS sintaxis, diff y validación oficial local correctos. Cierre Docker86módulos, sin faltantes;18 resultados fiscales idénticos al alinear sólo identidad opaca de renglones. No hubo despliegue amplio ni operaciones reales de prueba.
 - Agenda inicial reproducida y corregida sólo al quitar applyRole repetido por reloj; app completa ficticia en escritorio/390 confirma eventos sin Consultar. Se verificó igualdad exacta de _completarLogin15.2 con esa corrección sobre15.1. Retiro de sesión/ocultamiento/DataQuery intactos.
 - Propuesta comercial/Compras be01c924 cambia4políticas existentes bajo fence (presupuesto/órdenes/listas/inventario),0validadores/0índices existentes; sólo offline. No compilada/aplicada y no se reintenta emulador bloqueado.
