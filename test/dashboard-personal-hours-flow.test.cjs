@@ -70,17 +70,17 @@ test('apertura real de Mi cuenta:1 GET CTA y1 GET endpoint, sin raíz Hs.extra n
  assert.equal(element.textContent,'3 solicitudes pendientes (0.7000000000000001 hs)');assert.equal(element.attributes['aria-busy'],'false');assert.deepEqual(f.writes,[]);
  assert.ok(!f.calls('fbOnValue').some(request=>request.path.includes('hsextra_solicitudes')));
 });
-test('repintar avisos, recibir Gastos y volver visible no agrega GETs propios',async()=>{
+test('repintar avisos y recibir Gastos conserva la fuente; volver visible reabre una sola CTA',async()=>{
  const f=fixture();f.c.fbCargarGastos();assert.equal(f.subscriptions.length,1);f.subscriptions[0].next({val:()=>({})});f.c.renderDashMiCuenta();await f.resolveCTA();await f.resolveHours();
  const before=f.requests.length;for(let i=0;i<5;i++){f.c.svRenderAvisosCuentaPersonal();f.subscriptions[0].next({val:()=>({})});f.c.fbCargarGastos();}
  f.c.document.hidden=true;f.c.document.visibilityState='hidden';f.emit('visibilitychange');f.c.document.hidden=false;f.c.document.visibilityState='visible';f.emit('visibilitychange');
- assert.equal(f.requests.length,before);assert.equal(f.calls('fbOnValue').length,1);assert.equal(f.calls('fetch').length,1);assert.equal(f.subscriptions.length,1);assert.deepEqual(f.writes,[]);
+ assert.equal(f.requests.length,before+1);assert.equal(f.calls('fbOnValue').length,2);assert.equal(f.calls('fbOnValue')[0].stops,1);assert.equal(f.calls('fetch').length,1);for(let i=0;i<5;i++)f.emit('sisventas:foreground-restored');assert.equal(f.calls('fbOnValue').length,2);assert.equal(f.subscriptions.length,1);assert.deepEqual(f.writes,[]);
  // Existing scheduling hooks are observed, not executed as a second Dashboard opening.
  assert.equal(f.schedules.filter(value=>value==='render').length,6);
 });
-test('CTA que termina oculta no inicia endpoint; visible por sí solo tampoco consulta',async()=>{
+test('CTA que termina oculta no inicia endpoint; al regresar espera la CTA vigente',async()=>{
  const f=fixture();f.c.renderDashMiCuenta();await f.flush();f.c.document.hidden=true;f.c.document.visibilityState='hidden';f.emit('visibilitychange');await f.resolveCTA();assert.equal(f.calls('fetch').length,0);assert.equal(f.calls('headers').length,0);
- f.c.document.hidden=false;f.c.document.visibilityState='visible';f.emit('visibilitychange');await f.flush();assert.equal(f.calls('fetch').length,0);assert.equal(f.calls('fbOnValue').length,1);assert.deepEqual(f.writes,[]);
+ f.c.document.hidden=false;f.c.document.visibilityState='visible';f.emit('visibilitychange');await f.flush();assert.equal(f.calls('fetch').length,0);assert.equal(f.calls('fbOnValue').length,2);await f.resolveCTA();assert.equal(f.calls('fetch').length,1);await f.resolveHours();assert.equal(f.calls('fbOnValue').length,2);assert.deepEqual(f.writes,[]);
 });
 test('ocultar durante fetch lo aborta y su respuesta tardía no pinta ni reconsulta',async()=>{
  const f=fixture();f.c.renderDashMiCuenta();await f.resolveCTA();const request=f.calls('fetch')[0];f.c.document.hidden=true;f.c.document.visibilityState='hidden';f.emit('visibilitychange');assert.equal(request.options.signal.aborted,true);
