@@ -84,6 +84,7 @@
       if(can('dashboard.metricasGlobales')||can('dashboard.rentabilidad'))keys.push('clientes','productos','ventas','pagos');
       if(can('ventas.verDashboard'))keys.push('clientes','ventas','pagos');
       if(can('dashboard.grafico')||can('dashboard.miActividad'))keys.push('clientes','ventas');
+      if(can('dashboard.rentabilidad'))keys.push('gastos');
       keys=Array.from(new Set(keys)).filter(function(key){return typeof global.svPuedeLeerDominio==='function'&&global.svPuedeLeerDominio(key);});
     }
     if (page === 'dashboard' && typeof global.svPlanInicioDashboard === 'function') {

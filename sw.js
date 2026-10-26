@@ -1,8 +1,8 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.15.0';
+const CACHE = 'sisventas-v3.15.1';
 const SHELL = [
- './js/core/dashboard-startup-demand.v1.js?v=3.15.0',
+ './js/core/dashboard-startup-demand.v1.js?v=3.15.1',
  './js/core/print-layout.v1.js',
  './js/core/dashboard-personal-hours.v1.js',
  './js/core/commission-presentation.v1.js?v=3.14.20',
@@ -51,7 +51,7 @@ const SHELL = [
   './js/modules/catalog-order-periods-config.js?v=1',
   './js/modules/public-catalog-requests.js?v=3.11.1-usd',
   './js/modules/public-catalog-share.js?v=3.11.1-usd',
-  './js/core/data-readiness.js?v=3.15.0-startup-demand',
+  './js/core/data-readiness.js?v=3.15.1-dashboard-expenses',
   './js/modules/employee-cash-receipt.js?v=3.14.20',
   './js/modules/exterior-user-lists.js?v=3.11.11-directory',
   './',
@@ -71,7 +71,7 @@ const SHELL = [
   './js/core/guarded-writes.js?v=3.13.19-labor',
   './js/core/session-assets.js?v=3.14.20',
   './js/core/ot-personal-scope.js?v=3.14.0',
-  './js/app.v3.15.0.js',
+  './js/app.v3.15.1.js',
   './js/core/activity-period.v1.js',
  './js/core/dashboard-account-source.v1.js?v=3.14.19',
   './js/modules/navigation-back.js?v=perf-3105',
@@ -81,7 +81,7 @@ const SHELL = [
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js?v=3.12.20',
   './js/core/version.js',
-  './js/core/version.v3.15.0.js',
+  './js/core/version.v3.15.1.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.10.32',

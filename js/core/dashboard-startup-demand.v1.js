@@ -6,7 +6,7 @@
  // enforce each source's authorization and own subscription lifecycle.
  var consumers=Object.freeze({
   metrics:['clientes','ventas','pagos','presupuestos'],
-  profitability:['clientes','productos','ventas','pagos'],
+  profitability:['clientes','productos','ventas','pagos','gastos','empleados'],
   sales:['clientes','ventas','pagos'],
   chart:['ventas'],
   activity:['clientes','ventas','presupuestos'],

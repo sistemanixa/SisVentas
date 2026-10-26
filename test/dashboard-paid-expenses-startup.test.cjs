@@ -1,0 +1,23 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const {load,functionSource}=require('./helpers/app-functions.cjs');
+const Demand=require('../js/core/dashboard-startup-demand.v1.js');
+class Clock extends Date{constructor(...args){super(...(args.length?args:['2026-10-25T15:00:00Z']));}static now(){return Date.parse('2026-10-25T15:00:00Z');}}
+function fixture(){const elements=new Map(),ready=new Set();let failed=false;
+ for(const id of new Set([...functionSource('renderRentabilidadDashboard').matchAll(/['"](dash-rent-[a-z-]+)['"]/g)].map(m=>m[1]).concat(['dash-rentabilidad-card','dash-rent-gastos','dash-rent-ingresos','dash-rent-utilidad','dash-rent-margen','dash-rent-ratio','dash-rent-result-value','dash-rent-sales-count','dash-rent-expenses-count','dash-rent-bar-ing-lbl','dash-rent-bar-gas-lbl','dash-rent-gastos-sub','dash-rent-egresos-desglose','dash-rent-margen-sub','dash-rent-ratio-sub','dash-rent-result-label']))){elements.set(id,{textContent:'',innerHTML:'',dataset:{},attributes:{},style:{setProperty(){}},classList:{add(){},remove(){}},setAttribute(k,v){this.attributes[k]=v;}});}
+ const c={window:null,Date:Clock,document:{getElementById:id=>elements.get(id)||null},_gastosPagosCache:null,_gastosDataReady:false,_gastosCargaError:'',gastosData:[],svPuedeLeerDominio:()=>true,tienePermiso:action=>action==='dashboard.rentabilidad',
+  SVDataReadiness:{status:keys=>({ready:keys.every(k=>ready.has(k)),errors:failed?['gastos']:[]})},
+  calcularRentabilidadCanonica:()=>({ventas:[{id:'fixture'}],ingresosNetos:10000}),_set:(id,v)=>{if(elements.has(id))elements.get(id).textContent=v;}};c.window=c;
+ load(c,['svEstadoGastosRentabilidadDashboard','svPintarEsperaGastosRentabilidad','_gastoPagosArray','pagoGastoEstaAnulado','resumenGastosPagadosMes','formatearMontoRentabilidad','renderRentabilidadDashboard']);
+ return {c,elements,ready,error:value=>{failed=value;},paint:()=>c.renderRentabilidadDashboard([{id:'fixture'}])};}
+const data=()=>[
+ {empleadoId:'person-a',monto:1500,pagos:{a:{monto:100.15,fecha:'2026-10-25'},b:{monto:300.20,fecha:'2026-10-25'},old:{monto:200,fecha:'2026-09-25'},cancelled:{monto:999,fecha:'2026-10-25',anulado:true}}},
+ {empleadoId:'person-b',monto:50.65,pagos:[{monto:50.65,fecha:'2026-10-25'}]},
+ {empleadoId:'person-a',monto:900,pagos:[]},
+ {empleadoId:'person-b',monto:800,pagos:[{monto:800,fecha:'2026-10-25',estado:'anulado'}]}
+];
+test('admin without Mi cuenta still demands expense and employee sources for profitability',()=>{const p=Demand.plan({authenticated:true,visible:true,page:'dashboard',moduleAllowed:true,can:a=>a==='dashboard.rentabilidad',canDomain:()=>true,directoryAllowed:true});assert.ok(p.sources.includes('gastos'));assert.ok(p.sources.includes('empleados'));assert.ok(!p.consumers.includes('ownAccount'));});
+for(const order of [['ventas','gastos'],['gastos','ventas']])test('nonempty multi-owner payments remain pending until both sources ready: '+order.join('/'),()=>{const f=fixture();f.c.gastosData=data();f.ready.add(order[0]);f.c._gastosDataReady=order[0]==='gastos';f.paint();assert.equal(f.elements.get('dash-rent-gastos').textContent,'—');assert.notEqual(f.elements.get('dash-rent-utilidad').textContent,'$10.000');f.ready.add(order[1]);f.c._gastosDataReady=true;f.paint();assert.equal(f.elements.get('dash-rent-gastos').textContent,'$451');assert.equal(f.elements.get('dash-rent-utilidad').textContent,'$9.549');assert.equal(f.elements.get('dash-rent-expenses-count').textContent,'2');});
+test('an error after loaded expenses cannot become a definitive zero',()=>{const f=fixture();f.c.gastosData=data();f.c._gastosDataReady=true;f.ready.add('ventas').add('gastos');f.paint();assert.equal(f.elements.get('dash-rent-gastos').textContent,'$451');f.error(true);f.c._gastosCargaError='fixture failed';f.c._gastosDataReady=false;f.c.gastosData=[];f.paint();assert.equal(f.elements.get('dash-rent-gastos').textContent,'—');assert.match(f.elements.get('dash-rent-gastos-sub').textContent,/No se pudieron/);});
+test('known empty expenses may show zero only after successful source completion',()=>{const f=fixture();f.ready.add('ventas').add('gastos');f.paint();assert.equal(f.elements.get('dash-rent-gastos').textContent,'—');f.c._gastosDataReady=true;f.paint();assert.equal(f.elements.get('dash-rent-gastos').textContent,'$0');});
+test('a role lacking global expenses never treats personal data as company totals',()=>{const f=fixture();f.ready.add('ventas').add('gastos');f.c.gastosData=data();f.c._gastosDataReady=true;f.c.svPuedeLeerDominio=()=>false;f.paint();assert.equal(f.elements.get('dash-rent-gastos').textContent,'—');assert.match(f.elements.get('dash-rent-gastos-sub').textContent,/no disponible/);});
