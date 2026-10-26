@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Agenda15.2 publicada · 26/10/2026
+
+- Excepción a la tanda20 autorizada expresamente por el titular: sólo Agenda. Fuente limpia/pushed516ed4720d2163dc671f36eb64cde82c131418bc, rama codex/agenda-inicio-v3152. Hosting8c133e81f116bb4e,455activos/4cargas;19hashesHTTPS exactos, mirror,7cabeceras y7rutas privadas/no retenidas404 correctos. Después el script oficial verificó web/core/SW y confirmó aviso v3.15.2-firebase. No despliegue de servidor/reglas/flags/IAM/DNS ni guardados financieros de prueba.
+- Agenda carga al entrar y regresar al Dashboard/primer plano, comparte intentos duplicados y se retira al ocultar/salir/logout. No consultas por reloj nuevas. El arreglo de Gastos15.1 y2.283funciones originales permanecen idénticos. Puerta6.021total/5.994PASS/27opt-in/0fallos y8casos completos con SDK ficticio antecedieron a la publicación.
+- Límite de la comprobación: CUA volvió a fallar al escribir sus assets; no se pudo inspeccionar o recargar la sesión real del titular. La prueba funcional es aislada y la comprobación productiva corresponde a archivos, cabeceras, rutas y aviso; no se afirma QA autenticada de Agenda productiva. No se borró navegación/almacenamiento ni se guardaron operaciones. Evidencia privada tmp/agenda3152-release.
+- La actualización amplia15.3 continúa separada y NO se activó; los bloqueos fiscales/preparación/drenaje/corte siguen abiertos. Este apartado reemplaza las referencias previas a Agenda15.2 pendiente de aprobación, conservadas abajo como preparación histórica.
+
+
 ## Reserva amplia15.3; Agenda15.2 aislada · 26/10/2026
 
 - La corrección pequeña de Agenda se preparó desde15.1 en codex/agenda-inicio-v3152, fuente516ed4720d2163dc671f36eb64cde82c131418bc. Puerta6.021total/5.994PASS/27opt-in/0fallos y8QA de app completa ficticia; no publicada mientras se consulta excepción a la tanda20.
