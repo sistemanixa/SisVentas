@@ -87,6 +87,7 @@ function pptoNormalizarItemGuardado(item) {
     punit = factor > 0 ? subtotal / qty / factor : subtotal / qty;
   }
   return {
+    ...(typeof item._svLineRef === 'string' ? {_svLineRef:item._svLineRef} : item._svCommercialNew === true ? {_svCommercialNew:true} : {}),
     ...(Number(item.costoUnitarioCompra)>0 ? {costoUnitarioCompra:Number(item.costoUnitarioCompra), origenCompra:item.origenCompra||'', porcentajeVentaCompra:item.porcentajeVentaCompra ?? null} : {}),
     cod: item.cod || item.codigo || item.sku || '',
     desc: descripcionVisibleItemDocumento(item),

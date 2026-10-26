@@ -84,7 +84,15 @@
       if(can('dashboard.metricasGlobales')||can('dashboard.rentabilidad'))keys.push('clientes','productos','ventas','pagos');
       if(can('ventas.verDashboard'))keys.push('clientes','ventas','pagos');
       if(can('dashboard.grafico')||can('dashboard.miActividad'))keys.push('clientes','ventas');
+      if(can('dashboard.rentabilidad'))keys.push('gastos');
       keys=Array.from(new Set(keys)).filter(function(key){return typeof global.svPuedeLeerDominio==='function'&&global.svPuedeLeerDominio(key);});
+    }
+    if (page === 'dashboard' && typeof global.svPlanInicioDashboard === 'function') {
+      var demand = global.svPlanInicioDashboard();
+      if (demand) {
+        var canonical = demand.sources.map(function(source){ return source === 'ordenesTrabajo' ? 'ordenes_trabajo' : source; });
+        keys = keys.filter(function(key){ return canonical.includes(key); });
+      }
     }
     // El historial combina módulos con permisos distintos. Una fuente que el
     // rol no puede consultar tampoco puede retener su pantalla en "Cargando".

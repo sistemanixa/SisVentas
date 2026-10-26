@@ -39,10 +39,17 @@
     if(base.bonificacionConceptoId){expense.bonificacionConceptoId=base.bonificacionConceptoId;expense.bonificacionConceptoNombre=base.bonificacionConceptoNombre;}
     return {employeeId:item.empleadoId,movementPath,expensePath,employeePath,movement,expense};
    });
-   return freeze({operation,plan,records,context:input.context});
+   return freeze({operation,plan,records,context:input.context,concepto:input.concepto?.id?{id:String(input.concepto.id),...(Number.isSafeInteger(input.concepto.revision)?{revision:input.concepto.revision}:{})}:null});
   }
   async function register(attempt){
    contextCheck(attempt.context);if(!root.fbDB||typeof root.SVLaborWrites?.atomic!=='function')throw failure('No hay conexión segura para registrar la bonificación.');
+   if(typeof root.svEsAdministradorFinanciero==='function'&&!root.svEsAdministradorFinanciero()){
+    if(typeof root.svRevisionMetaEmpleado!=='function'||typeof root.SVLaborWrites.command!=='function')throw failure('Actualizá la aplicación para registrar las bonificaciones.');
+    const employees=[];for(const row of attempt.records){const expectedRevision=await root.svRevisionMetaEmpleado(row.employeeId,()=>contextCheck(attempt.context));contextCheck(attempt.context);const line=attempt.plan.items.find(item=>item.empleadoId===row.employeeId);employees.push({employeeId:row.employeeId,expectedRevision,cantidad:line.cantidad});}
+    const first=attempt.records[0].movement;
+    const result=await root.SVLaborWrites.command('haberes',{action:'bonus',grupoId:attempt.operation,fecha:first.fecha,periodoComputo:first.periodoComputo,motivo:first.motivo,valorUnitario:attempt.plan.valorUnitario,employees,...(attempt.concepto?{concepto:attempt.concepto}:{})});
+    contextCheck(attempt.context);return {count:result.recovered===true?attempt.records.length:result.count,total:result.recovered===true?attempt.plan.total:result.total,replayed:result.replayed===true};
+   }
    let replayed=false;
    const result=await root.SVLaborWrites.atomic({purpose:'employee-bonus-batch',paths:attempt.records.flatMap(row=>[row.movementPath,row.expensePath,row.employeePath]),build:function(values){
     contextCheck(attempt.context);const patch={};let existing=0;

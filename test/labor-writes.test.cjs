@@ -6,24 +6,24 @@ const response=(data,status=200)=>({ok:status>=200&&status<300,status,json:async
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
 function fixture(){
  const state={sisventas:{gastos:{g:{monto:10,estado:'pendiente'}},ctaemp:{emp:{m:{monto:10}}},ventas:{v:{total:100}},pagos:{},config:{cargos:{c:{valorHora:100}}}}};
- const commands=[],direct=[],reads=[],headers=[];let sequence=0,handler=null,beforeGet=null,headerTask=null,holds=0,releases=0;
+ const commands=[],direct=[],reads=[],headers=[];let sequence=0,handler=null,beforeGet=null,headerTask=null,holds=0,releases=0,viewProof=null;const proofMap=new WeakMap();
  const get=path=>path.split('/').filter(Boolean).reduce((node,key)=>node&&Object.hasOwn(node,key)?node[key]:null,state)??null;
  function put(path,value){const parts=path.split('/').filter(Boolean),last=parts.pop();let target=state;for(const key of parts)target=target[key]||={};if(value===null)delete target[last];else target[last]=clone(value);}
  const ref=(_,path='')=>({key:path.split('/').filter(Boolean).at(-1)||null,toString:()=> 'https://fixture.invalid/'+path});
  const sdk={ref,
   set(r,value){direct.push(['set',r.toString(),value]);return Promise.resolve();},update(r,value){direct.push(['update',r.toString(),value]);return Promise.resolve();},remove(r){direct.push(['remove',r.toString()]);return Promise.resolve();},
   push(r,value){const child=ref(null,new URL(r.toString()).pathname.replace(/^\//,'')+'/push-'+(++sequence)),plain=ref(null,new URL(child.toString()).pathname.replace(/^\//,''));if(value!=null)direct.push(['push',child.toString(),value]);const pending=Promise.resolve(plain);child.then=pending.then.bind(pending);child.catch=pending.catch.bind(pending);return child;},
-  async get(r){const path=new URL(r.toString()).pathname.replace(/^\//,'');reads.push(path);if(beforeGet)await beforeGet(path);return {key:r.key,ref:r,val:()=>clone(get(path)),exists:()=>get(path)!==null};},
+  async get(r){const path=new URL(r.toString()).pathname.replace(/^\//,'');reads.push(path);if(beforeGet)await beforeGet(path);const snap={key:r.key,ref:r,val:()=>clone(get(path)),exists:()=>get(path)!==null};if(viewProof)proofMap.set(snap,viewProof(path));return snap;},
   runTransaction(r,fn,options){direct.push(['transaction',r.toString(),fn,options]);return Promise.resolve({committed:false});}
  };
  const user={uid:'u'},root={fbDB:{},fbAuth:{currentUser:user},currentUserUid:'u',currentRole:'admin',PERMISOS_ROLES:{admin:{indiceRevision:1}},crypto:{subtle:crypto.webcrypto.subtle,randomUUID:()=> '00000000-0000-4000-8000-'+String(++sequence).padStart(12,'0')},
   SVForegroundSession:{holdDatabase(){holds++;return ()=>{holds--;releases++;};}},SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://gateway.invalid'},
   SVServiceAuth:{async headers(base){headers.push(base);if(headerTask)await headerTask();return {...base,Authorization:'Bearer fixture-token'};}},
-  async fetch(url,options){assert.equal(url,'https://gateway.invalid/laboral/escritura');assert.equal(options.method,'POST');assert.equal(options.headers.Authorization,'Bearer fixture-token');const command=JSON.parse(options.body);commands.push(command);if(handler)return handler(command,options);return commit(command);}
+  async fetch(url,options){assert.ok(/^https:\/\/gateway\.invalid\/laboral\/(escritura|(?:cuenta|gastos|empleados|movimientos|haberes|liquidacion)\/comando)$/.test(url));assert.equal(options.method,'POST');assert.equal(options.headers.Authorization,'Bearer fixture-token');const command=JSON.parse(options.body);commands.push(command);if(handler)return handler(command,options);return commit(command);}
  };
  function commit(command){if(command.kind==='patch')for(const [path,value]of Object.entries(command.value))put(path,value);else put(command.path,command.value);return response({ok:true,committed:true,...(command.kind==='compare'?{value:get(command.path)}:{})});}
  const context={window:root,URL,TextEncoder,Uint8Array,AbortSignal,Promise};vm.createContext(context);vm.runInContext(source,context);root.SVLaborWrites.install({sdk});
- return {root,sdk,state,commands,direct,reads,headers,ref:path=>ref(null,path),get,put,commit,setHandler(fn){handler=fn;},setBeforeGet(fn){beforeGet=fn;},setHeaders(fn){headerTask=fn;},get holds(){return holds;},get releases(){return releases;}};
+ return {root,sdk,state,commands,direct,reads,headers,ref:path=>ref(null,path),get,put,commit,enableViews(fn){viewProof=fn;root.SVEmployeeAccountViews={proofs:snap=>clone(proofMap.get(snap)||{}),isProtected:ref=>!!fn(new URL(ref.toString()).pathname.slice(1)),isWriteProtected:ref=>/^sisventas\/(?:ctaemp|gastos|pagos_realizados|auditoria_pagos)(?:\/|$)/.test(new URL(ref.toString()).pathname.slice(1))};},setHandler(fn){handler=fn;},setBeforeGet(fn){beforeGet=fn;},setHeaders(fn){headerTask=fn;},get holds(){return holds;},get releases(){return releases;}};
 }
 
 test('instalar es idempotente y las rutas ajenas conservan el SDK sin llamadas al gateway',async()=>{
@@ -193,4 +193,43 @@ test('compare espera primer plano antes del primer GET y no retiene DB mientras 
  const f=fixture(),visible=deferred();f.root.SVForegroundSession.waitVisible=()=>visible.promise;
  const pending=f.root.fbRunTransaction(f.ref('sisventas/gastos/g'),value=>value);
  await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(f.reads,[]);assert.equal(f.holds,0);visible.resolve();await pending;assert.equal(f.reads.length,1);
+});
+
+const VIEW='sv_employee_account_views/v1/',REV='opaque-revision-1234567890';
+test('view compare sends only an opaque revision and accepts a receipt without original data',async()=>{
+ const f=fixture();f.enableViews(path=>path==='sisventas/gastos/g'?{[VIEW+'globalExpenses/rows/g']:REV}:null);f.setHandler(c=>response({ok:true,committed:true}));
+ const result=await f.root.fbRunTransaction(f.ref('sisventas/gastos/g'),m=>({...m,estado:'aprobado'}));const c=f.commands[0];
+ assert.equal(c.kind,'view-compare');assert.deepEqual(c.expectedViews,{[VIEW+'globalExpenses/rows/g']:REV});assert.equal(Object.hasOwn(c,'expectedHash'),false);assert.equal(result.snapshot.val().estado,'aprobado');assert.equal(f.direct.length,0);
+});
+test('projected set and scalar patch use versioned writes, never an unverified financial set',async()=>{
+ const f=fixture();f.enableViews(path=>path.startsWith('sisventas/gastos/g')?{[VIEW+'globalExpenses/rows/g']:REV}:null);f.setHandler(()=>response({ok:true,committed:true}));
+ await f.root.fbSet(f.ref('sisventas/gastos/g/estado'),'aprobado');await f.root.fbUpdate(f.ref('sisventas/gastos/g'),{estado:'aprobado',requiereAprobacion:false});assert.deepEqual(f.commands.map(c=>c.kind),['view-compare','view-atomic']);assert.equal(f.direct.length,0);
+});
+test('a projected source missing its proof cannot fall back to hashing its DTO',async()=>{
+ const f=fixture();f.enableViews(()=>({}));await assert.rejects(f.root.fbRunTransaction(f.ref('sisventas/gastos/g'),()=>({estado:'aprobado'})),{code:'SV_ACCOUNT_VIEW_UNREADY'});assert.equal(f.commands.length,0);assert.equal(f.direct.length,0);
+});
+test('atomic keeps HR as read-only view preconditions, raw attachments as hashes, and nullable new receipt proofs',async()=>{
+ const f=fixture();f.enableViews(path=>path==='sisventas/empleados/e'?{[VIEW+'globalEmployeeDirectory/rows/e']:REV}:path==='sisventas/pagos_realizados/new'?{[VIEW+'globalPaymentBatches/rows/new']:null}:path==='sisventas/gastos/g'?{[VIEW+'globalExpenses/rows/g']:REV}:null);f.setHandler(()=>response({ok:true,committed:true}));
+ await f.root.SVLaborWrites.atomic({paths:['sisventas/gastos/g','sisventas/empleados/e','sisventas/pagos_realizados/new','sisventas/gastos_adjuntos/g'],build:()=>({'sisventas/gastos/g/estado':'pagado','sisventas/pagos_realizados/new':{monto:10}})});
+ const c=f.commands[0];assert.equal(c.kind,'view-atomic');assert.equal(c.expectedViews[VIEW+'globalPaymentBatches/rows/new'],null);assert.equal(c.expectedViews[VIEW+'globalEmployeeDirectory/rows/e'],REV);assert.deepEqual(Object.keys(c.expectedHashes),['sisventas/gastos_adjuntos/g']);
+});
+test('collection nonce covers its rows without exhausting the 128 source cap',async()=>{
+ const f=fixture();f.enableViews(path=>{if(path!=='sisventas/gastos')return null;const proofs={[VIEW+'globalExpenses']:REV};for(let i=0;i<200;i++)proofs[VIEW+'globalExpenses/rows/'+i]=REV;return proofs;});f.setHandler(()=>response({ok:true,committed:true}));
+ await f.root.SVLaborWrites.atomic({paths:['sisventas/gastos'],build:()=>({'sisventas/gastos/g/estado':'aprobado'})});assert.deepEqual(f.commands[0].expectedViews,{[VIEW+'globalExpenses']:REV});
+});
+test('different revisions of a shared envelope retire the read before building or sending',async()=>{
+ const f=fixture();let calls=0,builds=0;f.enableViews(()=>({[VIEW+'employees/emp']:'revision-'+(++calls)}));await assert.rejects(f.root.SVLaborWrites.atomic({paths:['sisventas/ctaemp/emp/m','sisventas/ctaemp/emp/n'],build:()=>{builds++;return {'sisventas/ctaemp/emp/m/estado':'aprobado'};}}),{code:'SV_CAS_CONFLICT'});assert.equal(builds,0);assert.equal(f.commands.length,0);assert.equal(f.reads.length,6);
+});
+test('HR metadata field updates retain the scoped patch while originals remain unread',async()=>{
+ const f=fixture();f.enableViews(()=>null);await f.root.fbUpdate(f.ref('sisventas/empleados/e'),{nombre:'Ficticio'});assert.equal(f.commands[0].kind,'patch');assert.equal(f.reads.length,0);
+});
+test('reserved derived views cannot be written by set, patch, push or atomic',async()=>{
+ const f=fixture();for(const run of [()=>f.root.fbSet(f.ref(VIEW+'employees/e'),{}),()=>f.root.fbUpdate(f.ref(''),{[VIEW+'employees/e/meta/revision']:'forged'}),()=>f.root.fbPush(f.ref(VIEW+'employees'),{}),()=>f.root.SVLaborWrites.atomic({paths:[VIEW+'employees/e'],build:()=>({})})])await assert.rejects(async()=>run(),{code:'SV_LABOR_SERVICE_ONLY'});assert.equal(f.commands.length,0);assert.equal(f.direct.length,0);
+});
+test('narrow commands share confirmation and recovery contract without receiving originals',async()=>{
+ const f=fixture();f.setHandler(()=>response({ok:true,committed:true,gastoKey:'g'}));const result=await f.root.SVLaborWrites.command('cuenta',{action:'approve',employeeId:'emp',movementKey:'m',expectedRevision:REV});assert.equal(result.gastoKey,'g');assert.equal(f.commands[0].kind,undefined);assert.equal(f.commands[0].action,'approve');assert.equal(f.reads.length,0);assert.equal(f.direct.length,0);
+ for(const resource of ['../raw','configuracion','escritura'])await assert.rejects(f.root.SVLaborWrites.command(resource,{action:'approve'}),{code:'SV_LABOR_COMMAND'});await assert.rejects(f.root.SVLaborWrites.command('cuenta',{id:'forged'}),{code:'SV_LABOR_COMMAND'});
+});
+test('permission changes without revision and data epochs fence commands during headers',async()=>{
+ for(const change of [r=>{r.PERMISOS_ROLES.admin.acciones={empleados:{pagarMovimiento:false}};},r=>{r._svDataEpoch=1;}]){const f=fixture(),started=deferred(),end=deferred();f.setHeaders(async()=>{started.resolve();await end.promise;});const task=f.root.SVLaborWrites.command('cuenta',{action:'approve'});await started.promise;change(f.root);end.resolve();await assert.rejects(task,{code:'SV_LABOR_SESSION'});assert.equal(f.commands.length,0);}
 });

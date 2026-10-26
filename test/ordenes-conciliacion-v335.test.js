@@ -6,6 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const purchaseOrders = fs.readFileSync(path.join(root, 'js', 'modules', 'purchase-orders.js'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const server = fs.readFileSync(path.join(root,'cotizador','purchase-sale-cost-commands.js'),'utf8');
 
 test('la recepción exige proveedor y costo final y conserva la comparación presupuestada', () => {
   assert.match(purchaseOrders, /proveedor efectivo/);
@@ -13,16 +14,18 @@ test('la recepción exige proveedor y costo final y conserva la comparación pre
   assert.match(purchaseOrders, /oc-item-provider/);
   assert.match(purchaseOrders, /ocActualizarResultadoCompra\(this\)/);
   assert.match(purchaseOrders, /costoUnitarioPresupuestado/);
-  assert.match(purchaseOrders, /diferenciaCompra/);
+  assert.match(server, /diferenciaCompra/);
   assert.match(purchaseOrders, /Mejoró/);
   assert.match(purchaseOrders, /Empeoró/);
 });
 
 test('el costo real recibido se refleja de forma transaccional en la venta y su margen', () => {
   assert.match(purchaseOrders, /function syncSalePurchaseCosts/);
-  assert.match(purchaseOrders, /fbRunTransaction/);
-  assert.match(purchaseOrders, /saleItem\.costoTotalCompra/);
-  assert.match(purchaseOrders, /sale\.margenPct/);
+  assert.match(purchaseOrders, /SVLaborWrites\.command\('compras'/);
+  assert.match(server, /scope\.update\(patch\)/);
+  assert.match(server, /costoTotalCompra:round\(effective\)/);
+  assert.match(server, /sale\.margenPct/);
+  assert.match(server, /mode:'user'/);
 });
 
 test('la OC dispone de un comprobante imprimible con proveedor e items', () => {

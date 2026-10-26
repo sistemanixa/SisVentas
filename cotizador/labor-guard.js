@@ -6,14 +6,29 @@ const {validateExpenseRemovals}=require('./expense-removal-guard');
 const {validateBonusBatch}=require('./labor-bonus-batch');
 const {validateSACWrites}=require('./labor-sac-batch');
 const {validateAdvanceDiscount}=require('./labor-advance-discount');
+const AccountViews=require('./employee-account-view-delta');
+const CommercialViews=require('./commercial-view-protocol');
 const failure=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const copy=v=>v==null?null:structuredClone(v);
 function canonical(v){if(v==null)return 'null';if(Array.isArray(v))return '['+v.map(canonical).join(',')+']';if(typeof v==='object')return '{'+Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';return JSON.stringify(v);}
 const digest=v=>crypto.createHash('sha256').update(canonical(v)).digest('hex');
+function movementAck(result){
+ if(!result||typeof result.ok!=='boolean'||typeof result.committed!=='boolean')throw failure(409,'No se pudo confirmar el resultado del movimiento.','SV_LABOR_RECEIPT_INVALID');
+ const ack={ok:result.ok,committed:result.committed};
+ for(const field of ['movementKey','gastoKey'])if(result[field]===null)ack[field]=null;else if(typeof result[field]==='string'&&parts(result[field]).length===1)ack[field]=result[field];
+ if(result.unchanged===true)ack.unchanged=true;
+ if(result.code==='SV_LABOR_CANCELLED')Object.assign(ack,{code:'SV_LABOR_CANCELLED',mensaje:'El intento no se guardó. Podés volver a intentarlo.'});
+ return ack;
+}
+function monthlyPayrollAck(result){
+ if(result?.code==='SV_LABOR_CANCELLED'&&result.ok===false&&result.committed===false)return {ok:false,committed:false,code:'SV_LABOR_CANCELLED',mensaje:'El intento no se guardó. Podés volver a intentarlo.'};
+ if(result?.ok!==true||result.committed!==true||!['employeeId','salaryKey'].every(field=>typeof result[field]==='string'&&parts(result[field]).length===1)||!['aplicar','neto'].every(field=>typeof result[field]==='number'&&Number.isFinite(result[field])&&result[field]>=0))throw failure(409,'No se pudo confirmar la aplicación de adelantos.','SV_LABOR_RECEIPT_INVALID');
+ return {ok:true,committed:true,employeeId:result.employeeId,salaryKey:result.salaryKey,aplicar:result.aplicar,neto:result.neto};
+}
 function parts(path){if(typeof path!=='string'||!path||path.length>2048)throw failure(400,'Ruta inválida');const out=path.split('/');if(out.some(p=>!p||Buffer.byteLength(p)>768||/[.#$\[\]\x00-\x1f\x7f]/.test(p)))throw failure(400,'Ruta inválida');return out;}
 function child(value,path){let node=value;for(const p of path){if(!node||typeof node!=='object'||!Object.hasOwn(node,p))return null;node=node[p];}return copy(node);}
 function put(value,path,next){if(!path.length)return copy(next);let root=value&&typeof value==='object'?copy(value):{},node=root;const assign=(target,key,value)=>Object.defineProperty(target,key,{value,writable:true,enumerable:true,configurable:true});for(const p of path.slice(0,-1)){if(!Object.hasOwn(node,p)||!node[p]||typeof node[p]!=='object')assign(node,p,{});node=node[p];}if(next==null)delete node[path.at(-1)];else assign(node,path.at(-1),copy(next));return root;}
-const domains=new Set(['empleados','gastos','gastos_adjuntos','ctaemp','hsextra_solicitudes','haberes','aguinaldos','comisiones_generacion','pagos_realizados','auditoria_pagos','gastos_periodicos_emp','ventas','pagos']);
+const domains=new Set(['empleados','gastos','gastos_adjuntos','ctaemp','hsextra_solicitudes','haberes','aguinaldos','comisiones_generacion','pagos_realizados','auditoria_pagos','gastos_periodicos_emp','ventas','presupuestos','pagos','ordenes','listas_materiales','inventario_operativo']);
 const config=new Set(['cargos','maxComisionPct','comisiones','comisionesEmpleados']);
 function jsonValue(value,depth){
  if(depth>32||value===undefined||typeof value==='number'&&!Number.isFinite(value)||!['object','string','number','boolean'].includes(typeof value))throw failure(400,'Valor de guardado inválido');
@@ -22,7 +37,7 @@ function jsonValue(value,depth){
   for(const [key,next]of Object.entries(value)){parts(key);jsonValue(next,depth+1);}
  }
 }
-function affected(path){const p=parts(path);return ['sv_commission_generation','sv_commission_events'].includes(p[0])||p[0]==='sisventas'&&(p.length===1||domains.has(p[1])||p[1]==='config'&&(p.length===2||config.has(p[2])));}
+function affected(path){const p=parts(path);return ['sv_commission_generation','sv_commission_events',AccountViews.ROOT,CommercialViews.ROOT,CommercialViews.PRIVATE_ROOT].includes(p[0])||p[0]==='sisventas'&&(p.length===1||domains.has(p[1])||p[1]==='config'&&(p.length===2||config.has(p[2])));}
 function validateFinancialContext(actor,profile,permissions){
  if(profile?.activo!==true)throw failure(403,'Usuario sin acceso');
  if(profile.rol!==actor.role)throw failure(409,'La sesión cambió. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
@@ -39,15 +54,18 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
   if(!actor||typeof actor.uid!=='string'||!actor.uid||!['command','user','server','bootstrap'].includes(actor.mode))throw failure(403,'Operación no autorizada');
   if(readOnly&&!(actor.mode==='user'&&actor.operation==='resolve'))throw failure(503,'Los guardados están temporalmente en revisión. No se modificaron datos.','SV_LABOR_READ_ONLY');
   const opId=actor.opId||uuid();if(!/^[A-Za-z0-9_-]{8,160}$/.test(opId))throw failure(400,'Identificador de operación inválido');
-  const requestDigest=actor.mode==='user'&&actor.transportDigest!==undefined?actor.transportDigest:digest({uid:actor.uid,mode:actor.mode,operation:actor.operation||'',input:actor.input??null});
+  const movementRecovery=actor.mode==='command'&&['employee-movement-create','employee-movement-delete'].includes(actor.operation)&&actor.claims?.uid===actor.uid&&typeof actor.opId==='string'&&/^[A-Za-z0-9_-]{8,160}$/.test(actor.opId)&&/^[a-f0-9]{64}$/.test(actor.transportDigest||'');
+  const monthlyRecovery=actor.mode==='command'&&actor.operation==='employee-monthly-payroll-apply'&&actor.claims?.uid===actor.uid&&typeof actor.opId==='string'&&/^[A-Za-z0-9_-]{8,160}$/.test(actor.opId)&&/^[a-f0-9]{64}$/.test(actor.transportDigest||'');
+  const transportRecovery=movementRecovery||monthlyRecovery,recoveryAck=monthlyRecovery?monthlyPayrollAck:movementAck;
+  const requestDigest=(actor.mode==='user'||transportRecovery)&&actor.transportDigest!==undefined?actor.transportDigest:digest({uid:actor.uid,mode:actor.mode,operation:actor.operation||'',input:actor.input??null});
   if(!/^[a-f0-9]{64}$/.test(requestDigest))throw failure(400,'Identificador de comprobación inválido');
   // Sólo el transporte de una escritura idéntica puede recuperar su recibo.
   // Los comandos financieros vuelven a ejecutar sus validaciones actuales.
-  if(actor.mode==='user'&&actor.opId){const receipt=await store.read('sv_labor_receipts/'+opId);if(receipt){if(receipt.actorUid!==actor.uid||receipt.digest!==requestDigest)throw failure(409,'El identificador corresponde a otra operación');return copy(receipt.result);}}
+  if((actor.mode==='user'&&actor.opId)||transportRecovery){const receipt=await store.read('sv_labor_receipts/'+opId);if(receipt){if(receipt.actorUid!==actor.uid||receipt.digest!==requestDigest)throw failure(409,'El identificador corresponde a otra operación');return transportRecovery?recoveryAck(receipt.result):copy(receipt.result);}}
   const lease={fence:uuid(),opId,digest:requestDigest,expiresAt:now()+leaseMs,actorUid:actor.uid,mode:actor.mode};
   for(let attempt=0;;attempt++){lease.expiresAt=now()+leaseMs;try{await store.acquire(lease);break;}catch(error){if(error.statusCode!==423||attempt>=4)throw error;await delay(100*2**attempt);}}
-  const staged=new Map(),reads=new Map(),authReads=new Map(),authorizedSnapshots=new Map(),readTree={children:new Map(),path:null};let completed=false,phase='working';
-  const authenticatedActor=actor.mode==='user'&&actor.claims?.uid===actor.uid?{uid:actor.uid,claims:copy(actor.claims)}:null;
+  const staged=new Map(),reads=new Map(),authReads=new Map(),authorizedSnapshots=new Map(),readTree={children:new Map(),path:null},beforeCommits=[];let completed=false,phase='working';
+  const authenticatedActor=['user','command'].includes(actor.mode)&&actor.claims?.uid===actor.uid?{uid:actor.uid,claims:copy(actor.claims)}:null;
   function live(){if(phase==='closed')throw failure(409,'Este guardado ya terminó.','SV_LABOR_SCOPE_CLOSED');if(now()>=lease.expiresAt)throw failure(409,'El plazo del guardado terminó. Revisá el estado antes de reintentar.','SV_LABOR_LEASE_EXPIRED');}
   function working(){live();if(phase!=='working')throw failure(409,'El guardado ya se está confirmando.','SV_LABOR_SCOPE_CLOSED');}
   function rememberRead(path,promise){reads.set(path,promise);let node=readTree;for(const part of parts(path)){if(!node.children.has(part))node.children.set(part,{children:new Map(),path:null});node=node.children.get(part);}node.path=path;}
@@ -89,10 +107,10 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
    working();if(!patch||typeof patch!=='object'||Array.isArray(patch))throw failure(400,'Cambios inválidos');
    const entries=Object.entries(patch);if(entries.length>20000)throw failure(400,'Demasiados cambios en una operación');
    PaymentIndex.paymentKeysForPatch(Object.fromEntries(entries.filter(([path])=>path==='sisventas'||path==='sisventas/pagos'||path.startsWith('sisventas/pagos/'))));
-   for(const [path,value]of entries){jsonValue(value,parts(path).length);const branch=path.split('/')[0];if(['sv_labor_guard','sv_labor_receipts','sv_labor_indexes','sv_labor_config'].includes(branch)&&!(actor.mode==='bootstrap'&&['sv_labor_indexes','sv_labor_config'].includes(branch)))throw failure(400,'La coordinación no se modifica desde los datos');}
+   for(const [path,value]of entries){jsonValue(value,parts(path).length);const branch=path.split('/')[0];if(['sv_labor_guard','sv_labor_receipts','sv_labor_indexes','sv_labor_config',AccountViews.ROOT,CommercialViews.ROOT,CommercialViews.PRIVATE_ROOT].includes(branch)&&!(actor.mode==='bootstrap'&&['sv_labor_indexes','sv_labor_config'].includes(branch)))throw failure(400,'La coordinación no se modifica desde los datos');}
    for(const [path,value]of entries){let merged=false;for(const [parent,old]of staged){if(path===parent||parent.startsWith(path+'/'))staged.delete(parent);else if(path.startsWith(parent+'/')){staged.set(parent,put(old,parts(path.slice(parent.length+1)),value));merged=true;break;}}if(!merged)staged.set(path,copy(value));}
   }
-  const scope={assertActive:working,get:async path=>{working();const value=await get(path);working();return value;},getAsUser,update,lease:Object.freeze({...lease}),actor:Object.freeze({...actor}),query:async(path,field,value)=>{
+  const scope={assertActive:working,beforeCommit:callback=>{working();if(typeof callback!=='function'||beforeCommits.length>=128)throw failure(400,'Verificación de guardado inválida');beforeCommits.push(callback);},get:async path=>{working();const value=await get(path);working();return value;},getAsUser,update,lease:Object.freeze({...lease}),actor:Object.freeze({...actor}),query:async(path,field,value)=>{
    parts(path);parts(field);working();const rows=await store.query(path,field,value),candidate=Object.assign(Object.create(null),copy(rows)||{});
    for(const [p,v]of staged){if(p===path){for(const k of Object.keys(candidate))delete candidate[k];Object.assign(candidate,copy(v)||{});}else if(p.startsWith(path+'/')){const relative=parts(p.slice(path.length+1)),id=relative.shift();const before=Object.hasOwn(candidate,id)?candidate[id]:await raw(path+'/'+id);const next=put(before,relative,v);if(next==null)delete candidate[id];else candidate[id]=next;}}
    working();return Object.fromEntries(Object.entries(candidate).filter(([,r])=>canonical(child(r,parts(field)))===canonical(value)));
@@ -118,7 +136,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     const changes=[];for(const record of records){const slash=record.indexOf('/'),domain=record.slice(0,slash),key=record.slice(slash+1),path='sisventas/'+record;changes.push({domain,key,before:await raw(path),after:await get(path)});}
     const patch=Object.fromEntries(staged);await validateExpenseRemovals({actor,raw,changes,patch});await validateSACWrites({actor,raw,get,changes,patch,digest});await validateBonusBatch({actor,raw,get,changes,patch,digest});
     const revalidateAdvancePeriod=await validateAdvanceDiscount({actor,raw,get,changes,patch,digest,readFresh:path=>store.read(path)});
-    await require('./labor-commission-limit').validateCommissionLimit({raw,get,changes,patch});Object.assign(patch,Index.planIndexDelta(changes));
+    await require('./labor-commission-limit').validateCommissionLimit({actor,raw,get,changes,patch});Object.assign(patch,Index.planIndexDelta(changes));
     const paymentKeys=PaymentIndex.paymentKeysForPatch(Object.fromEntries([...staged].filter(([path])=>path.startsWith('sisventas/pagos/'))));
     if(paymentKeys.length){
      const coverage=await get(PaymentIndex.COVERAGE_PATH);
@@ -145,16 +163,22 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
       Object.assign(patch,PaymentIndex.planIndexDelta(paymentChanges,{coverage}).patch);
      }
     }
+    Object.assign(patch,await AccountViews.prepareDelta({config:ready,patch,changes,raw,get}));
+    Object.assign(patch,await CommercialViews.prepareDelta({scope,config:ready,patch,raw,get}));
     // Incluso UNCHANGED confirma el fence, el recibo y la liberación en un PATCH.
     // Los comandos vuelven a validar su estado al repetirlos y no recuperan
     // payloads desde el recibo. No duplicar una venta/factura comercial completa.
-    const receiptResult=['user','bootstrap'].includes(actor.mode)?copy(result):{ok:true,committed:true};
+    const receiptResult=transportRecovery?recoveryAck(result):['user','bootstrap'].includes(actor.mode)?copy(result):{ok:true,committed:true};
     patch['sv_labor_receipts/'+opId]={fence:lease.fence,digest:requestDigest,actorUid:actor.uid,result:receiptResult,confirmedAt:now()};patch.sv_labor_guard=null;
     if(actor.mode==='user'&&actor.financialAction){
      const checked=await Promise.allSettled([store.read('sv_chat_roles/'+actor.uid),store.read('sv_permisos/'+actor.role)]),failed=checked.find(value=>value.status==='rejected');live();
      if(failed)throw failed.reason;validateFinancialContext(actor,checked[0].value,checked[1].value);
     }
     if(revalidateAdvancePeriod)await revalidateAdvancePeriod();
+    if(beforeCommits.length){
+     const fresh=Object.freeze({readFresh:async path=>{parts(path);live();const value=await store.read(path);live();return copy(value);},readFreshAsUser:async path=>{parts(path);live();if(!authenticatedActor||typeof store.readAsUser!=='function')throw failure(403,'Esta lectura requiere la sesión verificada del usuario');const value=await store.readAsUser(path,authenticatedActor);live();return copy(value);}});
+     for(const callback of beforeCommits){await callback(fresh);live();}
+    }
     live();await store.commit(patch,lease,actor);completed=true;return result;
    });
   }finally{phase='closed';if(!completed)await store.abort(lease).catch(()=>{});}

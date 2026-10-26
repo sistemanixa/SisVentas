@@ -10,6 +10,7 @@ const repo = path.resolve(__dirname, '..');
 const { readActiveApp } = require(path.join(repo, 'test/helpers/active-app.js'));
 const { load } = require(path.join(repo, 'test/helpers/app-functions.cjs'));
 const { createBackend } = require(path.join(repo, 'test/helpers/labor-ui-flow.cjs'));
+const Views = require('./helpers/employee-account-views-fixture.cjs');
 const active = readActiveApp();
 const copy = value => JSON.parse(JSON.stringify(value));
 const NOW = Date.parse('2026-10-22T15:30:00Z');
@@ -37,12 +38,12 @@ const expenses = {
   a: { descripcion: 'Material Ana', empleadoId: 'e1', empleadoNombre: 'Ana', categoria: 'Materiales', tipo: 'Variable', fecha: '2026-08-02', monto: 120, pagos: { p: { fecha: '2026-10-20', monto: 70 }, v: { fecha: '2026-10-20', monto: 50, anulado: true } } },
   b: { descripcion: 'Haber Bea', empleadoFbKey: 'e2', empleadoNombre: 'Bea', categoria: 'Personal', tipoPagable: 'sueldo', tipo: 'Fijo', fecha: '2026-10-01', monto: 400, estado: 'aprobado', vencimiento: '2026-10-25' },
   c: { descripcion: 'Aguinaldo Ana 2do semestre 2026', empleadoFbKey: 'e1', empleadoNombre: 'Ana', categoria: 'Personal', tipoPagable: 'aguinaldo', semestre: '2026_S2', fecha: '2026-10-01', monto: 600, montoPagado: 600, estado: 'Pagado' },
-  d: { descripcion: 'Viatico Ana', empleadoId: 'e1', empleadoNombre: 'Ana', fecha: '2026-09-01', fechaPago: '2026-10-03', monto: 20, montoPagado: 20 },
+  d: { tipo:'Variable', descripcion: 'Viatico Ana', empleadoId: 'e1', empleadoNombre: 'Ana', fecha: '2026-09-01', fechaPago: '2026-10-03', monto: 20, montoPagado: 20 },
   conflict: { descripcion: 'Referencia contradictoria', empleadoId: 'e2', empleadoFbKey: 'e1', fecha: '2026-10-01', monto: 30 },
-  void: { descripcion: 'Anulado Ana', empleadoId: 'e1', fecha: '2026-10-01', monto: 40, estado: 'anulado', pagos: { v: { fecha: '2026-10-01', monto: 40, estado: 'anulado' } } },
-  archived: { descripcion: 'Archivado Ana', empleadoId: 'e1', fecha: '2026-10-01', monto: 50, montoPagado: 50, bajaAdministrativa: { uid: 'admin', usuario: 'Admin', ts: NOW - 1, auditKey: 'audit' } },
+  void: { tipo:'Variable', descripcion: 'Anulado Ana', empleadoId: 'e1', fecha: '2026-10-01', monto: 40, estado: 'anulado', pagos: { v: { fecha: '2026-10-01', monto: 40, estado: 'anulado' } } },
+  archived: { tipo:'Variable', descripcion: 'Archivado Ana', empleadoId: 'e1', fecha: '2026-10-01', monto: 50, montoPagado: 50, bajaAdministrativa: { uid: 'admin', usuario: 'Admin', ts: NOW - 1, auditKey: 'audit' } },
   commission: { descripcion: 'Comision venta evaluacion', tipoPagable: 'comision', empleadoFbKey: 'e1', fecha: '2026-10-01', monto: 33, estado: 'pendiente_aprobacion' },
-  old: { descripcion: 'Historico Ana', empleadoId: 'e1', fecha: '2025-01-01', monto: 25, montoPagado: 25 }
+  old: { tipo:'Variable', descripcion: 'Historico Ana', empleadoId: 'e1', fecha: '2025-01-01', monto: 25, montoPagado: 25 }
 };
 // These marks must not become a second source of real payable expenses. They
 // deliberately collide with the selected employees/semester and use high sums.
@@ -73,7 +74,8 @@ function page(role = 'admin', options = {}) {
   nodes['modal-aguinaldo'].dataset.aguinaldoOperacion = 'fixture-sac';
   const context = {
     Date: FixedDate, console: { error() {} }, setTimeout() { return 1; }, clearTimeout() {},
-    fbDB: {}, currentUserUid: 'uid-' + role, gastosData: [], _gastosUnsubscribe: null,
+    fbDB: {}, currentUserUid: 'uid-' + role, currentRole:role==='admin'?'admin':'tecnico', isAuthenticated:true,
+    fbAuth:{currentUser:{uid:'uid-'+role}}, PERMISOS_ROLES:{admin:{indiceRevision:1},tecnico:{indiceRevision:1}}, gastosData: [], _gastosUnsubscribe: null,
     _gastosDataReady: false, _gastosCargaError: '', _gastosPagosCache: new WeakMap(),
     _gastosFechaImputacionCache: new WeakMap(), _gastosPagoMultipleActivo: false, _gastosSeleccionadosPago: {},
     empData: copy(employees), CARGOS_DATA: { c1: { valorHora: 10, diasMes: 20 } }, ctaEmpActual: null,
@@ -107,12 +109,15 @@ function page(role = 'admin', options = {}) {
     eliminarRegistro: async (...args) => ({ delegated: args })
   };
   context.window = context;
+  Views.install(context);
   load(context, functionNames);
   for (const module of modules) vm.runInContext(module.source, context, { filename: module.name });
   const realRender = context.renderTablaGastos;
   context.renderTablaGastos = function() { const result = realRender.apply(this, arguments); renders.push(nodes['gastos-tbody'].innerHTML); return result; };
   function emit(source, data) {
-    for (const listener of listeners.filter(entry => entry.active && entry.ref.path === source)) {
+    const physical=role==='own'&&source==='sisventas/gastos'?Views.BASE+'/employees/e1':source;
+    for (const listener of listeners.filter(entry => entry.active && entry.ref.path === physical)) {
+      if(physical!==source){listener.cb({val:()=>Views.employeeEnvelope('e1',{},data)});continue;}
       const values = listener.ref.field ? Object.fromEntries(Object.entries(data).filter(([, row]) => row[listener.ref.field] === listener.ref.equal)) : data;
       listener.cb({ val: () => copy(values) });
     }
@@ -133,14 +138,14 @@ function page(role = 'admin', options = {}) {
 
 for (const [role, expectedSources, expectedKeys] of [
   ['admin', 1, ['a', 'b', 'c', 'conflict', 'd', 'old', 'void']],
-  ['own', 2, ['a', 'c', 'd', 'old', 'void']], ['denied', 0, []]
+  ['own', 1, ['a', 'c', 'd', 'old', 'void']], ['denied', 0, []]
 ]) test('SAC sin listener legacy: carga real de Gastos, rol ' + role + ' y baja de todas las suscripciones', () => {
   const env = page(role), teardown = env.context.fbCargarGastos();
   const repeated = env.context.fbCargarGastos();
   assert.equal(repeated, teardown, 'Navegar/cargar dos veces debe reutilizar el contrato de baja');
-  const business = env.listeners.filter(listener => listener.ref.path === 'sisventas/gastos');
+  const business = env.listeners.filter(listener => listener.ref.path === (role==='own'?Views.BASE+'/employees/e1':'sisventas/gastos'));
   assert.equal(business.length, expectedSources);
-  if (role === 'own') assert.deepEqual(business.map(listener => [listener.ref.field, listener.ref.equal]), [['empleadoId', 'e1'], ['empleadoFbKey', 'e1']]);
+  if (role === 'own') {assert.equal(business[0].ref.path,Views.BASE+'/employees/e1');assert.ok(!env.listeners.some(listener=>listener.ref.path==='sisventas/gastos'));}
   env.emit('sisventas/gastos', expenses);
   const before = env.snapshot(), renderCount = env.renders.length;
   assert.deepEqual(before.keys.slice().sort(), expectedKeys);
@@ -193,11 +198,11 @@ test('La consulta propia conserva la revocación, el UID capturado y el cierre p
   assert.equal(revoked.context.gastosData.length, 0);
   const switched = page('own'); const close = switched.context.fbCargarGastos(); switched.emit('sisventas/gastos', expenses);
   const old = copy(switched.context.gastosData); switched.context.currentUserUid = 'otro-uid';
-  switched.emit('sisventas/gastos', { nuevo: { empleadoId: 'e1', monto: 999 } });
-  assert.deepEqual(copy(switched.context.gastosData), old); close();
+  switched.emit('sisventas/gastos', { nuevo: { tipo:'Variable', empleadoId: 'e1', monto: 999 } });
+  assert.deepEqual(copy(switched.context.gastosData), []);assert.ok(old.length);close();
   const failed = page('own'); failed.context.fbCargarGastos();
-  failed.listeners.find(listener => listener.ref.path === 'sisventas/gastos').error(new Error('Fallo ficticio'));
-  assert.equal(failed.listeners.filter(listener => listener.ref.path === 'sisventas/gastos' && listener.active).length, 0);
+  failed.listeners.find(listener => listener.ref.path === Views.BASE+'/employees/e1').error(new Error('Fallo ficticio'));
+  assert.equal(failed.listeners.filter(listener => listener.ref.path === Views.BASE+'/employees/e1' && listener.active).length, 0);
   assert.match(failed.nodes['gastos-tbody'].innerHTML, /No se pudieron cargar los gastos/);
   assert.equal(failed.context.gastosData.length, 0); assert.deepEqual(failed.directWrites, []); assert.deepEqual(failed.commands, []);
 });

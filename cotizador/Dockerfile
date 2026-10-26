@@ -23,6 +23,13 @@ COPY labor-sac-batch.js payroll-legacy-sac-model.js ./
 COPY labor-advance-discount.js ./
 COPY employee-availability.js ./
 COPY employee-directory.js ./
+COPY commission-configuration.js employee-directory-commands.js employee-account-commands.js ./
+COPY employee-account-view-model.js employee-account-view-delta.js labor-view-writes.js ./
+COPY employee-expense-commands.js employee-movement-create.js employee-payroll-commands.js ./
+COPY employee-monthly-payroll.js ./
+COPY purchase-sale-cost-commands.js ./
+COPY commercial-view-protocol.js commercial-document-commands.js commercial-public-transport.js commercial-canonical-cost.js ./
+COPY commercial-atomic.js commercial-create-plan.js commercial-edit-policy.js commercial-record-access.js commercial-public-schema.js ./
 COPY personal-hours-reader.js ./
 COPY personal-expenses.js ./
 COPY admin-expense-create.js payment-membership-matcher.js payment-membership-index.js payment-snapshot.js payment-commands.js ./

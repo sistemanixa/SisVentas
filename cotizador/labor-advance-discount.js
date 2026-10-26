@@ -107,8 +107,14 @@ async function validateAdvanceDiscount({actor,raw,get,changes=[],patch={},digest
   if(!pairs.has(path))pairs.set(path,(async()=>{const values=await Promise.allSettled([raw,get].map(read=>Promise.resolve().then(()=>read(path))));const failed=values.find(value=>value.status==='rejected');if(failed)throw failed.reason;return {before:values[0].value,after:values[1].value};})());
   return pairs.get(path);
  }
- async function checkedCAS(path){
-  const source=casCoverage(actor,path);if(!source)throw failure('SV_ADVANCE_PERIOD_CAS_REQUIRED','Actualizá la cuenta y elegí el mes de descuento antes de guardar.');
+ function commandCAS(path,action){
+  if(actor?.mode!=='user'||actor.operation!=='employee-account-command'||actor.input?.action!==action)return null;
+  const proof=require('./employee-account-commands').trustedCommand(actor),body=actor.input,movement='sisventas/ctaemp/'+body.employeeId+'/'+body.movementKey;
+  return proof&&proof.uid===actor.uid&&actor.claims?.uid===actor.uid&&proof.action===body.action&&proof.employeeId===body.employeeId&&proof.movementKey===body.movementKey&&proof.expectedRevision===body.expectedRevision&&/^[A-Za-z0-9_-]{16,128}$/.test(body.expectedRevision||'')&&Object.hasOwn(proof.paths,path)&&(path===movement||path==='sisventas/gastos/'+proof.gastoKey)?[path,proof.paths[path]]:null;
+ }
+ async function checkedCAS(path,legacyMedium=false){
+  const source=casCoverage(actor,path)||commandCAS(path,'deliver-advance')||(legacyMedium?commandCAS(path,'correct-medium'):null);
+  if(!source)throw failure('SV_ADVANCE_PERIOD_CAS_REQUIRED','Actualizá la cuenta y elegí el mes de descuento antes de guardar.');
   const [base,hash]=source;if(!cas.has(base))cas.set(base,Promise.resolve().then(()=>raw(base)).then(value=>{if(digest(value)!==hash)throw failure('SV_CAS_CONFLICT','El adelanto cambió. Actualizá la cuenta antes de guardar.');}));await cas.get(base);
  }
  async function requirePeriodPermission(){
@@ -126,13 +132,19 @@ async function validateAdvanceDiscount({actor,raw,get,changes=[],patch={},digest
   if(before!==null||!path.startsWith('sisventas/gastos/'))return false;
   const legacy=String(after?.legacyKey||'').match(/^ctaemp\/([^/]+)\/([^/]+)$/);
   if(!legacy||!key(legacy[1])||!key(legacy[2]))return false;
-  const source='sisventas/'+legacy[0];if(!casCoverage(actor,source))return false;
-  await checkedCAS(source);await checkedCAS(path);const {before:original,after:current}=await pair(source),id=path.split('/')[2];
+  const source='sisventas/'+legacy[0],legacyMedium=!!commandCAS(source,'correct-medium');if(!casCoverage(actor,source)&&!legacyMedium)return false;
+  await checkedCAS(source,legacyMedium);await checkedCAS(path,legacyMedium);const {before:original,after:current}=await pair(source),id=path.split('/')[2];
   if(!advance(original)||!advance(current)||!delivered(original)||discountPeriod(original)!==chosen||discountPeriod(current)!==chosen||original.gastoFbKey&&original.gastoFbKey!==id||current.gastoFbKey!==id)return false;
   if(!original.gastoFbKey&&id!=='adelanto_'+legacy[1].replace(/[^a-zA-Z0-9_-]/g,'_')+'_'+legacy[2].replace(/[^a-zA-Z0-9_-]/g,'_'))return false;
   if(after.empleadoId!==legacy[1]||after.empleadoFbKey!==legacy[1]||amount(after.monto)!==amount(original.monto)||amount(current.monto)!==amount(original.monto)||amount(after.montoPagado)!==amount(current.montoPagado)||!isDeepStrictEqual(after.pagos??null,current.pagos??null)||after.medio!==current.medioPago)return false;
   const payments=original.pagos&&typeof original.pagos==='object'?Object.values(original.pagos):[];
-  if(payments.length)return isDeepStrictEqual(original.pagos,current.pagos)&&amount(current.montoPagado)===amount(original.montoPagado);
+  if(payments.length){
+   if(!legacyMedium)return isDeepStrictEqual(original.pagos,current.pagos)&&amount(current.montoPagado)===amount(original.montoPagado);
+   // Existing delivery only: retain the original month, payment keys, amounts,
+   // dates, annulments and private history. This command may change medium only.
+   if(!isDeepStrictEqual(periodField(original),periodField(current))||amount(current.montoPagado)!==amount(original.montoPagado)||Array.isArray(original.pagos)!==Array.isArray(current.pagos)||!isDeepStrictEqual(Object.keys(original.pagos||{}),Object.keys(current.pagos||{})))return false;
+   return Object.keys(original.pagos).every(id=>{const before={...original.pagos[id]},after={...current.pagos[id]};delete before.medio;delete after.medio;return isDeepStrictEqual(before,after);});
+  }
   const normalized=current.pagos&&typeof current.pagos==='object'?Object.entries(current.pagos):[];
   // The existing legacy normalizer represents an already delivered amount; it
   // does not authorize a second delivery or a larger synthetic payment.

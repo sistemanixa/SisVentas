@@ -23,13 +23,12 @@ test('ahorro exterior mejora la empresa sin aumentar la comisión, conservando d
  assert.equal(base(twice).ganancia*0.1,100);
 });
 test('la recepción real y su repetición conservan el costo original para comisiones',async()=>{
- const current=sale();
- const window={fbDB:{},fbRef:(_,p)=>p,fbRunTransaction:async(_,fn)=>fn(current),obtenerCostoItemVenta:cost,_rentIngresoNetoVenta:()=>2400};
- const scope=vm.createContext({window});
- const src=fs.readFileSync(require.resolve('../js/modules/purchase-orders.js'),'utf8');
- const start=src.indexOf('  function syncSalePurchaseCosts');
- vm.runInContext(src.slice(start,src.indexOf('  function ',start+12)),scope);
- for(let n=0;n<2;n++)await scope.syncSalePurchaseCosts({ventaFbKey:'S'},[{item:{codigo:'A'},qty:1,costoUnitarioReal:300}],true);
+ const {fixture,actor}=require('./helpers/purchase-command-fixture.cjs'),f=fixture();
+ f.state.sisventas.ventas.s={...sale(),responsableUid:'u',subtotal:2400,total:2904,iva:504,ordenesCompraIds:['o']};
+ f.state.sisventas.ordenes.o.items=[{codigo:'A',productoKey:'A',saleItemIndex:0,cantidadOrdenada:2,cantidadRecibida:0,costoUnitario:600,costoUnitarioPresupuestado:600}];
+ f.state.sisventas.inventario_operativo.A={general:0,reservado:0,enCompra:2};
+ for(let n=0;n<2;n++)await f.service.execute(actor,f.request('receipt',{movements:[{index:0,qty:1,costoUnitarioReal:300,proveedorKey:'p'}]}));
+ const current=f.state.sisventas.ventas.s;
  assert.equal(current.items[0].costoTotalCompra,600);
  assert.equal(current.items[0].costoUnitarioAntesPreparacion,600);
  assert.equal(base(current).ganancia,1000);

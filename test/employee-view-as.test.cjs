@@ -2,9 +2,10 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {load}=require('./helpers/app-functions.cjs');
 const AccountRead=require('../js/core/dashboard-account-source.v1.js');
+const Views=require('./helpers/employee-account-views-fixture.cjs');
 
 function setup(){
- const elements={},presence=[],subscriptions=[],writes=[],page={id:'page-dashboard'};
+ const elements={},presence=[],subscriptions=[],writes=[],page={id:'page-dashboard'};let observer=null;
  for(const id of ['dash-micuenta-card','dash-historial-mes-card','dash-historial-mes-body','ctaemp-base'])elements[id]={style:{},textContent:''};
  const element=id=>{
   if(id.startsWith('page-'))return {classList:{contains:name=>name==='active'&&id===page.id}};
@@ -28,20 +29,21 @@ function setup(){
   renderComisionesDelMes(){},renderMovsEmp(){c.renderedAccounts=(c.renderedAccounts||0)+1;},
   window:{location:{hash:'#/dashboard'},SVDashboardAccountSource:AccountRead,fbAuth:{currentUser:user},fbDB:{},tienePermiso:key=>key==='usuarios.impersonar'||key==='dashboard.miCuenta',
    fbRef:(_db,path)=>path,fbOrderByChild:field=>({field}),fbEqualTo:value=>({value}),fbQuery:(path,field,value)=>({path,...field,...value}),
-   fbOnValue:(ref,next,error)=>{const item={ref,next,error,path:typeof ref==='string'?ref:ref.path,stops:0};subscriptions.push(item);return()=>{item.stops++;};},
+   fbOnValue:(ref,next,error)=>{const item={ref,next,error,path:typeof ref==='string'?ref:ref.path,stops:0};subscriptions.push(item);if(observer)observer(ref,next,error);return()=>{item.stops++;};},
    fbSet:rejectWrite,fbUpdate:rejectWrite,fbPush:rejectWrite,fbRemove:rejectWrite,fbRunTransaction:rejectWrite,
    usuariosData:[{fbKey:'admin',uid:'admin-auth',empleadoFbKey:'own'},{fbKey:'u-a',uid:'auth-a',rol:'tecnico',empleadoFbKey:'a'},
     {fbKey:'u-b',uid:'auth-b',rol:'tecnico',empleadoFbKey:'b'}]},console};
+ Views.install(c);
  load(c,['svCuentaDashboardEnPrimerPlano','svCapturarLecturaCuentaDashboard','svLeerCuentaDashboard','svRetirarCuentaDashboardPendiente','svMostrarEstadoCuentaDashboard','svGastosCuentaDashboardVigentes','svRepintarCuentaDashboard','svReintentarCuentaDashboard','svReintentarGastosDashboard','svPintarCuentaDashboard','svCapturarContextoOperacion','svContextoAvisosCuenta','svRenderAvisosCuentaPersonal','svLimpiarAvisosCuentaPersonal','svCancelarRetornoAvisoCuentaPersonal','svLimpiarHorasPersonalesDashboard',
   '_svEsPaginaActiva','svCtaEmpVisible','svCapturarContextoLecturaCtaEmp','svMostrarEstadoLecturaCtaEmp','svDetenerLecturaCtaEmp','svCrearOrigenGastosCuenta','svOrigenGastosCompatible','svMarcarSnapshotGastosCuenta',
   'svRepintarCtaEmpDesdeFuentes','svProyectarCTA','svAplicarCtaEmpDesdeSnapshot','_ctaEmpMovimientoLegacyDuplicadoPorGasto','_ctaEmpActualizarBannerDuplicadosLegacy','_svSuscribirGastos','fbCargarGastos',
   'svEmpleadoPropio','limpiarCtaEmpSinSeleccion','svLimpiarVistaCuentaPersonal','iniciarImpersonacionUsuario','finalizarImpersonacionUsuario']);
  function deliverGastos(data){
-  for(const row of subscriptions.filter(row=>row.path==='sisventas/gastos')){
-   const value=Object.fromEntries(Object.entries(data).filter(([,g])=>g[row.ref.field]===row.ref.value));row.next({val:()=>structuredClone(value)});
+  for(const row of subscriptions.filter(row=>!row.stops&&row.path.startsWith(Views.BASE+'/employees/'))){
+   const id=row.path.split('/').at(-1);row.next({val:()=>Views.employeeEnvelope(id,{},data)});
   }
  }
- return {c,elements,user,presence,subscriptions,writes,deliverGastos};
+ return {c,elements,user,presence,subscriptions,writes,deliverGastos,observe:fn=>observer=fn};
 }
 
 test('Ver como selecciona el vínculo explícito de cada usuario y conserva Auth y UID administrador',()=>{
@@ -86,10 +88,10 @@ test('Cada cambio de vista renueva su contexto y limpia listener, movimientos e 
 
 for(const mode of ['otra vista','volver al administrador','otra sesión']){
  test('Dashboard descarta respuesta tardía después de '+mode,async()=>{
-  const {c,elements}=setup();let release,requested;
-  c.window.fbRef=(_,path)=>path;c.window.fbOnValue=(path,next)=>{requested=path;release=next;return()=>{};};
+  const {c,elements,observe}=setup();let release,requested;
+  observe((path,next)=>{requested=path;release=next;});
   load(c,['renderDashMiCuenta']);c.iniciarImpersonacionUsuario('u-a');c.renderDashMiCuenta();for(let i=0;i<12;i++)await Promise.resolve();
-  assert.equal(requested,'sisventas/ctaemp/a');
+  assert.equal(requested,Views.BASE+'/employees/a');
   if(mode==='otra vista')c.iniciarImpersonacionUsuario('u-b');
   if(mode==='volver al administrador')c.finalizarImpersonacionUsuario();
   if(mode==='otra sesión')c.currentUserUid='otra-sesion';
@@ -101,8 +103,8 @@ for(const mode of ['otra vista','volver al administrador','otra sesión']){
 }
 
 test('Un fallo tardío de Dashboard no oculta la cuenta de la vista siguiente',async()=>{
- const {c,elements}=setup();let reject;
- c.window.fbRef=(_,path)=>path;c.window.fbOnValue=(_path,_next,error)=>{reject=error;return()=>{};};
+ const {c,elements,observe}=setup();let reject;
+ observe((_path,_next,error)=>{reject=error;});
  load(c,['renderDashMiCuenta']);c.iniciarImpersonacionUsuario('u-a');c.renderDashMiCuenta();for(let i=0;i<12;i++)await Promise.resolve();
  c.iniciarImpersonacionUsuario('u-b');elements['dash-micuenta-card'].style.display='';
  reject(Error('offline'));for(let i=0;i<5;i++)await Promise.resolve();
@@ -110,20 +112,19 @@ test('Un fallo tardío de Dashboard no oculta la cuenta de la vista siguiente',a
 });
 
 test('Mi cuenta consulta el empleado seleccionado y rechaza snapshots de otra vista con el mismo Auth',()=>{
- const {c,subscriptions,writes,deliverGastos}=setup();let listener,requested;
- const register=c.window.fbOnValue;
- c.window.fbOnValue=(ref,next,error)=>{if(typeof ref==='string'&&ref.startsWith('sisventas/ctaemp/')){requested=ref;listener=next;}return register(ref,next,error);};
+ const {c,subscriptions,writes,deliverGastos,observe}=setup();let listener,requested;
+ observe((ref,next)=>{requested=ref;listener=next;});
  load(c,['cargarCtaEmp']);c.iniciarImpersonacionUsuario('u-a');
  c.showPage('ctaemp');c.fbCargarGastos();deliverGastos({});
  // Se entrega una fuente Gastos autorizada antes de comprobar la proyección CTA.
  c.empData.a={fbKey:'a'};c.CARGOS_DATA={};c.ctaEmpPesos=String;c.renderComisionesDelMes=()=>{};
- c.cargarCtaEmp('a');assert.equal(requested,'sisventas/ctaemp/a');
+ c.cargarCtaEmp('a');assert.equal(requested,Views.BASE+'/employees/a');
  const legacy={tipo:'comision',monto:123.45,estado:'pagado_parcial',montoPagado:50,pagos:{p:{monto:50,fecha:'2026-10-12'}}};
- listener({val:()=>({old:structuredClone(legacy)})});
+ listener({val:()=>Views.employeeEnvelope('a',{old:structuredClone(legacy)},{})});
  assert.equal(c.window._ctaEmpLectura.status,'ready');assert.equal(c.window._ctaEmpGastosSnapshot.valid(),true);assert.equal(c.renderedAccounts,1);
- assert.deepEqual(JSON.parse(JSON.stringify(c.movsEmpData)),[{fbKey:'old',_fuente:'ctaemp',...legacy}]);
- const reads=subscriptions.filter(row=>row.path.startsWith('sisventas/ctaemp/'));assert.equal(reads.length,1);
- c.cargarCtaEmp('b');assert.equal(subscriptions.filter(row=>row.path.startsWith('sisventas/ctaemp/')).length,1);
+ assert.deepEqual(JSON.parse(JSON.stringify(c.movsEmpData)),[{fbKey:'old',_fuente:'ctaemp',...legacy,descripcion:'Comisión'}]);
+ const reads=subscriptions.filter(row=>row.path.startsWith(Views.BASE+'/employees/'));assert.equal(reads.length,1);
+ c.cargarCtaEmp('b');assert.equal(subscriptions.filter(row=>row.path.startsWith(Views.BASE+'/employees/')).length,1);
  c.iniciarImpersonacionUsuario('u-b');
  listener({val(){assert.fail('Snapshot cancelado de otra vista');}});
  assert.equal(c.movsEmpData.length,0);assert.equal(c.currentUserUid,'admin-auth');assert.equal(reads[0].stops,1);assert.deepEqual(writes,[]);

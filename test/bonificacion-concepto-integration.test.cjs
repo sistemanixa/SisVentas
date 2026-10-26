@@ -4,7 +4,7 @@ const {load}=require('./helpers/app-functions.cjs'),{createBackend,copy}=require
 function readFixture(){
  const calls=[],c={window:null,fbDB:{},tienePermiso:()=>true,svCapturarContextoOperacion:()=>()=>c.valid,svPuedeLeerDominio:()=>true,valid:true,
  fbRef:(db,path)=>({path}),fbOrderByChild:field=>({orderByChild:field}),fbEqualTo:value=>({equalTo:value}),fbQuery:(ref,...constraints)=>({ref,constraints}),fbGet:async q=>{calls.push(q);return {val:()=>({bonus:{tipoPagable:'bonificacion',descripcion:'Bonificación · Ficticio',monto:25},salary:{tipoPagable:'sueldo',monto:500}})};}};
- c.window=c;load(c,['_cargarUsosConceptosBonificacion']);return {c,calls};
+ c.window=c;c.readBonus=c.fbGet;c.fbGet=()=>assert.fail('El flujo no debe usar el lector genérico de originales');c.SVEmployeeAccountViews={queryExpensesByType:async type=>{assert.equal(type,'bonificacion');return c.readBonus(c.fbQuery(c.fbRef(c.fbDB,'sisventas/gastos'),c.fbOrderByChild('tipoPagable'),c.fbEqualTo(type)));}};load(c,['_cargarUsosConceptosBonificacion']);return {c,calls};
 }
 test('usos consultan sólo el tipo bonificación al pedirlos, sin descargar Gastos completo ni abrir listeners',async()=>{
  const {c,calls}=readFixture();assert.equal(calls.length,0);const result=await c._cargarUsosConceptosBonificacion();
@@ -13,12 +13,12 @@ test('usos consultan sólo el tipo bonificación al pedirlos, sin descargar Gast
 });
 test('lectura denegada o fallida no se presenta como cero usos',async()=>{
  for(const kind of ['permission','domain','session','transport']){
-  const {c,calls}=readFixture();if(kind==='permission')c.tienePermiso=()=>false;if(kind==='domain')c.svPuedeLeerDominio=()=>false;if(kind==='session')c.valid=false;if(kind==='transport')c.fbGet=async()=>{throw Error('Falla ficticia');};
+  const {c,calls}=readFixture();if(kind==='permission')c.tienePermiso=()=>false;if(kind==='domain')c.svPuedeLeerDominio=()=>false;if(kind==='session')c.valid=false;if(kind==='transport')c.readBonus=async()=>{throw Error('Falla ficticia');};
   await assert.rejects(()=>c._cargarUsosConceptosBonificacion());if(kind!=='transport')assert.equal(calls.length,0);
  }
 });
 test('respuesta de usos de una sesión anterior se descarta',async()=>{
- const {c}=readFixture();c.fbGet=async()=>{c.valid=false;return {val:()=>({secret:{tipoPagable:'bonificacion'}})};};await assert.rejects(()=>c._cargarUsosConceptosBonificacion(),/sesión cambió/);
+ const {c}=readFixture();let decoded=0;c.readBonus=async()=>{c.valid=false;return {val:()=>{decoded++;return {secret:{tipoPagable:'bonificacion'}};}};};await assert.rejects(()=>c._cargarUsosConceptosBonificacion(),/sesión cambió/);assert.equal(decoded,0);
 });
 test('usar un concepto prepara motivo e importe sugerido y deja empleado/mes explícitos del formulario existente',()=>{
  const nodes={'modal-bonificacion-empleado':{style:{display:'none'}},'bonificacion-motivo':{value:''},'bonificacion-monto':{value:0},'bonificacion-empleado':{value:''},'bonificacion-mes':{value:'2026-10'}};

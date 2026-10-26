@@ -1,6 +1,6 @@
 'use strict';
 const {digest}=require('./labor-guard');
-const Index=require('./payment-membership-index');
+const Index=require('./payment-membership-index'),CommercialView=require('./commercial-view-protocol'),CommercialAccess=require('./commercial-record-access');
 const {createPaymentSnapshot}=require('./payment-snapshot');
 const Sales=require('./commercial-models/sales-read-model');
 const {validate:validateJSON}=require('./labor-write-gateway');
@@ -18,9 +18,16 @@ function paid(sale,related){
  return selected.length?selected.reduce((n,p)=>n+(parseFloat(p.monto)||0),0):parseFloat(sale.totalPagado||sale.pagado||sale.montoPagado)||0;
 }
 function summary(sale,related){const total=Sales.saleTotal(sale),selected=related.length?related.filter(validPayment):embedded(sale),raw=selected.reduce((n,p)=>n+(parseFloat(p.monto)||0),0),amount=money(raw);return {total,pagado:Math.min(total>0?total:raw,amount),estadoPago:total>0&&raw>=total-.01?'pago_total':raw>0?'seniado':'pendiente_pago'};}
-function createPaymentCommands({authorize,db,guard,store,enabled=false,now=Date.now}={}){
+function createPaymentCommands({authorize,db,guard,store,enabled=false,now=Date.now,commercialProtocol=false}={}){
  if(typeof authorize!=='function'||!guard?.run||!store?.readAsUser)throw TypeError('Falta el circuito de cobros');
- const load=createPaymentSnapshot({store});
+ const commercialRequests=new WeakMap(),publicTransport=commercialProtocol===true?require('./commercial-public-transport').createCommercialPublicTransport({guard,store,db}):null;
+ async function readAuthorizedSale(scope,actor,key){
+  if(!CommercialView.active(await scope.get('sv_labor_config'))||typeof scope.beforeCommit!=='function')throw fail(503,'La lectura comercial protegida todavía no está habilitada','SV_COMMERCIAL_PROTOCOL_OFF');
+  let request=commercialRequests.get(scope);if(!request){request=await CommercialAccess.createRequest({...actor,role:scope.actor.role},path=>scope.get(path));commercialRequests.set(scope,request);scope.beforeCommit(async({readFresh})=>{if(!CommercialView.active(await readFresh('sv_labor_config')))throw fail(503,'El circuito comercial se retiró antes de guardar','SV_COMMERCIAL_PROTOCOL_OFF');await request.fresh(readFresh);});}
+  return request.get('ventas',key);
+ }
+ const load=createPaymentSnapshot({store,...(commercialProtocol===true?{readAuthorizedSale}:{})});
+ async function publicResult(actor,result){if(commercialProtocol!==true)return result;try{return await publicTransport.paymentResult(actor,result);}catch(_){throw fail(503,'El cobro se confirmó, pero su vista no está disponible. Consultá la operación antes de repetirlo.','SV_LABOR_COMMIT_UNCONFIRMED');}}
  async function access(scope,actor,action){
   const identity=await scope.get('sv_chat_roles/'+actor.uid);
   if(identity?.activo!==true||!['admin','administrativo','vendedor','tecnico_vendedor'].includes(identity.rol))throw fail(403,'Usuario sin acceso');
@@ -54,17 +61,19 @@ function createPaymentCommands({authorize,db,guard,store,enabled=false,now=Date.
   // sequence brackets the exact reads; a sale-only edit is checked separately.
   // No financial operation is replayed and no hydration receipt is written.
   for(let attempt=0;attempt<3;attempt++){
+   const authorized=commercialProtocol===true?await CommercialAccess.createRequest(actor,path=>store.read(path)):null;
    const before=Index.validateCoverage(await store.read(Index.COVERAGE_PATH)),out=[];
    for(const link of result.links||[]){
-    const payment=await store.readAsUser('sisventas/pagos/'+link.pagoKey,actor),sale=await store.readAsUser('sisventas/ventas/'+link.ventaKey,actor);
+    const payment=await store.readAsUser('sisventas/pagos/'+link.pagoKey,actor),sale=authorized?await authorized.get('ventas',link.ventaKey):await store.readAsUser('sisventas/ventas/'+link.ventaKey,actor);
     if(!payment||!sale)throw fail(409,'El cobro está confirmado, pero su venta o registro ya no está disponible');
     out.push({pago:{...payment,fbKey:link.pagoKey},venta:{...sale,fbKey:link.ventaKey}});
    }
    let changed=false;
-   for(let i=0;i<(result.links||[]).length;i++){
+   if(!authorized)for(let i=0;i<(result.links||[]).length;i++){
     const link=result.links[i],sale=await store.readAsUser('sisventas/ventas/'+link.ventaKey,actor);
     if(digest({...sale,fbKey:link.ventaKey})!==digest(out[i].venta)){changed=true;break;}
    }
+   if(authorized)try{await authorized.fresh(path=>store.read(path));}catch(error){if(error.code==='SV_COMMERCIAL_AUTH_CHANGED'&&error.statusCode===409){changed=true;}else throw error;}
    const after=Index.validateCoverage(await store.read(Index.COVERAGE_PATH));
    if(!changed&&digest(before)===digest(after))return {...result,resultados:out,replayed:true,currentView:true};
   }
@@ -74,11 +83,13 @@ function createPaymentCommands({authorize,db,guard,store,enabled=false,now=Date.
   if(!enabled)throw fail(503,'El nuevo circuito de cobros todavía no está habilitado','SV_PAYMENTS_NOT_ENABLED');
   if(!actor?.uid||actor.claims?.uid!==actor.uid)throw fail(403,'Sesión requerida');
   validate(body);
+  if(commercialProtocol===true&&!CommercialView.active(await store.read('sv_labor_config')))throw fail(503,'El circuito comercial protegido todavía no está habilitado','SV_COMMERCIAL_PROTOCOL_OFF');
   // Also recheck before receipt recovery, whose callback is intentionally not
   // executed a second time. Current read permission alone is not an action grant.
   const captured=await access({get:async path=>(await db.ref(path).get()).val()},actor,body.kind);
   let confirmedRows;
   const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',role:captured.role,permissionRevision:captured.permissionRevision,permissionDigest:captured.permissionDigest,financialAction:'cobranzas.'+body.kind,opId:body.id,transportDigest:digest(body),operation:'payment-'+body.kind,input:body},async scope=>{
+   if(commercialProtocol===true&&!CommercialView.active(await scope.get('sv_labor_config')))throw fail(503,'El circuito comercial protegido todavía no está habilitado','SV_COMMERCIAL_PROTOCOL_OFF');
    const person=await access(scope,actor,body.kind),kind=body.kind;
    if(person.role!==captured.role||person.permissionRevision!==captured.permissionRevision||person.permissionDigest!==captured.permissionDigest)throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
    if(kind==='registrar'){
@@ -112,8 +123,8 @@ function createPaymentCommands({authorize,db,guard,store,enabled=false,now=Date.
    const totals=summary(sale,related),patch={['sisventas/pagos/'+body.pagoKey]:next,['sisventas/ventas/'+body.ventaKey+'/totalPagado']:totals.pagado,['sisventas/ventas/'+body.ventaKey+'/estadoPago']:totals.estadoPago};
    await scope.update(patch);confirmedRows=[{pago:next,venta:{...sale,totalPagado:totals.pagado,estadoPago:totals.estadoPago}}];return {ok:true,committed:true,links:[{pagoKey:body.pagoKey,ventaKey:body.ventaKey}]};
   });
-  if(confirmedRows)return {...result,resultados:confirmedRows,replayed:false};
-  try{return await hydrate(actor,result);}
+  if(confirmedRows)return publicResult({...actor,role:captured.role},{...result,resultados:confirmedRows,replayed:false});
+  try{return await publicResult({...actor,role:captured.role},await hydrate({...actor,role:captured.role},result));}
   catch(_){throw fail(503,'El cobro se guardó, pero no se pudo recuperar su resultado. Consultá la operación antes de repetirlo.','SV_LABOR_COMMIT_UNCONFIRMED');}
  }
  return {authorize,execute,capability:()=>enabled};

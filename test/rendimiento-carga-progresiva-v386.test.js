@@ -45,7 +45,7 @@ test('listeners y lecturas de configuración tienen defensas contra duplicados',
   assert.match(app, /if \(window\._cargaConfigComisionesPromesa\) return window\._cargaConfigComisionesPromesa;/);
   assert.equal((app.match(/function cargarCargos\(\)/g) || []).length, 1);
   assert.match(app, /if \(window\._cargosListenerActivo\) return;/);
-  assert.equal((app.match(/function cargarConfigComisiones\(\)/g) || []).length, 1);
+  assert.equal((app.match(/function cargarConfigComisiones\((?:forzar)?\)/g) || []).length, 1);
   assert.match(app, /if \(window\._cargaConfigComisionesPromesa\) return window\._cargaConfigComisionesPromesa;/);
 });
 

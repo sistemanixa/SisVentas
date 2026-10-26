@@ -183,3 +183,13 @@ test('Los otros diálogos conservan su layout previo cuando no piden centrado o 
  assert.equal(overlay.style.getPropertyValue('align-items'),'');assert.equal(panel.style.maxHeight,undefined);assert.equal(panel.children[1].style.overflowY,undefined);assert.equal(panel.children[2].style.flexShrink,undefined);
  panel.children[2].children[0].onclick();assert.equal(await pending,true);
 });
+
+
+for(const format of ['array','map'])test('La corrección delegada usa el pago seleccionado y un nonce, sin enviar snapshot privado: '+format,async()=>{
+ const first={fecha:'2026-10-12',monto:40.25,ts:1,medio:'Transferencia'},second={fecha:'2026-10-13',monto:20.5,ts:2,medio:'Efectivo'},pagos=format==='array'?[first,second]:{first,second},record=commission('fixture-payment',{pagos,monto:100,montoPagado:60.75,estado:'pagado_parcial',descripcion:'Comisión venta #V-ABC · 37% ganancia FINANCIAL_HISTORY_PRIVATE'}),h=setup([record]),before=JSON.stringify(h.context.movsEmpData),commands=[];
+ const c=h.context;c.ctaEmpActual='fixture-e';c.svEsAdministradorFinanciero=()=>false;c.window.fbDB={};c.window.tienePermiso=p=>p==='empleados.pagarMovimiento';c.window.SVLaborWrites={command:async(resource,body)=>{commands.push(JSON.parse(JSON.stringify({resource,body})));return{ok:true,committed:true};}};c.svRevisionVistaLaboral=async p=>{assert.equal(p,'sisventas/ctaemp/fixture-e/fixture-payment');return{revision:'fixture_account_nonce_001',value:structuredClone(record)};};c._adelantoAprobarCtx=null;c.poblarSelectoresMediosPago=()=>{};let closed=0;c.cerrarAprobacionAdelanto=()=>closed++;c.fbCargarGastos=()=>{};c.formatoMedioPago=String;
+ load(c,['corregirMedioPagoMovEmp','confirmarAprobacionAdelanto','_guardarMovimientoVinculadoAtomico','svComandoCuentaEmpleado','_pagoGastoToken']);
+ c.corregirMedioPagoMovEmp('fixture-payment',0);const selected=format==='array'?first:second;assert.match(h.el('adelanto-aprobar-resumen').innerHTML,new RegExp(String(Math.round(selected.monto))));assert.equal(commands.length,0);h.el('adelanto-medio').value='Transferencia confirmada';await c.confirmarAprobacionAdelanto();
+ assert.deepEqual(commands,[{resource:'cuenta',body:{action:'correct-medium',employeeId:'fixture-e',movementKey:'fixture-payment',expectedRevision:'fixture_account_nonce_001',medio:'Transferencia confirmada',pagoKey:format==='array'?'0':'second'}}]);assert.doesNotMatch(JSON.stringify(commands),/FINANCIAL_HISTORY_PRIVATE|pct|ganancia|monto|pagos|descripcion/);assert.equal(JSON.stringify(c.movsEmpData),before);assert.equal(closed,1);assert.deepEqual(h.reads,[]);assert.deepEqual(h.writes,[]);
+ c.window.tienePermiso=()=>false;await c.confirmarAprobacionAdelanto();assert.equal(commands.length,1);assert.equal(JSON.stringify(c.movsEmpData),before);
+});

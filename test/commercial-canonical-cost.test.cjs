@@ -1,0 +1,23 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),crypto=require('node:crypto');
+const Cost=require('../cotizador/commercial-canonical-cost'),Provider=require('../js/v3/product-provider-read-model'),{functionSource}=require('./helpers/app-functions.cjs'),{readActiveApp}=require('./helpers/active-app');
+const cfg={oficial:1500,blue:1600,mep:1550,dolarConversion:'oficial'},clone=structuredClone;
+function browser(product,config){const active=readActiveApp(),constant=/var _PRECIOS_CONTAMINADOS_CONFIRMADOS_20260721 = \{[\s\S]*?\n\};/.exec(active.source)[0],window={TIPO_CAMBIO_CONFIG:clone(config),SisVentas:{V3Bridge:{invoke(_module,method,args,fallback){return method==='isLabor'?Provider.isLabor(args[0]):typeof fallback==='function'?fallback():fallback;}}}},context={window,URL,proveedoresData:[],document:{getElementById(){assert.fail('DOM access');}}};vm.createContext(context);vm.runInContext(constant+'\n'+Cost.canonicalFunctions.map(functionSource).join('\n'),context);return context.precioGremioARSDesdeProducto(clone(product));}
+const examples=[
+ ['ARS normalized',{codigo:'F-ARS',compraARS:1000,ventaARS:2000},1000],
+ ['precise normalized',{codigo:'F-PRECISE',compraARS:35.125,ventaARS:70.25},35.125],
+ ['favorite provider',{codigo:'F-FAV',compraARS:1000,ventaARS:2000,codWeb:'https://favorite.invalid/p',proveedores:[{url:'https://other.invalid/p',costoRealArs:800},{url:'https://favorite.invalid/p',costoRealArs:500}]},500],
+ ['per metre',{codigo:'F-METRO',unidad:'Metro',metrosPorPresentacion:100,compraARS:100000,ventaARS:2000,proveedores:[{nombre:'Proveedor',costoRealArs:100000}]},1000],
+ ['favorite invoice VAT and USD shipping',{codigo:'F-IVA',codWeb:'https://flytec.com.py/p',ventaARS:10000,proveedores:[{url:'https://flytec.com.py/p',precio:100,sinIva:true,ivaAlicuota:10.5,costoEnvioUSD:2}]},3110.5],
+ ['USD legacy direct',{codigo:'F-USD',compra:30,ventaARS:60000,moneda:'USD'},45000],
+ ['large valid ARS',{codigo:'F-LARGE',compraARS:1000000,ventaARS:2000000},1000000],
+ ['legacy repair from existing canonical table',{codigo:'P-60853',compraARS:93379345,ventaARS:133399059},Math.round(93379345/1495*100)/100],
+ ['labor alternate legacy flag',{codigo:'F-LABOR',nombre:'Servicio',esManoObra:1,compraARS:0,ventaARS:10000},0],
+ ['labor category',{codigo:'F-LABOR-CATEGORY',categoria:'Mano de obra',compraARS:0,ventaARS:10000},0]
+];
+for(const [name,product,expected]of examples)test('canonical cost matches active browser helpers and expected value: '+name,()=>{const before=clone(product),a=browser(product,cfg),b=Cost.calculate(product,cfg);assert.equal(a,expected);assert.equal(b,a);assert.deepEqual(product,before);});
+test('ported helpers remain byte-identical to the active source after normalizing line endings',()=>{const text=Cost.canonicalFunctions.map(functionSource).join('\n\n').replace(/\r\n/g,'\n');assert.equal(crypto.createHash('sha256').update(text).digest('hex'),Cost.canonicalFunctionsSHA256);});
+test('unknown cost does not silently become zero for a normal product',()=>{assert.throws(()=>Cost.calculate({codigo:'UNKNOWN',nombre:'Producto sin costo'},cfg),{code:'SV_COMMERCIAL_PRODUCT_COST'});});
+test('scoped resolver reads exactly one canonical product and saved rate, rejecting client cost fields at command boundary',async()=>{const reads=[],product={codigo:'P-FICTICIO',compraARS:35.125,ventaARS:70.25},line={pid:'p',productoFbKey:'p',cod:'P-FICTICIO',qty:5,punit:70.25};const out=await Cost.resolve(line,{read:async path=>{reads.push(path);return path==='sisventas/productos/p'?product:cfg;}});assert.deepEqual(reads,['sisventas/productos/p','sisventas/config/tipoCambio']);assert.deepEqual(out,{costoUnitarioCompra:35.13,costoUnitarioPresupuestado:35.13,costoTotalCompra:175.63});});
+for(const line of [{cod:'unknown',qty:1},{pid:'p',productoFbKey:'other',cod:'P',qty:1},{pid:'../other',cod:'P',qty:1},{pid:'p',cod:'different',qty:1},{pid:'p',cod:'P',qty:0}])test('unrecognized canonical reference rejects '+JSON.stringify(line),async()=>{let calls=0;await assert.rejects(Cost.resolve(line,{read:async p=>{calls++;return p==='sisventas/productos/p'?{codigo:'P',compraARS:100,ventaARS:200}:cfg;}}),{code:'SV_COMMERCIAL_PRODUCT_COST'});assert.ok(calls<=2);});
+test('deactivated canonical product cannot be newly selected',async()=>{await assert.rejects(Cost.resolve({pid:'p',cod:'P',qty:1},{read:async()=>({codigo:'P',compraARS:100,activo:false})}),{code:'SV_COMMERCIAL_PRODUCT_COST'});});

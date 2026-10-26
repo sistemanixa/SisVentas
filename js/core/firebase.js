@@ -1,5 +1,5 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, goOffline, goOnline, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp, query, orderByChild, orderByKey, equalTo, startAt, endAt, runTransaction }
+    import { getDatabase, goOffline, goOnline, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp, query, queryEqual, orderByChild, orderByKey, equalTo, startAt, endAt, runTransaction }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
              createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail,
@@ -221,7 +221,11 @@
     window.fbGetDownloadURL = getDownloadURL;
     window.fbDeleteObject = deleteObject;
 
+    if(!window.SVEmployeeAccountViews) throw Error('No se pudo preparar la lectura protegida');
+    window.SVEmployeeAccountViews.install({sdk:{get:window.fbGet,onValue:window.fbOnValue,ref,query,orderByChild,equalTo}});
+    if(!window.SVCommercialViews) throw Error('No se pudo preparar la lectura comercial protegida');
+    window.SVCommercialViews.install({sdk:{get:window.fbGet,onValue:window.fbOnValue,query:window.fbQuery,queryEqual,ref,orderByChild,orderByKey,equalTo,startAt,endAt}});
     if(!window.SVLaborWrites) throw Error('No se pudo preparar el guardado seguro');
-    window.SVLaborWrites.install({sdk:{set:window.fbSet,update:window.fbUpdate,push:window.fbPush,remove:window.fbRemove,runTransaction:window.fbRunTransaction,get,ref}});
+    window.SVLaborWrites.install({sdk:{set:window.fbSet,update:window.fbUpdate,push:window.fbPush,remove:window.fbRemove,runTransaction:window.fbRunTransaction,get:window.fbGet,ref}});
     window.firebaseReady = true;
     document.dispatchEvent(new Event('firebase-ready'));

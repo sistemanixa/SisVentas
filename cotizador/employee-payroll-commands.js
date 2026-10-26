@@ -1,0 +1,97 @@
+'use strict';
+// Explicit payroll commands. Browser references and displayed expectations never
+// replace the protected original sources or the existing financial validators.
+const {isDeepStrictEqual}=require('node:util');
+const {digest}=require('./labor-guard');
+const Views=require('./labor-view-writes'),Model=require('./employee-account-view-model'),Quantity=require('./bonus-quantity-model'),Bonus=require('./labor-bonus-batch'),SAC=require('./labor-sac-batch');
+const {_pagableGastoBase:payable,_claveOperacionConcurrente:operationKey}=require('./labor-calculations');
+const fail=(statusCode,message,code='SV_PAYROLL_COMMAND_INVALID')=>Object.assign(Error(message),{statusCode,code});
+const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v),copy=v=>v==null?null:structuredClone(v),same=(a,b)=>isDeepStrictEqual(a??null,b??null);
+const metaRevision=value=>Views.revisionOf({meta:value});
+const nonce=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{16,128}$/.test(v),id=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{8,160}$/.test(v);
+const employeeKey=v=>{try{return Quantity.employeeKey(v);}catch(_){throw fail(400,'Referencia de empleado inválida');}};
+function validDay(value){if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;const [year,month,day]=value.split('-').map(Number),date=new Date(Date.UTC(year,month-1,day));return year>=1000&&date.getUTCFullYear()===year&&date.getUTCMonth()+1===month&&date.getUTCDate()===day;}
+function describe(input){
+ if(!object(input)||!id(input.id)||!['bonus','sac','sac-preview'].includes(input.action)||Object.keys(input).some(k=>!['id','action','grupoId','fecha','periodoComputo','motivo','concepto','valorUnitario','employees','year','half','maximum','allowDuplicate','empleados'].includes(k)))throw fail(400,'Comando de haberes inválido');
+ if(!validDay(input.fecha))throw fail(400,'Fecha de registro inválida');const body=copy(input);
+ if(body.action==='bonus'){
+  if(Object.keys(body).some(k=>['year','half','maximum','allowDuplicate','empleados'].includes(k))||!id(body.grupoId)||typeof body.periodoComputo!=='string'||!/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(body.periodoComputo)||typeof body.motivo!=='string'||!body.motivo.trim()||body.motivo.length>500||!Array.isArray(body.employees))throw fail(400,'Detalle de bonificación inválido');
+  const plan=Quantity.plan({empleados:body.employees.map(row=>({empleadoId:row?.employeeId,cantidad:row?.cantidad})),valorUnitario:body.valorUnitario});
+  for(const row of body.employees)if(!object(row)||Object.keys(row).some(k=>!['employeeId','expectedRevision','cantidad'].includes(k))||!nonce(row.expectedRevision))throw fail(400,'Versión del empleado inválida');
+  if(body.concepto!==undefined&&(!object(body.concepto)||Object.keys(body.concepto).some(k=>!['id','revision'].includes(k))||typeof body.concepto.id!=='string'||!body.concepto.id||/[.#$\[\]\/\x00-\x1f\x7f]/.test(body.concepto.id)||body.concepto.revision!==undefined&&(!Number.isSafeInteger(body.concepto.revision)||body.concepto.revision<1)))throw fail(400,'Concepto de bonificación inválido');
+  return {body,plan};
+ }
+ if(Object.keys(body).some(k=>['grupoId','periodoComputo','motivo','concepto','valorUnitario','employees'].includes(k))||!Number.isInteger(body.year)||body.year<1000||body.year>9999||![1,2].includes(body.half)||body.maximum!==undefined&&(typeof body.maximum!=='number'||!Number.isFinite(body.maximum)||body.maximum<0||Math.round(body.maximum*100)/100!==body.maximum)||body.allowDuplicate!==undefined&&typeof body.allowDuplicate!=='boolean'||!Array.isArray(body.empleados)||!body.empleados.length||body.empleados.length>42)throw fail(400,'Detalle de SAC inválido');
+ const seen=new Set();for(const row of body.empleados){if(!object(row)||Object.keys(row).some(k=>!['employeeId','expectedRevision','expectedAmount','expectedBestSalary'].includes(k))||!nonce(row.expectedRevision)||body.action==='sac'&&(typeof row.expectedAmount!=='number'||!Number.isFinite(row.expectedAmount)||row.expectedAmount<0||!['number','string'].includes(typeof row.expectedBestSalary)||!Number.isFinite(Number(row.expectedBestSalary))||Number(row.expectedBestSalary)<0))throw fail(400,'Resultado esperado del SAC inválido');const key=employeeKey(row.employeeId);if(seen.has(key))throw fail(400,'Empleado repetido');seen.add(key);}
+ return {body};
+}
+function access(profile,cfg,action){
+ const grant=action==='bonus'?'bonificar':'registrarHaberes',role=profile?.rol;if(profile?.activo!==true||!['admin','administrativo','vendedor','tecnico','tecnico_vendedor'].includes(role))throw fail(403,'Usuario sin acceso');
+ if(cfg!=null&&(!object(cfg)||cfg.indiceVersion!==2||cfg.indiceModulos?.empleados!==true||Object.values(cfg.bloqueados||{}).includes('empleados')))throw fail(403,'No tenés permiso para registrar estos haberes','SV_PAYROLL_ACCESS');const override=cfg?.acciones?.empleados?.[grant];if(typeof override==='boolean'?!override:role!=='admin')throw fail(403,'No tenés permiso para registrar estos haberes','SV_PAYROLL_ACCESS');
+ return {role,permissionRevision:cfg?.indiceRevision??null,permissionDigest:digest(cfg||{}),financialAction:'empleados.'+grant};
+}
+function semesterMonths(year,half){return Array.from({length:6},(_,i)=>year+'_'+String(i+(half===1?1:7)).padStart(2,'0'));}
+function calculateSAC(employee,salaries,cargo,year,half,maximum=0){
+ let best=0;for(const salary of salaries)if(salary&&salary>best)best=salary;
+ if(best===0)best=cargo?Math.round((parseFloat(cargo.valorHora)||0)*8*(parseFloat(cargo.diasMes)||0)):0;
+ const months=semesterMonths(year,half),monthsWorked=employee.fechaIngreso?months.filter(month=>month.replace('_','-')>=String(employee.fechaIngreso).slice(0,7)).length:6,ceiling=Math.round(((best/12)*monthsWorked)*100)/100,amount=maximum>0?Math.min(ceiling,maximum):ceiling;
+ if(!Number.isFinite(amount)||amount<0)throw fail(409,'Las fuentes del SAC requieren revisión','SV_PAYROLL_PREVIEW_CHANGED');return {best,monthsWorked,monthsWithData:salaries.filter(Boolean).length,ceiling,amount,limited:amount<ceiling};
+}
+function createEmployeePayrollCommands({authorize,db,guard,store,now=Date.now}={}){
+ if(typeof authorize!=='function'||!db||!guard?.run)throw Error('Configuración de comandos de haberes inválida');
+ const read=async path=>(await db.ref(path).get()).val();
+ async function preview(actor,body,profile,cfg,fingerprint){
+  if(typeof store?.readAsUser!=='function')throw fail(503,'Falta la lectura autorizada de la vista previa');
+  const config=await read('sv_labor_config');if(!Views.enabled(config))throw fail(503,'Los haberes requieren completar su preparación','SV_ACCOUNT_VIEW_UNREADY');
+  const rows=[],views=new Map(),months=semesterMonths(body.year,body.half);
+  for(const row of body.empleados){const employeeId=employeeKey(row.employeeId),rowPath=Views.PREFIX+'/globalEmployeeDirectory/rows/'+employeeId,path=rowPath+'/meta',meta=await store.readAsUser(path,actor);if(metaRevision(meta)!==row.expectedRevision)throw fail(409,'El empleado cambió. Volvé a revisar el cálculo','SV_CAS_CONFLICT');views.set(path,row.expectedRevision);const envelope=await read(rowPath);if(!object(envelope)||!same(envelope.meta,meta))throw fail(409,'La metadata y su fila requieren revisión','SV_CAS_CONFLICT');const employee=await read('sisventas/empleados/'+employeeId),projected=Model.projectEmployee(employee,{key:employeeId});if(!employee||employee.activo===false||String(employee.estado||'').toLowerCase()==='inactivo'||projected.complete!==true||!same(projected.value,envelope.value))throw fail(409,'El empleado y su vista requieren revisión','SV_PAYROLL_EMPLOYEE_REVIEW');
+   const salaries=[];for(const month of months)salaries.push(await read('sisventas/haberes/'+employeeId+'/'+month+'/sueldo'));let best=0;for(const salary of salaries)if(salary&&salary>best)best=salary;const cargo=best===0&&employee.cargoId?await read('sisventas/config/cargos/'+employee.cargoId):null,calculation=calculateSAC(employee,salaries,cargo,body.year,body.half,body.maximum||0);
+   rows.push({employeeId,nombre:employee.nombre||'',mejorSueldo:calculation.best,mesesTrabajados:calculation.monthsWorked,mesesConDatos:calculation.monthsWithData,aguinaldo:calculation.amount,aguinaldoTotal:calculation.ceiling,limitado:calculation.limited});
+  }
+  const freshProfile=await read('sv_chat_roles/'+actor.uid),freshCfg=freshProfile?.rol?await read('sv_permisos/'+freshProfile.rol):null;access(freshProfile,freshCfg,'sac-preview');if(digest({profile:freshProfile,cfg:freshCfg})!==fingerprint)throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación','SV_LABOR_AUTH_CHANGED');for(const [path,revision]of views)if(metaRevision(await store.readAsUser(path,actor))!==revision)throw fail(409,'El empleado cambió durante el cálculo','SV_CAS_CONFLICT');
+  return {ok:true,year:body.year,half:body.half,rows};
+ }
+ async function execute(actor,input){
+  const {body,plan}=describe(input);if(!actor?.uid||actor.claims?.uid!==actor.uid)throw fail(403,'Sesión requerida');const profile=await read('sv_chat_roles/'+actor.uid),cfg=profile?.rol?await read('sv_permisos/'+profile.rol):null,auth=access(profile,cfg,body.action),fingerprint=digest({profile,cfg});if(body.action==='sac-preview')return preview(actor,body,profile,cfg,fingerprint);const internal={kind:'atomic',path:'',purpose:body.action==='bonus'?Bonus.PURPOSE:SAC.PURPOSE,value:{},expectedHashes:{}};
+  return guard.run({uid:actor.uid,claims:actor.claims,mode:'user',...auth,opId:body.id,transportDigest:digest(body),operation:'employee-payroll-command',input:internal},async scope=>{
+   if(!Views.enabled(await scope.get('sv_labor_config'))||typeof scope.getAsUser!=='function'||typeof scope.beforeCommit!=='function')throw fail(503,'Los haberes requieren completar su preparación','SV_ACCOUNT_VIEW_UNREADY');
+   const currentProfile=await scope.get('sv_chat_roles/'+actor.uid),currentCfg=await scope.get('sv_permisos/'+auth.role);access(currentProfile,currentCfg,body.action);if(digest({profile:currentProfile,cfg:currentCfg})!==fingerprint)throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación','SV_LABOR_AUTH_CHANGED');
+   const snapshots=new Map(),views=new Map(),employees=new Map(),ts=now();if(!Number.isSafeInteger(ts)||ts<=0)throw fail(503,'No se pudo confirmar la fecha del registro');
+   async function source(path){if(!snapshots.has(path))snapshots.set(path,await scope.get(path));return copy(snapshots.get(path));}
+   for(const row of body.action==='bonus'?body.employees:body.empleados){const employeeId=employeeKey(row.employeeId),rowPath=Views.PREFIX+'/globalEmployeeDirectory/rows/'+employeeId,path=rowPath+'/meta',meta=await scope.getAsUser(path);if(metaRevision(meta)!==row.expectedRevision)throw fail(409,'El empleado cambió. Volvé a revisar el cálculo','SV_CAS_CONFLICT');views.set(path,row.expectedRevision);const envelope=await source(rowPath);if(!object(envelope)||!same(envelope.meta,meta))throw fail(409,'La metadata y su fila requieren revisión','SV_CAS_CONFLICT');const raw=await source('sisventas/empleados/'+employeeId),projected=Model.projectEmployee(raw,{key:employeeId});if(!raw||raw.activo===false||String(raw.estado||'').toLowerCase()==='inactivo'||projected.complete!==true||!same(projected.value,envelope.value))throw fail(409,'El empleado ya no está disponible o su vista requiere revisión','SV_PAYROLL_EMPLOYEE_REVIEW');employees.set(employeeId,raw);}
+   let result;
+   if(body.action==='bonus'){
+    let concept=null;if(body.concepto){concept=await source('sisventas/config/bonificaciones/'+body.concepto.id);if(!object(concept)||concept.eliminado===true||typeof concept.nombre!=='string'||!concept.nombre.trim()||body.concepto.revision!==undefined&&concept.revision!==body.concepto.revision)throw fail(409,'El concepto cambió. Volvé a elegirlo','SV_BONUS_CONCEPT_CHANGED');}
+    const user=profile.nombre||profile.usuario||actor.uid,base={tipo:'bonificacion',estado:'aprobado',fecha:body.fecha,periodoComputo:body.periodoComputo,descripcion:'Bonificación · '+body.motivo,motivo:body.motivo,aprobadoPor:user,aprobadoTs:ts,usuario:user,origenCarga:'manual_empleados',ts};if(concept)Object.assign(base,{bonificacionConceptoId:body.concepto.id,bonificacionConceptoNombre:concept.nombre});
+    const rows=[];let existing=0;
+    for(const item of plan.items){const employee=employees.get(item.empleadoId),movementKey=Quantity.operationKey('bonificacion',[item.empleadoId,body.grupoId]),expenseKey=Quantity.operationKey('gasto_bonificacion',[item.empleadoId,body.grupoId]),movementPath='sisventas/ctaemp/'+item.empleadoId+'/'+movementKey,expensePath='sisventas/gastos/'+expenseKey,employeePath='sisventas/empleados/'+item.empleadoId,metadata=Quantity.metadata(item,body.grupoId,plan),movement={...base,...metadata,monto:item.monto,empleadoId:item.empleadoId,empleadoNombre:employee.nombre||'',fbKey:movementKey,gastoFbKey:expenseKey,legacyKey:'ctaemp/'+item.empleadoId+'/'+movementKey,operacionId:body.grupoId},expense={...payable({fecha:body.fecha,tipo:'Variable',tipoPagable:'bonificacion',descripcion:base.descripcion,monto:item.monto,empleadoFbKey:item.empleadoId,empleadoNombre:employee.nombre||'',legacyKey:movement.legacyKey,ts}),...metadata,estado:'aprobado',requiereAprobacion:false,aprobadoPor:user,aprobadoTs:ts,movimientoCtaKey:movementKey,origen:'bonificacion',operacionId:body.grupoId,periodoComputo:body.periodoComputo,motivo:body.motivo};if(concept)Object.assign(expense,{bonificacionConceptoId:body.concepto.id,bonificacionConceptoNombre:concept.nombre});
+     const oldM=await source(movementPath),oldG=await source(expensePath);if(oldM||oldG){const immutable=['tipo','tipoPagable','monto','fecha','periodoComputo','descripcion','motivo','empleadoId','empleadoFbKey','legacyKey','operacionId','bonificacionConceptoId','bonificacionConceptoNombre',...Bonus.META_FIELDS],matches=(actual,expected)=>actual&&immutable.every(field=>same(actual[field],expected[field]));if(!matches(oldM,movement)||!matches(oldG,expense)||oldM.gastoFbKey!==expenseKey||oldG.movimientoCtaKey!==movementKey)throw fail(409,'El grupo ya existe parcialmente o tiene otro detalle. Se conservaron sus importes y pagos','SV_BONUS_BATCH_CONFLICT');existing++;rows.push({movementPath,expensePath,employeePath,movement:oldM,expense:oldG});}else rows.push({movementPath,expensePath,employeePath,movement,expense});
+    }
+    if(existing&&existing!==rows.length)throw fail(409,'El grupo ya existe parcialmente. No se agregaron bonificaciones','SV_BONUS_BATCH_CONFLICT');
+    for(const row of rows){internal.value[row.movementPath]=row.movement;internal.value[row.expensePath]=row.expense;for(const path of [row.movementPath,row.expensePath,row.employeePath])internal.expectedHashes[path]=digest(await source(path));}
+    Bonus.describe(internal);result={ok:true,committed:true,count:plan.items.length,total:plan.total,replayed:existing===rows.length};
+   }else{
+    // No index currently proves coverage for every tolerated legacy SAC shape.
+    // Keep this one explicit, internal snapshot. Never return it to the browser.
+    const expenses=await source('sisventas/gastos');if(expenses!==null&&typeof expenses!=='object')throw fail(409,'El historial de SAC requiere revisión','SV_SAC_BATCH_CONFLICT');internal.expectedHashes['sisventas/gastos']=digest(expenses);
+    const semester=body.year+'_S'+body.half,months=semesterMonths(body.year,body.half),label=(body.half===1?'1er':'2do')+' semestre '+body.year;let total=0,count=0;
+    for(const row of body.empleados){const employeeId=row.employeeId,employee=employees.get(employeeId),employeePath='sisventas/empleados/'+employeeId;internal.expectedHashes[employeePath]=digest(await source(employeePath));let best=0,cargo=null;const salaries=[];
+     if(body.empleados.length>15){const path='sisventas/haberes/'+employeeId,hist=await source(path);internal.expectedHashes[path]=digest(hist);for(const month of months){const salary=hist?.[month]?.sueldo;salaries.push(salary);if(salary&&salary>best)best=salary;}}
+     else for(const month of months){const path='sisventas/haberes/'+employeeId+'/'+month+'/sueldo',salary=await source(path);internal.expectedHashes[path]=digest(salary);salaries.push(salary);if(salary&&salary>best)best=salary;}
+     if(best===0&&employee.cargoId){const path='sisventas/config/cargos/'+employee.cargoId;cargo=await source(path);internal.expectedHashes[path]=digest(cargo);}
+     const calculation=calculateSAC(employee,salaries,cargo,body.year,body.half,body.maximum||0),amount=calculation.amount;best=calculation.best;
+     if(!Number.isFinite(amount)||amount<0||row.expectedAmount!==amount||Number(row.expectedBestSalary)!==Number(best))throw fail(409,'El cálculo del SAC cambió. Volvé a revisar los importes antes de confirmar','SV_PAYROLL_PREVIEW_CHANGED');
+     const key=operationKey('aguinaldo',body.allowDuplicate?[employeeId,semester,body.id]:[employeeId,semester]);if(expenses?.[key])continue;
+     const duplicate=Object.values(expenses||{}).some(g=>{if(!g)return false;const owner=String(g.empleadoFbKey||g.empleadoId||g.empFbKey||''),description=String(g.descripcion||g.concepto||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');if(owner!==employeeId)return false;if(String(g.tipoPagable||'').toLowerCase()==='aguinaldo'&&String(g.semestre||'')===semester)return true;if(g.anulado===true||String(g.estado||'').toLowerCase()==='anulado')return false;return (String(g.tipoPagable||'').toLowerCase()==='aguinaldo'||description.includes('aguinaldo')||description.includes('sac'))&&(String(g.semestre||'')===semester||description.includes(label));});
+     if(duplicate&&!body.allowDuplicate)continue;if(!(amount>0))continue;
+     const path='sisventas/gastos/'+key;internal.value[path]=payable({fecha:body.fecha,tipo:'Fijo',tipoPagable:'aguinaldo',descripcion:'Aguinaldo '+(employee.nombre||'')+' — '+label,monto:amount,medio:'Transferencia',empleadoFbKey:employeeId,empleadoNombre:employee.nombre||'',semestre:semester,mejorSueldo:best,legacyKey:'sac/'+employeeId+'/'+semester,ts:ts+count});count++;total+=amount;
+    }
+    if(count)SAC.describe(internal);else delete internal.purpose;result={ok:true,committed:true,count,total};
+   }
+   scope.beforeCommit(async({readFresh,readFreshAsUser}={})=>{if(typeof readFresh!=='function'||typeof readFreshAsUser!=='function')throw fail(503,'Falta la verificación final de los haberes');const freshProfile=await readFresh('sv_chat_roles/'+actor.uid),freshCfg=freshProfile?.rol?await readFresh('sv_permisos/'+freshProfile.rol):null;access(freshProfile,freshCfg,body.action);if(digest({profile:freshProfile,cfg:freshCfg})!==fingerprint)throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación','SV_LABOR_AUTH_CHANGED');for(const [path,revision]of views)if(metaRevision(await readFreshAsUser(path))!==revision)throw fail(409,'El empleado cambió durante el registro','SV_CAS_CONFLICT');for(const [path,value]of snapshots)if(digest(await readFresh(path))!==digest(value))throw fail(409,'Una fuente del cálculo cambió durante el registro','SV_CAS_CONFLICT');});
+   if(Object.keys(internal.value).length)await scope.update(internal.value);return result;
+  });
+ }
+ return {authorize,execute};
+}
+module.exports={createEmployeePayrollCommands,describe,access,semesterMonths,calculateSAC};

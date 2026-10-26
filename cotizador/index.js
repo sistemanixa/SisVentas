@@ -36,7 +36,7 @@ if (!admin.apps.length) {
 
 const laborScopedEnabled=process.env.LABOR_SCOPED_ENABLED==='true';
 if(laborScopedEnabled&&process.env.COMMISSION_OBSERVER_ENABLED==='true')throw Error('El circuito acotado requiere el observador periódico apagado');
-const laborRuntime=require('./labor-runtime').createLaborRuntime({db:admin.database(),databaseURL:DATABASE_URL,enabled:laborScopedEnabled,readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true',accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
+const laborRuntime=require('./labor-runtime').createLaborRuntime({db:admin.database(),databaseURL:DATABASE_URL,enabled:laborScopedEnabled,commercialProtocol:true,readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true',accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const db = laborRuntime.db;
 // Resolve Auth only when handling an authenticated operation. Importing pure
 // parsers (or their tests) must not instantiate extra SDK services.
@@ -47,7 +47,8 @@ const chatOperations = require('./chat-operations').createChatOperations({auth:b
 const distributorDocuments=require('./distributor-documents').createDistributorDocuments({auth:businessAuth,db,enabled:process.env.DISTRIBUTOR_DOCUMENTS_ENABLED==='true'});
 const commercialCollectionReader=require('./commercial-collection-reader').createCommercialCollectionReader({databaseURL:DATABASE_URL,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const projects = require('./projects').createProjects({auth:businessAuth,db,collectionReader:commercialCollectionReader,enabled:process.env.PROJECTS_ENABLED==='true'});
-const commercialOwnership=require('./commercial-ownership').createCommercialOwnership({auth:businessAuth,db,collectionReader:commercialCollectionReader,enabled:process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'});
+const commercialTransport=require('./commercial-public-transport').createCommercialPublicTransport({guard:laborRuntime.guard,store:laborRuntime.store,db});
+const commercialOwnership=require('./commercial-ownership').createCommercialOwnership({auth:businessAuth,db,collectionReader:commercialCollectionReader,commercialProtocol:true,publicTransport:commercialTransport,enabled:process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'});
 // Bucket dedicado, privado y sin enlaces de Firebase Storage. Nunca reutilizar
 // el bucket compartido de adjuntos: sus reglas no pertenecen a este dominio.
 const personalBucket=process.env.PERSONAL_FINANCE_BUCKET||'';
@@ -57,12 +58,20 @@ const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
 const laborTransaction = laborRuntime.transaction;
 const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
-const paymentCommands=require('./payment-commands').createPaymentCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.PAYMENT_SCOPED_ENABLED==='true'});
+const paymentCommands=require('./payment-commands').createPaymentCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,commercialProtocol:true,enabled:laborScopedEnabled&&process.env.PAYMENT_SCOPED_ENABLED==='true'});
 const adminExpenseCreate=require('./admin-expense-create').createAdminExpenseCreate({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.ADMIN_EXPENSE_SCOPED_ENABLED==='true'});
 const laborOperations = require('./labor-operations').createLaborOperations({auth:businessAuth,db,transaction:laborTransaction});
 const laborSubmissions = require('./labor-submissions').createLaborSubmissions({auth:businessAuth,db,transaction:laborTransaction});
 const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:businessAuth,db});
 const employeeDirectory = require('./employee-directory').createEmployeeDirectory({auth:businessAuth,db});
+const commissionConfiguration=require('./commission-configuration').createCommissionConfiguration({authorize:employeeDirectory.authorize,db});
+const employeeDirectoryCommands=require('./employee-directory-commands').createEmployeeDirectoryCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard});
+const employeeAccountCommands=require('./employee-account-commands').createEmployeeAccountCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store});
+const employeeExpenseCommands=require('./employee-expense-commands').createEmployeeExpenseCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store});
+const employeeMovementCommands=require('./employee-movement-create').createEmployeeMovementCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store});
+const employeePayrollCommands=require('./employee-payroll-commands').createEmployeePayrollCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store});
+const employeeMonthlyPayrollCommands=require('./employee-monthly-payroll').createEmployeeMonthlyPayrollCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store});
+const purchaseSaleCostCommands=require('./purchase-sale-cost-commands').createPurchaseSaleCostCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard});
 const personalHoursReader = require('./personal-hours-reader').createPersonalHoursReader({auth:businessAuth,db});
 const personalExpenses = require('./personal-expenses').createPersonalExpenses({authorize:laborSubmissions.authorize,transaction:laborTransaction});
 const supplierDirectory = require('./supplier-directory').createSupplierDirectory({authorize:employeeDirectory.authorize,db});
@@ -2008,6 +2017,23 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if(pathname==='/laboral/configuracion-comisiones'){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
+    if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
+    if(req.method!=='GET'){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+    try{send(res,200,{ok:true,...await commissionConfiguration.read(req)});}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode===401?'Sesión requerida':error.statusCode===403?'No tenés permiso para consultar esta configuración':'No se pudo consultar la configuración de comisiones'});}return;
+  }
+
+  if(['/laboral/empleados/comando','/laboral/cuenta/comando','/laboral/gastos/comando','/laboral/movimientos/comando','/laboral/haberes/comando','/laboral/liquidacion/comando','/laboral/compras/comando'].includes(pathname)){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
+    if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
+    if(req.method!=='POST'){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+    if(requestUrl.searchParams.has('verComo')||requestUrl.searchParams.has('viewProfile')){send(res,403,{ok:false,mensaje:'Volvé a tu cuenta para guardar'});return;}
+    try{const service=pathname==='/laboral/empleados/comando'?employeeDirectoryCommands:pathname==='/laboral/cuenta/comando'?employeeAccountCommands:pathname==='/laboral/gastos/comando'?employeeExpenseCommands:pathname==='/laboral/movimientos/comando'?employeeMovementCommands:pathname==='/laboral/haberes/comando'?employeePayrollCommands:pathname==='/laboral/liquidacion/comando'?employeeMonthlyPayrollCommands:purchaseSaleCostCommands,actor=await service.authorize(req),body=await readBody(req,16*1024*1024);send(res,200,await service.execute(actor,body));}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el guardado. Comprobá el intento antes de repetirlo.',...(error.code?{code:error.code}:{})});}return;
+  }
+
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
@@ -2015,19 +2041,23 @@ const server = http.createServer(async (req, res) => {
   }
 
   if(pathname.startsWith('/comerciales/')){
-    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
+    if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
+    if(!['GET','POST'].includes(req.method)){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
     try{
-      const match=pathname.match(/^\/comerciales\/(ventas|presupuestos)(?:\/(opciones|reasignar|preparar))?$/);
+      const match=pathname.match(/^\/comerciales\/(ventas|presupuestos)(?:\/(opciones|reasignar|preparar)|\/detalle\/([^/?#]+))?$/);
       if(!match){send(res,404,{ok:false,mensaje:'Operación no disponible'});return;}
-      const view=new URL(req.url,'http://localhost').searchParams.get('verComo');
-      const actor=await commercialOwnership.authorize(req,match[1],view);let result;
-      if(req.method==='GET'&&!match[2])result=await commercialOwnership.list(actor);
+      const detail=match[3]!==undefined;
+      if(detail&&req.method!=='GET'||!detail&&req.method==='GET'&&['reasignar','preparar'].includes(match[2])||!detail&&req.method==='POST'&&!['reasignar','preparar'].includes(match[2])){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+      let recordKey;if(detail)try{recordKey=decodeURIComponent(match[3]);}catch(_){send(res,400,{ok:false,mensaje:'Referencia no válida'});return;}
+      const actor=await commercialOwnership.authorize(req,match[1],requestUrl.searchParams.get('verComo'));let result;
+      if(detail)result=await commercialOwnership.detail(actor,recordKey);
+      else if(req.method==='GET'&&!match[2])result=await commercialOwnership.list(actor);
       else if(req.method==='GET'&&match[2]==='opciones')result=await commercialOwnership.options(actor);
-      else if(req.method==='POST'&&['reasignar','preparar'].includes(match[2])){const body=await readBody(req,16384),method=match[2]==='reasignar'?'assign':'prepare';result=match[1]==='ventas'?await laborRuntime.run(actor,'commercial-'+method,body,()=>commercialOwnership[method](actor,body)):await commercialOwnership[method](actor,body);}
-      else{send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
-      if(req.method==='GET'&&!match[2])await sendCommercial(req,res,{ok:true,...result});
+      else{const body=await readBody(req,16384),method=match[2]==='reasignar'?'assign':'prepare';result=await laborRuntime.run(actor,'commercial-'+method,body,()=>commercialOwnership[method](actor,body));}
+      if(req.method==='GET'&&!match[2]&&!detail)await sendCommercial(req,res,{ok:true,...result});
       else send(res,200,{ok:true,...result});
-    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la operación comercial'});}return;
+    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la operación comercial',...(e.code?{code:e.code}:{})});}return;
   }
 
   if(pathname.startsWith('/privado/finanzas')){

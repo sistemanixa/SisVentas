@@ -1,7 +1,7 @@
 'use strict';
 // Shared pure policy strings: offline builder and the deployed rules checker.
 const SERVICE_UID='sv-labor-service',MAX_LEASE_MS=60000;
-const DOMAINS=['empleados','gastos','gastos_adjuntos','ctaemp','hsextra_solicitudes','haberes','aguinaldos','comisiones_generacion','pagos_realizados','auditoria_pagos','gastos_periodicos_emp','ventas','pagos'];
+const DOMAINS=['empleados','gastos','gastos_adjuntos','ctaemp','hsextra_solicitudes','haberes','aguinaldos','comisiones_generacion','pagos_realizados','auditoria_pagos','gastos_periodicos_emp','ventas','presupuestos','pagos','ordenes','listas_materiales','inventario_operativo'];
 const CONFIG=['cargos','maxComisionPct','comisiones','comisionesEmpleados'];
 const SERVER_ONLY=['sv_commission_generation','sv_commission_events'];
 const service="auth != null && auth.token.svLaborService === true";

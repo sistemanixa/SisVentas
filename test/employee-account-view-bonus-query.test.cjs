@@ -1,0 +1,55 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const API=require('../js/core/employee-account-views.v1');
+const GLOBAL=API.GLOBAL,ROWS=GLOBAL+'/rows',N='view_nonce_bonus_000001',M='view_nonce_bonus_000002';
+const meta=(revision=N)=>({schema:1,ready:true,revision});
+const bonus=(monto='00123.4500')=>({tipoPagable:'bonificacion',descripcion:'Tarea ficticia',monto,periodoComputo:'2026-11'});
+function fixture({role='administrativo',financial,missingHooks=false}={}){
+ const calls=[],events={},rawReads={count:0};let response=null,onGet=null;
+ const root={fbDB:{},fbAuth:{currentUser:{uid:'u'}},currentUserUid:'u',currentRole:role,isAuthenticated:true,PERMISOS_ROLES:{[role]:{indiceRevision:7,acciones:{empleados:{bonificar:true}}}},document:{hidden:false,visibilityState:'visible',addEventListener:(name,fn)=>{(events[name]||=[]).push(fn);}},addEventListener:(name,fn)=>{(events[name]||=[]).push(fn);},svEmpleadoPropio:()=>{throw Error('A global query must not require an employee binding');}};
+ if(financial!==undefined)root.svEsAdministradorFinanciero=()=>financial;
+ const ref=(_db,value)=>({toString:()=>value});
+ function snap(value,at='sisventas/gastos'){
+  const out={ref:ref(null,at),key:at.split('/').pop(),val(){rawReads.count++;return value;},exists:()=>value!==null,child:k=>snap(value?.[k]??null,at+'/'+k),hasChild:k=>value?.[k]!=null,hasChildren:()=>value!==null&&Object.keys(value).length>0,toJSON(){rawReads.count++;return value;},exportVal(){rawReads.count++;return value;},getPriority:()=>null,forEach(fn){for(const key of Object.keys(value||{}))if(fn(snap(value[key],at+'/'+key))===true)return true;return false;}};
+  Object.defineProperty(out,'size',{get:()=>value&&typeof value==='object'?Object.keys(value).length:0});return out;
+ }
+ const sdk={ref,query:(at,...constraints)=>({toString:()=>String(at),constraints}),orderByChild:value=>({kind:'orderByChild',value}),equalTo:value=>({kind:'equalTo',value}),onValue(){throw Error('No subscriptions permitted');},async get(query){calls.push({path:String(query),constraints:query.constraints});if(onGet)return onGet(query);return snap(response,String(query));}};
+ if(missingHooks){delete sdk.orderByChild;delete sdk.equalTo;}
+ const api=API.create(root);api.install({sdk});return {api,root,sdk,calls,rawReads,snap,ref:at=>ref(null,at),set:value=>response=value,onGet:fn=>onGet=fn,event:name=>(events[name]||[]).forEach(fn=>fn())};
+}
+
+test('bonus query uses a single indexed safe subset and supplies only row proofs',async()=>{
+ const f=fixture(),source={a:{meta:meta(),value:bonus()},b:{meta:meta(M),value:bonus(987.65)}};f.set(source);
+ const snap=await f.api.queryExpensesByType('bonificacion');
+ assert.deepEqual(f.calls,[{path:ROWS,constraints:[{kind:'orderByChild',value:'value/tipoPagable'},{kind:'equalTo',value:'bonificacion'}]}]);
+ assert.deepEqual(snap.val(),{a:bonus(),b:bonus(987.65)});assert.equal(snap.key,'gastos');assert.equal(String(snap.ref),'sisventas/gastos');
+ assert.equal(snap.child('a').key,'a');assert.equal(String(snap.child('a').ref),'sisventas/gastos/a');assert.equal(snap.child('a').val().monto,'00123.4500');
+ assert.deepEqual(f.api.proofs(snap),{[ROWS+'/a']:N,[ROWS+'/b']:M});assert.equal(f.api.proofs(snap)[GLOBAL],undefined);
+ const copy=snap.val();copy.a.monto=0;assert.equal(snap.val().a.monto,'00123.4500');assert.equal(snap.size,2);
+ const entries=[];snap.forEach(row=>entries.push([row.key,row.val().monto]));assert.deepEqual(entries,[['a','00123.4500'],['b',987.65]]);
+ assert.deepEqual(source,{a:{meta:meta(),value:bonus()},b:{meta:meta(M),value:bonus(987.65)}});
+});
+
+test('empty indexed query stays logical null without a global readiness fetch',async()=>{const f=fixture();const s=await f.api.queryExpensesByType('bonificacion');assert.equal(s.val(),null);assert.equal(s.exists(),false);assert.equal(s.size,0);assert.deepEqual(f.api.proofs(s),{});assert.equal(f.calls.length,1);});
+test('numeric keys returned as RTDB arrays preserve values and omit null holes',async()=>{const f=fixture();f.set([null,{meta:meta(),value:bonus('35.000')}]);const s=await f.api.queryExpensesByType('bonificacion');assert.deepEqual(s.val(),{'1':bonus('35.000')});assert.deepEqual(f.api.proofs(s),{[ROWS+'/1']:N});});
+
+test('real financial administrator keeps the original indexed query and raw financial data',async()=>{const f=fixture({role:'admin'}),raw={g:{...bonus(),pctOriginal:37.5,gananciaBase:432109.87}};f.set(raw);const s=await f.api.queryExpensesByType('bonificacion');assert.deepEqual(f.calls,[{path:'sisventas/gastos',constraints:[{kind:'orderByChild',value:'tipoPagable'},{kind:'equalTo',value:'bonificacion'}]}]);assert.equal(f.rawReads.count,0);assert.deepEqual(s.val(),raw);assert.deepEqual(f.api.proofs(s),{});});
+test('explicit financial capability is respected instead of assuming an administrative label',async()=>{const f=fixture({role:'admin',financial:false});f.set({g:{meta:meta(),value:bonus()}});const s=await f.api.queryExpensesByType('bonificacion');assert.equal(f.calls[0].path,ROWS);assert.equal(s.val().g.monto,'00123.4500');});
+test('Ver como never inherits the admin original transport',async()=>{const f=fixture({role:'admin'});f.root._impersonacionOriginal={usuarioFbKey:'target'};f.set({g:{meta:meta(),value:bonus()}});await f.api.queryExpensesByType('bonificacion');assert.equal(f.calls[0].path,ROWS);});
+
+for(const type of [undefined,null,'','comision','Bonificacion','bonificacion/other',{},['bonificacion']])test('non-whitelisted query input is rejected before I/O '+String(type),async()=>{const f=fixture();await assert.rejects(f.api.queryExpensesByType(type),{code:'SV_ACCOUNT_VIEW_QUERY'});assert.equal(f.calls.length,0);});
+test('missing constrained SDK hooks fail closed without fallback',async()=>{const f=fixture({missingHooks:true});await assert.rejects(f.api.queryExpensesByType('bonificacion'),{code:'SV_ACCOUNT_VIEW_SDK'});assert.equal(f.calls.length,0);});
+test('generic protected queries remain blocked after the narrow method is installed',async()=>{const f=fixture();const q=f.root.fbQuery(f.ref('sisventas/gastos'),f.sdk.orderByChild('tipoPagable'),f.sdk.equalTo('bonificacion'));await assert.rejects(f.root.fbGet(q),{code:'SV_ACCOUNT_VIEW_QUERY'});assert.equal(f.calls.length,0);});
+test('SDK denial is returned without raw or global fallback',async()=>{const f=fixture();f.onGet(()=>{throw Object.assign(Error('Denied'),{code:'PERMISSION_DENIED'});});await assert.rejects(f.api.queryExpensesByType('bonificacion'),{code:'PERMISSION_DENIED'});assert.equal(f.calls.length,1);assert.equal(f.rawReads.count,0);});
+
+for(const envelope of [null,{},[],{meta:{schema:2,ready:true,revision:N}},{meta:{schema:1,ready:false,revision:N}},{meta:{schema:1,ready:true,revision:'bad'}}])test('invalid row metadata is rejected before reading value '+JSON.stringify(envelope),async()=>{const f=fixture();if(envelope!==null)Object.defineProperty(envelope,'value',{get(){assert.fail('An invalid envelope must not reveal its value');}});f.set({g:envelope});if(envelope===null){assert.deepEqual((await f.api.queryExpensesByType('bonificacion')).val(),{});}else await assert.rejects(f.api.queryExpensesByType('bonificacion'),{code:'SV_ACCOUNT_VIEW_UNREADY'});assert.equal(f.calls.length,1);});
+for(const data of [false,4,'bad'])test('non-collection query result fails closed '+String(data),async()=>{const f=fixture();f.set(data);await assert.rejects(f.api.queryExpensesByType('bonificacion'),{code:'SV_ACCOUNT_VIEW_UNREADY'});assert.equal(f.calls.length,1);});
+for(const value of [null,[],{tipoPagable:'comision'},'bad'])test('a malformed or unexpected row type cannot enter the result '+JSON.stringify(value),async()=>{const f=fixture();f.set({g:{meta:meta(),value}});await assert.rejects(f.api.queryExpensesByType('bonificacion'),{code:'SV_ACCOUNT_VIEW_UNREADY'});});
+test('invalid key does not become a logical path or prototype write',async()=>{const f=fixture();f.set(JSON.parse('{"__proto__":{"meta":{"schema":1,"ready":true,"revision":"view_nonce_bonus_000001"},"value":{"tipoPagable":"bonificacion"}}}'));await assert.rejects(f.api.queryExpensesByType('bonificacion'),{code:'SV_ACCOUNT_VIEW_PATH'});assert.equal({}.tipoPagable,undefined);});
+
+const changes={role:f=>f.root.currentRole='other',permissionRevision:f=>f.root.PERMISOS_ROLES.administrativo.indiceRevision++,permissionValue:f=>f.root.PERMISOS_ROLES.administrativo.acciones.empleados.bonificar=false,authObject:f=>f.root.fbAuth.currentUser={uid:'u'},uid:f=>f.root.currentUserUid='other',session:f=>f.root.isAuthenticated=false,sessionEpoch:f=>f.root._svOperacionesSesionEpoch=1,dataEpoch:f=>f.root._svDataEpoch=1,view:f=>f.root._impersonacionOriginal={usuarioFbKey:'other'},reset:f=>f.api.reset(),hidden:f=>f.root.document.hidden=true,foreground:f=>f.root.SVForegroundSession={isVisible:()=>false}};
+for(const [label,change]of Object.entries(changes))test('pending query fences '+label+' before decoding its snapshot',async()=>{const f=fixture();let finish,decodes=0;f.onGet(()=>new Promise(resolve=>finish=resolve));const pending=f.api.queryExpensesByType('bonificacion');change(f);finish({val(){decodes++;return {g:{meta:meta(),value:bonus()}};}});await assert.rejects(pending,{code:['hidden','foreground'].includes(label)?'SV_ACCOUNT_VIEW_RETIRED':'SV_ACCOUNT_VIEW_SESSION'});assert.equal(decodes,0);assert.equal(f.calls.length,1);});
+for(const role of ['administrativo','admin'])test('retained query snapshots fence every data accessor after context reset '+role,async()=>{const f=fixture({role});f.set(role==='admin'?{g:bonus()}:{g:{meta:meta(),value:bonus()}});const s=await f.api.queryExpensesByType('bonificacion'),child=s.child('g');f.api.reset();for(const read of [()=>s.val(),()=>s.exists(),()=>s.child('g'),()=>s.hasChild('g'),()=>s.hasChildren(),()=>s.toJSON(),()=>s.exportVal(),()=>s.getPriority(),()=>s.size,()=>s.forEach(()=>{}),()=>child.val()])assert.throws(read,{code:'SV_ACCOUNT_VIEW_SESSION'});});
+test('a hidden screen cannot initiate the query',async()=>{const f=fixture();f.root.document.hidden=true;await assert.rejects(f.api.queryExpensesByType('bonificacion'),{code:'SV_ACCOUNT_VIEW_RETIRED'});assert.equal(f.calls.length,0);});
+test('a session change triggered inside SDK val cannot decode a row',async()=>{const f=fixture();let touched=0;f.onGet(()=>({val(){f.api.reset();return {g:{get meta(){touched++;return meta();},value:bonus()}};}}));await assert.rejects(f.api.queryExpensesByType('bonificacion'),{code:'SV_ACCOUNT_VIEW_SESSION'});assert.equal(touched,0);});
+test('Firebase install passes original orderByChild and equalTo SDK hooks',()=>{const source=fs.readFileSync(path.join(__dirname,'../js/core/firebase.js'),'utf8');assert.match(source,/SVEmployeeAccountViews\.install\(\{sdk:\{get:window\.fbGet,onValue:window\.fbOnValue,ref,query,orderByChild,equalTo\}\}\)/);});

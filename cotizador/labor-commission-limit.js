@@ -1,7 +1,8 @@
 'use strict';
 const {isDeepStrictEqual}=require('node:util');
 const Index=require('./labor-index');
-const {esComision,claveGrupo,porcentaje,normalizarEstadoGasto}=require('./commission-calculations');
+const {esComision,claveGrupo,porcentaje,normalizarEstadoGasto,totalPagadoGasto}=require('./commission-calculations');
+const {description}=require('./commission-public-response');
 
 const failure=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const corrupt=()=>failure(503,'No se pudo comprobar el grupo completo de comisiones. Revisá el índice antes de guardar.','SV_LABOR_INDEX_INVALID');
@@ -27,7 +28,7 @@ async function pool(items,work){
 
 // raw reads the state protected by the lease; get includes the staged patch.
 // This validator never mutates either state, the business records or the index.
-async function validateCommissionLimit({raw,get,changes=[],patch={}}){
+async function validateCommissionLimit({actor,raw,get,changes=[],patch={}}){
  if(typeof raw!=='function'||typeof get!=='function'||!Array.isArray(changes)||!patch||typeof patch!=='object'||Array.isArray(patch))throw failure(400,'Validación de comisiones inválida');
  const pairs=new Map(),movements=new Map(),buckets=new Map(),groups=new Set(),affected=new Set();
  function addPair(key,before,after){
@@ -90,6 +91,35 @@ async function validateCommissionLimit({raw,get,changes=[],patch={}}){
   const pair=await pairFor(key);
   for(const value of [pair.before,pair.after]){const group=groupOf(key,value);if(group!==null)groups.add(group);}
  }
+ // Materializing an already owed protected CTA commission is a mirror, not a
+ // new allocation. Only this service's process-local proof can select the finite
+ // exception; an HTTP body or a legacy writer cannot claim it.
+ async function historicalMirror(pair,group,keys){
+  if(actor?.mode!=='user'||actor.operation!=='employee-account-command'||actor.claims?.uid!==actor.uid||pair.before!==null)return false;
+  const proof=require('./employee-account-commands').trustedCommand(actor),body=actor.input;
+  if(!proof||proof.uid!==actor.uid||!['approve','materialize-commission','correct-medium'].includes(proof.action)||proof.action!==body?.action||proof.employeeId!==body.employeeId||proof.movementKey!==body.movementKey||proof.gastoKey!==pair.key)return false;
+  if(changes.filter(change=>change.domain==='gastos').length!==1)return false;
+  const path='sisventas/ctaemp/'+proof.employeeId+'/'+proof.movementKey,legacy=path.slice('sisventas/'.length),[before,after]=await movement(path),expense=pair.after;
+  if(!before||!after||String(before.tipo||'').toLowerCase()!=='comision'||String(after.tipo||'').toLowerCase()!=='comision'||normalizarEstadoGasto(before)==='rechazado'||!expense||linkedPath(expense)!==path||expense.empleadoId!==proof.employeeId||expense.empleadoFbKey!==proof.employeeId||after.gastoFbKey!==pair.key||after.legacyKey!==legacy||!isDeepStrictEqual(before.gastoFbKey??null,after.gastoFbKey??null)&&before.gastoFbKey)return false;
+  const economic=['monto','pct','pctOriginal','porcentaje','gananciaBase','ventaId','ventaFbKey','cliente'];
+  if(economic.some(field=>!isDeepStrictEqual(before[field]??null,after[field]??null)))return false;
+  if(['monto','pct','pctOriginal','porcentaje','gananciaBase'].some(field=>!isDeepStrictEqual(before[field]??null,expense[field]??null)))return false;
+  if(['ventaId','ventaFbKey','cliente'].some(field=>String(before[field]||'')!==String(expense[field]||'')))return false;
+  if(expense.descripcion!==description(before.ventaId||before.ventaFbKey,before.cliente)||!isDeepStrictEqual(after.descripcion??null,before.descripcion??null))return false;
+  const allowed=new Set(['gastoFbKey','migradoAGastos','legacyKey',...(proof.action==='approve'?['estado','requiereAprobacion','aprobadoPor','fechaAprobacion','aprobadoTs']:[]),...(proof.action==='correct-medium'?['medioPago','pagos']:[])]);
+  for(const field of new Set([...Object.keys(before),...Object.keys(after)]))if(!isDeepStrictEqual(before[field]??null,after[field]??null)&&!allowed.has(field))return false;
+  const oldPayments=before.pagos??null,nextPayments=after.pagos??null;
+  if(proof.action==='correct-medium'){
+   if(!isDeepStrictEqual(Object.keys(oldPayments||{}),Object.keys(nextPayments||{})))return false;
+   for(const id of Object.keys(oldPayments||{})){
+    const a={...oldPayments[id]},b={...nextPayments[id]};delete a.medio;delete b.medio;if(!isDeepStrictEqual(a,b))return false;
+   }
+  }else if(!isDeepStrictEqual(oldPayments,nextPayments))return false;
+  if(!isDeepStrictEqual(nextPayments,expense.pagos??null)||totalPagadoGasto(before)!==totalPagadoGasto(after)||totalPagadoGasto(after)!==totalPagadoGasto(expense))return false;
+  const members=await bucket('legacyKey',legacy);if(members.size)return false;
+  for(const key of keys){if(key===pair.key)continue;const other=(await pairFor(key)).before;if(other&&groupOf(key,other)===group&&[other.empleadoId,other.empleadoFbKey].some(id=>id===proof.employeeId))return false;}
+  return true;
+ }
  const summaries=[];
  for(const group of groups){
   const members=await bucket('commissionGroup',group),keys=new Set(members);
@@ -110,6 +140,7 @@ async function validateCommissionLimit({raw,get,changes=[],patch={}}){
     const path=linkedPath(value),move=path?(await movement(path))[position]:null;
     values.push(porcentaje(value,move));
    }
+   if(values[0]===0&&values[1]>0&&await historicalMirror(pair,group,keys))values[0]=values[1];
    amounts.set(key,values);
   });
   let before=0,after=0;

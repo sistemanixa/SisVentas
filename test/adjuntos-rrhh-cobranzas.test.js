@@ -13,6 +13,8 @@ function block(start, end) {
   return app.slice(from, to);
 }
 const functions = [
+  block('function _errorComprobanteArchivo(', 'function _vistaAdjuntoFinanciero('),
+  block('function _leerDocumentoGestion(', 'function _verDocumentoGestion('),
   block('function _empleadoUltimaBaja(', 'function renderTablaEmpleados('),
   block('async function confirmarEstadoEmpleado(', 'async function adjuntarDocumentoBajaEmpleado('),
   block('function _cobroPagoPorKey(', 'function _cobroTieneComprobante('),
@@ -27,7 +29,7 @@ function context(overrides = {}) {
   const input = { files:[], value:'' };
   const base = {
     Date, Object, Promise, String, Number, parseInt, parseFloat,
-    currentRole:'admin', currentUser:'Administración',
+    currentRole:'admin', currentUser:'Administración', svEsAdministradorFinanciero:()=>true,
     empData:{ e1:{fbKey:'e1',nombre:'Empleada',activo:true,historial:[]} },
     document:{getElementById(id) { return id === 'emp-estado-confirmar' ? boton : id === 'emp-estado-documento' ? input : id === 'modal-nuevo' ? modal : null; }},
     notify(message) { calls.push(['notify', message]); },
@@ -37,7 +39,7 @@ function context(overrides = {}) {
   };
   const ctx = vm.createContext(Object.assign(base, overrides));
   vm.runInContext(functions,ctx);
-  return {ctx,calls,input};
+  return {ctx,calls,input,boton};
 }
 
 test('la lista recupera el motivo de la última baja sin confundir un alta previa', () => {
@@ -55,6 +57,8 @@ test('rechaza un documento demasiado grande antes de cambiar el estado', async (
   input.files = [{name:'telegrama.pdf',type:'application/pdf',size:3*1024*1024}];
   await ctx.confirmarEstadoEmpleado('e1',false,'Despido','2026-09-20','');
   assert.equal(calls.some(c => c[0] === 'update' || c[0] === 'set'),false);
+  assert.match(calls.filter(c=>c[0]==='notify').map(c=>c[1]).join(' '),/2 MB/);
+  assert.equal(calls.some(c=>c[0]==='close'),false);
 });
 
 test('la baja sin archivo guarda motivo y fecha y cierra el formulario al confirmarse', async () => {
@@ -84,4 +88,18 @@ test('los documentos de RR. HH. tienen una regla de acceso exclusiva de administ
   const adjuntos = rules.rules.sv_rrhh_adjuntos;
   assert.match(adjuntos['.read'], /rol'\)\.val\(\) === 'admin'/);
   assert.match(adjuntos['.write'], /rol'\)\.val\(\) === 'admin'/);
+});
+
+
+test('el estado delegado envía sólo el comando HR y cierra después del ACK sin sustituir historial',async()=>{
+ const {ctx,calls,boton}=context({currentRole:'gestor_custom',svEsAdministradorFinanciero:()=>false}),original={fbKey:'e1',nombre:'Empleada',activo:true,historial:{old:{tipo:'alta',motivo:'HISTORIAL_PRIVADO',pctOriginal:37.125}}},before=JSON.stringify(original);ctx.empData={e1:original};let resolve;
+ ctx.svRevisionVistaLaboral=async path=>{assert.equal(path,'sisventas/empleados/e1');return{revision:'fixture_hr_nonce_001',value:{activo:true,nombre:'Empleada'}};};
+ ctx.window.SVLaborWrites={command:async(resource,body)=>{calls.push(['command',resource,JSON.parse(JSON.stringify(body))]);return new Promise(r=>resolve=r);}};
+ const pending=ctx.confirmarEstadoEmpleado('e1',false,'Renuncia','2026-09-20','Avisó por escrito');for(let i=0;i<4;i++)await Promise.resolve();
+ const command=calls.find(c=>c[0]==='command');assert.deepEqual(command,['command','empleados',{action:'status',employeeId:'e1',expectedRevision:'fixture_hr_nonce_001',activo:false,fecha:'2026-09-20',motivo:'Renuncia',obs:'Avisó por escrito'}]);assert.equal(boton.disabled,true);assert.equal(calls.some(c=>c[0]==='close'),false);assert.equal(calls.some(c=>['set','update'].includes(c[0])),false);assert.doesNotMatch(JSON.stringify(command),/HISTORIAL_PRIVADO|pctOriginal|historial|usuario|ts/);assert.equal(JSON.stringify(original),before);
+ resolve({ok:true,committed:true,employeeId:'e1',action:'status'});await pending;assert.equal(calls.some(c=>c[0]==='close'),true);assert.equal(boton.disabled,false);assert.equal(JSON.stringify(original),before);
+});
+for(const failure of ['stale-state','rejected-command'])test('un fallo HR '+failure+' conserva formulario e historial sin escrituras directas',async()=>{
+ const {ctx,calls,boton}=context({currentRole:'gestor_custom',svEsAdministradorFinanciero:()=>false}),before=JSON.stringify(ctx.empData);ctx.svRevisionVistaLaboral=async()=>({revision:'fixture_hr_nonce_001',value:{activo:failure==='stale-state'?false:true}});ctx.window.SVLaborWrites={command:async()=>{calls.push(['command']);throw Error('Permiso revocado');}};
+ await ctx.confirmarEstadoEmpleado('e1',false,'Renuncia','2026-09-20','');assert.equal(calls.some(c=>c[0]==='close'),false);assert.equal(calls.some(c=>['set','update'].includes(c[0])),false);assert.equal(JSON.stringify(ctx.empData),before);assert.equal(boton.disabled,false);assert.match(calls.filter(c=>c[0]==='notify').map(c=>c[1]).join(' '),failure==='stale-state'?/estado.*cambió/:/Permiso revocado/);assert.equal(calls.filter(c=>c[0]==='command').length,failure==='stale-state'?0:1);
 });

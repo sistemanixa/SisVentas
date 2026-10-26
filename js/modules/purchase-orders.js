@@ -1000,7 +1000,8 @@
     }
     if(!sim||!sim.chosen||!sim.complete)throw new Error('Guardá una simulación completa y elegí envío o viaje antes de confirmar.');
     var p=sim.parameters||{},r=sim.result||{},selected=(sim.rows||[]).filter(function(x){return x.include&&Number(x.qty)>0;}),groups={};
-    function add(row,destination,unit){if(!(Number(row.qty)>0)||!(unit>0)||!row.providerKey)throw new Error('Faltan proveedor registrado, cantidad o precio: '+row.code);var key=safeKey(row.providerKey)+'_'+destination;if(!groups[key])groups[key]={provider:row.provider,providerKey:row.providerKey,destination:destination,items:[]};groups[key].items.push({productoKey:row.productKey||'',codigo:row.code,descripcion:row.description,unidad:'Unidad',cantidadOrdenada:Number(row.qty),cantidadRecibida:0,costoUnitario:unit,costoUnitarioPresupuestado:unit,precioOrigenUSD:Number(row.usd),destino:destination,subtotal:Number(row.qty)*unit});}
+    function sourceLine(row){var value=row.sourceLine;if(typeof value==='string'&&row.sourceListId&&value.startsWith(row.sourceListId+':'))value=value.slice(row.sourceListId.length+1);if(typeof value==='string'&&/^(0|[1-9]\d*)$/.test(value))value=Number(value);return Number.isSafeInteger(value)&&value>=0?value:null;}
+    function add(row,destination,unit){if(!(Number(row.qty)>0)||!(unit>0)||!row.providerKey)throw new Error('Faltan proveedor registrado, cantidad o precio: '+row.code);var key=safeKey(row.providerKey)+'_'+destination;if(!groups[key])groups[key]={provider:row.provider,providerKey:row.providerKey,destination:destination,items:[]};groups[key].items.push({...(sourceLine(row)!==null?{saleItemIndex:sourceLine(row)}:{}),productoKey:row.productKey||'',codigo:row.code,descripcion:row.description,unidad:'Unidad',cantidadOrdenada:Number(row.qty),cantidadRecibida:0,costoUnitario:unit,costoUnitarioPresupuestado:unit,precioOrigenUSD:Number(row.usd),destino:destination,subtotal:Number(row.qty)*unit});}
     selected.forEach(function(row,i){var item=(list.items||[]).find(function(x){return [x.productoKey||x.codigo,x.linea,x.proveedorKey||x.proveedor].join('|')===row.key;});if(!item||Number(row.qty)+Number(row.existing||0)>Number(item.cantidadNecesaria)||!item.incluir)throw new Error('La selección cambió. Reabrí y guardá la simulación antes de confirmar.');var alloc=(sim.chosen==='remote'?r.remoteAllocation:r.onsiteAllocation)||[];add(Object.assign({},row,{productKey:item.productoKey,providerKey:row.providerKey||item.proveedorKey}), 'venta',Number(row.usd)*Number(p.usd)+(Number(alloc[i])||0)/Number(row.qty));});
     (sim.rows||[]).filter(function(row){return !row.include&&Number(row.qty)>0;}).forEach(function(row){var item=(list.items||[]).find(function(x){return [x.productoKey||x.codigo,x.linea,x.proveedorKey||x.proveedor].join('|')===row.key;});if(!item||Number(row.qty)+Number(row.existing||0)>Number(item.cantidadNecesaria))throw new Error('Las cantidades de la venta cambiaron. Reabrí la compra.');add(Object.assign({},row,{productKey:item.productoKey,providerKey:row.providerKey||item.proveedorKey}),'venta',row.providerOverride?Number(row.localUnitARS):Number(row.baselineUnit));});
     var extras=sim.extras||[],goods=extras.reduce(function(a,x){return a+Number(x.qty)*Number(x.usd);},0),extraCost=Number(p.extraLogisticsUSD||0)*Number(p.usd);
@@ -1549,128 +1550,63 @@
     document.getElementById('oc-order-modal').style.display='none';window.notify('Orden actualizada');
   }
 
-  function syncSalePurchaseCosts(order, movements, complete) {
-    if (!order.ventaFbKey || !window.fbDB || typeof window.fbRunTransaction !== 'function') return Promise.resolve();
-    return window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas/ventas/' + order.ventaFbKey), function (sale) {
-      if (!sale) return sale;
-      if(order.receiptOperation){sale.recepcionesAplicadas=sale.recepcionesAplicadas||{};if(sale.recepcionesAplicadas[order.receiptOperation])return sale;sale.recepcionesAplicadas[order.receiptOperation]=Date.now();}
-      var items = Array.isArray(sale.items) ? sale.items : [];
-      movements.forEach(function (movement) {
-        var orderItem = movement.item || {};
-        var code = String(orderItem.codigo || '').trim().toUpperCase();
-        var saleItem = items.find(function (item) {
-          var sameKey = orderItem.productoKey && [item.productoKey, item.productoId, item.pid, item.fbKeyProducto].some(function (key) { return String(key || '') === String(orderItem.productoKey); });
-          return sameKey || (code && String(item.cod || item.codigo || '').trim().toUpperCase() === code);
-        });
-        if (!saleItem) return;
-        var saleQty = Math.max(1, parseFloat(saleItem.qty || saleItem.cantidad) || 1);
-        var budgetUnit = parseFloat(saleItem.costoUnitarioPresupuestado || saleItem.costoUnitarioCompra || saleItem.costoUnitario || saleItem.costoCompra) || parseFloat(orderItem.costoUnitarioPresupuestado || orderItem.costoUnitario) || 0;
-        var priorRealQty = parseFloat(saleItem.cantidadCompraReal) || 0;
-        if (saleItem.costoUnitarioAntesPreparacion == null) {
-          saleItem.costoUnitarioAntesPreparacion = saleItem.costoUnitarioPresupuestado != null
-            ? Number(saleItem.costoUnitarioPresupuestado)
-            : (typeof window.obtenerCostoItemVenta === 'function' ? window.obtenerCostoItemVenta(saleItem) / saleQty : budgetUnit);
-        }
-        var priorRealTotal = parseFloat(saleItem.costoRealCompraAcumulado) || 0;
-        var realQty = Math.min(saleQty, priorRealQty + movement.qty);
-        var acceptedQty = Math.max(0, realQty - priorRealQty);
-        var realTotal = priorRealTotal + acceptedQty * movement.costoUnitarioReal;
-        var effectiveTotal = realTotal + Math.max(0, saleQty - realQty) * budgetUnit;
-        saleItem.costoUnitarioPresupuestado = budgetUnit;
-        saleItem.costoTotalPresupuestado = saleQty * budgetUnit;
-        saleItem.cantidadCompraReal = realQty;
-        saleItem.costoRealCompraAcumulado = realTotal;
-        saleItem.costoTotalCompra = Math.round(effectiveTotal * 100) / 100;
-        saleItem.costoUnitarioCompra = Math.round((effectiveTotal / saleQty) * 100) / 100;
-        saleItem.ultimoCostoCompraReal = movement.costoUnitarioReal;
-        saleItem.proveedorCompraReal = movement.proveedor;
-        saleItem.proveedorCompraRealKey = movement.proveedorKey;
-      });
-      sale.items = items;
-      sale.costoTotal = items.reduce(function (sum, item) {
-        var qty = parseFloat(item.qty || item.cantidad) || 1;
-        return sum + (parseFloat(item.costoTotalCompra) || (parseFloat(item.costoUnitarioCompra) || 0) * qty);
-      }, 0);
-      var base = typeof window._rentIngresoNetoVenta==='function'?Number(window._rentIngresoNetoVenta(sale))||0:parseFloat(sale.subtotal)||parseFloat(sale.total)||0;
-      sale.margenPct = base > 0 ? ((base - sale.costoTotal) / base) * 100 : 0;
-      sale.compraEstado = complete ? 'recibida_parcial_o_total' : 'recepcion_parcial';
-      sale.conciliacionCompraActualizadaEn = Date.now();
-      sale.conciliacionCompraActualizadaPor = window.currentUser || 'Sistema';
-      return sale;
-    });
+  async function purchaseCostCommand(order, action, fields) {
+    if (state.purchaseCostBusy) { window.notify('La compra ya se está procesando'); return null; }
+    if (!order || !order.fbKey || !window.SVLaborWrites?.command || !window.SVLaborWrites?.hash) throw new Error('Recargá la aplicación para confirmar la compra con protección de cambios');
+    var retirada = false, owner = state.activeOrder, page = document.querySelector?.('.page.active'), route = window.location?.href;
+    var contexto = { user:window.fbAuth?.currentUser, uid:window.currentUserUid, role:window.currentRole, epoch:window._svOperacionesSesionEpoch || 0, dataEpoch:window._svDataEpoch || 0 };
+    var actual = function() { return !retirada && document.hidden !== true && owner === state.activeOrder && (!page || page === document.querySelector?.('.page.active')) && (!route || route === window.location?.href) && contexto.user === window.fbAuth?.currentUser && contexto.uid === window.currentUserUid && contexto.role === window.currentRole && contexto.epoch === (window._svOperacionesSesionEpoch || 0) && contexto.dataEpoch === (window._svDataEpoch || 0); };
+    var retirar = function() { retirada = true; }, visibility = function() { if (document.hidden === true) retirar(); };
+    var events = ['sisventas:session-ended','sisventas:role-changed','sisventas:page-changed'];
+    events.forEach(function(name) { document.addEventListener?.(name,retirar); }); document.addEventListener?.('visibilitychange',visibility);
+    var boton = document.activeElement;
+    if (!boton || boton.tagName !== 'BUTTON') boton = null;
+    var texto = boton && boton.innerHTML;
+    state.purchaseCostBusy = true;
+    if (boton) { boton.disabled = true; boton.setAttribute('aria-busy','true'); boton.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Procesando…'; }
+    try {
+      var source = JSON.parse(JSON.stringify(order)); delete source.fbKey;
+      var expectedOrderHash = await window.SVLaborWrites.hash(source);
+      if (!actual()) throw new Error('La sesión cambió. Volvé a abrir la orden.');
+      var result = await window.SVLaborWrites.command('compras', Object.assign({action:action,orderKey:order.fbKey,expectedOrderHash:expectedOrderHash},fields || {}));
+      if (result?.ok !== true || result.committed !== true) throw new Error('No se recibió la confirmación de la compra.');
+      return {ack:result,current:actual};
+    } catch (error) {
+      if (!actual()) return {ack:null,current:actual};
+      throw error;
+    } finally {
+      events.forEach(function(name) { document.removeEventListener?.(name,retirar); }); document.removeEventListener?.('visibilitychange',visibility);
+      state.purchaseCostBusy = false;
+      if (boton) { boton.disabled = false; boton.removeAttribute('aria-busy'); boton.innerHTML = texto; }
+    }
   }
 
-  function saveActiveReconciliation() {
+  function syncSalePurchaseCosts(order, movements) {
+    var fields = order.recepcionPendiente ? {receiptOperation:order.recepcionPendiente.id} : {movements:(movements || []).map(function(m) { return {index:m.index,qty:m.qty,costoUnitarioReal:m.costoUnitarioReal,proveedorKey:m.proveedorKey}; })};
+    return purchaseCostCommand(order,'receipt',fields);
+  }
+
+  async function saveActiveReconciliation() {
     var order = state.activeOrder;
     if (!order || !order.fbKey) return;
-    if(order.recepcionPendiente){finishReceipt(order,[]).catch(function(e){window.notify(e.message);});return;}
+    if (order.recepcionPendiente) { finishReceipt(order,[]).catch(function(e){window.notify(e.message);}); return; }
     var rows = Array.from(document.querySelectorAll('#oc-order-modal-body tr[data-order-index]'));
-    var items = JSON.parse(JSON.stringify(order.items || []));
-    var invalid = false;
-    rows.forEach(function (row) {
-      var index = parseInt(row.dataset.orderIndex, 10);
-      var item = items[index];
+    var changes = [], invalid = false;
+    rows.forEach(function(row) {
+      var index = parseInt(row.dataset.orderIndex,10), item = (order.items || [])[index];
       if (!item || !(parseFloat(item.cantidadRecibida) > 0)) return;
       var provider = row.querySelector('.oc-item-provider');
-      var option = provider && provider.options[provider.selectedIndex];
       var cost = parseFloat((row.querySelector('.oc-real-cost') || {}).value) || 0;
       if (!provider || !provider.value || !(cost > 0)) { invalid = true; return; }
-      var qty = parseFloat(item.cantidadCostoReal || item.cantidadRecibida) || 0;
-      item.proveedorFinalKey = provider.value;
-      item.proveedorFinal = String((option && (option.dataset.name || option.textContent)) || '').trim();
-      item.ultimoCostoReal = cost;
-      item.costoUnitarioReal = cost;
-      item.costoRealAcumulado = Math.round(qty * cost * 100) / 100;
+      changes.push({index:index,proveedorKey:provider.value,costoUnitarioReal:cost});
     });
-    if (invalid) { if (typeof window.notify === 'function') window.notify('Completá proveedor y costo real en todos los materiales recibidos'); return; }
-    var totalReal = items.reduce(function (sum, item) { return sum + (parseFloat(item.costoRealAcumulado) || 0); }, 0);
-    var totalBudget = items.reduce(function (sum, item) { return sum + (parseFloat(item.cantidadCostoReal || item.cantidadRecibida) || 0) * (parseFloat(item.costoUnitarioPresupuestado || item.costoUnitario) || 0); }, 0);
-    var providers = Array.from(new Set(items.map(function (item) { return item.proveedorFinal; }).filter(Boolean)));
-    var providerSummary = providers.length === 1 ? providers[0] : (providers.length > 1 ? 'Varios proveedores' : String(order.proveedor || 'Sin proveedor'));
-    update(PATH_ORDERS + '/' + order.fbKey, {
-      items: items,
-      proveedoresFinales: providers,
-      proveedorFinalResumen: providerSummary,
-      totalRealRecibido: totalReal,
-      totalPresupuestadoRecibido: totalBudget,
-      diferenciaCompra: totalBudget - totalReal,
-      conciliacionEditadaEn: Date.now(),
-      conciliacionEditadaPor: window.currentUser || 'Sistema'
-    }).then(function () {
-      if (!order.ventaFbKey || !window.fbRunTransaction) return null;
-      return window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas/ventas/' + order.ventaFbKey), function (sale) {
-        if (!sale) return sale;
-        (sale.items || []).forEach(function (saleItem) {
-          var code = String(saleItem.cod || saleItem.codigo || '').trim().toUpperCase();
-          var source = items.find(function (item) { return (item.productoKey && [saleItem.productoKey, saleItem.productoId, saleItem.pid, saleItem.fbKeyProducto].some(function (key) { return String(key || '') === String(item.productoKey); })) || (code && code === String(item.codigo || '').trim().toUpperCase()); });
-          if (!source || !(parseFloat(source.cantidadRecibida) > 0)) return;
-          var qty = Math.max(1, parseFloat(saleItem.qty || saleItem.cantidad) || 1);
-          var received = Math.min(qty, parseFloat(source.cantidadCostoReal || source.cantidadRecibida) || 0);
-          var budget = parseFloat(source.costoUnitarioPresupuestado || source.costoUnitario) || 0;
-          var actual = parseFloat(source.costoUnitarioReal || source.ultimoCostoReal) || budget;
-          if (saleItem.costoUnitarioAntesPreparacion == null) saleItem.costoUnitarioAntesPreparacion = Number(saleItem.costoUnitarioPresupuestado ?? budget);
-          saleItem.cantidadCompraReal = received;
-          saleItem.costoRealCompraAcumulado = received * actual;
-          saleItem.costoTotalCompra = received * actual + Math.max(0, qty - received) * budget;
-          saleItem.costoUnitarioCompra = saleItem.costoTotalCompra / qty;
-          saleItem.ultimoCostoCompraReal = actual;
-          saleItem.proveedorCompraReal = source.proveedorFinal || '';
-          saleItem.proveedorCompraRealKey = source.proveedorFinalKey || '';
-        });
-        sale.costoTotal = (sale.items || []).reduce(function (sum, item) { var qty = parseFloat(item.qty || item.cantidad) || 1; return sum + (parseFloat(item.costoTotalCompra) || (parseFloat(item.costoUnitarioCompra) || 0) * qty); }, 0);
-        var base = typeof window._rentIngresoNetoVenta==='function'?Number(window._rentIngresoNetoVenta(sale))||0:parseFloat(sale.subtotal)||parseFloat(sale.total)||0;
-        sale.margenPct = base > 0 ? ((base - sale.costoTotal) / base) * 100 : 0;
-        sale.conciliacionCompraActualizadaEn = Date.now();
-        sale.conciliacionCompraActualizadaPor = window.currentUser || 'Sistema';
-        return sale;
-      });
-    }).then(function () {
-      if (typeof window.notify === 'function') window.notify('Conciliación actualizada');
-      var detail = document.getElementById('oc-order-modal');
-      if (detail) detail.style.display = 'none';
-    }).catch(function (error) {
-      if (typeof window.notify === 'function') window.notify('No se pudo actualizar la conciliación: ' + error.message);
-    });
+    if (invalid || !changes.length) { window.notify('Completá proveedor y costo real en todos los materiales recibidos'); return; }
+    try {
+      var result = await purchaseCostCommand(order,'reconcile',{changes:changes});
+      if (!result || !result.current()) return;
+      window.notify(result.ack.recovered === true ? 'Conciliación confirmada. Volvé a abrir la orden para ver los cambios.' : 'Conciliación actualizada');
+      var detail = document.getElementById('oc-order-modal'); if (detail) detail.style.display = 'none';
+    } catch (error) { window.notify('No se pudo actualizar la conciliación: ' + error.message); }
   }
 
   function printActiveOrder() {
@@ -1723,30 +1659,15 @@
     finishReceipt(order,movements).catch(function(error){if(typeof window.notify==='function')window.notify('Recepción pendiente: '+error.message+'. Reabrí la orden y presioná Registrar recepción para reintentar sin duplicar stock.');});
   }
 
-  async function finishReceipt(order,movements){
-    if(state.receiptBusy)return;state.receiptBusy=true;
-    try{
-      var token='r_'+Date.now()+'_'+Math.random().toString(36).slice(2),expected=(order.recepciones||[]).length;
-      var claim=await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_ORDERS+'/'+order.fbKey),function(current){
-        if(!current||current.generacionPendiente||current.estado==='cancelada')return;
-        if(current.recepcionPendiente)return current;
-        if(current.estado==='recibida'||(current.recepciones||[]).length!==expected||!movements.length)return;
-        if(movements.some(function(m){var item=current.items[m.index];return !item||m.qty>Number(item.cantidadOrdenada||item.cantidad)-Number(item.cantidadRecibida||0);}))return;
-        current.recepcionPendiente={id:token,fecha:today(),ts:Date.now(),usuario:window.currentUser||'Sistema',movements:movements};return current;
-      });
-      if(!claim.committed)throw new Error('La orden cambió o su confirmación está pendiente; actualizá el detalle');
-      var current=claim.snapshot.val(),pending=current.recepcionPendiente;if(!pending)throw new Error('No hay recepción pendiente');
-      var batch=pending.movements,op=pending.id,items=JSON.parse(JSON.stringify(current.items));
-      batch.forEach(function(m){var item=items[m.index],prior=Number(item.cantidadCostoReal||item.cantidadRecibida)||0;item.costoUnitarioPresupuestado=Number(item.costoUnitarioPresupuestado||item.costoUnitario)||0;item.cantidadRecibida=Number(item.cantidadRecibida||0)+m.qty;item.cantidadCostoReal=prior+m.qty;item.costoRealAcumulado=Number(item.costoRealAcumulado||0)+m.qty*m.costoUnitarioReal;item.ultimoCostoReal=m.costoUnitarioReal;item.costoUnitarioReal=item.costoRealAcumulado/item.cantidadCostoReal;item.proveedorFinal=m.proveedor;item.proveedorFinalKey=m.proveedorKey;});
-      var grouped={};batch.forEach(function(m){var key=m.item.productoKey||m.item.codigo;if(!grouped[key])grouped[key]={qty:0,item:m.item};grouped[key].qty+=m.qty;});
-      for(var key of Object.keys(grouped)){var group=grouped[key];await transactionInventory(key,function(inv){inv.operaciones=inv.operaciones||{};if(inv.operaciones[op])return;inv.enCompra=Math.max(0,Number(inv.enCompra||0)-group.qty);inv.codigo=group.item.codigo;inv.descripcion=group.item.descripcion;if(current.ventaId||current.ventaFbKey){inv.reservado=Number(inv.reservado||0)+group.qty;inv.asignaciones=inv.asignaciones||{};var destination=safeKey(current.ventaFbKey||current.ventaId);inv.asignaciones[destination]=inv.asignaciones[destination]||{reservado:0,consumido:0,liberado:0};inv.asignaciones[destination].reservado+=group.qty;inv.asignaciones[destination].ventaId=current.ventaId||'';}else inv.general=Number(inv.general||0)+group.qty;inv.operaciones[op]=pending.ts;});}
-      var complete=items.every(function(item){return Number(item.cantidadRecibida)>=Number(item.cantidadOrdenada||item.cantidad);});
-      if(current.ventaFbKey)await syncSalePurchaseCosts(Object.assign({},current,{fbKey:order.fbKey,receiptOperation:op}),batch,complete);
-      var totalReal=items.reduce(function(a,x){return a+Number(x.costoRealAcumulado||0);},0),budget=items.reduce(function(a,x){return a+Number(x.cantidadCostoReal||0)*Number(x.costoUnitarioPresupuestado||x.costoUnitario||0);},0);
-      await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_ORDERS+'/'+order.fbKey),function(latest){if(!latest||!latest.recepcionPendiente||latest.recepcionPendiente.id!==op)return latest;latest.items=items;latest.proveedorFinalResumen=orderProviderSummary(latest);latest.recepciones=(latest.recepciones||[]).concat([{id:op,fecha:pending.fecha,ts:pending.ts,usuario:pending.usuario,items:batch.map(function(m){return {codigo:m.item.codigo,cantidad:m.qty,proveedor:m.proveedor,proveedorKey:m.proveedorKey,costoUnitarioReal:m.costoUnitarioReal,costoUnitarioPresupuestado:Number(m.item.costoUnitarioPresupuestado||m.item.costoUnitario)||0};})}]);latest.totalRealRecibido=totalReal;latest.totalPresupuestadoRecibido=budget;latest.diferenciaCompra=budget-totalReal;latest.estado=complete?'recibida':'recepcion_parcial';latest.recibidoEn=Date.now();latest.recepcionPendiente=null;return latest;});
-      if(complete&&current.listaMaterialesId){var related=state.orders.filter(function(o){return o.listaMaterialesId===current.listaMaterialesId&&o.estado!=='cancelada';});if(related.length&&related.every(function(o){return o.fbKey===order.fbKey||o.estado==='recibida';})){await update(PATH_LISTS+'/'+current.listaMaterialesId,{estado:'recibida',recibidaEn:Date.now()});}}
-      document.getElementById('oc-order-modal').style.display='none';if(typeof window.notify==='function')window.notify('Recepción registrada. '+(current.ventaId?'Material reservado para la venta.':'Productos ingresados al stock general.'));
-    }finally{state.receiptBusy=false;}
+  async function finishReceipt(order, movements) {
+    if (state.receiptBusy) return;
+    state.receiptBusy = true;
+    try {
+      var result = await syncSalePurchaseCosts(order,movements);
+      if (!result || !result.current()) return;
+      var modal = document.getElementById('oc-order-modal'); if (modal) modal.style.display = 'none';
+      window.notify(result.ack.recovered === true ? 'Recepción confirmada. Volvé a abrir la orden para ver los cambios.' : 'Recepción registrada. ' + (order.ventaId ? 'Material reservado para la venta.' : 'Productos ingresados al stock general.'));
+    } finally { state.receiptBusy = false; }
   }
 
   function openManualOrder() {
@@ -2018,60 +1939,17 @@
   async function deleteActiveOrder() {
     var order = state.activeOrder;
     if (!order || !order.fbKey) return;
-    if(order.recepcionPendiente||String(order.fbKey).startsWith('plan_')){window.notify('Esta compra conserva su trazabilidad. Completá la recepción pendiente o cancelá la orden; no se elimina definitivamente.');return;}
-    var hasReceipts = (order.items || []).some(function (item) { return (parseFloat(item.cantidadRecibida) || 0) > 0; });
-    var warning = hasReceipts
-      ? '¿Eliminar definitivamente ' + (order.numero || 'esta orden') + '? Se revertirán sus materiales recibidos, la reserva y la conciliación de costos de la venta.'
-      : '¿Eliminar definitivamente ' + (order.numero || 'esta orden') + '? Esta acción no elimina la venta ni los productos.';
+    if (order.recepcionPendiente || String(order.fbKey).startsWith('plan_')) { window.notify('Esta compra conserva su trazabilidad. Completá la recepción pendiente o cancelá la orden; no se elimina definitivamente.'); return; }
+    var hasReceipts = (order.items || []).some(function(item) { return (parseFloat(item.cantidadRecibida) || 0) > 0; });
+    var warning = hasReceipts ? '¿Eliminar definitivamente ' + (order.numero || 'esta orden') + '? Se revertirán sus materiales recibidos, la reserva y la conciliación de costos de la venta.' : '¿Eliminar definitivamente ' + (order.numero || 'esta orden') + '? Esta acción no elimina la venta ni los productos.';
     if (!await window.svConfirm(warning)) return;
-    var tasks = [];
-    if (order.estado !== 'cancelada') {
-      (order.items || []).forEach(function (item) {
-        var pending = Math.max(0, (parseFloat(item.cantidadOrdenada || item.cantidad) || 0) - (parseFloat(item.cantidadRecibida) || 0));
-        var received = parseFloat(item.cantidadRecibida) || 0;
-        if (pending || received) tasks.push(transactionInventory(item.productoKey || item.codigo, function (inv) {
-          if (pending) inv.enCompra = Math.max(0, (parseFloat(inv.enCompra) || 0) - pending);
-          if (received && (order.ventaId || order.ventaFbKey)) {
-            inv.reservado = Math.max(0, (parseFloat(inv.reservado) || 0) - received);
-            var allocationKey = safeKey(order.ventaFbKey || order.ventaId);
-            if (inv.asignaciones && inv.asignaciones[allocationKey]) inv.asignaciones[allocationKey].reservado = Math.max(0, (parseFloat(inv.asignaciones[allocationKey].reservado) || 0) - received);
-          } else if (received) inv.general = Math.max(0, (parseFloat(inv.general) || 0) - received);
-        }));
-      });
-    }
-    if (hasReceipts && order.ventaFbKey && window.fbRunTransaction) {
-      tasks.push(window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas/ventas/' + order.ventaFbKey), function (sale) {
-        if (!sale) return sale;
-        (sale.items || []).forEach(function (saleItem) {
-          var code = String(saleItem.cod || saleItem.codigo || '').trim().toUpperCase();
-          var source = (order.items || []).find(function (item) { return (item.productoKey && [saleItem.productoKey, saleItem.productoId, saleItem.pid, saleItem.fbKeyProducto].some(function (key) { return String(key || '') === String(item.productoKey); })) || (code && code === String(item.codigo || '').trim().toUpperCase()); });
-          if (!source) return;
-          var qty = Math.max(1, parseFloat(saleItem.qty || saleItem.cantidad) || 1);
-          var budget = parseFloat(source.costoUnitarioPresupuestado || source.costoUnitario) || 0;
-          saleItem.cantidadCompraReal = 0;
-          saleItem.costoRealCompraAcumulado = 0;
-          saleItem.costoTotalCompra = qty * budget;
-          saleItem.costoUnitarioCompra = budget;
-          delete saleItem.ultimoCostoCompraReal;
-          delete saleItem.proveedorCompraReal;
-          delete saleItem.proveedorCompraRealKey;
-        });
-        sale.costoTotal = (sale.items || []).reduce(function (sum, item) { var qty = parseFloat(item.qty || item.cantidad) || 1; return sum + (parseFloat(item.costoTotalCompra) || (parseFloat(item.costoUnitarioCompra) || 0) * qty); }, 0);
-        var base = typeof window._rentIngresoNetoVenta==='function'?Number(window._rentIngresoNetoVenta(sale))||0:parseFloat(sale.subtotal)||parseFloat(sale.total)||0;
-        sale.margenPct = base > 0 ? ((base - sale.costoTotal) / base) * 100 : 0;
-        return sale;
-      }));
-    }
-    Promise.all(tasks).then(function () { return unlinkDeletedOrder(order); }).then(function () {
-      return remove(PATH_ORDERS + '/' + order.fbKey);
-    }).then(function () {
+    try {
+      var result = await purchaseCostCommand(order,'revert');
+      if (!result || !result.current()) return;
       state.activeOrder = null;
-      var modal = document.getElementById('oc-order-modal');
-      if (modal) modal.style.display = 'none';
-      if (typeof window.notify === 'function') window.notify('Orden de compra eliminada');
-    }).catch(function (error) {
-      if (typeof window.notify === 'function') window.notify('No se pudo eliminar la orden: ' + error.message);
-    });
+      var modal = document.getElementById('oc-order-modal'); if (modal) modal.style.display = 'none';
+      window.notify(result.ack.recovered === true ? 'Eliminación confirmada. Actualizá la lista de órdenes.' : 'Orden de compra eliminada');
+    } catch (error) { window.notify('No se pudo eliminar la orden: ' + error.message); }
   }
 
   async function migrateLegacy() {

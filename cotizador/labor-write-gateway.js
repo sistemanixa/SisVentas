@@ -4,8 +4,9 @@ const {flatten}=require('./labor-db');
 const ExpenseRemoval=require('./expense-removal-policy');
 const BonusBatch=require('./labor-bonus-batch');
 const SACBatch=require('./labor-sac-batch');
+const ViewWrites=require('./labor-view-writes'),CommercialViews=require('./commercial-view-protocol');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
-const forbidden=path=>/^(sv_labor_[^/]*|sv_commission_generation|sv_commission_events)(\/|$)/.test(path);
+const forbidden=path=>[CommercialViews.ROOT,CommercialViews.PRIVATE_ROOT].includes(path.split('/')[0])||ViewWrites.reserved(path)||/^(sv_labor_[^/]*|sv_commission_generation|sv_commission_events)(\/|$)/.test(path);
 const normalizationFields={ventas:['clienteFbKey','clienteKey','clienteId'],presupuestos:['clienteFbKey','clienteKey','ventaFbKey','ventaGeneradaFbKey'],pagos:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],ordenesTrabajo:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],ordenes_trabajo:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],reclamos:['clienteFbKey','clienteKey'],productos:['categoriaFbKey','categoriaKey']};
 function normalizationTarget(path,value){const p=parts(path);return p[0]==='sisventas'&&p.length===4&&normalizationFields[p[1]]?.includes(p[3])&&(typeof value==='string'&&!!value.trim()||typeof value==='number'&&Number.isFinite(value))||p.length===4&&p[0]==='sisventas'&&p[1]==='mantenimiento'&&p[2]==='normalizaciones'&&value&&typeof value==='object'&&!Array.isArray(value);}
 function normalizationSource(path){const p=parts(path);return p[0]==='sisventas'&&p.length===3&&[...Object.keys(normalizationFields),'clientes','clientes_unificados','clientes_unificados_indice','categorias'].includes(p[1])||p.length===4&&p[0]==='sisventas'&&p[1]==='mantenimiento'&&p[2]==='normalizaciones';}
@@ -28,6 +29,8 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
   return {uid:identity.uid,claims:identity};
  }
  async function write(actor,body){
+  if(body?.kind==='commercial-atomic')return require('./commercial-atomic').write({actor,body,guard,store,db});
+  if(ViewWrites.VIEW_KINDS.has(body?.kind))return ViewWrites.write({actor,body,guard});
   if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['id','kind','path','value','expectedHash','expectedHashes','purpose'].includes(k))||!/^[A-Za-z0-9_-]{8,160}$/.test(body.id)||!['set','patch','compare','atomic'].includes(body.kind)||typeof body.path!=='string')throw fail(400,'Solicitud de guardado inválida');
   if(!actor?.uid||!actor.claims||actor.claims.uid!==actor.uid)throw fail(403,'Sesión requerida');
   if(Buffer.byteLength(JSON.stringify(body))>16*1024*1024)throw fail(413,'El guardado supera el tamaño permitido');
@@ -60,6 +63,7 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
   async function sacAccess(read){const profile=await read('sv_chat_roles/'+actor.uid),role=profile?.rol,module=sacMigration?'configuracion':'empleados',group=sacMigration?'mantenimiento':'empleados',action=sacMigration?'migrar':'registrarHaberes';if(profile?.activo!==true||!['admin','administrativo','vendedor','tecnico_vendedor','tecnico'].includes(role)||sacMigration&&role!=='admin')throw fail(403,'Usuario sin acceso para esta operación de SAC');const cfg=await read('sv_permisos/'+role),override=cfg?.acciones?.[group]?.[action];if(cfg&&(cfg.indiceVersion!==2||cfg.indiceModulos?.[module]!==true||Object.values(cfg.bloqueados||{}).includes(module))||(typeof override==='boolean'?!override:role!=='admin'))throw fail(403,sacMigration?'No tenés permiso para migrar el SAC histórico':'No tenés permiso para registrar haberes');return {role,permissionRevision:cfg?.indiceRevision??null,permissionDigest:digest(cfg||{})};}
   const initialRead=async path=>(await db.ref(path).get()).val(),normalizationContext=normalization?await normalizationAccess(initialRead):null,removalContext=removal?await removalAccess(initialRead):null,bonusContext=bonus?await bonusAccess(initialRead):null,sacContext=sac||sacMigration?await sacAccess(initialRead):null;
   const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',...(normalization?{...normalizationContext,financialAction:'mantenimiento.normalizar'}:{}),...(removal?{...removalContext,financialAction:'gastos.eliminar'}:{}),...(bonus?{...bonusContext,financialAction:'empleados.bonificar'}:{}),...(sac||sacMigration?{...sacContext,financialAction:sacMigration?'mantenimiento.migrar':'empleados.registrarHaberes'}:{}),opId:body.id,transportDigest:digest(body),operation:'legacy-'+body.kind,input:body},async scope=>{
+   if(Object.keys(patch).some(path=>/^sisventas\/(ventas|presupuestos)(?:\/|$)/.test(path))&&CommercialViews.active(await scope.get('sv_labor_config'))){const profile=await scope.get('sv_chat_roles/'+actor.uid),cfg=await scope.get('sv_permisos/'+profile?.rol);if(!require('./employee-directory').financialConfigAccess({uid:actor.uid,role:profile?.rol,permissions:cfg,viewAs:false}))throw fail(409,'Actualizá la aplicación para guardar la ficha con su versión protegida.','SV_COMMERCIAL_COMMAND_REQUIRED');}
    if(normalization&&digest(await normalizationAccess(path=>scope.get(path)))!==digest(normalizationContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
    if(removal&&digest(await removalAccess(path=>scope.get(path)))!==digest(removalContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
    if(bonus&&digest(await bonusAccess(path=>scope.get(path)))!==digest(bonusContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
@@ -75,6 +79,7 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
     const current=await scope.get(path);
     if(current!==null&&current!==''&&current!==value)throw fail(409,'Una referencia ya cambió. Revisá el plan antes de aplicar.','SV_CAS_CONFLICT');
    }
+   await ViewWrites.checkLegacy(scope,actor,patch);
    await scope.update(patch);
    return {ok:true,committed:true};
   });

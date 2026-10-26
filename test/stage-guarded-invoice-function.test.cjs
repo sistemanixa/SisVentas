@@ -105,6 +105,11 @@ test('los módulos reales actuales de función y labor forman un paquete autóno
  const root=path.resolve(__dirname,'..'),extra={};
  for(const name of fs.readdirSync(path.join(root,functionRoot)))if(/\.(js|cjs|json)$/.test(name))extra[functionRoot+'/'+name]=fs.readFileSync(path.join(root,functionRoot,name));
  for(const name of ['labor-guard.js','labor-rtdb-store.js','labor-index.js','labor-commission-limit.js','labor-bonus-batch.js','bonus-quantity-model.js','labor-sac-batch.js','payroll-legacy-sac-model.js','labor-advance-discount.js','personal-expenses.js','commission-calculations.js','payment-membership-index.js','payment-membership-matcher.js','expense-removal-guard.js','expense-removal-policy.js','commercial-ownership.js','domain-read-policy.js'])extra['cotizador/'+name]=fs.readFileSync(path.join(root,'cotizador',name));
+ // Supply the real transitive closure to the isolated Git fixture. The staging
+ // scanner must still discover it and reject missing/undeclared dependencies.
+ const pending=['labor-guard.js','labor-rtdb-store.js'],visited=new Set();
+ while(pending.length){const name=pending.pop();if(visited.has(name))continue;visited.add(name);const location=path.join(root,'cotizador',name),bytes=fs.readFileSync(location);extra['cotizador/'+name]=bytes;for(const specifier of requires(bytes.toString('utf8'),'cotizador/'+name))if(specifier.startsWith('./')){const relative=path.posix.normalize(path.posix.join(path.posix.dirname(name),specifier)),candidate=path.extname(relative)?relative:relative+'.js';assert.ok(!candidate.startsWith('../'));pending.push(candidate);}}
+
  const f=fixture(t,extra),result=stage({...f.options(),apply:true});
  for(const name of ['labor-guard.js','labor-rtdb-store.js','labor-index.js','labor-commission-limit.js','labor-bonus-batch.js','bonus-quantity-model.js','labor-sac-batch.js','payroll-legacy-sac-model.js','labor-advance-discount.js','personal-expenses.js','commission-calculations.js','payment-membership-index.js','payment-membership-matcher.js','expense-removal-guard.js','expense-removal-policy.js','commercial-ownership.js','domain-read-policy.js'])assert.ok(result.manifest.files.some(file=>file.path==='vendor/labor/'+name));
  assert.deepEqual(Object.keys(result.manifest.externalPackages),['firebase-admin','firebase-functions']);

@@ -21,9 +21,9 @@ function moduleAllowed(r,m,permissions){
 }
 function eligible(r,domain,permissions){return (domain==='ventas'?['venta','detalle']:['presupuesto']).some(m=>moduleAllowed(r,m,permissions));}
 function validateCommercialActor(actor,profile,permissions){
- if(actor?.mode!=='user'||actor.commercialContext!==true||actor.domain!=='ventas'||!actor.uid||actor.claims?.uid!==actor.uid||actor.claims?.svPasswordChangeRequired===true||profile?.activo!==true||profile.rol!==actor.role||!roles.includes(actor.role))throw Object.assign(fail(403,'La sesión comercial cambió. Volvé a ingresar.'),{code:'SV_LABOR_AUTH_CHANGED'});
+ if(actor?.mode!=='user'||actor.commercialContext!==true||!['ventas','presupuestos'].includes(actor.domain)||!actor.uid||actor.claims?.uid!==actor.uid||actor.claims?.svPasswordChangeRequired===true||profile?.activo!==true||profile.rol!==actor.role||!roles.includes(actor.role))throw Object.assign(fail(403,'La sesión comercial cambió. Volvé a ingresar.'),{code:'SV_LABOR_AUTH_CHANGED'});
  if((permissions?.indiceRevision??null)!==(actor.permissionRevision??null)||require('./labor-guard').digest(permissions||{})!==actor.permissionDigest)throw Object.assign(fail(409,'Los permisos cambiaron. Volvé a revisar la operación.'),{code:'SV_LABOR_AUTH_CHANGED'});
- if(!moduleAllowed(actor.role,'venta',{[actor.role]:permissions})||actor.operation==='commercial-assign'&&actor.role!=='admin')throw fail(403,'El módulo de ventas ya no está habilitado para esta operación');
+ if(!moduleAllowed(actor.role,actor.domain==='ventas'?'venta':'presupuesto',{[actor.role]:permissions})||actor.operation==='commercial-assign'&&actor.role!=='admin')throw fail(403,'El módulo de ventas ya no está habilitado para esta operación');
 }
 function profiles(users,identities){
  const counts={};for(const u of Object.values(users||{}))if(key(u.uid))counts[u.uid]=(counts[u.uid]||0)+1;
@@ -54,9 +54,10 @@ function historicalConversionAudit(record,budgets){
  const event=events[0],author=originalAuthor(record,'ventas',budgets);
  return {tipo:'conversion_presupuesto_venta',fecha:event.fecha,usuario:event.usuario,accion:'Conversión histórica de '+(source.id||'presupuesto de origen')+' a '+(record.id||'venta')+' · Creador original: '+author.name+' · Según auditoría del presupuesto',referenciaHistorica:true};
 }
-function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectionReader}){
+function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectionReader,commercialProtocol=false,publicTransport}){
  // Instantánea privada, de un solo uso dentro de la petición que autorizó al actor.
  // No es una caché entre consultas: cada authorize vuelve a verificar Auth y roles.
+ if(commercialProtocol===true&&(!publicTransport?.projectRecord||!publicTransport?.list))throw TypeError('Falta la proyección comercial protegida');
  const requestContexts=new WeakMap();
  const read=async p=>(await db.ref(p).get()).val();
  const readCollection=(p,conditional)=>conditional&&collectionReader&&typeof collectionReader.read==='function'&&['sisventas/ventas','sisventas/presupuestos'].includes(p)
@@ -72,6 +73,7 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   const token=String(req.headers.authorization||'').match(/^Bearer\s+(\S+)$/i);if(!token)throw fail(401,'Sesión requerida');
   let u;try{u=await auth.verifyIdToken(token[1],true);}catch(_){throw fail(401,'Sesión inválida');}
   if(!enabled)throw fail(503,'La privacidad comercial todavía no está habilitada');
+  if(commercialProtocol===true&&!require('./commercial-view-protocol').active(await read('sv_labor_config')))throw Object.assign(fail(503,'El circuito comercial protegido todavía no está habilitado'),{code:'SV_COMMERCIAL_PROTOCOL_OFF'});
   const c=await context(),own=c.identities[u.uid];if(!key(u.uid)||own?.activo!==true||!roles.includes(own.rol))throw fail(403,'Acceso inactivo');
   if(viewUid&&viewUid!==u.uid){if(own.rol!=='admin'||!key(viewUid))throw fail(403,'Contexto no autorizado');}
   const uid=viewUid||u.uid,identity=c.identities[uid],person=c.people.find(p=>p.uid===uid);
@@ -105,7 +107,7 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   return {c,records:records||{},budgets};
  }
  function recordOwner(r,domain,c,budgets){if(Object.hasOwn(r,'responsableUid'))return owner(r,domain,c.people);const sourceKey=domain==='ventas'?linkedBudgetKey(r.presupuestoFbKey):null,source=sourceKey?budgets?.[sourceKey]:null;return owner(source||r,source?'presupuestos':domain,c.people);}
- async function list(actor){const authorizedContext=requestContexts.get(actor);requestContexts.delete(actor);const {c,records,budgets}=await recordsContext(actor.domain,authorizedContext,true);const result={};for(const [id,r]of Object.entries(records)){const uid=recordOwner(r,actor.domain,c,budgets);if(actor.role==='admin'||uid===actor.uid){result[id]={...r,_svOwnerUid:uid||'',_svOriginalAuthor:originalAuthor(r,actor.domain,budgets)};const event=actor.domain==='ventas'?historicalConversionAudit(r,budgets):null;if(event)result[id]._svConversionAudit=event;}}return {records:result};}
+ async function list(actor){const authorizedContext=requestContexts.get(actor);requestContexts.delete(actor);const {c,records,budgets}=await recordsContext(actor.domain,authorizedContext,true);const result={};for(const [id,r]of Object.entries(records)){const uid=recordOwner(r,actor.domain,c,budgets);if(actor.role==='admin'||uid===actor.uid){result[id]={...r,_svOwnerUid:uid||'',_svOriginalAuthor:originalAuthor(r,actor.domain,budgets)};const event=actor.domain==='ventas'?historicalConversionAudit(r,budgets):null;if(event)result[id]._svConversionAudit=event;}}return {records:commercialProtocol===true?await publicTransport.list(actor,actor.domain,result):result};}
  async function options(actor){if(actor.role!=='admin'||actor.viewing)throw fail(403,'Solo el administrador puede reasignar');const c=await context();return {users:c.people.filter(p=>eligible(p.role,actor.domain,c.permissions)).map(p=>({uid:p.uid,nombre:p.name,rol:p.role})).sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))};}
  async function mutate(actor,body,assign){
   // Preparar consume una sola vez la instantánea de esta misma petición,
@@ -157,7 +159,7 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
    },undefined,false);
    if(missingSource){if(attempt===2)throw fail(409,'Cambió el presupuesto de origen. Actualizá el registro');Object.assign(budgets,await linkedBudgets([{presupuestoFbKey:missingSource}]));continue;}
    if(missingAuthor){if(attempt===2)throw fail(409,'Cambió la autoría original. Actualizá el registro');authorDirectory.set(missingAuthor,await read('sv_chat_directorio/'+missingAuthor));continue;}
-   if(error)throw error;if(!result.committed)throw fail(409,'No se pudo confirmar. Actualizá el registro');return {record:result.snapshot.val(),...(authorReview?{warnings:[{code:'SV_COMMERCIAL_AUTHOR_REVIEW',mensaje:'Se conservó la autoría histórica sin agregar una identidad que no coincide con el directorio.'}]}:{})};
+   if(error)throw error;if(!result.committed)throw fail(409,'No se pudo confirmar. Actualizá el registro');return {record:commercialProtocol===true?await publicTransport.projectRecord(actor,actor.domain,body.id,result.snapshot.val(),{issue:true}):result.snapshot.val(),...(authorReview?{warnings:[{code:'SV_COMMERCIAL_AUTHOR_REVIEW',mensaje:'Se conservó la autoría histórica sin agregar una identidad que no coincide con el directorio.'}]}:{})};
    }
   }finally{if(listener)ref.off('value',listener);}
  }
@@ -194,6 +196,7 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   if(error)throw error;
   return result;
  }
- return {authorize,list,options,assign:(a,b)=>mutate(a,b,true),prepare:(a,b)=>mutate(a,b,false),visibleRecords,assertRecord,visibleRecordsByIds};
+ async function detail(actor,id){if(commercialProtocol!==true)throw fail(503,'El detalle comercial protegido todavía no está habilitado');const raw=await assertRecord(actor,actor.domain,id);return {record:await publicTransport.projectRecord(actor,actor.domain,id,raw)};}
+ return {authorize,list,detail,options,assign:(a,b)=>mutate(a,b,true),prepare:(a,b)=>mutate(a,b,false),visibleRecords,assertRecord,visibleRecordsByIds};
 }
 module.exports={createCommercialOwnership,moduleAllowed,eligible,profiles,owner,originalAuthor,validateCommercialActor};

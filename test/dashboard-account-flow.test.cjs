@@ -137,7 +137,7 @@ test('Gastos projection requires its complete own source, never mixes another em
  f.c._ctaEmpGastosSnapshot={origin:{employeeId:'e'},valid:()=>true,data:f.c.gastosData};f.c.svRepintarCuentaDashboard();assert.equal(f.elements.get('dash-mc-total').textContent,'$0,00');assert.equal(f.requests.length,1);
 });
 test('real applyRole followed by synchronous role notification shares a valid pending/ready source',async()=>{
- const f=fixture();f.document.querySelectorAll=()=>[];f.c.svActualizarMasUsados=()=>{};f.c.rolActualNormalizado=()=>f.c.currentRole;f.c.SisVentas={Access:{emit:(name,detail)=>f.emit('sisventas:'+name,detail)}};vm.runInContext(extract(source,'applyRole'),f.c);
+ const f=fixture();f.document.querySelectorAll=()=>[];f.c.svActualizarMasUsados=()=>{};f.c.rolActualNormalizado=()=>f.c.currentRole;f.c.SisVentas={Access:{emit:(name,detail)=>f.emit('sisventas:'+name,detail)}};vm.runInContext(extract(source,'svEsAdministradorFinanciero'),f.c);vm.runInContext(extract(source,'applyRole'),f.c);
  f.c.applyRole();assert.equal(f.requests.length,1);assert.equal(f.requests[0].stops,0);await f.deliver({});for(let i=0;i<3;i++)f.c.applyRole();assert.equal(f.requests.length,1);assert.equal(f.requests[0].stops,0);assert.equal(f.c._dashAvisosCTA.status,'ready');
  f.c.PERMISOS_ROLES.tecnico.indiceRevision++;f.c.applyRole();assert.equal(f.requests.length,2);assert.equal(f.requests[0].stops,1);assert.equal((await f.deliver({late:999},0)).calls,0);await f.deliver({},1);assert.equal(f.c._dashAvisosCTA.status,'ready');
 });

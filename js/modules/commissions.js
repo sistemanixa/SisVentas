@@ -32,14 +32,14 @@
   var ultimaListaPersonal=null,ultimoDetallePersonal=null;
   function estadoDatosComisionesPersonales(){
     var own=window.svEmpleadoPropio&&window.svEmpleadoPropio(),role=window.currentRole,view=window._impersonacionOriginal;
-    return {ready:window._gastosDataReady,error:window._gastosCargaError,origin:window._ctaEmpGastosOrigen,sourceReady:fuenteComisionesLista(),management:gestionDelegadaComisiones(),approval:!!(window.tienePermiso&&window.tienePermiso('comisiones.aprobar')),payment:!!(window.tienePermiso&&window.tienePermiso('gastos.pagar')),auth:window.fbAuth&&window.fbAuth.currentUser,authUid:window.fbAuth&&window.fbAuth.currentUser&&window.fbAuth.currentUser.uid,uid:window.currentUserUid,role:role,view:view,profile:view&&view.usuarioFbKey,employeeId:String(own&&(own.fbKey||own.id)||''),revision:window.PERMISOS_ROLES&&window.PERMISOS_ROLES[role]&&window.PERMISOS_ROLES[role].indiceRevision,permissions:JSON.stringify(window.PERMISOS_ROLES&&window.PERMISOS_ROLES[role]||null),epoch:window._svOperacionesSesionEpoch||0,dataEpoch:window._svDataEpoch||0,data:window.gastosData};
+    return {ready:window._gastosDataReady,error:window._gastosCargaError,origin:window._ctaEmpGastosOrigen,sourceReady:fuenteComisionesLista(),management:gestionDelegadaComisiones(),approval:!!(window.tienePermiso&&window.tienePermiso('comisiones.aprobar')),payment:!!(window.tienePermiso&&window.tienePermiso('gastos.administrar')),auth:window.fbAuth&&window.fbAuth.currentUser,authUid:window.fbAuth&&window.fbAuth.currentUser&&window.fbAuth.currentUser.uid,uid:window.currentUserUid,role:role,view:view,profile:view&&view.usuarioFbKey,employeeId:String(own&&(own.fbKey||own.id)||''),revision:window.PERMISOS_ROLES&&window.PERMISOS_ROLES[role]&&window.PERMISOS_ROLES[role].indiceRevision,permissions:JSON.stringify(window.PERMISOS_ROLES&&window.PERMISOS_ROLES[role]||null),epoch:window._svOperacionesSesionEpoch||0,dataEpoch:window._svDataEpoch||0,data:window.gastosData};
   }
   function mismosDatosComisionesPersonales(first,second){return !!first&&Object.keys(second).every(function(key){return first[key]===second[key];});}
   function gestionDelegadaComisiones(){
     var role=String(window.currentRole||'').trim(),config=window.PERMISOS_ROLES&&window.PERMISOS_ROLES[role],known=['admin','administrativo','vendedor','tecnico','tecnico_vendedor'].indexOf(role)>=0||!!(config&&typeof config==='object'&&!Array.isArray(config));
     if(!role||!known||typeof window.tienePermiso!=='function'||typeof window.permisoModulo!=='function')return false;
     var page=typeof document.querySelector==='function'&&document.querySelector('.page.active'),name=page&&String(page.id||'').replace(/^page-/,'');if(['gastos','comisiones','ctaemp'].indexOf(name)<0)name='comisiones';
-    return window.permisoModulo(name)&&(window.tienePermiso('comisiones.aprobar')||window.tienePermiso('gastos.pagar'));
+    return window.permisoModulo(name)&&(window.tienePermiso('comisiones.aprobar')||window.tienePermiso('gastos.administrar'));
   }
   function fuenteComisionesLista(){var origin=window._ctaEmpGastosOrigen;return window._gastosDataReady!==false&&!window._gastosCargaError&&(!origin||typeof origin.valid==='function'&&origin.valid());}
   function itemsDetalleSeguro(items){if(!fuenteComisionesLista())return [];return gestionDelegadaComisiones()?items.filter(esComision):ownCommissionItems(items);}
@@ -50,11 +50,11 @@
       if(state==='pendiente_aprobacion'||state==='pendiente_pago')buttons.push('<button class="btn btn-sm" onclick="rechazarComisionGestion(\''+key+'\')">'+(state==='pendiente_pago'?'Revertir aprobación':'Rechazar')+'</button>');
       if(state==='rechazado')buttons.push('<button class="btn btn-sm" onclick="rehabilitarComision(\''+key+'\')">Rehabilitar</button>');
     }
-    if(window.tienePermiso('gastos.pagar')&&['pendiente_pago','pagado_parcial','aprobado'].indexOf(state)>=0&&typeof window.abrirPagoGasto==='function')buttons.push('<button class="btn btn-sm" onclick="abonarComisionGestion(\''+key+'\')">Abonar</button>');
+    if(window.tienePermiso('gastos.administrar')&&['pendiente_pago','pagado_parcial','aprobado'].indexOf(state)>=0&&typeof window.abrirPagoGasto==='function')buttons.push('<button class="btn btn-sm" onclick="abonarComisionGestion(\''+key+'\')">Abonar</button>');
     return buttons.join(' ');
   }
   function abonarComisionGestion(key){
-    if(!gestionDelegadaComisiones()||!window.tienePermiso('gastos.pagar')||typeof window.abrirPagoGasto!=='function')return;
+    if(!gestionDelegadaComisiones()||!window.tienePermiso('gastos.administrar')||typeof window.abrirPagoGasto!=='function')return;
     var g=(window.gastosData||[]).find(function(item){return item.fbKey===key;});if(!g||!esComision(g)||['pendiente_pago','pagado_parcial','aprobado'].indexOf(estado(g))<0)return;
     cerrarDetalleComision();return window.abrirPagoGasto(key);
   }
@@ -484,6 +484,7 @@
     var g=(window.gastosData||[]).find(function(x){return x.fbKey===gastoKey;}); if(!g)return;
     try{
       if(typeof window.SVLaborWrites?.atomic!=='function')throw new Error('Recargá la aplicación antes de guardar');
+      if(typeof window.svEsAdministradorFinanciero==='function'&&!window.svEsAdministradorFinanciero()){await window.svComandoGastos('rehabilitate',[{key:gastoKey,vista:g}],{});window.notify('✓ Comisión rehabilitada y pendiente de aprobación');if(window.fbCargarGastos)window.fbCargarGastos();cerrarDetalleComision();return;}
       var mov=movimientosDetalle[gastoKey]||await cargarMovimiento(g),gastoPath='sisventas/gastos/'+gastoKey;
       var movPath=mov&&mov.empFbKey&&mov.movFbKey?'sisventas/ctaemp/'+mov.empFbKey+'/'+mov.movFbKey:'',paths=[gastoPath];if(movPath)paths.push(movPath);
       await window.SVLaborWrites.atomic({paths:paths,build:function(values){
