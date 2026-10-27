@@ -39,11 +39,11 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
   if(!actor||typeof actor.uid!=='string'||!actor.uid||!['command','user','server','bootstrap'].includes(actor.mode))throw failure(403,'Operación no autorizada');
   if(readOnly&&!(actor.mode==='user'&&actor.operation==='resolve'))throw failure(503,'Los guardados están temporalmente en revisión. No se modificaron datos.','SV_LABOR_READ_ONLY');
   const opId=actor.opId||uuid();if(!/^[A-Za-z0-9_-]{8,160}$/.test(opId))throw failure(400,'Identificador de operación inválido');
-  const requestDigest=actor.mode==='user'&&actor.transportDigest!==undefined?actor.transportDigest:digest({uid:actor.uid,mode:actor.mode,operation:actor.operation||'',input:actor.input??null});
+  const requestDigest=(actor.mode==='user'||actor.mode==='command'&&actor.recoverReceipt===true)&&actor.transportDigest!==undefined?actor.transportDigest:digest({uid:actor.uid,mode:actor.mode,operation:actor.operation||'',input:actor.input??null});
   if(!/^[a-f0-9]{64}$/.test(requestDigest))throw failure(400,'Identificador de comprobación inválido');
   // Sólo el transporte de una escritura idéntica puede recuperar su recibo.
   // Los comandos financieros vuelven a ejecutar sus validaciones actuales.
-  if(actor.mode==='user'&&actor.opId){const receipt=await store.read('sv_labor_receipts/'+opId);if(receipt){if(receipt.actorUid!==actor.uid||receipt.digest!==requestDigest)throw failure(409,'El identificador corresponde a otra operación');return copy(receipt.result);}}
+  if((actor.mode==='user'||actor.mode==='command'&&actor.recoverReceipt===true)&&actor.opId){const receipt=await store.read('sv_labor_receipts/'+opId);if(receipt){if(receipt.actorUid!==actor.uid||receipt.digest!==requestDigest)throw failure(409,'El identificador corresponde a otra operación');return copy(receipt.result);}}
   const lease={fence:uuid(),opId,digest:requestDigest,expiresAt:now()+leaseMs,actorUid:actor.uid,mode:actor.mode};
   for(let attempt=0;;attempt++){lease.expiresAt=now()+leaseMs;try{await store.acquire(lease);break;}catch(error){if(error.statusCode!==423||attempt>=4)throw error;await delay(100*2**attempt);}}
   const staged=new Map(),reads=new Map(),authReads=new Map(),authorizedSnapshots=new Map(),readTree={children:new Map(),path:null};let completed=false,phase='working';
@@ -92,7 +92,8 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
    for(const [path,value]of entries){jsonValue(value,parts(path).length);const branch=path.split('/')[0];if(['sv_labor_guard','sv_labor_receipts','sv_labor_indexes','sv_labor_config'].includes(branch)&&!(actor.mode==='bootstrap'&&['sv_labor_indexes','sv_labor_config'].includes(branch)))throw failure(400,'La coordinación no se modifica desde los datos');}
    for(const [path,value]of entries){let merged=false;for(const [parent,old]of staged){if(path===parent||parent.startsWith(path+'/'))staged.delete(parent);else if(path.startsWith(parent+'/')){staged.set(parent,put(old,parts(path.slice(parent.length+1)),value));merged=true;break;}}if(!merged)staged.set(path,copy(value));}
   }
-  const scope={assertActive:working,get:async path=>{working();const value=await get(path);working();return value;},getAsUser,update,lease:Object.freeze({...lease}),actor:Object.freeze({...actor}),query:async(path,field,value)=>{
+  const finalChecks=[];
+  const scope={beforeCommit:fn=>{working();if(typeof fn!=='function')throw failure(400,'Verificación inválida');finalChecks.push(fn);},assertActive:working,get:async path=>{working();const value=await get(path);working();return value;},getAsUser,update,lease:Object.freeze({...lease}),actor:Object.freeze({...actor}),query:async(path,field,value)=>{
    parts(path);parts(field);working();const rows=await store.query(path,field,value),candidate=Object.assign(Object.create(null),copy(rows)||{});
    for(const [p,v]of staged){if(p===path){for(const k of Object.keys(candidate))delete candidate[k];Object.assign(candidate,copy(v)||{});}else if(p.startsWith(path+'/')){const relative=parts(p.slice(path.length+1)),id=relative.shift();const before=Object.hasOwn(candidate,id)?candidate[id]:await raw(path+'/'+id);const next=put(before,relative,v);if(next==null)delete candidate[id];else candidate[id]=next;}}
    working();return Object.fromEntries(Object.entries(candidate).filter(([,r])=>canonical(child(r,parts(field)))===canonical(value)));
@@ -155,6 +156,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
      if(failed)throw failed.reason;validateFinancialContext(actor,checked[0].value,checked[1].value);
     }
     if(revalidateAdvancePeriod)await revalidateAdvancePeriod();
+    for(const check of finalChecks){live();await check({readFresh:path=>store.read(path),readFreshAsUser:path=>store.readAsUser(path,{uid:actor.uid,claims:actor.claims})});live();}
     live();await store.commit(patch,lease,actor);completed=true;return result;
    });
   }finally{phase='closed';if(!completed)await store.abort(lease).catch(()=>{});}

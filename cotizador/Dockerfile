@@ -25,6 +25,7 @@ COPY employee-availability.js ./
 COPY employee-directory.js ./
 COPY personal-hours-reader.js ./
 COPY personal-expenses.js ./
+COPY bonus-payment.js bonus-payment-model.js ./
 COPY admin-expense-create.js payment-membership-matcher.js payment-membership-index.js payment-snapshot.js payment-commands.js ./
 COPY expense-removal-policy.js expense-removal-guard.js ./
 COPY supplier-directory.js ./

@@ -1,5 +1,22 @@
 # Continuidad de SisVentas
 
+## Pago administrativo de bonificaciones v3.15.12 preparado ·27/10/2026
+
+Autorización directa del titular: completar y publicar, sin cuentas privadas ni
+repetir pagos. Implementación acotada sobre backend b27e2515/web15.11; no activa
+vistas, reglas o candidata amplia. Endpoint de bonificación por acción del usuario,
+gasto autorizado + vínculo exacto + permiso pagar/administrar + fence + recibo.
+Actualiza el único movimiento interno, sin leer cuenta/historial completos.
+ID/digest estable, replay/tombstone y último chequeo de permisos/originales.
+Respuesta sólo del gasto; no salarios ni datos de cuentas privadas.
+
+75focalesPASS; puerta6.138PASS/27opt-in/0fallos más5casos nuevos de reset/lotePASS;
+94servidorPASS; QA390/1280con formulario y código reales contra memoriaPASS.
+No pagos reales. Reglas y configuración vigentes verificadas sin datos comerciales.
+No modifica reglas/roles/flags/IAM. Publicar servidor compatible antes del cliente;
+no dar por publicado hasta comprobar ambos. Detalle PAGO_BONIFICACION_ADMINISTRATIVO_V31512.md.
+
+
 ## Chat publicado v3.15.11 ·27/10/2026
 
 Fuente d4252e17d2c42a092adf0bfb5827b1139779fc55, rama codex/chat-directos-v31511.
