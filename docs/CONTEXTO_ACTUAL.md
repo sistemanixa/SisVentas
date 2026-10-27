@@ -1,5 +1,21 @@
 # Continuidad de SisVentas
 
+## Chat publicado v3.15.11 ·27/10/2026
+
+Fuente d4252e17d2c42a092adf0bfb5827b1139779fc55, rama codex/chat-directos-v31511.
+Hosting492d66ac909ffbf7:463activos/4cargas.26hashesHTTPS exactos, mirror,
+7cabeceras y7rutas privadas/históricas/candidatas404. Script oficial confirmó
+web/core/SW y avisoFirebase v3.15.11-firebase. Puerta6.121total/6.094PASS/
+27opt-in/0fallos. AST2.288funciones idénticas, sólo chatAbrirDirectos cambiado.
+
+Directos deja de agregar contactos conectados sin mensajes. No borra chats,
+adjuntos ni estados de lectura. QA390/1280repetida con función extraída del JS
+efectivamente descargado de producción, datos ficticios, sin red comercial ni
+escrituras. No se recargó/inspeccionó la sesión auténtica del titular. Evidencia
+privada tmp/chat31511-release. No cambia servidor/reglas/flags/roles/infraestructura.
+Candidata amplia15.7 y pago administrativo de bonificaciones siguen sin activar.
+
+
 ## Directos sin conversaciones inventadas ·v3.15.11 preparada27/10/2026
 
 Se quitó exclusivamente el agregado de usuarios conectados sin mensajes en
