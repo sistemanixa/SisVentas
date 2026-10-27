@@ -3546,11 +3546,7 @@ function chatAbrirDirectos(silencioso) {
       conversaciones.push({ canal, otroNombre, ultimo, noLeidos });
     });
 
-    var onlineOtros = usuariosPresentesUnicos(false);
-    onlineOtros.forEach(function(p) {
-      var yaEsta = conversaciones.some(function(c){ return c.otroNombre === p.nombre; });
-      if (!yaEsta) conversaciones.push({ canal: null, otroNombre: p.nombre, ultimo: null, noLeidos: 0 });
-    });
+    // Presencia indica disponibilidad; no crea conversaciones sin mensajes.
 
     if (!conversaciones.length) {
       msgs.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">No hay conversaciones directas aún</div>';
