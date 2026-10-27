@@ -1,5 +1,27 @@
 # Continuidad de SisVentas
 
+## Directos sin conversaciones inventadas ·v3.15.11 preparada27/10/2026
+
+Se quitó exclusivamente el agregado de usuarios conectados sin mensajes en
+chatAbrirDirectos. La lista conserva conversaciones reales, adjuntos y no leídos;
+al vaciarse un canal deja de aparecer aunque el contacto esté conectado. No elimina
+mensajes ni cambia presencia, permisos, listeners, servidor o datos financieros.
+La disponibilidad del contacto sigue siendo un dato de presencia, no historial.
+
+Fuente separada de candidata amplia: basada en producción15.10. Auditoría AST:
+un solo cuerpo de función cambiado; demás funciones idénticas. Nueva versión,
+índice, núcleo, SW y Novedades coherentes. Cinco regresiones nuevas con mensajes
+ficticios; focales12PASS. Navegador aislado390/1280PASS usando la función real:
+conversación existente visible, conectado sin historial ausente, estado vacío
+tras retirar mensajes en memoria, sin desborde ni solicitudes externas/escrituras.
+No se inspeccionó ni recargó la sesión autenticada del titular mediante automatización.
+
+Evidencia privada tmp/chat31511-release. Este bloque no activa la candidata amplia
+15.7 ni corrige todavía el pago administrativo de bonificaciones en producción.
+Registrar debajo publicación/acuse y suite una vez comprobados; preparada no
+equivale a publicada. No modifica servidor, reglas, flags ni infraestructura.
+
+
 ## Consumidor final publicado v3.15.10 ·27/10/2026
 
 Autorización directa publicar al finalizar cumplida. Fuente pública revisada
