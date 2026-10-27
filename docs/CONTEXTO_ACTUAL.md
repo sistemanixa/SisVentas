@@ -1,5 +1,26 @@
 # Continuidad de SisVentas
 
+## WhatsApp y selector publicados v3.15.8 · 27/10/2026
+
+Fuente pública a7592ccc853a386a62ce54748a3117895ee36ac0, rama
+codex/web-prioridades-v3158. Hosting86ac0bcb76848423:461activos/8cargas.
+26hashesHTTPS exactos, mirror,7cabeceras y6rutas privadas/históricas404 correctos.
+Script oficial confirmó web/core/SW/avisoFirebase v3.15.8-firebase.
+Cuatro recorridos posteriores con módulos reales publicados y datos ficticios
+pasaron: WhatsApp, CSV/PDF y compartir en ambos circuitos1280/390;75filas de
+estrés, sin escrituras ni consultas comerciales. No se simuló un envío real a
+WhatsApp ni se guardaron listas. CUA falló kernelassets: no se refrescó ni verificó
+la sesión auténtica. Local8766 sirve los mismos archivos del checkout actualizado.
+
+Incluye sólo WhatsApp y selector; no activa candidata amplia15.7, fiscal,
+proveedores por API ni OT/custodia. Sin cambios de servidor/reglas/flags/IAM/DNS,
+sin nuevos servicios/costo fijo ni datos financieros reales como prueba.
+Pagos, comisiones y permisos permanecen en la fuente productiva previa.
+Continúan custodia y corte amplio; la auditoría/segmentación no están terminadas.
+Evidencia privada tmp/web3158-release; detalle WEB_PRIORIDADES_V3158.md.
+
+
+
 ## Custodia por serie: evidencia de pruebas · 27/10/2026
 
 - Subida pública y CI autorizadas por el titular, exclusivamente en codex/cierre-pendientes-v3157. Esto no autoriza activar la candidata ni equivale a publicación web.
