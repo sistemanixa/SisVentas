@@ -1,5 +1,10 @@
 # Continuidad de SisVentas
 
+## Orden vigente de pendientes · 27/10/2026
+
+El titular pidió unificar los pendientes y el pedido de Harvy. Ver [PENDIENTES_ACTUALES.md](PENDIENTES_ACTUALES.md): OT/stock en curso en el chat de publicación; segmentación sólo con primer detalle local; venta→presupuesto pendiente; cobertura salarial técnica sólo diagnosticada y pendiente de definir, sin implementación por ese pedido. Última web documentada15.13, sin verificación remota nueva en este ordenamiento. Publicado, local y propuesta quedan separados. No se cambió aplicación, datos, infraestructura ni prioridades operativas ya autorizadas. Las listas antiguas son antecedentes y no sustituyen este índice.
+
+
 ## Carga segmentada: primera consulta puntual local · 27/10/2026
 
 Implementada en rama codex/carga-segmentada-detalle desde a7592ccc/producción15.8; candidata local15.9. Nuevo endpoint por clave y entrada ventaPuntual evitan historiales globales al consultar UNA venta/cobros, con Auth/propiedad/permisos y cobertura indexada. Sólo lectura; no sustituye editor, dashboard ni listado general. No se activó ni publicó; no se tocaron datos/garantías reales ni se añadieron servicios.
