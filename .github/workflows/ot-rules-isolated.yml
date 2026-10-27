@@ -7,6 +7,7 @@ on:
       - 'test/isolated-ot/**'
       - 'test/ot-unit-confirmation-rules.integration.cjs'
       - 'cotizador/ot-unit-confirmation*.js'
+      - 'cotizador/ot-unit-custody*.js'
 permissions: {}
 concurrency:
   group: isolated-ot-rules

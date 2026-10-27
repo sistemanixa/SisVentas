@@ -38,7 +38,7 @@ function plan({action,selected,expectedUnits,registry={},materials,inventory={},
   const chosen=action==='entregar'?serial(input.serie):previous?.serie;
   if(action!=='entregar'&&!previous)fail('SV_OT_CUSTODY_MISSING','Primero debe registrarse la entrega de esa unidad.');
   if(previous&&input.serie!==undefined&&serial(input.serie)!==previous.serie)fail('SV_OT_CUSTODY_IDENTITY','La serie registrada se conserva.');
-  if(action==='entregar'&&assets[input.key]||action==='devolver'&&assets[input.key])fail('SV_OT_CUSTODY_INSTALLED','La unidad ya tiene equipo o garantía. Su devolución requiere el circuito de posventa.');
+  if(action==='entregar'&&assets[input.key]||['devolver','recibir'].includes(action)&&assets[input.key])fail('SV_OT_CUSTODY_INSTALLED','La unidad ya tiene equipo o garantía. Su devolución requiere el circuito de posventa.');
   if(action==='entregar'&&previous){if(previous.estado==='en_tecnico'&&previous.serie===chosen)continue;fail('SV_OT_CUSTODY_PRESERVED','La custodia previa se conserva; no se reasigna automáticamente.');}
   if(action==='devolver'&&previous.estado==='devolucion_pendiente'||action==='recibir'&&previous.estado==='devuelto'||action==='instalar'&&previous.estado==='instalado')continue;
   if(action==='devolver'&&previous.estado!=='en_tecnico'||action==='recibir'&&previous.estado!=='devolucion_pendiente'||action==='instalar'&&previous.estado!=='en_tecnico')fail('SV_OT_CUSTODY_TRANSITION','Ese cambio no corresponde al estado actual de la unidad.');

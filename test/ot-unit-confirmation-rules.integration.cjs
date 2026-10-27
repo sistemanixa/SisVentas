@@ -336,28 +336,24 @@ test('cinco unidades manuales se registran con reglas reales sin alterar venta, 
 });
 
 
-test('custodia protegida permite notas normales y rechaza cambios o borrados directos',opt,async()=>{
+
+test('registro separado preserva notas y niega lectura, escritura y borrado de clientes',opt,async()=>{
  const Custody=require('../cotizador/ot-unit-custody-rules');
- const protectedRules=Custody.build(candidate,{expectedHash:hash(candidate)});assert.equal(Custody.protects(protectedRules,'ordenes_trabajo'),true);
+ const protectedRules=Custody.build(candidate,{expectedHash:hash(candidate)});assert.equal(Custody.protects(protectedRules),true);
  await allowed(request('PUT','/.settings/rules',protectedRules));
  try{
-  const unit={unitKey:'unit',itemKey:'renglon',n:0,materialKey:'0',productKey:'product',sourceDigest:'f'.repeat(64),technicianKey:'employee',serie:'FICTICIA',estado:'en_tecnico',historial:[{accion:'entregar',estado:'en_tecnico',uid:'admin',technicianKey:'employee',ts:1}],actualizadoEn:1,actualizadoPor:'admin',entregadoEn:1};
-  await allowed(request('PUT','/sisventas/ordenes_trabajo/ot_ficticia/unidadesCustodia',{unit}));
-  await allowed(request('PATCH','/sisventas/ordenes_trabajo/ot_ficticia',{observaciones:'Nota ficticia permitida'},{uid:'admin'}));
-  for(const [method,path,value]of [
-   ['PUT','unidadesCustodia/unit/serie','OTRA'],
-   ['DELETE','unidadesCustodia',undefined],
-   ['DELETE','unidadesCustodia/unit',undefined],
-   ['DELETE','unidadesCustodia/unit/serie',undefined],
-   ['PUT','unidadesCustodia/unit/historial/0/accion','recibir'],
-   ['DELETE','unidadesCustodia/unit/historial',undefined],
-   ['PUT','unidadesCustodia/other',{...unit,unitKey:'other'}]
-  ])await denied(request(method,'/sisventas/ordenes_trabajo/ot_ficticia/'+path,value,{uid:'admin'}));
-  assert.deepEqual(await read('/sisventas/ordenes_trabajo/ot_ficticia/unidadesCustodia'),{unit});
-  await denied(request('PUT','/sisventas/ordenes_trabajo/ot_ficticia/unidadesCustodia/unit/serie','OTRA',{uid:'admin',claims:{svLaborService:true,svOTUnitConfirmation:true,svOTUnitCustody:true,mode:'commit'}}));
+  const otPath='/sisventas/ordenes_trabajo/ot_ficticia';
+  await allowed(request('PATCH',otPath,{tecnicoFbKey:'employee',materiales:{renglon:{cod:'P-FICTICIO',vendida:5,entregada:0}}}));
+  const unit={unitKey:'unit',itemKey:'renglon',n:0,materialKey:'renglon',productKey:'product',sourceDigest:'f'.repeat(64),technicianKey:'employee',serie:'FICTICIA',estado:'en_tecnico',historial:[{accion:'entregar',estado:'en_tecnico',uid:'admin',technicianKey:'employee',ts:1}],actualizadoEn:1,actualizadoPor:'admin',entregadoEn:1,sourceCounters:{cod:'P-FICTICIO',vendida:5,entregada:0}};
   const five=Object.fromEntries(Array.from({length:5},(_,n)=>['unit_'+n,{...structuredClone(unit),unitKey:'unit_'+n,n,serie:'FICTICIA-'+n}]));
-  const f=runtime();await f.guard.run({uid:'admin',claims:{uid:'admin',svOTUnitConfirmation:true,svOTUnitCustody:true},mode:'user',operation:'ot-unit-confirmation',opId:'ot_units_'+'a'.repeat(64)},scope=>scope.update({'sisventas/ordenes_trabajo/ot_ficticia/unidadesCustodia':five}));
-  assert.deepEqual(await read('/sisventas/ordenes_trabajo/ot_ficticia/unidadesCustodia'),five);assert.deepEqual(financial(await read('/')),financial(initial));
-
+  const record={otKey:'ot_ficticia',sourceBranch:'ordenes_trabajo',expectedTechnicianKey:'employee',revision:1,units:five,actualizadoEn:1,actualizadoPor:'admin'};
+  const path='/'+Custody.ROOT+'/ot_ficticia';
+  for(const uid of ['admin','vendedor','sin-permiso']){await denied(request('GET',path,undefined,{uid}));await denied(request('PUT',path,record,{uid}));await denied(request('DELETE',path,undefined,{uid}));}
+  await denied(request('PUT',path,record,{uid:'admin',claims:{svLaborService:true,svOTUnitConfirmation:true,svOTUnitCustody:true,svOTCustodyAction:'entregar',mode:'commit'}}));
+  const f=runtime();await f.guard.run({uid:'admin',claims:{uid:'admin',svOTUnitConfirmation:true,svOTUnitCustody:true,svOTCustodyAction:'entregar'},mode:'user',operation:'ot-unit-confirmation',opId:'ot_units_'+'a'.repeat(64)},scope=>scope.update({[Custody.ROOT+'/ot_ficticia']:record}));
+  assert.deepEqual(await read(path),record);
+  await allowed(request('PATCH',otPath,{observaciones:'Nota ficticia permitida'},{uid:'admin'}));
+  for(const [method,suffix,value]of [['PUT','units/unit_0/serie','OTRA'],['DELETE','',undefined],['DELETE','units/unit_0',undefined],['DELETE','units/unit_0/serie',undefined],['PUT','units/unit_0/historial/0/accion','recibir']])await denied(request(method,path+(suffix?'/'+suffix:''),value,{uid:'admin'}));
+  assert.deepEqual(await read(path),record);assert.deepEqual(financial(await read('/')),financial(initial));
  }finally{await allowed(request('PUT','/.settings/rules',candidate));}
 });
