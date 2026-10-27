@@ -261,7 +261,7 @@ exports.emitirFactura = onRequest(
         var consultaCliente = dataConsulta.cliente || consultaComprobante.cliente || {};
         res.status(200).json({
           ok: true,
-          comprobante: dataConsulta,
+          comprobante: require('./fiscal-response-privacy.cjs').withoutFiles(dataConsulta),
           clienteFiscal: {
             documento_tipo: String(consultaCliente.documento_tipo || ''),
             documento_nro: String(consultaCliente.documento_nro || '').replace(/[^0-9]/g, '')
@@ -313,32 +313,7 @@ exports.emitirFactura = onRequest(
     }
 
     if (data.accion === 'regenerar_pdf') {
-      var tipoPdf = String(data.tipoComprobante || '').trim();
-      var puntoPdf = parseInt(data.puntoVenta, 10) || 0;
-      var numeroPdf = parseInt(data.numero, 10) || 0;
-      if (!tipoPdf || !puntoPdf || !numeroPdf) {
-        res.status(400).json({ error: true, mensaje: 'Faltan tipo, punto de venta o número del comprobante' }); return;
-      }
-      try {
-        var respPdf = await fetch(ENDPOINT_REGENERAR_PDF, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            usertoken: TFAPP_USERTOKEN.value(),
-            apitoken: TFAPP_APITOKEN.value(),
-            apikey: TFAPP_APIKEY.value(),
-            comprobante: { tipo: tipoPdf, operacion: 'V', punto_venta: String(puntoPdf), numero: String(numeroPdf) }
-          })
-        });
-        var dataPdf = await respPdf.json();
-        if (!respPdf.ok || dataPdf.error !== 'N' || !dataPdf.comprobante_pdf_url) {
-          var errorPdf = Array.isArray(dataPdf.errores) ? dataPdf.errores.join(', ') : (dataPdf.errores || 'FacturasApp no devolvió el PDF original');
-          res.status(422).json({ error: true, mensaje: errorPdf }); return;
-        }
-        res.status(200).json({ ok: true, pdf_url: dataPdf.comprobante_pdf_url });
-      } catch (e) {
-        res.status(502).json({ error: true, mensaje: 'No se pudo recuperar el PDF original: ' + e.message });
-      }
+      res.status(409).json({ error:true, code:'SV_FISCAL_EXPLICIT_ACCESS', mensaje:'Abrí el PDF desde la venta con Ver factura.' });
       return;
     }
 

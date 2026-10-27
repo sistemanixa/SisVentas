@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Acceso fiscal explícito implementado · 27/10/2026
+
+- Autorización humana específica recibida: PDF sólo por Ver factura, facturas.verEmitidas y acceso a venta; sin archivos en listados ni para receptor de comisión. Rama codex/facturas-acceso-explicito-v3157 sobre24e75057. DTO incluso financiero sin archivos; GET de documento seleccionado con identidad/permiso/responsable revalidados, sin Ver como ni actores reutilizados. Copia electrónica desde snapshot fiscal verificable conserva el renderer original y no llama ARCA ni guarda; externa conserva su original.
+- Botones principal/NC/parciales integrados; carga visible/doble clic compartido/retiro de contexto, sin cachear archivo en venta. Tras emisión se abre resumen y se espera Ver factura. La consulta fiscal antigua elimina PDF/enlaces del resultado; regenerar_pdf genérico responde409 sin proveedor. Sólo esos dos bloques del index fiscal cambian: emisión/preflight/vinculación/recibos y originales permanecen exactos.
+-65regresiones nuevas. Puerta7.672total/7.645PASS/27opt-in/0fallos,37,10s;94servicioPASS.16acciones reales+cliente HTTP en320/390/768/1280 con endpoint/PDF ficticio;0solicitudes externas/escrituras. Resúmenes móvil/escritorio inspeccionados; visor de sonda, no PDF real ni sesión auténtica. AST2.292cuerpos app idénticos,3cambiados, renderer fiscal exacto.87módulos Docker alcanzables sin faltantes y empaquetador fiscal autónomo correcto. Sintaxis/diff/versión local correctos. Evidencia privada tmp/fiscal3157 fuera de Git.
+-NO publicado ni activado. Índice HTTPS sigue15.6. No lecturas/operaciones financieras reales, ni reglas/flags/IAM/infraestructura cambiados. Esta decisión resuelve el bloqueo humano fiscal, no la preparación/cobertura/drenaje, pruebas de reglas por método permitido, corte ni OT12. No repetir emulador bloqueado ni usar estas pruebas como medición Google. Detalle en FISCAL_ACCESO_EXPLICITO_V3157.md.
+
+
 ## Cobranzas15.6 publicada y comprobada · 27/10/2026
 
 - Fuente limpia/pushed e2f3b4324b26c6a748ec82f8f2bcecc18ecb3095, rama codex/cobranzas-listado-v3156. Hosting51c65abc66f76de1:460activos/4cargas;25hashesHTTPS exactos, mirror/7cabeceras/7rutas404 correctos. Luego script oficial confirmó web/core/SW/aviso v3.15.6-firebase. Preflight verificó reglas626817 y Hosting/aviso15.5; no se cambió servidor, reglas, flags, IAM, DNS, servicios ni datos comerciales reales.

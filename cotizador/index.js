@@ -2045,6 +2045,14 @@ const server = http.createServer(async (req, res) => {
     if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
     if(!['GET','POST'].includes(req.method)){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
     try{
+      const fiscal=pathname.match(/^\/comerciales\/ventas\/documento\/([^/?#]+)\/(factura|nota-credito|adicional|historial-factura|historial-nota-credito)(?:\/([^/?#]+))?$/);
+      if(fiscal){
+        if(req.method!=='GET'){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+        let id,reference;try{id=decodeURIComponent(fiscal[1]);reference=fiscal[3]===undefined?undefined:decodeURIComponent(fiscal[3]);}catch(_){send(res,400,{ok:false,mensaje:'Referencia no válida'});return;}
+        const actor=await commercialOwnership.authorize(req,'ventas',requestUrl.searchParams.get('verComo'));
+        const result=await commercialOwnership.fiscalDocument(actor,id,{kind:fiscal[2],reference});
+        send(res,200,{ok:true,...result});return;
+      }
       const match=pathname.match(/^\/comerciales\/(ventas|presupuestos)(?:\/(opciones|reasignar|preparar)|\/detalle\/([^/?#]+))?$/);
       if(!match){send(res,404,{ok:false,mensaje:'Operación no disponible'});return;}
       const detail=match[3]!==undefined;

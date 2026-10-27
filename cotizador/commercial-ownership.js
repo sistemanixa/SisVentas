@@ -196,7 +196,24 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   if(error)throw error;
   return result;
  }
+ function fiscalAllowed(actor,cfg,identity){
+  const action=cfg?.acciones?.facturas?.verEmitidas;
+  if(actor.viewing||actor.realUid!==actor.uid||actor.claims?.uid!==actor.uid||actor.claims?.svPasswordChangeRequired===true||identity?.activo!==true||identity.rol!==actor.role||!moduleAllowed(actor.role,'facturas',{[actor.role]:cfg})||!(action===true||action===undefined&&actor.role==='admin'))throw Object.assign(fail(403,'No tenés permiso para ver esta factura.'),{code:'SV_FISCAL_FORBIDDEN'});
+ }
+ async function fiscalDocument(actor,id,selector){
+  const c=requestContexts.get(actor);requestContexts.delete(actor);
+  if(!c||actor.domain!=='ventas'||!recordKey(id))throw Object.assign(fail(403,'Acceso fiscal no autorizado.'),{code:'SV_FISCAL_FORBIDDEN'});
+  const documents=require('./commercial-fiscal-document');documents.reference(selector?.kind,selector?.reference);
+  fiscalAllowed(actor,c.permissions[actor.role],c.identities[actor.uid]);
+  const record=await read('sisventas/ventas/'+id);
+  // Verificación final de identidad, permiso y responsable, sin leer historial.
+  const [identity,permissions,currentOwner]=await Promise.all([read('sv_chat_roles/'+actor.uid),read('sv_permisos/'+actor.role),actor.role==='admin'?Promise.resolve(null):read('sisventas/ventas/'+id+'/responsableUid')]);
+  fiscalAllowed(actor,permissions,identity);
+  if(actor.role!=='admin'&&(currentOwner!==null&&currentOwner!==actor.uid||currentOwner===null&&Object.hasOwn(record||{},'responsableUid')))throw fail(404,'Registro no disponible');
+  await authorizedRecord(actor,'ventas',record,c);
+  return documents.selectDocument(record,selector);
+ }
  async function detail(actor,id){if(commercialProtocol!==true)throw fail(503,'El detalle comercial protegido todavía no está habilitado');const raw=await assertRecord(actor,actor.domain,id);return {record:await publicTransport.projectRecord(actor,actor.domain,id,raw)};}
- return {authorize,list,detail,options,assign:(a,b)=>mutate(a,b,true),prepare:(a,b)=>mutate(a,b,false),visibleRecords,assertRecord,visibleRecordsByIds};
+ return {authorize,fiscalDocument,list,detail,options,assign:(a,b)=>mutate(a,b,true),prepare:(a,b)=>mutate(a,b,false),visibleRecords,assertRecord,visibleRecordsByIds};
 }
 module.exports={createCommercialOwnership,moduleAllowed,eligible,profiles,owner,originalAuthor,validateCommercialActor};

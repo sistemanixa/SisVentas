@@ -9448,6 +9448,7 @@ function _abrirFuentePdfFactura(pdfUrl, nombre, ventanaPreabierta) {
 
 function verFacturaEmitida(pdfUrl, cae, ventaId) {
   if (ventaId) {
+    if (window.SVFiscalDocuments?.protectedRecord(_svResolverVentaRegistro(ventaId))) { abrirResumenFactura(ventaId); return; }
     verComprobanteFacturaVenta(ventaId);
     return;
   }
@@ -9635,6 +9636,7 @@ async function _guardarSnapshotFiscalVenta(venta, snapshot) {
 async function verComprobanteFacturaVenta(ventaId, botonOrigen) {
   var venta = _svResolverVentaRegistro(ventaId);
   if (!venta) { notify('No se encontró la venta asociada al comprobante'); return; }
+  if (window.SVFiscalDocuments?.protectedRecord(venta)) return window.SVFiscalDocuments.open(venta, 'factura', undefined, botonOrigen);
   // Una carga externa debe mostrar el archivo original que presentó el usuario.
   // No corresponde consultar ARCA ni reconstruir otro documento en su lugar.
   if (venta.factura && (venta.factura.fuente === 'externa' || venta.factura.manual === true)) {
@@ -10101,11 +10103,11 @@ function abrirResumenFactura(ventaId) {
             ? '<div style="padding:10px 12px;border-radius:10px;background:var(--blue-bg);color:var(--blue);font-size:12px;margin-bottom:16px"><strong><i class="ti ti-history"></i> Comprobante histórico registrado.</strong><div style="margin-top:5px;color:var(--text2)">Esta venta pertenece al sistema anterior y no conserva la foto fiscal utilizada al emitir. Se muestra el comprobante sin declarar una diferencia automática.</div></div>'
             : '<div style="padding:10px 12px;border-radius:10px;background:var(--green-bg);color:var(--green);font-size:12px;margin-bottom:16px"><i class="ti ti-circle-check"></i> ' + (esFacturaExterna ? 'Comprobante externo registrado y vinculado' : 'Comprobante emitido y verificado contra los datos guardados al emitir') + '</div>'))) +
       '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
-        (nc && (nc.pdf_url || (nc.comprobante && nc.comprobante.data)) ? '<button class="btn btn-sm" data-factura-action="ver-nc"><i class="ti ti-file-minus"></i> Ver nota de crédito</button>' : '') +
+        (nc && (window.SVFiscalDocuments?.protectedRecord(v) || nc.pdf_url || (nc.comprobante && nc.comprobante.data)) ? '<button class="btn btn-sm" data-factura-action="ver-nc"><i class="ti ti-file-minus"></i> Ver nota de crédito</button>' : '') +
         (puedeRefacturar ? '<button class="btn btn-sm" data-factura-action="refacturar"><i class="ti ti-file-invoice"></i> Facturar nuevamente</button>' : '') +
         (puedeCompletarNumeroFiscal ? '<button class="btn btn-sm" data-factura-action="completar-numero"><i class="ti ti-refresh"></i> Recuperar datos fiscales</button><button class="btn btn-sm" data-factura-action="completar-manual"><i class="ti ti-file-description"></i> Completar desde comprobante</button>' : '') +
         (puedeEmitirNC ? '<button class="btn btn-sm" data-factura-action="nota-credito" style="color:var(--red);border-color:var(--red)"><i class="ti ti-file-minus"></i> Emitir nota de crédito</button>' : '') +
-        '<button class="btn btn-sm btn-primary" data-factura-action="ver-factura"' + (esFacturaExterna && !nombreAdjuntoExterno ? ' disabled title="La carga histórica no conserva archivo"' : '') + '><i class="ti ti-file-invoice"></i> ' + (esFacturaExterna ? 'Ver PDF original' : 'Ver comprobante') + '</button>' +
+        '<button class="btn btn-sm btn-primary" data-factura-action="ver-factura"' + (esFacturaExterna && !nombreAdjuntoExterno && !window.SVFiscalDocuments?.protectedRecord(v) ? ' disabled title="La carga histórica no conserva archivo"' : '') + '><i class="ti ti-file-invoice"></i> ' + (esFacturaExterna ? 'Ver PDF original' : 'Ver comprobante') + '</button>' +
       '</div>' +
     '</div>';
 
@@ -10131,8 +10133,9 @@ function abrirResumenFactura(ventaId) {
       overlay.remove();
       abrirModalCompletarDatosFiscales(v.id || v.fbKey || ventaId);
     }
-    if (accion === 'ver-nc' && nc && (nc.pdf_url || (nc.comprobante && nc.comprobante.data))) {
+    if (accion === 'ver-nc' && nc && (window.SVFiscalDocuments?.protectedRecord(v) || nc.pdf_url || (nc.comprobante && nc.comprobante.data))) {
       overlay.remove();
+      if (window.SVFiscalDocuments?.protectedRecord(v)) { await window.SVFiscalDocuments.open(v, 'nota-credito', undefined, boton); return; }
       if (!_abrirAdjuntoFacturaExterna(nc.comprobante)) _abrirFuentePdfFactura(nc.pdf_url, 'Nota-de-credito-' + (v.id || ventaId || 'comprobante'));
     }
     if (accion === 'refacturar') {
