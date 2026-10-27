@@ -1,5 +1,30 @@
 # Continuidad de SisVentas
 
+## Chat y búsqueda OT publicados v3.15.13 · 27/10/2026
+
+Fuente 332b3ac89350d58eb0b9af4d6d3d777d02e668f1, rama codex/chat-contactos-presencia-v31513.
+Hosting sites/nixa-sisventas-seguro/versions/8ea6283caa67ef23: 471 activos, 8 cargas,
+33 hashes HTTPS exactos, mirror, 7 cabeceras y 7 rutas privadas 404. Script oficial
+confirmó web/core/SW y aviso v3.15.13-firebase. Servidor permanece bonus12; sin cambios
+de reglas, roles, IAM, pagos ni comisiones. Puerta 6.160 PASS / 27 opt-in / 0 fallos;
+29 focales PASS. QA aislada de chat 390/1280 y OT 390/768/1280, repetida con JS
+descargado de producción. No mensajes ni operaciones financieras reales de prueba.
+
+Directo ofrece Nuevo mensaje con contactos activos aunque estén desconectados o
+sin conversación previa; encabezado con destinatario y retorno. Conectados usa
+presencia verificada visible, sin sondeo. Clientes anteriores deben actualizar
+para acreditar presencia; la desconexión física depende del cierre de Firebase.
+Buscador OT aprovecha el ancho disponible. Espejo local 127.0.0.1:8766 actualizado
+a 15.13 y HTTP200 comprobado; no se afirma recarga visual posterior al cambio.
+Evidencia privada en C:/SisVentas/tmp/chat31513-release.
+
+Candidata amplia conserva su marcador 15.7 y recibe sólo los tres cambios de
+funciones de chat y recursos equivalentes para evitar perder lo publicado.
+Auditoría venta→presupuesto continúa pendiente: reproducción ficticia demuestra
+promesas separadas y preparación huérfana; no se aplicó cascada ni se alteraron
+cobros, OT, reservas o comisiones. Resolver por vínculos técnicos y compensaciones,
+preservando historial financiero y trabajo ya ejecutado.
+
 ## Chat urgente y ancho de búsqueda OT v3.15.13 preparados ·27/10/2026
 
 Titular priorizó destinatario ausente, conectados falsos y falta de contactos en
