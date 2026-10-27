@@ -41,6 +41,7 @@
     return pending[name];
   }
   async function forRole(role, isCurrent) {
+    if(window.SVSalePointPage?.matches())return !isCurrent||isCurrent();
     var modules = ['distribuidora','paraguay'];
     if (!['compras_paraguay','distribuidora'].includes(role)) modules.push('compras');
     if (isCurrent && !isCurrent()) return false;

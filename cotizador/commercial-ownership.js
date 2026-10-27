@@ -54,7 +54,7 @@ function historicalConversionAudit(record,budgets){
  const event=events[0],author=originalAuthor(record,'ventas',budgets);
  return {tipo:'conversion_presupuesto_venta',fecha:event.fecha,usuario:event.usuario,accion:'Conversión histórica de '+(source.id||'presupuesto de origen')+' a '+(record.id||'venta')+' · Creador original: '+author.name+' · Según auditoría del presupuesto',referenciaHistorica:true};
 }
-function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectionReader}){
+function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectionReader,pointReadsEnabled=false,pointReader}){
  // Instantánea privada, de un solo uso dentro de la petición que autorizó al actor.
  // No es una caché entre consultas: cada authorize vuelve a verificar Auth y roles.
  const requestContexts=new WeakMap();
@@ -194,6 +194,18 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   if(error)throw error;
   return result;
  }
- return {authorize,list,options,assign:(a,b)=>mutate(a,b,true),prepare:(a,b)=>mutate(a,b,false),visibleRecords,assertRecord,visibleRecordsByIds};
+ async function point(actor,id){
+  if(!recordKey(id))throw fail(404,'Registro no disponible');
+  if(!pointReadsEnabled||typeof pointReader!=='function')throw fail(503,'La consulta puntual todavía no está habilitada.');
+  const c=requestContexts.get(actor)||await context();requestContexts.delete(actor);
+  const allowed=domain=>reads.allows(domain,actor.role,m=>moduleAllowed(actor.role,m,c.permissions),a=>{const [g,n]=a.split('.');const v=c.permissions[actor.role]?.acciones?.[g]?.[n];return typeof v==='boolean'?v:actor.role==='admin';});
+  return pointReader({read,actor,id,canPayments:allowed('pagos'),authorizeSale:record=>authorizedRecord(actor,'ventas',record,c),revalidate:async()=>{
+   const next=await context(),identity=next.identities[actor.uid];
+   if(identity?.activo!==true||identity.rol!==actor.role||require('./labor-guard').digest(next.permissions[actor.role]||{})!==require('./labor-guard').digest(c.permissions[actor.role]||{}))throw fail(403,'La sesión o los permisos cambiaron.');
+   if(!next.people.some(p=>p.uid===actor.uid))throw fail(403,'La identidad cambió.');
+   await authorizedRecord(actor,'ventas',await read('sisventas/ventas/'+id),next);
+  }});
+ }
+ return {authorize,list,point,options,assign:(a,b)=>mutate(a,b,true),prepare:(a,b)=>mutate(a,b,false),visibleRecords,assertRecord,visibleRecordsByIds};
 }
 module.exports={createCommercialOwnership,moduleAllowed,eligible,profiles,owner,originalAuthor,validateCommercialActor};

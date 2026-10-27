@@ -29,7 +29,7 @@ COPY admin-expense-create.js payment-membership-matcher.js payment-membership-in
 COPY expense-removal-policy.js expense-removal-guard.js ./
 COPY supplier-directory.js ./
 COPY commission-calculations.js commission-operations.js commission-public-response.js ./
-COPY commission-generation.js commission-generation-model.js commercial-ownership.js domain-read-policy.js ./
+COPY commission-generation.js commission-generation-model.js commercial-ownership.js sale-point-read.js domain-read-policy.js ./
 COPY commercial-models/ ./commercial-models/
 COPY private-finance.js private-finance-model.js private-finance-storage.js ./
 COPY catalog-request.js catalog-promotions.js ./

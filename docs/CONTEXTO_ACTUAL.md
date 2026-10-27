@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Carga segmentada: primera consulta puntual local · 27/10/2026
+
+Implementada en rama codex/carga-segmentada-detalle desde a7592ccc/producción15.8; candidata local15.9. Nuevo endpoint por clave y entrada ventaPuntual evitan historiales globales al consultar UNA venta/cobros, con Auth/propiedad/permisos y cobertura indexada. Sólo lectura; no sustituye editor, dashboard ni listado general. No se activó ni publicó; no se tocaron datos/garantías reales ni se añadieron servicios.
+
+Suite6.075PASS/27skip/0fallos (6.102total), servicio94PASS. Mediana local lenta8,54s→1,10s; JSON DB881,8KB→2,6KB, saldo antiguo intacto, datos/Auth ficticios. UI390/1280 y recuperación/cambio rol/logout probados. Metodología, límites, comparador reproducible y dependencias de activación en CARGA_SEGMENTADA_PRIMER_BLOQUE_20261027.md. Falta segmentar dashboard/listas y consumidores históricos; no confundir esto con inicio general resuelto. Antes de activar, verificar ambos flags comerciales, cobertura paymentRefs_v1 y todos sus escritores. Publicación coordinada por el otro chat; nada remoto cambiado en este bloque.
+
+
 ## Publicación web separada v3.15.8 · 27/10/2026
 
 El titular pidió publicar lo terminado. Se separa desde51f5a861/productiva15.6;

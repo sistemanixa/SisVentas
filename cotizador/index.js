@@ -47,7 +47,7 @@ const chatOperations = require('./chat-operations').createChatOperations({auth:b
 const distributorDocuments=require('./distributor-documents').createDistributorDocuments({auth:businessAuth,db,enabled:process.env.DISTRIBUTOR_DOCUMENTS_ENABLED==='true'});
 const commercialCollectionReader=require('./commercial-collection-reader').createCommercialCollectionReader({databaseURL:DATABASE_URL,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const projects = require('./projects').createProjects({auth:businessAuth,db,collectionReader:commercialCollectionReader,enabled:process.env.PROJECTS_ENABLED==='true'});
-const commercialOwnership=require('./commercial-ownership').createCommercialOwnership({auth:businessAuth,db,collectionReader:commercialCollectionReader,enabled:process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'});
+const commercialOwnership=require('./commercial-ownership').createCommercialOwnership({auth:businessAuth,db,collectionReader:commercialCollectionReader,enabled:process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true',pointReadsEnabled:process.env.COMMERCIAL_POINT_READ_ENABLED==='true',pointReader:require('./sale-point-read').readSalePoint});
 // Bucket dedicado, privado y sin enlaces de Firebase Storage. Nunca reutilizar
 // el bucket compartido de adjuntos: sus reglas no pertenecen a este dominio.
 const personalBucket=process.env.PERSONAL_FINANCE_BUCKET||'';
@@ -2017,6 +2017,8 @@ const server = http.createServer(async (req, res) => {
   if(pathname.startsWith('/comerciales/')){
     res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');
     try{
+      const pointMatch=pathname.match(/^\/comerciales\/ventas\/puntual\/([^/]+)$/);
+      if(pointMatch){if(req.method!=='GET'){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}const actor=await commercialOwnership.authorize(req,'ventas');const result=await commercialOwnership.point(actor,decodeURIComponent(pointMatch[1]));send(res,200,{ok:true,...result});return;}
       const match=pathname.match(/^\/comerciales\/(ventas|presupuestos)(?:\/(opciones|reasignar|preparar))?$/);
       if(!match){send(res,404,{ok:false,mensaje:'Operación no disponible'});return;}
       const view=new URL(req.url,'http://localhost').searchParams.get('verComo');
