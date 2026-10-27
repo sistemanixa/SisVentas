@@ -26,3 +26,24 @@ Preflight Hosting86ac0bcb76848423/aviso15.8/reglas626817 confirmado; cuatro
 lecturas de metadatos, cero consultas comerciales. Sólo Hosting y aviso de
 versión, sin servicios nuevos/costo fijo. Verificación HTTPS/aviso pendiente
 hasta completar despliegue. Evidencias privadas tmp/consumer31510-release.
+
+## Consumidor final publicado v3.15.10 ·27/10/2026
+
+Autorización directa publicar al finalizar cumplida. Fuente pública revisada
+24b6fce46fa3713af463b23fd4e9626913fd629e, rama codex/consumidor-final-web-v31510.
+Hostingca2c58807cf59cb8:462activos/4cargas.26hashesHTTPS exactos, mirror,
+7cabeceras y7rutas privadas/históricas/candidatas404 correctos. Después el script
+oficial verificó web/core/SW y confirmó avisoFirebase v3.15.10-firebase.
+
+Dos recorridos posteriores390/1280con funciones extraídas del JS efectivamente
+descargado de producciónPASS: editor con título/número/fecha históricos, genérico
+sin referencias inventadas y retorno a nueva venta con fecha actual. Sin solicitudes
+comerciales ni escrituras reales; formulario aislado, no sesión auténtica completa
+ni guardado financiero real. La pestaña del titular no se recargó por automatización.
+
+Se publica sólo la corrección Consumidor final/identidad del editor sobre15.8;
+WhatsApp permanece. No modifica servidor, reglas, flags, IAM, DNS, permisos ni
+escritores; conversión y pagos/comisiones intactos. No agrega servicios/costo fijo.
+15.9 de segmentación y candidata amplia15.7 con OT/fiscal/proveedores siguen sin
+activar. No declarar terminados esos bloques por esta publicación. Evidencias
+privadas tmp/consumer31510-release; detalle CONSUMIDOR_FINAL_WEB_V31510.md.
