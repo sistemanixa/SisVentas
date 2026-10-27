@@ -36,6 +36,7 @@ COPY admin-expense-create.js payment-membership-matcher.js payment-membership-in
 COPY expense-removal-policy.js expense-removal-guard.js ./
 COPY supplier-directory.js catalog-supplier-directory.js ./
 COPY ot-unit-confirmation.js ot-unit-confirmation-model.js ot-unit-confirmation-rules.js ./
+COPY ot-unit-custody.js ot-unit-custody-model.js ot-unit-custody-rules.js ./
 COPY commission-calculations.js commission-operations.js commission-public-response.js ./
 COPY commission-generation.js commission-generation-model.js commercial-ownership.js commercial-fiscal-document.js domain-read-policy.js ./
 COPY commercial-models/ ./commercial-models/

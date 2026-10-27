@@ -54,7 +54,7 @@ const fixture = () => ({
   }
 });
 const record = change => ({origen:'venta_ot',ventaFbKey:'venta_ficticia',otFbKey:'ot_ficticia',serie:'SERIE-FICTICIA',dir:'Acceso ficticio',fechaInstalacion:'2026-01-01',fechaVenc:'2027-01-01',condiciones:{estado:'si',meses:12,inicio:'instalacion'},...change});
-function runtime({hook,leaseMutate,expectOT=true}={}) {
+function runtime({hook,leaseMutate,expectOT=true,custody=false}={}) {
   const commits = [];
   const store = createLaborRtdbStore({databaseURL:base+'/?ns='+namespace,accessToken:async()=>'owner',requestMs:10000,fetchImpl:async(url,init) => {
     const target = new URL(url);
@@ -84,9 +84,9 @@ function runtime({hook,leaseMutate,expectOT=true}={}) {
   // invented. All writes are through the real guard+store under user rules.
   const db = {ref:p => ({get:async() => {const value=await read('/'+p);return {val:()=>structuredClone(value)};}}),getRulesJSON:() => read('/.settings/rules')};
   const auth = {verifyIdToken:async(token,revoked) => {assert.equal(revoked,true);if (!['admin','vendedor'].includes(token)) throw Error('Fictitious identity revoked');return {uid:token,name:'Usuario ficticio'};}};
-  const api = createOTUnitConfirmation({auth,db,guard,enabled:true,now:() => Date.parse('2026-10-23T15:00:00Z')});
+  const api = createOTUnitConfirmation({auth,db,guard,enabled:true,custodyEnabled:custody,now:() => Date.parse('2026-10-23T15:00:00Z')});
   const req = (method,uid='admin') => ({method:'POST',url:'/ot/unidades/'+method,headers:{authorization:'Bearer '+uid}});
-  return {guard,commits,prepare:uid => api.prepare(req('preparar',uid),{otKey:'ot_ficticia'}),confirm:(body,uid) => api.confirm(req('confirmar',uid),body)};
+  return {guard,commits,custodyPrepare:uid=>api.custodyPrepare({method:'POST',url:'/ot/custodia/preparar',headers:{authorization:'Bearer '+(uid||'admin')}},{otKey:'ot_ficticia'}),custodyConfirm:(body,uid)=>api.custodyConfirm({method:'POST',url:'/ot/custodia/confirmar',headers:{authorization:'Bearer '+(uid||'admin')}},body),prepare:uid => api.prepare(req('preparar',uid),{otKey:'ot_ficticia'}),confirm:(body,uid) => api.confirm(req('confirmar',uid),body)};
 }
 const confirmation = prepared => ({otKey:'ot_ficticia',revision:prepared.revision,fecha:'2026-10-23',units:[
   {itemKey:'renglon',n:0,decision:'instalado',serie:'SERIE-FICTICIA',ubicacion:'Acceso ficticio'},
@@ -357,3 +357,8 @@ test('registro separado preserva notas y niega lectura, escritura y borrado de c
   assert.deepEqual(await read(path),record);assert.deepEqual(financial(await read('/')),financial(initial));
  }finally{await allowed(request('PUT','/.settings/rules',candidate));}
 });
+
+async function custodyFixture(){const C=require('../cotizador/ot-unit-custody-rules');await allowed(request('PUT','/.settings/rules',C.build(candidate,{expectedHash:hash(candidate)})));await allowed(request('PATCH','/sisventas/ordenes_trabajo/ot_ficticia',{tecnicoFbKey:'employee',materiales:{renglon:{cod:'P-FICTICIO',ventaItemKey:'renglon',vendida:5,entregada:0}}}));await allowed(request('PUT','/sisventas/empleados/employee',{activo:true,id:'FICTICIO'}));await allowed(request('PUT','/sisventas/ventas/venta_ficticia/items/renglon/qty',5));return C;}
+const custodyBody=(p,accion='entregar')=>({otKey:'ot_ficticia',revision:p.revision,accion,units:p.units.map((u,n)=>({key:u.key,serie:'CUSTODIA-FICTICIA-'+n}))});
+test('endpoint de custodia entrega cinco series y devuelve una sin crear garantías ni duplicar acuses',opt,async()=>{const C=await custodyFixture();try{const f=runtime({custody:true}),before=financial(await read('/')),p=await f.custodyPrepare(),body=custodyBody(p);assert.equal(p.units.length,5);const result=await f.custodyConfirm(body);assert.equal(result.changed,true);assert.equal(f.commits.length,1);assert.deepEqual(await f.custodyConfirm(body),result);assert.equal(f.commits.length,1);let prepared=await f.custodyPrepare(),back=custodyBody(prepared,'devolver');back.units=back.units.slice(0,1);await f.custodyConfirm(back);prepared=await f.custodyPrepare();back=custodyBody(prepared,'recibir');back.units=back.units.slice(0,1);await f.custodyConfirm(back);const m=await read('/sisventas/ordenes_trabajo/ot_ficticia/materiales/renglon');assert.equal(m.enTecnico,4);assert.equal(m.devuelta,1);assert.equal(m.devueltaPendiente,0);assert.equal(await read('/sisventas/equipos'),null);assert.equal(await read('/sisventas/garantias'),null);assert.deepEqual(financial(await read('/')),before);const repository=await read('/'+C.ROOT+'/ot_ficticia');assert.equal(repository.revision,3);assert.equal(Object.keys(repository.units).length,5);}finally{await allowed(request('PUT','/.settings/rules',candidate));}});
+for(const race of ['counter','assignee','permission','reset'])test('custodia revierte commit completo ante carrera '+race,opt,async()=>{const C=await custodyFixture();try{const f=runtime({custody:true,hook:async()=>{if(race==='counter')await allowed(request('PUT','/sisventas/ordenes_trabajo/ot_ficticia/materiales/renglon/entregada',1));if(race==='assignee')await allowed(request('PUT','/sisventas/ordenes_trabajo/ot_ficticia/tecnicoFbKey','other'));if(race==='permission')await allowed(request('PUT','/sv_permisos/admin/acciones/ot/entregarMateriales',false));if(race==='reset')await allowed(request('PUT','/sv_access_resets/admin',{required:true,version:2}));}});await assert.rejects(f.custodyConfirm(custodyBody(await f.custodyPrepare())));assert.equal(await read('/'+C.ROOT+'/ot_ficticia'),null);assert.equal(await read('/sv_labor_receipts'),null);assert.equal(await read('/sisventas/equipos'),null);assert.equal(await read('/sisventas/garantias'),null);}finally{await allowed(request('PUT','/.settings/rules',candidate));}});

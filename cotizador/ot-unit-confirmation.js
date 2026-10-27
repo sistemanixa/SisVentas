@@ -60,7 +60,7 @@ function localDate(now) {
   return ['year','month','day'].map(type => parts.find(part => part.type === type).value).join('-');
 }
 
-function createOTUnitConfirmation({auth, db, guard, enabled = false, model = DefaultModel, now = Date.now}) {
+function createOTUnitConfirmation({auth, db, guard, enabled = false, custodyEnabled = false, model = DefaultModel, now = Date.now}) {
   if (typeof auth?.verifyIdToken !== 'function' || typeof db?.ref !== 'function' || typeof guard?.run !== 'function' || typeof model?.build !== 'function' || typeof model?.decision !== 'function') throw Error('Falta el circuito autenticado de unidades de OT');
   const key = value => model.key(value) && value === value.trim();
   const uidKey = value => key(value) && value.length <= 128;
@@ -93,12 +93,18 @@ function createOTUnitConfirmation({auth, db, guard, enabled = false, model = Def
       return clone(value);
     } catch (_) { throw fail(503,'No se pudo verificar la OT y sus condiciones'); }
   }
-  async function authority(actor) {
+  async function authority(actor, intent = 'confirmar') {
     const [role,reset] = await Promise.all([read('sv_chat_roles/'+actor.uid),read('sv_access_resets/'+actor.uid)]);
     if (!object(role) || role.activo !== true || !INTERNAL.has(role.rol)) throw fail(403,'Usuario sin acceso a órdenes de trabajo');
     if (reset !== null && !object(reset) || actor.svPasswordChangeRequired === true || reset && (reset.required || reset.version !== actor.svAccessVersion)) throw fail(403,'Actualizá tu acceso y volvé a ingresar');
     const config = await read('sv_permisos/'+role.rol);
-    if (!moduleAllowed(config,'ordentrabajo') || !moduleAllowed(config,'equipos') || !actionAllowed(config,'equipos','confirmarInstalacion',CONFIRM_DEFAULTS,role.rol)) throw fail(403,'Tu rol no permite confirmar equipos desde una OT');
+    if (!moduleAllowed(config,'ordentrabajo')) throw fail(403,'Tu rol no tiene acceso a órdenes de trabajo');
+    if(intent==='confirmar'){
+      if(!moduleAllowed(config,'equipos')||!actionAllowed(config,'equipos','confirmarInstalacion',CONFIRM_DEFAULTS,role.rol))throw fail(403,'Tu rol no permite confirmar equipos desde una OT');
+    }else{
+      const handover=actionAllowed(config,'ot','entregarMateriales',OT_ACTIONS.entregarMateriales,role.rol),returns=actionAllowed(config,'ot','rendirMateriales',OT_ACTIONS.rendirMateriales,role.rol);
+      if(!['custodia','entregar','devolver','recibir'].includes(intent)||(intent==='custodia'?!handover&&!returns:intent==='devolver'?!returns:!handover))throw fail(403,'Tu rol no permite esa operación de custodia');
+    }
     return {role,reset,config};
   }
   async function requireProtectedRules() {
@@ -202,8 +208,8 @@ function createOTUnitConfirmation({auth, db, guard, enabled = false, model = Def
     }
     return {sale:{fbKey:sale?.fbKey || '',id:text(sale?.id || sale?.numero),items},products};
   }
-  async function source(actor, otKey) {
-    const current = await authority(actor),selected = await selectedOT(otKey),assignment = await assigned(actor,current,selected.ot);
+  async function source(actor, otKey, intent = 'confirmar') {
+    const current = await authority(actor,intent),selected = await selectedOT(otKey),assignment = await assigned(actor,current,selected.ot);
     if (claim(selected.ot)) throw fail(409,'Los reclamos conservan los equipos y garantías originales. Revisalos desde su ficha; este cierre no genera nuevas coberturas.','SV_OT_CLAIM_PRESERVED');
     const linked = saleKey(selected.ot);
     let sale = null;
@@ -404,6 +410,10 @@ function createOTUnitConfirmation({auth, db, guard, enabled = false, model = Def
     }
     return normalized;
   }
-  return Object.freeze({prepare,confirm});
+  const custody=require('./ot-unit-custody').createOTUnitCustody({db,guard,verify,enabled:custodyEnabled,now,source:async(actor,otKey,intent)=>{
+    const c=await source(actor,otKey,intent),role=c.current.role.rol,config=c.current.config;
+    return {...c,custodyCapabilities:{entregar:actionAllowed(config,'ot','entregarMateriales',OT_ACTIONS.entregarMateriales,role),devolver:actionAllowed(config,'ot','rendirMateriales',OT_ACTIONS.rendirMateriales,role),recibir:actionAllowed(config,'ot','entregarMateriales',OT_ACTIONS.entregarMateriales,role)}};
+  }});
+  return Object.freeze({prepare,confirm,custodyPrepare:custody.prepare,custodyConfirm:custody.confirm});
 }
 module.exports = {createOTUnitConfirmation};
