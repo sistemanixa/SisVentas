@@ -1,17 +1,16 @@
 # Pendientes actuales de SisVentas
 
-Bloque OT/stock v3.15.14 probado localmente: adicionales instalados, consumo por revisión sin duplicados y corrección admin de OT cerrada. Falta acreditar publicación; no incluye custodia por serie ni garantías. Ver [alcance](OT_MATERIALES_STOCK_V31514.md).
+Bloque OT/stock v3.15.14 publicado y verificado: adicionales instalados, consumo por revisión sin duplicados y corrección admin de OT cerrada. Fuente 9a6251e5, Hosting25967b002932ac96; no incluye custodia por serie ni garantías. Ver [alcance](OT_MATERIALES_STOCK_V31514.md).
 
-Actualizado el 27/10/2026. Este es el índice vigente para ordenar el trabajo entre chats. Las listas fechadas por versión se conservan como antecedentes, no como tareas nuevas. Última publicación documentada: v3.15.13; la corrección de OT y stock está en curso para una entrega posterior, aún sin publicación confirmada.
+Actualizado el 27/10/2026. Este es el índice vigente para ordenar el trabajo entre chats. Las listas fechadas por versión se conservan como antecedentes, no como tareas nuevas. Última publicación documentada: v3.15.14, corrección OT/materiales y stock verificada sin operaciones reales de prueba.
 
 ## Orden de trabajo
 
 | Prioridad | Tema | Estado | Qué falta para cerrarlo |
 | --- | --- | --- | --- |
-| 1 | OT, materiales y stock | En curso en Revisar gastos duplicados históricos, con implementación y publicación autorizadas por el titular. | Evitar instalación sin descuento, consumo de reservas ajenas y descuento duplicado al reintentar. Permitir al administrador corregir materiales con la OT cerrada. Probar con datos ficticios, publicar y comprobar el resultado sin alterar OT/stock reales como prueba. |
-| 2 | Carga segmentada y consumo | Primer detalle puntual implementado y probado en una rama propia, sin activar. Dashboard y listado general todavía pendientes. | Dashboard por mes actual/anterior; listado inicial de seis meses con páginas y Mostrar anteriores; historial puntual del cliente. Mantener deuda antigua, pagos, comisiones y vínculos fuera del período. Medir descarga DB y navegador, arranque y reposo. Integrar con la última web publicada antes de cualquier corte. |
-| 3 | Pasar una venta a presupuesto | Auditoría con datos ficticios detectó pasos separados y preparación huérfana. Sin corrección publicada confirmada. | Definir y probar una operación coherente, recuperable y sin duplicados; conservar cobros, trabajo ejecutado, comisiones, reservas e historia. No resolver borrando registros reales ni ejecutar una cascada incidental. |
-| 4 | Mano de obra y salarios técnicos, pedido de Harvy | Diagnóstico terminado; propuesta pendiente de conversación. No implementación autorizada por ese pedido. | Acordar plantel técnico, conceptos salariales, período y si se compara lo vendido, ejecutado o cobrado. Separar costo presupuestado de salario real, descuentos, impuestos y adelantos. No sumar dos veces la misma mano de obra. No incluir aún gastos generales de Nixa ni ejemplos hipotéticos como datos reales. |
+| 1 | Carga segmentada y consumo | Primer detalle puntual implementado y probado en una rama propia, sin activar. Dashboard y listado general todavía pendientes. | Dashboard por mes actual/anterior; listado inicial de seis meses con páginas y Mostrar anteriores; historial puntual del cliente. Mantener deuda antigua, pagos, comisiones y vínculos fuera del período. Medir descarga DB y navegador, arranque y reposo. Integrar con la última web publicada antes de cualquier corte. |
+| 2 | Pasar una venta a presupuesto | Auditoría con datos ficticios detectó pasos separados y preparación huérfana. Sin corrección publicada confirmada. | Definir y probar una operación coherente, recuperable y sin duplicados; conservar cobros, trabajo ejecutado, comisiones, reservas e historia. No resolver borrando registros reales ni ejecutar una cascada incidental. |
+| 3 | Mano de obra y salarios técnicos, pedido de Harvy | Diagnóstico terminado; propuesta pendiente de conversación. No implementación autorizada por ese pedido. | Acordar plantel técnico, conceptos salariales, período y si se compara lo vendido, ejecutado o cobrado. Separar costo presupuestado de salario real, descuentos, impuestos y adelantos. No sumar dos veces la misma mano de obra. No incluir aún gastos generales de Nixa ni ejemplos hipotéticos como datos reales. |
 
 El orden anterior prioriza trabajo operativo ya autorizado. Las propuestas no se convierten automáticamente en desarrollos ni publicaciones.
 
@@ -25,6 +24,8 @@ Estos bloques acompañan las prioridades anteriores y no se cuentan otra vez com
 - **Costos de Google Cloud:** comparar consumo real después de cada bloque. Los objetivos documentados de aviso/corte requieren verificar configuración remota antes de darlos por activos; no se crean sondeos ni costos fijos por organizar estos pendientes.
 
 ## Ya publicado y fuera de la cola de desarrollo
+
+- OT/materiales y stock: adicionales instalados, consumo por recibo/revisión y corrección admin en OT cerrada, v3.15.14. 38 focales y suite6.198PASS/27opt-in; sin corrección automática de históricos. Custodia por unidad y garantías quedan separadas.
 
 - Herramientas de pedidos en Mi lista y Preparar compra: PDF neutro, CSV y Compartir, v3.15.5.
 - Optimización del cálculo de Cobranzas, v3.15.6. Reduce CPU; no equivale a segmentación del historial desde la base.
