@@ -1,5 +1,32 @@
 # Continuidad de SisVentas
 
+## OT/materiales publicados v3.15.14 · 27/10/2026
+
+Fuente 9a6251e5bb8f8cae6f698e297a701138dbd82227, rama codex/ot-materiales-stock-v31514.
+Hosting sites/nixa-sisventas-seguro/versions/25967b002932ac96: 473 activos, 7 cargas.
+15 hashes HTTPS exactos, mirror, 7 cabeceras y 7 rutas privadas404 comprobados.
+Script oficial confirmó web/core/SW y avisoFirebase v3.15.14-firebase.
+6.198 PASS / 27 opt-in / 0 fallos; 38 focalesPASS. QA ficticia390/768/1280 repetida
+con fuentes cuyo contenido coincide con la web; cero solicitudes externas.
+Evidencia privada C:/SisVentas/tmp/ot31514-release. No OT, stock, ventas, cobros,
+comisiones ni mensajes reales de prueba. Servidorbonus12/reglas/roles/IAM/flags
+conservados. Espejo local15.14 HTTP200, sin recargar pestañas del titular.
+
+Adicional nuevo nace instalado con stock pendiente explícito hasta confirmarlo.
+Transacción puntual por producto/recibo/revisión, reintentos sin doble consumo;
+no reserva ajena ni reserva del original del mismo código. Faltante bloquea
+confirmación; se completa desde Materiales sin crear otra venta. Admin puede
+habilitar rendición en OT cerrada incluso si figuraba completa; auditoría y
+estado conservados. No se corrigen automáticamente adicionales históricos.
+Stock/OT conservan dos confirmaciones, con recuperación de la segunda sin
+repetir la primera; no se promete atomicidad multidominio. Detalle
+OT_MATERIALES_STOCK_V31514.md. Custodia por serie/garantías y venta→presupuesto
+siguen pendientes separados en PENDIENTES_ACTUALES.md.
+
+Candidata amplia conserva marcador15.7; portados sólo4funciones de aplicación,
+3deinventario, custodia y recursos/tests de este bloque.38focalesPASS en candidata.
+No activar la candidata amplia por este cierre.
+
 ## Chat y búsqueda OT publicados v3.15.13 · 27/10/2026
 
 Fuente 332b3ac89350d58eb0b9af4d6d3d777d02e668f1, rama codex/chat-contactos-presencia-v31513.

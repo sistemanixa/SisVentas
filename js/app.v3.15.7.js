@@ -50262,6 +50262,8 @@ var _otCarritoAdicional = [];
 var _otGuardandoDestinoAdicional = false;
 
 function otAbrirSelectorProductos() {
+  var actual = (otData || []).find(function(o){return o.fbKey===otActualId || o.id===otActualId;});
+  if ((actual && actual.materiales || []).some(function(m){return m.stockPendiente === true;})) { notify('Completá primero el stock del adicional pendiente en Materiales.'); return; }
   _otCarritoAdicional = [];
   var modal = document.getElementById('ot-selector-prod-modal');
   if (modal) modal.style.display = 'flex';
@@ -50392,6 +50394,13 @@ function otMaterialesConAdicionales(ot, destino, ventaDestino) {
       return destino !== 'nueva' || String(material.ventaDestinoFbKey || '') === ventaKey;
     });
     if (existente) {
+      existente.stockBaseInstalada = Number(existente.instalada || 0);
+      existente.stockPendiente = true;
+      existente.instalada = Number(existente.instalada || 0) + Number(item.cantidad || 0);
+      existente.entregada = Number(existente.entregada || 0) + Number(item.cantidad || 0);
+      existente.custodiaActiva = true;
+      existente.custodiaClasificada = true;
+      existente.estadoCustodia = 'instalado';
       existente.vendida = Number(existente.vendida || existente.qty || 0) + Number(item.cantidad || 0);
       existente.qty = existente.vendida;
       existente.cantidad = existente.vendida;
@@ -50399,11 +50408,17 @@ function otMaterialesConAdicionales(ot, destino, ventaDestino) {
       return;
     }
     materiales.push({
-      cod:item.codigo || '', desc:item.nombre || '', vendida:Number(item.cantidad || 1), qty:Number(item.cantidad || 1), cantidad:Number(item.cantidad || 1), instalada:0,
+      cod:item.codigo || '', desc:item.nombre || '', vendida:Number(item.cantidad || 1), qty:Number(item.cantidad || 1), cantidad:Number(item.cantidad || 1), instalada:Number(item.cantidad || 1),
+      entregada:Number(item.cantidad || 1), custodiaActiva:true, custodiaClasificada:true, estadoCustodia:'instalado', stockPendiente:true, stockBaseInstalada:0,
       punit:Number(item.precio || 0), sub:_redondearPrecioActual(Number(item.precio || 0) * Number(item.cantidad || 1)),
       adicionalOT:true, origen:'adicional_ot', destinoVenta:destino, ventaDestinoFbKey:ventaKey, ventaDestinoId:ventaId,
       agregadoEn:fecha, agregadoPor:currentUser || ''
     });
+  });
+  materiales.forEach(function(material) {
+    if (material.adicionalOT && typeof window.otCustodiaEsMaterialControlable === 'function' && !window.otCustodiaEsMaterialControlable(material)) {
+      material.stockPendiente = false;material.custodiaActiva = false;delete material.stockBaseInstalada;
+    }
   });
   return materiales;
 }
@@ -50510,6 +50525,9 @@ async function _svCargaOperacion_otConfirmarProductosAdicionales() {
   try {
     await otGuardarCorreccionProductos(ot, materiales, 'Adicionales agregados a la venta original: ' + detalleAgregados);
     ot.materiales = materiales;
+    _otCarritoAdicional = [];
+    try { await window.otCustodiaCompletarStock(ot); }
+    catch (errorStock) { otFinalizarCargaAdicional(ot, 'Adicional instalado guardado. Falta completar stock: ' + errorStock.message); return; }
     if (typeof registrarActividad === 'function') registrarActividad('Materiales OT a venta original', (ot.id || ot.fbKey) + ' · ' + detalleAgregados);
     otFinalizarCargaAdicional(ot, '✓ Productos agregados a la OT y a la venta original');
   } catch (error) {
@@ -50624,6 +50642,9 @@ async function _svCargaOperacion_otConfirmarVentaAdicional() {
     ot.audit = audit;
     ot.ventasAdicionales = Object.assign({}, ot.ventasAdicionales || {});
     ot.ventasAdicionales[ventaKey] = updates[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/ventasAdicionales/' + ventaKey];
+    _otCarritoAdicional = [];
+    try { await window.otCustodiaCompletarStock(ot); }
+    catch (errorStock) { otFinalizarCargaAdicional(ot, 'Venta adicional e instalación guardadas. Falta completar stock: ' + errorStock.message); return; }
     if (typeof registrarActividad === 'function') registrarActividad('Materiales OT a venta nueva', (ot.id || ot.fbKey) + ' → ' + venta.id + ' · ' + detalleAgregados);
     otFinalizarCargaAdicional(ot, '✓ Venta ' + venta.id + ' creada por $' + Math.round(total).toLocaleString('es-AR'));
   } catch (e) {

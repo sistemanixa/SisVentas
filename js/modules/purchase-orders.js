@@ -1964,49 +1964,28 @@
   }
 
   function syncOTConsumption(ot, oldMaterial, newMaterial) {
-    if (!ot || !newMaterial) return Promise.resolve();
-    var product = findProduct(newMaterial);
-    var productKey = (product && product.fbKey) || newMaterial.productoKey || newMaterial.cod || newMaterial.codigo;
-    var delta = (parseFloat(newMaterial.instalada) || 0) - (parseFloat(oldMaterial && oldMaterial.instalada) || 0);
-    if (!productKey || !delta) return Promise.resolve();
-    var allocationKey = safeKey(ot.ventaFbKey || ot.ventaId || ot.id || ot.fbKey);
-    return transactionInventory(productKey, function (inv) {
-      inv.asignaciones = inv.asignaciones || {};
-      var allocation = inv.asignaciones[allocationKey] || { reservado: 0, consumido: 0, liberado: 0 };
-      if (delta > 0) {
-        var available = Math.min(delta, parseFloat(allocation.reservado) || parseFloat(inv.reservado) || 0);
-        inv.reservado = (parseFloat(inv.reservado) || 0) - available;
-        inv.consumido = (parseFloat(inv.consumido) || 0) + available;
-        allocation.reservado = Math.max(0, (parseFloat(allocation.reservado) || 0) - available);
-        allocation.consumido = (parseFloat(allocation.consumido) || 0) + available;
-      } else {
-        var reverse = Math.min(Math.abs(delta), parseFloat(allocation.consumido) || 0);
-        inv.reservado = (parseFloat(inv.reservado) || 0) + reverse;
-        inv.consumido = Math.max(0, (parseFloat(inv.consumido) || 0) - reverse);
-        allocation.reservado = (parseFloat(allocation.reservado) || 0) + reverse;
-        allocation.consumido = Math.max(0, (parseFloat(allocation.consumido) || 0) - reverse);
-      }
-      allocation.ventaId = ot.ventaId || '';
-      inv.asignaciones[allocationKey] = allocation;
-    });
+    if (!window.SVOTStock) return Promise.reject(new Error('Actualizá SisVentas para registrar el stock.'));
+    return window.SVOTStock.sync(window, ot, oldMaterial, newMaterial);
   }
 
   function releaseOTLeftovers(ot) {
     if (!ot) return Promise.resolve();
     var allocationKey = safeKey(ot.ventaFbKey || ot.ventaId || ot.id || ot.fbKey);
     return Promise.all((ot.materiales || []).map(function (material) {
+      var materialAllocationKey = safeKey(material.destinoVenta === 'nueva' ? material.ventaDestinoFbKey : ot.ventaFbKey || ot.ventaId || ot.id || ot.fbKey);
       var product = findProduct(material);
       var productKey = (product && product.fbKey) || material.productoKey || material.cod || material.codigo;
       if (!productKey) return Promise.resolve();
       return transactionInventory(productKey, function (inv) {
         inv.asignaciones = inv.asignaciones || {};
-        var allocation = inv.asignaciones[allocationKey];
+        var allocation = inv.asignaciones[materialAllocationKey];
         if (!allocation) return;
-        var leftover = Math.max(0, parseFloat(allocation.reservado) || 0);
+        var held = Object.values(inv.rendicionesOT || {}).filter(function(r){return r.venta === materialAllocationKey;}).reduce(function(sum,r){return sum + Math.max(0,Number(r.enReserva)||0);},0);
+        var leftover = Math.max(0, (parseFloat(allocation.reservado) || 0) - held);
         if (leftover) {
           inv.reservado = (parseFloat(inv.reservado) || 0) - leftover;
           inv.general = (parseFloat(inv.general) || 0) + leftover;
-          allocation.reservado = 0;
+          allocation.reservado = Math.max(0,(parseFloat(allocation.reservado)||0)-leftover);
           allocation.liberado = (parseFloat(allocation.liberado) || 0) + leftover;
           allocation.cerradoEn = Date.now();
         }
@@ -2025,9 +2004,22 @@
       var product = findProduct(material);
       var productKey = (product && product.fbKey) || material.productoKey || material.cod || material.codigo;
       if (!productKey || !quantity) return Promise.resolve();
+      var materialAllocationKey = safeKey(material.destinoVenta === 'nueva' ? material.ventaDestinoFbKey : ot.ventaFbKey || ot.ventaId || ot.id || ot.fbKey);
       return transactionInventory(productKey, function (inv) {
+        var receipt = material.stockRegistro && inv.rendicionesOT && inv.rendicionesOT[material.stockRegistro];
+        if (receipt) {
+          var targetReceived = Math.max(0,Number(material.devuelta)||0) + quantity;
+          var received = Math.max(0,Number(receipt.recibidas)||0);
+          if (received === targetReceived) return;
+          var deltaReceived = targetReceived - received;
+          var owned = inv.asignaciones && inv.asignaciones[materialAllocationKey];
+          if (receipt.venta !== materialAllocationKey || deltaReceived !== quantity || !owned || Number(receipt.enReserva||0) < quantity || Number(owned.reservado||0) < quantity || Number(inv.reservado||0) < quantity) throw new Error('La devolución cambió. Revisá el stock antes de recibir.');
+          inv.reservado -= quantity;owned.reservado -= quantity;inv.general = (Number(inv.general)||0) + quantity;
+          owned.liberado = (Number(owned.liberado)||0) + quantity;receipt.enReserva -= quantity;receipt.recibidas = targetReceived;
+          return;
+        }
         inv.asignaciones = inv.asignaciones || {};
-        var allocation = inv.asignaciones[allocationKey];
+        var allocation = inv.asignaciones[materialAllocationKey];
         if (!allocation) return;
         var available = Math.min(quantity, parseFloat(allocation.reservado) || 0);
         inv.reservado = Math.max(0, (parseFloat(inv.reservado) || 0) - available);
@@ -2036,7 +2028,7 @@
         allocation.liberado = (parseFloat(allocation.liberado) || 0) + available;
         allocation.ultimaDevolucionEn = Date.now();
         allocation.ventaId = ot.ventaId || allocation.ventaId || '';
-        inv.asignaciones[allocationKey] = allocation;
+        inv.asignaciones[materialAllocationKey] = allocation;
       });
     }));
   }
