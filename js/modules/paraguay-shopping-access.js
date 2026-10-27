@@ -187,7 +187,9 @@
       const p=products[key],actual=purchases[key]||{};
       if(!eligible(p))throw Error('Revisá el producto '+key+' antes de preparar el pedido.');
       const q=quote(p,actual.proveedor),agreed=actual.precioUnitario!==null&&actual.precioUnitario!==undefined&&actual.precioUnitario!=='';
-      return {code:p.codigo||key,name:p.nombre||p.descripcion||'',quantity,provider:actual.proveedor||q.store||p.proveedor||'',currency:agreed?(actual.moneda||'USD'):'USD',unitPrice:agreed?actual.precioUnitario:q.usd>0?q.usd:null,priceKind:agreed?'agreed':'reference'};
+      const provider=actual.proveedor||q.store||p.proveedor||'',linked=(p.proveedores||[]).filter(row=>row.activo!==false&&(row.nombre===provider||row.tiendaOrigen===provider));
+      const productUrl=linked.length===1?(linked[0].urlOferta||linked[0].url||''):'';
+      return {code:p.codigo||key,name:p.nombre||p.descripcion||'',productUrl,quantity,provider,currency:agreed?(actual.moneda||'USD'):'USD',unitPrice:agreed?actual.precioUnitario:q.usd>0?q.usd:null,priceKind:agreed?'agreed':'reference'};
     });
     return {title,usdDecimals:0,rows};
   }

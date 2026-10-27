@@ -3,7 +3,7 @@
  const CATEGORY='COMPRAS PARAGUAY';
  const defaults={chat:true,detalle:true,editar:false,crear:false,solicitudes:false,comprobantes:false};
  const labels={chat:'Chat general y mensajes directos',detalle:'Abrir ficha interna del producto',editar:'Editar datos del producto',crear:'Crear productos en su catálogo',solicitudes:'Ver solicitudes del catálogo y marcar su atención',comprobantes:'Emitir y consultar remitos y recibos propios'};
- let permissions=null,stop=null,editor=null,detailBox=null,providersStop=null;
+ let permissions=null,stop=null,editor=null,detailBox=null,providerRequest=null;
  const eligible=p=>!!p&&p.categoria===CATEGORY&&p.activo!==false&&p.estado!=='Inactivo'&&!p.esManoDeObra;
  const clean=value=>Object.fromEntries(Object.keys(defaults).map(k=>[k,typeof value?.[k]==='boolean'?value[k]:defaults[k]]));
  function allowed(key){return root.currentRole==='admin'||(root.currentRole==='distribuidora'&&!!permissions?.[key]);}
@@ -14,12 +14,13 @@
  if(typeof module!=='undefined')module.exports={clean,eligible,publicProviders};
  if(!root.document)return;
  async function start(){
-  stop?.();permissions=null;
+  providerRequest?.abort();providerRequest=null;stop?.();permissions=null;
   const role=root.currentRole,uid=root.currentUserUid;
   return new Promise((resolve,reject)=>{let first=true;stop=root.fbOnValue(root.fbRef(root.fbDB,'sv_distribuidora_permisos'),snap=>{
    if(root.currentRole!==role||root.currentUserUid!==uid)return;
    permissions=clean(snap.val());
-   if(role==='distribuidora'&&(permissions.editar||permissions.crear))startProviders();
+   if(providerRequest&&!allowed(providerRequest.use)){providerRequest.abort();providerRequest=null;}
+
    if(detailBox&&!allowed('detalle'))closeDetail();
    if(editor&&!allowed(editor.dataset.new==='1'?'crear':'editar')){closeEditor();}
    document.dispatchEvent(new CustomEvent('sisventas:distribuidora-permissions'));
@@ -29,18 +30,23 @@
    if(first){first=false;resolve();}
   },err=>{permissions=null;reject(err);});});
  }
- function syncProviders(list){
-  if(root.currentRole!=='admin'||!root.fbDB)return Promise.resolve();
-  return root.fbSet(root.fbRef(root.fbDB,'sv_catalogo_proveedores'),publicProviders(list));
- }
- function startProviders(){
-  if(providersStop)return;
-  providersStop=root.fbOnValue(root.fbRef(root.fbDB,'sv_catalogo_proveedores'),snap=>{
-   if(root.currentRole!=='distribuidora')return;
-   root.proveedoresData=Object.entries(snap.val()||{}).map(([fbKey,p])=>({...p,fbKey}));
-   if(root.proveedoresConReferenciaDeValor)root.proveedoresData=root.proveedoresConReferenciaDeValor(root.proveedoresData);
-   if(editor&&!root.productoFichaConsultando?.())root.inicializarFichaProducto?.();
-  },()=>root.notify?.('No se pudo cargar el listado de proveedores.'));
+ // Compatibility for an older caller: reading suppliers never publishes data.
+ function syncProviders(){return Promise.resolve();}
+ async function loadProviders(use){
+  if(root.currentRole!=='distribuidora')return true;
+  providerRequest?.abort();const request=new AbortController();providerRequest=request;request.use=use;
+  const uid=root.currentUserUid,role=root.currentRole,route=root.location.hash,context=root.svCapturarContextoOperacion?.();
+  const valid=()=>providerRequest===request&&!request.signal.aborted&&root.currentUserUid===uid&&root.currentRole===role&&root.location.hash===route&&allowed(use)&&(!context||context());
+  const progress=root.svCrearProgresoBoton?.(document.activeElement?.closest?.('button'),'Abriendo producto…');
+  try{
+   const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base||!root.SVServiceAuth?.headers)throw Error('No se pudo conectar con proveedores.');
+   const url=new URL(base);url.pathname=url.pathname.replace(/\/$/,'')+'/catalogo/proveedores';url.search='';url.hash='';url.searchParams.set('uso',use);
+   const headers=await root.SVServiceAuth.headers();if(!valid())return false;
+   const response=await root.fetch(url.href,{headers,signal:AbortSignal.any([request.signal,AbortSignal.timeout(30000)]),credentials:'omit',cache:'no-store',redirect:'error'}),data=await response.json();
+   if(!valid())return false;if(!response.ok||data.ok!==true||!data.proveedores||typeof data.proveedores!=='object'||Array.isArray(data.proveedores))throw Error(data.mensaje||'No se pudo cargar el listado de proveedores.');
+   const rows=Object.entries(data.proveedores).map(([fbKey,p])=>({...p,fbKey}));root.proveedoresData=root.proveedoresConReferenciaDeValor?root.proveedoresConReferenciaDeValor(rows):rows;return true;
+  }catch(error){if(valid())root.notify?.(error.name==='TimeoutError'?'La consulta demoró. Volvé a abrir el producto.':error.message||'No se pudo cargar proveedores.');return false;}
+  finally{progress?.finalizar();if(providerRequest===request)providerRequest=null;}
  }
  async function saveProduct(product){
   if(!editor)throw Error('Abrí el producto desde tu catálogo.');
@@ -53,10 +59,11 @@
   changes['sv_distribuidora_auditoria/'+audit]={uid:root.currentUserUid,producto:key,accion:isNew?'crear':'editar',fecha:root.fbServerTimestamp(),campos:Object.keys(data).join(',')};
   await root.fbUpdate(root.fbRef(root.fbDB),changes);return {...data,fbKey:key};
  }
- function closeEditor(){if(editor){const current=editor;root.cancelarFichaProducto?.();root.cancelarCotizacionProductoEditor?.();editor=null;current._restore?.();current.remove();}}
- function edit(key,product,onSaved){
+ function closeEditor(){providerRequest?.abort();providerRequest=null;if(editor){const current=editor;root.cancelarFichaProducto?.();root.cancelarCotizacionProductoEditor?.();editor=null;current._restore?.();current.remove();}}
+ async function edit(key,product,onSaved){
   const isNew=!key;if(!allowed(isNew?'crear':'editar')||(!isNew&&!eligible(product)))return;
   closeEditor();
+  if(!await loadProviders(isNew?'crear':'editar'))return;
   const native=document.getElementById('prod-form-view');
   if(!native||typeof root.abrirFormProducto!=='function'){root.notify?.('No se pudo abrir el formulario del producto');return;}
   const marker=document.createComment('distribuidora-product-editor');native.before(marker);
@@ -116,6 +123,9 @@
   root.fbGet(root.fbRef(root.fbDB,'sv_distribuidora_permisos')).then(s=>{baseline=clean(s.val());card.querySelector('[data-options]').innerHTML=Object.entries(labels).map(([k,label])=>'<label style="display:block;margin:14px 0"><input type="checkbox" data-permission="'+k+'" '+(baseline[k]?'checked':'')+'> '+label+'</label>').join('');card.querySelector('[data-save]').disabled=false;}).catch(()=>card.querySelector('[data-status]').textContent='No se pudieron cargar los permisos.');
   card.querySelector('[data-save]').onclick=async()=>{const b=card.querySelector('[data-save]');b.disabled=true;try{const next=Object.fromEntries(Array.from(card.querySelectorAll('[data-permission]')).map(n=>[n.dataset.permission,n.checked]));await root.fbSet(root.fbRef(root.fbDB,'sv_distribuidora_permisos'),next);baseline=next;card.querySelector('[data-status]').textContent='Permisos guardados. Se aplican en la sesión de Distribuidora.';}catch(e){card.querySelector('[data-status]').textContent='No se guardaron los permisos.';}finally{b.disabled=false;}};
  }
- document.addEventListener('sisventas:session-ended',()=>{stop?.();stop=null;providersStop?.();providersStop=null;permissions=null;closeEditor();closeDetail();});
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){providerRequest?.abort();providerRequest=null;}});
+ document.addEventListener('sisventas:role-changed',()=>{closeEditor();closeDetail();});
+ document.addEventListener('sisventas:page-changed',()=>{providerRequest?.abort();providerRequest=null;});
+ document.addEventListener('sisventas:session-ended',()=>{stop?.();stop=null;providerRequest?.abort();providerRequest=null;permissions=null;closeEditor();closeDetail();});
  root.SVDistribuidora={allowed,start,edit,detail,renderSettings,saveProduct,returnFromProduct,syncProviders,isEditing:()=>!!editor};
 })(typeof window==='undefined'?{}:window);

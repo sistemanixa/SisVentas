@@ -1971,39 +1971,65 @@ function _crearDropBusqueda() {
   if (document.getElementById('busq-drop-global')) return document.getElementById('busq-drop-global');
   var d = document.createElement('div');
   d.id = 'busq-drop-global';
-  d.style.cssText = 'display:none;position:fixed;z-index:9998;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.14);max-height:260px;overflow-y:auto';
+  d.style.cssText = 'display:none;position:fixed;z-index:9998;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.14);max-height:260px;overflow-y:auto;overscroll-behavior-y:contain;touch-action:pan-y;box-sizing:border-box';
   document.body.appendChild(d);
   var _closeDrop = function(e) {
     var drop = document.getElementById('busq-drop-global');
     if (document.querySelector('dialog[data-sv-camera][open]')) return;
     if (drop && !drop.contains(e.target) && e.target !== _gDropInputRef) {
-      drop.style.display = 'none';
+      _ocultarDropGlobal();
     }
   };
   document.addEventListener('mousedown',  _closeDrop);
   document.addEventListener('touchstart', _closeDrop, {passive:true});
-  window.addEventListener('scroll', function(){ var d=document.getElementById('busq-drop-global'); if(d && d.style.display !== 'none') d.style.display='none'; }, {capture:true, passive:true});
+  d.setAttribute('role','listbox');
+  window.addEventListener('scroll', function(e){ if(d.style.display!=='none'&&!(e.target&&e.target.nodeType&&d.contains(e.target))) _ocultarDropGlobal(); }, {capture:true, passive:true});
+  var reposicionar=function(){if(d.style.display!=='none')_posicionarDropGlobal();};
+  window.addEventListener('resize',reposicionar,{passive:true});
+  if(window.visualViewport)window.visualViewport.addEventListener('resize',reposicionar,{passive:true});
   return d;
 }
 
+function _posicionarDropGlobal() {
+  var d=_gDropEl,input=_gDropInputRef;if(!d||!input||!input.isConnected){_ocultarDropGlobal();return;}
+  var rect=input.getBoundingClientRect(),viewport=window.visualViewport;
+  var left=viewport?viewport.offsetLeft:0,top=viewport?viewport.offsetTop:0,width=viewport?viewport.width:window.innerWidth,height=viewport?viewport.height:window.innerHeight;
+  if(rect.bottom<top||rect.top>top+height||rect.right<left||rect.left>left+width){_ocultarDropGlobal();return;}
+  var below=Math.max(0,top+height-8-rect.bottom-3),above=Math.max(0,rect.top-top-11),up=below<Math.min(260,d.scrollHeight)&&above>below,room=Math.max(0,up?above:below);
+  d.style.width=Math.max(0,Math.min(Math.max(rect.width,260),width-16))+'px';
+  d.style.maxHeight=Math.min(260,room)+'px';
+  d.style.left=Math.max(left+8,Math.min(rect.left,left+width-8-d.offsetWidth))+'px';
+  d.style.top=(up?Math.max(top+8,rect.top-3-Math.min(d.scrollHeight,room,260)):rect.bottom+3)+'px';
+}
+
+function _seleccionarOpcionDropGlobal(index,scroll) {
+  var d=_gDropEl;if(!d)return;var options=Array.from(d.querySelectorAll('[role="option"]'));if(!options.length)return;
+  index=Math.max(0,Math.min(index,options.length-1));d.dataset.activeIndex=String(index);
+  options.forEach(function(option,i){option.setAttribute('aria-selected',String(i===index));option.style.background=i===index?'var(--bg3)':'';});
+  if(_gDropInputRef)_gDropInputRef.setAttribute('aria-activedescendant',options[index].id);
+  if(scroll){var option=options[index];if(option.offsetTop<d.scrollTop)d.scrollTop=option.offsetTop;else if(option.offsetTop+option.offsetHeight>d.scrollTop+d.clientHeight)d.scrollTop=option.offsetTop+option.offsetHeight-d.clientHeight;}
+}
+
 function _mostrarDropGlobal(inputEl, html) {
-  var d = _crearDropBusqueda();
-  _gDropEl = d;
-  _gDropInputRef = inputEl;
-  d.innerHTML = html;
-  d.style.display = 'block';
-  var rect = inputEl.getBoundingClientRect();
-  d.style.top   = (rect.bottom + 3) + 'px';
-  d.style.left  = rect.left + 'px';
-  d.style.width = Math.max(rect.width, 260) + 'px';
-  var dr = d.getBoundingClientRect();
-  if (dr.right  > window.innerWidth  - 8) d.style.left = Math.max(8, window.innerWidth  - dr.width  - 8) + 'px';
-  if (dr.bottom > window.innerHeight - 8) d.style.top  = Math.max(8, rect.top - dr.height - 3) + 'px';
+  if(_gDropInputRef&&_gDropInputRef!==inputEl)_ocultarDropGlobal();
+  var d = _crearDropBusqueda();_gDropEl=d;_gDropInputRef=inputEl;
+  d.innerHTML=html;d.style.display='block';d.scrollTop=0;
+  inputEl.setAttribute('role','combobox');inputEl.setAttribute('aria-controls',d.id);inputEl.setAttribute('aria-expanded','true');inputEl.setAttribute('aria-autocomplete','list');
+  Array.from(d.querySelectorAll('[onmousedown]')).forEach(function(option,i){option.id='sv-search-option-'+i;option.setAttribute('role','option');});
+  _posicionarDropGlobal();_seleccionarOpcionDropGlobal(0,false);
+  if(!inputEl._svDropKeyboardBound){inputEl._svDropKeyboardBound=true;inputEl.addEventListener('keydown',function(e){
+    if(_gDropInputRef!==inputEl||!_gDropEl||_gDropEl.style.display==='none')return;
+    var options=Array.from(_gDropEl.querySelectorAll('[role="option"]')),index=Number(_gDropEl.dataset.activeIndex)||0;
+    if(e.key==='Escape'){e.preventDefault();e.stopPropagation();_ocultarDropGlobal();return;}
+    if(e.key==='Tab'){_ocultarDropGlobal();return;}
+    if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();_seleccionarOpcionDropGlobal(e.key==='Home'?0:e.key==='End'?options.length-1:index+(e.key==='ArrowDown'?1:-1),true);return;}
+    if(e.key==='Enter'&&options[index]){e.preventDefault();e.stopPropagation();options[index].dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true}));}
+  });}
 }
 
 function _ocultarDropGlobal() {
-  var d = document.getElementById('busq-drop-global');
-  if (d) d.style.display = 'none';
+  var d = document.getElementById('busq-drop-global');if(d)d.style.display='none';
+  if(_gDropInputRef){_gDropInputRef.setAttribute('aria-expanded','false');_gDropInputRef.removeAttribute('aria-activedescendant');}
 }
 
 function filterCli(val) {
@@ -8435,7 +8461,9 @@ function fbGuardarOT(ot) {
       'firmaTecnico',
       'firmaTecnicoStoragePath',
       'firmadaTecnico',
-      'fechaFirmaTecnico'
+      'fechaFirmaTecnico',
+      'unidadesConfirmacion',
+      'unidadesEstadoInstalacion'
     ].forEach(function(campo) { delete cambiosOT[campo]; });
     cambiosOT.fbKey = ot.fbKey;
     prom = otPersistirGuardar(cambiosOT);
@@ -46763,7 +46791,7 @@ function fbCargarProveedores() {
     }) : [];
     lista = proveedoresConReferenciaDeValor(lista);
     proveedoresData = lista;
-    if(currentRole === 'admin') window.SVDistribuidora?.syncProviders(lista).catch(function(){console.warn('No se pudo actualizar el directorio de proveedores del catálogo');});
+
     renderResumenPreciosProveedores();
     lista = lista.filter(proveedorVisibleEnProducto);
     if (_svEsPaginaActiva('actualizadorprecios') && typeof renderModuloActualizadorPrecios === 'function') {
@@ -52121,6 +52149,11 @@ async function completarOT() {
     notify('Esta OT ya está finalizada.');
     return;
   }
+  var cierresEnCurso = window._svOTCierresEnCurso || (window._svOTCierresEnCurso = new Set());
+  var claveCierreEnCurso = ot.fbKey || ot.id;
+  if (cierresEnCurso.has(claveCierreEnCurso)) return;
+  cierresEnCurso.add(claveCierreEnCurso);
+  try {
   normalizarChecklistOT(ot);
   var auditoriaCierreOT = auditarIntegridadOT(ot);
   if (auditoriaCierreOT.bloqueos.length) {
@@ -52160,6 +52193,12 @@ async function completarOT() {
     if (typeof window.otWizardIr === 'function') window.otWizardIr('fotos');
     return;
   }
+  var revisionUnidadesCierre = {skip:true};
+  if (typeof window.garantiaRevisarCierreOT === 'function') {
+    try { revisionUnidadesCierre = await window.garantiaRevisarCierreOT(ot); }
+    catch (errorUnidades) { notify('No se pudo revisar las unidades: ' + errorUnidades.message); return; }
+    if (!revisionUnidadesCierre) return;
+  }
   const ahora = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   var estadoCierre = custodiaCierre.conObservaciones ? 'con_observaciones' : 'completada';
   var nombreConformidadCierre = ((document.getElementById('ot-acta-firma')||{}).value || '').trim();
@@ -52180,9 +52219,11 @@ async function completarOT() {
     audit: auditCierre
   });
 
+  if (revisionUnidadesCierre.estadoInst === 'instalado' || revisionUnidadesCierre.estadoInst === 'en_instalacion') otCierre.unidadesEstadoInstalacion = revisionUnidadesCierre.estadoInst;
+
   var ventaVinculadaCierre = null;
-  var estadoInstalacionVentaCierre = custodiaCierre.conObservaciones ? 'en_instalacion' : 'instalado';
-  if ((ot.ventaId || ot.ventaFbKey || ot.venta) && window.fbDB) {
+  var estadoInstalacionVentaCierre = custodiaCierre.conObservaciones || revisionUnidadesCierre.estadoInst === 'en_instalacion' ? 'en_instalacion' : 'instalado';
+  if ((ot.ventaId || ot.ventaFbKey || ot.ventaKey || ot.venta) && window.fbDB) {
     var ventaVinculada = _svResolverVentaRegistro(ot);
     // Si la referencia quedó huérfana, intentar la misma reconciliación segura
     // que usa el detalle de venta. Nunca se toma una coincidencia ambigua.
@@ -52201,7 +52242,7 @@ async function completarOT() {
     if (!ventaVinculadaCierre || !ventaVinculadaCierre.fbKey) return Promise.resolve();
     var tareas = [];
     if (typeof ventaDetalleRepararVinculoOT === 'function') {
-      tareas.push(Promise.resolve(ventaDetalleRepararVinculoOT(ventaVinculadaCierre, { persistir:true, notificar:false, otForzada:otCierre, devolverPromesa:true })));
+      tareas.push(Promise.resolve(ventaDetalleRepararVinculoOT(ventaVinculadaCierre, { persistir:true, notificar:false, otForzada:otCierre, estadoInstalacionConfirmado:estadoInstalacionVentaCierre, devolverPromesa:true })));
     }
     if (ventaVinculadaCierre.estadoInst !== estadoInstalacionVentaCierre) {
       tareas.push(ventasPagosPersistirActualizarVenta(ventaVinculadaCierre.fbKey, { estadoInst: estadoInstalacionVentaCierre }));
@@ -52212,7 +52253,7 @@ async function completarOT() {
   if (typeof fbGuardarOT === 'function') {
     var completarBtnGuardando = document.getElementById('btn-completar-ot');
     var progresoCierreOT = svCrearProgresoBoton(completarBtnGuardando, 'Guardando cierre de OT…');
-    fbGuardarOT(otCierre)
+    await fbGuardarOT(otCierre)
       .then(function() {
         Object.assign(ot, otCierre);
         var badgeEstado = document.getElementById('ot-det-estado-badge');
@@ -52227,13 +52268,16 @@ async function completarOT() {
       })
       .then(function(resultado) {
         progresoCierreOT.actualizar('Cierre guardado. Actualizando listado…');
+        var unidadesPorRevisar = revisionUnidadesCierre.warrantyReviewPendingCount;
+        var avisoRevisionUnidades = Number.isInteger(unidadesPorRevisar) && unidadesPorRevisar > 0
+          ? ' ' + unidadesPorRevisar + (unidadesPorRevisar === 1 ? ' unidad quedó con revisión pendiente; no se creó equipo ni cobertura para ella.' : ' unidades quedaron con revisión pendiente; no se crearon equipos ni coberturas para ellas.')
+          : '';
         if (!resultado.ventaSincronizada) {
-          notify('✓ La OT quedó completada, pero no se pudo actualizar la venta vinculada. Quedó pendiente de sincronización.');
+          notify('✓ La OT quedó completada, pero no se pudo actualizar la venta vinculada. Quedó pendiente de sincronización.' + avisoRevisionUnidades);
         } else {
-          notify(custodiaCierre.conObservaciones ? '✓ OT cerrada con materiales pendientes bajo seguimiento.' : '✓ OT completada y materiales rendidos.');
+          notify((custodiaCierre.conObservaciones ? '✓ OT cerrada con materiales pendientes bajo seguimiento.' : '✓ OT completada y materiales rendidos.') + avisoRevisionUnidades);
         }
         volverListaOT();
-        if(!custodiaCierre.conObservaciones && ventaVinculadaCierre && window.garantiaAbrirUnidades && window.tienePermiso('equipos.confirmarInstalacion')) garantiaAbrirUnidades(ventaVinculadaCierre,otCierre,{automatica:true});
       })
       .catch(function(e) {
         notify('No se pudo completar la OT. No se modificó su estado: ' + e.message);
@@ -52243,6 +52287,9 @@ async function completarOT() {
       });
   } else {
     notify('No se pudo guardar la orden de trabajo. Recargá e intentá nuevamente.');
+  }
+  } finally {
+    cierresEnCurso.delete(claveCierreEnCurso);
   }
 }
 
@@ -54619,7 +54666,8 @@ function ventaDetalleRepararVinculoOT(venta, opciones) {
   var ventaIdCanonico = String(venta.id || venta.numero || venta.fbKey || '').trim();
   var ventaKeyCanonica = String(venta.fbKey || '').trim();
   var otKeyCanonica = String(ot.fbKey || '').trim();
-  var estadoInstalacion = ventaDetalleOTFinalizada(ot)
+  var estadoConfirmado = opciones.estadoInstalacionConfirmado || ot.unidadesEstadoInstalacion;
+  var estadoInstalacion = (estadoConfirmado === 'instalado' || estadoConfirmado === 'en_instalacion') ? estadoConfirmado : ventaDetalleOTFinalizada(ot)
     ? 'instalado'
     : (ventaDetalleOTEnCurso(ot) ? 'en_instalacion' : (venta.estadoInst || 'pendiente_inst'));
   var relacionCambia = String(ot.ventaId || '') !== ventaIdCanonico

@@ -1,5 +1,17 @@
 # Continuidad de SisVentas
 
+## Primeros pendientes priorizados ·27/10/2026
+
+Autorización humana específica OT recibida y aplicada sólo al candidato local.
+WhatsApp, desplegable, lectura de proveedores sin publicar y revisión por unidad
+implementados. getRulesJSON completo y coordinación conservados; sin activación.
+Detalle, evidencia y límites en BLOQUE_PRIORITARIO_V3157.md. Puerta final7.987PASS/27opt-in/0fallos y94servicio;
+completar reglas aisladas y control posterior al ajuste ARIA.
+No confundir con producción15.6 ni retirar los bloqueos del corte amplio.
+Subida/CI bloqueada por revisión automática por repositorio público; autorización
+humana específica pendiente. El comando no se ejecutó: no hay commit/push/CI nuevos.
+
+
 ## Auditoría de lecturas por pantalla incorporada ·27/10/2026
 
 - Informe coordinado sólo de fuente publicada15.6/e2f3b432; inventario118funciones con referencias directas a seis fuentes y24core/módulos, NO grafo exhaustivo ni carga efectiva de todos los roles. Log63pruebas existentesPASS inspeccionado, no repetido ni atribuido al diseño propuesto. Originales privados tmp/AUDITORIA_LECTURAS_SISVENTAS_2026-10-27.txt y audit-demand-20261027.json fuera de Git.
@@ -2028,3 +2040,7 @@ El procedimiento antiguo [sincronizacion-dos-pc-y-publicacion.md](sincronizacion
 - Paquete final: 1.541 pruebas aprobadas, cero fallos; sintaxis, diff y coherencia local correctos. Código publicado en main: 2e9bb937824242dc8756175d6a686f4bc3d828c7, descendiente de 9fdaeb8 mediante push normal sin forzar. GitHub Pages ejecutó 38828308900; los diez activos publicados coinciden por SHA-256 normalizado con el paquete validado. scripts/actualizar-nodo-version.ps1 confirmó web, SW y Firebase en v3.11.8-firebase; la única escritura fue sisventas/config/version. Sin cambios de reglas, servicios ni datos comerciales.
 
 - Comprobación publicada: acceso directo con el parámetro antiguo oculto, apertura desde el botón real de Ofertas con regreso visible, ficha/recarga/historial conservados, URL de ficha copiada sin regreso y retorno efectivo al portal autenticado. Revisado en escritorio y viewport móvil 390x844; no equivale a teléfono físico. Se recargó la pestaña original del catálogo. Evidencias privadas en outputs/catalogo-publicado-v3118-sin-regreso.jpg y outputs/catalogo-publicado-v3118-desde-ofertas.jpg del chat; no se incluyen en Git.
+
+## Autorización de subida recibida ·27/10/2026
+
+El titular autorizó específicamente subir este bloque a codex/cierre-pendientes-v3157 en el repositorio público sistemanixa/SisVentas y ejecutar las pruebas aisladas gratuitas. Queda resuelto el bloqueo humano anterior de exposición y workflow; no equivale a publicar web ni activar producción. Registrar resultado real de CI antes del corte.

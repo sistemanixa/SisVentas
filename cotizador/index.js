@@ -60,6 +60,7 @@ const laborTransaction = laborRuntime.transaction;
 const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 const paymentCommands=require('./payment-commands').createPaymentCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,commercialProtocol:true,enabled:laborScopedEnabled&&process.env.PAYMENT_SCOPED_ENABLED==='true'});
 const adminExpenseCreate=require('./admin-expense-create').createAdminExpenseCreate({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.ADMIN_EXPENSE_SCOPED_ENABLED==='true'});
+const otUnitConfirmation=require('./ot-unit-confirmation').createOTUnitConfirmation({auth:businessAuth,db:admin.database(),guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_UNIT_CONFIRMATION_ENABLED==='true'});
 const laborOperations = require('./labor-operations').createLaborOperations({auth:businessAuth,db,transaction:laborTransaction});
 const laborSubmissions = require('./labor-submissions').createLaborSubmissions({auth:businessAuth,db,transaction:laborTransaction});
 const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:businessAuth,db});
@@ -74,6 +75,7 @@ const employeeMonthlyPayrollCommands=require('./employee-monthly-payroll').creat
 const purchaseSaleCostCommands=require('./purchase-sale-cost-commands').createPurchaseSaleCostCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard});
 const personalHoursReader = require('./personal-hours-reader').createPersonalHoursReader({auth:businessAuth,db});
 const personalExpenses = require('./personal-expenses').createPersonalExpenses({authorize:laborSubmissions.authorize,transaction:laborTransaction});
+const catalogSupplierDirectory=require('./catalog-supplier-directory').createCatalogSupplierDirectory({auth:businessAuth,db});
 const supplierDirectory = require('./supplier-directory').createSupplierDirectory({authorize:employeeDirectory.authorize,db});
 const commissionOperations = require('./commission-operations').createCommissionOperations({auth:businessAuth,db,transaction:laborTransaction});
 const commissionGenerationBase = require('./commission-generation').createCommissionGeneration({db,commercial:commercialOwnership,enabled:process.env.COMMISSION_GENERATION_ENABLED==='true',from:Date.parse(process.env.COMMISSION_GENERATION_FROM||''),logger:status=>console.log(JSON.stringify(status))});
@@ -2040,6 +2042,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if(pathname==='/ot/unidades/preparar'||pathname==='/ot/unidades/confirmar'){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
+    if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
+    try{const body=await readBody(req,200000),method=pathname.endsWith('/preparar')?'prepare':'confirm';send(res,200,{ok:true,...await otUnitConfirmation[method](req,body)});}
+    catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la revisión de unidades',...(e.code?{code:e.code}:{})});}return;
+  }
+
   if(pathname.startsWith('/comerciales/')){
     res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
     if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
@@ -2197,6 +2206,11 @@ const server = http.createServer(async (req, res) => {
   }
   if(req.method==='POST' && pathname==='/laboral/solicitar-gasto'){
     try{const identity=await personalExpenses.authorize(req);const body=await readBody(req,8000000);send(res,200,{ok:true,...await personalExpenses.submit(identity,body)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo guardar el gasto'});}return;
+  }
+  if(pathname==='/catalogo/proveedores'){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
+    if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
+    try{send(res,200,{ok:true,...await catalogSupplierDirectory.list(req)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo consultar proveedores'});}return;
   }
   if(req.method==='GET' && pathname==='/compras/proveedores'){
     try{const identity=await supplierDirectory.authorize(req);res.setHeader('Cache-Control','no-store');send(res,200,{ok:true,proveedores:await supplierDirectory.read(identity)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo consultar proveedores'});}return;

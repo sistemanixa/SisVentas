@@ -2,8 +2,11 @@
    Estrategia: red primero con cache de respaldo. */
 const CACHE = 'sisventas-v3.15.7';
 const SHELL = [
+ './js/core/ot-unit-confirmation.v1.js?v=3.15.7',
+ './js/modules/ot-unit-confirmation.js?v=3.15.7',
+ './css/ot-unit-confirmation.css?v=3.15.7',
  './js/core/print-layout.v1.js',
- './js/core/purchase-order-export.v1.js?v=3.15.6',
+ './js/core/purchase-order-export.v1.js?v=3.15.7',
  './js/core/dashboard-personal-hours.v1.js',
  './js/core/commission-presentation.v1.js?v=3.14.20',
  './js/core/dashboard-startup-demand.v1.js?v=3.15.6',
@@ -72,7 +75,7 @@ const SHELL = [
   './js/modules/comparacion-comercial.js?v=1',
   './js/modules/commercial-approval.js?v=3.9.29',
   './js/core/guarded-writes.js?v=3.13.19-labor',
-  './js/core/session-assets.js?v=3.15.6',
+  './js/core/session-assets.js?v=3.15.7',
   './js/core/ot-personal-scope.js?v=3.14.0',
   './js/app.v3.15.7.js',
   './js/core/activity-period.v1.js',

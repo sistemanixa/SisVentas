@@ -1,0 +1,42 @@
+name: Isolated OT rules
+on:
+  push:
+    branches: [codex/cierre-pendientes-v3157]
+    paths:
+      - '.github/workflows/ot-rules-isolated.yml'
+      - 'test/isolated-ot/**'
+      - 'test/ot-unit-confirmation-rules.integration.cjs'
+      - 'cotizador/ot-unit-confirmation*.js'
+permissions: {}
+concurrency:
+  group: isolated-ot-rules
+  cancel-in-progress: false
+jobs:
+  rules:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Fetch exact public source without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]]
+          mkdir source
+          cd source
+          git init
+          git -c credential.helper= fetch --depth=1 https://github.com/sistemanixa/SisVentas.git "$EXPECTED_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Prepare allowlisted sources and build test image
+        shell: bash
+        run: |
+          set -euo pipefail
+          node source/test/isolated-ot/context.cjs "$RUNNER_TEMP/isolated-ot-context"
+          docker build --pull --tag sisventas-ot-rules "$RUNNER_TEMP/isolated-ot-context"
+      - name: Evaluate rules with no external network or host mounts
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 1g --cpus 2 --tmpfs /tmp:rw,noexec,nosuid,size=256m --user 10001:10001 sisventas-ot-rules

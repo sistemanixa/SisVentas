@@ -63,6 +63,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
   // Los comandos financieros vuelven a ejecutar sus validaciones actuales.
   if((actor.mode==='user'&&actor.opId)||transportRecovery){const receipt=await store.read('sv_labor_receipts/'+opId);if(receipt){if(receipt.actorUid!==actor.uid||receipt.digest!==requestDigest)throw failure(409,'El identificador corresponde a otra operación');return transportRecovery?recoveryAck(receipt.result):copy(receipt.result);}}
   const lease={fence:uuid(),opId,digest:requestDigest,expiresAt:now()+leaseMs,actorUid:actor.uid,mode:actor.mode};
+  if(actor.mode==='user'&&actor.operation==='ot-unit-confirmation'&&actor.claims?.uid===actor.uid&&actor.claims?.svOTUnitConfirmation===true)lease.otUnitPolicy=1;
   for(let attempt=0;;attempt++){lease.expiresAt=now()+leaseMs;try{await store.acquire(lease);break;}catch(error){if(error.statusCode!==423||attempt>=4)throw error;await delay(100*2**attempt);}}
   const staged=new Map(),reads=new Map(),authReads=new Map(),authorizedSnapshots=new Map(),readTree={children:new Map(),path:null},beforeCommits=[];let completed=false,phase='working';
   const authenticatedActor=['user','command'].includes(actor.mode)&&actor.claims?.uid===actor.uid?{uid:actor.uid,claims:copy(actor.claims)}:null;
