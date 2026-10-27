@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Cobranzas15.6 preparada para publicar · 27/10/2026
+
+- Pedido directo del titular: continuar pendientes y publicar. Rama codex/cobranzas-listado-v3156 desde2d2b7d88/producción15.5; paquete limitado a cálculo de historial de Cobranzas. No incorpora la candidata amplia de cuentas/permisos/compras. La publicación externa se registra sólo después de Hosting, HTTPS y aviso.
+- La propuesta CPU19 estaba medida y descrita como integrada en una copia anterior, pero no existía en los dos checkouts actuales ni en su historial accesible. Se verificaron contra la fuente activa los tres cuerpos y18utilidades originales: coincidencia exacta. Se portan el helper y los tres cuerpos finales medidos; no se cambia el resolvedor canónico, importes, orden de suma IEEE, filtros, permisos ni escritores.
+- Doce regresiones activas nuevas cubren prioridad técnica, alias ambiguos/legacy,99.99IEEE, anulaciones/saldos guardados, huecos/no finitos/repetidos, sufijos, fallback, paginación e invalidación. Puerta6.079total/6.052PASS/27opt-in/0fallos,29,96s. Primer intento sandbox falló por permisos del Git temporal de una fixture; misma puerta con permiso de archivos pasó, sin cambiar sus expectativas. Sintaxis/diff/versión local correctos.
+- QA con renderer, markup/CSS y controles reales, negocio ficticio:52comparaciones DOM exactas contra original en320/390/768/1280;0erroresJS/red/lecturas/escrituras. Capturas móvil/escritorio inspeccionadas. No prueba formularios de pago ni teléfono físico ni factura Google. El cálculo conserva el historial completo; es una optimización de CPU y NO una reducción de primeras descargas RTDB. Evidencia privada tmp/cobranzas3156-qa y tmp/cobranzas3156-release.
+- CUA sigue fallando kernelassets: no se afirma inspección/recarga de la sesión auténtica. No se borra navegación ni se prueban guardados reales. Continúan acceso fiscal pendiente de decisión, preparación/drenaje de vistas, reglas/emulador y OT/garantías bloqueados; proveedores necesita escritor coordinado porque el permiso de publicar el catálogo público no coincide con editar proveedores. No retirar esa publicación de lectura sin resolver cobertura/concurrencia de todos los escritores.
+
 ## Herramientas15.5 publicadas y verificadas · 26/10/2026
 
 - Autorización directa del titular para ambos circuitos, PDF/orden/precios y sin tocar datos reales. Fuente limpia/pushed9bc483cffa3058236d00b1df012fa18586ce10b5, rama codex/pedidos-publicacion-v3155, desde15.4. Hosting09cc2c55f9d01218:459activos/8cargas;25hashesHTTPS exactos, mirror/7cabeceras/7rutas404 correctos. Después script oficial confirmó web/core/SW y aviso v3.15.5-firebase. Sin servidor/reglas/flags/IAM/DNS/servicios ni operaciones financieras reales cambiados.
