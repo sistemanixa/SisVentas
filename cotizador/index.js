@@ -60,7 +60,7 @@ const laborTransaction = laborRuntime.transaction;
 const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 const paymentCommands=require('./payment-commands').createPaymentCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,commercialProtocol:true,enabled:laborScopedEnabled&&process.env.PAYMENT_SCOPED_ENABLED==='true'});
 const adminExpenseCreate=require('./admin-expense-create').createAdminExpenseCreate({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.ADMIN_EXPENSE_SCOPED_ENABLED==='true'});
-const otUnitConfirmation=require('./ot-unit-confirmation').createOTUnitConfirmation({auth:businessAuth,db:admin.database(),guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_UNIT_CONFIRMATION_ENABLED==='true'});
+const otUnitConfirmation=require('./ot-unit-confirmation').createOTUnitConfirmation({auth:businessAuth,db:admin.database(),guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_UNIT_CONFIRMATION_ENABLED==='true',custodyEnabled:laborScopedEnabled&&process.env.OT_UNIT_CONFIRMATION_ENABLED==='true'&&process.env.OT_UNIT_CUSTODY_ENABLED==='true'});
 const laborOperations = require('./labor-operations').createLaborOperations({auth:businessAuth,db,transaction:laborTransaction});
 const laborSubmissions = require('./labor-submissions').createLaborSubmissions({auth:businessAuth,db,transaction:laborTransaction});
 const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:businessAuth,db});
@@ -2040,6 +2040,13 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204);
     res.end();
     return;
+  }
+
+  if(pathname==='/ot/custodia/preparar'||pathname==='/ot/custodia/confirmar'){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
+    if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
+    try{const body=await readBody(req,200000),method=pathname.endsWith('/preparar')?'custodyPrepare':'custodyConfirm';send(res,200,{ok:true,...await otUnitConfirmation[method](req,body)});}
+    catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo registrar la custodia',...(e.code?{code:e.code}:{})});}return;
   }
 
   if(pathname==='/ot/unidades/preparar'||pathname==='/ot/unidades/confirmar'){

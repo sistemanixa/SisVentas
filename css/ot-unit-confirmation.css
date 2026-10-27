@@ -37,3 +37,6 @@
 @media(max-width:520px){.ot-unit-manual-grid{grid-template-columns:1fr}.ot-unit-manual-form{padding:12px}.ot-unit-manual-toggle{min-height:44px}}
 
 .ot-unit-serial{display:flex;flex-direction:column;gap:8px;min-width:0}.ot-unit-scan{min-height:44px;align-self:flex-start}
+
+.ot-custody-card label{margin-top:12px}.ot-custody-card .ot-unit-manual-consent{display:flex;flex-direction:row;align-items:center;gap:10px;min-height:40px;cursor:pointer}.ot-custody-card .ot-unit-manual-consent input{width:20px;height:20px;min-height:20px;flex:none;accent-color:var(--blue,#8ebcff)}
+.ot-custody-card .ot-unit-manual-consent span{flex:1;min-width:0;line-height:1.5}

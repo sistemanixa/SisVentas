@@ -4,6 +4,7 @@ const CACHE = 'sisventas-v3.15.7';
 const SHELL = [
  './js/core/ot-unit-confirmation.v1.js?v=3.15.7',
  './js/modules/ot-unit-confirmation.js?v=3.15.7-scanner',
+ './js/modules/ot-unit-custody.js?v=3.15.7-custody',
  './css/ot-unit-confirmation.css?v=3.15.7-scanner',
  './js/core/print-layout.v1.js',
  './js/core/purchase-order-export.v1.js?v=3.15.7',
