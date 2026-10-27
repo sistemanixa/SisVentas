@@ -56,7 +56,8 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
   const opId=actor.opId||uuid();if(!/^[A-Za-z0-9_-]{8,160}$/.test(opId))throw failure(400,'Identificador de operación inválido');
   const movementRecovery=actor.mode==='command'&&['employee-movement-create','employee-movement-delete'].includes(actor.operation)&&actor.claims?.uid===actor.uid&&typeof actor.opId==='string'&&/^[A-Za-z0-9_-]{8,160}$/.test(actor.opId)&&/^[a-f0-9]{64}$/.test(actor.transportDigest||'');
   const monthlyRecovery=actor.mode==='command'&&actor.operation==='employee-monthly-payroll-apply'&&actor.claims?.uid===actor.uid&&typeof actor.opId==='string'&&/^[A-Za-z0-9_-]{8,160}$/.test(actor.opId)&&/^[a-f0-9]{64}$/.test(actor.transportDigest||'');
-  const transportRecovery=movementRecovery||monthlyRecovery,recoveryAck=monthlyRecovery?monthlyPayrollAck:movementAck;
+  const bonusRecovery=actor.mode==='command'&&actor.operation==='bonus-payment'&&actor.recoverReceipt===true&&actor.claims?.uid===actor.uid&&typeof actor.opId==='string'&&/^[A-Za-z0-9_-]{8,160}$/.test(actor.opId)&&/^[a-f0-9]{64}$/.test(actor.transportDigest||'');
+  const transportRecovery=movementRecovery||monthlyRecovery||bonusRecovery,recoveryAck=bonusRecovery?copy:monthlyRecovery?monthlyPayrollAck:movementAck;
   const requestDigest=(actor.mode==='user'||transportRecovery)&&actor.transportDigest!==undefined?actor.transportDigest:digest({uid:actor.uid,mode:actor.mode,operation:actor.operation||'',input:actor.input??null});
   if(!/^[a-f0-9]{64}$/.test(requestDigest))throw failure(400,'Identificador de comprobación inválido');
   // Sólo el transporte de una escritura idéntica puede recuperar su recibo.

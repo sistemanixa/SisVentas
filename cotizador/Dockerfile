@@ -32,6 +32,7 @@ COPY commercial-view-protocol.js commercial-document-commands.js commercial-publ
 COPY commercial-atomic.js commercial-create-plan.js commercial-edit-policy.js commercial-record-access.js commercial-public-schema.js ./
 COPY personal-hours-reader.js ./
 COPY personal-expenses.js ./
+COPY bonus-payment.js bonus-payment-model.js ./
 COPY admin-expense-create.js payment-membership-matcher.js payment-membership-index.js payment-snapshot.js payment-commands.js ./
 COPY expense-removal-policy.js expense-removal-guard.js ./
 COPY supplier-directory.js catalog-supplier-directory.js ./

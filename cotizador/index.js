@@ -58,6 +58,7 @@ const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
 const laborTransaction = laborRuntime.transaction;
 const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
+const bonusPayment=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 const paymentCommands=require('./payment-commands').createPaymentCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,commercialProtocol:true,enabled:laborScopedEnabled&&process.env.PAYMENT_SCOPED_ENABLED==='true'});
 const adminExpenseCreate=require('./admin-expense-create').createAdminExpenseCreate({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.ADMIN_EXPENSE_SCOPED_ENABLED==='true'});
 const otUnitConfirmation=require('./ot-unit-confirmation').createOTUnitConfirmation({auth:businessAuth,db:admin.database(),guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_UNIT_CONFIRMATION_ENABLED==='true',custodyEnabled:laborScopedEnabled&&process.env.OT_UNIT_CONFIRMATION_ENABLED==='true'&&process.env.OT_UNIT_CUSTODY_ENABLED==='true'});
@@ -2176,6 +2177,11 @@ const server = http.createServer(async (req, res) => {
       send(res,200,{ok:true,...commissionPublic.response(result)});
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:commissionPublic.errorMessage(e)});}
     return;
+  }
+  if(pathname==='/laboral/bonificaciones/pagar'){
+    res.setHeader('Cache-Control','private, no-store');
+    try{const actor=await bonusPayment.authorize(req),body=await readBody(req,4*1024*1024);send(res,200,await bonusPayment.execute(actor,body));}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el pago. Consultá la operación antes de repetirla.',...(error.code?{code:error.code}:{})});}return;
   }
   if(['/laboral/capacidades','/laboral/gastos/crear-administrativo','/cobranzas/operacion'].includes(pathname)){
     res.setHeader('Cache-Control','private, no-store');

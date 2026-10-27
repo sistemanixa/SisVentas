@@ -1,5 +1,38 @@
 # Continuidad de SisVentas
 
+## Bonificaciones publicadas v3.15.12 y local activo ·27/10/2026
+
+Autorización directa cumplida. Fuente6ebc77f1ef5f8da8508465d58a55952f485cdc07,
+rama codex/pago-bonificaciones-v31512. Backend cotizador-bonus12-6ebc77f1 al100%
+y14accesos existentes, imagen compilada única38de48ff-d8f6-4f51-9d4e-225fe8efb28d.
+Runtime/facturación/mínimos/configuración anteriores conservados. POST sin sesión401,
+GET405 antes y después de promover. Sólo probes sin sesión; no pagos reales.
+
+Web Hosting ed956a7aee82be31:466activos/7cargas.29hashesHTTPS exactos, mirror,
+7cabeceras y7rutas privadas/candidatas404. Script oficial confirmó avisoFirebase
+v3.15.12-firebase. Formulario390/1280repetido con JS efectivamente descargado:
+cliente y servidor reales contra memoria, un commit, sueldo intacto, sin solicitudes
+externas ni cuentas privadas en navegador.75focalesPASS; puerta6.138PASS/27opt-in/
+0fallos y5casos extraPASS;94servidorPASS.21expresiones exactas de reglas remotas
+comprobadas localmente, sin emulador ni escritura remota de prueba.
+
+Administración paga una bonificación desde Gastos con gastos.pagar/administrar,
+sin verCuentas ni lectura de cuenta completa. Actualización de gasto y único
+movimiento vinculados atómica con saldo, aprobación, permisos, originales,
+comprobante y recuperación sin duplicados. Pagos ya realizados no se repiten.
+No cambia roles, reglas, IAM, flags, ventas, comisiones ni otros escritores.
+La candidata amplia15.7 sigue sin activar; esta corrección ya no depende de ella.
+Detalle docs/PAGO_BONIFICACION_ADMINISTRATIVO_V31512.md en rama publicada.
+
+A pedido posterior del titular se inició servidor oculto127.0.0.1:8766 con sólo
+466activos públicos idénticos a la web. PID inicial33852, script y evidencia en
+C:/SisVentas/tmp/bonus31512-release, fuera de Git. Se reutilizó su única pestaña:
+Reintentar carga recuperó sesión, actualización15.6→15.12 y Dashboard Sincronizado
+confirmados por CUA. No se escribieron operaciones financieras ni se reingresaron
+credenciales. Se dejó la misma pestaña abierta; no borrar navegación.
+
+
+
 ## Chat publicado v3.15.11 ·27/10/2026
 
 Fuente d4252e17d2c42a092adf0bfb5827b1139779fc55, rama codex/chat-directos-v31511.
