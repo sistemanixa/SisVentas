@@ -74,3 +74,28 @@ La revisión automática RECHAZÓ el comando compuesto de commit/push porque ori
 Origin/main se consultó mediante fetch:4639a87b, con índice12.5 en esa línea histórica y limpieza posterior. No se equipara a Hosting15.6 ni se mezcla sobre la candidata amplia. Rama local codex/cierre-pendientes-v3157 conserva d5cfd0f2 y el alcance de este bloque.
 
 Autorización humana específica de subida y ejecución aislada recibida27/10/2026. Se continúa únicamente con ese destino y alcance; el rechazo anterior queda como antecedente, no como aprobación de producción.
+
+## Pruebas aisladas OT completadas ·27/10/2026
+
+Autorización humana de subida/ejecución recibida y ejercida exclusivamente en
+la rama pública codex/cierre-pendientes-v3157. Commit fuente
+ec3897676ca323b5946656d3d5b5c7578b847f2c;39archivos revisados y push confirmado.
+[Workflow40484875998](https://github.com/sistemanixa/SisVentas/actions/runs/40484875998),
+job122124052296:31pruebas reales del emuladorPASS,0fallos,0omitidas,4,87s de suite.
+
+Método nuevo revisado: VM efímera GitHub estándar y contenedor con sólo37fuentes
+permitidas; sin red exterior, raíz de sólo lectura, UID10001, capacidades retiradas,
+sin montajes del host ni credenciales Google. JAR4.11.2 verificado por SHA256.
+No se volvió a ejecutar el emulador local bloqueado ni se amplió su acceso a Unsafe.
+
+Validados reintentos/recibos sin duplicados, alta concurrente en ambas ramas,
+series/ubicación obligatorias, preservación de originales, incompatibilidad de
+lease, revocación de rol/reset y rechazo al retirar validadores. Cinco unidades
+históricas manuales registradas con serie/auditoría, venta y finanzas intactas.
+El endpoint mantuvo lectura completa de reglas, también antes del commit.
+
+La base de reglas/datos es ficticia. No equivale a compilar/comprobar la candidata
+completa contra la base productiva, medir SDK/consumo Google o activar el corte.
+Hosting/servidor/reglas/flags/datos reales sin cambios. El bloqueo humano de
+subida y el bloqueo técnico del ensayo OT quedan resueltos; preparación/cobertura,
+drenaje y activación coherente del bloque amplio siguen pendientes.
