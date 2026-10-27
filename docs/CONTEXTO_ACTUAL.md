@@ -1,5 +1,19 @@
 # Continuidad de SisVentas
 
+## Custodia por serie: evidencia de pruebas · 27/10/2026
+
+- Subida pública y CI autorizadas por el titular, exclusivamente en codex/cierre-pendientes-v3157. Esto no autoriza activar la candidata ni equivale a publicación web.
+- La confirmación OT original pasó 31 casos reales de emulador (run40484875998). Dos propuestas posteriores de custodia fallaron: la comparación de objetos impedía notas normales, y numChildren no existe en reglas RTDB. Ninguna se aplicó en producción ni se alteraron las expectativas para ocultar el fallo.
+- Se rediseñó como sv_ot_unit_custody/<OT>, cerrado a lecturas/escrituras de clientes y con escritura sólo por actor/permiso/guard vigentes. No modifica concesiones de dominios existentes. Las notas de OT conservan su comportamiento; identidad y eventos previos no se reemplazan.
+- SHA5cf9a98404f3bd0f10641a27ff344c239563a242: run40492451924, job122149483565, 32PASS/0fallos/0omitidas, 4,69s. Imagen8f05d30620cb8466a91a13b406eb13c9e336f7f43e1346c999b7f4975a40dfca. Prueba permiso real de cinco series y rechazos de lectura, cambio y borrado directo.
+- SHAd85703feaa4cbceade92890ca2890330dba09867: run40492781124, job122150616718, 37PASS/0fallos/0omitidas, 7,03s. Endpoint real de entrega/devolución/recepción, acuse sin duplicados y rollback ante carreras de contador, técnico, permisos y reset. Finanzas y garantías intactas. Contenedor sin red exterior, sólo fuentes permitidas, sin credenciales Google ni datos reales.
+- Modelo, reglas, servidor OT/custodia: 65 casos focales locales PASS. El circuito de custodia está deshabilitado por defecto y todavía sin rutas públicas. Un fallo de arranque de la primera integración opcional fue corregido con inicialización diferida; regresión explícita comprueba cero lecturas/autenticaciones con el circuito apagado. Puerta propia del servidor94PASS. Puerta completa8.065casos/8.038PASS/27opt-in/0fallos,42,98s; regresión de función deshabilitada además verificada en los12casos de custodia.
+- El lector por unidad ya está integrado en confirmación OT: pruebas de callbacks, cancelación, duplicados y decoder; revisión visual ficticia con cinco cerraduras en8934 coordinada. Cámara física no validada.
+- Pendientes reales: UI de entrega/devolución por serie, integración atómica de instalación con equipo/garantía y consumo, compatibilidad de escritores antiguos, candidata completa contra reglas remotas revisadas y preparación/cobertura/drenaje del corte amplio. No presentar el prototipo de custodia como función terminada.
+- Sin Hosting, servidor, reglas, flags, IAM ni operaciones comerciales reales modificados en este bloque. Evidencias privadas bajo tmp/priority3157; no subir logs, perfiles ni datos reales.
+
+
+
 ## Pruebas aisladas OT completadas ·27/10/2026
 
 Autorización humana de subida/ejecución recibida y ejercida exclusivamente en

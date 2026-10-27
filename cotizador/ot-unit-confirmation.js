@@ -410,10 +410,10 @@ function createOTUnitConfirmation({auth, db, guard, enabled = false, custodyEnab
     }
     return normalized;
   }
-  const custody=require('./ot-unit-custody').createOTUnitCustody({db,guard,verify,enabled:custodyEnabled,now,source:async(actor,otKey,intent)=>{
+  const custody=custodyEnabled?require('./ot-unit-custody').createOTUnitCustody({db,guard,verify,enabled:custodyEnabled,now,source:async(actor,otKey,intent)=>{
     const c=await source(actor,otKey,intent),role=c.current.role.rol,config=c.current.config;
     return {...c,custodyCapabilities:{entregar:actionAllowed(config,'ot','entregarMateriales',OT_ACTIONS.entregarMateriales,role),devolver:actionAllowed(config,'ot','rendirMateriales',OT_ACTIONS.rendirMateriales,role),recibir:actionAllowed(config,'ot','entregarMateriales',OT_ACTIONS.entregarMateriales,role)}};
-  }});
+  }}):{prepare:async()=>{throw fail(503,'La custodia por serie todavía no está habilitada');},confirm:async()=>{throw fail(503,'La custodia por serie todavía no está habilitada');}};
   return Object.freeze({prepare,confirm,custodyPrepare:custody.prepare,custodyConfirm:custody.confirm});
 }
 module.exports = {createOTUnitConfirmation};
