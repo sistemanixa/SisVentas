@@ -2,6 +2,8 @@
    Estrategia: red primero con cache de respaldo. */
 const CACHE = 'sisventas-v3.15.7';
 const SHELL = [
+ './css/chat-directs.v1.css?v=3.15.13',
+ './css/ot-search.v1.css?v=3.15.13',
  './js/core/ot-unit-confirmation.v1.js?v=3.15.7',
  './js/modules/ot-unit-confirmation.js?v=3.15.7-scanner',
  './js/modules/ot-unit-custody.js?v=3.15.7-custody',
@@ -103,7 +105,8 @@ const SHELL = [
   './js/modules/offline-core.js',
   './js/modules/commercial-drafts.js?v=3.13.17',
   './js/modules/chat-access.js?v=3.13.0-events',
-  './js/modules/chat-presence.js?v=3.13.0-events',
+  './js/modules/chat-presence.v2.js?v=3.15.13',
+ './js/modules/chat-direct-contacts.v1.js?v=3.15.13',
   './js/modules/security-storage.js?v=3.13.2-foreground',
   './js/modules/catalog-cart-review.js',
   './js/modules/ai-learning.js?v=perf-31010',

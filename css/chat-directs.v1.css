@@ -1,0 +1,1 @@
+#chat-header>div:first-child{min-width:0;flex:1}#chat-header>div:first-child>div:last-child{min-width:0;flex:1}#chat-title{overflow-wrap:anywhere;line-height:1.25}#chat-direct-back{flex:0 0 auto;min-width:32px;min-height:36px}#chat-direct-back[hidden]{display:none!important}

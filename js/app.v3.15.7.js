@@ -2867,6 +2867,7 @@ function chatMarcarCanalActivo(canal) {
   document.querySelectorAll('.chat-canal-btn').forEach(function(btn) {
     btn.classList.toggle('active', btn.getAttribute('data-canal') === canal);
   });
+  window.SVChatContacts?.updateHeader(canal);
 }
 
 function chatNombreSesion() {
@@ -3502,6 +3503,7 @@ function chatEnviar() {
 
 function chatAbrirDirectos(silencioso) {
   chatAudioCancelar();
+  document.getElementById('chat-online-banner')?.remove();
   var cargaId = ++_chatCargaId;
   _chatListaVisible = [];
   chatCancelReply();
@@ -3543,13 +3545,14 @@ function chatAbrirDirectos(silencioso) {
       });
       var persona = otroUid && window._chatDirectorio[otroUid];
       var otroNombre = (persona && persona.nombre) || (otroAutor && otroAutor.autor) || 'Usuario no disponible';
-      conversaciones.push({ canal, otroNombre, ultimo, noLeidos });
+      conversaciones.push({ canal, otroUid, otroNombre, ultimo, noLeidos });
     });
 
     // Presencia indica disponibilidad; no crea conversaciones sin mensajes.
 
     if (!conversaciones.length) {
       msgs.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">No hay conversaciones directas aún</div>';
+      window.SVChatContacts?.decorate(msgs, conversaciones);
       return;
     }
 
@@ -3583,6 +3586,7 @@ function chatAbrirDirectos(silencioso) {
         '</div>';
       }).join('') +
     '</div>';
+    window.SVChatContacts?.decorate(msgs, conversaciones);
   }).catch(function() {
     if (cargaId !== _chatCargaId) return;
     msgs.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px">Error cargando conversaciones</div>';
@@ -25844,6 +25848,7 @@ function notificarUsuarioConectado(presencia) {
 }
 // usuario dispara esto al instante (es lo que da el efecto "tiempo real").
 function cargarPresenciaUsuarios() {
+  if (window.SVChatPresence?.foregroundOnly) { window.SVChatPresence.start(); return; }
   if (!window.fbDB) return;
   if (window._presenciaUsuariosListenerActivo) return;
   window._presenciaUsuariosListenerActivo = true;
