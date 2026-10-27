@@ -1,5 +1,25 @@
 # Continuidad de SisVentas
 
+## Chat urgente y ancho de búsqueda OT v3.15.13 preparados ·27/10/2026
+
+Titular priorizó destinatario ausente, conectados falsos y falta de contactos en
+Directo; autorizó reparar y publicar urgente. Se suma nombre arriba/volver al
+destinatario y buscador ancho de OT. Detalle CHAT_CONTACTOS_PRESENCIA_V31513.md.
+Selector autorizado por UID, ningún mensaje enviado. Presencia de foregroundcx2,
+sin mirrorlegacy ni estado cacheado tras cortar conexión, sin heartbeat. Clientes
+anteriores pueden ser elegidos pero no acreditan presencia actual hasta actualizar.
+No cambia reglas/roles/servidor ni pagos/comisiones15.12. Suite6.160PASS/27opt-in/
+0fallos;29focalesPASS; QAchat390/1280yOT390/768/1280ficticiasPASS.
+
+Auditoría venta→presupuesto pausada por esta prioridad: código publicado crea
+presupuesto y borra venta/cobros/OT en promesas separadas, dejando preparación,
+reservas y eventos independientes sin reconciliar. Simulación privada confirmó
+retorno anticipado y resultado parcial ante fallo de un hijo. Eliminación de
+preparación además exige venta/proveedor local y recalcula sus costos: no equivale
+a retirar un plan huérfano. No se modificaron datos reales ni se aplicó una cascada.
+Evidencia tmp/sale-lifecycle-audit; retomar revisión de vínculos/compensaciones.
+
+
 ## Bonificaciones publicadas v3.15.12 y local activo ·27/10/2026
 
 Autorización directa cumplida. Fuente6ebc77f1ef5f8da8508465d58a55952f485cdc07,
