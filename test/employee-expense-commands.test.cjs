@@ -57,3 +57,35 @@ test('editing a delivered uncompensated advance keeps the chosen month and immut
 test('a delivered advance cannot be transferred; annul and register another as requested, preserving all history',async()=>{const attrs={tipoPagable:'adelanto',origen:'adelanto_personal',periodoDescuento:'2026-11',estado:'pagado',montoPagado:100.11},f=fixture({commission:false,approved:true,payments:{p:{monto:100.11,fecha:'2026-10-24',medio:'A'}},expenseExtra:attrs,movementExtra:{tipo:'adelanto',periodoDescuento:'2026-11',estado:'pagado',montoPagado:100.11}}),original=clone(f.read('sisventas'));await assert.rejects(f.service.execute(f.actor,f.body('edit',{datos:{empleadoId:'other',monto:100.11,montoPagado:100.11}})),e=>e.code==='SV_ADVANCE_OWNER_CHANGE_DENIED'&&e.message.includes('Anulá el adelanto'));noWrites(f);assert.deepEqual(f.read('sisventas'),original);assert.equal(f.read('sisventas/ctaemp/other/m'),null);});
 
 test('rejecting an ordinary expense keeps account and row projections ready and visible',async()=>{const f=fixture({commission:false});await f.service.execute(f.actor,f.body('reject',{motivo:'No corresponde'}));assert.equal(f.read(V.PREFIX+'/employees/e/meta/ready'),true);assert.equal(f.read(V.ROW_PREFIX+'g/meta/ready'),true);assert.equal(f.read(V.PREFIX+'/employees/e/ctaemp/m/estado'),'rechazado');assert.equal(f.read(V.ROW_PREFIX+'g/value/estado'),'rechazado');});
+
+// Regression: paying a bonus must not require permission to read salaries or
+// foreign employee accounts. The fixture rejects every private user read.
+function bonusFixture(extra={}) {
+ return fixture({commission:false,approved:true,
+  expenseExtra:{descripcion:'Bonificación · tarea ficticia',tipoPagable:'bonificacion',origen:'bonificacion',periodoComputo:'2026-10',monto:100,bonificacionCantidad:5,bonificacionValorUnitario:20,bonificacionGrupoId:'bonus-fixture-group',bonificacionDestinatarios:['e'],bonificacionGrupoTotal:100,bonificacionGrupoPersonas:1},
+  movementExtra:{tipo:'bonificacion',periodoComputo:'2026-10',monto:100,bonificacionCantidad:5,bonificacionValorUnitario:20,bonificacionGrupoId:'bonus-fixture-group',bonificacionDestinatarios:['e'],bonificacionGrupoTotal:100,bonificacionGrupoPersonas:1},
+  permissions:{indiceModulos:{gastos:true,ctaemp:false,empleados:false},acciones:{gastos:{pagar:true,administrar:true},empleados:{verCuentas:false,pagarMovimiento:false,registrarHaberes:false,bonificar:false}}},...extra});
+}
+test('administrative bonus payment uses gastos.pagar and administrar with authorized expense access, not a private account grant',async()=>{
+ const f=bonusFixture();f.set('sisventas/ctaemp/e/salary',{tipo:'sueldo',monto:999999,estado:'pagado',nota:'PRIVATE_SALARY'});f.refresh();
+ const salary=clone(f.read('sisventas/ctaemp/e/salary')),other=clone(f.read('sisventas/ctaemp/other'));
+ const body=f.body('pay',{medio:'Transferencia',comprobante:{nombre:'Ficticio.png',tipo:'image/png',data:'data:image/png;base64,TEST'},items:[item(f,{monto:100})]});
+ const result=await f.service.execute(f.actor,body);
+ assert.deepEqual(result,{ok:true,committed:true,keys:['g']});
+ for(const p of ['sisventas/gastos/g','sisventas/ctaemp/e/m']){assert.equal(f.read(p+'/estado'),'pagado');assert.equal(f.read(p+'/montoPagado'),100);assert.equal(f.read(p+'/periodoComputo'),'2026-10');assert.equal(f.read(p+'/bonificacionCantidad'),5);}
+ assert.deepEqual(f.read('sisventas/gastos/g/pagos'),f.read('sisventas/ctaemp/e/m/pagos'));
+ assert.deepEqual(f.read('sisventas/ctaemp/e/salary'),salary);assert.deepEqual(f.read('sisventas/ctaemp/other'),other);
+ assert.ok(f.calls.user.every(p=>p.startsWith(V.ROW_PREFIX)));assert.ok(!JSON.stringify(result).includes('PRIVATE'));
+ assert.equal(f.calls.commits.length,1);
+ await f.service.execute(f.actor,body);assert.equal(f.calls.commits.length,1);
+});
+test('explicitly denied gastos.pagar blocks even a user allowed to administer expenses',async()=>{const f=bonusFixture({permissions:{indiceModulos:{gastos:true},acciones:{gastos:{pagar:false,administrar:true}}}});await assert.rejects(f.service.execute(f.actor,f.body('pay',{medio:'A',items:[item(f,{monto:100})]})),code('SV_ACCOUNT_ACTION_DENIED'));noWrites(f);});
+for(const variation of ['unapproved','overpayment','changed-permission','wrong-revision','no-row-access'])test('bonus payment rejects '+variation+' without changing any financial records',async()=>{
+ const f=bonusFixture(),body=f.body('pay',{medio:'A',items:[item(f,{monto:100})]});
+ if(variation==='unapproved'){f.set('sisventas/gastos/g/estado','pendiente_aprobacion');f.set('sisventas/gastos/g/requiereAprobacion',true);f.refresh();}
+ if(variation==='overpayment')body.items[0].monto=101;
+ if(variation==='wrong-revision')body.items[0].expectedRevision='different-revision-000000';
+ if(variation==='no-row-access')f.deny();
+ if(variation==='changed-permission')f.onUser(p=>{if(p.startsWith(V.ROW_PREFIX))f.set('sv_permisos/administrativo/acciones/gastos/pagar',false);});
+ const before=clone(f.read('sisventas'));await assert.rejects(f.service.execute(f.actor,body));noWrites(f);assert.deepEqual(f.read('sisventas'),before);
+});

@@ -46,8 +46,8 @@ function describe(input){
  }
  return body;
 }
-function permission(action,g){return ['approve','reject','rehabilitate'].includes(action)?Calc.esComision(g)?'comisiones.aprobar':'gastos.aprobar':['correct-payment','annul-payment'].includes(action)?'gastos.corregirPago':'gastos.administrar';}
-function requireAction(profile,cfg,action,g){if(!Views.actionAllowed(profile,cfg,permission(action,g)))throw fail(403,'No tenés permiso para esta operación de gasto','SV_ACCOUNT_ACTION_DENIED');}
+function permission(action,g){if(action==='pay')return 'gastos.pagar';return ['approve','reject','rehabilitate'].includes(action)?Calc.esComision(g)?'comisiones.aprobar':'gastos.aprobar':['correct-payment','annul-payment'].includes(action)?'gastos.corregirPago':'gastos.administrar';}
+function requireAction(profile,cfg,action,g){if(!Views.actionAllowed(profile,cfg,permission(action,g))||(action==='pay'&&!Views.actionAllowed(profile,cfg,'gastos.administrar')))throw fail(403,'No tenés permiso para esta operación de gasto','SV_ACCOUNT_ACTION_DENIED');}
 function owner(g){const result=Model.ownerOfExpense(g);if(!result.complete)throw fail(409,'El vínculo del gasto requiere revisión','SV_EXPENSE_LINK_REVIEW');return result.owners;}
 function paymentMap(value){if(!Array.isArray(value))return copy(value)||{};return Object.fromEntries(value.map((p,i)=>['legacy_'+i,copy(p)]));}
 function summary(g){const payments=Object.values(g.pagos||{}).filter(live),pagado=Math.max(0,parseFloat(g.saldoPagadoLegacy)||0)+payments.reduce((s,p)=>s+(parseFloat(p.monto)||0),0),total=number(g.monto),estado=total>0&&pagado>=total-0.01?'pagado':pagado>0?'pagado_parcial':'pendiente_pago',ultimo=payments.slice().sort((a,b)=>(b.ts||0)-(a.ts||0))[0]||{};return {pagado,estado,reembolsado:estado==='pagado',ultimo};}

@@ -1,5 +1,21 @@
 # Continuidad de SisVentas
 
+## Pago administrativo de bonificaciones investigado ·27/10/2026
+
+Web15.10: Abonar está permitido por gastos.pagar/administrar, pero el pago
+lee antes toda ctaemp del empleado; administrativo tiene verCuentas denegado
+y la regla de lectura rechaza ese paso. Consultadas sólo reglas y configuración
+del rol, sin registros comerciales. No repetir el pago que ya realizó admin.
+
+Candidata15.7: comando por fila autorizada probado sin acceso privado del usuario;
+control específico gastos.pagar agregado sin quitar administrar.69focalesPASS,
+suite8.117total/8.090PASS/27opt-in/0fallos;94servidorPASS. Datos ficticios,
+sueldo/historial intactos, replay sin doble pago, denegaciones conservadas.
+NO activado/publicado: depende de preparación/cobertura/reglas/corte coherente
+de cuentas. No dar por resuelto en web ni ampliar verCuentas como atajo.
+Detalle PAGO_BONIFICACION_ADMINISTRATIVO.md; evidencia privada tmp/bonus-payment-audit.
+
+
 ## Consumidor final publicado v3.15.10 ·27/10/2026
 
 Autorización directa publicar al finalizar cumplida. Fuente pública revisada

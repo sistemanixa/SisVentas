@@ -23,6 +23,7 @@ const PAYMENT=new Set(['pagos','montoPagado','saldoPagadoLegacy','estado','fecha
 const PAYMENT_FIELDS=new Set(['monto','fecha','medio','usuario','ts','estado','anulado','anuladoPor','anuladoTs','fechaAnulacion','motivoAnulacion','editadoTs','editadoPor','motivoEdicion','comprobante','lotePagoKey','comprobanteAdjunto','origen']);
 const METHODS={
  'gastos.administrar':['gastos',['admin','administrativo']],
+ 'gastos.pagar':['gastos',['admin','administrativo']],
  'gastos.aprobar':['gastos',['admin']],
  'gastos.corregirPago':['gastos',['admin']],
  'comisiones.aprobar':['comisiones',['admin']],
