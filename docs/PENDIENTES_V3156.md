@@ -41,3 +41,12 @@ en los documentos históricos. Tampoco equivale a ahorro de lecturas Google.
 No se cambiaron datos reales como prueba, servicios ni consultas por reloj.
 Antes de infraestructura: estimación de costo, inventario remoto fresco,
 respaldo privado, fuente limpia y corte concreto conforme al control vigente.
+
+
+## Auditoría de lecturas por pantalla registrada ·27/10/2026
+
+Contrato, dependencias, índices, cobertura, costos, migración y reversión en
+[PLAN_LECTURAS_POR_PANTALLA_20261027.md](PLAN_LECTURAS_POR_PANTALLA_20261027.md).
+Es propuesta sin implementación/activación. Ventas50actuales se pagina después
+de descargar; no recortar ventasList global ni perder deuda/vínculos antiguos.
+Las vistas de privacidad15.7 no acreditan páginas desdeDB o resúmenes de inicio.

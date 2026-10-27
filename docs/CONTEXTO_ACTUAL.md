@@ -1,5 +1,13 @@
 # Continuidad de SisVentas
 
+## Auditoría de lecturas por pantalla incorporada ·27/10/2026
+
+- Informe coordinado sólo de fuente publicada15.6/e2f3b432; inventario118funciones con referencias directas a seis fuentes y24core/módulos, NO grafo exhaustivo ni carga efectiva de todos los roles. Log63pruebas existentesPASS inspeccionado, no repetido ni atribuido al diseño propuesto. Originales privados tmp/AUDITORIA_LECTURAS_SISVENTAS_2026-10-27.txt y audit-demand-20261027.json fuera de Git.
+- Contrastados fbCargarVentas filtrarPeriodo:false, slice final de Ventas, raíz completa de Pagos y recordsContext/list+ETag de servidor. Página50después de descargar no equivale a consulta limitada. Plan distingue Dashboard por mes y sus acumulados históricos de deuda/presupuestos/conversión; Cuenta corriente conserva deudas antiguas; detalle por clave y ficha de cliente por cuenta/domicilio.
+- Nuevo PLAN_LECTURAS_POR_PANTALLA_20261027.md: separación página/detalle/resumen, lectores/escritores dependientes, numeración transaccional, cursores/permisos/índices, cobertura/versionado/idempotencia, paridad, medición/costo, migración y reversión sin restaurar finanzas. Vistas15.7 preparan privacidad/versión; NO implementan aún Ventas50desdeDB ni Dashboard agregado.
+- Este bloque cambia sólo tres documentos; fuente06cc6358 conservada, sin nuevas consultas/remotos, implementación, emulador, publicación o activación. No volver a pedir la decisión fiscal ya recibida; preparación/drenaje/reglas/OT y otras optimizaciones siguen abiertas.
+
+
 ## Acceso fiscal explícito implementado · 27/10/2026
 
 - Autorización humana específica recibida: PDF sólo por Ver factura, facturas.verEmitidas y acceso a venta; sin archivos en listados ni para receptor de comisión. Rama codex/facturas-acceso-explicito-v3157 sobre24e75057. DTO incluso financiero sin archivos; GET de documento seleccionado con identidad/permiso/responsable revalidados, sin Ver como ni actores reutilizados. Copia electrónica desde snapshot fiscal verificable conserva el renderer original y no llama ARCA ni guarda; externa conserva su original.
