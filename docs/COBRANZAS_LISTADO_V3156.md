@@ -29,3 +29,7 @@ latencia total, ahorro de transferencia o factura Google.
 No cambia pagos, comisiones, servidor, reglas, permisos, los PDF de pedidos ni
 los arreglos publicados de Dashboard/Agenda. La prueba aislada no acredita una
 sesión autenticada productiva ni todos los formularios financieros.
+
+Publicada y verificada: fuente e2f3b4324b26c6a748ec82f8f2bcecc18ecb3095,
+Hosting51c65abc66f76de1 y aviso oficial15.6.25hashesHTTPS y52comparaciones
+DOM con activos reales/datos ficticios. Sin QA autenticada por fallo CUA.

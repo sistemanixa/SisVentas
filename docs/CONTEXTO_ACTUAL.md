@@ -1,5 +1,14 @@
 # Continuidad de SisVentas
 
+## Cobranzas15.6 publicada y comprobada · 27/10/2026
+
+- Fuente limpia/pushed e2f3b4324b26c6a748ec82f8f2bcecc18ecb3095, rama codex/cobranzas-listado-v3156. Hosting51c65abc66f76de1:460activos/4cargas;25hashesHTTPS exactos, mirror/7cabeceras/7rutas404 correctos. Luego script oficial confirmó web/core/SW/aviso v3.15.6-firebase. Preflight verificó reglas626817 y Hosting/aviso15.5; no se cambió servidor, reglas, flags, IAM, DNS, servicios ni datos comerciales reales.
+- Sólo app nueva y marcadores de versión cambian en los activos; app15.4/15.5 se conservan, app15.3 sale del alojamiento pero permanece en Git. Comparación AST:2.282funciones originales idénticas, tres cuerpos Cobranzas modificados y un helper nuevo; coinciden exactamente con la propuesta CPU medida. Pagos/guardados/permisos/comisiones permanecen intactos.
+- Puerta pequeña6.079total/6.052PASS/27opt-in/0fallos. QA posterior con cinco activos estáticos reales publicados y negocio ficticio:52comparaciones DOM idénticas,320/390/768/1280, cero erroresJS/lecturas/escrituras comerciales. No formularios financieros reales, panel nativo ni teléfono físico. Los cuatro activos HTTP locales8766 también coinciden; el servidor existentePID13000 se conservó. Los fallos iniciales de conexión se debían al sandbox, no al servidor.
+- CUA falló kernelassets; no se inspeccionó/refrescó la sesión auténtica ni se borró navegación. No confundir HTTPS+QA aislada con una operación real autenticada. Evidencias privadas tmp/cobranzas3156-release y tmp/cobranzas3156-web-qa.
+- Candidata amplia reservada15.7 e integrada con el mismo helper/tres cuerpos. Otros2.291cuerpos intactos. Su puerta propia7.607total/7.580PASS/27opt-in/0fallos,51,08s;23focales y validación local correctos. NO activada: siguen acceso fiscal/decisión pendiente, preparación/drenaje, reglas y bloques previos de OT/emulador. Estado y acciones restantes en PENDIENTES_V3156.md. No se declara terminada la auditoría.
+
+
 ## Cobranzas15.6 preparada para publicar · 27/10/2026
 
 - Pedido directo del titular: continuar pendientes y publicar. Rama codex/cobranzas-listado-v3156 desde2d2b7d88/producción15.5; paquete limitado a cálculo de historial de Cobranzas. No incorpora la candidata amplia de cuentas/permisos/compras. La publicación externa se registra sólo después de Hosting, HTTPS y aviso.
