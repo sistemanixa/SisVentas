@@ -8085,17 +8085,34 @@ async function editarDescripcionItemDocumento(boton) {
   notify('Descripción modificada para este documento');
 }
 
+// El genérico comercial no es una condición impositiva. Una ficha o un
+// identificador real mantienen su validación y nunca se ignoran por el nombre.
+function _ventaEsConsumidorFinalGenerico(registro) {
+  if (!registro || typeof registro !== 'object' || Array.isArray(registro)) return false;
+  if (String(registro.cliente || '').trim().replace(/\s+/g,' ').toLocaleUpperCase('es-AR') !== 'CONSUMIDOR FINAL') return false;
+  var referencias = ['clienteFbKey','clienteKey','clientePrincipalKey','domicilioFbKey','clienteId','idCliente','idClienteOriginal','fbKeyCliente','id_cli'];
+  if (referencias.some(function(campo){ return registro[campo] !== undefined && registro[campo] !== null && String(registro[campo]).trim() !== ''; })) return false;
+  return !['cuit','dni','documento','cuitCliente','dniCliente','documentoCliente'].some(function(campo){
+    var valor = registro[campo];
+    return valor !== undefined && valor !== null && String(valor).replace(/[\s.-]/g,'') !== '' && String(valor).replace(/[\s.-]/g,'') !== '0';
+  });
+}
+
 function cargarRegistroVentaEnEditor(v) {
     window._ventaEditandoFbKey = v.fbKey;
     window._ventaEditandoOriginal = JSON.parse(JSON.stringify(v));
     var tbody = document.getElementById('det-body');
     if (tbody) tbody.innerHTML = '';
+    var tituloEditorVenta = document.getElementById('page-title'); if(tituloEditorVenta) tituloEditorVenta.textContent = 'Editar venta';
+    var numeroEditorVenta = document.getElementById('vf-numero-preview'); if(numeroEditorVenta) numeroEditorVenta.value = String(v.id || v.numero || v.nro || '—');
+    var fechaEditorVenta = document.getElementById('venta-fecha'); if(fechaEditorVenta) fechaEditorVenta.value = typeof ventaFechaOrden === 'function' ? ventaFechaOrden(v) : '';
     var cliInp = document.getElementById('cli-inp'); if(cliInp) cliInp.value = v.cliente||'';
-    var idCliResuelto = (typeof resolverIdClienteVenta === 'function') ? resolverIdClienteVenta(v) : (v.idCliente || v.clienteId || '');
+    var clienteGenericoEditor = typeof _ventaEsConsumidorFinalGenerico === 'function' && _ventaEsConsumidorFinalGenerico(v);
+    var cliRefEdit = clienteGenericoEditor ? null : (typeof _svResolverClienteDocumento === 'function' ? _svResolverClienteDocumento(v) : _svResolverClienteRegistro(v, true));
+    var idCliResuelto = clienteGenericoEditor ? '' : (v.idCliente || v.clienteId || (cliRefEdit && (cliRefEdit.id || cliRefEdit.fbKey)) || '');
     var idCliInp = document.getElementById('id-cli'); if(idCliInp) idCliInp.value = idCliResuelto || '';
-    var cliRefEdit = _svResolverClienteRegistro(v, true);
     var fbCliInp = document.getElementById('cli-fbkey'); if (fbCliInp) fbCliInp.value = cliRefEdit ? (cliRefEdit.fbKey || '') : (v.domicilioFbKey || v.clienteFbKey || '');
-    var dirCliInp = document.getElementById('cli-dir-hidden'); if (dirCliInp) dirCliInp.value = cliRefEdit ? (cliRefEdit.dir || cliRefEdit.direccion || '') : (v.direccionCliente || v.direccion || '');
+    var dirCliInp = document.getElementById('cli-dir-hidden'); if (dirCliInp) dirCliInp.value = v.direccionCliente || v.clienteDir || v.direccion || v.dir || v.domicilio || v.direccionInstalacion || (cliRefEdit && (cliRefEdit.dir || cliRefEdit.direccion)) || '';
     mostrarDomicilioOperacionSeleccionado('cli-domicilio-seleccion', cliRefEdit);
     var obsInp = document.getElementById('venta-obs'); if(obsInp) obsInp.value = v.observaciones||v.obs||'';
     var descGenInp = document.getElementById('desc-general'); if(descGenInp) descGenInp.value = parseFloat(v.descuentoGeneral||0) || '';
@@ -16393,12 +16410,17 @@ async function confirmarVenta() {
   var idCliVal = idCliEl ? idCliEl.value.trim() : '';
   var fbCliEl = document.getElementById('cli-fbkey');
   var fbCliVal = fbCliEl ? fbCliEl.value.trim() : '';
-  if (!idCliVal) {
-    var cliMatch = (clientesData || []).find(function(c){
+  var originalClienteVenta = window._ventaEditandoFbKey && window._ventaEditandoOriginal;
+  var clienteGenericoVenta = typeof _ventaEsConsumidorFinalGenerico === 'function' &&
+    _ventaEsConsumidorFinalGenerico({cliente:cli,idCliente:idCliVal,clienteFbKey:fbCliVal}) &&
+    (!window._ventaEditandoFbKey || _ventaEsConsumidorFinalGenerico(originalClienteVenta));
+  if (!idCliVal && !fbCliVal && !clienteGenericoVenta) {
+    var cliCoincidencias = (clientesData || []).filter(function(c){
       return String(c.nombre || '').trim().toLowerCase() === String(cli || '').trim().toLowerCase() ||
              String(c.empresa || '').trim().toLowerCase() === String(cli || '').trim().toLowerCase() ||
              String(c.razonSocial || '').trim().toLowerCase() === String(cli || '').trim().toLowerCase();
     });
+    var cliMatch = cliCoincidencias.length === 1 ? cliCoincidencias[0] : null;
     if (cliMatch) idCliVal = String(cliMatch.id || cliMatch.fbKey || '');
     if (idCliEl && idCliVal) idCliEl.value = idCliVal;
     if (fbCliEl && cliMatch && cliMatch.fbKey) { fbCliVal = String(cliMatch.fbKey); fbCliEl.value = fbCliVal; }
@@ -16407,8 +16429,11 @@ async function confirmarVenta() {
     return (fbCliVal && String(c.fbKey || '') === fbCliVal) ||
       (!fbCliVal && String(c.id || '') === String(idCliVal));
   });
-  if (!clienteDomicilioVenta) { notify('Seleccioná el domicilio del cliente desde la lista'); return; }
-  var vinculoClienteVenta = clienteVinculoOperacion(clienteDomicilioVenta);
+  if (!clienteDomicilioVenta && !clienteGenericoVenta) { notify('Seleccioná el domicilio del cliente desde la lista'); return; }
+  if (clienteGenericoVenta) clienteDomicilioVenta = {};
+  var vinculoClienteVenta = clienteGenericoVenta
+    ? {clientePrincipalKey:'',domicilioFbKey:'',domicilioCategoria:'',direccion:String((document.getElementById('cli-dir-hidden') || {}).value || '').trim()}
+    : clienteVinculoOperacion(clienteDomicilioVenta);
   var dir = (_get('cli-dir-hidden')||{}).value || 'Sin definir';
   var hoy = new Date();
   var dd = String(hoy.getDate()).padStart(2,'0');
@@ -16798,7 +16823,8 @@ function inicializarFilasVenta() {
 
   // Fecha de hoy por defecto
   var fechaInp = document.getElementById('venta-fecha');
-  if (fechaInp && !fechaInp.value) fechaInp.value = svFechaLocalISO();
+  if (fechaInp && !window._ventaEditandoFbKey) fechaInp.value = svFechaLocalISO();
+  var tituloVentaNueva = document.getElementById('page-title'); if(tituloVentaNueva && !window._ventaEditandoFbKey && document.getElementById('page-venta')?.classList.contains('active')) tituloVentaNueva.textContent = 'Nueva venta';
   var obsInp = document.getElementById('venta-obs');
   if (obsInp && !window._ventaEditandoFbKey) obsInp.value = '';
   if (window.svDrafts) window.svDrafts.begin('venta');
