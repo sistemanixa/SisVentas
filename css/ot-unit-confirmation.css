@@ -35,3 +35,5 @@
 @media(prefers-reduced-motion:reduce){.ot-unit-spinner{animation:none}}
 @media(max-width:520px){.ot-unit-dialog{width:calc(100vw - 16px);max-height:calc(100dvh - 20px);border-radius:12px}.ot-unit-head{padding:16px}.ot-unit-head h2{font-size:17px}.ot-unit-body{padding:16px}.ot-unit-card{padding:12px}.ot-unit-fields{grid-template-columns:1fr}.ot-unit-status{padding:10px 16px}.ot-unit-footer{padding:12px 16px;align-items:stretch}.ot-unit-footer .btn{min-height:44px}.ot-unit-save{flex:1}.ot-unit-save .btn{flex:1}.ot-unit-date{justify-content:space-between}.ot-unit-date input{width:160px}}
 @media(max-width:520px){.ot-unit-manual-grid{grid-template-columns:1fr}.ot-unit-manual-form{padding:12px}.ot-unit-manual-toggle{min-height:44px}}
+
+.ot-unit-serial{display:flex;flex-direction:column;gap:8px;min-width:0}.ot-unit-scan{min-height:44px;align-self:flex-start}

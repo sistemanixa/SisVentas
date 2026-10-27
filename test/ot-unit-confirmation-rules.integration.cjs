@@ -334,3 +334,16 @@ test('cinco unidades manuales se registran con reglas reales sin alterar venta, 
   const records=await read('/sisventas/equipos');assert.equal(Object.keys(records).length,5);for(const r of Object.values(records)){assert.equal(r.manualConfirmado,true);assert.equal(r.actorUid,'admin');assert.equal(r.fechaVenc,'2027-10-23');assert.match(r.sourceItemDigest,/^[a-f0-9]{64}$/);}
   assert.deepEqual(financial(await read('/')),before);assert.deepEqual(await f.confirm(body),result);assert.equal(f.commits.length,1);assert.deepEqual(await read('/sisventas/equipos'),records);
 });
+
+test('validación padre conserva metadatos de custodia y bloquea cambios o borrados directos',opt,async()=>{
+ const protectedRules=structuredClone(candidate);
+ protectedRules.rules.sisventas.ordenes_trabajo.$ot={'.validate':"newData.child('unidadesCustodia').val() === data.child('unidadesCustodia').val()"};
+ await allowed(request('PUT','/.settings/rules',protectedRules));
+ try{
+  await allowed(request('PUT','/sisventas/ordenes_trabajo/ot_ficticia/unidadesCustodia',{unit:{serie:'FICTICIA',estado:'en_tecnico'}}));
+  await allowed(request('PATCH','/sisventas/ordenes_trabajo/ot_ficticia',{observaciones:'Nota ficticia permitida'},{uid:'admin'}));
+  await denied(request('PUT','/sisventas/ordenes_trabajo/ot_ficticia/unidadesCustodia/unit/serie','OTRA',{uid:'admin'}));
+  await denied(request('DELETE','/sisventas/ordenes_trabajo/ot_ficticia/unidadesCustodia',undefined,{uid:'admin'}));
+  assert.equal((await read('/sisventas/ordenes_trabajo/ot_ficticia/unidadesCustodia')).unit.serie,'FICTICIA');
+ }finally{await allowed(request('PUT','/.settings/rules',candidate));}
+});

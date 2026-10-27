@@ -6,6 +6,8 @@
   if (!root || !root.document) return;
   const controller = api.create({
     document: root.document,
+    scan: options => {if(!root.SVSerialCamera)throw Error('El lector no está disponible. Podés escribir la serie.');return root.SVSerialCamera.open(options);},
+    closeScanner: () => root.SVSerialCamera?.close(),
     model: root.SVOTUnitConfirmation,
     today: () => root.svFechaLocalISO(),
     context() {
@@ -62,7 +64,7 @@
   }
 })(typeof window === 'object' ? window : null, function() {
   'use strict';
-  function create({document, model, today, context, request}) {
+  function create({document, model, today, context, request, scan, closeScanner}) {
     let active = null;
     function element(tag, className, text) {
       const node = document.createElement(tag);
@@ -77,6 +79,7 @@
     function close(state, result) {
       if (active !== state) return;
       active = null;
+      if(state.cameraOpen){state.cameraOpen=false;closeScanner?.();}
       state.abort.abort();
       ['sisventas:session-ended','sisventas:role-changed','sisventas:page-changed'].forEach(name => document.removeEventListener(name, state.retire));
       state.dialog.close(); state.dialog.remove();
@@ -148,9 +151,26 @@
         if(descriptors.length===1&&descriptors[0].knownSerie){serie.value=descriptors[0].knownSerie;serie.readOnly=true;}
         const locationLabel = element('label', '', 'Ubicación');
         const location = element('input', 'search-input'); location.type = 'text'; location.maxLength = 300; location.placeholder = 'Ej.: acceso principal'; locationLabel.append(location);
-        fields.append(serieLabel, locationLabel); card.append(fields);
+        const scanButton=button('Escanear serie','btn ot-unit-scan',()=>{
+          if(!current(state)||state.busy||serie.disabled||serie.readOnly)return;
+          if(typeof scan!=='function'){message(state,'El lector no está disponible. Podés escribir la serie.',true);serie.focus({preventScroll:true});return;}
+          const original=serie.value;
+          try{state.cameraOpen=true;scan({label:name+unitLabel,kind:'serial',onRead:value=>{
+            state.cameraOpen=false;
+            if(!current(state)||state.busy||!serie.isConnected||serie.disabled||serie.readOnly)return;
+            if(typeof value!=='string'||!value.trim()||value.trim().length>120||/[\u0000-\u001f\u007f]/.test(value)){message(state,'La lectura no es una serie válida. Volvé a escanear o escribila.',true);return;}
+            const next=value.trim();
+            if(serie.value!==original&&serie.value!==next){message(state,'La serie cambió mientras se leía. Revisala antes de volver a escanear.',true);return;}
+            const duplicate=state.rows.find(other=>other.serie!==serie&&other.select.value!=='pendiente'&&other.serie.value.trim().toLocaleUpperCase('es-AR')===next.toLocaleUpperCase('es-AR'));
+            if(duplicate){message(state,'Esa serie ya está cargada en otra unidad. Revisá las etiquetas.',true);duplicate.serie.focus({preventScroll:true});return;}
+            serie.value=next;message(state,'Serie leída. Revisala antes de guardar.');serie.focus({preventScroll:true});
+          }});}catch(error){state.cameraOpen=false;message(state,errorText(error),true);serie.focus({preventScroll:true});}
+        });
+        scanButton.setAttribute('aria-label','Escanear serie de '+name+unitLabel);
+        const serialBox=element('div','ot-unit-serial');serialBox.append(serieLabel,scanButton);
+        fields.append(serialBox, locationLabel); card.append(fields);
         const detail = element('p', 'ot-unit-meta'); card.append(detail);
-        const row = {unit, select, serie, location, fields, index};
+        const row = {unit, select, serie, location, fields, index, scanButton};
         if (data.capabilities?.manualReview === true && model.key(unit.manualKey) && model.canReviewManually?.(unit)) {
           const manual = {active:false, controls:[]}; row.manual = manual;
           manual.toggle = button('Revisar condiciones', 'btn ot-unit-manual-toggle', () => {
@@ -192,6 +212,7 @@
         row.sync = () => {
           const pending = select.value === '' || select.value === 'pendiente';
           fields.hidden = pending; serie.disabled = state.busy || pending; location.disabled = state.busy || pending;
+          scanButton.disabled=!!(state.busy||pending||serie.readOnly);
           location.required = select.value === 'instalado';
           if (row.manual) {
             const manual = row.manual;
@@ -210,7 +231,7 @@
         };
         select.addEventListener('change', row.sync);
         fields.hidden = true; serie.disabled = true; location.disabled = true;
-        state.rows.push(row); state.controls.push(select, serie, location);
+        state.rows.push(row); state.controls.push(select, serie, location, scanButton);
         state.body.append(card);
       }
       if (state.plan.summaries?.length) {
@@ -246,7 +267,7 @@
     }
     async function confirm(state) {
       if (!current(state) || state.busy || !state.ready) return;
-      const units = [];
+      const units = [],serials=new Map();
       let warrantyReviewPendingCount = 0;
       try {
         for (const row of state.rows) {
@@ -278,6 +299,7 @@
             else if (!row.manual?.active || !row.manual.controls.includes(document.activeElement)) row.select.focus({preventScroll:true});
             throw error;
           }
+          if(value.decision!=='pendiente'&&value.serie){const serial=value.serie.toLocaleUpperCase('es-AR');if(serials.has(serial)){row.serie.focus({preventScroll:true});throw Error('La misma serie está cargada en dos unidades. Revisá las etiquetas.');}serials.set(serial,row);}
           units.push({itemKey:row.unit.itemKey, n:row.unit.n, ...value});
         }
         if (!model.date(state.date.value) || state.date.value > today()) throw Error('Ingresá una fecha efectiva válida, no futura.');
