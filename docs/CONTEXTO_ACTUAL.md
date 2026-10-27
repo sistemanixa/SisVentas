@@ -1,5 +1,19 @@
 # Continuidad de SisVentas
 
+## OT/materiales v3.15.14 probada · 27/10/2026
+
+Corrección y publicación autorizadas. Fuente aislada basada en 15.13, sin cambiar
+servidor bonus12, reglas, roles, IAM ni flags. Detalle OT_MATERIALES_STOCK_V31514.md;
+índice compartido PENDIENTES_ACTUALES.md conserva la cola y el alcance restante.
+Stock: transacción puntual por producto con recibo/revisión; adicional instalado
+con pendiente explícito hasta confirmar stock, sin gastar reserva original/ajena.
+Reintento tras fallo OT no duplica consumo; admin corrige OT cerrada con historial.
+No se aplican migraciones ni correcciones a la OT real. UI ficticia 390/768/1280
+sin desborde ni red externa. Suite final: 6.198 PASS / 27 opt-in / 0 fallos; 38 focales PASS. Preflight remoto
+confirmó Hosting15.13 y reglas/configuración sin cambios. Publicación pendiente
+de verificar; no atribuir esta preparación a producción.
+
+
 ## Chat y búsqueda OT publicados v3.15.13 · 27/10/2026
 
 Fuente 332b3ac89350d58eb0b9af4d6d3d777d02e668f1, rama codex/chat-contactos-presencia-v31513.
