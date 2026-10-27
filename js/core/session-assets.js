@@ -7,10 +7,10 @@
     excel: {src:'./js/modules/excel-export.js?v=3.14.20', ready:function(){return !!window.SVExcelExport;}},
     diagnostics: {src:'./js/v3/admin-diagnostics.js?v=3.3.17', ready:function(){return !!(window.SisVentas && window.SisVentas.V3Diagnostics);}},
     distribuidora: {src:'./js/modules/distribuidora-access.js?v=3.10.17-category', ready:function(){return !!window.SVDistribuidora;}},
-    paraguay: {src:'./js/modules/paraguay-shopping-access.js?v=3.15.5-order-tools', ready:function(){return !!window.SVParaguayPortal;}},
+    paraguay: {src:'./js/modules/paraguay-shopping-access.js?v=3.15.8-order-format', ready:function(){return !!window.SVParaguayPortal;}},
     compras: {src:'./js/modules/purchase-orders.js?v=3.14.16-print', ready:function(){return !!window.SisVentasCompras;}},
     planner: {src:'./js/modules/paraguay-planner.js?v=3.8.1', ready:function(){return !!window.SVParaguayPlanner;}},
-    preparation: {src:'./js/modules/exterior-preparation.js?v=3.15.5-order-tools', ready:function(){return !!window.SVExteriorPreparation;}},
+    preparation: {src:'./js/modules/exterior-preparation.js?v=3.15.8-order-format', ready:function(){return !!window.SVExteriorPreparation;}},
     purchasePDF: {src:'./js/modules/purchase-pdf-import.js?v=3.12.3', ready:function(){return !!window.SVPurchasePDF;}}
   };
   var pending = Object.create(null);

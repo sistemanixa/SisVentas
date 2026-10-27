@@ -192,11 +192,14 @@
       if(typeof c.after!=='number'||!Number.isFinite(c.after)||c.after<=0)throw Error('Precio revisado inválido');seen.add(c.key);r.agreed=c.after;r.manualPrice=true;
     });return next;
   }
-  function orderForExport(draft,title='Pedido de compra') {
+  function orderForExport(draft,title='Pedido de compra',catalog=[]) {
     const rows=[...(draft.rows||[]),...(draft.extras||[])].filter(r=>r.method!=='stock').map(r=>{
       const quantity=r.destination==='stock'?r.qty:r.requestedQty??Math.max(0,Number(r.needed)-Number(r.existing));
       if(!valid(quantity))throw Error('Revisá la cantidad de '+(r.code||r.description)+'.');
-      return {code:r.code||'',name:r.description||'',quantity:Number(quantity),providerId:r.providerKey||'',provider:r.provider||'',currency:r.method==='exterior'?'USD':'ARS',unitPrice:valid(r.agreed)&&Number(r.agreed)>0?Number(r.agreed):null,priceKind:'agreed'};
+      const products=(catalog||[]).filter(p=>r.productKey?p.key===r.productKey:p.code===r.code);
+      const candidates=products.length===1?(products[0].providers||[]).filter(p=>p.activo!==false&&p.proveedorKey===r.providerKey):[];
+      const linked=candidates.length===1?candidates[0]:null;
+      return {code:r.code||'',name:r.description||'',productUrl:linked?.url||'',extra:r.destination==='stock',quantity:Number(quantity),providerId:r.providerKey||'',provider:r.provider||'',currency:r.method==='exterior'?'USD':'ARS',unitPrice:valid(r.agreed)&&Number(r.agreed)>0?Number(r.agreed):null,priceKind:'agreed'};
     }).filter(r=>r.quantity>0);
     return {title,usdDecimals:2,rows};
   }
@@ -274,7 +277,7 @@
         body+='<details class="ep-box"><summary>Comparar envío y viaje</summary><div class="ep-row" style="margin-top:14px">'+input('shippingInsuredUSD',p.shippingInsuredUSD,'Envío y seguro · USD')+input('tripTotalARS',p.tripTotalARS,'Costo total del viaje · ARS')+'</div><p>Alternativa '+(d.chosen==='remote'?'viaje':'envío')+': $ '+money(other.result.orderTotal)+' para el pedido completo.'+(other.pending.length?' Estimación pendiente de completar.':'')+'</p><small>La modalidad elegida se cambia en Entrega y pago.</small></details>';
       }
       frame.innerHTML='<header class="ep-head"><div><h2>Preparar compra · '+esc(ctx.customer||ctx.saleId)+'</h2><small>'+d.rows.length+' productos de venta · '+d.extras.length+' extras</small></div><div class="ep-head-total"><button class="btn btn-sm" data-close><i class="ti ti-arrow-left" aria-hidden="true"></i> Volver</button><div data-agreed-total></div></div><div data-order-tools style="flex-basis:100%;padding-top:12px"></div></header><nav class="ep-tabs">'+[['products','Productos'],['delivery','Entrega y pago'],['summary','Resumen']].map(([k,t])=>'<button class="btn" data-tab="'+k+'" aria-selected="'+(tab===k)+'">'+t+'</button>').join('')+'</nav><main class="ep-body">'+body+'</main><footer class="ep-foot"><span role="status">'+esc(status)+'</span><div class="ep-profit" data-profit></div><div class="ep-foot-actions"><button class="btn btn-primary" data-save aria-live="polite">Guardar y aplicar</button><button class="btn btn-primary" '+(tab==='summary'?'data-confirm '+(!s.complete?'disabled':''):'data-next')+'>'+(tab==='summary'?'Confirmar compra':'Ver resumen')+'</button></div></footer>';
-      if(root.SVPurchaseOrderExport)root.SVPurchaseOrderExport.mount(frame.querySelector('[data-order-tools]'),{isCurrent:()=>el.isConnected&&String(root.currentUserUid||'')===owner&&!!root.permisoModulo?.('balancecompra'),getOrder:()=>orderForExport(d,'Pedido de compra'+(ctx.saleId?' · '+ctx.saleId:''))});
+      if(root.SVPurchaseOrderExport)root.SVPurchaseOrderExport.mount(frame.querySelector('[data-order-tools]'),{isCurrent:()=>el.isConnected&&String(root.currentUserUid||'')===owner&&!!root.permisoModulo?.('balancecompra'),getOrder:()=>orderForExport(d,'Pedido de compra'+(ctx.saleId?' · '+ctx.saleId:''),ctx.catalog)});
       refreshAmounts();refreshSaveState();
       if(tab==='products'&&!frozen&&root.SVPurchasePDF){pdfUI=root.SVPurchasePDF.mount({host:el,toolbar:frame.querySelector('.ep-body>div'),currencyAware:true,rows:()=>pdfRows(d),apply:applyPDF});}
       frame.querySelector('.ep-body').scrollTop=scroll;
