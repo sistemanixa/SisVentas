@@ -1212,10 +1212,10 @@
     var tokens = normalize(query).split(/\s+/).filter(Boolean);
     var rows = Object.entries(state.inventory || {}).map(function(entry) {
       var key = entry[0], inv = entry[1] || {}, product = productList().find(function(p){return String(p.fbKey || p.codigo) === key || String(p.codigo || '') === key;}) || {};
-      return {code:String(inv.codigo || product.codigo || key),name:String(inv.descripcion || product.nombre || product.descripcion || 'Producto sin descripción'),quantity:parseFloat(inv[field]) || 0,unit:String(inv.unidad || product.unidad || 'unidades')};
+      return {productKey:key,imagenUrl:inv.imagenUrl||product.imagenUrl||'',code:String(inv.codigo || product.codigo || key),name:String(inv.descripcion || product.nombre || product.descripcion || 'Producto sin descripción'),quantity:parseFloat(inv[field]) || 0,unit:String(inv.unidad || product.unidad || 'unidades')};
     }).filter(function(r){var text=normalize(r.code+' '+r.name);return r.quantity > 0 && tokens.every(function(t){return text.includes(t);});}).sort(function(a,b){return a.name.localeCompare(b.name,'es');});
-    target.innerHTML = metricBanner() + '<div class="table-wrap"><table style="min-width:550px"><thead><tr><th>Código</th><th>Producto</th><th class="tr">Cantidad</th><th>Acciones</th></tr></thead><tbody>' +
-      (rows.length ? rows.map(function(r){return '<tr><td>' + esc(r.code) + '</td><td style="white-space:normal">' + esc(r.name) + '</td><td class="tr">' + r.quantity.toLocaleString('es-AR',{maximumFractionDigits:6}) + ' ' + esc(r.unit) + '</td><td><button class="btn btn-sm" type="button" data-purchase-product="' + attr(r.code) + '">Ver compras</button></td></tr>';}).join('') : '<tr><td colspan="4" style="text-align:center;padding:24px">No hay productos para este filtro.</td></tr>') + '</tbody></table></div>';
+    target.innerHTML = metricBanner() + (field === 'general' && window.currentRole === 'admin' && !window._impersonacionOriginal ? '<div style="padding:0 16px 12px"><button class="btn btn-primary" type="button" onclick="ocAuditarInventario()">Auditar existencias</button></div>' : '') + '<div class="table-wrap"><table style="min-width:550px"><thead><tr><th>Código</th><th>Producto</th><th class="tr">Cantidad</th><th>Acciones</th></tr></thead><tbody>' +
+      (rows.length ? rows.map(function(r){return '<tr><td>' + esc(r.code) + '</td><td style="white-space:normal"><div style="display:flex;align-items:center;gap:10px;min-width:0">' + productThumbnail({productoKey:r.productKey,codigo:r.code,descripcion:r.name,imagenUrl:r.imagenUrl}) + '<span>' + esc(r.name) + '</span></div></td><td class="tr">' + r.quantity.toLocaleString('es-AR',{maximumFractionDigits:6}) + ' ' + esc(r.unit) + '</td><td><button class="btn btn-sm" type="button" data-purchase-product="' + attr(r.code) + '">Ver compras</button></td></tr>';}).join('') : '<tr><td colspan="4" style="text-align:center;padding:24px">No hay productos para este filtro.</td></tr>') + '</tbody></table></div>';
     target.querySelectorAll('[data-purchase-product]').forEach(function(button){button.onclick=function(){clearMetricFilter(button.dataset.purchaseProduct);};});
   }
   function syncMetricButtons() {
@@ -2305,6 +2305,7 @@
     reset: reset,
     renderAll: renderAll,
     renderOrders: renderOrders,
+    productThumbnail: productThumbnail,
     createListFromSale: createListFromSale,
     openMaterialList: openMaterialList,
     openOrder: openOrder,
