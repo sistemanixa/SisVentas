@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Lector publicado y verificado en v3.16.0 · 27/10/2026
+
+Parche propio 5dc8878159da19d2f7e144dc44a332c3e3611de3 integrado selectivamente por el publicador en aaa2824d319fa4ca680f5aadb8f5f33c3da202c3 (integración local sin push según instrucción del titular). Publicador confirmó 482 activos/7 cargas, 17 hashes HTTPS, 7 cabeceras, 7 rutas privadas404 y mirror correctos; aviso oficial v3.16.0 aplicado. Puerta integrada limpia: 6260 PASS/27 omitidas/0 fallos. Sin cambios de infraestructura ni nuevas consultas periódicas.
+
+Comprobación auténtica en la misma pestaña v3.16.0: preparación Stock general existente, lector visible junto al buscador, 12 renglones y Guardar deshabilitado sin cambios pendientes. Preparación abierta al finalizar. No se abrió cámara física ni se guardaron datos reales para probar. Cámara/barras/QR cubiertos por las pruebas focales y seis escenarios de navegador con cámara ficticia, sin afirmar ensayo de hardware. Captura privada C:/SisVentas/tmp/lector-productos-v3160.png. Otro chat recibió resultado verificado; no requiere otro despliegue.
+
+
 ## Lector en Agregar productos preparado · 27/10/2026
 
 Pedido del titular: reutilizar el lector común en Preparar compra. exterior-preparation.js conecta SVProductCodeSearch.attach al campo principal y al buscador grande; mantiene cámara de producto (barras/QR), resultados para elegir manualmente y ninguna alta/guardado automático. Cerrar cancela el lector, Escape de cámara no cierra la preparación de fondo, y el botón queda deshabilitado en compra confirmada. No cambia lector/decoder compartido, catálogo, costos ni persistencia.
