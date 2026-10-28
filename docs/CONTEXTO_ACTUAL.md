@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Preparación exterior huérfana cancelada por pedido del titular · 27/10/2026
+
+Caso individual real reparado con autorización directa. La venta de origen ya no existía; no se encontraron órdenes vinculadas ni asignaciones de esa venta/lista en sus productos. El mensaje de órdenes/stock provenía del guard que también rechaza venta ausente. Lecturas acotadas de claves y referencias, sin descargar colecciones comerciales completas. Se guardó respaldo privado y se canceló sólo la lista mediante ETag/If-Match, conservando simulador en archivo interno y auditoría. Relectura exacta confirmó el cambio; cero escrituras a ventas, órdenes o inventario. Respaldo, pruebas del registro y captura permanecen en tmp privado, fuera de Git.
+
+La misma pestaña auténtica v3.15.15 mostró Compras en curso0 mediante sincronización, sin recarga ni nueva publicación. No se editó purchase-orders.js, que está bajo otro chat para el buscador de compras. Continúan pendientes el tratamiento general de preparaciones huérfanas y la conversión venta→presupuesto; la reparación individual no acredita una corrección general ni migración. Se informó el cierre al chat de coordinación.
+
+
 ## Orden vigente de pendientes · 27/10/2026
 
 El titular pidió unificar los pendientes y el pedido de Harvy. Ver [PENDIENTES_ACTUALES.md](PENDIENTES_ACTUALES.md): OT/stock en curso en el chat de publicación; segmentación sólo con primer detalle local; venta→presupuesto pendiente; cobertura salarial técnica sólo diagnosticada y pendiente de definir, sin implementación por ese pedido. Última web documentada15.13, sin verificación remota nueva en este ordenamiento. Publicado, local y propuesta quedan separados. No se cambió aplicación, datos, infraestructura ni prioridades operativas ya autorizadas. Las listas antiguas son antecedentes y no sustituyen este índice.
