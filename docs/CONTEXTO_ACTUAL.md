@@ -1,5 +1,14 @@
 # Continuidad de SisVentas
 
+## Proyectos: aislamiento comercial del rol Técnico preparado · 27/10/2026
+
+Pedido urgente: participar en un proyecto no debe habilitar datos comerciales al Técnico. Corrección LOCAL, no publicada: authorize impide quoteAllowed/clientAllowed al rol tecnico incluso con casilla heredada; modelo servidor bloquea comandos comerciales y devuelve sólo campos operativos, necesidades sin extras comerciales, sin presupuestos/IDs/totales/contadores/actividad fiscal. Lecturas de propuestas se omiten para técnico; edición operativa conserva presupuestos originales en servidor. UI elimina solapa, contadores y puentes comerciales; cambio de rol borra vista/contexto pendiente. Técnico-vendedor conserva permisos comerciales preexistentes de su rol; membresía nunca los agrega.
+
+Pruebas ficticias:6 específicas (config adulterada, participante editor/propietario, acceso directo, respuesta de guardado, legado y revocación),91 Proyectos en puerta; UI390/768/1280 con3solapas operativas,0comerciales,1GET/0escrituras; general6284PASS/27skip/0fallos y Cotizador94PASS. Reglas remotas revisadas sólo lectura: sin grant raíz ni wildcard ni grant sv_proyectos; acceso directo permanece denegado por defecto. No cambios a reglas, datos reales, infraestructura ni producción.
+
+Para activar requiere desplegar Cotizador (projects.js/projects-model.js) y web juntos, con revisión de versión/costos y autorización aplicable; sólo ocultar UI no activa la protección de servidor. Respeta pausa de publicaciones y preferencia sin push. Evidencia privada en tmp/projects-technical-privacy-qa y logs fueraGit. Visor PDF e inventario simple anteriores siguen preparados sin publicar.
+
+
 ## Visor PDF corregido en local · 27/10/2026
 
 Commit local bbe9c77: PDF.js dibuja el comprobante en vez de depender del iframe nativo; conserva descarga y compartir del original, paginación, error visible y limpieza al cerrar. El diálogo de facturas se cierra antes de abrir el visor. Sin relajar CSP, nuevas consultas externas ni escrituras comerciales/stock. Público3.16.1 todavía sin esta corrección; no hubo despliegue ni push.

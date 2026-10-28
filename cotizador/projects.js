@@ -14,14 +14,14 @@ function createProjects({auth,db,enabled=false,collectionReader,now=Date.now,uui
   const cfg=stored||{},blocked=Object.values(cfg.bloqueados||{}),mod=m=>stored?!blocked.includes(m):['clientes','presupuesto'].includes(m)?commercial.includes(identity.rol):true;
   if(!mod('proyectos'))throw fail(403,'Proyectos está bloqueado para tu rol');
   const action=(name,defaults)=>typeof cfg.acciones?.proyectos?.[name]==='boolean'?cfg.acciones.proyectos[name]:defaults.includes(identity.rol);
-  return {uid:user.uid,name:String(ownName||'Usuario').slice(0,100),role:identity.rol,enabled:true,createAllowed:action('crear',commercial),editAllowed:action('editar',roles),quoteAllowed:mod('presupuesto')&&action('presupuestar',commercial),clientAllowed:mod('clientes')};
+  return {uid:user.uid,name:String(ownName||'Usuario').slice(0,100),role:identity.rol,enabled:true,createAllowed:action('crear',commercial),editAllowed:action('editar',roles),quoteAllowed:commercial.includes(identity.rol)&&mod('presupuesto')&&action('presupuestar',commercial),clientAllowed:commercial.includes(identity.rol)&&mod('clientes')};
  }
  async function directory(){
   const [data,identities]=await Promise.all([read('sv_chat_directorio'),read('sv_chat_roles')]);
   return Object.entries(data||{}).filter(([uid,p])=>p.activo!==false&&identities?.[uid]?.activo===true&&roles.includes(identities[uid].rol)).map(([uid,p])=>({uid,name:String(p.nombre||'Usuario').slice(0,100),role:identities[uid].rol}));
  }
  function budget(id,p){return {id,number:String(p.numero||p.id||id).slice(0,80),title:String(p.tituloSolucion||p.cliente||'Presupuesto').slice(0,160),clientId:String(p.clienteFbKey||p.clienteKey||p.clienteId||''),total:p.total!=null&&Number.isFinite(Number(p.total))?Number(p.total):null,currency:p.moneda==='USD'?'USD':'ARS',status:String(p.estado||'borrador').slice(0,40),items:(Array.isArray(p.items)?p.items:Object.values(p.items||{})).slice(0,200).map(i=>({description:String(i.desc||i.descripcion||'').slice(0,200),qty:Number(i.qty)||0,unitPrice:Number(i.punit)||0}))};}
- async function quotes(actor){if(!actor.quoteAllowed)return [];const records=process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'?await require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true,collectionReader}).list({...actor,domain:'presupuestos'}).then(result=>result.records):await read('sisventas/presupuestos')||{};return Object.entries(records).filter(([,p])=>!p.eliminado).map(([id,p])=>budget(id,p));}
+ async function quotes(actor){if(!Model.commercial(actor))return [];const records=process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'?await require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true,collectionReader}).list({...actor,domain:'presupuestos'}).then(result=>result.records):await read('sisventas/presupuestos')||{};return Object.entries(records).filter(([,p])=>!p.eliminado).map(([id,p])=>budget(id,p));}
  async function quoteRecord(actor,id){return process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'?require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true}).assertRecord(actor,'presupuestos',id):read('sisventas/presupuestos/'+id);}
  async function legacyLinkedRecords(ids){
   const records=Object.create(null);let cursor=0,failed=false,failure;
@@ -35,7 +35,7 @@ function createProjects({auth,db,enabled=false,collectionReader,now=Date.now,uui
   if(failed)throw failure;return records;
  }
  async function linkedQuotes(actor,projects){
-  if(!actor.quoteAllowed)return [];
+  if(!Model.commercial(actor))return [];
   const ids=[...new Set(projects.flatMap(project=>Object.values(project.budgets||{})).filter(b=>b.kind==='linked').map(b=>b.sourceId))].filter(id=>{
    // Un vínculo legado inválido conserva la proyección restringida; nunca se
    // convierte en una ruta de lectura ni obliga a descargar el historial.
@@ -55,7 +55,7 @@ function createProjects({auth,db,enabled=false,collectionReader,now=Date.now,uui
  }
  async function options(actor,projectId,kind='all'){
   if(!['all','base','budgets'].includes(kind))throw fail(400,'Opciones de proyecto inválidas');
-  if(kind==='budgets'&&(!projectId||!actor.quoteAllowed))throw fail(!projectId?400:403,!projectId?'Elegí un proyecto para vincular presupuestos':'Sin permiso para presupuestos');
+  if(kind==='budgets'&&(!projectId||!Model.commercial(actor)))throw fail(!projectId?400:403,!projectId?'Elegí un proyecto para vincular presupuestos':'Sin permiso para presupuestos');
   let allowed=actor.createAllowed;
   if(projectId){Model.key(projectId);const p=await read('sv_proyectos/'+projectId);if(!p||!Model.view(p,actor))throw fail(404,'Proyecto no disponible');allowed=Model.edit(p,actor);}
   if(!allowed)throw fail(403,'Solo lectura');
@@ -68,7 +68,7 @@ function createProjects({auth,db,enabled=false,collectionReader,now=Date.now,uui
   const create=body.type==='create',id=create?uuid():Model.key(body.projectId);const directoryData=create||body.type==='members'?await directory():[];
   const stamp=now(),operation=uuid();let quote;
   if(body.type==='budget-link'){
-   if(!actor.quoteAllowed)throw fail(403,'Sin permiso para presupuestos');const key=Model.key(body.data?.sourceId),record=await quoteRecord(actor,key);if(!record||record.eliminado)throw fail(404,'Presupuesto no disponible');quote=budget(key,record);
+   if(!Model.commercial(actor))throw fail(403,'Sin permiso para presupuestos');const key=Model.key(body.data?.sourceId),record=await quoteRecord(actor,key);if(!record||record.eliminado)throw fail(404,'Presupuesto no disponible');quote=budget(key,record);
   }
   let error,listener;const ref=db.ref('sv_proyectos/'+id);
   try{

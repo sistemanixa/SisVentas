@@ -12,6 +12,7 @@
  const view=(p,a)=>!!p&&!!a?.enabled&&(a.role==='admin'||!!p?.members&&Object.hasOwn(p.members,a.uid));
  const edit=(p,a)=>view(p,a)&&a.editAllowed!==false&&(a.role==='admin'||p.owner===a.uid||p.members[a.uid]?.access==='editor');
  const manage=(p,a)=>edit(p,a)&&(a.role==='admin'||p.owner===a.uid);
+ const commercial=a=>a?.role!=='tecnico'&&a?.quoteAllowed===true;
  function memberMap(input,owner,directory){
   if(!Array.isArray(input)||input.length>40)fail(400,'Seleccioná hasta 40 integrantes');
   const out=Object.create(null);
@@ -43,18 +44,18 @@
   }else if(command.type==='need-remove'){
    const id=key(command.id);if(p.budgets.some(b=>(b.needIds||[]).includes(id)))fail(409,'La necesidad está vinculada a un presupuesto. Quitá primero ese vínculo.');p.needs=p.needs.filter(n=>n.id!==id);action='Necesidad quitada';
   }else if(command.type==='budget-brief'){
-   if(!actor.quoteAllowed)fail(403,'Tu rol no permite preparar presupuestos');
+   if(!commercial(actor))fail(403,'Tu rol no permite preparar presupuestos');
    if(!Array.isArray(d.needIds)||!d.needIds.length||new Set(d.needIds).size!==d.needIds.length||d.needIds.some(n=>!p.needs.some(x=>x.id===n)))fail(400,'Elegí necesidades del proyecto');
    if(p.budgets.length>=30)fail(400,'Máximo de 30 presupuestos');p.budgets.push({id:key(id),kind:'brief',title:text(d.title,140,true),notes:text(d.notes||'',1200),needIds:d.needIds,createdAt:now});action='Borrador preparado';
   }else if(command.type==='budget-link'){
-   if(!actor.quoteAllowed)fail(403,'Tu rol no permite vincular presupuestos');
+   if(!commercial(actor))fail(403,'Tu rol no permite vincular presupuestos');
    const quote=ctx.quote;if(!quote)fail(404,'Presupuesto no disponible');if(!p.clientId||quote.clientId!==p.clientId)fail(400,'El presupuesto debe pertenecer al cliente del proyecto');
    if(p.budgets.some(b=>b.sourceId===quote.id))fail(409,'Ese presupuesto ya está vinculado');
    const b={id:key(id),kind:'linked',title:quote.title,sourceId:key(quote.id),needIds:[],createdAt:now};
    if(d.briefId){const brief=p.budgets.find(x=>x.id===d.briefId&&x.kind==='brief');if(!brief)fail(404,'Borrador no disponible');b.needIds=brief.needIds;b.id=brief.id;p.budgets=p.budgets.filter(x=>x.id!==brief.id);}
    if(p.budgets.length>=30)fail(400,'Máximo de 30 presupuestos');p.budgets.push(b);action='Presupuesto vinculado';
   }else if(command.type==='budget-remove'){
-   if(!actor.quoteAllowed)fail(403,'Tu rol no permite cambiar presupuestos');p.budgets=p.budgets.filter(b=>b.id!==key(command.id));action='Vínculo de presupuesto quitado';
+   if(!commercial(actor))fail(403,'Tu rol no permite cambiar presupuestos');p.budgets=p.budgets.filter(b=>b.id!==key(command.id));action='Vínculo de presupuesto quitado';
   }else if(!['create','update','members'].includes(command.type))fail(400,'Acción no disponible');
   if(p.due&&!/^\d{4}-\d{2}-\d{2}$/.test(p.due))fail(400,'Fecha objetivo inválida');
   p.revision++;p.updatedAt=now;p.activity=[{id:key(id),at:now,actor:actor.name,action},...p.activity].slice(0,60);
@@ -62,12 +63,21 @@
  }
  function project(p,actor,quotes=[]){
   if(!view(p,actor))fail(404,'Proyecto no disponible');const result=hydrate(p);
-  result.access={edit:edit(p,actor),manage:manage(p,actor),quote:edit(p,actor)&&!!actor.quoteAllowed};
+  result.access={edit:edit(p,actor),manage:manage(p,actor),commercial:commercial(actor),quote:edit(p,actor)&&commercial(actor)};
+  if(actor.role==='tecnico'){
+   const operational=['id','number','name','clientId','clientName','address','goal','due','stage','owner','members','needs','activity','createdAt','updatedAt','revision','access'];
+   const safe=Object.fromEntries(operational.filter(k=>Object.hasOwn(result,k)).map(k=>[k,result[k]]));
+   safe.budgets=[];
+   const needFields=['id','area','title','kind','qty','unit','status','notes','productId'];
+   safe.needs=result.needs.map(n=>Object.fromEntries(needFields.filter(k=>Object.hasOwn(n,k)).map(k=>[k,n[k]])));
+   const operationalActions=['Proyecto creado','Ficha actualizada','Integrantes actualizados','Necesidad agregada','Necesidad actualizada','Necesidad quitada'];
+   safe.activity=result.activity.filter(a=>operationalActions.includes(a.action)).map(a=>Object.fromEntries(['id','at','actor','action'].filter(k=>Object.hasOwn(a,k)).map(k=>[k,a[k]])));return safe;
+  }
   result.budgets=result.budgets.map(b=>{
-   if(!actor.quoteAllowed)return {id:b.id,kind:'restricted',title:'Presupuesto vinculado',needIds:[]};
+   if(!commercial(actor))return {id:b.id,kind:'restricted',title:'Presupuesto vinculado',needIds:[]};
    if(b.kind==='brief')return b;const q=quotes.find(q=>q.id===b.sourceId);return q?{...b,quote:clean(q)}:{id:b.id,kind:'restricted',title:'Presupuesto vinculado',needIds:[]};
   });return result;
  }
  function stats(p){const all=p.needs.length,defined=p.needs.filter(n=>n.status==='definido').length;return {all,defined,pending:all-defined,areas:new Set(p.needs.map(n=>n.area)).size,percent:all?Math.round(defined/all*100):0};}
- return {stages,needStates,kinds,apply,project,view,edit,manage,stats,key};
+ return {stages,needStates,kinds,apply,project,view,edit,manage,commercial,stats,key};
 });

@@ -107,7 +107,7 @@ test('el servidor filtra la lista, omite datos privados y resiste dos escrituras
  assert.equal(updates.filter(x=>x.status==='fulfilled').length,1);assert.equal(updates.find(x=>x.status==='rejected').reason.statusCode,409);
  const options=await f.service.options(owner,p.id);assert.equal(options.clients[0].secret,undefined);assert.equal(options.budgets[0].compra,undefined);assert.equal(options.budgets[0].items[0].compra,undefined);
  const latest=(await f.service.list(owner)).projects[0];const linked=await f.service.save(owner,{type:'budget-link',projectId:latest.id,revision:latest.revision,data:{sourceId:'quote'}});assert.equal(linked.project.budgets[0].quote.total,100);
- const r=(await f.service.list(reader)).projects[0];assert.equal(r.budgets[0].quote,undefined);
+ const r=(await f.service.list(reader)).projects[0];assert.deepEqual(r.budgets,[]);assert.equal(r.access.commercial,false);
 });
 test('el modelo servido por Docker es la copia exacta de la fuente canónica del navegador',()=>{
  assert.equal(fs.readFileSync('js/core/projects-model.js','utf8').replaceAll('\r\n','\n'),fs.readFileSync('cotizador/projects-model.js','utf8').replaceAll('\r\n','\n'));

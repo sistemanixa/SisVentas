@@ -42,7 +42,7 @@ function fixture(projects=[project('one','Proyecto de prueba')]){
   preview:()=>false,details:()=>opens.push(c.state.selected),editProject:async isNew=>creates.push(isNew),
   selectTab:()=>assert.fail('Una tarjeta no cambia una solapa'),report:error=>assert.fail(error.message),request:()=>assert.fail('Abrir la ficha no consulta ni guarda'),
   document:{addEventListener:(name,handler)=>events[name]=handler}};c.window=c;vm.createContext(c);
- for(const name of ['esc','norm','icon','button','date','initials','pill'])vm.runInContext(source.split('\n').find(line=>line.startsWith(' const '+name+'=')),c);
+ for(const name of ['esc','norm','icon','button','date','initials','pill','commercial'])vm.runInContext(source.split('\n').find(line=>line.startsWith(' const '+name+'=')),c);
  for(const name of ['avatars','empty','shell','overview','cards'])vm.runInContext(fn(name),c);
  const start=source.indexOf(" document.addEventListener('input'"),end=source.indexOf(" document.addEventListener('sisventas:page-changed'",start);
  vm.runInContext(source.slice(start,end),c);c.overview();return {c,page,events,opens,creates};
