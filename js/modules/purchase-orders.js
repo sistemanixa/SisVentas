@@ -584,6 +584,17 @@
   async function savePreparationAndSaleCosts(list,snapshot,changes){
     if(snapshot.version<6)return update(PATH_LISTS+'/'+list.fbKey,changes);
     if(!window.SVExteriorPreparation||!window.fbRunTransaction)throw new Error('Recargá para guardar la preparación.');
+    // Compare only persisted RTDB meaning: null/empty branches do not exist there.
+    // Keep every scalar (including false, 0 and empty text) and every index.
+    function preparationSnapshotEqual(a,b){
+      function tree(value){
+        if(value==null)return null;
+        if(typeof value!=='object')return value;
+        const entries=Object.entries(value).map(([key,child])=>[key,tree(child)]).filter(([,child])=>child!==null);
+        return entries.length?Object.fromEntries(entries):null;
+      }
+      return window.SVGuardedWrites.equal(tree(a),tree(b));
+    }
     const uid=window.currentUserUid;
     const before=JSON.parse(JSON.stringify(list.simuladorParaguay||null));
     const ref=window.fbRef(window.fbDB,'sisventas');
@@ -593,7 +604,7 @@
       const saved=await window.SVGuardedWrites.restTransaction(window.fbRef(window.fbDB,PATH_LISTS+'/'+list.fbKey),current=>{
         if(uid!==window.currentUserUid)throw new Error('La sesión cambió.');
         if(!current||materialListLocked(current)||current.compraConfirmacion||current.aplicacionExteriorPendiente)throw new Error('La compra cambió o ya está confirmada. Volvé a abrirla.');
-        if(!window.SVGuardedWrites.equal(current.simuladorParaguay||null,before))throw new Error('Otro usuario cambió la preparación. Volvé a abrirla.');
+        if(!preparationSnapshotEqual(current.simuladorParaguay||null,before))throw new Error('Otro usuario cambió la preparación. Volvé a abrirla.');
         current.simuladorParaguay=JSON.parse(JSON.stringify(snapshot));
         Object.entries(changes).filter(([key])=>key.startsWith('comprobantesCompra/')).forEach(([key,value])=>{current.comprobantesCompra=current.comprobantesCompra||{};current.comprobantesCompra[key.split('/')[1]]=value;});
         return current;
@@ -610,7 +621,7 @@
     if(!stored||materialListLocked(stored)||stored.compraConfirmacion)throw Error('La compra cambió o ya está confirmada. Volvé a abrirla.');
     let operation=stored.aplicacionExteriorPendiente;
     if(!operation){
-      if(!equal(stored.simuladorParaguay||null,before))throw Error('Otro usuario cambió la preparación. Volvé a abrirla.');
+      if(!preparationSnapshotEqual(stored.simuladorParaguay||null,before))throw Error('Otro usuario cambió la preparación. Volvé a abrirla.');
       const sources=stored.origen==='conjunta'?stored.sources||[]:[{ventaFbKey:stored.ventaFbKey,listId:list.fbKey}];
       const steps=await Promise.all(sources.filter(source=>source.ventaFbKey).map(async source=>{
         const path='sisventas/ventas/'+source.ventaFbKey,sale=await read(path);
@@ -623,12 +634,14 @@
       }));
       operation={id:list.fbKey+'-'+snapshot.exteriorAppliedAt,steps,snapshot:copy(snapshot),changes:copy(changes),before};
       await tx(listPath,current=>{
-        if(!current||materialListLocked(current)||current.aplicacionExteriorPendiente||!equal(current.simuladorParaguay||null,before))throw Error('Otro usuario cambió la preparación. Volvé a abrirla.');
+        if(!current||materialListLocked(current)||current.aplicacionExteriorPendiente||!preparationSnapshotEqual(current.simuladorParaguay||null,before))throw Error('Otro usuario cambió la preparación. Volvé a abrirla.');
         return Object.assign({},current,{aplicacionExteriorPendiente:operation});
       });
     }
     const appliedSales={};
-    for(const step of operation.steps){
+    const operationSteps=operation.steps || (stored.origen==='stock_paraguay'?[]:null);
+    if(!Array.isArray(operationSteps))throw Error('La aplicación pendiente no tiene sus ventas identificadas. Revisá la preparación.');
+    for(const step of operationSteps){
       await tx(step.path,current=>{
         if(current?.aplicacionExteriorId===operation.id){appliedSales[step.key]=current;return current;}
         if(!current||Object.keys(step.baseline).some(field=>!equal(current[field]??null,step.baseline[field])))throw Error('Cambió el detalle de una venta. La aplicación quedó pendiente de revisión; no se sobrescribieron sus cambios.');
@@ -639,7 +652,7 @@
     }
     await tx(listPath,current=>{
       if(current?.aplicacionExteriorId===operation.id)return current;
-      if(current?.aplicacionExteriorPendiente?.id!==operation.id||!equal(current.simuladorParaguay||null,operation.before))throw Error('Cambió la preparación. Reintentá para retomar la aplicación pendiente.');
+      if(current?.aplicacionExteriorPendiente?.id!==operation.id||!preparationSnapshotEqual(current.simuladorParaguay||null,operation.before))throw Error('Cambió la preparación. Reintentá para retomar la aplicación pendiente.');
       current.simuladorParaguay=copy(operation.snapshot);current.estado='preparacion';current.aplicacionExteriorId=operation.id;
       delete current.exteriorCanceladoEn;delete current.aplicacionExteriorPendiente;
       Object.entries(operation.changes).filter(([key])=>key.startsWith('comprobantesCompra/')).forEach(([key,value])=>{current.comprobantesCompra=current.comprobantesCompra||{};current.comprobantesCompra[key.split('/')[1]]=value;});
