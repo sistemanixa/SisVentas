@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Compras compactas v3.15.17 publicadas y visibles · 27/10/2026
+
+Publicación coordinada exclusiva del otro chat, fuente b740baf54b2bad305d939d40d457518ea29437ae; Hosting d2f2c60fb63c9e01,478activos/6cargas. Reportó17hashesHTTPS/mirror/cabeceras/rutasprivadasPASS y aviso oficial web/core/SW/Firebase17; puerta conjunta6.236PASS/27opt-in/0fallos y QA visual10casos,6altas y retorno de compras correctos. Sólo bloque visual selectivo, sin cambios financieros/OT/stock ni infraestructura fija.
+
+Comprobación propia en la misma pestaña auténtica autoactualizada15.17: reabierta la misma preparación, título/total/Volver en cabecera compacta, exportaciones agrupadas junto a solapas y pie reducido. Producto, cantidad, proveedor y precio conservados; Guardar y aplicar deshabilitado y foco en buscador. Se dejó abierta. No se guardaron ni confirmaron operaciones reales como prueba. Captura privada tmp/compra-stock-compacta-v31517.png, fuera de Git. Carga segmentada y candidata amplia siguen sin activar.
+
+
 ## Preparar compra: cabecera y pie compactos listos · 27/10/2026
 
 Pedido del titular aplicado exclusivamente al módulo exterior-preparation.js sobre el mismo módulo publicado15.16. Cabecera con título, total principal y Volver; equivalencias/desglose desplegables. Exportar y compartir agrupa las cuatro herramientas junto a las solapas. Pie reducido conserva costo/ganancias y acciones; controles de producto sin cambios. Escape cierra primero el desplegable y devuelve foco, sin salir de la preparación. Ningún cambio en cálculos, persistencia, precios, proveedores, confirmaciones ni stock.
