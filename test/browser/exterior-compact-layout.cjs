@@ -24,6 +24,7 @@ const root=path.resolve(__dirname,'../..');
     },stockOnly);
     sizes[variant]=await page.locator('#py-planner').evaluate(el=>Object.fromEntries(['head','tabs','foot','body'].map(k=>[k,Math.round(el.querySelector('.ep-'+k).getBoundingClientRect().height)])));
     if(variant==='after'){
+     const back=await page.locator('.ep-head [data-close]').boundingBox(),title=await page.locator('.ep-head h2').boundingBox();assert.ok(back.x<title.x,'Volver queda a la izquierda del título');assert.equal(await page.locator('.ep-head-currencies').isVisible(),true);assert.match(await page.locator('.ep-head-currencies').innerText(),/USD .*USDT /s);
      const quantity=await page.locator('[data-field="qty"],[data-field="requestedQty"]').first().inputValue();
      const body=page.locator('.ep-body');await body.evaluate(el=>el.scrollTop=100);const scroll=await body.evaluate(el=>el.scrollTop);
      for(const disclosure of ['.ep-head-total','.ep-export-menu']){
