@@ -2,6 +2,7 @@
    Estrategia: red primero con cache de respaldo. */
 const CACHE = 'sisventas-v3.16.1';
 const SHELL = [
+ './js/modules/document-pdf-preview.v1.mjs',
  './js/core/inventory-count-model.v1.js?v=3.16.1',
  './js/modules/inventory-count.js?v=3.16.1',
  './css/chat-directs.v1.css?v=3.15.13',

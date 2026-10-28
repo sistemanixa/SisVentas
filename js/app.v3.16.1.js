@@ -46321,10 +46321,16 @@ function abrirVisorComprobanteSistema(archivo, tituloVisor) {
   overlay.innerHTML = '<div class="modal" style="width:'+anchoVisor+';height:min(88vh,900px);display:flex;flex-direction:column;padding:0;overflow:hidden">'+
     '<div class="modal-header" style="flex:0 0 auto;display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div style="min-width:0"><strong>'+escapeHTML(tituloVisor || 'Comprobante')+'</strong><div style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHTML(nombreArchivo)+'</div></div><button class="btn btn-sm btn-icon" style="flex:0 0 auto" onclick="cerrarVisorComprobanteSistema()" title="Cerrar" aria-label="Cerrar visor"><i class="ti ti-x"></i></button></div>'+
     '<div style="flex:1 1 auto;min-height:0;background:var(--bg3);display:flex;align-items:center;justify-content:center;padding:12px;overflow:hidden">'+
-      (esPdf ? '<iframe id="visor-comprobante-sistema-contenido" src="'+urlTemporal+'#navpanes=0&view=Fit" title="'+escapeHTML(nombreArchivo)+'" style="width:100%;height:100%;border:0;background:var(--bg3)"></iframe>' : '<img id="visor-comprobante-sistema-contenido" src="'+urlTemporal+'" alt="'+escapeHTML(nombreArchivo)+'" style="max-width:100%;max-height:100%;object-fit:contain">')+
+      (esPdf ? '<div id="visor-comprobante-sistema-contenido" role="region" aria-label="'+escapeHTML(nombreArchivo)+'" style="width:100%;height:100%;min-height:0"><div role="status">Cargando PDF…</div></div>' : '<img id="visor-comprobante-sistema-contenido" src="'+urlTemporal+'" alt="'+escapeHTML(nombreArchivo)+'" style="max-width:100%;max-height:100%;object-fit:contain">')+
     '</div><div style="flex:0 0 auto;display:flex;justify-content:center;gap:10px;padding:12px;border-top:1px solid var(--border);background:var(--card)"><button class="btn btn-primary" onclick="descargarVisorComprobanteSistema()"><i class="ti ti-download"></i> Descargar</button>'+botonCompartir+'</div></div>';
   overlay.addEventListener('click', function(ev){ if (ev.target === overlay) cerrarVisorComprobanteSistema(); });
   document.body.appendChild(overlay);
+  if (esPdf) {
+    var pdfHost = overlay.querySelector('#visor-comprobante-sistema-contenido');
+    import('./modules/document-pdf-preview.v1.mjs').then(function(visor) {
+      if (overlay.isConnected) return visor.mount(pdfHost, urlTemporal);
+    }).catch(function() { if (pdfHost.isConnected) pdfHost.textContent = 'No se pudo mostrar el PDF. Podés descargar el original.'; });
+  }
   if (typeof svSincronizarPilaModales === 'function') svSincronizarPilaModales();
 }
 
