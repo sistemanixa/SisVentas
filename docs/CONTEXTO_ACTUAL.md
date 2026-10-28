@@ -1,3 +1,9 @@
+# v3.16.2 publicada y verificada · 27/10/2026
+
+Código98dbb6d7e28ea41e74a09efa4530984f690e5b98, sin push por pedido del titular. Hosting487activos públicos;23hashes/7cabeceras/7privados404 y espejo web.app coincidentes; aviso oficial v3.16.2-firebase. Cotizador cotizador-projects3162-98dbb6d7 al100% y14accesos; runtime/escala/configuración conservados, únicamente projects.js/projects-model.js cambian frente a bonus12-6ebc77f1. Una compilación exitosa, sin nuevos servicios ni costo fijo.
+
+Web real: venta910131 sin falso aviso de descuento, total y pagado5467642 intactos; inventario simple y aislamiento comercial técnico probados con ficticios según evidencia previa. Suite6288PASS/27skip,servidor94PASS. Ninguna escritura financiera ni stock como prueba. Evidencias privadas release3162. Bloque nuevo de pagos de comisiones por administrativo detectado por otro chat: NO incluido aquí; preservar restricciones CTA privada, no repetir pagos reales.
+
 # Preparación autorizada v3.16.2 · 27/10/2026
 
 Publicación autorizada por el titular: inventario simple (4465a3c), visor PDF (bbe9c77), aislamiento comercial de técnicos en Proyectos (e367851e) y reconocimiento estricto del redondeo entero histórico facturado. No modifica importes, facturas, cobros, comisiones ni stock real. Suite 6288PASS/27skip/0fallos; Cotizador94PASS y QA visual ficticio390/768/1280 de los tres módulos anteriores. Validación local de versión, sintaxis y diff correctos.
