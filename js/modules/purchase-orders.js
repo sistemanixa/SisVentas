@@ -16,7 +16,8 @@
     manualItems: [],
     editingOrderKey: null,
     groupMaterialsByProvider: true,
-    orderProductQuery: ''
+    orderProductQuery: '',
+    metricView: ''
   };
 
   function esc(value) {
@@ -1162,7 +1163,7 @@
     if (!page || page.dataset.purchaseV2 === '1') return;
     page.dataset.purchaseV2 = '1';
     page.innerHTML =
-      '<div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px"><div class="metric"><div class="m-label">Compras del mes</div><div class="m-value" id="oc2-total">$0</div><div class="m-sub">órdenes no canceladas</div></div><div class="metric"><div class="m-label">En compra</div><div class="m-value" id="oc2-buy" style="color:var(--amber)">0</div><div class="m-sub">unidades pendientes</div></div><div class="metric"><div class="m-label">Reservado para obras</div><div class="m-value" id="oc2-reserved" style="color:var(--blue)">0</div><div class="m-sub">recibido con destino</div></div><div class="metric"><div class="m-label">Stock general operativo</div><div class="m-value" id="oc2-general" style="color:var(--green)">0</div><div class="m-sub">controlado desde ahora</div></div></div>' +
+      '<div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));margin-bottom:12px"><button type="button" class="metric" data-order-metric="month" onclick="ocVerTarjetaCompra(\'month\')" style="text-align:left;color:inherit;cursor:pointer;min-width:0;font:inherit"><div class="m-label">Compras del mes</div><div class="m-value" id="oc2-total">$0</div><div class="m-sub">órdenes no canceladas</div></button><button type="button" class="metric" data-order-metric="enCompra" onclick="ocVerTarjetaCompra(\'enCompra\')" style="text-align:left;color:inherit;cursor:pointer;min-width:0;font:inherit"><div class="m-label">En compra</div><div class="m-value" id="oc2-buy" style="color:var(--amber)">0</div><div class="m-sub">unidades pendientes</div></button><button type="button" class="metric" data-order-metric="reservado" onclick="ocVerTarjetaCompra(\'reservado\')" style="text-align:left;color:inherit;cursor:pointer;min-width:0;font:inherit"><div class="m-label">Reservado para obras</div><div class="m-value" id="oc2-reserved" style="color:var(--blue)">0</div><div class="m-sub">recibido con destino</div></button><button type="button" class="metric" data-order-metric="general" onclick="ocVerTarjetaCompra(\'general\')" style="text-align:left;color:inherit;cursor:pointer;min-width:0;font:inherit"><div class="m-label">Stock general operativo</div><div class="m-value" id="oc2-general" style="color:var(--green)">0</div><div class="m-sub">controlado desde ahora</div></button></div>' +
       '<div class="card"><div class="card-head"><div style="display:flex;gap:7px"><button class="btn btn-sm oc2-tab active" data-tab="orders" onclick="ocShowTab(\'orders\')"><i class="ti ti-shopping-cart"></i> Órdenes por proveedor</button><button class="btn btn-sm oc2-tab" data-tab="lists" onclick="ocShowTab(\'lists\')"><i class="ti ti-list-check"></i> Listas de materiales</button></div><div style="display:flex;gap:7px;flex-wrap:wrap"><select id="oc2-filter" class="search-input btn-sm" onchange="renderOrdenesFiltradas()"><option value="">Todos los estados</option><option value="borrador">Borrador</option><option value="enviada">Enviada</option><option value="recepcion_parcial">Recepción parcial</option><option value="recibida">Recibida</option><option value="cancelada">Cancelada</option></select><button class="btn btn-sm" onclick="iniciarRecorridoNovedad(\'compras\')" title="Conocer el circuito de compras"><i class="ti ti-route"></i> Recorrido</button><button class="btn btn-sm btn-primary" data-tour="orden-manual" onclick="abrirNuevaOrden()"><i class="ti ti-plus"></i> Orden manual</button></div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 16px 12px" id="oc2-product-searchbar"><input class="search-input" id="oc2-product-search" type="search" aria-label="Buscar producto comprado" placeholder="Buscar producto o código comprado…" oninput="renderOrdenesFiltradas()" style="flex:1;min-width:0;width:100%"></div><div id="oc2-orders"></div><div id="oc2-lists" style="display:none"></div></div>';
   }
 
@@ -1173,11 +1174,18 @@
     if (!target) return;
     var filter = (document.getElementById('oc2-filter') || {}).value || '';
     var input = document.getElementById('oc2-product-search');
+    var inventoryView = state.metricView && state.metricView !== 'month';
+    var statusControl = document.getElementById('oc2-filter');
+    if (statusControl) statusControl.disabled = !!inventoryView;
+    if (input) {input.placeholder = inventoryView ? 'Buscar producto en inventario…' : 'Buscar producto o código comprado…';input.ariaLabel = inventoryView ? 'Buscar producto en inventario' : 'Buscar producto comprado';}
+    syncMetricButtons();
     var query = input ? String(input.value || '').trim() : state.orderProductQuery;
     state.orderProductQuery = query;
     var list = filter ? state.orders.filter(function (o) { return o.estado === filter; }) : state.orders;
+    if (state.metricView && state.metricView !== 'month') {renderInventoryMetric(target,state.metricView,query);return;}
+    if (state.metricView === 'month') list = list.filter(function(o){return o.estado !== 'cancelada' && String(o.fecha || '').slice(0,7) === today().slice(0,7);});
     if (query) { renderProductSearch(target,list,query); return; }
-    target.innerHTML = '<div class="table-wrap"><table id="oc2-orders-table" data-sv-column-key="ordenes-compra-principal" style="min-width:880px"><thead><tr><th>N°</th><th>Proveedor</th><th>Destino</th><th>Materiales</th><th class="tr">Total</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' +
+    target.innerHTML = metricBanner() + '<div class="table-wrap"><table id="oc2-orders-table" data-sv-column-key="ordenes-compra-principal" style="min-width:880px"><thead><tr><th>N°</th><th>Proveedor</th><th>Destino</th><th>Materiales</th><th class="tr">Total</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' +
       (list.length ? list.map(function (o) {
         var qty = Array.isArray(o.items) ? o.items.reduce(function (s, i) { return s + (parseFloat(i.cantidadOrdenada || i.cantidad) || 0); }, 0) : (parseFloat(o.cantidad) || 0);
         var itemCount = (o.items && o.items.length) || 1;
@@ -1190,9 +1198,41 @@
     if (!window.SVPurchaseOrderSearch) {target.innerHTML='<div style="padding:16px">Actualizá la página para buscar productos.</div>';return;}
     var rows=window.SVPurchaseOrderSearch.search(orders,query),orderKeys=new Set(rows.map(function(r){return r.order.fbKey || r.order.numero;}));
     function amount(value,unit){return value == null ? '—' : Number(value).toLocaleString('es-AR',{maximumFractionDigits:6}) + ' ' + esc(unit);}
-    target.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;margin:0 14px 12px;border:1px solid var(--amber);border-radius:8px;flex-wrap:wrap"><span>Producto: «'+esc(query)+'» · '+rows.length+' coincidencias en '+orderKeys.size+' órdenes</span><button class="btn btn-sm" type="button" onclick="ocLimpiarBusquedaProducto()">Quitar búsqueda</button></div>'+
+    target.innerHTML=metricBanner()+'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;margin:0 14px 12px;border:1px solid var(--amber);border-radius:8px;flex-wrap:wrap"><span>Producto: «'+esc(query)+'» · '+rows.length+' coincidencias en '+orderKeys.size+' órdenes</span><button class="btn btn-sm" type="button" onclick="ocLimpiarBusquedaProducto()">Quitar búsqueda</button></div>'+
       '<div class="table-wrap"><table id="oc2-product-history-table" data-sv-column-key="ordenes-compra-producto" style="min-width:1160px!important"><thead><tr><th>Orden</th><th>Producto</th><th>Proveedor</th><th class="tr">Pedida</th><th class="tr">Recibida</th><th>Fecha compra</th><th>Últ. recepción</th><th>Destino</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>'+
       (rows.length ? rows.map(function(r){var o=r.order;return '<tr data-order-key="'+attr(o.fbKey)+'" onclick="ocAbrirOrden(this.dataset.orderKey)" style="cursor:pointer"><td><strong>'+esc(o.numero||'—')+'</strong></td><td style="white-space:normal!important;overflow-wrap:anywhere;line-height:1.45"><strong>'+esc(r.code)+'</strong><div>'+esc(r.name)+'</div></td><td>'+esc(r.item.proveedorFinal || orderProviderSummary(o))+'</td><td class="tr">'+amount(r.ordered,r.unit)+'</td><td class="tr">'+amount(r.received,r.unit)+'</td><td>'+esc(fmtDate(r.orderedDate))+'</td><td>'+esc(fmtDate(r.receivedDate))+'</td><td>'+esc(o.ventaId || (o.ventaFbKey ? 'Reservada para venta' : 'Stock general'))+'</td><td>'+statusBadge(o.estado)+'</td><td><button class="btn btn-sm btn-icon" type="button" aria-label="Ver detalle" title="Ver detalle"><i class="ti ti-eye"></i></button></td></tr>';}).join(''):'<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text3)">No hay productos que coincidan con esta búsqueda y estado.</td></tr>')+'</tbody></table></div>';
+  }
+
+  function metricBanner() {
+    var labels = {month:'Compras de ' + today().slice(0,7),enCompra:'Productos en compra',reservado:'Reservado para obras',general:'Stock general operativo'};
+    return state.metricView ? '<div role="status" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 16px 12px;padding:10px;border:1px solid var(--amber);border-radius:8px"><strong>' + labels[state.metricView] + '</strong><button class="btn btn-sm" type="button" onclick="ocQuitarFiltroTarjeta()">Ver todas las órdenes</button></div>' : '';
+  }
+  function renderInventoryMetric(target, field, query) {
+    var normalize = function(v){return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();};
+    var tokens = normalize(query).split(/\s+/).filter(Boolean);
+    var rows = Object.entries(state.inventory || {}).map(function(entry) {
+      var key = entry[0], inv = entry[1] || {}, product = productList().find(function(p){return String(p.fbKey || p.codigo) === key || String(p.codigo || '') === key;}) || {};
+      return {code:String(inv.codigo || product.codigo || key),name:String(inv.descripcion || product.nombre || product.descripcion || 'Producto sin descripción'),quantity:parseFloat(inv[field]) || 0,unit:String(inv.unidad || product.unidad || 'unidades')};
+    }).filter(function(r){var text=normalize(r.code+' '+r.name);return r.quantity > 0 && tokens.every(function(t){return text.includes(t);});}).sort(function(a,b){return a.name.localeCompare(b.name,'es');});
+    target.innerHTML = metricBanner() + '<div class="table-wrap"><table style="min-width:550px"><thead><tr><th>Código</th><th>Producto</th><th class="tr">Cantidad</th><th>Acciones</th></tr></thead><tbody>' +
+      (rows.length ? rows.map(function(r){return '<tr><td>' + esc(r.code) + '</td><td style="white-space:normal">' + esc(r.name) + '</td><td class="tr">' + r.quantity.toLocaleString('es-AR',{maximumFractionDigits:6}) + ' ' + esc(r.unit) + '</td><td><button class="btn btn-sm" type="button" data-purchase-product="' + attr(r.code) + '">Ver compras</button></td></tr>';}).join('') : '<tr><td colspan="4" style="text-align:center;padding:24px">No hay productos para este filtro.</td></tr>') + '</tbody></table></div>';
+    target.querySelectorAll('[data-purchase-product]').forEach(function(button){button.onclick=function(){clearMetricFilter(button.dataset.purchaseProduct);};});
+  }
+  function syncMetricButtons() {
+    document.querySelectorAll('[data-order-metric]').forEach(function(button){var active=button.dataset.orderMetric===state.metricView;button.setAttribute('aria-pressed',String(active));button.style.outline=active?'2px solid var(--blue)':'';});
+  }
+  function openMetricView(view) {
+    if (!['month','enCompra','reservado','general'].includes(view)) return;
+    state.metricView = view;state.orderProductQuery = '';
+    var search = document.getElementById('oc2-product-search'),filter = document.getElementById('oc2-filter');
+    if(search)search.value='';if(filter)filter.value='';
+    showOrdersTab('orders');syncMetricButtons();
+    document.getElementById('oc2-orders')?.scrollIntoView?.({block:'nearest'});
+  }
+  function clearMetricFilter(query) {
+    state.metricView = '';state.orderProductQuery = typeof query === 'string' ? query : '';
+    var search=document.getElementById('oc2-product-search');if(search)search.value=state.orderProductQuery;
+    syncMetricButtons();showOrdersTab('orders');
   }
 
   function clearProductSearch(){state.orderProductQuery='';var input=document.getElementById('oc2-product-search');if(input)input.value='';renderOrders();if(input)input.focus();}
@@ -2249,6 +2289,7 @@
     state.orders = [];
     state.lists = [];
     state.inventory = {};
+    state.metricView = '';
     state.legacy = [];
     state.activeList = null;
     state.activeOrder = null;
@@ -2300,6 +2341,8 @@
   window.ocCopiarPedidoWhatsAppProveedor = copyWhatsAppOrderForItem;
   window.ocAplicarProveedoresRecomendados = applyRecommendedProvidersToCurrentList;
   window.ocGenerarOrdenesDesdeLista = generateOrdersFromList;
+  window.ocVerTarjetaCompra = openMetricView;
+  window.ocQuitarFiltroTarjeta = clearMetricFilter;
   window.ocShowTab = showOrdersTab;
   window.ocAbrirOrden = openOrder;
   window.ocCambiarEstadoOrden = changeOrderStatus;
