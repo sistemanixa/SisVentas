@@ -1,5 +1,28 @@
 # Continuidad de SisVentas
 
+## Búsqueda de productos comprados local · 27/10/2026
+
+Preparada v3.15.16 en codex/compras-busqueda-productos-v31516, sin publicar.
+Buscador nombre/código sin tildes, filas por producto con cantidades pedida y
+recibida, fecha de orden y última recepción del mismo producto, destino/estado.
+Usa órdenes ya cargadas: cero consultas, escritores o temporizadores nuevos.
+Recepción/cancelación/stock intactos en auditoría AST; cambian sólo cuatro
+funciones de vista/reinicio y se agregan helpers de búsqueda/presentación.
+Suite6.234PASS/27opt-in/0fallos;12focalesPASS. UI390/768/1280 ficticia sin red
+ni desborde de página; tabla con scroll propio y nombres completos.
+Espejo público8766 actualizado, pestaña local recargada y vista comprobada en
+sesión real sólo lectura. Evidencia y diagnóstico operativo quedan privados en
+C:/SisVentas/tmp/purchase-search16, fuera de Git. Producción sigue15.15.
+
+La incidencia de instalación histórica sigue abierta tras verificación real:
+los fixtures anteriores no prueban la corrección de ese registro. Se observaron
+diferencias entre el material solicitado y los productos comprados; no asumir
+equivalencia ni stock disponible por haber una compra. No se creó ningún
+original, ni se acreditó inventario, confirmó instalación o guardó datos reales.
+Falta conciliar identidad, origen y disponibilidad con evidencia verificable.
+Publicación16 pendiente, respetando agrupación20 salvo excepción del titular.
+
+
 ## Instalación individual e histórico publicados v3.15.15 · 27/10/2026
 
 Fuente e673302ac9682a93064e93b80dd7f175687799fa, rama codex/ot-instalacion-individual-v31515.
