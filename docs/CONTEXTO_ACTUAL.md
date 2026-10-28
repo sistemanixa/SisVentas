@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Visor PDF corregido en local · 27/10/2026
+
+Commit local bbe9c77: PDF.js dibuja el comprobante en vez de depender del iframe nativo; conserva descarga y compartir del original, paginación, error visible y limpieza al cerrar. El diálogo de facturas se cierra antes de abrir el visor. Sin relajar CSP, nuevas consultas externas ni escrituras comerciales/stock. Público3.16.1 todavía sin esta corrección; no hubo despliegue ni push.
+
+Pruebas: puerta6278PASS/27skip/0fallos; navegador390/768/1280 con seis páginas dibujadas, sin desbordes, cierre/cancelación, PDF inválido y capas; cero solicitudes externas y cero escrituras comerciales. QA visual local completado y visor abierto para el titular. test/browser/document-pdf-preview.cjs usa SV_TEST_PDF_PATH a fixture local de seis páginas; evidencias privadas fueraGit. Inventario simple preparado separadamente en4465a3c, sin publicar ni contar stock real.
+
+
 ## Cabecera de preparación v3.15.19 aislada · 27/10/2026
 
 Fuente de inicio exacta c2d017fd (producción18), sólo módulo y QA selectivos16326a9 más marcadores/Novedades. USD/USDT visibles junto al total y Volver a la izquierda; sin cambios de importes, fuentes de cotización o persistencia. No incluye remitos/OT ni tarjetas de otras ramas. Paquete aislado validado:6.243PASS/27opt-in/0fallos, diez QA320/390/768/950/1280 y sintaxis/diff correctos. Aplicación idéntica a18 salvo versión/Novedades. Preflight remoto confirmó Hostingc0e776fa2d8206c8 y web/aviso18; cero lecturas comerciales. Publicación estática pendiente de validar Hosting y aviso. La preparación real mantiene doce productos y está guardada; comprobar otra vez antes del corte.
