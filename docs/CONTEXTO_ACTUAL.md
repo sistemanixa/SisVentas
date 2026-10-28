@@ -1,3 +1,7 @@
+# Agenda v3.16.4 aislada · 28/10/2026
+
+Base pública ebf2bc31 (v3.16.3). Sólo se aplica bloque Agenda de42127b39 relativo a8a92b81 y sus pruebas; no contiene implementación/cliente/router de pagos preparados. Ocultar conserva DOM bajo contexto de seguridad, retira escuchaSDK; regresar reconecta una vez sinloading/repintadoidéntico. Cambio de día recalcula al volver, sin reloj; logout/rol/permisos/contextoinválido borra vista y errores no conservan resultados como vigentes. Candidata estática16.4; sin cambioCotizador/reglas/infra ni datos reales. Pagos8a92b81 permanece sinpublicar. No push.
+
 # Verificación pública del visor v3.16.3 completada · 28/10/2026
 
 Publicado e016c715d57dbfec742eca45380ad61876604703,488activos; hashes seleccionados/cabeceras/404/espejo y aviso v3.16.3-firebase correctos. Suite limpia6288PASS/27skip/0fallos. PDF original126 efectivamente dibujado en web, página1y2de6 verificadas en sesión real, sin guardar ni alterar factura/venta/cobros/stock. Evidencia privada C:/SisVentas/tmp/release3163/invoice126-public-fixed.png; prueba navegador con CSPexacta390/768/1280 seis páginas. Pestaña temporal cerrada y ventana original del titular conservada, sin recargar mientras trabajaba. Servidor permanece en3162 sin cambio porhotfix.
