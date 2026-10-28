@@ -1,3 +1,7 @@
+# Hotfix visor PDF v3.16.3 · 28/10/2026
+
+QA real posterior a3162 detectó que PDF.js intentaba fetch del blob temporal, bloqueado por connect-src de CSP producción. Local sin CSP no lo detectaba. Corrección: entregar Uint8Array original directamente a PDF.js, conservar blob sólo para descargar/compartir. Sin ampliar CSP ni tocar documento guardado. Test navegador ahora usa exactamente CSP Hosting y valida bytes en390/768/1280, seis páginas, errores/cierre y0externos/0escrituras. Publicación estática inmediata autorizada dentro del cierre anterior; servidor3162 permanece idéntico. No dar por verificado el visor público hasta screenshot con PDF dibujado.
+
 # v3.16.2 publicada y verificada · 27/10/2026
 
 Código98dbb6d7e28ea41e74a09efa4530984f690e5b98, sin push por pedido del titular. Hosting487activos públicos;23hashes/7cabeceras/7privados404 y espejo web.app coincidentes; aviso oficial v3.16.2-firebase. Cotizador cotizador-projects3162-98dbb6d7 al100% y14accesos; runtime/escala/configuración conservados, únicamente projects.js/projects-model.js cambian frente a bonus12-6ebc77f1. Una compilación exitosa, sin nuevos servicios ni costo fijo.
