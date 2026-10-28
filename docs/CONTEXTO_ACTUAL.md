@@ -1,5 +1,10 @@
 # Continuidad de SisVentas
 
+## Compra para stock y altas continuas preparadas · 27/10/2026
+
+Pedido humano implementado sólo en exterior-preparation.js, asignado exclusivamente por el otro chat; purchase-orders.js queda intacto en ese chat. StockOnly muestra Agregar productos directo y costo del pedido; venta mantiene Extras. Selección clic/teclado limpia y devuelve foco, picker grande permanece abierto, Tab/Escape/fondo inerte.13helpers puros idénticos, snapshot/destino/cálculos/recepción/stock sin cambios.6QA ficticias390/768/1280,39focales+3altas y suite6.077PASS/27skip/0fallos; evidencia y límites en COMPRA_STOCK_CARGA_CONTINUA.md. Sin operaciones reales, nuevas lecturas por selección ni publicación. Preservado el borrador del titular. Integrar únicamente módulo/pruebas/doc sobre base vigente del otro chat; no arrastrar app15.9 ni sus marcadores a producción.
+
+
 ## Preparación exterior huérfana cancelada por pedido del titular · 27/10/2026
 
 Caso individual real reparado con autorización directa. La venta de origen ya no existía; no se encontraron órdenes vinculadas ni asignaciones de esa venta/lista en sus productos. El mensaje de órdenes/stock provenía del guard que también rechaza venta ausente. Lecturas acotadas de claves y referencias, sin descargar colecciones comerciales completas. Se guardó respaldo privado y se canceló sólo la lista mediante ETag/If-Match, conservando simulador en archivo interno y auditoría. Relectura exacta confirmó el cambio; cero escrituras a ventas, órdenes o inventario. Respaldo, pruebas del registro y captura permanecen en tmp privado, fuera de Git.
