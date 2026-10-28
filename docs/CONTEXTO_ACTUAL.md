@@ -1,5 +1,14 @@
 # Continuidad de SisVentas
 
+## Cabecera v3.15.19 publicada y visible · 27/10/2026
+
+Fuente limpia al publicar6cde655858a11f015892420f979432e171ec1ef4, Hostingb78085467bdfb3ea,480activos/38cargas. Puerta6.243PASS/27opt-in/0fallos,10QA de cabecera y aplicación idéntica a18 salvo versión/Novedades. Verificación HTTPS de17activos contra fuente y filtros de checkout, mirror2,7cabeceras y7rutasprivadas404 correcta; script oficial confirmó web/core/SW/avisov3.15.19-firebase. Sólo cabecera y marcadores, sin remitos/OT ni otras ramas y sin servicios nuevos.
+
+Misma pestaña auténtica autoactualizada19, misma preparación reabierta: doce renglones, equivalencias USD/USDT visibles sin desplegar, Volver a la izquierda y sin cambios pendientes. Relectura puntual confirmó que cantidades/precios/proveedores mostrados coinciden con el último guardado real; no se guardó ni modificó ningún dato para esta QA. Se dejó abierta. Captura y evidencia privadas en tmp fuera de Git. El otro chat recibió fuente y cierre antes de continuar su20 por separado.
+
+Nota local de continuidad: después del primer despliegue se ensayó una comparación de finales de línea con un manifiesto anterior. La revisión automática rechazó restaurar archivos en masa por posible sobrescritura ajena; no se ejecutó esa restauración ni se volvió a publicar. Se completó la comprobación mediante git cat-file --filters, sólo lectura. El checkout puede mostrar diferencias locales de formato de ese ensayo; no añadirlas ni retirar archivos para limpiar. El SHA publicado y su lógica están verificados; conservar esos cambios locales separados del siguiente trabajo. No es una incidencia de datos ni una modificación adicional de Hosting.
+
+
 ## Cabecera de preparación v3.15.19 aislada · 27/10/2026
 
 Fuente de inicio exacta c2d017fd (producción18), sólo módulo y QA selectivos16326a9 más marcadores/Novedades. USD/USDT visibles junto al total y Volver a la izquierda; sin cambios de importes, fuentes de cotización o persistencia. No incluye remitos/OT ni tarjetas de otras ramas. Paquete aislado validado:6.243PASS/27opt-in/0fallos, diez QA320/390/768/950/1280 y sintaxis/diff correctos. Aplicación idéntica a18 salvo versión/Novedades. Preflight remoto confirmó Hostingc0e776fa2d8206c8 y web/aviso18; cero lecturas comerciales. Publicación estática pendiente de validar Hosting y aviso. La preparación real mantiene doce productos y está guardada; comprobar otra vez antes del corte.
