@@ -1,3 +1,9 @@
+# Agenda v3.16.4 publicada y verificada · 28/10/2026
+
+Código7faeb525199dbed4fce1def7f66fb0ee0ed9d24a, rama codex/agenda-resume-v3164, checkout C:/SisVentas/.local/agenda-resume-v3164. Hosting489activos,23hashes/7cabeceras/7privados404 y espejo correctos; aviso v3.16.4-firebase. SóloAgenda: sin nuevos helpers de pagos ni cambiosCotizador. Pagos8a92b81 permanece pendiente/sinpublicar en rama aparte. Sinpush.
+
+Suite aislada6302PASS27skip0fallos; visualficticia390/1280 con3ciclos pausa/vuelta,0escuchasocultas,0DOMwritesidénticos,1reconexiónporvuelta. Sesión públicaAdmin recargada y tarjeta presente con1hoy/1mañana/2semana. IAB al abrirpestañatemporal siguió document.hidden=false; no presentar esa maniobra como prueba de ocultación real. La prueba de ocultación completa es ficticiaaislada. Ningún cambiofinanciero/stock/eventos. Evidencia privada tmp/release3164/dashboard-public.png. Revisión salarial separada de sólolectura y pregunta plantelIgnacio pendiente; no implementar criterios sinrespuesta.
+
 # Agenda v3.16.4 aislada · 28/10/2026
 
 Base pública ebf2bc31 (v3.16.3). Sólo se aplica bloque Agenda de42127b39 relativo a8a92b81 y sus pruebas; no contiene implementación/cliente/router de pagos preparados. Ocultar conserva DOM bajo contexto de seguridad, retira escuchaSDK; regresar reconecta una vez sinloading/repintadoidéntico. Cambio de día recalcula al volver, sin reloj; logout/rol/permisos/contextoinválido borra vista y errores no conservan resultados como vigentes. Candidata estática16.4; sin cambioCotizador/reglas/infra ni datos reales. Pagos8a92b81 permanece sinpublicar. No push.
