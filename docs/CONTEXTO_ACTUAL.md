@@ -12,8 +12,11 @@ continua; Escape/Volver/Atrás navegador cierra detalle sin perder filtro/foco.
 QA390/768/1280 ficticia de ambos circuitos y navegación pasó. Comprobación
 real local sólo lectura de Escape/Atrás correcta; sin guardar orden/stock.
 El borrador del titular fue preservado por el otro chat antes del aviso; la
-verificación de reapertura en su sesión se coordina allí. No actualizar esa
+verificación de reapertura en su sesión quedó completada sin perder datos. No actualizar esa
 pestaña desde este chat. Servidor/reglas/IAM y cálculo financiero sin cambios.
+Verificación real en web: búsqueda y detalle, Escape y Atrás navegador cierran
+sin salir de Órdenes, con filtro/foco conservados. Sin guardados como prueba;
+pestaña temporal cerrada y local conservada. Captura privada back-real-web.
 Sin consultas periódicas nuevas ni servicios/costo fijo. Diagnóstico operativo
 privado y evidencia C:/SisVentas/tmp/purchase16-release. La incidencia de
 materiales históricos no se considera resuelta por esta publicación de compras.
