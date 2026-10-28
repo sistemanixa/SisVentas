@@ -99,7 +99,7 @@ function orderHTML(){
 test('conciliación conserva filas, números y totales con cabecera repetible y resumen indivisible',()=>{
  const html=orderHTML();for(const text of [longText,'$20,5','$23','P-FICTICIO'])assert.ok(html.includes(text));
  assert.match(html,/thead\{display:table-header-group\}/);assert.match(html,/tfoot\{display:table-row-group\}/);assert.match(html,/header,\.meta,\.total,\.foot\{break-inside:avoid/);assert.match(html,/tr\{break-inside:avoid/);
- assert.match(html,/overflow-wrap:break-word;word-break:break-word/);assert.match(html,/<colgroup><col style="width:10%"><col style="width:25%"><col style="width:16%">/);
+ assert.match(html,/overflow-wrap:break-word;word-break:break-word/);assert.equal((html.match(/<col style=/g)||[]).length,8);assert.match(html,/table-layout:auto/);assert.match(html,/\.num\{[^}]*white-space:nowrap[^}]*word-break:normal/);assert.match(html,/\.amount,\.total strong\{[^}]*white-space:nowrap/);
 });
 test('conciliación exporta clon natural y comparte exactamente el mismo PDF que descarga',async()=>{
  const html=orderHTML(),script=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)[1];
