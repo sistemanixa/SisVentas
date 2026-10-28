@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Lector en Agregar productos preparado · 27/10/2026
+
+Pedido del titular: reutilizar el lector común en Preparar compra. exterior-preparation.js conecta SVProductCodeSearch.attach al campo principal y al buscador grande; mantiene cámara de producto (barras/QR), resultados para elegir manualmente y ninguna alta/guardado automático. Cerrar cancela el lector, Escape de cámara no cierra la preparación de fondo, y el botón queda deshabilitado en compra confirmada. No cambia lector/decoder compartido, catálogo, costos ni persistencia.
+
+Seis QA390/768/1280 stock/venta con controlador real y cámara ficticia: búsqueda inline/grande, Escape, lectura tardía descartada, URL tratada sólo como búsqueda, sesión y sólo lectura; cero solicitudes externas/guardados/altas.52focales de lector/QR/preparaciónPASS; sintaxis y diff del alcance correctos. Suite completa ejecutada:6.241PASS/2fallos/27skip, únicamente comparación byte a byte de modelos/políticas con copias Docker por diferencias locales previas de finales de línea; no se alteraron pruebas ni se intentó otra restauración masiva. Integración selectiva de módulo+test/browser/exterior-product-scanner.cjs sobre la producción20 local del publicador, con su puerta limpia obligatoria antes de publicar. No publicar desde este checkout con formato pendiente ni arrastrar marcadores19. Capturas y logs en tmp privado; sin acceso a cámara física ni modificación de registros reales.
+
+
 ## Cabecera v3.15.19 publicada y visible · 27/10/2026
 
 Fuente limpia al publicar6cde655858a11f015892420f979432e171ec1ef4, Hostingb78085467bdfb3ea,480activos/38cargas. Puerta6.243PASS/27opt-in/0fallos,10QA de cabecera y aplicación idéntica a18 salvo versión/Novedades. Verificación HTTPS de17activos contra fuente y filtros de checkout, mirror2,7cabeceras y7rutasprivadas404 correcta; script oficial confirmó web/core/SW/avisov3.15.19-firebase. Sólo cabecera y marcadores, sin remitos/OT ni otras ramas y sin servicios nuevos.
