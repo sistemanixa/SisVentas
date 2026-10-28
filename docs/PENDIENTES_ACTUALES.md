@@ -1,5 +1,7 @@
 # Pendientes actuales de SisVentas
 
+Incidencia OT anterior/instalación individual: v3.15.15 probada con ficticios; publicación aún pendiente de comprobar. Ver OT_INSTALACION_INDIVIDUAL_V31515.md. No modifica OT-173 como prueba.
+
 Bloque OT/stock v3.15.14 publicado y verificado: adicionales instalados, consumo por revisión sin duplicados y corrección admin de OT cerrada. Fuente 9a6251e5, Hosting25967b002932ac96; no incluye custodia por serie ni garantías. Ver [alcance](OT_MATERIALES_STOCK_V31514.md).
 
 Actualizado el 27/10/2026. Este es el índice vigente para ordenar el trabajo entre chats. Las listas fechadas por versión se conservan como antecedentes, no como tareas nuevas. Última publicación documentada: v3.15.14, corrección OT/materiales y stock verificada sin operaciones reales de prueba.

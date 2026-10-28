@@ -1,5 +1,16 @@
 # Continuidad de SisVentas
 
+## OT anterior e instalación individual v3.15.15 preparadas · 27/10/2026
+
+Titular autorizó corregir histórico y Marcar instalado por ítem, probar ficticios
+y publicar sin tocar OT-173/stock reales. Detalle OT_INSTALACION_INDIVIDUAL_V31515.md.
+Se separa identidad original/adicional y referencias items/materiales; no se
+persisten recuperaciones al abrir.65 focalesPASS, UI390/768/1280sin red externa;
+motorstock15.14intacto. Sólo2funciones de aplicación cambiadas; resto conservado.
+Servidorbonus12/reglas/roles/IAMsin cambios. Suite final:6.225PASS/27opt-in/0fallos;65focalesPASS. Publicación pendiente
+de acreditar. No sustituir la candidata amplia por esta publicación acotada.
+
+
 ## OT/materiales publicados v3.15.14 · 27/10/2026
 
 Fuente 9a6251e5bb8f8cae6f698e297a701138dbd82227, rama codex/ot-materiales-stock-v31514.
