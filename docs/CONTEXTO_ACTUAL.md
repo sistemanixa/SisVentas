@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Compras v3.15.16 publicada y borrador conservado · 27/10/2026
+
+Publicación exclusiva coordinada por el otro chat, fuente 788296ad55904121edcd36eec555ca77951565d7: integración selectiva de f95d03d6, buscador de órdenes y retorno Escape/Volver/Atrás con filtro y foco conservados. Reportó 6.236PASS/27opt-in/0fallos, QA390/768/1280, 17hashes HTTPS/mirror, cabeceras y rutas privadas correctas; script oficial confirmó web/core/SW/aviso Firebase v3.15.16. Sólo Hosting estático, sin cambios de servidor/reglas/infraestructura fija.
+
+Verificación propia en la pestaña auténtica: antes de la actualización se guardó sólo el borrador existente por UI, con respaldo y relectura puntual privados. La misma pestaña se autoactualizó a15.16; se aceptó el aviso y reabrió la misma preparación. Producto, cantidad, proveedor y precio acordado conservados; Agregar productos visible directamente, foco en buscador, Guardar y aplicar deshabilitado. Se dejó abierta. No se añadieron productos ni confirmaron órdenes o recepciones como prueba; cero movimientos de stock. Captura y respaldo en tmp privado, fuera de Git. Las altas continuas reales no se ejecutaron sobre datos del titular: su cobertura es la prueba aislada ya documentada. No se activó carga segmentada ni candidata amplia.
+
+
 ## Compra para stock y altas continuas preparadas · 27/10/2026
 
 Pedido humano implementado sólo en exterior-preparation.js, asignado exclusivamente por el otro chat; purchase-orders.js queda intacto en ese chat. StockOnly muestra Agregar productos directo y costo del pedido; venta mantiene Extras. Selección clic/teclado limpia y devuelve foco, picker grande permanece abierto, Tab/Escape/fondo inerte.13helpers puros idénticos, snapshot/destino/cálculos/recepción/stock sin cambios.6QA ficticias390/768/1280,39focales+3altas y suite6.077PASS/27skip/0fallos; evidencia y límites en COMPRA_STOCK_CARGA_CONTINUA.md. Sin operaciones reales, nuevas lecturas por selección ni publicación. Preservado el borrador del titular. Integrar únicamente módulo/pruebas/doc sobre base vigente del otro chat; no arrastrar app15.9 ni sus marcadores a producción.
