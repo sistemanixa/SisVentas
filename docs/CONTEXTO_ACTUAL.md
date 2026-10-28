@@ -1,5 +1,24 @@
 # Continuidad de SisVentas
 
+## Compras publicadas v3.15.16 · 27/10/2026
+
+Fuente788296ad55904121edcd36eec555ca77951565d7, rama
+codex/compras-busqueda-productos-v31516. Hosting
+sites/nixa-sisventas-seguro/versions/2994b8dea39a6001:477activos/8cargas.
+17hashesHTTPS/mirror/7cabeceras/7rutasprivadas404 verificados; scriptoficial
+confirmó web/core/SW/Firebasev3.15.16-firebase.6236PASS/27opt-in/0fallos.
+Buscador por producto comprado; Agregar productos directo para stock y carga
+continua; Escape/Volver/Atrás navegador cierra detalle sin perder filtro/foco.
+QA390/768/1280 ficticia de ambos circuitos y navegación pasó. Comprobación
+real local sólo lectura de Escape/Atrás correcta; sin guardar orden/stock.
+El borrador del titular fue preservado por el otro chat antes del aviso; la
+verificación de reapertura en su sesión se coordina allí. No actualizar esa
+pestaña desde este chat. Servidor/reglas/IAM y cálculo financiero sin cambios.
+Sin consultas periódicas nuevas ni servicios/costo fijo. Diagnóstico operativo
+privado y evidencia C:/SisVentas/tmp/purchase16-release. La incidencia de
+materiales históricos no se considera resuelta por esta publicación de compras.
+
+
 ## Publicación conjunta de compras preparada v3.15.16 · 27/10/2026
 
 Titular autorizó en el chat Abrir SisVentas en ventana nueva integrar y publicar

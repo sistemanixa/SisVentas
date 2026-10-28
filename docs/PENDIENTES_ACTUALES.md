@@ -1,6 +1,8 @@
 # Pendientes actuales de SisVentas
 
-**Instalación histórica sigue abierta:** la revisión real posterior a15.15 no acredita el resultado de los fixtures. Conciliar identidad/origen/disponibilidad sin inventar materiales ni stock. Buscador de productos comprados16 probado y visible en local, sin publicar. Diagnóstico operativo sólo privado.
+**Publicado v3.15.16:** búsqueda por producto comprado, carga continua para stock y retorno contextual de detalle. Fuente788296ad, Hosting2994b8dea39a6001.6236PASS/27opt-in; sin cambios de servidor ni stock real de prueba. Mantener abierta incidencia de materiales históricos.
+
+**Instalación histórica sigue abierta:** la revisión real posterior a15.15 no acredita el resultado de los fixtures. Conciliar identidad/origen/disponibilidad sin inventar materiales ni stock. Buscador de productos comprados16 publicado y verificado. Diagnóstico operativo sólo privado.
 
 Incidencia OT anterior/instalación individual: v3.15.15 publicada y verificada. Fuente e673302a, Hosting5b7e5079f7c02bd6. Ver OT_INSTALACION_INDIVIDUAL_V31515.md. No modifica OT-173 como prueba.
 
