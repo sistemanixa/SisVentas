@@ -1,5 +1,10 @@
 # Continuidad de SisVentas
 
+## Cabecera: equivalencias visibles y retorno a izquierda listos · 27/10/2026
+
+Pedido posterior a18: total ARS con equivalencias USD/USDT visibles sin abrir detalles; Volver primero a la izquierda del título, también en móvil. Sólo cambia markup/CSS de cabecera y su presentación; cálculos, cotizaciones, precios y guardado permanecen intactos. Desglose exterior/local conserva su desplegable. Diez casos stock/venta320/390/768/950/1280 verifican equivalencias visibles con detalles cerrados, posición de Volver, ausencia de desborde y menús/teclado. Puerta6.077PASS/27opt-in/0fallos, sintaxis/diff correctos. Capturas ficticias privadas en tmp. Pestaña auténtica18 mantiene doce productos y Guardar y aplicar deshabilitado; no se guardaron datos como prueba. Pendiente integración selectiva/publicación coordinada y comprobación visible; no arrastrar app15.9 de esta rama.
+
+
 ## Compras v3.15.18 publicadas y borrador recuperado · 27/10/2026
 
 Publicador exclusivo confirmó fuente c2d017fd7d0e8cfc30f3fd124eab61b4eae3160e, Hosting c0e776fa2d8206c8,479activos/7cargas;17hashesHTTPS/mirror/cabeceras/rutasprivadasPASS y aviso oficial web/core/SW/Firebase18. Incluye módulo visual selectivo5f43b533 y arreglo del escritor de preparación realizado por el otro chat. Puerta final6.243PASS/27opt-in/0fallos,19focales de guardado/CAS,14QA visuales incluida rueda en el buscador grande. Sin nuevos servicios, servidor/reglas ni cambios de stock por la publicación.
