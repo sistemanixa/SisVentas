@@ -21,7 +21,7 @@
     return window.currentRole === 'admin' && typeof window.tienePermiso === 'function' && window.tienePermiso('ot.corregirMateriales') && window.tienePermiso('ot.rendirMateriales') && correctionKey === String(ot.fbKey || ot.id);
   }
   function mayRend(ot) {
-    if (!ot || !window.tienePermiso?.('ot.rendirMateriales')) return false;
+    if (!ot || window._impersonacionOriginal || !window.tienePermiso?.('ot.rendirMateriales')) return false;
     var closed = typeof window.otEstaCerrada === 'function' ? window.otEstaCerrada(ot) : ['completada','con_observaciones'].includes(String(ot.estado || '').toLowerCase());
     return (!closed || correcting(ot)) && !(ot.materiales || []).some(function(m){return m.stockPendiente === true;});
   }
@@ -37,6 +37,7 @@
       await save(draft, action);
       Object.assign(original, draft);
       updateGlobal();
+      if (typeof window.actualizarPanelIntegridadOT === 'function') window.actualizarPanelIntegridadOT();
       return draft;
     } finally { renditionBusy = false; if (typeof finish === 'function') finish(); }
   }
@@ -69,8 +70,18 @@
     return /^(?:\d+\s*-\s*)?(?:INSTALACION|CONFIGURACION|MANTENIMIENTO|VISITA TECNICA)\b/.test(description);
   }
 
+  function materialRows(ot) {
+    return window.SVOTMaterialRows ? window.SVOTMaterialRows.view(ot) : (ot.materiales || []).map(function(m,i){return Object.assign({_indice:i},normalizeMaterial(m));});
+  }
+  function persistedRows(rows) {
+    return window.SVOTMaterialRows ? window.SVOTMaterialRows.persisted(rows) : rows.map(function(m){var copy=Object.assign({},m);delete copy._indice;delete copy._recuperado;return copy;});
+  }
+  function needsRendition(ot) {return materialRows(ot).filter(controllable).some(function(m){return m._recuperado || !m.custodiaActiva || n(m.entregada) < quantity(m) || n(m.instalada) < installationTarget(m);});}
+  function isAdditional(material) {return material.adicionalOT === true || material.origen === 'adicional_ot';}
+  function quantity(material) {return window.SVOTMaterialRows ? window.SVOTMaterialRows.quantity(material) : n(material.vendida ?? material.qty ?? material.cantidad ?? material.cant);}
+  function installationTarget(material) {return Math.max(0,n(material.entregada) - n(material.devuelta) - n(material.devueltaPendiente) - n(material.danada) - n(material.faltante));}
   function controllable(material) {
-    if (!material || n(material.vendida) <= 0) return false;
+    if (!material || quantity(material) <= 0) return false;
     var product = productFor(material);
     if (serviceMaterial(material, product)) return false;
     if (!product) return true;
@@ -105,9 +116,12 @@
   function normalizeMaterial(material) {
     material = material || {};
     return Object.assign({}, material, {
+      cod:material.cod || material.codigo || material.sku || '',
+      desc:material.desc || material.nombre || material.descripcion || material.producto || '',
+      vendida:quantity(material),
       custodiaActiva: material.custodiaActiva === true,
       entregada: n(material.entregada),
-      instalada: n(material.instalada),
+      instalada: n(material.instalada ?? material.cantidadInstalada),
       devueltaPendiente: n(material.devueltaPendiente),
       devuelta: n(material.devuelta),
       enTecnico: n(material.enTecnico),
@@ -201,22 +215,32 @@
     return parts.join(' ') || '<span class="badge b-amber">Pendiente de rendición</span>';
   }
 
+  function itemAction(ot, material, view, index) {
+    if (!mayRend(ot) || !controllable(material) || (ot.custodiaRendida && !correcting(ot) && !needsRendition(ot))) return '';
+    var available = Math.max(0,Math.max(n(material.entregada),quantity(material)) - n(material.devuelta) - n(material.devueltaPendiente) - n(material.danada) - n(material.faltante));
+    var done = material.instalada >= available && !view._recuperado;
+    var label = available === 0 ? 'Sin unidades por instalar' : (done ? 'Instalado' : 'Marcar instalado');
+    return '<button type="button" class="btn btn-sm" data-material-index="' + index + '" onclick="otCustodiaInstalarItem(' + index + ')" ' + ((done || available === 0) ? 'disabled' : '') + '>' + label + '</button>';
+  }
+
   function render(ot, visibleMaterials) {
     var tbody = document.getElementById('ot-materiales');
     if (!tbody) return;
-    var materials = visibleMaterials || [];
+    var effective = materialRows(ot);
+    var materials = effective.length ? effective.filter(controllable) : (visibleMaterials || []);
     tbody.innerHTML = materials.length ? materials.map(function (view) {
       var index = typeof view._indice === 'number' ? view._indice : (ot.materiales || []).indexOf(view);
-      var material = normalizeMaterial((ot.materiales || [])[index] || view);
+      var material = normalizeMaterial(view);
       return '<tr>' +
         '<td style="font-size:12px;color:var(--text3)">' + esc(material.cod || material.codigo || '') + '</td>' +
-        '<td>' + esc(material.desc || material.descripcion || '') + '</td>' +
+        '<td>' + esc(material.desc || material.descripcion || '') + '<div style="font-size:10px;color:var(--text3)">' + (isAdditional(material) ? 'Adicional' : 'Original') + (view._recuperado ? ' · registro anterior' : '') + '</div></td>' +
         '<td class="tr">' + n(material.vendida) + '</td>' +
         '<td class="tr">' + (material.custodiaActiva ? material.entregada : '—') + '</td>' +
-        '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + stateBadge(material) + '</div>' +
-        (typeof window.otPuedeCorregirProductos === 'function' && window.otPuedeCorregirProductos() ? '<button type="button" class="btn btn-sm btn-icon" title="Quitar producto y actualizar venta" aria-label="Quitar producto" onclick="otEliminarProductoMaterial(' + index + ')" style="color:var(--red);float:right">×</button>' : '') + '</td>' +
+        '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + stateBadge(material) + '</div></td><td class="tr"><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">' +
+        itemAction(ot, material, view, index) +
+        (!view._recuperado && typeof window.otPuedeCorregirProductos === 'function' && window.otPuedeCorregirProductos() ? '<button type="button" class="btn btn-sm btn-icon" title="Quitar producto y actualizar venta" aria-label="Quitar producto" onclick="otEliminarProductoMaterial(' + index + ')" style="color:var(--red)">×</button>' : '') + '</div></td>' +
       '</tr>';
-    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:12px">Sin materiales controlables</td></tr>';
+    }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:12px">Sin materiales controlables</td></tr>';
 
     var retry = document.getElementById('ot-stock-pendiente');
     if (retry) retry.remove();
@@ -228,7 +252,7 @@
     var totals = summary(ot);
     var closedRecord = typeof window.otEstaCerrada === 'function' ? window.otEstaCerrada(ot) : ['completada','con_observaciones'].indexOf(String(ot.estado || '').toLowerCase()) >= 0;
     var isClosed = closedRecord && !correcting(ot);
-    var eligible = controllableMaterials(ot);
+    var eligible = materialRows(ot).filter(controllable);
     var admin = isAdministration();
     var deliver = document.getElementById('ot-btn-entregar-materiales');
     var allInstalled = document.getElementById('ot-btn-todo-instalado');
@@ -240,8 +264,8 @@
       deliver.style.display = admin && canDeliver ? '' : 'none';
       deliver.textContent = ot.custodiaIniciada ? 'Entregar materiales pendientes' : 'Entregar materiales al técnico';
     }
-    if (allInstalled) allInstalled.style.display = !isClosed && mayRend(ot) && ot.custodiaIniciada && (!ot.custodiaRendida || correcting(ot)) ? '' : 'none';
-    if (exceptions) exceptions.style.display = !isClosed && mayRend(ot) && ot.custodiaIniciada && (!ot.custodiaRendida || correcting(ot)) ? '' : 'none';
+    if (allInstalled) allInstalled.style.display = !isClosed && mayRend(ot) && ot.custodiaIniciada && (!ot.custodiaRendida || correcting(ot) || needsRendition(ot)) ? '' : 'none';
+    if (exceptions) exceptions.style.display = !isClosed && mayRend(ot) && ot.custodiaIniciada && (!ot.custodiaRendida || correcting(ot) || needsRendition(ot)) ? '' : 'none';
     if (receive) receive.style.display = admin && totals.devolucionPendiente > 0 ? '' : 'none';
 
     var status = document.getElementById('ot-custodia-estado');
@@ -331,15 +355,49 @@
     return jobs.reduce(function(chain, job) { return chain.then(job); }, Promise.resolve());
   }
 
+  async function installOne(index) {
+    var original = currentOT();
+    if (!original || !mayRend(original) || renditionBusy || additionalBusy) return;
+    var rows = materialRows(original), selected = rows[index];
+    if (!selected || !controllable(selected)) { window.notify('No se encontró el material. Volvé a abrir la OT.'); return; }
+    var material = normalizeMaterial(selected);
+    var needsDelivery = !material.custodiaActiva || n(material.entregada) < quantity(material);
+    if (needsDelivery && !(isAdditional(material) ? window.tienePermiso?.('ot.corregirMateriales') : isAdministration())) { window.notify('Administración debe confirmar la entrega de este material.'); return; }
+    if (material.stockPendiente) { window.notify('Completá primero el stock pendiente.'); return; }
+    if (!needsDelivery && material.instalada >= installationTarget(material) && !selected._recuperado) return;
+    var stamp = JSON.stringify(original.materiales || []), id = original.fbKey || original.id;
+    var prompt = '¿Confirmás instalado ' + (material.desc || material.cod) + '? Sólo se actualizará este ítem.';
+    if (needsDelivery) prompt += ' Se dejará registrada también su entrega al técnico.';
+    if (selected._recuperado) prompt += ' Se conservará el renglón anterior, sin crear productos ni ventas.';
+    if (!await window.svConfirm(prompt)) return;
+    if (!currentOT() || (currentOT().fbKey || currentOT().id) !== id || JSON.stringify(currentOT().materiales || []) !== stamp) {window.notify('La OT cambió. Volvé a abrirla.');return;}
+    var draft = JSON.parse(JSON.stringify(original));
+    draft.materiales = persistedRows(rows);
+    var before = draft.materiales.map(function(m){return Object.assign({},m);});
+    material = normalizeMaterial(draft.materiales[index]);
+    if (needsDelivery) {material.custodiaActiva = true;material.entregada = quantity(material);material.entregadoPor = window.currentUser || 'Administración';material.entregadoA = original.tecnico || '';material.entregadoEn = Date.now();}
+    material.instalada = installationTarget(material);
+    material.enTecnico = 0;material.custodiaClasificada = true;material.estadoCustodia = material.devueltaPendiente ? 'devolucion_pendiente' : ((material.danada || material.faltante) ? 'incidencia' : 'instalado');
+    draft.materiales[index] = material;draft.custodiaIniciada = true;
+    draft.custodiaRendida = draft.materiales.filter(controllable).every(function(m){return m.custodiaActiva === true && n(m.entregada) >= quantity(m) && classified(m) >= n(m.entregada);});
+    draft.custodiaRendidaPor = window.currentUser || original.tecnico || 'Técnico';draft.custodiaRendidaEn = Date.now();
+    try {await persistRendition(draft,before,'Instalación individual: ' + (isAdditional(material) ? 'adicional ' : 'original ') + (material.cod || material.desc));window.notify('Instalación del ítem registrada');}
+    catch(error) {window.notify('No se pudo registrar la instalación: ' + error.message);}
+  }
+  window.otCustodiaInstalarItem = installOne;
+
   async function allInstalled() {
     if (typeof window.tienePermiso !== 'function' || !window.tienePermiso('ot.rendirMateriales')) { window.notify('No tenés permiso para rendir materiales.'); return; }
     var ot = currentOT();
-    if (!ot || !ot.custodiaIniciada || !mayRend(ot) || (ot.custodiaRendida && !correcting(ot)) || renditionBusy) return;
+    if (!ot || !ot.custodiaIniciada || !mayRend(ot) || (ot.custodiaRendida && !correcting(ot) && !needsRendition(ot)) || renditionBusy) return;
     if (!await window.svConfirm('¿Confirmás que todo el material entregado quedó instalado?')) return;
+    var effectiveRows = materialRows(ot);
     ot = JSON.parse(JSON.stringify(ot));
+    ot.materiales = persistedRows(effectiveRows);
     var before = (ot.materiales || []).map(function (material) { return Object.assign({}, material); });
     ot.materiales = (ot.materiales || []).map(function (raw) {
       var material = normalizeMaterial(raw);
+      if (!material.custodiaActiva && isAdditional(material) && window.tienePermiso?.('ot.corregirMateriales')) {material.custodiaActiva=true;material.entregada=quantity(material);material.entregadoPor=window.currentUser||'Administración';material.entregadoA=ot.tecnico||'';material.entregadoEn=Date.now();}
       if (!material.custodiaActiva) return material;
       material.instalada = Math.max(0, material.entregada - material.devuelta);
       material.devueltaPendiente = 0;
@@ -350,7 +408,7 @@
       material.estadoCustodia = 'instalado';
       return material;
     });
-    ot.custodiaRendida = true;
+    ot.custodiaRendida = ot.materiales.filter(controllable).every(function(m){return m.custodiaActiva === true && n(m.entregada) >= quantity(m) && classified(m) >= n(m.entregada);});
     ot.custodiaRendidaEn = Date.now();
     ot.custodiaRendidaPor = window.currentUser || ot.tecnico || 'Técnico';
     return persistRendition(ot, before, 'Rendición de materiales: todo instalado').then(function () { window.notify('✓ Materiales rendidos como instalados'); })
@@ -375,7 +433,7 @@
   function openExceptions() {
     if (typeof window.tienePermiso !== 'function' || !window.tienePermiso('ot.rendirMateriales')) { window.notify('No tenés permiso para rendir materiales.'); return; }
     var ot = currentOT();
-    if (!ot || !ot.custodiaIniciada || !mayRend(ot) || (ot.custodiaRendida && !correcting(ot)) || renditionBusy) return;
+    if (!ot || !ot.custodiaIniciada || !mayRend(ot) || (ot.custodiaRendida && !correcting(ot) && !needsRendition(ot)) || renditionBusy) return;
     var previous = document.getElementById('ot-custodia-modal');
     if (previous) previous.remove();
     var overlay = document.createElement('div');
@@ -508,6 +566,8 @@
   function validateClose(ot) {
     if (!ot) return { ok:true, conObservaciones:false };
     if ((ot.materiales || []).some(function(m){return m.stockPendiente === true;})) return {ok:false,message:'Hay un adicional instalado con stock pendiente. Completá su registro en Materiales.'};
+    var recovered = materialRows(ot).filter(function(m){return m._recuperado && controllable(m);});
+    if (recovered.length) return {ok:false,message:'Hay materiales anteriores pendientes de confirmar. Revisalos en Repuestos.'};
     var eligible = controllableMaterials(ot);
     if (!eligible.length) return { ok:true, conObservaciones:false };
     if (!ot.custodiaIniciada) {

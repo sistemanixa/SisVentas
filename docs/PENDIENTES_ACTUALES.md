@@ -1,8 +1,10 @@
 # Pendientes actuales de SisVentas
 
+Incidencia OT anterior/instalación individual: v3.15.15 publicada y verificada. Fuente e673302a, Hosting5b7e5079f7c02bd6. Ver OT_INSTALACION_INDIVIDUAL_V31515.md. No modifica OT-173 como prueba.
+
 Bloque OT/stock v3.15.14 publicado y verificado: adicionales instalados, consumo por revisión sin duplicados y corrección admin de OT cerrada. Fuente 9a6251e5, Hosting25967b002932ac96; no incluye custodia por serie ni garantías. Ver [alcance](OT_MATERIALES_STOCK_V31514.md).
 
-Actualizado el 27/10/2026. Este es el índice vigente para ordenar el trabajo entre chats. Las listas fechadas por versión se conservan como antecedentes, no como tareas nuevas. Última publicación documentada: v3.15.14, corrección OT/materiales y stock verificada sin operaciones reales de prueba.
+Actualizado el 27/10/2026. Este es el índice vigente para ordenar el trabajo entre chats. Las listas fechadas por versión se conservan como antecedentes, no como tareas nuevas. Última publicación documentada: v3.15.15, instalación individual y referencias históricas verificadas con datos ficticios.
 
 ## Orden de trabajo
 
@@ -24,6 +26,8 @@ Estos bloques acompañan las prioridades anteriores y no se cuentan otra vez com
 - **Costos de Google Cloud:** comparar consumo real después de cada bloque. Los objetivos documentados de aviso/corte requieren verificar configuración remota antes de darlos por activos; no se crean sondeos ni costos fijos por organizar estos pendientes.
 
 ## Ya publicado y fuera de la cola de desarrollo
+
+- Instalación individual e históricos OT: Marcar instalado por fila, originales/adicionales separados y referencias sin duplicar, v3.15.15.65focales y suite6.225PASS/27opt-in; no se guardó OT-173 ni stock real como prueba.
 
 - OT/materiales y stock: adicionales instalados, consumo por recibo/revisión y corrección admin en OT cerrada, v3.15.14. 38 focales y suite6.198PASS/27opt-in; sin corrección automática de históricos. Custodia por unidad y garantías quedan separadas.
 

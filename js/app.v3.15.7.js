@@ -49780,17 +49780,13 @@ function otBuscarVentaOrigen(ot) {
 }
 
 function otNormalizarMateriales(items, progreso) {
-  return (items||[]).map(function(item) {
-    var codigo = item.cod || item.codigo || item.sku || '';
-    var avance = (progreso||[]).find(function(actual) {
-      if (codigo && (actual.cod||actual.codigo) === codigo) return true;
-      return !codigo && String(actual.desc||actual.nombre||actual.descripcion||'') === String(item.desc||item.nombre||item.descripcion||'');
-    });
-    var material = Object.assign({}, item, avance || {}, {
-      cod: codigo,
-      desc: item.desc || item.nombre || item.descripcion || item.producto || '',
-      vendida: parseFloat(item.vendida || item.qty || item.cantidad || item.cant || 1),
-      instalada: parseFloat((avance && (avance.instalada||avance.cantidadInstalada)) || item.instalada || item.cantidadInstalada || 0)
+  return (items || []).map(function(item) {
+    var avance = window.SVOTMaterialRows ? window.SVOTMaterialRows.progress(item, progreso) : null;
+    var material = Object.assign({}, item, {
+      cod:item.cod || item.codigo || item.sku || '',
+      desc:item.desc || item.nombre || item.descripcion || item.producto || '',
+      vendida:window.SVOTMaterialRows ? window.SVOTMaterialRows.quantity(item) : Number(item.vendida ?? item.qty ?? item.cantidad ?? item.cant ?? 0),
+      instalada:Number(item.instalada ?? item.cantidadInstalada ?? (avance && (avance.instalada ?? avance.cantidadInstalada)) ?? 0)
     });
     return typeof window.otCustodiaNormalizarMaterial === 'function' ? window.otCustodiaNormalizarMaterial(material) : material;
   }).filter(function(item){ return item.desc; });
@@ -50179,7 +50175,9 @@ function verOT(id) {
     var materialesDerivados = false;
 
     // 1. Si la OT tiene materiales propios, usarlos
-    if (ot.materiales && ot.materiales.length) {
+    if (window.SVOTMaterialRows && ((ot.materiales && ot.materiales.length) || (ot.items && ot.items.length))) {
+      materiales = window.SVOTMaterialRows.view(ot);
+    } else if (ot.materiales && ot.materiales.length) {
       materiales = otNormalizarMateriales(ot.materiales, ot.items);
     }
     // 2. Si no, buscar en la venta origen

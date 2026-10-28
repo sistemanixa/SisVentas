@@ -1,5 +1,33 @@
 # Continuidad de SisVentas
 
+## Instalación individual e histórico publicados v3.15.15 · 27/10/2026
+
+Fuente e673302ac9682a93064e93b80dd7f175687799fa, rama codex/ot-instalacion-individual-v31515.
+Hosting sites/nixa-sisventas-seguro/versions/5b7e5079f7c02bd6:475activos/6cargas.
+16hashesHTTPS exactos, mirror,7cabeceras y7rutasprivadas404. Script oficial confirmó
+web/core/SW y aviso v3.15.15-firebase.6.225PASS/27opt-in/0fallos;65focalesPASS.
+UI ficticia390/768/1280:dosrenglones,dosinstalaciones,dosconsumos;repetir no duplica,
+sin desborde ni solicitudes externas. Motorstock15.14 intacto, sólo2funciones app
+cambiadas (normalizador y vistaOT);sin servidor/reglas/roles/IAM ni sondeos nuevos.
+Evidencia privada C:/SisVentas/tmp/ot31515-release. Espejo local15.15HTTP200;
+no se recargó la pestaña real ni se confirmó instalación/stock del titular.
+
+Marcar instalado por fila; originales/adicionales del mismo código se distinguen.
+Vista recupera referencias existentes de items ausentes de materiales, sin guardar
+al abrir ni crear productos/ventas. Confirma admin en cerrada; conservar histórico,
+permisos, devoluciones e incidencias. Todo instalado también incluye recuperación.
+Avances propios/cantidadInstalada se preservan y no se copia adicionalOT/stock por
+simple coincidencia de código. Referencia repetida o sin clave de origen no suma
+otra unidad. Se reutilizan recibo/revisión por renglón del bloque anterior.
+Detalle OT_INSTALACION_INDIVIDUAL_V31515.md. No se afirma haber guardado o probado
+el consumo real de OT-173. Consulta puntual filtrada devolvió400; no se descargó
+historial completo ni se usó como prueba financiera. Verificación funcionalficticia.
+
+Candidata amplia conserva marcador15.7; portadas sólo la normalización, rama de
+materiales en verOT, custodia, recursos/tests.65focalesPASS allí, sin activar toda
+la candidata. Pendientes de custodia por serie/garantías, segmentación y circuito
+venta→presupuesto continúan separados en PENDIENTES_ACTUALES.md.
+
 ## OT/materiales publicados v3.15.14 · 27/10/2026
 
 Fuente 9a6251e5bb8f8cae6f698e297a701138dbd82227, rama codex/ot-materiales-stock-v31514.

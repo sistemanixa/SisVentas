@@ -174,6 +174,7 @@ const SHELL = [
   './js/modules/page-transition.js',
   './js/modules/resource-monitor.js',
   './js/modules/role-guard.js',
+  './js/modules/ot-material-rows.v1.js',
   './js/modules/ot-stock-consumption.v1.js',
   './js/modules/ot-material-custody.js',
   './js/modules/release-tour.js',
