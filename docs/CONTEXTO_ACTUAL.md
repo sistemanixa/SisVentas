@@ -1,5 +1,12 @@
 # Continuidad de SisVentas
 
+## Preparar compra: cabecera y pie compactos listos · 27/10/2026
+
+Pedido del titular aplicado exclusivamente al módulo exterior-preparation.js sobre el mismo módulo publicado15.16. Cabecera con título, total principal y Volver; equivalencias/desglose desplegables. Exportar y compartir agrupa las cuatro herramientas junto a las solapas. Pie reducido conserva costo/ganancias y acciones; controles de producto sin cambios. Escape cierra primero el desplegable y devuelve foco, sin salir de la preparación. Ningún cambio en cálculos, persistencia, precios, proveedores, confirmaciones ni stock.
+
+QA aislada stock/venta en320/390/768/950/1280: menús dentro de pantalla, cuatro herramientas accesibles, Escape/foco/scroll/valores conservados, cero escrituras y solicitudes externas. En950 el cuerpo pasa454→712px (+258); en1280 499→712 (+213), altura900. Navegador reproducible test/browser/exterior-compact-layout.cjs; comparación opcional con COMPACT_BASELINE. También seis recorridos de altas consecutivas correctos. Puerta vigente6.077PASS/27opt-in/0fallos; sintaxis y diff correctos. Capturas/medidas privadas en tmp. Pendiente integrar/publicar selectivamente con el otro chat y comprobar ventana auténtica; no arrastrar aplicación15.9 de esta rama. Borrador real abierto sin modificar.
+
+
 ## Compras v3.15.16 publicada y borrador conservado · 27/10/2026
 
 Publicación exclusiva coordinada por el otro chat, fuente 788296ad55904121edcd36eec555ca77951565d7: integración selectiva de f95d03d6, buscador de órdenes y retorno Escape/Volver/Atrás con filtro y foco conservados. Reportó 6.236PASS/27opt-in/0fallos, QA390/768/1280, 17hashes HTTPS/mirror, cabeceras y rutas privadas correctas; script oficial confirmó web/core/SW/aviso Firebase v3.15.16. Sólo Hosting estático, sin cambios de servidor/reglas/infraestructura fija.
