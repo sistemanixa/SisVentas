@@ -1,3 +1,15 @@
+# Validación candidata salarial v3.16.5 · 28/10/2026
+
+Puerta6350PASS/27skip/0fallos;48focalesmotor+lector;UI390/768/1280 con4lecturasficticias,0redexterna/0escrituras, exclusiónvendedor porselección, permisosTécnico, foco/scroll/cierre. Se corrigió autenticación lexical real de la aplicación y se agregó regresión. Último ajustecontroles invalida resultados al cambiar filtros y bloqueacamposdurantecálculo;probadoUI tras ajuste.
+
+Enlocalconadmin se abrió formulario, sólo técnicos activos seleccionados y vendedor fuera; cálculo mesOct funcionó enlectura sin guardar ni abonar. Se muestra clasificaciónprovisional porcatálogoactual ycostosguardadosfaltantescomo desconocidos. Ninguna cifra real va enGit. Permanece elección explícitadeplantelpara otroperíodo; actuales no demuestranvigenciahistórica. Toda nota decrédito sincriteriotemporal bloquea totaldefinitivo, no se inventaajuste.
+
+# Cobertura salarial técnica v3.16.5 candidata · 28/10/2026
+
+Pedido directo: terminar y publicar módulo. Plantel octubre confirmado por titular: Mauro/Osmar, Ignacio vendedor excluido; selección UI por empleado/cargo revisable por período sin persistir padrón ni inferir vigencias históricas. Sólo administrador con verCuentas y Rentabilidad, fueraVerComo. Consulta explícita desde Empleados/Rentabilidad. Motor separa manoobra sinIVA, salariosdevengados(base+bonohaber+bonosindependientes+extras), SACregistrado semestral, costoprevistoporseparado. No descontaradelantosni sumarcomisionescomerciales.
+
+Ventas: reutiliza snapshot comercial autorizado ya disponible, sin nueva descarga raíz. Haberes: empleado/mes exacto. Gastos: índices existentes empleadoId/empleadoFbKey, límite1001 porconsulta que rechaza excedente,4lecturas concurrentesmáximo. No CTAroot, reglas nuevas, servidor nuevo, sondeo, migración ni cambiosfinancieros. Catálogoactual sólo clasifica como provisional, nunca sustituye costos; desconocidos, legadosambiguos ySACfaltante no soncero. Fechasnormalizadas enmemoria; históricos no reescritos. Pagos8a92b81 sigueEXCLUIDO/sinpublicar. Fuenteactiva anterior16.4 permaneceinmutable.
+
 # Agenda v3.16.4 publicada y verificada · 28/10/2026
 
 Código7faeb525199dbed4fce1def7f66fb0ee0ed9d24a, rama codex/agenda-resume-v3164, checkout C:/SisVentas/.local/agenda-resume-v3164. Hosting489activos,23hashes/7cabeceras/7privados404 y espejo correctos; aviso v3.16.4-firebase. SóloAgenda: sin nuevos helpers de pagos ni cambiosCotizador. Pagos8a92b81 permanece pendiente/sinpublicar en rama aparte. Sinpush.

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.16.4-firebase' -->
+<!-- VERSION: 'v3.16.5-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,7 +21,7 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.16.4.js"></script>
+<script src="./js/core/version.v3.16.5.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.13.1-cards"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.11.18"></script>
@@ -4551,6 +4551,7 @@ Listo para analizar.
               <span class="card-title">Empleados</span>
               <div class="emp-actions-358">
                 <button class="btn btn-sm" id="btn-revisar-haberes" data-permiso="empleados.avisarHaberes" onclick="_verificarHaberesPendientes()" title="Revisar haberes pendientes del mes anterior"><i class="ti ti-list-check"></i> Revisar haberes</button>
+                <button class="btn btn-sm admin-only" onclick="abrirCoberturaSalarial()">Cobertura salarial técnica</button>
                 <button class="btn btn-sm emp-action-haberes admin-only" onclick="abrirModalHaberesMes()" title="Registrar los haberes del mes"><i class="ti ti-cash"></i> Haberes</button>
                 <button class="btn btn-sm" data-permiso="empleados.bonificar" onclick="abrirBonificacionesEmpleado()"><i class="ti ti-gift"></i> Bonificaciones</button>
                 <button class="btn btn-sm" data-permiso="empleados.gestionarAdelantos" onclick="abrirModalAdelantoGeneral()" style="color:var(--amber);border-color:var(--amber)" title="Registrar un adelanto para un empleado"><i class="ti ti-cash-banknote"></i> Cargar adelanto</button>
@@ -5161,6 +5162,7 @@ Listo para analizar.
       <option value="ult_3_meses">Últimos 3 meses</option>
       <option value="anio_actual">Año actual</option>
       </select>
+      <button class="btn btn-sm admin-only" onclick="abrirCoberturaSalarial()">Cobertura salarial técnica</button>
       <button class="btn btn-sm" onclick="exportarPDF('Reporte de rentabilidad')"><i class="ti ti-download"></i> Exportar PDF</button>
       </div>
       <div class="metrics rent-metrics">
@@ -5790,7 +5792,7 @@ Listo para analizar.
 <script src="./js/core/guarded-writes.js?v=3.13.19-labor"></script>
 <script src="./js/core/public-catalog-entry.js?v=3.11.8-catalog-entry"></script>
 <script src="./js/core/session-recovery.js?v=3.12.8-local-server"></script>
-<script src="./js/core/session-assets.js?v=3.16.4"></script>
+<script src="./js/core/session-assets.js?v=3.16.5"></script>
 <link rel="stylesheet" href="./css/user-access.css?v=3.11.9">
 <script src="./js/core/user-access.js?v=3.12.3"></script>
 <script src="./js/core/service-auth.js?v=3.12.20"></script>
@@ -5812,7 +5814,7 @@ Listo para analizar.
 <script src="./js/core/purchase-order-export.v1.js?v=3.15.8"></script>
 <script src="./js/core/activity-period.v1.js"></script>
 <script src="./js/core/dashboard-account-source.v1.js?v=3.14.19"></script>
-<script src="./js/app.v3.16.4.js"></script>
+<script src="./js/app.v3.16.5.js"></script>
 <script src="./js/modules/bonus-concepts.js?v=3.14.6"></script>
 <script src="./js/modules/bonus-grant.js?v=3.14.6"></script>
 <script src="./js/modules/projects.js?v=3.14.3-demand"></script>
@@ -6357,8 +6359,8 @@ Listo para analizar.
 <script src="./js/modules/ot-material-rows.v1.js"></script>
 <script src="./js/modules/ot-stock-consumption.v1.js"></script>
 <script src="./js/modules/ot-material-custody.js?v=3.15.20"></script>
-<script src="./js/core/inventory-count-model.v1.js?v=3.16.4"></script>
-<script src="./js/modules/inventory-count.js?v=3.16.4"></script>
+<script src="./js/core/inventory-count-model.v1.js?v=3.16.5"></script>
+<script src="./js/modules/inventory-count.js?v=3.16.5"></script>
 <script src="./js/modules/release-tour.js?v=2.0.161"></script>
 
 <!--
@@ -6403,5 +6405,8 @@ Listo para analizar.
 <script src="./js/core/budget-presentation-model.js?v=3.13.19"></script>
 <script src="./js/modules/budget-presentation-view.js?v=3.13.19"></script>
 <script src="./js/modules/budget-presentation.js?v=3.13.19"></script>
+<script src="./js/core/salary-coverage-model.v1.js?v=3.16.5"></script>
+<script src="./js/core/salary-coverage-read.v1.js?v=3.16.5"></script>
+<script src="./js/modules/salary-coverage.v1.js?v=3.16.5"></script>
 </body>
 </html>
