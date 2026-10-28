@@ -1,5 +1,19 @@
 # Continuidad de SisVentas
 
+## Compras compactas preparadas v3.15.17 · 27/10/2026
+
+Integración selectiva4e9d29a: exterior-preparation.js y browserQA, sobre15.16.
+Titular autorizó publicar bloques listos conservando borrador y stock. Cabecera
+compacta, total principal fijo; detalles y exportación desplegables, más espacio
+para productos. No se modifican persistencia, cantidades ni cálculos/destinos.
+Puerta conjunta6236PASS/27opt-in/0fallos;10QA320/390/768/950/1280 stock/venta
+y6QA altas consecutivas,0redexterna/0confirmación real. Publicación pendiente.
+Borrador limpio
+confirmado por el otro chat; no recargar esa pestaña desde este chat.
+El rastreo del material original continúa separado; no se infiere una unidad
+adicional ni se escribe inventario por confirmación verbal del código.
+
+
 ## Compras publicadas v3.15.16 · 27/10/2026
 
 Fuente788296ad55904121edcd36eec555ca77951565d7, rama
