@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const root=path.resolve(__dirname,'../..');
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{})});const report=[];
- try{for(const width of [320,390,768,950,1280])for(const stockOnly of [true,false]){
+ try{for(const width of [320,390,619,700,768,950,1280])for(const stockOnly of [true,false]){
   const variants=process.env.LIST_BASELINE?['before','after']:['after'];const heights={};
   for(const variant of variants){
    const page=await browser.newPage({viewport:{width,height:900}});let requests=0;const errors=[];await page.route('**/*',r=>{requests++;return r.abort();});page.on('pageerror',e=>errors.push(e.message));
