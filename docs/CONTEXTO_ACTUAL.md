@@ -1,3 +1,6 @@
+# Cobertura salarial técnica v3.16.5 publicada · 28/10/2026
+
+Fuente 821a068986a684f3134d90f6fd8b4b33bb894a17. Hosting 493 activos; verificados 27 hashes, 7 cabeceras, 7 rutas privadas 404 y espejo. Sesión pública recibió actualización v3.16.5 y abrió Empleados → Cobertura salarial técnica: selección técnica correcta y cálculo real de sólo lectura completado. Evidencia privada tmp/release3165/salary-public.png. No se guardaron liquidaciones, pagos ni operaciones comerciales. No se modificaron servidor, reglas ni índices; pagos 8a92b81 continúa sin publicar. Suite 6350 PASS, 27 skip, 0 fallos; 48 pruebas focales y UI 390/768/1280. La clasificación provisional y costos históricos faltantes siguen advertidos; no equivalen a cero ni a cobertura histórica definitiva. Sin push al repositorio público.
 # Validación candidata salarial v3.16.5 · 28/10/2026
 
 Puerta6350PASS/27skip/0fallos;48focalesmotor+lector;UI390/768/1280 con4lecturasficticias,0redexterna/0escrituras, exclusiónvendedor porselección, permisosTécnico, foco/scroll/cierre. Se corrigió autenticación lexical real de la aplicación y se agregó regresión. Último ajustecontroles invalida resultados al cambiar filtros y bloqueacamposdurantecálculo;probadoUI tras ajuste.
