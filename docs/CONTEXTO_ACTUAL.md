@@ -1,3 +1,7 @@
+# Verificación pública del visor v3.16.3 completada · 28/10/2026
+
+Publicado e016c715d57dbfec742eca45380ad61876604703,488activos; hashes seleccionados/cabeceras/404/espejo y aviso v3.16.3-firebase correctos. Suite limpia6288PASS/27skip/0fallos. PDF original126 efectivamente dibujado en web, página1y2de6 verificadas en sesión real, sin guardar ni alterar factura/venta/cobros/stock. Evidencia privada C:/SisVentas/tmp/release3163/invoice126-public-fixed.png; prueba navegador con CSPexacta390/768/1280 seis páginas. Pestaña temporal cerrada y ventana original del titular conservada, sin recargar mientras trabajaba. Servidor permanece en3162 sin cambio porhotfix.
+
 # Hotfix visor PDF v3.16.3 · 28/10/2026
 
 QA real posterior a3162 detectó que PDF.js intentaba fetch del blob temporal, bloqueado por connect-src de CSP producción. Local sin CSP no lo detectaba. Corrección: entregar Uint8Array original directamente a PDF.js, conservar blob sólo para descargar/compartir. Sin ampliar CSP ni tocar documento guardado. Test navegador ahora usa exactamente CSP Hosting y valida bytes en390/768/1280, seis páginas, errores/cierre y0externos/0escrituras. Publicación estática inmediata autorizada dentro del cierre anterior; servidor3162 permanece idéntico. No dar por verificado el visor público hasta screenshot con PDF dibujado.
