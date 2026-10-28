@@ -1,5 +1,14 @@
 # Continuidad de SisVentas
 
+## Preparación: lista, códigos, quitar y scroll listos · 27/10/2026
+
+Pedido del titular aplicado sólo en exterior-preparation.js sobre17. Vista Lista inicial con alternativa Tarjetas, sin cambiar el borrador al alternar. Código visible en ambas. Quitar visible por renglón de stock/extras usa la eliminación previa del borrador; no elimina catálogo ni líneas de venta de origen. Doble clic retira sólo uno y devuelve foco al siguiente; confirmadas no ofrecen Quitar. Precio leído permanece en Opciones en Lista, visible en Tarjetas. Controles de cantidades/precio/proveedor conservados.
+
+Causa de rueda verificada en DOM auténtico: imagen52px dentro de miniatura48px con overflow hidden y overscroll contain. Reproducida en QA aislada; ahora imagen se ajusta al contenedor, overflow clip y overscroll auto sólo en miniaturas, manteniendo scroll en el primer plano y fondo inmóvil. Diez recorridos stock/venta320/390/768/950/1280 con12ficticios: rueda nativa sobre foto en ambas vistas, código, eliminación de uno, cantidades/precios/proveedores y confirmado de sólo lectura correctos. Altura de renglón950:369→129px;1280:140→110px. Cero solicitudes externas, guardado explícito únicamente en memoria ficticia. Trece helpers públicos de cálculo/exportación idénticos, salvo saltos de línea. Suite6.077PASS/27opt-in/0fallos, regresión visual de cabecera y seis altas continuas correctas, sintaxis/diff válidos.
+
+Borrador auténtico del titular conservado antes de publicar: doce productos guardados por UI, relectura puntual comparó cantidades/precios/proveedores, sin confirmación ni órdenes. Respaldos/capturas en tmp privado fuera de Git. No recargar/avisar sin nueva comprobación de cambios pendientes. Integrar sólo módulo y test/browser/exterior-list-layout.cjs con el publicador; esta rama mantiene app15.9 histórica sin activar. Publicación/ventana auténtica nuevas todavía pendientes.
+
+
 ## Compras compactas v3.15.17 publicadas y visibles · 27/10/2026
 
 Publicación coordinada exclusiva del otro chat, fuente b740baf54b2bad305d939d40d457518ea29437ae; Hosting d2f2c60fb63c9e01,478activos/6cargas. Reportó17hashesHTTPS/mirror/cabeceras/rutasprivadasPASS y aviso oficial web/core/SW/Firebase17; puerta conjunta6.236PASS/27opt-in/0fallos y QA visual10casos,6altas y retorno de compras correctos. Sólo bloque visual selectivo, sin cambios financieros/OT/stock ni infraestructura fija.
