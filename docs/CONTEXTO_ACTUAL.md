@@ -1,5 +1,16 @@
 # Continuidad de SisVentas
 
+## Compras v3.15.18 publicadas y borrador recuperado · 27/10/2026
+
+Publicador exclusivo confirmó fuente c2d017fd7d0e8cfc30f3fd124eab61b4eae3160e, Hosting c0e776fa2d8206c8,479activos/7cargas;17hashesHTTPS/mirror/cabeceras/rutasprivadasPASS y aviso oficial web/core/SW/Firebase18. Incluye módulo visual selectivo5f43b533 y arreglo del escritor de preparación realizado por el otro chat. Puerta final6.243PASS/27opt-in/0fallos,19focales de guardado/CAS,14QA visuales incluida rueda en el buscador grande. Sin nuevos servicios, servidor/reglas ni cambios de stock por la publicación.
+
+Incidencia real durante la tarea: un segundo Guardar y aplicar en17 rechazó el borrador con falso conflicto. Relectura puntual confirmó registro idéntico al último guardado propio; RTDB omitía ramas vacías y la base local las conservaba. Escritor18 compara sólo representación persistida de snapshots, sin cambiar igualdad global ni guardas de sesión, confirmación o cambios efectivos. Se probó también recuperación de operación de stock sin pasos de ventas; no admite pasos faltantes de una venta.
+
+Respaldo privado de productos y tres solapas confirmó una sola cantidad pendiente, sin diferencias de parámetros. El titular aceptó el aviso de salida, inaccesible al control del navegador; la captura nativa general fue rechazada por privacidad y no se realizó. Con el formulario cerrado se renovó17, reabrió la misma preparación, recuperó esa única cantidad y guardó una vez. UI y relectura exacta confirmaron doce productos/cantidades/precios/proveedores, sin órdenes ni confirmación. No se reemplazó el registro por fuera de su UI ni se sobrescribieron cambios ajenos.
+
+Después de la publicación, misma pestaña auténtica18: Lista inicial, doce códigos y doce botones Quitar. Todos los datos recuperados coinciden y Guardar y aplicar está deshabilitado, sin cambios pendientes. Rueda real sobre foto desplazó listado0→946 y fondo0; alternar Tarjetas/Lista conservó el estado limpio. Quitar y guardados repetidos se probaron con datos ficticios, no quitando productos reales ni inventando operaciones. Se dejó Lista abierta. Evidencias y respaldos en tmp privado fuera de Git. No se activó segmentación ni candidata amplia de esta rama.
+
+
 ## Preparación: lista, códigos, quitar y scroll listos · 27/10/2026
 
 Pedido del titular aplicado sólo en exterior-preparation.js sobre17. Vista Lista inicial con alternativa Tarjetas, sin cambiar el borrador al alternar. Código visible en ambas. Quitar visible por renglón de stock/extras usa la eliminación previa del borrador; no elimina catálogo ni líneas de venta de origen. Doble clic retira sólo uno y devuelve foco al siguiente; confirmadas no ofrecen Quitar. Precio leído permanece en Opciones en Lista, visible en Tarjetas. Controles de cantidades/precio/proveedor conservados.
