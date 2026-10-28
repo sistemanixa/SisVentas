@@ -1,8 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 function setup(ot,permission=true){
+ ot.fbKey=ot.fbKey||'ficticia';
  const buttons={}; for(const id of ['ot-materiales','ot-btn-entregar-materiales','ot-btn-todo-instalado'])buttons[id]={style:{}};
  let saved=0,prompt='';
- const c={window:{otData:[ot],otActualId:ot.id,prodData:{},tienePermiso:()=>permission,currentUser:'Admin',svConfirm:async text=>{prompt=text;return true;},fbGuardarOT:async()=>{saved++;},notify:()=>{},otEstaCerrada:o=>o.estado==='completada',scrollTo:()=>{}},document:{getElementById:id=>buttons[id]||null,body:{},documentElement:{}},requestAnimationFrame:()=>{}};
+ const c={window:{otData:[ot],otActualId:ot.id,prodData:{},tienePermiso:()=>permission,currentUser:'Admin',currentUserUid:'fiction',fbAuth:{currentUser:{uid:'fiction'}},crypto:{randomUUID:()=> 'receipt-fiction'},fbDB:{},fbRef:(_,p)=>p,SVGuardedWrites:{restTransaction:async(_,transform)=>{const value=transform(JSON.parse(JSON.stringify(ot)));saved++;return {committed:true,value};}},svConfirm:async text=>{prompt=text;return true;},fbGuardarOT:async()=>{saved++;},notify:()=>{},otEstaCerrada:o=>o.estado==='completada',scrollTo:()=>{}},document:{getElementById:id=>buttons[id]||null,body:{},documentElement:{}},requestAnimationFrame:()=>{}};
  vm.createContext(c);vm.runInContext(fs.readFileSync('js/modules/ot-material-custody.js','utf8'),c);
  return {w:c.window,buttons,saved:()=>saved,prompt:()=>prompt};
 }

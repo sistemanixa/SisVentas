@@ -8394,6 +8394,7 @@ function fbGuardarOT(ot) {
     var cambiosOT = Object.assign({}, ot);
     [
       'fbKey',
+      'remitosEntrega', // Se anexan únicamente junto con la entrega condicional.
       'notasTecnico',
       'fotos',
       'fotosTecnico',
