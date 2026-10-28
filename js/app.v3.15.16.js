@@ -11424,7 +11424,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['El historial de Cobranzas calcula sus saldos con menos trabajo al filtrar o cambiar de página.','Se conservan los importes, el orden de los pagos y los saldos históricos.']),
   RELEASE_FEATURE: Object.freeze({page:'cobranzas',actionLabel:'Ver cobranzas'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.15.16',date:'2026-10-27',notes:Object.freeze(['Órdenes de compra permite buscar productos por nombre o código.','Los resultados muestran la cantidad pedida y recibida, fecha de compra y última recepción del producto.','La búsqueda usa las órdenes ya cargadas y conserva el filtro por estado.'])}),
+ Object.freeze({version:'v3.15.16',date:'2026-10-27',notes:Object.freeze(['Órdenes de compra permite buscar productos por nombre o código.','Los resultados muestran la cantidad pedida y recibida, fecha de compra y última recepción del producto.','La búsqueda usa las órdenes ya cargadas y conserva el filtro por estado.','Compra para stock abre Agregar productos directamente; al elegir uno, vuelve el cursor para seguir cargando.','El selector grande permite agregar varios productos sin cerrarse; los pedidos desde venta conservan sus extras.','Escape y Volver cierran el detalle de compra y conservan la búsqueda.'])}),
  Object.freeze({version:'v3.15.15',date:'2026-10-27',notes:Object.freeze(['Cada material de una OT permite marcar su instalación por separado.','Los materiales originales y adicionales del mismo código conservan su identidad y su consumo independiente.','Los renglones históricos se muestran para confirmación sin crear productos ni modificar stock al abrir.'])}),
  Object.freeze({version:'v3.15.14',date:'2026-10-27',notes:Object.freeze(['Los adicionales quedan instalados con control de stock y reintento sin duplicar consumos.','El administrador puede corregir materiales en una OT cerrada conservando su historial.','Cada instalación utiliza reservas propias y stock disponible, sin tomar reservas ajenas.'])}),
  Object.freeze({version:'v3.15.13',date:'2026-10-27',notes:Object.freeze(['Nuevo mensaje permite elegir una persona aunque todavía no haya conversación y esté desconectada.','Directos separa conversaciones de personas conectadas.','La presencia se retira al ocultar o bloquear la pantalla y no presenta conexiones antiguas como actuales.','El encabezado del mensaje directo muestra el destinatario y permite volver a las conversaciones.','El buscador de órdenes de trabajo aprovecha el ancho disponible.'])}),
@@ -24469,6 +24469,8 @@ function volverAtrasSisVentas() {
     document.body.classList.remove('modal-secure-open');
     return true;
   }
+
+  if (window.SisVentasCompras && typeof window.SisVentasCompras.closeOrderDetail === 'function' && window.SisVentasCompras.closeOrderDetail()) return true;
 
   var formProducto = document.getElementById('prod-form-view');
   if (_svElementoVisible(formProducto)) { cerrarFormProducto(); return true; }

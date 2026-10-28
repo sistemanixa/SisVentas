@@ -1513,11 +1513,40 @@
     renderLists();
   }
 
+  var orderDetailOrigin = null;
+  var orderDetailHistory = false;
+  function closeOrderDetail(fromHistory) {
+    var modal = document.getElementById('oc-order-modal');
+    if (!modal || modal.style.display === 'none' || !modal.getClientRects().length) return false;
+    modal.style.display = 'none';
+    var ownsEntry=orderDetailHistory;orderDetailHistory=false;
+    if (ownsEntry && fromHistory !== true && window.history && window.history.state && window.history.state.svPurchaseOrderDetail) window.history.back();
+    if (typeof window.svSincronizarPilaModales === 'function') window.svSincronizarPilaModales();
+    var origin = orderDetailOrigin;
+    if (origin && origin.isConnected && typeof origin.focus === 'function') origin.focus({preventScroll:true});
+    return true;
+  }
+
   function openOrder(key) {
     var order = state.orders.find(function (o) { return o.fbKey === key || o.numero === key; });
     if (!order) return;
     state.activeOrder = JSON.parse(JSON.stringify(order));
     var modal = ensureModal('oc-order-modal', '980px');
+    orderDetailOrigin = document.activeElement;
+    var panel = modal.querySelector('.modal'), close = modal.querySelector('.modal-head button');
+    panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-labelledby','oc-order-modal-title');
+    close.setAttribute('aria-label','Cerrar detalle de orden');close.removeAttribute('onclick');close.onclick=function(){closeOrderDetail();};
+    if (window.history && typeof window.history.pushState === 'function' && !orderDetailHistory) {
+      window.history.pushState(Object.assign({},window.history.state||{},{svPurchaseOrderDetail:String(order.fbKey||order.numero)}),'');
+      orderDetailHistory=true;
+    }
+    modal.onkeydown=function(event){
+      if(event.key!=='Tab')return;
+      var controls=Array.from(modal.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),a[href],[tabindex="0"]')).filter(function(el){return el.getClientRects().length;});
+      var first=controls[0],last=controls[controls.length-1];
+      if(event.shiftKey && (document.activeElement===first || !modal.contains(document.activeElement))){event.preventDefault();last?.focus();}
+      else if(!event.shiftKey && (document.activeElement===last || !modal.contains(document.activeElement))){event.preventDefault();first?.focus();}
+    };
     document.getElementById('oc-order-modal-title').innerHTML = '<i class="ti ti-shopping-cart" style="margin-right:7px"></i>' + esc(order.numero || 'Orden') + ' · ' + esc(orderProviderSummary(order));
     var body = document.getElementById('oc-order-modal-body');
     var editableReceipt = order.estado !== 'recibida' && order.estado !== 'cancelada';
@@ -1552,6 +1581,7 @@
         '<button class="btn" style="color:var(--red)" onclick="ocEliminarOrdenActual()"><i class="ti ti-trash"></i> Eliminar</button>' +
       '</div></div>';
     modal.style.display = 'flex';
+    close.focus({preventScroll:true});
     setTimeout(function () {
       if (window.SisVentas && typeof window.SisVentas.prepareResizablePage === 'function') window.SisVentas.prepareResizablePage(modal);
     }, 0);
@@ -2224,6 +2254,7 @@
     createListFromSale: createListFromSale,
     openMaterialList: openMaterialList,
     openOrder: openOrder,
+    closeOrderDetail: closeOrderDetail,
     openManualOrder: openManualOrder,
     syncListItemsWithSale: syncListItemsWithSale,
     isPurchasableMaterialItem: isPurchasableMaterialItem,
@@ -2238,6 +2269,7 @@
     receiveOTReturns: receiveOTReturns,
     state: state
   };
+  if (typeof window.addEventListener === 'function') window.addEventListener('popstate',function(){if(orderDetailHistory){closeOrderDetail(true);orderDetailHistory=false;}});
   window.fbCargarOrdenes = start;
   window.renderDashOrdenes = renderAll;
   window.renderOrdenesFiltradas = renderOrders;

@@ -73,7 +73,7 @@ const SHELL = [
   './js/modules/comparacion-comercial.js?v=1',
   './js/modules/commercial-approval.js?v=3.9.29',
   './js/core/guarded-writes.js?v=3.13.19-labor',
-  './js/core/session-assets.js?v=3.15.8',
+  './js/core/session-assets.js?v=3.15.16',
   './js/core/ot-personal-scope.js?v=3.14.0',
   './js/app.v3.15.16.js',
   './js/core/activity-period.v1.js',

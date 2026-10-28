@@ -1,5 +1,29 @@
 # Continuidad de SisVentas
 
+## Publicación conjunta de compras preparada v3.15.16 · 27/10/2026
+
+Titular autorizó en el chat Abrir SisVentas en ventana nueva integrar y publicar
+los bloques listos, sin tocar stock ni perder su borrador. Fuente selectiva de
+preparación f95d03d6: módulo, dos pruebas y COMPRA_STOCK_CARGA_CONTINUA.md,
+sobre buscador ad950350; no se activa candidata amplia ni carga segmentada.
+Compra para stock muestra Agregar productos directamente y costo del pedido;
+ventas conservan Extras. Altas consecutivas por clic/teclado, foco restaurado y
+selector grande permanece abierto. Cálculos, snapshots y destino conservados.
+Pruebas conjuntas de ambas vistas390/768/1280: cero solicitudes externas,
+cero guardados automáticos; guardado ficticio explícito en memoria únicamente.
+Hosting estático sin cambio de servidor/reglas/IAM ni servicios/costo fijo.
+Evidencia C:/SisVentas/tmp/purchase16-release y purchase-search16 privados.
+Antes de aviso de versión, coordinar preservación de borrador real con el otro
+chat; no cerrar ni refrescar su pestaña. Publicación aún por acreditar.
+
+Retorno del detalle de compra incluido a pedido posterior: Escape/Volver y
+Atrás del navegador cierran primero la orden; conservan búsqueda, módulo y foco.
+Diálogo con Tab contenido. Prueba aislada390/768/1280 y comprobación real local
+sólo lectura de Escape/Atrás correctas, sin guardar compras. Suite final6236PASS,
+27opt-in,0fallos. Browserregresión test/browser/purchase-order-back.cjs.
+
+
+
 ## Búsqueda de productos comprados local · 27/10/2026
 
 Preparada v3.15.16 en codex/compras-busqueda-productos-v31516, sin publicar.
