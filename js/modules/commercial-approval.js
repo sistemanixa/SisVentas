@@ -19,6 +19,21 @@
     const iva=round(subtotal*Math.max(0,rate)),total=round(subtotal+iva),descuento=round(gross-subtotal);
     return {items:normalized,subtotal,iva,total,descuento,descuentoPctEfectivo:gross>0?round(descuento/gross*100):0};
   }
+  // Legacy whole-peso documents are recognized by their original arithmetic,
+  // not by increasing the monetary tolerance used for current documents.
+  function historicalRounding(record){
+    if(record.conversionPptoNormalizada||record.autorizacionDescuento||record.vistaPreviaSinGuardar)return false;
+    const fiscal=record.factura||{},date=String(fiscal.fecha||record.fecha||'');
+    const m=date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/),iso=m?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):date;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)||iso>='2026-10-19'||!/^\d{14}$/.test(String(fiscal.cae||'')))return false;
+    const total=number(record.total),fiscalTotal=Number(fiscal.total??fiscal.importe_total??fiscal.importeTotal);
+    if(!Number.isFinite(fiscalTotal)||Math.abs(fiscalTotal-total)>.009)return false;
+    const items=lines(record);if(!items.length)return false;let sum=0;
+    for(const item of items){const quantity=number(item.qty??item.cantidad??1),unit=number(item.punit??item.precioUnitario??0),sub=Number(item.sub);if(!(quantity>0)||unit<0||!Number.isInteger(sub)||sub!==Math.round(quantity*unit*(1-itemDiscount(item)/100)))return false;sum+=sub;}
+    const net=Math.round(sum*(1-general(record,'venta')/100)),iva=number(record.iva);
+    if(number(record.subtotal)!==net||!Number.isInteger(iva)||net+iva!==total)return false;
+    return (record.conIva===false?[0]:[0,.025,.05,.105,.21,.27]).some(rate=>Math.round(net*rate)===iva);
+  }
   function bonificarVisitaReclamo(record,context){
     context=context||{};
     const discounted=lines(record).filter(i=>itemDiscount(i)>0);
@@ -29,7 +44,7 @@
     record=record||{};config=config||{};const d=discount(record,type),limit=number(config.descuentoLimite??10),proof=record.autorizacionDescuento;
     if(d.invalid)return {blocked:true,reason:'El descuento debe estar entre 0% y 100%.'};
     if(record.requiereAprobacion===true||['revision','pendiente_aprobacion','rechazado','anulado'].includes(record.estado))return {blocked:true,reason:'El documento está pendiente de aprobación, rechazado o anulado. No se puede emitir ni compartir.'};
-    if(type==='venta'&&d.general>0&&lines(record).length){const totals=recalculateSale(record);if(Math.abs(totals.total-number(record.total))>0.02)return {blocked:true,reason:'El descuento general guardado ('+d.general+'%) no coincide con el total. Revisá y guardá la venta antes de emitirla.'};}
+    if(type==='venta'&&d.general>0&&lines(record).length){const totals=recalculateSale(record);if(Math.abs(totals.total-number(record.total))>0.02&&!historicalRounding(record))return {blocked:true,reason:'El descuento general guardado ('+d.general+'%) no coincide con el total. Revisá y guardá la venta antes de emitirla.'};}
     const exceeds=d.maximum>limit+0.000001||(type==='presupuesto'&&number(record.total)>number(config.montoLimite??200000));
     const legacyApproved=type==='presupuesto'&&!proof&&!record.vistaPreviaSinGuardar&&!!record.aprobadoPor&&!!record.aprobadoEn&&['aprobado_int','enviado','visto','aceptado','convertido'].includes(record.estado);
     const claim=record.bonificacionReclamo;
@@ -38,7 +53,7 @@
     if(exceeds&&!valid)return {blocked:true,needsApproval:true,reason:'Descuento o importe fuera del límite: falta una autorización registrada para estos valores. Guardá y solicitá la aprobación antes de imprimir, generar PDF o compartir.'};
     return {blocked:false,maximum:d.maximum,approved:!!valid};
   }
-  const api={discount,signature,stamp,status,recalculateSale,bonificarVisitaReclamo};
+  const api={discount,signature,stamp,status,recalculateSale,historicalRounding,bonificarVisitaReclamo};
   if(typeof module!=='undefined')module.exports=api;
   if(!root.document)return;
   root.SVCommercialApproval=api;

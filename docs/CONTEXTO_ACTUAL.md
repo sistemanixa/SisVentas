@@ -1,3 +1,9 @@
+# Preparación autorizada v3.16.2 · 27/10/2026
+
+Publicación autorizada por el titular: inventario simple (4465a3c), visor PDF (bbe9c77), aislamiento comercial de técnicos en Proyectos (e367851e) y reconocimiento estricto del redondeo entero histórico facturado. No modifica importes, facturas, cobros, comisiones ni stock real. Suite 6288PASS/27skip/0fallos; Cotizador94PASS y QA visual ficticio390/768/1280 de los tres módulos anteriores. Validación local de versión, sintaxis y diff correctos.
+
+Producción antes del corte: Hosting v3.16.1; Cotizador cotizador-bonus12-6ebc77f1. Pendiente desplegar exactamente este paquete y comprobar HTTPS/aviso. Servidor sólo cambia projects.js y projects-model.js respecto a revisión activa; costo estimado comunicado menor USD1, sin servicios nuevos ni costo fijo, mínimo0 y14 accesos conservados. Evidencias privadas C:/SisVentas/tmp/release3162. Sin push por preferencia explícita del titular. No afirmar publicado hasta evidencia remota.
+
 # Continuidad de SisVentas
 
 ## Proyectos: aislamiento comercial del rol Técnico preparado · 27/10/2026
