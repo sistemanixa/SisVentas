@@ -1,3 +1,9 @@
+# Puerta final de Cobranzas lista; espera ventana humana · 29/10/2026
+
+Código v3.16.9 fijado e4a2da9d4c5ec1004998c8c2e70e5894200f0147. Puerta final6448PASS/27skip/0fallos;94backend; siete escenarios opt-in de reglas/emulador documentados en test/collection-action-emulator.integration.cjs. Comisión por acuse conserva comisión original y revalida permiso al commit; index.js inyecta verificación real de scope, técnico requiere acción explícita. Paquete fiscal local27archivos, manifiesto690ece9617d68404a5fcfbcbc0fc35ca02bbd88ea4154908c1925971c2564567, fuente fiscal de negocio sin cambios frente a desplegada. Sólo vendor protegido e índice compatibles a actualizar.
+
+Se informó estimación menor a USD1 por actualización puntual de ambos componentes+verificaciones, sin servicios nuevos ni instancias reservadas; almacenamiento variable y factura exacta no garantizados. Pregunta humana pendiente para pausa de guardados, confirmando ausencia de pagos/emisiones en curso. NO cortar, activar PAYMENT_SCOPED, aplicar reglas, preparar índice real ni publicar v3.16.9 sin esa respuesta. Web sigue3.16.8. Respaldos/estado remoto/plan y stage privados en tmp/cobranzas-action-cut; reglas y evidencia privada en tmp/yanina-cobro-20261029. No responsables, importes, pagos, facturas o stock modificados como prueba o arreglo. No push público.
+
 # Cobro por rol preparado: v3.16.9 aún sin activar · 29/10/2026
 
 Se cumple criterio expreso del titular: Cobranzas.registrar es independiente de responsable y permiso de edición comercial. Comando existente usa venta exacta internamente después de validar acción/rol, sin GET comercial delegado; respuesta whitelist sin costos, ítems, porcentajes, comisionados o responsable. Resumen financiero puede actualizarse sólo con fence y acción firmada registrar/anular; lecturas y escritura comercial genérica permanecen intactas. Técnico sólo con módulo y acción explícitos, sin defaults nuevos ni cambios reales de permisos.
