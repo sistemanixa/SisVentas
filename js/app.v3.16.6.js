@@ -11394,10 +11394,10 @@ function applyRole() {
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
   VERSION: 'v3.16.6-firebase',
-  RELEASE_NOTES: Object.freeze(['Stock general operativo permite registrar conteos físicos de oficina con motivo e historial.','El detalle de existencias muestra la foto de cada producto.']),
-  RELEASE_FEATURE: Object.freeze({page:'ordenes',actionLabel:'Ver Compras'}),
+  RELEASE_NOTES: Object.freeze(['Las ventas de presupuesto, soporte y OT comparten formato, cálculo y guardado, conservando costos, pagos y comisiones.','Salarios y mano de obra se consulta desde Finanzas, con detalle por venta y costos históricos faltantes identificados.']),
+  RELEASE_FEATURE: Object.freeze({page:'coberturasalarial',actionLabel:'Ver comparación'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.16.6',date:'28/10/2026',title:'Salarios y mano de obra en Finanzas',notes:Object.freeze(['Nueva pantalla estadística con tres importes y comparación visual.','Selección de técnicos y detalle disponibles al abrirlos.','Conserva cálculos y permisos; no modifica pagos ni liquidaciones.']),feature:Object.freeze({page:'coberturasalarial',actionLabel:'Ver comparación'})}),
+ Object.freeze({version:'v3.16.6',date:'28/10/2026',title:'Guardado unificado de ventas y estadísticas de Finanzas',notes:Object.freeze(['Las ventas de presupuesto, soporte y OT usan el mismo formato, cálculo y guardado.','Conserva costos originales, pagos y comisiones; los adicionales guardan su propio costo.','Nueva consulta simple de salarios y mano de obra en Finanzas, con desglose navegable y ganancias por rubro.','Los costos históricos faltantes se identifican como sin confirmar, sin reemplazarlos con el catálogo actual.']),feature:Object.freeze({page:'coberturasalarial',actionLabel:'Ver comparación'})}),
  Object.freeze({version:'v3.16.5',date:'2026-10-28',notes:Object.freeze(['Nueva consulta de cobertura salarial técnica en Empleados y Rentabilidad.','Compara mano de obra neta con base, bonificaciones y extras; la vista semestral incorpora SAC registrado.','Excluye comisiones comerciales y adelantos, muestra fuentes y faltantes sin modificar liquidaciones ni pagos.'])}),
  Object.freeze({version:'v3.16.4',date:'2026-10-28',notes:Object.freeze(['Agenda conserva los próximos eventos al salir de la ventana y volver, sin parpadeos ni consultas por reloj.'])}),
  Object.freeze({version:'v3.16.3',date:'2026-10-27',notes:Object.freeze(['El visor PDF recibe directamente el archivo adjunto y funciona con las protecciones de seguridad de la web.'])}),
