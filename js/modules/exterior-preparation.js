@@ -52,7 +52,7 @@
           if(prior&&saved.version<6&&prior.include===false&&r.method==='local'&&pv.exterior){
             r.reference={amount:num(r.localUnitARS??r.baselineUnit),currency:'ARS',provider:r.provider,providerKey:r.providerKey};
             r.agreed=agreed;r.include=false;
-          }else{selectProvider(r,pv);if(manual){r.agreed=agreed;r.manualPrice=true;}}
+          }else{const reference=prior?.providerKey===pv.proveedorKey&&prior.reference?.currency===(pv.exterior?'USD':'ARS')?copy(prior.reference):null;selectProvider(r,pv);if(reference){r.reference=reference;if(valid(agreed))r.agreed=agreed;}if(manual){r.agreed=agreed;r.manualPrice=true;}}
         }else if(!pv&&r.method!=='stock'){r.providerKey='';r.provider='';r.agreed='';}
       }
       if(valid(r.agreed))r.agreed=Math.round(num(r.agreed)*100)/100;
@@ -151,6 +151,19 @@
     const revenue=num(income(next));next.margenPct=revenue?(revenue-next.costoTotal)/revenue*100:0;
     return next;
   }
+  function priceDifference(row){
+    const currency=row.method==='exterior'?'USD':'ARS';
+    const qty=purchaseQuantity(row),ref=row.reference;
+    if(row.method==='stock'||!qty)return null;
+    if(!ref||ref.currency!==currency||!row.providerKey||ref.providerKey!==row.providerKey||!valid(ref.amount)||num(ref.amount)<=0||!valid(row.agreed)||num(row.agreed)<=0)return null;
+    const original=num(ref.amount),agreed=num(row.agreed);
+    return {currency,original,agreed,quantity:qty,difference:Math.round((original-agreed)*qty*100)/100};
+  }
+  function priceDifferenceTotals(draft){
+    const result={USD:0,ARS:0,missing:0};
+    [...draft.rows,...draft.extras].forEach(row=>{if(row.method==='stock'||!purchaseQuantity(row))return;const delta=priceDifference(row);if(!delta){result.missing++;return;}result[delta.currency]=Math.round((result[delta.currency]+delta.difference)*100)/100;});
+    return result;
+  }
   function agreedSummary(draft){
     const p=draft.parameters;let total=0,delta=0,missing=false,foreignUSD=0,localARS=0,quantityPending=false;
     [...draft.rows,...draft.extras].forEach(r=>{
@@ -203,7 +216,7 @@
     }).filter(r=>r.quantity>0);
     return {title,usdDecimals:2,rows};
   }
-  const api={orderForExport,pdfRows,revisePDF,purchaseGroups,equivalentAmount,initialize,calculateDraft,providerLink,agreedSummary,applySaleCosts,productProviders,selectProvider,selectExterior};
+  const api={priceDifference,priceDifferenceTotals,orderForExport,pdfRows,revisePDF,purchaseGroups,equivalentAmount,initialize,calculateDraft,providerLink,agreedSummary,applySaleCosts,productProviders,selectProvider,selectExterior};
   if(typeof module!=='undefined')module.exports=api;
   if(!root.document)return;
   root.SVExteriorPreparation=api;
@@ -272,7 +285,7 @@
         '<div><small>Cantidad</small>'+(extra?'<input class="search-input" aria-label="'+(stockOnly?'Cantidad a comprar':'Cantidad extra')+'" type="number" min="1" step="1" data-item="'+id+'" data-field="qty" value="'+r.qty+'">':'<input class="search-input" aria-label="Cantidad a comprar '+esc(r.code)+'" type="number" min="0" max="'+Math.max(0,num(r.needed)-num(r.existing))+'" step="any" data-item="'+id+'" data-field="requestedQty" value="'+qty+'" '+(r.method==='stock'?'disabled':'')+'>')+'</div>'+
         '<div class="ep-reference"><small>'+(r.reference?.converted?'Referencia convertida':'Precio leído')+'</small><strong>'+(num(r.reference?.amount)>0?esc(r.reference?.currency||currency)+' '+money(r.reference.amount):'Sin precio registrado')+'</strong>'+(r.reference?.converted?'<small>Según cotización guardada</small>':'')+(num(r.reference?.amount)>0?'<small>'+equivalentHTML(r.reference.amount,r.reference.currency||currency)+'</small>':'')+'</div>'+
         '<label class="ep-agreed">Precio acordado · '+currency+'<div class="ep-price"><input class="search-input" type="number" min="0.01" step="0.01" data-item="'+id+'" data-field="agreed" value="'+esc(r.agreed==null||r.agreed===''?'':Number(r.agreed).toFixed(2))+'" placeholder="Pendiente" '+(r.method==='stock'?'disabled':'')+'>'+(accept?'<button class="btn btn-sm" data-accept="'+id+'" title="Usar precio leído" aria-label="Usar precio leído">=</button>':'')+'</div><small data-unit-equivalent="'+id+'"></small></label>'+
-        '<div class="ep-total"><small>Total acordado</small><strong data-line-total="'+id+'"></strong><small data-total-equivalent="'+id+'"></small></div>'+
+        '<div class="ep-total"><small>Total acordado</small><strong data-line-total="'+id+'"></strong><small data-total-equivalent="'+id+'"></small><small data-price-difference="'+id+'" style="display:block"></small></div>'+
         '<div class="ep-provider"><label>Proveedor<select class="search-input" data-item="'+id+'" data-field="providerKey" '+(r.method==='stock'?'disabled':'')+'><option value="">Seleccionar</option>'+providers(r).map(v=>'<option value="'+esc(v.proveedorKey)+'" '+(r.providerKey===v.proveedorKey?'selected':'')+'>'+esc(v.nombre)+'</option>').join('')+'</select></label><div class="ep-product-links">'+(link?'<a href="'+esc(link.url)+'" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:var(--blue)">'+esc(link.label)+' ↗</a>':'<small>Sin enlace del proveedor</small>')+(root.permisoModulo?.('productos')?'<button type="button" data-product-sheet="'+id+'">Ver producto</button>':'')+'</div></div>'+
         (extra&&!frozen?'<button class="btn btn-sm ep-remove" data-remove="'+i+'" aria-label="Quitar producto '+esc(r.code||r.description)+'" title="Quitar producto">Quitar</button>':'')+'<details class="ep-item-options"><summary>'+mode+' · Opciones</summary><div class="ep-options">'+'<div class="ep-reference-details"><small>Precio leído</small><strong>'+esc(r.reference?.currency||currency)+' '+money(r.reference?.amount)+'</strong>'+(!num(r.reference?.amount)?'<small>Sin precio registrado</small>':'')+'<small>'+equivalentHTML(r.reference?.amount,r.reference?.currency||currency)+'</small></div>'+
         (extra?'':'<label>Cómo resolverlo<select class="search-input" data-item="'+id+'" data-field="method">'+[['exterior','Compra exterior'],['local','Compra local'],['stock','Usar stock disponible']].map(([v,t])=>'<option value="'+v+'" '+(r.method===v?'selected':'')+'>'+t+'</option>').join('')+'</select></label><label>Usar del stock · disponible '+num(ctx.available?.(r))+'<input class="search-input" type="number" min="0" max="'+num(r.needed)+'" step="1" data-item="'+id+'" data-field="existing" value="'+(r.method==='stock'?num(r.needed):num(r.existing))+'" '+(r.method==='stock'?'disabled':'')+'></label>')+
@@ -302,6 +315,8 @@
     }
     function refreshAmounts(){
       const totals=agreedSummary(d);
+      const differenceLabel=(amount,currency)=>amount>0?'Ahorrás '+currency+' '+money(amount):amount<0?'Aumento '+currency+' '+money(-amount):'Sin diferencia · '+currency;
+      frame.querySelectorAll('[data-price-difference]').forEach(node=>{const value=priceDifference(rowFor(node.dataset.priceDifference));node.textContent=value?'Original '+value.currency+' '+money(value.original)+' → Acordado '+money(value.agreed)+' · '+differenceLabel(value.difference,value.currency):'Sin referencia comparable';node.style.color=value?.difference>0?'var(--green,#73dcb2)':value?.difference<0?'var(--amber,#e5b83b)':'var(--text3)';});
       frame.querySelectorAll('[data-quantity-status]').forEach(node=>{
         const r=rowFor(node.dataset.quantityStatus),needed=num(r.needed),stock=r.method==='stock'?needed:num(r.existing),qty=r.method==='stock'?0:r.requestedQty==null?Math.max(0,needed-stock):num(r.requestedQty),missing=needed-stock-qty;
         const fmt=n=>n.toLocaleString('es-AR');
@@ -318,10 +333,12 @@
         node.textContent=valid(r.agreed)?equivalentHTML(num(r.agreed)*(total?qty:1),r.method==='exterior'?'USD':'ARS'):'';
       });
       const header=frame.querySelector('[data-agreed-total]'),footer=frame.querySelector('[data-profit]');
+      const differences=priceDifferenceTotals(d),comparison=document.createElement('small');comparison.setAttribute('data-price-difference-total','');comparison.style.display='block';comparison.textContent=[differenceLabel(differences.USD,'USD'),differenceLabel(differences.ARS,'ARS')].join(' · ')+(differences.missing?' · Comparación parcial: '+differences.missing+' sin referencia':'');
       if(header)header.innerHTML='<summary>Total productos'+(totals.missing?' · parcial':'')+'<strong>ARS $ '+money(totals.ars)+'</strong><small class="ep-head-currencies"><span>USD '+(totals.usd===null?'—':money(totals.usd))+'</span><span>USDT '+(totals.usdt===null?'sin cotización':money(totals.usdt))+'</span></small></summary><div><small>Sin logística</small><small>Exterior: USD '+money(totals.foreignUSD)+' · Local: ARS '+money(totals.localARS)+'</small></div>';
       const equivalents=value=>'<small>USD '+(num(d.parameters.usd)?money(value/num(d.parameters.usd)):'—')+' · USDT '+(num(d.parameters.usdt)?money(value/num(d.parameters.usdt)):'—')+'</small>';
-      if(footer&&stockOnly){const estimate=frozen?ctx.saved:calculateDraft(d);footer.innerHTML='<span>Costo estimado de compra'+(estimate.pending?.length?' · parcial':'')+'<strong>$ '+money(estimate.result.orderTotal)+'</strong>'+equivalents(estimate.result.orderTotal)+'</span>';return;}
+      if(footer&&stockOnly){const estimate=frozen?ctx.saved:calculateDraft(d);footer.innerHTML='<span>Costo estimado de compra'+(estimate.pending?.length?' · parcial':'')+'<strong>$ '+money(estimate.result.orderTotal)+'</strong>'+equivalents(estimate.result.orderTotal)+'</span>';footer.appendChild(comparison);return;}
       if(footer)footer.innerHTML='<span>Ganancia anterior<strong>$ '+money(totals.before)+'</strong>'+equivalents(totals.before)+'</span><span class="ep-profit-arrow" aria-label="cambia a">→</span><span>Ganancia con cambios · sin logística'+(totals.quantityPending?' · falta resolver cantidades':totals.missing?' · parcial':'')+'<strong>$ '+(totals.missing?'Pendiente':money(totals.after))+'</strong>'+(totals.missing?'':equivalents(totals.after))+'</span>';
+      if(footer)footer.appendChild(comparison);
     }
     function refreshRates(){if(frozen||d.parameters.usdtExchange==='manual')return;const value=ctx.rates?.().usdt;if(num(value)>0){const wasClean=editState()===cleanState;d.parameters.usdt=value;if(wasClean)cleanState=editState();refreshAmounts();refreshSaveState();}}
     document.addEventListener('sisventas:usdt-quote',refreshRates);

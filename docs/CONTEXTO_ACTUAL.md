@@ -1,3 +1,7 @@
+# Ahorro de compra visible en local · 29/10/2026
+
+Integración selectiva c71273e4 sólo exterior-preparation.js y prueba. Espejo8766 actualizado únicamente módulo (copia previa privada tmp/exterior-preparation-before-price-difference.js); recarga real con Guardar deshabilitado, reapertura de preparación:7productos,USD1420 intactos,ahorroUSD39 (Flytec19 y monopatín20). No guardados reales por esta mejora, no stock/órdenes/pagos ni publicación. Referencia original guardada contra precio acordado por cantidad; faltantes parciales y monedas separadas. Suite rama origen6403PASS/27skip,34focal y14QA320–1280PASS. Captura privada tmp/compra-ahorro-visible.png. Fuente base3167 módulo idéntico al padre auditado8add0ac2; se copió sólo diff sin pagos de ramaorigen. Pendiente incorporar activos a próxima publicación autorizada.
+
 # Publicación v3.16.7: costos y Finanzas · 29/10/2026
 
 Titular autorizó activar guardado de costos y publicar lo preparado después de informar costo. Estimación comunicada menor a USD1 por actualización puntual, compilación E2_STANDARD_2 limitada300s (hastaUSD0,03 de cómputo), más imagen y verificaciones; sin promesa de techo mensual. Una compilación exitosa duró82,436s (aproxUSD0,008 de cómputo de lista, no factura).
