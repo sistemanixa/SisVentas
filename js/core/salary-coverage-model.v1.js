@@ -13,10 +13,11 @@ const salary=payrollReady?round(payroll):null,net=incomeReady?round(income):null
 // Payroll funding uses saved historical labour costs, independently of sale price,
 // commercial discounts or VAT. Never substitute today's catalogue cost.
 function historicalCost(item){
+ if(item.comisionCostoHistoricoPendiente===true)return null;
  const number=v=>typeof v==='string'&&/^\d+(?:\.\d+)?$/.test(v.trim())?money(Number(v)):money(v);
   for(const key of ['costoTotalCompra','costoTotal','costo'])if(item[key]!=null)return number(item[key]);
   const qty=number(item.qty??item.cantidad);if(qty===null)return null;
-  for(const key of ['costoUnitarioCompra','costoUnitario','costoCompra','compra','precioCompra','precio_compra'])if(item[key]!=null)return number(item[key])===null?null:round(number(item[key])*qty);
+  for(const key of ['costoUnitarioCompra','costoUnitario','costoCompra','compra','precioCompra','precio_compra','costoUnitarioAntesPreparacion','costoUnitarioPresupuestado'])if(item[key]!=null)return number(item[key])===null?null:round(number(item[key])*qty);
   return null;
 }
 function laborFunding(input){
