@@ -1,3 +1,13 @@
+# Publicación v3.16.7: costos y Finanzas · 29/10/2026
+
+Titular autorizó activar guardado de costos y publicar lo preparado después de informar costo. Estimación comunicada menor a USD1 por actualización puntual, compilación E2_STANDARD_2 limitada300s (hastaUSD0,03 de cómputo), más imagen y verificaciones; sin promesa de techo mensual. Una compilación exitosa duró82,436s (aproxUSD0,008 de cómputo de lista, no factura).
+
+Fuente limpia 242e25f117f4439ae82a20422f2e9bbb420853b9. Cotizador antes projects3162-98dbb6d7; nueva cost3167-242e25f1, misma configuración contrastada, mínimo0/CPU por solicitud,100% y14tags. Cinco archivos backend respecto de revisión anterior; sin reglas, IAM, secretos, servicios nuevos ni sondeos. GET405/POST401 sin sesión en escritura antes/después de promover; no se ejecutó corrección financiera real como prueba. Modelo/gateway probado con fixtures: costo cero, permiso y revalidación, versión concurrente, idempotencia, auditoría y conservación de precios/pagos/comisiones.
+
+Hosting seguro499activos,13cargas, hashes de módulos/cabeceras/404privados/mirror verificados; actualizar-nodo-version confirmó web/SW/aviso v3.16.7-firebase. Incluye edición de costos con Sin costo/En stock y comparación compacta de Finanzas ya preparada. Suite6404PASS/27skip/0fallos y94backend; UI ficticia390/768/1280, sin tráfico exterior ni escrituras reales. Web autenticada mostró actualización, comparación con datos actuales y modal Corregir costo de compra con Deco seleccionado; no pulsar Guardar en esa venta como prueba. Capturas/evidencias privadas tmp/release3167, fuera de Git.
+
+Espejo local sincronizado con paquete publicado y sin bloqueo Preview en archivos. La pestaña local conservaba formulario0/En stock y la herramienta no pudo controlarla tras la primera observación; no afirmar que se recargó ni que guardó. Pestaña web sí quedó con formulario nuevo abierto. No precios, cobros, stock o costos reales modificados. Sin push público: se conserva preferencia de mantener el bloque en esta PC. Auditoría futura de uso de servidor permanece documentada y pendiente.
+
 # Uso de servidor: criterio y auditoría futura · 29/10/2026
 
 Titular acepta mantener por ahora el guardado puntual de corrección de costos en servidor y solicita conservar para auditoría futura la necesidad de cada uso de Cotizador, especialmente actividad sin acción humana y prevención de nuevos consumos elevados. Alcance y mediciones requeridas registrados en AUDITORIA_COTIZADOR.md. No se ejecuta auditoría remota ni se añaden consultas por reloj. Diseño local conservado; comando todavía no activado en producción, sin retirar bloqueo de vista previa ni publicar en esta entrega. Sin cambios de datos, permisos o infraestructura.
