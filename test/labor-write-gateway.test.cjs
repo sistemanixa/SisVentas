@@ -49,3 +49,10 @@ test('payloads arbitrarios, raíces, controles, sentinels y sesión no válida f
  const f=fixture();for(const extra of [{path:'sisventas'},{path:'sv_labor_indexes/x'},{kind:'patch',path:'',value:{'sv_labor_guard':null,'sisventas/gastos/g':null}},{value:{'.sv':'timestamp'}},{expectedHashes:{}},{uid:'other'},{kind:'atomic',path:'',value:{'sisventas/gastos/g':null},expectedHashes:{}}])await assert.rejects(f.gateway.write(f.actor,f.command(extra)),{statusCode:400});
  assert.equal(f.calls.commits.length,0);await assert.rejects(f.gateway.authorize({method:'POST',url:'/laboral/escritura?verComo=other',headers:{authorization:'Bearer signed'}}),{statusCode:403});
 });
+
+test('cost correction gateway commits once with payment and commission invariants and denies an ungranted role',async()=>{
+ const Model=require('../js/core/sale-cost-correction.v1'),f=fixture(),path='sisventas/ventas/fake',before={id:'FICTICIA',items:[{cod:'P',qty:1,punit:100,sub:100,costoUnitarioCompra:50,costoTotalCompra:50}],total:100,pagos:[{monto:10}],comisionGenerada:true,audit:[]};f.set(path,before);
+ const after=Model.build(before,{index:'0',cost:0,reason:'Recuperado de otra obra',uid:'user',stamp:Date.now()}),command=f.command({kind:'atomic',path:'',purpose:'sale-cost-correction',value:{[path]:after},expectedHashes:{[path]:digest(before)}});
+ await f.gateway.write(f.actor,command);await f.gateway.write(f.actor,command);assert.equal(f.calls.commits.length,1);assert.equal(f.read(path).items[0].costoTotalCompra,0);assert.deepEqual(f.read(path).pagos,before.pagos);assert.equal(f.read(path).comisionGenerada,true);assert.equal(f.calls.reads.includes('sisventas'),false);
+ const denied=fixture();denied.set(path,before);denied.set('sv_chat_roles/user',{activo:true,rol:'administrativo'});await assert.rejects(denied.gateway.write(denied.actor,command),{statusCode:403});assert.equal(denied.calls.commits.length,0);
+});

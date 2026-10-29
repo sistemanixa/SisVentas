@@ -95,6 +95,7 @@
     'chat.limpiar':'Permite limpiar conversaciones del chat interno.',
     'empleados.registrarHaberes':'Permite registrar haberes y aguinaldos del personal.',
     'empleados.autorizarHoras':'Permite revisar y autorizar solicitudes de horas extra.',
+    'ventas.corregirCosto':'Permite corregir el costo de compra guardado, incluido cero, con motivo y auditoría. No modifica precios, cobros, stock ni comisiones existentes.',
     'ventas.configurarComision':'Permite configurar la comisión de una venta.',
     'facturas.notaCredito':'Permite emitir notas de crédito vinculadas a comprobantes fiscales.',
     'mantenimiento.repararVentas':'Permite ejecutar herramientas de reparación de importes históricos de ventas.',

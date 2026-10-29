@@ -107,6 +107,7 @@
     'ventas.verDashboard':       { modulo:'detalle', admin:true },
     'ventas.ver':                { modulo:'detalle' },
     'ventas.verTodas':           { modulo:'detalle', admin:true },
+    'ventas.corregirCosto': { modulo:'detalle', label:'Corregir costo de compra de una venta', roles:['admin'] },
     'ventas.verMargen':          { modulo:'detalle', roles:['admin'] },
     'ventas.crear':              { modulo:'venta' },
     'ventas.editar':             { modulo:'detalle', roles:['admin','administrativo'] },

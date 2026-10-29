@@ -54735,6 +54735,7 @@ function ultimaModificacionVentaVisible(v) {
 
 function renderDetalleVenta(v) {
   window._ventaDetalleActual = v;
+  window.SVSaleCostEditor?.schedule();
   var clienteActualDetalle = _svResolverClienteDocumento(v);
   var nombreClienteDetalle = clienteActualDetalle && clienteActualDetalle.nombre || v.cliente || '—';
   var dv = document.getElementById('venta-detalle-view');

@@ -4,6 +4,7 @@ const {flatten}=require('./labor-db');
 const ExpenseRemoval=require('./expense-removal-policy');
 const BonusBatch=require('./labor-bonus-batch');
 const SACBatch=require('./labor-sac-batch');
+const CostCorrection=require('./sale-cost-correction');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const forbidden=path=>/^(sv_labor_[^/]*|sv_commission_generation|sv_commission_events)(\/|$)/.test(path);
 const normalizationFields={ventas:['clienteFbKey','clienteKey','clienteId'],presupuestos:['clienteFbKey','clienteKey','ventaFbKey','ventaGeneradaFbKey'],pagos:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],ordenesTrabajo:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],ordenes_trabajo:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],reclamos:['clienteFbKey','clienteKey'],productos:['categoriaFbKey','categoriaKey']};
@@ -31,8 +32,9 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
   if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['id','kind','path','value','expectedHash','expectedHashes','purpose'].includes(k))||!/^[A-Za-z0-9_-]{8,160}$/.test(body.id)||!['set','patch','compare','atomic'].includes(body.kind)||typeof body.path!=='string')throw fail(400,'Solicitud de guardado inválida');
   if(!actor?.uid||!actor.claims||actor.claims.uid!==actor.uid)throw fail(403,'Sesión requerida');
   if(Buffer.byteLength(JSON.stringify(body))>16*1024*1024)throw fail(413,'El guardado supera el tamaño permitido');
+  const costCorrection=body.purpose===CostCorrection.PURPOSE;
   const normalization=body.purpose==='relationship-normalization',removal=body.purpose==='expense-removal',bonus=body.purpose===BonusBatch.PURPOSE,sac=body.purpose===SACBatch.PURPOSE,sacMigration=body.purpose===SACBatch.MIGRATION_PURPOSE;
-  if(body.purpose!==undefined&&(!(normalization||removal||bonus||sac||sacMigration)||body.kind!=='atomic'))throw fail(400,'Propósito de guardado inválido');
+  if(body.purpose!==undefined&&(!(normalization||removal||bonus||sac||sacMigration||costCorrection)||body.kind!=='atomic'))throw fail(400,'Propósito de guardado inválido');
   let patch;
   if(['patch','atomic'].includes(body.kind)){
    if(body.expectedHash!==undefined)throw fail(400,'Comparación inválida');
@@ -75,6 +77,7 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
     const current=await scope.get(path);
     if(current!==null&&current!==''&&current!==value)throw fail(409,'Una referencia ya cambió. Revisá el plan antes de aplicar.','SV_CAS_CONFLICT');
    }
+   if(costCorrection)await CostCorrection.validate({scope,actor,patch,expected,digest});
    await scope.update(patch);
    return {ok:true,committed:true};
   });
