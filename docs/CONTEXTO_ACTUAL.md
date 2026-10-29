@@ -1,3 +1,10 @@
+# Desglose navegable y gastos opcionales locales · 28/10/2026
+
+Titular pidió comprobar columna origen, enlaces con regreso, gastos opcionales y retirar inactivos. Mano de obra vendida sigue tomando sub histórico de venta, proporcional al subtotal neto descontado y sin IVA; no columna costo. Conserva clave original de cada venta para abrir detalle estándar de sólo lectura y regresar con selección, resultado, desplegables y posición. Contexto sesión/rol/revisión invalidan retorno. Personal muestra sólo activos; no fusiona ni modifica fichas duplicadas.
+
+Debajo del personal: Inmueble y Servicios opcionales, usando categoría registrada y fecha del gasto (devengado), monto completo aprobado/pagado, sin sumar pagos otra vez ni conceptos salariales/comisiones. Fuente: snapshot completo de Gastos de sesión autorizado y vigente; cero consultas adicionales para esta fuente. Si falta, informa y ofrece Abrir Gastos; no consulta raíz como fallback ni convierte ausencia en cero. Verifica estabilidad antes/después. No hay clasificación automática por descripción ni reparto inventado.
+
+Suite 6353 PASS/27 skip/0 fallos; 51 focales; UI390/768/1280 con navegación ida/regreso ficticia sin nuevas lecturas al volver, exclusión inactivos, gastos por categoría y denegación técnica. Sesión local real: consulta opcional completada y venta abierta/regreso conservó resultado, sin guardar ni modificar finanzas. Evidencia privada tmp/salary-statistics-qa/local-expenses-links.png. Producción continúa16.5, candidata16.6sinpublicar; pagos excluidos. Sin push.
 # Ajustes de claridad salarial local · 28/10/2026
 
 Pedido del titular: Personal a calcular, sin pregunta de cobertura ni relación por cada cien pesos. Conserva barras e importes; aclara que la clasificación actual identifica mano de obra en ventas históricas sin clasificación guardada. Etiqueta salarios del personal y columna Persona para coincidir con selección manual. Motor sin cambios. Navegador ficticio390/768/1280 pasó; sesión local recargada conservando el personal previamente elegido sólo en formulario. Sin publicar ni escribir finanzas.
