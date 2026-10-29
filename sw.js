@@ -3,6 +3,7 @@
 const CACHE = 'sisventas-v3.16.6';
 const SHELL = [
  './js/core/sale-costs.v1.js?v=3.16.6',
+ './js/core/sale-writer.v1.js?v=3.16.6',
  './js/core/salary-coverage-model.v1.js',
  './js/core/salary-coverage-read.v1.js',
  './js/modules/salary-coverage.v1.js',

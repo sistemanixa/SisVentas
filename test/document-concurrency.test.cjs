@@ -7,7 +7,7 @@ function session(store,uid){
   store[path]=next;return {committed:true,snapshot:{val:()=>structuredClone(next)}};
  },ventasPagosV3Invocar(){throw Error('No debe evadir la comprobación');},pptoV3Invocar(){throw Error('No debe evadir la comprobación');}};
  c.fetch=async(url,options)=>{assert.equal(options.method,undefined,'la comprobación de conflicto no escribe');const path=new URL(url).pathname.slice(1).replace(/\.json$/,'');return {ok:true,headers:{get:()=> 'v-current'},json:async()=>structuredClone(store[path])};};
- c.window=c;c.SVSaleCosts=require('../js/core/sale-costs.v1.js').create(c);vm.createContext(c);vm.runInContext(fs.readFileSync('js/core/guarded-writes.js','utf8'),c);
+ c.window=c;c.SVSaleCosts=require('../js/core/sale-costs.v1.js').create(c);require('./helpers/sale-writer-fixture.cjs')(c);vm.createContext(c);vm.runInContext(fs.readFileSync('js/core/guarded-writes.js','utf8'),c);
  c.refreshes=[];c.SVCommercialOwnership={captureWriteContext:()=>({uid}),isWriteContext:token=>token.uid===c.currentUserUid,confirmWrite:(_domain,record)=>record,refresh:domain=>c.refreshes.push(domain),clean:r=>Object.fromEntries(Object.entries(r||{}).filter(([k])=>k!=='fbKey'&&!k.startsWith('_sv'))),prepare:async(domain,id,baseline)=>({record:structuredClone(store[domain+'/'+id]),baseline:baseline?structuredClone(baseline):null})};
  vm.runInContext(fs.readFileSync('js/modules/commercial-document-controls.js','utf8'),c);
  load(c,['pptoPersistirGuardar','ventasPagosPersistirGuardarVenta']);return c;

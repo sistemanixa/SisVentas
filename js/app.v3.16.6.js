@@ -7404,42 +7404,11 @@ function _svTotalVentaCanonico(venta) {
 }
 
 async function ventasPagosPersistirGuardarVenta(venta, baseEdicion) {
- if(!window.SVSaleCosts)throw new Error('Recargá la aplicación para guardar el costo de la venta.');
- var own=window.SVCommercialOwnership;
- if(venta?.fbKey){var prepared=await own.prepare('ventas',venta.fbKey,baseEdicion);baseEdicion=prepared.baseline||prepared.record;venta=window.SVCommercialDocument.preserve(venta,baseEdicion);}else venta=own.stamp(window.SVSaleCosts.prepare(venta,null));
- if(baseEdicion)venta=window.SVSaleCosts.prepare(venta,baseEdicion);
-  if (venta && venta.fbKey) {
-    venta = Object.assign({}, venta);
-    ['creadaPor','creadaPorRol','createdBy','usuario','ts'].forEach(function(campo) { delete venta[campo]; });
-  }
-  if(window.garantiaSnapshotVenta) garantiaSnapshotVenta(venta);
-  return Promise.resolve().then(function() {
-    if (venta && venta.fbKey && baseEdicion) {
-      if (!window.SVGuardedWrites) throw new Error('Recargá la aplicación para guardar con protección de cambios');
-      return window.SVGuardedWrites.save(FB_PATHS.ventas + '/' + venta.fbKey, baseEdicion, venta, true)
-        .then(function(saved) { return Object.assign({}, saved, {fbKey: venta.fbKey}); });
-    }
-    return ventasPagosV3Invocar('saveSale', [venta], function() {
-      if (!window.fbDB) throw new Error('Sin conexión Firebase');
-      if (venta && venta.fbKey) {
-        return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + venta.fbKey), venta)
-          .then(function() { return Object.assign({}, venta); });
-      }
-      return window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas), venta).then(function(ref) {
-        return Object.assign({}, venta, { fbKey: ref && ref.key || '' });
-      });
-    });
-  }).then(function(resultado){window.SVCommercialOwnership?.refresh('ventas');return resultado;});
+  return window.SVSaleWriter.save(venta, baseEdicion);
 }
 
 async function ventasPagosPersistirActualizarVenta(fbKey, cambios) {
- var prepared=await window.SVCommercialOwnership.prepare('ventas',fbKey);cambios=window.SVCommercialDocument.preserve(cambios,prepared.record);
-  return Promise.resolve().then(function() {
-    return ventasPagosV3Invocar('updateSale', [fbKey, cambios], function() {
-      if (!window.fbDB) throw new Error('Sin conexión Firebase');
-      return window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey), cambios);
-    });
-  }).then(function(resultado){window.SVCommercialOwnership?.refresh('ventas');return resultado;});
+  return window.SVSaleWriter.save(Object.assign({},cambios,{fbKey:fbKey}));
 }
 
 function ventasPagosPersistirEliminarVenta(fbKey) {
@@ -8468,7 +8437,7 @@ function fbSeedDatos() {
   ventasList.forEach(function(v) {
     var copia = Object.assign({}, v);
     delete copia.fbKey;
-    window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas), copia);
+    ventasPagosPersistirGuardarVenta(copia).catch(function(e){notify(e.message);});
   });
 
   // Seed OTs
@@ -34634,7 +34603,7 @@ async function anularVenta(fbKey) {
     if (documentoRespaldo) cambiosAnulacion.documentoAnulacion = documentoRespaldo;
     await Promise.all([
       _preservarPresupuestoPorVentaRetirada(v, 'anulada'),
-      window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + fbKey), cambiosAnulacion)
+      window.SVSaleWriter.save(Object.assign({},cambiosAnulacion,{fbKey:fbKey}),v)
     ]);
     notify(documentoRespaldo
       ? 'Venta anulada y respaldada por la nota de crédito registrada'
@@ -35378,11 +35347,12 @@ function _aplicarCreditosHistoricosEnRaiz(raiz, venta, ventaDestinoKey) {
 }
 
 function _guardarVentaConCreditosHistoricosAtomico(venta) {
+  venta=window.SVSaleWriter.prepare(venta,null);
   if (!window.fbDB || typeof window.fbRunTransaction !== 'function') {
     return Promise.reject(new Error('No hay conexión segura para aplicar el crédito histórico'));
   }
   var ventaDestinoKey = 'credito_' + String(venta.ts || Date.now()) + '_' + Math.random().toString(36).slice(2, 10);
-  return window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas/ventas'), function(actual) {
+  return window.SVSaleWriter.commit({record:venta,transaction:{ref:window.fbRef(window.fbDB, 'sisventas/ventas'),apply:function(actual, venta) {
     // Firebase puede iniciar con caché vacía: pedir la versión del servidor antes de validar.
     if (actual === null) return null;
     try {
@@ -35391,7 +35361,7 @@ function _guardarVentaConCreditosHistoricosAtomico(venta) {
       // Abortamos el commit: no se crea la venta si alguna disponibilidad cambió.
       return;
     }
-  }).then(function(resultado) {
+  }}}).then(function(resultado) {
     if (!resultado || resultado.committed === false) {
       throw new Error('No se pudo aplicar el crédito: verificá el remanente disponible e intentá nuevamente');
     }
@@ -43456,7 +43426,7 @@ async function spConfirmarResolucionVisita(reclamoKey, ventaKey, codigoVisita, m
       }
       return item;
     });
-    items=window.SVSaleCosts.prepare({items:items},venta).items;
+    items=window.SVSaleWriter.prepare({items:items},venta).items;
     var brutoTotal = 0, subtotal = 0;
     items.forEach(function(item){
       var bruto = (parseFloat(item.qty) || 1) * (parseFloat(item.punit) || 0);
@@ -43491,9 +43461,9 @@ async function spConfirmarResolucionVisita(reclamoKey, ventaKey, codigoVisita, m
     historial.push({texto:'Reclamo resuelto mediante visita técnica; materiales de OT incorporados a la venta',autor:currentUser||'Sistema',ts:Date.now()});
     var reclamoUpdate = {estado:'cerrado',resolucion:'visita_tecnica',resuelto:true,cerradoEn:Date.now(),manoObra:bonificada?'bonificada_100':'con_cargo',historial:historial};
     var updates = {};
-    Object.keys(ventaUpdate).forEach(function(k){updates['sisventas/ventas/' + ventaKey + '/' + k]=ventaUpdate[k];});
+    // Venta y resolución se confirman juntas mediante el escritor común.
     Object.keys(reclamoUpdate).forEach(function(k){updates['sisventas/reclamos/' + reclamoKey + '/' + k]=reclamoUpdate[k];});
-    await window.fbUpdate(window.fbRef(window.fbDB), updates);
+    await window.SVSaleWriter.commit({record:ventaUpdate,baseline:venta,key:ventaKey,related:updates,partial:true});
     Object.assign(_svResolverVentaRegistro(ventaKey) || {}, ventaUpdate);
     SP_DATA[reclamoKey] = Object.assign({},reclamo,reclamoUpdate,{fbKey:reclamoKey});
     modal.remove();
@@ -48096,7 +48066,7 @@ async function _svCargaOperacion__convertirPresupuestoEnVentaAtomico(p, ventaBas
     throw new Error('No hay conexión segura para convertir el presupuesto');
   }
   var vinculado=await window.SVCommercialOwnership.prepare('presupuestos',p.fbKey);Object.assign(p,vinculado.record);
-  ventaBase=window.SVSaleCosts.prepare(ventaBase,null);
+  ventaBase=window.SVSaleWriter.prepare(ventaBase,null);
   var fbKey = String(p.fbKey);
   var ventaFbKeyDeterminista = 'ppto_' + fbKey.replace(/[^A-Za-z0-9_-]/g, '_');
   var presupuestoRef = window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + fbKey);
@@ -48161,7 +48131,7 @@ async function _svCargaOperacion__convertirPresupuestoEnVentaAtomico(p, ventaBas
     venta = conversionAudit.venta;
     var audit = auditAnterior.concat([datosAudit, conversionAudit.event]);
     var updates = {};
-    updates['ventas/' + ventaFbKeyDeterminista] = venta;
+    // La venta se incorpora únicamente en el escritor común.
     updates['presupuestos/' + fbKey + '/estado'] = 'convertido';
     updates['presupuestos/' + fbKey + '/requiereAprobacion'] = false;
     updates['presupuestos/' + fbKey + '/vistoEn'] = presupuestoActual.vistoEn || datosAudit.fecha;
@@ -48175,7 +48145,7 @@ async function _svCargaOperacion__convertirPresupuestoEnVentaAtomico(p, ventaBas
     updates['presupuestos/' + fbKey + '/audit'] = audit;
     updates['presupuestos/' + fbKey + '/conversionEnCurso'] = null;
     progreso('Creando y vinculando la venta…');
-    await window.fbUpdate(window.fbRef(window.fbDB, 'sisventas'), updates);
+    venta = await window.SVSaleWriter.commit({record:venta,key:ventaFbKeyDeterminista,related:updates,basePath:'sisventas'});
     var verificacionConversion = await Promise.all([
       window.fbGet(window.fbRef(window.fbDB, FB_PATHS.ventas + '/' + ventaFbKeyDeterminista)),
       window.fbGet(presupuestoRef)
@@ -50336,7 +50306,7 @@ async function _svCargaOperacion_otGuardarCorreccionProductos(ot, materiales, ac
   }
   var materialesVentaOriginal = materiales.filter(function(material){ return material && material.destinoVenta !== 'nueva'; });
   items = spIntegrarMaterialesOT(Object.assign({},venta,{items:items}),Object.assign({},ot,{materiales:materialesVentaOriginal}));
-  items=window.SVSaleCosts.prepare({items:items},venta).items;
+  items=window.SVSaleWriter.prepare({items:items},venta).items;
   var bruto = _redondearPrecioActual(items.reduce(function(n,i){return n+Number(i.qty)*Number(i.punit);},0));
   var neto = _redondearPrecioActual(items.reduce(function(n,i){return n+Number(i.sub);},0));
   var descuentoGeneral = _redondearPrecioActual(neto * Number(venta.descuentoGeneral || 0)/100);
@@ -50344,8 +50314,7 @@ async function _svCargaOperacion_otGuardarCorreccionProductos(ot, materiales, ac
   var tasa = Number(venta.subtotal)>0 ? Number(venta.iva || 0)/Number(venta.subtotal) : (venta.conIva?0.21:0);
   var iva = _redondearPrecioActual(subtotal*tasa);
   var ventaUpdate = {items:items,subtotal:subtotal,iva:iva,total:_redondearPrecioActual(subtotal+iva),descuento:_redondearPrecioActual(bruto-subtotal),audit:(venta.audit || []).concat([{fecha:svFechaLocalISO(),usuario:currentUser||'Sistema',accion:accion+' desde '+ot.id}])};
-  Object.keys(ventaUpdate).forEach(function(k){updates['sisventas/ventas/'+ventaLocal.fbKey+'/'+k]=ventaUpdate[k];});
-  await window.fbUpdate(window.fbRef(window.fbDB),updates);
+  await window.SVSaleWriter.commit({record:ventaUpdate,baseline:venta,key:ventaLocal.fbKey,related:updates,partial:true});
   Object.assign(ot,{materiales:materiales,audit:audit});
   Object.assign(ventaLocal,ventaUpdate);
 }
@@ -50415,7 +50384,7 @@ async function _svCargaOperacion_otConfirmarVentaAdicional() {
   var items = _otCarritoAdicional.map(function(c) {
     return { cod:c.codigo, desc:c.nombre, qty:Number(c.cantidad || 1), punit:Number(c.precio || 0), sub:_redondearPrecioActual(Number(c.precio || 0) * Number(c.cantidad || 1)), adicionalOT:true, origenOTKey:ot.fbKey };
   });
-  try{items=window.SVSaleCosts.prepare({items:items},null).items;}catch(errorCosto){notify(errorCosto.message);return;}
+  try{items=window.SVSaleWriter.prepare({items:items},null).items;}catch(errorCosto){notify(errorCosto.message);return;}
   var total = _redondearPrecioActual(items.reduce(function(s,i){ return s + Number(i.sub || 0); }, 0));
 
   var fechaVentaAdicional = svFechaLocalISO();
@@ -50470,7 +50439,7 @@ async function _svCargaOperacion_otConfirmarVentaAdicional() {
     ts:           Date.now()
   };
   try {
-    venta=window.SVSaleCosts.prepare(venta,null);
+    venta=window.SVSaleWriter.prepare(venta,null);
     var ventaRef = window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas));
     var ventaKey = ventaRef && ventaRef.key || '';
     if (!ventaKey) throw new Error('No se pudo generar la clave de la venta');
@@ -50481,7 +50450,7 @@ async function _svCargaOperacion_otConfirmarVentaAdicional() {
     audit.push({fecha:svFechaLocalISO(), usuario:currentUser || 'Sistema', accion:'Adicionales enviados a la venta nueva ' + venta.id + ': ' + detalleAgregados});
     var notificacionRef = window.fbPush(window.fbRef(window.fbDB, 'sisventas/notificaciones_admin'));
     var updates = {};
-    updates[FB_PATHS.ventas + '/' + ventaKey] = venta;
+    // Venta creada por el escritor común junto con sus vínculos de OT.
     updates[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/materiales'] = materiales;
     updates[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/audit'] = audit;
     updates[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/ventasAdicionales/' + ventaKey] = {
@@ -50499,7 +50468,7 @@ async function _svCargaOperacion_otConfirmarVentaAdicional() {
       ts:      Date.now(),
       leida:   false
     };
-    await window.fbUpdate(window.fbRef(window.fbDB), updates);
+    venta = await window.SVSaleWriter.commit({record:venta,key:ventaKey,related:updates});
     ot.materiales = materiales;
     ot.audit = audit;
     ot.ventasAdicionales = Object.assign({}, ot.ventasAdicionales || {});
@@ -55183,10 +55152,10 @@ async function toggleCSF(vid, fk) {
   var nt = csf ? Math.round(t * 1.21) : Math.round(t / 1.21);
   if (!await svConfirm((csf ? 'Restaurar IVA? Total: $'+t.toLocaleString('es-AR')+' -> $'+nt.toLocaleString('es-AR') : 'Contado sin factura? Se quita IVA. $'+t.toLocaleString('es-AR')+' -> $'+nt.toLocaleString('es-AR')))) return;
   if (!window.fbDB) return;
-  window.fbUpdate(window.fbRef(window.fbDB, FB_PATHS.ventas+'/'+fk), {
+  window.SVSaleWriter.save({fbKey:fk,
     contadoSinFactura: !csf, total: nt, iva: csf ? Math.round(nt-t) : 0,
     audit: (v.audit||[]).concat([{fecha:svFechaLocalISO(), usuario:currentUser||'Admin', accion: csf ? 'IVA restaurado' : 'Contado sin factura'}])
-  }).then(function(){ notify(csf ? 'IVA restaurado' : 'Contado sin factura aplicado'); })
+  },v).then(function(){ notify(csf ? 'IVA restaurado' : 'Contado sin factura aplicado'); })
     .catch(function(e){ notify('Error: '+e.message); });
 }
 
