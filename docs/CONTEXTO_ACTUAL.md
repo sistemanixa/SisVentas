@@ -1,3 +1,6 @@
+# Uso de servidor: criterio y auditoría futura · 29/10/2026
+
+Titular acepta mantener por ahora el guardado puntual de corrección de costos en servidor y solicita conservar para auditoría futura la necesidad de cada uso de Cotizador, especialmente actividad sin acción humana y prevención de nuevos consumos elevados. Alcance y mediciones requeridas registrados en AUDITORIA_COTIZADOR.md. No se ejecuta auditoría remota ni se añaden consultas por reloj. Diseño local conservado; comando todavía no activado en producción, sin retirar bloqueo de vista previa ni publicar en esta entrega. Sin cambios de datos, permisos o infraestructura.
 # Accesos rápidos de costo en local · 29/10/2026
 
 Se añadieron Sin costo (coloca 0) y En stock (completa o agrega el motivo sin borrar texto previo). El motivo continúa obligatorio. Prueba UI aislada en 390/768/1280: cero, motivo requerido, guardado ficticio y conservación de pagos/precios; sin tráfico exterior. Se actualizó efectivamente la pestaña local, reabrió V-910171 y dejó el Deco seleccionado con los dos botones visibles, sin guardar cambios reales. El espejo conserva el bloqueo de guardado de vista previa hasta actualizar servidor. Suite vigente: 6404 aprobadas, 27 omitidas, cero fallos; sintaxis y diff correctos. No publicación ni push. Captura privada: C:/SisVentas/tmp/sale-cost-editor-qa/local-shortcuts.png.

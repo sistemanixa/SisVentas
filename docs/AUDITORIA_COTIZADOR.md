@@ -1,5 +1,14 @@
 # Alcance de Cotizador
 
+## Auditoría futura solicitada por el titular · 29/10/2026
+
+Se conserva por ahora la corrección puntual de costo de venta a través del servidor, sólo al pulsar Guardar, con permiso, control de versión y auditoría. La aceptación del diseño no acredita su activación: el comando sigue preparado en local y requiere despliegue coordinado; no retirar el bloqueo de vista previa aisladamente.
+
+Pendiente explícito: auditar el uso actual del servidor, sin asumir necesario todo lo que aloja Cotizador. Para cada circuito inventariar acción que lo dispara, consumidor web, ruta/servicio, lecturas y bytes, escrituras, duración y repeticiones; separar acción humana, evento real, reintento limitado, escucha y tarea por reloj. Identificar operaciones simples candidatas a navegador + reglas Firebase y justificar las que deban conservar validación privilegiada. Disparar desde la web no significa necesariamente escribir directo a la base: registrar ambas etapas.
+
+Prioridad: evitar la repetición del consumo elevado. Medir reposo visible/oculto y dispositivo bloqueado; buscar descargas amplias, reconexiones, consultas duplicadas y servicios con reserva mínima. No añadir sondeos ni despliegues por registrar este pendiente. Toda propuesta conservará pagos, permisos, concurrencia, costos y comisiones; cambios de infraestructura llevarán estimación previa y evidencia de estado remoto. Alertas con demora no son un techo exacto. Este registro no confirma la configuración actual de alertas/corte ni demuestra consumo cero.
+
+
 Publicación13.3 completada desde `e897dede350f1f56795c60d657bad994f6a395a3` el19/10/2026. Cotizador `cotizador-audit-e897dede`, mínimo0/CPU por solicitud,100% y14 accesos; web/aviso verificados. Ver CONTEXTO_ACTUAL para evidencia y límites. El estado de preparación que sigue conserva el registro de la auditoría, anterior a ese corte. La continuación13.4 está separada y no publicada.
 
 ## Continuación13.4: lecturas por registros, todavía local
