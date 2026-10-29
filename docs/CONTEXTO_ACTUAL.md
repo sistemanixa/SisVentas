@@ -1,3 +1,9 @@
+# Controles compactos y plantel con sueldo en local · 29/10/2026
+
+Pedido: gastos horizontales, mes/comparación fuera del cuadro arriba a la derecha, botón Actualizar y selección inicial de todo personal activo con sueldo. Cabecera flexible, tarjeta reducida y opciones horizontales con adaptación móvil. Actualizar invalida caché del cálculo; los checks continúan recalculando sin confirmación. El lector consulta empleados y configuración de cargos una sola vez al abrir; devuelve sólo hasSalary a partir de valorHora por díasMes, sin exponer importes privados adicionales en el selector. Incluye cargos administrativos con sueldo, excluye inactivos y no marca comisión exclusiva sin cargo salarial. Sin sondeos ni escrituras.
+
+59 focales aprobadas; interfaz ficticia390/768/1280 sin desborde,5lecturas iniciales (incluye cargos), sin lecturas extra por categorías ni red exterior; suite6389PASS/27skip/0fallos. Sintaxis/diff correctos. Espejo8766 actualizado con query local única en módulo/lector, recarga efectiva y resultado inicial visible: técnicos y administrativo salarial seleccionados, vendedor sin cargo no marcado, Actualizar visible. Captura privada tmp/salary-coverage-qa/local-compact.png. Sin guardar datos reales, publicación ni push; web siguev3.16.6 anterior.
+
 # Comparación salarial reactiva preparada en local · 29/10/2026
 
 Pedido: omitir Ver resultado y recalcular al cambiar personal o categorías sin reiniciar el formulario. El módulo calcula al entrar y ante change de mes, período o checks; conserva controles y desplegables mientras actualiza sólo el resultado. Revisión secuencial ignora respuestas anteriores, caché por contexto/período/selección y snapshot comercial reutiliza consultas ya resueltas y solicitudes en curso; errores se retiran de caché. Gastos de empresa usan la fuente autorizada existente sin transporte adicional. Sin sondeos por reloj ni escrituras. No se modificaron cálculos de importes, permisos, pagos ni comisiones.
