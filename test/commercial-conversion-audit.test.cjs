@@ -4,7 +4,7 @@ const {readActiveApp}=require('./helpers/active-app');
 const {fixture}=require('./helpers/commercial-ownership-fixtures.cjs');
 const moduleSource=fs.readFileSync('js/modules/commercial-document-controls.js','utf8');
 const app=readActiveApp().source;
-function context(){const c={window:null,document:{addEventListener(){}},currentUser:'Operador de prueba',currentUserUid:'operator',currentUserEmail:'',ventasList:[],FB_PATHS:{ventas:'sisventas/ventas',presupuestos:'sisventas/presupuestos'},escapeHTML:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')};c.window=c;c.SVCommercialOwnership={author:p=>p.creadorOriginalNombre||p.creadoPor,clean:r=>r};vm.runInNewContext(moduleSource,c);return c;}
+function context(){const c={window:null,document:{addEventListener(){}},currentUser:'Operador de prueba',currentUserUid:'operator',currentUserEmail:'',ventasList:[],FB_PATHS:{ventas:'sisventas/ventas',presupuestos:'sisventas/presupuestos'},escapeHTML:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')};c.window=c;c.SVSaleCosts=require('../js/core/sale-costs.v1.js').create(c);c.SVCommercialOwnership={author:p=>p.creadorOriginalNombre||p.creadoPor,clean:r=>r};vm.runInNewContext(moduleSource,c);return c;}
 test('convertir preserva creador original y responsable aunque el operador y el comisionado sean distintos',()=>{
  const c=context(),p={id:'PP-DEMO',creadoPor:'Autor de prueba',creadorOriginalUid:'author',responsableUid:'assigned',responsableNombre:'Asignado de prueba',responsableRevision:2};
  const base={id:'V-DEMO',presupuestoFbKey:'budget',usuario:'Operador incorrecto',empleado:'Comisionado de prueba',total:123,items:[{cantidad:1}]};

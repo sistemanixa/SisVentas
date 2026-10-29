@@ -7404,8 +7404,10 @@ function _svTotalVentaCanonico(venta) {
 }
 
 async function ventasPagosPersistirGuardarVenta(venta, baseEdicion) {
+ if(!window.SVSaleCosts)throw new Error('Recargá la aplicación para guardar el costo de la venta.');
  var own=window.SVCommercialOwnership;
- if(venta?.fbKey){var prepared=await own.prepare('ventas',venta.fbKey,baseEdicion);baseEdicion=prepared.baseline||prepared.record;venta=window.SVCommercialDocument.preserve(venta,baseEdicion);}else venta=own.stamp(venta);
+ if(venta?.fbKey){var prepared=await own.prepare('ventas',venta.fbKey,baseEdicion);baseEdicion=prepared.baseline||prepared.record;venta=window.SVCommercialDocument.preserve(venta,baseEdicion);}else venta=own.stamp(window.SVSaleCosts.prepare(venta,null));
+ if(baseEdicion)venta=window.SVSaleCosts.prepare(venta,baseEdicion);
   if (venta && venta.fbKey) {
     venta = Object.assign({}, venta);
     ['creadaPor','creadaPorRol','createdBy','usuario','ts'].forEach(function(campo) { delete venta[campo]; });
@@ -15928,7 +15930,9 @@ function costoPropuestaFila(row, cod) {
 }
 function obtenerCostoUnitarioVenta(cod, item) {
   item = item || {};
+  if(item.costoVersion===1&&window.SVSaleCosts){var fijo=window.SVSaleCosts.unit(item);if(fijo!==null)return fijo;}
   var costoDirecto = parseFloat(item.costoUnitarioCompra || item.costoUnitario || item.costoCompra || item.compra || item.precioCompra || item.precio_compra || 0) || 0;
+  if(!(costoDirecto>0)&&window.SVSaleCosts){var referenciaGuardada=window.SVSaleCosts.unit(item);if(referenciaGuardada!==null&&item.comisionCostoHistoricoPendiente!==true)return referenciaGuardada;}
   var prod = obtenerProductoPorCodigoVenta(cod, item);
   var costoProd = prod ? precioGremioARSDesdeProducto(prod) : 0;
   // costoUnitarioCompra y campos equivalentes se guardan siempre en ARS. La
@@ -15948,6 +15952,7 @@ function obtenerCostoUnitarioVenta(cod, item) {
 
 function _costoItemVentaAuditado(item) {
   item = item || {};
+  if(item.costoVersion===1&&window.SVSaleCosts){var fijo=window.SVSaleCosts.unit(item);if(fijo!==null)return {costo:Math.round(fijo*Number(item.qty??item.cantidad??1)*100)/100,corregido:false,guardado:Number(item.costoTotalCompra??fijo*Number(item.qty??item.cantidad??1)),motivo:''};}
   var qty = parseFloat(item.qty || item.cantidad || 1) || 1;
   var totalGuardado = parseFloat(item.costoTotalCompra || item.costoTotal || item.costo) || 0;
   var prod = obtenerProductoPorCodigoVenta(item.cod || item.codigo, item);
@@ -43451,6 +43456,7 @@ async function spConfirmarResolucionVisita(reclamoKey, ventaKey, codigoVisita, m
       }
       return item;
     });
+    items=window.SVSaleCosts.prepare({items:items},venta).items;
     var brutoTotal = 0, subtotal = 0;
     items.forEach(function(item){
       var bruto = (parseFloat(item.qty) || 1) * (parseFloat(item.punit) || 0);
@@ -48090,6 +48096,7 @@ async function _svCargaOperacion__convertirPresupuestoEnVentaAtomico(p, ventaBas
     throw new Error('No hay conexión segura para convertir el presupuesto');
   }
   var vinculado=await window.SVCommercialOwnership.prepare('presupuestos',p.fbKey);Object.assign(p,vinculado.record);
+  ventaBase=window.SVSaleCosts.prepare(ventaBase,null);
   var fbKey = String(p.fbKey);
   var ventaFbKeyDeterminista = 'ppto_' + fbKey.replace(/[^A-Za-z0-9_-]/g, '_');
   var presupuestoRef = window.fbRef(window.fbDB, FB_PATHS.presupuestos + '/' + fbKey);
@@ -50329,6 +50336,7 @@ async function _svCargaOperacion_otGuardarCorreccionProductos(ot, materiales, ac
   }
   var materialesVentaOriginal = materiales.filter(function(material){ return material && material.destinoVenta !== 'nueva'; });
   items = spIntegrarMaterialesOT(Object.assign({},venta,{items:items}),Object.assign({},ot,{materiales:materialesVentaOriginal}));
+  items=window.SVSaleCosts.prepare({items:items},venta).items;
   var bruto = _redondearPrecioActual(items.reduce(function(n,i){return n+Number(i.qty)*Number(i.punit);},0));
   var neto = _redondearPrecioActual(items.reduce(function(n,i){return n+Number(i.sub);},0));
   var descuentoGeneral = _redondearPrecioActual(neto * Number(venta.descuentoGeneral || 0)/100);
@@ -50407,6 +50415,7 @@ async function _svCargaOperacion_otConfirmarVentaAdicional() {
   var items = _otCarritoAdicional.map(function(c) {
     return { cod:c.codigo, desc:c.nombre, qty:Number(c.cantidad || 1), punit:Number(c.precio || 0), sub:_redondearPrecioActual(Number(c.precio || 0) * Number(c.cantidad || 1)), adicionalOT:true, origenOTKey:ot.fbKey };
   });
+  try{items=window.SVSaleCosts.prepare({items:items},null).items;}catch(errorCosto){notify(errorCosto.message);return;}
   var total = _redondearPrecioActual(items.reduce(function(s,i){ return s + Number(i.sub || 0); }, 0));
 
   var fechaVentaAdicional = svFechaLocalISO();
@@ -50461,6 +50470,7 @@ async function _svCargaOperacion_otConfirmarVentaAdicional() {
     ts:           Date.now()
   };
   try {
+    venta=window.SVSaleCosts.prepare(venta,null);
     var ventaRef = window.fbPush(window.fbRef(window.fbDB, FB_PATHS.ventas));
     var ventaKey = ventaRef && ventaRef.key || '';
     if (!ventaKey) throw new Error('No se pudo generar la clave de la venta');
@@ -55068,7 +55078,7 @@ function renderDetalleVenta(v) {
                   (Number(it.costoUnitarioCompra)>0 && /^(exterior|paraguay)$/i.test(String(it.origenCompra||'')) ? '<span class="ppto-item-exterior-status applied">Compra exterior aplicada · '+escapeHTML(it.proveedorCompra||it.compraExteriorAplicada?.proveedor||'Proveedor seleccionado')+'</span>' : '') +
                 '</td>' +
                 '<td style="text-align:right;padding:8px 4px;border-bottom:.5px solid var(--border);font-size:13px">' + (it.qty||1) + '</td>' +
-                (puedeVerMargenVenta() && window._mostrarCostoCompraDetalleVenta ? ComparacionComercial.celdas(ComparacionComercial.calcular(Number(it.qty) || 1, costoUnit, (Number(it.qty) || 1) * (Number(it.punit) || 0) * (1 - (Number(it.disc) || 0) / 100), descuentoComparacionVenta)) : '') +
+                (puedeVerMargenVenta() && window._mostrarCostoCompraDetalleVenta ? window.SVSaleCosts.costCells(ComparacionComercial.celdas(ComparacionComercial.calcular(Number(it.qty) || 1, costoUnit, (Number(it.qty) || 1) * (Number(it.punit) || 0) * (1 - (Number(it.disc) || 0) / 100), descuentoComparacionVenta)),it) : '') +
                 '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px">' + precioUnitarioConDescuentoHTML(it.punit,it.disc) + '</td>' +
                 '<td style="text-align:right;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px;font-weight:500">' + importeComprobanteVenta(sub||0) + '</td>' +
               '</tr>';
