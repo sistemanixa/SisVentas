@@ -8,12 +8,38 @@ function setup(options={}){
  let failure=null,stamp=10000;
  const db={root:store.root,ref(path){const underlying=store.ref(path);return {...underlying,orderByChild(field){return {equalTo(value){return {get:async()=>({val:()=>Object.fromEntries(Object.entries(path.split('/').reduce((v,k)=>v?.[k],store.root)||{}).filter(([,r])=>r[field]===value))})};}};},transaction:async(fn,...args)=>{if(failure?.path===path){const e=failure;failure=null;throw Error(e.message||'Interrupción ficticia');}return underlying.transaction(fn,...args);}};}};
  const commercial=createCommercialOwnership({db,auth:{verifyIdToken:async uid=>{if(uid==='invalid')throw Error('invalid');return {uid};}},enabled:true});
- const svc=createCommissionGeneration({db,commercial,enabled:options.enabled!==false,from:1000,now:()=>stamp});
- return {db,svc,get sale(){return db.root.sisventas.ventas.sale;},actor:async(uid='a')=>svc.authorize({headers:{authorization:'Bearer '+uid}}),failAt:path=>failure={path},advance:ms=>stamp+=ms};
+ const proofChecks=[];const svc=createCommissionGeneration({db,commercial,enabled:options.enabled!==false,from:1000,now:()=>stamp,beforeCommit:Object.hasOwn(options,'beforeCommit')?options.beforeCommit:fn=>proofChecks.push(fn)});
+ return {db,svc,proofChecks,runProofChecks:async()=>{for(const check of proofChecks)await check({readFresh:async p=>(await db.ref(p).get()).val()});},get sale(){return db.root.sisventas.ventas.sale;},actor:async(uid='a')=>svc.authorize({headers:{authorization:'Bearer '+uid}}),failAt:path=>failure={path},advance:ms=>stamp+=ms};
 }
 test('usuario sin acceso a Comisiones genera su venta; no necesita permiso para administrar comisiones',async()=>{
  const s=setup(),actor=await s.actor();const p=await s.svc.inspect(actor,'sale');assert.equal(p.status,'lista');assert.equal(p.base.ganancia,120);assert.equal(p.participantes[0].monto,30);
  const r=await s.svc.generate(actor,{ventaFbKey:'sale'});assert.equal(r.status,'generada');const expenses=Object.values(s.db.root.sisventas.gastos);assert.equal(expenses.length,1);assert.equal(expenses[0].monto,30);assert.equal(expenses[0].estado,'pendiente_aprobacion');assert.equal(expenses[0].requiereAprobacion,true);assert.equal(s.sale.audit[0].actorUid,'a');assert.equal(s.sale.creadorOriginalNombre,'Autor de prueba');
+});
+
+test('confirmed collection proof generates original commission without giving commercial ownership',async()=>{
+ const s=setup(),cfg=s.db.root.sv_permisos.vendedor;cfg.indiceModulos.cobranzas=true;cfg.acciones.cobranzas={registrar:true};
+ const actor=await s.actor('b'),id='fictitious-collection-proof',digest='a'.repeat(64);
+ s.db.root.sv_labor_receipts={[id]:{actorUid:'b',confirmedAt:1000,digest,result:{ok:true,committed:true,grupoPago:'group',links:[{ventaKey:'sale',pagoKey:'p'}]}}};
+ s.db.root.sisventas.cobros_grupos={group:{commandId:id,commandDigest:digest,pagoKeys:{p:true}}};s.db.root.sisventas.pagos.p.grupoPago='group';
+ const first=await s.svc.generate(actor,{ventaFbKey:'sale',cobroOperacionId:id});assert.equal(first.status,'generada');await s.runProofChecks();
+ assert.equal((await s.svc.generate(actor,{ventaFbKey:'sale',cobroOperacionId:id})).reutilizada,true);
+ await assert.rejects(s.svc.inspect(actor,'sale'),{statusCode:404});await assert.rejects(s.svc.generate(actor,{ventaFbKey:'sale'}),{statusCode:404});
+ assert.equal(s.sale.responsableUid,'a');assert.equal(s.sale.empleadoFbKey,'e');assert.equal(s.sale.creadorOriginalNombre,'Autor de prueba');assert.equal(Object.keys(s.db.root.sisventas.gastos).length,1);assert.equal(Object.values(s.db.root.sisventas.gastos)[0].monto,30);
+ cfg.acciones.cobranzas.registrar=false;await assert.rejects(s.runProofChecks(),{statusCode:403});await assert.rejects(s.svc.generate(actor,{ventaFbKey:'sale',cobroOperacionId:id}),{statusCode:403});
+});
+
+test('collection proof fails closed without a final commit verifier',async()=>{
+ const s=setup({beforeCommit:null});await assert.rejects(s.svc.generate(await s.actor('b'),{ventaFbKey:'sale',cobroOperacionId:'fictitious-operation'}),{statusCode:503});
+ assert.equal(Object.keys(s.db.root.sisventas.gastos).length,0);assert.equal(s.db.root.sv_commission_generation,undefined);
+});
+
+test('rol técnico con Cobranzas explícito confirma comisión sin lectura comercial',async()=>{
+ const s=setup();s.db.root.sv_permisos.tecnico={indiceVersion:2,indiceModulos:{cobranzas:true,venta:false,detalle:false},acciones:{cobranzas:{registrar:true}}};
+ const actor=await s.actor('tech'),id='fictitious-tech-collection',digest='b'.repeat(64);
+ s.db.root.sv_labor_receipts={[id]:{actorUid:'tech',confirmedAt:1000,digest,result:{ok:true,committed:true,grupoPago:'group',links:[{ventaKey:'sale',pagoKey:'p'}]}}};
+ s.db.root.sisventas.cobros_grupos={group:{commandId:id,commandDigest:digest,pagoKeys:{p:true}}};s.db.root.sisventas.pagos.p.grupoPago='group';
+ assert.equal((await s.svc.generate(actor,{ventaFbKey:'sale',cobroOperacionId:id})).status,'generada');await s.runProofChecks();
+ await assert.rejects(s.svc.inspect(actor,'sale'),{statusCode:404});assert.equal(s.sale.responsableUid,'a');
 });
 test('anónimo, inválido, inactivo, usuario ajeno y técnico sin módulo no generan',async()=>{
  const s=setup();await assert.rejects(s.svc.authorize({headers:{}}),{statusCode:401});await assert.rejects(s.actor('invalid'),{statusCode:401});await assert.rejects(s.actor('tech'),{statusCode:403});await assert.rejects(s.svc.generate(await s.actor('b'),{ventaFbKey:'sale'}),{statusCode:404});s.db.root.sv_chat_roles.a.activo=false;await assert.rejects(s.actor(),{statusCode:403});assert.equal(Object.keys(s.db.root.sisventas.gastos).length,0);

@@ -18,6 +18,40 @@ function assertIndex(f){
  assert.deepEqual(coverage,copy(rebuilt.coverage));
  for(const [path,value]of Object.entries(rebuilt.patch))assert.deepEqual(f.get(path),copy(value));
 }
+
+test('administrativo autorizado cobra con PDF y recupera acuse sin duplicar ni leer cuenta privada',async()=>{
+ const f=fixture();f.state.sv_chat_roles.u.rol='administrativo';
+ f.state.sv_permisos={administrativo:{indiceVersion:2,indiceModulos:{cobranzas:true},acciones:{cobranzas:{registrar:true,anular:false}},indiceRevision:7}};
+ const body=f.register(100,{comprobante:{nombre:'Ficticio.pdf',tipo:'application/pdf',data:'data:application/pdf;base64,QQ=='}});
+ const before=copy(f.state.sisventas.ctaemp);
+ await f.commands.execute(f.actor,body);await f.commands.execute(f.actor,copy(body));
+ assert.equal(f.commits.length,1);assert.equal(Object.keys(f.get('sisventas/pagos')).length,1);
+ assert.equal(f.get('sisventas/ventas/v/totalPagado'),100);assert.equal(Object.keys(f.get('sisventas/cobros_adjuntos')).length,1);
+ assert.deepEqual(f.state.sisventas.ctaemp,before);assert.equal(f.reads.some(([,p])=>p.startsWith('sisventas/ctaemp')),false);
+});
+
+test('acuse y replay exponen sólo datos del cobro, nunca costos, comisionados ni documento comercial',async()=>{
+ const sale={id:'V-FICTICIA',total:100,subtotal:100,conIva:false,iva:0,cliente:'Cliente ficticio',direccion:'Dirección ficticia',comisionHabilitada:true,items:[{qty:1,punit:100,costoUnitarioCompra:41}],costos:{privado:41},comisionados:[{porcentaje:8}],comisionPct:8,audit:[{secreto:'interno'}],responsableUid:'otra-persona'};
+ const f=fixture({sales:{v:sale}}),body=f.register(100);
+ body.opciones.solicitudes[0].pago={fecha:'2026-10-29',costos:{privado:41},porcentajeComision:8};
+ body.opciones.comprobante={nombre:'Ficticio.pdf',tipo:'application/pdf',data:'data:application/pdf;base64,QQ==',costos:{privado:41}};
+ const first=await f.commands.execute(f.actor,body),read=f.store.readAsUser;
+ f.store.readAsUser=async(path,actor)=>{if(path.startsWith('sisventas/ventas/'))throw Error('GET comercial no autorizado');return read(path,actor);};
+ const replay=await f.commands.execute(f.actor,copy(body));
+ for(const response of [first,replay]){
+  const row=response.resultados[0];assert.equal(row.venta.total,100);assert.equal(row.venta.totalPagado,100);assert.equal(row.venta.comisionHabilitada,true);assert.equal(row.venta.direccion,sale.direccion);
+  for(const field of ['items','costos','comisionados','comisionPct','audit','responsableUid'])assert.equal(Object.hasOwn(row.venta,field),false,field);
+  assert.equal(Object.hasOwn(row.pago,'costos'),false);assert.equal(Object.hasOwn(row.pago,'porcentajeComision'),false);assert.equal(Object.hasOwn(row.pago.comprobanteAdjunto,'data'),false);
+ }
+ assert.equal(f.commits.length,1);assert.deepEqual(f.get('sisventas/ventas/v/items'),sale.items);assert.deepEqual(f.get('sisventas/ventas/v/comisionados'),sale.comisionados);assert.equal(f.get('sisventas/ventas/v/responsableUid'),'otra-persona');
+});
+
+test('replay no entrega proyección si revocan registrar durante su lectura interna',async()=>{
+ const f=fixture(),body=f.register();await f.commands.execute(f.actor,body);
+ const read=f.store.read;let changed=false;
+ f.store.read=async path=>{const value=await read(path);if(path==='sisventas/ventas/v'&&!changed){changed=true;f.state.sv_permisos={admin:{indiceVersion:2,indiceModulos:{cobranzas:true},acciones:{cobranzas:{registrar:false}}}};}return value;};
+ await assert.rejects(f.commands.execute(f.actor,copy(body)),{code:'SV_LABOR_COMMIT_UNCONFIRMED'});assert.equal(f.commits.length,1);
+});
 test('registro acotado confirma cobro, venta, grupo, índice y recibo en un commit',async()=>{
  const f=fixture(),before=copy(f.state.sisventas),body=f.register(),r=await f.commands.execute(f.actor,body);
  assert.equal(r.resultados[0].venta.totalPagado,40);assert.equal(r.resultados[0].pago.monto,40);assert.equal(f.commits.length,1);
@@ -153,3 +187,26 @@ test('circuito apagado no inicia lecturas ni escrituras',async()=>{
  const f=fixture({enabled:false});await assert.rejects(f.commands.execute(f.actor,f.register()),{code:'SV_PAYMENTS_NOT_ENABLED'});assert.equal(f.reads.length,0);assert.equal(f.commits.length,0);
 });
 module.exports={fixture,assertIndex};
+
+test('registrar por rol no exige lectura comercial ni cambia el responsable de venta',async()=>{
+ const f=fixture({sales:{v:{id:'V-0001',total:100,creadaPor:'Otro usuario ficticio',responsableUid:'otro',items:[{cod:'P',qty:1,punit:100,costoUnitarioCompra:40}],comisionados:['otro']}}});
+ f.state.sv_chat_roles.u.rol='administrativo';
+ (f.state.sv_permisos||={}).administrativo={indiceVersion:2,indiceRevision:3,indiceModulos:{cobranzas:true},acciones:{cobranzas:{registrar:true}}};
+ const prior=copy(f.get('sisventas/ventas/v')),read=f.store.readAsUser;
+ f.store.readAsUser=async(path,actor)=>{if(path.startsWith('sisventas/ventas/'))throw Object.assign(Error('No permite edición comercial'),{statusCode:403});return read(path,actor);};
+ await f.commands.execute(f.actor,f.register());
+ const after=f.get('sisventas/ventas/v');for(const key of ['responsableUid','creadaPor','items','comisionados','total'])assert.deepEqual(after[key],prior[key]);
+ assert.equal(after.totalPagado,40);assert.equal(f.commits.length,1);
+});
+
+test('una acción revocada no permite ni la lectura interna de venta para el cobro',async()=>{
+ const f=fixture();f.state.sv_chat_roles.u.rol='administrativo';(f.state.sv_permisos||={}).administrativo={indiceVersion:2,indiceRevision:3,indiceModulos:{cobranzas:true},acciones:{cobranzas:{registrar:false}}};
+ await assert.rejects(f.commands.execute(f.actor,f.register()),{statusCode:403});assert.equal(f.commits.length,0);assert.equal(f.reads.some(([,path])=>path==='sisventas/ventas/v'),false);
+});
+
+test('otro rol interno sólo cobra con módulo y acción expresamente habilitados',async()=>{
+ for(const allowed of [false,true]){const f=fixture();f.state.sv_chat_roles.u.rol='tecnico';
+  (f.state.sv_permisos||={}).tecnico={indiceVersion:2,indiceRevision:3,indiceModulos:{cobranzas:true},acciones:{cobranzas:{registrar:allowed}}};
+  if(allowed){await f.commands.execute(f.actor,f.register());assert.equal(f.commits.length,1);}else{await assert.rejects(f.commands.execute(f.actor,f.register()),{statusCode:403});assert.equal(f.commits.length,0);}
+ }
+});

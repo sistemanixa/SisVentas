@@ -18,12 +18,23 @@ function paid(sale,related){
  return selected.length?selected.reduce((n,p)=>n+(parseFloat(p.monto)||0),0):parseFloat(sale.totalPagado||sale.pagado||sale.montoPagado)||0;
 }
 function summary(sale,related){const total=Sales.saleTotal(sale),selected=related.length?related.filter(validPayment):embedded(sale),raw=selected.reduce((n,p)=>n+(parseFloat(p.monto)||0),0),amount=money(raw);return {total,pagado:Math.min(total>0?total:raw,amount),estadoPago:total>0&&raw>=total-.01?'pago_total':raw>0?'seniado':'pendiente_pago'};}
+function publicFields(record,fields){
+ const out={};for(const field of fields){const value=record?.[field];if(value===null||['string','boolean'].includes(typeof value)||typeof value==='number'&&Number.isFinite(value))out[field]=value;}return out;
+}
+function collectionResult(payment,sale,saleKey,collectionOperation){
+ // Collection permission never grants the caller the commercial document.
+ const venta=publicFields(sale,['id','idOriginal','numeroOriginal','ventaIdOriginal','numero','ventaId','idVenta','nro','codigo','ventaFbKey','ventaKey','cliente','clienteFbKey','clienteKey','clienteId','idCliente','direccion','dir','direccionInstalacion','totalPagado','pagado','montoPagado','estadoPago','comisionHabilitada']);
+ venta.fbKey=saleKey;venta.total=Sales.saleTotal(sale);if(collectionOperation)venta.cobroOperacionId=collectionOperation;
+ const pago=publicFields(payment,['fbKey','id','venta','ventaId','ventaFbKey','ventaKey','cliente','clienteFbKey','clienteKey','clienteId','fecha','monto','totalVenta','saldoAnterior','saldoRestante','medio','referencia','ref','obs','usuario','ts','origen','grupoPago','pagoGrupoTotal','imputacionOrden','imputacionesTotal','moneda','montoOriginal','montoUSD','tipoCambio','cotizacionTipo','cotizacionReferencia','cotizacionEditada','cotizacionFuenteFecha','comprobanteRef','anulado','estado','anuladoFecha','anuladoPor','anuladoMotivo']);
+ if(record(payment?.comprobanteAdjunto))pago.comprobanteAdjunto=publicFields(payment.comprobanteAdjunto,['nombre','tipo','ts','refKey']);
+ return {pago,venta};
+}
 function createPaymentCommands({authorize,db,guard,store,enabled=false,now=Date.now}={}){
  if(typeof authorize!=='function'||!guard?.run||!store?.readAsUser)throw TypeError('Falta el circuito de cobros');
- const load=createPaymentSnapshot({store});
+ const load=createPaymentSnapshot({store,financialSales:true});
  async function access(scope,actor,action){
   const identity=await scope.get('sv_chat_roles/'+actor.uid);
-  if(identity?.activo!==true||!['admin','administrativo','vendedor','tecnico_vendedor'].includes(identity.rol))throw fail(403,'Usuario sin acceso');
+  if(identity?.activo!==true||!['admin','administrativo','vendedor','tecnico_vendedor','tecnico'].includes(identity.rol))throw fail(403,'Usuario sin acceso');
   const config=await scope.get('sv_permisos/'+identity.rol)||{},blocked=Object.values(config.bloqueados||{});
   if(blocked.includes('cobranzas')||(Object.keys(config).length&&(config.indiceVersion!==2||config.indiceModulos?.cobranzas!==true)))throw fail(403,'Sin permiso para registrar cobros');
   const granted=config.acciones?.cobranzas?.[action];
@@ -49,24 +60,28 @@ function createPaymentCommands({authorize,db,guard,store,enabled=false,now=Date.
   }
   if(o.comprobante!=null&&(!record(o.comprobante)||typeof o.comprobante.data!=='string'||!/^data:(application\/pdf|image\/(jpeg|png|webp));base64,[A-Za-z0-9+/=\r\n]+$/.test(o.comprobante.data)))throw fail(400,'Comprobante inválido');
  }
- async function hydrate(actor,result){
+ async function hydrate(actor,result,captured,action,operationId){
   // Receipt recovery returns a current, internally consistent view. Payment
   // sequence brackets the exact reads; a sale-only edit is checked separately.
   // No financial operation is replayed and no hydration receipt is written.
   for(let attempt=0;attempt<3;attempt++){
-   const before=Index.validateCoverage(await store.read(Index.COVERAGE_PATH)),out=[];
+   const before=Index.validateCoverage(await store.read(Index.COVERAGE_PATH)),out=[],saleDigests=[];
    for(const link of result.links||[]){
-    const payment=await store.readAsUser('sisventas/pagos/'+link.pagoKey,actor),sale=await store.readAsUser('sisventas/ventas/'+link.ventaKey,actor);
+    const payment=await store.readAsUser('sisventas/pagos/'+link.pagoKey,actor),sale=await store.read('sisventas/ventas/'+link.ventaKey);
     if(!payment||!sale)throw fail(409,'El cobro está confirmado, pero su venta o registro ya no está disponible');
-    out.push({pago:{...payment,fbKey:link.pagoKey},venta:{...sale,fbKey:link.ventaKey}});
+    saleDigests.push(digest(sale));out.push(collectionResult({...payment,fbKey:link.pagoKey},sale,link.ventaKey,action==='registrar'?operationId:undefined));
    }
    let changed=false;
    for(let i=0;i<(result.links||[]).length;i++){
-    const link=result.links[i],sale=await store.readAsUser('sisventas/ventas/'+link.ventaKey,actor);
-    if(digest({...sale,fbKey:link.ventaKey})!==digest(out[i].venta)){changed=true;break;}
+    const link=result.links[i],sale=await store.read('sisventas/ventas/'+link.ventaKey);
+    if(digest(sale)!==saleDigests[i]){changed=true;break;}
    }
    const after=Index.validateCoverage(await store.read(Index.COVERAGE_PATH));
-   if(!changed&&digest(before)===digest(after))return {...result,resultados:out,replayed:true,currentView:true};
+   if(!changed&&digest(before)===digest(after)){
+    const current=await access({get:path=>store.read(path)},actor,action);
+    if(current.role!==captured.role||current.permissionDigest!==captured.permissionDigest||current.permissionRevision!==captured.permissionRevision)throw fail(403,'Los permisos del cobro cambiaron');
+    return {...result,resultados:out,replayed:true,currentView:true};
+   }
   }
   throw fail(409,'El cobro está confirmado y su vista cambió. Volvé a consultar la operación.');
  }
@@ -99,7 +114,7 @@ function createPaymentCommands({authorize,db,guard,store,enabled=false,now=Date.
      patch['sisventas/pagos/'+paymentKey]=payment;
      patch['sisventas/ventas/'+key+'/totalPagado']=nextPaid;patch['sisventas/ventas/'+key+'/estadoPago']=nextPaid>=total-.01?'pago_total':'seniado';
      paymentKeys[paymentKey]=true;links.push({pagoKey:paymentKey,ventaKey:key});
-     rows.push({pago:structuredClone(payment),venta:{...sale,totalPagado:nextPaid,estadoPago:patch['sisventas/ventas/'+key+'/estadoPago']}});
+     rows.push(collectionResult(payment,{...sale,totalPagado:nextPaid,estadoPago:patch['sisventas/ventas/'+key+'/estadoPago']},key,body.id));
     }
     patch[group]={...(o.cabecera||{}),grupoPago:o.grupoPago,origen:String(o.origen||'cobranzas'),monto:totalRequested,pagoKeys:paymentKeys,adjuntoKey:attachmentKey,cantidadImputaciones:links.length,usuario:o.usuario||person.name,ts:Number(o.ts)||now(),commandId:body.id,commandDigest:digest(body)};
     if(o.comprobante){const attachment='sisventas/cobros_adjuntos/'+attachmentKey;if(await scope.get(attachment))throw fail(409,'La referencia del comprobante ya está ocupada');patch[attachment]=o.comprobante;}
@@ -110,12 +125,12 @@ function createPaymentCommands({authorize,db,guard,store,enabled=false,now=Date.
    const next={...payment,anulado:true,estado:'anulado',anuladoFecha:String(body.fecha||new Date(now()).toLocaleDateString('en-CA',{timeZone:'America/Argentina/Buenos_Aires'})),anuladoPor:person.name,anuladoMotivo:String(body.motivo||'').slice(0,2000)};
    const related=snapshot.bySale[body.ventaKey].map(p=>p.fbKey===body.pagoKey?next:p);
    const totals=summary(sale,related),patch={['sisventas/pagos/'+body.pagoKey]:next,['sisventas/ventas/'+body.ventaKey+'/totalPagado']:totals.pagado,['sisventas/ventas/'+body.ventaKey+'/estadoPago']:totals.estadoPago};
-   await scope.update(patch);confirmedRows=[{pago:next,venta:{...sale,totalPagado:totals.pagado,estadoPago:totals.estadoPago}}];return {ok:true,committed:true,links:[{pagoKey:body.pagoKey,ventaKey:body.ventaKey}]};
+   await scope.update(patch);confirmedRows=[collectionResult(next,{...sale,totalPagado:totals.pagado,estadoPago:totals.estadoPago},body.ventaKey)];return {ok:true,committed:true,links:[{pagoKey:body.pagoKey,ventaKey:body.ventaKey}]};
   });
   if(confirmedRows)return {...result,resultados:confirmedRows,replayed:false};
-  try{return await hydrate(actor,result);}
+  try{return await hydrate(actor,result,captured,body.kind,body.id);}
   catch(_){throw fail(503,'El cobro se guardó, pero no se pudo recuperar su resultado. Consultá la operación antes de repetirlo.','SV_LABOR_COMMIT_UNCONFIRMED');}
  }
  return {authorize,execute,capability:()=>enabled};
 }
-module.exports={createPaymentCommands,paid,summary,validPayment,validSale};
+module.exports={createPaymentCommands,collectionResult,paid,summary,validPayment,validSale};

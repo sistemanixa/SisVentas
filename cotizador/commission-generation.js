@@ -1,13 +1,14 @@
 'use strict';
 const crypto=require('node:crypto'),M=require('./commission-generation-model');
 const {description:commissionDescription}=require('./commission-public-response');
+const CollectionProof=require('./commission-collection-proof');
 const fail=(statusCode,message)=>Object.assign(Error(message),{statusCode});
 const validKey=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
 const leaseMs=120000;
 async function tx(ref,update){
  let listener;try{await new Promise((resolve,reject)=>{listener=()=>resolve();ref.on('value',listener,reject);});return await ref.transaction(update,undefined,false);}finally{if(listener)ref.off('value',listener);}
 }
-function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date.now,logger=()=>{}}){
+function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date.now,logger=()=>{},beforeCommit}){
  const read=async path=>(await db.ref(path).get()).val();
  const jobId=id=>'srv_'+M.hash(id).slice(0,40);
  async function readEmployees(sale){
@@ -37,10 +38,25 @@ function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date
   const data={sale,payments,employees:employees||{},config:config||{},existing};return {data,preview:M.preview(data)};
  }
  async function inspect(actor,id){await commercial.assertRecord(actor,'ventas',id);const job=await read('sv_commission_generation/'+id);const p=(await load(id,job?.estado!=='completada'?job?.generacionServidorId:undefined)).preview;return job&&job.estado!=='completada'?{...p,status:'revision',motivo:job.estado==='revision'?'La generación incompleta requiere conciliación':'La generación está en curso o pendiente de reintento'}:p;}
+ async function readCollectionProof(reader,actor,body){
+  if(typeof reader!=='function')throw fail(503,'Falta verificar el cobro antes de confirmar');
+  const [receipt,profile,reset]=await Promise.all([reader('sv_labor_receipts/'+body.cobroOperacionId),reader('sv_chat_roles/'+actor.uid),reader('sv_access_resets/'+actor.uid)]);
+  const refs=CollectionProof.collectionProofReferences(receipt,body.ventaFbKey);
+  if(!['admin','administrativo','vendedor','tecnico_vendedor','tecnico'].includes(profile?.rol))throw fail(403,'Usuario sin acceso al cobro');
+  const [permissions,group,payment]=await Promise.all([reader('sv_permisos/'+profile.rol),reader('sisventas/cobros_grupos/'+refs.groupKey),reader('sisventas/pagos/'+refs.paymentKey)]);
+  return CollectionProof.validateCollectionProof({actor,saleKey:body.ventaFbKey,operationId:body.cobroOperacionId,receipt,profile,permissions,group,payment,reset});
+ }
  async function generate(actor,body,{system=false}={}){
   if(!enabled)throw fail(503,'Generación automática no habilitada');
-  if(!body||Object.keys(body).some(k=>!['ventaFbKey','digest'].includes(k))||!validKey(body.ventaFbKey))throw fail(400,'Enviá únicamente la referencia de la venta');
-  const id=body.ventaFbKey;if(!system)await commercial.assertRecord(actor,'ventas',id);
+  if(!body||Object.keys(body).some(k=>!['ventaFbKey','digest','cobroOperacionId'].includes(k))||!validKey(body.ventaFbKey)||Object.hasOwn(body,'cobroOperacionId')&&(!CollectionProof.validCollectionOperationId(body.cobroOperacionId)||system))throw fail(400,'Enviá únicamente la referencia de la venta');
+  const id=body.ventaFbKey;
+  if(!system){
+   if(Object.hasOwn(body,'cobroOperacionId')){
+    if(typeof beforeCommit!=='function')throw fail(503,'Falta verificar el cobro antes de confirmar');
+    await readCollectionProof(read,actor,body);
+    beforeCommit(async({readFresh})=>{await readCollectionProof(readFresh,actor,body);});
+   }else await commercial.assertRecord(actor,'ventas',id);
+  }
   const ref=db.ref('sv_commission_generation/'+id),known=(await ref.get()).val();
   if(known?.estado==='completada')return {status:'generada',participantes:known.plan.participantes,reutilizada:true};
   const own=known?.generacionServidorId;

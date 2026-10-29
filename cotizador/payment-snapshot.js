@@ -10,7 +10,7 @@ async function pool(items,work){
 }
 // One request/fence only. Never interprets an absent bucket as proof of coverage.
 // Source records, including annulled payments, remain the accounting authority.
-function createPaymentSnapshot({store,maxCandidates=10000}={}){
+function createPaymentSnapshot({store,maxCandidates=10000,financialSales=false}={}){
  if(!store?.readAsUser)throw TypeError('Falta la lectura autorizada de cobros');
  return async function load(scope,actor,saleKeys){
   if(!scope?.get||!actor?.uid||actor.claims?.uid!==actor.uid||!Array.isArray(saleKeys)||!saleKeys.length||saleKeys.length>100||new Set(saleKeys).size!==saleKeys.length)throw fail(400,'Ventas del cobro inválidas');
@@ -27,7 +27,11 @@ function createPaymentSnapshot({store,maxCandidates=10000}={}){
   };
   const sales=Object.create(null),payments=Object.create(null),bySale=Object.create(null);
   await pool(saleKeys,async key=>{
-   Index.recordKey(key);const value=await readUser('sisventas/ventas/'+key);
+   Index.recordKey(key);const path='sisventas/ventas/'+key;
+   if(financialSales){const context=scope.actor;if(context?.uid!==actor.uid||context.mode!=='user'||!['cobranzas.registrar','cobranzas.anular'].includes(context.financialAction)||!context.role||!context.permissionDigest)throw fail(403,'Falta verificar el permiso de cobro','SV_PAYMENT_ACTION_REQUIRED');}
+   // La operación financiera autorizada lee sólo la venta indicada internamente.
+   // Esto no concede lectura comercial ni devuelve su contenido al navegador.
+   const value=financialSales?await read(path):await readUser(path);
    if(!value||typeof value!=='object'||Array.isArray(value))throw fail(409,'La venta ya no está disponible para cobrar','SV_PAYMENT_SALE_MISSING');
    sales[key]={...value,fbKey:key};
   });

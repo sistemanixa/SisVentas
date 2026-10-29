@@ -12,6 +12,13 @@ function fixture({status=200,result={ok:true,status:'generada',participantes:[{e
  root.window=root;vm.runInNewContext(source,root);
  return {root,calls,deadlines,result,tokens:()=>tokens,hold(){let release;transport=new Promise(resolve=>release=resolve);return release;}};
 }
+
+test('generación posterior al cobro envía sólo referencia y acuse, sin importes o costos',async()=>{
+ const f=fixture();await f.root.SVCommissionGeneration.generate({...sale,cobroOperacionId:'fictitious-collection-01',costos:123,comisionPct:20});
+ assert.deepEqual(JSON.parse(f.calls[0].options.body),{ventaFbKey:sale.fbKey,cobroOperacionId:'fictitious-collection-01'});
+ await f.root.SVCommissionGeneration.request('revisar',{...sale,cobroOperacionId:'fictitious-collection-01'});
+ assert.deepEqual(JSON.parse(f.calls[1].options.body),{ventaFbKey:sale.fbKey});
+});
 test('sin comisión habilitada devuelve no_aplica explícito sin pedir token ni llamar al servidor',async()=>{
  const f=fixture();for(const record of [null,{fbKey:sale.fbKey},{...sale,comisionHabilitada:false}]){const result=await f.root.SVCommissionGeneration.generate(record);assert.equal(result.status,'no_aplica');assert.deepEqual(Array.from(result.participantes),[]);}
  assert.equal(f.tokens(),0);assert.equal(f.calls.length,0);assert.deepEqual(f.deadlines,[]);

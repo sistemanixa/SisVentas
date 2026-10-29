@@ -68,7 +68,7 @@ const personalHoursReader = require('./personal-hours-reader').createPersonalHou
 const personalExpenses = require('./personal-expenses').createPersonalExpenses({authorize:laborSubmissions.authorize,transaction:laborTransaction});
 const supplierDirectory = require('./supplier-directory').createSupplierDirectory({authorize:employeeDirectory.authorize,db});
 const commissionOperations = require('./commission-operations').createCommissionOperations({auth:businessAuth,db,transaction:laborTransaction});
-const commissionGenerationBase = require('./commission-generation').createCommissionGeneration({db,commercial:commercialOwnership,enabled:process.env.COMMISSION_GENERATION_ENABLED==='true',from:Date.parse(process.env.COMMISSION_GENERATION_FROM||''),logger:status=>console.log(JSON.stringify(status))});
+const commissionGenerationBase = require('./commission-generation').createCommissionGeneration({db,commercial:commercialOwnership,beforeCommit:fn=>{const scope=laborRuntime.guard.current();if(!scope)throw Object.assign(Error('Falta el contexto de cobro confirmado'),{statusCode:503});scope.beforeCommit(fn);},enabled:process.env.COMMISSION_GENERATION_ENABLED==='true',from:Date.parse(process.env.COMMISSION_GENERATION_FROM||''),logger:status=>console.log(JSON.stringify(status))});
 const commissionGeneration={...commissionGenerationBase,
  generate:(actor,body)=>laborRuntime.run(actor,'generate-commission',body,()=>commissionGenerationBase.generate(actor,body)),
  systemGenerate:id=>laborRuntime.run(null,'system-commission',{id},()=>commissionGenerationBase.systemGenerate(id),{system:true}),
@@ -2118,7 +2118,7 @@ const server = http.createServer(async (req, res) => {
       if(req.method!=='POST'){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
       if(requestUrl.searchParams.has('verComo')){send(res,403,{ok:false,mensaje:'Volvé a tu cuenta para generar comisiones'});return;}
       const actor=await commissionGeneration.authorize(req),body=await readBody(req,4096);
-      if(Object.keys(body||{}).some(k=>!['ventaFbKey','digest'].includes(k)))throw Object.assign(Error('Solicitud inválida'),{statusCode:400});
+      if(Object.keys(body||{}).some(k=>!['ventaFbKey','digest','cobroOperacionId'].includes(k)))throw Object.assign(Error('Solicitud inválida'),{statusCode:400});
       const result=pathname.endsWith('/revisar')?await commissionGeneration.inspect(actor,body.ventaFbKey):await commissionGeneration.generate(actor,body);
       send(res,200,{ok:true,...commissionPublic.response(result)});
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:commissionPublic.errorMessage(e)});}

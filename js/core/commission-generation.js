@@ -34,7 +34,8 @@
   if(!venta?.fbKey)throw Error('Falta la referencia guardada de la venta');
   const token=await user.getIdToken();if(user!==root.fbAuth.currentUser||uid!==root.currentUserUid)throw Error('La sesión cambió');
   const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servicio no disponible');
-  const res=await fetch(base+'/comisiones/generacion/'+action,{method:'POST',cache:'no-store',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({ventaFbKey:venta.fbKey}),signal:AbortSignal.timeout(60000)});
+  const payload={ventaFbKey:venta.fbKey};if(action==='generar'&&typeof venta.cobroOperacionId==='string'&&/^[A-Za-z0-9_-]{8,160}$/.test(venta.cobroOperacionId))payload.cobroOperacionId=venta.cobroOperacionId;
+  const res=await fetch(base+'/comisiones/generacion/'+action,{method:'POST',cache:'no-store',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(60000)});
   const result=await res.json();if(user!==root.fbAuth.currentUser||uid!==root.currentUserUid)throw Error('La sesión cambió');
   if(!res.ok||!result.ok){
    const message=result.mensaje||'La comisión quedó pendiente';
