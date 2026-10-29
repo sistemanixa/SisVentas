@@ -44350,6 +44350,7 @@ function gastosFiltradosActuales() {
   }
 
   return gastosVisiblesModulo.filter(function(g){
+    var origenCobertura=window._svSalaryExpenseFilter;if(origenCobertura&& !SVSalaryCoverage.businessTotal({item:g},[origenCobertura.category],origenCobertura.period).lines.length)return false;
     var tipoNorm   = normalizarTipoGasto(g);
     var estadoNorm = normalizarEstadoGasto(g);
     var matchTipo   = !fTipo   || tipoNorm === fTipo;
@@ -44517,6 +44518,9 @@ function cambiarPaginaGastos(pagina) {
 }
 
 function renderTablaGastos() {
+  var filtroCobertura=window._svSalaryExpenseFilter, listaCobertura=document.getElementById('gasto-list');
+  if(listaCobertura&&typeof listaCobertura.querySelector==='function'){var avisoCobertura=listaCobertura.querySelector('[data-salary-filter]');if(filtroCobertura){if(!avisoCobertura){avisoCobertura=document.createElement('div');avisoCobertura.dataset.salaryFilter='';avisoCobertura.className='salary-note';var textoCobertura=document.createElement('span');avisoCobertura.append(textoCobertura);var quitarCobertura=document.createElement('button');quitarCobertura.type='button';quitarCobertura.className='btn btn-sm';quitarCobertura.textContent='Quitar filtro';quitarCobertura.onclick=function(){var buscar=document.getElementById('gas-buscar');if(buscar)buscar.value='';filtrarGastos();};avisoCobertura.append(quitarCobertura);listaCobertura.prepend(avisoCobertura);}avisoCobertura.firstChild.textContent=filtroCobertura.category+' · '+filtroCobertura.period.start+' al '+filtroCobertura.period.end+' · gastos incluidos en el cálculo ';}else if(avisoCobertura)avisoCobertura.remove();}
+
   var tbody = document.getElementById('gastos-tbody');
   if (!tbody) return;
   var paginador = document.getElementById('gastos-paginacion');
@@ -44533,7 +44537,7 @@ function renderTablaGastos() {
     : gastosFiltradosActuales();
   // Última barrera de presentación: ningún acceso alternativo, KPI guardado o
   // registro histórico puede reinsertar una comisión que todavía se evalúa.
-  lista = lista.filter(function(g){ return gastoVisibleEnModuloGastos(g) && !_gastoEstaRetirado(g); });
+  lista = lista.filter(function(g){ var filtro=window._svSalaryExpenseFilter;return gastoVisibleEnModuloGastos(g) && !_gastoEstaRetirado(g) && (!filtro||SVSalaryCoverage.businessTotal({item:g},[filtro.category],filtro.period).lines.length>0); });
   tbody.dataset.kpiFiltro = String(window._filtroGastosKpiActivo || '');
   tbody.dataset.cantidadFiltrada = String(lista.length);
   var clavesDiagnosticoKpi = window._gastosKpiDetalleKeys && window._gastosKpiDetalleKeys[window._filtroGastosKpiActivo || ''];
@@ -44692,6 +44696,7 @@ function _claveGastoKpi(g) {
 
 function filtrarGastos(conservarKpi) {
   if (conservarKpi !== true) {
+    window._svSalaryExpenseFilter = null;
     window._filtroGastosKpiActivo = '';
     window._filtroGastosKpiVence = null;
     window._filtroGastosKpiReembolso = null;

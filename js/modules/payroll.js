@@ -51,6 +51,7 @@
     var mes3m = (function(){ var d=new Date(hoyD); d.setMonth(d.getMonth()-2); return d.toISOString().slice(0,7); })();
     var anioActual = String(hoyD.getFullYear());
     return (window.gastosData || gastosData || []).filter(function(g){
+      var origenCobertura=window._svSalaryExpenseFilter;if(origenCobertura&&!window.SVSalaryCoverage.businessTotal({item:g},[origenCobertura.category],origenCobertura.period).lines.length)return false;
       var tipoNorm   = normalizarTipoGasto(g);
       var estadoNorm = normalizarEstadoGasto(g);
       var matchTipo   = !fTipo   || tipoNorm === fTipo;
