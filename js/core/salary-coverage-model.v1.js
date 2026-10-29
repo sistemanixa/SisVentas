@@ -10,6 +10,48 @@ for(const [key,sale]of Object.entries(input.sales||{})){if(dead(sale)||['borrado
 if(unknown){incomeReady=false;issues.push('Clasificación de productos sin confirmar: '+(sale.id||key));}if(unknownCost||unknown)costReady=false;if(unknownCost)issues.push('Falta costo técnico guardado: '+(sale.id||key));income+=round(si);cost+=round(sc);salesLines.push({key,id:sale.id||key,date:sale.fecha,income:round(si),cost:unknownCost?null:round(sc),incomplete:unknown});}
 if(input.coverage?.legacyDatesUnknown){incomeReady=false;issues.push('El período contiene fechas históricas que necesitan revisión; no se presenta como total definitivo.');}if(input.coverage?.missingPeriods){payrollReady=false;issues.push('Hay conceptos con período laboral desconocido; revisar antes de tomar el total como definitivo.');}
 const salary=payrollReady?round(payroll):null,net=incomeReady?round(income):null,planned=costReady?round(cost):null;return{period:p,staff,salary,knownSalary:round(payroll),income:net,knownIncome:round(income),plannedCost:planned,coverage:salary>0&&net!==null?net/salary:null,plannedCoverage:salary>0&&planned!==null?planned/salary:null,difference:salary!==null&&net!==null?round(net-salary):null,plannedMargin:net!==null&&planned!==null?round(net-planned):null,provisional,issues:[...new Set(issues)],salaryLines,salesLines};}
+// Payroll funding uses saved historical labour costs, independently of sale price,
+// commercial discounts or VAT. Never substitute today's catalogue cost.
+function historicalCost(item){
+ const number=v=>typeof v==='string'&&/^\d+(?:\.\d+)?$/.test(v.trim())?money(Number(v)):money(v);
+  for(const key of ['costoTotalCompra','costoTotal','costo'])if(item[key]!=null)return number(item[key]);
+  const qty=number(item.qty??item.cantidad);if(qty===null)return null;
+  for(const key of ['costoUnitarioCompra','costoUnitario','costoCompra','compra','precioCompra','precio_compra'])if(item[key]!=null)return number(item[key])===null?null:round(number(item[key])*qty);
+  return null;
+}
+function laborFunding(input){
+ const p=period(input.month,input.semester),lines=[],issues=[];let total=0,ready=true,provisional=false;
+ const savedCost=historicalCost;
+ for(const [key,sale]of Object.entries(input.sales||{})){
+  if(dead(sale)||['borrador','revision','pendiente_aprobacion'].includes(norm(sale.estado||sale.estadoPago))||!p.months.includes(String(sale.fecha||'').slice(0,7)))continue;
+  let amount=0,complete=true,hasLabor=false;const items=rows(sale.items);
+  if(!items.length||sale.notaCredito||sale.moneda&&sale.moneda!=='ARS'){complete=false;issues.push('Revisar costo de mano de obra: '+(sale.id||key));}
+  for(const item of items){const cls=classify(item,input.products);if(cls.labor===null){complete=false;issues.push('No se pudo identificar la mano de obra: '+(sale.id||key));continue;}if(!cls.verified)provisional=true;if(!cls.labor)continue;hasLabor=true;const cost=savedCost(item);if(cost===null){complete=false;issues.push('Falta costo de mano de obra guardado: '+(sale.id||key));}else amount+=cost;}
+  if(!complete)ready=false;total+=round(amount);
+  if(hasLabor||!complete)lines.push({key,id:sale.id||key,date:sale.fecha,cost:complete?round(amount):null});
+ }
+ if(input.coverage?.legacyDatesUnknown){ready=false;issues.push('Hay ventas sin fecha confirmada.');}
+ return{total:ready?round(total):null,knownTotal:round(total),lines,issues:[...new Set(issues)],provisional};
+}
+function grossMargins(input){
+ const p=period(input.month,input.semester),lines=[],issues=[],groups={labor:{sales:0,cost:0,ready:true},products:{sales:0,cost:0,ready:true}};let provisional=false;
+ for(const [key,sale]of Object.entries(input.sales||{})){
+  if(dead(sale)||['borrador','revision','pendiente_aprobacion'].includes(norm(sale.estado||sale.estadoPago))||!p.months.includes(String(sale.fecha||'').slice(0,7)))continue;
+  const items=rows(sale.items),subtotal=money(sale.subtotal),total=money(sale.total),vat=money(sale.iva??0),sum=items.reduce((n,i)=>money(i.sub)===null?NaN:n+i.sub,0);
+  if(!items.length||sale.notaCredito||sale.moneda&&sale.moneda!=='ARS'||subtotal===null||total===null||vat===null||Math.abs(subtotal+vat-total)>.021||!Number.isFinite(sum)||sum<subtotal-.021){groups.labor.ready=groups.products.ready=false;issues.push('Revisar importes o ajustes de venta: '+(sale.id||key));continue;}
+  const buckets={labor:{sales:0,cost:0,ready:true},products:{sales:0,cost:0,ready:true}};let classified=true;
+  for(const item of items){const cls=classify(item,input.products);if(cls.labor===null){classified=false;continue;}if(!cls.verified)provisional=true;const bucket=buckets[cls.labor?'labor':'products'];bucket.sales+=item.sub;const cost=historicalCost(item);if(cost===null)bucket.ready=false;else bucket.cost+=cost;}
+  if(!classified){groups.labor.ready=groups.products.ready=false;issues.push('Revisar clasificación de la venta: '+(sale.id||key));continue;}
+  // Stored line subtotals already include item discounts. Allocate the actual
+  // document discount once; the remainder preserves the net subtotal to a cent.
+  buckets.labor.sales=round(sum?buckets.labor.sales*subtotal/sum:0);buckets.products.sales=round(subtotal-buckets.labor.sales);
+  for(const name of ['labor','products']){const bucket=buckets[name];bucket.cost=round(bucket.cost);bucket.profit=bucket.ready?round(bucket.sales-bucket.cost):null;groups[name].sales+=bucket.sales;groups[name].cost+=bucket.cost;if(!bucket.ready){groups[name].ready=false;issues.push('Falta costo guardado de '+(name==='labor'?'mano de obra':'productos')+': '+(sale.id||key));}}
+  lines.push({key,id:sale.id||key,date:sale.fecha,...buckets});
+ }
+ if(input.coverage?.legacyDatesUnknown){groups.labor.ready=groups.products.ready=false;issues.push('Hay ventas sin fecha confirmada.');}
+ for(const group of Object.values(groups)){group.sales=round(group.sales);group.cost=group.ready?round(group.cost):null;group.profit=group.ready?round(group.sales-group.cost):null;}
+ return{...groups,lines,issues:[...new Set(issues)],provisional};
+}
 function businessTotal(expenses,categories,p){
  let total=0,ready=true;const lines=[],issues=[];
  for(const [key,g] of Object.entries(expenses||{})){
@@ -23,4 +65,4 @@ function businessTotal(expenses,categories,p){
  }
  return{total:ready?round(total):null,lines,issues};
 }
-return Object.freeze({period,calculate,classify,businessTotal});});
+return Object.freeze({period,calculate,classify,businessTotal,laborFunding,grossMargins});});
