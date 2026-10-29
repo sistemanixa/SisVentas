@@ -5,6 +5,7 @@ const SHELL = [
  './js/core/sale-cost-correction.v1.js?v=3.16.9',
  './js/modules/sale-cost-editor.v1.js?v=3.16.9',
  './js/core/sale-costs.v1.js?v=3.16.9',
+ './js/core/budget-conversion-costs.v1.js?v=3.16.9',
  './js/core/sale-writer.v1.js?v=3.16.9',
  './js/core/salary-coverage-model.v1.js',
  './js/core/salary-coverage-read.v1.js',

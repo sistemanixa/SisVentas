@@ -48074,6 +48074,7 @@ async function _svCargaOperacion__convertirPresupuestoEnVentaAtomico(p, ventaBas
     throw new Error('No hay conexión segura para convertir el presupuesto');
   }
   var vinculado=await window.SVCommercialOwnership.prepare('presupuestos',p.fbKey);Object.assign(p,vinculado.record);
+  ventaBase=window.SVBudgetConversionCosts.prepare(ventaBase);
   ventaBase=window.SVSaleWriter.prepare(ventaBase,null);
   var fbKey = String(p.fbKey);
   var ventaFbKeyDeterminista = 'ppto_' + fbKey.replace(/[^A-Za-z0-9_-]/g, '_');
