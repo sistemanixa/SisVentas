@@ -1,3 +1,7 @@
+# Ajustes de claridad salarial local · 28/10/2026
+
+Pedido del titular: Personal a calcular, sin pregunta de cobertura ni relación por cada cien pesos. Conserva barras e importes; aclara que la clasificación actual identifica mano de obra en ventas históricas sin clasificación guardada. Etiqueta salarios del personal y columna Persona para coincidir con selección manual. Motor sin cambios. Navegador ficticio390/768/1280 pasó; sesión local recargada conservando el personal previamente elegido sólo en formulario. Sin publicar ni escribir finanzas.
+
 # Rediseño salarial estadístico local · 28/10/2026
 
 Solicitud del titular: reemplazar el informe extenso por un módulo sencillo en Finanzas. Candidata v3.16.6, rama codex/salary-statistics-local, sin publicación ni push. Nueva ruta coberturasalarial: Salarios y mano de obra. Retira accesos de Empleados/Rentabilidad y el diálogo; tres tarjetas, barras comparativas, período mensual/semestral y detalle/plantel colapsados. Cálculo y lector conservados; no cambia salarios, pagos, stock, servidor ni reglas. Permiso sólo administrador autorizado y registro en Roles; bloqueo propio respetado también en ruta directa. Sin consultas por reloj; retiro de respuestas al salir/cambiar sesión u ocultar. Cifras resumidas sin decimales sólo visualmente; detalle conserva centavos.
