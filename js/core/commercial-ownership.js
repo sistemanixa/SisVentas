@@ -71,25 +71,27 @@
  }
  function author(r){return r?._svOriginalAuthor?.name||r?.creadorOriginalNombre||r?.creadaPor||r?.creadoPor||r?.usuario||'Sin registrar';}
  function stamp(r){r=root.SVCommissionGeneration?.snapshotCosts(r)||r;return {...clean(r),responsableUid:root.currentUserUid,responsableNombre:root.currentUser||root.currentUserEmail||'Usuario',responsableRol:root.currentRole,responsableRevision:1,creadorOriginalUid:root.currentUserUid,creadorOriginalNombre:root.currentUser||root.currentUserEmail||'Usuario',creadoEn:r?.ts||Date.now()};}
- function captureWriteContext(domain='presupuestos'){return Object.freeze({...context(),domain,accessRevision:accessRevisions.get(domain)||0,permissionRevision:root.PERMISOS_ROLES?.[root.currentRole]?.indiceRevision||0});}
+ function captureWriteContext(domain='presupuestos'){if(domain==='ventas')contextChanged();return Object.freeze({...context(),domain,accessRevision:accessRevisions.get(domain)||0,permissionRevision:root.PERMISOS_ROLES?.[root.currentRole]?.indiceRevision||0});}
  function isWriteContext(c){return !!c&&!!c.user&&!!c.uid&&c.user.uid===c.uid&&valid(c)&&!accessBlocked.has(c.domain)&&c.accessRevision===(accessRevisions.get(c.domain)||0)&&c.permissionRevision===(root.PERMISOS_ROLES?.[root.currentRole]?.indiceRevision||0);}
  function confirmWrite(domain,record,c){
   if(!isWriteContext(c))throw Error('La sesión cambió. El guardado confirmado pertenece a la sesión anterior.');
-  if(domain!=='presupuestos'||c.domain!==domain||!record||typeof record!=='object'||Array.isArray(record))throw Error('Acuse de presupuesto inválido');
+  if(!['presupuestos','ventas'].includes(domain)||c.domain!==domain||!record||typeof record!=='object'||Array.isArray(record))throw Error('Acuse comercial inválido');
   const id=typeof record.fbKey==='string'?record.fbKey:'';
   if(!id||/[.#$\[\]\/\x00-\x1f\x7f]/.test(id))throw Error('El acuse requiere la clave técnica del presupuesto');
-  const saved=JSON.parse(JSON.stringify(clean(record))),list=Array.isArray(root.pptoData)?root.pptoData:[],at=list.findIndex(r=>r&&r.fbKey===id);
+  const listName=domain==='ventas'?'ventasList':'pptoData';
+  const saved=JSON.parse(JSON.stringify(clean(record))),list=Array.isArray(root[listName])?root[listName]:[],at=list.findIndex(r=>r&&r.fbKey===id);
   const projection=Object.fromEntries(Object.entries(at<0?{}:list[at]).filter(([k])=>k.startsWith('_sv')));
   // Reemplazar con el snapshot completo permite también quitar campos que la
   // transacción eliminó. La coincidencia es únicamente por fbKey.
   const visible={...projection,...saved,fbKey:id},next=list.slice();
   if(at<0)next.unshift(visible);else next[at]=visible;
-  root.pptoData=next;
+  root[listName]=next;
   const s=subscriptions.get(domain);
   if(s){
    let records={};try{records=JSON.parse(s.snapshot||'{}');}catch(_){}
    records[id]={...projection,...saved};s.snapshot=JSON.stringify(records);
    s.writeRevision=(s.writeRevision||0)+1;delete s.etag;
+   if(domain==='ventas'&&s.pending&&!s.cachedContext)s.again=true;
   }
   return visible;
  }

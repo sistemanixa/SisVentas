@@ -54,8 +54,9 @@
   function session(){const uid=root.currentUserUid,role=root.currentRole,user=root.fbAuth?.currentUser;return()=>{if(uid!==root.currentUserUid||role!==root.currentRole||user!==root.fbAuth?.currentUser)throw Error('La sesión cambió. Volvé a abrir la venta.');};}
   // Todos los documentos comerciales terminan aquí. Los vínculos se confirman
   // en la misma escritura existente; no se separan venta, OT y presupuesto.
-  async function commit({record,baseline,key,related={},basePath='',partial=false,transaction}={}){
+  async function commit({record,baseline,key,related={},basePath='',partial=false,transaction,confirmLocal=false}={}){
    const check=session(),next=prepare(record,baseline);check();
+   const localContext=confirmLocal?root.SVCommercialOwnership?.captureWriteContext?.('ventas'):null;
    if(transaction){
     const result=await root.fbRunTransaction(transaction.ref,current=>{check();return transaction.apply(current,clone(next));});check();return result;
    }
@@ -82,7 +83,8 @@
     else if(current){if(equal(clean(current),data)){reused=true;return undefined;}throw Error('La venta ya existe; no se sobrescribió.');}
     return absolute;
    }});check();if(!result?.committed&&!reused)throw Error('No se confirmó el guardado de la venta.');
-   root.SVCommercialOwnership?.refresh?.('ventas');
+   if(localContext&&typeof root.SVCommercialOwnership?.confirmWrite==='function')root.SVCommercialOwnership.confirmWrite('ventas',{...next,fbKey:key},localContext);
+   else root.SVCommercialOwnership?.refresh?.('ventas');
    return {...next,fbKey:key};
   }
   async function save(record,baseline){
