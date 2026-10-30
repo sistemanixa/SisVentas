@@ -1,3 +1,9 @@
+# Hotfix urgente de destinatarios · candidata3.16.15 ·30/10/2026
+
+Titular cambió prioridad por mensaje autorizado transmitido desde chat01a18b3e: pausar resto y publicar únicamente Comunicados porque necesita usarlo ahora. Base limpia31c0bbff, sin cambios de Compras/session-assets/servidor/reglas. Causa: selector consumía usuariosData que al inicio puede ser sólo perfil propio, sin solicitar directorio ni refrescar al recibirlo. Ahora abre consulta explícita al directorio protegido existente /usuarios/directorio, sin ampliar campos ni permisos; estados carga/error/reintentar/vacío, filtros por rol/activo/identidad y remitente fuera del selector. No toca confirmación histórica del remitente ni manda mensajes de prueba. Respuestas tardías se descartan antes de val por generación/contexto/permisos/cierre. Guardar requiere directorio listo.
+
+15focalesPASS, QA390/768/1280PASS con usuarios ficticios/1lectura/0escrituras/0externos; puerta6482PASS27skip0fallos. Sintaxis/diff/versiónlocalPASS. Sin push por instrucción actual. Otros pendientes y mejoras de Compras están separados en C:/SisVentas/.local/conversion-costo-actual y no deben publicarse con este hotfix. Publicación externa se confirma después de Hosting, bytes y aviso.
+
 # Publicación v3.16.14 completada ·30/10/2026
 
 Autorización humana publicar lo último. Fuente limpia372ab82f65b9c8de0c088a11836fb92962af0449; Hosting507activos/6cargas.9archivos byteexacto (incluye payroll), cabeceras/CSP y3privados404 verificados. Script oficial confirmó web/marcador/SW/aviso v3.16.14-firebase. Sin backend/reglas/IAM/servicios nuevos/finanzas/stock ni avance de main.
