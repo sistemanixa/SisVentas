@@ -1653,17 +1653,19 @@
   function syncSalePurchaseCosts(order, movements, complete) {
     if (!order.ventaFbKey || !window.fbDB || typeof window.fbRunTransaction !== 'function') return Promise.resolve();
     return window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas/ventas/' + order.ventaFbKey), function (sale) {
-      if (!sale) return sale;
+      if (!sale || sale.eliminado || sale.anulada || sale.anulado) throw new Error('La venta no está disponible. La recepción queda pendiente para revisar su destino.');
       if(order.receiptOperation){sale.recepcionesAplicadas=sale.recepcionesAplicadas||{};if(sale.recepcionesAplicadas[order.receiptOperation])return sale;sale.recepcionesAplicadas[order.receiptOperation]=Date.now();}
       var items = Array.isArray(sale.items) ? sale.items : [];
       movements.forEach(function (movement) {
         var orderItem = movement.item || {};
         var code = String(orderItem.codigo || '').trim().toUpperCase();
-        var saleItem = items.find(function (item) {
+        var matchingItems = items.filter(function (item) {
           var sameKey = orderItem.productoKey && [item.productoKey, item.productoId, item.pid, item.fbKeyProducto].some(function (key) { return String(key || '') === String(orderItem.productoKey); });
           return sameKey || (code && String(item.cod || item.codigo || '').trim().toUpperCase() === code);
         });
-        if (!saleItem) return;
+        if(matchingItems.length>1)throw new Error('Hay varios renglones de '+code+' en la venta. Revisá cuál corresponde antes de confirmar la recepción.');
+        var saleItem=matchingItems[0];
+        if (!saleItem) throw new Error('El material '+(code||orderItem.productoKey||'')+' ya no está en la venta. Revisá la recepción pendiente.');
         var saleQty = Math.max(1, parseFloat(saleItem.qty || saleItem.cantidad) || 1);
         var budgetUnit = parseFloat(saleItem.costoUnitarioPresupuestado || saleItem.costoUnitarioCompra || saleItem.costoUnitario || saleItem.costoCompra) || parseFloat(orderItem.costoUnitarioPresupuestado || orderItem.costoUnitario) || 0;
         var priorRealQty = parseFloat(saleItem.cantidadCompraReal) || 0;
@@ -1698,7 +1700,7 @@
       sale.conciliacionCompraActualizadaEn = Date.now();
       sale.conciliacionCompraActualizadaPor = window.currentUser || 'Sistema';
       return sale;
-    });
+    }).then(function(result){if(!result||!result.committed)throw new Error('No se confirmó la actualización de la venta. Reintentá la recepción pendiente.');return result;});
   }
 
   function saveActiveReconciliation() {
@@ -1827,12 +1829,13 @@
   async function finishReceipt(order,movements){
     if(state.receiptBusy)return;state.receiptBusy=true;
     try{
+      function canonical(v){if(v==null||typeof v!=='object')return JSON.stringify(v);if(Array.isArray(v))return '['+v.map(canonical).join(',')+']';return '{'+Object.keys(v).sort().map(function(k){return JSON.stringify(k)+':'+canonical(v[k]);}).join(',')+'}';}
       var token='r_'+Date.now()+'_'+Math.random().toString(36).slice(2),expected=(order.recepciones||[]).length;
       var claim=await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_ORDERS+'/'+order.fbKey),function(current){
         if(!current||current.generacionPendiente||current.estado==='cancelada')return;
         if(current.recepcionPendiente)return current;
         if(current.estado==='recibida'||(current.recepciones||[]).length!==expected||!movements.length)return;
-        if(movements.some(function(m){var item=current.items[m.index];return !item||m.qty>Number(item.cantidadOrdenada||item.cantidad)-Number(item.cantidadRecibida||0);}))return;
+        if(movements.some(function(m){var item=current.items[m.index];return !item||canonical(item)!==canonical(m.item)||!Number.isFinite(m.qty)||m.qty<=0||!Number.isFinite(m.costoUnitarioReal)||m.costoUnitarioReal<=0||m.qty>Number(item.cantidadOrdenada||item.cantidad)-Number(item.cantidadRecibida||0);}))return;
         current.recepcionPendiente={id:token,fecha:today(),ts:Date.now(),usuario:window.currentUser||'Sistema',movements:movements};return current;
       });
       if(!claim.committed)throw new Error('La orden cambió o su confirmación está pendiente; actualizá el detalle');
@@ -1844,7 +1847,8 @@
       var complete=items.every(function(item){return Number(item.cantidadRecibida)>=Number(item.cantidadOrdenada||item.cantidad);});
       if(current.ventaFbKey)await syncSalePurchaseCosts(Object.assign({},current,{fbKey:order.fbKey,receiptOperation:op}),batch,complete);
       var totalReal=items.reduce(function(a,x){return a+Number(x.costoRealAcumulado||0);},0),budget=items.reduce(function(a,x){return a+Number(x.cantidadCostoReal||0)*Number(x.costoUnitarioPresupuestado||x.costoUnitario||0);},0);
-      await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_ORDERS+'/'+order.fbKey),function(latest){if(!latest||!latest.recepcionPendiente||latest.recepcionPendiente.id!==op)return latest;latest.items=items;latest.proveedorFinalResumen=orderProviderSummary(latest);latest.recepciones=(latest.recepciones||[]).concat([{id:op,fecha:pending.fecha,ts:pending.ts,usuario:pending.usuario,items:batch.map(function(m){return {codigo:m.item.codigo,cantidad:m.qty,proveedor:m.proveedor,proveedorKey:m.proveedorKey,costoUnitarioReal:m.costoUnitarioReal,costoUnitarioPresupuestado:Number(m.item.costoUnitarioPresupuestado||m.item.costoUnitario)||0};})}]);latest.totalRealRecibido=totalReal;latest.totalPresupuestadoRecibido=budget;latest.diferenciaCompra=budget-totalReal;latest.estado=complete?'recibida':'recepcion_parcial';latest.recibidoEn=Date.now();latest.recepcionPendiente=null;return latest;});
+      var finalized=await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_ORDERS+'/'+order.fbKey),function(latest){if(!latest)return;if((latest.recepciones||[]).some(function(r){return r.id===op;}))return latest;if(!latest.recepcionPendiente||latest.recepcionPendiente.id!==op||canonical(latest.items)!==canonical(current.items))return;latest.items=items;latest.proveedorFinalResumen=orderProviderSummary(latest);latest.recepciones=(latest.recepciones||[]).concat([{id:op,fecha:pending.fecha,ts:pending.ts,usuario:pending.usuario,items:batch.map(function(m){return {codigo:m.item.codigo,cantidad:m.qty,proveedor:m.proveedor,proveedorKey:m.proveedorKey,costoUnitarioReal:m.costoUnitarioReal,costoUnitarioPresupuestado:Number(m.item.costoUnitarioPresupuestado||m.item.costoUnitario)||0};})}]);latest.totalRealRecibido=totalReal;latest.totalPresupuestadoRecibido=budget;latest.diferenciaCompra=budget-totalReal;latest.estado=complete?'recibida':'recepcion_parcial';latest.recibidoEn=Date.now();latest.recepcionPendiente=null;return latest;});
+      if(!finalized.committed)throw new Error('La orden cambió antes de confirmar. La recepción conserva su identificador; reabrila para revisar y reintentar.');
       if(complete&&current.listaMaterialesId){var related=state.orders.filter(function(o){return o.listaMaterialesId===current.listaMaterialesId&&o.estado!=='cancelada';});if(related.length&&related.every(function(o){return o.fbKey===order.fbKey||o.estado==='recibida';})){await update(PATH_LISTS+'/'+current.listaMaterialesId,{estado:'recibida',recibidaEn:Date.now()});}}
       document.getElementById('oc-order-modal').style.display='none';if(typeof window.notify==='function')window.notify('Recepción registrada. '+(current.ventaId?'Material reservado para la venta.':'Productos ingresados al stock general.'));
     }finally{state.receiptBusy=false;}

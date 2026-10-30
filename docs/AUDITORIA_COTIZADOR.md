@@ -1,3 +1,7 @@
+# Continuación revisada · v3.17.0 candidata
+
+El cierre20 corrigió consultas y preparación; esta continuación corrige descartes de eventos, regresos sin dependencia comercial y confirmación/recuperación de recepciones. Detalle y pruebas en CONTEXTO_ACTUAL. No se eliminaron las tres señales necesarias de comisión ni el fence de escrituras con índices compartidos. Los bloques siguientes son antecedentes: no tratarlos como una lista de tareas activas ni como evidencia de publicaciones posteriores. Tampoco declarar ahorro facturado o una prueba de reposo que no se hizo.
+
 # Cierre implementado · candidata v3.16.20
 
 La revisión de los circuitos inventariados queda resuelta por las correcciones y decisiones documentadas en CONTEXTO_ACTUAL (bloque30/10 v3.16.20). Se sustituyeron preparaciones canónicas por lectura directa, historial propio por consultas indexadas, escritura incidental en GET por preparación propia explícita, disponibilidad OT por fecha y espera de recibos por recuperación idempotente. Pagos, costos, permisos, comisiones y fiscal conservan su contrato protegido.

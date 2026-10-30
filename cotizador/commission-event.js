@@ -34,6 +34,25 @@ function createCommissionEvent({db,commissions,verifyToken,audience,caller,insta
   if(match[3]&&(match[1]==='pagos'?match[3]!=='monto':!['estadoPago','comisionHabilitada'].includes(match[3])))throw fault(400,'Campo de evento no admitido');
   const digest=crypto.createHash('sha256').update(JSON.stringify([source,id,match[1],match[2]])).digest('hex');
   const event={id,source,domain:match[1],key:match[2]},ref=db.ref('sv_commission_events/'+digest),leaseMs=120000,token=crypto.randomUUID();let reason;
+  // Authenticated, immutable terminal receipts do not need a financial lease.
+  // Eligibility is only an early no-op check; generation rechecks the current
+  // sale within its protected scope before making any financial change.
+  try{
+   const known=(await ref.get()).val();
+   if(['completed','review'].includes(known?.state))return {status:'ignored',reason:known.state};
+   let saleKey=match[2];
+   if(match[1]==='pagos'){
+    const payment=(await db.ref('sisventas/pagos/'+saleKey).get()).val();
+    if(!payment)return {status:'ignored',reason:'payment_removed'};
+    // Preserve durable review of ambiguous historical references below.
+    saleKey=key(payment.ventaFbKey)?payment.ventaFbKey:null;
+   }
+   if(saleKey){
+    const sale=(await db.ref('sisventas/ventas/'+saleKey).get()).val();
+    const job=sale?.comisionesGeneradas===true?(await db.ref('sv_commission_generation/'+saleKey).get()).val():null;
+    if(!sale||sale.comisionHabilitada!==true||(sale.comisionesGeneradas===true&&!['procesando','error'].includes(job?.estado))||sale.anulada===true||sale.anulado===true||['anulado','anulada','sin_cargo'].includes(String(sale.estado||'').toLowerCase()))return {status:'ignored',reason:'not_applicable'};
+   }
+  }catch(_){throw fault(503,'No se pudo comprobar el evento');}
   // Reserve the attempt durably before starting business work. Counting only
   // after rollback would let concurrent instances exceed the five-attempt cap.
   let reservationResult;try{reservationResult=await coordinate({...event,phase:'reserve'},async()=>{

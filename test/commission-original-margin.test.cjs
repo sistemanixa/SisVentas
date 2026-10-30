@@ -24,7 +24,7 @@ test('ahorro exterior mejora la empresa sin aumentar la comisión, conservando d
 });
 test('la recepción real y su repetición conservan el costo original para comisiones',async()=>{
  const current=sale();
- const window={fbDB:{},fbRef:(_,p)=>p,fbRunTransaction:async(_,fn)=>fn(current),obtenerCostoItemVenta:cost,_rentIngresoNetoVenta:()=>2400};
+ const window={fbDB:{},fbRef:(_,p)=>p,fbRunTransaction:async(_,fn)=>{const value=fn(current);return {committed:value!==undefined,snapshot:{val:()=>value}};},obtenerCostoItemVenta:cost,_rentIngresoNetoVenta:()=>2400};
  const scope=vm.createContext({window});
  const src=fs.readFileSync(require.resolve('../js/modules/purchase-orders.js'),'utf8');
  const start=src.indexOf('  function syncSalePurchaseCosts');
