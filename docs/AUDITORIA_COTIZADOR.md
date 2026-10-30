@@ -1,3 +1,86 @@
+# Auditoría de uso del servidor · 30/10/2026 · v3.16.18
+
+## Conclusión actual
+
+Hay intermediación amplia que merece reducirse, pero la mera presencia de un servidor no demuestra un gasto indebido ni identifica el origen de toda la demora. Las prioridades comprobadas son lecturas globales para autorizar operaciones pequeñas, recargas de historiales y coordinación global de escrituras independientes. La conversión es candidata a simplificación; todavía no se ha demostrado que todas sus validaciones puedan sustituirse por reglas equivalentes sin rediseñar su contrato.
+
+Este bloque es una auditoría, no una migración: no modifica cliente publicado, reglas, infraestructura, pagos, costos históricos, stock ni comisiones. No se activaron APIs deshabilitadas ni se concedieron permisos. Rama local codex/auditoria-uso-servidor-v31618. Base de código00e78903; la fuente publicada18 es2aceecff y el servidor publicado sigue0cde2e18.
+
+## Cobertura y evidencia
+
+- Inventario reproducible sin red: node scripts/audit-server-usage.cjs. Detectó187 scripts referenciados por las entradas HTML y47 rutas literales en el router de Cotizador; las familias dinámicas comerciales y de documentos requieren el mapa manual de abajo. Son referencias estáticas, no47 operaciones activas medidas.
+- Revisión de transportes compartidos, router, proyecciones comerciales, guardado financiero, eventos y llamadas de los consumidores. Se distinguieron llamadas directas a Firebase, APIs de Cotizador y otros servicios. Las versiones históricas de app no se consideran aplicación activa.
+- Una consulta de metadatos de servicios y otra de funciones, sin ejecutarlas ni leer datos comerciales:7 servicios Cloud Run y8 funciones devueltas. Los tres receptores antiguos de comisiones aparecen activos por eventos de escritura de RTDB; no son tareas por reloj.
+- Cotizador confirmado en revisión ot31617-0cde2e18, mínimo0 y CPU por solicitud. Flags efectivos: observerfalse, eventtrue, laborScopedtrue, paymentScopedtrue, adminExpenseScopedfalse y otOfficeCounttrue. Un handler montado no implica que su flag esté habilitado.
+- Scheduler devolvió403 en las dos regiones consultadas. El motivo comprobado fue SERVICE_DISABLED, no falta de acceso a la base. No se habilitó esa API. No se pudo enumerar su inventario; no se afirma una lista vacía ni ausencia de programadores externos.
+- Trazas de ejecución de código real con datos ficticios: listar ventas propias hace GET de sv_usuarios, sv_chat_roles, sv_permisos, sisventas/ventas y el presupuesto vinculado. Devuelve sólo2 registros del fixture, después de haber leído la colección de ventas. Preparar presupuesto hace las mismas3 lecturas globales de identidad/configuración, una escucha inicial puntual y una transacción del presupuesto. La transacción puede no cambiar datos si ya están completos; su existencia no prueba una escritura efectiva.
+- Los tiempos HTTP previamente observados en la franja de la conversión fueron preparar0,93s, guardado2,67s y consulta posterior de ventas3,25s. No son una medición completa de pantalla, un benchmark general ni una factura.
+- Evidencia técnica y metadatos sanitizados privados: tmp/server-audit-20261030 y tmp/ot-office-count, fuera de Git. No se incorporan registros de clientes ni cuerpos de solicitudes al informe.
+
+## Hallazgos comprobados y prioridades
+
+| Prioridad | Hallazgo | Implicación y siguiente prueba |
+|---|---|---|
+| P0 | commercial-ownership.context lee tres raíces globales para cada autorización comercial. | Sustituir el camino normal por perfil/rol/configuración puntuales o índices. Conservar la resolución histórica y el directorio completo sólo donde sean necesarios. Probar revocación, reasignación y Ver como. |
+| P0 | El listado comercial lee ventas/presupuestos completos y filtra después. | Descargar únicamente registros autorizados por índice y paginar por el uso real. No ocultar deuda histórica ni dar al cliente acceso a ventas ajenas. |
+| P0 | preparar mezcla uso normal con reparación de autoría/responsable históricos. | Un documento canónico no debería necesitar la misma reparación en cada edición/conversión. Probar camino puntual normal y mantenimiento histórico separado. No inferir autores por nombres ambiguos. |
+| P0 | labor-writes intercepta dominios enteros, incluidas modificaciones pequeñas. | Identificar campos operativos que pueden escribirse con reglas acotadas, sin abrir escrituras monetarias o cambios de responsable. No basta quitar la envoltura del cliente: hoy las reglas exigen el transporte protegido. |
+| P0 | labor-guard usa una cola por instancia y un lease global compartido. | Operaciones independientes pueden competir. Medir esperas y diseñar coordinación por agregado con pruebas de concurrencia e índices; no eliminar el bloqueo antes de tener un reemplazo. |
+| P1 | Un304 de listado al navegador no evita necesariamente la consulta del servidor a RTDB. | Medir ambos tramos. commercial-collection-reader valida ETag contra RTDB en cada petición; la caché es por instancia y se pierde con instancias nuevas. No anunciar ahorro facturado sólo por304. |
+| P1 | Los regresos de visibilidad refrescan todas las suscripciones comerciales abiertas. | Medir cuántas recargas produce cambiar de ventana. Conservar sincronización entre equipos mediante invalidaciones concretas; no suprimir retornos ni cachear permisos indefinidamente. |
+| P1 | employee-directory puede escribir un vínculo de identidad al consultar. | Separar aprovisionamiento/reparación explícitos de la lectura normal. No modificar vínculos existentes durante esta auditoría. |
+| P1 | Disponibilidad del personal consulta toda la raíz de vacaciones y después proyecta los campos. | Diseñar consulta por período solicitado e índice, conservando privacidad y la posibilidad de revisar fechas anteriores. |
+| P1 | Los costos de red no se explican sólo por Cloud Run. | Separar invocaciones, lecturas/transferencia RTDB, Auth, almacenamiento y servicios externos. Firebase directo también consume recursos y necesita medición. |
+
+Referencias: js/core/labor-writes.js:8; js/core/commercial-ownership.js:28,62,76; cotizador/commercial-ownership.js:65,74,107,109; cotizador/commercial-collection-reader.js:21; cotizador/labor-guard.js:36,48; cotizador/employee-directory.js:7.
+
+## Mapa de decisiones por circuito
+
+| Circuito actual | Qué aporta hoy el servidor | Evaluación de arquitectura |
+|---|---|---|
+| Conversión presupuesto→venta | Preparación de identidad, guardado financiero comparado y coordinación; el cliente también toma lock, reserva número y verifica vínculo. | Candidata prioritaria. Evitar preparar/reparar cuando no corresponde y reducir viajes. La alternativa directa debe probar aprobación, costos, autoría, numeración, no duplicación y venta/presupuesto atómicos. Sin secretos externos por el hecho de convertir. |
+| Crear/editar venta y sus adicionales | Contrato común, costos originales, permisos, referencias y conflictos con pagos. | Separar campos operativos de cambios financieros. Mantener un contrato único aunque cambie el transporte. No volver a crear caminos incompatibles para soporte y OT. |
+| Cobros, anulación de pagos y pagos de gastos | Saldo, idempotencia, movimientos vinculados, adjuntos e índices. | Mantener hasta demostrar un reemplazo equivalente. Una escritura directa aislada podría dejar cuentas distintas o permitir un doble cobro. |
+| Bonificaciones, haberes y aguinaldos | Cálculos, acciones específicas y escritura vinculada sin exponer la ficha privada completa. | Auditar cálculos y lecturas repetidas; no conceder acceso a cuentas privadas para evitar una API. Estudiar comandos pequeños o registros separados con reglas expresables. |
+| Solicitudes de horas extra y gastos del personal | Identidad propia, acciones por rol, detalle de días y escritura de solicitudes/movimientos. | Separar la carga de una solicitud de su aprobación/cálculo financiero. Probar fórmulas y límites expresables en reglas; conservar acceso exclusivo al empleado correspondiente. |
+| Costos de compra guardados en ventas | Permiso específico, comparación del original, auditoría y preservación de precios/pagos. | Candidata condicionada al diseño de reglas por campo e impacto en comisiones. No equiparar este costo histórico con editar un texto del catálogo. |
+| Conteo físico desde OT | Conteo posterior al uso y confirmación conjunta inventario+OT, con concurrencia e idempotencia. | Actualmente justificado por esa coordinación concreta. Contrastar si un agregado/rediseño de datos permite igual garantía con menos viajes. No duplicar consumo ni separar ambos guardados. |
+| Listados comerciales y preparar documento | Filtrado por propietario y resolución de autoría histórica. | Principal candidato a reducir intermediación y lecturas amplias. Necesita índices y separación del camino histórico. |
+| Proyectos | Filtra participación y elimina datos comerciales para técnicos. | La separación es necesaria. Firebase puede servir directo sólo si se separan datos operativos/comerciales y sus reglas; leer el nodo completo y ocultar campos en UI no protege datos. |
+| Directorios de usuarios, empleados y proveedores | Proyección de campos y resolución de acceso; evita entregar datos privados/credenciales. | Se puede estudiar una proyección pública protegida por reglas. No sustituir por lectura directa de las raíces privadas. |
+| Edición/eliminación/reacciones del chat | Autoría y controles de modificación del mensaje. | Candidata a reglas acotadas, con pruebas de mensajes propios/ajenos, lectura previa y concurrencia. El envío/presencia no debe confundirse con este endpoint. |
+| Accesos, recuperación y administración de cuentas | Admin SDK, correo, revocación y cambios de identidad. | Mantener en entorno confiable. Las credenciales privilegiadas nunca van a la web. |
+| Cotizaciones de proveedores, OAuth e imágenes intermediadas | Credenciales, navegación de proveedor, límites, cifrado y restricciones de destino. | Mantener los tramos que requieren secretos o acceso del servidor; auditar caché, lotes y duplicados. |
+| IA, PDF privado, dictado y asistencia | Claves del proveedor, validación del titular, aislamiento y límites. | Mantener credenciales y privacidad en servidor; medir cada solicitud y cancelación. No abrir dominios privados a otros roles. |
+| ARCA, emisión y comprobación fiscal | Credenciales fiscales, llamadas externas y protección del resultado emitido. | Mantener. Optimizar pasos repetidos sin exponer certificados ni repetir emisiones. |
+| Catálogo público, promociones y solicitudes | Revalidación de precio/oferta, vigencia y límites frente a clientes anónimos. | Mantener validación confiable al confirmar. Presentación y cálculos orientativos pueden quedar en la web. |
+| Comprobantes de Distribuidora | Precios/ofertas canónicos, moneda, numeración y documento propio con idempotencia. | La generación visual del PDF puede ser local; decidir aparte el guardado y sus validaciones. No confundir un comprobante comercial con una factura ARCA ni recalcular históricos. |
+| Generación de comisiones por evento | Relee fuentes autorizadas, calcula sobre costos originales y evita duplicados. | Auditar si las tres señales producen entregas redundantes y cómo concentrarlas. No eliminar ninguna hasta cubrir pago, estado pagado y habilitación posterior. No modifica comisiones existentes. |
+| Correos de solicitudes | Credenciales y envío tras un evento confirmado. | Mantener como efecto de un evento real, con idempotencia. No es sondeo de la base. |
+| Control de costos | Reacciona a avisos de presupuesto para aplicar el límite autorizado. | Mantener. No es una tarea comercial prescindible ni garantiza corte sin demora de Billing. |
+
+## Qué ya trabaja directamente con Firebase
+
+El transporte genérico no intercepta todo el sistema. El catálogo de productos, altas ordinarias de Agenda, vacaciones, muchas operaciones de Compras/inventario y los borradores conservan caminos directos según la ruta y sus reglas. Una operación compuesta que toca Ventas o Pagos puede terminar en el transporte protegido. Esto debe seguirse por llamada, no por el nombre visible del módulo. Tampoco lo directo está automáticamente libre de problemas: las escrituras separadas de OC/inventario merecen revisar atomicidad e idempotencia.
+
+## Actividad automática y relojes
+
+- Confirmado remotamente: COMMISSION_OBSERVER_ENABLED=false y COMMISSION_EVENT_ENABLED=true. El intervalo de60s existente en commission-generation.start no está activado por ese arranque. Su código no demuestra que esté consultando en reposo.
+- Confirmados8 registros de funciones: emisión fiscal y test fiscal HTTP; dos correos por creación de eventos; control de costos por Pub/Sub; tres receptores de comisiones por cambios RTDB. Son disparadores distintos. Una escritura puede ocasionar más de una entrega legítima; falta medir su relación con cada operación.
+- El refresco del dólar cada3h sigue siendo una excepción expresamente pedida: sesión visible y autorizada, lease compartido y pausa al ocultar. No debe confundirse con la comisión ni eliminarse por esta auditoría.
+- El inventario encontró12 sitios setInterval en scripts referenciados: audio/progreso, espera limitada del login iniciado por el usuario, indicadores de sesión, propuestas/margen, borradores, estados de tarjeta privada, navegación desde push, monitor de recursos y cuenta regresiva del catálogo. Se revisaron sus callbacks: no son doce sondeos periódicos del servidor. Borradores detecta cambios de contenido y publica con debounce; la carga inicial de períodos del catálogo es un fetch separado de su reloj visual.
+- Scheduler está deshabilitado para la API consultada y no se enumeraron sus trabajos. No se declara demostrado consumo cero ni ausencia de tareas externas. No se inició una nueva prueba nocturna ni un seguimiento programado.
+
+## Criterio para dar por terminado el trabajo
+
+La primera pasada de inventario y revisión de arquitectura queda documentada. La auditoría funcional completa sigue abierta: todavía faltan perfiles de duración/lecturas por cada operación crítica, una prueba de reposo controlada y pruebas de equivalencia de las alternativas directas. Los inventarios no prueban ahorro, facturación ni seguridad de una migración que aún no existe.
+
+Cada propuesta deberá incluir: disparador real; trayecto web/API/RTDB; lecturas, bytes y escrituras por etapa; verificación de permisos/privacidad; concurrencia e idempotencia; comportamiento sin conexión, sesión revocada y reintento; comprobación de costos, pagos y comisiones con datos ficticios. Primero se mostrará local y sólo se cambiará producción con el alcance y costo correspondientes. No se desactivan alertas, facturación, validaciones o comisiones para simular una mejora.
+
+---
+
+# Registro histórico anterior de Cotizador
+
 # Alcance de Cotizador
 
 ## Auditoría futura solicitada por el titular · 29/10/2026
