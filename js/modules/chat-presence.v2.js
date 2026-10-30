@@ -4,6 +4,18 @@
  // Only foreground connections from this protocol count as currently online.
  const derived=new WeakMap();
  const connectionPrefix='cx2_';
+ // A saved row proves a recent connection, not perpetual liveness.
+ const evidenceWindow=15*60*1000;
+ let expiryTimer=null,suspended=false;
+ function recent(p){const time=Number(p?.ultimaConexion),now=Date.now();return Number.isFinite(time)&&time>0&&time<=now+30000&&now-time<evidenceWindow;}
+ function cancelExpiry(){if(expiryTimer!==null){root.clearTimeout(expiryTimer);expiryTimer=null;}}
+ function scheduleExpiry(){
+  cancelExpiry();if(!session||!valid(session)||!session.connected||!session.snapshotReady)return;
+  let delay=Infinity;for(const [uid,rows]of Object.entries(peers))for(const [key,p]of Object.entries(rows||{})){
+   if(uid!==session.uid&&key.startsWith(connectionPrefix)&&p?.uid===uid&&p.online===true&&eligible(p,uid)&&recent(p))delay=Math.min(delay,Number(p.ultimaConexion)+evidenceWindow-Date.now());
+  }
+  if(Number.isFinite(delay))expiryTimer=root.setTimeout(()=>{expiryTimer=null;refresh();},Math.max(1,delay));
+ }
  // A connection owns a distinct path, even after a same-account login or a
  // duplicated tab. A late cleanup can therefore never remove its successor.
  const instance=Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);
@@ -11,7 +23,7 @@
  const roles=['admin','administrativo','vendedor','tecnico','tecnico_vendedor','distribuidora'];
  function allowed(){
   const uid=root.currentUserUid,access=root._chatAccesoPresencia,directory=root._chatDirectorio||{};
-  return root.document.hidden!==true&&root.document.visibilityState!=='hidden'&&(!root.SVForegroundSession||root.SVForegroundSession.isVisible())&&!root._impersonacionOriginal&&!!uid&&!!root.currentUser&&root.fbAuth?.currentUser?.uid===uid&&roles.includes(root.currentRole)&&
+  return !suspended&&root.document.hidden!==true&&root.document.visibilityState!=='hidden'&&(!root.SVForegroundSession||root.SVForegroundSession.isVisible())&&!root._impersonacionOriginal&&!!uid&&!!root.currentUser&&root.fbAuth?.currentUser?.uid===uid&&roles.includes(root.currentRole)&&
    !(access?.uid===uid&&(access.activo!==true||access.rol!==root.currentRole))&&directory[uid]?.activo!==false&&
    (!root._chatDirectorioListo||!!directory[uid])&&(root.currentRole!=='distribuidora'||root.SVDistribuidora?.allowed('chat'));
  }
@@ -36,7 +48,7 @@
   Object.entries(peers).forEach(([uid,connections])=>Object.entries(connections||{}).forEach(([key,p])=>{
    if(!p||p.uid!==uid||p.online!==true||!eligible(p,uid))return;
    const eventConnection=key.startsWith(connectionPrefix);
-   if(!eventConnection)return;
+   if(!eventConnection||!recent(p))return;
    // Derived objects alone may bypass the legacy TTL. A marker saved in the
    // legacy channel is not evidence that its cleanup remains authorized.
    const row={...p,nombre:root._chatDirectorio?.[uid]?.nombre||p.nombre};
@@ -47,7 +59,7 @@
  }
  function connectionActive(p){
   const known=p&&derived.get(p);
-  return !!known&&known.context===session&&!!session&&valid(session)&&peers[known.uid]?.[known.key]===known.source&&eligible(p,known.uid);
+  return !!known&&known.context===session&&!!session&&valid(session)&&peers[known.uid]?.[known.key]===known.source&&eligible(p,known.uid)&&recent(known.source);
  }
  root.usuariosPresentesUnicos=function(includeSelf){
   if(!session||!valid(session))return [];
@@ -64,18 +76,19 @@
   return [...unique.values()];
  };
  function refresh(){
+  scheduleExpiry();
   const usersNext=JSON.stringify(connectedRows().map(p=>[p.uid,p.nombre,p.rol,p.ultimaConexion]).sort());
   if(usersNext!==usersRendered){usersRendered=usersNext;if(document.getElementById('page-usuarios')?.classList.contains('active'))root.renderTablaUsuarios?.();}
   const people=root.usuariosPresentesUnicos(false),label=document.getElementById('chat-online-label'),count=people.length;
   const ready=!!session&&valid(session)&&session.connected&&session.snapshotReady;
-  const text=!ready?'Conexión del chat sin confirmar':count?count+(count===1?' persona conectada':' personas conectadas'):'Nadie más conectado';
+  const text=!ready?'Conexión del chat sin confirmar':count?count+(count===1?' conexión reciente':' conexiones recientes'):'Sin conexiones recientes confirmadas';
   if(label&&label.textContent!==text)label.textContent=text;
   root.SVChatContacts?.updateHeader(root._chatCanal);
   if(!document.getElementById('chat-modal')?.classList.contains('open')){rendered='';return;}
   const next=JSON.stringify([root._chatCanal,people.map(p=>[identity(p),p.nombre,p.rol]).sort()]);
   if(next===rendered)return;rendered=next;
   if(root._chatCanal==='directos')root.chatAbrirDirectos?.(true);
-  else{document.getElementById('chat-online-banner')?.remove();const html=root.chatOnlineEnCanal?.(root._chatCanal),messages=document.getElementById('chat-messages');if(html&&messages){const banner=document.createElement('div');banner.id='chat-online-banner';banner.innerHTML=html;messages.before(banner);}}
+  else{document.getElementById('chat-online-banner')?.remove();const html=root.chatOnlineEnCanal?.(root._chatCanal),messages=document.getElementById('chat-messages');if(html&&messages){const banner=document.createElement('div');banner.id='chat-online-banner';banner.innerHTML=html.replace('En línea:','Conexión reciente:');messages.before(banner);}}
  }
  function cancel(attempt){
   if(!attempt.registered||!attempt.removed||attempt.cancelled)return;
@@ -94,7 +107,7 @@
   cancel(attempt);
  }
  function reset(){
-  const previous=session;session=null;peers={};rendered='';
+  cancelExpiry();const previous=session;session=null;peers={};rendered='';
   previous?.peerStop?.();previous?.stops.splice(0).forEach(off=>off());dispose(previous?.connection);refresh();
  }
  function stop(){requested=false;reset();}
@@ -133,5 +146,11 @@
  document.addEventListener('sisventas:role-changed',accessChanged);
  document.addEventListener('visibilitychange',accessChanged);
  document.addEventListener('sisventas:foreground-paused',accessChanged);document.addEventListener('sisventas:foreground-restored',accessChanged);
- root.SVChatPresence={foregroundOnly:true,status:()=>({ready:!!session&&valid(session)&&session.connected&&session.snapshotReady}),start,stop,sesionesActivas:connectedRows,esConexionVigente:connectionActive};
+ const pausePage=()=>{suspended=true;reset();};
+ const resumePage=()=>{suspended=false;accessChanged();};
+ root.addEventListener?.('pagehide',pausePage);root.addEventListener?.('pageshow',resumePage);
+ document.addEventListener('freeze',pausePage);document.addEventListener('resume',resumePage);
+ const originalBanner=root.chatOnlineEnCanal;
+ if(typeof originalBanner==='function')root.chatOnlineEnCanal=function(...args){return originalBanner.apply(this,args).replace('En línea:','Conexión reciente:');};
+ root.SVChatPresence={evidenceWindow,foregroundOnly:true,status:()=>({ready:!!session&&valid(session)&&session.connected&&session.snapshotReady}),start,stop,sesionesActivas:connectedRows,esConexionVigente:connectionActive};
 })(window);

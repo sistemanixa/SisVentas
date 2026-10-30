@@ -17,7 +17,7 @@
    const direct=String(channel||'').startsWith('directo_'),peer=direct?Object.entries(root._chatDirectorio||{}).find(([uid])=>uid!==root.currentUserUid&&root.chatDirectoId(uid)===channel):null;
    if(title){title.textContent=direct?(peer?.[1]?.nombre||'Mensaje directo'):(channel==='directos'?'Mensajes directos':'Mensajes internos');title.title=title.textContent;}
    if(back)back.hidden=!direct;
-   if(label&&direct){const online=peer&&(root.usuariosPresentesUnicos?.(false)||[]).some(p=>p.uid===peer[0]);label.textContent=status&&!status.ready?'Conexión del chat sin confirmar':online?'En línea':'Mensaje directo';}
+   if(label&&direct){const online=peer&&(root.usuariosPresentesUnicos?.(false)||[]).some(p=>p.uid===peer[0]);label.textContent=status&&!status.ready?'Conexión del chat sin confirmar':online?'Conexión reciente':'Conexión sin confirmar';}
    else if(label&&status&&!status.ready)label.textContent='Conexión del chat sin confirmar';
   }
   function decorate(host,conversations){
@@ -34,8 +34,8 @@
    }
    const existing=Array.from(host.querySelectorAll('[onclick^="chatAbrirDirecto("]'));
    existing.forEach((el,index)=>{const c=conversations?.[index];if(c?.otroUid){el.removeAttribute('onclick');el.addEventListener('click',()=>open(c.otroUid));}});
-   const section=element('section');section.style.cssText='border-top:1px solid var(--border);margin-top:16px;padding-top:12px;display:grid;gap:4px';const title=element('h3','Personas conectadas'+(online.length?' · '+online.length:''));title.style.cssText='font-size:12px;color:var(--text3);margin:0 0 6px';section.append(title);online.forEach(p=>section.append(row(p,true)));
-   if(!online.length){const text=status&&!status.ready?'Conexión del chat sin confirmar.':'No hay otras personas conectadas ahora.';const hint=element('p',text);hint.style.cssText='font-size:12px;color:var(--text3);margin:4px 0';section.append(hint);}host.append(section);
+   const section=element('section');section.style.cssText='border-top:1px solid var(--border);margin-top:16px;padding-top:12px;display:grid;gap:4px';const title=element('h3','Conexiones recientes'+(online.length?' · '+online.length:''));title.style.cssText='font-size:12px;color:var(--text3);margin:0 0 6px';section.append(title);online.forEach(p=>section.append(row(p,true)));
+   if(!online.length){const text=status&&!status.ready?'Conexión del chat sin confirmar.':'Sin otras conexiones recientes confirmadas.';const hint=element('p',text);hint.style.cssText='font-size:12px;color:var(--text3);margin:4px 0';section.append(hint);}host.append(section);
   }
   root.document?.addEventListener?.('sisventas:session-ended',()=>{owner='';choosing=false;query='';});
   root.document?.addEventListener?.('sisventas:chat-directory-ready',()=>{updateHeader(root._chatCanal);if(root._chatCanal==='directos'&&root.document.getElementById('chat-modal')?.classList.contains('open'))root.chatAbrirDirectos(true);});

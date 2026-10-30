@@ -1,0 +1,9 @@
+# Presencia del chat: evidencia reciente
+
+Pedido del titular: con Ignacio y él presentes, Yanina y Osmar aparecían conectados. Lectura puntual autorizada del nodo de presencia confirmó marcas cx2 con unos655 y2806minutos, respectivamente; esos tiempos son de apertura/reconexión, no última actividad ni prueba de desconexión. No se borró ninguna fila ajena. Evidencia real sólo en tmp privado, fuera de Git.
+
+El protocolo anterior confiaba indefinidamente en online:true para cx2. onDisconnect puede haber fallado históricamente y no existe señal periódica que permita probar liveness. Sin agregar tráfico se adopta evidencia de conexión reciente (15min desde timestamp existente). Al vencer, la persona deja de estar entre conexiones recientes y pasa a sin confirmar, no offline. Una pestaña quieta legítima también pierde esa confirmación; los mensajes y selección del contacto no dependen de ella. No se renueva con actividad ni se inventa un estado en tiempo real. La reconexión normal devuelve evidencia válida.
+
+Un único timeout local hasta el próximo vencimiento actualiza las etiquetas incluso sin nuevos snapshots. No consulta ni escribe Firebase. Se cancela al ocultar/cerrar/cambiar sesión; no intervalos, heartbeat, sondeos, nuevos listeners ni servicios. Pagehide/freeze retiran sólo la conexión propia y pageshow/resume mantienen el protocolo de restauración, sin borrar otras pestañas del mismo usuario. Se conservan reglas, roles y mensajes.
+
+Pruebas ficticias: marcas antiguas equivalentes excluidas, señal reciente incluida, expiración sin tráfico, regreso, varias pestañas y autenticación. Browser390/1280 con módulo real, zero solicitudes externas, pagehide y screenshot revisados. La prueba aislada no es un recorrido autenticado del chat real. Publicación y recarga de la pestaña humana se registran separadamente; no asumir que están aplicadas por este documento.
