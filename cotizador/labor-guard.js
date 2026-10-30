@@ -35,17 +35,34 @@ function validateFinancialContext(actor,profile,permissions){
 function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=30000,readOnly=false,delay=ms=>new Promise(resolve=>setTimeout(resolve,ms))}){
  if(!store||!Number.isFinite(leaseMs)||leaseMs<1000||leaseMs>60000)throw Error('Configuración de coordinación inválida');
  const context=new AsyncLocalStorage();let tail=Promise.resolve();
- async function execute(actor,work){
+ function operation(actor){
   if(!actor||typeof actor.uid!=='string'||!actor.uid||!['command','user','server','bootstrap'].includes(actor.mode))throw failure(403,'Operación no autorizada');
   if(readOnly&&!(actor.mode==='user'&&actor.operation==='resolve'))throw failure(503,'Los guardados están temporalmente en revisión. No se modificaron datos.','SV_LABOR_READ_ONLY');
   const opId=actor.opId||uuid();if(!/^[A-Za-z0-9_-]{8,160}$/.test(opId))throw failure(400,'Identificador de operación inválido');
   const requestDigest=(actor.mode==='user'||actor.mode==='command'&&actor.recoverReceipt===true)&&actor.transportDigest!==undefined?actor.transportDigest:digest({uid:actor.uid,mode:actor.mode,operation:actor.operation||'',input:actor.input??null});
   if(!/^[a-f0-9]{64}$/.test(requestDigest))throw failure(400,'Identificador de comprobación inválido');
-  // Sólo el transporte de una escritura idéntica puede recuperar su recibo.
-  // Los comandos financieros vuelven a ejecutar sus validaciones actuales.
-  if((actor.mode==='user'||actor.mode==='command'&&actor.recoverReceipt===true)&&actor.opId){const receipt=await store.read('sv_labor_receipts/'+opId);if(receipt){if(receipt.actorUid!==actor.uid||receipt.digest!==requestDigest)throw failure(409,'El identificador corresponde a otra operación');return copy(receipt.result);}}
+  return {opId,requestDigest,recover:(actor.mode==='user'||actor.mode==='command'&&actor.recoverReceipt===true)&&!!actor.opId};
+ }
+ async function confirmed(actor,op){
+  if(!op.recover)return null;
+  const receipt=await store.read('sv_labor_receipts/'+op.opId);if(!receipt)return null;
+  if(receipt.actorUid!==actor.uid||receipt.digest!==op.requestDigest)throw failure(409,'El identificador corresponde a otra operación');
+  return {result:copy(receipt.result)};
+ }
+ async function execute(actor,work,op){
+  const {opId,requestDigest}=op;
   const lease={fence:uuid(),opId,digest:requestDigest,expiresAt:now()+leaseMs,actorUid:actor.uid,mode:actor.mode};
-  for(let attempt=0;;attempt++){lease.expiresAt=now()+leaseMs;try{await store.acquire(lease);break;}catch(error){if(error.statusCode!==423||attempt>=4)throw error;await delay(100*2**attempt);}}
+  for(let attempt=0;;attempt++){
+   lease.expiresAt=now()+leaseMs;
+   try{await store.acquire(lease);break;}
+   catch(error){
+    // Las reglas niegan adquirir si el recibo ya existe. Otra instancia pudo
+    // confirmar tras la lectura inicial: recuperar sólo ese recibo propio.
+    // Sin él, un 403 sigue denegado y un 423 conserva su reintento limitado.
+    if([403,423].includes(error.statusCode)){const receipt=await confirmed(actor,op);if(receipt)return receipt.result;}
+    if(error.statusCode!==423||attempt>=4)throw error;await delay(100*2**attempt);
+   }
+  }
   const staged=new Map(),reads=new Map(),authReads=new Map(),authorizedSnapshots=new Map(),readTree={children:new Map(),path:null};let completed=false,phase='working';
   const authenticatedActor=actor.mode==='user'&&actor.claims?.uid===actor.uid?{uid:actor.uid,claims:copy(actor.claims)}:null;
   function live(){if(phase==='closed')throw failure(409,'Este guardado ya terminó.','SV_LABOR_SCOPE_CLOSED');if(now()>=lease.expiresAt)throw failure(409,'El plazo del guardado terminó. Revisá el estado antes de reintentar.','SV_LABOR_LEASE_EXPIRED');}
@@ -163,8 +180,12 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
  }
  async function run(actor,work){
   const active=context.getStore();if(active){active.assertActive();if(actor.uid!==active.actor.uid&&actor.mode==='user')throw failure(403,'La sesión cambió');return work(active);}
+  const op=operation(actor);
+  // Un recibo inmutable y propio ya confirmado no necesita esperar una venta
+  // independiente. La ausencia NO significa rechazo: conserva cola y fence.
+  const receipt=await confirmed(actor,op);if(receipt)return receipt.result;
   const previous=tail;let release;tail=new Promise(resolve=>{release=resolve;});await previous;
-  try{return await execute(actor,work);}finally{release();}
+  try{return await execute(actor,work,op);}finally{release();}
  }
  return {run,current:()=>{const active=context.getStore();active?.assertActive();return active;}};
 }

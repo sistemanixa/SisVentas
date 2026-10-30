@@ -54,27 +54,73 @@ function historicalConversionAudit(record,budgets){
  const event=events[0],author=originalAuthor(record,'ventas',budgets);
  return {tipo:'conversion_presupuesto_venta',fecha:event.fecha,usuario:event.usuario,accion:'Conversión histórica de '+(source.id||'presupuesto de origen')+' a '+(record.id||'venta')+' · Creador original: '+author.name+' · Según auditoría del presupuesto',referenciaHistorica:true};
 }
-function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectionReader}){
+function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectionReader,scopedReads=false,queryReader}){
+ if(scopedReads&&typeof queryReader!=='function')throw Error('La lectura acotada requiere consultas indexadas');
  // Instantánea privada, de un solo uso dentro de la petición que autorizó al actor.
  // No es una caché entre consultas: cada authorize vuelve a verificar Auth y roles.
  const requestContexts=new WeakMap();
  const read=async p=>(await db.ref(p).get()).val();
- const readCollection=(p,conditional)=>conditional&&collectionReader&&typeof collectionReader.read==='function'&&['sisventas/ventas','sisventas/presupuestos'].includes(p)
-  ?collectionReader.read(p):read(p);
- async function context(){
+ async function readCollection(p,conditional,actor){
+  if(scopedReads&&actor&&actor.role!=='admin'){
+   // El índice pertenece al campo canónico, no a una copia que deba repararse
+   // cada vez que guarda un escritor. null incluye los históricos sin vínculo.
+   const values=await Promise.allSettled([actor.uid,null].map(async uid=>{
+    try{return await queryReader(p,'responsableUid',uid)||{};}
+    catch(_){throw fail(503,'No se pudo consultar el listado. Reintentá más tarde');}
+   }));
+   const error=values.find(r=>r.status==='rejected');if(error)throw error.reason;
+   const result=Object.create(null);
+   for(const {value}of values)for(const [id,r]of Object.entries(value)){
+    if(Object.hasOwn(result,id)&&require('./labor-guard').canonical(result[id])!==require('./labor-guard').canonical(r))throw fail(409,'Cambió la asignación del registro. Volvé a actualizar');
+    Object.defineProperty(result,id,{value:r,writable:true,enumerable:true,configurable:true});
+   }
+   return Object.fromEntries(Object.keys(result).sort().map(id=>[id,result[id]]));
+  }
+  return conditional&&collectionReader&&typeof collectionReader.read==='function'&&['sisventas/ventas','sisventas/presupuestos'].includes(p)?collectionReader.read(p):read(p);
+ }
+ async function context(uid){
+  if(scopedReads&&uid){
+   if(!key(uid))throw fail(403,'Identidad inválida');
+   const values=await Promise.allSettled([read('sv_chat_roles/'+uid),(async()=>{
+    try{return await queryReader('sv_usuarios','uid',uid);}
+    catch(_){throw fail(503,'No se pudo verificar tu acceso. Reintentá más tarde');}
+   })()]);
+   const error=values.find(r=>r.status==='rejected');if(error)throw error.reason;
+   const [identity,users]=values.map(r=>r.value);
+   if(identity?.activo!==true||!roles.includes(identity.rol))throw fail(403,'Acceso inactivo');
+   const cfg=await read('sv_permisos/'+identity.rol),identities={[uid]:identity},people=profiles(users,identities);
+   if(people.length!==1)throw fail(403,'La cuenta requiere revisión de identidad');
+   return {people,identities,permissions:cfg?{[identity.rol]:cfg}:{},scoped:true};
+  }
   const results=await Promise.allSettled([read('sv_usuarios'),read('sv_chat_roles'),read('sv_permisos')]);
   const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
   const [users,identities,permissions]=results.map(result=>result.value);
   return {people:profiles(users,identities),identities:identities||{},permissions:permissions||{}};
+ }
+ function assertReadContext(actor,domain,c){
+  if(!c.scoped)return;
+  if(c.identities[actor.uid]?.rol!==actor.role)throw fail(409,'El rol cambió. Volvé a ingresar');
+  if(!reads.allows(domain,actor.role,m=>moduleAllowed(actor.role,m,c.permissions),a=>{
+   const [group,name]=a.split('.'),value=c.permissions[actor.role]?.acciones?.[group]?.[name];return typeof value==='boolean'?value:actor.role==='admin';
+  }))throw fail(403,'Módulo no habilitado para este rol');
+ }
+ async function legacyPeople(c,candidate){
+  if(!c.scoped||Object.hasOwn(candidate,'responsableUid')||['creadaPorUid','creadoPorUid','usuarioUid','empleadoUid'].some(k=>candidate[k]))return;
+  if(!c.peopleTask)c.peopleTask=(async()=>{
+   const values=await Promise.allSettled([read('sv_usuarios'),read('sv_chat_roles')]),error=values.find(r=>r.status==='rejected');if(error)throw error.reason;
+   c.people=profiles(values[0].value,values[1].value);
+  })();
+  await c.peopleTask;
  }
  async function authorize(req,domain,viewUid){
   if(!['ventas','presupuestos'].includes(domain))throw fail(404,'Módulo no disponible');
   const token=String(req.headers.authorization||'').match(/^Bearer\s+(\S+)$/i);if(!token)throw fail(401,'Sesión requerida');
   let u;try{u=await auth.verifyIdToken(token[1],true);}catch(_){throw fail(401,'Sesión inválida');}
   if(!enabled)throw fail(503,'La privacidad comercial todavía no está habilitada');
-  const c=await context(),own=c.identities[u.uid];if(!key(u.uid)||own?.activo!==true||!roles.includes(own.rol))throw fail(403,'Acceso inactivo');
+  let c=await context(u.uid);const own=c.identities[u.uid];if(!key(u.uid)||own?.activo!==true||!roles.includes(own.rol))throw fail(403,'Acceso inactivo');
   if(viewUid&&viewUid!==u.uid){if(own.rol!=='admin'||!key(viewUid))throw fail(403,'Contexto no autorizado');}
-  const uid=viewUid||u.uid,identity=c.identities[uid],person=c.people.find(p=>p.uid===uid);
+  const uid=viewUid||u.uid;if(scopedReads&&uid!==u.uid)c=await context(uid);
+  const identity=c.identities[uid],person=c.people.find(p=>p.uid===uid);
   if(identity?.activo!==true||!person)throw fail(403,'La cuenta requiere revisión de identidad');
   const canRead=reads.allows(domain,identity.rol,m=>moduleAllowed(identity.rol,m,c.permissions),a=>{
    const [group,name]=a.split('.'),v=c.permissions[identity.rol]?.acciones?.[group]?.[name];return typeof v==='boolean'?v:identity.rol==='admin';
@@ -99,14 +145,21 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   if(failed)throw failure;return budgets;
  }
  async function recordsContext(domain,authorizedContext,useCollectionReader=false,actor){
-  const results=await Promise.allSettled([authorizedContext||context(),readCollection('sisventas/'+domain,useCollectionReader)]);
+  const results=await Promise.allSettled([authorizedContext||context(scopedReads?actor?.uid:undefined),readCollection('sisventas/'+domain,useCollectionReader,actor)]);
   const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
-  const [c,loaded]=results.map(result=>result.value);
+  let [c,loaded]=results.map(result=>result.value);
+  if(actor)assertReadContext(actor,domain,c);
   // La propiedad explícita prevalece sobre el presupuesto de origen. No leer
   // fichas de origen de ventas ajenas que nunca podrán integrar esta respuesta.
   // Las ventas antiguas sin responsable conservan la resolución histórica.
   const records=actor&&actor.role!=='admin'?Object.fromEntries(Object.entries(loaded||{}).filter(([,r])=>!Object.hasOwn(r,'responsableUid')||r.responsableUid===actor.uid)):loaded||{};
   const budgets=domain==='ventas'?await linkedBudgets(records):null;
+  if(c.scoped)for(const r of Object.values(records)){
+   const source=domain==='ventas'?budgets?.[linkedBudgetKey(r?.presupuestoFbKey)]:null,candidate=Object.hasOwn(r,'responsableUid')?r:source||r;
+   // Sólo la resolución histórica por nombre necesita el directorio completo
+   // para detectar homónimos. No volver a leer permisos de todos los roles.
+   await legacyPeople(c,candidate);
+  }
   return {c,records,budgets};
  }
  function recordOwner(r,domain,c,budgets){if(Object.hasOwn(r,'responsableUid'))return owner(r,domain,c.people);const sourceKey=domain==='ventas'?linkedBudgetKey(r.presupuestoFbKey):null,source=sourceKey?budgets?.[sourceKey]:null;return owner(source||r,source?'presupuestos':domain,c.people);}
@@ -120,7 +173,7 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   if(actor.viewing)throw fail(403,'Volvé a tu cuenta para modificar el responsable');
   if(assign&&actor.role!=='admin')throw fail(403,'Solo el administrador puede reasignar');
   if(!key(body?.id))throw fail(400,'Registro inválido');
-  const c=authorizedContext||await context(),budgets=actor.domain==='ventas'?Object.create(null):null;let target;
+  const c=authorizedContext&&!authorizedContext.scoped?authorizedContext:await context(),budgets=actor.domain==='ventas'?Object.create(null):null;let target;
   if(assign){target=c.people.find(p=>p.uid===body.uid);if(!target||!eligible(target.role,actor.domain,c.permissions))throw fail(403,'La persona ya no tiene habilitado este módulo');}
   const ref=db.ref('sisventas/'+actor.domain+'/'+body.id),stamp=now(),authorDirectory=new Map();let error,listener,initial;
   try{
@@ -166,11 +219,12 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
    }
   }finally{if(listener)ref.off('value',listener);}
  }
- async function visibleRecords(actor,domain){const {c,records,budgets}=await recordsContext(domain);return Object.fromEntries(Object.entries(records).filter(([,r])=>actor.role==='admin'||recordOwner(r,domain,c,budgets)===actor.uid));}
+ async function visibleRecords(actor,domain){const {c,records,budgets}=await recordsContext(domain,undefined,false,actor);return Object.fromEntries(Object.entries(records).filter(([,r])=>actor.role==='admin'||recordOwner(r,domain,c,budgets)===actor.uid));}
  async function authorizedRecord(actor,domain,record,c){
   if(!record||typeof record!=='object'||Array.isArray(record))throw fail(404,'Registro no disponible');
   const budgets=Object.create(null),source=linkedBudgetKey(record.presupuestoFbKey);
   if(actor.role!=='admin'&&domain==='ventas'&&!Object.hasOwn(record,'responsableUid')&&source)budgets[source]=await read('sisventas/presupuestos/'+source);
+  if(actor.role!=='admin')await legacyPeople(c,Object.hasOwn(record,'responsableUid')?record:budgets[source]||record);
   if(actor.role!=='admin'&&recordOwner(record,domain,c,budgets)!==actor.uid)throw fail(404,'Registro no disponible');
   return record;
  }
@@ -178,9 +232,10 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   if(!['ventas','presupuestos'].includes(domain)||!recordKey(id))throw fail(404,'Registro no disponible');
   // Comprobar una ficha no necesita construir todo el listado comercial.
   // El contexto se relee por operación; no se reutiliza una autorización vieja.
-  const results=await Promise.allSettled([context(),read('sisventas/'+domain+'/'+id)]);
+  const results=await Promise.allSettled([context(scopedReads?actor.uid:undefined),read('sisventas/'+domain+'/'+id)]);
   const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
   const [c,record]=results.map(result=>result.value);
+  assertReadContext(actor,domain,c);
   return authorizedRecord(actor,domain,record,c);
  }
  async function visibleRecordsByIds(actor,domain,ids){
@@ -188,7 +243,7 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   const selected=[...new Set(ids.filter(recordKey))],result=Object.create(null);
   if(!selected.length)return result;
   // Un contexto fresco para este conjunto exacto, nunca para otra operación.
-  const c=await context();let cursor=0,error;
+  const c=await context(scopedReads?actor.uid:undefined);assertReadContext(actor,domain,c);let cursor=0,error;
   await Promise.all(Array.from({length:Math.min(6,selected.length)},async()=>{
    while(!error&&cursor<selected.length){
     const id=selected[cursor++];

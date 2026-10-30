@@ -3,7 +3,7 @@ const crypto=require('node:crypto'),Model=require('./projects-model');
 const fail=(statusCode,message)=>Object.assign(Error(message),{statusCode});
 const roles=['admin','administrativo','vendedor','tecnico_vendedor','tecnico'];
 const commercial=roles.filter(r=>r!=='tecnico');
-function createProjects({auth,db,enabled=false,collectionReader,now=Date.now,uuid=crypto.randomUUID}){
+function createProjects({auth,db,enabled=false,collectionReader,scopedReads=false,queryReader,now=Date.now,uuid=crypto.randomUUID}){
  const read=async p=>(await db.ref(p).get()).val();
  async function authorize(req){
   const token=String(req.headers.authorization||'').match(/^Bearer\s+(\S+)$/i);if(!token)throw fail(401,'Sesión requerida');
@@ -21,8 +21,8 @@ function createProjects({auth,db,enabled=false,collectionReader,now=Date.now,uui
   return Object.entries(data||{}).filter(([uid,p])=>p.activo!==false&&identities?.[uid]?.activo===true&&roles.includes(identities[uid].rol)).map(([uid,p])=>({uid,name:String(p.nombre||'Usuario').slice(0,100),role:identities[uid].rol}));
  }
  function budget(id,p){return {id,number:String(p.numero||p.id||id).slice(0,80),title:String(p.tituloSolucion||p.cliente||'Presupuesto').slice(0,160),clientId:String(p.clienteFbKey||p.clienteKey||p.clienteId||''),total:p.total!=null&&Number.isFinite(Number(p.total))?Number(p.total):null,currency:p.moneda==='USD'?'USD':'ARS',status:String(p.estado||'borrador').slice(0,40),items:(Array.isArray(p.items)?p.items:Object.values(p.items||{})).slice(0,200).map(i=>({description:String(i.desc||i.descripcion||'').slice(0,200),qty:Number(i.qty)||0,unitPrice:Number(i.punit)||0}))};}
- async function quotes(actor){if(!Model.commercial(actor))return [];const records=process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'?await require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true,collectionReader}).list({...actor,domain:'presupuestos'}).then(result=>result.records):await read('sisventas/presupuestos')||{};return Object.entries(records).filter(([,p])=>!p.eliminado).map(([id,p])=>budget(id,p));}
- async function quoteRecord(actor,id){return process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'?require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true}).assertRecord(actor,'presupuestos',id):read('sisventas/presupuestos/'+id);}
+ async function quotes(actor){if(!Model.commercial(actor))return [];const records=process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'?await require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true,collectionReader,scopedReads,queryReader}).list({...actor,domain:'presupuestos'}).then(result=>result.records):await read('sisventas/presupuestos')||{};return Object.entries(records).filter(([,p])=>!p.eliminado).map(([id,p])=>budget(id,p));}
+ async function quoteRecord(actor,id){return process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'?require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true,scopedReads,queryReader}).assertRecord(actor,'presupuestos',id):read('sisventas/presupuestos/'+id);}
  async function legacyLinkedRecords(ids){
   const records=Object.create(null);let cursor=0,failed=false,failure;
   await Promise.all(Array.from({length:Math.min(6,ids.length)},async()=>{
@@ -43,7 +43,7 @@ function createProjects({auth,db,enabled=false,collectionReader,now=Date.now,uui
   });
   if(!ids.length)return [];
   const records=process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'
-   ?await require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true}).visibleRecordsByIds(actor,'presupuestos',ids)
+   ?await require('./commercial-ownership').createCommercialOwnership({auth,db,enabled:true,scopedReads,queryReader}).visibleRecordsByIds(actor,'presupuestos',ids)
    :await legacyLinkedRecords(ids);
   return Object.entries(records).filter(([,record])=>record&&!record.eliminado).map(([id,record])=>budget(id,record));
  }

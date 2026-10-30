@@ -7,7 +7,7 @@ const {createLaborRtdbStore}=require('../cotizador/labor-rtdb-store'),{createLab
 const {functionSource}=require('./helpers/app-functions.cjs');
 const ns='demo-conversion-preflight',host='127.0.0.1:9058';let env,initial,baseline;
 const person=uid=>({responsableUid:uid,responsableNombre:'Persona '+uid,responsableRol:'administrativo',responsableRevision:1,creadorOriginalUid:uid,creadorOriginalNombre:'Persona '+uid});
-before(async()=>{assert.equal(process.env.FIREBASE_DATABASE_EMULATOR_HOST,host);baseline=JSON.parse(fs.readFileSync(process.env.SV_PREFLIGHT_RULES));env=await initializeTestEnvironment({projectId:ns,database:{host:'127.0.0.1',port:9058,rules:JSON.stringify(build(baseline))}});});
+before(async()=>{assert.equal(process.env.FIREBASE_DATABASE_EMULATOR_HOST,host);baseline=JSON.parse(fs.readFileSync(process.env.SV_PREFLIGHT_RULES));env=await initializeTestEnvironment({projectId:ns,database:{host:'127.0.0.1',port:9058,rules:JSON.stringify(require('../scripts/lib/commercial-owner-query-rules.cjs').build(build(baseline)))}});});
 after(async()=>env?.cleanup());
 beforeEach(async()=>{const perms=permissionIndex({administrativo:{bloqueados:[],acciones:{ventas:{crear:true,editar:true}}},tecnico:{bloqueados:['venta','detalle'],acciones:{ventas:{crear:false}}}});initial={sv_labor_config:{schema:1,ready:true},sv_chat_roles:{a:{rol:'administrativo',activo:true},b:{rol:'administrativo',activo:true},tech:{rol:'tecnico',activo:true}},sv_chat_directorio:{a:{nombre:'Persona a'},b:{nombre:'Persona b'}},sv_permisos:perms,sisventas:{presupuestos:{budget:{...person('a'),id:'PP-DEMO',fecha:'2026-10-29',estado:'aprobado_int',audit:[],items:[{cod:'P-DEMO',desc:'Servicio ficticio',qty:2,punit:48,sub:96,esManoDeObra:true,costoUnitarioCompra:20,costoTotalCompra:40}]}},ventas:{other:{...person('b'),total:999}},contadores:{venta:1},pagos:{sentinel:{monto:12}},gastos:{sentinel:{monto:7}}},sv_personal_finance:{private:{secret:'FICTICIO'}}};await env.withSecurityRulesDisabled(c=>sdk.set(sdk.ref(c.database()),initial));});
 const client=uid=>uid?env.authenticatedContext(uid).database():env.unauthenticatedContext().database();
@@ -61,4 +61,36 @@ test('a sale created after the null snapshot is never overwritten',async()=>{
  const path='sisventas/ventas/race',original={...person('a'),total:77};await change({[path]:original});
  await assert.rejects(gateway.write({uid:'a',claims:{uid:'a'}},{id:'fictional_race_01',kind:'atomic',path:'',value:{[path]:{...original,total:99}},expectedHashes:{[path]:digest(null)}}),e=>e.code==='SV_CAS_CONFLICT');
  assert.deepEqual(await store.read(path),original);
+});
+
+test('queries indexadas reales incluyen históricos propios sin descargar ventas ajenas',async()=>{
+ await change({'sv_usuarios/a':{uid:'a',nombre:'Persona a',rol:'administrativo',activo:true},'sv_usuarios/b':{uid:'b',nombre:'Persona b',rol:'administrativo',activo:true},'sisventas/ventas/mine':{...person('a'),total:50},'sisventas/ventas/legacy':{usuario:'Persona a',total:25}});
+ const calls=[],store=createLaborRtdbStore({databaseURL:'http://'+host+'/?ns='+ns,accessToken:async()=>'owner'});
+ const db={ref:path=>({get:async()=>{calls.push({path,full:true});return{val:()=>null,value:await store.read(path)};},orderByChild:field=>({equalTo:value=>({get:async()=>{calls.push({path,field,value});const data=await store.query(path,field,value);return{val:()=>data};}})})})};
+ // Una val() síncrona como el SDK, sin resolver Promises desde la proyección.
+ const ref=db.ref;db.ref=path=>{const r=ref(path);r.get=async()=>{calls.push({path,full:true});const data=await store.read(path);return{val:()=>data};};return r;};
+ const api=require('../cotizador/commercial-ownership').createCommercialOwnership({db,auth:{verifyIdToken:async uid=>({uid})},enabled:true,scopedReads:true,queryReader:async(path,field,value)=>{calls.push({path,field,value});return store.query(path,field,value);}});
+ const rows=(await api.list(await api.authorize({headers:{authorization:'Bearer a'}},'ventas'))).records;
+ assert.deepEqual(Object.keys(rows).sort(),['legacy','mine']);assert.equal(calls.some(c=>c.path==='sisventas/ventas'&&c.full),false);assert.deepEqual(calls.filter(c=>c.path==='sisventas/ventas').map(c=>c.value),['a',null]);
+});
+
+test('dos instancias con el mismo intento confirman una sola escritura real',async()=>{
+ const {digest}=require('../cotizador/labor-guard'),baseStore=createLaborRtdbStore({databaseURL:'http://'+host+'/?ns='+ns,accessToken:async()=>'owner'}),path='sisventas/ventas/race',original={...person('a'),id:'V-DEMO',total:77};await change({[path]:original});
+ const id='parallel-client-attempt',receipt='sv_labor_receipts/'+id;let firstReads=0,release,commits=0;const both=new Promise(r=>release=r);
+ const store={...baseStore,read:async p=>{if(p===receipt&&firstReads<2){firstReads++;if(firstReads===2)release();await both;return null;}return baseStore.read(p);},commit:async(patch,...args)=>{if(Object.keys(patch).some(p=>p===path||p.startsWith(path+'/')))commits++;return baseStore.commit(patch,...args);}};
+ const db={ref:p=>({get:async()=>{const value=await baseStore.read(p);return{val:()=>value};}})},body={id,kind:'atomic',path:'',value:{[path]:{...original,observaciones:'Nota ficticia'}},expectedHashes:{[path]:digest(original)}};
+ const gateways=[1,2].map(()=>createLaborWriteGateway({db,store,guard:createLaborGuard({store}),enabled:true}));
+ const results=await Promise.all(gateways.map(g=>g.write({uid:'a',claims:{uid:'a'}},body)));
+ assert.ok(results.every(r=>r.committed===true));assert.equal(commits,1);assert.equal((await baseStore.read(path)).observaciones,'Nota ficticia');assert.equal((await baseStore.read('sisventas/pagos/sentinel')).monto,12);
+});
+
+test('REST sin índice real falla cerrado sin descargar la colección como alternativa',async()=>{
+ const ready=require('../scripts/lib/commercial-owner-query-rules.cjs').build(build(baseline)),missing=structuredClone(ready);
+ missing.rules.sisventas.ventas['.indexOn']=missing.rules.sisventas.ventas['.indexOn'].filter(field=>field!=='responsableUid');
+ const install=async rules=>{const res=await fetch('http://'+host+'/.settings/rules.json?ns='+ns,{method:'PUT',headers:{Authorization:'Bearer owner','Content-Type':'application/json'},body:JSON.stringify(rules)});assert.equal(res.status,200);await res.body.cancel();};
+ await change({'sv_usuarios/a':{uid:'a',nombre:'Persona a',rol:'administrativo',activo:true},'sisventas/ventas/mine':{...person('a'),total:10}});
+ const calls=[],store=createLaborRtdbStore({databaseURL:'http://'+host+'/?ns='+ns,accessToken:async()=>'owner'}),db={ref:p=>({get:async()=>{calls.push({path:p,full:true});const v=await store.read(p);return{val:()=>v};}})};
+ const api=require('../cotizador/commercial-ownership').createCommercialOwnership({db,auth:{verifyIdToken:async uid=>({uid})},enabled:true,scopedReads:true,queryReader:async(path,field,value)=>{calls.push({path,field,value});return store.query(path,field,value);}});
+ try{await install(missing);const actor=await api.authorize({headers:{authorization:'Bearer a'}},'ventas');await assert.rejects(api.list(actor),e=>e.statusCode===503);assert.equal(calls.some(c=>c.path==='sisventas/ventas'&&c.full),false);}
+ finally{await install(ready);}
 });

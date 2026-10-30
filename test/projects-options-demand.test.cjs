@@ -6,15 +6,23 @@ before(()=>{process.env.COMMERCIAL_OWNERSHIP_ENABLED='true';});
 after(()=>{if(previousOwnership===undefined)delete process.env.COMMERCIAL_OWNERSHIP_ENABLED;else process.env.COMMERCIAL_OWNERSHIP_ENABLED=previousOwnership;});
 const plain=value=>JSON.parse(JSON.stringify(value)),turn=()=>new Promise(resolve=>setImmediate(resolve));
 function project(){return {id:'project',number:'PR-FICTICIO',name:'Proyecto ficticio',clientId:'client',clientName:'Cliente ficticio',address:'Domicilio ficticio',goal:'Objetivo ficticio',due:'',stage:'planificacion',owner:'owner',members:{owner:{name:'Titular ficticio',access:'owner'},editor:{name:'Colaborador ficticio',access:'editor'},reader:{name:'Lector ficticio',access:'viewer'}},needs:[],budgets:[],activity:[],revision:1,createdAt:100,updatedAt:100};}
-function backend(){
+function backend({scopedReads=false}={}){
  const db=memoryDB({sv_chat_roles:{owner:{activo:true,rol:'vendedor'},editor:{activo:true,rol:'vendedor'},reader:{activo:true,rol:'vendedor'},other:{activo:true,rol:'vendedor'}},sv_chat_directorio:{owner:{nombre:'Titular ficticio'},editor:{nombre:'Colaborador ficticio'},reader:{nombre:'Lector ficticio'},other:{nombre:'Otra persona'}},sv_usuarios:{a:{uid:'owner',nombre:'Titular ficticio',rol:'vendedor'},b:{uid:'other',nombre:'Otra persona',rol:'vendedor'}},sv_permisos:{vendedor:{indiceVersion:2,indiceRevision:1,indiceModulos:{proyectos:true,presupuesto:true,clientes:true},bloqueados:[]}},sv_proyectos:{project:project()},sisventas:{clientes:{client:{nombre:'Cliente ficticio',direccion:'Domicilio ficticio',secret:'No proyectar'},inactive:{nombre:'Cliente inactivo',activo:false}},presupuestos:{quote:{numero:'PP-FICTICIO',clienteFbKey:'client',responsableUid:'owner',tituloSolucion:'Propuesta ficticia',total:1000,compra:700,items:[{desc:'Producto ficticio',qty:1,punit:1000,compra:700}]},foreign:{numero:'PP-AJENO',clienteFbKey:'client',responsableUid:'other',total:999}}}});
- const reads=[],writes=[];const ref=db.ref.bind(db);db.ref=path=>{const r=ref(path);return {...r,get:async()=>{reads.push(path);return r.get();},transaction:async(...args)=>{writes.push(path);return r.transaction(...args);}};};
- const service=createProjects({db,auth:{verifyIdToken:async uid=>({uid})},enabled:true,now:()=>200,uuid:()=> 'new-fictitious-id'});
+ const reads=[],writes=[];const ref=db.ref.bind(db);db.ref=path=>{const r=ref(path);return {...r,orderByChild:field=>({equalTo:value=>({get:async()=>{reads.push(path+'?'+field);const all=(await r.get()).val()||{};return{val:()=>Object.fromEntries(Object.entries(all).filter(([,row])=>(row[field]??null)===value))};}})}),get:async()=>{reads.push(path);return r.get();},transaction:async(...args)=>{writes.push(path);return r.transaction(...args);}};};
+ const service=createProjects({db,auth:{verifyIdToken:async uid=>({uid})},enabled:true,scopedReads,queryReader:async(p,field,value)=>(await db.ref(p).orderByChild(field).equalTo(value).get()).val(),now:()=>200,uuid:()=> 'new-fictitious-id'});
  return {db,reads,writes,service,actor:uid=>service.authorize({headers:{authorization:'Bearer '+(uid||'owner')}})};
 }
 test('base conserva formularios y devuelve cero presupuestos sin leer ningún historial comercial',async()=>{
  const f=backend(),a=await f.actor();f.reads.length=0;const result=await f.service.options(a,'project','base');
  assert.deepEqual(f.reads.sort(),['sv_proyectos/project','sv_chat_directorio','sv_chat_roles','sisventas/clientes'].sort());assert.equal(result.people.length,4);assert.equal(result.clients.length,1);assert.equal(result.clients[0].secret,undefined);assert.deepEqual(result.budgets,[]);assert.deepEqual(f.writes,[]);
+});
+
+test('selector con lectura acotada no descarga presupuestos completos ni directorios globales',async()=>{
+ const f=backend({scopedReads:true}),actor=await f.actor();f.reads.length=0;
+ const result=await f.service.options(actor,'project','budgets');
+ assert.deepEqual(result.budgets.map(b=>b.id),['quote']);
+ for(const path of ['sisventas/presupuestos','sv_usuarios','sv_chat_roles','sv_permisos'])assert.ok(!f.reads.includes(path),path);
+ assert.equal(result.budgets[0].compra,undefined);assert.deepEqual(f.writes,[]);
 });
 test('budgets lee las propuestas autorizadas sólo al solicitar selector y no descarga directorios ni clientes',async()=>{
  const f=backend(),a=await f.actor();f.reads.length=0;const result=await f.service.options(a,'project','budgets');

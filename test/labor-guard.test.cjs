@@ -48,3 +48,20 @@ test('permisos cambiados antes del lease, incluso con la misma revisión, rechaz
  const f=fixture(),before={indiceRevision:1,acciones:{empleados:{autorizarHoras:true}}};f.data.sv_permisos={admin:{indiceRevision:1,acciones:{empleados:{autorizarHoras:false}}}};let called=false;
  await assert.rejects(f.guard.run(f.actor({permissionDigest:digest(before)}),async()=>{called=true;return {ok:true};}),e=>e.code==='SV_LABOR_AUTH_CHANGED');assert.equal(called,false);assert.equal(f.calls.commits.length,0);
 });
+
+test('recibo confirmado no espera la cola ni toma otro lease mientras hay un guardado independiente',async()=>{
+ const f=fixture(),actor=f.actor({mode:'user',opId:'already-confirmed',input:{demo:1}});
+ await f.guard.run(actor,async()=>({ok:true,committed:true}));
+ let release,started;const waiting=new Promise(r=>release=r),entered=new Promise(r=>started=r);
+ const blocker=f.guard.run(f.actor(),async()=>{started();await waiting;return{ok:true,committed:true};});await entered;
+ const before=f.calls.acquires.length;let timeout;
+ try{const result=await Promise.race([f.guard.run(actor,()=>{throw Error('No debe volver a ejecutar');}),new Promise((_,reject)=>timeout=setTimeout(()=>reject(Error('Esperó un bloqueo ajeno')),250))]);assert.equal(result.committed,true);assert.equal(f.calls.acquires.length,before);}
+ finally{clearTimeout(timeout);release();await blocker;}
+});
+
+test('rechazo de adquirir por recibo confirmado en otra instancia devuelve confirmación sin repetir plan',async()=>{
+ const f=fixture(),actor=f.actor({mode:'user',opId:'cross-instance',input:{demo:1}});
+ f.store.acquire=async()=>{f.data.sv_labor_receipts={...(f.data.sv_labor_receipts||{}),[actor.opId]:{actorUid:actor.uid,digest:digest({uid:actor.uid,mode:actor.mode,operation:actor.operation,input:actor.input}),result:{ok:true,committed:true}}};throw Object.assign(Error('Receipt exists'),{statusCode:403});};
+ let executions=0;const result=await f.guard.run(actor,async()=>{executions++;return {ok:true,committed:true};});
+ assert.equal(result.committed,true);assert.equal(executions,0);assert.equal(f.calls.commits.length,0);assert.equal(f.calls.aborts.length,0);assert.equal(f.data.sv_labor_guard,undefined);
+});
