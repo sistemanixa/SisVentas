@@ -1,3 +1,7 @@
+## Reintento autorizado y protegido · 30/10/2026
+
+El titular autorizó expresamente índices/cfg/reglas, Cotizador al100%/14accesos y Hosting17.3. Primer intento: comparación de índice dependía del orden de claves JSON; Firebase lo reordena. Se detuvo antes de publicar reglas finales, restauró reglas y tráfico originales, y sólo creó un índice técnico sin activar. Se retiró únicamente ese índice propio tras comprobar igualdad exacta semántica. Cero escrituras originales/financieras. Corregido con isDeepStrictEqual y prueba de claves reordenadas;6774total/6747PASS/27opt-in/0fallos;94backend y15reglasPASS. Nueva referencia incluye68mensajes,40OC,27listas,111SKU y los guardados humanos terminados en el otro chat. Todos los servicios vigentes comprobados con mínimo0 y CPU por solicitud. Reintento todavía no se acredita activo hasta registrar evidencia externa.
+
 ## Revisión candidata preparada sin tráfico · 30/10/2026
 
 Cotizador cotizador-audit3173-7bd8fafc existe sin tráfico. Revisión antigua conserva100% y sus14tags; CPU por solicitud, recursos, identidad y min0 conservados. Tres rutas restringidas respondieron401sin autenticación. Únicos flags nuevos CHAT_HEADERS_ENABLED y OPERATIONAL_SUMMARIES_ENABLED; todavía no hay índices/configuración nuevos activos.15pruebas sobre reglas finales con índices de relaciones PASS. La activación/Hosting permanece pendiente de la autorización específica exigida por revisión automática; no afirmar que la candidata está en producción por existir una revisión sin tráfico.

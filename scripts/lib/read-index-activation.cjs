@@ -17,7 +17,7 @@ async function scan(read){const values={},chat={},operational={};let records=0;
 }
 
 async function activate({read,write,baseRules,candidateRules,prepared,onPhase=()=>{}}){
- const same=(a,b)=>hash(a)===hash(b),rulesPath='.settings/rules',frozen=freezeRules(baseRules);let phase='preflight';
+ const same=require('node:util').isDeepStrictEqual,rulesPath='.settings/rules',frozen=freezeRules(baseRules);let phase='preflight';
  if(!same(await read(rulesPath),baseRules))throw Error('Otra publicación cambió las reglas');
  for(const target of targets)if(await read(target)!==null)throw Error('El índice ya existe: no sobrescribirlo');
  const lease=await read('sv_labor_guard');if(lease&&Number(lease.expiresAt)>Date.now())throw Error('Hay un guardado financiero en curso; reintentar cuando termine');
