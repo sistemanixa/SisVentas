@@ -1,4 +1,4 @@
-# Pendientes vigentes · revisión 30/10/2026 · v3.17.1
+# Pendientes vigentes · revisión posterior a v3.17.2 · 30/10/2026
 
 Este encabezado reemplaza el estado vigente de las listas de octubre anteriores. El archivo conserva su inventario histórico debajo; no se debe interpretar una candidata antigua como un faltante actual ni una suite aprobada como una publicación.
 
@@ -8,12 +8,15 @@ Este encabezado reemplaza el estado vigente de las listas de octubre anteriores.
 - v3.16.20 y v3.17.0: preparación comercial directa cuando corresponde, listados propios indexados, disponibilidad OT por fecha, recuperación de confirmaciones y recepciones, caché comprimida acotada, suspensión de recargas sin dependencia comercial y sonda estática. Evidencia y límites en CONTEXTO_ACTUAL.
 - Salarios/mano de obra, costos capturados por guardado unificado, edición de costos por permiso, privacidad comercial de Proyectos, pago administrativo de bonificaciones y materiales/remito OT tienen entregas posteriores al índice histórico. Su presencia en una lista antigua no los vuelve a convertir en desarrollos nuevos.
 
+## Cerrado y publicado en v3.17.2
+
+Proveedores: no escribe al consultar; cambios privados/públicos emparejados por SDK con reglas probadas. Relevamientos: lista compacta, detalle a demanda, originales preservados e índice completo verificado. Compras: órdenes anteriores sólo por acción y páginas visuales de50filas, sin truncar búsqueda o totales. Fuente ff67a843; pruebas y comprobación de producción en CONTEXTO_ACTUAL.
+
 ## Trabajo que continúa abierto
 
 | Bloque | Evidencia actual | Condición de cierre |
 | --- | --- | --- |
-| Proveedores: lectura con efecto de escritura | app activa fbCargarProveedores llama syncProviders; distribuidora-access escribe sv_catalogo_proveedores mediante fbSet. Continúa activo en el código publicado. | Eliminar la escritura al consultar y demostrar actualización coherente ante altas, cambios, bajas, lotes y editores delegados. Probar concurrencia, fallos y recuperación sin ampliar permisos. No retirar el puente antes de cubrir sus consumidores. |
-| Primeras descargas amplias | Chat conserva suscripción del canal completo; Compras conserva colecciones operativas; los listados de Relevamientos y Agenda tienen contratos históricos. | Revisar cada consumidor y sus contadores/no leídos/deuda/fechas antiguas. No aplicar limitToLast o ventanas arbitrarias que oculten operaciones. Reducir transferencia desde la fuente con cobertura verificable y pruebas. |
+| Primeras descargas amplias | Chat conserva suscripción del canal completo; Compras conserva las tres fuentes operativas modernas; Agenda conserva su cobertura histórica. Relevamientos ya usa índice compacto17.2 y Compras retiró la lectura legacy automática. | Revisar cada consumidor y sus contadores/no leídos/deuda/fechas antiguas. No aplicar limitToLast o ventanas arbitrarias que oculten operaciones. Reducir transferencia desde la fuente con cobertura verificable y pruebas. |
 | Venta que vuelve a presupuesto y sus derivados | El índice histórico pedía revisar preparación huérfana y efectos separados. Esta revisión no encontró todavía evidencia suficiente para certificar todo ese circuito actual. | Reproducir con datos ficticios y confirmar qué se conserva, anula o retira; pagos, factura, OT ejecutada y comisiones no se borran en cascada. |
 | Cobertura del inventario histórico | OT tuvo varias correcciones publicadas; el estado de una operación real concreta no demuestra todas las variantes de entrega/devolución/serie/garantía. | Mapear pruebas por variante y cerrar sólo las verificadas, sin usar OT ni stock real como prueba. |
 | Consumo de reposo y protección de costos | Existe perfil acotado de 45 segundos, no ensayo controlado de siete horas sin clientes. Las alertas no acreditan un límite exacto de facturación. | Verificar configuración remota vigente y comparar un intervalo acordado. No inventar cero a partir de huecos ni instalar consultas periódicas. |
