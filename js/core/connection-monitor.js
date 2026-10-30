@@ -2,9 +2,11 @@
  'use strict';const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;
  if(!root?.document)return;
  const monitor=api.create({active:()=>!!sessionUid&&root.fbAuth?.currentUser?.uid===sessionUid&&!root.document.hidden&&root.SVForegroundSession?.isVisible?.()!==false,online:()=>root.navigator.onLine!==false,probe:async()=>{
-  const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servidor sin configurar');
-  // API externa, sin sesión ni datos. El401 esperado acredita red real; nunca pasa por el caché local del SW.
-  const response=await root.fetch(base+'/?sv_connection_probe=1',{cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(5000)});return response.status;
+  // A public static file checks Internet without waking a financial service.
+  // Local previews use the public origin too; their own loopback server cannot
+  // prove Internet access. The matching SW path explicitly bypasses its cache.
+  const target='https://ventas.sistemanixa.com/manifest.webmanifest?sv_connection_probe='+Date.now();
+  const response=await root.fetch(target,{mode:'no-cors',cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(5000)});return response.status;
  },changed:()=>root.fbMostrarEstadoConexion?.(),lost:()=>root.dispatchEvent(new Event('sisventas:connection-lost')),restored:()=>root.dispatchEvent(new Event('sisventas:connection-restored'))});
  let sessionUid='';
  function start(){if(!sessionUid||root.fbAuth?.currentUser?.uid!==sessionUid||!root.currentUserUid)return;monitor.check();}
@@ -34,7 +36,7 @@
    if(network==='service')return {label:'Servidor no disponible',title:'El servidor no respondió correctamente. Volvé a intentar desde Sincronizar ahora.',connected:false};
    if(failed.size)return {label:'Sincronización pendiente',title:'Pendiente de sincronizar: '+Array.from(failed).join(', ')+'. Usá Sincronizar ahora o volvé a abrir el módulo.',connected:false};
    if(network!=='up'||!firebase)return {label:'Reconectando',title:'Comprobando la conexión con el servidor.',connected:false};
-   return {label:'Sincronizado',title:'Conexión con el servidor comprobada y Firebase conectado.',connected:true};
+   return {label:'Sincronizado',title:'Acceso a Internet comprobado y Firebase conectado.',connected:true};
   }
   return {check,offline,success,failure,view,canSync:()=>online()&&!['down','service'].includes(network),stop(){generation++;proof++;pending=null;network='unknown';failed.clear();}};
  }

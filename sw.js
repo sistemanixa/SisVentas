@@ -135,7 +135,7 @@ const SHELL = [
   './js/core/product-ranking.js?v=3.12.17',
   './css/product-ranking.css?v=3.12.17',
   './js/modules/product-ranking-dialog.js?v=3.12.17',
-  './js/core/connection-monitor.js?v=3.13.2-single-flight',
+  './js/core/connection-monitor.js?v=3.17.0',
   './js/core/commercial-ownership.js?v=3.17.0',
   './js/modules/commercial-document-controls.js?v=3.12.15',
   './js/core/commission-generation.js?v=3.16.11',
@@ -228,6 +228,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+  if(url.origin===self.location.origin&&url.pathname==='/manifest.webmanifest'&&url.searchParams.has('sv_connection_probe'))return;
   // Datos/PDF privados nunca se escriben en Cache Storage ni usan fallback.
   if(event.request.headers?.has('Authorization') || url.pathname.startsWith('/privado/finanzas')) return;
   if (url.origin === 'https://www.gstatic.com' && url.pathname.indexOf('/firebasejs/') >= 0) {

@@ -7,7 +7,7 @@ function fixture(){
  const root={document,navigator:{onLine:true},fbAuth:{currentUser:user},currentUserUid:user.uid,
   SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://fixture.invalid'},
   addEventListener:browser.addEventListener.bind(browser),dispatchEvent:browser.dispatchEvent.bind(browser),
-  fetch:async url=>{assert.equal(new URL(url).origin,'https://fixture.invalid');calls.push(url);return {status:405};}};
+  fetch:async(url,options)=>{const u=new URL(url);assert.equal(u.origin,'https://ventas.sistemanixa.com');assert.equal(u.pathname,'/manifest.webmanifest');assert.equal(options.credentials,'omit');assert.equal(options.cache,'no-store');assert.equal(options.headers,undefined);calls.push(url);return {status:200};}};
  vm.runInNewContext(fs.readFileSync('js/core/connection-monitor.js','utf8'),{window:root,Event,AbortSignal});
  return {root,document,calls,user,session:name=>document.dispatchEvent(new Event(name)),event:name=>browser.dispatchEvent(new Event(name)),visible(){document.hidden=false;document.dispatchEvent(new Event('visibilitychange'));}};
 }
