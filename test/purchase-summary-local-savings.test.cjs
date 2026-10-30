@@ -3,3 +3,5 @@ test('resumen distingue ahorro local completo del descuento proveedor',()=>{cons
 test('faltantes no aparecen como ahorro cero',()=>{const html=context.localSavingsCard({savingARS:null,missing:7},1600);assert.match(html,/Por completar/);assert.match(html,/7 productos/);assert.doesNotMatch(html,/USD 0,00/);});
 test('sobrecosto usa rojo y cero confirmado sigue siendo válido',()=>{assert.match(context.localSavingsCard({savingARS:-20},1600),/Mayor costo.*var\(--red\)/);assert.match(context.localSavingsCard({savingARS:0},0),/\$ 0,00/);});
 test('resumen reutiliza cálculo de tarjeta principal sin consulta de catálogo',()=>{assert.match(fs.readFileSync('js/modules/purchase-orders.js','utf8'),/localSavings:purchaseLocalSavings/);assert.match(source,/ctx\.localSavings\?\.\(Object\.assign/);});
+
+test('no presenta una referencia actual como precio local histórico',()=>{const html=context.localSavingsCard({savingARS:80000,missing:0,currentReferences:6},1600);assert.match(html,/6 referencias de costo actual/);assert.doesNotMatch(html,/costo local original/i);});
