@@ -1,3 +1,9 @@
+## Activación bloqueada por revisión automática · v3.17.3
+
+Código y pruebas terminados:6770total/6743PASS/27opt-in/0fallos;94backendPASS;15reglas combinadas PASS. Build6eaedbdc SUCCESS,81s, fuente backend7bd8fafc. Hosting/reglas/tráfico productivos siguen17.2/anteriores. La revisión automática rechazó volver a ejecutar el preparador de índices (sin --apply) porque lo consideró una activación con nuevas rutas/permisos no autorizados específicamente. No se elude el rechazo ni se aplicó la activación. Se requiere confirmación humana concreta para los índices/cfg/reglas de Chat y Compras y el corte coordinado. Mientras tanto se conserva el paquete privado y el ejemplo local.
+
+Pedido confirmado: se reprodujo también el snapshot JSON sin result.margin; la vista para stock omite el cálculo de margen de venta y conserva las cifras guardadas. Guardado/confirmación no aparecen y el texto indica pedido confirmado. Dos anchos PASS, sin tasas nuevas, escrituras ni recepción. Sólo cambia frontend respecto del backend7bd8fafc: no requiere otra compilación.
+
 # Cierre de auditoría · candidata v3.17.3 · 30/10/2026
 
 Estado separado: este bloque está preparado y probado localmente; producción conserva v3.17.2 hasta registrar el despliegue y la comprobación web. Sin push público ni avance de main. No se guardaron operaciones comerciales, cobros, comisiones o movimientos de stock como prueba.
