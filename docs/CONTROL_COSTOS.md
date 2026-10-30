@@ -1,3 +1,7 @@
+## Dólar cada tres horas · 30/10/2026
+
+Actualización expresamente autorizada por el titular. Sólo se programa en una sesión visible con permiso configuracion.editar; se pausa al ocultarse, no se ejecuta con navegadores cerrados y coordina un único pedido mediante lease compartido. Cadencia normal máxima: ocho actualizaciones diarias compartidas, más acciones manuales; fallos retroceden tres horas. No agrega servicios ni gasto fijo. Cada actualización implica lectura/escritura de configuración y un pedido al proveedor; no es un límite exacto de facturación.
+
 # Control de consumo de SisVentas
 
 ## Cobros y altas de Gastos · candidata local · 22/10/2026

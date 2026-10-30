@@ -1,0 +1,47 @@
+'use strict';
+// Explicit demo emulator and an externally supplied baseline; never ADC/production.
+const {test,before,after,beforeEach}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{createRequire}=require('node:module');
+const dep=createRequire(process.env.SV_SECURITY_TOOLS+'/package.json'),sdk=dep('firebase/database'),{initializeTestEnvironment,assertFails,assertSucceeds}=dep('@firebase/rules-unit-testing');
+const {build}=require('../scripts/lib/sale-create-preflight-rules.cjs'),{build:permissionIndex}=require('../js/core/permission-index');
+const {createLaborRtdbStore}=require('../cotizador/labor-rtdb-store'),{createLaborGuard}=require('../cotizador/labor-guard'),{createLaborWriteGateway}=require('../cotizador/labor-write-gateway');
+const {functionSource}=require('./helpers/app-functions.cjs');
+const ns='demo-conversion-preflight',host='127.0.0.1:9058';let env,initial,baseline;
+const person=uid=>({responsableUid:uid,responsableNombre:'Persona '+uid,responsableRol:'administrativo',responsableRevision:1,creadorOriginalUid:uid,creadorOriginalNombre:'Persona '+uid});
+before(async()=>{assert.equal(process.env.FIREBASE_DATABASE_EMULATOR_HOST,host);baseline=JSON.parse(fs.readFileSync(process.env.SV_PREFLIGHT_RULES));env=await initializeTestEnvironment({projectId:ns,database:{host:'127.0.0.1',port:9058,rules:JSON.stringify(build(baseline))}});});
+after(async()=>env?.cleanup());
+beforeEach(async()=>{const perms=permissionIndex({administrativo:{bloqueados:[],acciones:{ventas:{crear:true,editar:true}}},tecnico:{bloqueados:['venta','detalle'],acciones:{ventas:{crear:false}}}});initial={sv_labor_config:{schema:1,ready:true},sv_chat_roles:{a:{rol:'administrativo',activo:true},b:{rol:'administrativo',activo:true},tech:{rol:'tecnico',activo:true}},sv_chat_directorio:{a:{nombre:'Persona a'},b:{nombre:'Persona b'}},sv_permisos:perms,sisventas:{presupuestos:{budget:{...person('a'),id:'PP-DEMO',fecha:'2026-10-29',estado:'aprobado_int',audit:[],items:[{cod:'P-DEMO',desc:'Servicio ficticio',qty:2,punit:48,sub:96,esManoDeObra:true,costoUnitarioCompra:20,costoTotalCompra:40}]}},ventas:{other:{...person('b'),total:999}},contadores:{venta:1},pagos:{sentinel:{monto:12}},gastos:{sentinel:{monto:7}}},sv_personal_finance:{private:{secret:'FICTICIO'}}};await env.withSecurityRulesDisabled(c=>sdk.set(sdk.ref(c.database()),initial));});
+const client=uid=>uid?env.authenticatedContext(uid).database():env.unauthenticatedContext().database();
+const change=patch=>env.withSecurityRulesDisabled(c=>sdk.update(sdk.ref(c.database()),patch));
+test('creation null read succeeds; existing foreign sales, collections and private accounts stay denied',async()=>{
+ await assertSucceeds(sdk.get(sdk.ref(client('a'),'sisventas/ventas/new')));
+ for(const path of ['sisventas/ventas/other','sisventas/ventas','sv_personal_finance/private'])await assertFails(sdk.get(sdk.ref(client('a'),path)));
+ for(const who of [null,'tech'])await assertFails(sdk.get(sdk.ref(client(who),'sisventas/ventas/new')));
+});
+test('no create permission, module, active session or access version means no preflight',async()=>{
+ for(const patch of [{'sv_permisos/administrativo/acciones/ventas/crear':false},{'sv_permisos/administrativo/indiceModulos/venta':false},{'sv_chat_roles/a/activo':false},{'sv_access_resets/a/required':true}]){
+  await env.withSecurityRulesDisabled(c=>sdk.set(sdk.ref(c.database()),initial));await change(patch);await assertFails(sdk.get(sdk.ref(client('a'),'sisventas/ventas/new')));
+ }
+});
+test('actual conversion, protected server gateway and CAS preserve costs and links; retry never duplicates',async()=>{
+ const store=createLaborRtdbStore({databaseURL:'http://'+host+'/?ns='+ns,accessToken:async()=>'owner'}),db={ref:path=>({get:async()=>({val:()=>store.read(path)})})};
+ // val() must return a resolved value, as the real Admin SDK does.
+ db.ref=path=>({get:async()=>{const value=await store.read(path);return {val:()=>value};}});
+ const guard=createLaborGuard({store}),gateway=createLaborWriteGateway({db,store,guard,enabled:true}),user={uid:'a'};
+ const c={window:null,document:{addEventListener(){}},currentUser:'Persona a',currentUserUid:'a',currentUserEmail:'',currentRole:'administrativo',PERMISOS_ROLES:initial.sv_permisos,fbAuth:{currentUser:user},fbDB:client('a'),crypto:require('node:crypto').webcrypto,TextEncoder,AbortSignal,FB_PATHS:{ventas:'sisventas/ventas',presupuestos:'sisventas/presupuestos'},ventasList:[],escapeHTML:s=>s,_maxNumeroVentaLocal:()=>1};c.window=c;
+ c.fetch=async(_url,options)=>{try{const value=await gateway.write({uid:'a',claims:{uid:'a'}},JSON.parse(options.body));return {ok:true,status:200,json:async()=>value};}catch(e){return {ok:false,status:e.statusCode||500,json:async()=>({message:e.message,code:e.code})};}};
+ c.SVLaborWrites=require('../js/core/labor-writes').create(c);c.SVLaborWrites.install({sdk,endpoint:'http://fictional.invalid/write',headers:async()=>({})});
+ c.fbRef=sdk.ref;c.fbGet=sdk.get;c.SVCommercialOwnership={author:p=>p.creadorOriginalNombre,clean:r=>r,prepare:async()=>({record:initial.sisventas.presupuestos.budget})};
+ c.SVSaleCosts=require('../js/core/sale-costs.v1').create(c);c.SVBudgetConversionCosts=require('../js/core/budget-conversion-costs.v1')(c);c.SVSaleWriter=require('../js/core/sale-writer.v1').create(c);
+ vm.createContext(c);vm.runInContext(fs.readFileSync('js/modules/commercial-document-controls.js','utf8'),c);for(const name of ['_resultadoConversionPresupuestoExistente','_svCargaOperacion__convertirPresupuestoEnVentaAtomico'])vm.runInContext(functionSource(name),c);
+ const p={...initial.sisventas.presupuestos.budget,fbKey:'budget'},base={cliente:'Cliente ficticio',clienteFbKey:'customer',fecha:'2026-10-29',estadoPago:'pendiente',conIva:true,subtotal:96,iva:20.16,total:116.16,items:structuredClone(p.items)},audit={fecha:'2026-10-29',usuario:'Persona a',accion:'Aceptación ficticia'};
+ const result=await c._svCargaOperacion__convertirPresupuestoEnVentaAtomico(p,base,audit);assert.equal(result.ventaFbKey,'ppto_budget');
+ const saved=await store.read('sisventas');assert.equal(saved.ventas.ppto_budget.total,116.16);assert.equal(saved.ventas.ppto_budget.items[0].costoTotalCompra,40);assert.equal(saved.presupuestos.budget.ventaFbKey,'ppto_budget');assert.equal(saved.presupuestos.budget.estado,'convertido');assert.deepEqual(saved.pagos,initial.sisventas.pagos);assert.deepEqual(saved.gastos,initial.sisventas.gastos);assert.deepEqual(saved.ventas.other,initial.sisventas.ventas.other);
+ const again=await c._svCargaOperacion__convertirPresupuestoEnVentaAtomico(p,base,audit);assert.equal(again.reutilizada,true);assert.deepEqual(await store.read('sisventas'),saved);
+ await assertFails(sdk.get(sdk.ref(client('b'),'sisventas/ventas/ppto_budget')));
+});
+test('a sale created after the null snapshot is never overwritten',async()=>{
+ const {digest}=require('../cotizador/labor-guard'),store=createLaborRtdbStore({databaseURL:'http://'+host+'/?ns='+ns,accessToken:async()=>'owner'}),db={ref:path=>({get:async()=>{const value=await store.read(path);return {val:()=>value};}})},guard=createLaborGuard({store}),gateway=createLaborWriteGateway({db,store,guard,enabled:true});
+ const path='sisventas/ventas/race',original={...person('a'),total:77};await change({[path]:original});
+ await assert.rejects(gateway.write({uid:'a',claims:{uid:'a'}},{id:'fictional_race_01',kind:'atomic',path:'',value:{[path]:{...original,total:99}},expectedHashes:{[path]:digest(null)}}),e=>e.code==='SV_CAS_CONFLICT');
+ assert.deepEqual(await store.read(path),original);
+});
