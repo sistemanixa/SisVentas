@@ -1,3 +1,9 @@
+# Reapertura del cierre integral · 30/10/2026
+
+El titular pide terminar todos los pendientes. Revisión del código activo17.1 y de índices históricos: PENDIENTES_ACTUALES llevaba estado27/10 y versiones15.x como vigentes. Se agregó encabezado actual, conservando historial y distinguiendo entrega de huecos de cobertura. Confirmado pendiente real: fbCargarProveedores aún llama syncProviders y fbSet público al recibir datos. No se retiró ese puente sin cubrir altas/ediciones/bajas/lotes y permisos delegados. Chat sigue escuchando canal completo; otros listados requieren contratos de cobertura. No se declaró concluida esa optimización ni se borraron tareas por falta de tiempo.
+
+No hay cambio funcional o despliegue en esta revisión. Árbol antes limpio, branch codex/auditoria-circuitos-v3170, HEAD00f2b50c. IAB2/tab12 observado en Compras de exterior con17.1, sesión admin y Sincronizado; contexto conservado, sin recarga ni guardado. No nuevas métricas de consumo, no escrituras comerciales, no push público. Prueba de pago concurrente fuera del repositorio confirma necesidad del fence actual. Siguiente implementación: proyección de proveedores por escritores coordinados, evitando introducir una consulta periódica o ampliar lectura privada.
+
 # Publicada corrección de participantes v3.17.1 · 30/10/2026
 
 Hosting publicado desde 69f5caa12ad29bced5b49c3413ce6052a3d9b4dd: 518 activos/5 cargas. Dominio real: 13 activos exactos, cabeceras y tres privados404. Suite vigente 6654 total/6627PASS/27skip/0fallos; prueba adicional de reconciliación confirmada PASS (4 del handler). Visual ficticia390/768/1280PASS; captura privada tmp/commission-add-v3171-busy.png. Sin escrituras financieras reales ni despliegue Cotizador. La mejora elimina el temporizador350ms y el cierre/reapertura, muestra actividad y evita doble envío; no se promete una latencia de servidor distinta. No se probó un alta real en la sesión del usuario. Sin push público.

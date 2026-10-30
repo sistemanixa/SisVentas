@@ -1,3 +1,33 @@
+# Pendientes vigentes · revisión 30/10/2026 · v3.17.1
+
+Este encabezado reemplaza el estado vigente de las listas de octubre anteriores. El archivo conserva su inventario histórico debajo; no se debe interpretar una candidata antigua como un faltante actual ni una suite aprobada como una publicación.
+
+## Entrega comprobada
+
+- Hosting v3.17.1: fuente 69f5caa12ad29bced5b49c3413ce6052a3d9b4dd; archivos del dominio, cabeceras, rutas privadas y aviso oficial verificados. Progreso al agregar participantes y conservación del detalle probados sólo con datos ficticios.
+- v3.16.20 y v3.17.0: preparación comercial directa cuando corresponde, listados propios indexados, disponibilidad OT por fecha, recuperación de confirmaciones y recepciones, caché comprimida acotada, suspensión de recargas sin dependencia comercial y sonda estática. Evidencia y límites en CONTEXTO_ACTUAL.
+- Salarios/mano de obra, costos capturados por guardado unificado, edición de costos por permiso, privacidad comercial de Proyectos, pago administrativo de bonificaciones y materiales/remito OT tienen entregas posteriores al índice histórico. Su presencia en una lista antigua no los vuelve a convertir en desarrollos nuevos.
+
+## Trabajo que continúa abierto
+
+| Bloque | Evidencia actual | Condición de cierre |
+| --- | --- | --- |
+| Proveedores: lectura con efecto de escritura | app activa fbCargarProveedores llama syncProviders; distribuidora-access escribe sv_catalogo_proveedores mediante fbSet. Continúa activo en el código publicado. | Eliminar la escritura al consultar y demostrar actualización coherente ante altas, cambios, bajas, lotes y editores delegados. Probar concurrencia, fallos y recuperación sin ampliar permisos. No retirar el puente antes de cubrir sus consumidores. |
+| Primeras descargas amplias | Chat conserva suscripción del canal completo; Compras conserva colecciones operativas; los listados de Relevamientos y Agenda tienen contratos históricos. | Revisar cada consumidor y sus contadores/no leídos/deuda/fechas antiguas. No aplicar limitToLast o ventanas arbitrarias que oculten operaciones. Reducir transferencia desde la fuente con cobertura verificable y pruebas. |
+| Venta que vuelve a presupuesto y sus derivados | El índice histórico pedía revisar preparación huérfana y efectos separados. Esta revisión no encontró todavía evidencia suficiente para certificar todo ese circuito actual. | Reproducir con datos ficticios y confirmar qué se conserva, anula o retira; pagos, factura, OT ejecutada y comisiones no se borran en cascada. |
+| Cobertura del inventario histórico | OT tuvo varias correcciones publicadas; el estado de una operación real concreta no demuestra todas las variantes de entrega/devolución/serie/garantía. | Mapear pruebas por variante y cerrar sólo las verificadas, sin usar OT ni stock real como prueba. |
+| Consumo de reposo y protección de costos | Existe perfil acotado de 45 segundos, no ensayo controlado de siete horas sin clientes. Las alertas no acreditan un límite exacto de facturación. | Verificar configuración remota vigente y comparar un intervalo acordado. No inventar cero a partir de huecos ni instalar consultas periódicas. |
+
+## Decisiones conservadas
+
+El fence de nuevas escrituras financieras no se elimina: payment-membership-index conserva cobertura global. La prueba privada payment-coverage-concurrency.saved.test.cjs reproduce pérdida de cobertura con dos deltas calculados desde la misma versión; con cobertura fresca secuencial conserva ambos. Un lock local o por venta no reemplaza ese contrato. Rediseñar ese índice es una migración distinta, no una corrección inocua pendiente de retirar una línea.
+
+No se promete ausencia universal de fallos. Cierre de cada bloque exige código actual, pruebas pertinentes y estado externo cuando corresponda. La revisión de este encabezado no desplegó nada ni tocó datos comerciales.
+
+---
+
+# Inventario histórico conservado (27/10/2026)
+
 # Pendientes actuales de SisVentas
 
 **Publicado v3.15.16:** búsqueda por producto comprado, carga continua para stock y retorno contextual de detalle. Fuente788296ad, Hosting2994b8dea39a6001.6236PASS/27opt-in; sin cambios de servidor ni stock real de prueba. Mantener abierta incidencia de materiales históricos.
