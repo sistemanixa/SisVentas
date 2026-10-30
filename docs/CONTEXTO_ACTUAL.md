@@ -1,3 +1,7 @@
+# Candidata3.16.11 ·29/10/2026
+
+Integración estática del pedido humano corregirpresenciafalsa. ExclusividadHosting/espejo confirmada. Version31611/Novedades/index/SW/query módulos coherentes; app31610 originalsinmodificar. Sintaxis/localversionPASS; puerta final6463PASS27omitidas0fallos. Alcance sólofrontend y aviso oficial; no mensajesreales, reglas, roles ni servicios. Sinpushpúblico. Publicación/aviso/espejo pendientes hasta verificación.
+
 # Chat: marcas antiguas y presencia reciente preparada ·29/10/2026
 
 Pedido humano activo corregir falsos conectados sin gastos. Lecturapuntualpresencia confirma marcas cx2 Yanina~11h/Osmar~47h, sin borrar. Nuevo filtro15min+vencimientoLOCAL sin red, etiquetas conexiónreciente/sinconfirmar (no offline), pagehide/freeze propio, restauración normal. No renueva actividadni añadeheartbeat/listeners/sondeos/servicios; quieto legítimo pasa a sinconfirmar.22focalesPASS másanteriores, browser390/1280PASSsinredexterna. Suite final6463PASS27skip0fallos incluido wrapperdeencabezado. Ver docs/CHAT_PRESENCIA_RECIENTE.md. No publicada, no espejo ni recarga humana ni mensajes reales. Web sigue31610.
