@@ -6,7 +6,7 @@
     usageMetrics: {src:'./js/modules/usage-metrics.js?v=3.10.0', ready:function(){return !!window.SVUsageMetrics;}},
     excel: {src:'./js/modules/excel-export.js?v=3.14.20', ready:function(){return !!window.SVExcelExport;}},
     diagnostics: {src:'./js/v3/admin-diagnostics.js?v=3.3.17', ready:function(){return !!(window.SisVentas && window.SisVentas.V3Diagnostics);}},
-    distribuidora: {src:'./js/modules/distribuidora-access.js?v=3.10.17-category', ready:function(){return !!window.SVDistribuidora;}},
+    distribuidora: {src:'./js/modules/distribuidora-access.js?v=3.17.2', ready:function(){return !!window.SVDistribuidora;}},
     paraguay: {src:'./js/modules/paraguay-shopping-access.js?v=3.15.8-order-format', ready:function(){return !!window.SVParaguayPortal;}},
     compras: {src:'./js/modules/purchase-orders.js?v=3.17.0', ready:function(){return !!window.SisVentasCompras;}},
     planner: {src:'./js/modules/paraguay-planner.js?v=3.8.1', ready:function(){return !!window.SVParaguayPlanner;}},

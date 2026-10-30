@@ -1,12 +1,12 @@
 (function (root, factory) {
-  var api = factory();
+  var api = factory(typeof module === 'object' && module.exports ? require('../core/provider-writes') : root.SVProviderWrites);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else {
     root.SisVentas = root.SisVentas || {};
     root.SisVentas.V3 = root.SisVentas.V3 || {};
     root.SisVentas.V3.FirebaseRecordAdapter = api;
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (providerWrites) {
   'use strict';
 
   var PATHS = Object.freeze({
@@ -76,11 +76,13 @@
     }
 
     function set(collection, key, value) {
+      if(collection==='proveedores')return providerWrites.update(root,cleanKey(key),value);
       requireFirebase(['fbSet']);
       return root.fbSet(reference(collection, key), Object.assign({}, value || {}, { fbKey: cleanKey(key) }));
     }
 
     function update(collection, key, changes) {
+      if(collection==='proveedores')return providerWrites.update(root,cleanKey(key),changes);
       requireFirebase(['fbUpdate']);
       var payload = Object.assign({}, changes || {});
       delete payload.fbKey;
@@ -95,6 +97,7 @@
     }
 
     function updateMany(collection, entries) {
+      if(collection==='proveedores')return providerWrites.batch(root,entries);
       requireFirebase(['fbUpdate']);
       var payload = {};
       var normalized = (Array.isArray(entries) ? entries : []).map(function (entry) {
@@ -116,6 +119,7 @@
     }
 
     function remove(collection, key) {
+      if(collection==='proveedores')return providerWrites.remove(root,cleanKey(key));
       requireFirebase(['fbRemove']);
       return root.fbRemove(reference(collection, key));
     }

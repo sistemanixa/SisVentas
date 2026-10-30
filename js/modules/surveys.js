@@ -53,14 +53,14 @@
   function draftContext(){
     const uid=window.currentUserUid,user=window.fbAuth?.currentUser,authUid=user?.uid,role=window.currentRole,key=owner(),epoch=formEpoch,sessionEpoch=window._svOperacionesSesionEpoch||0,dataEpoch=window._svDataEpoch||0;
     const revision=window.PERMISOS_ROLES?.[role]?.indiceRevision,view=window._impersonacionOriginal,profile=view?.usuarioFbKey,page=root(),hash=window.location?.hash,moduleAccess=window.permisoModulo;
-    const db=window.fbDB,ref=window.fbRef,set=window.fbSet;
+    const db=window.fbDB,ref=window.fbRef,set=window.fbSet,update=window.fbUpdate,summaries=window.SISVENTAS_SURVEY_SUMMARIES_READY===true,summaryApi=window.SVSurveySummaries;
     function sameActor(){try{return (typeof isAuthenticated==='undefined'?window.isAuthenticated:isAuthenticated)===true&&!!uid&&!!user&&!!authUid&&authUid===uid&&uid===window.currentUserUid&&user===window.fbAuth?.currentUser&&authUid===user.uid&&role===window.currentRole&&
       key===owner()&&sessionEpoch===(window._svOperacionesSesionEpoch||0)&&dataEpoch===(window._svDataEpoch||0)&&revision===window.PERMISOS_ROLES?.[role]?.indiceRevision&&view===window._impersonacionOriginal&&profile===view?.usuarioFbKey&&
-      moduleAccess===window.permisoModulo&&typeof moduleAccess==='function'&&moduleAccess('relevamientos')===true;}catch(_){return false;}}
+      moduleAccess===window.permisoModulo&&typeof moduleAccess==='function'&&moduleAccess('relevamientos')===true&&summaries===(window.SISVENTAS_SURVEY_SUMMARIES_READY===true)&&(!summaries||summaryApi===window.SVSurveySummaries);}catch(_){return false;}}
     function canPaint(){return sameActor()&&epoch===formEpoch&&page===root()&&page?.isConnected!==false&&page?.classList.contains('active')&&hash===window.location?.hash;}
     function valid(){return canPaint()&&listForeground();}
-    function canWrite(){return valid()&&!!db&&db===window.fbDB&&ref===window.fbRef&&typeof ref==='function'&&set===window.fbSet&&typeof set==='function';}
-    return {key,uid,user,page,sameActor,canPaint,valid,canWrite,db,ref,set};
+    function canWrite(){return valid()&&!!db&&db===window.fbDB&&ref===window.fbRef&&typeof ref==='function'&&(summaries?update===window.fbUpdate&&typeof update==='function'&&!!summaryApi:set===window.fbSet&&typeof set==='function');}
+    return {key,uid,user,page,sameActor,canPaint,valid,canWrite,db,ref,set,update,summaries,summaryApi};
   }
   function ownsDraft(context){return loadedOwner===context.key&&loadedContext?.sameActor()===true;}
   function cleanupForDraft(){return pendingCleanup&&pendingCleanup.original===draft&&pendingCleanup.context.sameActor()&&pendingCleanup.fingerprint===JSON.stringify(draft)?pendingCleanup:null;}
@@ -84,7 +84,7 @@
   function listContext(){
     const epoch=listEpoch,uid=window.currentUserUid,user=window.fbAuth?.currentUser,authUid=user?.uid,role=window.currentRole;
     const revision=window.PERMISOS_ROLES?.[role]?.indiceRevision,sessionEpoch=window._svOperacionesSesionEpoch||0,dataEpoch=window._svDataEpoch||0,view=window._impersonacionOriginal,profile=view?.usuarioFbKey;
-    const page=root(),hash=window.location?.hash,moduleAccess=window.permisoModulo,db=window.fbDB,ref=window.fbRef,onValue=window.fbOnValue,name=owner();
+    const page=root(),hash=window.location?.hash,moduleAccess=window.permisoModulo,db=window.fbDB,ref=window.fbRef,onValue=window.fbOnValue,name=owner(),summaries=window.SISVENTAS_SURVEY_SUMMARIES_READY===true,summaryApi=window.SVSurveySummaries;
     const domainConfigured=!!window.SVDomainReads?.domains&&Object.hasOwn(window.SVDomainReads.domains,'relevamientos'),domainAccess=window.svPuedeLeerDominio;
     const authenticated=()=>typeof isAuthenticated==='undefined'?window.isAuthenticated:isAuthenticated;
     function valid(){try{return epoch===listEpoch&&authenticated()===true&&!!uid&&!!user&&!!authUid&&authUid===uid&&uid===window.currentUserUid&&user===window.fbAuth?.currentUser&&authUid===user.uid&&role===window.currentRole&&
@@ -92,8 +92,8 @@
       page===root()&&page?.isConnected!==false&&page?.classList.contains('active')&&hash===window.location?.hash&&listForeground()&&
       moduleAccess===window.permisoModulo&&typeof moduleAccess==='function'&&moduleAccess('relevamientos')===true&&
       domainConfigured===(!!window.SVDomainReads?.domains&&Object.hasOwn(window.SVDomainReads.domains,'relevamientos'))&&(!domainConfigured||domainAccess===window.svPuedeLeerDominio&&typeof domainAccess==='function'&&domainAccess('relevamientos')===true)&&
-      !!db&&db===window.fbDB&&ref===window.fbRef&&typeof ref==='function'&&onValue===window.fbOnValue&&typeof onValue==='function';}catch(_){return false;}}
-    return {valid,page,db,ref,onValue};
+      !!db&&db===window.fbDB&&ref===window.fbRef&&typeof ref==='function'&&onValue===window.fbOnValue&&typeof onValue==='function'&&summaries===(window.SISVENTAS_SURVEY_SUMMARIES_READY===true)&&(!summaries||summaryApi===window.SVSurveySummaries&&!!summaryApi);}catch(_){return false;}}
+    return {valid,page,db,ref,onValue,summaries,summaryApi};
   }
   function listStatus(page,status){
     page.setAttribute('aria-busy','false');
@@ -103,7 +103,7 @@
   function finishList(state){if(state.finished)return;state.finished=true;state.close();if(listLoadingClose===state.close)listLoadingClose=null;state.context.page?.setAttribute('aria-busy','false');}
   function stopList(clear){
     listEpoch++;const state=listState;listState=null;listOff=null;
-    if(state){state.closed=true;try{if(typeof state.off==='function')state.off();}finally{state.off=null;finishList(state);}
+    if(state){state.closed=true;state.details?.forEach(detail=>detail.stop());state.loadingSource?.cancel();try{if(typeof state.off==='function')state.off();}finally{state.off=null;finishList(state);}
       if(clear&&state.context.page===root()&&state.context.page.isConnected!==false)listStatus(state.context.page,'paused');}
     else{listLoadingClose?.();listLoadingClose=null;}
   }
@@ -114,7 +114,7 @@
     const error=validation(original);if(error){window.notify(error);return;}const confirmed=!!cleanupForDraft();if(!confirmed&&!navigator.onLine){window.notify('Sin conexión. El borrador queda en este dispositivo.');return;}
     const operation={context,original,snapshot:JSON.parse(JSON.stringify(original)),confirmed};pendingSave=operation;busy=true;renderBusy(true);
     try{await saveQueue;if(!context.canWrite()||draft!==original)return;
-      if(!operation.confirmed){const data=surveyForStorage(operation.snapshot);data.savedAt=new Date().toISOString();await context.set(context.ref(context.db,'sisventas/relevamientos/'+data.id),data);operation.confirmed=true;
+      if(!operation.confirmed){const data=surveyForStorage(operation.snapshot);data.savedAt=new Date().toISOString();if(context.summaries)await context.update(context.ref(context.db),context.summaryApi.savePatch(data));else await context.set(context.ref(context.db,'sisventas/relevamientos/'+data.id),data);operation.confirmed=true;
         if(context.sameActor()&&draft===original)pendingCleanup={context,original,fingerprint:JSON.stringify(operation.snapshot)};}
       if(!context.canWrite()||draft!==original)return;await local(null,context.key,()=>context.sameActor()&&draft===original);if(!context.valid()||draft!==original)return;
       pendingCleanup=null;draft=null;window.notify('Relevamiento guardado');await list();
@@ -128,19 +128,44 @@
     page.innerHTML='<div class="rel-shell">'+(window.SVScreenLoading?.start?'':'<p role="status">Cargando relevamientos…</p>')+'</div>';
     page.setAttribute('aria-busy','true');
     const close=window.SVScreenLoading?.start(page,'Cargando relevamientos…')||(()=>{});listLoadingClose=close;
-    const state={context,close,off:null,closed:false,finished:false};listState=state;
+    const state={context,close,off:null,closed:false,finished:false,details:new Map(),loadingSource:context.summaries?window.SVDataReadiness?.beginSource('relevamientos'):null};listState=state;
     const current=()=>listState===state&&!state.closed&&context.valid();
-    const failure=()=>{if(!current()){retireList(state);return;}stopList();listStatus(page,'error');};
-    try{const off=context.onValue(context.ref(context.db,'sisventas/relevamientos'),snap=>{
+    const failure=()=>{if(!current()){retireList(state);return;}state.sourceFailed=true;state.loadingSource?.error();stopList();listStatus(page,'error');};
+    try{const off=context.onValue(context.ref(context.db,context.summaries?context.summaryApi.INDEX:'sisventas/relevamientos'),snap=>{
       if(!current()){retireList(state);return;}
       try{
-      const opened=Array.from(root().querySelectorAll('details[open]')).map(n=>n.querySelector('summary')?.textContent);
+      const opened=Array.from(root().querySelectorAll('details[open]')).map(n=>context.summaries?n.dataset.surveyKey:n.querySelector('summary')?.textContent);
       const data=snap.val()||{};if(!current()){retireList(state);return;}
-      const all=Object.values(data).sort((a,b)=>String(b.savedAt).localeCompare(String(a.savedAt)));root().innerHTML='<div class="rel-shell"><header class="rel-heading"><h1>Relevamientos guardados</h1><button class="btn btn-primary" data-resume>'+ (draft?'Volver al borrador':'Nuevo relevamiento')+'</button></header><div class="rel-saved">'+(all.map(d=>'<details class="rel-summary"><summary><strong>'+esc(d.cliente)+'</strong><span>'+esc(d.direccion)+' · '+esc(new Date(d.savedAt).toLocaleDateString('es-AR'))+'</span></summary><p>'+esc(d.id)+' · '+esc(d.autor)+'</p>'+summary(d)+'</details>').join('')||'<p>Todavía no hay relevamientos guardados.</p>')+'</div></div>';
-      root().querySelectorAll('details').forEach(n=>{n.open=opened.includes(n.querySelector('summary')?.textContent);});
+      const all=context.summaries?context.summaryApi.parseIndex(data):Object.values(data).sort((a,b)=>String(b.savedAt).localeCompare(String(a.savedAt)));
+      if(context.summaries){const fingerprint=JSON.stringify(all);if(state.fingerprint===fingerprint){state.loadingSource?.ready();return;}state.fingerprint=fingerprint;state.details.forEach(detail=>detail.stop(false));}
+      root().innerHTML='<div class="rel-shell"><header class="rel-heading"><h1>Relevamientos guardados</h1><button class="btn btn-primary" data-resume>'+ (draft?'Volver al borrador':'Nuevo relevamiento')+'</button></header><div class="rel-saved">'+(all.map(d=>'<details class="rel-summary" '+(context.summaries?'data-survey-key="'+esc(d.key)+'"':'')+'><summary><strong>'+esc(d.cliente)+'</strong><span>'+esc(d.direccion)+' · '+esc(d.savedAt?new Date(d.savedAt).toLocaleDateString('es-AR'):'Sin fecha')+'</span></summary>'+(context.summaries?'<div data-survey-body></div>':'<p>'+esc(d.id)+' · '+esc(d.autor)+'</p>'+summary(d))+'</details>').join('')||'<p>Todavía no hay relevamientos guardados.</p>')+'</div></div>';
+      root().querySelectorAll('details').forEach(n=>{n.open=opened.includes(context.summaries?n.dataset.surveyKey:n.querySelector('summary')?.textContent);});state.loadingSource?.ready();
       }catch(_){failure();}finally{if(current())finishList(state);}
     },failure);if(current()){state.off=off;listOff=off;}else{if(typeof off==='function')off();retireList(state);}}catch(_){failure();}
   }
+  function openSummaryDetail(node,state,retry){
+    if(!state||listState!==state||state.closed||!state.context.summaries||!state.context.valid()||!node.open||node.isConnected===false)return;
+    const key=node.dataset.surveyKey,api=state.context.summaryApi;if(!api.key(key))return;
+    const previous=state.details.get(key);if(previous&&!retry)return;previous?.stop(false);
+    const body=node.querySelector('[data-survey-body]');if(!body)return;
+    const detail={closed:false,off:null,stop(clear=true){if(detail.closed)return;detail.closed=true;try{if(typeof detail.off==='function')detail.off();}finally{detail.off=null;if(state.details.get(key)===detail)state.details.delete(key);if(clear)body.innerHTML='';}}};
+    state.details.set(key,detail);
+    const current=()=>listState===state&&!state.closed&&!detail.closed&&state.details.get(key)===detail&&state.context.valid()&&node.open&&node.isConnected!==false;
+    const failure=()=>{if(!current()){detail.stop();return;}detail.stop(false);body.innerHTML='<p role="alert">No se pudo abrir el relevamiento.</p><button class="btn" data-survey-retry>Reintentar</button>';};
+    body.innerHTML='<p role="status" class="rel-detail-loading">Cargando relevamiento…</p>';
+    try{
+      const off=state.context.onValue(state.context.ref(state.context.db,api.DETAIL+'/'+key),snap=>{
+        if(!current()){detail.stop();return;}
+        try{const data=snap.val();if(!current()){detail.stop();return;}body.innerHTML=data?'<p>'+esc(data.id||key)+' · '+esc(data.autor||'')+'</p>'+summary(data):'<p>Este relevamiento ya no está disponible.</p>';}catch(_){failure();}
+      },failure);
+      if(detail.closed){if(typeof off==='function')off();}else detail.off=off;
+    }catch(_){failure();}
+  }
+  document.addEventListener('toggle',event=>{
+    const node=event.target;if(!node?.matches?.('details[data-survey-key]')||root()?.contains?.(node)===false)return;
+    const state=listState;if(!state?.context.summaries)return;
+    if(node.open)openSummaryDetail(node,state,false);else{state.details.get(node.dataset.surveyKey)?.stop();const body=node.querySelector('[data-survey-body]');if(body)body.innerHTML='';}
+  },true);
   document.addEventListener('sisventas:session-ended',()=>{stopList();retireDraft();draft=null;pendingCleanup=null;loadedContext=null;loadedOwner='';if(root())root().innerHTML='';});
   document.addEventListener('sisventas:role-changed',()=>{stopList(true);retireDraft();});
   document.addEventListener('sisventas:page-changed',e=>{if(e.detail.page==='relevamientos')open();else{stopList(true);retireDraft();}});
@@ -151,7 +176,7 @@
   window.addEventListener('pagehide',()=>{if(listState)retireList(listState);});
   document.addEventListener('input',e=>{if(!e.target.closest('#page-relevamientos')||!draft||busy||!ownsDraft(draftContext()))return;const n=e.target;if(n.dataset.meta)draft[n.dataset.meta]=n.value;else{const key=n.dataset.valueField||n.dataset.note;if(!key)return;const item=draft.items[key]||(draft.items[key]={});item[n.dataset.note?'note':'value']=n.value;if(n.tagName==='SELECT')item.label=n.options[n.selectedIndex].textContent;}persist();});
   document.addEventListener('change',async e=>{const n=e.target;if(!n.closest('#page-relevamientos')||!n.dataset.photo||!n.files[0]||busy||!draft)return;const context=draftContext(),original=draft,key=n.dataset.photo;if(!context.valid()||!ownsDraft(context))return;const operation={};pendingPhoto=operation;busy=true;renderBusy(true);try{const photo=await window.svPrepararAdjuntoImagen(n.files[0],{maxBytes:350000});if(!context.valid()||draft!==original)return;const item=original.items[key]||(original.items[key]={});item.photo=photo;}catch(err){if(context.valid()&&draft===original)window.notify(err.message);}finally{if(pendingPhoto===operation){pendingPhoto=null;busy=false;if(context.valid()&&draft===original){persist();render();refreshSaveLabel();}else if(context.canPaint()&&draft===original)renderBusy(false);}}});
-  document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!b.closest('#page-relevamientos')||busy)return;if(b.hasAttribute('data-resume')){open();return;}if(b.hasAttribute('data-list')){list();return;}if(!draft||!ownsDraft(draftContext()))return;
+  document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!b.closest('#page-relevamientos')||busy)return;if(b.hasAttribute('data-resume')){open();return;}if(b.hasAttribute('data-list')){list();return;}if(b.hasAttribute('data-survey-retry')){const node=b.closest('details[data-survey-key]');if(node)openSummaryDetail(node,listState,true);return;}if(!draft||!ownsDraft(draftContext()))return;
     if(b.dataset.step!==undefined)step=Number(b.dataset.step);else if(b.hasAttribute('data-next'))step=Math.min(3,step+1);else if(b.hasAttribute('data-back'))step=Math.max(0,step-1);else if(b.dataset.service){const s=b.dataset.service;draft.services=draft.services.includes(s)?draft.services.filter(x=>x!==s):draft.services.concat(s);persist();}else if(b.dataset.choice){const item=draft.items[b.dataset.choice]||(draft.items[b.dataset.choice]={});item.value=b.dataset.value;persist();}else if(b.dataset.delta){const key=b.dataset.key,item=draft.items[key]||(draft.items[key]={});item.value=Math.max(0,Math.min(9999,(Number(item.value)||0)+Number(b.dataset.delta)));persist();}else if(b.dataset.removePhoto){delete draft.items[b.dataset.removePhoto].photo;persist();}else if(b.hasAttribute('data-save')){save();return;}else return;const y=window.scrollY;render();refreshSaveLabel();window.scrollTo(0,y);
   });
 })();

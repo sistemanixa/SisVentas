@@ -29,10 +29,7 @@
    if(first){first=false;resolve();}
   },err=>{permissions=null;reject(err);});});
  }
- function syncProviders(list){
-  if(root.currentRole!=='admin'||!root.fbDB)return Promise.resolve();
-  return root.fbSet(root.fbRef(root.fbDB,'sv_catalogo_proveedores'),publicProviders(list));
- }
+
  function startProviders(){
   if(providersStop)return;
   providersStop=root.fbOnValue(root.fbRef(root.fbDB,'sv_catalogo_proveedores'),snap=>{
@@ -117,5 +114,5 @@
   card.querySelector('[data-save]').onclick=async()=>{const b=card.querySelector('[data-save]');b.disabled=true;try{const next=Object.fromEntries(Array.from(card.querySelectorAll('[data-permission]')).map(n=>[n.dataset.permission,n.checked]));await root.fbSet(root.fbRef(root.fbDB,'sv_distribuidora_permisos'),next);baseline=next;card.querySelector('[data-status]').textContent='Permisos guardados. Se aplican en la sesión de Distribuidora.';}catch(e){card.querySelector('[data-status]').textContent='No se guardaron los permisos.';}finally{b.disabled=false;}};
  }
  document.addEventListener('sisventas:session-ended',()=>{stop?.();stop=null;providersStop?.();providersStop=null;permissions=null;closeEditor();closeDetail();});
- root.SVDistribuidora={allowed,start,edit,detail,renderSettings,saveProduct,returnFromProduct,syncProviders,isEditing:()=>!!editor};
+ root.SVDistribuidora={allowed,start,edit,detail,renderSettings,saveProduct,returnFromProduct,isEditing:()=>!!editor};
 })(typeof window==='undefined'?{}:window);

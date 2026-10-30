@@ -77,13 +77,16 @@ test('productos, proveedores y lotes persisten por repositorios con claves técn
 
   assert.equal(product.fbKey, '-product-new');
   assert.equal(provider.fbKey, '-provider-new');
+  assert.equal(fake.calls[1][2]['sv_catalogo_proveedores/-provider-new/nombre'],'BIOSEGUR');
+  assert.equal(fake.calls[3][2]['sv_catalogo_proveedores/-provider-new/base'],true);
+  assert.equal(fake.calls[5][2]['sv_catalogo_proveedores/-provider-new'],null);
   assert.deepEqual(fake.calls.map((call) => call.slice(0, 2)), [
     ['set', 'sisventas/productos/-product-new'],
-    ['set', 'sisventas/proveedores/-provider-new'],
+    ['update', undefined],
     ['update', 'sisventas/productos'],
-    ['update', 'sisventas/proveedores'],
+    ['update', undefined],
     ['remove', 'sisventas/productos/-product-new'],
-    ['remove', 'sisventas/proveedores/-provider-new']
+    ['update', undefined]
   ]);
 });
 

@@ -11,6 +11,6 @@ test('snapshots sincronizan datos y stock sin construir pantallas cerradas; abri
  subscriptions['sisventas/inventario_operativo']({val:()=>({p:{general:3}})});
  assert.equal(writes.length,0);assert.equal(stock,1);assert.equal(window.SisVentasCompras.state.inventory.p.general,3);
  active='ordenes';listeners['sisventas:page-changed']({detail:{page:active}});
- assert.ok(writes.some(([id,html])=>id==='oc2-orders'&&html.includes('OC-TEST')));assert.ok(writes.some(([id,html])=>id==='oc2-lists'&&html.includes('LM-TEST')));
+ assert.ok(writes.some(([id,html])=>id==='oc2-orders'&&html.includes('OC-TEST')));assert.ok(!writes.some(([id])=>id==='oc2-lists'));window.ocShowTab('lists');assert.ok(writes.some(([id,html])=>id==='oc2-lists'&&html.includes('LM-TEST')));
  assert.ok(!writes.some(([id])=>id==='balance-compra-content'));
 });
