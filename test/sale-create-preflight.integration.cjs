@@ -7,7 +7,8 @@ const {createLaborRtdbStore}=require('../cotizador/labor-rtdb-store'),{createLab
 const {functionSource}=require('./helpers/app-functions.cjs');
 const ns='demo-conversion-preflight',host='127.0.0.1:9058';let env,initial,baseline;
 const person=uid=>({responsableUid:uid,responsableNombre:'Persona '+uid,responsableRol:'administrativo',responsableRevision:1,creadorOriginalUid:uid,creadorOriginalNombre:'Persona '+uid});
-before(async()=>{assert.equal(process.env.FIREBASE_DATABASE_EMULATOR_HOST,host);baseline=JSON.parse(fs.readFileSync(process.env.SV_PREFLIGHT_RULES));env=await initializeTestEnvironment({projectId:ns,database:{host:'127.0.0.1',port:9058,rules:JSON.stringify(require('../scripts/lib/commercial-owner-query-rules.cjs').build(build(baseline)))}});});
+const candidate=rules=>require('../scripts/lib/employee-availability-rules.cjs').build(require('../scripts/lib/commercial-owner-query-rules.cjs').build(build(rules)));
+before(async()=>{assert.equal(process.env.FIREBASE_DATABASE_EMULATOR_HOST,host);baseline=JSON.parse(fs.readFileSync(process.env.SV_PREFLIGHT_RULES));env=await initializeTestEnvironment({projectId:ns,database:{host:'127.0.0.1',port:9058,rules:JSON.stringify(candidate(baseline))}});});
 after(async()=>env?.cleanup());
 beforeEach(async()=>{const perms=permissionIndex({administrativo:{bloqueados:[],acciones:{ventas:{crear:true,editar:true}}},tecnico:{bloqueados:['venta','detalle'],acciones:{ventas:{crear:false}}}});initial={sv_labor_config:{schema:1,ready:true},sv_chat_roles:{a:{rol:'administrativo',activo:true},b:{rol:'administrativo',activo:true},tech:{rol:'tecnico',activo:true}},sv_chat_directorio:{a:{nombre:'Persona a'},b:{nombre:'Persona b'}},sv_permisos:perms,sisventas:{presupuestos:{budget:{...person('a'),id:'PP-DEMO',fecha:'2026-10-29',estado:'aprobado_int',audit:[],items:[{cod:'P-DEMO',desc:'Servicio ficticio',qty:2,punit:48,sub:96,esManoDeObra:true,costoUnitarioCompra:20,costoTotalCompra:40}]}},ventas:{other:{...person('b'),total:999}},contadores:{venta:1},pagos:{sentinel:{monto:12}},gastos:{sentinel:{monto:7}}},sv_personal_finance:{private:{secret:'FICTICIO'}}};await env.withSecurityRulesDisabled(c=>sdk.set(sdk.ref(c.database()),initial));});
 const client=uid=>uid?env.authenticatedContext(uid).database():env.unauthenticatedContext().database();
@@ -85,7 +86,7 @@ test('dos instancias con el mismo intento confirman una sola escritura real',asy
 });
 
 test('REST sin índice real falla cerrado sin descargar la colección como alternativa',async()=>{
- const ready=require('../scripts/lib/commercial-owner-query-rules.cjs').build(build(baseline)),missing=structuredClone(ready);
+ const ready=candidate(baseline),missing=structuredClone(ready);
  missing.rules.sisventas.ventas['.indexOn']=missing.rules.sisventas.ventas['.indexOn'].filter(field=>field!=='responsableUid');
  const install=async rules=>{const res=await fetch('http://'+host+'/.settings/rules.json?ns='+ns,{method:'PUT',headers:{Authorization:'Bearer owner','Content-Type':'application/json'},body:JSON.stringify(rules)});assert.equal(res.status,200);await res.body.cancel();};
  await change({'sv_usuarios/a':{uid:'a',nombre:'Persona a',rol:'administrativo',activo:true},'sisventas/ventas/mine':{...person('a'),total:10}});
@@ -93,4 +94,28 @@ test('REST sin índice real falla cerrado sin descargar la colección como alter
  const api=require('../cotizador/commercial-ownership').createCommercialOwnership({db,auth:{verifyIdToken:async uid=>({uid})},enabled:true,scopedReads:true,queryReader:async(path,field,value)=>{calls.push({path,field,value});return store.query(path,field,value);}});
  try{await install(missing);const actor=await api.authorize({headers:{authorization:'Bearer a'}},'ventas');await assert.rejects(api.list(actor),e=>e.statusCode===503);assert.equal(calls.some(c=>c.path==='sisventas/ventas'&&c.full),false);}
  finally{await install(ready);}
+});
+
+test('HTTP laboral real: GET no escribe, vínculo propio CAS, privacidad y disponibilidad puntual',async()=>{
+ const http=require('node:http'),admin=createRequire(require('node:path').resolve('cotizador/package.json'))('firebase-admin');
+ const app=admin.initializeApp({projectId:ns,databaseURL:'https://'+ns+'.firebaseio.com',credential:{getAccessToken:async()=>({access_token:'owner',expires_in:3600})}},'directory-audit-demo');
+ let server;
+ try{
+  await change({'sv_usuarios/profile-a':{uid:'a',rol:'administrativo',activo:true,empleadoFbKey:'e'},'sisventas/empleados/e':{nombre:'Persona ficticia',dni:'DNI-FICTICIO',cargoId:'c'},'sisventas/empleados/other':{nombre:'Otra persona',dni:'NO EXPONER',sueldo:999},'sisventas/config/cargos/c':{nombre:'Cargo ficticio',valorHora:100},'sisventas/vacaciones/past':{empleadoId:'e',desde:'2020-01-01',hasta:'2020-01-10'},'sisventas/vacaciones/current':{empleadoId:'e',desde:'2026-10-10',hasta:'2026-10-20',obs:'PRIVADO'},'sisventas/vacaciones/future':{empleadoId:'e',desde:'2030-01-01',hasta:'2030-01-10'}});
+  const store=createLaborRtdbStore({databaseURL:'http://'+host+'/?ns='+ns,accessToken:async()=>'owner'}),db=app.database(),auth={verifyIdToken:async uid=>({uid})},directory=require('../cotizador/employee-directory').createEmployeeDirectory({db,auth,queryReader:store.query}),availability=require('../cotizador/employee-availability').createEmployeeAvailability({db,auth,queryFrom:store.queryFrom});
+  const source=fs.readFileSync('cotizador/index.js','utf8');function extract(name){const start=source.search(new RegExp('^function '+name+'\\(','m')),ends=/^\}/gm;ends.lastIndex=start;for(let m;(m=ends.exec(source));){const code=source.slice(start,m.index+1);try{new vm.Script(code);return code;}catch{}}throw Error('Missing helper');}
+  const wire={JSON};vm.runInNewContext(extract('readBody')+'\n'+extract('send')+'\nthis.readBody=readBody;this.send=send;',wire);
+  const start=source.indexOf("  if(req.method==='GET' && pathname==='/laboral/disponibilidad')"),end=source.indexOf("  if(req.method==='POST' && pathname==='/laboral/solicitar-gasto')",start);assert.ok(start>0&&end>start);
+  const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor,route=new AsyncFunction('req','res','pathname','requestUrl','employeeAvailability','employeeDirectory','readBody','send',source.slice(start,end));
+  server=http.createServer((req,res)=>{const url=new URL(req.url,'http://localhost');route(req,res,url.pathname,url,availability,directory,wire.readBody,wire.send).catch(e=>{res.writeHead(500);res.end(JSON.stringify({message:e.message}));});});await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  const request=async(path,method='GET',body,uid='a')=>{const response=await fetch('http://127.0.0.1:'+server.address().port+path,{method,headers:{Authorization:'Bearer '+uid,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});return{status:response.status,data:await response.json()};};
+  const before=(await sdk.get(sdk.ref(client('a'),'sv_empleado_uid/a'))).val();assert.equal(before,null);
+  const first=await request('/laboral/directorio');assert.equal(first.status,409);assert.equal(first.data.code,'SV_EMPLOYEE_BINDING_REQUIRED');assert.equal(await store.read('sv_empleado_uid/a'),null);
+  assert.equal((await request('/laboral/vinculo-propio','POST',{uid:'b'})).status,400);assert.equal((await request('/laboral/vinculo-propio?verComo=b','POST',{})).status,403);
+  const prepared=await Promise.all([request('/laboral/vinculo-propio','POST',{}),request('/laboral/vinculo-propio','POST',{})]);assert.ok(prepared.every(r=>r.status===200));assert.equal(prepared.filter(r=>r.data.created).length,1);
+  assert.deepEqual(await store.read('sv_empleado_uid/a'),{perfilFbKey:'profile-a'});const result=await request('/laboral/directorio');assert.equal(result.status,200);assert.equal(result.data.empleados.e.dni,'DNI-FICTICIO');assert.equal(result.data.empleados.other.dni,undefined);
+  const periods=await request('/laboral/disponibilidad?fecha=2026-10-15','GET',undefined,'tech');assert.equal(periods.status,200);assert.equal(periods.data.fecha,'2026-10-15');assert.equal(periods.data.periodos.length,1);assert.equal(periods.data.periodos[0].obs,undefined);
+  assert.equal((await request('/laboral/disponibilidad?fecha=2026-02-30')).status,400);await change({'sv_access_resets/a':{required:true}});assert.equal((await request('/laboral/vinculo-propio','POST',{})).status,403);
+  assert.equal((await store.read('sisventas/pagos/sentinel')).monto,12);assert.equal((await store.read('sisventas/gastos/sentinel')).monto,7);assert.equal(await store.read('sv_empleado_uid/b'),null);
+ }finally{if(server){server.closeAllConnections();await new Promise(r=>server.close(r));}await app.delete();}
 });

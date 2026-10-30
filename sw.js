@@ -1,6 +1,6 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.16.19';
+const CACHE = 'sisventas-v3.16.20';
 const SHELL = [
  './js/core/sale-cost-correction.v1.js?v=3.16.11',
  './js/modules/sale-cost-editor.v1.js?v=3.16.11',
@@ -89,7 +89,7 @@ const SHELL = [
   './js/core/guarded-writes.js?v=3.13.19-labor',
   './js/core/session-assets.js?v=3.16.11',
   './js/core/ot-personal-scope.js?v=3.14.0',
-  './js/app.v3.16.19.js',
+  './js/app.v3.16.20.js',
   './js/core/activity-period.v1.js',
  './js/core/dashboard-account-source.v1.js?v=3.14.19',
   './js/modules/navigation-back.js?v=perf-3105',
@@ -99,7 +99,7 @@ const SHELL = [
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js?v=3.12.20',
   './js/core/version.js',
-  './js/core/version.v3.16.19.js',
+  './js/core/version.v3.16.20.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.10.32',
@@ -136,7 +136,7 @@ const SHELL = [
   './css/product-ranking.css?v=3.12.17',
   './js/modules/product-ranking-dialog.js?v=3.12.17',
   './js/core/connection-monitor.js?v=3.13.2-single-flight',
-  './js/core/commercial-ownership.js?v=3.16.18',
+  './js/core/commercial-ownership.js?v=3.16.20',
   './js/modules/commercial-document-controls.js?v=3.12.15',
   './js/core/commission-generation.js?v=3.16.11',
   './js/core/error-monitor.js?v=3.12.0-text',

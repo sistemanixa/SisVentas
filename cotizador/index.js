@@ -63,8 +63,8 @@ const paymentCommands=require('./payment-commands').createPaymentCommands({autho
 const adminExpenseCreate=require('./admin-expense-create').createAdminExpenseCreate({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.ADMIN_EXPENSE_SCOPED_ENABLED==='true'});
 const laborOperations = require('./labor-operations').createLaborOperations({auth:businessAuth,db,transaction:laborTransaction});
 const laborSubmissions = require('./labor-submissions').createLaborSubmissions({auth:businessAuth,db,transaction:laborTransaction});
-const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:businessAuth,db});
-const employeeDirectory = require('./employee-directory').createEmployeeDirectory({auth:businessAuth,db});
+const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:businessAuth,db,queryFrom:laborRuntime.store.queryFrom});
+const employeeDirectory = require('./employee-directory').createEmployeeDirectory({auth:businessAuth,db,queryReader:laborRuntime.store.query});
 const personalHoursReader = require('./personal-hours-reader').createPersonalHoursReader({auth:businessAuth,db});
 const personalExpenses = require('./personal-expenses').createPersonalExpenses({authorize:laborSubmissions.authorize,transaction:laborTransaction});
 const supplierDirectory = require('./supplier-directory').createSupplierDirectory({authorize:employeeDirectory.authorize,db});
@@ -2136,7 +2136,7 @@ const server = http.createServer(async (req, res) => {
       const service=pathname==='/cobranzas/operacion'?paymentCommands:pathname==='/laboral/gastos/crear-administrativo'?adminExpenseCreate:laborWriteGateway;
       const actor=await service.authorize(req),body=await readBody(req,pathname==='/laboral/capacidades'?128:16*1024*1024);
       if(pathname==='/laboral/capacidades'){
-        if(!body||Array.isArray(body)||Object.keys(body).length)throw Object.assign(Error('Solicitud inválida'),{statusCode:400});
+        if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).length)throw Object.assign(Error('Solicitud inválida'),{statusCode:400});
         send(res,200,{ok:true,payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability()});
       }else send(res,200,await service[pathname==='/cobranzas/operacion'?'execute':'create'](actor,body));
     }catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el guardado. Comprobá el intento antes de repetirlo.',...(error.code?{code:error.code}:{})});}return;
@@ -2164,10 +2164,14 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if(req.method==='GET' && pathname==='/laboral/disponibilidad'){
-    try{await employeeAvailability.authorize(req);res.setHeader('Cache-Control','no-store');send(res,200,{ok:true,periodos:await employeeAvailability.read()});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo consultar disponibilidad'});}return;
+    try{await employeeAvailability.authorize(req);res.setHeader('Cache-Control','no-store');send(res,200,{ok:true,periodos:await employeeAvailability.read(requestUrl.searchParams.has('fecha')?requestUrl.searchParams.get('fecha'):undefined),fecha:requestUrl.searchParams.get('fecha')||undefined});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo consultar disponibilidad'});}return;
+  }
+  if(req.method==='POST' && pathname==='/laboral/vinculo-propio'){
+    res.setHeader('Cache-Control','private, no-store');
+    try{if(requestUrl.searchParams.has('verComo'))throw Object.assign(Error('Volvé a tu cuenta'),{statusCode:403});const identity=await employeeDirectory.authorize(req),body=await readBody(req,1024);if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).length)throw Object.assign(Error('Solicitud inválida'),{statusCode:400});send(res,200,{ok:true,...await employeeDirectory.prepare(identity)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo preparar tu acceso personal'});}return;
   }
   if(req.method==='GET' && pathname==='/laboral/directorio'){
-    try{const identity=await employeeDirectory.authorize(req);res.setHeader('Cache-Control','no-store');send(res,200,{ok:true,...await employeeDirectory.read(identity)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo consultar directorio'});}return;
+    try{const identity=await employeeDirectory.authorize(req);res.setHeader('Cache-Control','no-store');send(res,200,{ok:true,...await employeeDirectory.read(identity)});}catch(e){send(res,e.statusCode||503,{ok:false,code:e.code,mensaje:e.statusCode?e.message:'No se pudo consultar directorio'});}return;
   }
   if(req.method==='POST' && pathname==='/laboral/solicitar-gasto'){
     try{const identity=await personalExpenses.authorize(req);const body=await readBody(req,8000000);send(res,200,{ok:true,...await personalExpenses.submit(identity,body)});}catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo guardar el gasto'});}return;

@@ -1,3 +1,9 @@
+# Cierre implementado · candidata v3.16.20
+
+La revisión de los circuitos inventariados queda resuelta por las correcciones y decisiones documentadas en CONTEXTO_ACTUAL (bloque30/10 v3.16.20). Se sustituyeron preparaciones canónicas por lectura directa, historial propio por consultas indexadas, escritura incidental en GET por preparación propia explícita, disponibilidad OT por fecha y espera de recibos por recuperación idempotente. Pagos, costos, permisos, comisiones y fiscal conservan su contrato protegido.
+
+No se retira la coordinación global de escrituras nuevas: la cobertura de índices financieros es compartida. Tampoco se pagina arbitrariamente la vista global del administrador ni se usa el catálogo actual para sustituir costos históricos. Son decisiones del cierre, no errores ocultados. El detalle que sigue conserva el estado inicial y la justificación de cada dominio, no describe por sí solo el estado publicado20. Un ensayo de reposo/ahorro monetario sigue sin medirse en este bloque; las trazas ficticias no son facturación. No hubo operaciones reales como prueba.
+
 # Auditoría de uso del servidor · 30/10/2026 · v3.16.18
 
 ## Conclusión actual

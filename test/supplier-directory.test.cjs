@@ -17,7 +17,7 @@ function fixture(permissions,{role='vendedor'}={}){
 test('v2 con los cinco módulos deshabilitados rechaza aun sin bloqueados y no lee proveedores',async()=>{
  for(const role of ['vendedor','admin']){
   const f=fixture(v2(),{role});await assert.rejects(f.read(),{statusCode:403});
-  assert.deepEqual(f.calls,['sv_chat_roles/u','sv_permisos/'+role,'sv_chat_roles/u','sv_permisos/'+role]);assert.equal(f.verified(),1);
+  assert.deepEqual(f.calls,['sv_chat_roles/u','sv_access_resets/u','sv_permisos/'+role,'sv_chat_roles/u','sv_permisos/'+role]);assert.equal(f.verified(),1);
  }
 });
 
@@ -32,7 +32,7 @@ test('cada módulo habilitado v2 permite sólo la proyección comercial y conser
   const cfg=v2([module]),f=fixture(cfg),before=JSON.stringify(f.records),result=await f.read();
   assert.equal(result.supplier.nombre,'Proveedor ficticio');assert.deepEqual(result.supplier.condicionComercial,{activa:true,descuentoPorcentaje:12});
   assert.equal(JSON.stringify(result).includes('FICTICI'),false);assert.equal(result.supplier.password,undefined);assert.equal(result.supplier.token,undefined);
-  assert.equal(f.verified(),1);assert.deepEqual(f.calls,['sv_chat_roles/u','sv_permisos/vendedor','sv_chat_roles/u','sv_permisos/vendedor','sisventas/proveedores']);assert.equal(JSON.stringify(f.records),before);
+  assert.equal(f.verified(),1);assert.deepEqual(f.calls,['sv_chat_roles/u','sv_access_resets/u','sv_permisos/vendedor','sv_chat_roles/u','sv_permisos/vendedor','sisventas/proveedores']);assert.equal(JSON.stringify(f.records),before);
  }
 });
 
@@ -61,12 +61,14 @@ test('un cambio de permisos posterior a authorize se vuelve a comprobar sin cach
  assert.equal(f.calls.filter(path=>path==='sv_chat_roles/u').length,2);assert.equal(f.calls.filter(path=>path==='sv_permisos/vendedor').length,2);
 });
 
+test('acceso que requiere recuperación de sesión no consulta proveedores',async()=>{const f=fixture(v2(['productos']));f.records['sv_access_resets/u']={required:true};await assert.rejects(f.read(),e=>e.statusCode===403);assert.equal(f.calls.includes('sisventas/proveedores'),false);});
+
 test('identidad desactivada, externa o ausente entre authorize y read rechaza antes de leer proveedores',async()=>{
  for(const identity of [{rol:'vendedor',activo:false},{rol:'distribuidora',activo:true},{rol:'compras_paraguay',activo:true},null]){
   const f=fixture(v2(['productos'])),authorized=await f.identity();
   if(identity){f.records['sv_chat_roles/u']=identity;f.records['sv_permisos/'+identity.rol]=v2(['productos']);}else delete f.records['sv_chat_roles/u'];
   const before=JSON.stringify(f.records);await assert.rejects(f.service.read(authorized),{statusCode:403});
-  assert.equal(f.calls.includes('sisventas/proveedores'),false);assert.deepEqual(f.calls,['sv_chat_roles/u','sv_permisos/vendedor','sv_chat_roles/u']);
+  assert.equal(f.calls.includes('sisventas/proveedores'),false);assert.deepEqual(f.calls,['sv_chat_roles/u','sv_access_resets/u','sv_permisos/vendedor','sv_chat_roles/u']);
   assert.equal(f.verified(),1);assert.equal(JSON.stringify(f.records),before);
  }
 });

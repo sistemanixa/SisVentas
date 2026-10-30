@@ -30,6 +30,6 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   await response.body?.cancel();throw fail(response.status===401||response.status===403?409:503,'No se pudo confirmar la operación. Revisá su estado antes de reintentar.','SV_LABOR_COMMIT_UNCONFIRMED');
  }
  async function abort(lease){const r=await request('DELETE','sv_labor_guard',undefined,{override:service('abort',lease)});await r.body?.cancel();}
- return {read,acquire,commit,abort,query:async(path,field,value)=>{const r=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return r.json();},readAsUser:async(path,actor)=>{const r=await request('GET',path,undefined,{override:{uid:actor.uid,token:actor.claims||{}}});return r.json();}};
+ return {read,acquire,commit,abort,query:async(path,field,value)=>{const r=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return r.json();},queryFrom:async(path,field,value)=>{parts(field);if(typeof value!=='string')throw fail(400,'Límite de consulta inválido');const r=await request('GET',path,undefined,{query:{orderBy:field,startAt:value}});return r.json();},readAsUser:async(path,actor)=>{const r=await request('GET',path,undefined,{override:{uid:actor.uid,token:actor.claims||{}}});return r.json();}};
 }
 module.exports={createLaborRtdbStore};

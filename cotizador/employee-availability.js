@@ -1,7 +1,7 @@
 'use strict';
 const fail=(statusCode,message)=>Object.assign(Error(message),{statusCode});
 function project(periods){return Object.values(periods||{}).filter(p=>p&&typeof p.empleadoId==='string'&&p.empleadoId&&typeof p.desde==='string'&&typeof p.hasta==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(p.desde)&&/^\d{4}-\d{2}-\d{2}$/.test(p.hasta)&&!['rechazado','cancelado'].includes(String(p.estado||'').trim().toLowerCase())).map(p=>({empleadoId:p.empleadoId,empleadoNombre:String(p.empleadoNombre||''),desde:p.desde,hasta:p.hasta}));}
-function createEmployeeAvailability({auth,db}){
+function createEmployeeAvailability({auth,db,queryFrom}){
  async function authorize(req){
   const match=String(req.headers.authorization||'').match(/^Bearer\s+(\S+)$/i);if(!match)throw fail(401,'Sesión requerida');
   let token;try{token=await auth.verifyIdToken(match[1],true);}catch(_){throw fail(401,'Sesión inválida');}
@@ -11,7 +11,13 @@ function createEmployeeAvailability({auth,db}){
   if(Object.values(cfg.bloqueados||{}).includes('ordentrabajo'))throw fail(403,'Sin acceso a órdenes de trabajo');
   return {uid:token.uid};
  }
- async function read(){return project((await db.ref('sisventas/vacaciones').get()).val());}
+ async function read(date){
+  if(date===undefined)return project((await db.ref('sisventas/vacaciones').get()).val());
+  if(typeof date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T00:00:00Z'))||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)throw fail(400,'Fecha de visita inválida');
+  if(typeof queryFrom!=='function')throw fail(503,'No se pudo comprobar la disponibilidad');
+  const periods=project(await queryFrom('sisventas/vacaciones','hasta',date));
+  return periods.filter(p=>p.desde<=date&&p.hasta>=date);
+ }
  return {authorize,read};
 }
 module.exports={project,createEmployeeAvailability};
