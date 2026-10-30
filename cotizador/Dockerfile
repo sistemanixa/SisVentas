@@ -44,3 +44,5 @@ COPY consulta-cache.js navegador-compartido.js ./
 
 ENV NODE_ENV=production
 CMD ["npm", "start"]
+
+COPY ot-office-count.js ot-office-count-model.js ot-stock-consumption-model.js ./

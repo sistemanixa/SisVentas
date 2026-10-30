@@ -57,6 +57,7 @@ const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
 const laborTransaction = laborRuntime.transaction;
 const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
+const otOfficeCount=require('./ot-office-count').createOTOfficeCount({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_OFFICE_COUNT_ENABLED==='true'});
 const bonusPayment=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 const paymentCommands=require('./payment-commands').createPaymentCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.PAYMENT_SCOPED_ENABLED==='true'});
 const adminExpenseCreate=require('./admin-expense-create').createAdminExpenseCreate({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.ADMIN_EXPENSE_SCOPED_ENABLED==='true'});
@@ -2139,6 +2140,11 @@ const server = http.createServer(async (req, res) => {
         send(res,200,{ok:true,payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability()});
       }else send(res,200,await service[pathname==='/cobranzas/operacion'?'execute':'create'](actor,body));
     }catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el guardado. Comprobá el intento antes de repetirlo.',...(error.code?{code:error.code}:{})});}return;
+  }
+  if(pathname==='/inventario/contar-desde-ot'){
+    res.setHeader('Cache-Control','private, no-store');
+    try{if(req.method!=='POST')throw Object.assign(Error('Método no permitido'),{statusCode:405});const actor=await laborWriteGateway.authorize(req),body=await readBody(req,4096);send(res,200,await otOfficeCount.execute(actor,body));}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el ajuste. Revisá su estado antes de repetirlo.'});}return;
   }
   if(['/laboral/escritura','/laboral/operacion'].includes(pathname)){
     res.setHeader('Cache-Control','private, no-store');

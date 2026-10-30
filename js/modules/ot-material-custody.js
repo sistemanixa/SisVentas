@@ -206,7 +206,7 @@
     var pending = Math.max(0, material.entregada - classified(material));
     if (pending) parts.push('<span class="badge b-amber">Con técnico: ' + pending + '</span>');
     if (material.stockPendiente) parts.push('<span class="badge b-amber">Stock pendiente · completar registro</span>');
-    if (material.instalada) parts.push('<span class="badge b-green">Instalado: ' + material.instalada + '</span>');
+    if (material.instalada && !material.stockPendiente) parts.push('<span class="badge b-green">Instalado: ' + material.instalada + '</span>');
     if (material.devueltaPendiente) parts.push('<span class="badge b-amber">Devolución pendiente: ' + material.devueltaPendiente + '</span>');
     if (material.devuelta) parts.push('<span class="badge b-blue">Devuelto: ' + material.devuelta + '</span>');
     if (material.enTecnico) parts.push('<span class="badge b-amber">Sigue con técnico: ' + material.enTecnico + '</span>');
@@ -238,7 +238,7 @@
         '<td class="tr">' + n(material.vendida) + '</td>' +
         '<td class="tr">' + (material.custodiaActiva ? material.entregada : '—') + '</td>' +
         '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + stateBadge(material) + '</div></td><td class="tr"><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">' +
-        itemAction(ot, material, view, index) +
+        itemAction(ot, material, view, index) + (window.SVOTOfficeCount?.button(ot, material, index) || '') +
         (!view._recuperado && typeof window.otPuedeCorregirProductos === 'function' && window.otPuedeCorregirProductos() ? '<button type="button" class="btn btn-sm btn-icon" title="Quitar producto y actualizar venta" aria-label="Quitar producto" onclick="otEliminarProductoMaterial(' + index + ')" style="color:var(--red)">×</button>' : '') + '</div></td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:12px">Sin materiales controlables</td></tr>';
