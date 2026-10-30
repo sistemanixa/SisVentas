@@ -1,3 +1,11 @@
+# Filtro de categoría de Gastos · local v3.16.14 · 30/10/2026
+
+Decisión humana: mantener sólo la rama remota codex/finanzas-tarjetas-seleccionables; NO avanzar main (continúa4639a87b). Rama anterior respaldadaa7710e27. Nuevo pedido: filtro de categoría junto a tipo/estado/empleado. Candidata14 inmutable y marcadores coherentes; producción sigue13, sin Hosting/servidor/reglas/aviso remoto.
+
+Selector de9categorías exactas, compuesto con filtros existentes y KPI, totales restringidos a categoría, paginación reiniciada al cambiar y retorno desde venta conserva selección. Cobertura abre categoría en selector en lugar de búsqueda textual, conservando período específico. No sondeos, consultas nuevas ni escrituras financieras.
+
+Verificación:75pruebas focales y6navegación PASS; puerta6500totales/6473PASS/27omitidas/0fallos. Sintaxis/diff/versión localPASS. Espejo507activos públicos/4huellasHTTP; pestaña local realmente recargada tomó14 y se dejó Gastos/Materiales. Servicios4filas exactas, quitar categoría restaura50filas de categorías diversas; Materiales11filas exactas/aviso visible. Ancho390sin overflow, filtros2columnas; escritorio alineado. Captura y logs privados en tmp/gastos-category-*, no Git. Ningún gasto/pago/stock fue modificado. Esta revisión no equivale a conciliar todos los importes financieros ni a publicar Hosting.
+
 # Traspaso Git solicitado para otra PC ·30/10/2026
 
 Titular pidió push explícito para tener última versión en otraPC; reemplaza preferencia anterior de conservar sóloPC. Fetch confirma origin/main4639a87b ancestro de código9694517d,0behind/281ahead. Revisión de rutas históricas sin tmp/.local/credenciales/respaldos/finanzas; PNG cambiados sólo fixtures. Scan281commits sin patrones de claves privadas/tokens conocidos, no auditoría absoluta. Revisión automática rechazó comando combinado que avanzaba main por amplitud281commits; no se ejecutó ese comando ni se modificó main. Alternativa segura: subir rama codex/finanzas-tarjetas-seleccionables sinforce, dejando main intacta; resultado remoto se verifica después.

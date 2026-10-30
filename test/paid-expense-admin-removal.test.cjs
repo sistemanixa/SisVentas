@@ -80,7 +80,7 @@ test('only a confirmed retirement updates the retained cache and redraws the ope
 });
 
 test('operative filters and saved KPI list rendering hide retirement while the canonical KPI eligibility and paid total remain unchanged',async()=>{
- const f=fixture(),paid=f.c.totalPagadoGasto(f.c.gastosData[0]);await f.remove();retired(f);load(f.c,['normalizarTipoGasto','_normFechaGasto','_gastoCorrespondeEmpleado','gastoVisibleEnModuloGastos','gastosFiltradosActuales','_claveGastoKpi','renderTablaGastos']);
+ const f=fixture(),paid=f.c.totalPagadoGasto(f.c.gastosData[0]);await f.remove();retired(f);load(f.c,['normalizarTipoGasto','_normFechaGasto','_gastoCorrespondeEmpleado','gastoVisibleEnModuloGastos','gastosFiltradosActuales','_claveGastoKpi','svGastoCoincideCategoria','renderTablaGastos']);
  f.c.fechaImputacionGasto=g=>g.fecha;assert.equal(f.c.gastoVisibleEnModuloGastos(f.c.gastosData[0]),true,'Do not globally remove the expense from KPI/history sources');assert.equal(f.c.totalPagadoGasto(f.c.gastosData[0]),paid);assert.equal(f.c.gastosFiltradosActuales().length,0);
  f.c._gastosDataReady=true;f.c._gastosPagoMultipleActivo=false;f.c._gastosSeleccionadosPago={};f.c.actualizarResumenPagoMultiple=()=>{};f.page.node('gas-bulk-head').setAttribute=()=>{};f.c._filtroGastosKpiActivo='pagados';f.c._gastosKpiDetalleKeys={pagados:new Set([f.c._claveGastoKpi(f.c.gastosData[0])])};f.c.renderTablaGastos();assert.equal(f.page.node('gastos-tbody').dataset.cantidadFiltrada,'0');assert.match(f.page.node('gastos-tbody').innerHTML,/Sin gastos registrados/);assert.equal(f.c.gastosData.length,1,'Retained canonical history must not be spliced out of cache');
 });

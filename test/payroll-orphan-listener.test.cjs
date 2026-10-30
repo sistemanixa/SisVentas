@@ -56,7 +56,7 @@ const functionNames = [
   'normalizarTipoGasto', 'restoGasto', 'resumenGastosPagadosMes', 'fechaImputacionGasto',
   'gastoVisibleEnModuloGastos', '_gastoEstaRetirado', '_gastoCoincideKpi', '_claveGastoKpi',
   '_gastoCorrespondeEmpleado', '_formatearMontoKpiGasto', 'actualizarMetricasGastos',
-  'renderTablaGastos', 'gastoSeleccionableParaPago', '_mesesDelSemestre',
+  'svGastoCoincideCategoria','renderTablaGastos', 'gastoSeleccionableParaPago', '_mesesDelSemestre',
   '_mesesTrabajadosEnSemestre', '_calcularFilasAguinaldo'
 ];
 
