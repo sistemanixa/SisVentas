@@ -1,3 +1,7 @@
+# Publicada corrección de participantes v3.17.1 · 30/10/2026
+
+Hosting publicado desde 69f5caa12ad29bced5b49c3413ce6052a3d9b4dd: 518 activos/5 cargas. Dominio real: 13 activos exactos, cabeceras y tres privados404. Suite vigente 6654 total/6627PASS/27skip/0fallos; prueba adicional de reconciliación confirmada PASS (4 del handler). Visual ficticia390/768/1280PASS; captura privada tmp/commission-add-v3171-busy.png. Sin escrituras financieras reales ni despliegue Cotizador. La mejora elimina el temporizador350ms y el cierre/reapertura, muestra actividad y evita doble envío; no se promete una latencia de servidor distinta. No se probó un alta real en la sesión del usuario. Sin push público.
+
 # Participante de comisión · candidata v3.17.1 · 30/10/2026
 
 Sólo cliente: Agregando con spinner, bloqueo de doble envío, detalle visible hasta recibir el participante confirmado, sin cerrar/reabrir por temporizador. Payload financiero idéntico; sin despliegue Cotizador, permisos ni operaciones reales. Pruebas ficticias del handler y visual 390/768/1280 PASS. Prueba anterior del índice compartido conservada fuera de este alcance en C:/SisVentas/tmp/payment-coverage-concurrency.saved.test.cjs. No se publica ese diagnóstico. Publicación autorizada directamente por el titular; sin push público.
