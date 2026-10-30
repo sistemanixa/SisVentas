@@ -6,15 +6,16 @@ const roots=['sv_chat',...Ops.domains.map(d=>'sisventas/'+d)],targets=['sv_chat_
 const key=k=>Ops.key(k)&&/^[A-Za-z0-9_-]{1,240}$/.test(k);
 function freezeRules(base){const out=structuredClone(base);function deny(node){for(const [k,v]of Object.entries(node)){if(k==='.write')node[k]=false;else if(!k.startsWith('.')&&v&&typeof v==='object')deny(v);}node['.write']=false;}for(const root of roots){let node=out.rules;for(const part of root.split('/'))node=node?.[part];if(!node)throw Error('Falta la regla original de '+root);deny(node);}return out;}
 async function scan(read){const values={},chat={},operational={};let records=0;
+ async function mapped(keys,fn){let cursor=0;const rows=new Array(keys.length);await Promise.all(Array.from({length:Math.min(6,keys.length)},async()=>{while(cursor<keys.length){const i=cursor++;rows[i]=await fn(keys[i]);}}));return rows;}
  for(const root of roots){const keys=Object.keys(await read(root,{shallow:true})||{});if(keys.length>10000)throw Error('Revisar el volumen de '+root);values[root]={};
-  for(const id of keys){if(!key(id))throw Error('Identificador histórico que requiere revisión en '+root);if(++records>25000)throw Error('Revisar el volumen de la preparación');
-   if(root==='sv_chat'){const messageKeys=Object.keys(await read(root+'/'+id,{shallow:true})||{});values[root][id]={};chat[id]={};for(const messageId of messageKeys){if(!key(messageId))throw Error('Mensaje histórico que requiere revisión');const message=await read(root+'/'+id+'/'+messageId);values[root][id][messageId]=message;chat[id][messageId]=Chat.chat(message);}}
-   else{const record=await read(root+'/'+id);if(!record||typeof record!=='object'||Array.isArray(record))throw Error('Registro operativo histórico inválido');values[root][id]=record;}
-  }
-  if(root!=='sv_chat'){const domain=root.split('/')[1],source=values[root],rows={};for(const [id,record]of Object.entries(source))rows[id]=Ops.summary(domain,record);rows._svCoverage={schema:1,ready:true,baselineCount:keys.length,sourceHash:hash(source)};Ops.parseIndex(domain,rows);operational[domain]=rows;}
+  for(const id of keys)if(!key(id))throw Error('Identificador histórico que requiere revisión en '+root);
+  if(root==='sv_chat'){
+   for(const id of keys){const messageKeys=Object.keys(await read(root+'/'+id,{shallow:true})||{});if(messageKeys.length>10000)throw Error('Revisar volumen del canal');for(const messageId of messageKeys)if(!key(messageId))throw Error('Mensaje histórico que requiere revisión');records+=messageKeys.length;if(records>25000)throw Error('Revisar el volumen de la preparación');const messages=await mapped(messageKeys,messageId=>read(root+'/'+id+'/'+messageId));values[root][id]={};chat[id]={};messageKeys.forEach((messageId,i)=>{values[root][id][messageId]=messages[i];chat[id][messageId]=Chat.chat(messages[i]);});}
+  }else{records+=keys.length;if(records>25000)throw Error('Revisar el volumen de la preparación');const data=await mapped(keys,id=>read(root+'/'+id));keys.forEach((id,i)=>{const record=data[i];if(!record||typeof record!=='object'||Array.isArray(record))throw Error('Registro operativo histórico inválido');values[root][id]=record;});const domain=root.split('/')[1],source=values[root],rows={};for(const [id,record]of Object.entries(source))rows[id]=Ops.summary(domain,record);rows._svCoverage={schema:1,ready:true,baselineCount:keys.length,sourceHash:hash(source)};Ops.parseIndex(domain,rows);operational[domain]=rows;}
  }
  return {values,indexes:{sv_chat_headers:chat,'sisventas/compras_resumen':operational},sourceHash:hash(values),counts:Object.fromEntries(roots.map(root=>[root,root==='sv_chat'?Object.values(values[root]).reduce((n,c)=>n+Object.keys(c).length,0):Object.keys(values[root]).length]))};
 }
+
 async function activate({read,write,baseRules,candidateRules,prepared,onPhase=()=>{}}){
  const same=(a,b)=>hash(a)===hash(b),rulesPath='.settings/rules',frozen=freezeRules(baseRules);let phase='preflight';
  if(!same(await read(rulesPath),baseRules))throw Error('Otra publicación cambió las reglas');
