@@ -1,3 +1,9 @@
+# Cierre externo v3.16.18 verificado ·30/10/2026
+
+Hosting publicado desde2aceecff056197758c229fa3240e66540c1e03a0:514activos/7cargas, diez activos byteexactos y cabeceras, tres rutas privadas404, script oficial confirmó web/marcador/SW/aviso Firebase18. Sesión Administrativo real tomó18, venta ya existente abierta y comprobada visualmente en lectura; no se repitió la conversión ni se modificaron ventas, facturas, cobros, comisiones o stock reales para probar. Pruebas financieras sólo ficticias. La publicación18 no compiló ni modificó nuevamente Cotizador: sigue ot31617-0cde2e18 y sus protecciones17.
+
+Rama local codex/conversion-navigation-v31618; no push de este bloque al repositorio público ni avance de main. El respaldo remoto expresamente autorizado anterior sigue en codex/conversion-dolar-v31616 d76b5bb1. Coordinación informada: permiso canónico18 ya disponible para el espejo local mediante aplicación selectiva; no sobrescribir sus cambios ajenos. Conteos reales y cierre de OT quedan a cargo del titular con el chat coordinado, no efectuados como pruebas de esta publicación. Evidencia privada en tmp/ot-office-count, fuera de Git.
+
 # Apertura de conversión y permiso de OT · candidata v3.16.18 · 30/10/2026
 
 v3.16.17 está publicada y activada: Cotizador ot31617-0cde2e18 al100% y14accesos, mínimo0/recursos/IAM preservados; compilación única4cfa9bff84,5s. Reglas acotadas aplicadas y releídas exactamente, permiso Administrativo ajustado porCAS, marcador de protección1, Hosting513activos/9cargas, siete archivos byteexactos/cabeceras/tres privados404 y aviso oficial17. No se ejecutó ningún conteo ni modificación de OT real como prueba; operación real posterior queda al titular en el chat coordinado.
