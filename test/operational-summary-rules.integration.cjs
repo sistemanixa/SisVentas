@@ -4,7 +4,7 @@ assert.equal(process.env.FIREBASE_DATABASE_EMULATOR_HOST,'127.0.0.1:9042','Sólo
 const dep=require('node:module').createRequire(path.join(process.env.SV_SECURITY_TOOLS,'package.json'));
 const {initializeTestEnvironment,assertSucceeds,assertFails}=dep('@firebase/rules-unit-testing'),{ref,get,set,update}=dep('firebase/database');
 const Model=require('../js/core/operational-read-model'),Rules=require('../scripts/lib/operational-summary-rules.cjs');
-const base=JSON.parse(fs.readFileSync(process.env.SV_OPERATIONAL_RULES_BASE,'utf8')),rules=Rules.prepare(require('../scripts/lib/chat-header-rules.cjs').prepare(base));let env;
+const base=JSON.parse(fs.readFileSync(process.env.SV_OPERATIONAL_RULES_BASE,'utf8')),rules=require('../scripts/lib/sale-return-query-indexes.cjs').prepare(Rules.prepare(require('../scripts/lib/chat-header-rules.cjs').prepare(base)));let env;
 const client=uid=>env.authenticatedContext(uid).database(),source='sisventas/ordenes/a';
 const order=()=>({numero:'OC-ficticia',ts:1,total:123.45,estado:'borrador',items:[{codigo:'P1',descripcion:'Magnético',cantidadOrdenada:5,costoUnitario:24.69,imagenUrl:'private-image',audit:{fixture:'private'}},{codigo:'P2',cantidadOrdenada:2,costoUnitario:0}],recepciones:[{fixture:'private'}]});
 before(async()=>{env=await initializeTestEnvironment({projectId:'demo-operational-summary-audit',database:{host:'127.0.0.1',port:9042,rules:JSON.stringify(rules)}});});

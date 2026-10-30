@@ -1,3 +1,7 @@
+## Revisión candidata preparada sin tráfico · 30/10/2026
+
+Cotizador cotizador-audit3173-7bd8fafc existe sin tráfico. Revisión antigua conserva100% y sus14tags; CPU por solicitud, recursos, identidad y min0 conservados. Tres rutas restringidas respondieron401sin autenticación. Únicos flags nuevos CHAT_HEADERS_ENABLED y OPERATIONAL_SUMMARIES_ENABLED; todavía no hay índices/configuración nuevos activos.15pruebas sobre reglas finales con índices de relaciones PASS. La activación/Hosting permanece pendiente de la autorización específica exigida por revisión automática; no afirmar que la candidata está en producción por existir una revisión sin tráfico.
+
 ## Activación bloqueada por revisión automática · v3.17.3
 
 Código y pruebas terminados:6770total/6743PASS/27opt-in/0fallos;94backendPASS;15reglas combinadas PASS. Build6eaedbdc SUCCESS,81s, fuente backend7bd8fafc. Hosting/reglas/tráfico productivos siguen17.2/anteriores. La revisión automática rechazó volver a ejecutar el preparador de índices (sin --apply) porque lo consideró una activación con nuevas rutas/permisos no autorizados específicamente. No se elude el rechazo ni se aplicó la activación. Se requiere confirmación humana concreta para los índices/cfg/reglas de Chat y Compras y el corte coordinado. Mientras tanto se conserva el paquete privado y el ejemplo local.

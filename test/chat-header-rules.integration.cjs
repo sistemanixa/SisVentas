@@ -4,7 +4,7 @@ assert.equal(process.env.FIREBASE_DATABASE_EMULATOR_HOST,'127.0.0.1:9041','Sólo
 const dep=require('node:module').createRequire(path.join(process.env.SV_SECURITY_TOOLS,'package.json'));
 const {initializeTestEnvironment,assertSucceeds,assertFails}=dep('@firebase/rules-unit-testing'),{ref,get,set,update,query,orderByChild,limitToLast,endBefore}=dep('firebase/database');
 const Model=require('../js/core/chat-header-model'),Rules=require('../scripts/lib/chat-header-rules.cjs');
-const base=JSON.parse(fs.readFileSync(process.env.SV_CHAT_RULES_BASE,'utf8')),rules=Rules.prepare(require('../scripts/lib/operational-summary-rules.cjs').prepare(base));
+const base=JSON.parse(fs.readFileSync(process.env.SV_CHAT_RULES_BASE,'utf8')),rules=require('../scripts/lib/sale-return-query-indexes.cjs').prepare(Rules.prepare(require('../scripts/lib/operational-summary-rules.cjs').prepare(base)));
 let env;const client=(uid,claims={})=>env.authenticatedContext(uid,claims).database();
 const message=()=>({autor:'Persona ficticia',autorUid:'tech',rol:'tecnico',canal:'general',ts:Date.now(),texto:'Inicial'});
 const pair=(m,key='m')=>({['sv_chat/general/'+key]:m,['sv_chat_headers/general/'+key]:Model.chat(m)});
