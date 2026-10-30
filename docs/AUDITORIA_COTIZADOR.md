@@ -1,3 +1,7 @@
+# Estado publicado · v3.17.0
+
+La continuación17.0 está publicada y verificada; ver el primer bloque de CONTEXTO_ACTUAL para SHAs, pruebas, indicadores y límites. Además de20: recargas diferidas en pantallas sin dependencia comercial, descartes de eventos antes del bloqueo, recepción recuperable que exige confirmaciones, caché comprimida acotada de historiales grandes y sonda de Internet en Hosting sin despertar Cotizador. Se mantiene la coordinación financiera compartida; no se anuncia una migración por agregado ni retirar todo el transporte protegido. El perfil acotado de45s registró0operaciones y no prueba consumo mensual cero. Los bloques inferiores conservan su fecha y alcance histórico.
+
 # Continuación revisada · v3.17.0 candidata
 
 El cierre20 corrigió consultas y preparación; esta continuación corrige descartes de eventos, regresos sin dependencia comercial y confirmación/recuperación de recepciones. Detalle y pruebas en CONTEXTO_ACTUAL. No se eliminaron las tres señales necesarias de comisión ni el fence de escrituras con índices compartidos. Los bloques siguientes son antecedentes: no tratarlos como una lista de tareas activas ni como evidencia de publicaciones posteriores. Tampoco declarar ahorro facturado o una prueba de reposo que no se hizo.
