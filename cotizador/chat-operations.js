@@ -4,7 +4,7 @@ const internal=['admin','administrativo','vendedor','tecnico_vendedor','tecnico'
 const emojis=['👍','❤️','😂','😮','😢','🙏'];
 const key=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,240}$/.test(x);
 const safeName=x=>String(x||'').replace(/[.#$[\]/\s]/g,'_');
-function createChatOperations({auth,db,enabled=false,now=Date.now}){
+function createChatOperations({auth,db,enabled=false,now=Date.now,headerStore=null}){
  const read=async path=>(await db.ref(path).get()).val();
  async function authorize(req,channel){
   const match=String(req.headers.authorization||'').match(/^Bearer\s+(\S+)$/i);if(!match)throw fail(401,'Sesión requerida');
@@ -18,12 +18,13 @@ function createChatOperations({auth,db,enabled=false,now=Date.now}){
   let allowed=channel==='general'||channel==='admin'&&['admin','administrativo','vendedor','tecnico_vendedor'].includes(role)||channel==='tecnicos'&&['admin','tecnico','tecnico_vendedor'].includes(role)||channel.startsWith('archivo_')&&role==='admin';
   if(channel.startsWith('directo_'))allowed=Object.keys(directory||{}).some(uid=>uid!==token.uid&&channel==='directo_'+[uid,token.uid].sort().join('_'));
   if(!allowed)throw fail(403,'No tenés acceso a esta conversación');
-  return {uid:token.uid,role,name:directory[token.uid].nombre,directory,channel};
+  return {uid:token.uid,role,name:directory[token.uid].nombre,directory,channel,claims:token};
  }
  async function modify(actor,body){
   if(!key(body.key)||!['editar','eliminar','reaccion'].includes(body.action))throw fail(400,'Acción inválida');
   if(body.action==='editar'&&(typeof body.texto!=='string'||!body.texto.trim()||body.texto.length>10000||typeof body.expectedText!=='string'))throw fail(400,'Texto inválido');
   if(body.action==='reaccion'&&(!emojis.includes(body.emoji)||typeof body.remove!=='boolean'))throw fail(400,'Reacción inválida');
+  if(headerStore?.ready&&!await headerStore.ready())throw fail(503,'El chat está actualizándose. Volvé a intentar en unos minutos.');
   let legacyUnique=false;
   if(body.action!=='reaccion'){
    // Los mensajes antiguos no tenían UID: no se reescribe su autoría. Solo
@@ -32,8 +33,8 @@ function createChatOperations({auth,db,enabled=false,now=Date.now}){
   }
   let reason='El mensaje cambió. Volvé a revisarlo.';
   const target=db.ref('sv_chat/'+actor.channel+'/'+body.key);
-  await target.get();
-  const tx=await target.transaction(m=>{
+  const initial=await target.get();
+  const transform=m=>{
    // Admin SDK puede invocar primero con caché vacía. Devolver null solicita
    // la comparación del servidor; abortar con undefined perdería la operación.
    if(!m)return null;
@@ -51,7 +52,14 @@ function createChatOperations({auth,db,enabled=false,now=Date.now}){
    }
    if(Object.entries(m.leido||{}).some(([uid,v])=>v&&![actor.uid,actor.name,safeName(actor.name)].includes(uid))){reason='El mensaje ya fue leído; podés editarlo';return;}
    return {...m,texto:'Mensaje eliminado',eliminado:true,fotoUrl:null,audioUrl:null,archivoUrl:null,eliminadoEn:now(),eliminadoPorUid:actor.uid};
-  });
+  };
+  if(headerStore&&body.action!=='reaccion'){
+   const before=initial.val(),after=transform(before);
+   if(!before||!after)throw fail(409,reason);
+   await headerStore.commit(actor,body,before,after,legacyUnique);
+   return {committed:true};
+  }
+  const tx=await target.transaction(transform);
   if(!tx.committed||!tx.snapshot.val())throw fail(409,reason);return {committed:true};
  }
  return {authorize,modify};

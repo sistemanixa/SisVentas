@@ -36,14 +36,14 @@ if (!admin.apps.length) {
 
 const laborScopedEnabled=process.env.LABOR_SCOPED_ENABLED==='true';
 if(laborScopedEnabled&&process.env.COMMISSION_OBSERVER_ENABLED==='true')throw Error('El circuito acotado requiere el observador periódico apagado');
-const laborRuntime=require('./labor-runtime').createLaborRuntime({db:admin.database(),databaseURL:DATABASE_URL,enabled:laborScopedEnabled,readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true',accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
+const laborRuntime=require('./labor-runtime').createLaborRuntime({db:admin.database(),databaseURL:DATABASE_URL,enabled:laborScopedEnabled,operationalSummaries:process.env.OPERATIONAL_SUMMARIES_ENABLED==='true',readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true',accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const db = laborRuntime.db;
 // Resolve Auth only when handling an authenticated operation. Importing pure
 // parsers (or their tests) must not instantiate extra SDK services.
 const firebaseAuth = Object.fromEntries(['verifyIdToken','getUser','updateUser','setCustomUserClaims','revokeRefreshTokens'].map(method => [method,(...args)=>admin.auth()[method](...args)]));
 const businessAuth = require('./user-access').createBusinessAuth(firebaseAuth, db);
 const userDirectory = require('./user-directory').createUserDirectory({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
-const chatOperations = require('./chat-operations').createChatOperations({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
+const chatOperations = require('./chat-operations').createChatOperations({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true',headerStore:process.env.CHAT_HEADERS_ENABLED==='true'?require('./chat-header-store').createChatHeaderStore({databaseURL:DATABASE_URL,isReady:async()=>(await db.ref('sv_chat_headers_config/ready').get()).val()===true,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token}):null});
 const distributorDocuments=require('./distributor-documents').createDistributorDocuments({auth:businessAuth,db,enabled:process.env.DISTRIBUTOR_DOCUMENTS_ENABLED==='true'});
 const commercialCollectionReader=require('./commercial-collection-reader').createCommercialCollectionReader({databaseURL:DATABASE_URL,compressOverflow:true,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const projects = require('./projects').createProjects({auth:businessAuth,db,collectionReader:commercialCollectionReader,scopedReads:process.env.COMMERCIAL_SCOPED_READS_ENABLED==='true',queryReader:laborRuntime.store.query,enabled:process.env.PROJECTS_ENABLED==='true'});

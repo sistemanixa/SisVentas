@@ -75,7 +75,7 @@ function simulator(locked=false){
   if(name==='preparation')window.SVExteriorPreparation={open:()=>opened.push('preparation')};
   if(name==='purchasePDF')window.SVPurchasePDF={};
  }}};
- vm.runInNewContext(snippet,{window,state,materialListLocked:l=>l.locked,loadMaterialQuote:()=>{},saleRef:()=>({}),materialRates:{},balancePurchaseTitle:()=>'',productList:()=>[]});
+ vm.runInNewContext(snippet,{window,state,materialListLocked:l=>l.locked,loadMaterialQuote:()=>{},saleRef:()=>({}),materialRates:{},balancePurchaseTitle:()=>'',productList:()=>[],purchaseLocalSavings:()=>({savingARS:null,missing:0})});
  return{window,state,loaded,opened,run:window.ocAbrirSimuladorParaguay};
 }
 test('compra nueva abre preparación sin descargar el planificador legado',async()=>{

@@ -32,9 +32,7 @@
   const fields=[['usd','Dólar de SisVentas · ARS/USD',''],['usdt','Comprar USDT · ARS/USDT',''],['balance','Saldo disponible · USDT',0],['historic','Costo histórico del saldo · ARS/USDT',''],['shipping','Importe de envío anterior · USDT',0],['shippingPct','Envío con seguro · % del valor del bulto',30],['insurance','Seguro adicional · % (0 si está incluido)',0],['fee','Comisión adicional de red · USDT',''],['remoteOther','Otros / importación remoto · ARS',''],['bus','MDP ↔ Buenos Aires · ARS',200000],['tolls','Peajes ida y vuelta · ARS',''],['flight','Avión ida y vuelta · ARS',165000],['border','Iguazú ↔ Paraguay · ARS',120000],['cargo','Vía Cargo · ARS',90000],['packARS','Embalaje · ARS',''],['night','Alojamiento por noche · ARS',''],['nights','Noches',1],['airport','Aeropuerto ↔ hotel · ARS',''],['food','Comidas por día · ARS',''],['days','Días',1],['other','Otros / importación viaje · ARS',''],['retained','Costos conservados · ARS (vacío = automático)',''],['revenue','Ingreso de venta sin IVA · ARS',''],['baseline','Costo actual de venta · ARS','']];
   root.SVParaguayPlanner={async open(ctx){
     if(!root.permisoModulo || !root.permisoModulo('balancecompra'))return;
-    let travelDefaults={},shippingDefaults={};
-    try { const snap=await root.fbGet(root.fbRef(root.fbDB,'sisventas/config/comprasParaguay/costosViaje'));travelDefaults=snap.val()||{};shippingDefaults=(await root.fbGet(root.fbRef(root.fbDB,'sisventas/config/comprasParaguay/envioHabitual'))).val()||{};const fx=(await root.fbGet(root.fbRef(root.fbDB,'sisventas/config/tipoCambio'))).val()||{};const rate=n(fx[fx.dolarConversion||'oficial']||fx.oficial||fx.blue||fx.mep);Object.keys(travelDefaults.monedas||{}).forEach(k=>{if(travelDefaults.monedas[k]==='USD'&&travelDefaults[k]!==''&&travelDefaults[k]!==undefined)travelDefaults[k]=rate?n(travelDefaults[k])*rate:'';}); }
-    catch(e){if(root.notify)root.notify('No se pudieron cargar los costos generales de Paraguay. Reintentá con conexión.');return;}
+    const travelDefaults={},shippingDefaults={};
     document.getElementById('py-planner')?.remove();
     const frozen=!!ctx.closed;
     let saved=ctx.saved||{},p=Object.assign(Object.fromEntries(fields.map(f=>[f[0],f[2]])),{valuation:'current',allocation:'value'},ctx.initial||{},{fee:shippingDefaults.fee??'',remoteOther:shippingDefaults.other??''},saved.parameters||{});
@@ -44,7 +42,7 @@
     const travelKeys=['bus','tolls','flight','border','cargo','packARS','night','airport','food','other'];
     const overrides=Object.assign({},p.travelOverrides||{});
     if(saved.parameters&&!saved.parameters.travelOverrides)travelKeys.forEach(k=>overrides[k]=true);
-    if(!frozen)travelKeys.forEach(k=>{if(!overrides[k])p[k]=travelDefaults[k]??'';});
+
     p.travelOverrides=overrides;
     let dirty=false,saveBusy=false,pendingPDF=null,importHistory=JSON.parse(JSON.stringify(saved.importHistory||[]));
     let extras=JSON.parse(JSON.stringify(saved.extras||[])).map(r=>Object.assign({},r,{destination:'stock',include:true}));

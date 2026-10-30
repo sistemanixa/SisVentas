@@ -1,8 +1,8 @@
 'use strict';
-function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=false,fetchImpl}){
+function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=false,fetchImpl,operationalSummaries=false}){
  if(readOnly&&!enabled)throw Error('El modo de revisión requiere conservar el circuito acotado');
  const store=require('./labor-rtdb-store').createLaborRtdbStore({databaseURL,accessToken,fetchImpl});
- const guard=require('./labor-guard').createLaborGuard({store,readOnly});
+ const guard=require('./labor-guard').createLaborGuard({store,readOnly,operationalSummaries});
  const scopedDb=enabled?require('./labor-db').createLaborDb({db,guard}):db;
  const transaction=enabled?require('./labor-scoped-transaction').createScopedTransaction({guard}):require('./labor-transaction').createRootTransaction({databaseURL,accessToken,fetchImpl});
  function run(actor,operation,input,work,{system=false}={}){

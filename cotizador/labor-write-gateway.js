@@ -83,7 +83,7 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
   });
   // El recibo guarda sólo la confirmación. No duplica ventas ni adjuntos; el
   // digest ya verifica que un replay corresponde al mismo valor solicitado.
-  return {...result,...(body.kind==='compare'?{value:body.value}:{})};
+  return {...result,...(body.kind==='compare'?{value:result.operationalRevision!=null?{...body.value,_svReadRevision:result.operationalRevision,_svReadOperation:result.operationalOperation}:body.value}:{})};
  }
  async function resolve(actor,body){
   if(!actor?.uid||actor.claims?.uid!==actor.uid)throw fail(403,'Sesión requerida');

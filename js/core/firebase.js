@@ -1,5 +1,5 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, goOffline, goOnline, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp, query, orderByChild, orderByKey, equalTo, startAt, endAt, limitToFirst, runTransaction }
+    import { getDatabase, goOffline, goOnline, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp, query, orderByChild, orderByKey, equalTo, startAt, endAt, endBefore, limitToFirst, limitToLast, runTransaction }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
              createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail,
@@ -107,6 +107,8 @@
     window.fbOrderByChild = orderByChild;
     window.fbEqualTo = equalTo;
     window.fbLimitToFirst = limitToFirst;
+    window.fbLimitToLast = limitToLast;
+    window.fbEndBefore = endBefore;
     window.fbStartAt     = startAt;
     window.fbEndAt       = endAt;
     window.fbRunTransaction = svTrackedDatabaseWrite(runTransaction);
@@ -223,6 +225,8 @@
     window.fbDeleteObject = deleteObject;
 
     if(!window.SVLaborWrites) throw Error('No se pudo preparar el guardado seguro');
+    if(!window.SVOperationalWrites)throw Error('No se pudo preparar el guardado de Compras');
+    window.SVOperationalWrites.install({sdk:{set:window.fbSet,update:window.fbUpdate,push:window.fbPush,remove:window.fbRemove,runTransaction:window.fbRunTransaction,get,ref}});
     window.SVLaborWrites.install({sdk:{set:window.fbSet,update:window.fbUpdate,push:window.fbPush,remove:window.fbRemove,runTransaction:window.fbRunTransaction,get,ref}});
     window.firebaseReady = true;
     document.dispatchEvent(new Event('firebase-ready'));

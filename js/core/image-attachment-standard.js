@@ -181,19 +181,9 @@
   };
 
   window.chatEnviarFoto = async function(input) {
-    var file = input && input.files && input.files[0];
-    if (!file) return;
-    try {
-      window.notify('Preparando imagen…');
-      var adjunto = await prepararAdjuntoImagen(file);
-      if (!window.chatPuedeAccederCanal(window._chatCanal)) throw new Error('Sin acceso a esta conversación');
-      await window.fbPush(window.fbRef(window.fbDB, 'sv_chat/' + window._chatCanal), {
-        texto:'', fotoUrl:adjunto.data, foto:adjunto, autor:window.currentUser || '',
-        rol:window.currentRole || '', ts:Date.now(), canal:window._chatCanal
-      });
-      window.notify('Imagen enviada');
-    } catch (error) { informarError(input, error); }
-    input.value = '';
+    // Chat already has a validated Storage uploader with its own progress and
+    // session checks. Never embed an image twice in the message database.
+    return window.chatEnviarArchivo(input);
   };
 
   window.previewImagenProducto = async function(input) {

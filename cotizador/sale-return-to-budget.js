@@ -1,0 +1,27 @@
+'use strict';
+const {isDeepStrictEqual:same}=require('node:util');
+const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_SALE_RETURN_BLOCKED'});
+const technical=['ventaFbKey','ventaKey','ventaGeneradaFbKey','ventaOrigenFbKey'],visible=['venta','ventaId','idVenta','nroVenta','numeroVenta','ventaNumero'];
+const Payments=require('./payment-membership-index');
+const roots=['ordenes_trabajo','ordenesTrabajo','agenda','ordenes','comisiones_generacion'];
+function hasFlow(sale){return Number(sale.pagado||sale.montoPagado||0)>0||sale.facturada===true||sale.factura||sale.facturacion||sale.facturaNumero||sale.numeroFactura||sale.facturas&&Object.keys(sale.facturas).length||sale.facturasAdicionales&&Object.keys(sale.facturasAdicionales).length||sale.otId||sale.otFbKey||sale.ordenTrabajoId||sale.instalado===true;}
+function draftOnly(list){return !list.stockExistenteReservado&&!list.compraConjuntaId&&!list.desagrupada&&!list.compraConfirmacion&&!list.aplicacionExteriorId&&!list.aplicacionExteriorPendiente&&!list.cancelacionExteriorPendiente&&!list.recepcionPendiente&&!(list.ordenesIds&&Object.keys(list.ordenesIds).length)&&!['ordenada','reservada','recibida','cerrada'].includes(list.estado)&&!Object.values(list.items||{}).some(i=>Number(i.cantidadRecibida||i.cantidadEntregada||0)>0);}
+async function related(query,domain,key,sale){const found={},names=new Set([sale.id,sale.numero].filter(v=>v!=null&&v!=='').map(String)),values=new Set([...names,...[...names].map(v=>v.replace(/\D/g,'')),...[...names].map(v=>'#'+v)]),requests=technical.map(field=>[field,key]);for(const field of visible)for(const value of values)if(value)requests.push([field,value]);let cursor=0;await Promise.all(Array.from({length:Math.min(6,requests.length)},async()=>{while(cursor<requests.length){const [field,value]=requests[cursor++];Object.assign(found,await query('sisventas/'+domain,field,value)||{});}}));return found;}
+
+async function assertNoPayments(read,sale,key){Payments.validateCoverage(await read(Payments.COVERAGE_PATH));const target={...sale,fbKey:key},buckets=await Promise.all(Payments.queryPaths(target).map(read)),ids=new Set(buckets.flatMap(bucket=>Object.keys(bucket||{})));for(const id of ids){const payment=await read('sisventas/pagos/'+Payments.recordKey(id));if(!payment)throw fail('El índice de cobros necesita revisión.');if(Payments.belongsToSale(payment,target))throw fail('La venta tiene cobros. No se eliminó ningún registro.');}}
+
+async function validate({actor,patch,raw,query,beforeCommit,digest}){
+ const budgets=Object.entries(patch).filter(([p,v])=>/^sisventas\/presupuestos\/[^/]+$/.test(p)&&v?.ventaOrigenFbKey&&patch['sisventas/ventas/'+v.ventaOrigenFbKey]===null);
+ if(!budgets.length)return;if(budgets.length!==1)throw fail('Mové una venta por vez.');
+ const [budgetPath,budget]=budgets[0],key=budget.ventaOrigenFbKey,salePath='sisventas/ventas/'+key,sale=await raw(salePath);
+ if(!sale||await raw(budgetPath))throw fail('La venta o el presupuesto cambió. Volvé a abrir el detalle.');if(await raw('sv_commission_generation/'+key)||hasFlow(sale))throw fail('La venta ya tiene actividad. Revisá sus cobros, factura u OT antes de volver a presupuesto.');
+ for(const field of ['items','subtotal','descuento','iva','total'])if(!same(budget[field]??null,sale[field]??null))throw fail('El presupuesto debe conservar los productos, costos e importes originales.');
+ const profile=await raw('sv_chat_roles/'+actor.uid),cfg=await raw('sv_permisos/'+profile?.rol);if(profile?.activo!==true||cfg?.acciones?.ventas?.moverPresupuesto===false||profile.rol!=='admin'&&cfg?.acciones?.ventas?.moverPresupuesto!==true)throw fail('No tenés permiso para volver la venta a presupuesto.');
+ await assertNoPayments(raw,sale,key);
+ const permissionHash=digest({profile,cfg}),listRoot='sisventas/listas_materiales',lists=await related(query,'listas_materiales',key,sale),allowed=new Set([salePath,budgetPath]);
+ for(const domain of roots)if(Object.keys(await related(query,domain,key,sale)).length)throw fail('La venta tiene cobros, agenda, OT o compras vinculadas. No se eliminó ningún registro.');
+ for(const [id,list]of Object.entries(lists)){if(!draftOnly(list))throw fail('La preparación ya tiene compras o stock reservado. Revisala antes de volver a presupuesto.');const path=listRoot+'/'+id,next=patch[path];allowed.add(path);if(!next||!same(next,{...list,estado:'cancelada',exteriorCanceladoEn:budget.ts,ventaConvertidaPresupuesto:budget.id,canceladaPorUid:actor.uid}))throw fail('La preparación debe cancelarse conservando su historial.');}
+ if(Object.keys(patch).some(p=>!allowed.has(p)))throw fail('Volver a presupuesto no elimina cobros, OT ni movimientos de stock.');
+ beforeCommit(async({readFresh,queryFresh})=>{if(await readFresh('sv_commission_generation/'+key))throw fail('Se generaron comisiones: no se modificó la venta.');await assertNoPayments(readFresh,sale,key);if(digest({profile:await readFresh('sv_chat_roles/'+actor.uid),cfg:await readFresh('sv_permisos/'+profile.rol)})!==permissionHash)throw fail('Los permisos cambiaron.');for(const domain of roots)if(Object.keys(await related(queryFresh,domain,key,sale)).length)throw fail('Se agregó actividad a la venta; no se guardaron cambios.');if(digest(await related(queryFresh,'listas_materiales',key,sale))!==digest(lists))throw fail('La preparación cambió.');});
+}
+module.exports={validate,hasFlow,draftOnly,related,assertNoPayments};

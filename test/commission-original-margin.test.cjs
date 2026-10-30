@@ -24,12 +24,12 @@ test('ahorro exterior mejora la empresa sin aumentar la comisión, conservando d
 });
 test('la recepción real y su repetición conservan el costo original para comisiones',async()=>{
  const current=sale();
- const window={fbDB:{},fbRef:(_,p)=>p,fbRunTransaction:async(_,fn)=>{const value=fn(current);return {committed:value!==undefined,snapshot:{val:()=>value}};},obtenerCostoItemVenta:cost,_rentIngresoNetoVenta:()=>2400};
+ const window={SVPurchaseReceiptCosts:require('../js/core/purchase-receipt-costs.v1'),fbDB:{},fbRef:(_,p)=>p,fbRunTransaction:async(_,fn)=>{const value=fn(current);return {committed:value!==undefined,snapshot:{val:()=>value}};},obtenerCostoItemVenta:cost,_rentIngresoNetoVenta:()=>2400};
  const scope=vm.createContext({window});
  const src=fs.readFileSync(require.resolve('../js/modules/purchase-orders.js'),'utf8');
  const start=src.indexOf('  function syncSalePurchaseCosts');
  vm.runInContext(src.slice(start,src.indexOf('  function ',start+12)),scope);
- for(let n=0;n<2;n++)await scope.syncSalePurchaseCosts({ventaFbKey:'S'},[{item:{codigo:'A'},qty:1,costoUnitarioReal:300}],true);
+ for(let n=0;n<2;n++)await scope.syncSalePurchaseCosts({ventaFbKey:'S',receiptOperation:'fictional-receipt'},[{item:{codigo:'A'},qty:2,costoUnitarioReal:300}],true);
  assert.equal(current.items[0].costoTotalCompra,600);
  assert.equal(current.items[0].costoUnitarioAntesPreparacion,600);
  assert.equal(base(current).ganancia,1000);

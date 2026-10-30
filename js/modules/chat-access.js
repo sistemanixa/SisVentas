@@ -29,6 +29,7 @@
     if(typeof chatActualizarBadges==='function')chatActualizarBadges();
   }
   window.chatDirectoId=function(uid){return 'directo_'+[currentUserUid,uid].sort().join('_');};
+  window.chatHeadersSnapshot=function(channel){return cache[channel]??null;};
   window.chatDirectoParaNombre=function(nombre){var entry=Object.entries(window._chatDirectorio||{}).find(function(pair){return pair[1].nombre===nombre;});return entry?window.chatDirectoId(entry[0]):'';};
   window.chatDirectosSnapshot=function(){return Promise.resolve({val:function(){return Object.fromEntries(Object.entries(cache).filter(function(pair){return pair[0].startsWith('directo_');}));}});};
   window.chatIniciarDirectosSeguros=function(){
@@ -44,6 +45,7 @@
     function receive(channel,messages){
       if(!valid())return;
       cache[channel]=messages.val()||{};
+      window.SVChatSearch?.refresh(channel);
       var list=Object.values(cache[channel]),name=sessionName();
       _chatNoLeidos[channel]=list.filter(function(m){return m.autor!==name&&!_chatFueLeido(m,name);}).length;
       chatActualizarBadges();
@@ -59,7 +61,7 @@
           delete groupStops[channel];delete cache[channel];delete _chatNoLeidos[channel];return;
         }
         if(groupStops[channel])return;
-        groupStops[channel]=window.fbOnValue(window.fbRef(window.fbDB,'sv_chat/'+channel),function(messages){
+        groupStops[channel]=window.SVChatReadModel.listenHeaders(channel,function(messages){
           if(!valid()||!window._chatRolServidor||!chatPuedeAccederCanal(channel))return;
           receive(channel,messages);
         });
@@ -84,7 +86,7 @@
       Object.keys(window._chatDirectorio).filter(function(peer){return peer!==uid;}).forEach(function(peer){
         var channel=window.chatDirectoId(peer);if(channels[channel])return;
         channels[channel]=true;
-        stops.push(window.fbOnValue(window.fbRef(window.fbDB,'sv_chat/'+channel),function(messages){
+        stops.push(window.SVChatReadModel.listenHeaders(channel,function(messages){
           if(!valid())return;
           receive(channel,messages);
         }));

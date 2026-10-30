@@ -94,7 +94,7 @@ test('Ver como pausa presencia y regresar al actor original abre una conexión p
 });
 test('las señales existentes de chat actualizan directorio y rol sin una escucha extra de presencia',async()=>{
  const f=fixture();Object.assign(f.root,{_chatNoLeidos:{},_chatCanal:'general',chatActualizarBadges(){},chatAplicarAccesos(){},chatPuedeAccederCanal:()=>false});
- vm.runInContext(fs.readFileSync('js/modules/chat-access.js','utf8'),f.root);f.dispatch('sisventas:session-ready',{uid:'self'});await f.connect();
+ vm.runInContext(fs.readFileSync('js/core/chat-read-model.js','utf8'),f.root);vm.runInContext(fs.readFileSync('js/modules/chat-access.js','utf8'),f.root);f.dispatch('sisventas:session-ready',{uid:'self'});await f.connect();
  f.emit('sv_chat_roles/self',{activo:true,rol:'admin'});f.emit('sv_chat_directorio',{self:{nombre:'Ana',activo:true},peer:{nombre:'Bruno',activo:true}});
  f.emit('sv_chat_presencia',{peer:{cx1_other:row(f)}});assert.equal(f.label.textContent,'1 persona conectada');const reads=f.listeners.length;
  f.emit('sv_chat_directorio',{self:{nombre:'Ana',activo:true},peer:{nombre:'Bruno',activo:false}});assert.equal(f.label.textContent,'Nadie más conectado');assert.equal(f.listeners.length,reads);

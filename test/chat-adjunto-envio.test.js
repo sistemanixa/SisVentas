@@ -10,7 +10,7 @@ test('adjunto conserva conversación y espera confirmación del mensaje', async 
   const context = { _chatCanal:'admin', currentUser:'Test', currentRole:'admin', notify:x=>notices.push(x), document:{getElementById:()=>null}, window:{fbStorage:{},fbDB:{},fbStorageRef:()=>({}),fbUploadBytes:async()=>({ref:{}}),fbGetDownloadURL:async()=> 'https://example.com/test.pdf',fbRef:(_,path)=>path,fbPush:(path)=>{paths.push(path);return new Promise(resolve=>{finish=resolve;});} } };
   context.setTimeout = setTimeout; context.clearTimeout = clearTimeout;
   context.window.fbAuth = {currentUser:{uid:'test-owner'}};
-  context.chatPuedeAccederCanal=()=>true;context.window.svChatPath=canal=>'sv_chat/'+canal;vm.createContext(context); vm.runInContext(fn, context);
+  context.window.SVChatReadModel={send:(channel,msg)=>context.window.fbPush(context.window.fbRef(context.window.fbDB,'sv_chat/'+channel),msg)};context.chatPuedeAccederCanal=()=>true;context.window.svChatPath=canal=>'sv_chat/'+canal;vm.createContext(context); vm.runInContext(fn, context);
   const pending = context.chatEnviarArchivo({name:'test.pdf',type:'application/pdf',size:12});
   context._chatCanal = 'general';
   context.currentUser = 'Otra persona';
@@ -33,7 +33,7 @@ function escenarioAdjunto() {
       fbStorageRef:()=>({}), fbUploadBytes:async()=>({ref:{}}),
       fbGetDownloadURL:async()=> 'https://example.com/test.pdf',
       fbRef:(_,path)=>path, fbPush:(path,msg)=>{messages.push({path,msg});return Promise.resolve();}}};
-  context.chatPuedeAccederCanal=()=>true;context.window.svChatPath=canal=>'sv_chat/'+canal;vm.createContext(context); vm.runInContext(fn,context);
+  context.window.SVChatReadModel={send:(channel,msg)=>context.window.fbPush(context.window.fbRef(context.window.fbDB,'sv_chat/'+channel),msg)};context.chatPuedeAccederCanal=()=>true;context.window.svChatPath=canal=>'sv_chat/'+canal;vm.createContext(context); vm.runInContext(fn,context);
   return {context,timers,notices,messages,estado};
 }
 const flush = () => new Promise(resolve=>setImmediate(resolve));

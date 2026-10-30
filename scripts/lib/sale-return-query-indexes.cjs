@@ -1,0 +1,4 @@
+'use strict';
+// Index declarations only. No read/write grants or original records change.
+function prepare(input){const out=structuredClone(input),s=out.rules?.sisventas;if(!s)throw Error('Falta sisventas');const fields=['ventaFbKey','ventaKey','ventaGeneradaFbKey','ventaOrigenFbKey','venta','ventaId','idVenta','nroVenta','numeroVenta','ventaNumero'];for(const domain of ['ordenes_trabajo','ordenesTrabajo','agenda','ordenes','listas_materiales','comisiones_generacion']){const rule=s[domain]||(s[domain]={'.read':false,'.write':false}),index=rule['.indexOn'];if(index!==undefined&&typeof index!=='string'&&!Array.isArray(index))throw Error('Índice inesperado en '+domain);rule['.indexOn']=Array.from(new Set([...(Array.isArray(index)?index:index?[index]:[]),...fields]));}return out;}
+module.exports={prepare};

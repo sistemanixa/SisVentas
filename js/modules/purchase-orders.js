@@ -13,6 +13,11 @@
     legacyRead: null,
     legacyEpoch: 0,
     started: false,
+    stops: [],
+    loaded: {},
+    errors: {},
+    epoch: 0,
+    detailEpoch: 0,
     activeList: null,
     activeOrder: null,
     manualItems: [],
@@ -427,7 +432,7 @@
     return window.fbRemove(window.fbRef(window.fbDB, path));
   }
 
-  function createListFromSale(saleValue, options) {
+  async function createListFromSale(saleValue, options) {
     options = options || {};
     var sale = saleRef(saleValue);
     if (!sale || !Array.isArray(sale.items) || !sale.items.length) {
@@ -436,8 +441,9 @@
     }
     var existing = existingListForSale(sale);
     if (existing) {
+      existing = await detail(PATH_LISTS, existing.fbKey);
       if (syncListItemsWithSale(existing, sale) && existing.fbKey && window.fbDB) {
-        update(PATH_LISTS + '/' + existing.fbKey, { items: existing.items, actualizadoEn: Date.now(), actualizadoPor: window.currentUser || 'Sistema' }).catch(function () {});
+        await update(PATH_LISTS + '/' + existing.fbKey, { items: existing.items, actualizadoEn: Date.now(), actualizadoPor: window.currentUser || 'Sistema' });
       }
       if (!options.silent) openMaterialList(existing.fbKey);
       return Promise.resolve(existing);
@@ -486,7 +492,15 @@
     return modal;
   }
 
-  function openMaterialList(key) {
+  async function detail(path,key){
+    var uid=window.currentUserUid,user=window.fbAuth?.currentUser,epoch=state.epoch;
+    var snapshot=await window.fbGet(window.fbRef(window.fbDB,path+'/'+key));
+    if(epoch!==state.epoch||uid!==window.currentUserUid||user!==window.fbAuth?.currentUser)throw Error('La sesión cambió. Volvé a abrir el detalle.');
+    var value=snapshot.val();if(!value)throw Error('El registro ya no está disponible.');
+    return Object.assign({fbKey:key},value);
+  }
+
+  async function openMaterialList(key) {
     var list = typeof key === 'object' ? key : state.lists.find(function (x) { return x.fbKey === key || x.numero === key; });
     if (!list) {
       var sale = saleRef(key);
@@ -494,11 +508,11 @@
       if (typeof window.notify === 'function') window.notify('Lista de materiales no encontrada');
       return;
     }
+    var opening=++state.detailEpoch;
+    try{list=await detail(PATH_LISTS,list.fbKey);}catch(error){window.notify(error.message);return;}
+    if(opening!==state.detailEpoch)return;
+    state.lists=state.lists.map(function(row){return row.fbKey===list.fbKey?list:row;});
     if(list.compraConjuntaId)return openMaterialList(list.compraConjuntaId);
-    var sourceSale = saleRef(list.ventaFbKey || list.ventaId);
-    if (sourceSale && syncListItemsWithSale(list, sourceSale) && list.fbKey && window.fbDB) {
-      update(PATH_LISTS + '/' + list.fbKey, { items: list.items, actualizadoEn: Date.now(), actualizadoPor: window.currentUser || 'Sistema' }).catch(function () {});
-    }
     state.groupMaterialsByProvider = true;
     state.activeList = JSON.parse(JSON.stringify(list));
     if (window.permisoModulo && window.permisoModulo('balancecompra')) { var prior=document.getElementById('oc-material-list-modal');if(prior)prior.style.display='none';return window.ocAbrirSimuladorParaguay(); }
@@ -679,13 +693,13 @@
     var useLegacyPlanner=(materialListLocked(list)||list.compraConfirmacion)&&!(list.simuladorParaguay&&list.simuladorParaguay.version>=6);
     function simulatorCurrent(){return state.activeList===list && window.permisoModulo('balancecompra') && !!useLegacyPlanner===!!((materialListLocked(list)||list.compraConfirmacion)&&!(list.simuladorParaguay&&list.simuladorParaguay.version>=6));}
     if (useLegacyPlanner && !window.SVParaguayPlanner) {
-      try { if(window.SVSessionAssets) await window.SVSessionAssets.load('planner'); else await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/paraguay-planner.js?v=3.8.1';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);}); }
+      try { if(window.SVSessionAssets) await window.SVSessionAssets.load('planner'); else await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/paraguay-planner.js?v=3.17.3';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);}); }
       catch(e) { if(window.notify) window.notify('No se pudo cargar el simulador'); return; }
     }
     if(!simulatorCurrent())return;
     loadMaterialQuote();
     if((!materialListLocked(list)&&!list.compraConfirmacion||list.simuladorParaguay&&list.simuladorParaguay.version>=6)&&!window.SVExteriorPreparation){
-      try{if(window.SVSessionAssets)await window.SVSessionAssets.load('preparation');else await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/exterior-preparation.js?v=3.9.12';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}
+      try{if(window.SVSessionAssets)await window.SVSessionAssets.load('preparation');else await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/exterior-preparation.js?v=3.17.3';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}
       catch(e){window.notify('No se pudo cargar la preparación de compra. Reintentá.');return;}
     }
     if(!simulatorCurrent())return;
@@ -701,11 +715,11 @@
     });
     if(!window.SVPurchasePDF){try{if(window.SVSessionAssets)await window.SVSessionAssets.load('purchasePDF');else await new Promise(function(resolve,reject){var script=document.createElement('script');script.src='./js/modules/purchase-pdf-import.js?v=3.7.18';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}catch(e){if(window.notify)window.notify('No se pudo cargar la importación PDF. Reintentá.');return;}}
     if(!simulatorCurrent())return;
-    (useLegacyPlanner?window.SVParaguayPlanner:window.SVExteriorPreparation).open({rates:materialRates,openOrders:function(){window.showPage('ordenes');showOrdersTab('orders');},customer:balancePurchaseTitle(list),available:function(row){return Number((state.inventory[row.productKey||row.code]||{}).general)||0;},providers:(window.proveedoresData||[]).filter(function(p){return p.activo!==false;}).map(function(p){return {proveedorKey:String(p.fbKey||p.id||''),nombre:p.nombre,web:p.web||p.url||p.portal||p.sitio||'',activo:p.activo,exterior:typeof window.origenProveedorProducto==='function'?!!window.origenProveedorProducto(p).exterior:/paraguay|flytec|nissei/i.test(p.nombre||'')};}),saleId:list.ventaId||list.numero,stockOnly:list.origen==='stock_paraguay',rows:rows,saved:list.simuladorParaguay,closed:materialListLocked(list)||!!list.compraConfirmacion,isClosed:function(){return materialListLocked(state.lists.find(function(x){return x.fbKey===list.fbKey;})||list);},
+    (useLegacyPlanner?window.SVParaguayPlanner:window.SVExteriorPreparation).open({localSavings:purchaseLocalSavings,previousExpenses:window.SVExteriorPreparation?.previousExpenses?.(list,state.lists),rates:materialRates,openOrders:function(){window.showPage('ordenes');showOrdersTab('orders');},customer:balancePurchaseTitle(list),available:function(row){return Number((state.inventory[row.productKey||row.code]||{}).general)||0;},providers:(window.proveedoresData||[]).filter(function(p){return p.activo!==false;}).map(function(p){return {proveedorKey:String(p.fbKey||p.id||''),nombre:p.nombre,web:p.web||p.url||p.portal||p.sitio||'',activo:p.activo,exterior:typeof window.origenProveedorProducto==='function'?!!window.origenProveedorProducto(p).exterior:/paraguay|flytec|nissei/i.test(p.nombre||'')};}),saleId:list.ventaId||list.numero,stockOnly:list.origen==='stock_paraguay',rows:rows,saved:list.simuladorParaguay,closed:materialListLocked(list)||!!list.compraConfirmacion,isClosed:function(){return materialListLocked(state.lists.find(function(x){return x.fbKey===list.fbKey;})||list);},
       catalog:productList().filter(function(p){return !isLabor(p);}).map(function(p){return {key:String(p.fbKey||p.codigo),code:p.codigo||'',description:p.nombre||'',detail:p.descripcion||'',stock:typeof window.stockOperativoProducto==='function'?Number(window.stockOperativoProducto(p).general)||0:0,providers:providersFor(p).map(function(v){var raw=(typeof window.proveedoresVinculadosProducto==='function'?window.proveedoresVinculadosProducto(p):p.proveedores||[]).find(function(x){return x.proveedorKey===v.proveedorKey||String(x.nombre||x.proveedor)===v.nombre;})||{};var units=typeof window.metrosPorPresentacionProducto==='function'?Number(window.metrosPorPresentacionProducto(p))||1:1;return Object.assign({},v,{costo:v.costo/units,usd:v.usd/units});})};}),
       confirm:function(snapshot){return confirmPlannedPurchase(list,snapshot);},
       closePurchase:function(){return reconcilePlannedPurchase(list);},
-      thumbnail:function(row){if(row.destination==='stock')return productThumbnail({productoKey:row.productKey,codigo:row.code});var item=(list.items||[]).find(function(i){return [i.productoKey||i.codigo,i.linea,i.proveedorKey||i.proveedor].join('|')===row.key;});return productThumbnail(item||{});},
+      thumbnail:function(row){if(row.destination==='stock')return productThumbnail({productoKey:row.productKey,codigo:row.code});var item=(list.items||[]).find(function(i){return [i.productoKey||i.codigo,i.linea,i.proveedorKey||i.proveedor].join('|')===row.key;});return productThumbnail(item||{productoKey:row.productKey,codigo:row.code});},
       documents:list.comprobantesCompra||{},
       sources:list.sources||[],ungroup:list.origen==='conjunta'?function(){return ungroupJointPurchase(list);}:null,
       initial:{revenue:list.origen==='conjunta'?list.sources.reduce(function(a,x){return a+x.revenue;},0):list.origen==='stock_paraguay'?0:typeof window._rentIngresoNetoVenta==='function'?window._rentIngresoNetoVenta(sale):'',baseline:list.simuladorParaguay?.parameters?.baseline??(list.origen==='conjunta'?list.sources.reduce(function(a,x){return a+x.baseline;},0):list.origen==='stock_paraguay'?0:typeof window._rentCostoVenta==='function'?window._rentCostoVenta(sale):'')},
@@ -1019,7 +1033,7 @@
     }
     if(!sim||!sim.chosen||!sim.complete)throw new Error('Guardá una simulación completa y elegí envío o viaje antes de confirmar.');
     var p=sim.parameters||{},r=sim.result||{},selected=(sim.rows||[]).filter(function(x){return x.include&&Number(x.qty)>0;}),groups={};
-    function add(row,destination,unit){if(!(Number(row.qty)>0)||!(unit>0)||!row.providerKey)throw new Error('Faltan proveedor registrado, cantidad o precio: '+row.code);var key=safeKey(row.providerKey)+'_'+destination;if(!groups[key])groups[key]={provider:row.provider,providerKey:row.providerKey,destination:destination,items:[]};groups[key].items.push({productoKey:row.productKey||'',codigo:row.code,descripcion:row.description,unidad:'Unidad',cantidadOrdenada:Number(row.qty),cantidadRecibida:0,costoUnitario:unit,costoUnitarioPresupuestado:unit,precioOrigenUSD:Number(row.usd),destino:destination,subtotal:Number(row.qty)*unit});}
+    function add(row,destination,unit){if(!(Number(row.qty)>0)||!(unit>0)||!row.providerKey)throw new Error('Faltan proveedor registrado, cantidad o precio: '+row.code);var key=safeKey(row.providerKey)+'_'+destination;if(!groups[key])groups[key]={provider:row.provider,providerKey:row.providerKey,destination:destination,items:[]};groups[key].items.push({productoKey:row.productKey||'',codigo:row.code,descripcion:row.description,unidad:'Unidad',cantidadOrdenada:Number(row.qty),cantidadRecibida:0,costoUnitario:unit,costoUnitarioPresupuestado:unit,precioOrigenUSD:Number(row.usd),destino:destination,sourceLine:destination==='venta'?(row.sourceLine??String(row.key||'').split('|')[1]??null):null,sourceSaleQty:destination==='venta'?Number(row.needed??(Number(row.qty)+Number(row.existing||0))):null,sourceOriginalUnit:destination==='venta'&&row.baselineUnit!=null?Number(row.baselineUnit):null,subtotal:Number(row.qty)*unit});}
     selected.forEach(function(row,i){var item=(list.items||[]).find(function(x){return [x.productoKey||x.codigo,x.linea,x.proveedorKey||x.proveedor].join('|')===row.key;});if(!item||Number(row.qty)+Number(row.existing||0)>Number(item.cantidadNecesaria)||!item.incluir)throw new Error('La selección cambió. Reabrí y guardá la simulación antes de confirmar.');var alloc=(sim.chosen==='remote'?r.remoteAllocation:r.onsiteAllocation)||[];add(Object.assign({},row,{productKey:item.productoKey,providerKey:row.providerKey||item.proveedorKey}), 'venta',Number(row.usd)*Number(p.usd)+(Number(alloc[i])||0)/Number(row.qty));});
     (sim.rows||[]).filter(function(row){return !row.include&&Number(row.qty)>0;}).forEach(function(row){var item=(list.items||[]).find(function(x){return [x.productoKey||x.codigo,x.linea,x.proveedorKey||x.proveedor].join('|')===row.key;});if(!item||Number(row.qty)+Number(row.existing||0)>Number(item.cantidadNecesaria))throw new Error('Las cantidades de la venta cambiaron. Reabrí la compra.');add(Object.assign({},row,{productKey:item.productoKey,providerKey:row.providerKey||item.proveedorKey}),'venta',row.providerOverride?Number(row.localUnitARS):Number(row.baselineUnit));});
     var extras=sim.extras||[],goods=extras.reduce(function(a,x){return a+Number(x.qty)*Number(x.usd);},0),extraCost=Number(p.extraLogisticsUSD||0)*Number(p.usd);
@@ -1184,11 +1198,16 @@
     if (scope === 'listas') renderLists();else renderOrders();
   }
 
+  function readStatus(domain){
+    if(!state.started||state.loaded[domain])return '';
+    var error=state.errors[domain];return '<div role="'+(error?'alert':'status')+'" aria-busy="'+(!error)+'" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:24px;color:var(--text3)">'+(error?'No se pudo cargar la información. <button class="btn btn-sm" onclick="SisVentasCompras.retry()">Reintentar</button>':'<i class="ti ti-loader-2" aria-hidden="true" style="animation:spin 1s linear infinite"></i>Cargando compras…')+'</div>';
+  }
   function renderOrders() {
     if (!purchasePageVisible('ordenes') || state.activeTab !== 'orders') return;
     renderPageShell();
     var target = document.getElementById('oc2-orders');
     if (!target) return;
+    var waiting=readStatus('ordenes')||((state.metricView&&state.metricView!=='month')?readStatus('inventario_operativo'):'');if(waiting){target.innerHTML=waiting;return;}
     var filter = (document.getElementById('oc2-filter') || {}).value || '';
     var input = document.getElementById('oc2-product-search');
     var inventoryView = state.metricView && state.metricView !== 'month';
@@ -1263,6 +1282,7 @@
     renderPageShell();
     var target = document.getElementById('oc2-lists');
     if (!target) return;
+    var waiting=readStatus('listas_materiales');if(waiting){target.innerHTML=waiting;return;}
     var page=purchasePage(state.lists,'listas','all');
     target.innerHTML = '<div class="table-wrap"><table id="oc2-lists-table" data-sv-column-key="ordenes-compra-listas"><thead><tr><th>Lista</th><th>Venta</th><th>Cliente</th><th>Materiales</th><th>Órdenes</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' +
       (state.lists.length ? page.rows.map(function (list) {
@@ -1452,7 +1472,30 @@
     return exterior({items:(list.items||[]).map(function(i){return i.origenVentaItem||{};})});
   }
 
+  window.ocRenombrarCompra=async function(id){
+    if(!window.permisoModulo?.('balancecompra'))return;
+    const list=state.lists.find(function(l){return l.fbKey===id;});if(!list)return;
+    const previous=String(list.nombreLista||''),owner=window.currentUserUid;
+    const value=await window.svPrompt('Nombre de la lista',balancePurchaseTitle(list));if(value===null||value===undefined)return;
+    const name=String(value).trim();if(!name||name.length>160){window.notify('Ingresá un nombre de hasta 160 caracteres.');return;}
+    if(owner!==window.currentUserUid||!window.permisoModulo?.('balancecompra'))return;
+    try{await window.SVGuardedWrites.restTransaction(window.fbRef(window.fbDB,PATH_LISTS+'/'+id),function(current){if(!current)throw Error('La lista ya no existe.');if(String(current.nombreLista||'')!==previous)throw Error('Otro usuario cambió el nombre. Volvé a abrir la lista.');return Object.assign({},current,{nombreLista:name});});list.nombreLista=name;renderBalanceCompra();window.notify('Nombre de la lista guardado.');}catch(e){window.notify(window.SVGuardedWrites.errorMessage(e));}
+  };
+
+  function purchaseLocalSavings(sim){
+    const rows=[...(sim?.rows||[]),...(sim?.extras||[])].filter(r=>r.method!=='stock'&&Number(r.qty)>0);let base=0,missing=0;
+    rows.forEach(r=>{const ref=r.localReference||(r.method==='local'&&r.reference?.currency==='ARS'?r.reference:null),value=ref?.amount;if(!ref||ref.currency!=='ARS'||value===null||value===undefined||value===''||!Number.isFinite(Number(value))||Number(value)<0){missing++;return;}base+=Number(value)*Number(r.qty);});
+    const total=sim?.result?.orderTotal,complete=rows.length>0&&missing===0&&sim?.complete===true&&total!==null&&total!==undefined&&Number.isFinite(Number(total));
+    return {missing,localTotalARS:base,finalTotalARS:complete?Number(total):null,savingARS:complete?Math.round((base-Number(total))*100)/100:null};
+  }
+
+  function purchaseListDates(list){
+    function format(value){if(typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value))return fmtDate(value);const n=Number(value);if(!(n>0)||!Number.isFinite(n))return '';const date=new Date(n);return Number.isNaN(date.getTime())?'':date.toLocaleDateString('es-AR',{timeZone:'America/Argentina/Buenos_Aires'});}
+    return {start:format(list.fecha)||format(list.ts)||'Sin fecha registrada',ordered:format(list.ordenadaEn)||format(list.compraConfirmacion?.fecha)||format(list.compraConfirmacionFecha)};
+  }
+
   function balancePurchaseTitle(list) {
+    if(String(list.nombreLista||'').trim())return String(list.nombreLista).trim();
     if(list.origen==='stock_paraguay')return 'Stock general';
     var sources=list.origen==='conjunta'?(list.sources||[]):[list];
     var names=sources.map(function(source){
@@ -1467,7 +1510,7 @@
       var details=document.createElement(key==='active'?'section':'details');details.className='card bc-fold '+(extraClass||'');details.dataset.bcFold=key;details.open=opened.has(key)||(key==='active'&&!target.dataset.bcInitialized);
       var summary=document.createElement(key==='active'?'h3':'summary');summary.className='bc-section-title';summary.textContent=key==='active'?'Compras en curso · '+active:title;details.appendChild(summary);return details;
     }
-    var style=document.createElement('style');style.textContent='#balance-compra-content .bc-fold{padding:14px 18px;margin:12px 0;border-left:3px solid var(--blue)}#balance-compra-content .bc-fold>summary{cursor:pointer;font-weight:700;font-size:15px;overflow-wrap:anywhere}#balance-compra-content .bc-fold[open]>summary{margin-bottom:14px}#balance-compra-content .bc-fold-active{background:transparent;border:0;border-radius:0;box-shadow:none;padding:16px 0;margin:0}#balance-compra-content .bc-fold-active>.bc-section-title{font-size:15px;margin:0 0 12px}#balance-compra-content .bc-fold-active>.bc-toolbar-actions{margin-bottom:12px}#balance-compra-content .bc-fold-finished{border-left-color:var(--green)}#balance-compra-content .bc-fold .bc-card{margin:10px 0}#balance-compra-content .bc-card-title{font-weight:700;font-size:14px;overflow-wrap:anywhere;margin:0 0 12px}#balance-compra-content .bc-brief{display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text3)}#balance-compra-content .bc-brief strong{color:var(--text);margin-left:5px}#balance-compra-content .bc-cost-detail{margin-top:12px}#balance-compra-content .bc-cost-detail>summary{cursor:pointer;font-size:12px;color:var(--text3)}#balance-compra-content .bc-cost-detail[open]>summary{margin-bottom:12px}';target.appendChild(style);
+    var style=document.createElement('style');style.textContent='#balance-compra-content .bc-fold{padding:14px 18px;margin:12px 0;border-left:3px solid var(--blue)}#balance-compra-content .bc-fold>summary{cursor:pointer;font-weight:700;font-size:15px;overflow-wrap:anywhere}#balance-compra-content .bc-fold[open]>summary{margin-bottom:14px}#balance-compra-content .bc-fold-active{background:transparent;border:0;border-radius:0;box-shadow:none;padding:24px 0 16px;margin:28px 0 0;border-top:1px solid var(--border2)}#balance-compra-content .bc-fold-active>.bc-section-title{font-size:18px;margin:0 0 20px}#balance-compra-content .bc-fold-active>.bc-toolbar-actions{margin-bottom:22px}#balance-compra-content .bc-fold-finished{border-left-color:var(--green)}#balance-compra-content .bc-fold .bc-card{margin:10px 0}#balance-compra-content .bc-card-title{font-weight:700;font-size:14px;overflow-wrap:anywhere;margin:0 0 12px}#balance-compra-content .bc-brief{display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text3)}#balance-compra-content .bc-brief strong{color:var(--text);margin-left:5px}#balance-compra-content .bc-cost-detail{margin-top:12px}#balance-compra-content .bc-cost-detail>summary{cursor:pointer;font-size:12px;color:var(--text3)}#balance-compra-content .bc-cost-detail[open]>summary{margin-bottom:12px}';target.appendChild(style);
     var toolbar=target.querySelector('.bc-toolbar'), actions=toolbar.querySelector('.bc-toolbar-actions');
     var grid=toolbar.nextElementSibling, group;
     if(!grid)return;
@@ -1477,8 +1520,8 @@
       } else if(group){
         var card=document.createElement('article');card.className=child.className;
         var head=child.querySelector('.bc-head');
-        var title=document.createElement('h3');title.className='bc-card-title';title.textContent=head?head.querySelector('h2').textContent+' · '+head.querySelector('span').textContent.split(' · ').pop():child.textContent;card.appendChild(title);
-        if(head){var repeated=head.querySelector('div');if(repeated)repeated.remove();var brief=child.querySelector('.bc-brief');if(brief)head.prepend(brief);}
+        var title=document.createElement('h3');title.className='bc-card-title';title.textContent=head?head.querySelector('h2').textContent:child.textContent;if(head){var rename=head.querySelector('[data-rename-list]');if(rename){title.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap';title.appendChild(rename);}}card.appendChild(title);
+        if(head){var repeated=head.querySelector('div');if(repeated)repeated.remove();var brief=child.querySelector('.bc-overview')||child.querySelector('.bc-brief');if(brief)head.prepend(brief);}
         while(child.firstChild)card.appendChild(child.firstChild);group.appendChild(card);child.remove();
       }
     });
@@ -1499,21 +1542,31 @@
     var target=document.getElementById('balance-compra-content');
     if(!target)return;
     if(!window.permisoModulo || !window.permisoModulo('balancecompra')){target.innerHTML='';return;}
+    var waiting=readStatus('listas_materiales');if(waiting){target.innerHTML=waiting;return;}
     var lists=state.lists.filter(function(l){return !l.compraConjuntaId&&!l.desagrupada&&balanceTieneCompraExterior(l);}).sort(function(a,b){return Number(balanceFinalizado(a))-Number(balanceFinalizado(b)) || Number(b.ts||0)-Number(a.ts||0);});
     var active=lists.filter(function(l){return !balanceFinalizado(l);}).length;
     var lastSection='';
     var opened=new Set(Array.from(target.querySelectorAll('details[data-bc-fold][open]')).map(function(el){return el.dataset.bcFold;}));
-    target.innerHTML='<style>#balance-compra-content .bc-card{padding:24px;margin:0}#balance-compra-content .bc-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}#balance-compra-content .bc-head h2{font-size:20px;margin:0 0 8px}#balance-compra-content .bc-alert{padding:12px 16px;background:#e5b83b18;border-left:3px solid #e5b83b;color:var(--amber,#e5b83b);margin:18px 0;border-radius:6px}#balance-compra-content .bc-meta{margin:16px 0;color:var(--text2)}#balance-compra-content .bc-comparison{display:grid;grid-template-columns:1fr 1fr;gap:18px}#balance-compra-content .bc-comparison section{padding:22px;border-radius:14px;border:1px solid var(--border2);background:var(--bg3)}#balance-compra-content .bc-comparison .bc-after{border-color:#46b78c;background:#46b78c10}#balance-compra-content .bc-comparison h3{margin:0;font-size:18px}#balance-compra-content .bc-comparison p{color:var(--text3);margin:7px 0 22px}#balance-compra-content .bc-amount{display:flex;flex-direction:column;gap:7px;min-width:0}#balance-compra-content .bc-amount>span{color:var(--text2);font-size:13px}#balance-compra-content .bc-amount>strong{font-size:clamp(21px,2.5vw,32px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}#balance-compra-content .bc-amount>small{color:var(--text3);line-height:1.5}#balance-compra-content .bc-margin{display:flex;justify-content:space-between;align-items:center;margin:20px 0;font-size:16px}#balance-compra-content .bc-margin strong{font-size:28px}#balance-compra-content .bc-improvement{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:22px;background:#36b87818;border:1px solid #36b87866;border-radius:14px;margin-top:18px;color:#64dba1}#balance-compra-content .bc-improvement>div:last-child{display:flex;flex-direction:column;gap:6px;justify-content:center}#balance-compra-content .bc-improvement>div:last-child>strong{font-size:30px}#balance-compra-content .bc-loss{background:#df565618;color:#ff9292;border-color:#df5656}#balance-compra-content .bc-cost-title{margin:26px 0 14px}#balance-compra-content .bc-costs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}#balance-compra-content .bc-costs .bc-amount{padding:18px;background:var(--bg3);border-radius:12px;border-top:3px solid var(--blue,#6f9fea)}#balance-compra-content .bc-costs .bc-amount>strong{font-size:23px}#balance-compra-content .bc-footnote{font-size:12px;line-height:1.6;color:var(--text3);margin-bottom:0}@media(max-width:650px){#balance-compra-content .bc-comparison,#balance-compra-content .bc-costs,#balance-compra-content .bc-improvement{grid-template-columns:1fr}#balance-compra-content .bc-card{padding:16px}}#page-balancecompra .btn-primary{background:var(--green-bg);color:var(--green);border:1px solid var(--green);box-shadow:none}#page-balancecompra .btn-primary:hover{filter:brightness(1.15)}#page-balancecompra .btn:focus-visible{outline:2px solid var(--blue);outline-offset:3px}#balance-compra-content .bc-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 18px;border-left:3px solid var(--blue)}#balance-compra-content .bc-toolbar h2{font-size:17px;margin:0 0 6px}#balance-compra-content .bc-toolbar p{margin:4px 0;font-size:12px;color:var(--text3)}#balance-compra-content .bc-toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}#balance-compra-content .bc-toolbar-actions .btn{font-size:12px;padding:8px 12px}#balance-compra-content .bc-toolbar-actions .bc-joint{background:var(--blue-bg,var(--bg3));color:var(--blue);border-color:var(--blue)}#balance-compra-content .bc-card{padding:14px}#balance-compra-content .bc-head{gap:8px}#balance-compra-content .bc-head h2{font-size:16px;margin:0 0 3px;overflow-wrap:anywhere}#balance-compra-content .bc-head span{font-size:11px;color:var(--text3)}#balance-compra-content .bc-head .btn{padding:7px 11px;font-size:12px}#balance-compra-content .bc-alert{padding:6px 10px;margin:9px 0;font-size:11px}#balance-compra-content .bc-meta{margin:7px 0;font-size:11px}#balance-compra-content .bc-comparison{gap:10px}#balance-compra-content .bc-comparison section{padding:10px 12px;border-radius:9px}#balance-compra-content .bc-comparison h3{font-size:13px}#balance-compra-content .bc-comparison p{font-size:11px;margin:3px 0 8px}#balance-compra-content .bc-amount{gap:2px}#balance-compra-content .bc-amount>span{font-size:11px}#balance-compra-content .bc-amount>strong{font-size:20px}#balance-compra-content .bc-amount>small,#balance-compra-content .bc-comparison section>small{font-size:10px}#balance-compra-content .bc-margin{margin:7px 0;font-size:11px}#balance-compra-content .bc-margin strong{font-size:16px}#balance-compra-content .bc-improvement{padding:9px 12px;gap:10px;margin-top:9px;border-radius:9px}#balance-compra-content .bc-improvement>div:last-child{gap:2px;font-size:11px}#balance-compra-content .bc-improvement>div:last-child>strong{font-size:18px}#balance-compra-content .bc-cost-title{margin:11px 0 7px;font-size:13px}#balance-compra-content .bc-costs{gap:8px}#balance-compra-content .bc-costs .bc-amount{padding:8px 10px;border-radius:8px;border-top-width:2px}#balance-compra-content .bc-costs .bc-amount>strong{font-size:16px}#balance-compra-content .bc-footnote{font-size:10px;line-height:1.4;margin:8px 0 0}#exterior-user-lists{padding:16px 18px;border-left:3px solid var(--green)}#exterior-user-lists .card-head{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}#exterior-user-lists .card-title{font-size:15px;text-transform:none;letter-spacing:0;font-weight:700;color:var(--text);margin-right:auto}#exterior-user-lists>p{margin:5px 0 10px;line-height:1.4}@media(max-width:650px){#balance-compra-content .bc-toolbar-actions{width:100%}#balance-compra-content .bc-toolbar-actions .btn{flex:1}#balance-compra-content .bc-amount>strong{font-size:18px}}</style><div class="card bc-toolbar"><div><h2>Compras · preparar y seguir</h2><p>'+active+' activas · '+(lists.length-active)+' finalizadas · '+lists.filter(function(l){return !!l.simuladorParaguay;}).length+' con simulación</p><p>Cada pedido reúne productos y gastos, conservando su destino.</p></div><div class="bc-toolbar-actions"><button class="btn btn-primary bc-joint" onclick="ocNuevaCompraConjunta()"><i class="ti ti-files" aria-hidden="true"></i> Reunir ventas</button><button class="btn btn-primary" onclick="ocNuevaCompraStock()"><i class="ti ti-plus" aria-hidden="true"></i> Compra para stock</button></div></div><div style="display:grid;grid-template-columns:minmax(0,1fr);gap:18px">'+(lists.length?lists.map(function(list){
+    target.innerHTML='<style>#balance-compra-content .bc-fold-active{margin-top:28px;padding-top:22px;border-top:1px solid var(--border2)}#balance-compra-content .bc-section-title{margin:0 0 18px;font-size:18px}#balance-compra-content .bc-fold-active>.bc-toolbar-actions{margin-bottom:20px}#balance-compra-content .bc-overview{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,.6fr);gap:24px;align-items:center;width:100%}#balance-compra-content .bc-benefit{display:flex;flex-direction:column;text-align:right;gap:8px;padding:14px 0 14px 20px;border-left:2px solid currentColor}#balance-compra-content .bc-benefit strong{font-size:28px}#balance-compra-content .bc-benefit small{font-size:11px}#balance-compra-content .bc-benefit small:last-child{color:var(--text3)}@media(max-width:650px){#balance-compra-content .bc-overview{grid-template-columns:1fr;gap:12px}#balance-compra-content .bc-benefit{text-align:left;border-left:0;border-top:1px solid var(--border);padding:14px 0}}#balance-compra-content .bc-progress{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;margin:14px 0}#balance-compra-content .bc-compact-costs{display:flex;flex-wrap:wrap;gap:12px 28px;padding:12px 0}#balance-compra-content .bc-compact-costs span{display:flex;gap:8px;flex-wrap:wrap}#balance-compra-content .bc-brief{display:block!important}#balance-compra-content .bc-brief>span{display:block;margin:5px 0}#balance-compra-content .bc-brief>.badge{display:inline-block;width:auto}#balance-compra-content .bc-card{padding:24px;margin:0}#balance-compra-content .bc-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}#balance-compra-content .bc-head h2{font-size:20px;margin:0 0 8px}#balance-compra-content .bc-alert{padding:12px 16px;background:#e5b83b18;border-left:3px solid #e5b83b;color:var(--amber,#e5b83b);margin:18px 0;border-radius:6px}#balance-compra-content .bc-meta{margin:16px 0;color:var(--text2)}#balance-compra-content .bc-comparison{display:grid;grid-template-columns:1fr 1fr;gap:18px}#balance-compra-content .bc-comparison section{padding:22px;border-radius:14px;border:1px solid var(--border2);background:var(--bg3)}#balance-compra-content .bc-comparison .bc-after{border-color:#46b78c;background:#46b78c10}#balance-compra-content .bc-comparison h3{margin:0;font-size:18px}#balance-compra-content .bc-comparison p{color:var(--text3);margin:7px 0 22px}#balance-compra-content .bc-amount{display:flex;flex-direction:column;gap:7px;min-width:0}#balance-compra-content .bc-amount>span{color:var(--text2);font-size:13px}#balance-compra-content .bc-amount>strong{font-size:clamp(21px,2.5vw,32px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}#balance-compra-content .bc-amount>small{color:var(--text3);line-height:1.5}#balance-compra-content .bc-margin{display:flex;justify-content:space-between;align-items:center;margin:20px 0;font-size:16px}#balance-compra-content .bc-margin strong{font-size:28px}#balance-compra-content .bc-improvement{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:22px;background:#36b87818;border:1px solid #36b87866;border-radius:14px;margin-top:18px;color:#64dba1}#balance-compra-content .bc-improvement>div:last-child{display:flex;flex-direction:column;gap:6px;justify-content:center}#balance-compra-content .bc-improvement>div:last-child>strong{font-size:30px}#balance-compra-content .bc-loss{background:#df565618;color:#ff9292;border-color:#df5656}#balance-compra-content .bc-cost-title{margin:26px 0 14px}#balance-compra-content .bc-costs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}#balance-compra-content .bc-costs .bc-amount{padding:18px;background:var(--bg3);border-radius:12px;border-top:3px solid var(--blue,#6f9fea)}#balance-compra-content .bc-costs .bc-amount>strong{font-size:23px}#balance-compra-content .bc-footnote{font-size:12px;line-height:1.6;color:var(--text3);margin-bottom:0}@media(max-width:650px){#balance-compra-content .bc-comparison,#balance-compra-content .bc-costs,#balance-compra-content .bc-improvement{grid-template-columns:1fr}#balance-compra-content .bc-card{padding:16px}}#page-balancecompra .btn-primary{background:var(--green-bg);color:var(--green);border:1px solid var(--green);box-shadow:none}#page-balancecompra .btn-primary:hover{filter:brightness(1.15)}#page-balancecompra .btn:focus-visible{outline:2px solid var(--blue);outline-offset:3px}#balance-compra-content .bc-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 18px;border-left:3px solid var(--blue)}#balance-compra-content .bc-toolbar h2{font-size:17px;margin:0 0 6px}#balance-compra-content .bc-toolbar p{margin:4px 0;font-size:12px;color:var(--text3)}#balance-compra-content .bc-toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}#balance-compra-content .bc-toolbar-actions .btn{font-size:12px;padding:8px 12px}#balance-compra-content .bc-toolbar-actions .bc-joint{background:var(--blue-bg,var(--bg3));color:var(--blue);border-color:var(--blue)}#balance-compra-content .bc-card{padding:14px}#balance-compra-content .bc-head{gap:8px}#balance-compra-content .bc-head h2{font-size:16px;margin:0 0 3px;overflow-wrap:anywhere}#balance-compra-content .bc-head span{font-size:11px;color:var(--text3)}#balance-compra-content .bc-head .btn{padding:7px 11px;font-size:12px}#balance-compra-content .bc-alert{padding:6px 10px;margin:9px 0;font-size:11px}#balance-compra-content .bc-meta{margin:7px 0;font-size:11px}#balance-compra-content .bc-comparison{gap:10px}#balance-compra-content .bc-comparison section{padding:10px 12px;border-radius:9px}#balance-compra-content .bc-comparison h3{font-size:13px}#balance-compra-content .bc-comparison p{font-size:11px;margin:3px 0 8px}#balance-compra-content .bc-amount{gap:2px}#balance-compra-content .bc-amount>span{font-size:11px}#balance-compra-content .bc-amount>strong{font-size:20px}#balance-compra-content .bc-amount>small,#balance-compra-content .bc-comparison section>small{font-size:10px}#balance-compra-content .bc-margin{margin:7px 0;font-size:11px}#balance-compra-content .bc-margin strong{font-size:16px}#balance-compra-content .bc-improvement{padding:9px 12px;gap:10px;margin-top:9px;border-radius:9px}#balance-compra-content .bc-improvement>div:last-child{gap:2px;font-size:11px}#balance-compra-content .bc-improvement>div:last-child>strong{font-size:18px}#balance-compra-content .bc-cost-title{margin:11px 0 7px;font-size:13px}#balance-compra-content .bc-costs{gap:8px}#balance-compra-content .bc-costs .bc-amount{padding:8px 10px;border-radius:8px;border-top-width:2px}#balance-compra-content .bc-costs .bc-amount>strong{font-size:16px}#balance-compra-content .bc-footnote{font-size:10px;line-height:1.4;margin:8px 0 0}#exterior-user-lists{padding:16px 18px;border-left:3px solid var(--green)}#exterior-user-lists .card-head{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}#exterior-user-lists .card-title{font-size:15px;text-transform:none;letter-spacing:0;font-weight:700;color:var(--text);margin-right:auto}#exterior-user-lists>p{margin:5px 0 10px;line-height:1.4}@media(max-width:650px){#balance-compra-content .bc-toolbar-actions{width:100%}#balance-compra-content .bc-toolbar-actions .btn{flex:1}#balance-compra-content .bc-amount>strong{font-size:18px}}</style><div class="card bc-toolbar"><div><h2>Compras · preparar y seguir</h2><p>'+active+' activas · '+(lists.length-active)+' finalizadas · '+lists.filter(function(l){return !!l.simuladorParaguay;}).length+' con simulación</p><p>Cada pedido reúne productos y gastos, conservando su destino.</p></div><div class="bc-toolbar-actions"><button class="btn btn-primary bc-joint" onclick="ocNuevaCompraConjunta()"><i class="ti ti-files" aria-hidden="true"></i> Reunir ventas</button><button class="btn btn-primary" onclick="ocNuevaCompraStock()"><i class="ti ti-plus" aria-hidden="true"></i> Compra para stock</button></div></div><div style="display:grid;grid-template-columns:minmax(0,1fr);gap:18px">'+(lists.length?lists.map(function(list){
       var section=balanceFinalizado(list)?'Finalizadas':'Activas sin finalizar';
       var header=section!==lastSection?'<h3 style="grid-column:1/-1;margin:10px 0 0">'+section+'</h3>':'';lastSection=section;
       var m=balanceIndicadores(list), pct=function(v){return v===null?'—':v.toLocaleString('es-AR',{maximumFractionDigits:2})+'%';};
-      var equivalent=function(value){return (m.usd?'USD '+(value/m.usd).toLocaleString('es-AR',{maximumFractionDigits:2}):'USD —')+' · '+(m.usdt?(value/m.usdt).toLocaleString('es-AR',{maximumFractionDigits:2})+' USDT':'USDT —');};
-      var amount=function(label,value){return '<div class="bc-amount"><span>'+label+'</span><strong>'+money(value)+'</strong><small>'+equivalent(value)+'</small></div>';};
-      var content=m?'<div class="bc-alert">'+(m.stale?'Selección modificada: recalculá para actualizar esta comparación.':m.incomplete?'Estimación incompleta: faltan gastos. La mejora es provisional.':'Simulación guardada · importes estimados')+'</div><div class="bc-meta">Venta sin IVA: <strong>'+money(m.revenue)+'</strong> · '+(m.applied?'Modalidad elegida: ':'Alternativa comparada: ')+(m.chosen==='remote'?'Envío':'Viaje')+'</div><div class="bc-comparison"><section class="bc-before"><h3>Situación actual</h3><p>Base guardada de la venta / presupuesto</p>'+amount('Ganancia actual estimada',m.currentProfit)+'<div class="bc-margin">Margen <strong>'+pct(m.currentMargin)+'</strong></div><small>Costo total actual: '+money(m.baseline)+'</small></section><section class="bc-after"><h3>Con compra en exterior</h3><p>Mismo importe de venta</p>'+amount('Ganancia proyectada',m.projectedProfit)+'<div class="bc-margin">Margen <strong>'+pct(m.margin)+'</strong></div><small>Costo total proyectado: '+money(m.retained+m.total)+'</small></section></div><div class="bc-improvement '+(m.saving<0?'bc-loss':'')+'">'+amount(m.saving>=0?'Mejora de ganancia estimada':'Disminución de ganancia estimada',m.saving)+'<div><strong>'+pct(m.points)+'</strong><span>del importe de venta sin IVA</span><small>Variación de margen: '+(m.points===null?'—':m.points.toLocaleString('es-AR',{maximumFractionDigits:2}))+' puntos porcentuales</small></div></div><h3 class="bc-cost-title">Cómo se compone el costo proyectado</h3><div class="bc-costs">'+amount('Productos del exterior¹',m.products)+amount('Gastos operativos y cambio¹',m.operating)+amount('Otros costos que se conservan',m.retained)+'</div><p class="bc-footnote">¹ Productos valuados al dólar de referencia. Operativos incluye logística, seguro, traslado y diferencia cambiaria / valoración USDT. Los costos conservados corresponden al resto de la venta. Ganancia antes de comisiones y gastos no incluidos.</p>':balancePendingCosts(list);
-      var brief=m?'<div class="bc-brief"><span>Costo estimado <strong>'+money(m.retained+m.total)+'</strong></span><span>Margen <strong>'+pct(m.margin)+'</strong></span>'+((m.incomplete||m.stale)?'<small style="color:var(--amber)">Por completar</small>':'')+'</div>':'<div class="bc-brief"><span>'+((list.simuladorParaguay?.rows||[]).length?'Preparación guardada · revisar pendientes':'Pendiente de preparar')+'</span></div>';
-      content=brief+'<details class="bc-cost-detail"><summary>Ver detalle de costos</summary>'+content+'</details>';
+      var content;
+      var sim=list.simuladorParaguay, saved=sim?.result, rows=[...(sim?.rows||[]),...(sim?.extras||[])].filter(function(r){return Number(r.qty)>0;});
+      var confirmed=!!list.compraConfirmacion || !!list.ordenesIds?.length || list.estado==='reservada', received=['recibida','cerrada'].includes(list.estado), interrupted=list.compraConfirmacion?.estado==='pendiente';
+      var stage=received?2:confirmed&&!interrupted?1:0, status=received?'Recibida':interrupted?'Confirmación pendiente':confirmed?'Pedido confirmado':'En preparación';
+      var total=saved&&Number.isFinite(Number(saved.orderTotal))?Number(saved.orderTotal):null, expenses=saved&&Number.isFinite(Number(saved.logistics))?Number(saved.logistics):null;
+      var providers=[...new Set(rows.map(function(r){return r.provider;}).filter(Boolean))];
+      var progress='<div class="bc-progress" aria-label="Estado del pedido">'+['Preparación','Pedido confirmado','Recepción'].map(function(label,index){return '<span style="color:var(--'+(index<=stage?'green':'text3')+')">'+(index<stage?'✓ ':index===stage?'● ':'')+label+'</span>';}).join('<span aria-hidden="true"> → </span>')+'</div>';
+      var dates=purchaseListDates(list);
+      var brief='<div class="bc-brief"><span class="badge '+(stage?'b-green':'b-amber')+'">'+status+'</span><span>Inicio de la lista: '+esc(dates.start)+(dates.ordered&&!interrupted?' · Pedido confirmado: '+esc(dates.ordered):'')+'</span><span>'+rows.length+' productos'+(providers.length?' · '+esc(providers.join(' · ')):'')+'</span><strong style="display:block;color:var(--green);font-size:22px;margin:8px 0">'+(total===null?'Total por completar':(sim.complete?'Total del pedido: ':'Total parcial: ')+money(total))+'</strong><span>Entrega: '+(sim?(sim.chosen==='onsite'?'Ir a buscar':'Recibir con envío'):'Por definir')+'</span></div>';
+      var savings={USD:0,ARS:0,missing:0};rows.forEach(function(r){if(r.method==='stock')return;var c=r.method==='exterior'?'USD':'ARS',initial=r.reference;if(!initial||initial.currency!==c||!Number.isFinite(Number(initial.amount))){savings.missing++;return;}savings[c]+=((Number(initial.amount)||0)-(Number(r.agreed)||0))*Number(r.qty);});
+      var detail=total===null?'<p>Continuá la preparación para completar productos y gastos.</p>':'<div class="bc-compact-costs"><span>Productos <strong>'+money(total-(expenses||0))+'</strong></span><span>Gastos <strong>'+(expenses===null?'Por completar':money(expenses))+'</strong></span>'+(savings?'<span>'+(savings.USD<0||savings.ARS<0?'Diferencia del proveedor':'Ahorro del proveedor')+' <strong>'+['USD','ARS'].filter(function(c){return savings[c]!==0;}).map(function(c){return c+' '+Number(savings[c]).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});}).join(' · ')+(savings.USD===0&&savings.ARS===0?'Sin diferencia':'')+'</strong>'+(savings.missing?' · comparación parcial':'')+'</span>':'')+(list.origen!=='stock_paraguay'&&m?'<span>Margen proyectado <strong>'+pct(m.margin)+'</strong></span>':'')+'</div>';
+      var localSaving=purchaseLocalSavings(sim),benefitRate=Number(sim?.parameters?.usd)||0,benefitNegative=localSaving.savingARS!==null&&localSaving.savingARS<0;
+      var benefit='<aside class="bc-benefit" style="color:var(--'+(localSaving.savingARS===null?'amber':benefitNegative?'red':'green')+')"><small>'+(benefitNegative?'MAYOR COSTO FRENTE A COMPRA LOCAL':'AHORRO TOTAL FRENTE A COMPRA LOCAL')+'</small><strong>'+(localSaving.savingARS===null?'Por completar':benefitRate?'USD '+(localSaving.savingARS/benefitRate).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}):money(localSaving.savingARS))+'</strong>'+(localSaving.savingARS!==null&&benefitRate?'<span>≈ '+money(localSaving.savingARS)+'</span>':'')+'<small>'+(localSaving.missing?'Falta el costo local original de '+localSaving.missing+' productos':localSaving.savingARS===null?'Completá los costos del pedido':'Costo local original menos costo final con gastos')+'</small></aside>';
+      content='<div class="bc-overview">'+brief+benefit+'</div>'+progress+'<details class="bc-cost-detail"><summary>Ver detalle de costos</summary>'+detail+'</details>';
       const trash=(list.cancelacionExteriorPendiente||!materialListLocked(list)&&!balanceFinalizado(list))?'<button class="btn btn-sm" style="position:absolute;top:4px;right:4px;color:var(--red);width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Eliminar preparación" aria-label="Eliminar preparación" onclick="ocEliminarPreparacionExterior(\''+attr(list.fbKey)+'\',this)"><i class="ti ti-trash" aria-hidden="true" style="font-size:18px;line-height:1;margin:0;display:block"></i></button>':'';
-      return header+'<article class="card bc-card" style="position:relative"><div class="bc-head" style="display:grid;grid-template-columns:minmax(0,1fr);align-items:start;padding-right:32px;min-height:30px"><div><h2>'+esc(balancePurchaseTitle(list))+'</h2><span>'+esc(list.numero)+' · '+esc(list.estado||'preparacion')+'</span></div>'+trash+'</div>'+content+'<div class="bc-prepare-action" style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn btn-primary" onclick="abrirBalanceCompra(\''+attr(list.fbKey)+'\')">Preparar compra →</button></div></article>';
+      return header+'<article class="card bc-card" style="position:relative"><div class="bc-head" style="display:grid;grid-template-columns:minmax(0,1fr);align-items:start;padding-right:32px;min-height:30px"><div><h2>'+esc(balancePurchaseTitle(list))+'<button type="button" data-rename-list class="btn btn-sm btn-icon" title="Editar nombre de la lista" aria-label="Editar nombre de la lista" onclick="ocRenombrarCompra(\''+attr(list.fbKey)+'\')"><i class="ti ti-pencil" aria-hidden="true"></i></button></h2><span>'+esc(list.numero)+' · '+esc(list.estado||'preparacion')+'</span></div>'+trash+'</div>'+content+'<div class="bc-prepare-action" style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn btn-primary" onclick="abrirBalanceCompra(\''+attr(list.fbKey)+'\')">'+(received?'Ver compra':interrupted?'Revisar confirmación':confirmed?'Ver pedido y recepción':'Continuar preparación')+' →</button></div></article>';
 
     }).join(''):'<p>No hay listas de compra con origen exterior aplicado. Las compras locales quedan fuera de este balance por ahora.</p>')+'</div>';
     collapseExteriorSections(target,opened,active,lists.length-active);
@@ -1528,7 +1581,7 @@
     body.innerHTML='<p>Elegí qué ventas vas a comprar juntas. Podés sumar extras para stock dentro de la compra.</p><p>Los precios negociados se conservan. Los gastos del viaje o envío se cargan una sola vez en la compra conjunta.</p>'+candidates.map(function(l,i){return '<label style="display:flex;align-items:center;gap:14px;padding:16px;border-bottom:1px solid var(--border)"><input type="checkbox" data-joint="'+i+'"><span><strong>'+esc(l.ventaId)+' · '+esc(l.cliente)+'</strong><br><small>'+esc(l.numero)+' · '+(l.items||[]).filter(function(x){return x.incluir&&x.cantidadComprar>0;}).length+' productos pendientes</small></span></label>';}).join('')+'<p role="status" data-joint-status></p><button class="btn btn-primary" data-joint-create>Preparar compra conjunta</button>';
     modal.style.display='flex';
     body.querySelector('[data-joint-create]').onclick=async function(){var button=this;button.disabled=true;try{var ids=Array.from(body.querySelectorAll('[data-joint]:checked')).map(function(el){return candidates[Number(el.dataset.joint)].fbKey;});if(ids.length<2)throw Error('Elegí al menos dos ventas para reunir.');var key='CJ_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),error='';
-      var claim=await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_LISTS),function(all){if(!all)return;var selected=ids.map(function(id){return all[id];});if(selected.some(function(l){return !jointEligible(l);})||new Set(selected.map(function(l){return l&&l.ventaFbKey;})).size!==selected.length){error='Una venta ya fue agrupada o tiene órdenes. Reabrí la selección.';return;}
+      var claim=await window.SVOperationalWrites.multi('listas_materiales',ids.concat(key),function(all){var selected=ids.map(function(id){return all[id];});if(selected.some(function(l){return !jointEligible(l);})||new Set(selected.map(function(l){return l&&l.ventaFbKey;})).size!==selected.length){error='Una venta ya fue agrupada o tiene órdenes. Reabrí la selección.';return;}
         var sources=[],items=[],savedRows=[],extras=[],documents={};selected.forEach(function(l,index){var id=ids[index],sale=saleRef(l.ventaFbKey)||{};syncListItemsWithSale(l,sale);var source={listId:id,ventaId:l.ventaId||'',ventaFbKey:l.ventaFbKey,cliente:l.cliente||'',revenue:Number(window._rentIngresoNetoVenta(sale))||0,baseline:Number(window._rentCostoVenta(sale))||0,saleFingerprint:jointSaleFingerprint(sale)};sources.push(source);
           (l.items||[]).forEach(function(item){var copy=JSON.parse(JSON.stringify(item)),oldKey=[item.productoKey||item.codigo,item.linea,item.proveedorKey||item.proveedor].join('|');copy.linea=id+':'+item.linea;copy.sourceListId=id;copy.saleLabel=source.ventaId+' · '+source.cliente;items.push(copy);var saved=(l.simuladorParaguay&&l.simuladorParaguay.rows||[]).find(function(r){return r.key===oldKey;});if(saved)savedRows.push(Object.assign({},saved,{key:[copy.productoKey||copy.codigo,copy.linea,copy.proveedorKey||copy.proveedor].join('|'),sourceListId:id,saleLabel:copy.saleLabel}));});
           extras=extras.concat(l.simuladorParaguay&&l.simuladorParaguay.extras||[]);Object.assign(documents,l.comprobantesCompra||{});
@@ -1540,7 +1593,7 @@
   };
   async function ungroupJointPurchase(list){
     if(!window.permisoModulo('balancecompra'))throw Error('Sin permiso');
-    var claim=await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_LISTS),function(all){var joint=all&&all[list.fbKey];if(!joint||materialListLocked(joint)||joint.desagrupada)return;(joint.sources||[]).forEach(function(source){var child=all[source.listId];if(child&&child.compraConjuntaId===list.fbKey){delete child.compraConjuntaId;var rows=joint.simuladorParaguay&&joint.simuladorParaguay.rows||[];child.simuladorParaguay=child.simuladorParaguay||{};child.simuladorParaguay.rows=rows.filter(function(r){return r.sourceListId===source.listId;}).map(function(r){var copy=Object.assign({},r);copy.key=copy.key.replace('|'+source.listId+':','|');delete copy.sourceListId;delete copy.saleLabel;delete copy.expenseExcluded;return copy;});delete child.simuladorParaguay.result;child.simuladorParaguay.complete=false;child.simuladorParaguay.extras=[];}});var extras=joint.simuladorParaguay&&joint.simuladorParaguay.extras||[];if(extras.length)all[list.fbKey+'_stock']={numero:joint.numero+'-ST',origen:'stock_paraguay',cliente:'Stock general',estado:'preparacion',items:[],ordenesIds:[],fecha:today(),ts:Date.now(),simuladorParaguay:{extras:extras,rows:[],complete:false}};joint.estado='cancelada';joint.desagrupada=true;return all;});
+    var claim=await window.SVOperationalWrites.multi('listas_materiales',[list.fbKey,list.fbKey+'_stock'].concat((list.sources||[]).map(function(source){return source.listId;})),function(all){var joint=all&&all[list.fbKey];if(!joint||materialListLocked(joint)||joint.desagrupada)return;(joint.sources||[]).forEach(function(source){var child=all[source.listId];if(child&&child.compraConjuntaId===list.fbKey){delete child.compraConjuntaId;var rows=joint.simuladorParaguay&&joint.simuladorParaguay.rows||[];child.simuladorParaguay=child.simuladorParaguay||{};child.simuladorParaguay.rows=rows.filter(function(r){return r.sourceListId===source.listId;}).map(function(r){var copy=Object.assign({},r);copy.key=copy.key.replace('|'+source.listId+':','|');delete copy.sourceListId;delete copy.saleLabel;delete copy.expenseExcluded;return copy;});delete child.simuladorParaguay.result;child.simuladorParaguay.complete=false;child.simuladorParaguay.extras=[];}});var extras=joint.simuladorParaguay&&joint.simuladorParaguay.extras||[];if(extras.length)all[list.fbKey+'_stock']={numero:joint.numero+'-ST',origen:'stock_paraguay',cliente:'Stock general',estado:'preparacion',items:[],ordenesIds:[],fecha:today(),ts:Date.now(),simuladorParaguay:{extras:extras,rows:[],complete:false}};joint.estado='cancelada';joint.desagrupada=true;return all;});
     if(!claim.committed)throw Error('Ya tiene órdenes: no se puede separar.');var all=claim.snapshot.val();if(all[list.fbKey+'_stock']&&!state.lists.some(function(l){return l.fbKey===list.fbKey+'_stock';}))state.lists.push(Object.assign({fbKey:list.fbKey+'_stock'},all[list.fbKey+'_stock']));state.lists.forEach(function(l){if(all[l.fbKey])Object.assign(l,all[l.fbKey]);if((list.sources||[]).some(function(x){return x.listId===l.fbKey;}))delete l.compraConjuntaId;});renderBalanceCompra();
   }
 
@@ -1560,10 +1613,10 @@
     var total = orders.reduce(function (s, o) { return s + (parseFloat(o.total || o.monto) || 0); }, 0);
     var inv = Object.values(state.inventory || {});
     var set = function (id, value) { var el = document.getElementById(id); if (el) el.textContent = value; };
-    set('oc2-total', money(total));
-    set('oc2-buy', inv.reduce(function (s, i) { return s + (parseFloat(i.enCompra) || 0); }, 0));
-    set('oc2-reserved', inv.reduce(function (s, i) { return s + (parseFloat(i.reservado) || 0); }, 0));
-    set('oc2-general', inv.reduce(function (s, i) { return s + (parseFloat(i.general) || 0); }, 0));
+    set('oc2-total', state.started&&!state.loaded.ordenes?(state.errors.ordenes?'—':'…'):money(total));
+    set('oc2-buy', state.started&&!state.loaded.inventario_operativo?(state.errors.inventario_operativo?'—':'…'):inv.reduce(function (s, i) { return s + (parseFloat(i.enCompra) || 0); }, 0));
+    set('oc2-reserved', state.started&&!state.loaded.inventario_operativo?(state.errors.inventario_operativo?'—':'…'):inv.reduce(function (s, i) { return s + (parseFloat(i.reservado) || 0); }, 0));
+    set('oc2-general', state.started&&!state.loaded.inventario_operativo?(state.errors.inventario_operativo?'—':'…'):inv.reduce(function (s, i) { return s + (parseFloat(i.general) || 0); }, 0));
     // El procedimiento anterior se conserva solamente como respaldo de datos.
     // Ya no aparece ni interviene en las métricas del circuito operativo.
   }
@@ -1602,9 +1655,13 @@
     return true;
   }
 
-  function openOrder(key) {
+  async function openOrder(key) {
     var order = state.orders.find(function (o) { return o.fbKey === key || o.numero === key; });
     if (!order) return;
+    var opening=++state.detailEpoch;
+    try{order=await detail(PATH_ORDERS,order.fbKey);}catch(error){window.notify(error.message);return;}
+    if(opening!==state.detailEpoch)return;
+    state.orders=state.orders.map(function(row){return row.fbKey===order.fbKey?order:row;});window.ordenesData=state.orders;
     state.activeOrder = JSON.parse(JSON.stringify(order));
     var modal = ensureModal('oc-order-modal', '980px');
     orderDetailOrigin = document.activeElement;
@@ -1681,35 +1738,9 @@
       movements.forEach(function (movement) {
         var orderItem = movement.item || {};
         var code = String(orderItem.codigo || '').trim().toUpperCase();
-        var matchingItems = items.filter(function (item) {
-          var sameKey = orderItem.productoKey && [item.productoKey, item.productoId, item.pid, item.fbKeyProducto].some(function (key) { return String(key || '') === String(orderItem.productoKey); });
-          return sameKey || (code && String(item.cod || item.codigo || '').trim().toUpperCase() === code);
-        });
-        if(matchingItems.length>1)throw new Error('Hay varios renglones de '+code+' en la venta. Revisá cuál corresponde antes de confirmar la recepción.');
-        var saleItem=matchingItems[0];
-        if (!saleItem) throw new Error('El material '+(code||orderItem.productoKey||'')+' ya no está en la venta. Revisá la recepción pendiente.');
-        var saleQty = Math.max(1, parseFloat(saleItem.qty || saleItem.cantidad) || 1);
-        var budgetUnit = parseFloat(saleItem.costoUnitarioPresupuestado || saleItem.costoUnitarioCompra || saleItem.costoUnitario || saleItem.costoCompra) || parseFloat(orderItem.costoUnitarioPresupuestado || orderItem.costoUnitario) || 0;
-        var priorRealQty = parseFloat(saleItem.cantidadCompraReal) || 0;
-        if (saleItem.costoUnitarioAntesPreparacion == null) {
-          saleItem.costoUnitarioAntesPreparacion = saleItem.costoUnitarioPresupuestado != null
-            ? Number(saleItem.costoUnitarioPresupuestado)
-            : (typeof window.obtenerCostoItemVenta === 'function' ? window.obtenerCostoItemVenta(saleItem) / saleQty : budgetUnit);
-        }
-        var priorRealTotal = parseFloat(saleItem.costoRealCompraAcumulado) || 0;
-        var realQty = Math.min(saleQty, priorRealQty + movement.qty);
-        var acceptedQty = Math.max(0, realQty - priorRealQty);
-        var realTotal = priorRealTotal + acceptedQty * movement.costoUnitarioReal;
-        var effectiveTotal = realTotal + Math.max(0, saleQty - realQty) * budgetUnit;
-        saleItem.costoUnitarioPresupuestado = budgetUnit;
-        saleItem.costoTotalPresupuestado = saleQty * budgetUnit;
-        saleItem.cantidadCompraReal = realQty;
-        saleItem.costoRealCompraAcumulado = realTotal;
-        saleItem.costoTotalCompra = Math.round(effectiveTotal * 100) / 100;
-        saleItem.costoUnitarioCompra = Math.round((effectiveTotal / saleQty) * 100) / 100;
-        saleItem.ultimoCostoCompraReal = movement.costoUnitarioReal;
-        saleItem.proveedorCompraReal = movement.proveedor;
-        saleItem.proveedorCompraRealKey = movement.proveedorKey;
+        var index=window.SVPurchaseReceiptCosts.resolve(items,orderItem);
+        items[index]=window.SVPurchaseReceiptCosts.apply(items[index],orderItem,movement,window.obtenerCostoItemVenta);
+
       });
       sale.items = items;
       sale.costoTotal = items.reduce(function (sum, item) {
@@ -2315,28 +2346,24 @@
   function start() {
     if (typeof window.svPuedeLeerDominio === 'function' && !window.svPuedeLeerDominio('ordenes')) return;
     if (state.started || !window.fbDB) return;
-    state.started = true;
-    window.fbOnValue(window.fbRef(window.fbDB, PATH_ORDERS), function (snap) {
-      var data = snap.val() || {};
-      state.orders = Object.entries(data).map(function (entry) { return Object.assign({ fbKey: entry[0] }, entry[1] || {}); }).sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
-      window.ordenesData = state.orders;
-      renderAll();
-    });
-    window.fbOnValue(window.fbRef(window.fbDB, PATH_LISTS), function (snap) {
-      var data = snap.val() || {};
-      state.lists = Object.entries(data).map(function (entry) { return Object.assign({ fbKey: entry[0] }, entry[1] || {}); }).sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
-      renderLists();
-    });
-    window.fbOnValue(window.fbRef(window.fbDB, PATH_INVENTORY), function (snap) {
-      state.inventory = snap.val() || {};
-      renderMetrics();
-      if (typeof window.refrescarStockOperativoCatalogo === 'function') window.refrescarStockOperativoCatalogo();
-      if (typeof window.actualizarStatProductos === 'function') window.actualizarStatProductos();
-    });
-
+    state.started=true;var epoch=state.epoch;
+    function subscribe(domain,receive){
+      var readiness=window.SVDataReadiness?.beginSource(domain,'compras-resumen/'+domain);
+      var stop=window.fbOnValue(window.fbRef(window.fbDB,window.SVOperationalReadModel.index+'/'+domain),function(snapshot){
+        if(epoch!==state.epoch)return;
+        try{var data=window.SVOperationalReadModel.parseIndex(domain,snapshot.val());state.loaded[domain]=true;delete state.errors[domain];receive(data);readiness?.ready();}
+        catch(error){state.loaded[domain]=false;state.errors[domain]=error.message;readiness?.error();renderAll();}
+      },function(error){if(epoch!==state.epoch)return;state.loaded[domain]=false;state.errors[domain]='No se pudo cargar Compras.';readiness?.error();renderAll();});
+      state.stops.push(function(){stop();readiness?.cancel();});
+    }
+    function records(data,previous){return Object.entries(data).map(function(entry){var prior=previous.find(function(row){return row.fbKey===entry[0];});return prior&&!prior._svSummary&&prior._svReadRevision===entry[1]._svReadRevision?prior:Object.assign({fbKey:entry[0]},entry[1]);}).sort(function(a,b){return (b.ts||0)-(a.ts||0);});}
+    subscribe('ordenes',function(data){state.orders=records(data,state.orders);window.ordenesData=state.orders;renderAll();});
+    subscribe('listas_materiales',function(data){state.lists=records(data,state.lists);renderLists();});
+    subscribe('inventario_operativo',function(data){state.inventory=data;renderMetrics();if(typeof window.refrescarStockOperativoCatalogo==='function')window.refrescarStockOperativoCatalogo();if(typeof window.actualizarStatProductos==='function')window.actualizarStatProductos();});
   }
 
   function reset() {
+    state.epoch++;state.detailEpoch++;state.stops.forEach(function(stop){stop();});state.stops=[];state.loaded={};state.errors={};
     state.started = false;
     state.legacyEpoch++;
     state.legacyRead = null;
@@ -2358,6 +2385,7 @@
 
   window.SisVentasCompras = {
     start: start,
+    retry: function(){state.epoch++;state.detailEpoch++;state.stops.forEach(function(stop){stop();});state.stops=[];state.started=false;state.loaded={};state.errors={};return start();},
     reset: reset,
     renderAll: renderAll,
     renderOrders: renderOrders,
