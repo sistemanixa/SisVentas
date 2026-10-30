@@ -98,14 +98,19 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   }));
   if(failed)throw failure;return budgets;
  }
- async function recordsContext(domain,authorizedContext,useCollectionReader=false){
+ async function recordsContext(domain,authorizedContext,useCollectionReader=false,actor){
   const results=await Promise.allSettled([authorizedContext||context(),readCollection('sisventas/'+domain,useCollectionReader)]);
   const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
-  const [c,records]=results.map(result=>result.value),budgets=domain==='ventas'?await linkedBudgets(records):null;
-  return {c,records:records||{},budgets};
+  const [c,loaded]=results.map(result=>result.value);
+  // La propiedad explícita prevalece sobre el presupuesto de origen. No leer
+  // fichas de origen de ventas ajenas que nunca podrán integrar esta respuesta.
+  // Las ventas antiguas sin responsable conservan la resolución histórica.
+  const records=actor&&actor.role!=='admin'?Object.fromEntries(Object.entries(loaded||{}).filter(([,r])=>!Object.hasOwn(r,'responsableUid')||r.responsableUid===actor.uid)):loaded||{};
+  const budgets=domain==='ventas'?await linkedBudgets(records):null;
+  return {c,records,budgets};
  }
  function recordOwner(r,domain,c,budgets){if(Object.hasOwn(r,'responsableUid'))return owner(r,domain,c.people);const sourceKey=domain==='ventas'?linkedBudgetKey(r.presupuestoFbKey):null,source=sourceKey?budgets?.[sourceKey]:null;return owner(source||r,source?'presupuestos':domain,c.people);}
- async function list(actor){const authorizedContext=requestContexts.get(actor);requestContexts.delete(actor);const {c,records,budgets}=await recordsContext(actor.domain,authorizedContext,true);const result={};for(const [id,r]of Object.entries(records)){const uid=recordOwner(r,actor.domain,c,budgets);if(actor.role==='admin'||uid===actor.uid){result[id]={...r,_svOwnerUid:uid||'',_svOriginalAuthor:originalAuthor(r,actor.domain,budgets)};const event=actor.domain==='ventas'?historicalConversionAudit(r,budgets):null;if(event)result[id]._svConversionAudit=event;}}return {records:result};}
+ async function list(actor){const authorizedContext=requestContexts.get(actor);requestContexts.delete(actor);const {c,records,budgets}=await recordsContext(actor.domain,authorizedContext,true,actor);const result={};for(const [id,r]of Object.entries(records)){const uid=recordOwner(r,actor.domain,c,budgets);if(actor.role==='admin'||uid===actor.uid){result[id]={...r,_svOwnerUid:uid||'',_svOriginalAuthor:originalAuthor(r,actor.domain,budgets)};const event=actor.domain==='ventas'?historicalConversionAudit(r,budgets):null;if(event)result[id]._svConversionAudit=event;}}return {records:result};}
  async function options(actor){if(actor.role!=='admin'||actor.viewing)throw fail(403,'Solo el administrador puede reasignar');const c=await context();return {users:c.people.filter(p=>eligible(p.role,actor.domain,c.permissions)).map(p=>({uid:p.uid,nombre:p.name,rol:p.role})).sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))};}
  async function mutate(actor,body,assign){
   // Preparar consume una sola vez la instantánea de esta misma petición,

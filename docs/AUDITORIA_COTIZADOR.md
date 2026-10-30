@@ -189,3 +189,12 @@ Separado de los listados, las operaciones laborales nuevas y la redistribución 
 Este mapa prueba llamadas y alcance del código, no frecuencia, duración ni costo monetario actuales. No atribuye los arranques nocturnos al módulo Proyectos ni identifica al usuario físico. El observador continuo de comisiones permanece implementado, pero CTX confirma eventos activos y observador desactivado; sus temporizadores no deben contarse como sondeo productivo vigente sin comprobar configuración.
 
 Las pruebas usan VM, memoria y datos ficticios; no crean operaciones reales ni acreditan permisos/configuración remotos. Antes de afirmar ahorro, medir por operación las rutas leídas, bytes y solicitudes en reposo, separando pruebas locales, fuente candidata y estado publicado. La puerta aprobada no equivale a publicar 13.3 ni a desplegar Cotizador. No ejecutar una migración ni reescribir históricos desde esta auditoría.
+
+## Correcciones verificadas en local · 30/10/2026
+
+- Preparación de una ficha ya vinculada: web → RTDB puntual con reglas del usuario. Se suprime POST preparar y su transacción/lease sin cambios. La escritura final sigue protegida. Una ficha histórica sin responsable mantiene su reparación; una denegación de reglas nunca provoca reintento privilegiado. No se usa caché como autorización de escritura.
+- Listado propio del servidor: no consulta presupuestos de origen de ventas explícitamente ajenas. Conserva fuentes históricas de ventas sin responsable y todas las fuentes del administrador. No equivale a paginar la lectura inicial de ventas.
+- Pruebas:6561PASS/27skip/0fallos en puerta; cinco casos integrados emulador con módulo de preparación real y conversión real protegida; tres vistas ficticias390/768/1280. Ninguna operación financiera real.
+- Estado: código local, no publicado, sin nuevas consultas por reloj, reglas o infraestructura. El ejemplo8896 está aislado de Firebase. No hay medición de ahorro facturado ni ensayo nuevo con todos los clientes cerrados.
+
+Los pendientes estructurales anteriores continúan explícitos: lectura inicial del historial/directorios, bloqueo global y enlaces laborales al consultar. Retirarlos exige cobertura de índices, escritores e invariantes financieros; los dos cambios comprobados no se presentan como una migración completa ni cierre de toda la auditoría funcional.

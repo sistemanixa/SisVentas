@@ -109,7 +109,33 @@
   }
   return id;
  }
- async function prepare(domain,id,baseline){const result=await request(domain,'preparar',{id});const current=result.record,metadata=['responsableUid','responsableNombre','responsableRol','responsableRevision','responsableActualizadoEn','creadorOriginalUid','creadorOriginalNombre','creadoEn','audit'];const base=baseline?clean(baseline):null;if(base)for(const k of metadata){if(current[k]!==undefined)base[k]=current[k];}return {record:current,baseline:base};}
+ async function prepare(domain,id,baseline){
+  if(!['ventas','presupuestos'].includes(domain)||typeof id!=='string'||!id||/[.#$\[\]\/\x00-\x1f\x7f]/.test(id))throw Error('Registro inválido');
+  const c=context(),revision=root.PERMISOS_ROLES?.[c.role]?.indiceRevision||0;
+  if(!c.user||!c.uid)throw Error('Sesión requerida');
+  if(c.user.uid!==c.uid)throw Error('Volvé a tu cuenta para modificar el registro');
+  const rows=domain==='ventas'?root.ventasList:root.pptoData;
+  const hint=baseline||(Array.isArray(rows)?rows.find(r=>r?.fbKey===id):null);
+  let current;
+  // Un documento ya vinculado sólo necesita una lectura puntual bajo las
+  // reglas del usuario. No toma un lease financiero ni escribe identidad.
+  // El indicio local elige el camino; nunca sustituye la respuesta autorizada.
+  if(typeof hint?.responsableUid==='string'&&hint.responsableUid&&root.fbDB&&typeof root.fbRef==='function'&&typeof root.fbGet==='function'){
+   if(root.navigator?.onLine===false)throw Error('Sin conexión. Volvé a intentar cuando tengas Internet.');
+   const snapshot=await root.fbGet(root.fbRef(root.fbDB,'sisventas/'+domain+'/'+id));
+   if(!valid(c)||revision!==(root.PERMISOS_ROLES?.[c.role]?.indiceRevision||0))throw Error('La sesión cambió');
+   current=snapshot.val();
+   if(!current||typeof current!=='object'||Array.isArray(current))throw Error('Registro no disponible');
+   if(current.responsableUid){
+    if(c.role!=='admin'&&current.responsableUid!==c.uid)throw Error('Este registro no está asignado a tu cuenta');
+   }else current=null; // Sólo el circuito histórico puede vincular identidad.
+  }
+  if(!current)current=(await request(domain,'preparar',{id})).record;
+  if(!valid(c)||revision!==(root.PERMISOS_ROLES?.[c.role]?.indiceRevision||0))throw Error('La sesión cambió');
+  const metadata=['responsableUid','responsableNombre','responsableRol','responsableRevision','responsableActualizadoEn','creadorOriginalUid','creadorOriginalNombre','creadoEn','audit'],base=baseline?clean(baseline):null;
+  if(base)for(const k of metadata){if(current[k]!==undefined)base[k]=current[k];}
+  return {record:current,baseline:base};
+ }
  async function assign(domain,record,uid){const result=await request(domain,'reasignar',{id:record.fbKey,uid,revision:Number(record.responsableRevision||0),owner:record.responsableUid||''});refresh(domain);return result.record;}
  document.addEventListener('sisventas:session-ended',stop);document.addEventListener('visibilitychange',refreshVisible);root.addEventListener?.('online',refreshVisible);root.addEventListener?.('sisventas:connection-restored',refreshVisible);root.addEventListener?.('sisventas:connection-lost',()=>{for(const controller of readControllers)controller.abort();});
  root.SVCommercialOwnership={onValue,request,refresh,stop,contextChanged,belongs,cachedRecords,author,stamp,clean,prepare,assign,captureWriteContext,isWriteContext,confirmWrite,confirmDelete,options:async domain=>(await request(domain,'opciones')).users};

@@ -12,6 +12,20 @@ after(async()=>env?.cleanup());
 beforeEach(async()=>{const perms=permissionIndex({administrativo:{bloqueados:[],acciones:{ventas:{crear:true,editar:true}}},tecnico:{bloqueados:['venta','detalle'],acciones:{ventas:{crear:false}}}});initial={sv_labor_config:{schema:1,ready:true},sv_chat_roles:{a:{rol:'administrativo',activo:true},b:{rol:'administrativo',activo:true},tech:{rol:'tecnico',activo:true}},sv_chat_directorio:{a:{nombre:'Persona a'},b:{nombre:'Persona b'}},sv_permisos:perms,sisventas:{presupuestos:{budget:{...person('a'),id:'PP-DEMO',fecha:'2026-10-29',estado:'aprobado_int',audit:[],items:[{cod:'P-DEMO',desc:'Servicio ficticio',qty:2,punit:48,sub:96,esManoDeObra:true,costoUnitarioCompra:20,costoTotalCompra:40}]}},ventas:{other:{...person('b'),total:999}},contadores:{venta:1},pagos:{sentinel:{monto:12}},gastos:{sentinel:{monto:7}}},sv_personal_finance:{private:{secret:'FICTICIO'}}};await env.withSecurityRulesDisabled(c=>sdk.set(sdk.ref(c.database()),initial));});
 const client=uid=>uid?env.authenticatedContext(uid).database():env.unauthenticatedContext().database();
 const change=patch=>env.withSecurityRulesDisabled(c=>sdk.update(sdk.ref(c.database()),patch));
+
+test('preparación directa real usa reglas vigentes y no escribe ni llama Cotizador',async()=>{
+ const source=fs.readFileSync('js/core/commercial-ownership.js','utf8');
+ function setup(uid){let calls=0;const c={currentUserUid:uid,currentRole:'administrativo',PERMISOS_ROLES:initial.sv_permisos,fbAuth:{currentUser:{uid}},fbDB:client(uid),fbRef:sdk.ref,fbGet:sdk.get,pptoData:[{fbKey:'budget',responsableUid:'a'}],ventasList:[{fbKey:'other',responsableUid:'a'}],navigator:{onLine:true},document:{addEventListener(){}},addEventListener(){},fetch:async()=>{calls++;throw Error('No se admite fallback al servidor');}};c.window=c;vm.runInNewContext(source,c);return{c,api:c.SVCommercialOwnership,calls:()=>calls};}
+ const own=setup('a');let before;await env.withSecurityRulesDisabled(async c=>{before=(await sdk.get(sdk.ref(c.database()))).val();});
+ const prepared=await own.api.prepare('presupuestos','budget');assert.equal(prepared.record.items[0].costoTotalCompra,40);assert.equal(own.calls(),0);
+ await assert.rejects(own.api.prepare('ventas','other'));assert.equal(own.calls(),0);
+ await env.withSecurityRulesDisabled(async c=>assert.deepEqual((await sdk.get(sdk.ref(c.database()))).val(),before));
+ const revokedModules=Object.fromEntries(Object.keys(initial.sv_permisos.administrativo.indiceModulos).map(k=>['sv_permisos/administrativo/indiceModulos/'+k,false]));
+ for(const patch of [{'sv_chat_roles/a/activo':false},{'sv_access_resets/a/required':true},revokedModules]){
+  await env.withSecurityRulesDisabled(c=>sdk.set(sdk.ref(c.database()),initial));await change(patch);
+  await assert.rejects(setup('a').api.prepare('presupuestos','budget'),undefined,JSON.stringify(patch));
+ }
+});
 test('creation null read succeeds; existing foreign sales, collections and private accounts stay denied',async()=>{
  await assertSucceeds(sdk.get(sdk.ref(client('a'),'sisventas/ventas/new')));
  for(const path of ['sisventas/ventas/other','sisventas/ventas','sv_personal_finance/private'])await assertFails(sdk.get(sdk.ref(client('a'),path)));
@@ -30,9 +44,12 @@ test('actual conversion, protected server gateway and CAS preserve costs and lin
  const c={window:null,document:{addEventListener(){}},currentUser:'Persona a',currentUserUid:'a',currentUserEmail:'',currentRole:'administrativo',PERMISOS_ROLES:initial.sv_permisos,fbAuth:{currentUser:user},fbDB:client('a'),crypto:require('node:crypto').webcrypto,TextEncoder,AbortSignal,FB_PATHS:{ventas:'sisventas/ventas',presupuestos:'sisventas/presupuestos'},ventasList:[],escapeHTML:s=>s,_maxNumeroVentaLocal:()=>1};c.window=c;
  c.fetch=async(_url,options)=>{try{const value=await gateway.write({uid:'a',claims:{uid:'a'}},JSON.parse(options.body));return {ok:true,status:200,json:async()=>value};}catch(e){return {ok:false,status:e.statusCode||500,json:async()=>({message:e.message,code:e.code})};}};
  c.SVLaborWrites=require('../js/core/labor-writes').create(c);c.SVLaborWrites.install({sdk,endpoint:'http://fictional.invalid/write',headers:async()=>({})});
- c.fbRef=sdk.ref;c.fbGet=sdk.get;c.SVCommercialOwnership={author:p=>p.creadorOriginalNombre,clean:r=>r,prepare:async()=>({record:initial.sisventas.presupuestos.budget})};
+ c.fbRef=sdk.ref;c.fbGet=sdk.get;c.pptoData=[{...initial.sisventas.presupuestos.budget,fbKey:'budget'}];
+ vm.createContext(c);vm.runInContext(fs.readFileSync('js/core/commercial-ownership.js','utf8'),c);
+ // Como onValue en el arranque real: fijar sesión antes de entregar la lista.
+ c.SVCommercialOwnership.contextChanged();c.pptoData=[{...initial.sisventas.presupuestos.budget,fbKey:'budget'}];
  c.SVSaleCosts=require('../js/core/sale-costs.v1').create(c);c.SVBudgetConversionCosts=require('../js/core/budget-conversion-costs.v1')(c);c.SVSaleWriter=require('../js/core/sale-writer.v1').create(c);
- vm.createContext(c);vm.runInContext(fs.readFileSync('js/modules/commercial-document-controls.js','utf8'),c);for(const name of ['_resultadoConversionPresupuestoExistente','_svCargaOperacion__convertirPresupuestoEnVentaAtomico'])vm.runInContext(functionSource(name),c);
+ vm.runInContext(fs.readFileSync('js/modules/commercial-document-controls.js','utf8'),c);for(const name of ['_resultadoConversionPresupuestoExistente','_svCargaOperacion__convertirPresupuestoEnVentaAtomico'])vm.runInContext(functionSource(name),c);
  const p={...initial.sisventas.presupuestos.budget,fbKey:'budget'},base={cliente:'Cliente ficticio',clienteFbKey:'customer',fecha:'2026-10-29',estadoPago:'pendiente',conIva:true,subtotal:96,iva:20.16,total:116.16,items:structuredClone(p.items)},audit={fecha:'2026-10-29',usuario:'Persona a',accion:'Aceptación ficticia'};
  const result=await c._svCargaOperacion__convertirPresupuestoEnVentaAtomico(p,base,audit);assert.equal(result.ventaFbKey,'ppto_budget');
  const saved=await store.read('sisventas');assert.equal(saved.ventas.ppto_budget.total,116.16);assert.equal(saved.ventas.ppto_budget.items[0].costoTotalCompra,40);assert.equal(saved.presupuestos.budget.ventaFbKey,'ppto_budget');assert.equal(saved.presupuestos.budget.estado,'convertido');assert.deepEqual(saved.pagos,initial.sisventas.pagos);assert.deepEqual(saved.gastos,initial.sisventas.gastos);assert.deepEqual(saved.ventas.other,initial.sisventas.ventas.other);
