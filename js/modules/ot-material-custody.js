@@ -93,6 +93,22 @@
     return (ot && ot.materiales || []).filter(controllable);
   }
 
+  // Older summaries may omit the global flags after an office count. Recognize
+  // only fully installed physical rows with confirmed stock receipts; never infer
+  // delivery merely from an installation label or from a service row.
+  function verifiedInstalledCustody(ot) {
+    if (!ot || ot.custodiaIniciada === false || ot.custodiaRendida === false) return false;
+    if ((ot.materiales || []).some(function(m){return m.stockPendiente === true;})) return false;
+    var rows = materialRows(ot).filter(controllable);
+    return rows.length > 0 && rows.every(function(m) {
+      var delivered = n(m.entregada);
+      return !m._recuperado && m.custodiaActiva === true && delivered >= quantity(m) &&
+        /^[a-f0-9]{64}$/.test(String(m.stockRegistro || '')) &&
+        Number.isSafeInteger(m.stockRevision) && m.stockRevision > 0 &&
+        n(m.instalada) === delivered && Math.abs(classified(m) - delivered) < 0.000001;
+    });
+  }
+
   function pendingDelivery(ot) {
     return controllableMaterials(ot).filter(function (material) {
       return quantity(material) > n(material.entregada);
@@ -224,6 +240,9 @@
   }
 
   function render(ot, visibleMaterials) {
+    var verified = verifiedInstalledCustody(ot);
+    var deliveryStarted = ot.custodiaIniciada || verified;
+    var renditionDone = ot.custodiaRendida || verified;
     renderDeliveryReceipts(ot);
     var tbody = document.getElementById('ot-materiales');
     if (!tbody) return;
@@ -263,10 +282,10 @@
     var canDeliver = pending.some(function (material) { return !isClosed || material.adicionalOT === true; });
     if (deliver) {
       deliver.style.display = admin && canDeliver ? '' : 'none';
-      deliver.textContent = ot.custodiaIniciada ? 'Entregar materiales pendientes' : 'Entregar materiales al técnico';
+      deliver.textContent = deliveryStarted ? 'Entregar materiales pendientes' : 'Entregar materiales al técnico';
     }
-    if (allInstalled) allInstalled.style.display = !isClosed && mayRend(ot) && ot.custodiaIniciada && (!ot.custodiaRendida || correcting(ot) || needsRendition(ot)) ? '' : 'none';
-    if (exceptions) exceptions.style.display = !isClosed && mayRend(ot) && ot.custodiaIniciada && (!ot.custodiaRendida || correcting(ot) || needsRendition(ot)) ? '' : 'none';
+    if (allInstalled) allInstalled.style.display = !isClosed && mayRend(ot) && deliveryStarted && (!renditionDone || correcting(ot) || needsRendition(ot)) ? '' : 'none';
+    if (exceptions) exceptions.style.display = !isClosed && mayRend(ot) && deliveryStarted && (!renditionDone || correcting(ot) || needsRendition(ot)) ? '' : 'none';
     if (receive) receive.style.display = admin && totals.devolucionPendiente > 0 ? '' : 'none';
 
     var status = document.getElementById('ot-custodia-estado');
@@ -285,18 +304,18 @@
       status.parentNode.insertBefore(correction, status.nextSibling);
     }
     if (status) {
-      status.textContent = isClosed && eligible.length && !ot.custodiaIniciada
+      status.textContent = isClosed && eligible.length && !deliveryStarted
         ? 'Atención histórica: esta OT se completó con ' + eligible.length + ' producto' + (eligible.length === 1 ? '' : 's') + ' sin entrega ni rendición registradas'
-        : !ot.custodiaIniciada ? 'El administrativo todavía no registró una entrega' :
-        (!ot.custodiaRendida ? 'Material bajo responsabilidad de ' + (ot.custodiaTecnico || ot.tecnico || 'técnico') + ' · falta rendición' :
+        : !deliveryStarted ? 'El administrativo todavía no registró una entrega' :
+        (!renditionDone ? 'Material bajo responsabilidad de ' + (ot.custodiaTecnico || ot.tecnico || 'técnico') + ' · falta rendición' :
           (totals.devolucionPendiente ? 'Rendición realizada · falta confirmar la devolución en depósito' :
             (totals.enTecnico || totals.danados || totals.faltantes ? 'Rendición realizada con materiales pendientes' : 'Rendición completa')));
-      status.style.color = isClosed && eligible.length && !ot.custodiaIniciada ? 'var(--red)' : '';
-      status.style.fontWeight = isClosed && eligible.length && !ot.custodiaIniciada ? '700' : '';
+      status.style.color = isClosed && eligible.length && !deliveryStarted ? 'var(--red)' : '';
+      status.style.fontWeight = isClosed && eligible.length && !deliveryStarted ? '700' : '';
     }
     var box = document.getElementById('ot-custodia-resumen');
     if (box) {
-      box.style.display = ot.custodiaIniciada ? '' : 'none';
+      box.style.display = deliveryStarted ? '' : 'none';
       box.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 12px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);font-size:12px">' +
         '<span><strong>' + totals.entregados + '</strong> entregados</span><span style="color:var(--green)"><strong>' + totals.instalados + '</strong> instalados</span>' +
         (totals.sinClasificar ? '<span style="color:var(--amber)"><strong>' + totals.sinClasificar + '</strong> sin clasificar</span>' : '') +
@@ -633,7 +652,8 @@
     if (recovered.length) return {ok:false,message:'Hay materiales anteriores pendientes de confirmar. Revisalos en Repuestos.'};
     var eligible = controllableMaterials(ot);
     if (!eligible.length) return { ok:true, conObservaciones:false };
-    if (!ot.custodiaIniciada) {
+    var verified = verifiedInstalledCustody(ot);
+    if (!ot.custodiaIniciada && !verified) {
       return {
         ok:false,
         requiereEntrega:true,
@@ -642,7 +662,7 @@
       };
     }
     var totals = summary(ot);
-    if (!ot.custodiaRendida || totals.sinClasificar > 0) {
+    if ((!ot.custodiaRendida && !verified) || totals.sinClasificar > 0) {
       return { ok:false, message:'Falta rendir ' + (totals.sinClasificar || totals.entregados) + ' unidad(es) entregadas. Confirmá “Todo instalado” o informá las excepciones.' };
     }
     return { ok:true, conObservaciones:totals.conObservaciones, resumen:totals };
