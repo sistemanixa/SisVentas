@@ -1,3 +1,9 @@
+# Publicación v3.16.14 completada ·30/10/2026
+
+Autorización humana publicar lo último. Fuente limpia372ab82f65b9c8de0c088a11836fb92962af0449; Hosting507activos/6cargas.9archivos byteexacto (incluye payroll), cabeceras/CSP y3privados404 verificados. Script oficial confirmó web/marcador/SW/aviso v3.16.14-firebase. Sin backend/reglas/IAM/servicios nuevos/finanzas/stock ni avance de main.
+
+Sesión real web recargada en14: Servicios4filas exactas/aviso, Materiales11filas exactas/aviso. Informe cargó Inmueble/Servicios/Otro/Materiales con importes, Otrotrue/Materialesfalse y resultado visible. Aviso Sistema actualizado13→14 comprobado y cerrado. Ventana web queda Gastos/Materiales, local conservada. Logs/captura privados tmp/finance31614-release; no publicar ni subir evidencias reales. Pruebas previas del mismo código6473PASS/27skip/0fallos, sin cambios posteriores de lógica.
+
 # Filtro de categoría de Gastos · local v3.16.14 · 30/10/2026
 
 Decisión humana: mantener sólo la rama remota codex/finanzas-tarjetas-seleccionables; NO avanzar main (continúa4639a87b). Rama anterior respaldadaa7710e27. Nuevo pedido: filtro de categoría junto a tipo/estado/empleado. Candidata14 inmutable y marcadores coherentes; producción sigue13, sin Hosting/servidor/reglas/aviso remoto.
