@@ -1,3 +1,7 @@
+# Publicación 3.16.10 autorizada · 29/10/2026
+
+Titular pidió publicar conversión con costo actual cuando falta histórico. Candidata estática3.16.10 conserva histórico válido, captura catálogo actual si ausente/pendiente, sin alterar presupuesto/ventas existentes ni permisos. Se restauró app3169 original inmutable; cambio sólo app31610 y helper/index/SW/versiones/Novedades. Sin servidor/reglas/infraestructura ni push público. Validación local de versión/sintaxis/diffPASS; puerta vigente6458PASS/27omitidas/0fallos. Publicación autorizada tras puerta completa. No se convirtió venta real ni se repitieron cobros. Exclusividad Hosting/espejo confirmada por chat coordinado. Publicación web/aviso/espejo aún pendientes.
+
 Cierre validación: suite vigente 6457 PASS /27 omitidas/0 fallos. Prueba integrada adicional de conversión pendiente→catálogo→commit PASS (7 auditoría total); conserva total venta y escritor atómico. Sólo fixtures, ninguna escritura real. Pendiente siguiente versión/publicación y espejo visible.
 
 # Conversión de presupuesto sin costo histórico · 29/10/2026
