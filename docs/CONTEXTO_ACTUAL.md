@@ -1,3 +1,7 @@
+# Participante de comisión · candidata v3.17.1 · 30/10/2026
+
+Sólo cliente: Agregando con spinner, bloqueo de doble envío, detalle visible hasta recibir el participante confirmado, sin cerrar/reabrir por temporizador. Payload financiero idéntico; sin despliegue Cotizador, permisos ni operaciones reales. Pruebas ficticias del handler y visual 390/768/1280 PASS. Prueba anterior del índice compartido conservada fuera de este alcance en C:/SisVentas/tmp/payment-coverage-concurrency.saved.test.cjs. No se publica ese diagnóstico. Publicación autorizada directamente por el titular; sin push público.
+
 # Publicación v3.17.0 verificada · cierre30/10/2026
 
 Hosting desde8f659f52166b738300cbd5766064503cbbb8d20b,517activos/8cargas. Trece activos byteexactos en ventas.sistemanixa.com, cabeceras seguras y tres privados404; script oficial verificó web/marcador/SW y actualizó/releyó sisventas/config/version=v3.17.0-firebase. Servidor desdeeb95fde8ea9f835bbc543d282bb37feee0f1f6f7: cotizador-audit3170-eb95fde8 al100% y14accesos, mínimo0/CPU por solicitud, scopedReadstrue/observerfalse/eventtrue. Los cambios posteriores sólo son cliente/pruebas/docs; árbol cotizador idéntico19fffd58d333983696c8626324450c5dd2ea2419. Reglas/permisos/secretos/recursos preservados. Dos compilaciones limitadas:3286dc2f(83s,sólo candidata sin tráfico) y afdb7d31(84s,final). Sin tercera compilación, nuevo servicio, reserva mínima o tareas por reloj.

@@ -10,7 +10,7 @@ test('Generación automática rechaza las mismas ventas sin abrir una escritura'
  for(const value of [false,undefined]){const ctx={window:{fbDB:{}},Promise};vm.runInNewContext(fn(app,'generarComisionesVenta'),ctx);assert.equal((await ctx.generarComisionesVenta({comisionHabilitada:value},100)).length,0);}
 });
 test('Agregar participante también requiere habilitación explícita en la venta',async()=>{
- const notices=[],ctx={detalleActual:{items:[]},movimientosDetalle:{},document:{getElementById:id=>({value:id==='com-nuevo-empleado'?'e':'1'})},window:{tienePermiso:()=>true,empData:{e:{fbKey:'e'}},notify:x=>notices.push(x)},ventaDelGrupo:()=>({comisionHabilitada:false})};
+ const notices=[],ctx={guardandoDetalle:false,altaPendienteDetalle:null,detalleActual:{items:[]},movimientosDetalle:{},document:{getElementById:id=>({value:id==='com-nuevo-empleado'?'e':'1'})},window:{tienePermiso:()=>true,empData:{e:{fbKey:'e'}},notify:x=>notices.push(x)},ventaDelGrupo:()=>({comisionHabilitada:false})};
  vm.runInNewContext(fn(moduleSource,'agregarParticipanteComision','  '),ctx);await ctx.agregarParticipanteComision();assert.match(notices[0],/Habilitá la comisión/);
 });
 test('Las nuevas comisiones automáticas incluyen trazabilidad sin alterar montos',()=>{const fragment=fn(app,'generarComisionesVenta');assert.match(fragment,/origenCarga: 'automatica_venta'/);assert.match(fragment,/usuarioCarga: currentUser/);assert.match(fragment,/monto:\s+monto/);});

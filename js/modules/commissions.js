@@ -4,6 +4,7 @@
   var detalleActual = null;
   var movimientosDetalle = {};
   var guardandoDetalle = false;
+  var altaPendienteDetalle=null;
   var formatoMoneda = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   function moneda(valor) {
@@ -247,6 +248,7 @@
   function comprobarDetalleAbierto(){
     if(!detalleActual||guardandoDetalle||!window.SVGuardedWrites)return;
     var actual=grupos().find(function(g){return g.clave===detalleActual.clave;});
+    if(altaPendienteDetalle&&actual&&actual.clave===altaPendienteDetalle.clave&&actual.items.some(function(g){return String(g.empleadoFbKey||g.empleadoId||'')===altaPendienteDetalle.empleado;})){altaPendienteDetalle=null;abrirDetalleComision(actual.clave);return;}
     if(!actual||!window.SVGuardedWrites.equal(actual.items,detalleActual.items)){
       var info=document.getElementById('com-det-info');if(info)info.textContent='Esta comisión cambió. Cerrá y volvé a abrir el detalle para revisar los valores actuales.';
       var guardar=document.getElementById('com-det-guardar');if(guardar)guardar.disabled=true;
@@ -416,6 +418,7 @@
   }
 
   function cerrarDetalleComision() {
+    altaPendienteDetalle=null;
     var focus=detallePersonalFoco;detallePersonalFoco=null;detallePersonalClave='';
     if(focus&&typeof document.removeEventListener==='function')document.removeEventListener('keydown',focus.keyboard,true);
     var modal=document.getElementById('modal-comision-gestion');if(modal)modal.style.display='none';detalleActual=null;movimientosDetalle={};
@@ -465,7 +468,7 @@
   }
 
   async function agregarParticipanteComision() {
-    if (!detalleActual || !window.tienePermiso('comisiones.distribuir')) return;
+    if (!detalleActual || guardandoDetalle || altaPendienteDetalle || !window.tienePermiso('comisiones.distribuir')) return;
     var empKey=String((document.getElementById('com-nuevo-empleado')||{}).value||''); var pct=parseFloat((document.getElementById('com-nuevo-pct')||{}).value)||0;
     var emp=Object.values(window.empData||{}).find(function(e){return String(e.fbKey||'')===empKey;}); if(!emp){window.notify('Seleccioná una persona');return;} if(pct<=0){window.notify('Ingresá el porcentaje');return;}
     var maxPct=parseFloat((window.APROBACION_CONFIG&&window.APROBACION_CONFIG.maxComisionPct)||10)||10;
@@ -474,9 +477,16 @@
     var ventaBase=ventaDelGrupo(detalleActual);
     if (!ventaBase || ventaBase.comisionHabilitada !== true) {window.notify('Habilitá la comisión en la venta antes de agregar participantes.');return;}
     var base=ventaBase&&typeof window._calcularBaseComisionVenta==='function'?window._calcularBaseComisionVenta(ventaBase).ganancia:detalleActual.items.reduce(function(v,g){return v||baseGanancia(g,movimientosDetalle[g.fbKey]);},0); if(!(base>0)){window.notify('No se pudo determinar la ganancia base');return;}
-    var claveReabrir=detalleActual.clave;
+    var grupoAlta=detalleActual,confirmado=false,boton=document.querySelector('#com-det-agregar button'),texto=boton&&boton.innerHTML;
+    guardandoDetalle=true;if(boton){boton.disabled=true;boton.innerHTML='<i class="ti ti-loader-2 spin" style="display:inline-block;animation:spin .8s linear infinite" aria-hidden="true"></i> Agregando…';boton.setAttribute('aria-busy','true');}
+    try{
     await window._generarComisionVentaAtomica(emp,{tipo:'comision',estado:'pendiente',aprobadoPor:'',aprobadoTs:null,monto:Math.round(base*pct)/100,pct:pct,pctOriginal:pct,ajustadoAlTope:false,gananciaBase:base,ventaId:detalleActual.ventaId||'',ventaFbKey:detalleActual.ventaFbKey||'',cliente:detalleActual.cliente||'',descripcion:'Comisión venta '+(detalleActual.ventaId||'')+' · '+pct+'% sobre ganancia $'+Math.round(base).toLocaleString('es-AR')+' · participante agregado',fecha:new Date().toISOString().slice(0,10),ts:Date.now(),empleadoNombre:emp.nombre||'',origenCarga:'gestion_comisiones'});
-    window.notify('✓ Participante agregado, pendiente de aprobación'); if(window.fbCargarGastos)window.fbCargarGastos(); cerrarDetalleComision(); setTimeout(function(){renderModuloComisiones();abrirDetalleComision(claveReabrir);},350);
+    confirmado=true;
+    window.notify('✓ Participante agregado, pendiente de aprobación');
+    if(detalleActual===grupoAlta){altaPendienteDetalle={clave:grupoAlta.clave,empleado:empKey};var info=document.getElementById('com-det-info');if(info)info.textContent='Participante agregado. Actualizando el detalle…';}
+    if(window.fbCargarGastos)await window.fbCargarGastos();
+    }catch(error){window.notify((confirmado?'El participante se guardó, pero no se pudo actualizar el detalle: ':'No se pudo confirmar el participante: ')+error.message);}
+    finally{guardandoDetalle=false;if(boton){boton.disabled=false;boton.innerHTML=texto;boton.removeAttribute('aria-busy');}comprobarDetalleAbierto();}
   }
 
   async function rehabilitarComision(gastoKey) {
