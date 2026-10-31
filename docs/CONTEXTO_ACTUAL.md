@@ -1,3 +1,7 @@
+# Todas las categorías en cobertura salarial · local · 31/10/2026
+
+Pedido humano: agregar todas las categorías de Gastos en Otros gastos a incluir. Incluye las nueve categorías canónicas: Inmueble, Servicios, Personal, Transporte, Materiales, Marketing, Mercadería, Impuestos y Otro. Conserva defaults previos Inmueble/Servicios/Otro; nuevas opciones desactivadas, importes siempre visibles. Personal excluye tipos salariales/comisiones ya contabilizados. No cambia registros, criterios temporales ni consultas.70 pruebas focales PASS y QA390/768/1280 PASS,7lecturas iniciales/0externos/0escrituras, selección y navegación conservadas. Vista ficticia y capturas privadas tmp/salary-coverage-qa. No publicado, no push. Candidata de auditoría17.4 sigue separada y sin activar.
+
 # Publicada v3.17.3 y continuación de la auditoría · 30/10/2026
 
 Estado externo comprobado: Hosting desde 643d6304d9158f069c2569d6c6ef7f4d819fd584; 22 activos críticos idénticos al dominio, cabeceras seguras y tres rutas privadas404. Aviso oficial v3.17.3-firebase verificado. Cotizador cotizador-audit3173-7bd8fafc al100% y sus14accesos, mínimo0 y CPU por solicitud. Índices/configuración Chat y Compras activos; reglas hash4af01ae9b1095a25a699de4df9055d7d9686ebf7b2e7695b363691ebaa55addb. Preparación:68mensajes,40OC,27listas,111SKU; cero escrituras originales o financieras. La primera comparación dependiente del orden JSON se recuperó y el reintento semántico terminó correctamente. Sin push público ni avance de main.
