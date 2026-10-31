@@ -41,7 +41,7 @@ test('abrir OT legada resuelve cliente/dirección en memoria sin persistir; vinc
   _svResolverClienteRegistro:()=>({fbKey:'client',id:'C-DEMO',nombre:'Cliente ficticio',dir:'Domicilio verificado'}),
   _otResolverDireccionCliente:ot=>ot.dir||'Domicilio verificado',clienteVinculoOperacion:()=>({clientePrincipalKey:'client',domicilioFbKey:'address',domicilioCategoria:'principal'}),
   fbGuardarOT:async ot=>{writes.push(JSON.parse(JSON.stringify(ot)));}};
- c.window=c;load(c,['_otAplicarClienteVinculado']);vm.runInContext(app.slice(start,end),c);await Promise.resolve();
+ c.window=c;c.CHECKLISTS={};load(c,['normalizarChecklistOT','otHuellaDetalle','_otAplicarClienteVinculado']);vm.runInContext(app.slice(start,end),c);await Promise.resolve();
  assert.equal(writes.length,0);assert.equal(c.ot.dir,'Domicilio verificado');assert.equal(c.ot.clienteFbKey,'client');assert.equal(input.value,'Domicilio verificado');
  await c._otAplicarClienteVinculado(c.ot,{fbKey:'client',nombre:'Cliente ficticio',dir:'Cambio explícito'},true);
  assert.equal(writes.length,1);assert.equal(writes[0].dir,'Cambio explícito');
