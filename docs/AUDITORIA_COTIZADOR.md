@@ -1,3 +1,11 @@
+# Auditoría publicada · v3.17.6
+
+Bloque cerrado: listados livianos de OT, Reclamos y Gastos; fichas y adjuntos por registro, guardados emparejados con control de concurrencia y acceso personal a comisiones sin campos internos. Consultar OT o presupuestos vencidos no guarda normalizaciones. Corregir explícitamente el costo de una venta pagada vuelve a comprobar la comisión pendiente sin repetir las existentes.
+
+Validación:6797pruebas aprobadas,27opt-in,0fallos;94del servidor y9de reglas en emulador. Pruebas visuales ficticias en escritorio/tablet/móvil y comprobaciones web de sólo lectura. Marcadores de versión y activos publicados verificados. No se cargaron pagos, comisiones ni stock como prueba. La evidencia operativa detallada se conserva privada fuera del repositorio público.
+
+Se mantienen los controles financieros y los eventos autorizados. La observación acotada de transferencia no representa una factura ni un ensayo de siete horas; no se promete ausencia universal de fallos. Las anotaciones inferiores son antecedentes y no reabren los desarrollos de este bloque.
+
 # Estado publicado · v3.17.0
 
 La continuación17.0 está publicada y verificada; ver el primer bloque de CONTEXTO_ACTUAL para SHAs, pruebas, indicadores y límites. Además de20: recargas diferidas en pantallas sin dependencia comercial, descartes de eventos antes del bloqueo, recepción recuperable que exige confirmaciones, caché comprimida acotada de historiales grandes y sonda de Internet en Hosting sin despertar Cotizador. Se mantiene la coordinación financiera compartida; no se anuncia una migración por agregado ni retirar todo el transporte protegido. El perfil acotado de45s registró0operaciones y no prueba consumo mensual cero. Los bloques inferiores conservan su fecha y alcance histórico.

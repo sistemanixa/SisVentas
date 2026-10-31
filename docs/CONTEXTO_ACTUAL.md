@@ -1,3 +1,11 @@
+# Auditoría publicada · v3.17.6
+
+Bloque cerrado: listados livianos de OT, Reclamos y Gastos; fichas y adjuntos por registro, guardados emparejados con control de concurrencia y acceso personal a comisiones sin campos internos. Consultar OT o presupuestos vencidos no guarda normalizaciones. Corregir explícitamente el costo de una venta pagada vuelve a comprobar la comisión pendiente sin repetir las existentes.
+
+Validación:6797pruebas aprobadas,27opt-in,0fallos;94del servidor y9de reglas en emulador. Pruebas visuales ficticias en escritorio/tablet/móvil y comprobaciones web de sólo lectura. Marcadores de versión y activos publicados verificados. No se cargaron pagos, comisiones ni stock como prueba. La evidencia operativa detallada se conserva privada fuera del repositorio público.
+
+Se mantienen los controles financieros y los eventos autorizados. La observación acotada de transferencia no representa una factura ni un ensayo de siete horas; no se promete ausencia universal de fallos. Las anotaciones inferiores son antecedentes y no reabren los desarrollos de este bloque.
+
 # Activación17.5 bloqueada por revisión automática ·31/10/2026
 
 Código listo b10feff863950c6167ddfd6e7e352d9854ef6f85, backend construido desde615894d083f8906400109d844596b7c914f24299 (cotizador idéntico entre ambos). Build ce9b9b21 SUCCESS; candidata cotizador-audit3175-615894d0 SIN tráfico, smoke3rutas401,14accesos anteriores preservados, recursos/min0/CPUrequest idénticos.6794PASS27opt-in0fallos,94servidor,9reglas y UI costo/comisión390/768/1280sinred. Costos corregidos por acción explícita vuelven a comprobar comisión sólo si habilitada/pagada/no generada, sin recálculo de existentes ni sondeos; sesión se revalida después del evento.
