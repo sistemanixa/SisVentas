@@ -5,14 +5,15 @@
   var economics = typeof module === 'object' && module.exports
     ? require('./budget-read-model.js')
     : root.SisVentas.V3.BudgetReadModel;
-  var api = factory(identity, economics);
+  var money = typeof module === 'object' && module.exports ? require('./commercial-money.js') : root.SVCommercialMoney;
+  var api = factory(identity, economics, money);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else {
     root.SisVentas = root.SisVentas || {};
     root.SisVentas.V3 = root.SisVentas.V3 || {};
     root.SisVentas.V3.SalesReadModel = api;
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (identity, economics) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (identity, economics, money) {
   'use strict';
 
   var saleDefinition = {
@@ -57,6 +58,27 @@
 
   function saleTotal(sale) {
     var economic = saleEconomic(sale);
+    // The writer rounds each discounted line once. Older readers rounded the
+    // discount first, which can subtract an extra cent. Accept only the exact
+    // stored line/subtotal/tax chain, never a blanket balance tolerance.
+    if (economic.mode === 'items' && sale && Array.isArray(sale.items) && sale.items.length && typeof sale.conIva === 'boolean') {
+      var cents = function (v) { return money.cents(money.decimal(v)); };
+      var valid = true, sum = 0;
+      sale.items.forEach(function (item) {
+        var qty = Number(item.qty), price = Number(item.punit), discount = Number(item.disc == null ? 0 : item.disc);
+        if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(price) || price < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100 || item.sub == null) { valid = false; return; }
+        var line = money.line(item.qty, item.punit, item.disc == null ? 0 : item.disc);
+        if (cents(Number(item.sub)) !== line) valid = false;
+        sum += line;
+      });
+      var general = Number(sale.descuentoGeneral == null ? 0 : sale.descuentoGeneral);
+      var subtotal = money.discount(sum, general);
+      var tax = sale.conIva ? money.vat(subtotal) : 0;
+      var stored = storedSaleTotal(sale);
+      if (valid && Number.isFinite(general) && general >= 0 && general <= 100 && sale.subtotal != null && sale.iva != null &&
+          cents(Number(sale.subtotal)) === subtotal && cents(Number(sale.iva)) === tax && cents(stored) === subtotal + tax &&
+          Math.abs(cents(stored) - cents(economic.total)) <= Math.min(5, sale.items.length + 1)) return stored;
+    }
     return economic.mode === 'items' ? economic.total : storedSaleTotal(sale);
   }
 

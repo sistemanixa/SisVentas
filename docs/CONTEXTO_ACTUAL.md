@@ -1,3 +1,13 @@
+# Candidata local · costo final del stock y coherencia de cobros · 31/10/2026
+
+NO publicada; producción continúa v3.17.6. Pedido actual: costo final de ingresos para ventas nuevas, pruebas ficticias y vista local. El titular confirmó que ambas órdenes exteriores suman correctamente: no corregir sus importes ni sumar gastos de nuevo. No se registró el cobro real ni se cambiaron ventas o cantidades de inventario.
+
+Cálculo monetario decimal con enteros racionales, compartido entre escritor y lector/servidor. No se agrega tolerancia al saldo: un total guardado sólo se acepta si su cadena exacta de renglones descontados, subtotal e IVA coincide. Prueba ficticia de saldo completo, exceso de un centavo, replay y permisos. No recalcula registros persistidos. El redondeo monetario necesario al centavo se realiza una vez por renglón/base/impuesto, de forma explícita y consistente; no se prometen fracciones de centavo representables como un pago.
+
+Costos: referencia del último ingreso recibido para stock general, ya con gastos, consultada puntualmente al guardar un renglón nuevo; no descarga órdenes ni agrega reloj. Combina unidades disponibles con costo de catálogo si excede el stock. Conserva costo y pagos de renglones anteriores y no reserva/consume unidades por calcular. Es referencia de costo al guardar, no asignación física FIFO de lotes. Nuevas recepciones conservan costoReferenciaStock en la misma transacción idempotente del inventario y su resumen. Cambiar sólo una copia del costo se rechaza en emulador. Existe seed puro para preparar referencias de ingresos anteriores sin cambiar cantidades; NO fue aplicado. Antes de activar: preparar/revisar esas referencias y la regla emparejada del campo, versionar activos y actualizar servidor para el cobro. No publicar sólo la web.
+
+Validación: gate 6808 PASS / 27 opt-in / 0 fallos; 94 backend; 8 reglas en emulador; focales posteriores 26 PASS. Vista ficticia 390/768/1280 sin accesos externos, sólo loopback. Prueba local http://127.0.0.1:8898/ dejada abierta; es demostración aislada que usa los módulos reales, no la sesión financiera. Evidencias privadas en tmp/stock-final-local, fuera de Git/Hosting. La pestaña comercial conserva el formulario del usuario sin confirmarlo.
+
 # Auditoría publicada · v3.17.6
 
 Bloque cerrado: listados livianos de OT, Reclamos y Gastos; fichas y adjuntos por registro, guardados emparejados con control de concurrencia y acceso personal a comisiones sin campos internos. Consultar OT o presupuestos vencidos no guarda normalizaciones. Corregir explícitamente el costo de una venta pagada vuelve a comprobar la comisión pendiente sin repetir las existentes.

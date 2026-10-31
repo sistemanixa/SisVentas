@@ -1,0 +1,19 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),Stock=require('../js/core/stock-purchase-costs.v1'),Costs=require('../js/core/sale-costs.v1');
+const product={fbKey:'p',codigo:'FICTICIO',compraARS:200};
+const fixture=()=>({loaded:{ordenes:true,inventario_operativo:true},inventory:{p:{general:3}},orders:[{fbKey:'oc',numero:'OC-FICTICIA',estado:'recibida',moneda:'ARS',recibidoEn:100,items:[{productoKey:'p',codigo:'FICTICIO',cantidadRecibida:3,cantidadCostoReal:3,costoUnitario:120,costoUnitarioReal:120,ultimoCostoReal:120}]}]});
+function api(state){const root={SVStockPurchaseCosts:Stock,SisVentasCompras:{state},obtenerProductoPorCodigoVenta:()=>product,obtenerCostoUnitarioVenta:()=>200};return Costs.create(root);}
+test('costo final del ingreso ya incluye gastos y se captura sin volver a sumarlos',()=>{const s=fixture(),before=JSON.stringify(s),a=api(s),out=a.prepare({items:[{cod:'FICTICIO',qty:2,punit:400,costoUnitarioCompra:200}]});assert.equal(out.items[0].costoTotalCompra,240);assert.equal(out.items[0].punit,400);assert.equal(out.items[0].costoStockReferencia.cantidad,2);assert.equal(JSON.stringify(s),before);assert.deepEqual(a.prepare(out),out);});
+test('cada unidad disponible participa una vez aunque el producto figure en dos renglones',()=>{const out=api(fixture()).prepare({items:[{cod:'FICTICIO',qty:2,punit:400,costoUnitarioCompra:200},{cod:'FICTICIO',qty:2,punit:400,costoUnitarioCompra:200}]});assert.equal(out.items[0].costoTotalCompra,240);assert.equal(out.items[1].costoTotalCompra,320);});
+test('editar venta histórica conserva costo y pagos, aunque cambie el último ingreso',()=>{const old={items:[{cod:'FICTICIO',qty:2,punit:400,costoUnitarioCompra:30,costoTotalCompra:60,costoVersion:1}],pagos:[{monto:20}]},out=api(fixture()).prepare(old,old);assert.deepEqual(out,old);});
+test('no usa órdenes pendientes, canceladas, destinadas a otra venta ni recepción sin costo',()=>{for(const edit of [s=>s.orders[0].estado='borrador',s=>s.orders[0].estado='cancelada',s=>s.orders[0].ventaId='OTRA',s=>s.orders[0].recepcionPendiente=true,s=>s.inventory.p.general=0,s=>{delete s.orders[0].items[0].costoUnitarioReal;delete s.orders[0].items[0].ultimoCostoReal;}]){const s=fixture();edit(s);assert.equal(Stock.reference(product,s),null);}});
+test('sesión sin carga lista no inventa costo de stock',()=>{const s=fixture();s.loaded.inventario_operativo=false;assert.throws(()=>Stock.reference(product,s),/cargar/);});
+
+test('lectura puntual por producto no consulta órdenes ni historial y cancela si cambia la sesión',async()=>{
+ let reads=[],ready=0,writes=0;const state=fixture(),record={items:[{cod:'FICTICIO',qty:2,punit:400,costoUnitarioCompra:200}]};
+ const row={general:3,costoReferenciaStock:{unit:120,order:'oc',number:'OC-FICTICIA',stamp:100}};
+ const root={currentUserUid:'u',currentRole:'vendedor',fbDB:{},obtenerProductoPorCodigoVenta:()=>product,fbRef:(_,p)=>p,fbGet:async p=>{reads.push(p);return {val:()=>row};},fbUpdate:()=>writes++,SVDataReadiness:{beginSource:()=>({ready:()=>ready++,error(){},cancel(){}})}};
+ const loaded=await Stock.load(root,record);assert.deepEqual(reads,['sisventas/compras_resumen/inventario_operativo/p']);assert.equal(ready,1);assert.equal(Stock.reference(product,loaded).unit,120);assert.equal(writes,0);
+ root.fbGet=async()=>{root.currentUserUid='otro';return {val:()=>row};};await assert.rejects(()=>Stock.load(root,record),/sesión/);
+});
+
+test('preparar referencias de ingresos anteriores no mueve cantidades ni cambia órdenes o ventas',()=>{const state=fixture(),before=JSON.stringify(state),plan=Stock.seed([product],state);assert.equal(plan.length,1);assert.equal(plan[0].next.costoReferenciaStock.unit,120);assert.equal(plan[0].next.general,3);assert.deepEqual(plan[0].baseline,state.inventory.p);assert.equal(JSON.stringify(state),before);assert.deepEqual(Stock.seed([product],{...state,inventory:{p:plan[0].next}}),[]);});

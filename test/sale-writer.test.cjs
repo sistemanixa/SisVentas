@@ -66,3 +66,9 @@ test('transporte real usa un comando atómico y sólo lee la venta, sin exigir l
  const saved=await Writer.create(f.root).commit({record:sale(),key:'created',related:{'sisventas/notificaciones_admin/private/ventaId':'V-FICTICIA'}});
  assert.equal(saved.items[0].costoTotalCompra,110);assert.deepEqual(Array.from(f.reads),['sisventas/ventas/created']);assert.equal(f.commands.length,1);assert.equal(f.direct.length,0);assert.ok(f.commands[0].expectedHashes['sisventas/ventas/created']);assert.equal(f.get('sisventas/notificaciones_admin/private/ventaId'),'V-FICTICIA');
 });
+
+for(const origin of ['manual','soporte','conversion','adicional_ot'])test(origin+': nuevo renglón usa costo final del stock sin mover inventario',async()=>{
+ const f=fixture(),Stock=require('../js/core/stock-purchase-costs.v1');f.root.SVStockPurchaseCosts=Stock;f.root.obtenerProductoPorCodigoVenta=()=>({fbKey:'product',codigo:'P',compraARS:55});
+ const inventory={general:3,reservado:0,costoReferenciaStock:{unit:42,order:'OC-FICTICIA',number:'OC-FICTICIA',stamp:100}};f.put('sisventas/compras_resumen/inventario_operativo/product',inventory);
+ const input={...sale(),origen:origin},saved=await f.api.commit({record:input,key:'stock-'+origin});assert.equal(saved.items[0].costoTotalCompra,84);assert.equal(saved.total,242);assert.deepEqual(f.get('sisventas/compras_resumen/inventario_operativo/product'),inventory);assert.equal(saved.items[0].costoStockReferencia.cantidad,2);
+});

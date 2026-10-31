@@ -43,7 +43,7 @@ function prepare(input){
      row[field][child]={'.validate':equal('newData',"newData.parent().parent().parent().parent().child('compras_resumen').child('"+domain+"').child($record).child('compraConfirmacion').child('"+child+"')")};
      summary[field][child]={'.validate':equal('newData',"newData.parent().parent().parent().parent().parent().child('"+domain+"').child($record).child('compraConfirmacion').child('"+child+"')")};
     }
-   }else if(['items','sources','simuladorParaguay','ordenesIds','proveedoresFinales'].includes(field)){row[field]=tree(domain,[field],true);summary[field]=tree(domain,[field],false);}
+   }else if(['items','sources','simuladorParaguay','ordenesIds','proveedoresFinales','costoReferenciaStock'].includes(field)){row[field]=tree(domain,[field],true);summary[field]=tree(domain,[field],false);}
    else{
     const mirrorField="newData.parent().parent().parent().child('compras_resumen').child('"+domain+"').child($record).child('"+field+"')",sourceField="newData.parent().parent().parent().parent().child('"+domain+"').child($record).child('"+field+"')";
     row[field]={'.validate':'!newData.hasChildren() && '+equal('newData',mirrorField)};summary[field]={'.validate':'!newData.hasChildren() && '+equal('newData',sourceField)};

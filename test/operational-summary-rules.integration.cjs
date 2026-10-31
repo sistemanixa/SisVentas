@@ -54,3 +54,9 @@ test('financial fence, receipt and inventory summary commit atomically under the
  await assertSucceeds(update(ref(db),patch));await assertFails(update(ref(db),patch));
  await env.withSecurityRulesDisabled(async ctx=>{const adminDB=ctx.database(),current=(await get(ref(adminDB,record))).val();assert.equal(current.general,36);assert.equal((await get(ref(adminDB,'sv_labor_guard'))).val(),null);assert.equal((await get(ref(adminDB,'sisventas/pagos/untouched/monto'))).val(),10);});
 });
+
+test('stock cost reference is paired exactly and does not permit changing summary cost alone',async()=>{
+ const db=client('admin'),path='sisventas/inventario_operativo/COST-FICTICIO',value={codigo:'COST-FICTICIO',general:3,reservado:0,costoReferenciaStock:{unit:120,order:'OC-FICTICIA',number:'OC-FICTICIA',stamp:100,receipt:'r',basis:'costo_final_con_gastos'}};
+ await assertSucceeds(update(ref(db),Model.plan(path,null,value)));
+ const summary='sisventas/compras_resumen/inventario_operativo/COST-FICTICIO';assert.equal((await get(ref(db,summary+'/costoReferenciaStock/unit'))).val(),120);await assertFails(set(ref(db,summary+'/costoReferenciaStock/unit'),1));assert.equal((await get(ref(db,path+'/general'))).val(),3);
+});

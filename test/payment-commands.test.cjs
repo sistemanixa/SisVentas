@@ -210,3 +210,10 @@ test('otro rol interno sólo cobra con módulo y acción expresamente habilitado
   if(allowed){await f.commands.execute(f.actor,f.register());assert.equal(f.commits.length,1);}else{await assert.rejects(f.commands.execute(f.actor,f.register()),{statusCode:403});assert.equal(f.commits.length,0);}
  }
 });
+
+test('saldo total con descuento fraccionario usa el mismo total del escritor, sin tolerar un centavo extra',async()=>{
+ const sale={id:'V-FICTICIA-DECIMAL',conIva:true,items:[{cod:'FICTICIO',qty:5,punit:1.34,disc:35,sub:4.36}],descuentoGeneral:0,subtotal:4.36,iva:.92,total:5.28,totalPagado:1};
+ const make=()=>fixture({sales:{v:sale},payments:{previous:{ventaFbKey:'v',ventaId:sale.id,monto:1,fecha:'2026-10-01'}}});
+ const f=make(),body=f.register(4.28);await f.commands.execute(f.actor,body);await f.commands.execute(f.actor,copy(body));assert.equal(f.get('sisventas/ventas/v/totalPagado'),5.28);assert.equal(Object.keys(f.get('sisventas/pagos')).length,2);
+ const g=make();await assert.rejects(()=>g.commands.execute(g.actor,g.register(4.29)),/saldo/);assert.equal(g.commits.length,0);
+});

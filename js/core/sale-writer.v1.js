@@ -1,4 +1,4 @@
-(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.SVSaleWriter=api.create(root);})(typeof window==='object'?window:null,function(){
+(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./commercial-money.v1.js'):root.SVCommercialMoney);if(typeof module==='object'&&module.exports)module.exports=api;else root.SVSaleWriter=api.create(root);})(typeof window==='object'?window:null,function(Money){
  'use strict';
  const clone=v=>v===undefined?undefined:JSON.parse(JSON.stringify(v));
  const protectedFields=['pagos','totalPagado','factura','facturas','comisionGenerada','comisionesGeneradas','comisionHabilitada','comisionados','empleado','empleadoUid','comisionadoPrincipalUid','comisionadoSecundarioUid'];
@@ -8,18 +8,18 @@
   if(!items.length)return record;
   const general=Number(merged.descuentoGeneral??merged.descuentoPct??merged.porcentajeDescuento??0);
   if(!Number.isFinite(general)||general<0||general>100)throw Error('Revisá el descuento general de la venta.');
-  let gross=0,net=0;
-  const normalize=item=>{const qty=Number(item.qty??item.cantidad??1),price=Number(item.punit??item.precio??item.precioUnitario??0),disc=Number(item.disc??item.descuento??0);if(!Number.isFinite(qty)||qty<=0||!Number.isFinite(price)||!Number.isFinite(disc)||disc<0||disc>100)throw Error('Revisá los ítems de la venta.');const sub=round(qty*price*(1-disc/100));gross+=round(qty*price);net+=sub;return {...item,sub};};
+  let gross=0,net=0,netCents=0;
+  const normalize=item=>{const qty=Number(item.qty??item.cantidad??1),price=Number(item.punit??item.precio??item.precioUnitario??0),disc=Number(item.disc??item.descuento??0);if(!Number.isFinite(qty)||qty<=0||!Number.isFinite(price)||!Number.isFinite(disc)||disc<0||disc>100)throw Error('Revisá los ítems de la venta.');const sub=Money.line(qty,price,disc)/100;gross+=Money.line(qty,price,0)/100;net+=sub;netCents+=Money.line(qty,price,disc);return {...item,sub};};
   const calculatedItems=Array.isArray(merged.items)?merged.items.map(normalize):Object.fromEntries(Object.entries(merged.items).map(([key,item])=>[key,normalize(item)]));
-  const subtotal=round(round(net)*(1-general/100));
+  const subtotal=Money.discount(netCents,general)/100;
   const prior=baseline||record;
   const rate=merged.conIva===false?0:merged.conIva===true?.21:Number(prior.subtotal)>0?Number(prior.iva||0)/Number(prior.subtotal):0;
   if(!Number.isFinite(rate)||rate<0)throw Error('Revisá el IVA de la venta.');
-  const iva=round(subtotal*rate);
+  const iva=rate===.21?Money.vat(Money.cents(Money.decimal(subtotal)))/100:round(subtotal*rate);
   return {...record,items:calculatedItems,subtotal,iva,total:round(subtotal+iva),descuento:round(gross-subtotal)};
  }
  function create(root){
-  function prepare(record,baseline){
+  function prepare(record,baseline,stockContext){
    if(!record||typeof record!=='object'||Array.isArray(record))throw Error('La venta no es válida.');
    if(!root.SVSaleCosts)throw Error('Recargá la aplicación antes de guardar la venta.');
    let next=clone(record);
@@ -43,7 +43,7 @@
      if(Object.hasOwn(baseline,key))next[key]=clone(baseline[key]);else delete next[key];
     }
    }
-   if(Object.hasOwn(next,'items'))next=root.SVSaleCosts.prepare(next,baseline);
+   if(Object.hasOwn(next,'items'))next=root.SVSaleCosts.prepare(next,baseline,stockContext);
    else if(!baseline)throw Error('La venta necesita ítems con costo.');
    const economics=value=>JSON.stringify({items:Object.values(value?.items||{}).map(i=>[i.qty??i.cantidad,i.punit??i.precio??i.precioUnitario,i.disc??i.descuento]),general:value?.descuentoGeneral??value?.descuentoPct??value?.porcentajeDescuento??0,conIva:value?.conIva});
    if(Object.hasOwn(next,'items')&&(!baseline||economics({...baseline,...next})!==economics(baseline)))next=calculate(next,baseline);
@@ -55,7 +55,7 @@
   // Todos los documentos comerciales terminan aquí. Los vínculos se confirman
   // en la misma escritura existente; no se separan venta, OT y presupuesto.
   async function commit({record,baseline,key,related={},basePath='',partial=false,transaction,confirmLocal=false}={}){
-   const check=session(),next=prepare(record,baseline);check();
+   const check=session(),stockContext=await root.SVStockPurchaseCosts?.load(root,record,baseline);check();const next=prepare(record,baseline,stockContext);check();
    const localContext=confirmLocal?root.SVCommercialOwnership?.captureWriteContext?.('ventas'):null;
    if(transaction){
     const result=await root.fbRunTransaction(transaction.ref,current=>{check();return transaction.apply(current,clone(next));});check();return result;
@@ -90,7 +90,7 @@
   async function save(record,baseline){
    const check=session(),key=record?.fbKey;
    if(key){const prepared=await root.SVCommercialOwnership.prepare('ventas',key,baseline);check();baseline=prepared.baseline||prepared.record;}
-   const next=prepare(record,baseline);check();
+   const stockContext=await root.SVStockPurchaseCosts?.load(root,record,baseline);check();const next=prepare(record,baseline,stockContext);check();
    if(key){
     if(!baseline||!root.SVGuardedWrites)throw Error('No está listo el guardado protegido de la venta.');
     const saved=await root.SVGuardedWrites.save((root.FB_PATHS?.ventas||'sisventas/ventas')+'/'+key,baseline,next,true);check();root.SVCommercialOwnership?.refresh?.('ventas');return {...saved,fbKey:key};

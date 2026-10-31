@@ -6,7 +6,7 @@
  const fields=Object.freeze({
   ordenes:['numero','proveedor','proveedorKey','proveedorFinalResumen','proveedoresFinales','ventaId','ventaFbKey','cliente','listaMaterialesId','fecha','ts','estado','total','monto','totalRealRecibido','totalPresupuestadoRecibido','diferenciaCompra','generacionPendiente','cancelacionPendiente','recibidoEn','actualizadoEn','usuario','items','recepcionPendiente'],
   listas_materiales:['numero','nombreLista','origen','cliente','estado','ventaId','ventaFbKey','fecha','ts','ordenadaEn','usuario','compraConjuntaId','desagrupada','stockExistenteReservado','exteriorCanceladoEn','aplicacionExteriorId','aplicacionExteriorPendiente','cancelacionExteriorPendiente','cancelacionExteriorBloqueo','compraConfirmacion','ordenesIds','items','sources','simuladorParaguay'],
-  inventario_operativo:['codigo','descripcion','unidad','general','reservado','enCompra']
+  inventario_operativo:['codigo','descripcion','unidad','general','reservado','enCompra','costoReferenciaStock']
  });
  const booleanOnly=Object.freeze(['recepcionPendiente','aplicacionExteriorPendiente','cancelacionExteriorPendiente']);
  const clone=v=>v==null?null:JSON.parse(JSON.stringify(v));

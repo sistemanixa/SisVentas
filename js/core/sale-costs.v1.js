@@ -1,6 +1,6 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.SVSaleCosts=api.create(root);})(typeof window==='object'?window:null,function(){
  'use strict';
- const fields=['costoUnitarioCompra','costoTotalCompra','costoUnitario','costoCompra','compra','precioCompra','precio_compra','costoTotal','costo','costoUnitarioPresupuestado','costoUnitarioAntesPreparacion','comisionCostoHistoricoPendiente','costoCapturadoEn','costoOrigen','costoVersion'];
+ const fields=['costoUnitarioCompra','costoTotalCompra','costoUnitario','costoCompra','compra','precioCompra','precio_compra','costoTotal','costo','costoUnitarioPresupuestado','costoUnitarioAntesPreparacion','comisionCostoHistoricoPendiente','costoCapturadoEn','costoOrigen','costoVersion','costoStockReferencia'];
  const numeric=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0||typeof v==='string'&&/^\d+(?:\.\d+)?$/.test(v.trim());
  const round=n=>Math.round((n+Number.EPSILON)*100)/100;
  const quantity=i=>Number(i.qty??i.cantidad??1);
@@ -30,10 +30,21 @@
    if(q!==before){for(const k of ['costoTotalCompra','costoTotal','costo'])if(numeric(old[k]))out[k]=round(oldUnit*q);}
    return out;
   }
-  function prepare(record,baseline){
+  function prepare(record,baseline,stockContext){
    const old=Array.isArray(baseline?.items)?baseline.items:Object.values(baseline?.items||{}),used=new Set(),items=record.items;
    if(!items||typeof items!=='object'){if(baseline&&!baseline.items)return {...record};throw Error('La venta necesita ítems con costo.');}
-   const convert=(item,key)=>{let at=old.findIndex((o,i)=>!used.has(i)&&same(o,item));if(at<0&&old[key]&&!used.has(Number(key))&&![item,old[key]].some(i=>i.productoFbKey||i.pid||i.cod||i.codigo||i.desc||i.descripcion)&&Number(item.punit??item.precio)===Number(old[key].punit??old[key].precio))at=Number(key);if(at<0)return capture(item);used.add(at);return preserve(item,old[at]);};
+   const stockUsed=new Map();
+   function captureNew(item){
+    const stock=r.SVStockPurchaseCosts,state=stockContext||r.SisVentasCompras?.state,product=r.obtenerProductoPorCodigoVenta?.(item.cod||item.codigo,item);
+    // Existing sale lines never reach here. Explicit manual/exterior costs keep
+    // their own evidence; a purchase final unit already includes its expenses.
+    if(!stock||!state||!product||item.preparacionCompra||item.compraExteriorAplicada||item.costoStockReferencia||item.costoOrigen==='correccion_manual_autorizada'||r.esProductoManoDeObra?.(product))return capture(item);
+    const ref=stock.reference(product,state);if(!ref)return capture(item);
+    const id=String(product.fbKey||product.codigo||item.cod),usedQty=stockUsed.get(id)||0;
+    const fallback=unit(item)??r.precioGremioARSDesdeProducto?.(product)??r.obtenerCostoUnitarioVenta?.(item.cod||item.codigo,item);
+    const next=stock.apply(item,ref,fallback,usedQty);stockUsed.set(id,usedQty+Number(next.costoStockReferencia?.cantidad||0));return capture(next);
+   }
+   const convert=(item,key)=>{let at=old.findIndex((o,i)=>!used.has(i)&&same(o,item));if(at<0&&old[key]&&!used.has(Number(key))&&![item,old[key]].some(i=>i.productoFbKey||i.pid||i.cod||i.codigo||i.desc||i.descripcion)&&Number(item.punit??item.precio)===Number(old[key].punit??old[key].precio))at=Number(key);if(at<0)return captureNew(item);used.add(at);return preserve(item,old[at]);};
    return {...record,items:Array.isArray(items)?items.map(convert):Object.fromEntries(Object.entries(items).map(([key,item])=>[key,convert(item,key)]))};
   }
   function costCells(html,item){if(unit(item)!==null&&item.comisionCostoHistoricoPendiente!==true)return html;return html.replace('</td>','<small style="display:block;font-size:10px;color:var(--text3)" title="La venta no conserva un costo confirmado; esta referencia no demuestra el costo histórico.">Costo de referencia</small></td>');}
