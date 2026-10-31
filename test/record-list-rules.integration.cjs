@@ -1,0 +1,43 @@
+'use strict';
+const {test,before,beforeEach,after}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+assert.equal(process.env.FIREBASE_DATABASE_EMULATOR_HOST,'127.0.0.1:9042');
+const dep=require('node:module').createRequire(path.join(process.env.SV_SECURITY_TOOLS,'package.json')),{initializeTestEnvironment,assertSucceeds,assertFails}=dep('@firebase/rules-unit-testing'),{ref,get,set,update,query,orderByChild,equalTo}=dep('firebase/database');
+const M=require('../js/core/record-list-model'),R=require('../scripts/lib/record-list-rules.cjs'),base=JSON.parse(fs.readFileSync(process.env.SV_RECORD_LIST_RULES_BASE,'utf8')),rules=R.prepare(base);let env;
+const image='data:image/png;base64,'+'a'.repeat(1000),ot=()=>({id:'OT-test',estado:'pendiente',fechaProgramada:'2020-01-01',materiales:[{codigo:'P1',cantidad:1,costo:0}],fotos:[image]});
+before(async()=>{env=await initializeTestEnvironment({projectId:'demo-record-list-audit',database:{host:'127.0.0.1',port:9042,rules:JSON.stringify(rules)}});});
+beforeEach(async()=>{
+ await env.clearDatabase();
+ const gastos={mine:{empleadoId:'emp',monto:100,montoPagado:0,fecha:'2020-01-01',fotoBase64:image},foreign:{empleadoId:'foreign',monto:900}};
+ gastos.commission={tipoPagable:'comision',empleadoId:'emp',monto:50,montoPagado:0,fecha:'2020-01-01',pct:10,gananciaBase:500,ventaId:'V-1',cliente:'Cliente ficticio',descripcion:'Comisión10% sobre ganancia500'};
+ const publicRows=Object.fromEntries(Object.entries(gastos).map(([id,g])=>[id,M.publicExpense(g)]));
+ const summaries=Object.fromEntries(Object.entries(gastos).map(([key,g])=>[key,M.summary('gastos',g)]));summaries._svCoverage={schema:1,ready:true,baselineCount:2,sourceHash:'a'.repeat(64)};
+ const seed={
+  sv_chat_roles:{admin:{rol:'admin',activo:true},tech:{rol:'tecnico',activo:true},other:{rol:'tecnico',activo:true},inactive:{rol:'admin',activo:false}},
+  sv_permisos:{admin:{indiceVersion:2,indiceModulos:{ordentrabajo:true,soporte:true,gastos:true},acciones:{}},tecnico:{indiceVersion:2,indiceModulos:{ordentrabajo:true,ctaemp:true,dashboard:true},acciones:{dashboard:{miCuenta:true}}}},
+  sv_empleado_uid:{tech:{perfilFbKey:'profile'}},sv_usuarios:{profile:{uid:'tech',activo:true,empleadoFbKey:'emp'}},
+  sisventas:{pagos:{untouched:{monto:10}},ventas:{untouched:{total:100}},gastos,listados_resumen:{gastos:summaries,gastos_empleado:publicRows}}
+ };await env.withSecurityRulesDisabled(ctx=>set(ref(ctx.database()),seed));
+});
+
+after(async()=>env?.cleanup());
+test('paired OT create/edit/delete keeps materials and denies a source-only update',async()=>{const db=env.authenticatedContext('admin').database(),p='sisventas/ordenes_trabajo/o',first=M.plan(p,null,ot(),'one');await assertSucceeds(update(ref(db),first));const second=M.plan(p,first[p],{...first[p],estado:'completada'},'two');await assertSucceeds(update(ref(db),second));await assertFails(set(ref(db,p+'/estado'),'pendiente'));await assertFails(set(ref(db,M.index+'/ordenes_trabajo/o/materiales/0/cantidad'),3));await assertSucceeds(update(ref(db),M.plan(p,second[p],null,'three')));});
+test('wrong amounts, missing materials and stale revisions are rejected',async()=>{const db=env.authenticatedContext('admin').database(),p='sisventas/ordenes_trabajo/o',first=M.plan(p,null,ot(),'one');await update(ref(db),first);for(const alter of [v=>{v[M.index+'/ordenes_trabajo/o'].materiales[0].costo=99;},v=>{delete v[M.index+'/ordenes_trabajo/o'].materiales;}]){const next=M.plan(p,first[p],{...first[p],estado:'completada'},'two');alter(next);await assertFails(update(ref(db),next));}await assertFails(update(ref(db),M.plan(p,null,ot(),'stale')));});
+test('claim list excludes historical evidence while full detail remains authorized',async()=>{const db=env.authenticatedContext('admin').database(),p='sisventas/reclamos/r';await assertSucceeds(update(ref(db),M.plan(p,null,{cliente:'Fixture',descripcion:'Search',estado:'nuevo',historial:[{texto:'history'}],evidenciaUrl:image},'claim')));const row=(await get(ref(db,M.index+'/reclamos/r'))).val();assert.equal(row.descripcion,'Search');assert.equal(row.evidenciaUrl,undefined);assert.equal((await get(ref(db,p+'/evidenciaUrl'))).val(),image);});
+test('source root histories are denied but own expense query and point details work',async()=>{const admin=env.authenticatedContext('admin').database(),tech=env.authenticatedContext('tech').database();for(const d of M.domains)await assertFails(get(ref(admin,'sisventas/'+d)));await assertSucceeds(get(ref(admin,'sisventas/gastos/mine')));await assertSucceeds(get(query(ref(tech,M.employeeIndex),orderByChild('empleadoId'),equalTo('emp'))));await assertSucceeds(get(ref(tech,'sisventas/gastos/mine')));await assertFails(get(ref(tech,'sisventas/gastos/foreign')));await assertFails(get(ref(tech,M.index+'/gastos')));await assertFails(get(ref(tech,M.index+'/gastos/foreign')));});
+test('inactive and anonymous clients cannot read or write new summaries',async()=>{for(const db of [env.authenticatedContext('inactive').database(),env.unauthenticatedContext().database()]){await assertFails(get(ref(db,M.index+'/ordenes_trabajo')));await assertFails(update(ref(db),M.plan('sisventas/ordenes_trabajo/o',null,ot(),'bad')));}});
+test('native clients cannot bypass the financial guard by writing an expense summary',async()=>{for(const uid of ['admin','tech']){const db=env.authenticatedContext(uid).database();await assertFails(update(ref(db),M.plan('sisventas/gastos/mine',{monto:100},{monto:1,empleadoId:'emp'},'bad')));await assertFails(set(ref(db,M.index+'/gastos/mine/monto'),1));}await env.withSecurityRulesDisabled(async ctx=>{const db=ctx.database();assert.equal((await get(ref(db,'sisventas/gastos/mine/monto'))).val(),100);assert.equal((await get(ref(db,'sisventas/pagos/untouched/monto'))).val(),10);});});
+
+test('a trusted financial commit pairs the payment summary and immutable receipt atomically',async()=>{
+ const opId='fixture-pay',fence='fixture-fence',digest='b'.repeat(64),actorUid='admin',lease={opId,fence,digest,actorUid,mode:'server',expiresAt:Date.now()+45000};
+ await env.withSecurityRulesDisabled(ctx=>update(ref(ctx.database()),{sv_labor_guard:lease,sv_labor_config:{schema:1,ready:true}}));
+ const claims={svLaborService:true,mode:'commit',opId,fence,digest,actorUid},db=env.authenticatedContext('sv-labor-service',claims).database(),p='sisventas/gastos/mine';
+ const before={empleadoId:'emp',monto:100,montoPagado:0,fecha:'2020-01-01',fotoBase64:image},after={...before,montoPagado:50,pagos:{p1:{monto:50,fecha:'2020-02-01',comprobante:image}}},patch=M.plan(p,before,after,opId);
+ patch['sv_labor_receipts/'+opId]={fence,digest,actorUid,confirmedAt:Date.now(),result:{ok:true}};patch.sv_labor_guard=null;
+ const invalid=structuredClone(patch);invalid[M.index+'/gastos/mine'].montoPagado=100;await assertFails(update(ref(db),invalid));
+ await assertSucceeds(update(ref(db),patch));await assertFails(update(ref(db),patch));
+ await env.withSecurityRulesDisabled(async ctx=>{const read=ctx.database();assert.equal((await get(ref(read,p+'/montoPagado'))).val(),50);assert.equal((await get(ref(read,p+'/pagos/p1/comprobante'))).val(),image);assert.equal((await get(ref(read,M.index+'/gastos/mine/pagos/p1/comprobante'))).val(),null);});
+});
+
+test('a commission recipient receives sale, client and amount, never profit through direct paths or queries',async()=>{const tech=env.authenticatedContext('tech').database(),admin=env.authenticatedContext('admin').database();await assertFails(get(ref(tech,'sisventas/gastos/commission')));await assertFails(get(ref(tech,'sisventas/gastos/commission/gananciaBase')));await assertFails(get(ref(tech,M.index+'/gastos/commission')));await assertFails(get(query(ref(tech,M.index+'/gastos'),orderByChild('empleadoId'),equalTo('emp'))));const row=(await assertSucceeds(get(ref(tech,M.employeeIndex+'/commission')))).val();assert.equal(row.ventaId,'V-1');assert.equal(row.cliente,'Cliente ficticio');assert.equal(row.monto,50);assert.equal(row.pct,undefined);assert.equal(row.gananciaBase,undefined);assert.doesNotMatch(row.descripcion,/%|ganancia/i);await assertSucceeds(get(ref(admin,'sisventas/gastos/commission')));});
+
+test('deep private evidence is preserved without entering the list header',async()=>{const db=env.authenticatedContext('admin').database();let nested={foto:image};for(let i=0;i<12;i++)nested={child:nested};const p='sisventas/ordenes_trabajo/deep',record={...ot(),notasTecnico:nested};await assertSucceeds(update(ref(db),M.plan(p,null,record,'deep-evidence')));assert.equal((await get(ref(db,M.index+'/ordenes_trabajo/deep/notasTecnico'))).val(),null);});

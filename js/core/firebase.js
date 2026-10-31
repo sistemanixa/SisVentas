@@ -226,6 +226,11 @@
 
     if(!window.SVLaborWrites) throw Error('No se pudo preparar el guardado seguro');
     if(!window.SVOperationalWrites)throw Error('No se pudo preparar el guardado de Compras');
+    if(window.SVRecordListModel && window.SVRecordLists && window.SVOperationalWritesFactory){
+      window.SVRecordListWrites=window.SVOperationalWritesFactory(window,window.SVRecordListModel);
+      window.SVRecordListWrites.install({sdk:{set:window.fbSet,update:window.fbUpdate,push:window.fbPush,remove:window.fbRemove,runTransaction:window.fbRunTransaction,get,ref}});
+      window.SVRecordLists.install({sdk:{get,ref,query:window.fbQuery,onValue:window.fbOnValue}});
+    }
     window.SVOperationalWrites.install({sdk:{set:window.fbSet,update:window.fbUpdate,push:window.fbPush,remove:window.fbRemove,runTransaction:window.fbRunTransaction,get,ref}});
     window.SVLaborWrites.install({sdk:{set:window.fbSet,update:window.fbUpdate,push:window.fbPush,remove:window.fbRemove,runTransaction:window.fbRunTransaction,get,ref}});
     window.firebaseReady = true;

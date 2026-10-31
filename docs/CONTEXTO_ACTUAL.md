@@ -1,3 +1,15 @@
+# Candidata v3.17.5 · auditoría OT/Reclamos/Gastos ·31/10/2026
+
+Producción conserva17.4 categorías. Candidata separa los tres listados de adjuntos/fichas, conserva historial completo y totales; lectura puntual antes de editar/pagar y control concurrente de revisión emparejado. Consultar presupuesto vencido y abrir OT no guardan correcciones. Gastos personales de comisión usan proyección positiva sin ganancias/porcentajes; baja administrativa y orden conservados. El servidor deriva resumen dentro del guardado financiero existente, no agrega observadores ni consultas periódicas. Consultas únicas y listeners nativos usan la misma fuente de resúmenes; originales se consultan por ficha. Mantenimiento financiero explícito sigue por su guardado protegido; no automatizar migraciones históricas ni reemplazar toda la colección.
+
+Pruebas actuales:6794PASS27opt-in0fallos,94backend y9reglas con base remota exacta; incluye acciones reales de abrir/pagar sin confirmar, cancelación de sesión, pago con comprobante y hash completo, CAS contra edición vieja, fallos/recuperación del corte y aislamiento de comisión. Un fixture previo de Compras omitía currentLocalReference/owner: se incorporó la dependencia real y se verifica la referencia capturada; sin cambiar producción para hacer pasar el test.
+
+Preparación privada readonly:131OT/40Reclamos/252Gastos; originales56.8MB, índices incluidos personales1.01MB; sin escrituras originales. Estimación actualización menorUSD1 comunicada, min0 y cobro por solicitud. Falta activar servidor/reglas/índices, Hosting, verificación externa y push humano autorizado en este turno. No declarar auditoría publicada antes. Evidencias y planes en tmp/record-list-audit, fueraGit/Hosting. Nueva prueba con todos los clientes cerrados no tiene intervalo humano confirmado: no afirmar cero consumo por siete horas.
+
+# Publicación aislada de categorías completada ·31/10/2026
+
+Producción ahora v3.17.4 exclusivamente categorías desde55c6a021b657d002572bde8fc1f1be31d573da64 en C:/SisVentas/.local/categories-release; aviso/6activos/verificación UI9importes comprobados.6748PASS. Este árbol conserva candidata de auditoría NO activada: su número17.4 quedó ocupado y debe renumerarse17.5 antes de cualquier futura publicación; no desplegar este índice ni mezclar los cambios sin terminar. Sin push.
+
 # Todas las categorías en cobertura salarial · local · 31/10/2026
 
 Pedido humano: agregar todas las categorías de Gastos en Otros gastos a incluir. Incluye las nueve categorías canónicas: Inmueble, Servicios, Personal, Transporte, Materiales, Marketing, Mercadería, Impuestos y Otro. Conserva defaults previos Inmueble/Servicios/Otro; nuevas opciones desactivadas, importes siempre visibles. Personal excluye tipos salariales/comisiones ya contabilizados. No cambia registros, criterios temporales ni consultas.70 pruebas focales PASS y QA390/768/1280 PASS,7lecturas iniciales/0externos/0escrituras, selección y navegación conservadas. Vista ficticia y capturas privadas tmp/salary-coverage-qa. No publicado, no push. Candidata de auditoría17.4 sigue separada y sin activar.

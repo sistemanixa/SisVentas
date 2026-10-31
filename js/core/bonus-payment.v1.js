@@ -17,7 +17,7 @@
     const initial=new Map(),body={id:root.crypto.randomUUID(),items:[],medio:String(medio||'')};
     if(loteKey)body.loteKey=String(loteKey);
     if(comprobante){const data=comprobante.data||comprobante.base64||'',type=comprobante.tipo||comprobante.type||String(data).match(/^data:([^;]+);/)?.[1]||'';body.comprobante={nombre:String(comprobante.nombre||comprobante.name||'Comprobante'),tipo:type,data};}
-    for(const item of cargas||[]){const g=(root.gastosData||[]).find(g=>g.fbKey===item.fbKey);if(!root.SVBonusPaymentModel.isBonus(g))throw fail('SV_BONUS_PAYMENT_INVALID','Elegí sólo bonificaciones para este pago.',400);initial.set(String(item.fbKey),canonical(root.SVBonusPaymentModel.revisionData(g)));body.items.push({key:String(item.fbKey),monto:Number(item.monto),expectedHash:await hash(root.SVBonusPaymentModel.revisionData(g))});check();}
+    for(const item of cargas||[]){let g=(root.gastosData||[]).find(g=>g.fbKey===item.fbKey);if(g?._svListSummary===true&&root.SVRecordLists){g=await root.SVRecordLists.detail('gastos',String(item.fbKey));check();}if(!root.SVBonusPaymentModel.isBonus(g))throw fail('SV_BONUS_PAYMENT_INVALID','Elegí sólo bonificaciones para este pago.',400);initial.set(String(item.fbKey),canonical(root.SVBonusPaymentModel.revisionData(g)));body.items.push({key:String(item.fbKey),monto:Number(item.monto),expectedHash:await hash(root.SVBonusPaymentModel.revisionData(g))});check();}
     if(!body.items.length)throw fail('SV_BONUS_PAYMENT_INVALID','No hay bonificaciones para pagar.',400);
     const digest=await hash(body);check();
     async function send(){let attempted=false,release;try{

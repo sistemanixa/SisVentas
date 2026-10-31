@@ -167,6 +167,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     // Los comandos vuelven a validar su estado al repetirlos y no recuperan
     // payloads desde el recibo. No duplicar una venta/factura comercial completa.
     await require('./operational-projections').augment({patch,raw,get,enabled:operationalSummaries,actor,result,operationId:opId});
+    await require('./record-list-projections').augment({patch,raw,get,enabled:operationalSummaries,actor,result,operationId:opId});
     const receiptResult=['user','bootstrap'].includes(actor.mode)?copy(result):{ok:true,committed:true};
     patch['sv_labor_receipts/'+opId]={fence:lease.fence,digest:requestDigest,actorUid:actor.uid,result:receiptResult,confirmedAt:now()};patch.sv_labor_guard=null;
     if(actor.mode==='user'&&actor.financialAction){
