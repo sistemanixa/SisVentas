@@ -3,6 +3,8 @@ const crypto=require('node:crypto'),{isDeepStrictEqual:same}=require('node:util'
 const roots=M.domains.map(d=>'sisventas/'+d),target=M.index,config='sv_record_list_config';
 function canonical(v){if(v==null)return 'null';if(Array.isArray(v))return '['+v.map(canonical).join(',')+']';if(typeof v==='object')return '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';return JSON.stringify(v);}
 const hash=v=>crypto.createHash('sha256').update(canonical(v)).digest('hex');
+function storedIndex(value){const out=structuredClone(value);for(const row of Object.values(out?.ordenes_trabajo||{})){const d=row?._svListDocumental;if(d&&Array.isArray(d.faltantes)&&d.faltantes.length===0)delete d.faltantes;}return out;}
+const sameIndex=(a,b)=>same(storedIndex(a),storedIndex(b));
 function freezeRules(rules){const out=structuredClone(rules);function deny(node){for(const [k,v]of Object.entries(node))if(k==='.write')node[k]=false;else if(!k.startsWith('.')&&v&&typeof v==='object')deny(v);node['.write']=false;}for(const path of roots){const domain=path.split('/')[1];if(!out.rules?.sisventas?.[domain])throw Error('Falta regla original');deny(out.rules.sisventas[domain]);}return out;}
 async function scan(read){const originals={},indexes={},counts={};let total=0;
  for(const root of roots){const keys=Object.keys(await read(root,{shallow:true})||{}).sort();if(keys.some(k=>!M.key(k))||keys.length>10000||(total+=keys.length)>25000)throw Error('Revisar las claves o el volumen del índice');let cursor=0;const values=new Array(keys.length);await Promise.all(Array.from({length:Math.min(3,keys.length)},async()=>{while(cursor<keys.length){const i=cursor++;values[i]=await read(root+'/'+keys[i]);}}));
@@ -21,7 +23,7 @@ async function activate({read,write,baseRules,candidateRules,prepared,onPhase=()
   const active=await read('sv_labor_guard');if(active&&Number(active.expiresAt)>Date.now())throw Error('Comenzó una operación financiera. Se cancela el corte.');
   await write(config,{schema:1,ready:false});phase='freezing';await write(rulesPath,frozen);phase='frozen';onPhase(phase);if(!same(await read(rulesPath),frozen))throw Error('No se confirmó la pausa de originales');
   const current=await scan(read);if(current.sourceHash!==prepared.sourceHash)throw Error('Los originales cambiaron. Preparar nuevamente sin sobrescribirlos.');
-  if(await read(target)!==null)throw Error('Apareció un índice concurrente');await write(target,prepared.indexes);if(!same(await read(target),prepared.indexes))throw Error('No se confirmó el índice');
+  if(await read(target)!==null)throw Error('Apareció un índice concurrente');await write(target,prepared.indexes);if(!sameIndex(await read(target),prepared.indexes))throw Error('No se confirmó el índice');
   if(!same(await read(rulesPath),frozen))throw Error('Otra publicación cambió las reglas');phase='activating';await write(rulesPath,candidateRules);phase='active';onPhase(phase);if(!same(await read(rulesPath),candidateRules))throw Error('No se confirmaron las reglas finales');
   await write(config,{schema:1,ready:true});if(!same(await read(config),{schema:1,ready:true}))throw Error('No se confirmó disponibilidad');
   if(!same(await read(labor),paused))throw Error('Otra tarea cambió la pausa financiera');await write(labor,originalLabor);paused=null;
@@ -35,4 +37,4 @@ async function activate({read,write,baseRules,candidateRules,prepared,onPhase=()
   throw error;
  }
 }
-module.exports={scan,activate,freezeRules,hash,roots,target,config};
+module.exports={scan,activate,freezeRules,hash,roots,target,config,sameIndex};

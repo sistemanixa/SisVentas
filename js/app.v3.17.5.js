@@ -49126,7 +49126,7 @@ function otEstadoParaMostrar(ot) {
 window.otEstadoParaMostrar = otEstadoParaMostrar;
 
 function otResumenDocumental(ot) {
-  if(ot?._svListSummary && ot._svListDocumental)return JSON.parse(JSON.stringify(ot._svListDocumental));
+  if(ot?._svListSummary && ot._svListDocumental)return Object.assign({faltantes:[]},JSON.parse(JSON.stringify(ot._svListDocumental)));
   ot = ot || {};
   if (!otEstaCerrada(ot)) return { completo:true, faltantes:[], fotos:0, firma:false };
   var notas = typeof otNotasNormalizadas === 'function' ? otNotasNormalizadas(ot) : [];
