@@ -31,6 +31,10 @@
     out.remoteTotalARS=remoteTotal(p);
     return {listId:last.fbKey,label:last.numero||last.ventaId||'',parameters:out};
   }
+  function currentLocalReference(providers,at,uid){
+    const selected=(providers||[]).filter(p=>p.exterior===false&&p.activo!==false&&Number.isFinite(p.costo)&&p.costo>0).sort((a,b)=>Number(b.disponible!==false)-Number(a.disponible!==false)||a.costo-b.costo)[0];
+    return selected?{amount:selected.costo,currency:'ARS',basis:'current',capturedAt:at,capturedBy:uid||'',providerKey:selected.proveedorKey||'',provider:selected.nombre||'',priceDate:selected.actualizado||''}:null;
+  }
   function productProviders(row,catalog){
     const product=(catalog||[]).find(p=>row.productKey?p.key===row.productKey:p.code===row.code);
     return (product?.providers||[]).filter((p,i,a)=>p.proveedorKey&&p.activo!==false&&a.findIndex(v=>v.proveedorKey===p.proveedorKey)===i);
@@ -250,7 +254,7 @@
     }).filter(r=>r.quantity>0);
     return {title,usdDecimals:2,rows};
   }
-  const api={previousExpenses,remoteTotal,tripTotal,hasExpenses,priceDifference,priceDifferenceTotals,orderForExport,pdfRows,revisePDF,purchaseGroups,equivalentAmount,initialize,calculateDraft,providerLink,agreedSummary,applySaleCosts,productProviders,selectProvider,selectExterior};
+  const api={currentLocalReference,previousExpenses,remoteTotal,tripTotal,hasExpenses,priceDifference,priceDifferenceTotals,orderForExport,pdfRows,revisePDF,purchaseGroups,equivalentAmount,initialize,calculateDraft,providerLink,agreedSummary,applySaleCosts,productProviders,selectProvider,selectExterior};
   if(typeof module!=='undefined')module.exports=api;
   if(!root.document)return;
   root.SVExteriorPreparation=api;
@@ -280,7 +284,7 @@
       const needsApply=!d.saved.exteriorAppliedAt && [...d.rows,...d.extras].some(r=>r.method==='exterior');
       const apply=frame.querySelector('[data-apply-exterior]');
       if(apply){apply.disabled=busy||frozen||![...d.rows,...d.extras].some(r=>r.method==='exterior'&&num(r.requestedQty??r.qty)>0);apply.textContent=busy?'Aplicando…':'Aplicar compra exterior';}
-      if(button){button.disabled=busy||(!dirty&&!needsApply);button.textContent=busy?'Guardando y aplicando…':'Guardar y aplicar';button.classList.toggle('ep-save-ready',dirty&&!busy);button.setAttribute('aria-busy',String(busy));}
+      if(button){button.disabled=busy||frozen||(!dirty&&!needsApply);button.textContent=busy?'Guardando y aplicando…':'Guardar y aplicar';button.classList.toggle('ep-save-ready',dirty&&!busy);button.setAttribute('aria-busy',String(busy));}
     }
     const priorFocus=document.activeElement;
     const owner=String(root.currentUserUid||'');
@@ -358,7 +362,7 @@
         const other=calculateDraft(Object.assign({},d,{chosen:d.chosen==='remote'?'onsite':'remote'}));
         body+='<details class="ep-box"><summary>Comparar envío y viaje</summary><div class="ep-row" style="margin-top:14px">'+'<span>Envío: ARS '+money(remoteTotal(p))+'</span><span>Viaje: ARS '+money(p.tripTotalARS)+'</span>'+'</div><p>Alternativa '+(d.chosen==='remote'?'viaje':'envío')+': $ '+money(other.result.orderTotal)+' para el pedido completo.'+(other.pending.length?' Estimación pendiente de completar.':'')+'</p><small>La modalidad elegida se cambia en Entrega y pago.</small></details>';
       }
-      frame.innerHTML='<header class="ep-head"><button class="btn btn-sm" data-close><i class="ti ti-arrow-left" aria-hidden="true"></i> Volver</button><div><h2>Preparar compra · '+esc(ctx.customer||ctx.saleId)+'</h2><small>'+(stockOnly?(d.rows.length+d.extras.length)+' productos para stock':d.rows.length+' productos de venta · '+d.extras.length+' extras')+'</small></div><button class="btn ep-review-button" data-next>Ver resumen</button></header><nav class="ep-tabs">'+[['products','Productos'],['delivery','Entrega y pago'],['summary','Resumen']].map(([k,t])=>'<button class="btn" data-tab="'+k+'" aria-selected="'+(tab===k)+'">'+t+'</button>').join('')+'<details class="ep-head-total ep-nav-total" data-agreed-total></details><div class="ep-export-slot" data-order-tools></div></nav><main class="ep-body">'+body+'</main><footer class="ep-foot '+(stockOnly?'ep-stock-foot':'')+'"><span role="status">'+esc(status)+'</span><div class="ep-profit" data-profit></div><div class="ep-foot-actions"><button class="btn btn-primary" data-save aria-live="polite">Guardar y aplicar</button>'+(tab==='summary'?'<button class="btn btn-primary" data-confirm '+(!s.complete?'disabled':'')+'>Confirmar compra</button>':'')+'</div></footer>';
+      frame.innerHTML='<header class="ep-head"><button class="btn btn-sm" data-close><i class="ti ti-arrow-left" aria-hidden="true"></i> Volver</button><div><h2>Preparar compra · '+esc(ctx.customer||ctx.saleId)+'</h2><small>'+(stockOnly?(d.rows.length+d.extras.length)+' productos para stock':d.rows.length+' productos de venta · '+d.extras.length+' extras')+'</small></div><button class="btn ep-review-button" data-next>Ver resumen</button></header><nav class="ep-tabs">'+[['products','Productos'],['delivery','Entrega y pago'],['summary','Resumen']].map(([k,t])=>'<button class="btn" data-tab="'+k+'" aria-selected="'+(tab===k)+'">'+t+'</button>').join('')+'<details class="ep-head-total ep-nav-total" data-agreed-total></details><div class="ep-export-slot" data-order-tools></div></nav><main class="ep-body">'+body+'</main><footer class="ep-foot '+(stockOnly?'ep-stock-foot':'')+'"><span role="status">'+esc(status)+'</span><div class="ep-profit" data-profit></div><div class="ep-foot-actions"><button class="btn btn-primary" data-save aria-live="polite">Guardar y aplicar</button>'+(tab==='summary'&&!frozen?'<button class="btn btn-primary" data-confirm '+(!s.complete?'disabled':'')+'>Confirmar compra</button>':'')+'</div></footer>';
       if(root.SVPurchaseOrderExport)root.SVPurchaseOrderExport.mount(frame.querySelector('[data-order-tools]'),{isCurrent:()=>el.isConnected&&String(root.currentUserUid||'')===owner&&!!root.permisoModulo?.('balancecompra'),getOrder:()=>orderForExport(d,'Pedido de compra'+(ctx.saleId?' · '+ctx.saleId:''),ctx.catalog)});
       refreshAmounts();refreshSaveState();
       if(tab==='summary')root.SisVentas?.prepareResizablePage?.(frame);
@@ -435,7 +439,7 @@
       if(!product||views.some(n=>!n)||typeof root.verProducto!=='function'){root.notify?.('No se encontró la ficha del producto.');return;}
       const host=document.createElement('section');host.setAttribute('role','dialog');host.setAttribute('aria-modal','true');host.setAttribute('aria-label','Ficha del producto de la compra');host.dataset.svEscapeOwner='';
       host.style.cssText='position:fixed;inset:0;z-index:11001;overflow:auto;background:var(--bg);color:var(--text);padding:20px';
-      host.innerHTML='<style>[aria-label="Ficha del producto de la compra"] #pf-anterior,[aria-label="Ficha del producto de la compra"] #pf-siguiente{display:none!important}</style>';
+      host.innerHTML='<style>[aria-label="Ficha del producto de la compra"] *{overscroll-behavior:auto!important}[aria-label="Ficha del producto de la compra"]{overscroll-behavior:contain}[aria-label="Ficha del producto de la compra"] #pf-anterior,[aria-label="Ficha del producto de la compra"] #pf-siguiente{display:none!important}</style>';
       const focus=document.activeElement;
       const nodes=views.map(node=>{const marker=document.createComment('retorno preparación');node.before(marker);const style=node.getAttribute('style');host.appendChild(node);return {node,marker,style};});
       const url=root.location.href;
@@ -462,7 +466,7 @@
       root.advertirStockProveedorFavorito?.(String(product.key));
       const options=product.providers||[],pv=options.find(p=>p.exterior&&p.activo!==false&&p.disponible!==false)||options.find(p=>p.activo!==false&&p.disponible!==false);
       const added={key:'extra-'+Date.now()+'-'+(++extraSequence),productKey:product.key,code:product.code,description:product.description,method:'local',destination:'stock',include:false,qty:1,agreed:'',reference:{amount:0,currency:'ARS'}};
-      selectProvider(added,pv);d.extras.push(added);dirty=true;searchTerm='';status='Producto agregado · '+d.extras.length+' en el pedido';render();
+      selectProvider(added,pv);const local=currentLocalReference(options,Date.now(),owner);if(local)added.localReference=local;d.extras.push(added);dirty=true;searchTerm='';status='Producto agregado · '+d.extras.length+' en el pedido';render();
       const input=searchInput?.isConnected?searchInput:frame.querySelector('[data-search]');
       if(input){input.value='';input.focus({preventScroll:true});}
       root.notify?.('Agregado para stock. Guardá la preparación para conservarlo.');
