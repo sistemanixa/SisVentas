@@ -1,3 +1,5 @@
+Estado vigente: publicado y verificado en v3.17.7 el 01/11/2026. El texto de preparación inferior es histórico; no representa un despliegue pendiente. Referencias antiguas de stock y medición de reposo: ver CONTEXTO_ACTUAL.
+
 # Precisión monetaria · candidata local · 01/11/2026
 
 Estado: no publicado. Producción no fue modificada. Las pruebas usan datos ficticios; no registran cobros, no emiten facturas, no recalculan históricos ni mueven stock.

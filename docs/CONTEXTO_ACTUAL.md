@@ -1,3 +1,11 @@
+# Seguimiento de cierre · 01/11/2026
+
+Producción continúa v3.17.7, sin nuevos despliegues. Respaldo remoto confirmado en origin/codex/auditoria-circuitos-v3170, SHA ff860620f4a56b6d6380eb89c06a2ce138cd75bc, sin avanzar main. Controlador sisventascostguard Ready/min0, presupuesto USD60 con PubSub y alertas USD30 comprobados por sólo lectura el 01/11. Quince pruebas focales ficticias aprobadas, incluida ejecución real del handler aislado en loopback; no se disparó suspensión remota. La dependencia existente se resolvió vía NODE_PATH; acceso loopback requirió sandbox elevado.
+
+Referencias históricas de stock: dos lecturas de resúmenes, 62296 bytes, 112 registros/41 órdenes. Hay27 referencias recuperables y20 registros con stock positivo sin compra general recibida elegible; no inventar referencias. Plan privado tmp/closure-20261101. Intento del primer registro mediante guard existente y auth de servicio rechazado en commit por permisos; lectura posterior confirmó ausencia de ambas referencias y bloqueo liberado. No repetir a ciegas ni ampliar reglas/impersonar usuario para forzarlo. Pendiente aplicar por circuito administrativo autorizado, con pares/concurrencia conservados. Cero cambios de cantidades, ventas, precios, cobros o comisiones.
+
+Reposo: se solicitó al titular cerrar todos los clientes y confirmar hora; todavía sin respuesta. No hay nuevo intervalo programado ni una medición que pueda considerarse reposo. Prueba de corte real no realizada; configuración remota y simulaciones no equivalen a un apagado productivo. Evidencia privada fueraGit/Hosting.
+
 # Publicación completada · v3.17.7 · 01/11/2026
 
 Hosting desde87f8ab6d0c64b73d45b12c9fc24a8b194fe7ef17, checkout público limpio .local/precision-v3177-public;538activos/26cargas.21archivos críticos idénticos al dominio, cabeceras seguras y3rutas privadas404. Script oficial verificó web/SW/marcador y actualizó/releyó sisventas/config/version=v3.17.7-firebase. Dashboard, Cobranzas, Comisiones y Compras recorridos en sesión admin, sólo lectura;0errores de navegador; Dashboard dejado abierto en IAB2/tab21. No se probó guardar finanzas reales.
