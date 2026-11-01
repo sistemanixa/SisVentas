@@ -1,3 +1,11 @@
+# Publicación completada · v3.17.7 · 01/11/2026
+
+Hosting desde87f8ab6d0c64b73d45b12c9fc24a8b194fe7ef17, checkout público limpio .local/precision-v3177-public;538activos/26cargas.21archivos críticos idénticos al dominio, cabeceras seguras y3rutas privadas404. Script oficial verificó web/SW/marcador y actualizó/releyó sisventas/config/version=v3.17.7-firebase. Dashboard, Cobranzas, Comisiones y Compras recorridos en sesión admin, sólo lectura;0errores de navegador; Dashboard dejado abierto en IAB2/tab21. No se probó guardar finanzas reales.
+
+Cotizador cotizador-precision3177-87f8ab6d100% y14accesos, recursos/env/identidad preservados. Función fiscal ACTIVE emitirfactura-00031-tom, recursos/secretos/configuración iguales;401anónimo. Dos validadores emparejados costoReferenciaStock aplicados tras autorización humana explícita del riesgo sinETag, doble lectura de reglas idénticas al respaldo y comprobación posterior. Todas las demás reglas y autorizaciones idénticas. Sin seed/migración ni pagos, facturas, comisiones o movimientos de stock como prueba. Nuevas recepciones conservarán su referencia de costo final por acción del usuario; históricos intactos. No pushGitHub en este bloque.
+
+Validación:6823PASS27opt-in0fallos,94backend,8reglas sobre base remota exacta, ValidarLocalPASS. Evidencia privada tmp/precision-release/final-publication.private.json y published-header.png. Reversiones técnicas conservadas en respaldos privados; no fueron necesarias. Rechazo automático anterior quedó resuelto por autorización del titular; publicación ya no está pendiente.
+
 # Publicación17.7 pendiente de aprobación de reglas · 01/11/2026
 
 Release revisada87f8ab6d0c64b73d45b12c9fc24a8b194fe7ef17, checkout público limpio .local/precision-v3177-public. Gate6823PASS27skip0fallos;8reglas sobre base remota exacta. BuildCotizador7f4bca48SUCCESS73.6s. Candidata cotizador-precision3177-87f8ab6dSINtráfico;401tres rutas;14tags anteriores y recursos/env preservados. Función fiscal desplegada ACTIVE emitirfactura-00031-tom; recursos/secretos/configuración iguales;401anónimo antes de datos/proveedor. Hosting y aviso SIGUEN17.6; Cotizador productivo anterior sigue100%. Sin pagos, emisiones ni stock como prueba; sin seed/migración.
