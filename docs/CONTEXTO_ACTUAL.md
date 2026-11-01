@@ -1,3 +1,7 @@
+# Publicación v3.17.7 autorizada · en preparación · 01/11/2026
+
+El titular autorizó publicar el bloque probado y verificar web sin pagos de prueba ni datos reales. Estimación comunicada menorUSD1 total, mismos servicios/min0 y sin relojes nuevos. Cliente inmutable17.7 preparado;17.6 restaurado a los bytes publicados. Gate6823PASS27opt-in0fallos, ValidarLocalPASS y8pruebas de reglas con la base remota exacta más sólo los dos campos emparejados de costoReferenciaStock. No hay seed ni migración de inventario/históricos; el nuevo campo lo conservan recepciones futuras por acción del usuario. Falta construir/activar servidores, reglas y Hosting, verificar dominio y aviso oficial. No declarar publicado por este commit.
+
 # Auditoría monetaria · candidata validada en local · 01/11/2026
 
 NO publicada ni aplicada a registros reales. Producción permanece v3.17.6. Se conserva el formulario real de cobranza; no se registró el pago ni se emitieron documentos ni se movió stock. El titular confirmó correctos los importes de ambas órdenes Flytec: intactos.

@@ -4173,7 +4173,7 @@ function _habCrearFilas(mesISO) {
     var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
     var valorHora = cargoInfo ? _cargoValorHoraParaMes(cargoInfo, mesISO) : 0;
     var diasMes = cargoInfo ? (parseFloat(cargoInfo.diasMes) || 0) : 0;
-    var sueldo = window.SVCommercialMoney.product(valorHora,8,diasMes);
+    var sueldo = Math.round(valorHora * 8 * diasMes);
     return { e:e, sueldo:sueldo, bonificacion:0, total:sueldo, cargoInfo:cargoInfo, valorHora:valorHora, diasMes:diasMes };
   });
 }
@@ -4762,7 +4762,7 @@ function _hsexConsolidarDetalle(detalles) {
     if (!fecha || horas <= 0) return;
     var clave = fecha + '|' + lugar.toLowerCase();
     if (!porDiaLugar[clave]) porDiaLugar[clave] = { fecha:fecha, horas:0, lugar:lugar };
-    porDiaLugar[clave].horas = window.SVCommercialMoney.quantitySum([porDiaLugar[clave].horas,horas]);
+    porDiaLugar[clave].horas += horas;
   });
   return Object.values(porDiaLugar).sort(function(a,b){ return a.fecha.localeCompare(b.fecha); });
 }
@@ -4803,11 +4803,11 @@ function _hsexAgruparPendientes(pendientes) {
     if (!grupos[clave]) grupos[clave] = { id:clave, empFbKey:s.empFbKey, empNombre:s.empNombre, mes:mes, solicitudes:[], detalleDias:[], horas:0 };
     grupos[clave].solicitudes.push(s);
     grupos[clave].detalleDias = grupos[clave].detalleDias.concat(Array.isArray(s.detalleDias) ? s.detalleDias : []);
-    grupos[clave].horas = window.SVCommercialMoney.quantitySum([grupos[clave].horas,parseFloat(s.horas)||0]);
+    grupos[clave].horas += parseFloat(s.horas) || 0;
   });
   return Object.values(grupos).map(function(g) {
     g.detalleDias = _hsexConsolidarDetalle(g.detalleDias);
-    if (g.detalleDias.length) g.horas = window.SVCommercialMoney.quantitySum(g.detalleDias.map(function(d){return parseFloat(d.horas)||0;}));
+    if (g.detalleDias.length) g.horas = g.detalleDias.reduce(function(total,d){ return total + (parseFloat(d.horas)||0); }, 0);
     return g;
   }).sort(function(a,b){ return (b.mes||'').localeCompare(a.mes||'') || String(a.empNombre||'').localeCompare(String(b.empNombre||'')); });
 }
@@ -5107,7 +5107,7 @@ async function _abrirPanelAprobacionHsExtraLegacy() {
   var filas = pendientes.length ? pendientes.map(function(s) {
     var emp = Object.values(empData||{}).find(function(e){ return e.fbKey === s.empFbKey; });
     var cargoInfo = emp && emp.cargoId ? CARGOS_DATA[emp.cargoId] : null;
-    var monto = window.SVCommercialMoney.product((s.horas||0),(cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0));
+    var monto = Math.round((s.horas||0) * (cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0));
     return '<tr style="border-bottom:0.5px solid var(--border)">' +
       '<td style="padding:10px 8px"><div style="font-weight:600;font-size:13px">' + escapeHTML(s.empNombre||'') + '</div><div style="font-size:11px;color:var(--text3)">' + escapeHTML(s.fecha||'') + '</div></td>' +
       '<td style="padding:10px 8px;text-align:center;font-weight:600;color:var(--amber)">' + s.horas + ' hs</td>' +
@@ -5285,7 +5285,7 @@ async function abrirPanelAprobacionHsExtra() {
     g.cargoId = (emp && emp.cargoId) || '';
     g.cargoNombre = cargoInfo ? (cargoInfo.nombre || g.cargoId) : '';
     g.valorHora = cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0;
-    g.monto = window.SVCommercialMoney.product((g.horas||0),g.valorHora);
+    g.monto = Math.round((g.horas||0) * g.valorHora);
     totalHoras += g.horas || 0;
     totalMonto += g.monto || 0;
     window._hsExtraGruposPendientes[g.uiId] = g;
@@ -5376,7 +5376,7 @@ async function aprobarHsExtra(solFbKey) {
   if (!s) { notify('Solicitud no encontrada'); return; }
   var emp = Object.values(empData||{}).find(function(e){ return e.fbKey === s.empFbKey; });
   var cargoInfo = emp && emp.cargoId ? CARGOS_DATA[emp.cargoId] : null;
-  var monto = window.SVCommercialMoney.product((s.horas||0),(cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0));
+  var monto = Math.round((s.horas||0) * (cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0));
   window._hsExtraAprobando[solFbKey] = true;
   try {
     await _aprobarHsExtraAtomico(solFbKey, monto);
@@ -5589,10 +5589,10 @@ function _calcularFilasAguinaldo(empleados, habData, anio, sem) {
     });
     if (mejorSueldo === 0) {
       var cargoInfo = e.cargoId ? CARGOS_DATA[e.cargoId] : null;
-      mejorSueldo = cargoInfo ? window.SVCommercialMoney.product((parseFloat(cargoInfo.valorHora)||0),8,(parseFloat(cargoInfo.diasMes)||0)) : 0;
+      mejorSueldo = cargoInfo ? Math.round((parseFloat(cargoInfo.valorHora)||0) * 8 * (parseFloat(cargoInfo.diasMes)||0)) : 0;
     }
     var mesesTrabajados = _mesesTrabajadosEnSemestre(e.fechaIngreso, anio, sem);
-    var aguinaldoTotal = window.SVCommercialMoney.quotient(window.SVCommercialMoney.rawProduct(mejorSueldo,mesesTrabajados),12);
+    var aguinaldoTotal = Math.round(((mejorSueldo / 12) * mesesTrabajados) * 100) / 100;
 
     // Aplicar límite máximo
     var aguinaldo = aguinaldoTotal;
@@ -7345,7 +7345,7 @@ function _svResumenPagoVentaDesdeLista(venta, listaPagos) {
   var total = _svTotalVentaCanonico(venta);
   return {
     pagado: Math.min(total > 0 ? total : pagado, Math.round(pagado * 100) / 100),
-    estadoPago: total > 0 && Math.round(pagado*100) >= Math.round(total*100) ? 'pago_total' : pagado > 0 ? 'seniado' : 'pendiente_pago'
+    estadoPago: total > 0 && pagado >= total - 0.01 ? 'pago_total' : pagado > 0 ? 'seniado' : 'pendiente_pago'
   };
 }
 
@@ -7602,7 +7602,7 @@ async function _svCargaOperacion_registrarCobrosCanonicos(opciones) {
       }
       updates['pagos/' + pagoKey] = pago;
       updates['ventas/' + s.ventaFbKey + '/totalPagado'] = nuevoPagado;
-      updates['ventas/' + s.ventaFbKey + '/estadoPago'] = Math.round(nuevoPagado*100) >= Math.round(totalVenta*100) ? 'pago_total' : 'seniado';
+      updates['ventas/' + s.ventaFbKey + '/estadoPago'] = nuevoPagado >= totalVenta - 0.01 ? 'pago_total' : 'seniado';
       pagoKeysGuardados[pagoKey] = true;
       confirmados.push({pago:pago,venta:Object.assign({},ventaConKey,{totalPagado:nuevoPagado,estadoPago:updates['ventas/' + s.ventaFbKey + '/estadoPago']})});
     });
@@ -8702,12 +8702,12 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
   // una factura electrónica gravada, ARCA debe recibir ese neto más su IVA;
   // nunca se debe forzar el total comercial a que parezca un total con IVA.
   var resumenFiscal = resumenFiscalParaComprobanteVenta(venta, tipoComprobante);
-  var totalEsperado = SVCommercialMoney.amount(Number(resumenFiscal.total));
+  var totalEsperado = Math.round((Number(resumenFiscal.total) + Number.EPSILON) * 100) / 100;
   var originales = Array.isArray(venta.items) ? venta.items : Object.values(venta.items || {});
   var lineas = originales.map(function(item, indice) {
     var normalizado = pptoNormalizarItemGuardado(item);
     var cantidad = normalizado.qty > 0 ? normalizado.qty : 1;
-    var importeBase = SVCommercialMoney.line(cantidad,normalizado.punit,normalizado.disc)/100;
+    var importeBase = cantidad * normalizado.punit * (1 - normalizado.disc / 100);
     return {
       original: item,
       indice: indice,
@@ -8723,7 +8723,7 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
   var factor = totalEsperado / sumaBase;
   var itemsFiscal = lineas.map(function(linea) {
     var original = linea.original || {};
-    var precioFinal = SVCommercialMoney.ratio([linea.importeBase,totalEsperado],[sumaBase,linea.cantidad]);
+    var precioFinal = Math.round(((linea.importeBase * factor) / linea.cantidad + Number.EPSILON) * 100) / 100;
     return Object.assign({}, original, {
       qty: linea.cantidad,
       cantidad: linea.cantidad,
@@ -8735,13 +8735,15 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
       descuento: 0,
       descuentoPct: 0,
       porcentajeDescuento: 0,
-      sub: SVCommercialMoney.product(linea.cantidad,precioFinal)
+      sub: Math.round((linea.cantidad * precioFinal + Number.EPSILON) * 100) / 100
     });
   });
 
-  var totalLineas = SVCommercialMoney.amount(SVCommercialMoney.quantitySum(itemsFiscal.map(function(item){return SVCommercialMoney.rawProduct(Number(item.qty)||0,Number(item.punit)||0);})));
-  totalLineas = SVCommercialMoney.amount(totalLineas);
-  var diferencia = SVCommercialMoney.sum([totalEsperado,-totalLineas]);
+  var totalLineas = itemsFiscal.reduce(function(total, item) {
+    return total + (Number(item.qty) || 0) * (Number(item.punit) || 0);
+  }, 0);
+  totalLineas = Math.round((totalLineas + Number.EPSILON) * 100) / 100;
+  var diferencia = Math.round(((totalEsperado - totalLineas) + Number.EPSILON) * 100) / 100;
 
   // Se ajusta preferentemente un renglón de cantidad 1 para conservar el
   // precio unitario a dos decimales. Si todas las cantidades son múltiples,
@@ -8753,7 +8755,7 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
       if (Number(itemsFiscal[i].qty) === 1) { indiceUnitario = i; break; }
     }
     if (indiceUnitario >= 0) {
-      var corregido = SVCommercialMoney.sum([Number(itemsFiscal[indiceUnitario].punit)||0,diferencia]);
+      var corregido = Math.round(((Number(itemsFiscal[indiceUnitario].punit) || 0) + diferencia + Number.EPSILON) * 100) / 100;
       itemsFiscal[indiceUnitario].punit = corregido;
       itemsFiscal[indiceUnitario].precio = corregido;
       itemsFiscal[indiceUnitario].precioUnitario = corregido;
@@ -8764,13 +8766,13 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
       var itemMultiple = itemsFiscal[indiceMultiple];
       var cantidadMultiple = Number(itemMultiple.qty) || 0;
       var precioMultiple = Number(itemMultiple.punit) || 0;
-      var precioUltimaUnidad = SVCommercialMoney.sum([precioMultiple,diferencia]);
+      var precioUltimaUnidad = Math.round((precioMultiple + diferencia + Number.EPSILON) * 100) / 100;
       if (!(cantidadMultiple > 1) || !(precioUltimaUnidad > 0)) {
         throw new Error('No se pudo distribuir el ajuste fiscal de ' + importeComprobanteVenta(diferencia));
       }
       itemMultiple.qty = cantidadMultiple - 1;
       itemMultiple.cantidad = cantidadMultiple - 1;
-      itemMultiple.sub = SVCommercialMoney.product(cantidadMultiple-1,precioMultiple);
+      itemMultiple.sub = Math.round(((cantidadMultiple - 1) * precioMultiple + Number.EPSILON) * 100) / 100;
       itemsFiscal.splice(indiceMultiple + 1, 0, Object.assign({}, itemMultiple, {
         qty: 1,
         cantidad: 1,
@@ -8783,8 +8785,10 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
     }
   }
 
-  var totalPreparado = SVCommercialMoney.amount(SVCommercialMoney.quantitySum(itemsFiscal.map(function(item){return SVCommercialMoney.rawProduct(Number(item.qty)||0,Number(item.punit)||0);})));
-  totalPreparado = SVCommercialMoney.amount(totalPreparado);
+  var totalPreparado = itemsFiscal.reduce(function(total, item) {
+    return total + (Number(item.qty) || 0) * (Number(item.punit) || 0);
+  }, 0);
+  totalPreparado = Math.round((totalPreparado + Number.EPSILON) * 100) / 100;
   if (Math.abs(totalPreparado - totalEsperado) > 0.009) {
     throw new Error('Los renglones fiscales suman ' + importeComprobanteVenta(totalPreparado) + ' y la venta totaliza ' + importeComprobanteVenta(totalEsperado));
   }
@@ -8792,14 +8796,14 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
   // También se fija explícitamente el precio fiscal sin IVA que consumirá la
   // función del servidor. No se vuelve a inferir desde el precio con IVA: esa
   // ida y vuelta era la segunda fuente de diferencias de centavos.
-  var netoFiscalBase = SVCommercialMoney.quotient(totalEsperado,1.21);
+  var netoFiscalBase = Math.round(((totalEsperado / 1.21) + Number.EPSILON) * 100) / 100;
   var netoFiscal = null;
   // No todos los totales se reconstruyen con el primer centavo que surge de
   // dividir por 1,21. Se prueban los centavos vecinos y se conserva el más
   // cercano que, al volver a aplicar IVA, reproduce exactamente la venta.
   for (var desplazamientoNeto = -3; desplazamientoNeto <= 3; desplazamientoNeto++) {
-    var candidatoNeto = SVCommercialMoney.sum([netoFiscalBase,desplazamientoNeto/100]);
-    var totalCandidato = SVCommercialMoney.product(candidatoNeto,1.21);
+    var candidatoNeto = Math.round(((netoFiscalBase + desplazamientoNeto / 100) + Number.EPSILON) * 100) / 100;
+    var totalCandidato = Math.round(((candidatoNeto * 1.21) + Number.EPSILON) * 100) / 100;
     if (Math.abs(totalCandidato - totalEsperado) <= 0.009 && (netoFiscal === null || Math.abs(candidatoNeto - totalEsperado / 1.21) < Math.abs(netoFiscal - totalEsperado / 1.21))) {
       netoFiscal = candidatoNeto;
     }
@@ -8807,36 +8811,29 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
   if (netoFiscal === null) throw new Error('El total de la venta no puede discriminarse con IVA al centavo');
   var factorNeto = netoFiscal / totalPreparado;
   itemsFiscal.forEach(function(item) {
-    item.precioUnitarioSinIvaFiscal = SVCommercialMoney.ratio([Number(item.punit)||0,netoFiscal],[totalPreparado]);
+    item.precioUnitarioSinIvaFiscal = Math.round((((Number(item.punit) || 0) * factorNeto) + Number.EPSILON) * 100) / 100;
   });
-  var netoLineas = SVCommercialMoney.amount(SVCommercialMoney.quantitySum(itemsFiscal.map(function(item){return SVCommercialMoney.rawProduct(Number(item.qty)||0,Number(item.precioUnitarioSinIvaFiscal)||0);})));
-  netoLineas = SVCommercialMoney.amount(netoLineas);
-  var diferenciaNeto = SVCommercialMoney.sum([netoFiscal,-netoLineas]);
+  var netoLineas = itemsFiscal.reduce(function(total, item) {
+    return total + (Number(item.qty) || 0) * (Number(item.precioUnitarioSinIvaFiscal) || 0);
+  }, 0);
+  netoLineas = Math.round((netoLineas + Number.EPSILON) * 100) / 100;
+  var diferenciaNeto = Math.round(((netoFiscal - netoLineas) + Number.EPSILON) * 100) / 100;
   if (Math.abs(diferenciaNeto) >= 0.01) {
     var indiceAjusteNeto = -1;
     for (var j = itemsFiscal.length - 1; j >= 0; j--) {
       if (Number(itemsFiscal[j].qty) === 1) { indiceAjusteNeto = j; break; }
     }
-    if (indiceAjusteNeto < 0) {
-      var multipleNeto = itemsFiscal[itemsFiscal.length - 1];
-      var cantidadNeto = Number(multipleNeto.qty) || 0;
-      if (!(cantidadNeto > 1)) throw new Error('No se pudo cerrar el neto fiscal al centavo');
-      // La misma mercadería conserva cantidad y precio final; separar la última
-      // unidad permite asignarle el centavo residual del neto sin alterar la venta.
-      multipleNeto.qty = cantidadNeto - 1;
-      multipleNeto.cantidad = cantidadNeto - 1;
-      multipleNeto.sub = SVCommercialMoney.product(multipleNeto.qty,Number(multipleNeto.punit));
-      itemsFiscal.push(Object.assign({},multipleNeto,{qty:1,cantidad:1,sub:Number(multipleNeto.punit)}));
-      indiceAjusteNeto = itemsFiscal.length - 1;
-    }
-    itemsFiscal[indiceAjusteNeto].precioUnitarioSinIvaFiscal = SVCommercialMoney.sum([Number(itemsFiscal[indiceAjusteNeto].precioUnitarioSinIvaFiscal)||0,diferenciaNeto]);
+    if (indiceAjusteNeto < 0) throw new Error('No se pudo cerrar el neto fiscal al centavo');
+    itemsFiscal[indiceAjusteNeto].precioUnitarioSinIvaFiscal = Math.round(((Number(itemsFiscal[indiceAjusteNeto].precioUnitarioSinIvaFiscal) || 0) + diferenciaNeto + Number.EPSILON) * 100) / 100;
   }
-  var netoPreparado = SVCommercialMoney.amount(SVCommercialMoney.quantitySum(itemsFiscal.map(function(item){return SVCommercialMoney.rawProduct(Number(item.qty)||0,Number(item.precioUnitarioSinIvaFiscal)||0);})));
-  var totalFiscalCalculado = SVCommercialMoney.product(netoPreparado,1.21);
+  var netoPreparado = Math.round((itemsFiscal.reduce(function(total, item) {
+    return total + (Number(item.qty) || 0) * (Number(item.precioUnitarioSinIvaFiscal) || 0);
+  }, 0) + Number.EPSILON) * 100) / 100;
+  var totalFiscalCalculado = Math.round(((netoPreparado * 1.21) + Number.EPSILON) * 100) / 100;
   if (Math.abs(netoPreparado - netoFiscal) > 0.009 || Math.abs(totalFiscalCalculado - totalEsperado) > 0.009) {
     throw new Error('El neto fiscal no permite reproducir exactamente el total de la venta');
   }
-  var ivaFiscal = SVCommercialMoney.sum([totalEsperado,-netoFiscal]);
+  var ivaFiscal = Math.round(((totalEsperado - netoFiscal) + Number.EPSILON) * 100) / 100;
   return {
     venta: Object.assign({}, venta, {
       items: itemsFiscal,
@@ -17196,8 +17193,8 @@ function costoEnvioProveedorProducto(pv) {
   try {
     if (!/^(?:www\.|mobile\.)?(?:comprasparaguai\.com\.br|comprasparaguay\.com\.ar|flytec\.com\.py|nissei\.com|shoppingchina\.com\.py)$/.test(new URL(pv.url).hostname)) return 0;
   } catch (_) { return 0; }
-  var envio = Number.isFinite(pv.costoEnvioUSD) ? window.SVCommercialMoney.product(pv.costoEnvioUSD, obtenerDolarReferenciaProducto().valor) : Number(pv.costoEnvioArs);
-  return Number.isFinite(envio) && envio > 0 ? window.SVCommercialMoney.amount(envio) : 0;
+  var envio = Number.isFinite(pv.costoEnvioUSD) ? Math.round(pv.costoEnvioUSD * obtenerDolarReferenciaProducto().valor) : Number(pv.costoEnvioArs);
+  return Number.isFinite(envio) && envio > 0 ? Math.round(envio * 100) / 100 : 0;
 }
 
 function costoRealProveedorProducto(pv, ivaProducto) {
@@ -19590,7 +19587,7 @@ function abrirRevisionManoObra() {
     d.querySelector('#mo-anterior').textContent=money(ventaOriginal*(1+iva/100));
     function actualizar(origen){
       var costo=Number(costoInput.value),venta=Number(input.value);
-      if(origen==='recargo'&&margenInput.value!==''&&Number.isFinite(Number(margenInput.value)))margenInput.value=String(Number(margenInput.value));
+      if(origen==='recargo'&&margenInput.value!==''&&Number.isFinite(Number(margenInput.value)))margenInput.value=String(Math.round(Number(margenInput.value)));
       if(origen==='costo'||origen==='recargo'){venta=Math.round((costo*(1+Number(margenInput.value)/100)+1e-9)*100)/100;input.value=venta.toFixed(2);}
       else if(origen==='venta')margenInput.value=costo>0?String(Math.round((venta/costo-1)*100)):'0';
       if(costoInput.value!==''&&costo===0){venta=0;input.value='0.00';margenInput.value='0';}
@@ -24898,12 +24895,12 @@ function calcSaldoTrasCobranza() {
   var nuevo = Math.max(0, estado.saldo - estado.montoARS);
   const el=document.getElementById('cob-nuevo-saldo');
   el.value='$'+nuevo.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  el.style.color=Math.round(estado.montoARS*100) > Math.round(estado.saldo*100) ? 'var(--red)' : (nuevo===0?'var(--green)':'var(--amber)');
+  el.style.color=estado.montoARS > estado.saldo + 0.01 ? 'var(--red)' : (nuevo===0?'var(--green)':'var(--amber)');
   var equiv = document.getElementById('cob-equivalente-ars');
   var detalle = document.getElementById('cob-equivalente-detalle');
   if (equiv) {
     equiv.textContent = '$' + estado.montoARS.toLocaleString('es-AR',{maximumFractionDigits:2}) + ' ARS';
-    equiv.style.color = Math.round(estado.montoARS*100) > Math.round(estado.saldo*100) ? 'var(--red)' : 'var(--green)';
+    equiv.style.color = estado.montoARS > estado.saldo + 0.01 ? 'var(--red)' : 'var(--green)';
   }
   if (detalle) detalle.textContent = estado.tipoCambio > 0
     ? 'USD ' + estado.montoOriginal.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' × $' + estado.tipoCambio.toLocaleString('es-AR',{maximumFractionDigits:2})
@@ -28714,7 +28711,7 @@ function abrirDetalleReporteVentas(tipo, claveCodificada) {
   if (tipo === 'pendientes' || tipo === 'cobradas') ventas = ventas.filter(function(v) {
     var resumen = typeof _svResumenPagoVentaDesdeLista === 'function' ? _svResumenPagoVentaDesdeLista(v, pagos) : { pagado:0 };
     var pagado = Math.max(0, parseFloat(resumen.pagado) || 0);
-    var pendiente = Math.round(_svTotalVentaCanonico(v)*100) > Math.round(pagado*100);
+    var pendiente = _svTotalVentaCanonico(v) - pagado > 0.01;
     return tipo === 'pendientes' ? pendiente : pagado > 0.01;
   });
   if (tipo === 'producto') ventas = ventas.filter(function(v) {
@@ -28872,7 +28869,7 @@ function renderReportes() {
   if(alerta){alerta.style.display=ventasSinResponsable.length?'block':'none';alerta.innerHTML=ventasSinResponsable.length?'<div style="padding:11px 13px;border:1px solid var(--red);border-radius:10px;background:var(--red-bg);color:var(--red);font-size:12px"><strong><i class="ti ti-alert-triangle"></i> '+ventasSinResponsable.length+' ventas requieren responsable</strong><div style="margin-top:5px">'+ventasSinResponsable.map(function(v){return escapeHTML(v.id||v.fbKey||'Venta');}).join(' · ')+'</div></div>':'';}
   var pagosReporte=Array.isArray(window._historialPagosCompleto)?window._historialPagosCompleto:[];
   var cobrado=0, pendientes=0;
-  ventasMes.forEach(function(v){var resumen=typeof _svResumenPagoVentaDesdeLista==='function'?_svResumenPagoVentaDesdeLista(v,pagosReporte):{pagado:0};var total=_svTotalVentaCanonico(v),pagado=Math.min(total,Math.max(0,parseFloat(resumen.pagado)||0));cobrado+=pagado;if(Math.round(total*100)>Math.round(pagado*100))pendientes++;});
+  ventasMes.forEach(function(v){var resumen=typeof _svResumenPagoVentaDesdeLista==='function'?_svResumenPagoVentaDesdeLista(v,pagosReporte):{pagado:0};var total=_svTotalVentaCanonico(v),pagado=Math.min(total,Math.max(0,parseFloat(resumen.pagado)||0));cobrado+=pagado;if(total-pagado>0.01)pendientes++;});
   var saldo=Math.max(0,totalMes-cobrado),pct=totalMes>0?Math.round(cobrado/totalMes*1000)/10:0;
   if(_e('rep-cobrado'))_e('rep-cobrado').textContent=montoReporte(cobrado);
   if(_e('rep-pendiente'))_e('rep-pendiente').textContent=montoReporte(saldo);
@@ -29643,7 +29640,7 @@ function resumenEconomicoComprobanteVenta(venta) {
     descuentoGeneralPct = descuento / subtotalBruto * 100;
   }
 
-  var redondear = function(valor) { return SVCommercialMoney.amount(numero(valor)); };
+  var redondear = function(valor) { return Math.round((numero(valor) + Number.EPSILON) * 100) / 100; };
   return {
     subtotalItems: redondear(subtotalItemsConDescuento),
     descuentoGeneralMonto: redondear(subtotalItemsConDescuento - subtotalNeto > 0.5 ? subtotalItemsConDescuento - subtotalNeto : 0),
@@ -29770,16 +29767,16 @@ function resumenFiscalParaComprobanteVenta(venta, tipoComprobante) {
 
   if (esComprobanteFiscal && venta && venta.conIva === false) {
     neto = comercial.total;
-    iva = SVCommercialMoney.percentage(neto,21);
+    iva = Math.round((neto * 0.21 + Number.EPSILON) * 100) / 100;
     aplicaIva = true;
   }
-  var total = SVCommercialMoney.sum([neto,iva]);
+  var total = Math.round(((neto + iva) + Number.EPSILON) * 100) / 100;
   return {
     subtotalBruto: comercial.subtotalBruto,
     descuento: comercial.descuento,
     descuentoGeneralPct: comercial.descuentoGeneralPct,
-    subtotalNeto: SVCommercialMoney.amount(neto),
-    iva: SVCommercialMoney.amount(iva),
+    subtotalNeto: Math.round((neto + Number.EPSILON) * 100) / 100,
+    iva: Math.round((iva + Number.EPSILON) * 100) / 100,
     aplicaIva: aplicaIva,
     total: total,
     totalComercial: comercial.total
@@ -33034,7 +33031,7 @@ function _ctaEmpEstadoDesdeGasto(g) {
   if (tipo === 'comision' || tipo === 'bonificacion') {
     var monto = parseFloat(g.monto) || 0;
     var pagado = totalPagadoGasto(g);
-    if (monto > 0 && Math.round(pagado * 100) >= Math.round(monto * 100)) return 'pagado';
+    if (monto > 0 && pagado >= monto - 0.01) return 'pagado';
     if (pagado > 0) return 'pagado_parcial';
     // `pendiente_pago` existe también antes de la aprobación; la evidencia
     // válida es la marca explícita que guarda el administrador al aprobar.
@@ -33542,7 +33539,7 @@ function _movEmpEstadoCalculado(m) {
 
   var monto = parseFloat(m.monto) || 0;
   var pagado = _movEmpTotalPagado(m);
-  if (monto > 0 && Math.round(pagado * 100) >= Math.round(monto * 100)) return 'pagado';
+  if (monto > 0 && pagado >= monto - 0.01) return 'pagado';
   if (pagado > 0) return 'pagado_parcial';
   if (est === 'aprobado' || est === 'aprobada') return 'aprobado';
   return 'pendiente';
@@ -35498,7 +35495,7 @@ function registrarPago() {
   if (!venta) { notify('Seleccioná una venta'); return; }
   if (!estadoMonto.montoOriginal || !monto) { notify('Ingresá un monto'); return; }
   if (estadoMonto.moneda === 'USD' && estadoMonto.tipoCambio <= 0) { notify('Ingresá una cotización válida para el cobro en dólares'); return; }
-  if (Math.round(estadoMonto.montoARS*100) > Math.round(estadoMonto.saldo*100)) { notify('El monto imputado supera el saldo pendiente. Usá “Saldo total” o corregí el importe.'); return; }
+  if (estadoMonto.montoARS > estadoMonto.saldo + 0.01) { notify('El monto imputado supera el saldo pendiente. Usá “Saldo total” o corregí el importe.'); return; }
   if (!medio) { notify('Seleccioná un medio de pago'); if (medioEl) medioEl.focus(); return; }
   if (!window.fbDB) { notify('Sin conexión'); return; }
 
@@ -35655,7 +35652,7 @@ function imprimirRecibo() {
     '<p>Importe de este pago <strong>'+dineroRecibo(importeRecibo)+'</strong></p>' +
     '<p>Total abonado acumulado <strong>'+(totalRecibo !== null && saldoLuegoRecibo !== null ? dineroRecibo(Math.max(0,totalRecibo-saldoLuegoRecibo)) : 'No registrado')+'</strong></p>' +
     '<p class="saldo">Saldo pendiente <strong>'+(saldoLuegoRecibo !== null ? dineroRecibo(saldoLuegoRecibo) : 'No registrado')+'</strong></p>' +
-    '<p class="estado">'+(saldoLuegoRecibo === null ? 'Este pago antiguo no conserva el saldo histórico.' : Math.round(saldoLuegoRecibo*100) <= 0 ? 'Venta saldada' : 'Pago parcial · queda saldo por abonar')+'</p></section>';
+    '<p class="estado">'+(saldoLuegoRecibo === null ? 'Este pago antiguo no conserva el saldo histórico.' : saldoLuegoRecibo <= 0.01 ? 'Venta saldada' : 'Pago parcial · queda saldo por abonar')+'</p></section>';
   var pagoEsUSD = String(pago.moneda||'').toUpperCase() === 'USD' || parseFloat(pago.montoUSD) > 0;
   var montoUSDRecibo = parseFloat(pago.montoUSD || pago.montoOriginal) || 0;
   var tcRecibo = parseFloat(pago.tipoCambio) || 0;
@@ -42532,8 +42529,8 @@ function abrirLegajoEmpleado(fbKey) {
   var ultimaBaja = emp.activo === false ? _empleadoUltimaBaja(emp) : null;
   var estadoTxt = emp.activo !== false ? 'Activo' : (ultimaBaja ? 'Baja: ' + (ultimaBaja.motivo || 'Sin motivo') + ' · ' + (ultimaBaja.fecha || 'Sin fecha') : 'Inactivo');
   var cargoInfo = emp.cargoId ? CARGOS_DATA[emp.cargoId] : null;
-  var mensualCargo = cargoInfo ? window.SVCommercialMoney.product((parseFloat(cargoInfo.valorHora)||0),8,(parseFloat(cargoInfo.diasMes)||0)) : 0;
-  var horaExtraCargo = cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0;
+  var mensualCargo = cargoInfo ? Math.round((parseFloat(cargoInfo.valorHora)||0)*8*(parseFloat(cargoInfo.diasMes)||0)) : 0;
+  var horaExtraCargo = cargoInfo ? Math.round(parseFloat(cargoInfo.valorHoraExtra)||0) : 0;
   var verConfiguracionComision=currentRole==='admin'&&!window._impersonacionOriginal;
   var comisionEmpleado = verConfiguracionComision && typeof obtenerDetalleComisionEmpleado === 'function' ? obtenerDetalleComisionEmpleado(emp) : {pct:0,origen:''};
   var modal = document.getElementById('modal-nuevo');
@@ -43480,7 +43477,7 @@ async function spConfirmarResolucionVisita(reclamoKey, ventaKey, codigoVisita, m
     var ventaUpdate = {
       items:items, subtotal:_redondearPrecioActual(subtotal), iva:iva, total:total,
       descuento:descuento, descuentoPctEfectivo:brutoTotal>0?Math.round(descuento/brutoTotal*10000)/100:0,
-      estadoPago:Math.round(total*100)===0?'sin_cargo':(venta.estadoPago === 'sin_cargo'?'pendiente_pago':(venta.estadoPago||'pendiente_pago')),
+      estadoPago:total <= 0.01?'sin_cargo':(venta.estadoPago === 'sin_cargo'?'pendiente_pago':(venta.estadoPago||'pendiente_pago')),
       manoObraPostVenta:bonificada?'bonificada_100':'con_cargo', audit:audit
     };
     Object.assign(ventaUpdate,SVCommercialApproval.recalculateSale(venta,items));
@@ -43608,7 +43605,7 @@ async function _migrarPagablesLegacyAGastos() {
       var monto = _pagableNormMonto(sol.monto || 0);
       if (monto <= 0) {
         var cargoInfo = emp && emp.cargoId ? (CARGOS_DATA||{})[emp.cargoId] : null;
-        monto = window.SVCommercialMoney.product((parseFloat(sol.horas)||0),(cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0));
+        monto = Math.round((parseFloat(sol.horas)||0) * (cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0));
       }
       if (monto <= 0) return;
       var fecha = sol.aprobadoTs
@@ -44213,7 +44210,7 @@ function normalizarEstadoGasto(g) {
   if (est === 'rechazado' || est === 'anulado') return est;
   var monto = parseFloat(g && g.monto) || 0;
   var pagado = totalPagadoGasto(g);
-  if (monto > 0 && Math.round(pagado * 100) >= Math.round(monto * 100)) return 'pagado';
+  if (monto > 0 && pagado >= monto - 0.01) return 'pagado';
   if (pagado > 0) return 'pagado_parcial';
   var esComision = String((g && (g.tipoPagable || g.origen)) || '').toLowerCase() === 'comision';
   var tieneAprobacion = !!(g && (g.aprobadoTs || g.aprobadoPor || g.fechaAprobacion));
@@ -45053,7 +45050,7 @@ async function _guardarGastoCompletoAtomico(vista, key, datos, foto) {
       var refs = _gastoMovimientosDesdeValores(valores,cuentas,actual,key,true), medioAnterior = actual.medio;
       var cambiaMonto = Number(datos.monto)!==Number(actual.monto), cambiaEmpleado = String(datos.empleadoId || '')!==String(actual.empleadoId || actual.empleadoFbKey || '');
       if (cambiaMonto && String(actual.estado || '').toLowerCase()==='pagado' && !Object.keys(actual.pagos || {}).length) throw new Error('El importe de este gasto pagado histórico debe corregirse desde Historial de pagos.');
-      if (cambiaMonto && Math.round(Number(datos.monto)*100) < Math.round(totalPagadoGasto(actual)*100)) throw new Error('El importe no puede ser menor que el total ya pagado. Revisá Historial de pagos.');
+      if (cambiaMonto && Number(datos.monto)+0.01 < totalPagadoGasto(actual)) throw new Error('El importe no puede ser menor que el total ya pagado. Revisá Historial de pagos.');
       var antes = {monto:actual.monto,medio:actual.medio || '',empleadoId:actual.empleadoId || actual.empleadoFbKey || '',legacyKey:actual.legacyKey || '',pagosMedios:medios(actual.pagos)};
       var movimientosAntes = refs.map(function(ref){return {ruta:'sisventas/ctaemp/' + ref.empKey + '/' + ref.key,monto:ref.mov.monto,medio:ref.mov.medioPago || '',pagosMedios:medios(ref.mov.pagos)};});
       ['fecha','vencimiento','tipo','categoria','descripcion','monto','medio','proveedor','comprobante','empleadoId','empleadoNombre','esFijoBase','usuario','recurrenciaActiva'].forEach(function(campo){if (datos[campo] !== undefined) actual[campo] = datos[campo];});
@@ -46031,7 +46028,7 @@ function _pagoGastoResumenSimulado(gasto, token, cambios) {
   var activos = pagos.filter(function(p){ return !pagoGastoEstaAnulado(p); });
   var pagado = Math.max(0,parseFloat(gasto && gasto.saldoPagadoLegacy)||0) + activos.reduce(function(s,p){ return s + (parseFloat(p.monto)||0); }, 0);
   var monto = parseFloat(gasto && gasto.monto) || 0;
-  var estado = Math.round(pagado * 100) >= Math.round(monto * 100) && monto > 0 ? 'pagado' : pagado > 0 ? 'pagado_parcial' : 'pendiente_pago';
+  var estado = pagado >= monto - 0.01 && monto > 0 ? 'pagado' : pagado > 0 ? 'pagado_parcial' : 'pendiente_pago';
   var ultimo = activos.slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); })[0] || {};
   return { pagado:pagado, estado:estado, reembolsado:estado === 'pagado', ultimo:ultimo };
 }
@@ -47513,7 +47510,7 @@ function verPpto(id) {
   var _descAmt = _descMontoGuardado || Math.round(_sub * _descPct / 100);
   var _conIva  = p.conIva !== false;
   var _base    = _sub - _descAmt;
-  var _iva     = _conIva ? (parseFloat(p.iva) || window.SVCommercialMoney.percentage(_base,21)) : 0;
+  var _iva     = _conIva ? (parseFloat(p.iva) || Math.round(_base * 0.21)) : 0;
   var _total   = parseFloat(p.total) || (_base + _iva);
   var _modeloEconomicoV3 = pptoModeloEconomicoCanonico(p);
   if (_modeloEconomicoV3 && _modeloEconomicoV3.mode === 'items') {
@@ -47743,7 +47740,7 @@ function checkDepreciacionPpto(p) {
     tcGuardado: parseFloat(p.tcGuardado),
     tcActual,
     totalOriginal: parseFloat(p.total) || 0,
-    totalActualizado: window.SVCommercialMoney.product(parseFloat(p.total)||0,factor)
+    totalActualizado: Math.round((parseFloat(p.total) || 0) * factor)
   };
 }
 
@@ -47758,7 +47755,7 @@ async function recotizarPpto() {
     id: p.id + '-R',
     idOriginal: p.id,
     total: dep.totalActualizado,
-    subtotal: window.SVCommercialMoney.product(parseFloat(p.subtotal)||0,dep.factor),
+    subtotal: Math.round((parseFloat(p.subtotal)||0) * dep.factor),
     tcGuardado: dep.tcActual,
     tcFechaGuardado: svFechaLocalISO(),
     estado: 'borrador',
@@ -47767,8 +47764,8 @@ async function recotizarPpto() {
   });
   if (p.items) nuevo.items = p.items.map(function(it){
     return Object.assign({}, it, {
-      punit: window.SVCommercialMoney.rawProduct(parseFloat(it.punit)||0,dep.factor),
-      sub:   window.SVCommercialMoney.product(parseFloat(it.sub)||0,dep.factor)
+      punit: Math.round((parseFloat(it.punit)||0) * dep.factor),
+      sub:   Math.round((parseFloat(it.sub)||0)   * dep.factor)
     });
   });
   if (window.fbDB) {
@@ -54835,7 +54832,7 @@ function renderDetalleVenta(v) {
         return s + (parseFloat(it.sub) || Math.round((parseFloat(it.qty)||1) * (parseFloat(it.punit)||0) * (1 - (parseFloat(it.disc||it.descuento)||0)/100)));
       }, 0);
       var dg = parseFloat(v.descuentoGeneral)||0;
-      if (dg > 0) totalSinIva = window.SVCommercialMoney.discount(window.SVCommercialMoney.cents(window.SVCommercialMoney.decimal(totalSinIva)),dg)/100;
+      if (dg > 0) totalSinIva = totalSinIva - Math.round(totalSinIva * dg / 100);
     }
     if (totalSinIva > 0) total = totalSinIva;
   }
@@ -55170,11 +55167,11 @@ async function toggleCSF(vid, fk) {
   if (!v || !fk) return;
   var csf = v.contadoSinFactura === true;
   var t = parseFloat(v.total)||0;
-  var nt = csf ? window.SVCommercialMoney.product(t,1.21) : window.SVCommercialMoney.quotient(t,1.21);
+  var nt = csf ? Math.round(t * 1.21) : Math.round(t / 1.21);
   if (!await svConfirm((csf ? 'Restaurar IVA? Total: $'+t.toLocaleString('es-AR')+' -> $'+nt.toLocaleString('es-AR') : 'Contado sin factura? Se quita IVA. $'+t.toLocaleString('es-AR')+' -> $'+nt.toLocaleString('es-AR')))) return;
   if (!window.fbDB) return;
   window.SVSaleWriter.save({fbKey:fk,
-    contadoSinFactura: !csf, total: nt, iva: csf ? window.SVCommercialMoney.sum([nt,-t]) : 0,
+    contadoSinFactura: !csf, total: nt, iva: csf ? Math.round(nt-t) : 0,
     audit: (v.audit||[]).concat([{fecha:svFechaLocalISO(), usuario:currentUser||'Admin', accion: csf ? 'IVA restaurado' : 'Contado sin factura'}])
   },v).then(function(){ notify(csf ? 'IVA restaurado' : 'Contado sin factura aplicado'); })
     .catch(function(e){ notify('Error: '+e.message); });
@@ -57150,7 +57147,7 @@ function crearFilaProducto(cod, desc, precio, qty, desc_pct) {
   if (prodInicial && prodInicial.fbKey) tr.dataset.productoFbKey = prodInicial.fbKey;
   const stockBadge = stockBadgeHTML(cod, qty || 1);
   const dp = parseFloat(desc_pct) || 0;
-  const precioFinal = window.SVCommercialMoney.line(qty||1,precio||0,dp)/100;
+  const precioFinal = dp > 0 ? Math.round((qty||1) * precio * (1 - dp/100)) : Math.round((qty||1) * (precio||0));
   const botonEditarDescripcion = puedeModificarDescripcionItemDocumento()
     ? `<button type="button" class="btn btn-sm btn-icon item-desc-edit" onclick="editarDescripcionItemDocumento(this)" title="Modificar sólo en esta venta o presupuesto" aria-label="Modificar descripción" style="flex:0 0 auto;width:27px;height:27px;padding:0;color:var(--blue)"><i class="ti ti-pencil"></i></button>`
     : '';
@@ -57505,7 +57502,7 @@ function _reconvertirFilasAMoneda(tbodySelector, monedaDestino) {
     }
 
     var precioUsd = parseFloat(priceInp.dataset.precioUsd) || 0;
-    var nuevoValor = monedaDestino === 'USD' ? precioUsd : window.SVCommercialMoney.rawProduct(precioUsd,tcVal);
+    var nuevoValor = monedaDestino === 'USD' ? precioUsd : Math.round(precioUsd * tcVal);
 
     if (priceInp.dataset.moneyInit) {
       priceInp.dataset.raw = String(nuevoValor);
