@@ -1,3 +1,11 @@
+# Cierre verificado · 01/11/2026
+
+Las 27 referencias de costo pendientes se completaron y se comprobaron junto con sus copias de listado. Se conservaron cantidades, precios, ventas, cobros y comisiones. No se modificaron permisos ni reglas, y no fue necesario otro despliegue.
+
+La comprobación de reposo y su investigación finalizaron. La evidencia es compatible con apagado de instancias previas y tráfico de protocolo de conexiones remanentes; no permite identificar cada paquete ni afirmar consumo cero durante toda la ventana. No hay nuevas mediciones automáticas programadas.
+
+Validación: prueba aislada del mantenimiento y 29 pruebas de guardado, concurrencia, proyecciones y costos aprobadas. Los registros, referencias individuales, credenciales, horarios precisos y evidencias de actividad se conservan fuera del repositorio. Las anotaciones inferiores documentan estados anteriores y no reabren este bloque.
+
 # Seguimiento de cierre · 01/11/2026
 
 Producción continúa v3.17.7, sin nuevos despliegues. Respaldo remoto confirmado en origin/codex/auditoria-circuitos-v3170, SHA ff860620f4a56b6d6380eb89c06a2ce138cd75bc, sin avanzar main. Controlador sisventascostguard Ready/min0, presupuesto USD60 con PubSub y alertas USD30 comprobados por sólo lectura el 01/11. Quince pruebas focales ficticias aprobadas, incluida ejecución real del handler aislado en loopback; no se disparó suspensión remota. La dependencia existente se resolvió vía NODE_PATH; acceso loopback requirió sandbox elevado.
