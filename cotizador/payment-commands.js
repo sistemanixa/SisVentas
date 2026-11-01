@@ -3,10 +3,11 @@ const {digest}=require('./labor-guard');
 const Index=require('./payment-membership-index');
 const {createPaymentSnapshot}=require('./payment-snapshot');
 const Sales=require('./commercial-models/sales-read-model');
+const Money=require('./commercial-models/commercial-money');
 const {validate:validateJSON}=require('./labor-write-gateway');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const record=value=>value&&typeof value==='object'&&!Array.isArray(value);
-const money=value=>Math.round((parseFloat(value)||0)*100)/100;
+const money=value=>Money.amount(parseFloat(value)||0);
 const validPayment=p=>!!p&&!p.anulado&&String(p.estado||'').toLowerCase()!=='anulado';
 const validSale=s=>!!s&&s.anulada!==true&&!['anulada','cancelada','cancelado'].includes(String(s.estado||s.estadoPago||'').toLowerCase());
 function embedded(sale){return (Array.isArray(sale.pagos)?sale.pagos:[]).filter(validPayment);}
@@ -15,9 +16,9 @@ function paid(sale,related){
  // Annul uses a different legacy/embedded policy below. An index optimization
  // must not silently rewrite historical accounting decisions.
  const selected=related.filter(validPayment);
- return selected.length?selected.reduce((n,p)=>n+(parseFloat(p.monto)||0),0):parseFloat(sale.totalPagado||sale.pagado||sale.montoPagado)||0;
+ return selected.length?Money.sum(selected.map(p=>parseFloat(p.monto)||0)):parseFloat(sale.totalPagado||sale.pagado||sale.montoPagado)||0;
 }
-function summary(sale,related){const total=Sales.saleTotal(sale),selected=related.length?related.filter(validPayment):embedded(sale),raw=selected.reduce((n,p)=>n+(parseFloat(p.monto)||0),0),amount=money(raw);return {total,pagado:Math.min(total>0?total:raw,amount),estadoPago:total>0&&raw>=total-.01?'pago_total':raw>0?'seniado':'pendiente_pago'};}
+function summary(sale,related){const total=Sales.saleTotal(sale),selected=related.length?related.filter(validPayment):embedded(sale),raw=selected.reduce((n,p)=>n+(parseFloat(p.monto)||0),0),amount=money(raw);return {total,pagado:Math.min(total>0?total:raw,amount),estadoPago:total>0&&Money.cents(Money.decimal(raw))>=Money.cents(Money.decimal(total))?'pago_total':raw>0?'seniado':'pendiente_pago'};}
 function publicFields(record,fields){
  const out={};for(const field of fields){const value=record?.[field];if(value===null||['string','boolean'].includes(typeof value)||typeof value==='number'&&Number.isFinite(value))out[field]=value;}return out;
 }
@@ -50,9 +51,10 @@ function createPaymentCommands({authorize,db,guard,store,enabled=false,now=Date.
   const o=body.opciones;
   if(!record(o)||!Array.isArray(o.solicitudes)||!o.solicitudes.length||o.solicitudes.length>100)throw fail(400,'No hay ventas válidas para imputar el cobro');
   Index.recordKey(o.grupoPago);if(o.adjuntoKey)Index.recordKey(o.adjuntoKey);
+  if(o.montoTotal!=null&&!Money.isAmount(o.montoTotal))throw fail(400,'El importe debe expresarse en centavos exactos');
   const sales=new Set(),keys=new Set();
   for(const s of o.solicitudes){
-   if(!record(s)||!record(s.pago||{})||!Number.isFinite(Number(s.monto??s.pago?.monto))||!(Number(s.monto??s.pago?.monto)>0))throw fail(400,'Importe del cobro inválido');
+   if(!record(s)||!record(s.pago||{})||!Money.isAmount(s.monto??s.pago?.monto)||!(Number(s.monto??s.pago?.monto)>0))throw fail(400,'Importe del cobro inválido');
    Index.recordKey(s.ventaFbKey);Index.recordKey(s.pagoKey||s.pago?.fbKey);
    if(s.pago?.anulado||String(s.pago?.estado||'').toLowerCase()==='anulado'||['ventaGeneradaFbKey','ventaOrigenFbKey'].some(k=>s.pago?.[k]&&String(s.pago[k]).trim()!==s.ventaFbKey))throw fail(400,'El nuevo cobro tiene una relación o estado inválido');
    if(sales.has(s.ventaFbKey)||keys.has(s.pagoKey||s.pago?.fbKey))throw fail(400,'Hay ventas o imputaciones repetidas en el cobro');
@@ -100,19 +102,19 @@ function createPaymentCommands({authorize,db,guard,store,enabled=false,now=Date.
     const o=body.opciones,group='sisventas/cobros_grupos/'+o.grupoPago;
     if(await scope.get(group))throw fail(409,'La referencia del cobro ya existe. Revisá la operación antes de volver a guardar.','SV_PAYMENT_GROUP_EXISTS');
     const snapshot=await load(scope,actor,o.solicitudes.map(s=>s.ventaFbKey)),patch=Object.create(null),links=[],paymentKeys=Object.create(null),rows=[];
-    const totalRequested=money(o.solicitudes.reduce((n,s)=>n+money(s.monto??s.pago?.monto),0));
-    if(o.montoTotal!=null&&Math.abs(money(o.montoTotal)-totalRequested)>.009)throw fail(400,'Las imputaciones no coinciden con el total recibido');
+    const totalRequested=Money.sum(o.solicitudes.map(s=>s.monto??s.pago?.monto));
+    if(o.montoTotal!=null&&Money.cents(Money.decimal(o.montoTotal))!==Money.cents(Money.decimal(totalRequested)))throw fail(400,'Las imputaciones no coinciden con el total recibido');
     const attachmentKey=o.comprobante?String(o.adjuntoKey||o.grupoPago):'',meta=o.comprobante?{nombre:String(o.comprobante.nombre||'Comprobante'),tipo:String(o.comprobante.tipo||''),ts:Number(o.comprobante.ts)||now(),refKey:attachmentKey}:null;
     for(let i=0;i<o.solicitudes.length;i++){
      const s=o.solicitudes[i],key=s.ventaFbKey,sale=snapshot.sales[key],paymentKey=s.pagoKey||s.pago.fbKey;
      if(!validSale(sale))throw fail(409,'La venta '+(sale.id||s.ventaId||'')+' ya no está disponible para cobrar');
-     const total=Sales.saleTotal(sale),prior=paid(sale,snapshot.bySale[key]),available=Math.max(0,money(total-prior)),amount=money(s.monto??s.pago?.monto);
-     if(!(amount>0)||amount>available+.009)throw fail(409,'El saldo de '+(sale.id||s.ventaId||'')+' cambió. Revisá la imputación antes de reintentar.','SV_PAYMENT_BALANCE_CHANGED');
+     const total=Sales.saleTotal(sale),prior=paid(sale,snapshot.bySale[key]),available=Math.max(0,Money.sum([total,-prior])),amount=money(s.monto??s.pago?.monto);
+     if(!(amount>0)||Money.cents(Money.decimal(amount))>Money.cents(Money.decimal(available)))throw fail(409,'El saldo de '+(sale.id||s.ventaId||'')+' cambió. Revisá la imputación antes de reintentar.','SV_PAYMENT_BALANCE_CHANGED');
      if(await scope.get('sisventas/pagos/'+paymentKey))throw fail(409,'La clave del cobro ya existe sin una operación confirmada','SV_PAYMENT_KEY_EXISTS');
-     const nextPaid=money(prior+amount),payment={...(s.pago||{}),fbKey:paymentKey,venta:String(sale.id||s.ventaId||key),ventaId:String(sale.id||s.ventaId||key),ventaFbKey:key,ventaKey:key,monto:amount,totalVenta:total,saldoAnterior:available,saldoRestante:Math.max(0,money(total-nextPaid)),origen:String(o.origen||'cobranzas'),grupoPago:o.grupoPago,pagoGrupoTotal:totalRequested,imputacionOrden:i+1,imputacionesTotal:o.solicitudes.length};
+     const nextPaid=Money.sum([prior,amount]),payment={...(s.pago||{}),fbKey:paymentKey,venta:String(sale.id||s.ventaId||key),ventaId:String(sale.id||s.ventaId||key),ventaFbKey:key,ventaKey:key,monto:amount,totalVenta:total,saldoAnterior:available,saldoRestante:Math.max(0,Money.sum([total,-nextPaid])),origen:String(o.origen||'cobranzas'),grupoPago:o.grupoPago,pagoGrupoTotal:totalRequested,imputacionOrden:i+1,imputacionesTotal:o.solicitudes.length};
      if(meta){payment.comprobanteAdjunto=meta;payment.comprobanteRef=attachmentKey;}
      patch['sisventas/pagos/'+paymentKey]=payment;
-     patch['sisventas/ventas/'+key+'/totalPagado']=nextPaid;patch['sisventas/ventas/'+key+'/estadoPago']=nextPaid>=total-.01?'pago_total':'seniado';
+     patch['sisventas/ventas/'+key+'/totalPagado']=nextPaid;patch['sisventas/ventas/'+key+'/estadoPago']=Money.cents(Money.decimal(nextPaid))>=Money.cents(Money.decimal(total))?'pago_total':'seniado';
      paymentKeys[paymentKey]=true;links.push({pagoKey:paymentKey,ventaKey:key});
      rows.push(collectionResult(payment,{...sale,totalPagado:nextPaid,estadoPago:patch['sisventas/ventas/'+key+'/estadoPago']},key,body.id));
     }

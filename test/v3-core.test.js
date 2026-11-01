@@ -50,10 +50,10 @@ test('presupuesto con IVA lo aplica una sola vez despuÃ©s de los descuentos', 
 
   assert.equal(result.grossSubtotal, 2001);
   assert.equal(result.subtotal, 1900.95);
-  assert.equal(result.generalDiscount, 190.1);
-  assert.equal(result.taxableBase, 1710.85);
+  assert.equal(result.generalDiscount, 190.09);
+  assert.equal(result.taxableBase, 1710.86);
   assert.equal(result.iva, 359.28);
-  assert.equal(result.total, 2070.13);
+  assert.equal(result.total, 2070.14);
 });
 
 test('un total guardado en cero no reemplaza el cÃ¡lculo de los Ã­tems', () => {

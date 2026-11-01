@@ -15,7 +15,7 @@ function env() {
   }};
   c.window = c;
   c.tienePermiso = action => ['empleados.autorizarHoras','comisiones.aprobar'].includes(action);
-  vm.createContext(c);
+  c.SVCommercialMoney=require('../js/core/commercial-money.v1.js');vm.createContext(c);
   return { c, elements, emit(name) { (events[name] || []).forEach(fn => fn()); } };
 }
 function loadHoursBadge(c) {

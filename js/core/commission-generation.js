@@ -9,7 +9,7 @@
    const qty=Number(item.qty??item.cantidad??1);
    if(cost===null&&qty>0&&number(item.costoTotalCompra))cost=Number(item.costoTotalCompra)/qty;
    if(cost===null){const product=root.obtenerProductoPorCodigoVenta?.(item.cod||item.codigo,item);if(product){const amount=root.obtenerCostoUnitarioVenta?.(item.cod||item.codigo,item);if(number(amount))cost=Number(amount);}}
-   return cost===null?item:{...item,costoUnitarioPresupuestado:Math.round(cost*100)/100};
+   return cost===null?item:{...item,costoUnitarioPresupuestado:cost};
   })};
  }
  function preserveCosts(record,base){

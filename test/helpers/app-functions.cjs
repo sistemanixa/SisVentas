@@ -8,6 +8,7 @@ function functionSource(name){
  throw new Error('Función incompleta '+name);
 }
 function load(context,names){if(!vm.isContext(context))vm.createContext(context);
+ context.SVCommercialMoney=require('../../js/core/commercial-money.v1.js');if(!context.window)context.window=context;context.window.SVCommercialMoney=context.SVCommercialMoney;
  // Las funciones extraídas conservan las utilidades canónicas de fecha del arranque real.
  for(const helper of ['svFechaLocalISO','svMesLocalISO','svEsComisionMovimiento','svDescripcionMovimientoVisible'])if(!names.includes(helper)&&typeof context[helper]!=='function')vm.runInContext(functionSource(helper),context);
  for(const name of names)vm.runInContext(functionSource(name),context);return context;}

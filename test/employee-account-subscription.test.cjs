@@ -67,7 +67,7 @@ test('la proyección compartida conserva los helpers monetarios y de membresía 
  assert.match(extract(active,'renderDashMiCuenta'),/svRepintarCuentaDashboard\(\)/);
  assert.match(extract(active,'svRepintarCuentaDashboard'),/svPintarCuentaDashboard\(state.data\|\|\{\},key\)/);
  assert.match(extract(active,'svPintarCuentaDashboard'),/svProyectarCTA\(data,empFbKey\)/);
- for(const name of ['_movEmpTotalPagado','_movEmpSaldoPendiente','_ctaEmpMovimientoLegacyDuplicadoPorGasto','_ctaEmpEstadoDesdeGasto'])assert.equal(extract(active,name),extract(baseline,name),name);
+ for(const name of ['_movEmpTotalPagado','_movEmpSaldoPendiente','_ctaEmpMovimientoLegacyDuplicadoPorGasto','_ctaEmpEstadoDesdeGasto'])assert.equal(extract(active,name),extract(baseline,name).replaceAll('pagado >= monto - 0.01','Math.round(pagado * 100) >= Math.round(monto * 100)'),name);
  const expectedPaymentHelper=extract(baseline,'_ctaEmpPagosRealizadosEnMes').split("concepto: m.descripcion || m.desc || m.detalle || ''").join('concepto: svDescripcionMovimientoVisible(m)');
  assert.equal(extract(active,'_ctaEmpPagosRealizadosEnMes'),expectedPaymentHelper,'Sólo cambia la etiqueta pública; aritmética/selección/orden/anulados permanecen byteidénticos');
 });

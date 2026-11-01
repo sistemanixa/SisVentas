@@ -1,4 +1,5 @@
 'use strict';
+const Money=require('./commercial-models/commercial-money');
 // Reglas de cálculo conservadas del cliente activo; no dependen del navegador.
 function _claveOperacionConcurrente(prefijo, partes) {
   return String(prefijo) + '_' + partes.map(function(parte) {
@@ -17,7 +18,7 @@ function _hsexConsolidarDetalle(detalles) {
     if (!fecha || horas <= 0) return;
     var clave = fecha + '|' + lugar.toLowerCase();
     if (!porDiaLugar[clave]) porDiaLugar[clave] = { fecha:fecha, horas:0, lugar:lugar };
-    porDiaLugar[clave].horas += horas;
+    porDiaLugar[clave].horas = Money.quantitySum([porDiaLugar[clave].horas,horas]);
   });
   return Object.values(porDiaLugar).sort(function(a,b){ return a.fecha.localeCompare(b.fecha); });
 }
@@ -35,11 +36,11 @@ function _hsexAgruparPendientes(pendientes) {
     if (!grupos[clave]) grupos[clave] = { id:clave, empFbKey:s.empFbKey, empNombre:s.empNombre, mes:mes, solicitudes:[], detalleDias:[], horas:0 };
     grupos[clave].solicitudes.push(s);
     grupos[clave].detalleDias = grupos[clave].detalleDias.concat(Array.isArray(s.detalleDias) ? s.detalleDias : []);
-    grupos[clave].horas += parseFloat(s.horas) || 0;
+    grupos[clave].horas = Money.quantitySum([grupos[clave].horas,parseFloat(s.horas)||0]);
   });
   return Object.values(grupos).map(function(g) {
     g.detalleDias = _hsexConsolidarDetalle(g.detalleDias);
-    if (g.detalleDias.length) g.horas = g.detalleDias.reduce(function(total,d){ return total + (parseFloat(d.horas)||0); }, 0);
+    if (g.detalleDias.length) g.horas = Money.quantitySum(g.detalleDias.map(function(d){return parseFloat(d.horas)||0;}));
     return g;
   }).sort(function(a,b){ return (b.mes||'').localeCompare(a.mes||'') || String(a.empNombre||'').localeCompare(String(b.empNombre||'')); });
 }

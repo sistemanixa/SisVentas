@@ -1,8 +1,8 @@
-(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.SVSaleCosts=api.create(root);})(typeof window==='object'?window:null,function(){
+(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./commercial-money.v1.js'):root.SVCommercialMoney);if(typeof module==='object'&&module.exports)module.exports=api;else root.SVSaleCosts=api.create(root);})(typeof window==='object'?window:null,function(Money){
  'use strict';
  const fields=['costoUnitarioCompra','costoTotalCompra','costoUnitario','costoCompra','compra','precioCompra','precio_compra','costoTotal','costo','costoUnitarioPresupuestado','costoUnitarioAntesPreparacion','comisionCostoHistoricoPendiente','costoCapturadoEn','costoOrigen','costoVersion','costoStockReferencia'];
  const numeric=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0||typeof v==='string'&&/^\d+(?:\.\d+)?$/.test(v.trim());
- const round=n=>Math.round((n+Number.EPSILON)*100)/100;
+ const round=n=>Money.amount(n);
  const quantity=i=>Number(i.qty??i.cantidad??1);
  function unit(item){const q=quantity(item);for(const k of ['costoTotalCompra','costoTotal','costo'])if(numeric(item[k])&&q>0)return Number(item[k])/q;for(const k of ['costoUnitarioCompra','costoUnitario','costoCompra','compra','precioCompra','precio_compra','costoUnitarioAntesPreparacion','costoUnitarioPresupuestado'])if(numeric(item[k]))return Number(item[k]);return null;}
  const same=(a,b)=>{const ak=a.productoFbKey||a.pid,bk=b.productoFbKey||b.pid;if(ak&&bk)return String(ak)===String(bk);const ac=a.cod||a.codigo,bc=b.cod||b.codigo;if(ac&&bc)return String(ac)===String(bc);return !ak&&!bk&&!ac&&!bc&&!!(a.desc||a.descripcion)&&String(a.desc||a.descripcion)===String(b.desc||b.descripcion);};
@@ -15,9 +15,9 @@
     if(cost===0&&!['compraARS','precioGremio','compra','costoRealArs'].some(k=>numeric(product[k])&&Number(product[k])===0))throw Error('Falta definir el costo de '+(item.cod||item.desc||'un ítem')+'. No se tomó como cero.');
    }
    if(cost===0&&(item.cod||item.codigo)&&!item.costoVersion&&!numeric(item.costoUnitarioPresupuestado)&&!numeric(item.costoUnitarioAntesPreparacion)&&(!product||!['compraARS','precioGremio','compra','costoRealArs'].some(k=>numeric(product[k])&&Number(product[k])===0)))throw Error('Falta confirmar el costo de '+(item.cod||item.codigo)+'. No se tomó como cero.');
-   if(!numeric(out.costoUnitarioCompra))out.costoUnitarioCompra=round(cost);
-   if(!numeric(out.costoTotalCompra))out.costoTotalCompra=round(cost*q);
-   if(!numeric(out.costoUnitarioPresupuestado))out.costoUnitarioPresupuestado=round(cost);
+   if(!numeric(out.costoUnitarioCompra))out.costoUnitarioCompra=cost;
+   if(!numeric(out.costoTotalCompra))out.costoTotalCompra=Money.product(cost,q);
+   if(!numeric(out.costoUnitarioPresupuestado))out.costoUnitarioPresupuestado=cost;
    out.costoVersion=1;out.costoOrigen=out.costoOrigen||source;out.costoCapturadoEn=out.costoCapturadoEn||Date.now();
    if(typeof out.esManoDeObra!=='boolean'&&product&&typeof r.esProductoManoDeObra==='function')out.esManoDeObra=!!r.esProductoManoDeObra(product);
    return out;

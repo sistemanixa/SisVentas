@@ -1,8 +1,9 @@
 'use strict';
+const Money=require('./commercial-models/commercial-money');
 const crypto=require('node:crypto');
 const Sales=require('./commercial-models/sales-read-model');
 const validNumber=v=>v!==''&&v!==null&&v!==undefined&&Number.isFinite(Number(v))&&Number(v)>=0;
-const round=v=>Math.round((v+Number.EPSILON)*100)/100;
+const round=v=>Money.amount(v);
 const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;
 const hash=v=>crypto.createHash('sha256').update(JSON.stringify(stable(v))).digest('hex');
 const key=(prefix,parts)=>prefix+'_'+parts.map(v=>String(v??'').replace(/[^A-Za-z0-9_-]/g,'_')).join('_');
@@ -42,7 +43,7 @@ function preview({sale,payments,employees,config,existing=[]}){
  const economic=Sales.saleEconomic(sale),read=new Sales.SalesReadModel([sale],payments),summary=read.summaryFor(sale.fbKey);
  if(!economic.ready)return {...result,motivo:'Revisar la coherencia de ítems e importes de la venta'};
  result.total=round(economic.total);result.cobrado=round(summary.paid);
- if(economic.total<=0||summary.paid+0.011<economic.total)return {...result,status:'pendiente_cobro',motivo:'La venta todavía no está totalmente cobrada'};
+ if(economic.total<=0||Money.cents(Money.decimal(summary.paid))<Money.cents(Money.decimal(economic.total)))return {...result,status:'pendiente_cobro',motivo:'La venta todavía no está totalmente cobrada'};
  const people=employeesFor(sale,employees);
  if(!people||people.some(e=>e.activo===false||String(e.estado||'').toLowerCase()==='inactivo'))return {...result,motivo:'Revisar la identidad o actividad de los comisionados'};
  const max=Number(config.maxComisionPct??10);if(!Number.isFinite(max)||max<0||max>100)return {...result,motivo:'Tope de comisión inválido'};
@@ -59,9 +60,11 @@ function preview({sale,payments,employees,config,existing=[]}){
  else cost+=unit*Number(it.qty??it.cantidad??1);});
  if(result.faltantes.length)return {...result,motivo:'Faltan costos originales; no se usa el catálogo actual'};
  if(!Number.isFinite(cost))return {...result,motivo:'Revisar cantidades y costos originales de los ítems'};
- result.base={ventaNeta:round(economic.taxableBase),costoOriginal:round(cost),ganancia:round(economic.taxableBase-cost)};
+ result.base={ventaNeta:round(economic.taxableBase),costoOriginal:round(cost),ganancia:Money.sum([economic.taxableBase,-cost])};
  if(result.base.ganancia<=0)return {...result,status:'no_aplica',motivo:'La ganancia original no es positiva'};
- result.participantes.forEach(e=>e.monto=round(result.base.ganancia*e.pct/100));
+ const commissionTotal=Money.percentage(result.base.ganancia,Money.quantitySum(result.participantes.map(e=>e.pct)));
+ const shares=Money.allocate(commissionTotal,result.participantes.map(e=>e.pct));
+ result.participantes.forEach((e,index)=>e.monto=shares[index]);
  result.participantes=result.participantes.filter(e=>e.monto>0);
  const digest=hash({sale:financialSource(sale),payments:summary.payments,base:result.base,participantes:result.participantes});
  return {...result,status:result.participantes.length?'lista':'no_aplica',motivo:'',digest};

@@ -9,7 +9,7 @@ function cargarPreparador() {
   const inicioRedondeo = source.indexOf('function redondearDinero');
   const fin = source.indexOf('function setCors', inicioRedondeo);
   assert.ok(inicioRedondeo > 0 && fin > inicioRedondeo);
-  return Function(source.slice(inicioRedondeo, fin) + '; return prepararDetalleFiscal;')();
+  return Function('CommercialMoney',source.slice(inicioRedondeo, fin) + '; return prepararDetalleFiscal;')(require('../js/core/commercial-money.v1.js'));
 }
 
 function cargarNormalizadoresFiscal() {
@@ -67,3 +67,5 @@ test('la respuesta de emisión se persiste completa sin depender de importar un 
   assert.match(source, /integridadFiscalCompleta/);
   assert.match(source, /estadoIntegridadFiscal/);
 });
+
+test('servidor y preparación canónica coinciden también con cantidades fraccionarias',()=>{const F=require('../cloud-functions/emitir-factura/fiscal-contract.cjs'),W=require('../js/core/sale-writer.v1'),prepare=cargarPreparador();for(const qty of [.5,1.5,2.5,3,10.2])for(const price of [10.13,100.1,371.99])for(const disc of [0,5,12.5]){const sale=W.calculate({items:[{cod:'FICTICIO',qty,punit:price,disc}],conIva:true}),fiscal=F.prepararVentaParaFacturacion(sale,'FACTURA B'),out=prepare(fiscal.venta);assert.equal(out.total,sale.total);assert.equal(out.neto,fiscal.venta.importe_neto);}});

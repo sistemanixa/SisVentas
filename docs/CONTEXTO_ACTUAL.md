@@ -1,3 +1,21 @@
+# Auditoría monetaria · candidata validada en local · 01/11/2026
+
+NO publicada ni aplicada a registros reales. Producción permanece v3.17.6. Se conserva el formulario real de cobranza; no se registró el pago ni se emitieron documentos ni se movió stock. El titular confirmó correctos los importes de ambas órdenes Flytec: intactos.
+
+Cierre de este bloque: aritmética decimal racional compartida en web, lectores, Cotizador y función fiscal; sin corte previo del costo unitario; horas extra y aguinaldo sin redondeo al peso; envíos conservan base y centavos; reparto exacto de logística y comisión; cobros rechazan fracciones de centavo y estados de pagos/bonificaciones/CTA no perdonan el último centavo. Preparación fiscal y handler real coinciden también en cantidades fraccionarias y distribuyen el residuo sin cambiar cantidad ni venta. Ver docs/AUDITORIA_PRECISION_MONETARIA.md para criterios, alcance y excepciones visuales/históricas.
+
+Validación final: gate6850 casos,6823PASS,27opt-in,0fallos;94backend; sintaxis de58JS/CJS y diff-check. Pruebas de UI local390/768/1280 sin red externa. Los fixtures cargan la dependencia monetaria real; cercos de bytecomparación sólo admiten los cambios aritméticos explícitos, conservando el resto del guardado. No se retiraron pruebas. Ejemplos adicionales: costo1.005×2=2.01; logística de un centavo para100productos sin cantidades negativas; comisión total5centavos distribuida3+2; saldo de1centavo permanece parcial; factura con1.5unidades conserva17.47.
+
+Demostración aislada http://127.0.0.1:8898/ recargada y verificada en la pestaña del titular;7ejemplos con diferencia0.00. No conecta a Firebase (CSP connect-src none). Evidencias privadas en tmp/precision-audit y tmp/stock-final-local, fuera de Git/Hosting. Las pruebas no equivalen a una emisión real contra ARCA ni garantizan ausencia universal de fallos.
+
+Antes de cualquier publicación: autorización nueva del titular (pedido actual prohíbe publicar), versionar activos inmutables y revisar despliegue coordinado Cotizador/función fiscal/Hosting y reglas+referencias del costo stock de d89c1fe2. No desplegar este árbol directamente sobre app.v3.17.6. No push ni cambio de infraestructura en este bloque.
+
+# Auditoría ampliada de precisión · en curso · 31/10/2026
+
+Pedido: revisar todos los cálculos sin redondeos al peso ni pérdida silenciosa de precisión. Cambios locales posteriores a d89c1fe2: aritmética decimal racional compartida, reparto exacto de centavos, horas extra/aguinaldo sin corte al peso, economía de renglones consistente y comprobación de cobro completo de comisiones por centavos enteros. No publicado; no se modificaron datos reales. Flytec permanece sin cambios por confirmación del titular.
+
+16 pruebas focales aprobadas. La puerta completa lanzada en sandbox presenta fallos y aún no acredita una candidata publicable; revisar sus diagnósticos y repetir con las condiciones de ejecución documentadas. Evidencia privada: tmp/precision-audit. Auditoría todavía abierta: envíos, restantes cálculos y validaciones de cobros, fiscal y presentación. No afirmar cierre global ni publicar este árbol.
+
 # Candidata local · costo final del stock y coherencia de cobros · 31/10/2026
 
 NO publicada; producción continúa v3.17.6. Pedido actual: costo final de ingresos para ventas nuevas, pruebas ficticias y vista local. El titular confirmó que ambas órdenes exteriores suman correctamente: no corregir sus importes ni sumar gastos de nuevo. No se registró el cobro real ni se cambiaron ventas o cantidades de inventario.

@@ -104,10 +104,10 @@ function calculateSources(empleados, habData, anio, sem, maximum, cargos) {
     });
     if (mejorSueldo === 0) {
       var cargoInfo = e.cargoId ? cargos[e.cargoId] : null;
-      mejorSueldo = cargoInfo ? Math.round((parseFloat(cargoInfo.valorHora)||0) * 8 * (parseFloat(cargoInfo.diasMes)||0)) : 0;
+      mejorSueldo = cargoInfo ? window.SVCommercialMoney.product((parseFloat(cargoInfo.valorHora)||0),8,(parseFloat(cargoInfo.diasMes)||0)) : 0;
     }
     var mesesTrabajados = _mesesTrabajadosEnSemestre(e.fechaIngreso, anio, sem);
-    var aguinaldoTotal = Math.round(((mejorSueldo / 12) * mesesTrabajados) * 100) / 100;
+    var aguinaldoTotal = window.SVCommercialMoney.quotient(window.SVCommercialMoney.rawProduct(mejorSueldo,mesesTrabajados),12);
 
     // Aplicar límite máximo
     var aguinaldo = aguinaldoTotal;

@@ -217,3 +217,5 @@ test('saldo total con descuento fraccionario usa el mismo total del escritor, si
  const f=make(),body=f.register(4.28);await f.commands.execute(f.actor,body);await f.commands.execute(f.actor,copy(body));assert.equal(f.get('sisventas/ventas/v/totalPagado'),5.28);assert.equal(Object.keys(f.get('sisventas/pagos')).length,2);
  const g=make();await assert.rejects(()=>g.commands.execute(g.actor,g.register(4.29)),/saldo/);assert.equal(g.commits.length,0);
 });
+
+test('cobro de fracción de centavo se rechaza y el último centavo mantiene saldo parcial',async()=>{let f=fixture();await assert.rejects(f.commands.execute(f.actor,f.register(.001)),{statusCode:400});assert.deepEqual(f.get('sisventas/pagos'),{});await f.commands.execute(f.actor,f.register(99.99));assert.equal(f.get('sisventas/ventas/v/estadoPago'),'seniado');assert.equal(f.get('sisventas/ventas/v/totalPagado'),99.99);assert.equal(summary({total:100},[{monto:99.99}]).estadoPago,'seniado');});

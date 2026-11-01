@@ -1,3 +1,4 @@
+const Money=require('./commercial-models/commercial-money');
 'use strict';
 // Explicit payout command. Employee accounts remain internal; no list/history
 // reads, scheduler, client supplied patches or permission grants are introduced.
@@ -10,7 +11,7 @@ function describe(input){
  if(!object(input)||Object.keys(input).some(k=>!['id','items','medio','comprobante','loteKey'].includes(k))||!/^[A-Za-z0-9_-]{8,160}$/.test(input.id||'')||!Array.isArray(input.items)||!input.items.length||input.items.length>100)throw fail(400,'Solicitud de pago inválida');
  if(Buffer.byteLength(JSON.stringify(input))>4*1024*1024)throw fail(413,'El comprobante supera el tamaño permitido');
  const body=copy(input),seen=new Set();
- for(const row of body.items){if(!object(row)||Object.keys(row).some(k=>!['key','monto','expectedHash'].includes(k)))throw fail(400,'Detalle de pago inválido');key(row.key);if(seen.has(row.key)||typeof row.monto!=='number'||!Number.isFinite(row.monto)||row.monto<=0||Math.abs(row.monto*100-Math.round(row.monto*100))>0.00001||!/^[a-f0-9]{64}$/.test(row.expectedHash||''))throw fail(400,'Importe o versión de pago inválidos');seen.add(row.key);}
+ for(const row of body.items){if(!object(row)||Object.keys(row).some(k=>!['key','monto','expectedHash'].includes(k)))throw fail(400,'Detalle de pago inválido');key(row.key);if(seen.has(row.key)||typeof row.monto!=='number'||!Number.isFinite(row.monto)||row.monto<=0||!Money.isAmount(row.monto)||!/^[a-f0-9]{64}$/.test(row.expectedHash||''))throw fail(400,'Importe o versión de pago inválidos');seen.add(row.key);}
  if(typeof body.medio!=='string'||!body.medio.trim()||body.medio.length>160)throw fail(400,'Elegí el medio de pago');
  if(body.loteKey!=null)key(body.loteKey);
  if(body.comprobante!=null){const c=body.comprobante;if(!object(c)||Object.keys(c).some(k=>!['nombre','tipo','data','externo'].includes(k))||typeof c.nombre!=='string'||c.nombre.length>240||typeof c.tipo!=='string'||!['image/png','image/jpeg','image/webp','application/pdf'].includes(c.tipo)||typeof c.data!=='string'||!new RegExp('^data:'+c.tipo.replace('/','\\/')+';base64,[A-Za-z0-9+/=\\r\\n]+$').test(c.data))throw fail(400,'Comprobante inválido');}
@@ -46,10 +47,10 @@ function createBonusPayment({authorize,db,guard,store,enabled=false,now=Date.now
     if(usedMovements.has(movementPath)||!object(m)||m.tipo!=='bonificacion'||m.gastoFbKey!==item.key||m.bajaAdministrativa||['rechazado','anulado','pendiente_aprobacion'].includes(String(m.estado||'').toLowerCase())||['empleadoId','empleadoFbKey'].some(k=>m[k]!=null&&m[k]!==''&&String(m[k])!==employee)||m.legacyKey&&m.legacyKey!==g.legacyKey||Number(m.monto)!==Number(g.monto)||(m.periodoComputo??null)!==(g.periodoComputo??null))throw fail(409,'La bonificación y su movimiento requieren revisión','SV_CAS_CONFLICT');
     usedMovements.add(movementPath);
     const total=Number(g.monto),previous=Calc.totalPagadoGasto(g),priorMovement=Calc.totalPagadoGasto(m);
-    if(!Number.isFinite(total)||total<=0||!Number.isFinite(previous)||previous<0||previous>total||Object.values(g.pagos||{}).some(p=>!object(p)||!Number.isFinite(Number(p.monto))||Number(p.monto)<0)||Math.abs(previous-priorMovement)>0.000001||!same(g.pagos||{},m.pagos||{})||item.monto>Math.round((total-previous)*100)/100)throw fail(409,'El saldo de la bonificación cambió','SV_CAS_CONFLICT');
+    if(!Number.isFinite(total)||total<=0||!Number.isFinite(previous)||previous<0||previous>total||Object.values(g.pagos||{}).some(p=>!object(p)||!Number.isFinite(Number(p.monto))||Number(p.monto)<0)||Math.abs(previous-priorMovement)>0.000001||!same(g.pagos||{},m.pagos||{})||item.monto>Money.sum([total,-previous]))throw fail(409,'El saldo de la bonificación cambió','SV_CAS_CONFLICT');
     const paymentKey='pago_bonus_'+body.id+'_'+i,gPayments=mapPayments(g.pagos),mPayments=mapPayments(m.pagos);
     if(gPayments[paymentKey]||mPayments[paymentKey])throw fail(409,'Este pago ya está registrado','SV_CAS_CONFLICT');
-    const full=body.comprobante,light=full?{nombre:full.nombre,tipo:full.tipo,externo:true}:null,payment={fecha,ts,monto:item.monto,medio:body.medio,usuario:captured.name||actor.uid,rol:captured.role,lotePagoKey:lot,comprobante:light},amount=Math.round((previous+item.monto)*100)/100,state=amount>=total-.01?'pagado':'pagado_parcial';
+    const full=body.comprobante,light=full?{nombre:full.nombre,tipo:full.tipo,externo:true}:null,payment={fecha,ts,monto:item.monto,medio:body.medio,usuario:captured.name||actor.uid,rol:captured.role,lotePagoKey:lot,comprobante:light},amount=Money.sum([previous,item.monto]),state=Money.cents(Money.decimal(amount))>=Money.cents(Money.decimal(total))?'pagado':'pagado_parcial';
     const nextG=copy(g),nextM=copy(m);nextG.pagos=gPayments;nextM.pagos=mPayments;nextG.pagos[paymentKey]=copy(payment);nextM.pagos[paymentKey]=copy(payment);
     for(const next of [nextG,nextM]){next.montoPagado=amount;next.estado=state;if(!Object.keys(g.pagos||{}).length&&previous>0)next.saldoPagadoLegacy=previous;}
     nextG.medio=body.medio;if(state==='pagado')nextG.reembolsado=true;nextM.fechaPago=fecha;nextM.medioPago=body.medio;

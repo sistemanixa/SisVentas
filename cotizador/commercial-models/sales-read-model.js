@@ -53,7 +53,17 @@
       prepared.descuentoAmt = Math.max(0, number(source.descuento) - lineDiscount);
       delete prepared.descuento;
     }
-    return economics.build(prepared);
+    // Sales store the taxable subtotal, while the quotation reader exposes the
+    // subtotal before the general discount. Validate the sale against its own
+    // field contract instead of treating a legitimate discount as a mismatch.
+    delete prepared.subtotal;
+    var model = economics.build(prepared);
+    if (source.subtotal != null && !economics.moneyValuesEqual(number(source.subtotal), model.taxableBase) &&
+        !economics.moneyValuesEqual(number(source.subtotal), model.subtotal)) {
+      var conflicts = model.conflicts.concat([{kind:'subtotal-mismatch',path:'sale.subtotal',stored:number(source.subtotal),computed:model.taxableBase}]);
+      return Object.freeze(Object.assign({},model,{conflicts:Object.freeze(conflicts),ready:false}));
+    }
+    return model;
   }
 
   function saleTotal(sale) {

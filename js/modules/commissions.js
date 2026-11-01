@@ -390,7 +390,7 @@
     var margen=document.getElementById('com-resumen-margen');if(!margen)return;
     document.querySelectorAll('#com-det-participantes .comision-participante').forEach(function(fila){
       var input=fila.querySelector('.comision-pct-input');var importe=fila.querySelector('.comision-monto-preview');
-      if(input && importe && !input.disabled)importe.textContent=moneda(Math.round((parseFloat(importe.dataset.base)||0)*(parseFloat(input.value)||0))/100);
+      if(input && importe && !input.disabled)importe.textContent=moneda(window.SVCommercialMoney.percentage((parseFloat(importe.dataset.base)||0),(parseFloat(input.value)||0)));
     });
     var suma=Array.from(document.querySelectorAll('#com-det-participantes .comision-participante')).reduce(function(total,fila){if(fila.dataset.estado==='rechazado')return total;var input=fila.querySelector('.comision-pct-input');return total+(parseFloat(input&&input.value)||0);},0);
     suma+=parseFloat((document.getElementById('com-nuevo-pct')||{}).value)||0;
@@ -441,7 +441,7 @@
     var updates = {};
     valores.forEach(function (item) {
       var gasto = detalleActual.items.find(function(g){return g.fbKey===item.fbKey;}); var mov=movimientosDetalle[item.fbKey]||{};
-      var base=baseGanancia(gasto,mov); var monto=Math.round(base*item.pct)/100;
+      var base=baseGanancia(gasto,mov); var monto=window.SVCommercialMoney.percentage(base,item.pct);
       var descripcion='Comisión venta '+(detalleActual.ventaId||'')+' · '+item.pct+'% sobre ganancia $'+Math.round(base).toLocaleString('es-AR')+' · distribución administrada';
       updates['sisventas/gastos/'+item.fbKey+'/monto']=monto; updates['sisventas/gastos/'+item.fbKey+'/pct']=item.pct; updates['sisventas/gastos/'+item.fbKey+'/gananciaBase']=base; updates['sisventas/gastos/'+item.fbKey+'/descripcion']=descripcion;
       updates['sisventas/gastos/'+item.fbKey+'/modificadoPor']=window.currentUser||''; updates['sisventas/gastos/'+item.fbKey+'/modificadoTs']=Date.now();
@@ -480,7 +480,7 @@
     var grupoAlta=detalleActual,confirmado=false,boton=document.querySelector('#com-det-agregar button'),texto=boton&&boton.innerHTML;
     guardandoDetalle=true;if(boton){boton.disabled=true;boton.innerHTML='<i class="ti ti-loader-2 spin" style="display:inline-block;animation:spin .8s linear infinite" aria-hidden="true"></i> Agregando…';boton.setAttribute('aria-busy','true');}
     try{
-    await window._generarComisionVentaAtomica(emp,{tipo:'comision',estado:'pendiente',aprobadoPor:'',aprobadoTs:null,monto:Math.round(base*pct)/100,pct:pct,pctOriginal:pct,ajustadoAlTope:false,gananciaBase:base,ventaId:detalleActual.ventaId||'',ventaFbKey:detalleActual.ventaFbKey||'',cliente:detalleActual.cliente||'',descripcion:'Comisión venta '+(detalleActual.ventaId||'')+' · '+pct+'% sobre ganancia $'+Math.round(base).toLocaleString('es-AR')+' · participante agregado',fecha:new Date().toISOString().slice(0,10),ts:Date.now(),empleadoNombre:emp.nombre||'',origenCarga:'gestion_comisiones'});
+    await window._generarComisionVentaAtomica(emp,{tipo:'comision',estado:'pendiente',aprobadoPor:'',aprobadoTs:null,monto:window.SVCommercialMoney.percentage(base,pct),pct:pct,pctOriginal:pct,ajustadoAlTope:false,gananciaBase:base,ventaId:detalleActual.ventaId||'',ventaFbKey:detalleActual.ventaFbKey||'',cliente:detalleActual.cliente||'',descripcion:'Comisión venta '+(detalleActual.ventaId||'')+' · '+pct+'% sobre ganancia $'+Math.round(base).toLocaleString('es-AR')+' · participante agregado',fecha:new Date().toISOString().slice(0,10),ts:Date.now(),empleadoNombre:emp.nombre||'',origenCarga:'gestion_comisiones'});
     confirmado=true;
     window.notify('✓ Participante agregado, pendiente de aprobación');
     if(detalleActual===grupoAlta){altaPendienteDetalle={clave:grupoAlta.clave,empleado:empKey};var info=document.getElementById('com-det-info');if(info)info.textContent='Participante agregado. Actualizando el detalle…';}

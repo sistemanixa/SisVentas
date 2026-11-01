@@ -34,8 +34,8 @@ test('histórico inconsistente conserva exactamente su total y subtotales en lug
  assert.equal(value.valid,false);assert.equal(value.warning,warning);assert.equal(source.total,999.123456);
 });
 
-test('tolera el centavo histórico admitido por V3 sin sustituir el importe guardado',()=>{
- const source=record();source.total=207.13;const value=Model.fromRecord(source);assert.equal(Budget.moneyValuesEqual(source.total,207.12),true);assert.equal(value.total,207.13);assert.equal(value.valid,true);assert.equal(value.warning,'');
+test('detecta un centavo de diferencia sin sustituir el importe guardado',()=>{
+ const source=record();source.total=207.13;const value=Model.fromRecord(source);assert.equal(Budget.moneyValuesEqual(source.total,207.12),false);assert.equal(value.total,207.13);assert.equal(value.valid,false);assert.equal(value.warning,warning);
  source.total=207.14;const conflict=Model.fromRecord(source);assert.equal(conflict.total,207.14);assert.equal(conflict.valid,false);assert.equal(conflict.warning,warning);
 });
 

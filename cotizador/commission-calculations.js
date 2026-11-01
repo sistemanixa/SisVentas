@@ -1,4 +1,5 @@
 'use strict';
+const Money=require('./commercial-models/commercial-money');
 const _gastosPagosCache=null;
 function _gastoPagosArray(g) {
   if (_gastosPagosCache && g && _gastosPagosCache.has(g)) return _gastosPagosCache.get(g);
@@ -32,7 +33,7 @@ function normalizarEstadoGasto(g) {
   if (est === 'rechazado' || est === 'anulado') return est;
   var monto = parseFloat(g && g.monto) || 0;
   var pagado = totalPagadoGasto(g);
-  if (monto > 0 && pagado >= monto - 0.01) return 'pagado';
+  if (monto > 0 && Math.round(pagado * 100) >= Math.round(monto * 100)) return 'pagado';
   if (pagado > 0) return 'pagado_parcial';
   var esComision = String((g && (g.tipoPagable || g.origen)) || '').toLowerCase() === 'comision';
   var tieneAprobacion = !!(g && (g.aprobadoTs || g.aprobadoPor || g.fechaAprobacion));

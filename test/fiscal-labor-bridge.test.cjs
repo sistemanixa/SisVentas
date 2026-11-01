@@ -26,7 +26,7 @@ function fixture(initial={}){
   if(name==='./service-auth.cjs')return authModule;
   if(name==='./fiscal-contract.cjs')return require('../cloud-functions/emitir-factura/fiscal-contract.cjs');
   if(name==='./labor-bridge.cjs')return {runtime:()=>bridge};
-  return require(name);
+  if(name==='./commercial-money.cjs')return require('../cloud-functions/emitir-factura/commercial-money.cjs');return require(name);
  }};
  vm.runInNewContext(fs.readFileSync('cloud-functions/emitir-factura/index.js','utf8'),context);
  async function send(body=request()){

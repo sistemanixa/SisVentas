@@ -1,5 +1,6 @@
 (function(root){
   'use strict';
+  const Money=typeof module==='object'&&module.exports?require('../core/commercial-money.v1.js'):root.SVCommercialMoney;
   const num=v=>Number.isFinite(Number(v))?Math.max(0,Number(v)):0;
   const valid=v=>v!==''&&v!==null&&v!==undefined&&Number.isFinite(Number(v))&&Number(v)>=0;
   const copy=v=>JSON.parse(JSON.stringify(v));
@@ -45,7 +46,7 @@
     row.method=provider.exterior?'exterior':'local';row.include=!!provider.exterior;
     const amount=provider.exterior?num(provider.usd):num(provider.costo);
     row.reference={amount,currency:provider.exterior?'USD':'ARS',provider:row.provider,providerKey:row.providerKey,date:provider.actualizado||'',converted:!!provider.exterior&&!!provider.usdConverted};
-    row.agreed=amount>0?Math.round(amount*100)/100:'';
+    row.agreed=amount>0?amount:'';
     row.manualPrice=false;
   }
   function selectExterior(rows,catalog){
@@ -87,7 +88,7 @@
           }else{const reference=prior?.providerKey===pv.proveedorKey&&prior.reference?.currency===(pv.exterior?'USD':'ARS')?copy(prior.reference):null;selectProvider(r,pv);if(reference){r.reference=reference;if(valid(agreed))r.agreed=agreed;}if(manual){r.agreed=agreed;r.manualPrice=true;}}
         }else if(!pv&&r.method!=='stock'){r.providerKey='';r.provider='';r.agreed='';}
       }
-      if(valid(r.agreed))r.agreed=Math.round(num(r.agreed)*100)/100;
+      if(valid(r.agreed))r.agreed=num(r.agreed);
       r.providerOverride=true;
       return r;
     });
@@ -139,8 +140,7 @@
     const goods=active.reduce((s,r)=>s+r.qty*num(r.usd),0),allGoods=foreign.reduce((s,r)=>s+num(r.qty)*num(r.usd),0);
     const weights=foreign.map(r=>num(r.qty)*num(r.usd)),sum=weights.reduce((a,b)=>a+b,0);
     if(logistics>0&&!sum)pending.push('Elegir productos que participen en los gastos');
-    let remaining=Math.round(logistics*100);const last=weights.reduce((a,w,i)=>w>0?i:a,-1);
-    const costs=weights.map((w,i)=>{if(!w||!sum)return 0;const cents=i===last?remaining:Math.round(logistics*100*w/sum);remaining-=cents;return cents/100;});
+    const costs=sum?Money.allocate(logistics,weights):weights.map(()=>0);
     rows.forEach(r=>{const i=foreign.indexOf(r);r.unitCostARS=r.include?num(r.usd)*unitRate+(num(r.qty)?num(costs[i])/num(r.qty):0):num(r.localUnitARS);});
     const alloc=active.map((r,i)=>num(r.qty)*num(r.usd)*(unitRate-num(p.usd))+costs[i]);
     extras.forEach(r=>{const i=foreign.indexOf(r);r.unitCostARS=r.include?num(r.usd)*unitRate+(num(r.qty)?num(costs[i])/num(r.qty):0):num(r.localUnitARS);});
@@ -173,7 +173,7 @@
       if(r.method!=='stock'&&!(unit>0))throw new Error('Falta el costo final acordado: '+r.code);
       item.costoUnitarioAntesPreparacion=original;
       item.preparacionCompra={cantidadStock:existing,costoStockUnitario:original,cantidadComprar:purchased,costoCompraUnitario:unit};
-      item.costoTotalCompra=Math.round((existing*original+(qty-existing)*unit)*100)/100;
+      item.costoTotalCompra=Money.sum([Money.product(existing,original),Money.product(qty-existing,unit)]);
       item.costoUnitarioCompra=item.costoTotalCompra/qty;
       delete item.costoUnitarioUSD;
       item.proveedorCompra=r.method==='stock'?'Stock disponible':r.provider;
@@ -336,7 +336,7 @@
       return '<article data-card-id="'+id+'" class="ep-card"><div class="ep-product">'+(ctx.thumbnail?.(r)||'')+'<div><small class="ep-code">'+esc(r.code||'Sin código')+'</small><strong>'+esc(r.description)+'</strong>'+(extra?'':'<small data-quantity-status="'+id+'" style="display:block;margin-top:6px;line-height:1.5" aria-live="polite"></small>')+'</div></div>'+
         '<div><small>Cantidad</small>'+(extra?'<input class="search-input" aria-label="'+(stockOnly?'Cantidad a comprar':'Cantidad extra')+'" type="number" min="1" step="1" data-item="'+id+'" data-field="qty" value="'+r.qty+'">':'<input class="search-input" aria-label="Cantidad a comprar '+esc(r.code)+'" type="number" min="0" max="'+Math.max(0,num(r.needed)-num(r.existing))+'" step="any" data-item="'+id+'" data-field="requestedQty" value="'+qty+'" '+(r.method==='stock'?'disabled':'')+'>')+'</div>'+
         '<div class="ep-reference"><small>'+(r.reference?.converted?'Referencia convertida':'Precio leído')+'</small><strong>'+(num(r.reference?.amount)>0?esc(r.reference?.currency||currency)+' '+money(r.reference.amount):'Sin precio registrado')+'</strong>'+(r.reference?.converted?'<small>Según cotización guardada</small>':'')+(num(r.reference?.amount)>0?'<small>'+equivalentHTML(r.reference.amount,r.reference.currency||currency)+'</small>':'')+'</div>'+
-        '<label class="ep-agreed">Precio acordado · '+currency+'<div class="ep-price"><input class="search-input" type="number" min="0.01" step="0.01" data-item="'+id+'" data-field="agreed" value="'+esc(r.agreed==null||r.agreed===''?'':Number(r.agreed).toFixed(2))+'" placeholder="Pendiente" '+(r.method==='stock'?'disabled':'')+'>'+(accept?'<button class="btn btn-sm" data-accept="'+id+'" title="Usar precio leído" aria-label="Usar precio leído">=</button>':'')+'</div><small data-unit-equivalent="'+id+'"></small></label>'+
+        '<label class="ep-agreed">Precio acordado · '+currency+'<div class="ep-price"><input class="search-input" type="number" min="0.01" step="0.01" data-item="'+id+'" data-field="agreed" value="'+esc(r.agreed==null||r.agreed===''?'':String(r.agreed))+'" placeholder="Pendiente" '+(r.method==='stock'?'disabled':'')+'>'+(accept?'<button class="btn btn-sm" data-accept="'+id+'" title="Usar precio leído" aria-label="Usar precio leído">=</button>':'')+'</div><small data-unit-equivalent="'+id+'"></small></label>'+
         '<div class="ep-total"><small>Total acordado</small><strong data-line-total="'+id+'"></strong><small data-total-equivalent="'+id+'"></small><small data-price-difference="'+id+'" style="display:block"></small></div>'+
         '<div class="ep-provider"><label>Proveedor<select class="search-input" data-item="'+id+'" data-field="providerKey" '+(r.method==='stock'?'disabled':'')+'><option value="">Seleccionar</option>'+providers(r).map(v=>'<option value="'+esc(v.proveedorKey)+'" '+(r.providerKey===v.proveedorKey?'selected':'')+'>'+esc(v.nombre)+'</option>').join('')+'</select></label><div class="ep-product-links">'+(link?'<a href="'+esc(link.url)+'" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:var(--blue)">'+esc(link.label)+' ↗</a>':'<small>Sin enlace del proveedor</small>')+(root.permisoModulo?.('productos')?'<button type="button" data-product-sheet="'+id+'">Ver producto</button>':'')+'</div></div>'+
         (extra&&!frozen?'<button class="btn btn-sm ep-remove" data-remove="'+i+'" aria-label="Quitar producto '+esc(r.code||r.description)+'" title="Quitar producto">Quitar</button>':'')+(extra?'':'<div class="ep-options">')+

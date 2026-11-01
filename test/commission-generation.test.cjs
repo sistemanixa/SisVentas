@@ -204,3 +204,5 @@ test('editar un legado sin costo no transforma el costo actual del catálogo en 
  const record=c.SVCommissionGeneration.preserveCosts(newValues,old);assert.equal(record.items[0].comisionCostoHistoricoPendiente,true);assert.equal(M.originalCost(record.items[0]),null);
  const known=c.SVCommissionGeneration.preserveCosts(newValues,{items:[{cod:'p',qty:1,costoUnitarioCompra:20}]});assert.equal(M.originalCost(known.items[0]),20);
 });
+
+test('el reparto conserva el total de comisión cuando dos porcentajes generan medio centavo',()=>{const Model=require('../cotizador/commission-generation-model');const result=Model.preview({sale:{fbKey:'s',id:'V-FICTICIA',conIva:false,comisionHabilitada:true,empleadoFbKey:'a',empleado2FbKey:'b',subtotal:.1,total:.1,items:[{qty:1,punit:.1,sub:.1,costoUnitarioPresupuestado:0}],descuentoGeneral:0,iva:0},payments:[{ventaFbKey:'s',monto:.1}],employees:{a:{nombre:'A'},b:{nombre:'B'}},config:{maxComisionPct:50,comisionesEmpleados:{a:25,b:25}}});assert.equal(result.status,'lista');assert.deepEqual(result.participantes.map(p=>p.monto),[.03,.02]);assert.equal(result.participantes.reduce((s,p)=>s+Math.round(p.monto*100),0),5);});

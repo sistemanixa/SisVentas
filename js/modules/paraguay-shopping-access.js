@@ -130,7 +130,7 @@
   function captureAgreedSale(actual,product,rate,isNew) {
     if(isNew&&actual.precioProveedorInicialUSD==null){const price=quote(product,actual.proveedor).usd;if(price>0){actual.precioProveedorInicialUSD=price;if(actual.precioUnitario==null){actual.precioUnitario=price;actual.moneda='USD';}}}
     if(isNew&&actual.precioVentaUnitarioUSD==null){const price=saleAmounts(product,rate).usd;if(price>0)actual.precioVentaUnitarioUSD=price;}
-    if(actual.costoEnvioUnitarioUSD==null&&rate>0&&product?.proveedores?.length){const rows=product?.proveedores||[],provider=rows.find(pv=>actual.proveedor&&pv.nombre===actual.proveedor)||rows.find(pv=>root.proveedorProductoEsFavorito?.(pv,product))||rows[0];actual.costoEnvioUnitarioUSD=Number.isFinite(provider?.costoEnvioUSD)?Math.round(provider.costoEnvioUSD):Math.round((Number(provider?.costoEnvioArs)||0)/rate);}
+    if(actual.costoEnvioUnitarioUSD==null&&rate>0&&product?.proveedores?.length){const rows=product?.proveedores||[],provider=rows.find(pv=>actual.proveedor&&pv.nombre===actual.proveedor)||rows.find(pv=>root.proveedorProductoEsFavorito?.(pv,product))||rows[0];actual.costoEnvioUnitarioUSD=Number.isFinite(provider?.costoEnvioUSD)?provider.costoEnvioUSD:(Number(provider?.costoEnvioArs)||0)/rate;}
     return actual;
   }
   const historyDate=value=>Number(value)>0?new Date(Number(value)).toLocaleDateString('es-AR'):'Sin fecha registrada';
@@ -988,7 +988,7 @@
       }
       for(const key of Object.keys(actualItems)) {
         const initialPrice=purchases[key]?.precioProveedorInicialUSD;if(initialPrice!=null){if(!Number.isFinite(initialPrice)||initialPrice<0||initialPrice>1e9){status('Revisá el precio inicial del proveedor.');return;}actualItems[key].precioProveedorInicialUSD=initialPrice;}
-        const shipping=purchases[key]?.costoEnvioUnitarioUSD;if(shipping!=null){if(!Number.isFinite(shipping)||shipping<0||shipping>1e9){status('Revisá el costo de envío.');return;}actualItems[key].costoEnvioUnitarioUSD=Math.round(shipping);}
+        const shipping=purchases[key]?.costoEnvioUnitarioUSD;if(shipping!=null){if(!Number.isFinite(shipping)||shipping<0||shipping>1e9){status('Revisá el costo de envío.');return;}actualItems[key].costoEnvioUnitarioUSD=shipping;}
         if(purchases[key]?.compraPersonal===true)actualItems[key].compraPersonal=true;
         const sale=purchases[key]?.precioVentaUnitarioUSD;
         if(sale!=null){if(!Number.isFinite(sale)||sale<0||sale>1e9){status('Revisá el precio de venta acordado.');return;}actualItems[key].precioVentaUnitarioUSD=sale;}

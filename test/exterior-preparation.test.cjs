@@ -72,3 +72,5 @@ test('precio manual sólo se conserva cuando su moneda coincide con el proveedor
  const d=initialize({rows:[source],saved:{version:6,rows:[{...source,method:'local',agreed:35420,manualPrice:true,reference:{amount:35420,currency:'ARS'}}]},catalog:[{key:'A',providers:[{proveedorKey:'P',exterior:true,usd:23}]}]});
  assert.equal(d.rows[0].agreed,23);assert.equal(d.rows[0].reference.currency,'USD');
 });
+
+test('un centavo de logística se distribuye sin residuos negativos ni duplicarse',()=>{const d=draft();d.parameters.shippingInsuredUSD=0;d.parameters.remoteOther=.01;d.rows=Array.from({length:100},(_,i)=>row('F'+i,1,1));const r=calculateDraft(d);assert.equal(r.result.logistics,.01);assert.equal(r.result.remoteAllocation.reduce((s,v)=>s+Math.round(v*100),0),1);assert.ok(r.result.remoteAllocation.every(v=>v>=0));});

@@ -1,3 +1,4 @@
+const CommercialMoney=require('./commercial-money.cjs');
 /**
  * Cloud Function: emitirFactura / testTFApp
  * ══════════════════════════════════════════════════════════════════
@@ -62,7 +63,7 @@ function formatearFechaAR(date) {
 }
 
 function redondearDinero(valor) {
-  return Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
+  return CommercialMoney.amount(Number(valor));
 }
 
 // TusFacturasApp ha usado nombres distintos para los mismos campos entre
@@ -149,10 +150,8 @@ function prepararDetalleFiscal(venta) {
     };
   });
 
-  var neto = redondearDinero(detalle.reduce(function (suma, linea) {
-    return suma + linea.producto.precio_unitario_sin_iva * linea.cantidad;
-  }, 0));
-  var totalCalculado = redondearDinero(neto * 1.21);
+  var neto = CommercialMoney.sum(detalle.map(function(linea){return CommercialMoney.rawProduct(linea.producto.precio_unitario_sin_iva,linea.cantidad);}));
+  var totalCalculado = CommercialMoney.product(neto,1.21);
   var totalEsperado = redondearDinero(venta.totalFiscalEsperado || venta.importe_total || venta.total || 0);
   if (venta.totalFiscalEsperado !== undefined && Math.abs(totalCalculado - totalEsperado) > 0.009) {
     throw new Error('Integridad fiscal: los renglones totalizan $' + totalCalculado.toFixed(2) + ' y la venta $' + totalEsperado.toFixed(2));

@@ -28,7 +28,7 @@
     var sum=0;
     for(var i=0;i<items.length;i++){
       var gross=items[i].quantity*items[i].unitPrice;sum+=gross;
-      if(!Number.isFinite(gross)||!Number.isFinite(sum)||!Number.isFinite(Budget.roundMoney(gross)))return false;
+      if(!Number.isFinite(gross)||!Number.isFinite(sum)||Math.abs(gross)>Number.MAX_SAFE_INTEGER/100)return false;
     }
     return [model.subtotal,model.generalDiscount,model.taxableBase,model.iva,model.total].every(Number.isFinite)&&model.items.every(function(item){return [item.quantity,item.unitNet,item.gross,item.discount,item.net].every(Number.isFinite);});
   }

@@ -1,4 +1,5 @@
 'use strict';
+const Money=require('./commercial-models/commercial-money');
 const {_claveOperacionConcurrente:key,_hsexAgruparPendientes:group,_hsexDescripcionDetalle:describe,_pagableGastoBase:expense}=require('./labor-calculations');
 const fail=(statusCode,message)=>Object.assign(Error(message),{statusCode});
 function createLaborOperations({auth,db,transaction,now=Date.now}){
@@ -29,12 +30,13 @@ function createLaborOperations({auth,db,transaction,now=Date.now}){
     const g=groups[0],emp=root.empleados?.[g.empFbKey];if(!emp||emp.activo===false)throw fail(409,'Empleado no disponible');
     const cargo=root.config?.cargos?.[emp.cargoId],rate=Number(cargo?.valorHoraExtra)||0;
     const hours=legacy?Number(requests[0].horas)||0:g.horas;
-    const amount=Math.round(hours*rate);
+    const amount=Money.product(hours,rate);
     if(!(hours>0)||!Number.isFinite(amount)||amount<0||Number(body.monto)!==amount)throw fail(409,'El valor de las horas cambió. Volvé a revisar la aprobación.');
     const details=g.detalleDias,description=legacy?requests[0].descripcion||'':details.length?describe(details,''):requests.map(s=>String(s.descripcion||'').trim()).filter(Boolean).join(' · ');
     root.gastos=root.gastos||{};
     if(!root.gastos[target])root.gastos[target]=expense({tipoPagable:'hextra',tipo:'Variable',fecha:date,fechaTrabajo:legacy?requests[0].fecha:(details[0]||{}).fecha||g.mes+'-01',periodoTrabajo:g.mes,monto:amount,descripcion:'Hs extra '+(g.empNombre||'')+' — '+description+' ('+hours+' hs)',empleadoFbKey:g.empFbKey,empleadoNombre:g.empNombre||'',hsExtra:hours,legacyKey:legacy?'hsextra_solicitudes/'+sorted[0]:'hsextra_grupo/'+sorted.join('+'),aprobadoTs:stamp,ts:stamp});
-    for(const s of requests){const approved={...root.hsextra_solicitudes[s.fbKey],estado:'aprobado',aprobadoPor:identity.nombre,aprobadoTs:stamp,monto:legacy?amount:Math.round(amount*(Number(s.horas)||0)/hours),gastoFbKey:target};if(!legacy)Object.assign(approved,{montoGrupo:amount,grupoAprobacion:sorted,valorHoraExtraAplicado:rate,cargoIdAplicado:emp.cargoId||''});root.hsextra_solicitudes[s.fbKey]=approved;}
+    const allocated=Money.allocate(amount,requests.map(s=>Number(s.horas)||0));
+    for(const [index,s] of requests.entries()){const approved={...root.hsextra_solicitudes[s.fbKey],estado:'aprobado',aprobadoPor:identity.nombre,aprobadoTs:stamp,monto:legacy?amount:allocated[index],gastoFbKey:target};if(!legacy)Object.assign(approved,{montoGrupo:amount,grupoAprobacion:sorted,valorHoraExtraAplicado:rate,cargoIdAplicado:emp.cargoId||''});root.hsextra_solicitudes[s.fbKey]=approved;}
     return root;
    }catch(e){error=e;return;}
   },{kind:'aprobar-horas',identity,body});

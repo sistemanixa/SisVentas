@@ -1,4 +1,5 @@
 'use strict';
+const SVCommercialMoney=require('./commercial-money.cjs');
 // Proyección pura del contrato fiscal canónico de la aplicación activa.
 // La prueba de paridad exige conservar las mismas funciones, descuentos e IVA.
 function normalizarSolicitudEmisionFiscal(data, requerirTipo = false) {
@@ -224,7 +225,7 @@ function resumenEconomicoComprobanteVenta(venta) {
     descuentoGeneralPct = descuento / subtotalBruto * 100;
   }
 
-  var redondear = function(valor) { return Math.round((numero(valor) + Number.EPSILON) * 100) / 100; };
+  var redondear = function(valor) { return SVCommercialMoney.amount(numero(valor)); };
   return {
     subtotalItems: redondear(subtotalItemsConDescuento),
     descuentoGeneralMonto: redondear(subtotalItemsConDescuento - subtotalNeto > 0.5 ? subtotalItemsConDescuento - subtotalNeto : 0),
@@ -249,16 +250,16 @@ function resumenFiscalParaComprobanteVenta(venta, tipoComprobante) {
 
   if (esComprobanteFiscal && venta && venta.conIva === false) {
     neto = comercial.total;
-    iva = Math.round((neto * 0.21 + Number.EPSILON) * 100) / 100;
+    iva = SVCommercialMoney.percentage(neto,21);
     aplicaIva = true;
   }
-  var total = Math.round(((neto + iva) + Number.EPSILON) * 100) / 100;
+  var total = SVCommercialMoney.sum([neto,iva]);
   return {
     subtotalBruto: comercial.subtotalBruto,
     descuento: comercial.descuento,
     descuentoGeneralPct: comercial.descuentoGeneralPct,
-    subtotalNeto: Math.round((neto + Number.EPSILON) * 100) / 100,
-    iva: Math.round((iva + Number.EPSILON) * 100) / 100,
+    subtotalNeto: SVCommercialMoney.amount(neto),
+    iva: SVCommercialMoney.amount(iva),
     aplicaIva: aplicaIva,
     total: total,
     totalComercial: comercial.total
@@ -279,12 +280,12 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
   // una factura electrónica gravada, ARCA debe recibir ese neto más su IVA;
   // nunca se debe forzar el total comercial a que parezca un total con IVA.
   var resumenFiscal = resumenFiscalParaComprobanteVenta(venta, tipoComprobante);
-  var totalEsperado = Math.round((Number(resumenFiscal.total) + Number.EPSILON) * 100) / 100;
+  var totalEsperado = SVCommercialMoney.amount(Number(resumenFiscal.total));
   var originales = Array.isArray(venta.items) ? venta.items : Object.values(venta.items || {});
   var lineas = originales.map(function(item, indice) {
     var normalizado = pptoNormalizarItemGuardado(item);
     var cantidad = normalizado.qty > 0 ? normalizado.qty : 1;
-    var importeBase = cantidad * normalizado.punit * (1 - normalizado.disc / 100);
+    var importeBase = SVCommercialMoney.line(cantidad,normalizado.punit,normalizado.disc)/100;
     return {
       original: item,
       indice: indice,
@@ -300,7 +301,7 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
   var factor = totalEsperado / sumaBase;
   var itemsFiscal = lineas.map(function(linea) {
     var original = linea.original || {};
-    var precioFinal = Math.round(((linea.importeBase * factor) / linea.cantidad + Number.EPSILON) * 100) / 100;
+    var precioFinal = SVCommercialMoney.ratio([linea.importeBase,totalEsperado],[sumaBase,linea.cantidad]);
     return Object.assign({}, original, {
       qty: linea.cantidad,
       cantidad: linea.cantidad,
@@ -312,15 +313,13 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
       descuento: 0,
       descuentoPct: 0,
       porcentajeDescuento: 0,
-      sub: Math.round((linea.cantidad * precioFinal + Number.EPSILON) * 100) / 100
+      sub: SVCommercialMoney.product(linea.cantidad,precioFinal)
     });
   });
 
-  var totalLineas = itemsFiscal.reduce(function(total, item) {
-    return total + (Number(item.qty) || 0) * (Number(item.punit) || 0);
-  }, 0);
-  totalLineas = Math.round((totalLineas + Number.EPSILON) * 100) / 100;
-  var diferencia = Math.round(((totalEsperado - totalLineas) + Number.EPSILON) * 100) / 100;
+  var totalLineas = SVCommercialMoney.amount(SVCommercialMoney.quantitySum(itemsFiscal.map(function(item){return SVCommercialMoney.rawProduct(Number(item.qty)||0,Number(item.punit)||0);})));
+  totalLineas = SVCommercialMoney.amount(totalLineas);
+  var diferencia = SVCommercialMoney.sum([totalEsperado,-totalLineas]);
 
   // Se ajusta preferentemente un renglón de cantidad 1 para conservar el
   // precio unitario a dos decimales. Si todas las cantidades son múltiples,
@@ -332,7 +331,7 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
       if (Number(itemsFiscal[i].qty) === 1) { indiceUnitario = i; break; }
     }
     if (indiceUnitario >= 0) {
-      var corregido = Math.round(((Number(itemsFiscal[indiceUnitario].punit) || 0) + diferencia + Number.EPSILON) * 100) / 100;
+      var corregido = SVCommercialMoney.sum([Number(itemsFiscal[indiceUnitario].punit)||0,diferencia]);
       itemsFiscal[indiceUnitario].punit = corregido;
       itemsFiscal[indiceUnitario].precio = corregido;
       itemsFiscal[indiceUnitario].precioUnitario = corregido;
@@ -343,13 +342,13 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
       var itemMultiple = itemsFiscal[indiceMultiple];
       var cantidadMultiple = Number(itemMultiple.qty) || 0;
       var precioMultiple = Number(itemMultiple.punit) || 0;
-      var precioUltimaUnidad = Math.round((precioMultiple + diferencia + Number.EPSILON) * 100) / 100;
+      var precioUltimaUnidad = SVCommercialMoney.sum([precioMultiple,diferencia]);
       if (!(cantidadMultiple > 1) || !(precioUltimaUnidad > 0)) {
         throw new Error('No se pudo distribuir el ajuste fiscal de ' + importeComprobanteVenta(diferencia));
       }
       itemMultiple.qty = cantidadMultiple - 1;
       itemMultiple.cantidad = cantidadMultiple - 1;
-      itemMultiple.sub = Math.round(((cantidadMultiple - 1) * precioMultiple + Number.EPSILON) * 100) / 100;
+      itemMultiple.sub = SVCommercialMoney.product(cantidadMultiple-1,precioMultiple);
       itemsFiscal.splice(indiceMultiple + 1, 0, Object.assign({}, itemMultiple, {
         qty: 1,
         cantidad: 1,
@@ -362,10 +361,8 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
     }
   }
 
-  var totalPreparado = itemsFiscal.reduce(function(total, item) {
-    return total + (Number(item.qty) || 0) * (Number(item.punit) || 0);
-  }, 0);
-  totalPreparado = Math.round((totalPreparado + Number.EPSILON) * 100) / 100;
+  var totalPreparado = SVCommercialMoney.amount(SVCommercialMoney.quantitySum(itemsFiscal.map(function(item){return SVCommercialMoney.rawProduct(Number(item.qty)||0,Number(item.punit)||0);})));
+  totalPreparado = SVCommercialMoney.amount(totalPreparado);
   if (Math.abs(totalPreparado - totalEsperado) > 0.009) {
     throw new Error('Los renglones fiscales suman ' + importeComprobanteVenta(totalPreparado) + ' y la venta totaliza ' + importeComprobanteVenta(totalEsperado));
   }
@@ -373,14 +370,14 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
   // También se fija explícitamente el precio fiscal sin IVA que consumirá la
   // función del servidor. No se vuelve a inferir desde el precio con IVA: esa
   // ida y vuelta era la segunda fuente de diferencias de centavos.
-  var netoFiscalBase = Math.round(((totalEsperado / 1.21) + Number.EPSILON) * 100) / 100;
+  var netoFiscalBase = SVCommercialMoney.quotient(totalEsperado,1.21);
   var netoFiscal = null;
   // No todos los totales se reconstruyen con el primer centavo que surge de
   // dividir por 1,21. Se prueban los centavos vecinos y se conserva el más
   // cercano que, al volver a aplicar IVA, reproduce exactamente la venta.
   for (var desplazamientoNeto = -3; desplazamientoNeto <= 3; desplazamientoNeto++) {
-    var candidatoNeto = Math.round(((netoFiscalBase + desplazamientoNeto / 100) + Number.EPSILON) * 100) / 100;
-    var totalCandidato = Math.round(((candidatoNeto * 1.21) + Number.EPSILON) * 100) / 100;
+    var candidatoNeto = SVCommercialMoney.sum([netoFiscalBase,desplazamientoNeto/100]);
+    var totalCandidato = SVCommercialMoney.product(candidatoNeto,1.21);
     if (Math.abs(totalCandidato - totalEsperado) <= 0.009 && (netoFiscal === null || Math.abs(candidatoNeto - totalEsperado / 1.21) < Math.abs(netoFiscal - totalEsperado / 1.21))) {
       netoFiscal = candidatoNeto;
     }
@@ -388,29 +385,36 @@ function prepararVentaParaFacturacion(venta, tipoComprobante) {
   if (netoFiscal === null) throw new Error('El total de la venta no puede discriminarse con IVA al centavo');
   var factorNeto = netoFiscal / totalPreparado;
   itemsFiscal.forEach(function(item) {
-    item.precioUnitarioSinIvaFiscal = Math.round((((Number(item.punit) || 0) * factorNeto) + Number.EPSILON) * 100) / 100;
+    item.precioUnitarioSinIvaFiscal = SVCommercialMoney.ratio([Number(item.punit)||0,netoFiscal],[totalPreparado]);
   });
-  var netoLineas = itemsFiscal.reduce(function(total, item) {
-    return total + (Number(item.qty) || 0) * (Number(item.precioUnitarioSinIvaFiscal) || 0);
-  }, 0);
-  netoLineas = Math.round((netoLineas + Number.EPSILON) * 100) / 100;
-  var diferenciaNeto = Math.round(((netoFiscal - netoLineas) + Number.EPSILON) * 100) / 100;
+  var netoLineas = SVCommercialMoney.amount(SVCommercialMoney.quantitySum(itemsFiscal.map(function(item){return SVCommercialMoney.rawProduct(Number(item.qty)||0,Number(item.precioUnitarioSinIvaFiscal)||0);})));
+  netoLineas = SVCommercialMoney.amount(netoLineas);
+  var diferenciaNeto = SVCommercialMoney.sum([netoFiscal,-netoLineas]);
   if (Math.abs(diferenciaNeto) >= 0.01) {
     var indiceAjusteNeto = -1;
     for (var j = itemsFiscal.length - 1; j >= 0; j--) {
       if (Number(itemsFiscal[j].qty) === 1) { indiceAjusteNeto = j; break; }
     }
-    if (indiceAjusteNeto < 0) throw new Error('No se pudo cerrar el neto fiscal al centavo');
-    itemsFiscal[indiceAjusteNeto].precioUnitarioSinIvaFiscal = Math.round(((Number(itemsFiscal[indiceAjusteNeto].precioUnitarioSinIvaFiscal) || 0) + diferenciaNeto + Number.EPSILON) * 100) / 100;
+    if (indiceAjusteNeto < 0) {
+      var multipleNeto = itemsFiscal[itemsFiscal.length - 1];
+      var cantidadNeto = Number(multipleNeto.qty) || 0;
+      if (!(cantidadNeto > 1)) throw new Error('No se pudo cerrar el neto fiscal al centavo');
+      // La misma mercadería conserva cantidad y precio final; separar la última
+      // unidad permite asignarle el centavo residual del neto sin alterar la venta.
+      multipleNeto.qty = cantidadNeto - 1;
+      multipleNeto.cantidad = cantidadNeto - 1;
+      multipleNeto.sub = SVCommercialMoney.product(multipleNeto.qty,Number(multipleNeto.punit));
+      itemsFiscal.push(Object.assign({},multipleNeto,{qty:1,cantidad:1,sub:Number(multipleNeto.punit)}));
+      indiceAjusteNeto = itemsFiscal.length - 1;
+    }
+    itemsFiscal[indiceAjusteNeto].precioUnitarioSinIvaFiscal = SVCommercialMoney.sum([Number(itemsFiscal[indiceAjusteNeto].precioUnitarioSinIvaFiscal)||0,diferenciaNeto]);
   }
-  var netoPreparado = Math.round((itemsFiscal.reduce(function(total, item) {
-    return total + (Number(item.qty) || 0) * (Number(item.precioUnitarioSinIvaFiscal) || 0);
-  }, 0) + Number.EPSILON) * 100) / 100;
-  var totalFiscalCalculado = Math.round(((netoPreparado * 1.21) + Number.EPSILON) * 100) / 100;
+  var netoPreparado = SVCommercialMoney.amount(SVCommercialMoney.quantitySum(itemsFiscal.map(function(item){return SVCommercialMoney.rawProduct(Number(item.qty)||0,Number(item.precioUnitarioSinIvaFiscal)||0);})));
+  var totalFiscalCalculado = SVCommercialMoney.product(netoPreparado,1.21);
   if (Math.abs(netoPreparado - netoFiscal) > 0.009 || Math.abs(totalFiscalCalculado - totalEsperado) > 0.009) {
     throw new Error('El neto fiscal no permite reproducir exactamente el total de la venta');
   }
-  var ivaFiscal = Math.round(((totalEsperado - netoFiscal) + Number.EPSILON) * 100) / 100;
+  var ivaFiscal = SVCommercialMoney.sum([totalEsperado,-netoFiscal]);
   return {
     venta: Object.assign({}, venta, {
       items: itemsFiscal,

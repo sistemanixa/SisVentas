@@ -1,12 +1,13 @@
 (function (root, factory) {
-  var api = factory();
+  var money = typeof module === 'object' && module.exports ? require('./commercial-money.js') : root.SVCommercialMoney;
+  var api = factory(money);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else {
     root.SisVentas = root.SisVentas || {};
     root.SisVentas.V3 = root.SisVentas.V3 || {};
     root.SisVentas.V3.BudgetReadModel = api;
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (money) {
   'use strict';
 
   var DEFAULT_IVA_RATE = 21;
@@ -52,7 +53,7 @@
   function roundMoney(value) {
     var parsed = Number(value);
     if (!Number.isFinite(parsed)) return 0;
-    return Math.round((parsed + Number.EPSILON) * 100) / 100;
+    return money.amount(parsed);
   }
 
   function percent(value) {
@@ -80,7 +81,7 @@
   }
 
   function moneyValuesEqual(stored, computed) {
-    if (Math.abs(stored - computed) < MONEY_TOLERANCE) return true;
+    if (money.cents(money.decimal(stored)) === money.cents(money.decimal(computed))) return true;
     // Los presupuestos anteriores a V3 se guardaban redondeados al peso.
     // Una diferencia de centavos contra el cálculo canónico no representa
     // una inconsistencia comercial cuando el valor persistido es entero.
@@ -119,10 +120,9 @@
         : storedLineValues[0].value / quantity;
     }
 
-    var gross = roundMoney(quantity * unitNet);
-    var discount = roundMoney(gross * discountPct / 100);
-    var net = roundMoney(Math.max(0, gross - discount));
-    var conflicts = [];
+    var gross=0,net=0,discount=0,conflicts=[];
+    try { gross=money.product(quantity,unitNet);net=money.line(quantity,unitNet,discountPct)/100;discount=money.sum([gross,-net]); }
+    catch (_) { conflicts.push(Object.freeze({kind:'amount-out-of-range',path:'items['+index+']'})); }
     addMoneyConflicts(conflicts, source, ['sub', 'subtotal', 'totalItem', 'importe'], net,
       'items[' + index + ']', 'line-total-mismatch');
     if (!(quantity > 0)) {
@@ -138,7 +138,7 @@
       code: String(firstDefined(source, ['cod', 'codigo', 'sku'], '') || '').trim(),
       description: String(firstDefined(source, ['descripcionPersonalizada', 'desc', 'descripcion', 'nombre', 'producto'], '') || '').trim(),
       quantity: quantity,
-      unitNet: roundMoney(unitNet),
+      unitNet: unitNet,
       discountPct: discountPct,
       gross: gross,
       discount: discount,
@@ -164,9 +164,9 @@
       Array.prototype.push.apply(conflicts, item.conflicts);
     });
 
-    var grossSubtotal = roundMoney(items.reduce(function (sum, item) { return sum + item.gross; }, 0));
-    var lineDiscount = roundMoney(items.reduce(function (sum, item) { return sum + item.discount; }, 0));
-    var subtotal = roundMoney(items.reduce(function (sum, item) { return sum + item.net; }, 0));
+    var grossSubtotal = money.sum(items.map(function(item){return item.gross;}));
+    var lineDiscount = money.sum(items.map(function(item){return item.discount;}));
+    var subtotal = money.sum(items.map(function(item){return item.net;}));
     var generalDiscountPct = percent(firstDefined(source, [
       'descuentoGeneral', 'descuentoPct', 'porcentajeDescuento', 'descuento'
     ], 0));
@@ -175,13 +175,13 @@
     });
     var storedGeneralDiscount = Math.max(0, parseNumber(source.descuentoAmt));
     var generalDiscount = hasGeneralPercent
-      ? roundMoney(subtotal * generalDiscountPct / 100)
+      ? money.sum([subtotal,-money.discount(money.cents(money.decimal(subtotal)),generalDiscountPct)/100])
       : roundMoney(Math.min(subtotal, storedGeneralDiscount));
-    var taxableBase = roundMoney(Math.max(0, subtotal - generalDiscount));
+    var taxableBase = money.sum([subtotal,-generalDiscount]);
     var includesIva = explicitIvaState(source, options || {});
     var ivaRate = includesIva ? percent(firstDefined(source, ['ivaPct', 'tasaIva', 'porcentajeIva'], DEFAULT_IVA_RATE)) : 0;
-    var iva = includesIva ? roundMoney(taxableBase * ivaRate / 100) : 0;
-    var total = roundMoney(taxableBase + iva);
+    var iva = includesIva ? money.percentage(taxableBase,ivaRate) : 0;
+    var total = money.sum([taxableBase,iva]);
 
     addMoneyConflicts(conflicts, source, ['subtotal'], subtotal, 'budget', 'subtotal-mismatch');
     if (source.descuentoAmt !== undefined && source.descuentoAmt !== null && source.descuentoAmt !== '') {

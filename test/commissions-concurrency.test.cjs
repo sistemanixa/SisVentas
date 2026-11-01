@@ -6,7 +6,7 @@ function setup(items,inputs){
  const document={addEventListener(){},getElementById:id=>id==='com-det-guardar'?button:null,querySelectorAll:()=>inputs.map(x=>({dataset:{gasto:x.key},value:String(x.pct)}))};
  const svc=require('../cotizador/commission-operations').createCommissionOperations({auth:{},db:{},transaction:async fn=>{const next=fn(structuredClone(data));if(!next)return {committed:false};writes++;Object.assign(data,next);return {committed:true};}});
  w.SVServiceAuth={headers:async h=>h};
- const context={SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://test'},fetch:async(_,opts)=>{try{return {ok:true,json:async()=>({ok:true,...await svc.redistribute({nombre:'Admin'},JSON.parse(opts.body))})};}catch(e){return {ok:false,json:async()=>({ok:false,mensaje:e.message})};}},window:w,document,setTimeout(){},console};vm.createContext(context);
+ const context={SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://test'},fetch:async(_,opts)=>{try{return {ok:true,json:async()=>({ok:true,...await svc.redistribute({nombre:'Admin'},JSON.parse(opts.body))})};}catch(e){return {ok:false,json:async()=>({ok:false,mensaje:e.message})};}},window:w,document,setTimeout(){},console};context.window.SVCommercialMoney=require('../js/core/commercial-money.v1.js');vm.createContext(context);
  vm.runInContext(fs.readFileSync('js/core/guarded-writes.js','utf8'),context);vm.runInContext(fs.readFileSync('js/modules/commissions.js','utf8'),context);
  return {w,data,messages,button,context,get writes(){return writes}};
 }

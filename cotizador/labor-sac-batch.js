@@ -1,4 +1,5 @@
 'use strict';
+const Money=require('./commercial-models/commercial-money');
 const {isDeepStrictEqual}=require('node:util');
 const {normalizeRtdb}=require('./payment-membership-index');
 const Legacy=require('./payroll-legacy-sac-model');
@@ -96,12 +97,12 @@ async function validateSACWrites({actor,raw,get,changes=[],patch={},digest}){
     if(best===0){
      if(employee.cargoId&&!covered(approved.paths,'sisventas/config/cargos/'+employee.cargoId))throw fail('Falta comprobar el cargo usado para calcular el SAC.');
      const cargo=employee.cargoId?current(values,'sisventas/config/cargos/'+employee.cargoId):null;
-     best=cargo?Math.round((parseFloat(cargo.valorHora)||0)*8*(parseFloat(cargo.diasMes)||0)):0;
+     best=cargo?Money.product((parseFloat(cargo.valorHora)||0),8,(parseFloat(cargo.diasMes)||0)):0;
     }
     // Preserve the canonical legacy coercions and month comparison exactly.
     // A manual maximum may lower the SAC, but may not raise its source ceiling.
     const monthsWorked=employee.fechaIngreso?row.months.filter(month=>month.replace('_','-')>=String(employee.fechaIngreso).slice(0,7)).length:6;
-    const total=Math.round(((best/12)*monthsWorked)*100)/100;
+    const total=Money.quotient(Money.rawProduct(best,monthsWorked),12);
     if(!same(row.value.mejorSueldo??null,best||null)||!Number.isFinite(total)||row.value.monto>total)throw fail('El importe o mejor sueldo del SAC no coincide con sus fuentes actuales.');
    }
   }else{

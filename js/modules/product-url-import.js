@@ -1,5 +1,6 @@
 (function () {
   'use strict';
+  var Money = window.SVCommercialMoney;
   var consulta = null;
   var secuencia = 0;
   function el(id) { return document.getElementById(id); }
@@ -38,7 +39,7 @@
     if (typeof d.nome !== 'string' || !d.nome.trim() || !d.loja || typeof d.loja.nome !== 'string' || !d.loja.nome.trim() || d.ocultar_preco !== false || typeof d.preco_dolar !== 'number' || !Number.isFinite(d.preco_dolar) || d.preco_dolar <= 0 || typeof d.disponivel !== 'boolean') throw new Error('Compras Paraguay no confirmó un precio público en dólares para este producto.');
     var dolar = obtenerDolarReferenciaProducto();
     var cambio = Number(dolar && dolar.valor);
-    var precio = Math.round(d.preco_dolar * cambio * 100) / 100;
+    var precio = Money.product(d.preco_dolar, cambio);
     if (!(cambio > 0) || !Number.isFinite(precio)) throw new Error('Configurá una cotización válida del dólar en SisVentas.');
     var texto = function(v) { return typeof v === 'string' ? v.replace(/<[^>]*>/g, ' ').trim() : ''; };
     return {ok:true, url:url, identidad:{ok:true}, moneda:'ARS', precioArs:precio, precioPublicadoArs:precio, precioOriginal:d.preco_dolar, monedaOriginal:'USD', sinIva:false,
@@ -53,7 +54,7 @@
       panel = document.createElement('div');
       panel.id = 'pf-envio-paraguay-panel';
       panel.style.marginTop = '12px';
-      panel.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:12px"><div style="flex:1 1 180px;max-width:260px"><label for="pf-envio-paraguay">Costo de envío ARS</label><input id="pf-envio-paraguay" type="number" min="0" step="1" inputmode="numeric" value="0" oninput="actualizarEnvioComprasParaguay()"></div><div style="flex:1 1 180px;max-width:260px"><label for="pf-envio-paraguay-usd">Costo de envío USD</label><input id="pf-envio-paraguay-usd" type="number" min="0" step="1" inputmode="numeric" value="0" oninput="actualizarEnvioComprasParaguay(\'USD\')"></div></div><div id="pf-envio-cambio" style="font-size:12px;color:var(--text3);margin-top:5px" aria-live="polite"></div>';
+      panel.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:12px"><div style="flex:1 1 180px;max-width:260px"><label for="pf-envio-paraguay">Costo de envío ARS</label><input id="pf-envio-paraguay" type="number" min="0" step="0.01" inputmode="decimal" value="0" oninput="actualizarEnvioComprasParaguay()"></div><div style="flex:1 1 180px;max-width:260px"><label for="pf-envio-paraguay-usd">Costo de envío USD</label><input id="pf-envio-paraguay-usd" type="number" min="0" step="1" inputmode="numeric" value="0" oninput="actualizarEnvioComprasParaguay(\'USD\')"></div></div><div id="pf-envio-cambio" style="font-size:12px;color:var(--text3);margin-top:5px" aria-live="polite"></div>';
       el('pf-importar-panel').appendChild(panel);
     }
     var url = urlExacta(el('pf-cod-web').value);
@@ -87,8 +88,8 @@
     usd.disabled=!(Number.isFinite(rate)&&rate>0);
     var fila=prodProveedoresActuales.find(function(p){return urlExacta(p.url)===urlExacta(el('pf-cod-web').value);});
     var fijo=fila&&Number.isFinite(fila.costoEnvioUSD)?fila.costoEnvioUSD:null;
-    usd.value=fijo!==null?String(fijo):usd.disabled?'':(Number(ars.value)/rate).toFixed(0);
-    if(fijo!==null&&!usd.disabled)ars.value=String(Math.round(fijo*rate));
+    usd.value=fijo!==null?String(fijo):usd.disabled?'':String(Money.quotient(Number(ars.value),rate));
+    if(fijo!==null&&!usd.disabled)ars.value=String(Money.product(fijo,rate));
     usd.setCustomValidity('');
     el('pf-envio-cambio').textContent=usd.disabled?'Sin cotización: podés cargar el envío en pesos.':'1 USD = ARS $ '+rate.toLocaleString('es-AR')+' · Envío fijo en USD. Pesos a la cotización actual.';
   }
@@ -97,19 +98,19 @@
     var valor = Number(input.value);
     if(moneda==='USD'){
       var rate=Number(obtenerDolarReferenciaProducto().valor),dollars=Number(usd.value);
-      var valid=usd.value!==''&&Number.isFinite(dollars)&&dollars>=0&&Math.abs(dollars*100-Math.round(dollars*100))<0.000001&&Number.isFinite(rate)&&rate>0;
+      var valid=usd.value!==''&&Number.isFinite(dollars)&&dollars>=0&&Money.isAmount(dollars)&&Number.isFinite(rate)&&rate>0;
       var error=valid?'':'Ingresá un envío válido en dólares, con hasta dos decimales y una cotización disponible';
       usd.setCustomValidity(error);input.setCustomValidity(error);
       if(!valid)return;
-      dollars=Math.round(dollars);usd.value=String(dollars);valor=Math.round(dollars*rate);
+      usd.value=String(dollars);valor=Money.product(dollars,rate);
       input.value=String(valor);
     }
-    input.setCustomValidity(input.value!==''&&Number.isSafeInteger(valor) && valor >= 0 ? '' : 'El envío debe ser un importe entero en pesos, igual o mayor que cero');
-    if(input.value===''||!Number.isSafeInteger(valor) || valor < 0) return;
-    if(moneda!=='USD'){var rate=Number(obtenerDolarReferenciaProducto().valor);usd.value=rate>0?String(Math.round(valor/rate)):'';}
+    input.setCustomValidity(input.value!==''&&Money.isAmount(valor) && valor >= 0 ? '' : 'Ingresá un envío en pesos con hasta dos decimales, igual o mayor que cero');
+    if(input.value===''||!Money.isAmount(valor) || valor < 0) return;
+    if(moneda!=='USD'){var rate=Number(obtenerDolarReferenciaProducto().valor);usd.value=rate>0?String(Money.quotient(valor,rate)):'';}
     var url = urlExacta(el('pf-cod-web').value);
     prodProveedoresActuales.forEach(function(p, i) {
-      if (admiteEnvioProducto(url) && urlExacta(p.url) === url) {if(usd.value!=='')p.costoEnvioUSD=Number(usd.value);else delete p.costoEnvioUSD;actualizarProveedorProducto(i, 'costoEnvioArs', valor);}
+      if (admiteEnvioProducto(url) && urlExacta(p.url) === url) {if(moneda==='USD')p.costoEnvioUSD=Number(usd.value);else delete p.costoEnvioUSD;actualizarProveedorProducto(i, 'costoEnvioArs', valor);}
     });
     renderTablaProveedoresProducto();
   };

@@ -53,3 +53,5 @@ test('El módulo que se carga al final usa el guardado atómico y bloquea doble 
  assert.ok(Object.hasOwn(backend.commands[0].expectedHashes,'sisventas/haberes/e'));
  assert.deepEqual(backend.direct,[]);assert.equal(c._aguinaldoGuardando,false);
 });
+
+test('horas extra conservan centavos y el reparto suma exactamente el gasto aprobado',async()=>{const f=setup(),r=f.root();r.config.cargos.c.valorHoraExtra=.335;r.hsextra_solicitudes.a.horas=1;r.hsextra_solicitudes.b.horas=1;r.hsextra_solicitudes.c={...r.hsextra_solicitudes.a};await f.svc.approve({uid:'admin',nombre:'Admin ficticio'},{claves:['a','b','c'],monto:1.01});const after=f.root(),amounts=Object.values(after.hsextra_solicitudes).map(s=>s.monto);assert.equal(Object.values(after.gastos)[0].monto,1.01);assert.equal(require('../js/core/commercial-money.v1').sum(amounts),1.01);assert.deepEqual(amounts,[.34,.34,.33]);});
