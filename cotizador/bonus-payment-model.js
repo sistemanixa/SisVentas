@@ -3,6 +3,7 @@
  const fields=['monto','montoPagado','saldoPagadoLegacy','estado','requiereAprobacion','bajaAdministrativa','pagos','empleadoId','empleadoFbKey','legacyKey','movimientoCtaKey','tipoPagable','origen','periodoComputo','bonificacionCantidad','bonificacionValorUnitario','bonificacionGrupoId','bonificacionDestinatarios','bonificacionGrupoTotal','bonificacionGrupoPersonas'];
  const isBonus=row=>!!row&&String(row.tipoPagable||row.origen||'').toLowerCase()==='bonificacion';
  function revisionData(row){return Object.fromEntries(fields.map(key=>[key,row?.[key]??null]));}
- const isReimbursement=row=>!!row&&String(row.tipoPagable||'').toLowerCase()==='gasto_empresa'&&!!(row.empleadoFbKey||row.empleadoId)&&!!(row.movimientoCtaKey||/^ctaemp\/[^/]+\/[^/]+$/.test(String(row.legacyKey||'')));
- return {isBonus,isReimbursement,revisionData};
+ const isStandaloneExpense=row=>!!row&&String(row.tipo||'').toLowerCase()==='variable'&&!!(row.empleadoFbKey||row.empleadoId)&&!row.tipoPagable&&!row.origen&&!row.legacyKey&&!row.movimientoCtaKey&&row.esFijoBase!==true&&!['comisionId','comisionKey','ventaComisionId','bonificacionGrupoId','bonificacionConceptoId','sueldoBase','sueldoBruto','adelantoCompensado','montoCompensado','compensaciones','adelantosAplicados'].some(k=>row[k]!=null)&&!String(row.descripcion||'').match(/^(?:haber|sueldo|aguinaldo|bonificaci[oó]n|comisi[oó]n|adelanto|hs\.?\s*extra)\b/i)&&(row._svListSummary===true||typeof row.usuarioUid==='string'&&!!row.usuarioUid.trim());
+ const isReimbursement=row=>isStandaloneExpense(row)||!!row&&String(row.tipoPagable||'').toLowerCase()==='gasto_empresa'&&!!(row.empleadoFbKey||row.empleadoId)&&!!(row.movimientoCtaKey||/^ctaemp\/[^/]+\/[^/]+$/.test(String(row.legacyKey||'')));
+ return {isBonus,isReimbursement,isStandaloneExpense,revisionData};
 });
