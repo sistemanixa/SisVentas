@@ -1,3 +1,11 @@
+# Candidata OT v3.17.13 sobre fuente paginada congelada · 01/11/2026
+
+Base d5ca2a96bd116a0f2aa296454d897f1a07ff7fae, candidata paginación17.12 del chat coordinador, aún con exclusividad de su publicación. Integración OT sólo en checkout aislado; no hubo activaciones ni lecturas remotas nuevas por este bloque. Aplicados parches acotados de app/backend sin reemplazar guard/runtime/proyector comercial, boot por ruta ni continuidad personal. App17.12 histórica conservada; nueva17.13 con caché/marcadores/Novedades coherentes y módulo de custodia con query17.13 para evitar lógica de stock vieja.
+
+8/8 pruebas combinadas ficticias PASS: cinco en emulador OT/paginación con permisos y tres casos1/50/500cobros. Estado/auditoría conservan totales y no leen pagos con el fastpath nuevo. Técnico con módulos comerciales deshabilitados cierra sólo OT asignada sin lectura de páginas privadas. Preflight comprueba config/cobertura comercial antes de consumir. Configuración/servidor/reglas reales aún dependen del corte anterior; repetir reglas sobre remoto exacto posterior, verificar SHA final y sólo después publicar OT.
+
+El titular autorizó explícitamente reglas OT aun sinETag con verificación previa/posterior y publicar luego de la paginación. No volver a pedir la misma autorización; el alcance exacto del delta se conserva (dos índices, estadoInst/audit y validador de activación). No repetir stock, recepción, cierre ni firmas reales como prueba. Evidencias privadas tmp/ot-after-pages-release. Suite general de esta integración:6943total,6916PASS,27opcionales omitidas,0fallos (concurrencia2,236.6s).94backend y8combinadasPASS; ValidarLocal/sintaxis/diffPASS. Pendiente incorporar último parchefrontend deClientes del coordinador y repetir focales, verificar fuente final/remoto, luegoactivar.
+
 # Paginación comercial v3.17.12 preparada · 01/11/2026
 
 Pedido humano directo: terminar y activar50filas, conservar totales/deuda y publicar traspruebas ficticias. Fuente aislada sobre17.11; exclusividad de Cotizador/fiscal/reglas/Hosting concedida porchatOT, que reconstruirá su cambio después. Sin migrar originales ni probar pagos reales. Estimación informada menorUSD1, sin servicios nuevos ni costo fijo adicional.

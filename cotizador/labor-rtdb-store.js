@@ -24,7 +24,9 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
    const checked=await Promise.allSettled([read('sv_chat_roles/'+actor.uid),read('sv_permisos/'+actor.role)]),failed=checked.find(result=>result.status==='rejected');if(failed)throw failed.reason;
    require('./commercial-ownership').validateCommercialActor(actor,checked[0].value,checked[1].value);
   }
-  const token=await accessToken(),destination=target('.json');destination.searchParams.set('auth_variable_override',JSON.stringify(service('commit',lease,actor)));destination.searchParams.set('print','silent');
+  if(actor?.otLifecycle)require('./ot-lifecycle-policy').validate(actor,await read('sv_chat_roles/'+actor.uid),await read('sv_permisos/'+actor.role));
+  const override=service('commit',lease,actor);if(actor?.otLifecycle||Object.keys(actor?.claims||{}).some(k=>k.startsWith('svOTLifecycle')))Object.assign(override.token,require('./ot-lifecycle-policy').token(actor,lease));
+  const token=await accessToken(),destination=target('.json');destination.searchParams.set('auth_variable_override',JSON.stringify(override));destination.searchParams.set('print','silent');
   const response=await fetchImpl(destination,{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(patch),signal:AbortSignal.timeout(requestMs)});
   if(response.ok){await response.body?.cancel();return;}
   await response.body?.cancel();throw fail(response.status===401||response.status===403?409:503,'No se pudo confirmar la operación. Revisá su estado antes de reintentar.','SV_LABOR_COMMIT_UNCONFIRMED');
