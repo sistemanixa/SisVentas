@@ -1,0 +1,10 @@
+const {test}=require('node:test'),a=require('node:assert/strict'),{chromium}=require('playwright');
+test('corrección explícita una vez, sin editar firma ni materiales',async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+ try{const page=await browser.newPage();await page.route('**/*',r=>r.abort());await page.setContent('<div><button id="ot-acta-correct">Completar acta</button></div><input id="firma" value="original" readonly>');await page.addScriptTag({path:'js/modules/ot-sale-completion-ui.js'});
+ await page.evaluate(()=>{window.currentRole='admin';window.currentUserUid='fixture';window.otEstaCerrada=()=>true;window.ot={fbKey:'ot-fixture',estado:'con_observaciones',ventaFbKey:'sale',firmaClienteUrl:'original',materiales:[{devuelta:1}]};window.fbRef=(db,p)=>p;window.fbGet=async p=>({val:()=>p.includes('ordenes_trabajo')?window.ot:({id:'Venta ficticia'})});window.calls=0;window.SVOTSaleCompletion={save:async(root,args)=>{window.calls++;window.received=args;return {changed:true,committed:true}}};SVOTSaleCompletionUI.render(ot)});
+ a.equal(await page.evaluate(()=>calls),0);await page.getByText('Actualizar venta a instalado',{exact:true}).click();await page.getByRole('status').filter({hasText:'Venta actualizada'}).waitFor();a.equal(await page.evaluate(()=>calls),1);a.equal(await page.locator('#firma').inputValue(),'original');a.deepEqual(await page.evaluate(()=>ot.materiales),[{devuelta:1}]);
+ await page.evaluate(()=>{currentRole='tecnico';SVOTSaleCompletionUI.render(ot)});a.equal(await page.locator('#ot-sale-completion').count(),0);
+ await page.evaluate(()=>{currentRole='admin';SVOTSaleCompletion.save=async()=>{throw Error('Otra OT pendiente')};SVOTSaleCompletionUI.render(ot)});await page.getByText('Actualizar venta a instalado',{exact:true}).click();await page.getByRole('status').filter({hasText:'Otra OT pendiente'}).waitFor();a.equal(await page.getByText('Actualizar venta a instalado',{exact:true}).isEnabled(),true);
+ }finally{await browser.close();}
+});

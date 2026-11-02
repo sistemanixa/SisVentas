@@ -50048,6 +50048,7 @@ function verOT(id) {
     conformidadNombre.value = ot.nombreConformidad || ot.firmaNombreCliente || '';
     conformidadNombre.readOnly = otCerrada;
   }
+  window.SVOTSaleCompletionUI?.render(ot);
   window.SVOTActa?.render(ot, function(value){Object.assign(ot,value);window._otDetalleHuella=otHuellaDetalle(ot);return Promise.resolve(verOT(ot.fbKey||ot.id)).then(function(){window.otWizardIr?.('finalizar');});});
   var completarBtn = document.getElementById('btn-completar-ot');
   if (completarBtn) completarBtn.style.display = otCerrada ? 'none' : '';
