@@ -1,3 +1,7 @@
+# Publicación preparada · continuidad personal v3.17.8 · 01/11/2026
+
+Base limpia87f8ab6d (producción17.7). Sólo continuidad mensual personal, sin OT ni paginación candidata. Modelo y cliente probados en origen6877PASS27skip; release requiere verificación propia y activación coordinada servidor/Hosting. No resúmenes reales escritos ni migración histórica. Estado remoto todavía17.7.
+
 # Publicación v3.17.7 autorizada · en preparación · 01/11/2026
 
 El titular autorizó publicar el bloque probado y verificar web sin pagos de prueba ni datos reales. Estimación comunicada menorUSD1 total, mismos servicios/min0 y sin relojes nuevos. Cliente inmutable17.7 preparado;17.6 restaurado a los bytes publicados. Gate6823PASS27opt-in0fallos, ValidarLocalPASS y8pruebas de reglas con la base remota exacta más sólo los dos campos emparejados de costoReferenciaStock. No hay seed ni migración de inventario/históricos; el nuevo campo lo conservan recepciones futuras por acción del usuario. Falta construir/activar servidores, reglas y Hosting, verificar dominio y aviso oficial. No declarar publicado por este commit.

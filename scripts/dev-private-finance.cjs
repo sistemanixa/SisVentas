@@ -7,6 +7,11 @@ const {createPrivateFinance}=require('../cotizador/private-finance');
 const root=path.resolve(__dirname,'..'),port=Number(process.env.PRIVATE_FINANCE_TEST_PORT||8765);
 let data=seed();data=run(data,'card-save',{...card,id:'card-b',bank:'Banco ficticio B',brand:'Mastercard',color:'#75b4ff'});data=run(data,'statement-save',{...statement,id:'statement-b',card:'card-b',total:250000,usd:0,minimum:25000});data=run(data,'insurance-save',{id:'insurance-a',name:'Seguro de ejemplo',card:'card-a',amount:1250,currency:'ARS',classification:'Por confirmar',decision:'Evaluar'});data=run(data,'installment-save',{id:'quota-a',concept:'Compra ficticia',card:'card-a',amount:5000,currency:'ARS',current:2,total:6,period:'2026-10'});
 if(process.env.PRIVATE_FINANCE_TEST_EMPTY==='1')data=M.empty(actor.uid);
+if(process.env.PRIVATE_FINANCE_TEST_MONTHLY==='1'){
+ data=run(M.empty(actor.uid),'card-save',card);
+ data=run(data,'statement-save',{...statement,id:'monthly-september',period:'2026-09',close:'2026-09-15',due:'2026-10-05',total:7000,usd:0,movements:[{id:'monthly-policy-sep',date:'2026-09-01',concept:'SEGURO HOGAR FICTICIO',ref:'POLIZA-001',amount:5000,currency:'ARS',kind:'Seguro'},{id:'monthly-quota-sep',date:'2026-09-01',concept:'COMPRA FICTICIA',ref:'COMPRA-001',amount:2000,currency:'ARS',kind:'Cuota',current:1,total:3}]});
+ data=run(data,'insurance-save',{...data.insurances[0],name:'Seguro hogar · gestionado',decision:'Mantener',coverage:'Hogar revisado',note:'Gestión de septiembre conservada'});
+}
 if(process.env.PRIVATE_FINANCE_TEST_CYCLE==='1')data=run(data,'statement-cycle-save',{id:statement.id,nextClose:'2026-10-22',nextDue:'2026-11-02'});
 if(process.env.PRIVATE_FINANCE_TEST_CALENDAR==='1'){
  const file='b'.repeat(64);data.documents.push({id:file,name:'calendario-ficticio.pdf'});
@@ -30,6 +35,10 @@ const server=http.createServer(async(req,res)=>{const u=new URL(req.url,'http://
   const field=(value,original)=>({value,original,page:1});
   const data={pages:1,fields:{period:field('2026-09','Periodo 2026-09'),close:field('2026-09-15','Cierre 15/09/2026'),due:field('2026-10-05','Vencimiento 05/10/2026'),total:field('250.00','Saldo actual ARS 250,00'),usd:field('0.00','Saldo actual USD 0,00'),previous:field('0.00','Saldo anterior ARS 0,00'),minimum:field('25.00','Minimo ARS 25,00'),minimumCurrency:field('ARS','Minimo ARS 25,00')},movements:[{date:'2026-09-15',concept:'Compra ficticia',currency:'ARS',amount:'250.00',page:1,kind:'Consumo'}],warnings:['PRUEBA AISLADA: respuesta de IA simulada, sin proveedor ni datos reales.']};
   const example=Buffer.from(JSON.parse(Buffer.concat(chunks).toString()).data,'base64').toString('latin1').match(/%SV-QUEUE-([ABC])/);
+  if(process.env.PRIVATE_FINANCE_TEST_MONTHLY==='1'){
+   data.fields={bank:field('Banco ficticio','Banco ficticio'),brand:field('Visa','Visa'),period:field('2026-10','Octubre 2026'),close:field('2026-10-15','15/10/2026'),due:field('2026-11-05','05/11/2026'),total:field('70.00','ARS 70,00'),usd:field('0.00','USD 0,00'),previous:field('0.00','ARS 0,00'),minimum:field('7.00','ARS 7,00'),minimumCurrency:field('ARS','ARS')};
+   data.movements=[{date:'2026-10-01',concept:'SEGURO HOGAR FICTICIO',currency:'ARS',amount:'50.00',page:1,kind:'Débito a confirmar'},{date:'2026-09-01',concept:'COMPRA FICTICIA',currency:'ARS',amount:'20.00',page:1,kind:'Cuota',current:2,total:3}];
+  }
   if(example){const factor=example[1].charCodeAt(0)-64,value=(250*factor).toFixed(2);data.fields.bank=field('Banco de prueba '+example[1],'Banco de prueba '+example[1]);data.fields.brand=field(factor===2?'Mastercard':'Visa','Marca ficticia');data.fields.total=field(value,'Saldo ficticio '+value);data.movements[0].concept='Compra ficticia '+example[1];data.movements[0].amount=value;}
   json(res,200,{ok:true,...normalize({stop_reason:'end_turn',content:[{type:'text',text:JSON.stringify(data)}]})});return;
  }

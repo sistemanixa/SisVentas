@@ -50,6 +50,32 @@
   return out;
  }
  function daysUntil(value,reference=today(Date.now())){if(!value)return null;date(value);date(reference);return Math.round((Date.parse(value+'T00:00:00Z')-Date.parse(reference+'T00:00:00Z'))/86400000);}
+ // La identidad mensual no depende del importe ni del nombre personalizado.
+ function continuity(s,d){
+  const norm=v=>categoryKey(String(v||'')).replace(/[^\p{L}\p{N}]+/gu,' ').trim(),merchant=v=>norm(v).replace(/\b\d+\b/g,'').replace(/\s+/g,' ').trim();
+  const movements=new Map(Object.values(s.movements||{}).map(m=>[m.id,m])),statements=new Map(Object.values(s.statements||{}).map(st=>[st.id,st])),insurances=Object.values(s.insurances||{}),installments=Object.values(s.installments||{}),proof=new Map(),rows=[];
+  for(const i of insurances)proof.set('insurance:'+i.id,Object.values(i.charges||{}).map(id=>movements.get(id)).filter(Boolean));
+  for(const q of installments)proof.set('installment:'+q.id,[...new Set([q.movement,q.originMovement,...Object.values(q.observations||{}).map(o=>o.movement)])].map(id=>movements.get(id)).filter(Boolean));
+  for(const m of d.movements||[]){
+   if(m.insuranceId&&!canClassify(m))fail(400,'Sólo se vinculan seguros a consumos del resumen');
+   const knownInsurance=canClassify(m)&&insurances.some(i=>i.card===d.card&&i.currency===m.currency&&(norm(i.ref)&&norm(i.ref)===norm(m.ref)||merchant(i.name)&&merchant(i.name)===merchant(m.concept)||proof.get('insurance:'+i.id).some(x=>merchant(x.concept)&&merchant(x.concept)===merchant(m.concept))));
+   const type=m.kind==='Cuota'?'installment':m.insuranceId||knownInsurance||m.category==='Seguro'||!m.category&&['Seguro','Débito a confirmar'].includes(m.kind)?'insurance':null;if(!type)continue;
+   const field=type+'Id',existing=type==='insurance'?insurances:installments,periodOf=x=>statements.get(x.statement)?.period;
+   const evidence=i=>proof.get(type+':'+i.id);
+   const compatible=i=>i.currency===m.currency&&(i.card===d.card||type==='insurance'&&evidence(i).some(x=>x.id===m.id));
+   const strong=i=>evidence(i).some(x=>{
+    if(x.id===m.id)return true;
+    if(norm(x.concept)!==norm(m.concept))return false;
+    if(type==='insurance')return !!norm(x.ref)&&norm(x.ref)===norm(m.ref);
+    const p=periodOf(x);return p&&x.total===m.total&&x.date===m.date&&norm(x.ref)===norm(m.ref)&&shift(p,1-x.current)===shift(d.period,1-m.current);
+   });
+   const options=existing.filter(i=>compatible(i)&&(strong(i)||norm(i.ref)&&norm(i.ref)===norm(m.ref)||merchant(i.name||i.concept)&&merchant(i.name||i.concept)===merchant(m.concept)||evidence(i).some(x=>merchant(x.concept)&&merchant(x.concept)===merchant(m.concept))));
+   const exact=options.filter(strong),bound=existing.filter(i=>compatible(i)&&evidence(i).some(x=>x.id===m.id)),explicit=m[field],choice=m[type+'New']===true?'new':explicit||null;
+   if(bound.length>1||bound.length===1&&choice&&choice!==bound[0].id)fail(400,'Este cargo ya tiene una ficha vinculada; conservá su gestión');
+   if(explicit&&!existing.some(i=>i.id===explicit&&compatible(i)))fail(400,'El vínculo mensual no coincide en tarjeta y moneda');
+   rows.push({movement:m.id,type,field,locked:bound.length===1,options:options.map(i=>({id:i.id,name:i.name||i.concept})),selected:bound[0]?.id||choice||(exact.length===1?exact[0].id:options.length?'':'new'),automatic:!choice&&exact.length===1});
+  }return rows;
+ }
  function apply(previous,command,actor,ctx){
   key(actor.uid);const s=hydrate(previous,actor.uid),stamp=ctx.now,id=key(command.id),d=command.data||{},before=copy(s);
   if(s.operations[id]){if(s.operations[id].digest!==ctx.digest)fail(409,'El reintento no coincide con la operación original');return {state:s,replayed:true};}
@@ -78,18 +104,24 @@
    for(const m of s.movements.filter(x=>x.statement===entityId&&!x.postClose&&!seen.has(x.id))){if(s.expenses.some(x=>x.linkedMovement===m.id)||s.insurances.some(x=>(x.charges||[]).includes(m.id))||s.installments.some(x=>x.movement===m.id))fail(409,'Un movimiento eliminado tiene vínculos: conservá su referencia o conciliá primero');}
    const delta=['ARS','USD'].filter(c=>{const base=c==='ARS'?current.total:current.usd,previous=c==='ARS'?current.previous:current.extracted.previousUSD?.value;return previous!=null&&base!=null&&money(previous,true)+movements.filter(m=>m.currency===c).reduce((t,m)=>t+m.amount,0)!==base;});
    if(delta.length&&!current.reconciliation)fail(400,'Los subtotales no concilian. Revisá el PDF o explicá la diferencia');
+   const links=continuity(s,{...d,card,period:p,movements:movements.map(m=>({...d.movements.find(x=>x.id===m.id),...m}))});
+   if(links.some(l=>!l.selected))fail(400,'Revisá si los seguros y cuotas continúan un registro anterior o son nuevos');
+   const used=new Set();for(const l of links)if(l.selected!=='new'){const token=l.type+':'+l.selected;if(used.has(token))fail(400,'Dos cargos del mismo resumen no pueden usar la misma ficha');used.add(token);}
    save('statements',current);s.movements=s.movements.filter(m=>m.statement!==entityId||m.postClose);for(const m of movements){
-    const input=d.movements.find(x=>x.id===m.id);save('movements',m);
-    if(m.category==='Seguro'||!m.category&&['Seguro','Débito a confirmar'].includes(m.kind)){
-     const existing=input.insuranceId?find('insurances',input.insuranceId):s.insurances.find(i=>Object.values(i.charges||{}).includes(m.id));
+    save('movements',m);
+    if(links.some(l=>l.movement===m.id&&l.type==='insurance')){
+     const link=links.find(l=>l.movement===m.id&&l.type==='insurance'),existing=link?.selected!=='new'?find('insurances',link.selected):null;
      if(existing&&existing.currency!==m.currency)fail(400,'La moneda del seguro vinculado no coincide');
-     if(existing)save('insurances',{...existing,...(m.category==='Seguro'?{classification:'Seguro'}:{}),charges:[...new Set([...Object.values(existing.charges||{}),m.id])]});
+     if(existing){const last=Object.values(existing.charges||{}).map(id=>s.movements.find(x=>x.id===id)).filter(Boolean).map(x=>s.statements.find(st=>st.id===x.statement)?.period||'').sort().at(-1)||'';save('insurances',{...existing,...(p>=last?{amount:Math.abs(m.amount)}:{}),charges:[...new Set([...Object.values(existing.charges||{}),m.id])]});}
      else save('insurances',{id:key(m.id+'-insurance'),name:m.concept,ref:m.ref,coverage:'',amount:Math.abs(m.amount),currency:m.currency,card,classification:m.category==='Seguro'?'Seguro':'Por confirmar',decision:'Evaluar',cancelDate:null,note:'Candidato del resumen: verificar identidad y cobertura.',charges:[m.id],history:[],origin:'PDF + revisión manual'});
     }
     if(m.kind==='Cuota'){
-     const existing=input.installmentId?find('installments',input.installmentId):s.installments.find(q=>q.movement===m.id);
+     const link=links.find(l=>l.movement===m.id&&l.type==='installment'),existing=link?.selected!=='new'?find('installments',link.selected):null;
      if(existing&&(existing.card!==card||existing.currency!==m.currency))fail(400,'La compra vinculada no coincide en tarjeta y moneda');
-     save('installments',{id:existing?.id||key(m.id+'-installment'),concept:existing?.concept||m.concept,note:existing?.note||'',card,amount:Math.abs(m.amount),currency:m.currency,current:m.current,total:m.total,period:p,movement:m.id,originMovement:existing?.originMovement||existing?.movement||m.id,status:existing?.status||'Activa',origin:'PDF + revisión manual'});
+     if(existing&&existing.movement!==m.id&&(existing.total!==m.total||shift(existing.period,1-existing.current)!==shift(p,1-m.current)))fail(400,'La cuota no corresponde al calendario de la compra vinculada');
+     const observations=Object.values(existing?.observations||{}).filter(o=>o.statement!==entityId);observations.push({statement:entityId,movement:m.id,period:p,current:m.current,total:m.total,amount:Math.abs(m.amount)});
+     const preserve=existing&&existing.period>p;
+     save('installments',{...existing,id:existing?.id||key(m.id+'-installment'),concept:existing?.concept||m.concept,note:existing?.note||'',card,amount:preserve?existing.amount:Math.abs(m.amount),currency:m.currency,current:preserve?existing.current:m.current,total:m.total,period:preserve?existing.period:p,movement:preserve?existing.movement:m.id,originMovement:existing?.originMovement||existing?.movement||m.id,status:existing?.status||'Activa',origin:existing?.origin||'PDF + revisión manual',observations});
     }
    }
   }else if(command.type==='statement-cycle-save'){
@@ -130,7 +162,7 @@
   }else if(command.type==='installment-save'){
    const cur=Number(d.current),total=Number(d.total);if(!Number.isInteger(cur)||!Number.isInteger(total)||cur<1||cur>total||total>120)fail(400,'Revisá cuota actual y total (hasta 120)');
    const old=s.installments.find(q=>q.id===entityId),movement=d.movement?find('movements',d.movement).id:old?.movement||null;
-   save('installments',{id:entityId,concept:text(d.concept,180,true),note:text(d.note===undefined?old?.note||'':d.note,2000),card:cardId(d.card),amount:money(d.amount),currency:currency(d.currency||'ARS'),current:cur,total,period:period(d.period),movement,originMovement:old?.originMovement||old?.movement||movement,status:one(d.status||old?.status||'Activa',['Activa','Anulada']),origin:'Manual'});
+   save('installments',{id:entityId,concept:text(d.concept,180,true),note:text(d.note===undefined?old?.note||'':d.note,2000),card:cardId(d.card),amount:money(d.amount),currency:currency(d.currency||'ARS'),current:cur,total,period:period(d.period),movement,originMovement:old?.originMovement||old?.movement||movement,status:one(d.status||old?.status||'Activa',['Activa','Anulada']),origin:'Manual',...(old?.observations?{observations:old.observations}:{})});
   }else if(command.type==='expense-save'){
    const v=money(d.amount),c=currency(d.currency||'ARS'),dt=date(d.date),status=one(d.status,['Pendiente','Pagado']),link=d.linkedMovement?find('movements',d.linkedMovement):null;if(!v||status==='Pagado'&&dt>today(stamp))fail(400,'Importe o fecha del gasto inválidos');
    if(link&&(link.amount!==v||link.currency!==c||s.expenses.some(e=>e.id!==entityId&&e.linkedMovement===link.id)))fail(409,'El vínculo debe coincidir en moneda e importe y no estar asignado');
@@ -147,5 +179,5 @@
   if(JSON.stringify(s).length>6e6||Object.keys(s.operations).length>10000)fail(413,'El espacio requiere archivo histórico antes de agregar más registros');
   return {state:copy(s),replayed:false};
  }
- return {daysUntil,cycleDates,groups,key,text,money,date,period,amount,rate,fee,empty,hydrate,latest,paid,balance,totalDebt,quota,shift,project,apply,movementCategories,canClassify,suggestCategory,categoryNames,resolveCategory};
+ return {daysUntil,cycleDates,groups,key,text,money,date,period,amount,rate,fee,empty,hydrate,latest,paid,balance,totalDebt,quota,shift,project,apply,continuity,movementCategories,canClassify,suggestCategory,categoryNames,resolveCategory};
 });

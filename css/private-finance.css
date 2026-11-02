@@ -61,3 +61,5 @@ body.nav-open{overflow:hidden}.sidebar{overflow-y:auto}
 .quota-note{min-width:170px;max-width:300px;white-space:pre-wrap;overflow-wrap:anywhere}
 
 .cycle-dates{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0;align-items:center}.cycle-dates>div{display:grid;gap:4px;flex:1;min-width:130px}.cycle-dates span,.cycle-dates small{font-size:12px;color:var(--muted,#a5b0c5)}.cycle-dates strong{font-size:14px}
+
+.monthly-continuity .lineitem{gap:16px;align-items:center}.monthly-continuity .lineitem>div{min-width:0;flex:1;overflow-wrap:anywhere}.monthly-continuity small{display:block;margin-top:5px;color:var(--muted)}.monthly-continuity select{width:min(44%,360px);min-width:180px;min-height:44px}@media(max-width:700px){.monthly-continuity .lineitem{align-items:stretch;flex-direction:column}.monthly-continuity select{width:100%;min-width:0}}
