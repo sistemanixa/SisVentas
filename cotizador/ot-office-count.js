@@ -1,5 +1,5 @@
 'use strict';
-const crypto=require('node:crypto'),{digest}=require('./labor-guard'),Model=require('./ot-office-count-model');
+const crypto=require('node:crypto'),{digest}=require('./labor-guard'),Model=require('./ot-office-count-model'),Lifecycle=require('./ot-lifecycle-model'),LifecyclePolicy=require('./ot-lifecycle-policy'),RecordLists=require('./record-list-model');
 const fail=(code,message)=>Object.assign(Error(message),{statusCode:code});
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['constructor','prototype','__proto__'].includes(v);
 const clean=v=>String(v||'').trim(),safe=v=>String(v).replace(/[.#$\[\]\/]/g,'_').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,120),copy=v=>structuredClone(v);
@@ -47,12 +47,30 @@ function createOTOfficeCount({db,store,guard,now=Date.now,enabled=false}){
    if(digest(ot)!==body.expectedOTHash||digest(inventory)!==body.expectedInventoryHash)throw fail(409,'La OT o el stock cambió. Volvé a revisar antes de guardar.');
    const product=await scope.get('sisventas/productos/'+body.productKey),name=(await scope.get('sv_chat_directorio/'+identity.uid))?.nombre||'Usuario',ts=now();
    const plan=apply({ot,inventory,product,body,uid:identity.uid,name,ts});
+   let lifecycle=null,sale=null,otIndex=null,salePath=null;const productProofs=[],productQueries=[];
+   if(Lifecycle.closed(ot)&&key(ot.ventaFbKey)){
+    if(await scope.get('sv_labor_config/otLifecycleVersion')!==1)throw Object.assign(fail(503,'La sincronización de esta OT cerrada está pendiente de activar.'),{code:'SV_OT_LIFECYCLE_DISABLED'});
+    const cfg=await scope.get('sv_permisos/'+context.role),lifecycleContext=LifecyclePolicy.authority(await scope.get('sv_chat_roles/'+identity.uid),cfg,'stockrepair',true);
+    actor.otClosed=true;actor.otLifecycle=LifecyclePolicy.issue({uid:identity.uid,otKey:body.otKey,saleKey:ot.ventaFbKey,operationId:body.id,kind:'stockrepair',...lifecycleContext});
+    salePath='sisventas/ventas/'+ot.ventaFbKey;sale=await scope.get(salePath);otIndex=await scope.get(RecordLists.index+'/ordenes_trabajo');const others=RecordLists.parseIndex('ordenes_trabajo',otIndex);const primary=sale?.otId!==body.otKey&&key(sale?.otId)?await scope.get('sisventas/ordenes_trabajo/'+sale.otId):null;if(primary)productProofs.push({path:'sisventas/ordenes_trabajo/'+sale.otId,value:primary});
+    if(!others[body.otKey]||others[body.otKey]._svListRevision!==(ot._svListRevision||0))throw fail(409,'El resumen de la OT requiere actualizarse.');
+    const products={[product.codigo||product.cod]:product,[body.productKey]:product};
+    for(const m of plan.ot.materiales||[]){const ref=m.productoKey||m.cod||m.codigo;if(!ref||products[ref])continue;if(key(m.productoKey)){const path='sisventas/productos/'+m.productoKey,value=await scope.get(path);products[ref]=value||{};productProofs.push({path,value});}else{const value=String(m.cod||m.codigo),records=await scope.query('sisventas/productos','codigo',value),rows=Object.values(records);products[ref]=rows.length===1?rows[0]:{};productQueries.push({value,records});}}
+    const changes=Object.fromEntries(Object.entries({materiales:plan.ot.materiales,custodiaIniciada:plan.ot.custodiaIniciada,custodiaRendida:plan.ot.custodiaRendida}).filter(([,v])=>v!==undefined));
+    lifecycle=Lifecycle.plan({before:ot,changes,kind:'custody',sale,primary,others,products,actor:{uid:identity.uid,name,otKey:body.otKey},at:new Date(ts).toISOString(),action:'Estado de instalación actualizado tras completar stock de la OT',allowPending:true});
+    plan.ot.estado=lifecycle.ot.estado;plan.ot.cierreConObservaciones=lifecycle.ot.cierreConObservaciones;
+    if(ot.estado!==plan.ot.estado||ot.cierreConObservaciones!==plan.ot.cierreConObservaciones||Object.keys(lifecycle.saleChanges).length){const event=lifecycle.ot.audit.at(-1);if(Array.isArray(plan.ot.audit))plan.ot.audit.push(event);else plan.ot.audit[body.id+'-state']=event;}
+   }
    const latest=access(await scope.get('sv_chat_roles/'+identity.uid),await scope.get('sv_permisos/'+context.role));if(digest(latest)!==digest(context))throw fail(409,'Los permisos cambiaron. Volvé a abrir la OT.');
    scope.beforeCommit(async({readFresh,readFreshAsUser})=>{
     if(digest(access(await readFresh('sv_chat_roles/'+identity.uid),await readFresh('sv_permisos/'+context.role)))!==digest(context))throw fail(409,'Los permisos cambiaron. Volvé a abrir la OT.');
     if(digest(await readFreshAsUser(otPath))!==body.expectedOTHash||digest(await readFreshAsUser(inventoryPath))!==body.expectedInventoryHash||digest(await readFresh('sisventas/productos/'+body.productKey))!==digest(product))throw fail(409,'La OT, el producto o el stock cambió. Volvé a revisar antes de guardar.');
+    if(lifecycle){LifecyclePolicy.validate(actor,await readFresh('sv_chat_roles/'+identity.uid),await readFresh('sv_permisos/'+context.role));if(digest(await readFresh(salePath))!==digest(sale)||digest(await readFresh(RecordLists.index+'/ordenes_trabajo'))!==digest(otIndex))throw fail(409,'La venta o sus visitas cambiaron. Volvé a abrir la OT.');}
+    for(const p of productProofs)if(digest(await readFresh(p.path))!==digest(p.value))throw fail(409,'El producto cambió. Volvé a abrir la OT.');
+    for(const p of productQueries)if(digest(await store.query('sisventas/productos','codigo',p.value))!==digest(p.records))throw fail(409,'El catálogo cambió. Volvé a abrir la OT.');
    });
-   await scope.update({[inventoryPath]:plan.inventory,[otPath]:plan.ot});
+   const patch={[inventoryPath]:plan.inventory,[otPath]:plan.ot};if(lifecycle)for(const [k,v]of Object.entries(lifecycle.saleChanges))patch[salePath+'/'+k]=v;
+   await scope.update(patch);
    return {ok:true,committed:true,operationId:body.id,otKey:body.otKey,productKey:body.productKey};
   });
   // The receipt contains confirmation only. Read current, authorized records on replay.

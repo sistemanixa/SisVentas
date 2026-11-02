@@ -2,8 +2,7 @@
    Estrategia: red primero con cache de respaldo. */
 const CACHE = 'sisventas-v3.17.8';
 const SHELL = [
-  './js/core/ot-sale-completion.v1.js?v=3.17.8',
-  './js/modules/ot-sale-completion-ui.js?v=3.17.8',
+  './js/modules/ot-lifecycle.js?v=3.17.8',
   './js/modules/ot-acta-correction.js?v=3.17.8',
   './js/core/commercial-money.v1.js?v=3.17.8',
   './js/core/stock-purchase-costs.v1.js?v=3.17.8',

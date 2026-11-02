@@ -9,6 +9,9 @@ function setup({role='admin',rendered=false,failed=false,general=3,additional=fa
  if(historical)ot.items=[{codigo:'M',nombre:'Magnético adicional ficticio',cantidad:1,adicionalOT:true,destinoVenta:'original',agregadoPor:'Ficticio'}];
  const w={SVOTMaterialRows:require('../js/modules/ot-material-rows.v1'),otData:[ot],otActualId:'ot',currentRole:role,currentUser:'Ficticio',prodData:{p:{fbKey:'p',codigo:'M'}},crypto:webcrypto,fbDB:{},fbRef:(_,p)=>p,fbRunTransaction:async(_,fn)=>{inv=fn(inv);return {committed:true};},tienePermiso:()=>true,svConfirm:async()=>true,notify:x=>notices.push(x),otEstaCerrada:o=>o.estado==='completada',scrollTo(){}};
  w.SisVentasCompras={syncOTConsumption:(o,b,a)=>Stock.sync(w,o,b,a)};w.otPersistirActualizar=async()=>{writes++;if(fail)throw Error('Fallo ficticio de guardado');};w.fbGuardarOT=async()=>{writes++;if(fail)throw Error('Fallo ficticio de guardado');};
+ // La rendición conserva estas pruebas de consumo; ahora persiste por el
+ // comando conjunto. Su autorización/derivación se prueba con el backend real.
+ w.SVOTLifecycle={prepare:async()=>true,save:async(before,draft)=>{writes++;if(fail)throw Error('Fallo ficticio de guardado');return {confirmed:true,ot:JSON.parse(JSON.stringify(draft))};}};
  const c={window:w,TextEncoder,document:{getElementById:id=>nodes[id]||null,createElement:()=>({style:{},remove(){delete nodes[this.id];}}),body:{},documentElement:{}},requestAnimationFrame:()=>{}};vm.createContext(c);vm.runInContext(fs.readFileSync('js/modules/ot-material-custody.js','utf8'),c);
  return {w,ot,nodes,notices,inv:()=>inv,writes:()=>writes,allowSave:()=>fail=false,render:()=>w.otCustodiaRenderMateriales(ot,ot.materiales)};
 }

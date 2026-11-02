@@ -49120,10 +49120,8 @@ window.otEstaCerrada = otEstaCerrada;
 function otEstadoParaMostrar(ot) {
   if (!ot) return '';
   var estado = otEstadoNormalizado(ot);
-  if (estado === 'con_observaciones' && ot.cierreConObservaciones && ot.custodiaRendida && typeof window.otCustodiaResumen === 'function') {
-    var rendicion = window.otCustodiaResumen(ot);
-    if (rendicion.controlados > 0 && !rendicion.sinClasificar && !rendicion.conObservaciones) return 'completada';
-  }
+  // Mostrar el estado confirmado, no una clausura deducida sólo en pantalla.
+  // El circuito de OT persiste juntos cierre, rendición y estado de la venta.
   if (otEstaCerrada(ot)) return estado === 'con_observaciones' ? estado : 'completada';
   var progreso = parseFloat(ot && typeof ot === 'object' ? ot.progreso : 0) || 0;
   if (progreso >= 100) return 'lista_finalizar';
@@ -50048,7 +50046,7 @@ function verOT(id) {
     conformidadNombre.value = ot.nombreConformidad || ot.firmaNombreCliente || '';
     conformidadNombre.readOnly = otCerrada;
   }
-  window.SVOTSaleCompletionUI?.render(ot);
+  // La reparación histórica queda fuera del flujo normal del acta.
   window.SVOTActa?.render(ot, function(value){Object.assign(ot,value);window._otDetalleHuella=otHuellaDetalle(ot);return Promise.resolve(verOT(ot.fbKey||ot.id)).then(function(){window.otWizardIr?.('finalizar');});});
   var completarBtn = document.getElementById('btn-completar-ot');
   if (completarBtn) completarBtn.style.display = otCerrada ? 'none' : '';
@@ -52142,63 +52140,31 @@ async function completarOT() {
     audit: auditCierre
   });
 
-  var ventaVinculadaCierre = null;
-  var estadoInstalacionVentaCierre = custodiaCierre.conObservaciones ? 'en_instalacion' : 'instalado';
-  if ((ot.ventaId || ot.ventaFbKey || ot.venta) && window.fbDB) {
-    var ventaVinculada = _svResolverVentaRegistro(ot);
-    // Si la referencia quedó huérfana, intentar la misma reconciliación segura
-    // que usa el detalle de venta. Nunca se toma una coincidencia ambigua.
-    if (!ventaVinculada && typeof ventaDetalleResolverOT === 'function') {
-      var candidatasVentaOT = (ventasList || []).filter(function(ventaActual) {
-        return ventaDetalleResolverOT(ventaActual) === ot;
-      });
-      if (candidatasVentaOT.length === 1) ventaVinculada = candidatasVentaOT[0];
-    }
-    if (ventaVinculada && ventaVinculada.fbKey) {
-      ventaVinculadaCierre = ventaVinculada;
-    }
+  // Una OT vinculada y su venta se cierran en un único comando. No hay una
+  // segunda escritura de venta que pueda fallar después de guardar el cierre.
+  var cierreVinculado = !!(ot.ventaId || ot.ventaFbKey || ot.venta);
+  function guardarCierreCoherente() {
+    if (!cierreVinculado) return fbGuardarOT(otCierre);
+    if (!window.SVOTLifecycle) return Promise.reject(new Error('Recargá la aplicación para guardar el cierre de forma segura.'));
+    return window.SVOTLifecycle.save(ot, otCierre, {kind:'close', action:'Cierre de OT'})
+      .then(function(result){Object.assign(otCierre,result.ot);return result;});
   }
-
-  function sincronizarVentaDespuesDeGuardarOT() {
-    if (!ventaVinculadaCierre || !ventaVinculadaCierre.fbKey) return Promise.resolve();
-    var tareas = [];
-    if (typeof ventaDetalleRepararVinculoOT === 'function') {
-      tareas.push(Promise.resolve(ventaDetalleRepararVinculoOT(ventaVinculadaCierre, { persistir:true, notificar:false, otForzada:otCierre, devolverPromesa:true })));
-    }
-    if (ventaVinculadaCierre.estadoInst !== estadoInstalacionVentaCierre) {
-      tareas.push(ventasPagosPersistirActualizarVenta(ventaVinculadaCierre.fbKey, { estadoInst: estadoInstalacionVentaCierre }));
-    }
-    return Promise.all(tareas);
-  }
-
   if (typeof fbGuardarOT === 'function') {
     var completarBtnGuardando = document.getElementById('btn-completar-ot');
     var progresoCierreOT = svCrearProgresoBoton(completarBtnGuardando, 'Guardando cierre de OT…');
-    fbGuardarOT(otCierre)
+    return guardarCierreCoherente()
       .then(function() {
         Object.assign(ot, otCierre);
         var badgeEstado = document.getElementById('ot-det-estado-badge');
         if (badgeEstado) badgeEstado.innerHTML = otBadge(otCierre.estado);
-        progresoCierreOT.actualizar('Sincronizando venta y materiales…');
-        return sincronizarVentaDespuesDeGuardarOT()
-          .then(function(){ return { ventaSincronizada:true }; })
-          .catch(function(errorVenta){
-            console.error('La OT se guardó, pero falló la sincronización con la venta:', errorVenta);
-            return { ventaSincronizada:false, error:errorVenta };
-          });
-      })
-      .then(function(resultado) {
         progresoCierreOT.actualizar('Cierre guardado. Actualizando listado…');
-        if (!resultado.ventaSincronizada) {
-          notify('✓ La OT quedó completada, pero no se pudo actualizar la venta vinculada. Quedó pendiente de sincronización.');
-        } else {
-          notify(custodiaCierre.conObservaciones ? '✓ OT cerrada con materiales pendientes bajo seguimiento.' : '✓ OT completada y materiales rendidos.');
-        }
+        notify(otCierre.cierreConObservaciones ? '✓ OT cerrada con pendientes bajo seguimiento.' : '✓ OT completada y materiales rendidos.');
         volverListaOT();
-        if(!custodiaCierre.conObservaciones && ventaVinculadaCierre && window.garantiaAbrirUnidades && window.tienePermiso('equipos.confirmarInstalacion')) garantiaAbrirUnidades(ventaVinculadaCierre,otCierre,{automatica:true});
+        var ventaGarantia = _svResolverVentaRegistro(otCierre);
+        if(!otCierre.cierreConObservaciones && ventaGarantia && window.garantiaAbrirUnidades && window.tienePermiso('equipos.confirmarInstalacion')) garantiaAbrirUnidades(ventaGarantia,otCierre,{automatica:true});
       })
       .catch(function(e) {
-        notify('No se pudo completar la OT. No se modificó su estado: ' + e.message);
+        notify(e.confirmed ? e.message : 'No se pudo completar la OT: ' + e.message);
       })
       .finally(function() {
         progresoCierreOT.finalizar();
