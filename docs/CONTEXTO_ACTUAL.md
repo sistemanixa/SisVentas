@@ -1,3 +1,6 @@
+# Publicación v3.17.17 solicitada · 02/11/2026
+
+El titular confirmó que pudo registrar el pago desde Administrativo en la candidata local y pidió publicar incluyendo filtros/acciones a la derecha. No repetir ese pago. CSS ahora contempla toolbar directo y agrupado, sin cambiar lógica ni datos; tres pruebas toolbar y ValidarLocalPASS. La activación global fue rechazada nuevamente por revisión automática: requiere autorización específica de100% y14accesos. No se activó ni publicó Hosting; no servir frontend nuevo con backend antiguo. Pendiente confirmación de ese alcance y luego Hosting/aviso/verificación. Sin nueva compilación prevista.
 # Verificación con datos reales en local · 02/11/2026
 
 El titular rechazó la demo como forma de revisión y autorizó actualizar sólo Cotizador, estimación menorUSD1, sin publicar Hosting ni registrar operaciones por él. Compilación63353f35-ec86-4902-8d5d-18027423034eSUCCESS; candidata cotizador-gastos31717-1b833fd4 desplegada sin tráfico global, desde1b833fd4db106e8cc4eb6cf5fa8389997043cdb6. Entorno, recursos, concurrencia, identidad y tiempos iguales al servicio anterior; anónimos401 en las cuatro rutas de pagos. CORS local204 para127.0.0.1:8766.

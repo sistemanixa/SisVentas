@@ -3317,3 +3317,9 @@ body.sv-exterior-dialog-open .content{overflow:hidden!important;overscroll-behav
 @media(max-width:900px){
  #page-gastos .gas-card-head>.sv-card-head-actions>.sv-column-percent-btn{display:none!important}
 }
+/* Gastos: conservar alineación con y sin el agrupador de columnas. */
+@media(min-width:901px){
+ #page-gastos .gas-card-head>.gas-toolbar-actions{display:grid!important;grid-template-columns:minmax(0,1fr);width:100%!important;gap:10px;min-width:0}
+ #page-gastos .gas-toolbar-filters{max-width:960px;margin-left:auto}
+ #page-gastos .gas-card-head>.gas-toolbar-actions>.gas-toolbar-buttons{width:100%;justify-content:flex-end}
+}
