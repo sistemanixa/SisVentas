@@ -1,5 +1,5 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, goOffline, goOnline, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp, query, orderByChild, orderByKey, equalTo, startAt, endAt, endBefore, limitToFirst, limitToLast, runTransaction }
+    import { getDatabase, goOffline, goOnline, ref, set, get, push, onValue, update, remove, onDisconnect, serverTimestamp, query, orderByChild, orderByKey, equalTo, startAt, startAfter, endAt, endBefore, limitToFirst, limitToLast, runTransaction }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
              createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail,
@@ -110,6 +110,7 @@
     window.fbLimitToLast = limitToLast;
     window.fbEndBefore = endBefore;
     window.fbStartAt     = startAt;
+    window.fbStartAfter  = startAfter;
     window.fbEndAt       = endAt;
     window.fbRunTransaction = svTrackedDatabaseWrite(runTransaction);
     window.fbSignIn      = signInWithEmailAndPassword;

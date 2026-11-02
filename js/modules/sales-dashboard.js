@@ -209,8 +209,8 @@
     var dias=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     var todayTot=0,yestTot=0,weekTot=0,prevWeekTot=0,monthTot=0,prevMonthTot=0;
     var byDay={};
-    (ventas||[]).forEach(function(v){
-      var d=parseDate332(v&&v.fecha); if(!d) return; var t=parseFloat(v.total)||0; var sd=startOfDay332(d);
+    function consumeDay(fecha,t){
+      var d=parseDate332(fecha); if(!d) return; var sd=startOfDay332(d);
       if(sameDay332(sd,today)) todayTot+=t;
       if(sameDay332(sd,yesterday)) yestTot+=t;
       if(sd>=weekStart && sd<=today) weekTot+=t;
@@ -218,7 +218,10 @@
       if(sameMonth332(sd,y,m)) monthTot+=t;
       if(sameMonth332(sd,py,pm)) prevMonthTot+=t;
       if(sd>=weekStart && sd<=today){ var k=typeof window.svFechaLocalISO==='function'?window.svFechaLocalISO(sd):sd.toLocaleDateString('en-CA'); byDay[k]=(byDay[k]||0)+t; }
-    });
+    }
+    var paged=window.SVCommercialPagesHost?.financialState();
+    if(paged)Object.entries(paged.days||{}).forEach(function(entry){consumeDay(entry[0],entry[1].salesCents/100);});
+    else (ventas||[]).forEach(function(v){consumeDay(v&&v.fecha,parseFloat(v.total)||0);});
     var bestDate=null,bestVal=-1; Object.keys(byDay).forEach(function(k){ if(byDay[k]>bestVal){bestVal=byDay[k]; bestDate=k;} });
     var bestLbl='—'; if(bestDate){ var bd=parseDate332(bestDate); bestLbl=dias[bd.getDay()]+' '+compact332(bestVal); }
     var elapsed=Math.max(1, today.getDate());

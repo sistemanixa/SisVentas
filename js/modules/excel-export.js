@@ -11,7 +11,7 @@ function generarExcel(titulo, boton) {
   var htmlAnterior = boton ? boton.innerHTML : '';
   if (boton) { boton.disabled = true; boton.innerHTML = '<i class="ti ti-loader-2"></i> Preparando Excel…'; }
   var restaurar = function(){ if (boton) { boton.disabled = false; boton.innerHTML = htmlAnterior; } };
-  cargarSheetJS(function() {
+  cargarSheetJS(async function() {
     try {
     var wb = window.XLSX.utils.book_new();
     var rows = [];
@@ -19,7 +19,9 @@ function generarExcel(titulo, boton) {
 
     if (titulo === 'Listado de ventas' || titulo === 'Reporte de ventas') {
       rows = [['#','Cliente','Fecha','Total','Pago','Instalación']];
-      (ventasList || []).forEach(function(v) {
+      var pagedRows=window.SVCommercialPagesHost?.activeRoute()?await window.SVCommercialPagesHost.exportSales():null;
+      if(pagedRows)pagedRows.forEach(function(v){rows.push([v.number,v.client,v.date,v.totalCents/100,v.status,v.installation]);});
+      else (ventasList || []).forEach(function(v) {
         rows.push([v.id||'', v.cliente||'', v.fecha||'', parseFloat(v.total)||0, estadoPagoEfectivoVenta(v), v.estadoInst||'']);
       });
 

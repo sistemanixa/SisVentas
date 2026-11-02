@@ -92,7 +92,7 @@
     // Recovery conserva sólo uid/id/digest. Una confirmación manual retoma
     // exactamente el mismo comando para hidratar sus registros autorizados.
     while(data?.recovered===true){active.session.check();data=await recovery.execute({uid:active.session.uid,id:active.body.id,digest},send,active.session.check);}
-    active.session.check();return project(data);
+    active.session.check();const confirmed=project(data);try{root.document?.dispatchEvent?.(new root.CustomEvent('sisventas:commercial-write-confirmed'));}catch(_){}return confirmed;
    })();
    try{return await active.promise;}catch(error){
     // Una consulta explícita puede confirmar que nunca hubo commit. En ese

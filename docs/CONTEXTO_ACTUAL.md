@@ -1,3 +1,11 @@
+# Paginación comercial v3.17.12 preparada · 01/11/2026
+
+Pedido humano directo: terminar y activar50filas, conservar totales/deuda y publicar traspruebas ficticias. Fuente aislada sobre17.11; exclusividad de Cotizador/fiscal/reglas/Hosting concedida porchatOT, que reconstruirá su cambio después. Sin migrar originales ni probar pagos reales. Estimación informada menorUSD1, sin servicios nuevos ni costo fijo adicional.
+
+La candidata antigua recalculaba totales históricos y no emparejaba el puente fiscal: se corrigieron antes de activar. Deuda/cantidad de deudores concilian con captura privada usando importes almacenados y resolvedor actual de clientes. No escribir importes privados en actas públicas. Agregados de Cobranzas separados, acciones existentes conservadas, índices cerrados a clientes. Fastpath de metadatos probado1/50/500cobros sinconsultarlos. Reasignación de presupuesto actualiza alcance heredado.
+
+24pruebas funcionales,2UI390/1280,8reglas sobre base remota exacta y94backendPASS. Primera suite6864PASS27skip0fallos; fuente final en revisión/gate exacto antes delcorte. Evidencia privada tmp/pagination-release; reglas propuestas siguen candidatas hasta verificación/aplicación. Producción porahora17.11; no afirmar activada por estecommit. Ver VENTAS_COBROS_PAGINADOS.md.
+
 # Reducción de precarga publicada · v3.17.11 · 01/11/2026
 
 Fuente final2472895be45367cd2521e3cafeb57d4ac6eac54b en codex/transferencia-inicio-v31710, sobre produccióna7acdb0d17.8. Publicados sólo Hosting y avisooficial.540activos/5cargas17.10 y541/4en17.11;25activos finales byteexacto, cabecerasCSP/nosniff y3rutasprivadas404. Versión/SW/marcador/Firebase17.11 verificados. No servidor, reglas, índices técnicos, permisos ni escrituras comerciales. Sin push ni main. Servidor y activos financieros/personales conservados.

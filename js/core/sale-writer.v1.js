@@ -21,6 +21,7 @@
  function create(root){
   function prepare(record,baseline,stockContext){
    if(!record||typeof record!=='object'||Array.isArray(record))throw Error('La venta no es válida.');
+   if(record._svPagedSummary||record._svPagedCollectionRecord||record._svPageRow||baseline?._svPagedSummary||baseline?._svPagedCollectionRecord)throw Error('Abrí la ficha completa antes de guardar una venta.');
    if(!root.SVSaleCosts)throw Error('Recargá la aplicación antes de guardar la venta.');
    let next=clone(record);
    if(!baseline){

@@ -128,6 +128,6 @@ function runtime(admin){
  const storeModule=vendored?require('./vendor/labor/labor-rtdb-store'):require('../../cotizador/labor-rtdb-store');
  const app=admin.app(),credential=app.options.credential||admin.credential.applicationDefault();
  const store=storeModule.createLaborRtdbStore({databaseURL:app.options.databaseURL,accessToken:async()=>(await credential.getAccessToken()).access_token});
- return createFiscalLaborBridge({db:admin.database(),guard:guardModule.createLaborGuard({store,readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true'})});
+ return createFiscalLaborBridge({db:admin.database(),guard:guardModule.createLaborGuard({store,readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true',commercialPages:process.env.COMMERCIAL_PAGES_ENABLED==='true'})});
 }
 module.exports={createFiscalLaborBridge,runtime,fiscalContract,validateFiscalSource,canonical,hash};

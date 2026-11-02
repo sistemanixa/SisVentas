@@ -29,7 +29,9 @@
     var now=new Date(), meses=[], labels=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     for(var i=11;i>=0;i--){ var d=new Date(now.getFullYear(), now.getMonth()-i, 1); meses.push({y:d.getFullYear(),m:d.getMonth(),ym:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),label:labels[d.getMonth()]}); }
     meses.forEach(function(x){ x.total=0; x.cant=0; });
-    (ventas||[]).forEach(function(v){ var d=parseVentaDate320(v.fecha); if(!d) return; var it=meses.find(function(x){return x.y===d.getFullYear()&&x.m===d.getMonth();}); if(it){ it.total += parseFloat(v.total)||0; it.cant++; } });
+    var paged=window.SVCommercialPagesHost?.financialState();
+    if(paged)Object.entries(paged.days||{}).forEach(function(entry){var it=meses.find(function(x){return x.ym===entry[0].slice(0,7);});if(it){it.total+=entry[1].salesCents/100;it.cant+=entry[1].sales;}});
+    else (ventas||[]).forEach(function(v){ var d=parseVentaDate320(v.fecha); if(!d) return; var it=meses.find(function(x){return x.y===d.getFullYear()&&x.m===d.getMonth();}); if(it){ it.total += parseFloat(v.total)||0; it.cant++; } });
     var max=Math.max.apply(null, meses.map(function(x){return x.total;})); if(!isFinite(max)||max<=0) max=1;
     var w=360,h=120,pad=12,step=(w-pad*2)/(meses.length-1);
     var pts=meses.map(function(x,i){ var px=pad+i*step; var py=h-pad-(x.total/max)*(h-pad*2); return {x:px,y:py,item:x}; });

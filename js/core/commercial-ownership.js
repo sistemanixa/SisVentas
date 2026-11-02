@@ -56,6 +56,7 @@
   return s.pending;
  }
  function stop(){generation++;for(const s of subscriptions.values())s.loading?.cancel();subscriptions.clear();accessBlocked.clear();root._ventasListenerActivo=false;root._pptoListenerActivo=false;root.ventasList=[];root.pptoData=[];root.ventasPendientesHistoricasList=[];}
+ function stopDomain(domain){const s=subscriptions.get(domain);s?.loading?.cancel();subscriptions.delete(domain);if(domain==='ventas')root._ventasListenerActivo=false;else if(domain==='presupuestos')root._pptoListenerActivo=false;}
  function contextChanged(){const next=[root.fbAuth?.currentUser?.uid,root.currentUserUid,root.currentRole,root.PERMISOS_ROLES?.[root.currentRole]?.indiceRevision||0].join('|');if(next!==key){const reload=subscriptions.size>0;stop();key=next;if(reload)queueMicrotask(()=>{root.fbCargarVentas?.();root.fbCargarPresupuestos?.();});}}
  // Avisos del mismo regreso comparten la lectura pendiente. Las llamadas
  // explícitas a refresh conservan again para no perder un cambio real.
@@ -94,6 +95,7 @@
   const visible={...projection,...saved,fbKey:id},next=list.slice();
   if(at<0)next.unshift(visible);else next[at]=visible;
   root[listName]=next;
+  if(domain==='ventas' && typeof CustomEvent==='function')document.dispatchEvent(new CustomEvent('sisventas:commercial-write-confirmed'));
   const s=subscriptions.get(domain);
   if(s){
    let records={};try{records=JSON.parse(s.snapshot||'{}');}catch(_){}
@@ -146,5 +148,5 @@
  }
  async function assign(domain,record,uid){const result=await request(domain,'reasignar',{id:record.fbKey,uid,revision:Number(record.responsableRevision||0),owner:record.responsableUid||''});refresh(domain);return result.record;}
  document.addEventListener('sisventas:session-ended',stop);document.addEventListener('visibilitychange',refreshVisible);document.addEventListener('sisventas:page-changed',refreshDeferred);root.addEventListener?.('online',refreshVisible);root.addEventListener?.('sisventas:connection-restored',refreshVisible);root.addEventListener?.('sisventas:connection-lost',()=>{for(const controller of readControllers)controller.abort();});
- root.SVCommercialOwnership={onValue,request,refresh,stop,contextChanged,belongs,cachedRecords,author,stamp,clean,prepare,assign,captureWriteContext,isWriteContext,confirmWrite,confirmDelete,options:async domain=>(await request(domain,'opciones')).users};
+ root.SVCommercialOwnership={onValue,request,refresh,stop,stopDomain,contextChanged,belongs,cachedRecords,author,stamp,clean,prepare,assign,captureWriteContext,isWriteContext,confirmWrite,confirmDelete,options:async domain=>(await request(domain,'opciones')).users};
 })(window);
