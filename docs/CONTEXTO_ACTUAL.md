@@ -1,3 +1,6 @@
+# Recurrencias: comparar originales al confirmar · 02/11/2026
+
+Falla reproducida con datos ficticios: SVRecordLists reemplaza la lectura de la raíz gastos por resúmenes; la preparación guardaba esos resúmenes y atomic leía originales, disparando conflicto falso. Preparar ahora lee puntualmente cada base fija candidata completa antes del importe y confirmación; mantiene comparación completa y CAS al guardar, sin ampliar permisos ni omitir controles.23pruebas focales aprobadas, sintaxis/diff limpios. Parche aplicado al espejo local17.9, con respaldo privado previo; fuente17.14 preparada sin publicar. No se generaron gastos reales. Usuario pausó reglas SEC/FAECYS durante la investigación: no reactivadas por el agente. No probar confirmación real ni generar un sueldo desde recurrencias.
 # Gastos: controles alineados en local · 02/11/2026
 
 Ajuste exclusivo de CSS: cinco filtros alineados y acciones a la derecha con Columnas en la misma fila. Se corrige el contenedor montado por resizable-tables y se oculta Columnas en pantallas pequeñas según el diseño existente. Sin cambios de lógica, permisos ni datos. Tres pruebas de toolbar aprobadas y diff-check limpio; revisión visual de escritorio, tablet 768px y celular 390px sin desborde horizontal.

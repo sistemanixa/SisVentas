@@ -43948,6 +43948,14 @@ async function generarGastosFijosMesSeguro(opciones) {
     });
     if (paths.size > 128) throw new Error('Hay demasiadas recurrencias para confirmar juntas. Revisá las reglas antes de generar el mes.');
     if (opciones.preparar) {
+      // El listado puede contener proyecciones: comparar siempre originales.
+      for (var planLectura of planes) {
+        if (planLectura.clase !== 'fijo') continue;
+        var originalRegla = (await window.fbGet(window.fbRef(window.fbDB, planLectura.source))).val();
+        comprobar();
+        if (!originalRegla || !_gastoEsBaseFijaValida(originalRegla) || _gastoFijoFirma(originalRegla) !== planLectura.firma) throw new Error('Cambió la plantilla. Volvé a preparar los gastos del mes.');
+        gastosLectura[planLectura.baseKey] = originalRegla;
+      }
       var cantidad = 0, importeCentavos = 0, fuentes = {}, destinos = new Set();
       planes.forEach(function(plan){
         var source = plan.clase === 'fijo' ? gastosLectura[plan.baseKey] : (periodicos[plan.empKey] || {})[plan.reglaKey];

@@ -69,3 +69,9 @@ test('no inventa un total para reglas con importe inválido',async()=>{
 test('el gestor ofrece acción y texto de generación explícita sin modificar permisos ni programación del resto',()=>{
  const source=readActiveApp().source;assert.match(source,/id="gastos-recurrentes-generar"[^>]*onclick="confirmarGeneracionGastosMes\(\)"/);assert.match(source,/Abrir el sistema o consultar este listado no genera gastos/);const scheduler=source.slice(source.indexOf('function _programarTareasSecundariasGastos('),source.indexOf('function _svSuscribirGastos('));assert.doesNotMatch(scheduler,/generarGastosFijosMesSeguro\s*\(/);assert.match(scheduler,/renderModuloComisiones/);assert.match(scheduler,/generarNotificaciones/);
 });
+
+ test('preparación desde resumen liviano obtiene la regla completa antes de comparar y conserva adjuntos',async()=>{
+ const f=fixture({gastos:{template:{...source,comprobante:'adjunto-ficticio',pagos:{p:{monto:20}}}}}),get=f.c.fbGet;
+ f.c.fbGet=async ref=>{const snap=await get(ref);if(String(ref)==='sisventas/gastos'){const data=snap.val();delete data.template.comprobante;delete data.template.pagos;data.template._svListSummary=true;return {val:()=>data};}return snap;};
+ await f.run();assert.equal(f.backend.commits.length,1);assert.match(f.state.textContent,/Se generaron 2/);assert.equal(f.backend.get('sisventas/gastos/template').comprobante,'adjunto-ficticio');assert.deepEqual(f.backend.get('sisventas/gastos/template').pagos,{p:{monto:20}});
+ });
