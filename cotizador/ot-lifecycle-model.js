@@ -39,7 +39,10 @@ function plan({before,changes,kind,sale,primary=null,others={},products={},actor
  const closeFields=['conformidadCliente','nombreConformidad','observacionesCierre'],custodyFields=['materiales','custodiaIniciada','custodiaRendida','custodiaRendidaEn','custodiaRendidaPor'];
  if(Object.keys(changes).some(k=>!(kind==='close'?closeFields:custodyFields).includes(k)))throw fail('El guardado contiene campos no autorizados.');
  if(kind==='close'&&closed(before))throw fail('La OT ya está cerrada.');
- const next={...copy(before),...copy(changes)};
+ for(const field of closeFields)if(Object.hasOwn(changes,field)&&typeof changes[field]!=='string')throw fail('Revisá los datos del acta.');
+ for(const field of ['custodiaIniciada','custodiaRendida'])if(Object.hasOwn(changes,field)&&typeof changes[field]!=='boolean')throw fail('Revisá la rendición de materiales.');
+ const cleanChanges=copy(changes);delete cleanChanges.custodiaRendidaEn;delete cleanChanges.custodiaRendidaPor;
+ const next={...copy(before),...cleanChanges};
  if(changes.materiales)materialChanges(before,changes.materiales,kind);
  if(kind==='close'){
   if(!checksComplete(next.checks))throw fail('Falta completar el checklist.');

@@ -41,6 +41,7 @@ return function create(root){
    };
    root._otGuardandoLocalHasta=Date.now()+15000;
    const result=await root.SVLaborWriteRecovery.execute({uid,id:command.id,digest},send,check);check();
+   if(result.saleStatus)try{root.document?.dispatchEvent?.(new root.CustomEvent('sisventas:commercial-write-confirmed'));}catch(_){}
    // La confirmación puede venir del recibo de una respuesta perdida. Releer,
    // sin repetir cierre, recepción ni consumo, conserva la revisión de servidor.
    let current=result.ot;
