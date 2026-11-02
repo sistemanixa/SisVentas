@@ -3,5 +3,6 @@
  const fields=['monto','montoPagado','saldoPagadoLegacy','estado','requiereAprobacion','bajaAdministrativa','pagos','empleadoId','empleadoFbKey','legacyKey','movimientoCtaKey','tipoPagable','origen','periodoComputo','bonificacionCantidad','bonificacionValorUnitario','bonificacionGrupoId','bonificacionDestinatarios','bonificacionGrupoTotal','bonificacionGrupoPersonas'];
  const isBonus=row=>!!row&&String(row.tipoPagable||row.origen||'').toLowerCase()==='bonificacion';
  function revisionData(row){return Object.fromEntries(fields.map(key=>[key,row?.[key]??null]));}
- return {isBonus,revisionData};
+ const isReimbursement=row=>!!row&&String(row.tipoPagable||'').toLowerCase()==='gasto_empresa'&&!!(row.empleadoFbKey||row.empleadoId)&&!!(row.movimientoCtaKey||/^ctaemp\/[^/]+\/[^/]+$/.test(String(row.legacyKey||'')));
+ return {isBonus,isReimbursement,revisionData};
 });

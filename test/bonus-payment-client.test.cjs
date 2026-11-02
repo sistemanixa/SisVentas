@@ -2,7 +2,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto');
 const Model=require('../js/core/bonus-payment-model.v1'),{create}=require('../js/core/bonus-payment.v1'),Recovery=require('../js/core/labor-write-recovery');
 const flush=()=>new Promise(setImmediate);async function until(check){const end=Date.now()+2500;while(Date.now()<end){if(check())return;await new Promise(r=>setTimeout(r,3));}assert.fail('Fixture did not reach expected state');}
-function fixture({loss=false,deny=false,mode='ok'}={}){
+function fixture({loss=false,deny=false,mode='ok',reimbursement=false}={}){
  const calls=[],commits=new Map(),storage=new Map(),events={},g={fbKey:'g',monto:175000,montoPagado:0,pagos:{},estado:'aprobado',tipoPagable:'bonificacion',legacyKey:'ctaemp/e/m',periodoComputo:'2026-10'};let sequence=0,release;
  const slot=new Promise(r=>{release=r});let hold=false,failOnce=loss;
  const root={currentUserUid:'u',currentRole:'administrativo',PERMISOS_ROLES:{administrativo:{indiceRevision:1}},fbAuth:{currentUser:{uid:'u'}},SVBonusPaymentModel:Model,gastosData:[g],navigator:{onLine:true},crypto:{subtle:crypto.webcrypto.subtle,randomUUID:()=> 'bonus-client-operation-'+(++sequence)},tienePermiso:()=>!deny,
@@ -10,7 +10,7 @@ function fixture({loss=false,deny=false,mode='ok'}={}){
  SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://fixture.invalid/'},SVServiceAuth:{headers:async h=>({...h,Authorization:'Bearer ficticio'})},_paginaGastosActiva:()=>true,renderTablaGastos(){root.renders=(root.renders||0)+1;},actualizarMetricasGastos(){},
  SVForegroundSession:{async waitVisible(){},holdDatabase:()=>()=>{}},async fetch(url,options){calls.push({url,body:JSON.parse(options.body)});const body=JSON.parse(options.body),response=(data,status=200)=>({ok:status<300,status,json:async()=>data});
  if(url.endsWith('/laboral/operacion'))return response({ok:true,status:commits.has(body.id)?'confirmed':'rejected'});
- assert.ok(url.endsWith('/laboral/bonificaciones/pagar'));assert.equal(options.cache,'no-store');assert.equal(options.headers.Authorization,'Bearer ficticio');
+ assert.ok(url.endsWith(reimbursement?'/laboral/gastos/reembolsar':'/laboral/bonificaciones/pagar'));assert.equal(options.cache,'no-store');assert.equal(options.headers.Authorization,'Bearer ficticio');
  if(hold)await slot;if(mode==='denied')return response({ok:false,code:'SV_BONUS_PAYMENT_DENIED',mensaje:'Sin permiso'},403);if(mode==='changed')return response({ok:false,code:'SV_CAS_CONFLICT',mensaje:'Saldo cambió'},409);if(mode==='disabled')return response({ok:false,code:'SV_BONUS_PAYMENT_DISABLED',mensaje:'No disponible'},503);
  if(!commits.has(body.id))commits.set(body.id,body);
  if(failOnce){failOnce=false;throw Error('Respuesta perdida ficticia');}
@@ -29,3 +29,5 @@ test('logout while sending cannot mutate the next session expense cache',async()
 test('browser and server revision projections are byte-equivalent',()=>{assert.deepEqual(Model.revisionData({monto:10,pagos:{p:{monto:1}}}),require('../cotizador/bonus-payment-model').revisionData({monto:10,pagos:{p:{monto:1}}}));});
 
 test('a compact bonus is hydrated before hashing, preserving the existing payment proof',async()=>{const f=fixture(),original={...f.g,pagos:{old:{monto:0,fecha:'2020-01-01',comprobante:'data:image/png;base64,AA=='}}};f.g._svListSummary=true;let reads=0;f.root.SVRecordLists={detail:async(domain,id)=>{assert.equal(domain,'gastos');assert.equal(id,'g');reads++;return original;}};await pay(f);assert.equal(reads,1);const expected=crypto.createHash('sha256').update(canonicalForTest(Model.revisionData(original))).digest('hex');assert.equal(f.calls[0].body.items[0].expectedHash,expected);function canonicalForTest(v){if(v==null)return'null';if(Array.isArray(v))return'['+v.map(canonicalForTest).join(',')+']';if(typeof v==='object')return'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonicalForTest(v[k])).join(',')+'}';return JSON.stringify(v);}});
+
+test('reembolso administrativo usa acción puntual sin consultar la cuenta del empleado',async()=>{const f=fixture({reimbursement:true});Object.assign(f.g,{tipoPagable:'gasto_empresa',empleadoId:'e',movimientoCtaKey:'m'});await f.api.pay([{fbKey:'g',monto:175000}],'Transferencia',null,null,true);assert.equal(f.calls.length,1);assert.ok(f.calls[0].url.endsWith('/laboral/gastos/reembolsar'));assert.equal(f.g.montoPagado,175000);assert.equal(JSON.stringify(f.calls).includes('sisventas/ctaemp'),false);});

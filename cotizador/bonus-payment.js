@@ -22,29 +22,29 @@ function allowed(profile,cfg){
  for(const action of ['administrar','pagar']){const override=cfg?.acciones?.gastos?.[action];if(typeof override==='boolean'?!override:!['admin','administrativo'].includes(profile.rol))throw fail(403,'Sin permiso para pagar gastos','SV_BONUS_PAYMENT_DENIED');}
  return {role:profile.rol,permissionRevision:cfg?.indiceRevision??null,permissionDigest:digest(cfg||{}),name:String(profile.nombre||profile.usuario||'')};
 }
-function linkedPath(g){
- const legacy=String(g.legacyKey||'').split('/');if(legacy.length!==3||legacy[0]!=='ctaemp')throw fail(409,'La bonificación requiere revisar su vínculo','SV_CAS_CONFLICT');
+function linkedPath(g,reimbursement=false){
+ const legacy=String(g.legacyKey||(reimbursement&&g.movimientoCtaKey?'ctaemp/'+(g.empleadoFbKey||g.empleadoId)+'/'+g.movimientoCtaKey:'')).split('/');if(legacy.length!==3||legacy[0]!=='ctaemp')throw fail(409,'La bonificación requiere revisar su vínculo','SV_CAS_CONFLICT');
  const employee=key(legacy[1]),movement=key(legacy[2]);
  if(['empleadoId','empleadoFbKey'].some(k=>g[k]!=null&&g[k]!==''&&String(g[k])!==employee)||g.movimientoCtaKey&&g.movimientoCtaKey!==movement)throw fail(409,'El vínculo de la bonificación cambió','SV_CAS_CONFLICT');
  return 'sisventas/ctaemp/'+employee+'/'+movement;
 }
 function mapPayments(value){if(value==null)return {};if(typeof value!=='object')throw fail(409,'El historial de pagos requiere revisión','SV_CAS_CONFLICT');return Array.isArray(value)?Object.fromEntries(value.map((v,i)=>['legacy_'+i,copy(v)])):copy(value);}
-function createBonusPayment({authorize,db,guard,store,enabled=false,now=Date.now}={}){
+function createBonusPayment({authorize,db,guard,store,enabled=false,now=Date.now,reimbursement=false}={}){
  if(typeof authorize!=='function'||!db||!guard?.run||!store?.readAsUser)throw Error('Falta el circuito de pago');
  async function access(actor,read){if(actor?.claims?.uid!==actor?.uid||!actor?.uid)throw fail(403,'Sesión requerida');const profile=await read('sv_chat_roles/'+actor.uid),cfg=profile?.rol?await read('sv_permisos/'+profile.rol):null,reset=await read('sv_access_resets/'+actor.uid);if(actor.claims.svPasswordChangeRequired===true||reset?.required===true||reset?.version!=null&&actor.claims.svAccessVersion!==reset.version)throw fail(403,'La sesión requiere volver a ingresar','SV_BONUS_PAYMENT_DENIED');return allowed(profile,cfg);}
  async function execute(actor,input){
   if(!enabled)throw fail(503,'El pago de bonificaciones todavía no está disponible','SV_BONUS_PAYMENT_DISABLED');
   const body=describe(input),captured=await access(actor,p=>store.read(p));
-  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'command',role:captured.role,permissionRevision:captured.permissionRevision,permissionDigest:captured.permissionDigest,opId:body.id,transportDigest:digest(body),recoverReceipt:true,operation:'bonus-payment',input:body},async scope=>{
+  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'command',role:captured.role,permissionRevision:captured.permissionRevision,permissionDigest:captured.permissionDigest,opId:body.id,transportDigest:digest(body),recoverReceipt:true,operation:reimbursement?'expense-reimbursement':'bonus-payment',input:body},async scope=>{
    if(!same(await access(actor,p=>scope.get(p)),captured))throw fail(409,'Los permisos cambiaron','SV_LABOR_AUTH_CHANGED');
    const patch={},snapshots=new Map(),usedMovements=new Set(),ts=now(),fecha=new Date(ts).toLocaleDateString('en-CA',{timeZone:'America/Argentina/Buenos_Aires'}),lot=body.items.length>1?(body.loteKey||'lote_bonus_'+body.id):null,rows=[];
    for(let i=0;i<body.items.length;i++){
     const item=body.items[i],path='sisventas/gastos/'+item.key,visible=await store.readAsUser(path,actor),g=await scope.get(path);
-    if(!g||!same(visible,g)||!Model.isBonus(g)||g.bajaAdministrativa)throw fail(403,'El gasto no está disponible como bonificación','SV_BONUS_PAYMENT_DENIED');
+    if(!g||!same(visible,g)||!(reimbursement?Model.isReimbursement(g):Model.isBonus(g))||g.bajaAdministrativa)throw fail(403,'El gasto no está disponible como bonificación','SV_BONUS_PAYMENT_DENIED');
     if(digest(Model.revisionData(g))!==item.expectedHash)throw fail(409,'La bonificación cambió. Actualizá la lista','SV_CAS_CONFLICT');
     if(['pendiente_aprobacion','rechazado','anulado','pagado'].includes(Calc.normalizarEstadoGasto(g))||g.requiereAprobacion===true||!['aprobado','pendiente_pago','pagado_parcial'].includes(String(g.estado||'').toLowerCase()))throw fail(409,'La bonificación no tiene saldo aprobado para pagar','SV_CAS_CONFLICT');
-    const movementPath=linkedPath(g),m=await scope.get(movementPath),employee=movementPath.split('/')[2];
-    if(usedMovements.has(movementPath)||!object(m)||m.tipo!=='bonificacion'||m.gastoFbKey!==item.key||m.bajaAdministrativa||['rechazado','anulado','pendiente_aprobacion'].includes(String(m.estado||'').toLowerCase())||['empleadoId','empleadoFbKey'].some(k=>m[k]!=null&&m[k]!==''&&String(m[k])!==employee)||m.legacyKey&&m.legacyKey!==g.legacyKey||Number(m.monto)!==Number(g.monto)||(m.periodoComputo??null)!==(g.periodoComputo??null))throw fail(409,'La bonificación y su movimiento requieren revisión','SV_CAS_CONFLICT');
+    const movementPath=linkedPath(g,reimbursement),m=await scope.get(movementPath),employee=movementPath.split('/')[2];
+    if(usedMovements.has(movementPath)||!object(m)||(reimbursement?!['transporte','materiales','gasto_empresa','otro'].includes(m.tipo):m.tipo!=='bonificacion')||m.gastoFbKey!==item.key||m.bajaAdministrativa||['rechazado','anulado','pendiente_aprobacion'].includes(String(m.estado||'').toLowerCase())||['empleadoId','empleadoFbKey'].some(k=>m[k]!=null&&m[k]!==''&&String(m[k])!==employee)||m.legacyKey&&m.legacyKey!==movementPath.slice('sisventas/'.length)||Number(m.monto)!==Number(g.monto)||(m.periodoComputo??null)!==(g.periodoComputo??null))throw fail(409,'La bonificación y su movimiento requieren revisión','SV_CAS_CONFLICT');
     usedMovements.add(movementPath);
     const total=Number(g.monto),previous=Calc.totalPagadoGasto(g),priorMovement=Calc.totalPagadoGasto(m);
     if(!Number.isFinite(total)||total<=0||!Number.isFinite(previous)||previous<0||previous>total||Object.values(g.pagos||{}).some(p=>!object(p)||!Number.isFinite(Number(p.monto))||Number(p.monto)<0)||Math.abs(previous-priorMovement)>0.000001||!same(g.pagos||{},m.pagos||{})||item.monto>Money.sum([total,-previous]))throw fail(409,'El saldo de la bonificación cambió','SV_CAS_CONFLICT');
