@@ -162,6 +162,7 @@
     });
   }
   window.renderMetricasVentas = function(){
+    if(window.SVCommercialPagesHost?.activeRoute())return window.SVCommercialPagesHost.paintSalesStats();
     aplicarTextosDashboardVentas();
     var r = window.svResumenVentas();
     var mesLabel = (function(){ var p=r.mes.split('-'); return p[1]+'/'+p[0]; })();

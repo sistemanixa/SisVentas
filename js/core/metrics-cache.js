@@ -248,6 +248,7 @@
   }
 
   function refrescarDashVentas312(){
+    if(window.SVCommercialPagesHost?.activeRoute())return window.SVCommercialPagesHost.paintSalesStats();
     if(!(window.tienePermiso && window.tienePermiso('ventas.verDashboard'))) return;
     var m = SV.Metrics.ventas();
     // No reemplazar la cuenta corriente histórica por el saldo limitado a las

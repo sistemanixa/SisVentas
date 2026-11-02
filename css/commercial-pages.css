@@ -3,3 +3,5 @@
 .sv-cpages-nav[hidden],.sv-cpages-scroll[hidden],.sv-cpages-controls [hidden]{display:none!important}.sv-cpages-scroll{max-height:65vh}
 
 .sv-cpages-head[hidden],.sv-cpages-totals[hidden]{display:none!important}
+
+[data-sv-paged-replaced="true"][hidden]{display:none!important}.sv-cpages-table .sv-cpages-notes{white-space:normal;max-width:260px;min-width:130px}.sv-cpages-table .sv-cpages-author{white-space:normal;max-width:150px}.sv-cpages-table .sv-cpages-status{font-size:11px;padding:4px 7px;border-radius:8px;background:var(--bg3,#1c2940);display:inline-block}.sv-cpages-table .sv-cpages-number{font-weight:700;white-space:nowrap}

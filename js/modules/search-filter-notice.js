@@ -36,7 +36,8 @@
   function update(e){
     var input=e.input;if(!visible(input))return;
     var native=e.native&&e.native.textContent.trim();
-    text(e.counter,input.id==='prod-search'&&native?native:count(e.result)+' resultados visibles');
+    var paged=input.getAttribute('data-sv-paged-count');
+    text(e.counter,paged!==null?paged:input.id==='prod-search'&&native?native:count(e.result)+' resultados visibles');
     var parts=input.value.trim()?['«'+input.value.trim()+'»']:[];
     e.controls=Array.from(e.scope.querySelectorAll('select,input[type="date"],input[type="month"],input[type="checkbox"]')).filter(function(n){return visible(n)&&!n.closest('tbody')&&!/search-field|orden|page-size|pagination/i.test(n.id)&&(n.type==='date'||n.type==='month'||/filtro|filter|estado|periodo|mes|^gas-f-|^com-f-/.test(n.id));});
     e.controls.forEach(function(n){
