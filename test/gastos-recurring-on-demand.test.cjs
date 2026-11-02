@@ -75,3 +75,14 @@ test('el gestor ofrece acción y texto de generación explícita sin modificar p
  f.c.fbGet=async ref=>{const snap=await get(ref);if(String(ref)==='sisventas/gastos'){const data=snap.val();delete data.template.comprobante;delete data.template.pagos;data.template._svListSummary=true;return {val:()=>data};}return snap;};
  await f.run();assert.equal(f.backend.commits.length,1);assert.match(f.state.textContent,/Se generaron 2/);assert.equal(f.backend.get('sisventas/gastos/template').comprobante,'adjunto-ficticio');assert.deepEqual(f.backend.get('sisventas/gastos/template').pagos,{p:{monto:20}});
  });
+
+test('nuevo mes no hereda revisión del índice, pagos, adjuntos ni estado de reembolso de la plantilla',async()=>{
+ const Model=require('../cotizador/record-list-model'),original={...source,_svListRevision:9,_svListOperation:'operacion-anterior',fechaImputacion:'2026-09-05',mes:'2026-09',fotoAdjunta:true,fechaPago:'2026-09-10',reembolsado:true,pagos:{old:{monto:100,comprobante:{externo:true}}},montoPagado:100,estado:'pagado'};
+ // This is the same create-only projection precondition as the production guard.
+ assert.throws(()=>Model.plan('sisventas/gastos/new',null,{...original,fecha:'2026-10-05'},'op-ficticia'),/registro cambió/);
+ const f=fixture({gastos:{template:original},gastos_periodicos_emp:{}});
+ apply(f.backend.state,{'sv_record_list_config':{schema:1,ready:true}});
+ await f.run();assert.equal(f.backend.commits.length,1);const generated=Object.entries(f.backend.state.sisventas.gastos).find(([key])=>key!=='template')[1];
+ for(const key of ['fotoAdjunta','fechaPago','reembolsado','pagos'])assert.equal(generated[key],undefined);assert.equal(generated._svListRevision,1);assert.equal(generated.monto,100);assert.equal(generated.montoPagado,0);assert.equal(generated.fecha,'2026-10-05');assert.equal(generated.fechaImputacion,'2026-10-05');assert.equal(generated.mes,'2026-10');assert.deepEqual(f.backend.get('sisventas/gastos/template'),original);
+ await f.run();assert.equal(f.backend.commits.length,1);
+});

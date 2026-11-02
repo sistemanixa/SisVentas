@@ -172,7 +172,7 @@ test('Pagos activos/anulados, archivo administrativo y KPIs mantienen su fuente 
 });
 
 const filterCases = [
-  ['mes', { 'gas-f-mes': 'mes' }, ['b', 'c', 'conflict', 'void']],
+  ['mes', { 'gas-f-mes': 'mes' }, ['a', 'b', 'c', 'conflict', 'd', 'void']],
   ['trimestre', { 'gas-f-mes': '3m' }, ['a', 'b', 'c', 'conflict', 'd', 'void']],
   ['año', { 'gas-f-mes': 'anio' }, ['a', 'b', 'c', 'conflict', 'd', 'void']],
   ['pagados', { 'gas-f-estado': 'pagado' }, ['c', 'd', 'old']],

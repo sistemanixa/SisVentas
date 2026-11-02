@@ -104,7 +104,7 @@ test('later explicit account linkage retains the retired expense and its financi
 for(const origin of ['fresh','stale'])for(const action of ['edit','pay','approve'])test(origin+' '+action+' from the expense interface cannot change a retired expense',async()=>{
  const g=expense({montoPagado:0,pagos:{},estado:'aprobado'}),f=fixture({g,account:{e:{m:movement(g,{montoPagado:20,pagos:{p1:{monto:20}}})}}}),oldCache=copy(f.c.gastosData);await f.remove();retired(f);load(f.c,['_guardarGastoCompletoAtomico']);const before=copy(f.state.sisventas),commands=f.commands.length;if(origin==='stale')f.c.gastosData=oldCache;const selected=f.c.gastosData[0];
  const task=action==='edit'?f.c._guardarGastoCompletoAtomico(copy(selected),'g',{...copy(g),descripcion:'Edición que no debe guardarse'},null):action==='pay'?f.c._registrarPagoGastoUnitario('g',10,'Efectivo',null,null):f.c._cambiarEstadoGastoVinculadoAtomico('g',{estado:'aprobado'},{estado:'aprobado'},false);
- await assert.rejects(task,/retirad|cambiaron/i);assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,1);assert.equal(f.commands.length,commands);
+ await assert.rejects(task,/retirad|cambiaron/i);assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,1);assert.equal(f.commands.length,commands+(origin==='stale'&&action==='pay'?1:0));
 });
 
 test('a legitimate account correction may update old payment media while preserving the retirement marker',async()=>{

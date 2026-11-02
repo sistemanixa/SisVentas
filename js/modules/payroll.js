@@ -38,43 +38,7 @@
     });
   }
 
-  // Gastos debe mostrar solamente gastos reales; los legacy se migran a registros reales.
-  window.gastosFiltradosActuales = function() {
-    var fTipo   = (document.getElementById('gas-f-tipo')||{}).value   || '';
-    var fEstado = (document.getElementById('gas-f-estado')||{}).value || '';
-    var fMes    = (document.getElementById('gas-f-mes')||{}).value;
-    if (fMes === undefined) fMes = 'mes';
-    var inp = document.querySelector('#gasto-list input.search-input');
-    var fBusq = inp ? String(inp.value||'').toLowerCase() : '';
-    var hoyD = new Date();
-    var mesActual = hoyD.toISOString().slice(0,7);
-    var mes3m = (function(){ var d=new Date(hoyD); d.setMonth(d.getMonth()-2); return d.toISOString().slice(0,7); })();
-    var anioActual = String(hoyD.getFullYear());
-    return (window.gastosData || gastosData || []).filter(function(g){
-      if(typeof window.svGastoCoincideCategoria==='function'&&!window.svGastoCoincideCategoria(g))return false;var origenCobertura=window._svSalaryExpenseFilter;if(origenCobertura&&!window.SVSalaryCoverage.businessTotal({item:g},[origenCobertura.category],origenCobertura.period).lines.length)return false;
-      var tipoNorm   = normalizarTipoGasto(g);
-      var estadoNorm = normalizarEstadoGasto(g);
-      var matchTipo   = !fTipo   || tipoNorm === fTipo;
-      var matchEstado = !fEstado || estadoNorm === fEstado;
-      var txt = ((g.descripcion||'') + ' ' + (g.categoria||'') + ' ' + (g.semestre||'') + ' ' + (g.empleadoNombre||'')).toLowerCase();
-      var matchBusq   = !fBusq || txt.includes(fBusq);
-      var matchMes = true;
-      var f = (typeof _normFechaGasto === 'function') ? _normFechaGasto(g.fecha) : (g.fecha || '');
-      if (fMes === 'mes') matchMes = f.slice(0,7) === mesActual;
-      else if (fMes === '3m') matchMes = f.slice(0,7) >= mes3m;
-      else if (fMes === 'anio') matchMes = f.slice(0,4) === anioActual;
-      var matchKpiVence = true;
-      if (window._filtroGastosKpiVence) {
-        var venc = g.vencimiento || '';
-        matchKpiVence = venc >= window._filtroGastosKpiVence.desde && venc <= window._filtroGastosKpiVence.hasta;
-      }
-      var matchKpiReembolso = true;
-      if (window._filtroGastosKpiReembolso) {
-        matchKpiReembolso = !!(g.empleadoId && normalizarEstadoGasto(g) !== 'pagado' && !g.reembolsado);
-      }
-      return matchTipo && matchEstado && matchBusq && matchMes && matchKpiVence && matchKpiReembolso;
-    });
-  };
+  // El listado usa exclusivamente el filtro canónico de la aplicación activa.
 
   document.addEventListener('sisventas:payroll-modal-opened',function(){
     setTimeout(function(){

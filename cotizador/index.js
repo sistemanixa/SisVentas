@@ -60,6 +60,8 @@ const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway
 const otOfficeCount=require('./ot-office-count').createOTOfficeCount({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_OFFICE_COUNT_ENABLED==='true'});
 const otLifecycle=require('./ot-lifecycle').createOTLifecycle({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_LIFECYCLE_ENABLED==='true',commercialPages:process.env.COMMERCIAL_PAGES_ENABLED==='true'});
 const expenseReimbursement=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled,reimbursement:true});
+const expensePaymentAdjustment=require('./expense-payment-adjustment').createExpensePaymentAdjustment({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
+const expensePayment=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled,expense:true});
 const bonusPayment=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 const paymentCommands=require('./payment-commands').createPaymentCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.PAYMENT_SCOPED_ENABLED==='true'});
 const adminExpenseCreate=require('./admin-expense-create').createAdminExpenseCreate({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.ADMIN_EXPENSE_SCOPED_ENABLED==='true'});
@@ -2128,8 +2130,8 @@ const server = http.createServer(async (req, res) => {
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:commissionPublic.errorMessage(e)});}
     return;
   }
-  if(['/laboral/bonificaciones/pagar','/laboral/gastos/reembolsar'].includes(pathname)){
-    const paymentService=pathname==='/laboral/gastos/reembolsar'?expenseReimbursement:bonusPayment;
+  if(['/laboral/bonificaciones/pagar','/laboral/gastos/reembolsar','/laboral/gastos/pagar','/laboral/gastos/corregir-pago'].includes(pathname)){
+    const paymentService=pathname==='/laboral/gastos/corregir-pago'?expensePaymentAdjustment:pathname==='/laboral/gastos/pagar'?expensePayment:pathname==='/laboral/gastos/reembolsar'?expenseReimbursement:bonusPayment;
     res.setHeader('Cache-Control','private, no-store');
     try{const actor=await paymentService.authorize(req),body=await readBody(req,4*1024*1024);send(res,200,await paymentService.execute(actor,body));}
     catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el pago. Consultá la operación antes de repetirla.',...(error.code?{code:error.code}:{})});}return;

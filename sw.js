@@ -1,6 +1,6 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.17.16';
+const CACHE = 'sisventas-v3.17.17';
 const SHELL = [
   './js/modules/ot-lifecycle.js?v=3.17.13',
   './js/modules/ot-acta-correction.js?v=3.17.13',
@@ -104,7 +104,7 @@ const SHELL = [
   './js/core/guarded-writes.js?v=3.17.7',
   './js/core/session-assets.js?v=3.17.7',
   './js/core/ot-personal-scope.js?v=3.14.0',
-  './js/app.v3.17.16.js',
+  './js/app.v3.17.17.js',
   './js/core/activity-period.v1.js',
  './js/core/dashboard-account-source.v1.js?v=3.14.19',
   './js/modules/navigation-back.js?v=perf-3105',
@@ -114,14 +114,14 @@ const SHELL = [
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js?v=3.17.7',
   './js/core/version.js',
-  './js/core/version.v3.17.16.js',
+  './js/core/version.v3.17.17.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.10.32',
  './js/core/labor-write-recovery.js?v=3.15.12',
  './js/core/labor-writes.js?v=3.14.7-sac',
- './js/core/bonus-payment-model.v1.js?v=3.17.16',
- './js/core/bonus-payment.v1.js?v=3.17.15',
+ './js/core/bonus-payment-model.v1.js?v=3.17.17',
+ './js/core/bonus-payment.v1.js?v=3.17.17',
  './js/core/financial-commands.js?v=3.14.3',
  './js/core/firebase.js?v=3.17.7',
   './js/modules/item-row-order.js?v=perf-3105',
@@ -182,7 +182,7 @@ const SHELL = [
   './js/modules/pwa-install.js?v=3.12.19-acciones',
   './js/modules/payroll-duplicate-guard.js?v=perf-31010',
   './js/modules/payroll-legacy-migration.js?v=history-20261022',
-  './js/modules/payroll.js?v=3.14.7',
+  './js/modules/payroll.js?v=3.17.17',
   './js/modules/payroll-legacy-sac.js?v=3.14.7',
   './js/modules/payroll-pending-review.js?v=3.14.7',
   './js/modules/maintenance.js?v=3.14.7',

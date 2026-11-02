@@ -1,9 +1,10 @@
 (function(root,factory){'use strict';const model=factory();if(typeof module==='object'&&module.exports)module.exports=model;if(root)root.SVBonusPaymentModel=model;})(typeof window==='object'?window:null,function(){
  'use strict';
- const fields=['monto','montoPagado','saldoPagadoLegacy','estado','requiereAprobacion','bajaAdministrativa','pagos','empleadoId','empleadoFbKey','legacyKey','movimientoCtaKey','tipoPagable','origen','periodoComputo','bonificacionCantidad','bonificacionValorUnitario','bonificacionGrupoId','bonificacionDestinatarios','bonificacionGrupoTotal','bonificacionGrupoPersonas'];
+ const fields=['mes','tipo','esFijoBase','recurrenciaGenerada','reglaPeriodicaFbKey','aprobadoTs','aprobadoPor','fechaAprobacion','montoCompensado','monto','montoPagado','saldoPagadoLegacy','estado','requiereAprobacion','bajaAdministrativa','pagos','empleadoId','empleadoFbKey','legacyKey','movimientoCtaKey','tipoPagable','origen','periodoComputo','bonificacionCantidad','bonificacionValorUnitario','bonificacionGrupoId','bonificacionDestinatarios','bonificacionGrupoTotal','bonificacionGrupoPersonas'];
  const isBonus=row=>!!row&&String(row.tipoPagable||row.origen||'').toLowerCase()==='bonificacion';
  function revisionData(row){return Object.fromEntries(fields.map(key=>[key,row?.[key]??null]));}
  const isStandaloneExpense=row=>!!row&&String(row.tipo||'').toLowerCase()==='variable'&&!!(row.empleadoFbKey||row.empleadoId)&&!row.tipoPagable&&!row.origen&&!row.legacyKey&&!row.movimientoCtaKey&&row.esFijoBase!==true&&!['comisionId','comisionKey','ventaComisionId','bonificacionGrupoId','bonificacionConceptoId','sueldoBase','sueldoBruto','adelantoCompensado','montoCompensado','compensaciones','adelantosAplicados'].some(k=>row[k]!=null)&&!String(row.descripcion||'').match(/^(?:haber|sueldo|aguinaldo|bonificaci[oó]n|comisi[oó]n|adelanto|hs\.?\s*extra)\b/i)&&(row._svListSummary===true||typeof row.usuarioUid==='string'&&!!row.usuarioUid.trim());
  const isReimbursement=row=>isStandaloneExpense(row)||!!row&&String(row.tipoPagable||'').toLowerCase()==='gasto_empresa'&&!!(row.empleadoFbKey||row.empleadoId)&&!!(row.movimientoCtaKey||/^ctaemp\/[^/]+\/[^/]+$/.test(String(row.legacyKey||'')));
- return {isBonus,isReimbursement,isStandaloneExpense,revisionData};
+ const isPayableExpense=row=>!!row&&typeof row==='object'&&!Array.isArray(row)&&!row.esFijoBase&&!row.bajaAdministrativa;
+ return {isBonus,isReimbursement,isStandaloneExpense,isPayableExpense,revisionData};
 });

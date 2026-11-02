@@ -7,7 +7,7 @@ const movement=()=>({tipo:'comision',monto:100,estado:'aprobado',gastoFbKey:'g',
 test('Un rechazo concurrente impide pagar desde una pantalla que conservaba el estado aprobado',async()=>{
  const f=createBackend({gastos:{g:expense()},ctaemp:{e:{m:movement()}}}),p=f.page(),other=f.page();p.refresh();
  let changed=false;
- f.setHook(async command=>{if(!changed&&command.kind==='atomic'){
+ f.setHook(async command=>{if(!changed&&command.items){
   changed=true;await other.context.fbUpdate(other.context.fbRef(other.context.fbDB,'sisventas/gastos/g'),{estado:'rechazado'});
  }});
  await assert.rejects(p.context._registrarPagoGastoUnitario('g',40,'Efectivo',null,null),/estado|aprob|rechaz|disponible/i);

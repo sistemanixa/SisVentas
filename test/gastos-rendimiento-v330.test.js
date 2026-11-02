@@ -19,7 +19,7 @@ test('los comprobantes nuevos quedan fuera del listado principal', () => {
   assert.match(app, /fotoAdjunta:/);
   assert.doesNotMatch(app, /fotoBase64:\s+gastoFotoBase64\s*\|\|\s*null/);
   assert.match(app, /gastos_adjuntos\/.*\/pagos\/.*\/comprobanteData/);
-  assert.match(app, /comprobante:\s*comprobanteLigero/);
+  const payout=fs.readFileSync('cotizador/bonus-payment.js','utf8');assert.match(payout,/comprobante:light/);assert.match(payout,/patch\[attachment\]=full.data/);assert.match(app,/SVBonusPayments.pay/);
   assert.match(app, /compNormalizado\.data\s*\|\|\s*compNormalizado\.externo/);
 });
 

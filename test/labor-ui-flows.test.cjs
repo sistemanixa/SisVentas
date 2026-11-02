@@ -29,7 +29,8 @@ test('Pago parcial y total recorren aplicación activa, adaptador, gateway y gua
 
 test('Pagos simultáneos resuelven CAS con el importe vigente sin exceder el saldo ni perder historial',async()=>{
  const f=payment(),other=f.page();other.refresh();
- await Promise.all([f.context._registrarPagoGastoUnitario('g',40,'Transferencia',null,null),other.context._registrarPagoGastoUnitario('g',60,'Efectivo',null,null)]);
+ const outcomes=await Promise.allSettled([f.context._registrarPagoGastoUnitario('g',40,'Transferencia',null,null),other.context._registrarPagoGastoUnitario('g',60,'Efectivo',null,null)]);
+ assert.equal(outcomes.filter(x=>x.status==='fulfilled').length,1);const pending=outcomes[0].status==='rejected'?40:60;const retry=f.page();retry.refresh();await retry.context._registrarPagoGastoUnitario('g',pending,'Efectivo',null,null);
  const g=f.get('sisventas/gastos/g'),m=f.get('sisventas/ctaemp/e/m');assert.equal(g.montoPagado,100);assert.equal(m.montoPagado,100);assert.equal(Object.keys(g.pagos).length,2);assert.deepEqual(g.pagos,m.pagos);assert.deepEqual(f.direct,[]);
 });
 
@@ -59,7 +60,7 @@ test('Gasto, cuenta, adjunto y lote se confirman juntos con el importe de cada a
  const f=createBackend({gastos:{g:expense(),h:{...expense(),monto:80,legacyKey:'ctaemp/e/n'}},ctaemp:{e:{m:movement(),n:{...movement(),monto:80,gastoFbKey:'h'},ajeno:{monto:999,nota:'Conservar'}}}}),p=f.page();p.refresh();
  const doc={nombre:'Prueba.pdf',tipo:'application/pdf',data:'data:application/pdf;base64,UEZERklDVElDSU8='};
  await p.context._registrarPagosGastosAtomico([{fbKey:'g',monto:100},{fbKey:'h',monto:20}],'Transferencia',doc,'lote_fixture');
- assert.equal(f.commits.length,1);assert.equal(f.commands[0].kind,'atomic');
+ assert.equal(f.commits.length,1);assert.ok(Array.isArray(f.commands[0].items));
  const lote=f.get('sisventas/pagos_realizados/lote_fixture');assert.equal(lote.monto,120);assert.deepEqual(lote.gastos.map(g=>g.saldoPagado),[100,20]);
  for(const key of ['g','h']){const g=f.get('sisventas/gastos/'+key),payKey=Object.keys(g.pagos)[0];assert.equal(g.pagos[payKey].lotePagoKey,'lote_fixture');assert.equal(f.get('sisventas/gastos_adjuntos/'+key+'/pagos/'+payKey+'/comprobanteData'),doc.data);}
  assert.equal(f.get('sisventas/ctaemp/e/n').montoPagado,20);assert.deepEqual(f.get('sisventas/ctaemp/e/ajeno'),{monto:999,nota:'Conservar'});
@@ -72,12 +73,10 @@ test('Un lote con un saldo cambiado no registra los otros gastos ni comprobantes
  assert.deepEqual(f.state.sisventas,before);assert.equal(f.commands.length,0);assert.equal(f.commits.length,0);
 });
 
-test('El hash de la cuenta detecta una vinculación agregada después de leer y la incluye al reintentar',async()=>{
+test('Un cambio del vínculo exacto durante el envío impide pagar un movimiento distinto',async()=>{
  const f=payment(),other=f.page();let inserted=false;
- f.setHook(async command=>{if(!inserted&&command.kind==='atomic'){inserted=true;await other.context.fbSet(other.context.fbRef(other.context.fbDB,'sisventas/ctaemp/e/nuevo'),{...movement(),tipo:'reembolso'});}});
- await f.context._registrarPagoGastoUnitario('g',40,'Efectivo',null,null);
- assert.equal(f.get('sisventas/ctaemp/e/nuevo').montoPagado,40);assert.equal(f.get('sisventas/ctaemp/e/m').montoPagado,40);assert.equal(f.commands.filter(c=>c.kind==='atomic').length,2);
- const payments=Object.keys(f.get('sisventas/gastos/g').pagos),attempts=f.commands.filter(c=>c.kind==='atomic');assert.equal(payments.length,1);assert.equal(Object.keys(attempts[0].value['sisventas/gastos/g'].pagos)[0],Object.keys(attempts[1].value['sisventas/gastos/g'].pagos)[0]);
+ f.setHook(async command=>{if(!inserted&&command.items){inserted=true;await other.context.fbUpdate(other.context.fbRef(other.context.fbDB,'sisventas/gastos/g'),{legacyKey:'ctaemp/e/nuevo'});}});
+ await assert.rejects(f.context._registrarPagoGastoUnitario('g',40,'Efectivo',null,null));assert.equal(f.get('sisventas/ctaemp/e/m').montoPagado,undefined);assert.equal(f.get('sisventas/gastos/g').pagos,undefined);assert.ok(!f.reads.some(([,path])=>path==='sisventas/ctaemp/e'));
 });
 
 test('Historia de pagos en arrays conserva importes activos y anulados al agregar un pago',async()=>{
@@ -97,7 +96,7 @@ test('Permiso UI o revocación del servidor impiden confirmar pagos sin fallback
 test('Replay del mismo envelope confirmado recupera recibo sin otro pago ni otra escritura',async()=>{
  const f=payment();await f.context._registrarPagoGastoUnitario('g',40,'Transferencia',null,null);
  const command=copy(f.commands[0]),before=copy(f.state.sisventas),commits=f.commits.length,actor=await f.gateway.authorize({method:'POST',url:'/laboral/escritura',headers:{authorization:'Bearer fixture-token'}});
- assert.equal((await f.gateway.write(actor,command)).committed,true);assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,commits);assert.equal(Object.keys(f.get('sisventas/gastos/g').pagos).length,1);
+ assert.equal((await require('../cotizador/bonus-payment').createBonusPayment({authorize:f.gateway.authorize,db:{},guard:f.guard,store:f.store,enabled:true,expense:true}).execute(actor,command)).committed,true);assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,commits);assert.equal(Object.keys(f.get('sisventas/gastos/g').pagos).length,1);
 });
 
 test('Comisión manual rechaza base o tope cambiados y no deja reserva intermedia',async()=>{
@@ -132,8 +131,9 @@ test('El resumen pagado legacy sobrevive dos pagos, edición y anulación sin in
 test('Editar un pago mientras otra PC agrega uno recalcula desde los dos pagos vigentes',async()=>{
  const f=payment(),other=f.page();await f.context._registrarPagoGastoUnitario('g',40,'Efectivo',null,null);f.refresh();other.refresh();
  const g=f.get('sisventas/gastos/g');g.fbKey='g';const token=Object.keys(g.pagos)[0];let inserted=false;
- f.setHook(async command=>{if(!inserted&&command.kind==='atomic'){inserted=true;await other.context._registrarPagoGastoUnitario('g',30,'Transferencia',null,null);}});
- await f.context._persistirAjustePagoGasto(g,{...g.pagos[token],_key:token},token,{monto:50},'edicion','Prueba ficticia');
+ f.setHook(async command=>{if(!inserted&&command.action==='edicion'){inserted=true;await other.context._registrarPagoGastoUnitario('g',30,'Transferencia',null,null);}});
+ await assert.rejects(f.context._persistirAjustePagoGasto(g,{...g.pagos[token],_key:token},token,{monto:50},'edicion','Prueba ficticia'));
+ assert.equal(f.get('sisventas/gastos/g').montoPagado,70);const fresh=f.get('sisventas/gastos/g');fresh.fbKey='g';await f.context._persistirAjustePagoGasto(fresh,{...fresh.pagos[token],_key:token},token,{monto:50},'edicion','Prueba ficticia');
  const actual=f.get('sisventas/gastos/g');assert.equal(actual.montoPagado,80);assert.equal(Object.keys(actual.pagos).length,2);assert.equal(f.get('sisventas/ctaemp/e/m').montoPagado,80);assert.equal(Object.keys(f.get('sisventas/auditoria_pagos')).length,1);
 });
 
@@ -228,4 +228,10 @@ test('Alta Admin rechaza campos cortos de501 caracteres antes de consultar, hash
   await assert.rejects(p.context._crearGastoSinDuplicar(data),/admite hasta 500 caracteres/);assert.equal(data[field].length,501);
  }
  assert.equal(f.reads.length,0);assert.equal(f.commands.length,0);assert.equal(f.commits.length,0);assert.deepEqual(f.direct,[]);
+});
+
+test('pagar sueldo recién liquidado resuelve la referencia canónica y conserva sueldo bruto, adelantos y período',async()=>{
+ const f=createBackend(),p=f.page();await p.context._registrarHaberesAtomico(salaryRows(p),'2026-10','2026-10-20','Octubre 2026');p.refresh();const before=f.get('sisventas/haberes/e/2026_10'),reads=f.reads.length;
+ await p.context._registrarPagoGastoUnitario('haber_e_2026_10',50,'Transferencia',null,null);
+ const g=f.get('sisventas/gastos/haber_e_2026_10'),m=f.get('sisventas/ctaemp/e/haber_2026_10');assert.equal(g.montoPagado,50);assert.equal(m.montoPagado,50);assert.deepEqual(g.pagos,m.pagos);assert.deepEqual(f.get('sisventas/haberes/e/2026_10'),before);assert.ok(!f.reads.slice(reads).some(([,path])=>path==='sisventas/ctaemp/e'));
 });
