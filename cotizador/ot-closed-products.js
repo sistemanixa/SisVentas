@@ -1,6 +1,6 @@
 'use strict';
 const Rows=require('./ot-material-rows-model'),{closed}=require('./ot-lifecycle-model');
-const fields=['qty','cantidad','cant','productoKey','productoFbKey','productKey','punit','precio','precioUnitario','sub','subtotal','disc','descuento','costoUnitarioCompra','costoUnitario','costo','destinoVenta','ventaDestinoFbKey','ventaDestinoId','origen','adicionalOT'];
+const fields=['qty','vendida','cantidad','cant','productoKey','productoFbKey','productKey','punit','precio','precioUnitario','sub','subtotal','disc','descuento','costoUnitarioCompra','costoUnitario','costo','destinoVenta','ventaDestinoFbKey','ventaDestinoId','origen','adicionalOT'];
 function signature(ot,canonical){return Rows.view(ot).map(row=>{const out={code:String(row.cod||row.codigo||row.sku||'').trim().toUpperCase(),description:String(row.desc||row.descripcion||row.nombre||''),quantity:Rows.quantity(row)};for(const k of fields)if(row[k]!=null)out[k]=row[k];return canonical(out);}).sort();}
 async function validate({actor,lease,patch,raw,get,canonical,beforeCommit}){
  // Only the server-issued capability may delegate its stricter material validation.
