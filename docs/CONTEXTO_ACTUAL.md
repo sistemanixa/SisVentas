@@ -1,3 +1,10 @@
+# Paginación comercial v3.17.12 activada · 02/11/2026
+
+Activación autorizada: Cotizador cotizador-pages31712-d5ca2a96 al 100% y 14 accesos; emitirfactura-00032-tes ACTIVE con COMMERCIAL_PAGES_ENABLED=true. Recursos, identidad y secretos conservados. Reglas nuevas únicamente sv_commercial_pages y sv_commercial_pages_config, comparación previa y lectura posterior exactas; reglas existentes idénticas. Índice commercial-pages-20261102-v1 generado bajo pausa breve, conciliado contra la cuenta corriente de la aplicación. Guardados reabiertos y originales verificados sin cambios por ETag. Evidencia privada en tmp/pagination-release, fuera de Git.
+
+Hosting v3.17.12 desde 020f341cd1b2a93bc1f966ea94a99947b614e084 publicado: 546 activos, 16 comprobados byte exacto, cabeceras y rutas privadas 404; aviso oficial actualizado. La verificación de sesión encontró que el resumen completaba ventas pero no marcaba cobros en SVDataReadiness. Se corrige el seguimiento de ambas fuentes en el lector, con ready/error/cancel únicamente tras la lectura consistente. Este ajuste está pendiente de republicar y verificar visualmente al momento de este documento; no declarar cierre antes de comprobar Dashboard y ambas páginas.
+
+Suite anterior exacta: 6865 PASS, 27 skip, cero fallos; 94 backend, 8 reglas y 2 UI ficticias aprobadas antes de activación. Regresión nueva: 26 pruebas focales PASS. Repetición final tras interrupción del equipo en curso. Ningún cobro, venta, comisión o stock real usado como prueba; no se prometen ahorros facturados a partir del despliegue. Rama local codex/paginacion-comercial-v31712; sin push ni avance de main en este bloque. El chat OT espera fuente final para integrar después su v3.17.13; no activar su candidato antiguo.
 # Paginación comercial v3.17.12 preparada · 01/11/2026
 
 Pedido humano directo: terminar y activar50filas, conservar totales/deuda y publicar traspruebas ficticias. Fuente aislada sobre17.11; exclusividad de Cotizador/fiscal/reglas/Hosting concedida porchatOT, que reconstruirá su cambio después. Sin migrar originales ni probar pagos reales. Estimación informada menorUSD1, sin servicios nuevos ni costo fijo adicional.
