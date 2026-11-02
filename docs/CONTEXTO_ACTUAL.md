@@ -1,3 +1,11 @@
+# Publicación reducción de precarga · v3.17.10 en preparación · 01/11/2026
+
+Autorización humana directa: publicar al finalizar corrección de transferencia. Fuente aislada sobre produccióna7acdb0d17.8; sólo inicio por ruta, alias de clientes por consumidor, versión/SW/Novedades y pruebas. No incluye candidata paginada17.9 ni cambios de OT, permisos, servidor, reglas o datos. Otrochat confirmó exclusividadHosting y reserva17.10; OT debe integrarse luego desde esta fuente y renumerar17.11. Sin servicios nuevos ni costo fijo; sólo transferencia habitual de activos estáticos de Hosting.
+
+El arranque no-Dashboard deja de cargar Ventas/Presupuestos/Productos/Gastos/Pagos/OT/Compras de forma indiscriminada con dos lotes diferidos. Cada pantalla mantiene sus dependencias, directorio autorizado y controles previos. Dashboard conserva su plan por consumidores. No cambia fórmulas, deuda, pagos, comisiones ni stock. La paginación de50resúmenes sigue preparada aparte y NO activa; requiere corte emparejado servidor/fiscal/índices/reglas, no subir sólo elcliente.
+
+ValidarLocal y27pruebas focalesPASS; suite de la fuente exacta6838PASS/27skip/0fallos (6865total), sintaxis y diff correctos. Servidor/pagos/comisiones/nómina y continuidad personal byteidénticos a17.8. Pendiente Hosting+bytes remotos+aviso; no declarar publicado por el commit. Evidencias privadas tmp/firebase-transfer-audit-20261101. No push solicitado para esta publicación; no avanzar main.
+
 # Publicación preparada · continuidad personal v3.17.8 · 01/11/2026
 
 Base limpia87f8ab6d (producción17.7). Sólo continuidad mensual personal, sin OT ni paginación candidata. Modelo y cliente probados en origen6877PASS27skip; release requiere verificación propia y activación coordinada servidor/Hosting. No resúmenes reales escritos ni migración histórica. Estado remoto todavía17.7.

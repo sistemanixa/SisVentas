@@ -71,7 +71,7 @@ test('un error de datos muestra el error recuperable común y no otra espera inc
 
 test('la función de entrada usa la espera real sin el cierre3200 ni el retardo de ruta2100',()=>{
  const entry=functionSource('_completarLogin');assert.match(entry,/svIniciarCargaPantalla\(\)/);assert.doesNotMatch(entry,/svEsperarCargaInicial\(3200\)|modoIntroRecarga|\}, 2100,/);
- const bootstrap=functionSource('fbCargarTodo');assert.ok(bootstrap.indexOf('svCargarDatosDePaginaActual();')<bootstrap.indexOf('fbCargarClientes();'));
+ const bootstrap=functionSource('fbCargarTodo');assert.match(bootstrap,/svCargarDatosDePaginaActual\(paginaInicio\)/);assert.doesNotMatch(bootstrap,/fbCargarClientes\(\)/);
 });
 
 test('permisos colgados vencen con reintento y el snapshot tardío no pisa la revisión del nuevo intento',async()=>{
