@@ -33,6 +33,10 @@
     renditionBusy = true;
     var finish = window.SisVentas?.carga?.mostrar?.('Guardando materiales y stock…', {persistirAlNavegar:true});
     try {
+      if (draft.ventaFbKey || draft.ventaId || draft.venta) {
+        if (!window.SVOTLifecycle) throw Error('Recargá la aplicación para guardar la rendición de forma segura.');
+        await window.SVOTLifecycle.prepare(original,{kind:'custody'});
+      }
       await syncInstalled(draft, before);
       await save(draft, action);
       Object.assign(original, draft);
@@ -181,13 +185,16 @@
     });
   }
 
-  function save(ot, action) {
+  function save(ot, action, options) {
     if (!ot) return Promise.reject(new Error('OT no encontrada'));
     if (action) audit(ot, action);
     window._otGuardandoLocalHasta = Date.now() + 3000;
-    var promise = typeof window.fbGuardarOT === 'function'
-      ? window.fbGuardarOT(ot)
-      : Promise.reject(new Error('Firebase no está disponible'));
+    var linked = !!(ot.ventaFbKey || ot.ventaId || ot.venta);
+    var promise = linked
+      ? (window.SVOTLifecycle
+        ? window.SVOTLifecycle.save(currentOT() || ot, ot, {kind:options && options.kind || 'custody',action:action || ''}).then(function(result){Object.assign(ot,result.ot);return result;})
+        : Promise.reject(new Error('Recargá la aplicación para guardar la rendición de forma segura.')))
+      : (typeof window.fbGuardarOT === 'function' ? window.fbGuardarOT(ot) : Promise.reject(new Error('Firebase no está disponible')));
     var materialCard = document.getElementById('ot-materiales-card');
     var scrollContainer = materialCard;
     while (scrollContainer && scrollContainer !== document.body) {
@@ -199,6 +206,8 @@
     var scrollTop = usesWindow ? (window.scrollY || document.documentElement.scrollTop || 0) : scrollContainer.scrollTop;
     var cardTop = materialCard ? materialCard.getBoundingClientRect().top : 0;
     return Promise.resolve(promise).then(function () {
+      var selected = currentOT();
+      if (selected && selected.fbKey === ot.fbKey) Object.assign(selected,ot);
       updateGlobal();
       // Actualizar solamente Materiales evita que el detalle completo vuelva
       // fugazmente a su vista inicial antes de regresar a esta sección.
@@ -583,9 +592,11 @@
     }).catch(function (error) { window.notify('No se pudo guardar la rendición: ' + error.message); });
   }
 
+  var receptionBusy = false;
   async function confirmReception() {
     var ot = currentOT();
-    if (!ot || !isAdministration()) return;
+    if (!ot || !isAdministration() || receptionBusy) return;
+    ot = JSON.parse(JSON.stringify(ot));
     var receptions = [];
     (ot.materiales || []).forEach(function (material) {
       var quantity = n(material.devueltaPendiente);
@@ -593,10 +604,15 @@
     });
     if (!receptions.length) { window.notify('No hay devoluciones pendientes en esta OT'); return; }
     var total = receptions.reduce(function (sum, entry) { return sum + entry.cantidad; }, 0);
+    receptionBusy = true;
+    try {
     if (!await window.svConfirm('¿Confirmás que depósito recibió ' + total + ' unidad(es)?')) return;
-    var inventoryJob = window.SisVentasCompras && typeof window.SisVentasCompras.receiveOTReturns === 'function'
-      ? window.SisVentasCompras.receiveOTReturns(ot, receptions) : Promise.resolve();
-    Promise.resolve(inventoryJob).then(function () {
+    var linked = !!(ot.ventaFbKey || ot.ventaId || ot.venta);
+    if (!linked && (!window.SisVentasCompras || typeof window.SisVentasCompras.receiveOTReturns !== 'function')) throw Error('No está listo el registro de la devolución. Recargá la aplicación.');
+    // Para OT con venta, depósito, rendición y estados forman un único PATCH.
+    // No liberar primero una reserva desde el navegador y guardar la OT después.
+    var inventoryJob = linked ? Promise.resolve() : window.SisVentasCompras.receiveOTReturns(ot, receptions);
+    await Promise.resolve(inventoryJob).then(function () {
       ot.materiales = (ot.materiales || []).map(function (raw) {
         var material = normalizeMaterial(raw);
         if (!material.devueltaPendiente) return material;
@@ -607,13 +623,11 @@
         material.estadoCustodia = material.enTecnico ? 'en_tecnico' : (material.danada || material.faltante ? 'incidencia' : (material.instalada ? 'rendido' : 'devuelto'));
         return material;
       });
-      if (ot.estado === 'con_observaciones' && ot.cierreConObservaciones && ot.custodiaRendida && !summary(ot).conObservaciones) {
-        ot.estado = 'completada';
-        ot.cierreConObservaciones = false;
-      }
-      return save(ot, 'Depósito confirmó la recepción de ' + total + ' unidad(es) devueltas');
-    }).then(function () { window.notify('✓ Devolución recibida y material reincorporado'); })
-      .catch(function (error) { window.notify('No se pudo confirmar la devolución: ' + error.message); });
+      // El servidor decide el cierre usando la rendición actual y las otras OT.
+      return save(ot, 'Depósito confirmó la recepción de ' + total + ' unidad(es) devueltas', {kind:'return'});
+    }).then(function () { window.notify('✓ Devolución recibida y material reincorporado'); });
+    } catch (error) { window.notify(error.confirmed ? error.message : 'No se pudo confirmar la devolución: ' + error.message); }
+    finally { receptionBusy = false; }
   }
 
   var additionalBusy = false;
@@ -626,6 +640,10 @@
     var finish = window.SisVentas?.carga?.mostrar?.('Registrando stock del adicional…', {persistirAlNavegar:true});
     try {
       var draft = JSON.parse(JSON.stringify(ot));
+      if (ot.ventaFbKey || ot.ventaId || ot.venta) {
+        if (!window.SVOTLifecycle) throw Error('Recargá la aplicación para guardar la rendición de forma segura.');
+        await window.SVOTLifecycle.prepare(ot,{kind:'custody'});
+      }
       for (var i=0;i<draft.materiales.length;i++) {
         var material = draft.materiales[i];if (!material.stockPendiente) continue;
         if (material.adicionalOT !== true || material.stockBaseInstalada == null) throw Error('El adicional requiere revisar su registro de instalación.');
@@ -637,8 +655,13 @@
       var totals = summary(draft);
       draft.custodiaRendida = totals.sinClasificar === 0;
       var auditRows = (draft.audit || []).concat([{fecha:new Date().toLocaleString('es-AR'),usuario:window.currentUser||'Sistema',accion:'Stock de adicionales instalados registrado sin duplicar consumos'}]);
-      await window.otPersistirActualizar(ot.fbKey, {materiales:draft.materiales,custodiaIniciada:true,custodiaRendida:draft.custodiaRendida,audit:auditRows});
-      Object.assign(ot,{materiales:draft.materiales,custodiaIniciada:true,custodiaRendida:draft.custodiaRendida,audit:auditRows});
+      if (ot.ventaFbKey || ot.ventaId || ot.venta) {
+        if (!window.SVOTLifecycle) throw Error('Recargá la aplicación para guardar la rendición de forma segura.');
+        var result = await window.SVOTLifecycle.save(ot, draft, {kind:'custody',action:'Stock de adicionales instalados registrado sin duplicar consumos'});
+        Object.assign(draft,result.ot);
+      } else await window.otPersistirActualizar(ot.fbKey, {materiales:draft.materiales,custodiaIniciada:true,custodiaRendida:draft.custodiaRendida,audit:auditRows});
+      if (ot.ventaFbKey || ot.ventaId || ot.venta) Object.assign(ot,draft);
+      else Object.assign(ot,{materiales:draft.materiales,custodiaIniciada:true,custodiaRendida:draft.custodiaRendida,audit:auditRows});
       updateGlobal();return ot;
     } finally {additionalBusy=false;if(typeof finish==='function')finish();}
   }
