@@ -23,12 +23,15 @@ test('cerrar cobra o bonifica sólo mano de obra y persiste materiales y reclamo
  }
 });
 
-test('corrección de OT cerrada sincroniza eliminación y agregado con su venta',async()=>{
+test('OT cerrada rechaza cambios comerciales y OT abierta conserva la corrección de su venta',async()=>{
  const ot={fbKey:'ot',id:'OT',estado:'completada',materiales:[{cod:'C',qty:1,punit:10,adicionalOT:true}]};
  const venta={fbKey:'v',items:[{cod:'MO',qty:1,punit:100,sub:100},{cod:'C',qty:1,punit:10,sub:10}],subtotal:110,iva:0};
  const writes=[];const c={...ctx,currentRole:'vendedor',currentUser:'Vendedor',FB_PATHS:{ordenesTrabajo:'sisventas/ordenes_trabajo'},svFechaLocalISO:()=> '2026-09-05',otBuscarVentaOrigen:()=>venta,spVentaTieneDefinicionComercial:()=>false,window:{tienePermiso:()=>true,fbDB:{},fbRef:(_,p)=>p||'',fbGet:async p=>({val:()=>p.includes('ordenes_trabajo')?ot:venta}),fbUpdate:async(p,d)=>writes.push(d)}};
- c.window.SVSaleCosts ||= require('../js/core/sale-costs.v1.js').create({obtenerProductoPorCodigoVenta:()=>({compraARS:5}),obtenerCostoUnitarioVenta:()=>5});c.window.SVCommercialDocument ||= {preserve:r=>r};require('./helpers/sale-writer-fixture.cjs')(c.window);c.window.SisVentas={carga:{mostrar:()=>()=>{}}};vm.createContext(c);require('./helpers/app-functions.cjs').load(c,['_svCargaOperacion_otGuardarCorreccionProductos']);vm.runInContext(extract('spIntegrarMaterialesOT'),c);vm.runInContext(extract('otPuedeCorregirProductos'),c);
+ c.window.SVSaleCosts ||= require('../js/core/sale-costs.v1.js').create({obtenerProductoPorCodigoVenta:()=>({compraARS:5}),obtenerCostoUnitarioVenta:()=>5});c.window.SVCommercialDocument ||= {preserve:r=>r};require('./helpers/sale-writer-fixture.cjs')(c.window);c.window.SisVentas={carga:{mostrar:()=>()=>{}}};vm.createContext(c);require('./helpers/app-functions.cjs').load(c,['otEstadoNormalizado','otEstaCerrada','_svCargaOperacion_otGuardarCorreccionProductos']);vm.runInContext(extract('spIntegrarMaterialesOT'),c);vm.runInContext(extract('otPuedeCorregirProductos'),c);
  const start=src.indexOf('async function otGuardarCorreccionProductos('),end=src.indexOf('\nasync function otEliminarProductoMaterial',start);vm.runInContext(src.slice(start,end),c);
+ await assert.rejects(c.otGuardarCorreccionProductos(ot,[{cod:'D',qty:2,punit:20.25,adicionalOT:true}],'Corrección',ot.materiales[0]),/OT está cerrada/);
+ assert.equal(writes.length,0);assert.equal(venta.items[1].cod,'C');
+ ot.estado='en_progreso';
  await c.otGuardarCorreccionProductos(ot,[{cod:'D',qty:2,punit:20.25,adicionalOT:true}],'Corrección',ot.materiales[0]);
  assert.equal(writes.length,1);assert.equal(writes[0]['sisventas/ventas/v/total'],140.5);assert.equal(writes[0]['sisventas/ventas/v/items'].some(i=>i.cod==='C'),false);assert.equal(writes[0]['sisventas/ordenes_trabajo/ot/materiales'][0].cod,'D');
 });

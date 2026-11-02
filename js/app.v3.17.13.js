@@ -11404,7 +11404,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Cálculos de ventas y cobros conservan los centavos y validan el saldo exacto.','Costos unitarios, envíos, horas extra y comisiones mantienen su precisión.']),
   RELEASE_FEATURE: Object.freeze({page:'ordenes',actionLabel:'Ver Compras'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.17.13',date:'01/11/2026',title:'Cierre de OT coherente con la venta',notes:Object.freeze(['El cierre y la rendición actualizan el estado de instalación de la venta en el mismo guardado.','Las devoluciones se reciben sin duplicar stock y conservan firmas y fechas.','El administrador puede completar el nombre del firmante en actas cerradas.']),feature:Object.freeze({page:'ordentrabajo',actionLabel:'Ver órdenes de trabajo'})}),
+ Object.freeze({version:'v3.17.13',date:'02/11/2026',title:'Cierre de OT coherente con la venta',notes:Object.freeze(['El cierre y la rendición actualizan el estado de instalación de la venta en el mismo guardado.','Las devoluciones se reciben sin duplicar stock y conservan firmas y fechas.','El administrador puede completar el nombre del firmante en actas cerradas.','Los productos nuevos requieren una OT nueva; las cerradas conservan su corrección de rendición.']),feature:Object.freeze({page:'ordentrabajo',actionLabel:'Ver órdenes de trabajo'})}),
  Object.freeze({version:'v3.17.12',date:'01/11/2026',title:'Ventas y cobros por páginas',notes:Object.freeze(['Los listados cargan hasta 50 registros por página.','Los totales y la deuda conservan todo el historial; cada detalle se carga al abrirlo.']),feature:Object.freeze({page:'detalle',actionLabel:'Ver ventas'})}),
  Object.freeze({version:'v3.17.11',date:'01/11/2026',title:'Historial necesario de productos',notes:Object.freeze(['Productos conserva los datos necesarios para Más vendidos y Sin ventas al entrar directamente.','Los otros módulos siguen cargando sólo sus dependencias.']),feature:Object.freeze({page:'productos',actionLabel:'Ver productos'})}),
  Object.freeze({version:'v3.17.10',date:'01/11/2026',title:'Carga según la pantalla',notes:Object.freeze(['Al abrir un módulo se cargan sus datos necesarios, sin iniciar historiales de otras pantallas.','Los importes y los saldos históricos se conservan completos.']),feature:Object.freeze({page:'dashboard',actionLabel:'Ver inicio'})}),
@@ -50032,6 +50032,8 @@ function verOT(id) {
   renderChecklist('checklist-verificacion', ot.checks.verificacion, CHECKLISTS.verificacion, otActualId, 'verificacion');
   actualizarProgreso(ot);
   var otCerrada = otEstaCerrada(ot);
+  var agregarProductosOT = document.getElementById('ot-btn-agregar-productos');
+  if (agregarProductosOT) agregarProductosOT.style.display = otCerrada ? 'none' : '';
   var conformidadGuardada = typeof ot.conformidadCliente === 'string' ? ot.conformidadCliente : '';
   if (!conformidadGuardada && otCerrada && Array.isArray(ot.audit)) {
     var cierreAudit = ot.audit.slice().reverse().find(function(evento) {
@@ -50148,6 +50150,7 @@ var _otGuardandoDestinoAdicional = false;
 
 function otAbrirSelectorProductos() {
   var actual = (otData || []).find(function(o){return o.fbKey===otActualId || o.id===otActualId;});
+  if (actual && otEstaCerrada(actual)) { notify('La OT está cerrada. Creá una nueva OT para agregar o cambiar productos.'); return; }
   if ((actual && actual.materiales || []).some(function(m){return m.stockPendiente === true;})) { notify('Completá primero el stock del adicional pendiente en Materiales.'); return; }
   _otCarritoAdicional = [];
   var modal = document.getElementById('ot-selector-prod-modal');
@@ -50243,8 +50246,10 @@ function otQuitarCarrito(idx) {
   otRenderCarritoAdicional();
 }
 
-function otPuedeCorregirProductos() {
-  return typeof window.tienePermiso === 'function' && window.tienePermiso('ot.corregirMateriales');
+function otPuedeCorregirProductos(ot) {
+  ot = ot || (typeof otData !== 'undefined' ? (otData || []).find(function(o){return o.fbKey===otActualId || o.id===otActualId;}) : null);
+  var cerrada = ot && (typeof otEstaCerrada === 'function' ? otEstaCerrada(ot) : ['completada','completado','finalizada','finalizado','con_observaciones','cerrada','cerrado','terminada','terminado'].includes(String(ot.estado || '').toLowerCase()));
+  return !cerrada && typeof window.tienePermiso === 'function' && window.tienePermiso('ot.corregirMateriales');
 }
 
 function otValorEstable(valor) {
@@ -50329,7 +50334,8 @@ async function otGuardarCorreccionProductos(ot, materiales, accion, eliminado) {
 }
 
 async function _svCargaOperacion_otGuardarCorreccionProductos(ot, materiales, accion, eliminado) {
-  if (!otPuedeCorregirProductos()) throw new Error('No tenés permiso para corregir productos de la OT.');
+  if (otEstaCerrada(ot)) throw new Error('La OT está cerrada. Creá una nueva OT para agregar o cambiar productos.');
+  if (!otPuedeCorregirProductos(ot)) throw new Error('No tenés permiso para corregir productos de la OT.');
   var actualSnap = await window.fbGet(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey));
   var actual = actualSnap.val();
   function estable(valor) { if(Array.isArray(valor))return valor.map(estable);if(valor && typeof valor==='object'){var ordenado={};Object.keys(valor).sort().forEach(function(k){ordenado[k]=estable(valor[k]);});return ordenado;}return valor; }
@@ -50376,8 +50382,9 @@ async function _svCargaOperacion_otGuardarCorreccionProductos(ot, materiales, ac
 }
 
 async function otEliminarProductoMaterial(indice) {
-  if (!otPuedeCorregirProductos()) { notify('No tenés permiso para corregir materiales.'); return; }
   var ot = (otData || []).find(function(o){return o.fbKey===otActualId || o.id===otActualId;});
+  if (ot && otEstaCerrada(ot)) { notify('La OT está cerrada. Creá una nueva OT para agregar o cambiar productos.'); return; }
+  if (!otPuedeCorregirProductos(ot)) { notify('No tenés permiso para corregir materiales.'); return; }
   var material = ot && (ot.materiales || [])[indice];
   if (!material) return;
   if (material.destinoVenta === 'nueva') { notify('Este producto pertenece a ' + (material.ventaDestinoId || 'una venta nueva') + '. Corregilo desde esa venta para conservar la trazabilidad.'); return; }
@@ -50401,6 +50408,7 @@ async function _svCargaOperacion_otConfirmarProductosAdicionales() {
   if (_otGuardandoDestinoAdicional) return;
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !ot.fbKey || !window.fbDB) { notify('No se pudo identificar la OT'); return; }
+  if (otEstaCerrada(ot)) { notify('La OT está cerrada. Creá una nueva OT para agregar o cambiar productos.'); return; }
   var ventaOrigen = otBuscarVentaOrigen(ot) || _buscarVentaCanonicaReclamo({}, ot);
   if (!ventaOrigen || !ventaOrigen.fbKey) { notify('Esta OT no tiene una venta original vinculada. Usá Crear venta nueva.'); return; }
   var materiales = otMaterialesConAdicionales(ot, 'original', ventaOrigen);
@@ -50435,6 +50443,7 @@ async function _svCargaOperacion_otConfirmarVentaAdicional() {
   if (_otGuardandoDestinoAdicional) return;
   var ot = otData.find(function(o){ return o.id === otActualId || o.fbKey === otActualId; });
   if (!ot || !ot.fbKey || !window.fbDB) { notify('No se pudo identificar la OT'); return; }
+  if (otEstaCerrada(ot)) { notify('La OT está cerrada. Creá una nueva OT para agregar o cambiar productos.'); return; }
   if (!otPuedeCorregirProductos()) { notify('No tenés permiso para agregar productos a la OT.'); return; }
 
   var items = _otCarritoAdicional.map(function(c) {

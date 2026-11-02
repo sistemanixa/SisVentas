@@ -45,3 +45,7 @@ La propuesta no se activa por un commit. Antes de publicar: integrar sobre la ve
 ## Compatibilidad con páginas comerciales
 
 Con la paginación activa, el preflight exige configuración y cobertura listas de la misma generación. El guard conserva sus proyecciones comerciales y la actualización derivada va en el mismo PATCH. La comparación de imágenes completas permite al proyector reutilizar totales ante un cambio exclusivamente de estado/auditoría: las pruebas con1/50/500cobros no descargan pagos y mantienen saldos. Esto no sustituye la validación exacta del despliegue ni acredita una factura mensual.
+
+## Productos nuevos en una OT cerrada
+
+Se encontró una segunda secuencia parcial: las altas comerciales en una OT ya cerrada guardaban productos/venta primero y completaban stock después. Si fallaba el segundo paso, la OT y la venta podían seguir apareciendo completas. Para preservar el cierre firmado, las OT cerradas no admiten nuevas altas, eliminaciones ni cambios comerciales de productos: se debe usar una nueva OT. La interfaz rechaza antes de abrir el alta/reservar un identificador y el guard de servidor rechaza antes del PATCH, incluso desde clientes anteriores. Acta, rendición y recuperación histórica canónica siguen disponibles. No se reabren órdenes ni se cambian precios/históricos como parte de la publicación. Esta política sustituye expresamente la antigua corrección comercial libre de productos sobre una OT cerrada; las correcciones comerciales de una OT abierta mantienen sus cálculos previos.

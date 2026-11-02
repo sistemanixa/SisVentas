@@ -1,3 +1,7 @@
+# Prevención adicional OT cerradas · 02/11/2026
+
+Se confirmó otra secuencia parcial: altas comerciales de productos sobre OT cerrada guardaban productos/venta antes del stock posterior. Se impide esa modificación en UI y guard de servidor antes del PATCH; los productos nuevos requieren OT nueva. Se conservan acta, corrección de custodia y recuperación histórica canónica; no se reabren ni modifican documentos existentes. El guard rechaza escrituras amplias antes de descargar raíces.77pruebasfocalesPASS (incluye10guardclosedproductos y2UI),12empaquetadoPASS. Se conserva en una prueba la corrección comercial de OT abierta y se verifica rechazo cerrado sincambios; no se alteraron fórmulas de precios. Pendiente gatefinal completo con este último cambio y nueva base/remoto final del coordinador. Sin remotos aquí.
+
 # Candidata OT v3.17.13 sobre fuente paginada congelada · 01/11/2026
 
 Base d5ca2a96bd116a0f2aa296454d897f1a07ff7fae, candidata paginación17.12 del chat coordinador, aún con exclusividad de su publicación. Integración OT sólo en checkout aislado; no hubo activaciones ni lecturas remotas nuevas por este bloque. Aplicados parches acotados de app/backend sin reemplazar guard/runtime/proyector comercial, boot por ruta ni continuidad personal. App17.12 histórica conservada; nueva17.13 con caché/marcadores/Novedades coherentes y módulo de custodia con query17.13 para evitar lógica de stock vieja.
