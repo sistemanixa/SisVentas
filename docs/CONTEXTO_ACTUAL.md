@@ -1,3 +1,8 @@
+# Gastos: controles alineados en local · 02/11/2026
+
+Ajuste exclusivo de CSS: cinco filtros alineados y acciones a la derecha con Columnas en la misma fila. Se corrige el contenedor montado por resizable-tables y se oculta Columnas en pantallas pequeñas según el diseño existente. Sin cambios de lógica, permisos ni datos. Tres pruebas de toolbar aprobadas y diff-check limpio; revisión visual de escritorio, tablet 768px y celular 390px sin desborde horizontal.
+
+Visible en la pestaña local8766, servida por serve-complete-dialog.private.cjs desde .local/ventas-cobros-dashboard-paginados (aplicación local17.9), donde se agregó sólo este bloque CSS, sin sustituir otros activos. Fuente del cambio sobre17.14 en este checkout. Producción continúa17.14 sin este ajuste; no publicado ni enviado a GitHub. No se guardaron operaciones reales. La búsqueda indexada y reducción de descarga histórica de Ventas siguen pendientes.
 # Restauración original de Ventas preparada v3.17.14 · 02/11/2026
 
 Orden humana: volver al formato original desde Git, no recrear captura. Base c5ade076 publicada17.13, conserva íntegra OT y backend. Se retiran únicamente los imports del adaptador comercial paginado (lector, vista, host y CSS) del índice y SHELL; las comprobaciones opcionales de la app vuelven al renderer/listeners originales existentes. No se recrearon columnas, estados ni acciones. El listado original ya dibujaba50filas; temporalmente vuelve a descargar el historial completo para buscarlo. La búsqueda indexada remota continúa pendiente de diseño con paridad, no afirmar que la restauración conserva la limitación de descarga. Los escritores siguen manteniendo sus índices remotos, no se apagan ni migran originales.
