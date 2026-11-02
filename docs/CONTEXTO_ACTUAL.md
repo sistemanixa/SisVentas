@@ -1,3 +1,9 @@
+# Ajuste de dependencia Productos · v3.17.11 en preparación · 01/11/2026
+
+Hosting17.10 publicado desde50ce90650ddefc22d1a9bcc8ce53dee07c393c9b,13activos/cabeceras/3privados404+avisoPASS. Dashboard completó carga manteniendo deuda16.803.312 respecto a17.8. Revisión final confirmó que ranking/Sinventas de Productos depende de ventasList: se conserva esa fuente explícita al entrar en Productos; no quitarla hasta disponer de resumen histórico equivalente. Parche17.11 con44pruebas focalesPASS, ValidarLocalPASS y suite exacta en curso. Sin servidor/reglas/datos reales. Otrochat avisado de reserva17.11; OT debe integrar fuente final y usar17.12 o próxima libre.
+
+La paginación comercialNO está activa; no presentar esta publicación de precarga como cierre completo de transferencia. También continúan lecturas necesarias del catálogo e históricos para consumidores existentes. No se ha medido todavía reducción facturable posterior al despliegue.
+
 # Publicación reducción de precarga · v3.17.10 en preparación · 01/11/2026
 
 Autorización humana directa: publicar al finalizar corrección de transferencia. Fuente aislada sobre produccióna7acdb0d17.8; sólo inicio por ruta, alias de clientes por consumidor, versión/SW/Novedades y pruebas. No incluye candidata paginada17.9 ni cambios de OT, permisos, servidor, reglas o datos. Otrochat confirmó exclusividadHosting y reserva17.10; OT debe integrarse luego desde esta fuente y renumerar17.11. Sin servicios nuevos ni costo fijo; sólo transferencia habitual de activos estáticos de Hosting.
