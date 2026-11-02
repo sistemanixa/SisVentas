@@ -1,3 +1,11 @@
+# Reducción de precarga publicada · v3.17.11 · 01/11/2026
+
+Fuente final2472895be45367cd2521e3cafeb57d4ac6eac54b en codex/transferencia-inicio-v31710, sobre produccióna7acdb0d17.8. Publicados sólo Hosting y avisooficial.540activos/5cargas17.10 y541/4en17.11;25activos finales byteexacto, cabecerasCSP/nosniff y3rutasprivadas404. Versión/SW/marcador/Firebase17.11 verificados. No servidor, reglas, índices técnicos, permisos ni escrituras comerciales. Sin push ni main. Servidor y activos financieros/personales conservados.
+
+Gate fuente final6838PASS27skip0fallos (6865total),44focales yValidarLocalPASS. Producción sólolectura: Dashboard termina carga, deuda16.803.312igualalantes; Productos638 y rankingCajaEstanco conservados; sinerroresconsola en ese recorrido. Navegador quedaDashboard17.11. La verificación inicial intentó app17.6, ya fuera de las dosanteriores por políticaHosting; se corrigió la lista a17.10y17.8 y pasó, sinrepublicarpor404histórico. Evidencia privada tmp/firebase-transfer-audit-20261101.
+
+Alcance: elimina precarga indiscriminada de fuentes ajenas en arranque noDashboard; cada módulo conserva dependencias. Productos necesita ventas para ranking/Sinventas y las sigueleyendo. Dashboard sigue plan previo porconsumidores. Paginación comercial50filas continúaNOactiva, preparadaaparte; no declarar auditoría/ahorrofacturable completo por esta publicación. Requiere preparación yactivación emparejada dewriters/índices/reglas. OT deotrochat debe integrar esta fuente y usarsiguiente libre17.12; exclusividadHosting se libera al comunicar cierre.
+
 # Ajuste de dependencia Productos · v3.17.11 en preparación · 01/11/2026
 
 Hosting17.10 publicado desde50ce90650ddefc22d1a9bcc8ce53dee07c393c9b,13activos/cabeceras/3privados404+avisoPASS. Dashboard completó carga manteniendo deuda16.803.312 respecto a17.8. Revisión final confirmó que ranking/Sinventas de Productos depende de ventasList: se conserva esa fuente explícita al entrar en Productos; no quitarla hasta disponer de resumen histórico equivalente. Parche17.11 con44pruebas focalesPASS, ValidarLocalPASS y suite exacta en curso. Sin servidor/reglas/datos reales. Otrochat avisado de reserva17.11; OT debe integrar fuente final y usar17.12 o próxima libre.
