@@ -1,3 +1,7 @@
+# Continuación de Cuenta corriente verificada y conservada local · 03/11/2026
+
+Puerta final7266total/7239PASS/27skip/0fallos (79,9s). Paridad300ventas ordinarias exacta; correcciones de anulados/identidad técnica y estados por centavo verificadas. No se cambiaron importes, operaciones ni permisos. Cobranzas sigue en commit f77a81bc, sólo local. Se inicia ahora el modelo de identidad para futuras lecturas por cliente:sin resolver por nombres ni inferir una ficha para referencias ambiguas; todavía no está integrado ni activado. No dar por terminada la optimización HTTP de Cuenta corriente/Historial.
+
 # Verificación final18.9 aprobada, sólo local · 03/11/2026
 
 Puerta7266total/7239PASS/27skip/0fallos (79,9s), coherencia18.9 y sintaxis PASS. Se conserva el commit local previo f77a81bc de Cobranzas; la continuación de Cuenta corriente corrige discrepancias reproducidas y no representa aún su optimización HTTP por cliente. No hay publicación/push ni cambios de permisos, originales, pagos, comisiones o stock. Pestaña8919 con demo ficticia de Cobranzas abierta; no se recargó la sesión humana8766.
