@@ -58,7 +58,7 @@
   var states={},generation=0,scheduled=false,deadlineTimer=null,sessionActive=false,startupHolds=new Set();
   var statusLayer=null,statusBox=null,statusTitle=null,statusDetail=null,statusRetry=null;
   var waitLimit=15000;
-  var demandPages=['informes','equipos','garantias','soporte','remitos','servicios','agenda','caja','historialcliente'];
+  var demandPages=['cuentacorriente','informes','equipos','garantias','soporte','remitos','servicios','agenda','caja','historialcliente'];
   var dependencies={
     dashboard:['clientes','productos','ventas','pagos'],
     productos:['productos'],catalogo:['productos'],actualizadorprecios:['productos','proveedores'],
