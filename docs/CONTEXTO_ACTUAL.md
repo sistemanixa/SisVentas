@@ -1,3 +1,9 @@
+# Costo canónico: candidata local v3.18.1 · 03/11/2026
+
+Checkout aislado `codex/costo-canonico-producto`, base655eb4c5 (web v3.17.20). Lectores operativos del catálogo ya no usan el duplicado raíz costoRealArs; guardados nuevos lo retiran con null. Conserva costoRealArs de cada proveedor, snapshots comerciales y respaldos históricos. Vista previa real en local8765: P-62928, aumento5% sin redondeo, costo20.000→21.000 y venta48.000→50.400. No se aplicó aumento ni se escribieron productos reales. Suite7062total7035PASS27skip0fallos; sintaxis/diff/ValidarLocalPASS. Un intento previo tuvo una espera inestable de un fixture PDF ajeno, que aprobó aislado y en la suite completa de confirmación, sin cambiarlo.
+
+Retiro de datos preparado mediante planificador puro probado; todavía NO ejecutado en Firebase. Publicación e integración con Proyectos v3.18.0 pendientes: no sobrescribir ese bloque. Hace falta acreditar bloqueo de escritores antiguos y respaldo completo reciente antes de purgar duplicados. Ver COSTO_PRODUCTO_CANONICO.md. Producción no se modificó en este bloque. Evidencia privada tmp/costo-canonico-p62928.jpg y cost-canonical-suite-confirm.log; no agregar a Git.
+
 # Publicada y comprobada v3.17.20 · 03/11/2026
 
 Hosting desde18c305ae18bcdf01d37118a73b6e2fe295bfed2d:561activos públicos/6cargas;13archivos exactos, cabeceras y privados404, marcador/SW/aviso oficial20 sincronizados. Verificación autenticada real de sólo lectura:50ventas iniciales; búsqueda histórica conserva deuda; primera entrada desde Ventas a Gastos sin Reintentar; las4tarjetas muestran aviso correcto sin duplicación; historial existente resuelve autor humano y distingue adjunto del gasto/comprobante del pago; regreso a Dashboard completa y conserva deuda. Se cerró sólo la pestaña extra de QA, conservando la ventana local original sin recargar formularios. Local8766 sirve20 y endpoint oficial autorizado.

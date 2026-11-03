@@ -1,9 +1,10 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {load}=require('./helpers/app-functions.cjs');
+const {loadProductCostContext}=require('./helpers/product-cost-app-functions.cjs');
 const vieja='https://www.mercadolibre.com.ar/producto/up/MLAU135438615#wid=MLA901203201';
 const nueva='https://www.mercadolibre.com.ar/producto/p/MLA2113774564#wid=MLA901203201';
-function contexto(){return load({URL,URLSearchParams,proveedoresData:[],normalizarUrlProveedorProducto:x=>String(x||'').trim()},['proveedoresVinculadosProducto','proveedorRevisionCoincide','productoConUrlProveedorActualizada','normalizarUrlComparacionProveedor','urlsProveedorEquivalentes','sincronizarUrlGeneralProveedorProducto']);}
+function contexto(){return loadProductCostContext({URL,URLSearchParams,proveedoresData:[],normalizarUrlProveedorProducto:x=>String(x||'').trim()},['proveedoresVinculadosProducto','proveedorRevisionCoincide','productoConUrlProveedorActualizada','normalizarUrlComparacionProveedor','urlsProveedorEquivalentes','sincronizarUrlGeneralProveedorProducto']);}
 function producto(){return {codigo:'P-60821',codWeb:'https://www.mercadolibre.com.ar/antiguo',proveedorUrl:vieja,stock:18,proveedores:[{nombre:'MERCADO LIBRE',proveedorKey:'ml',url:vieja,precio:2386,actualizadoEn:123,identidadConfirmadaManualmente:true,identidadConfirmadaUrl:vieja}]};}
 test('cambiar URL conserva costos y URL principal y elimina aprobaciones de la URL anterior',()=>{
  const c=contexto(),p=producto(),r=c.productoConUrlProveedorActualizada(p,0,p.proveedores[0],nueva);
@@ -25,8 +26,10 @@ test('varios proveedores no pisan la URL general ni datos de otro proveedor',()=
  assert.equal(r.codWeb,p.codWeb);assert.deepEqual(JSON.parse(JSON.stringify(r.proveedores[1])),p.proveedores[1]);
 });
 test('producto heredado se materializa con nombre, precio y URL completos',()=>{
- const c=contexto(),p={codigo:'P-1',proveedor:'MERCADO LIBRE',codWeb:vieja,compra:2386};
+ const c=contexto(),p={codigo:'P-1',proveedor:'MERCADO LIBRE',codWeb:vieja,compra:2386,costoRealArs:999999};
  const r=c.productoConUrlProveedorActualizada(p,0,c.proveedoresVinculadosProducto(p)[0],nueva);
+ assert.equal(r.proveedores[0].costoRealArs,2386,'el proveedor legacy recibe el costo canónico, no el duplicado raíz');
+ assert.equal(p.costoRealArs,999999,'cambiar URL no escribe el producto original');
  assert.equal(r.proveedores[0].nombre,'MERCADO LIBRE');assert.equal(r.proveedores[0].precio,2386);assert.equal(r.codWeb,p.codWeb);
 });
 test('guardar otra edición no repone una URL general antigua sobre el proveedor',()=>{
