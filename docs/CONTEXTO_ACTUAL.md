@@ -1,3 +1,11 @@
+# Publicada y comprobada v3.17.20 · 03/11/2026
+
+Hosting desde18c305ae18bcdf01d37118a73b6e2fe295bfed2d:561activos públicos/6cargas;13archivos exactos, cabeceras y privados404, marcador/SW/aviso oficial20 sincronizados. Verificación autenticada real de sólo lectura:50ventas iniciales; búsqueda histórica conserva deuda; primera entrada desde Ventas a Gastos sin Reintentar; las4tarjetas muestran aviso correcto sin duplicación; historial existente resuelve autor humano y distingue adjunto del gasto/comprobante del pago; regreso a Dashboard completa y conserva deuda. Se cerró sólo la pestaña extra de QA, conservando la ventana local original sin recargar formularios. Local8766 sirve20 y endpoint oficial autorizado.
+
+Cotizador cotizador-search31719-691ff8e8 sigue100%/14accesos y emitirfactura-00033-vib activa; índice searchReady/schema1 y guardados laborales ready=true verificados al cierre del corte. Ventas originales y agregados financieros comprobados sin cambios durante preparación. No pagos/comisiones/stock reales usados como prueba. Suite definitiva7041total7014PASS27skip0fallos;94servidor y3reglas-emuladorPASS; sintaxis/diff/ValidarLocalPASS. Evidencia privada tmp/sales-indexed31719/web20-verified.private.json y gastos-web20.png, fuera de Git. No push/main en este bloque.
+
+Cierra el bloque solicitado de Ventas, autores de pagos y avisos de tarjetas de Gastos. No confundir con auditoría futura de altas Gastos/Mi cuenta/Cotizador ni con trabajo separado de fuentes por período de Salarios/Rentabilidad/Comisiones, que no se mezcló en esta publicación.
+
 # Candidata final de web v3.17.20 · 03/11/2026
 
 Suite definitiva7041total7014PASS27skip0fallos, sintaxis/diff/ValidarLocalPASS.20 incluye aviso de cuatro tarjetas sin texto mensual duplicado y habilitación del cargador nativo de otros módulos desde el arranque paginado; prueba extraída de svActualizarLecturasPorAccion comprueba primera visita a Gastos sin Reintentar. Servidor e índice19 ya activos y verificados; no otra compilación, corte ni reglas para20. Local8766 sirve app20/módulos nuevos; índice local tiene únicamente las sobreescrituras de título/endpoint oficial autorizadas. No se recargó el formulario/local del titular. Hosting20 y su comprobación autenticada pendientes hasta próximo registro.
