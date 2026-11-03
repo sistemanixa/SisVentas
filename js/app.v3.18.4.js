@@ -43881,7 +43881,7 @@ function _gastoFijoHash(texto) {
 }
 
 function _gastoEsBaseFijaValida(gasto) {
-  if (!gasto || gasto.esFijoBase !== true || String(gasto.tipo||'').toLowerCase() !== 'fijo') return false;
+  if (!gasto || gasto.fijoGenerado === true || gasto.esFijoBase !== true || String(gasto.tipo||'').toLowerCase() !== 'fijo') return false;
   if (gasto.recurrenciaActiva === false) return false;
   if (gasto.empleadoId || gasto.empleadoFbKey || gasto.tipoPagable) return false;
   if (String(gasto.categoria||'').toLowerCase() === 'personal') return false;
@@ -45250,6 +45250,7 @@ async function guardarGastoCompleto() {
   };
   var gastoOriginal = editandoKey && formulario && formulario.key === editandoKey ? formulario.valor : null;
   if (editandoKey && !gastoOriginal) { notify('Volvé a abrir el formulario para revisar el gasto actual.'); return; }
+  if (gastoOriginal?.fijoGenerado === true) datos.esFijoBase = false;
   if (gastoOriginal && (gastoOriginal.fotoAdjunta || gastoOriginal.fotoBase64)) datos.fotoAdjunta = true;
   if (tipo === 'Fijo' && gastoOriginal && gastoOriginal.recurrenciaActiva === false) datos.recurrenciaActiva = false;
   if (!gastoActualFbKey && pagado > 0) {
@@ -46453,7 +46454,7 @@ async function abrirGestorGastosRecurrentes() {
     _gastosFijosGestorCache = {};
     var filas = [];
     var gruposFijos = {};
-    (gastosData||[]).filter(function(g){ return g && g.esFijoBase === true && g.fbKey; }).forEach(function(g){
+    (gastosData||[]).filter(function(g){ return g && g.fijoGenerado !== true && g.esFijoBase === true && g.fbKey; }).forEach(function(g){
       var firma = _gastoFijoFirma(g) || ('registro|' + g.fbKey);
       if (!gruposFijos[firma]) gruposFijos[firma] = [];
       gruposFijos[firma].push(g);

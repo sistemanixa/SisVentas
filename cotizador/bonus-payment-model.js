@@ -5,6 +5,7 @@
  function revisionData(row){return Object.fromEntries(fields.map(key=>[key,row?.[key]??null]));}
  const isStandaloneExpense=row=>!!row&&String(row.tipo||'').toLowerCase()==='variable'&&!!(row.empleadoFbKey||row.empleadoId)&&!row.tipoPagable&&!row.origen&&!row.legacyKey&&!row.movimientoCtaKey&&row.esFijoBase!==true&&!['comisionId','comisionKey','ventaComisionId','bonificacionGrupoId','bonificacionConceptoId','sueldoBase','sueldoBruto','adelantoCompensado','montoCompensado','compensaciones','adelantosAplicados'].some(k=>row[k]!=null)&&!String(row.descripcion||'').match(/^(?:haber|sueldo|aguinaldo|bonificaci[oó]n|comisi[oó]n|adelanto|hs\.?\s*extra)\b/i)&&(row._svListSummary===true||typeof row.usuarioUid==='string'&&!!row.usuarioUid.trim());
  const isReimbursement=row=>isStandaloneExpense(row)||!!row&&String(row.tipoPagable||'').toLowerCase()==='gasto_empresa'&&!!(row.empleadoFbKey||row.empleadoId)&&!!(row.movimientoCtaKey||/^ctaemp\/[^/]+\/[^/]+$/.test(String(row.legacyKey||'')));
- const isPayableExpense=row=>!!row&&typeof row==='object'&&!Array.isArray(row)&&!row.esFijoBase&&!row.bajaAdministrativa;
- return {isBonus,isReimbursement,isStandaloneExpense,isPayableExpense,revisionData};
+ const isGeneratedFixedExpense=row=>!!row&&row.fijoGenerado===true&&typeof row.fijoBaseFbKey==='string'&&!!row.fijoBaseFbKey&&!/[.#$\[\]\/]/.test(row.fijoBaseFbKey)&&/^\d{4}-(?:0[1-9]|1[0-2])$/.test(row.fijoMes||'')&&String(row.fecha||'').slice(0,7)===row.fijoMes;
+ const isPayableExpense=row=>!!row&&typeof row==='object'&&!Array.isArray(row)&&(!row.esFijoBase||isGeneratedFixedExpense(row))&&!row.bajaAdministrativa;
+ return {isBonus,isReimbursement,isStandaloneExpense,isPayableExpense,isGeneratedFixedExpense,revisionData};
 });
