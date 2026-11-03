@@ -1,3 +1,9 @@
+# Presupuestos: primera tabla visible corregida localmente · 03/11/2026
+
+Candidata v3.18.11 desde88a3e808/web18.10, rama aislada codex/presupuestos-filtros-iniciales. Causa reproducida en la sesión local del vendedor: después de Dashboard→recarga→Presupuestos, dos filas ya existían pero la tabla conservaba sv-columns-pending y visibility:hidden. Columnas se preparaban durante la espera de datos; al retirarse la espera no había una nueva mutación de filas que completara esa preparación. Corrección compartida en resizable-tables: al evento real data-state-changed, inicializa sólo las tablas pendientes de la página activa que ya terminó su espera. Sin consultas, sondeos, cambios de filtros, permisos ni escrituras comerciales.
+
+Tres pruebas de navegador aislado390/768/1280 con DataReadiness real, datos tardíos, página oculta y eventos repetidos PASS. Suite7232total7205PASS27skip0fallos; sintaxis/diff/ValidarLocalPASS. Se sustituyó sólo el servidor propio8765 por esta copia y se recargó efectivamente la ventana del titular conservando sesión Ignacio; primera apertura de Presupuestos mostró dos filas, visibility:visible y pending:false, sin pulsar Todos/Quitar filtros. Evidencia privada tmp/presupuestos-primera-carga-corregida.jpg. No publicada; producción sigue18.10. Integrar sobre la versión vigente sin incluir el WIP de Cuenta corriente de otro checkout.
+
 # v3.18.10 publicada y verificada · 03/11/2026
 
 Publicación inmediata pedida por el titular, desde commit limpio e07f04b912fc50af5c48ca4717180a7394e50499. Hosting9b8a4f078d7a618e:574activos/9cargas;11activos públicos idénticos byte por byte, cabeceras y3rutas privadas404. Aviso oficial18.10-firebase verificado. No se cambió Cotizador, reglas, permisos ni registros reales.7202pruebas PASS/27omitidas/0fallos.
