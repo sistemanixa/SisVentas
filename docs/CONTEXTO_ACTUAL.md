@@ -1,3 +1,9 @@
+# Chat: enlaces y ajuste de texto preparados v3.18.4 · 03/11/2026
+
+Se prepara aplicación inmutable v3.18.4, marcadores y caché coherentes, incorporando los arreglos locales previos de entrega OT y carga salarial. Nuevo formateador convierte HTTP/HTTPS y www en enlaces escapados con target blank y noopener/noreferrer; no genera vistas previas ni solicitudes externas. Se conservan adjuntos y texto histórico sin reescrituras. CSS ajusta cadenas largas y saltos dentro de la burbuja.
+
+10 pruebas focales y 3 de navegador (390/768/1280) PASS; suite7114total7087PASS27omitidas0fallos; sintaxis/diff/ValidarLocal PASS. Verificación real de sólo lectura: el mensaje recibido aparece como enlace HTTPS; sus trece líneas quedan dentro de la burbuja y el texto tiene ancho de contenido igual al disponible. No se abrió el destino ni se enviaron mensajes. Evidencia privada tmp/chat-links-fix/local-link.png y local-chat.png. Local8766 reiniciado de forma verificada y dejado con chat abierto. Producción permanece v3.18.3; no se publicó. Pendientes anteriores de entregas parciales y auditoría de cachés siguen abiertos; el informe de esta última se conserva privado en tmp/cache-consumers-audit.
+
 # Cobertura salarial desbloqueada en local · 03/11/2026
 
 El informe dependía de cachedRecords(ventas) completo; con la carga paginada ese historial no se prepara al entrar, y el módulo quedaba esperando indefinidamente. Se conserva la fuente completa cuando ya existe y, cuando falta, se consulta el índice comercial del período en páginas de 50; sólo se leen completos los registros seleccionados, con concurrencia cuatro y límite explícito de 1.000. Se verifica configuración/cobertura antes y revisión después; error o detalle ausente no se convierte en cero. No lee la raíz de ventas, no agrega sondeos ni usa Cotizador. La fecha normalizada del índice se utiliza sólo en la proyección en memoria, nunca se guarda.

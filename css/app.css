@@ -1242,7 +1242,10 @@ body:not(.dark-mode) .btn,body:not(.dark-mode) .search-input{border-color:rgba(0
 .chat-day{display:flex;flex-direction:column;gap:8px;flex-shrink:0;min-width:0}
 .chat-day-label{position:sticky;top:0;z-index:2;align-self:center;max-width:100%;padding:4px 0;pointer-events:none}
 .chat-day-label span{display:block;padding:5px 12px;border:1px solid var(--border2);border-radius:14px;background:var(--bg3);color:var(--text2);box-shadow:0 2px 5px rgba(0,0,0,.12);font-size:11px;font-weight:600;text-align:center}
-.chat-msg{max-width:80%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.4;position:relative}
+.chat-msg{max-width:80%;min-width:0;box-sizing:border-box;overflow-wrap:anywhere;word-break:normal;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.4;position:relative}
+.chat-msg-text{white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;min-width:0;max-width:100%}
+.chat-text-link{color:var(--blue);text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}
+.chat-msg.mine .chat-text-link{color:#a8d7ff}
 .chat-msg-wrap{display:flex;flex-direction:column;position:relative;margin-bottom:2px;touch-action:pan-y}
 .chat-msg-wrap .chat-msg{transition:transform .15s ease;will-change:transform}
 .chat-msg-wrap.swiping .chat-msg{transition:none}
