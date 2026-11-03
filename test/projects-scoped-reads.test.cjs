@@ -92,7 +92,7 @@ test('guardar una necesidad sin vínculos realiza cero GET auxiliares y libera s
 
 test('actualizar ficha y quitar necesidad o borrador no consultan directorios ni presupuestos', async () => {
   for(const type of ['update','need-remove','budget-remove']) {
-    const f=fixture(),body={type,projectId:'project',revision:1,id:'missing',data:{...f.project,name:'Nueva ficha'}};
+    const f=fixture();if(type==='need-remove')f.project.needs.push({id:'missing',title:'Necesidad ficticia'});const body={type,projectId:'project',revision:1,id:'missing',data:{...f.project,name:'Nueva ficha'}};
     await f.service.save(actor(),body);assert.deepEqual(f.reads,[]);assert.equal(f.data.sv_proyectos.project.revision,2);
   }
 });
@@ -305,3 +305,5 @@ test('opciones sigue ofreciendo presupuestos disponibles que ningún proyecto ti
   assert.ok(f.reads.includes('sisventas/presupuestos'));assert.ok(result.budgets.some(b=>b.id==='unlinked'));assert.ok(result.budgets.some(b=>b.id==='hidden'));
   assert.equal(result.budgets.some(b=>b.id==='other'||b.id==='deleted'),false);
 });
+
+test('acuse perdido de alta se recupera con la misma solicitud sin duplicar proyecto',async()=>{const f=fixture(),body={type:'create',requestId:'same-request',data:{name:'Alta ficticia',members:[]}};const first=await f.service.save(actor(),body),again=await f.service.save(actor(),body);assert.equal(first.project.id,again.project.id);assert.equal(again.project.revision,1);assert.equal(Object.values(f.data.sv_proyectos).filter(p=>p.name==='Alta ficticia').length,1);assert.equal('_creationRequest'in again.project,false);await assert.rejects(f.service.save(actor(),{...body,data:{...body.data,name:'Otra intención'}}),{statusCode:409});});

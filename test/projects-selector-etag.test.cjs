@@ -19,7 +19,7 @@ function fixture(){
 }
 test('selector preserves complete authorized DTO and never reads the SDK history or writes',async()=>{
  const f=fixture(),before=copy(f.db.root),rows=await f.selector();assert.deepEqual(rows.people,[]);assert.deepEqual(rows.clients,[]);assert.deepEqual(rows.budgets.map(x=>x.id),['own','legacy']);
- assert.deepEqual(rows.budgets[0],{id:'own',number:'PP-PROPIO',title:'Propuesta ficticia',clientId:'c',total:75.25,currency:'ARS',status:'borrador',items:[{description:'Producto ficticio',qty:2,unitPrice:37.625}]});
+ assert.deepEqual(rows.budgets[0],{id:'own',number:'PP-PROPIO',title:'Propuesta ficticia',clientId:'c',total:75.25,currency:'ARS',status:'borrador',items:[{lineId:'5ec59ed330d8c9eb68c9',sourceIdentity:'cdc5cbd2f81219039723142880ed70579d625c0b2ec5691fe24499d0c17ff6d3',description:'Producto ficticio',qty:2,unitPrice:37.625,code:'',productId:'',photo:'',operational:true}]});
  assert.equal(rows.budgets[0].compra,undefined);assert.equal(rows.budgets[0].archivo,undefined);assert.deepEqual(f.db.root,before);assert.ok(!f.reads.includes('sisventas/presupuestos'));assert.equal(f.calls.length,1);
 });
 test('unchanged source uses a current conditional GET and returns isolated but identical results',async()=>{

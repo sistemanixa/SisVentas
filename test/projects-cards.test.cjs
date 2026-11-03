@@ -38,11 +38,11 @@ class Element{
 const project=(id,name,stage='planificacion')=>({id,name,stage,number:'PR-'+id,clientName:'Cliente ficticio',address:'Dirección ficticia',goal:'Objetivo',members:{owner:{name:'Titular'}},needs:[],budgets:[],updatedAt:1000});
 function fixture(projects=[project('one','Proyecto de prueba')]){
  const events={},opens=[],creates=[],page=new Element('section',{id:'page-proyectos'},(type,event)=>events[type]?.(event));
- const c={M:require('../js/core/projects-model'),state:{projects,selected:'',tab:'necesidades',search:'',filter:'all',canCreate:true},host:()=>page,
-  preview:()=>false,details:()=>opens.push(c.state.selected),editProject:async isNew=>creates.push(isNew),
+ const c={M:require('../js/core/projects-model'),state:{projects,selected:'',tab:'necesidades',search:'',filter:'all',canCreate:true,cursors:[],next:''},host:()=>page,
+  preview:()=>false,load:async()=>opens.push(c.state.selected),details:()=>opens.push(c.state.selected),editProject:async isNew=>creates.push(isNew),
   selectTab:()=>assert.fail('Una tarjeta no cambia una solapa'),report:error=>assert.fail(error.message),request:()=>assert.fail('Abrir la ficha no consulta ni guarda'),
   document:{addEventListener:(name,handler)=>events[name]=handler}};c.window=c;vm.createContext(c);
- for(const name of ['esc','norm','icon','button','date','initials','pill','commercial'])vm.runInContext(source.split('\n').find(line=>line.startsWith(' const '+name+'=')),c);
+ for(const name of ['esc','norm','icon','button','date','initials','pill','commercial','progress'])vm.runInContext(source.split('\n').find(line=>line.startsWith(' const '+name+'=')),c);
  for(const name of ['avatars','empty','shell','overview','cards'])vm.runInContext(fn(name),c);
  const start=source.indexOf(" document.addEventListener('input'"),end=source.indexOf(" document.addEventListener('sisventas:page-changed'",start);
  vm.runInContext(source.slice(start,end),c);c.overview();return {c,page,events,opens,creates};

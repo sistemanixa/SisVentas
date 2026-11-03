@@ -12,7 +12,7 @@ COPY commercial-collection-reader.js ./
 COPY commission-job-events.js ./
 COPY commission-event.js ./
 COPY distributor-documents.js ./
-COPY projects.js projects-model.js ./
+COPY projects.js projects-model.js projects-list-store.js ./
 COPY user-directory.js ./
 COPY chat-operations.js ./
 COPY chat-header-store.js ./

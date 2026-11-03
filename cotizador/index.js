@@ -46,7 +46,7 @@ const userDirectory = require('./user-directory').createUserDirectory({auth:busi
 const chatOperations = require('./chat-operations').createChatOperations({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true',headerStore:process.env.CHAT_HEADERS_ENABLED==='true'?require('./chat-header-store').createChatHeaderStore({databaseURL:DATABASE_URL,isReady:async()=>(await db.ref('sv_chat_headers_config/ready').get()).val()===true,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token}):null});
 const distributorDocuments=require('./distributor-documents').createDistributorDocuments({auth:businessAuth,db,enabled:process.env.DISTRIBUTOR_DOCUMENTS_ENABLED==='true'});
 const commercialCollectionReader=require('./commercial-collection-reader').createCommercialCollectionReader({databaseURL:DATABASE_URL,compressOverflow:true,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
-const projects = require('./projects').createProjects({auth:businessAuth,db,collectionReader:commercialCollectionReader,scopedReads:process.env.COMMERCIAL_SCOPED_READS_ENABLED==='true',queryReader:laborRuntime.store.query,enabled:process.env.PROJECTS_ENABLED==='true'});
+const projects = require('./projects').createProjects({auth:businessAuth,db,collectionReader:commercialCollectionReader,scopedReads:process.env.COMMERCIAL_SCOPED_READS_ENABLED==='true',queryReader:laborRuntime.store.query,enabled:process.env.PROJECTS_ENABLED==='true',storage:()=>require('firebase-admin').storage(),bucketName:process.env.PROJECTS_MEDIA_BUCKET,listStore:process.env.PROJECT_LISTS_ENABLED==='true'?require('./projects-list-store').createProjectListStore(db):undefined});
 const commercialOwnership=require('./commercial-ownership').createCommercialOwnership({auth:businessAuth,db,collectionReader:commercialCollectionReader,scopedReads:process.env.COMMERCIAL_SCOPED_READS_ENABLED==='true',queryReader:laborRuntime.store.query,enabled:process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'});
 // Bucket dedicado, privado y sin enlaces de Firebase Storage. Nunca reutilizar
 // el bucket compartido de adjuntos: sus reglas no pertenecen a este dominio.
@@ -2076,11 +2076,15 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if(['/proyectos','/proyectos/opciones','/proyectos/guardar'].includes(pathname)){
+  if(['/proyectos','/proyectos/detalle','/proyectos/opciones','/proyectos/guardar','/proyectos/fotos','/proyectos/fotos/recuperar'].includes(pathname)){
     res.setHeader('Cache-Control','no-store');
     try{
       const actor=await projects.authorize(req);let result;
-      if(req.method==='GET'&&pathname==='/proyectos')result=await projects.list(actor);
+      if(req.method==='GET'&&pathname==='/proyectos')result=await projects.list(actor,requestUrl.searchParams.get('cursor')||'',requestUrl.searchParams.get('resumen')==='1');
+      else if(req.method==='GET'&&pathname==='/proyectos/detalle')result=await projects.detail(actor,requestUrl.searchParams.get('id')||'');
+      else if(req.method==='POST'&&pathname==='/proyectos/fotos/recuperar')result=await projects.recoverPhoto(actor,await readBody(req,10000));
+      else if(req.method==='POST'&&pathname==='/proyectos/fotos')result=await projects.uploadPhoto(actor,await readBody(req,3100000));
+      else if(req.method==='GET'&&pathname==='/proyectos/fotos'){const photo=await projects.photo(actor,Object.fromEntries(requestUrl.searchParams));res.setHeader('Content-Type',photo.type);res.end(photo.bytes);return;}
       else if(req.method==='GET'&&pathname==='/proyectos/opciones')result=await projects.options(actor,requestUrl.searchParams.get('proyecto')||'',requestUrl.searchParams.get('kind')||'all');
       else if(req.method==='POST'&&pathname==='/proyectos/guardar')result=await projects.save(actor,await readBody(req,60000));
       else {send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
