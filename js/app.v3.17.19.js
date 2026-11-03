@@ -46184,8 +46184,8 @@ function verPagosGasto(fbKey) {
     }).join('');
   }
   document.getElementById('modal-hist-pago-gasto').style.display = 'flex';
-  window.svCompletarAutoresPagos?.(body,pagos);
   if (body && (g.fotoBase64 || g.fotoAdjunta)) body.innerHTML = '<div style="padding:8px 0 12px"><button class="btn btn-sm" onclick="verAdjuntoOriginalGasto(\''+escapeHTML(fbKey)+'\')"><i class="ti ti-paperclip"></i> Comprobante del gasto</button><div style="font-size:11px;color:var(--text3);margin-top:5px">El adjunto del gasto y los comprobantes de cada pago se conservan por separado.</div></div>' + body.innerHTML;
+  window.svCompletarAutoresPagos?.(body,pagos);
 
 }
 
