@@ -1,6 +1,6 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.18.4';
+const CACHE = 'sisventas-v3.18.5';
 const SHELL = [
  './js/core/purchase-order-links.v1.js?v=3.18.4',
  './js/core/ot-sale-origin.v1.js?v=3.18.4',
@@ -9,7 +9,7 @@ const SHELL = [
  './js/core/chat-text.v1.js?v=3.18.4',
  './js/core/expense-filter-labels.v1.js?v=3.18.4',
  './js/core/sales-search-model.v1.js?v=3.18.4',
- './js/core/commercial-pages-reader.v1.js?v=3.18.4',
+ './js/core/commercial-pages-reader.v1.js?v=3.18.5',
  './js/core/payment-actor-names.v1.js?v=3.18.4',
  './js/modules/payment-actor-labels.v1.js?v=3.18.4',
  './js/modules/sales-indexed-host.v1.js?v=3.18.4',
@@ -115,7 +115,7 @@ const SHELL = [
   './js/core/guarded-writes.js?v=3.18.4',
   './js/core/session-assets.js?v=3.18.4',
   './js/core/ot-personal-scope.js?v=3.14.0',
-  './js/app.v3.18.4.js',
+  './js/app.v3.18.5.js',
   './js/core/activity-period.v1.js',
  './js/core/dashboard-account-source.v1.js?v=3.14.19',
   './js/modules/navigation-back.js?v=perf-3105',
@@ -125,7 +125,7 @@ const SHELL = [
   './js/modules/provider-verification.js',
   './js/modules/paraguay-config.js?v=3.17.7',
   './js/core/version.js',
-  './js/core/version.v3.18.4.js',
+  './js/core/version.v3.18.5.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js',
   './js/core/access-control.js?v=3.10.32',

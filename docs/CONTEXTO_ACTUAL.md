@@ -1,3 +1,9 @@
+# Acceso al detalle comercial corregido v3.18.5 · 03/11/2026
+
+La lectura paginada de una venta conserva en memoria su identidad de acceso validada; contrasta el propietario del resumen con la sesión y rechaza discrepancias del responsable explícito. El servidor sigue autorizando el original puntual. El resolvedor de detalle no sustituye la ficha completa por una selección anterior de Cobros. No se reasignan registros ni se modifican permisos, autoría, importes o datos históricos; no requiere desplegar servidor.
+
+Puerta completa: 7.150 pruebas, 7.123 PASS, 27 omitidas, 0 fallos. Prueba focal adicional del resolvedor: PASS; conjunto comercial final 31 PASS. Sintaxis/diff/ValidarLocal PASS. Local 8766 entrega index y aplicación nueva por HTTP. Control de la sesión real del navegador sigue indisponible: no se afirma prueba visual autenticada ni se recargó la ventana del usuario. Evidencia privada tmp/sale-access3185; consultas identificadoras sin coincidencia no se presentan como validación de esos registros. Preparado para publicación del cliente, aún no comprobada aquí.
+
 # v3.18.4 publicada y servidor verificado · 03/11/2026
 
 Hosting publicado desde c222a813bd31fb574388313a0f43c7b0f2019695 en nixa-sisventas-seguro. Dominio real verificado por SHA-256: 14 activos idénticos, cabeceras nosniff y rutas privadas 404. Cotizador activo cotizador-expenses3184-c222a813 al 100% con los 14 accesos existentes; recursos, identidad, variables, mínimo 0 y CPU por solicitud conservados. El único cambio de servidor respecto de projects3180 es bonus-payment-model.js; no se modificaron reglas ni datos comerciales. Prueba de acceso sin autenticación: cuatro acciones de pago rechazan con 401.
