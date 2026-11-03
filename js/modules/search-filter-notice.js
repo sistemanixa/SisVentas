@@ -46,6 +46,7 @@
     if(expense&&expense.label)parts.push(expense.label);
     e.controls=Array.from(e.scope.querySelectorAll('select,input[type="date"],input[type="month"],input[type="checkbox"]')).filter(function(n){return visible(n)&&!n.closest('tbody')&&!/search-field|orden|page-size|pagination/i.test(n.id)&&(n.type==='date'||n.type==='month'||/filtro|filter|estado|periodo|mes|^gas-f-|^com-f-/.test(n.id));});
     e.controls.forEach(function(n){
+      if(expense&&expense.skipControls.includes(n.id))return;
       if(n.tagName==='SELECT'){var o=n.options[n.selectedIndex],label=o?o.textContent.trim():'';if(label&&!/^(todos?|todas?|cualquier|seleccion)/i.test(label))parts.push(label);}
       else if(n.type==='checkbox'){if(n.checked)parts.push((n.closest('label')||n).textContent.trim()||'Filtro activo');}
       else if(n.value)parts.push((n.getAttribute('aria-label')||(n.type==='month'?'Período':'Fecha'))+': '+n.value);

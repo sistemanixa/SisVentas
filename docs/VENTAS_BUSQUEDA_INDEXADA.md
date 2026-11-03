@@ -20,4 +20,6 @@ Las cuatro tarjetas de Gastos informan su filtro interno en el recuadro amarillo
 
 ## Validación
 
-Suite vigente: 7.037 casos, 7.010 aprobados, 27 opt-in omitidos, cero fallos. Servidor: 94 aprobados. Emulador RTDB: tres pruebas de permisos/búsqueda acotada aprobadas. UI ficticia 390/1280: tabla nativa de diez columnas, búsqueda histórica, acciones puntuales, cinco recientes del Dashboard/deuda completa, filtros de cuatro tarjetas y limpieza. Sin operaciones financieras reales. Las pruebas aisladas no acreditan por sí solas activación remota ni revisión autenticada de la web: registrar ambas por separado en CONTEXTO_ACTUAL.
+Suite vigente: 7.041 casos, 7.014 aprobados, 27 opt-in omitidos, cero fallos. Servidor: 94 aprobados. Emulador RTDB: tres pruebas de permisos/búsqueda acotada aprobadas. UI ficticia 390/1280: tabla nativa de diez columnas, búsqueda histórica, acciones puntuales, cinco recientes del Dashboard/deuda completa, filtros de cuatro tarjetas y limpieza. Sin operaciones financieras reales. Las pruebas aisladas no acreditan por sí solas activación remota ni revisión autenticada de la web: registrar ambas por separado en CONTEXTO_ACTUAL.
+
+El parche20 habilita `_fbCargaTodoActiva` al iniciar efectivamente el lector paginado: las visitas posteriores arrancan las fuentes nativas de su módulo, sin esperar un reintento ni volver a descargar ventas por ello. Prueba de navegación extraída de la aplicación activa. Corrige también el texto duplicado del filtro mensual detectado en la revisión web.
