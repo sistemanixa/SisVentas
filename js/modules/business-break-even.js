@@ -152,7 +152,8 @@
 
   function executiveContext(context) {
     if (!context || typeof window.calcularRentabilidadCanonica !== 'function') return null;
-    var cacheKey = [context.period, context.range.desde.getTime(), context.range.hasta.getTime(), context.summary.ingresosNetos, context.summary.gananciaComercial, context.summary.resultadoNeto].join('|');
+    var source=window.SVCommercialReportHost?.current('rentabilidad');
+    var cacheKey = [window.currentUserUid,source?.revision,source?.expenseFingerprint,context.period, context.range.desde.getTime(), context.range.hasta.getTime(), context.summary.ingresosNetos, context.summary.gananciaComercial, context.summary.resultadoNeto].join('|');
     if (executiveCache && executiveCache.key === cacheKey) return executiveCache.value;
     var previous = window.calcularRentabilidadCanonica(previousComparableRange(context.range));
     var today = new Date();

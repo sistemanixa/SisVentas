@@ -2176,27 +2176,8 @@
   }
 
   function unlinkDeletedOrder(order) {
-    var tasks = [];
-    if (order.listaMaterialesId) {
-      var list = state.lists.find(function (entry) { return entry.fbKey === order.listaMaterialesId; });
-      if (list) {
-        var remaining = (list.ordenesIds || []).filter(function (key) { return key !== order.fbKey; });
-        tasks.push(update(PATH_LISTS + '/' + list.fbKey, {
-          ordenesIds: remaining,
-          estado: remaining.length ? list.estado : 'preparacion',
-          actualizadoEn: Date.now()
-        }));
-      }
-    }
-    if (order.ventaFbKey) {
-      var sale = salesList().find(function (entry) { return entry.fbKey === order.ventaFbKey; });
-      var saleOrders = ((sale && sale.ordenesCompraIds) || []).filter(function (key) { return key !== order.fbKey; });
-      tasks.push(update('sisventas/ventas/' + order.ventaFbKey, {
-        ordenesCompraIds: saleOrders,
-        compraEstado: saleOrders.length ? 'ordenada' : 'preparacion'
-      }));
-    }
-    return Promise.all(tasks);
+    if(!window.SVPurchaseOrderLinks) return Promise.reject(new Error('No está listo el guardado seguro de vínculos. Actualizá SisVentas.'));
+    return window.SVPurchaseOrderLinks.remove(window,order);
   }
 
   async function deleteActiveOrder() {

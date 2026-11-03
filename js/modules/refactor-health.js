@@ -538,6 +538,7 @@
   };
 
   function aplicarReportesReales(){
+    if(window.SVCommercialReportHost||(typeof APP_CONFIG!=='undefined'&&APP_CONFIG.READ_MODELS_REQUIRED))return;
     if(typeof window.svResumenVentas !== 'function') return;
     var mes = (typeof window._periodoActualReportes === 'function') ? window._periodoActualReportes() : null;
     var r = window.svResumenVentas({mes:mes});

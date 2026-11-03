@@ -75,6 +75,8 @@
       porDia[fk]=(porDia[fk]||0)+total;
       porMes[mk]=(porMes[mk]||0)+total;
     });
+    var report=window.SVCommercialReportHost?.current('estadisticas');
+    if(report){porDia={};porMes={};Object.entries(report.meta.days||{}).forEach(function(entry){var fk=entry[0],mk=fk.slice(0,7),total=Number(entry[1].salesCents||0)/100;porDia[fk]=total;porMes[mk]=(porMes[mk]||0)+total;});}
     var daily=d7.map(function(d){return porDia[d.key]||0;});
     var monthly=m12.map(function(m){return porMes[m.key]||0;});
     var today=daily[daily.length-1]||0, week=daily.reduce(function(s,x){return s+x;},0), month=monthly[monthly.length-1]||0, prevMonth=monthly[monthly.length-2]||0;
@@ -92,6 +94,7 @@
     }, 80);
   }
   function renderStats334(){
+    if(window.SVCommercialReportHost&&!window.SVCommercialReportHost.current('estadisticas'))return;
     ensureStats(); var x=calcSales();
     drawBars('sv334-est-bars',x.daily,x.dailyLabels,'detalle'); drawLine('sv334-est-line',x.monthly,x.monthLabels);
     var e=function(id){return document.getElementById(id)};

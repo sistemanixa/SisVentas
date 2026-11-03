@@ -11303,7 +11303,7 @@ function showPage(id, el) {
   if (id === 'tablero')        { setTimeout(function(){ renderTablero(); }, 100); }
   if (id === 'creditofiscal')  { setTimeout(function(){ if(typeof cfRenderTodo==='function') cfRenderTodo(); if(typeof fvRenderTodo==='function') fvRenderTodo(); if(typeof fvRenderCompensacion==='function') fvRenderCompensacion(); }, 100); }
   if (id === 'facturas')       { setTimeout(function(){ if(typeof fvRenderConciliacion==='function') fvRenderConciliacion(); if(typeof fvRenderVentasFacturadas==='function') fvRenderVentasFacturadas((document.getElementById('fv-ventas-facturadas-buscar')||{}).value||''); }, 100); }
-  if (id === 'reportes')       { fbCargarGastos(); setTimeout(function(){ renderReportes(); }, 100); }
+  if (id === 'reportes')       { if(!window.SVCommercialReportHost)fbCargarGastos(); setTimeout(function(){ renderReportes(); }, 100); }
   if (id === 'estadisticas')   { setTimeout(function(){ if(typeof renderEstadisticas==='function') renderEstadisticas(); }, 150); }
   if (id === 'caja')           { setTimeout(function(){ fbCargarCaja(); }, 50); }
   if (id === 'cobranzas')      { setTimeout(function(){ if(typeof iniciarMonedaCobranza==='function') iniciarMonedaCobranza(); fbCargarPagos(); renderHistorialCobranzas(); }, 50); }
@@ -11406,6 +11406,7 @@ function applyRole() {
 const APP_CONFIG = Object.freeze({
   DEMO_MODE: false,
   VERSION: 'v3.18.4-firebase',
+  READ_MODELS_REQUIRED: true,
   RELEASE_NOTES: Object.freeze(['Los enlaces del chat se abren y no desbordan el mensaje.','La entrega de materiales guarda también el resumen de la OT.','Salarios consulta las ventas del período sin esperar el historial completo.']),
   RELEASE_FEATURE: Object.freeze({page:'dashboard',actionLabel:'Ver Dashboard'}),
   RELEASE_HISTORY: Object.freeze([
@@ -26979,6 +26980,8 @@ function _rentCostoVenta(v) {
 // Fuente única para Rentabilidad: trabaja por devengado, sin IVA y sin anulados.
 // Las comisiones se reconocen cuando fueron aprobadas, aunque todavía no se hayan pagado.
 function calcularRentabilidadCanonica(rango, ventasFuente, gastosFuente) {
+  var fuenteInforme=window.SVCommercialReportHost?.current('rentabilidad');
+  if(fuenteInforme){if(ventasFuente==null)ventasFuente=fuenteInforme.sales;if(gastosFuente==null)gastosFuente=fuenteInforme.expenses;}
   var ventasPeriodo = (ventasFuente || ventasList || []).filter(function(v) {
     if (!_rentVentaValida(v)) return false;
     var f = _parsearFechaFlexible(v.fecha || '');
@@ -27051,12 +27054,19 @@ function formatearMontoRentabilidad(monto) {
   return (valor < 0 ? '-$' : '$') + Math.round(Math.abs(valor)).toLocaleString('es-AR');
 }
 
+function svReporteEsperarFuente(page) {
+  if(typeof APP_CONFIG==='undefined'||!APP_CONFIG.READ_MODELS_REQUIRED||window.SVCommercialReportHost)return false;
+  var node=document.getElementById('page-'+page);if(node){node.querySelectorAll('.m-value,.m-sub').forEach(function(el){el.textContent='—';});node.querySelectorAll('tbody').forEach(function(el){el.replaceChildren();});var box=node.querySelector('[data-report-asset-error]');if(!box){box=document.createElement('div');box.dataset.reportAssetError='';box.className='card';box.style.padding='12px';box.setAttribute('role','alert');node.prepend(box);}box.textContent='No se pudo cargar la consulta del informe. Actualizá la página para reintentar.';}return true;
+}
 function calcRentabilidad() {
+  if(typeof svReporteEsperarFuente==='function'&&svReporteEsperarFuente('rentabilidad'))return false;
+  var report=window.SVCommercialReportHost?.current('rentabilidad');
+  if(window.SVCommercialReportHost&&!report)return window.SVCommercialReportHost.ensure('rentabilidad');
   var selEl = document.getElementById('rent-periodo');
   var periodo = selEl ? selEl.value : 'mes_actual';
   var rango = _rangoFechasPeriodo(periodo);
 
-  var resumen = calcularRentabilidadCanonica(rango);
+  var resumen = calcularRentabilidadCanonica(rango, report?report.sales:undefined, report?report.expenses:undefined);
   var ventasPeriodo = resumen.ventas;
   var ingresos = resumen.ingresosNetos;
   var costoProductos = resumen.costoProductos;
@@ -28724,9 +28734,12 @@ function itemVentaEsManoDeObraReporte(item) {
 window.itemVentaEsManoDeObraReporte = itemVentaEsManoDeObraReporte;
 
 function abrirDetalleReporteVentas(tipo, claveCodificada) {
+  var report=window.SVCommercialReportHost?.current('reportes');
+  if(window.SVCommercialReportHost&&!report){notify('Esperá a que termine de cargar el informe.');return;}
+  var ventasList=report?report.sales:window.ventasList;
   var mes = _periodoActualReportes();
   var clave = decodeURIComponent(String(claveCodificada || ''));
-  var pagos = Array.isArray(window._historialPagosCompleto) ? window._historialPagosCompleto : [];
+  var pagos = report?report.payments:(Array.isArray(window._historialPagosCompleto) ? window._historialPagosCompleto : []);
   var ventas = (ventasList || []).filter(function(v) {
     return _fechaEnMes(v.fecha, mes) && !(typeof ventaEstaAnulada === 'function' && ventaEstaAnulada(v));
   });
@@ -28735,7 +28748,7 @@ function abrirDetalleReporteVentas(tipo, claveCodificada) {
   });
   if (tipo === 'facturadas') ventas = ventas.filter(function(v) { return !!v.factura; });
   if (tipo === 'pendientes' || tipo === 'cobradas') ventas = ventas.filter(function(v) {
-    var resumen = typeof _svResumenPagoVentaDesdeLista === 'function' ? _svResumenPagoVentaDesdeLista(v, pagos) : { pagado:0 };
+    var resumen = report?{pagado:v._svReportPaidCents/100}:(typeof _svResumenPagoVentaDesdeLista === 'function' ? _svResumenPagoVentaDesdeLista(v, pagos) : { pagado:0 });
     var pagado = Math.max(0, parseFloat(resumen.pagado) || 0);
     var pendiente = Math.round(_svTotalVentaCanonico(v)*100) > Math.round(pagado*100);
     return tipo === 'pendientes' ? pendiente : pagado > 0.01;
@@ -28773,6 +28786,10 @@ function abrirDetalleReporteVentas(tipo, claveCodificada) {
 window.abrirDetalleReporteVentas = abrirDetalleReporteVentas;
 
 function renderEstadisticas() {
+  if(typeof svReporteEsperarFuente==='function'&&svReporteEsperarFuente('estadisticas'))return false;
+  var report=window.SVCommercialReportHost?.current('estadisticas');
+  if(window.SVCommercialReportHost&&!report)return window.SVCommercialReportHost.ensure('estadisticas');
+  var ventasList=report?report.sales:window.ventasList;
   var mesActual = _periodoActualReportes();
   var ventasMes = (ventasList||[]).filter(function(v){ return _fechaEnMes(v.fecha, mesActual); });
   var porEmp={};
@@ -28800,6 +28817,7 @@ function renderEstadisticas() {
 
   var porMes={};
   (ventasList||[]).forEach(function(v){ var m=_fechaMes(v.fecha); if(!m) return; if(!porMes[m]) porMes[m]={cant:0,monto:0}; porMes[m].cant++; porMes[m].monto+=_svTotalVentaCanonico(v); });
+  if(report){porMes={};Object.entries(report.meta.days||{}).forEach(function(entry){var m=entry[0].slice(0,7),v=entry[1];if(!porMes[m])porMes[m]={cant:0,monto:0};porMes[m].cant+=v.sales||0;porMes[m].monto+=(v.salesCents||0)/100;});}
   var mejorMes=Object.entries(porMes).sort(function(a,b){return b[1].monto-a[1].monto;})[0];
   if(_e('est-mejor-mes')){ _e('est-mejor-mes').textContent=mejorMes?mejorMes[0]:'—'; if(_e('est-mejor-mes-sub')) _e('est-mejor-mes-sub').textContent=mejorMes?'$'+Math.round(mejorMes[1].monto).toLocaleString('es-AR'):'—'; }
   var bar=_e('est-bar-meses');
@@ -28817,7 +28835,7 @@ function renderEstadisticas() {
   var fdMes=hoyD.getFullYear() + '-' + String(hoyD.getMonth()+1).padStart(2,'0');
   var fd3m=(function(){var d=new Date(hoyD);d.setMonth(d.getMonth()-2);return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');})();
   var fdAnio=String(hoyD.getFullYear());
-  var pagosFilt=(window._historialPagosCompleto||[]).filter(function(p){
+  var pagosFilt=(report?report.payments:(window._historialPagosCompleto||[])).filter(function(p){
     if(periodo==='todo')return true;
     var f=_fechaMes(p.fecha);
     if(periodo==='mes')return f===fdMes;
@@ -28853,6 +28871,10 @@ function _reporteComisionesPorEmpleado(ventas, gastos, empleados, periodo) {
 }
 
 function renderReportes() {
+  if(typeof svReporteEsperarFuente==='function'&&svReporteEsperarFuente('reportes'))return false;
+  var report=window.SVCommercialReportHost?.current('reportes');
+  if(window.SVCommercialReportHost&&!report)return window.SVCommercialReportHost.ensure('reportes');
+  var ventasList=report?report.sales:window.ventasList,gastosData=report?report.expenses:window.gastosData,empData=report?report.employees:window.empData;
   var mesActual=_periodoActualReportes();
   var ventasMes=(ventasList||[]).filter(function(v){return _fechaEnMes(v.fecha,mesActual) && !(typeof ventaEstaAnulada==='function' && ventaEstaAnulada(v));});
   var totalMes=ventasMes.reduce(function(s,v){return s + _svTotalVentaCanonico(v);},0);
@@ -28879,7 +28901,7 @@ function renderReportes() {
   var porEmp={};
   var ventasSinResponsable=[];
   ventasMes.forEach(function(v){ var e=ventaResponsableComercialReporte(v); if(!e){e='Creador no registrado';ventasSinResponsable.push(v);} if(!porEmp[e]) porEmp[e]={cat:'—',ventas:0,monto:0,comision:0,hextra:0,base:0}; porEmp[e].ventas++; porEmp[e].monto+=_svTotalVentaCanonico(v); });
-  var comisionesReporte = _reporteComisionesPorEmpleado(ventasList, gastosData, empData, mesActual);
+  var comisionesReporte = _reporteComisionesPorEmpleado(report?report.referenceSales:ventasList, gastosData, empData, mesActual);
   Object.entries(comisionesReporte).forEach(function(par){ if(!porEmp[par[0]]) porEmp[par[0]]={cat:'—',ventas:0,monto:0,comision:0}; porEmp[par[0]].comision=par[1]; });
   Object.values(empData||{}).forEach(function(emp){
     var activo = !_empleadoEsInactivoParaHistorial(emp), nombre = emp.nombre || 'Empleado sin nombre';
@@ -28893,9 +28915,9 @@ function renderReportes() {
   }
   var alerta=_e('rep-alerta-responsables');
   if(alerta){alerta.style.display=ventasSinResponsable.length?'block':'none';alerta.innerHTML=ventasSinResponsable.length?'<div style="padding:11px 13px;border:1px solid var(--red);border-radius:10px;background:var(--red-bg);color:var(--red);font-size:12px"><strong><i class="ti ti-alert-triangle"></i> '+ventasSinResponsable.length+' ventas requieren responsable</strong><div style="margin-top:5px">'+ventasSinResponsable.map(function(v){return escapeHTML(v.id||v.fbKey||'Venta');}).join(' · ')+'</div></div>':'';}
-  var pagosReporte=Array.isArray(window._historialPagosCompleto)?window._historialPagosCompleto:[];
+  var pagosReporte=report?report.payments:(Array.isArray(window._historialPagosCompleto)?window._historialPagosCompleto:[]);
   var cobrado=0, pendientes=0;
-  ventasMes.forEach(function(v){var resumen=typeof _svResumenPagoVentaDesdeLista==='function'?_svResumenPagoVentaDesdeLista(v,pagosReporte):{pagado:0};var total=_svTotalVentaCanonico(v),pagado=Math.min(total,Math.max(0,parseFloat(resumen.pagado)||0));cobrado+=pagado;if(Math.round(total*100)>Math.round(pagado*100))pendientes++;});
+  ventasMes.forEach(function(v){var resumen=report?{pagado:v._svReportPaidCents/100}:(typeof _svResumenPagoVentaDesdeLista==='function'?_svResumenPagoVentaDesdeLista(v,pagosReporte):{pagado:0});var total=_svTotalVentaCanonico(v),pagado=Math.min(total,Math.max(0,parseFloat(resumen.pagado)||0));cobrado+=pagado;if(Math.round(total*100)>Math.round(pagado*100))pendientes++;});
   var saldo=Math.max(0,totalMes-cobrado),pct=totalMes>0?Math.round(cobrado/totalMes*1000)/10:0;
   if(_e('rep-cobrado'))_e('rep-cobrado').textContent=montoReporte(cobrado);
   if(_e('rep-pendiente'))_e('rep-pendiente').textContent=montoReporte(saldo);
@@ -49587,6 +49609,8 @@ function otResolverOrigen(ot) {
 
 function otBuscarVentaOrigen(ot) {
   if (!ot) return null;
+  if(window.SVOTSaleOrigin)return window.SVOTSaleOrigin.state(ot).record || null;
+  if(typeof APP_CONFIG!=='undefined'&&APP_CONFIG.READ_MODELS_REQUIRED)return null;
   var referencias = [ot.ventaFbKey, ot.ventaKey, ot.ventaId, ot.idVenta, ot.venta].filter(Boolean).map(String);
   var numeros = referencias.map(function(valor){ return valor.replace(/\D/g, ''); }).filter(Boolean);
   return (ventasList||[]).find(function(venta) {
@@ -49645,7 +49669,9 @@ function auditarIntegridadOT(ot) {
   if (!direccion) avisos.push({ area:'Ubicación', texto:'Falta la dirección de instalación.' });
   else correctos.push({ area:'Ubicación', texto:'Dirección disponible.' });
 
-  if (origen === 'venta' && !venta) bloqueos.push({ area:'Venta', texto:'La referencia de venta no existe o es ambigua.' });
+  var estadoOrigen=window.SVOTSaleOrigin?.state(ot)||(typeof APP_CONFIG!=='undefined'&&APP_CONFIG.READ_MODELS_REQUIRED?{status:'error',message:'No se pudo cargar la consulta de la venta. Actualizá la página.'}:null);
+  if(origen==='venta'&&estadoOrigen&&['unrequested','loading','error','restricted'].includes(estadoOrigen.status))avisos.push({area:'Venta',texto:estadoOrigen.status==='restricted'?'La consulta comercial está restringida a tu rol.':estadoOrigen.status==='error'?estadoOrigen.message:'Comprobando la venta de origen…'});
+  else if (origen === 'venta' && !venta) bloqueos.push({ area:'Venta', texto:'La referencia de venta no existe o es ambigua.' });
   else if (origen === 'venta') correctos.push({ area:'Venta', texto:'Venta de origen encontrada.' });
 
   if (!String(ot.tecnico || '').trim()) avisos.push({ area:'Técnico', texto:'Todavía no hay técnico asignado.' });
@@ -49685,7 +49711,7 @@ function auditarIntegridadOT(ot) {
     materiales:materiales.length,
     fotos:fotos.length,
     firma:!!firmaUrl,
-    listaParaCerrar:bloqueos.length === 0 && checklist.length > 0 && checklistHecho === checklist.length && custodia.ok
+    listaParaCerrar:bloqueos.length === 0 && checklist.length > 0 && checklistHecho === checklist.length && custodia.ok && (!estadoOrigen || ['ready','restricted'].includes(estadoOrigen.status))
   };
 }
 
@@ -49699,6 +49725,7 @@ function actualizarPanelIntegridadOT() {
     detalle.innerHTML = '';
     return null;
   }
+  if(otResolverOrigen(ot)==='venta')window.SVOTSaleOrigin?.ensure(ot);
   var auditoria = auditarIntegridadOT(ot);
   var color = auditoria.bloqueos.length ? 'var(--red)' : (auditoria.avisos.length ? 'var(--amber)' : 'var(--green)');
   resumen.style.color = color;
@@ -49746,12 +49773,17 @@ function abrirOTConCarga(id) {
   }).catch(function(error) { notify('No se pudo abrir la OT: ' + error.message); });
 }
 
-function verOT(id) {
+async function verOT(id) {
   var ot = otData.find(function(o){ return o.fbKey === id; })
         || otData.find(function(o){ return o.id === id; });
   if (!ot) { notify('OT no encontrada'); return; }
   var checklistReconstruido = normalizarChecklistOT(ot);
   otActualId = ot.fbKey || ot.id || id;
+  if (window.SVOTSaleOrigin && (ot.ventaId || ot.ventaFbKey || ot.ventaKey || ot.idVenta || ot.venta)) {
+    var consultaOT = otActualId;
+    await window.SVOTSaleOrigin.open(ot);
+    if (otActualId !== consultaOT) return;
+  }
   _hide('ot-list-view');
   _block('ot-detalle-view');
   var avisoEl = document.getElementById('ot-aviso-cambio-externo');
