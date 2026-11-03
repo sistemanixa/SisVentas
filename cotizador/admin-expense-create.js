@@ -39,8 +39,9 @@ function createAdminExpenseCreate({authorize:authorizeGateway,db,guard,enabled=f
   if(!actor?.uid||actor.claims?.uid!==actor.uid)throw fail(403,'Sesión requerida');
   const profile=await read('sv_chat_roles/'+actor.uid);
   if(profile?.activo!==true||!roles.includes(profile.rol))throw fail(403,'Usuario sin acceso');
-  const cfg=await read('sv_permisos/'+profile.rol);
-  if(!allowed(profile.rol,cfg))throw fail(403,'No tenés permiso para administrar gastos');
+  const cfg=await read('sv_permisos/'+profile.rol),reset=await read('sv_access_resets/'+actor.uid);
+  if(actor.claims.svPasswordChangeRequired===true||reset?.required===true||reset?.version!=null&&reset.version!==actor.claims.svAccessVersion)throw fail(403,'Volvé a ingresar antes de guardar gastos');
+  if(!allowed(profile.rol,cfg)||cfg?.acciones?.gastos?.crear===false)throw fail(403,'No tenés permiso para administrar gastos');
   return {role:profile.rol,permissionRevision:cfg?.indiceRevision??null,permissionDigest:digest(cfg||{})};
  }
  const read=async path=>(await db.ref(path).get()).val();
@@ -48,7 +49,7 @@ function createAdminExpenseCreate({authorize:authorizeGateway,db,guard,enabled=f
  async function create(actor,body){
   available();const data=requestData(body),authorization=await access(actor,read);
   const signature=identity(data),key='gasto_'+crypto.createHash('sha256').update(signature).digest('hex'),gastoPath='sisventas/gastos/'+key;
-  return guard.run({uid:actor.uid,claims:actor.claims,mode:'user',...authorization,financialAction:'gastos.administrar',opId:body.id,transportDigest:digest(body),operation:'admin-expense-create',input:body},async scope=>{
+  return guard.run({uid:actor.uid,claims:actor.claims,mode:'command',recoverReceipt:true,...authorization,financialAction:'gastos.administrar',opId:body.id,transportDigest:digest(body),operation:'admin-expense-create',input:body},async scope=>{
    const current=await access(actor,path=>scope.get(path));
    if(digest(current)!==digest(authorization))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
    const config=await scope.get('sv_labor_config');
@@ -69,6 +70,10 @@ function createAdminExpenseCreate({authorize:authorizeGateway,db,guard,enabled=f
    }
    if(duplicate||await scope.get(gastoPath))throw fail(409,'Ya existe un gasto con estos mismos datos. No se volvió a guardar.','SV_GASTO_DUPLICATE');
    const actual=structuredClone(data),patch={};
+   if(data.pagos&&require('./bonus-payment').paymentTotal(data)!==Number(data.montoPagado||0))throw fail(400,'Los pagos no coinciden con el total abonado');
+   for(const photo of [body.foto,data.fotoBase64])if(photo!=null&&!/^data:(?:image\/(?:png|jpeg|webp)|application\/pdf);base64,[A-Za-z0-9+/=\r\n]+$/.test(photo))throw fail(400,'Comprobante inválido');
+   if(Number(data.montoPagado||0)>0){const cfg=await scope.get('sv_permisos/'+authorization.role),profile=await scope.get('sv_chat_roles/'+actor.uid);require('./bonus-payment').allowed(profile,cfg);}
+   if(Number(data.montoPagado||0)<0||Number(data.montoPagado||0)>Number(data.monto)||Number(data.monto)<=0)throw fail(400,'Revisá el importe y el pago inicial');
    if(body.projection==='complete'&&data.empleadoId){
     const emp=await scope.get('sisventas/empleados/'+data.empleadoId),movement='gasto_empresa_'+key,movPath='sisventas/ctaemp/'+data.empleadoId+'/'+movement;
     if(!record(emp)||emp.activo===false)throw fail(409,'El empleado cambió o ya no está activo. Actualizá la pantalla.');

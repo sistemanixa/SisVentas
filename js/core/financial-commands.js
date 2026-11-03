@@ -116,6 +116,7 @@
    return command('adminExpense','expense:'+canonical(datos),payload,datos,'/laboral/gastos/crear-administrativo',data=>{if(typeof data?.key!=='string'||!data.key)throw Object.assign(fail('SV_LABOR_COMMIT_UNCONFIRMED','No se recibió la clave confirmada del gasto.',503),{svLaborAttempted:true});return {key:data.key};});
   }
   root.document?.addEventListener?.('sisventas:session-ended',()=>{capabilities=null;pending.clear();remembered=new WeakMap();});
-  return {register,annul,createExpense};
+  async function editExpense(key,vista,datos,foto){const payload={key,expectedHash:await hash(root._gastoBaseEdicion(vista)),datos,...(foto?{foto}:{})};return command('adminExpense','edit-expense:'+key,payload,datos,'/laboral/gastos/editar-administrativo',data=>{if(data?.key!==key)throw fail('SV_LABOR_COMMIT_UNCONFIRMED','No se recibió la confirmación del gasto.',503);return {key};});}
+  return {register,annul,createExpense,editExpense};
  };
 });

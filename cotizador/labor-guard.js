@@ -169,9 +169,9 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     await require('./operational-projections').augment({patch,raw,get,enabled:operationalSummaries,actor,result,operationId:opId});
     await require('./record-list-projections').augment({patch,raw,get,enabled:operationalSummaries,actor,result,operationId:opId});
     if(commercialPages)await require('./commercial-pages-projections').augment({patch,raw,get});
-    const receiptResult=['user','bootstrap'].includes(actor.mode)?copy(result):{ok:true,committed:true};
+    const receiptResult=['admin-expense-create','admin-expense-edit'].includes(actor.operation)?{ok:true,committed:true,key:result.key}:['user','bootstrap'].includes(actor.mode)?copy(result):{ok:true,committed:true};
     patch['sv_labor_receipts/'+opId]={fence:lease.fence,digest:requestDigest,actorUid:actor.uid,result:receiptResult,confirmedAt:now()};patch.sv_labor_guard=null;
-    if(actor.mode==='user'&&actor.financialAction){
+    if((actor.mode==='user'||actor.mode==='command')&&actor.financialAction){
      const checked=await Promise.allSettled([store.read('sv_chat_roles/'+actor.uid),store.read('sv_permisos/'+actor.role)]),failed=checked.find(value=>value.status==='rejected');live();
      if(failed)throw failed.reason;validateFinancialContext(actor,checked[0].value,checked[1].value);
     }

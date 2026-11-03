@@ -28,7 +28,7 @@ function fixture(options={}){
     return response({ok:true,payments:{enabled:options.payments!==false,version:1},adminExpense:{enabled:options.expenses!==false,version:1}});
    }
    if(url.endsWith('/laboral/operacion'))return response({ok:true,status:receipts.has(body.id)?'confirmed':'rejected'});
-   assert.match(url,/\/(?:cobranzas\/operacion|laboral\/gastos\/crear-administrativo)$/);
+   assert.match(url,/\/(?:cobranzas\/operacion|laboral\/gastos\/(?:crear|editar)-administrativo)$/);
    if(slots.command)await slots.command;
    if(mode==='forbidden')return response({ok:false,code:'DENIED',mensaje:'Sin permiso de guardado'},403);
    if(mode==='unavailable')return response({ok:false,code:'SV_PAYMENTS_NOT_ENABLED',mensaje:'Servicio apagado'},503);
@@ -39,7 +39,7 @@ function fixture(options={}){
    const before=receipts.get(body.id);
    if(before)assert.equal(JSON.stringify(before.body),JSON.stringify(body),'un replay conserva el comando entero, incluidos adjuntos, claves y timestamps');
    else{
-    const data=url.endsWith('/cobranzas/operacion')?{ok:true,committed:true,resultados:[{pago:{fbKey:body.opciones?.solicitudes[0].pago.fbKey||body.pagoKey,monto:40},venta:{fbKey:body.opciones?.solicitudes[0].ventaFbKey||body.ventaKey,totalPagado:40,estadoPago:'seniado'}}]}:{ok:true,committed:true,key:'gasto-fixture'};
+    const data=url.endsWith('/cobranzas/operacion')?{ok:true,committed:true,resultados:[{pago:{fbKey:body.opciones?.solicitudes[0].pago.fbKey||body.pagoKey,monto:40},venta:{fbKey:body.opciones?.solicitudes[0].ventaFbKey||body.ventaKey,totalPagado:40,estadoPago:'seniado'}}]}:{ok:true,committed:true,key:body.key||'gasto-fixture'};
     receipts.set(body.id,{body:copy(body),data});commits.push(copy(body));
    }
    if(mode==='loss-once'){mode='ok';throw Error('Respuesta perdida ficticia');}
@@ -153,3 +153,5 @@ for(const kind of ['annul','expense'])test(kind+': recuperación hidrata el mism
  await until(()=>f.root.SVLaborWriteRecovery.state());const initial=copy(f.commits[0]);await f.root.SVLaborWriteRecovery.check();await running;
  assert.equal(f.commits.length,1);const sent=f.calls.filter(c=>c.url.endsWith(kind==='annul'?'/cobranzas/operacion':'/crear-administrativo'));assert.equal(sent.length,2);assert.deepEqual(sent[1].body,initial);assert.equal(f.storage.size,0);assert.equal(f.holds,0);
 });
+test('edit expense sends exact source hash once and never requests employee account data',async()=>{const f=fixture(),original={monto:100,montoPagado:20,descripcion:'Anterior'},datos={monto:100,montoPagado:20,descripcion:'Nuevo'};f.root._gastoBaseEdicion=v=>v;const result=await f.root.SVFinancialCommands.editExpense('g',original,datos,'data:image/png;base64,QQ==');assert.deepEqual(result,{key:'g'});const call=f.calls.find(x=>x.url.endsWith('/editar-administrativo'));assert.equal(call.body.key,'g');assert.match(call.body.expectedHash,/^[a-f0-9]{64}$/);assert.deepEqual(call.body.datos,datos);assert.equal(f.calls.length,2);assert.equal(f.commits.length,1);});
+test('lost edit response recovers the same id without duplicating its expense write',async()=>{const f=fixture({mode:'loss-once'}),datos={monto:100,montoPagado:0};f.root._gastoBaseEdicion=v=>v;const task=f.root.SVFinancialCommands.editExpense('g',datos,datos,null);await until(()=>f.root.SVLaborWriteRecovery.state()?.status==='unknown');await f.root.SVLaborWriteRecovery.check();assert.deepEqual(await task,{key:'g'});assert.equal(f.commits.length,1);});

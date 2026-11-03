@@ -65,6 +65,7 @@ const expensePayment=require('./bonus-payment').createBonusPayment({authorize:la
 const bonusPayment=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 const paymentCommands=require('./payment-commands').createPaymentCommands({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.PAYMENT_SCOPED_ENABLED==='true'});
 const adminExpenseCreate=require('./admin-expense-create').createAdminExpenseCreate({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.ADMIN_EXPENSE_SCOPED_ENABLED==='true'});
+const adminExpenseEdit=require('./admin-expense-edit').createAdminExpenseEdit({authorize:laborWriteGateway.authorize,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.ADMIN_EXPENSE_SCOPED_ENABLED==='true'});
 const laborOperations = require('./labor-operations').createLaborOperations({auth:businessAuth,db,transaction:laborTransaction});
 const laborSubmissions = require('./labor-submissions').createLaborSubmissions({auth:businessAuth,db,transaction:laborTransaction});
 const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:businessAuth,db,queryFrom:laborRuntime.store.queryFrom});
@@ -2140,15 +2141,15 @@ const server = http.createServer(async (req, res) => {
     try{const actor=await paymentService.authorize(req),body=await readBody(req,4*1024*1024);send(res,200,await paymentService.execute(actor,body));}
     catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el pago. Consultá la operación antes de repetirla.',...(error.code?{code:error.code}:{})});}return;
   }
-  if(['/laboral/capacidades','/laboral/gastos/crear-administrativo','/cobranzas/operacion'].includes(pathname)){
+  if(['/laboral/capacidades','/laboral/gastos/crear-administrativo','/laboral/gastos/editar-administrativo','/cobranzas/operacion'].includes(pathname)){
     res.setHeader('Cache-Control','private, no-store');
     try{
-      const service=pathname==='/cobranzas/operacion'?paymentCommands:pathname==='/laboral/gastos/crear-administrativo'?adminExpenseCreate:laborWriteGateway;
+      const service=pathname==='/laboral/gastos/editar-administrativo'?adminExpenseEdit:pathname==='/cobranzas/operacion'?paymentCommands:pathname==='/laboral/gastos/crear-administrativo'?adminExpenseCreate:laborWriteGateway;
       const actor=await service.authorize(req),body=await readBody(req,pathname==='/laboral/capacidades'?128:16*1024*1024);
       if(pathname==='/laboral/capacidades'){
         if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).length)throw Object.assign(Error('Solicitud inválida'),{statusCode:400});
         send(res,200,{ok:true,payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability()});
-      }else send(res,200,await service[pathname==='/cobranzas/operacion'?'execute':'create'](actor,body));
+      }else send(res,200,await service[['/cobranzas/operacion','/laboral/gastos/editar-administrativo'].includes(pathname)?'execute':'create'](actor,body));
     }catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el guardado. Comprobá el intento antes de repetirlo.',...(error.code?{code:error.code}:{})});}return;
   }
   if(pathname==='/ot/ciclo/disponible'){
