@@ -1,3 +1,6 @@
+# Publicada v3.17.18 · 02/11/2026
+
+Autorización humana publicar recibida. Hosting desde217fd8c041028ab6cd230f022ec4b199f79a2c1b:554activos públicos4cargas. Ocho archivos verificados byte exacto en dominio real, cabeceras y privados404; aviso oficial, marcador y SW18-firebasePASS. Sólo frontend: lápiz compartido de filas comerciales en Acciones; Cotizador/reglas/stock/pagos intactos. Suite previa7016total6989PASS27skip0fallos, cuatro focalesPASS. La revisión visual autenticada de una venta real sigue sin efectuarse; no se creó/guardó una operación para probar. Local18 abierto en ingreso; no volver a recargar una edición sin revisar. Evidencia privada tmp/item-actions31718/web-verified.private.json. Sin push/main.
 # Recarga local18 autorizada · 02/11/2026
 
 El titular confirmó edición guardada y autorizó específicamente reconectar local al endpoint oficial publicado. Se cambió sólo la sobreescritura privada del servidor8766 y se reinició su proceso verificado. No operaciones financieras. Recarga real de pestaña4 muestra ingreso17.18 con campos vacíos; requiere ingreso del titular para ver filas en su sesión. No afirmar verificada la edición real aún. Captura privada tmp/item-actions31718/local18-ingreso.png. Hosting permanece17.17. Cierra el bloqueo de configuración local descrito abajo; resta revisión visual autenticada, sin guardar.
