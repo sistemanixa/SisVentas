@@ -45,6 +45,7 @@ const businessAuth = require('./user-access').createBusinessAuth(firebaseAuth, d
 const userDirectory = require('./user-directory').createUserDirectory({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
 const chatOperations = require('./chat-operations').createChatOperations({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true',headerStore:process.env.CHAT_HEADERS_ENABLED==='true'?require('./chat-header-store').createChatHeaderStore({databaseURL:DATABASE_URL,isReady:async()=>(await db.ref('sv_chat_headers_config/ready').get()).val()===true,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token}):null});
 const distributorDocuments=require('./distributor-documents').createDistributorDocuments({auth:businessAuth,db,enabled:process.env.DISTRIBUTOR_DOCUMENTS_ENABLED==='true'});
+const clientAccountDocuments=require('./client-account-documents').create({auth:businessAuth,db,enabled:process.env.CLIENT_ACCOUNTS_ENABLED==='true'});
 const commercialCollectionReader=require('./commercial-collection-reader').createCommercialCollectionReader({databaseURL:DATABASE_URL,compressOverflow:true,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const projects = require('./projects').createProjects({auth:businessAuth,db,collectionReader:commercialCollectionReader,scopedReads:process.env.COMMERCIAL_SCOPED_READS_ENABLED==='true',queryReader:laborRuntime.store.query,enabled:process.env.PROJECTS_ENABLED==='true',storage:()=>require('firebase-admin').storage(),bucketName:process.env.PROJECTS_MEDIA_BUCKET,listStore:process.env.PROJECT_LISTS_ENABLED==='true'?require('./projects-list-store').createProjectListStore(db):undefined});
 const commercialOwnership=require('./commercial-ownership').createCommercialOwnership({auth:businessAuth,db,collectionReader:commercialCollectionReader,scopedReads:process.env.COMMERCIAL_SCOPED_READS_ENABLED==='true',queryReader:laborRuntime.store.query,enabled:process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'});
@@ -2074,6 +2075,13 @@ const server = http.createServer(async (req, res) => {
       const result=pathname==='/usuarios/perfil'?await userDirectory.profile(actor):await userDirectory.directory(actor,pathname==='/usuarios/administracion');
       send(res,200,{ok:true,...result});
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo cargar el directorio protegido. Reintentá.'});}
+    return;
+  }
+
+  if(['/cuentas/comprobante-embebido','/cuentas/comprobante'].includes(pathname)){
+    res.setHeader('Cache-Control','no-store');
+    try{const result=await clientAccountDocuments[pathname==='/cuentas/comprobante'?'loadPayment':'load'](req,Object.fromEntries(requestUrl.searchParams));send(res,200,{ok:true,...result});}
+    catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo abrir el comprobante. Volvé a intentarlo.'});}
     return;
   }
 

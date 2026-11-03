@@ -20,9 +20,10 @@
   if(path&&path.split('/').some(key=>!key||/[.#$\[\]\x00-\x1f\x7f]/.test(key)))throw fail('SV_LABOR_PATH','Ruta de escritura inválida.');
   return path;
  }
- const serviceOnly=path=>/^(?:sv_labor_|sv_commission_)/.test(path.split('/')[0]||'');
- const intersectsPath=path=>serviceOnly(path)||watched.some(base=>path===base||path.startsWith(base+'/')||!path||base.startsWith(path+'/'));
- const ancestor=path=>watched.some(base=>base.startsWith(path+'/'))||!path;
+ const serviceOnly=path=>/^(?:sv_labor_|sv_commission_|sv_client_accounts(?:_|$))/.test(path.split('/')[0]||'');
+ const identityWatched=root=>root.SVClientAccountHost?.coordinated?.()===true?['clientes','clientes_unificados','clientes_unificados_indice'].map(key=>'sisventas/'+key):[];
+ const baseIntersects=path=>serviceOnly(path)||watched.some(base=>path===base||path.startsWith(base+'/')||!path||base.startsWith(path+'/'));
+ const baseAncestor=path=>watched.some(base=>base.startsWith(path+'/'))||!path;
  const copy=value=>value==null?null:JSON.parse(JSON.stringify(value));
  function validateJSON(value,parents=new Set()){
   if(value===undefined||['function','symbol','bigint'].includes(typeof value)||typeof value==='number'&&!Number.isFinite(value))throw fail('SV_LABOR_VALUE','Datos de escritura inválidos.');
@@ -35,6 +36,8 @@
   parents.delete(value);
  }
  return function create(root){
+  const intersectsPath=path=>baseIntersects(path)||identityWatched(root).some(base=>path===base||path.startsWith(base+'/')||!path||base.startsWith(path+'/'));
+  const ancestor=path=>baseAncestor(path)||identityWatched(root).some(base=>base.startsWith(path+'/'));
   let installed=false,sdk,settings,wrappers;
   function capture(){
    const user=root.fbAuth?.currentUser,uid=root.currentUserUid,role=root.currentRole,epoch=root._svOperacionesSesionEpoch||0;

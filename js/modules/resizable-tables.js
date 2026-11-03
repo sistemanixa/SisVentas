@@ -1738,6 +1738,15 @@
         scheduleViewportFit();
       });
     });
+    document.addEventListener('sisventas:data-state-changed', function () {
+      // La carga de datos oculta temporalmente el contenido del módulo. Si las
+      // filas llegaron durante esa espera, el observer ya intentó medirlas con
+      // ancho cero. Al retirarse la espera no hay otra mutación de las filas.
+      // Completar sólo esas tablas pendientes, sin releer ni repintar datos.
+      var page = document.querySelector('.page.active');
+      if (!page || page.classList.contains('sv-data-pending')) return;
+      page.querySelectorAll('table.sv-columns-pending').forEach(initTable);
+    });
     window.SisVentas = window.SisVentas || {};
     window.SisVentas.initResizableTables = scan;
     window.SisVentas.prepareResizablePage = initPageTables;

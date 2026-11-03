@@ -20,6 +20,7 @@ function flatten(path,patch){
  return out;
 }
 function createLaborDb({db,guard}){
+ const watched=guard.affects||affected;
  if(!db||!guard)throw Error('Falta el circuito de guardado');
  let wrappedDb;
  const internal={uid:'sv-labor-service',mode:'server',operation:'service-write'};
@@ -35,7 +36,7 @@ function createLaborDb({db,guard}){
    const perform=async scope=>{await scope.update(patch);};
    for(const key of Object.keys(patch))if(['sisventas','sisventas/config'].includes(key))throw fail('El guardado requiere registros individuales');
    if(guard.current())return perform(guard.current());
-   if(Object.keys(patch).some(affected))return guard.run({...internal,input:patch},perform);
+   if(Object.keys(patch).some(watched))return guard.run({...internal,input:patch},perform);
    return ref.update(Object.fromEntries(Object.entries(patch).map(([key,value])=>[path?key.slice(path.length+1):key,value])));
   };
   const proxy=new Proxy(ref,{get(target,key){
@@ -50,7 +51,7 @@ function createLaborDb({db,guard}){
    if(key==='root')return scoped(target.root,'');
    if(key==='orderByChild')return field=>{parts(field);return scoped(target.orderByChild(field),path,{field});};
    if(key==='equalTo')return value=>{if(!query?.field)throw fail('Consulta sin campo de orden');return scoped(target.equalTo(value),path,{...query,value});};
-   if(key==='set')return value=>{if(!path||['sisventas','sisventas/config'].includes(path))throw fail('No se permite sustituir la base completa');return !guard.current()&&!affected(path)?target.set(value):stage({[path]:value});};
+   if(key==='set')return value=>{if(!path||['sisventas','sisventas/config'].includes(path))throw fail('No se permite sustituir la base completa');return !guard.current()&&!watched(path)?target.set(value):stage({[path]:value});};
    if(key==='remove')return ()=>{if(!path||['sisventas','sisventas/config'].includes(path))throw fail('No se permite borrar la base completa');return !guard.current()&&!affected(path)?target.remove():stage({[path]:null});};
    if(key==='update')return patch=>{const flat=flatten(path,patch);return !guard.current()&&!Object.keys(flat).some(affected)?target.update(patch):stage(flat);};
    if(key==='transaction')return async(update,completion,applyLocally)=>{

@@ -1,0 +1,26 @@
+'use strict';
+const Identity=require('./commercial-models/client-identity-model'),M=require('./commercial-pages-model'),crypto=require('node:crypto');
+const ROOT='sv_client_accounts/v1/directory',hash=value=>crypto.createHash('sha256').update(String(value)).digest('hex'),refs=['clienteFbKey','clienteKey','clienteId','idCliente','idClienteOriginal','fbKeyCliente','id_cli'],clientFields=['id','clienteFbKey','clienteKey','clienteId','idCliente','idClienteOriginal','clientePrincipalFbKey','nombre'];
+const copy=value=>value==null?null:structuredClone(value),pick=(value,fields)=>Object.fromEntries(fields.filter(k=>value?.[k]!==undefined).map(k=>[k,copy(value[k])])),aliases=(key,row)=>[...new Set([key,...clientFields.filter(k=>k!=='clientePrincipalFbKey'&&k!=='nombre').flatMap(k=>Identity.variants(row?.[k]))])];
+const fail=()=>Object.assign(Error('La identidad del cliente requiere revisión antes de actualizar su cuenta.'),{code:'SV_CLIENT_IDENTITY_INCOMPLETE'});
+function stamp(source){return hash(JSON.stringify(pick(source,[...refs,'clientePrincipalKey','domicilioFbKey','sedeFbKey','clienteSedeFbKey','domicilioId','sedeId'])));}
+function prepare(customers){if(!customers||!['clients','index','structures'].every(k=>Object.hasOwn(customers,k)))throw fail();Identity.create(customers);const patch={};for(const[key,row]of Object.entries(customers.clients||{})){patch[ROOT+'/clients/'+key]=pick(row,clientFields);for(const ref of aliases(key,row))patch[ROOT+'/aliases/'+hash(ref)+'/'+key]=true;}for(const[key,row]of Object.entries(customers.index||{})){if(!M.key(key))throw fail();patch[ROOT+'/index/'+key]=pick(row,['clienteKey']);}for(const[key,row]of Object.entries(customers.structures||{})){if(!M.key(key))throw fail();patch[ROOT+'/structures/'+key]=pick(row,['principalLegacyFbKey']);}return patch;}
+async function update({patch,raw,get}){
+ const changed=new Set();for(const[domain,kind]of [['clientes','clients'],['clientes_unificados_indice','index'],['clientes_unificados','structures']]){
+  const root='sisventas/'+domain,ids=new Set();for(const path of Object.keys(patch)){if(path===root){if(!patch[path]||typeof patch[path]!=='object')throw fail();const previous=await raw(ROOT+'/'+kind)||{};for(const key of new Set([...Object.keys(previous),...Object.keys(patch[path])]))ids.add(key);}else if(path.startsWith(root+'/'))ids.add(path.slice(root.length+1).split('/')[0]);}
+  for(const key of ids){if(!M.key(key))throw fail();const technical=ROOT+'/'+kind+'/'+key,before=await raw(technical),source=Object.hasOwn(patch,root)?patch[root][key]??null:await get(root+'/'+key),after=source===null?null:pick(source,kind==='clients'?clientFields:kind==='index'?['clienteKey']:['principalLegacyFbKey']);if(JSON.stringify(before)===JSON.stringify(after))continue;patch[technical]=after;changed.add(technical);
+   if(kind==='clients')for(const[row,sign]of [[before,-1],[after,1]])if(row)for(const alias of aliases(key,row)){const path=ROOT+'/aliases/'+hash(alias);patch[path+'/'+key]=sign>0?true:null;changed.add(path);}
+  }
+ }
+ return changed;
+}
+async function resolve(source,{read,previous=null,preserveUnresolved=false}={}){
+ const dependencies=new Set(),clients={},index={},structures={},pending=new Set(),required=new Set(),readPoint=async path=>{dependencies.add(path);return read(path);};
+ const references=[...new Set(refs.concat(['domicilioFbKey','sedeFbKey','clienteSedeFbKey','domicilioId','sedeId']).flatMap(k=>Identity.variants(source?.[k])))];
+ for(const ref of references){const bucket=await readPoint(ROOT+'/aliases/'+hash(ref))||{};if(Object.keys(bucket).length>100)throw fail();for(const[key,value]of Object.entries(bucket)){if(value!==true||!M.key(key))throw fail();pending.add(key);required.add(key);}}
+ let steps=0;for(const key of pending){if(++steps>256)throw fail();const client=await readPoint(ROOT+'/clients/'+key);if(!client){if(required.has(key))throw fail();continue;}clients[key]=client;const entry=await readPoint(ROOT+'/index/'+key);if(entry){index[key]=entry;const group=entry.clienteKey;if(!M.key(group))throw fail();if(!Object.hasOwn(structures,group)){structures[group]=await readPoint(ROOT+'/structures/'+group)||{};const principal=structures[group].principalLegacyFbKey;if(principal){if(!M.key(principal))throw fail();pending.add(principal);}}}if(client.clientePrincipalFbKey){if(!M.key(client.clientePrincipalFbKey))throw fail();pending.add(client.clientePrincipalFbKey);}}
+ const model=Identity.create({clients,index,structures}),calculated=model.resolve(source),frozen=preserveUnresolved&&previous&&['legacy','unresolved','ambiguous'].includes(previous.status),identity=frozen?{...previous,label:calculated.label}:preserveUnresolved&&previous?.status==='linked'&&calculated.accountKey!==previous.accountKey&&['legacy','unresolved'].includes(calculated.status)?{...previous,status:'unresolved',recordKey:''}:calculated;
+ if(identity.status==='linked'&&clients[identity.recordKey]?.nombre)identity.label=String(clients[identity.recordKey].nombre).slice(0,300);
+ return{identity,address:frozen?{key:'',status:previous.status==='ambiguous'?'ambiguous':'unknown'}:model.resolveAddress(source),dependencies:[...dependencies].sort(),identityStamp:stamp(source)};
+}
+module.exports={ROOT,prepare,update,resolve,stamp,hash};
