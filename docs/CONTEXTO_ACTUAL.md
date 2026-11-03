@@ -1,3 +1,11 @@
+# Tanda web v3.18.15 preparada · 03/11/2026
+
+Autorización humana nueva:publicar por tandas las correcciones listas y probadas. Rama codex/web-batch-v31815 desde88a3e808, sin incorporar la candidata14 de la auditoría. Sólo integra el cambio de resizable-tables de4c6eabd8 y las funciones renderAcciones/pptoAccionPermitidaParaRol de6e4f810b. Fuente18.10 original conservada; aplicación15 y marcas índice/SW/versión/Novedades coherentes. Revisión funcional del diff:dos funciones y9líneas del componente de tablas, sin servidor/reglas/índices ni datos reales.
+
+Suite de este paquete:7238total/7211PASS/27skip/0fallos,843archivos en2lotes. Tres anchos390/768/1280 verifican tabla visible tras DataReadiness y eventos repetidos sin reconstrucción ni consultas remotas;6casos de permisos/conversión sin guardar presupuestos reales. Los contratos adicionales detectaron una entrada histórica v3.10.32 duplicada que ya estaba en18.10. Se consolidaron sus dos notas en una sola entrada conservando ambos textos; no se debilitó el test ni se cambiaron versiones históricas. El texto actual de Novedades refleja esta tanda. No hay cambios posteriores en cálculos, permisos ni circuitos financieros. Evidencia privada tmp/web-batch31815. Estado externo aún18.10 hasta completar y verificar Hosting; no confundir con publicación.
+
+Cuenta corriente/Cobranzas nativas nuevas, configuración/reglas y retiro del observador permanecen fuera de esta tanda. El control de la pestaña web reportó indisponibilidad; no se atribuye navegación autenticada ni prueba visual de esa sesión. Se realizará verificación HTTP exacta de activos, cabeceras y privados404 tras publicar.
+
 # v3.18.10 publicada y verificada · 03/11/2026
 
 Publicación inmediata pedida por el titular, desde commit limpio e07f04b912fc50af5c48ca4717180a7394e50499. Hosting9b8a4f078d7a618e:574activos/9cargas;11activos públicos idénticos byte por byte, cabeceras y3rutas privadas404. Aviso oficial18.10-firebase verificado. No se cambió Cotizador, reglas, permisos ni registros reales.7202pruebas PASS/27omitidas/0fallos.
