@@ -1,3 +1,9 @@
+# v3.18.10 publicada y verificada · 03/11/2026
+
+Publicación inmediata pedida por el titular, desde commit limpio e07f04b912fc50af5c48ca4717180a7394e50499. Hosting9b8a4f078d7a618e:574activos/9cargas;11activos públicos idénticos byte por byte, cabeceras y3rutas privadas404. Aviso oficial18.10-firebase verificado. No se cambió Cotizador, reglas, permisos ni registros reales.7202pruebas PASS/27omitidas/0fallos.
+
+Sesión web real de administrador revisada sólo por navegación:Dashboard termina arranque, Ventas carga50filas, retornoDashboard mantiene5recientes, Gastos abre11filas. No se pulsó Guardar, registrar, anular ni emitir. Pestaña web19 dejada abierta enGastos; pestañas locales sin recargar. Evidencia privada tmp/web-speed31810. Esta comprobación no es una prueba de todos los roles/formularios ni medición de latencia productiva. La integración por cliente y Cobranzas nativa siguen separadas, sin activar.
+
 # Publicación inmediata de rendimiento v3.18.10 · 03/11/2026
 
 Paquete aislado desde bfe0052f:cache/preflight por actor y cobertura Ventas/Dashboard, lectura histórica puntual de OT/informes, Gastos sin cargar Pagos globales y coherencia canónica de cuentas/estado por centavos.96focales y7202pruebas vigentes PASS,27omitidas,0fallos. No incluye Cobranzas nativa ni la integración por cliente en curso ni la devolución a presupuesto que requiere otro corte. Servidor/reglas/configuraciones funcionales sin cambios. Pedido humano explícito de publicar lo probado; Hosting y aviso se verificarán antes de darlo por publicado. Alcance en PUBLICACION_CARGA_V31810.md.
