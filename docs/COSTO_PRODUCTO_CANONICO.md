@@ -1,3 +1,7 @@
+# Estado final · 03/11/2026
+
+Publicado e integrado con Proyectos en v3.18.2. Retirados631duplicados raíz con respaldo privado fresco y ETag porproducto; cero restantes y todos los demás campos comprobados intactos. Se activó el validador específico que impide a clientes antiguos recrear el campo, sin modificar permisos ni costos de proveedores. Vista previa real local/web P-62928:20000+5%=21000, sin aplicar aumento. Evidencia y SHA en CONTEXTO_ACTUAL. El texto siguiente conserva el diseño y las precondiciones utilizadas; ya no representa una migración pendiente.
+
 # Costo de producto unificado · candidata v3.18.1
 
 El costo operativo del catálogo se resuelve con `precioGremioARSDesdeProducto`, conservando el proveedor favorito, la unidad/presentación y las conversiones existentes. El campo raíz `productos/<id>/costoRealArs` ya no es una fuente de costo: duplicaba la compra y podía quedar desactualizado. `proveedores[].costoRealArs` continúa vigente y no se retira.

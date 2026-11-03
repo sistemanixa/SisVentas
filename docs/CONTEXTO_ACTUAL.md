@@ -1,3 +1,13 @@
+# Costo unificado y duplicado retirado · v3.18.2 publicada · 03/11/2026
+
+Integrado8058ab92 sobre Proyectos18.0 en codex/costo-canonico-cierre-v3181, sin reemplazar su módulo/servidor.18.1 publicada desde91f244961882c5c0c18bead81799b93ca66c7c80 y18.2 final desde042361d4d371f0a740d1a50778784625807635c0. Hosting final564activos/4cargas;9archivos exactos, privados404, aviso/SW/Firebase18.2 sincronizados. Sin compilación nueva de Cotizador: siguecotizador-projects3180-036bd7ad.
+
+631duplicados raíz productos/$id/costoRealArs retirados,0restantes,639productos inventariados,0sin canónico,0valores promovidos. Respaldo completo fresco y respaldo por operación en tmp/cost3181-release, fueraGit. PUT porproducto conETag y reintentos limitados; cada resultado y el catálogo final comprobados iguales al original salvo ese campo. Proveedores, precios, cantidades, stock y documentos históricos sin cambios. Protección remota sólo añade al validador existente del campo raíz: admite conservar el legado idéntico o eliminarlo, impide cambiarlo/recrearlo. No cambia reglas de permisos ni campos de proveedores. Compilación/remoto y3pruebas de emuladorPASS (clienteviejo, operaciones autorizadas y rechazo atómico).
+
+Suite final7083total7056PASS27skip0fallos; sintaxis/diff/ValidarLocalPASS. Detectado/corregido caso ficticio de metros legados sin proveedores que recursaba: normaliza presentación sin volver a entrar al cálculo unitario; costo900,24/m y presentación300m conserva270072 porpresentación/900,24porunidad. Inventario actual:0casos con ese patrón. Nunca se usó un gasto/pago/stock real como prueba.
+
+Local8766 actualizado sin recargar las ediciones originales. Vista previa local y web autenticada18.2: P-62928 costo20000→21000 al5%, venta48000→50400,140% conservado; NO se pulsóAplicar. Evidencia tmp/cost3182-release/web-preview.png, web-verified.private.json y tmp/cost3181-release/retirement-verified.private.json. Dos intentos de inspección amplia del catálogo agotaron el control de navegador; comprobación final por selectores acotados pasó. No confundir ese límite de control con una escritura fallida. Proyectos sigue incluido; PDF excluido hasta recibir referencias del titular.
+
 # Proyectos publicado y verificado v3.18.0 · 03/11/2026
 
 Autorización humana de completar el alcance remoto recibida tras el bloqueo. Hosting desde f1dba90fdd85c29c1b54d9c2a7aa759d43ef5935:562activos/7cargas,8archivos exactos y privados404; aviso oficial/SW/Firebase18.0 sincronizados. Cotizador cotizador-projects3180-036bd7ad activo100%/14accesos; imagen construida desde036bd7adcee9012e8455b27d9cdce8158fa3d548, recursos/escalado/cuenta de ejecución conservados. No se actualizó emitirFactura ni se pausaron finanzas.
