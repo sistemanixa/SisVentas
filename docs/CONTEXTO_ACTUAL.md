@@ -1,3 +1,7 @@
+# Dashboard v3.18.3 publicado · 03/11/2026
+
+Corregido el acumulador mensual de la carga paginada: conserva netCents del agregado diario y cero en períodos vacíos. No cambia consultas, fuentes financieras, permisos, servidor ni datos. Dos regresiones ficticias comprueban neto/IVA/cobros y déficit sin ventas; suite7085total7058PASS27skip0fallos. Local y web autenticada verificadas, diez activos exactos y rutas privadas404, aviso/SW/Firebase18.3 sincronizados. La evidencia de sesión queda privada fuera de Git. Este respaldo contiene sólo código, pruebas ficticias y documentación sin importes de la sesión real.
+
 # Costo unificado y duplicado retirado · v3.18.2 publicada · 03/11/2026
 
 Integrado8058ab92 sobre Proyectos18.0 en codex/costo-canonico-cierre-v3181, sin reemplazar su módulo/servidor.18.1 publicada desde91f244961882c5c0c18bead81799b93ca66c7c80 y18.2 final desde042361d4d371f0a740d1a50778784625807635c0. Hosting final564activos/4cargas;9archivos exactos, privados404, aviso/SW/Firebase18.2 sincronizados. Sin compilación nueva de Cotizador: siguecotizador-projects3180-036bd7ad.
