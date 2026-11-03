@@ -21,7 +21,9 @@
   return path;
  }
  const serviceOnly=path=>/^(?:sv_labor_|sv_commission_|sv_client_accounts(?:_|$))/.test(path.split('/')[0]||'');
- const identityWatched=root=>root.SVClientAccountHost?.coordinated?.()===true?['clientes','clientes_unificados','clientes_unificados_indice'].map(key=>'sisventas/'+key):[];
+ const identityRoots=['clientes','clientes_unificados','clientes_unificados_indice'].map(key=>'sisventas/'+key);
+ const identityIntersects=path=>identityRoots.some(base=>path===base||path.startsWith(base+'/')||!path||base.startsWith(path+'/'));
+ const identityWatched=root=>root.SVClientAccountHost?.coordinated?.()===true?identityRoots:[];
  const baseIntersects=path=>serviceOnly(path)||watched.some(base=>path===base||path.startsWith(base+'/')||!path||base.startsWith(path+'/'));
  const baseAncestor=path=>watched.some(base=>base.startsWith(path+'/'))||!path;
  const copy=value=>value==null?null:JSON.parse(JSON.stringify(value));
@@ -60,6 +62,12 @@
    return network(()=>sdk.get(ref));
   }
   function prepareValue(value){validateJSON(value);return copy(value);}
+  function prepareIdentity(paths,action){
+   const host=root.SVClientAccountHost;
+   if(typeof host?.start!=='function'||!paths.some(identityIntersects))return action();
+   const check=capture();check();
+   return Promise.resolve().then(()=>host.start()).then(()=>{check();return action();});
+  }
   function requireScoped(path){
    if(serviceOnly(path))throw fail('SV_LABOR_SERVICE_ONLY','Esta información sólo puede actualizarla el servidor.');
    if(ancestor(path))throw fail('SV_LABOR_SCOPED_REQUIRED','Esta operación requiere un guardado por registros. No se guardaron cambios.');
@@ -104,7 +112,10 @@
     forEach(action){for(const child of Object.keys(saved&&typeof saved==='object'?saved:{})){if(action(this.child(child))===true)return true;}return false;}};
   }
   function set(ref,value){
-   const path=pathOf(ref);if(!intersectsPath(path))return sdk.set(ref,value);
+   const path=pathOf(ref);return prepareIdentity([path],()=>setReady(ref,value,path));
+  }
+  function setReady(ref,value,path){
+   if(!intersectsPath(path))return sdk.set(ref,value);
    return held(async()=>{const check=capture();check();available();requireScoped(path);const prepared=prepareValue(value);await send({id:uuid(),kind:'set',path,value:prepared},check);});
   }
   function flattenPatch(path,value){
@@ -120,15 +131,15 @@
   }
   function update(ref,value){
    const path=pathOf(ref),flat=flattenPatch(path,value);
-   if(!Object.keys(flat).some(intersectsPath))return sdk.update(ref,value);
+   return prepareIdentity(Object.keys(flat),()=>{if(!Object.keys(flat).some(intersectsPath))return sdk.update(ref,value);
    return held(async()=>{const check=capture();check();available();for(const key of Object.keys(flat))if(intersectsPath(key))requireScoped(key);
     const prepared=Object.create(null);for(const [key,data]of Object.entries(flat))prepared[key]=prepareValue(data);
-    await send({id:uuid(),kind:'patch',path:'',value:prepared},check);});
+    await send({id:uuid(),kind:'patch',path:'',value:prepared},check);});});
   }
-  function remove(ref){return intersectsPath(pathOf(ref))?set(ref,null):sdk.remove(ref);}
+  function remove(ref){const path=pathOf(ref);return prepareIdentity([path],()=>intersectsPath(path)?setReady(ref,null,path):sdk.remove(ref));}
   function push(ref,value){
    if(serviceOnly(pathOf(ref)))throw fail('SV_LABOR_SERVICE_ONLY','Esta información sólo puede actualizarla el servidor.');
-   if(value==null||!intersectsPath(pathOf(ref)))return arguments.length<2?sdk.push(ref):sdk.push(ref,value);
+   if(value==null||!intersectsPath(pathOf(ref))&&!(typeof root.SVClientAccountHost?.start==='function'&&identityIntersects(pathOf(ref))))return arguments.length<2?sdk.push(ref):sdk.push(ref,value);
    // El SDK genera la clave localmente sin guardar ni resolver la nueva promesa
    // con el mismo ThenableReference (eso produciría un ciclo de resolución).
    const child=sdk.push(ref),plain=sdk.ref(root.fbDB,pathOf(child)),pending=set(plain,value).then(()=>plain);
@@ -156,6 +167,7 @@
     const check=capture();check();available();
     if(!Array.isArray(paths)||!paths.length||paths.length>128||typeof build!=='function'||purpose!==undefined&&!['relationship-normalization','expense-removal','employee-bonus-batch','employee-sac-batch','employee-sac-migration','sale-cost-correction','sale-return-to-budget'].includes(purpose))throw fail('SV_LABOR_ATOMIC','El guardado requiere hasta 128 registros y una transformación.');
     const selected=paths.map(pathOf);if(new Set(selected).size!==selected.length)throw fail('SV_LABOR_ATOMIC','Hay registros repetidos en el guardado.');
+    await prepareIdentity(selected,()=>undefined);check();
     for(const path of selected)requireScoped(path);
     for(let attempt=0;attempt<3;attempt++){
      check();const values=Object.create(null),expectedHashes=Object.create(null);let cursor=0,failure;
@@ -178,8 +190,9 @@
     }
    });
   }
-  function runTransaction(ref,transform,options){return intersectsPath(pathOf(ref))?compare(ref,transform):sdk.runTransaction(ref,transform,options);}
+  function runTransaction(ref,transform,options){const path=pathOf(ref);return prepareIdentity([path],()=>intersectsPath(path)?compare(ref,transform):sdk.runTransaction(ref,transform,options));}
   async function restTransaction(ref,transform){
+   await prepareIdentity([pathOf(ref)],()=>undefined);
    if(!intersectsPath(pathOf(ref)))throw fail('SV_LABOR_PATH','La operación no pertenece al guardado laboral.');
    const result=await compare(ref,transform);return {committed:result.committed,...(result.committed?{value:result.snapshot.val()}:{})};
   }

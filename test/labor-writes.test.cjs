@@ -26,6 +26,21 @@ function fixture(){
  return {root,sdk,state,commands,direct,reads,headers,ref:path=>ref(null,path),get,put,commit,setHandler(fn){handler=fn;},setBeforeGet(fn){beforeGet=fn;},setHeaders(fn){headerTask=fn;},get holds(){return holds;},get releases(){return releases;}};
 }
 
+test('first customer set, update, remove, transaction and push wait for coordinated readiness before choosing the writer',async()=>{
+ const f=fixture(),ready=deferred();let enabled=false;f.root.SVClientAccountHost={start:async()=>{await ready.promise;enabled=true;},coordinated:()=>enabled};f.put('sisventas/clientes/compare',{nombre:'Antes'});
+ const set=f.root.fbSet(f.ref('sisventas/clientes/set'),{nombre:'Alta'}),update=f.root.fbUpdate(f.ref('sisventas'),{'clientes/update/nombre':'Actualizado'}),remove=f.root.fbRemove(f.ref('sisventas/clientes/remove')),transaction=f.root.fbRunTransaction(f.ref('sisventas/clientes/compare'),v=>({...v,nombre:'Después'})),push=f.root.fbPush(f.ref('sisventas/clientes'),{nombre:'Nueva clave'});
+ assert.ok(push.key);assert.equal(f.direct.length,0);assert.equal(f.commands.length,0);assert.equal(f.reads.length,0);ready.resolve();await Promise.all([set,update,remove,transaction,push]);assert.equal(f.commands.length,5);assert.equal(f.direct.length,0);assert.equal(f.get('sisventas/clientes/set').nombre,'Alta');assert.equal(f.get('sisventas/clientes/update/nombre'),'Actualizado');assert.equal(f.get('sisventas/clientes/compare').nombre,'Después');assert.equal(f.get('sisventas/clientes/'+push.key).nombre,'Nueva clave');
+});
+test('disabled customer candidate preserves original SDK writes and unrelated routes do not consult its configuration',async()=>{
+ const f=fixture();let starts=0;f.root.SVClientAccountHost={start:async()=>{starts++;return false;},coordinated:()=>false};await f.root.fbSet(f.ref('sv_chat/a'),{texto:'Ajeno'});assert.equal(starts,0);await f.root.fbSet(f.ref('sisventas/clientes/c'),{nombre:'Cliente'});await f.root.fbRemove(f.ref('sisventas/clientes/c'));await f.root.fbUpdate(f.ref('sisventas/clientes/c'),{nombre:'Otro'});assert.deepEqual(f.direct.map(v=>v[0]),['set','set','remove','update']);assert.equal(starts,3);assert.equal(f.commands.length,0);
+});
+test('customer configuration failure or session change never falls back to a direct SDK save',async()=>{
+ for(const mode of ['failure','session']){const f=fixture(),ready=deferred();f.root.SVClientAccountHost={start:()=>ready.promise,coordinated:()=>false};const pending=f.root.fbSet(f.ref('sisventas/clientes/c'),{nombre:'Conservar'});if(mode==='failure'){ready.reject(Error('No se pudo verificar'));await assert.rejects(pending,/verificar/);}else{f.root.currentRole='otro';ready.resolve(false);await assert.rejects(pending,{code:'SV_LABOR_SESSION'});}assert.equal(f.direct.length,0);assert.equal(f.commands.length,0);}
+});
+test('customer atomic transform waits for readiness before reading original records',async()=>{
+ const f=fixture(),ready=deferred();let enabled=false;f.root.SVClientAccountHost={start:async()=>{await ready.promise;enabled=true;},coordinated:()=>enabled};f.put('sisventas/clientes/c',{nombre:'Antes'});f.setHandler(()=>response({ok:true,committed:true}));const result=f.root.SVLaborWrites.atomic({paths:['sisventas/clientes/c'],build:values=>({'sisventas/clientes/c':{...values['sisventas/clientes/c'],nombre:'Después'}})});assert.equal(f.reads.length,0);ready.resolve();await result;assert.deepEqual(f.reads,['sisventas/clientes/c']);assert.equal(f.commands[0].kind,'atomic');assert.equal(f.direct.length,0);
+});
+
 test('instalar es idempotente y las rutas ajenas conservan el SDK sin llamadas al gateway',async()=>{
  const f=fixture(),wrapped=f.root.fbSet;f.root.SVLaborWrites.install({sdk:f.sdk});assert.equal(f.root.fbSet,wrapped);
  await f.root.fbSet(f.ref('sisventas/clientes/c'),{nombre:'Ficticio'});await f.root.fbUpdate(f.ref('sisventas/config'),{tipoCambio:{usd:100}});

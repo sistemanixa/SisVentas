@@ -1,3 +1,7 @@
+# Primer guardado de Clientes coordinado · 03/11/2026
+
+Se conserva el bloque local13 en00f3bc8b, sin push/publicación. Continuación: el adaptador espera la capacidad de Cuenta corriente antes de elegir SDK/gateway en set, update, remove, push, transaction y atomic de Clientes/unificaciones. Si falla la capacidad o cambia la sesión no usa otra vía. Rutas ajenas no consultan esta configuración; se retiró su lectura proactiva al iniciar sesión. Sólo se lee por entrada a Cuenta corriente o guardado concreto. Conserva ThenableReference y CAS. Cuatro casos nuevos+23regresiones adaptador PASS; con gateway/escritores44PASS. Se actualizaron los tags de scripts mutables modificados en índice y SW a13, incluida tabla redimensionable. ValidarLocal13 y11casos de presupuesto/reglas PASS. Browser focal posterior3PASS:capacidad desactivada/cobertura incompleta, reposo oculto y formulario real ficticio con replay/anulación. No se aplicaron reglas/configs/servidor ni registros reales. Siguiente: cerrar coherencia de unificaciones con el agregado comercial, usuario nuevo sin movimientos, retorno/concurrencia de formularios e Historial multifuente.
+
 # Integración local por cliente en curso · 03/11/2026
 
 Candidata local v3.18.13 (18.11/18.12 reservadas por chat de Presupuestos), sin publicar ni push. Se integraron por funciones los arreglos probados de 4c6eabd8 y 6e4f810b: tabla visible al terminar DataReadiness y Convertir según permisos efectivos, sin cambiar filtros. Aplicación18.9 original conservada; fuente activa13, índice/SW/marcador local coherentes.

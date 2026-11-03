@@ -50,7 +50,6 @@ function install(root){
  wrap('imprimirExtractoCuentaCorriente',async()=>{if(!detail)return;try{const current=detail,at=epoch,revision=current.revision,rows=[];let cursor=null;do{const result=await reader.ledger(current.id,{cursor,expectedRevision:revision});if(at!==epoch||detail!==current||current.revision!==revision||!active())return;rows.push(...result.rows);cursor=result.hasMore?result.cursor:null;}while(cursor);await hydrateClient();if(at!==epoch||detail!==current||current.revision!==revision||!active())return;const previous=root._ccExtractoActual;root._ccExtractoActual={...previous,movimientos:rows.map(movement)};try{return original.imprimirExtractoCuentaCorriente();}finally{root._ccExtractoActual=previous;}}catch(error){root.notify?.(error.message);}});
  doc.addEventListener('sisventas:page-changed',()=>{if(target()&&allowed()&&!doc.hidden)void enter();else if(claimed){claimed=false;cancel();root.SVDataReadiness?.invalidate?.(sources());}});
  for(const event of ['sisventas:session-ended','sisventas:role-changed'])doc.addEventListener(event,reset);
- doc.addEventListener('sisventas:session-ready',()=>{if(!doc.hidden&&root.currentUserUid&&root.fbDB&&root.fbAuth?.currentUser)void start().catch(()=>{});});
  doc.addEventListener('visibilitychange',()=>{if(doc.hidden)cancel();else if(target()&&allowed())void enter();});doc.addEventListener('sisventas:commercial-write-confirmed',()=>{if(active()&&!doc.hidden)void refresh();});
  return Object.freeze({active,coordinated:()=>enabled===true&&contextKey===key(),start,ensure:enter,refresh,reset});
 }
