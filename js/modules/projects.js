@@ -95,7 +95,7 @@
  function empty(title,description,action=''){return '<div class="px-empty">'+icon('folders')+'<strong>'+esc(title)+'</strong><p>'+esc(description)+'</p>'+action+'</div>';}
  function shell(content){host().innerHTML='<div class="px-shell">'+content+'</div>';}
  function overview(){
-  const active=state.projects.filter(p=>p.stage!=='descartado'&&progress(p).done<progress(p).all).length;
+  const active=state.projects.filter(p=>!['descartado','finalizado'].includes(p.stage)&&progress(p).done<progress(p).all).length;
   const pending=state.projects.reduce((sum,p)=>sum+M.stats(p).pending,0),budgets=state.projects.reduce((sum,p)=>sum+(p.summary?.budgets??p.budgets.length),0);
   shell('<section class="px-hero"><div><div class="px-eyebrow">PLANIFICAR · COMPARTIR · COTIZAR</div><h2>Planificá el próximo trabajo</h2><p>De las primeras necesidades a una propuesta lista para presentar.</p></div><div class="px-hero-actions">'+(preview()?'<span class="px-preview">Vista previa · datos de ejemplo</span>':'')+(state.canCreate?button(icon('plus')+' Nuevo proyecto','new','px-primary'):'')+'</div></section>'+
    '<p class="px-muted">Resumen de los proyectos de esta página</p><div class="px-stats">'+[['folders',state.projects.length,'Proyectos'],['route',active,'Trabajos pendientes'],['list-check',pending,'Necesidades por definir'],...(window.currentRole==='tecnico'?[]:[['file-description',budgets,'Presupuestos y borradores']])].map(([i,n,t])=>'<div class="px-stat">'+icon(i)+'<div><strong>'+n+'</strong><span>'+t+'</span></div></div>').join('')+'</div>'+
@@ -103,7 +103,7 @@
  }
  function cards(){
   const target=host().querySelector('[data-px-cards]');if(!target)return;
-  const filtered=state.projects.filter(p=>(state.filter==='all'||(state.filter==='approved'?p.stage==='aprobado':!['aprobado','descartado'].includes(p.stage)))&&norm([p.name,p.clientName,p.address].join(' ')).includes(norm(state.search)));
+  const filtered=state.projects.filter(p=>(state.filter==='all'||(state.filter==='approved'?p.stage==='aprobado':!['aprobado','descartado','finalizado'].includes(p.stage)))&&norm([p.name,p.clientName,p.address].join(' ')).includes(norm(state.search)));
   target.innerHTML=filtered.map(p=>{const s=M.stats(p);return '<article class="px-card" role="button" tabindex="0" data-px="open" data-id="'+esc(p.id)+'" aria-label="Abrir proyecto: '+esc(p.name)+'"><div class="px-card-top"><span class="px-project-icon">'+icon('folder')+'</span>'+pill(p.stage,M.stages[p.stage])+'</div><div><div class="px-code">'+esc(p.number)+'</div><h3>'+esc(p.name)+'</h3><div class="px-muted">'+esc(p.clientName||'Cliente a definir')+'</div><p class="px-goal">'+esc(p.goal||'Comenzá definiendo el objetivo del proyecto.')+'</p></div><div><div class="px-progress-label"><span>Trabajo realizado</span><span>'+progress(p).done+' de '+s.all+'</span></div><div class="px-track"><span style="width:'+progress(p).percent+'%"></span></div></div><div class="px-card-foot">'+avatars(p)+'<small>'+(commercial(p)?icon('file-description')+' '+(p.summary?.budgets??p.budgets.length)+' · ':'')+date(p.updatedAt)+'</small></div></article>';}).join('')||empty(state.projects.length?'No encontramos proyectos':'Tu próximo proyecto empieza acá',state.projects.length?'Probá otro texto o cambiá el filtro.':'Definí el objetivo, organizá las necesidades y sumá a tu equipo.',!state.projects.length&&state.canCreate?button('Crear primer proyecto','new','px-primary'):'');
  }
  function details(){
