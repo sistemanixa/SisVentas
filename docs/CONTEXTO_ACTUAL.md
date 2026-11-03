@@ -1,3 +1,9 @@
+# Cobertura salarial desbloqueada en local · 03/11/2026
+
+El informe dependía de cachedRecords(ventas) completo; con la carga paginada ese historial no se prepara al entrar, y el módulo quedaba esperando indefinidamente. Se conserva la fuente completa cuando ya existe y, cuando falta, se consulta el índice comercial del período en páginas de 50; sólo se leen completos los registros seleccionados, con concurrencia cuatro y límite explícito de 1.000. Se verifica configuración/cobertura antes y revisión después; error o detalle ausente no se convierte en cero. No lee la raíz de ventas, no agrega sondeos ni usa Cotizador. La fecha normalizada del índice se utiliza sólo en la proyección en memoria, nunca se guarda.
+
+71 pruebas específicas PASS; puerta completa 7101 total, 7074 PASS, 27 omitidas, 0 fallos. Local verificado: mes vacío finaliza y mes anterior devuelve ventas y salarios. Evidencia privada tmp/salary-period-fix/local-result.png. No se guardó ningún dato real. Se conservan los avisos de aprobación o clasificación histórica incompleta; la fuente de referencias en la carga fría es el período consultado, sin descargar otros meses para inventar clasificaciones o costos. No afirmar que esos avisos quedaron conciliados. Producción aún no contiene este arreglo ni el anterior de entrega OT; se mantienen preparados en la rama de trabajo.
+
 # Entrega de materiales OT corregida en local · 03/11/2026
 
 El titular autorizó probar el botón de entrega de OT-154: el intento real fue rechazado por permisos, sin confirmación de entrega. Causa identificada: SVGuardedWrites.restTransaction caía en PUT directo para ordenes_trabajo y no emparejaba el resumen/revisión exigidos por las reglas de listados. Se deriva a SVRecordListWrites.transaction después de las rutas operativa y financiera existentes. No cambia permisos, reglas, servidor, stock ni finanzas. El administrativo usa el mismo circuito con ot.entregarMateriales.
