@@ -26,7 +26,12 @@ test('la carga inicial usa sólo la ruta y el directorio, sin historiales diferi
 
 test('la pantalla directa carga sus dependencias sin esperar el lote general', () => {
   assert.match(app, /actualizadorprecios:\s*\[fbCargarProductos, fbCargarProveedores\]/);
-  assert.match(app, /gastos:\s*\[fbCargarGastos, fbCargarEmpleados, fbCargarPagos\]/);
+  // Gastos consumes its own payment history. Loading global customer collections
+  // here was an unnecessary dependency; exercise the active loader, not its text.
+  const vm=require('node:vm'),source=require('./helpers/app-functions.cjs').functionSource('svCargarDatosDePaginaActual'),calls=[],context={permisoModulo:()=>true};
+  for(const name of new Set(source.match(/\b(?:fbCargar\w+|cargarKits|spCargar|svCargarInicioDashboardDemandado)\b/g)||[]))context[name]=()=>calls.push(name);
+  context.window=context;vm.runInNewContext(source,context);context.svCargarDatosDePaginaActual('gastos');
+  assert.deepEqual(calls,['fbCargarGastos','fbCargarEmpleados']);
   assert.match(app, /venta:\s*\[fbCargarClientes, fbCargarProductos, fbCargarVentas\]/);
   assert.match(app, /garantias:\s*\[fbCargarGarantias, fbCargarEquipos, fbCargarClientes, fbCargarVentas, fbCargarProductos\]/);
   assert.match(app, /ordenes:\s*\[fbCargarOrdenes, fbCargarProductos, fbCargarProveedores\]/);

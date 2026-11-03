@@ -3,8 +3,17 @@ const {isDeepStrictEqual:same}=require('node:util');
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_SALE_RETURN_BLOCKED'});
 const technical=['ventaFbKey','ventaKey','ventaGeneradaFbKey','ventaOrigenFbKey'],visible=['venta','ventaId','idVenta','nroVenta','numeroVenta','ventaNumero'];
 const Payments=require('./payment-membership-index');
+const PURPOSE='sale-return-to-budget';
+function describe(body){
+ const patch=body?.value,budgets=Object.entries(patch||{}).filter(([p,v])=>/^sisventas\/presupuestos\/[^/]+$/.test(p)&&v&&typeof v==='object'&&!Array.isArray(v));
+ if(body?.kind!=='atomic'||body.purpose!==PURPOSE||budgets.length!==1)throw fail('La devolución requiere una venta y un presupuesto nuevos.');
+ const [budgetPath,budget]=budgets[0],key=budget.ventaOrigenFbKey;
+ if(typeof key!=='string'||!key||/[.#$\[\]\/\x00-\x1f]/.test(key)||budgetPath!=='sisventas/presupuestos/desde_venta_'+key||patch['sisventas/ventas/'+key]!==null||body.expectedHashes?.[budgetPath]!==require('./labor-guard').digest(null))throw fail('La devolución no coincide con la venta y el destino esperados.');
+ if(Object.keys(patch).some(p=>p!=='sisventas/ventas/'+key&&p!==budgetPath&&!/^sisventas\/listas_materiales\/[^/]+$/.test(p)))throw fail('La devolución no puede cambiar otros registros.');
+ return {salePath:'sisventas/ventas/'+key,budgetPath};
+}
 const roots=['ordenes_trabajo','ordenesTrabajo','agenda','ordenes','comisiones_generacion'];
-function hasFlow(sale){return Number(sale.pagado||sale.montoPagado||0)>0||sale.facturada===true||sale.factura||sale.facturacion||sale.facturaNumero||sale.numeroFactura||sale.facturas&&Object.keys(sale.facturas).length||sale.facturasAdicionales&&Object.keys(sale.facturasAdicionales).length||sale.otId||sale.otFbKey||sale.ordenTrabajoId||sale.instalado===true;}
+function hasFlow(sale){const embedded=sale.pagos,history=embedded&&typeof embedded==='object'?Object.keys(embedded).length>0:!!embedded;return ['totalPagado','pagado','montoPagado'].some(k=>sale[k]!=null&&(!Number.isFinite(Number(sale[k]))||Number(sale[k])>0))||history||['instalado','en_instalacion','con_garantia'].includes(String(sale.estadoInst||''))||sale.facturada===true||sale.factura||sale.facturacion||sale.facturaNumero||sale.numeroFactura||sale.facturas&&Object.keys(sale.facturas).length||sale.facturasAdicionales&&Object.keys(sale.facturasAdicionales).length||sale.otId||sale.otFbKey||sale.ordenTrabajoId||sale.instalado===true;}
 function draftOnly(list){return !list.stockExistenteReservado&&!list.compraConjuntaId&&!list.desagrupada&&!list.compraConfirmacion&&!list.aplicacionExteriorId&&!list.aplicacionExteriorPendiente&&!list.cancelacionExteriorPendiente&&!list.recepcionPendiente&&!(list.ordenesIds&&Object.keys(list.ordenesIds).length)&&!['ordenada','reservada','recibida','cerrada'].includes(list.estado)&&!Object.values(list.items||{}).some(i=>Number(i.cantidadRecibida||i.cantidadEntregada||0)>0);}
 async function related(query,domain,key,sale){const found={},names=new Set([sale.id,sale.numero].filter(v=>v!=null&&v!=='').map(String)),values=new Set([...names,...[...names].map(v=>v.replace(/\D/g,'')),...[...names].map(v=>'#'+v)]),requests=technical.map(field=>[field,key]);for(const field of visible)for(const value of values)if(value)requests.push([field,value]);let cursor=0;await Promise.all(Array.from({length:Math.min(6,requests.length)},async()=>{while(cursor<requests.length){const [field,value]=requests[cursor++];Object.assign(found,await query('sisventas/'+domain,field,value)||{});}}));return found;}
 
@@ -24,4 +33,4 @@ async function validate({actor,patch,raw,query,beforeCommit,digest}){
  if(Object.keys(patch).some(p=>!allowed.has(p)))throw fail('Volver a presupuesto no elimina cobros, OT ni movimientos de stock.');
  beforeCommit(async({readFresh,queryFresh})=>{if(await readFresh('sv_commission_generation/'+key))throw fail('Se generaron comisiones: no se modificó la venta.');await assertNoPayments(readFresh,sale,key);if(digest({profile:await readFresh('sv_chat_roles/'+actor.uid),cfg:await readFresh('sv_permisos/'+profile.rol)})!==permissionHash)throw fail('Los permisos cambiaron.');for(const domain of roots)if(Object.keys(await related(queryFresh,domain,key,sale)).length)throw fail('Se agregó actividad a la venta; no se guardaron cambios.');if(digest(await related(queryFresh,'listas_materiales',key,sale))!==digest(lists))throw fail('La preparación cambió.');});
 }
-module.exports={validate,hasFlow,draftOnly,related,assertNoPayments};
+module.exports={validate,hasFlow,draftOnly,related,assertNoPayments,describe,PURPOSE};

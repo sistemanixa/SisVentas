@@ -12,3 +12,17 @@ test('gastos que cambian durante la consulta no se mezclan con el primer resumen
 test('importe indexado inconsistente no se publica aunque coincida la cantidad de filas',async()=>{const f=await fixture(1),path=Object.keys(f.data).find(p=>p.includes('/pages/all/sales/')&&f.data[p].key==='s0');f.data[path].totalCents++;await assert.rejects(f.reader.load(f.spec),/importes del período/);});
 test('sin permiso del módulo no empieza la consulta',async()=>{const f=await fixture(1);f.r.permisoModulo=()=>false;await assert.rejects(f.reader.load(f.spec),{name:'AbortError'});assert.equal(f.calls.length,0);});
 test('dato diario malformado es un error explícito y nunca NaN',async()=>{const f=await fixture(1);f.data['sv_commercial_pages/v1/totals/all'].days['2026-11-02'].netCents=NaN;await assert.rejects(f.reader.load(f.spec),/totales por fecha/);});
+
+test('a configured nonadmin report uses fresh authorized records for historical ownership',async()=>{
+ const f=await fixture(2);f.r.currentRole='administrativo';f.r.PERMISOS_ROLES.administrativo={indiceRevision:1};const requests=[];
+ for(const p of Object.keys(f.data))if(p.includes('/pages/u_u/sales/')){delete f.data['sisventas/ventas/'+f.data[p].key].responsableUid;}
+ f.r.SVCommercialOwnership={request:async(domain,path)=>{requests.push(path);assert.equal(domain,'ventas');return{record:f.data['sisventas/ventas/'+path.split('/')[1]]};}};
+ const get=f.r.fbGet;f.r.fbGet=async q=>{assert(!String(q).startsWith('sisventas/ventas/'));return get(q);};
+ const result=await f.reader.load({...f.spec,expenses:false});assert.equal(result.sales.length,2);assert.equal(requests.length,2);assert.deepEqual(f.events,['ready']);
+});
+
+test('a denied point record never produces a partial nonadmin report',async()=>{
+ const f=await fixture(2);f.r.currentRole='administrativo';f.r.PERMISOS_ROLES.administrativo={indiceRevision:1};
+ f.r.SVCommercialOwnership={request:async()=>{throw Object.assign(Error('Registro no disponible'),{status:404});}};
+ await assert.rejects(f.reader.load({...f.spec,expenses:false}),/no disponible/);assert.deepEqual(f.events,['error']);
+});

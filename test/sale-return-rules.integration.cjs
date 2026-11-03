@@ -1,0 +1,24 @@
+'use strict';
+// Opt-in: copied rules, loopback-only demo. Never starts an emulator or reads production.
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
+const G=require('../cotizador/labor-guard'),I=require('../cotizador/labor-index'),Pages=require('../cotizador/commercial-pages-projections'),Membership=require('../cotizador/payment-membership-index'),Permission=require('../js/core/permission-index'),Rules=require('../scripts/lib/sale-return-rules.cjs');
+const {createLaborRtdbStore}=require('../cotizador/labor-rtdb-store'),{createLaborWriteGateway}=require('../cotizador/labor-write-gateway'),{base,ns,restrictedFetch,rest,apply}=require('./helpers/demo-rtdb-rules.cjs');
+test('return-to-budget preserves exact rules and rejects unauthorized or changed fictitious operations',{skip:process.env.FIREBASE_DATABASE_EMULATOR_HOST!=='127.0.0.1:9046'||!process.env.SV_RULES_TEST_FILE,timeout:60000},async()=>{
+ const original=JSON.parse(fs.readFileSync(process.env.SV_RULES_TEST_FILE,'utf8')),candidate=Rules.build(original);
+ await rest('PUT','.settings/rules',candidate);
+ const cases=[['admin','ok'],['administrativo','ok'],['vendedor','ok'],['tecnico','denied'],['administrativo','denied'],['administrativo','foreign'],['admin','destination'],['admin','payment'],['admin','ot'],['admin','cost'],['admin','extra'],['admin','inactive']];
+ for(const [role,scenario]of cases){
+  const sale={id:'V-FICTICIA',fecha:'2026-11-03',cliente:'Persona ficticia',responsableUid:'u',creadaPorUid:'u',items:[{cod:'P-FICTICIO',qty:1,punit:100,costoUnitarioCompra:20}],total:100,subtotal:100,descuento:0,iva:0};
+  if(scenario==='foreign')sale.responsableUid='other';if(scenario==='ot')sale.otId='ot-fiction';
+  const budget={...structuredClone(sale),id:'PP-FICTICIO',numero:'PP-FICTICIO',responsableUid:'u',creadorOriginalUid:'u',creadorOriginalNombre:'Persona ficticia',estado:'enviado',ventaOrigenFbKey:'s',ventaOrigenId:sale.id,ts:100};
+  const state={sv_labor_config:{schema:1,ready:true},sv_record_list_config:{schema:1,ready:true},sv_chat_directorio:{u:{nombre:'Persona ficticia'}},sv_chat_roles:{u:{rol:role,activo:scenario!=='inactive',nombre:'Persona ficticia'}},sv_usuarios:{u:{uid:'u',rol:role,activo:true,nombre:'Persona ficticia'}},sv_permisos:Permission.build({[role]:{acciones:{ventas:{moverPresupuesto:scenario!=='denied',crear:true,editar:true},presupuestos:{crear:true}}}}),sisventas:{ventas:{s:sale},presupuestos:scenario==='destination'?{desde_venta_s:{id:'DO-NOT-OVERWRITE'}}:{},pagos:scenario==='payment'?{p:{ventaFbKey:'s',monto:1,fecha:'2026-11-03'}}:{},sentinel:{stock:37,commission:999}}};
+  apply(state,I.buildIndex(state.sisventas));apply(state,Membership.buildIndex(state.sisventas.pagos,{generation:'fixture-generation',ready:true}).patch);apply(state,(await Pages.prepare({sales:{s:sale},payments:state.sisventas.pagos,owner:s=>s.responsableUid,generation:'fixture-generation'})).patch);state.sv_commercial_pages_config={schema:1,ready:true,searchSchema:1,searchReady:true,generation:'fixture-generation'};
+  await rest('PUT','',state);const store=createLaborRtdbStore({databaseURL:base+'/?ns='+ns,accessToken:async()=>'owner',fetchImpl:restrictedFetch}),guard=G.createLaborGuard({store,operationalSummaries:true,commercialPages:true}),db={ref:path=>({get:async()=>({val:()=>rest('GET',path)})})},gateway=createLaborWriteGateway({db,store,guard,enabled:true});
+  const value={'sisventas/ventas/s':null,'sisventas/presupuestos/desde_venta_s':budget};if(scenario==='cost')budget.items[0].costoUnitarioCompra=1;if(scenario==='extra')value['sisventas/gastos/unrelated']=null;
+  const command={id:'fixture-return-'+role+'-'+scenario,kind:'atomic',purpose:'sale-return-to-budget',path:'',value,expectedHashes:{'sisventas/ventas/s':G.digest(sale),'sisventas/presupuestos/desde_venta_s':G.digest(null)}},before=await rest('GET','sisventas');
+  if(scenario!=='ok')await assert.rejects(gateway.write({uid:'u',claims:{uid:'u'}},command),role+'/'+scenario);
+  else {await gateway.write({uid:'u',claims:{uid:'u'}},command);assert.equal(await rest('GET','sisventas/ventas/s'),null);const saved=await rest('GET','sisventas/presupuestos/desde_venta_s');assert.deepEqual(saved.items,sale.items);assert.equal(saved.total,sale.total);await gateway.write({uid:'u',claims:{uid:'u'}},command);}
+  const after=await rest('GET','sisventas');if(scenario!=='ok')assert.deepEqual(after,before,role+'/'+scenario);assert.deepEqual(after.sentinel,before.sentinel);assert.deepEqual(after.pagos||null,before.pagos||null);assert.equal(await rest('GET','sv_labor_guard'),null);
+ }
+ assert.deepEqual(Rules.build(candidate),candidate);
+});

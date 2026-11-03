@@ -6,3 +6,12 @@ test('a received order, an OT, calendar activity or reserved stock blocks conver
 test('payment lookup uses the complete membership index, including old numeric references',async()=>{const f=fixture(),payment={venta:'ANTIGUA-1',monto:1};Object.assign(f.db,P.buildIndex({p:payment},{generation:'fixture-generation',ready:true}).patch);f.db['sisventas/pagos/p']=payment;await assert.rejects(R.validate(f.args),/cobros/);});
 test('new linked activity or revoked permission before commit aborts the entire return',async()=>{for(const changed of ['activity','permission']){const f=fixture();await R.validate(f.args);if(changed==='permission')f.db['sv_permisos/admin'].acciones.ventas.moverPresupuesto=false;await assert.rejects(f.checks[0]({readFresh:f.raw,queryFresh:async(...args)=>changed==='activity'&&args[0]==='sisventas/agenda'?{late:{ventaFbKey:'s'}}:f.query(...args)}));}});
 test('ordinary writes do not trigger relationship queries',async()=>{await R.validate({actor:{uid:'u'},patch:{'sisventas/gastos/g':{monto:10}},raw:()=>assert.fail('unnecessary read'),query:()=>assert.fail('unnecessary query')});});
+test('return protects embedded and undetailed historical payments, including cancelled history',async()=>{
+ for(const values of [{totalPagado:1},{pagado:1},{montoPagado:1},{pagos:[{monto:1}]},{pagos:{p:{monto:1,anulado:true}}},{estadoInst:'instalado'},{totalPagado:'invalid'}]){const f=fixture();Object.assign(f.sale,values);await assert.rejects(R.validate(f.args),/actividad/);}
+ assert.equal(!!R.hasFlow({totalPagado:0,pagos:[],estadoInst:'pendiente_inst'}),false);
+});
+test('explicit return purpose cannot be used as a general absent-record read or unrelated deletion',()=>{
+ const f=fixture(),budgetPath='sisventas/presupuestos/desde_venta_s',body={purpose:R.PURPOSE,kind:'atomic',value:{'sisventas/ventas/s':null,[budgetPath]:f.budget},expectedHashes:{[budgetPath]:digest(null)}};
+ assert.deepEqual(R.describe(body),{salePath:'sisventas/ventas/s',budgetPath});
+ for(const change of ['destination','hash','source','extra']){const forged=structuredClone(body);if(change==='destination'){forged.value['sisventas/presupuestos/another']=forged.value[budgetPath];delete forged.value[budgetPath];}if(change==='hash')forged.expectedHashes[budgetPath]=digest({});if(change==='source')forged.value['sisventas/ventas/s']={total:100};if(change==='extra')forged.value['sisventas/ctaemp/private']=null;assert.throws(()=>R.describe(forged));}
+});
