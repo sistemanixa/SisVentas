@@ -1,3 +1,7 @@
+# Preparación local de lecturas por cliente · 03/11/2026
+
+Componentes nuevos de identidad, proyección, lector paginado/búsqueda y propuesta de reglas en docs/CUENTA_CORRIENTE_LECTURAS_POR_CLIENTE.md.33 pruebas unitarias y matriz adicional en emulador aprobadas; puerta completa7299total/7272PASS/27skip/0fallos(90,3s), sintaxis y coherencia18.9 PASS. Sin conexión a la pantalla actual, activación, publicación, push ni datos reales. Medición sintética:1.354.223 bytes de originales frente a31.704 para primera página y totales; no es consumo de producción. Sigue abierto integrar escritores, extracto completo por cliente, Historial, interfaz y sincronización real. Estas tareas son ejecutables, no bloqueos humanos. No repetir la corrección ya conservada en66380b6a ni dar por terminada la auditoría.
+
 # Continuación de Cuenta corriente verificada y conservada local · 03/11/2026
 
 Puerta final7266total/7239PASS/27skip/0fallos (79,9s). Paridad300ventas ordinarias exacta; correcciones de anulados/identidad técnica y estados por centavo verificadas. No se cambiaron importes, operaciones ni permisos. Cobranzas sigue en commit f77a81bc, sólo local. Se inicia ahora el modelo de identidad para futuras lecturas por cliente:sin resolver por nombres ni inferir una ficha para referencias ambiguas; todavía no está integrado ni activado. No dar por terminada la optimización HTTP de Cuenta corriente/Historial.
