@@ -1,3 +1,9 @@
+# Tanda web v3.18.15 publicada y verificada · 03/11/2026
+
+Publicada desde commit0f43342a6ad24a17da21a28b3cef13f9387250fb, rama codex/web-batch-v31815. Hostingsites/nixa-sisventas-seguro/versions/0d99a318b37084c4,575activos/5cargas. Sólo cambia tablas al completar DataReadiness, acciones de convertir presupuesto según permisos efectivos y Novedades coherentes (incluida consolidación de entrada histórica duplicada con ambos textos conservados). Suite7238total/7211PASS/27skip/0fallos;9contratos adicionales de versión/permisos PASS después del ajuste de notas.12activos HTTP exactos con cabeceras y privados404; aviso oficial sincronizado únicamente después de verificar. Evidencia privada tmp/web-batch31815. Control de pestaña no disponible: no afirmar navegación autenticada ni verificación visual de una sesión real. No se registraron operaciones de prueba reales.
+
+No se cambió Cotizador, reglas, índices, configuraciones funcionales ni originales de ventas/pagos/comisiones/stock. No incluye CC/Cobranzas nuevas ni el retiro del observador, que siguen integrados sólo en la rama de auditoría. Sin push/main en esta tanda. Continuar Historial multifuente, ámbitos nuevos sin movimientos y restantes consumidores; auditoría abierta.
+
 # Tanda web v3.18.15 preparada · 03/11/2026
 
 Autorización humana nueva:publicar por tandas las correcciones listas y probadas. Rama codex/web-batch-v31815 desde88a3e808, sin incorporar la candidata14 de la auditoría. Sólo integra el cambio de resizable-tables de4c6eabd8 y las funciones renderAcciones/pptoAccionPermitidaParaRol de6e4f810b. Fuente18.10 original conservada; aplicación15 y marcas índice/SW/versión/Novedades coherentes. Revisión funcional del diff:dos funciones y9líneas del componente de tablas, sin servidor/reglas/índices ni datos reales.
