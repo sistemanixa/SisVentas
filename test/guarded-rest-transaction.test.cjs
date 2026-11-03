@@ -2,6 +2,20 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),vm=requir
 const source=fs.readFileSync('js/core/guarded-writes.js','utf8');
 function setup(fetch){const user={uid:'u',getIdToken:async()=> 'test-token'},root={currentUserUid:'u',fbAuth:{currentUser:user},fetch};const c={window:root,URL,AbortSignal,TextEncoder};vm.createContext(c);vm.runInContext(source,c);return root;}
 const response=(data,etag='v1',status=200)=>({ok:status>=200&&status<300,status,headers:{get:()=>etag},json:async()=>structuredClone(data)});
+
+test('entrega de OT usa transacción emparejada con listado y conserva prioridad financiera',async()=>{
+ const Model=require('../js/core/record-list-model'),Factory=require('../js/core/operational-writes');
+ const root=setup(()=>assert.fail('No usar REST directo para una OT con resumen'));
+ root.currentRole='admin';root.crypto={randomUUID:()=> 'operacion-ficticia'};root.fbDB={};
+ const path='sisventas/ordenes_trabajo/ot-ficticia',before={id:'OT-FICTICIA',tecnico:'Ficticio',materiales:[{cod:'FIC',vendida:1}],notasTecnico:{a:'Conservar'},_svListRevision:4};let patch;
+ root.SVRecordListWrites=Factory.create(root,Model);
+ root.SVRecordListWrites.install({sdk:{get:async()=>({val:()=>structuredClone(before)}),ref:(_,p='')=>p,update:async(_,value)=>{patch=value;}}});
+ const result=await root.SVGuardedWrites.restTransaction(path,current=>({...current,custodiaIniciada:true,materiales:[{...current.materiales[0],entregada:1}],remitosEntrega:{uno:{id:'uno'}}}));
+ assert.equal(result.committed,true);assert.equal(patch[path]._svListRevision,5);assert.equal(patch[path].notasTecnico.a,'Conservar');
+ const summary=patch['sisventas/listados_resumen/ordenes_trabajo/ot-ficticia'];assert.equal(summary._svListRevision,5);assert.equal(summary.materiales[0].entregada,1);assert.equal(summary.custodiaIniciada,true);
+ assert.deepEqual(Object.keys(patch).sort(),[path,'sisventas/listados_resumen/ordenes_trabajo/ot-ficticia'].sort());
+ let financial=false;root.SVLaborWrites={intersects:()=>true,restTransaction:async()=>{financial=true;return{committed:true};}};await root.SVGuardedWrites.restTransaction('sisventas/gastos/ficticio',()=>{});assert.equal(financial,true);
+});
 test('REST condicional rechaza carrera y recalcula conservando cambios ajenos',async()=>{let writes=0,reads=0;const root=setup(async(url,opts)=>{assert.equal(new URL(url).searchParams.get('auth'),'test-token');if(!opts.method){reads++;assert.equal(opts.headers['X-Firebase-ETag'],'true');return response({preparacion:1,ajeno:reads},'v'+reads);}writes++;assert.equal(new URL(url).searchParams.has('print'),false);assert.equal(opts.headers['if-match'],'v'+writes);assert.equal(JSON.parse(opts.body).ajeno,writes);assert.equal(JSON.parse(opts.body).preparacion,2);return response(null,null,writes===1?412:204);});assert.equal((await root.SVGuardedWrites.restTransaction('https://test.firebaseio.com/sisventas',d=>({...d,preparacion:2}))).committed,true);assert.equal(writes,2);});
 test('sin ETag o cambio de sesión no escribe; fallas de red no reintentan a ciegas',async()=>{for(const mode of ['etag','session','network']){let writes=0;let root;root=setup(async(url,opts)=>{if(!opts.method){if(mode==='session')root.currentUserUid='otro';return response({a:1},mode==='etag'?null:'v1');}writes++;throw Error('disconnect');});await assert.rejects(root.SVGuardedWrites.restTransaction('https://test.firebaseio.com/sisventas',d=>({...d,a:2})));assert.equal(writes,mode==='network'?1:0);assert.match(root.SVGuardedWrites.errorMessage(Error('disconnect')),/No se pudo confirmar/);}});
 test('escrituras mayores a 16 MB van por REST con precondición, sin SDK',async()=>{const large='x'.repeat(17*1024*1024);let written=0;const root=setup(async(url,opts)=>{if(!opts.method)return response({imagen:large,lista:1});written=opts.body.length;assert.equal(opts.headers['if-match'],'v1');return response(null,null,204);});assert.equal((await root.SVGuardedWrites.restTransaction('https://test.firebaseio.com/sisventas',d=>({...d,lista:2}))).committed,true);assert.ok(written>16*1024*1024);});

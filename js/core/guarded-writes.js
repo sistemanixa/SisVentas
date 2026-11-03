@@ -91,6 +91,7 @@
   async function restTransaction(ref, transform){
     if(root.SVOperationalWrites?.intersects(ref))return root.SVOperationalWrites.transaction(ref,transform);
     if(root.SVLaborWrites?.intersects(ref))return root.SVLaborWrites.restTransaction(ref,transform);
+    if(root.SVRecordListWrites?.intersects(ref))return root.SVRecordListWrites.transaction(ref,transform);
     const user=root.fbAuth?.currentUser,uid=root.currentUserUid,role=root.currentRole;
     if(!user||user.uid!==uid)throw new Error('La sesión cambió. Volvé a ingresar.');
     const token=await user.getIdToken();
