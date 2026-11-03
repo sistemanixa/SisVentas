@@ -170,7 +170,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     await require('./record-list-projections').augment({patch,raw,get,enabled:operationalSummaries,actor,result,operationId:opId});
     if(clientAccounts&&!commercialPages)throw failure(503,'Las cuentas requieren el listado comercial coordinado.','SV_CLIENT_ACCOUNTS_INCOMPLETE');
     if(commercialPages)await require('./commercial-pages-projections').augment({patch,raw,get});
-    if(clientAccounts)await require('./client-account-projections').augment({patch,raw,get});
+    if(clientAccounts){await require('./client-account-projections').augment({patch,raw,get});await require('./client-account-scope-plan').augment({actor,patch,raw});}
     const receiptResult=['admin-expense-create','admin-expense-edit'].includes(actor.operation)?{ok:true,committed:true,key:result.key}:['user','bootstrap'].includes(actor.mode)?copy(result):{ok:true,committed:true};
     patch['sv_labor_receipts/'+opId]={fence:lease.fence,digest:requestDigest,actorUid:actor.uid,result:receiptResult,confirmedAt:now()};patch.sv_labor_guard=null;
     if((actor.mode==='user'||actor.mode==='command')&&actor.financialAction){

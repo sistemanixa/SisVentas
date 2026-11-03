@@ -9,7 +9,7 @@ COPY index.js ./
 COPY commercial-response.js ./
 COPY commercial-pages-model.js commercial-pages-projections.js native-payment-summary.js ./
 COPY client-account-directory.js client-account-projection.js client-account-projections.js client-account-ledger.js ./
-COPY client-account-embedded.js client-account-documents.js client-account-owner-evidence.js ./
+COPY client-account-embedded.js client-account-documents.js client-account-owner-evidence.js client-account-scope.js client-account-scope-plan.js ./
 COPY commercial-collection-reader.js ./
 COPY commission-event.js ./
 COPY distributor-documents.js ./

@@ -12,9 +12,9 @@ function fromSale(record){
  if(Object.hasOwn(record,'responsableUid'))explicit=[record.responsableUid];
  else explicit=['creadaPorUid','creadoPorUid','usuarioUid','empleadoUid'].map(k=>record[k]).filter(Boolean);
  const names=explicit.length||Object.hasOwn(record,'responsableUid')?[]:['creadaPor','creadoPor','createdBy','usuario'].map(k=>record[k]).filter(Boolean);
- return{schema:1,complete:true,uids:[...new Set(explicit.filter(uid))].sort(),legacyAliases:[...new Set(names.map(hash))].sort()};
+ const uids=[...new Set(explicit.filter(uid))].sort(),legacyAliases=[...new Set(names.map(hash))].sort();return{schema:1,complete:true,uidsCount:uids.length,legacyAliasesCount:legacyAliases.length,uids,legacyAliases};
 }
-function validate(value){if(value?.schema!==1||value.complete!==true||!Array.isArray(value.uids)||!Array.isArray(value.legacyAliases)||value.uids.some(v=>!uid(v))||value.legacyAliases.some(v=>typeof v!=='string'||!/^[a-f0-9]{64}$/.test(v)))throw fail();return value;}
+function validate(value){const uids=value?.uids??(value?.uidsCount===0?[]:null),legacyAliases=value?.legacyAliases??(value?.legacyAliasesCount===0?[]:null);if(value?.schema!==1||value.complete!==true||!Array.isArray(uids)||!Array.isArray(legacyAliases)||value.uidsCount!==uids.length||value.legacyAliasesCount!==legacyAliases.length||uids.some(v=>!uid(v))||legacyAliases.some(v=>typeof v!=='string'||!/^[a-f0-9]{64}$/.test(v)))throw fail();return{...value,uids,legacyAliases};}
 function additions(rows){const patch={};for(const row of rows){const value=validate(row);for(const id of value.uids)patch[ROOT+'/ownerUIDHistory/'+id]=true;for(const alias of value.legacyAliases)patch[ROOT+'/ownerAliasHistory/'+alias]=true;}return patch;}
 // Proof only: never writes coverage and never treats absent evidence as an empty history.
 async function proveEmpty({identity,aliases,generation,coverage,evidence,read}){
