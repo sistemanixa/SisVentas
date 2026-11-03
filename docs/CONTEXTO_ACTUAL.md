@@ -1,3 +1,7 @@
+# Extracto completo por cliente preparado local · 03/11/2026
+
+Modelo puro client-account-ledger:6 pruebas PASS de paginación121movimientos, saldo anterior, centavos, agrupación/recibos, legacy, anulación, sobrepago y devolución. Exige membresía completa y rechaza diferencias en lugar de inventar conciliaciones. Sin integración de pantalla/escritores todavía, sin publicar/push/datos reales. Se conserva el bloque previo en02c7aa7b; puerta general final7305total/7278PASS/27skip/0fallos(97,1s). Sintaxis y diff PASS.
+
 # Preparación local de lecturas por cliente · 03/11/2026
 
 Componentes nuevos de identidad, proyección, lector paginado/búsqueda y propuesta de reglas en docs/CUENTA_CORRIENTE_LECTURAS_POR_CLIENTE.md.33 pruebas unitarias y matriz adicional en emulador aprobadas; puerta completa7299total/7272PASS/27skip/0fallos(90,3s), sintaxis y coherencia18.9 PASS. Sin conexión a la pantalla actual, activación, publicación, push ni datos reales. Medición sintética:1.354.223 bytes de originales frente a31.704 para primera página y totales; no es consumo de producción. Sigue abierto integrar escritores, extracto completo por cliente, Historial, interfaz y sincronización real. Estas tareas son ejecutables, no bloqueos humanos. No repetir la corrección ya conservada en66380b6a ni dar por terminada la auditoría.
