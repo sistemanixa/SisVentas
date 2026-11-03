@@ -28,8 +28,8 @@ Nueve recorridos de navegador aislado:390/768/1280, cargador SVDataReadiness rea
 | Trabajo | Estado / siguiente acción |
 | --- | --- |
 | Guardados coordinados | Guard, SDK, gateway, runtime y puente fiscal integrados condicionalmente; empaquetado y ocho casos probados. Completar matriz de concurrencia/roles del formulario y cotejar todos los escritores antes de activar. |
-| Identidades y unificación | Directorio técnico y dependencias incrementales conectados; sin asociaciones por nombre. Falta cotejar unificación con el contador de clientes del agregado comercial y preparar el alta de usuarios sin movimientos. |
-| Extracto y saldo anterior | Modelo, escritor y lector conectados, documentos históricos conservados y acciones probadas. Falta validar actualizaciones concurrentes durante formularios y el retorno entre módulos. No se alimenta el conciliador antiguo con50filas. |
+| Identidades y unificación | Directorio técnico y dependencias incrementales conectados; sin asociaciones por nombre. Unificación, contador comercial y búsqueda coherente probados; falta preparar el alta de usuarios sin movimientos. |
+| Extracto y saldo anterior | Modelo, escritor y lector conectados, documentos históricos conservados y acciones probadas. Actualización durante formulario y retorno a Cobros probados con guard RAM y limpieza nativa; falta cotejar el arranque autenticado integral. No se alimenta el conciliador antiguo con50filas. |
 | Interfaz e Historial | Tabla y acciones CC conectadas localmente. Historial sigue pendiente: presupuestos, OT, soporte y equipos requieren sus fuentes completas autorizadas por cliente/domicilio, incluyendo embebidos identificables sin duplicarlos. |
 | Arranque y sincronización | Integrar resultado/error/cancelación/sesión con SVDataReadiness real y probar ambos órdenes de llegada, retornos y cambios de rol. El fixture conectado ya utiliza SVDataReadiness real; falta el arranque autenticado integral con activación coherente. |
 | Validación visual y transferencia | Navegador aislado escritorio/móvil y medición de las peticiones de la pantalla conectada. No confundir los bytes del modelo con transferencia real. |
@@ -38,3 +38,7 @@ Nueve recorridos de navegador aislado:390/768/1280, cargador SVDataReadiness rea
 ## Activación externa separada
 
 No hay publicación, push, configuración remota, nuevas tareas periódicas ni modificación de ventas, pagos, comisiones o stock. La futura activación exige una candidata integral, cobertura contrastada, prueba de todos los escritores y reglas verificadas contra el estado remoto. Hasta entonces, este bloque no reduce las lecturas productivas ni cambia sus permisos.
+
+## Continuidad local14
+
+Se detienen las escuchas completas anteriores de Clientes y unificaciones al reclamar CC nativa; se reabren al entrar al directorio fuera de CC. Actualizar deuda con un formulario abierto conserva sus campos y archivo, recarga los miembros completos a revisión coherente y actualiza la imputación; confirmar queda bloqueado mientras se prepara. Un pago concurrente ficticio de40 reduce una deuda100 a60: el importe80 que el usuario escribió se conserva y muestra exceso20, sin registrar otro pago. Una operación ya en curso conserva su intento y difiere el refresco hasta concluir. La navegación de cobro instala el contexto después de la limpieza nativa de entrada y lo restaura al regresar. No se ejecutaron pagos ni consultas de datos reales para estos casos.
