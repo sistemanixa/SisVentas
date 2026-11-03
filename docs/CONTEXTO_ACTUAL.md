@@ -1,3 +1,7 @@
+# Revisión de tarjetas Dashboard · 03/11/2026
+
+Se amplía la regresión de la v3.18.3 con seis pruebas de funciones activas: ventas/cobros diarios desde agregados completos, deuda histórica fuera de las filas recientes, presupuestos, neto mensual con centavos y exclusión del mes anterior, arranque pendiente, mes vacío, capacidad fiscal y vigencia de productos. Sólo fixtures; no se guardaron datos reales ni se modificaron cálculos o interfaz. Las pruebas previas de Mi cuenta, horas, pagos de gastos, OT y Agenda forman parte de la puerta completa. La validación visual nueva de la pestaña local no pudo realizarse: el controlador devuelve browser.user is unavailable; no se intervino en otras aplicaciones. La corrección de netCents ya está publicada en v3.18.3; este bloque agrega pruebas, sin despliegue necesario.
+
 # Dashboard v3.18.3 publicado · 03/11/2026
 
 Corregido el acumulador mensual de la carga paginada: conserva netCents del agregado diario y cero en períodos vacíos. No cambia consultas, fuentes financieras, permisos, servidor ni datos. Dos regresiones ficticias comprueban neto/IVA/cobros y déficit sin ventas; suite7085total7058PASS27skip0fallos. Local y web autenticada verificadas, diez activos exactos y rutas privadas404, aviso/SW/Firebase18.3 sincronizados. La evidencia de sesión queda privada fuera de Git. Este respaldo contiene sólo código, pruebas ficticias y documentación sin importes de la sesión real.
