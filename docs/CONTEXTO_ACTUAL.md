@@ -1,3 +1,7 @@
+# v3.18.5: publicación web comprobada · 03/11/2026
+
+Hosting publicado desde 106000184222d313dd463879285bd7c31cb11bbf. Dominio real: 15 activos públicos idénticos por SHA-256, cabecera nosniff y rutas privadas 404. Servidor y reglas no cambiaron; no se modificaron registros reales. Respaldo en codex/ot-entrega-resumen, sin avanzar main. Evidencia privada tmp/sale-access3185/web-verified.private.json. La verificación autenticada de la pantalla sigue pendiente por indisponibilidad del control de la pestaña; no afirmar que se abrió la venta del usuario en producción.
+
 # Acceso al detalle comercial corregido v3.18.5 · 03/11/2026
 
 La lectura paginada de una venta conserva en memoria su identidad de acceso validada; contrasta el propietario del resumen con la sesión y rechaza discrepancias del responsable explícito. El servidor sigue autorizando el original puntual. El resolvedor de detalle no sustituye la ficha completa por una selección anterior de Cobros. No se reasignan registros ni se modifican permisos, autoría, importes o datos históricos; no requiere desplegar servidor.
