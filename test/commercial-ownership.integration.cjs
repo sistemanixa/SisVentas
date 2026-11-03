@@ -67,17 +67,20 @@ test('generación servidor: conserva comisión manual existente y no hace backfi
  await db.ref('sisventas/gastos/manual').remove();await db.ref('sisventas/pagos/demo/ts').set(500);assert.equal((await service.systemGenerate('a')).status,'historica');assert.equal((await db.ref('sv_commission_generation/a').get()).exists(),false);
 });
 
-test('observador genera al completar el cobro aunque el navegador no llame al endpoint',async()=>{
- const {service}=await generationFixture();await db.ref('sisventas/ventas/a/estadoPago').set('seniado');const stop=service.start();
- try{await db.ref('sisventas/ventas/a/estadoPago').set('pago_total');for(let i=0;i<60;i++){if((await db.ref('sv_commission_generation/a/estado').get()).val()==='completada')break;await new Promise(r=>setTimeout(r,50));}assert.equal((await db.ref('sv_commission_generation/a/estado').get()).val(),'completada');assert.equal((await db.ref('sisventas/gastos/gasto_comision_a_e/actorUid').get()).val(),'servidor');}finally{stop();}
+test('acción explícita genera al completar el cobro sin instalar observador',async()=>{
+ const {service}=await generationFixture();assert.equal(service.start,undefined);
+ await db.ref('sisventas/ventas/a/estadoPago').set('pago_total');
+ assert.equal((await service.systemGenerate('a')).status,'generada');
+ assert.equal((await db.ref('sv_commission_generation/a/estado').get()).val(),'completada');
+ assert.equal((await db.ref('sisventas/gastos/gasto_comision_a_e/actorUid').get()).val(),'servidor');
+ await service.systemGenerate('a');assert.equal(Object.keys((await db.ref('sisventas/gastos').get()).val()).length,2);
 });
-
 test('generación retoma con otra instancia del servidor tras una caída entre cuenta y gasto',async()=>{
  const {actor}=await generationFixture();let cut=true;
  const interruptedDB={ref(path){const original=db.ref(path);if(path!=='sisventas/gastos/gasto_comision_a_e')return original;return {on:original.on.bind(original),off:original.off.bind(original),get:original.get.bind(original),transaction(...args){if(cut){cut=false;return Promise.reject(Error('Corte sintético'));}return original.transaction(...args);}};}};
  const first=createCommissionGeneration({db:interruptedDB,commercial:api,enabled:true,from:1000,now:()=>10000});await assert.rejects(first.generate(actor,{ventaFbKey:'a'}),/Corte sintético/);
  const movement=(await db.ref('sisventas/ctaemp/e/comision_a_e').get()).val();
- const next=createCommissionGeneration({db,commercial:api,enabled:true,from:1000,now:()=>100000});await next.retryPending();
+ const next=createCommissionGeneration({db,commercial:api,enabled:true,from:1000,now:()=>100000});await next.retryPending('a');
  assert.equal((await db.ref('sv_commission_generation/a/estado').get()).val(),'completada');assert.deepEqual((await db.ref('sisventas/ctaemp/e/comision_a_e').get()).val(),movement);assert.equal((await db.ref('sisventas/gastos/gasto_comision_a_e/monto').get()).val(),30);
 });
 

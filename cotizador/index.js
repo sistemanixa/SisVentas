@@ -74,7 +74,7 @@ const personalHoursReader = require('./personal-hours-reader').createPersonalHou
 const personalExpenses = require('./personal-expenses').createPersonalExpenses({authorize:laborSubmissions.authorize,transaction:laborTransaction});
 const supplierDirectory = require('./supplier-directory').createSupplierDirectory({authorize:employeeDirectory.authorize,db});
 const commissionOperations = require('./commission-operations').createCommissionOperations({auth:businessAuth,db,transaction:laborTransaction});
-const commissionGenerationBase = require('./commission-generation').createCommissionGeneration({db,commercial:commercialOwnership,beforeCommit:fn=>{const scope=laborRuntime.guard.current();if(!scope)throw Object.assign(Error('Falta el contexto de cobro confirmado'),{statusCode:503});scope.beforeCommit(fn);},enabled:process.env.COMMISSION_GENERATION_ENABLED==='true',from:Date.parse(process.env.COMMISSION_GENERATION_FROM||''),logger:status=>console.log(JSON.stringify(status))});
+const commissionGenerationBase = require('./commission-generation').createCommissionGeneration({db,commercial:commercialOwnership,beforeCommit:fn=>{const scope=laborRuntime.guard.current();if(!scope)throw Object.assign(Error('Falta el contexto de cobro confirmado'),{statusCode:503});scope.beforeCommit(fn);},enabled:process.env.COMMISSION_GENERATION_ENABLED==='true',from:Date.parse(process.env.COMMISSION_GENERATION_FROM||'')});
 const commissionGeneration={...commissionGenerationBase,
  generate:(actor,body)=>laborRuntime.run(actor,'generate-commission',body,()=>commissionGenerationBase.generate(actor,body)),
  systemGenerate:id=>laborRuntime.run(null,'system-commission',{id},()=>commissionGenerationBase.systemGenerate(id),{system:true}),
@@ -2281,8 +2281,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 if (require.main === module) {
-  if(process.env.COMMISSION_OBSERVER_ENABLED==='true')commissionGeneration.start();
-  else if(process.env.COMMISSION_GENERATION_ENABLED==='true'&&process.env.COMMISSION_EVENT_ENABLED!=='true')throw Error('No se puede detener el observador sin habilitar el receptor de eventos');
+  if(process.env.COMMISSION_OBSERVER_ENABLED==='true')throw Error('El observador periódico de comisiones fue retirado. Usá eventos o acciones explícitas.');
+  if(process.env.COMMISSION_GENERATION_ENABLED==='true'&&process.env.COMMISSION_EVENT_ENABLED!=='true')throw Error('La generación de comisiones requiere habilitar el receptor de eventos');
   server.listen(PORT, () => {
     console.log(`Cotizador NIXA listo en puerto ${PORT}`);
   });
