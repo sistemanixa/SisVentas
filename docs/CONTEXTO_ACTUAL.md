@@ -1,3 +1,9 @@
+# Regreso al primer plano y revocación del formulario · 03/11/2026
+
+Continuación local del commit957eb84d, candidata18.14 sin publicar/push. Una reproducción adicional falló antes del arreglo: ocultar y volver dejaba sin membresía el formulario abierto. Entrar con formulario ahora usa la actualización completa ya comprobada, conserva los campos y recupera imputaciones; revocar rol/sesión retira el modal y datos de esa cuenta. La prueba verifica también cero consultas mientras está oculto y cero escrituras en el backend RAM. Focales4PASS (pago/replay/anulación, saldo concurrente, ida/regreso y primer plano/revocación). Puerta vigente final:7359total/7332PASS/27skip/0fallos,857archivos en2lotes. Evidencia privada tmp/client-account-integration31813/gate-final.private.log; sintaxis/diff PASS. No son pruebas con Firebase real ni activación de la capacidad.
+
+El chat autorizado «Abrir SisVentas en ventana nueva» prepara por separado el retiro definitivo del observador de comisiones; se coordinó no duplicar esa implementación y esperar su SHA probado antes de integrar. Sin modificación local del servidor por ese hallazgo. Siguen abiertos alta de ámbito vacío de usuario nuevo, Historial multifuente, restantes consumidores y prueba autenticada de la futura activación. La auditoría integral no está cerrada; producción no cambió en esta continuación.
+
 # Cuenta corriente: continuidad local14 y formularios concurrentes · 03/11/2026
 
 Candidata local v3.18.14, sin publicar ni push; fuente13 conservada. El cargador real de Clientes conserva su unsubscribe; CC nativa lo detiene junto con las dos unificaciones, invalida el trabajo diferido anterior y permite cargar el directorio al volver a otro módulo. El caso usa la función real del cargador y verifica una sola cancelación y una nueva suscripción posterior. Suite anterior al último bloque:7355total/7328PASS/27skip/0fallos,857archivos.
