@@ -22,7 +22,21 @@ for(const domain of ['ventas','presupuestos']){
 }
 test('servicio reasigna sin tocar dinero y pierde acceso el responsable anterior',async()=>{const sentinel=(await db.ref('sisventas/pagos').get()).val(),actor=await api.authorize({headers:{authorization:'Bearer admin'}},'ventas');const result=await api.assign(actor,{id:'a',uid:'b',owner:'a',revision:1});assert.equal(result.record.total,100);assert.equal(result.record.creadaPor,'Persona a');await assertFails(get(ref(client('a'),'sisventas/ventas/a')));await assertSucceeds(get(ref(client('b'),'sisventas/ventas/a')));assert.deepEqual((await db.ref('sisventas/pagos').get()).val(),sentinel);await assert.rejects(api.assign(actor,{id:'a',uid:'a',owner:'a',revision:1}),e=>e.statusCode===409);});
 test('técnico sin módulo no puede recibir un registro ni por escritura directa de admin',async()=>{await assertFails(update(ref(client('admin'),'sisventas/ventas/a'),{responsableUid:'tech',responsableNombre:'Persona tech'}));const actor=await api.authorize({headers:{authorization:'Bearer admin'}},'ventas');await assert.rejects(api.assign(actor,{id:'a',uid:'tech',owner:'a',revision:1}),e=>e.statusCode===403);});
-test('legado se vincula mediante servicio antes de editar, sin abrir lectura directa por nombre',async()=>{await assertFails(get(ref(client('a'),'sisventas/ventas/old')));const actor=await api.authorize({headers:{authorization:'Bearer a'}},'ventas');await api.prepare(actor,{id:'old'});await assertSucceeds(get(ref(client('a'),'sisventas/ventas/old')));await assertSucceeds(update(ref(client('a'),'sisventas/ventas/old'),{total:60}));});
+test('legado exige vinculación de administrador antes de editar y nunca autoriza por nombre',async()=>{
+ await assertFails(get(ref(client('a'),'sisventas/ventas/old')));
+ const before=(await db.ref('sisventas/ventas/old').get()).val();
+ const actor=await api.authorize({headers:{authorization:'Bearer a'}},'ventas');
+ await assert.rejects(api.prepare(actor,{id:'old'}),e=>e.statusCode===403);
+ assert.deepEqual((await db.ref('sisventas/ventas/old').get()).val(),before);
+ await assertFails(get(ref(client('a'),'sisventas/ventas/old')));
+ const admin=await api.authorize({headers:{authorization:'Bearer admin'}},'ventas');
+ const result=await api.assign(admin,{id:'old',uid:'a',owner:'',revision:0});
+ assert.equal(result.record.total,before.total);assert.equal(result.record.ts,before.ts);
+ assert.equal(result.record.usuario,before.usuario);assert.equal(result.record.responsableUid,'a');
+ await assertSucceeds(get(ref(client('a'),'sisventas/ventas/old')));
+ await assertFails(get(ref(client('b'),'sisventas/ventas/old')));
+ await assertSucceeds(update(ref(client('a'),'sisventas/ventas/old'),{total:60}));
+});
 test('usuario inactivo y nodo privado siguen denegados',async()=>{await db.ref('sv_chat_roles/a/activo').set(false);await assertFails(get(ref(client('a'),'sisventas/ventas/a')));for(const uid of ['admin','a',null])await assertFails(get(ref(client(uid),'sv_personal_finance/proof')));});
 test('regresión de auditoría: vendedor no genera comisiones con escrituras directas del navegador',async()=>{await assertFails(set(ref(client('a'),'sisventas/comisiones_generacion/ficticia'),{estado:'procesando'}));await assertFails(set(ref(client('a'),'sisventas/ctaemp/a/ficticia'),{tipo:'comision',monto:1}));});
 
