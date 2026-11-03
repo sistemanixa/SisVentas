@@ -95,66 +95,50 @@ test('reintento por evento consulta sólo su trabajo y conserva límite y plazo 
 test('vista previa antigua se rechaza si cambia configuración antes de generar',async()=>{
  const s=setup(),actor=await s.actor(),p=await s.svc.inspect(actor,'sale');s.db.root.sisventas.config.maxComisionPct=10;await assert.rejects(s.svc.generate(actor,{ventaFbKey:'sale',digest:p.digest}),{statusCode:409});assert.equal(s.db.root.sv_commission_generation,undefined);
 });
-test('circuito deshabilitado y observador sin corte configurado fallan cerrados',async()=>{
- const s=setup({enabled:false});await assert.rejects(s.actor(),{statusCode:503});const c=createCommissionGeneration({db:s.db,commercial:{},enabled:true});assert.throws(()=>c.start(),/COMMISSION_GENERATION_FROM/);
+test('circuito deshabilitado y generación de sistema sin corte fallan cerrados',async()=>{
+ const s=setup({enabled:false});await assert.rejects(s.actor(),{statusCode:503});
+ const c=createCommissionGeneration({db:s.db,commercial:{},enabled:true});
+ assert.equal(c.start,undefined);await assert.rejects(c.systemGenerate('sale'),{statusCode:503});
 });
-test('salud del observador confirma conexión y suscripción sin registrar datos comerciales',()=>{
- const listeners=new Map(),removed=[],logs=[];
- const query={on(event,fn,error){listeners.set('query/'+event,{fn,error});},off(event){removed.push('query/'+event);}};
- const db={ref(path){if(path==='.info/connected')return {on(event,fn){listeners.set('connection',{fn});},off(){removed.push('connection');}};if(path==='sisventas/ventas')return {orderByChild:()=>({equalTo:()=>query})};return {get:async()=>({val:()=>null}),on(){},off(){}};}};
- const stop=createCommissionGeneration({db,commercial:{},enabled:true,from:1000,now:()=>2000,logger:v=>logs.push(v)}).start();
- listeners.get('connection').fn({val:()=>true});listeners.get('query/value').fn();
- assert.equal(logs.at(-1).connected,true);assert.equal(logs.at(-1).subscriptionReady,true);
- listeners.get('query/value').error(Error('dato privado'));assert.equal(logs.at(-1).subscriptionReady,false);assert.equal(logs.at(-1).errors,1);
- assert.doesNotMatch(JSON.stringify(logs),/dato privado|empleado|monto|ventaId/);stop();assert.equal(removed.length,4);
+
+test('construir el generador no consulta datos ni deja un observador o temporizador',()=>{
+ const db={ref(){assert.fail('La construcción no debe leer ni escuchar la base');}};
+ const service=createCommissionGeneration({db,commercial:{},enabled:true,from:1000});
+ assert.equal(service.start,undefined);assert.equal(typeof service.generate,'function');
+ assert.equal(typeof service.systemGenerate,'function');
 });
 test('copias del modelo económico del servidor coinciden con el cliente y se empaquetan',()=>{
  for(const name of ['sales-read-model','budget-read-model','identity-index'])assert.equal(fs.readFileSync('cotizador/commercial-models/'+name+'.js','utf8'),fs.readFileSync('js/v3/'+name+'.js','utf8'));assert.match(fs.readFileSync('cotizador/Dockerfile','utf8'),/COPY commercial-models/);
 });
 
-function observerFixture(options){
- const f=setup(options),original=f.db.ref.bind(f.db),events={},reads=[];
- f.db.ref=path=>{
-  if(path==='sisventas/ventas')return {orderByChild:()=>({equalTo:()=>({on:(event,fn)=>events[event]=fn,off(){}})})};
-  if(path==='.info/connected')return {on(){},off(){}};
-  const ref=original(path);return {...ref,get:async()=>{reads.push(path);return ref.get();}};
- };
- const stop=f.svc.start();return {...f,events,reads,stop};
-}
-test('observador descarta ventas sin comisión habilitada sin releer dependencias ni alterar históricos',async()=>{
- const f=observerFixture(),before=JSON.stringify(f.db.root);
- try{
-  for(let i=0;i<1000;i++)f.events.child_added({key:'historic-'+i,val:()=>({estadoPago:'pago_total',comisionHabilitada:i%2?false:undefined})});
-  await new Promise(setImmediate);
-  assert.deepEqual(f.reads,[]);assert.equal(JSON.stringify(f.db.root),before);
- }finally{f.stop();}
-});
-test('habilitar comisión después del primer snapshot conserva la generación y la aprobación pendiente',async()=>{
- const f=observerFixture();try{
-  f.events.child_added({key:'sale',val:()=>({comisionHabilitada:false})});await new Promise(setImmediate);
-  assert.equal(Object.keys(f.db.root.sisventas.gastos).length,0);
-  f.events.child_changed({key:'sale',val:()=>f.sale});await new Promise(setImmediate);
-  assert.equal(Object.keys(f.db.root.sisventas.gastos).length,1);assert.equal(Object.values(f.db.root.sisventas.gastos)[0].estado,'pendiente_aprobacion');
-  f.events.child_changed({key:'sale'});await new Promise(setImmediate);assert.equal(Object.keys(f.db.root.sisventas.gastos).length,1);
- }finally{f.stop();}
+test('acción explícita descarta una venta sin comisión habilitada sin alterar históricos',async()=>{
+ const f=setup({sale:{comisionHabilitada:false}}),before=JSON.stringify(f.db.root);
+ assert.equal((await f.svc.systemGenerate('sale')).status,'no_aplica');
+ assert.equal(JSON.stringify(f.db.root),before);
 });
 
-test('una comisión ya generada o venta anulada no vuelve a leer dependencias al iniciar o editar',async()=>{
- const f=observerFixture(),before=JSON.stringify(f.db.root);
- try{
-  for(const sale of [{comisionHabilitada:true,comisionesGeneradas:true},{comisionHabilitada:true,anulada:true},{comisionHabilitada:true,anulado:true},{comisionHabilitada:true,estado:'Anulada'},{comisionHabilitada:true,estado:'sin_cargo'}]){
-   for(const event of ['child_added','child_changed'])f.events[event]({key:'sale',val:()=>sale});
-  }
-  await new Promise(setImmediate);assert.deepEqual(f.reads,[]);assert.equal(JSON.stringify(f.db.root),before);
- }finally{f.stop();}
-});
-test('un snapshot habilitado no sustituye la validación actual de la venta en servidor',async()=>{
- const f=observerFixture({sale:{comisionHabilitada:false}}),before=JSON.stringify(f.db.root);try{
-  f.events.child_added({key:'sale',val:()=>({comisionHabilitada:true})});await new Promise(setImmediate);
-  assert.ok(f.reads.includes('sisventas/ventas/sale'));assert.equal(JSON.stringify(f.db.root),before);
- }finally{f.stop();}
+test('habilitar comisión y ejecutar una acción explícita genera una sola aprobación pendiente',async()=>{
+ const f=setup({sale:{comisionHabilitada:false}});
+ assert.equal((await f.svc.systemGenerate('sale')).status,'no_aplica');
+ f.sale.comisionHabilitada=true;
+ assert.equal((await f.svc.systemGenerate('sale')).status,'generada');
+ assert.equal(Object.values(f.db.root.sisventas.gastos)[0].estado,'pendiente_aprobacion');
+ await f.svc.systemGenerate('sale');assert.equal(Object.keys(f.db.root.sisventas.gastos).length,1);
 });
 
+test('acción explícita en una venta anulada conserva todos los datos y no genera comisión',async()=>{
+ for(const sale of [{anulada:true},{anulado:true},{estado:'Anulada'},{estado:'sin_cargo'}]){
+  const f=setup({sale}),before=JSON.stringify(f.db.root);
+  assert.equal((await f.svc.systemGenerate('sale')).status,'no_aplica');
+  assert.equal(JSON.stringify(f.db.root),before);
+ }
+});
+
+test('una petición de generación usa la venta actual y no un snapshot habilitado viejo',async()=>{
+ const f=setup({sale:{comisionHabilitada:false}}),before=JSON.stringify(f.db.root);
+ assert.equal((await f.svc.generate(await f.actor(),{ventaFbKey:'sale'})).status,'no_aplica');
+ assert.equal(JSON.stringify(f.db.root),before);
+});
 test('una venta con identidad canónica lee sólo los empleados participantes, sin descargar la nómina',async()=>{
  const f=setup(),ref=f.db.ref.bind(f.db),reads=[];
  f.db.root.sisventas.empleados.other={nombre:'Otra persona ficticia',foto:'No descargar este perfil'};
@@ -182,7 +166,7 @@ test('alta captura costo del momento; edición conserva snapshot y legado incomp
 });
 
 test('el reintento del servidor recupera un corte sin depender de una nueva solicitud del navegador',async()=>{
- const s=setup();s.failAt('sisventas/gastos/gasto_comision_sale_e');await assert.rejects(s.svc.generate(await s.actor(),{ventaFbKey:'sale'}));s.advance(61000);await s.svc.retryPending();assert.equal(s.db.root.sv_commission_generation.sale.estado,'completada');assert.equal(Object.keys(s.db.root.sisventas.gastos).length,1);assert.equal(s.sale.audit.length,1);
+ const s=setup();s.failAt('sisventas/gastos/gasto_comision_sale_e');await assert.rejects(s.svc.generate(await s.actor(),{ventaFbKey:'sale'}));s.advance(61000);await s.svc.retryPending('sale');assert.equal(s.db.root.sv_commission_generation.sale.estado,'completada');assert.equal(Object.keys(s.db.root.sisventas.gastos).length,1);assert.equal(s.sale.audit.length,1);
 });
 test('la carga manual no toma una reserva del servidor aunque haya vencido el plazo anterior',async()=>{
  const {createBackend,copy}=require('./helpers/labor-ui-flow.cjs');

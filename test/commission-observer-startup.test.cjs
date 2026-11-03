@@ -20,10 +20,10 @@ test('false explícito conserva el arranque sólo por eventos',()=>{
  const f=fixture({COMMISSION_GENERATION_ENABLED:'true',COMMISSION_EVENT_ENABLED:'true',COMMISSION_OBSERVER_ENABLED:'false'});f.run();assert.deepEqual(f.calls,['listen']);
 });
 
-test('únicamente true explícito permite compatibilidad con el observador',()=>{
+test('true explícito del modo retirado bloquea el arranque antes de abrir el servidor',()=>{
  for(const events of [undefined,'true','false']){
   const env={COMMISSION_GENERATION_ENABLED:'true',COMMISSION_OBSERVER_ENABLED:'true'};if(events!==undefined)env.COMMISSION_EVENT_ENABLED=events;
-  const f=fixture(env);f.run();assert.deepEqual(f.calls,['observer','listen']);
+  const f=fixture(env);assert.throws(f.run,/observador periódico de comisiones fue retirado/);assert.deepEqual(f.calls,[]);
  }
 });
 
@@ -36,7 +36,7 @@ test('valores vacíos, inválidos o booleanos no activan el observador aunque ev
 test('generación activa sin eventos ni observador explícito falla cerrada antes de escuchar',()=>{
  for(const observer of [undefined,'false','','invalid','TRUE'])for(const events of [undefined,'false','invalid']){
   const env={COMMISSION_GENERATION_ENABLED:'true'};if(observer!==undefined)env.COMMISSION_OBSERVER_ENABLED=observer;if(events!==undefined)env.COMMISSION_EVENT_ENABLED=events;
-  const f=fixture(env);assert.throws(f.run,/No se puede detener el observador sin habilitar el receptor de eventos/);assert.deepEqual(f.calls,[]);
+  const f=fixture(env);assert.throws(f.run,/generación de comisiones requiere habilitar el receptor de eventos/);assert.deepEqual(f.calls,[]);
  }
 });
 

@@ -8,7 +8,7 @@ const leaseMs=120000;
 async function tx(ref,update){
  let listener;try{await new Promise((resolve,reject)=>{listener=()=>resolve();ref.on('value',listener,reject);});return await ref.transaction(update,undefined,false);}finally{if(listener)ref.off('value',listener);}
 }
-function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date.now,logger=()=>{},beforeCommit}){
+function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date.now,beforeCommit}){
  const read=async path=>(await db.ref(path).get()).val();
  const jobId=id=>'srv_'+M.hash(id).slice(0,40);
  async function readEmployees(sale){
@@ -101,30 +101,22 @@ function createCommissionGeneration({db,commercial,enabled=false,from=0,now=Date
   }catch(e){await finish({estado:e.statusCode===409?'revision':'error',ultimoError:e.statusCode===409?'Requiere conciliación':'Interrupción de guardado',reintentarEn:now()+60000}).catch(()=>{});throw e;}
  }
  async function systemGenerate(id){if(!enabled||!Number.isFinite(from)||from<=0)throw fail(503,'Falta configurar el corte de generación');return generate({uid:'servidor',name:'Servidor'},{ventaFbKey:id},{system:true});}
- async function retryPending(onlyId){if(onlyId!==undefined&&!validKey(onlyId))throw fail(400,'Venta inválida');const jobs=onlyId!==undefined?{[onlyId]:await read('sv_commission_generation/'+onlyId)}:await read('sv_commission_generation')||{};for(const [id,job]of Object.entries(jobs))if(job&&['error','procesando'].includes(job.estado)&&job.leaseUntil<now()&&Number(job.intentos)<5&&Number(job.reintentarEn||0)<=now())try{await systemGenerate(id);}catch(e){await tx(db.ref('sv_commission_generation/'+id),current=>current&&current.estado!=='completada'&&current.leaseUntil<=now()?{...current,estado:e.statusCode===409?'revision':current.estado,intentos:Math.max(Number(current.intentos),Number(job.intentos)+1),reintentarEn:now()+60000}:undefined).catch(()=>{});}}
- function start(){
-  if(!enabled)return ()=>{};if(!Number.isFinite(from)||from<=0)throw Error('COMMISSION_GENERATION_FROM debe ser un instante ISO válido');
-  const query=db.ref('sisventas/ventas').orderByChild('estadoPago').equalTo('pago_total'),connection=db.ref('.info/connected'),pending=new Set(),failed=new Map();
-  // Solo salud y contadores: nunca referencias de ventas, nombres ni importes.
-  const health={connected:false,subscriptionReady:false,completed:0,errors:0};
-  const report=()=>logger({event:'commission_observer_status',at:new Date(now()).toISOString(),from:new Date(from).toISOString(),...health,pending:pending.size,retries:failed.size});
-  const denied=()=>{health.subscriptionReady=false;health.errors++;report();};
-  const connected=snap=>{health.connected=snap.val()===true;report();};
-  const ready=()=>{if(!health.subscriptionReady){health.subscriptionReady=true;report();}};
-  const handle=snap=>{
-   // La consulta ya entrega la venta. Sin habilitación explícita el mismo
-   // modelo siempre responde no_aplica; no volver a leer sus dependencias.
-   // child_changed procesa una habilitación posterior y los reintentos sin
-   // snapshot conservan la validación completa del servidor.
-   const sale=typeof snap.val==='function'?snap.val():null;
-   if(sale&&(sale.comisionHabilitada!==true||sale.comisionesGeneradas===true||sale.anulada===true||sale.anulado===true||['anulada','anulado','sin_cargo'].includes(String(sale.estado||'').toLowerCase())))return;
-   if(pending.has(snap.key))return;pending.add(snap.key);systemGenerate(snap.key).then(result=>{failed.delete(snap.key);if(result.status==='generada'&&!result.reutilizada)health.completed++;}).catch(e=>{health.errors++;if(e.statusCode!==409)failed.set(snap.key,Number(failed.get(snap.key)||0)+1);}).finally(()=>pending.delete(snap.key));
-  };
-  connection.on('value',connected,denied);query.on('child_added',handle,denied);query.on('child_changed',handle,denied);query.on('value',ready,denied);
-  const stopJobs=require('./commission-job-events').watchCommissionJobs({db,retry:retryPending,now,onError:()=>{health.errors++;}});
-  const timer=setInterval(()=>{report();for(const [key,count]of failed)if(count<5)handle({key});},60000);timer.unref?.();
-  return ()=>{stopJobs();clearInterval(timer);connection.off('value',connected);query.off('value',ready);query.off('child_added',handle);query.off('child_changed',handle);};
+ async function retryPending(id){
+  // Recuperación explícita de una operación: nunca consultar el historial raíz.
+  if(!validKey(id))throw fail(400,'Venta inválida');
+  const job=await read('sv_commission_generation/'+id);
+  if(!job||!['error','procesando'].includes(job.estado)||!(job.leaseUntil<now())||
+    !(Number(job.intentos)<5)||!(Number(job.reintentarEn||0)<=now()))return;
+  try{await systemGenerate(id);}
+  catch(e){
+   await tx(db.ref('sv_commission_generation/'+id),current=>
+    current&&current.estado!=='completada'&&current.leaseUntil<=now()
+     ?{...current,estado:e.statusCode===409?'revision':current.estado,
+       intentos:Math.max(Number(current.intentos),Number(job.intentos)+1),reintentarEn:now()+60000}
+     :undefined
+   ).catch(()=>{});
+  }
  }
- return {authorize,inspect,generate,start,systemGenerate,retryPending};
+ return {authorize,inspect,generate,systemGenerate,retryPending};
 }
 module.exports={createCommissionGeneration,runCommissionTransaction:tx};
