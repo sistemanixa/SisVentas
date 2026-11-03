@@ -1,4 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+test('Cuenta corriente waits only for sources the role can read, without granting a private directory',()=>{const context={URL,window:{addEventListener(){},svPuedeLeerDominio:key=>['ventas','pagos'].includes(key)},document:{addEventListener(){}},requestAnimationFrame(){}};vm.runInNewContext(fs.readFileSync('js/core/data-readiness.js','utf8'),context);const api=context.window.SVDataReadiness;assert.deepEqual(Array.from(api.requirementsFor('cuentacorriente')),['ventas','pagos']);api.beginSource('ventas').ready();assert.equal(api.statusFor('cuentacorriente').ready,false);api.beginSource('pagos').ready();assert.equal(api.statusFor('cuentacorriente').ready,true);assert.equal(api.status(['clientes']).ready,false);});
 test('carga distingue pendiente, vacío confirmado, error y sesión nueva',()=>{
  const context={URL,window:{addEventListener:()=>{}},document:{addEventListener:()=>{}},requestAnimationFrame:()=>{}};
  vm.runInNewContext(fs.readFileSync('js/core/data-readiness.js','utf8'),context);

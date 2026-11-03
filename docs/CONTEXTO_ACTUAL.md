@@ -1,3 +1,21 @@
+# Verificación final18.9 aprobada, sólo local · 03/11/2026
+
+Puerta7266total/7239PASS/27skip/0fallos (79,9s), coherencia18.9 y sintaxis PASS. Se conserva el commit local previo f77a81bc de Cobranzas; la continuación de Cuenta corriente corrige discrepancias reproducidas y no representa aún su optimización HTTP por cliente. No hay publicación/push ni cambios de permisos, originales, pagos, comisiones o stock. Pestaña8919 con demo ficticia de Cobranzas abierta; no se recargó la sesión humana8766.
+
+# Cuenta corriente/estado de pago: última coherencia local · 03/11/2026
+
+La regresión previa del índice detectó otro camino que aún revivía embebidos:ventaTienePagoTotal con pagos indexados difería de la llamada normal. Se corrigieron ambos caminos con la misma presencia autoritativa de globales. También se retiró la tolerancia visual de1peso en estadoPagoEfectivoVenta/ventaTienePagoTotal:comparan centavos con la utilidad monetaria canónica, sin modificar importes almacenados. Nuevos casos:deuda0,01/0,50 nunca total;0,10+0,20 frente a total0,30 sí total; indexado y normal coinciden. No se alteró la expectativa del test existente de equivalencia. Paridad de300ventas ordinarias exacta contra18.8;10casos nuevos de fuente/estado/fuentes completos aprobados.
+
+El fixture de llegada de datos ahora carga los helpers canónicos reales necesarios; se conservaron los importes esperados y pruebas de orden/tablas ocultas. Diagnósticos iniciales privados account-gate-initial y account-index-gate, sin datos reales. Puerta completa final posterior en curso. Sigue sólo local, sin push ni publicación.
+
+# Cuenta corriente18.9: corrección local de fuente canónica y espera · 03/11/2026
+
+Continuación independiente después del commit local f77a81bc de Cobranzas. Dos reproducciones nuevas fallaron en18.8:Cuenta corriente revivía totalPagado/embebidos si todos los globales estaban anulados, y un fallback paralelo atribuía pagos por alias comercial aunque su referencia técnica correspondía a otra venta.18.9 elimina ese fallback duplicado y usa el índice/matcher canónico que ya emplea Ventas. El selector de pagos canónicos tampoco revive embebidos cuando hay globales anulados. La conciliación deja de inyectar copias embebidas como si fueran nuevos globales si ya existen globales relacionados. Sin globales se conserva el comportamiento legacy autorizado. No se escriben pagos ni históricos.
+
+La cuenta visible espera Ventas/Cobros/Clientes autorizados antes de reconstruir mapas o cifras; pendientes/errores no aparecen como cero. Se probaron ambos órdenes de llegada y se evita reconstruir tablas ocultas. DataReadiness contempla Cuenta corriente como carga demandada y filtra dominios no autorizados:un rol que sólo consulta la cuenta no queda esperando un directorio al que no tiene acceso. No se ampliaron permisos.21pruebas focales PASS, y30de contratos/membresía/acciones del extracto PASS con solapamiento. Sintaxis/coherencia18.9 PASS; puerta completa en curso.
+
+La optimización HTTP por cliente de Cuenta corriente/Historial todavía requiere su proyección específica; esta corrección de consistencia no se presenta como reducción de esas descargas. Fuente local18.9, Cobranzas18.8 preparada local; ninguna publicada ni subida.8919 sigue como demo ficticia de Cobranzas; no afirmar revisión visual autenticada de Cuenta corriente.
+
 # Verificación completa local18.8 aprobada · 03/11/2026
 
 Puerta final7255total/7228PASS/27skip/0fallos (86,9s), tras la última corrección de adjuntos y búsqueda. Reglas candidatas probadas en namespace demo local sin cambios remotos. Sintaxis/diff/coherencia18.8 PASS. Evidencia privada en tmp/post-index-audit3186. Bloque Cobranzas preparado local; no publicación, push ni cierre de la auditoría integral.
