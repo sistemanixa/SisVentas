@@ -1,12 +1,12 @@
 # Auditoría maestra · evidencia y cobertura
 
-Estado: **en curso**. Base revisada `6e4f810b1e469d7c8750b3d36f8cc4893a2dad0b`, aplicación activa v3.18.12. No certifica versiones posteriores ni el despliegue remoto. No hubo cambios funcionales, publicación, modificaciones de reglas ni operaciones reales durante este bloque.
+Estado: **en curso**. Base revisada `6e4f810b1e469d7c8750b3d36f8cc4893a2dad0b`, aplicación activa v3.18.12. No certifica versiones posteriores ni el despliegue remoto. El primer bloque sólo agregó pruebas; el segundo prepara el retiro local del observador de comisiones. No hubo publicación, modificaciones de reglas ni operaciones reales.
 
 ## Método y límites
 
 La aplicación completa corre en loopback con SDK simulado, identidad ficticia y almacén en memoria. Los comandos de cobro, guardado laboral y propiedad comercial utilizan las fábricas reales del servidor. CSP y el conductor bloquean servicios externos. El fixture no aplica las reglas RTDB remotas: una aprobación local no certifica permisos de producción. Se conserva la pestaña real del titular.
 
-Los niveles de cobertura son diferentes: apertura, formulario, persistencia nativa y circuito integrado. El recorrido de 43 pantallas no equivale a completar sus operaciones. Las pruebas unitarias complementan, no sustituyen, las pruebas de usuario. Tampoco una prueba de vista previa de Proyectos certifica su backend.
+Los niveles de cobertura son diferentes: apertura, formulario, persistencia nativa y circuito integrado. El recorrido de 43 pantallas no equivale a completar sus operaciones. Las pruebas unitarias complementan, no sustituyen, las pruebas de usuario. La vista previa de Proyectos se complementó con seis pruebas de su backend sobre RTDB emulado.
 
 ## Evidencia ejecutada
 
@@ -106,4 +106,12 @@ node --test test/master-audit-isolation.integration.cjs
 
 Evidencia privada de este bloque: `C:/SisVentas/tmp/auditoria-maestra-20261103-completa`, `auditoria-comercial-master10`, `auditoria-comercial-administrativo`, `auditoria-maestra-browser-final`, `auditoria-comercial-mobile2`, `auditoria-comercial-red-lenta2`, `auditoria-maestra-suite-permitida.log` y `auditoria-maestra-gastos-native.log`. No publicar perfiles, respaldos ni resultados con datos reales. Los JSON de este fixture contienen sólo datos ficticios; aun así se conservan fuera de Git.
 
-Siguiente bloque: completar comisión posterior al cobro en el servidor ficticio y la cadena compra→recepción→lote→materiales→OT→garantía→cierre, después Caja/Tesorería y conciliación mensual. Ejecutar reglas en emulador con base revisada; Java no estaba disponible en PATH durante este bloque, por lo que no se afirma esa validación. No introducir cron, observadores periódicos de comisiones ni barridos históricos.
+Siguiente bloque: completar comisión posterior al cobro en el servidor ficticio y la cadena compra→recepción→lote→materiales→OT→garantía→cierre, después Caja/Tesorería y conciliación mensual. Ejecutar reglas en emulador con base revisada; Java no estaba en PATH: se encontró Android Studio/jbr y se ejecutaron emuladores demo locales. Proyectos6PASS, finanzas privadas5PASS, propiedad comercial20PASS y circuito laboral27PASS. Las bases de reglas de esas pruebas son las revisadas por sus runners; no certifican las reglas remotas actuales. No introducir cron, observadores periódicos de comisiones ni barridos históricos.
+
+## Hallazgo confirmado y corrección local del segundo bloque
+
+Se confirmó que `commission-generation.js` conservaba `start()`, una escucha global de ventas pagadas, `watchCommissionJobs` y un intervalo de60segundos. `index.js` podía activarlo con `COMMISSION_OBSERVER_ENABLED=true`. Se verificó también su presencia en el checkout de integración, sin editarlo. **No se verificó el valor remoto ni se atribuye consumo actual a esa vía.** Contradice la prohibición del titular de conservar/reactivar el observador periódico.
+
+Se retiraron implementación/exportación/temporizador/módulo y COPY; un flag retirado=true falla antes de escuchar. La recuperación ahora exige una venta concreta, sin descargar el historial de trabajos. Generación por evento y acción, cálculos, comisiones existentes y reglas permanecen. Detalle e integración en RETIRO_OBSERVADOR_COMISIONES.md. Codex confirmó que esta rama es dueña del arreglo y que no hará una segunda implementación.
+
+Se conservaron los archivos de pruebas: los escenarios del observador ahora se verifican mediante acciones explícitas y guardas contra su reintroducción.75focalesPASS;20emuladorcomercial+27laboralPASS después del retiro. La prueba legacy que permitía autovincular una venta por nombre se corrigió al contrato vigente: noadmin403 sin mutación, admin vincula, responsable edita y tercero sigue rechazado. No se abrió ningún permiso para que pasara.
