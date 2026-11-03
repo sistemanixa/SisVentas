@@ -19,7 +19,7 @@ async function augment({patch,raw,get}){if(!Object.keys(patch).some(p=>/^sisvent
   const ignored=new Set(['audit','estadoInst','observaciones','obs','factura']),economic=s=>Object.fromEntries(Object.entries(s||{}).filter(([k])=>!ignored.has(k)));
   const changes=[];let safe=true;
   for(const id of saleKeys){const before=await raw('sisventas/ventas/'+id),after=await get('sisventas/ventas/'+id),old=await raw(M.ROOT+'/records/sales/'+id);if(!before||!after||!old||!same(economic(before),economic(after))){safe=false;break;}
-   const row={...old,installation:String(after.estadoInst||'').slice(0,60),invoiced:!!after.factura,notes:String(after.observaciones||after.obs||'').slice(0,2000)};
+   const row={...old,installation:String(after.estadoInst||'').slice(0,60),invoiced:!!after.factura,notes:String(after.observaciones||after.obs||'').slice(0,2000),...M.displayFields(after)};
    if(!same(row,old))changes.push({kind:'sales',key:id,before:old,after:row});
   }
   if(safe){if(changes.length){const revision=coverage.revision+1;if(!Number.isSafeInteger(revision))throw Error('Secuencia comercial agotada.');Object.assign(patch,await M.delta(changes,{read:raw,generation:coverage.generation,revision}));patch[M.ROOT+'/coverage']={...coverage,revision};}return;}

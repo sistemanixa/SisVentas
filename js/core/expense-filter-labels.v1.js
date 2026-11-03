@@ -1,0 +1,3 @@
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.SVExpenseFilterLabels=api;})(typeof window==='object'?window:null,function(){'use strict';
+function describe(kpi,range){const labels={mes:'Pagado este mes',pendiente:'Pendiente de pago',vence:'Vencen esta semana',reembolso:'A reembolsar a técnicos'};let label=labels[kpi]||'';const date=v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v||''))?String(v).split('-').reverse().join('/'):'';if(kpi==='vence'&&date(range?.desde)&&date(range?.hasta))label+=' · del '+date(range.desde)+' al '+date(range.hasta);return{label,skipControls:kpi==='mes'?['gas-f-mes']:['pendiente','vence','reembolso'].includes(kpi)?['gas-f-estado']:[]};}
+return{describe};});

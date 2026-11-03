@@ -1,0 +1,8 @@
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.SVPaymentActorNames=api;})(typeof window==='object'?window:null,function(){
+'use strict';
+const clean=v=>typeof v==='string'?v.trim().slice(0,160):'';
+function identity(payment){const p=payment||{},uid=clean(p.usuarioUid||p.registradoPorUid||p.uid),value=clean(p.usuarioNombre||p.registradoPorNombre||p.usuario);return{uid:uid||(/^[A-Za-z0-9_-]{20,128}$/.test(value)?value:''),name:(!uid||value!==uid)&&!(/^[A-Za-z0-9_-]{20,128}$/.test(value))?value:''};}
+function create({capture,readProfile,profiles=()=>({}),users=()=>[]}){let epoch=0;const cache=new Map(),pending=new Map();function known(uid){const p=profiles()[uid];return clean(p?.nombre)||clean(users().find(u=>u.uid===uid||u.fbKey===uid)?.nombre);}
+async function resolve(payment){const id=identity(payment);if(id.name)return id.name;if(!id.uid)return 'Sistema';const c=capture(),token=epoch,valid=()=>{const n=capture();return token===epoch&&c&&n&&c.uid===n.uid&&c.role===n.role&&c.auth===n.auth&&c.revision===n.revision&&!n.viewing&&!n.hidden;};if(!valid())return 'Usuario no identificado';if(!/^[A-Za-z0-9_-]{1,128}$/.test(id.uid))return 'Usuario no identificado';const local=known(id.uid);if(local)return local;const k=c.uid+'|'+c.role+'|'+id.uid;if(cache.has(k))return cache.get(k);if(!pending.has(k))pending.set(k,Promise.resolve().then(()=>readProfile(id.uid)).then(p=>{if(!valid())return 'Usuario no identificado';const name=clean(p?.nombre)||'Usuario no identificado';cache.set(k,name);return name;}).catch(()=> 'Usuario no identificado').finally(()=>pending.delete(k)));return pending.get(k);}
+return{resolve,reset(){epoch++;cache.clear();pending.clear();}};}
+return{identity,create};});

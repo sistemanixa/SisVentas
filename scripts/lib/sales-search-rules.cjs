@@ -1,0 +1,3 @@
+'use strict';
+function prepare(input){const out=structuredClone(input),r=out.rules,tree=r?.sv_commercial_pages,base=tree?.v1,sales=base?.pages?.$scope?.sales;if(!tree||tree['.read']!==false||typeof tree['.write']!=='string'||!tree['.write'].includes('svLaborService')||!sales||typeof sales['.read']!=='string'||!sales['.read'].includes('query.limitToFirst <= 50')||base.search)throw Error('Revisar reglas comerciales antes de preparar búsqueda.');base.search={$scope:{$term:{'.read':sales['.read']+" && $term.matches(/^[a-f0-9]{6}$/) && root.child('sv_commercial_pages_config/searchReady').val() === true && root.child('sv_commercial_pages_config/searchSchema').val() === 1"}}};return out;}
+module.exports={prepare};

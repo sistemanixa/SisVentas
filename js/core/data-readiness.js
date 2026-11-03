@@ -270,6 +270,7 @@
     if(held){if(deadlineTimer!==null)global.clearTimeout(deadlineTimer);deadlineTimer=null;}else armDeadlines();
     document.dispatchEvent(new CustomEvent('sisventas:data-state-changed'));
   }
+  function invalidate(keys){(Array.isArray(keys)?keys:[keys]).forEach(function(key){if(key)states[key]={ready:false,sources:new Set(),since:Date.now(),timeout:false,failure:false};});schedule();}
   function reset(){generation++;states={};startupHolds.clear();sessionActive=false;clearStatus();screenLoading.reset();if(deadlineTimer!==null&&typeof global.clearTimeout==='function')global.clearTimeout(deadlineTimer);deadlineTimer=null;schedule();}
   document.addEventListener('sisventas:session-ended',reset);
   document.addEventListener('sisventas:session-ready',function(){sessionActive=true;schedule();});
@@ -278,5 +279,5 @@
   document.addEventListener('visibilitychange',schedule);
   document.addEventListener('DOMContentLoaded',schedule);
   global.addEventListener('online',schedule);global.addEventListener('offline',schedule);
-  global.SVDataReadiness={begin:begin,beginSource:beginSource,status:status,statusFor:statusFor,requirementsFor:requirements,holdStartup:holdStartup,waitForPage:waitForPage,reset:reset,render:schedule};
+  global.SVDataReadiness={begin:begin,beginSource:beginSource,status:status,statusFor:statusFor,requirementsFor:requirements,invalidate:invalidate,holdStartup:holdStartup,waitForPage:waitForPage,reset:reset,render:schedule};
 })(window);

@@ -23,6 +23,7 @@
     var e={input:input,result:result,scope:result.closest('.card')||input.closest('.page')||result.parentElement,counter:counter,native:native,notice:notice,label:label,controls:[],tabs:[]};
     clear.onclick=function(){
       if(input.id==='ventas-search'){limpiarFiltrosVentas();schedule();return;}
+      if(input.id==='gas-buscar'){window._filtroGastosKpiActivo='';window._filtroGastosKpiVence=null;window._filtroGastosKpiReembolso=null;window._svSalaryExpenseFilter=null;}
       input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));
       e.controls.forEach(function(n){
         if(n.tagName==='SELECT'){var neutral=Array.from(n.options).find(function(o){return /^(todos?|todas?|cualquier)(\b|$)/i.test(o.textContent.trim());});if(!neutral)return;n.value=neutral.value;}
@@ -37,8 +38,12 @@
     var input=e.input;if(!visible(input))return;
     var native=e.native&&e.native.textContent.trim();
     var paged=input.getAttribute('data-sv-paged-count');
-    text(e.counter,paged!==null?paged:input.id==='prod-search'&&native?native:count(e.result)+' resultados visibles');
+    var pagedStatus=input.getAttribute('data-sv-paged-status');
+    text(e.counter,pagedStatus|| (paged!==null?paged:input.id==='prod-search'&&native?native:count(e.result)+' resultados visibles'));
+    if(pagedStatus)e.counter.title=pagedStatus;else e.counter.removeAttribute('title');
     var parts=input.value.trim()?['«'+input.value.trim()+'»']:[];
+    var expense=input.id==='gas-buscar'&&window.SVExpenseFilterLabels?window.SVExpenseFilterLabels.describe(window._filtroGastosKpiActivo,window._filtroGastosKpiVence):null;
+    if(expense&&expense.label)parts.push(expense.label);
     e.controls=Array.from(e.scope.querySelectorAll('select,input[type="date"],input[type="month"],input[type="checkbox"]')).filter(function(n){return visible(n)&&!n.closest('tbody')&&!/search-field|orden|page-size|pagination/i.test(n.id)&&(n.type==='date'||n.type==='month'||/filtro|filter|estado|periodo|mes|^gas-f-|^com-f-/.test(n.id));});
     e.controls.forEach(function(n){
       if(n.tagName==='SELECT'){var o=n.options[n.selectedIndex],label=o?o.textContent.trim():'';if(label&&!/^(todos?|todas?|cualquier|seleccion)/i.test(label))parts.push(label);}
