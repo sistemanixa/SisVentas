@@ -1,6 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {load}=require('./helpers/app-functions.cjs');
-const c=load({proveedoresData:[],normalizarUrlProveedorProducto:v=>v||''},['proveedoresVinculadosProducto','proveedorRevisionCoincide','productoSinProveedorRevisado']);
+const {loadProductCostContext}=require('./helpers/product-cost-app-functions.cjs');
+const c=loadProductCostContext({proveedoresData:[],normalizarUrlProveedorProducto:v=>v||''},['proveedoresVinculadosProducto','proveedorRevisionCoincide','productoSinProveedorRevisado']);
 const provider={nombre:'A',proveedorKey:'a',url:'https://a.example/item',precio:300};
 const event={id:'audit1',fecha:123,usuario:'Admin',motivo:'Sin stock'};
 test('el último proveedor se elimina sin borrar el producto, stock, costo o historial',()=>{
@@ -24,7 +25,8 @@ test('no borra otro proveedor ante reordenamiento o URL cambiada',()=>{
  assert.equal(c.productoSinProveedorRevisado(null,0,provider,event),undefined);
 });
 test('proveedor heredado se elimina sin regenerarse desde alias',()=>{
- const p={proveedor:'A',codWeb:provider.url,compra:300};
+ const p={proveedor:'A',codWeb:provider.url,compra:300,costoRealArs:999999};
+ assert.equal(c.proveedoresVinculadosProducto(p)[0].costoRealArs,300);
  const r=c.productoSinProveedorRevisado(p,0,c.proveedoresVinculadosProducto(p)[0],event);
  assert.equal(c.proveedoresVinculadosProducto(r).length,0);assert.equal(r.activo,false);
 });

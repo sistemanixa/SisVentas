@@ -12,9 +12,9 @@
    if(item.comisionCostoHistoricoPendiente===true)throw Error('El costo histórico de '+(item.cod||item.desc||'un ítem')+' requiere revisión; no se reemplazó con el catálogo actual.');
    let cost=unit(item),source='guardado';const product=r.obtenerProductoPorCodigoVenta?.(item.cod||item.codigo,item);
    if(cost===null){if(!product)throw Error('Falta definir el costo de '+(item.cod||item.desc||'un ítem')+'. Revisá el producto antes de guardar.');const value=r.obtenerCostoUnitarioVenta?.(item.cod||item.codigo,{...item});if(!numeric(value))throw Error('Falta definir el costo de '+(item.cod||item.desc||'un ítem')+'.');cost=Number(value);source='catalogo_al_confirmar';
-    if(cost===0&&!['compraARS','precioGremio','compra','costoRealArs'].some(k=>numeric(product[k])&&Number(product[k])===0))throw Error('Falta definir el costo de '+(item.cod||item.desc||'un ítem')+'. No se tomó como cero.');
+    if(cost===0&&!['compraARS','precioGremio','compra'].some(k=>numeric(product[k])&&Number(product[k])===0))throw Error('Falta definir el costo de '+(item.cod||item.desc||'un ítem')+'. No se tomó como cero.');
    }
-   if(cost===0&&(item.cod||item.codigo)&&!item.costoVersion&&!numeric(item.costoUnitarioPresupuestado)&&!numeric(item.costoUnitarioAntesPreparacion)&&(!product||!['compraARS','precioGremio','compra','costoRealArs'].some(k=>numeric(product[k])&&Number(product[k])===0)))throw Error('Falta confirmar el costo de '+(item.cod||item.codigo)+'. No se tomó como cero.');
+   if(cost===0&&(item.cod||item.codigo)&&!item.costoVersion&&!numeric(item.costoUnitarioPresupuestado)&&!numeric(item.costoUnitarioAntesPreparacion)&&(!product||!['compraARS','precioGremio','compra'].some(k=>numeric(product[k])&&Number(product[k])===0)))throw Error('Falta confirmar el costo de '+(item.cod||item.codigo)+'. No se tomó como cero.');
    if(!numeric(out.costoUnitarioCompra))out.costoUnitarioCompra=cost;
    if(!numeric(out.costoTotalCompra))out.costoTotalCompra=Money.product(cost,q);
    if(!numeric(out.costoUnitarioPresupuestado))out.costoUnitarioPresupuestado=cost;
