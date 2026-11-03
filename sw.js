@@ -94,7 +94,7 @@ const SHELL = [
   './js/modules/catalog-order-periods-config.js?v=1',
   './js/modules/public-catalog-requests.js?v=3.11.1-usd',
   './js/modules/public-catalog-share.js?v=3.11.1-usd',
-  './js/core/data-readiness.js?v=3.18.13',
+  './js/core/data-readiness.js?v=3.18.14',
   './js/modules/employee-cash-receipt.js?v=3.14.20',
   './js/modules/exterior-user-lists.js?v=3.11.11-directory',
   './',

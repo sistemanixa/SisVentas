@@ -113,7 +113,8 @@
   function status(keys){
     var missing=keys.filter(function(k){return !states[k]||!states[k].ready;});
     var errors=keys.filter(function(k){return failed(states[k]);});
-    return {ready:!missing.length,missing:missing,errors:errors};
+    var messages=[];errors.forEach(function(key){var state=states[key];if(state.failureMessage)messages.push(state.failureMessage);Array.from(state.sources).forEach(function(source){if(source.error&&source.message)messages.push(source.message);});});
+    return {ready:!missing.length,missing:missing,errors:errors,messages:Array.from(new Set(messages)).slice(0,3)};
   }
   function statusFor(page){return status(requirements(page));}
   function holdStartup(){
@@ -129,6 +130,7 @@
   function presentation(state){
     var title=state.errors.length?'No se pudieron cargar todos los datos':state.ready?'Datos listos':global.navigator.onLine===false?'Sin conexión. Esperando los datos…':'Cargando datos…';
     var detail=state.errors.length?'No se pudieron completar '+state.errors.map(function(k){return labels[k]||k;}).join(', ')+'. '+(state.ready?'Se conserva la información recibida. Revisá la conexión y volvé a intentar.':'Revisá la conexión y volvé a intentar.'):state.ready?'': 'Esperando '+state.missing.map(function(k){return labels[k]||k;}).join(', ')+'.';
+    if(state.errors.length&&state.messages?.length)detail=state.messages.join(' ');
     return {title:title,detail:detail};
   }
   // El arranque y la pantalla visible observan el mismo estado. No hay otro
@@ -175,17 +177,18 @@
     var epoch=generation,active=true;
     if(!key)return {ready:function(){},error:function(){},cancel:function(){}};
     var state=ensure(key),source={ready:false,error:false,reference:reference||''};
-    state.sources.add(source);state.timeout=false;state.failure=false;state.since=Date.now();schedule();
-    function finish(error){
+    state.sources.add(source);state.timeout=false;state.failure=false;state.failureMessage='';state.since=Date.now();schedule();
+    function finish(error,message){
       if(!active||epoch!==generation)return;
       source.error=error;
+      source.message=error&&typeof message==='string'?message.trim().slice(0,300):'';
       if(!error){source.ready=true;state.timeout=false;}
       // Consultas propias combinadas: una respuesta no completa la colección
       // hasta que todas las fuentes registradas entregaron su primer resultado.
-      if(Array.from(state.sources).every(function(item){return item.ready;})){state.ready=true;state.failure=false;}
+      if(Array.from(state.sources).every(function(item){return item.ready;})){state.ready=true;state.failure=false;state.failureMessage='';}
       schedule();
     }
-    return {ready:function(){finish(false);},error:function(){finish(true);},cancel:function(){if(!active||epoch!==generation)return;active=false;if(source.error)state.failure=true;state.sources.delete(source);schedule();}};
+    return {ready:function(){finish(false);},error:function(message){finish(true,message);},cancel:function(){if(!active||epoch!==generation)return;active=false;if(source.error){state.failure=true;state.failureMessage=source.message;}state.sources.delete(source);schedule();}};
   }
   function checkDeadlines(){
     deadlineTimer=null;
