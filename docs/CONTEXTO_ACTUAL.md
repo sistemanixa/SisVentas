@@ -1,3 +1,7 @@
+# Revisión independiente de Proyectos · 03/11/2026
+
+Revisado fe5989b3 sin integrar ni publicar. Nueve pruebas existentes PASS y probes ficticios confirmaron: pérdida de notas/fotos al quitar necesidad, Escape durante subida pierde borrador, objeto huérfano tras409, importación201→200 sin aviso, cambio de cliente del presupuesto no controlado, vínculo retirado con consumo sin conciliación y lectura completa de proyectos antes de filtrar. Falta cierre/reapertura y activación segura de fotos. Informe en AUDITORIA_PROYECTOS_EJECUCION_20261103.md; evidencia privada tmp/projects-review. Cero escrituras reales y sin modificaciones a archivos de Proyectos de la otra rama. Producción sigue v3.17.20. No anunciar bloque listo/publicado sólo por la suite anterior.
+
 # Publicada y comprobada v3.17.20 · 03/11/2026
 
 Hosting desde18c305ae18bcdf01d37118a73b6e2fe295bfed2d:561activos públicos/6cargas;13archivos exactos, cabeceras y privados404, marcador/SW/aviso oficial20 sincronizados. Verificación autenticada real de sólo lectura:50ventas iniciales; búsqueda histórica conserva deuda; primera entrada desde Ventas a Gastos sin Reintentar; las4tarjetas muestran aviso correcto sin duplicación; historial existente resuelve autor humano y distingue adjunto del gasto/comprobante del pago; regreso a Dashboard completa y conserva deuda. Se cerró sólo la pestaña extra de QA, conservando la ventana local original sin recargar formularios. Local8766 sirve20 y endpoint oficial autorizado.
