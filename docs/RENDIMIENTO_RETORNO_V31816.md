@@ -39,7 +39,7 @@ con contexto de cliente que diga administrador, perfil inactivo, cambio efectivo
 de rol, exigencia de contraseña y restablecimiento pendiente rechazados. Se probó
 la regla padre además de la puntual, sin modificar esas reglas en producción.
 
-Observación previa en la web real: abrir V-108487 desde su búsqueda histórica se
+Observación previa en la web real: abrir venta histórica de comparación desde su búsqueda histórica se
 observó en 5.263 ms hasta el encabezado; la medición incluye el control de UI,
 no es TTFB ni tiempo exclusivo de red. Los retornos cálidos a Dashboard observados
 fueron 1.357 y 1.374 ms; no se capturó en el último caso el aviso de ventas que
@@ -62,7 +62,7 @@ tras el ajuste de caché vacía: todos aprobados.
 ## Comprobación posterior en web
 
 Publicación desde9766e2582e732fadf133d4c7e0a559b4e07c42f9, activos y
-aviso16 comprobados. Mismo recorrido histórico V-108487:2.745ms observados
+aviso16 comprobados. Mismo recorrido histórico venta histórica de comparación:2.745ms observados
 frente a5.263ms previos. Retornos Dashboard1.791/1.990ms frente a1.357/1.374ms:
 no prueban mejora en ese caso. Son muestras UI con sobrecarga de herramienta.
 
