@@ -11,9 +11,9 @@ async function claims({patch,lease,actor,read,query}){
  const grouped=new Map();
  for(const [path,value]of Object.entries(patch)){
   const keys=parts(path),normalized=keys.join('/');
-  if(keys.some(k=>['__proto__','prototype','constructor'].includes(k)))throw fail();
   if(normalized===base||base.startsWith(normalized+'/'))throw fail();
   if(!normalized.startsWith(base+'/'))continue;
+  if(keys.some(k=>['__proto__','prototype','constructor'].includes(k)))throw fail();
   const id=keys[2];if(!grouped.has(id))grouped.set(id,[]);grouped.get(id).push({keys:keys.slice(3),value});
  }
  const token=Policy.token(actor,lease);let historical=false,changed=false;
