@@ -223,7 +223,7 @@
       return key+'='+kinds;
     }).join(';');
   }
-  function mountStatus(page,name,state){
+  function mountStatus(page,name,state,refreshing){
     if(!document.body)return;
     if(!statusBox){
       statusBox=document.createElement('div');statusBox.dataset.svDataStatus='1';statusBox.className='sv-data-status';
@@ -234,7 +234,9 @@
     statusBox.dataset.svDataPage=name;
     var diagnostic=pendingKinds(state.missing);if(statusBox.dataset.svPendingSources!==diagnostic)statusBox.dataset.svPendingSources=diagnostic;
     statusBox.classList.toggle('sv-data-error',!!state.errors.length);
-    var text=presentation(state);
+    statusBox.classList.toggle('sv-data-refresh',refreshing===true);
+    var text=refreshing?{title:'Actualizando…',detail:'Verificando ventas y cobros.'}:presentation(state);
+    statusRetry.hidden=refreshing===true;
     if(statusTitle.textContent!==text.title)statusTitle.textContent=text.title;
     if(statusDetail.textContent!==text.detail)statusDetail.textContent=text.detail;
     statusRetry.onclick=function(){
@@ -255,7 +257,7 @@
       }catch(_){report();}
     };
     var focused=statusBox.contains(document.activeElement)?document.activeElement:null;
-    if(!state.ready){
+    if(!state.ready&&!refreshing){
       // Fuera de .page: sus animaciones/transformaciones no pueden cambiar
       // el centro del viewport. La tarjeta es la misma, nunca una copia.
       if(!statusLayer){statusLayer=document.createElement('div');statusLayer.id='sv-data-status-layer';statusLayer.className='sv-load-status-layer';document.body.append(statusLayer);}
@@ -276,11 +278,12 @@
       if(sessionActive&&page.classList.contains('active'))keys.forEach(ensure);
       var state=status(keys);
       var show=!state.ready||state.errors.length>0;
-      page.classList.toggle('sv-data-pending',!state.ready);
+      var refreshing=name==='dashboard'&&!state.ready&&!state.errors.length&&state.missing.every(function(key){return key==='ventas'||key==='pagos';})&&global.SVCommercialPagesHost?.canRetainDashboard?.()===true;
+      page.classList.toggle('sv-data-pending',!state.ready&&!refreshing);
       page.setAttribute('aria-busy',String(!state.ready&&!state.errors.length));
-      if(show&&sessionActive&&allowed&&page.classList.contains('active'))visible={page:page,name:name,state:state};
+      if(show&&sessionActive&&allowed&&page.classList.contains('active'))visible={page:page,name:name,state:state,refreshing:refreshing};
     });
-    if(visible)mountStatus(visible.page,visible.name,visible.state);else clearStatus();
+    if(visible)mountStatus(visible.page,visible.name,visible.state,visible.refreshing);else clearStatus();
     if(held){if(deadlineTimer!==null)global.clearTimeout(deadlineTimer);deadlineTimer=null;}else armDeadlines();
     document.dispatchEvent(new CustomEvent('sisventas:data-state-changed'));
   }

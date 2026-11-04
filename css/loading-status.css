@@ -61,3 +61,8 @@ body:has(> #sv-cargando:not([hidden])) > .sv-load-status-layer { visibility: hid
 @media (prefers-reduced-motion: reduce) {
   .sv-data-status strong::before { animation: none; }
 }
+
+/* Resumen previo del mismo acceso: la vigencia sigue pendiente, sin tapar la pantalla. */
+.sv-data-refresh { flex-direction:row; align-items:center; gap:10px; padding:8px 12px; margin-bottom:12px; font-size:12px; }
+.sv-data-refresh strong { white-space:nowrap; }
+.sv-data-refresh [hidden] { display:none !important; }
