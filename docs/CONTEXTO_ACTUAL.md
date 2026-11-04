@@ -1,3 +1,7 @@
+## Delta aislado de consumidores tardíos y SHELL sobre ee46
+
+Badge se repinta al llegar resumen tardío; noticesChanged no duplica generación. Centro/badge distinguen pendiente de vacío certificado y conservan otros avisos/Source retenida. SHELL añade17URLs exactas del índice, sin CACHE/versiones ni activación. 70focales+2SHELL+2ChromePASS; baseline reproduce3rojosUI y1SHELL. Sin puerta general/root/producción. Patch y límites en docs/DASHBOARD_LATE_CONSUMERS_FIX.md; root integra sólo después de su gate congelado.
+
 ## Últimas personales: transporte y pantalla integrados, flag OFF
 
 Importadaentrega75d58780 y aplicado patch de cuatroarchivos trasgitapplycheck, preservando optimizaciónembebida y modoownMonthly. LectoractualVentas usa grupoexacto y hasta5filasPages, relee evidencia B0/B1 y proyecta sólo seis campospúblicos. Capacidadlatest es independiente; falloopcional no bloqueacontador ni actividadglobal. HTTPvalida campos/duplicados/cardinalidad/contexto/orden; Aggregate comparte segundaGETventas ya existente y hostownMonthly conserva1GET. No endpointnuevoni originales.

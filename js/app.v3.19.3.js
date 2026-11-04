@@ -6173,9 +6173,8 @@ function svHostPresupuestosDashboard() {
       svPintarPresupuestosDashboard();
       if(window.tienePermiso?.('dashboard.miActividad')===true&&typeof renderDashAdministrativo==='function')renderDashAdministrativo();
     }
-    if(kind==='notices'){
+    if(kind==='dashboard'||kind==='notices'){
       if(typeof verificarVencimientosPptos==='function')verificarVencimientosPptos();
-      if(typeof _svEsPaginaActiva==='function'&&_svEsPaginaActiva('notificaciones')&&typeof generarNotificaciones==='function')generarNotificaciones();
     }
   }});
   return window._svDashboardBudgetHost;
@@ -56105,7 +56104,13 @@ function generarNotificaciones() {
   // Ordenar: urgentes primero, luego por tipo
   todasNotifs.sort((a,b) => (b.urgente?1:0) - (a.urgente?1:0));
 
-  renderNotificaciones();
+  var avisosPptosPendientes=window.SV_BUDGET_NOTICES_LOCAL===true&&!presupuestosAvisos&&(typeof window.permisoModulo!=='function'||window.permisoModulo('presupuesto')===true);
+  if(!avisosPptosPendientes||todasNotifs.length||(typeof _svEsPaginaActiva==='function'&&_svEsPaginaActiva('notificaciones')))renderNotificaciones();
+  else {
+    var listaPendiente=document.getElementById('notif-lista'),etiquetaPendiente=document.getElementById('notif-count-label');
+    if(listaPendiente){listaPendiente.textContent='Avisos de presupuestos pendientes de actualización.';listaPendiente.setAttribute?.('aria-busy','true');}
+    if(etiquetaPendiente)etiquetaPendiente.textContent='Avisos de presupuestos pendientes';
+  }
   actualizarBadgeNotif();
   document.dispatchEvent(new CustomEvent('sisventas:notificaciones-actualizadas', {
     detail: { total: todasNotifs.length }
