@@ -1,8 +1,8 @@
 'use strict';
-function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=false,fetchImpl,operationalSummaries=false,commercialPages=process.env.COMMERCIAL_PAGES_ENABLED==='true',clientAccounts=process.env.CLIENT_ACCOUNTS_ENABLED==='true'}){
+function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=false,fetchImpl,operationalSummaries=false,commercialPages=process.env.COMMERCIAL_PAGES_ENABLED==='true',clientAccounts=process.env.CLIENT_ACCOUNTS_ENABLED==='true',clientHistory=process.env.CLIENT_HISTORY_ENABLED==='true'}){
  if(readOnly&&!enabled)throw Error('El modo de revisión requiere conservar el circuito acotado');
  const store=require('./labor-rtdb-store').createLaborRtdbStore({databaseURL,accessToken,fetchImpl});
- const guard=require('./labor-guard').createLaborGuard({store,readOnly,operationalSummaries,commercialPages,clientAccounts});
+ const guard=require('./labor-guard').createLaborGuard({store,readOnly,operationalSummaries,commercialPages,clientAccounts,clientHistory});
  const scopedDb=enabled?require('./labor-db').createLaborDb({db,guard}):db;
  const transaction=enabled?require('./labor-scoped-transaction').createScopedTransaction({guard}):require('./labor-transaction').createRootTransaction({databaseURL,accessToken,fetchImpl});
  function run(actor,operation,input,work,{system=false}={}){

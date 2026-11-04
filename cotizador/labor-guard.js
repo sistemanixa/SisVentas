@@ -32,7 +32,7 @@ function validateFinancialContext(actor,profile,permissions){
  if(Object.values(cfg.bloqueados||{}).includes(module)||permissions&&(cfg.indiceVersion!==2||cfg.indiceModulos?.[module]!==true)||(typeof override==='boolean'?!override:!defaults.includes(profile.rol)))throw failure(403,'El permiso de la operación ya no está habilitado');
  if((cfg.indiceRevision??null)!==(actor.permissionRevision??null)||digest(cfg)!==actor.permissionDigest)throw failure(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
 }
-function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=30000,readOnly=false,operationalSummaries=false,commercialPages=false,clientAccounts=false,delay=ms=>new Promise(resolve=>setTimeout(resolve,ms))}){
+function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=30000,readOnly=false,operationalSummaries=false,commercialPages=false,clientAccounts=false,clientHistory=false,delay=ms=>new Promise(resolve=>setTimeout(resolve,ms))}){
  if(!store||!Number.isFinite(leaseMs)||leaseMs<1000||leaseMs>60000)throw Error('Configuración de coordinación inválida');
  const context=new AsyncLocalStorage();let tail=Promise.resolve();
  function operation(actor){
@@ -106,7 +106,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
    working();if(!patch||typeof patch!=='object'||Array.isArray(patch))throw failure(400,'Cambios inválidos');
    const entries=Object.entries(patch);if(entries.length>20000)throw failure(400,'Demasiados cambios en una operación');
    PaymentIndex.paymentKeysForPatch(Object.fromEntries(entries.filter(([path])=>path==='sisventas'||path==='sisventas/pagos'||path.startsWith('sisventas/pagos/'))));
-   for(const [path,value]of entries){jsonValue(value,parts(path).length);const branch=path.split('/')[0];if(['sv_labor_guard','sv_labor_receipts','sv_labor_indexes','sv_labor_config','sv_commercial_pages','sv_commercial_pages_config','sv_client_accounts','sv_client_accounts_config'].includes(branch)&&!(actor.mode==='bootstrap'&&['sv_labor_indexes','sv_labor_config'].includes(branch)))throw failure(400,'La coordinación no se modifica desde los datos');}
+   for(const [path,value]of entries){jsonValue(value,parts(path).length);const branch=path.split('/')[0];if(['sv_labor_guard','sv_labor_receipts','sv_labor_indexes','sv_labor_config','sv_commercial_pages','sv_commercial_pages_config','sv_client_accounts','sv_client_accounts_config','sv_client_history','sv_client_history_config'].includes(branch)&&!(actor.mode==='bootstrap'&&['sv_labor_indexes','sv_labor_config'].includes(branch)))throw failure(400,'La coordinación no se modifica desde los datos');}
    for(const [path,value]of entries){let merged=false;for(const [parent,old]of staged){if(path===parent||parent.startsWith(path+'/'))staged.delete(parent);else if(path.startsWith(parent+'/')){staged.set(parent,put(old,parts(path.slice(parent.length+1)),value));merged=true;break;}}if(!merged)staged.set(path,copy(value));}
   }
   const finalChecks=[];
@@ -171,6 +171,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     if(clientAccounts&&!commercialPages)throw failure(503,'Las cuentas requieren el listado comercial coordinado.','SV_CLIENT_ACCOUNTS_INCOMPLETE');
     if(commercialPages)await require('./commercial-pages-projections').augment({patch,raw,get});
     if(clientAccounts){await require('./client-account-projections').augment({patch,raw,get});await require('./client-account-scope-plan').augment({actor,patch,raw});}
+    if(clientHistory){if(!clientAccounts||!commercialPages)throw failure(503,'El historial requiere las fuentes financieras coordinadas.','SV_CLIENT_HISTORY_INCOMPLETE');await require('./client-history-projections').augment({patch,raw,get,enabled:true});}
     const receiptResult=['admin-expense-create','admin-expense-edit'].includes(actor.operation)?{ok:true,committed:true,key:result.key}:['user','bootstrap'].includes(actor.mode)?copy(result):{ok:true,committed:true};
     patch['sv_labor_receipts/'+opId]={fence:lease.fence,digest:requestDigest,actorUid:actor.uid,result:receiptResult,confirmedAt:now()};patch.sv_labor_guard=null;
     if((actor.mode==='user'||actor.mode==='command')&&actor.financialAction){
@@ -192,6 +193,6 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
   const previous=tail;let release;tail=new Promise(resolve=>{release=resolve;});await previous;
   try{return await execute(actor,work,op);}finally{release();}
  }
- return {run,clientAccounts,affects:path=>affected(path)||clientAccounts&&/^sisventas\/(clientes|clientes_unificados|clientes_unificados_indice)(\/|$)/.test(path),current:()=>{const active=context.getStore();active?.assertActive();return active;}};
+ return {run,clientAccounts,clientHistory,affects:path=>affected(path)||clientHistory&&/^sisventas\/(ventas|pagos|presupuestos|ordenes_trabajo|reclamos|tickets|equipos)(\/|$)/.test(path)||clientAccounts&&/^sisventas\/(clientes|clientes_unificados|clientes_unificados_indice)(\/|$)/.test(path),current:()=>{const active=context.getStore();active?.assertActive();return active;}};
 }
 module.exports={createLaborGuard,canonical,digest,affected,parts,child,put,domains,config};

@@ -6,22 +6,25 @@ const ROOT=Model.ROOT,copy=value=>value==null?null:structuredClone(value);
 const fail=message=>Object.assign(Error(message),{code:'SV_CLIENT_HISTORY_INCOMPLETE'});
 const canonical=value=>value==null?'null':Array.isArray(value)?'['+value.map(canonical).join(',')+']':typeof value==='object'?'{'+Object.keys(value).sort().map(key=>JSON.stringify(key)+':'+canonical(value[key])).join(',')+'}':JSON.stringify(value);
 function ends(keys){return keys.filter((_,index)=>index%50===49||index===keys.length-1);}
+function requirements(source){const value=source?.requirements,embedded=value?.embedded??(value?.embeddedCount===0?[]:null),payments=value?.payments??(value?.paymentsCount===0?[]:null);if(!value||value.schema!==1||!Array.isArray(embedded)||!Array.isArray(payments)||value.embeddedCount!==embedded.length||value.paymentsCount!==payments.length||embedded.some(row=>!Model.domains.includes(row?.domain)||!Commercial.key(row?.key))||payments.some(key=>!Commercial.key(key)))throw fail('Falta la declaración de vínculos de la venta.');return{embedded,payments};}
+function dependencies(source){const value=source?.dependencies??(source?.dependenciesCount===0?[]:null);if(!Array.isArray(value)||source.dependenciesCount!==value.length||value.some(path=>{if(typeof path!=='string')return true;if(path.startsWith(ROOT+'/sources/')){const parts=path.slice((ROOT+'/sources/').length).split('/');return parts.length!==2||!Model.domains.includes(parts[0])||!Commercial.key(parts[1]);}if(path.startsWith(Commercial.ROOT+'/saleRefs/')){const parts=path.slice((Commercial.ROOT+'/saleRefs/').length).split('/');return parts.length!==2||!['technical','businessExact','businessDigits'].includes(parts[0])||!/^[a-f0-9]{64}$/.test(parts[1]);}if(!path.startsWith('sv_client_accounts/v1/'))return true;const parts=path.slice('sv_client_accounts/v1/'.length).split('/');return parts.length!==3||!Commercial.key(parts[2])||!(parts[0]==='directory'&&['aliases','clients','index','structures'].includes(parts[1])||parts[0]==='sources'&&['sales','payments'].includes(parts[1]));}))throw fail('Faltan las dependencias de identidad del historial.');return value;}
 function validate(source,domain,key,generation){
  if(!source)return;
- const row=source.row;
+ const row=source.row;dependencies(source);
  if(!row||row.schema!==1||row.domain!==domain||row.key!==key||row.generation!==generation||!Number.isSafeInteger(row.revision)||row.revision<1||!/^\d{8}_[a-f0-9]{64}$/.test(row.sort)||row.sort!==Model.order(row)||typeof source.ownerUid!=='string'||source.ownerUid&&!Commercial.key(source.ownerUid)||!row.identity||row.accountId!==Commercial.hash(row.identity.accountKey))throw fail('La contribución del historial no está verificada.');
  const summary=Model.empty();Model.sum(summary,row);
  if(typeof row.amountKnown!=='boolean'||!['totalCents','paidCents','balanceCents'].every(field=>Number.isSafeInteger(row[field])))throw fail('Importe de historial inválido.');
- if(domain==='ventas'&&(!Array.isArray(source.requirements?.embedded)||!Array.isArray(source.requirements?.payments)))throw fail('Falta la declaración de vínculos de la venta.');
+ if(domain==='ventas')requirements(source);
 }
 function keys(value){if(value==null)return new Set();if(typeof value!=='object'||Array.isArray(value)||Object.entries(value).some(([key,present])=>!/^\d{8}_[a-f0-9]{64}$/.test(key)||present!==true))throw fail('La membresía del historial está incompleta.');return new Set(Object.keys(value));}
 function verifySummary(summary,members,pageEnds){
  if(!summary||!Model.totalFields.every(field=>Number.isSafeInteger(summary[field]))||summary.rows<0||summary.rows!==members.size||canonical(ends([...members].sort()))!==canonical(pageEnds||[]))throw fail('Los totales no coinciden con la membresía del historial.');
 }
+function linkChanges(before,after){if(!before)return{all:false,payments:false};const identity=source=>source&&[source.row.identity,source.row.addressKey,source.row.addressStatus,source.ownerUid],all=canonical(identity(before))!==canonical(identity(after))||canonical(requirements(before).embedded)!==canonical(after?requirements(after).embedded:[]);return{all,payments:before.row.paidCents!==after?.row.paidCents||before.row.paymentSource!==after?.row.paymentSource};}
 async function delta(changes,{read,generation,revision}={}){
  if(typeof read!=='function'||!Commercial.key(generation)||!Number.isSafeInteger(revision)||revision<2||!Array.isArray(changes))throw fail('Falta la generación coordinada del historial.');
  const state=await read(ROOT+'/state');
- if(state?.schema!==1||state.ready!==true||state.generation!==generation||state.revision!==revision-1||!Number.isSafeInteger(state.records)||state.records<0)throw fail('La generación del historial cambió.');
+ if(state?.schema!==1||state.ready!==true||state.dependencyManifest!==1||state.generation!==generation||state.revision!==revision-1||!Number.isSafeInteger(state.records)||state.records<0)throw fail('La generación del historial cambió.');
  function validateCoverage(value){if(value?.schema!==1||value.ready!==true||value.generation!==generation||!Number.isSafeInteger(value.revision)||value.revision<1||value.revision>state.revision||!['records','originalRecords','unlinkedRecords'].every(field=>Number.isSafeInteger(value[field])&&value[field]>=0)||value.records<value.originalRecords||value.records<value.unlinkedRecords)throw fail('Falta una fuente completa del historial.');return copy(value);}
  const coverages={};let originalCount=0;
  for(const domain of Model.domains){const value=validateCoverage(await read(ROOT+'/coverage/all/'+domain));coverages[domain]=value;originalCount+=value.records;}
@@ -46,13 +49,10 @@ async function delta(changes,{read,generation,revision}={}){
   for(const child of change.after?.requirements.embedded||[])if(!seen.get(child.domain+'/'+child.key)?.after)throw fail('Falta registrar el historial embebido en el mismo guardado.');
   for(const key of change.after?.requirements.payments||[])if(!seen.get('pagos/'+key)?.after&&!(await read(ROOT+'/sources/pagos/'+key)))throw fail('Falta el cobro declarado por la venta.');
   if(!change.before)continue;
-  const identity=source=>source&&[source.row.identity,source.row.addressKey,source.row.addressStatus,source.ownerUid];
-  const identityChanged=canonical(identity(change.before))!==canonical(identity(change.after));
-  const childrenChanged=canonical(change.before.requirements?.embedded)!==canonical(change.after?.requirements?.embedded);
-  const paymentsChanged=change.before.row.paidCents!==change.after?.row.paidCents||change.before.row.paymentSource!==change.after?.row.paymentSource;
-  if(identityChanged||childrenChanged||paymentsChanged){
+  const changed=linkChanges(change.before,change.after);
+  if(changed.all||changed.payments){
    const related=await read(ROOT+'/relatedSales/'+change.key)||{};
-   for(const [domain,records]of Object.entries(related))if(identityChanged||childrenChanged||paymentsChanged&&domain==='pagos')for(const [key,present]of Object.entries(records||{}))if(present!==true||!seen.has(domain+'/'+key))throw fail('Falta actualizar un vínculo del historial en el mismo guardado.');
+   for(const [domain,records]of Object.entries(related))if(changed.all||changed.payments&&domain==='pagos')for(const [key,present]of Object.entries(records||{}))if(present!==true||!seen.has(domain+'/'+key))throw fail('Falta actualizar un vínculo del historial en el mismo guardado.');
   }
  }
  async function bucket(scope,row){
@@ -76,6 +76,7 @@ async function delta(changes,{read,generation,revision}={}){
   patch[ROOT+'/sources/'+change.domain+'/'+change.key]=change.after?{...copy(change.after),row:{...copy(change.after.row),revision}}:null;
   for(const [source,sign]of [[change.before,-1],[change.after,1]])if(source){
    const row={...source.row,revision:sign>0?revision:source.row.revision};
+   for(const dependency of dependencies(source))patch[ROOT+'/dependents/'+Commercial.hash(dependency)+'/'+change.domain+'/'+change.key]=sign>0?true:null;
    if(row.saleKey)patch[ROOT+'/relatedSales/'+row.saleKey+'/'+change.domain+'/'+change.key]=sign>0?true:null;
    for(const scope of Model.scopes(change.domain,source.ownerUid)){
     const covered=(await coverageFor(scope))[change.domain];covered.records+=sign;covered.originalRecords+=row.embedded?0:sign;covered.unlinkedRecords+=row.identity.status!=='linked'?sign:0;affectedDomains.add(scope+'/'+change.domain);
@@ -114,4 +115,4 @@ async function delta(changes,{read,generation,revision}={}){
  patch[ROOT+'/state']={...state,revision,records:Object.values(coverages).reduce((sum,value)=>sum+value.records,0)};
  return patch;
 }
-module.exports={delta};
+module.exports={delta,linkChanges};

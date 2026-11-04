@@ -2,8 +2,7 @@
 
 ## Estado
 
-Preparación local durante la auditoría del 03/11/2026. No está conectada a la
-pantalla, al guard de escritores, al contenedor ni a reglas remotas. No se creó
+Preparación local durante la auditoría del 03/11/2026. Está conectada condicionalmente al guard/runtime y al paquete del servidor; no está conectada a la pantalla, al adaptador de escrituras del navegador ni a reglas remotas. No se creó
 `sv_client_history_config` en producción. El Historial publicado todavía usa
 sus fuentes anteriores; este documento no acredita una reducción productiva.
 
@@ -68,3 +67,11 @@ Cuenta corriente: una cobertura ausente no se convierte en cero. Debe verificars
 la política de responsables históricos y la creación de su ámbito completo.
 
 Los pagos embebidos sólo se incorporan cuando no hay cobros globales autoritativos, incluidos los anulados. Sus dependencias quedan privadas y el delta exige retirar los miembros embebidos al aparecer el cobro global. El permiso de comisiones por sí solo no habilita las solapas financieras.33 casos de modelo/delta/lector aprobados con datos ficticios; sin integración productiva.
+
+## Escritores coordinados preparados
+
+client-history-projections mantiene las siete fuentes mediante componentes de registros vinculados y lecturas puntuales; el constructor de contribuciones usa el mismo formato que la preparación completa, sin emitir cobertura global a partir de un componente. Los importes financieros vienen de las contribuciones canónicas de Cuenta corriente. Dependencias privadas de directorio, claves técnicas, alias comerciales y referencias de equipos permiten refrescar identidades y resolver referencias antes ausentes sin escanear raíces. Los pagos relacionados reutilizan metadata canónica, no sus comprobantes originales. Una OT sin cambios de identidad no descarga originales de otras áreas. Un embebido sustituido por un registro canónico se retira del índice, conservando ambos originales intactos.
+
+Modelo/delta/lector35casos y12escritoresPASS;7regresiones de adaptador incluyen6variantes de escritura bajo la misma política dinámica (set/update/remove/transaction/push/atomic). Se reprodujo un bypass de update y se corrigió también remove/transaction/query: todos usan guard.affects. Total focal54PASS, sin datos reales.3casos RTDB emuladoPASS incluyendo vacío de Historial persistido y actualización posterior. La prueba de paquete autónomoPASS incluye las nuevas dependencias. No confundir estos resultados con una activación productiva.
+
+CLIENT_HISTORY_ENABLED permanece ausente/desactivado; sv_client_history_config no se creó. La futura bandera exige Cuenta corriente y fuentes comerciales coordinadas, configuración writerSchema1 y preparación completa nueva con dependencyManifest1. No activar antes de cerrar las audiencias técnicas reales, reglas emparejadas de lectura/escritura, el adaptador del navegador, pantallas/acciones, usuarios y clientes sin movimientos y todos los escritores de cada dominio. No se permite suministrar raíces técnicas como datos desde el gateway o scope.update.

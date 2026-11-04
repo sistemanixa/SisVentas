@@ -2,12 +2,12 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {createLaborGuard,child,parts,put,digest}=require('../cotizador/labor-guard');
 const {createLaborDb}=require('../cotizador/labor-db');
-function fixture(){
+function fixture({watchClients=false}={}){
  let data={sv_labor_config:{ready:true,schema:1},sisventas:{gastos:{g:{monto:100,estado:'pendiente'}},ctaemp:{e:{}},productos:{p:{nombre:'Ajeno'}}}},n=0;
  const calls={rawReads:[],rawWrites:[],commits:[],reads:[]},read=p=>child(data,parts(p)),set=(p,v)=>{data=put(data,parts(p),v);};
  function ref(path=''){const node={key:path.split('/').at(-1)||null,toString:()=> 'https://fixture.invalid/'+path,child:key=>ref([path,key].filter(Boolean).join('/')),get:async()=>{calls.rawReads.push(path);return {val:()=>read(path)};},set:async v=>{calls.rawWrites.push(path);set(path,v);},update:async patch=>{calls.rawWrites.push(path);for(const [key,value]of Object.entries(patch))set([path,key].filter(Boolean).join('/'),value);},transaction:async fn=>{calls.rawWrites.push(path);const next=fn(read(path));set(path,next);return {committed:true,snapshot:{val:()=>next}};},push:()=>ref([path,'new'+(++n)].filter(Boolean).join('/')),on:(_event,fn)=>{calls.rawReads.push(path);queueMicrotask(()=>fn({val:()=>read(path)}));},off:()=>{},orderByChild:field=>({...node,equalTo:value=>({...node,get:async()=>({val:()=>Object.fromEntries(Object.entries(read(path)||{}).filter(([,r])=>r[field]===value))})})})};Object.defineProperty(node,'root',{get:()=>ref()});Object.defineProperty(node,'parent',{get:()=>path.includes('/')?ref(path.slice(0,path.lastIndexOf('/'))):ref()});return node;}
  const store={read:async p=>{calls.reads.push(p);return read(p);},acquire:async lease=>set('sv_labor_guard',lease),abort:async()=>set('sv_labor_guard',null),commit:async patch=>{calls.commits.push(structuredClone(patch));for(const [p,v]of Object.entries(patch))set(p,v);},query:async(path,field,value)=>Object.fromEntries(Object.entries(read(path)||{}).filter(([,row])=>digest(child(row,parts(field)))===digest(value)))};
- const guard=createLaborGuard({store,uuid:()=> 'fixture-'+(++n)}),db=createLaborDb({db:{ref},guard});
+ const guard=createLaborGuard({store,uuid:()=> 'fixture-'+(++n)});if(watchClients){const original=guard.affects;guard.affects=path=>original(path)||/^sisventas\/clientes(?:\/|$)/.test(path);}const db=createLaborDb({db:{ref},guard});
  return {db,guard,calls,read,actor:{uid:'sv-labor-service',mode:'server'},get data(){return data;}};
 }
 test('bajo guard todo destino financiero se prepara y se confirma junto; no escapa ningún SDK write',async()=>{
@@ -33,3 +33,5 @@ test('rutas ajenas conservan SDK; raíz, consultas sin filtro y async callbacks 
  await assert.rejects(f.guard.run(f.actor,async()=>f.db.ref('sisventas/gastos').orderByChild('monto').get()),{statusCode:400});
  await assert.rejects(f.db.ref('sisventas/gastos/g').transaction(async g=>g),{statusCode:400});assert.equal(f.calls.commits.length,0);
 });
+
+test('every SDK mutation honors the same dynamically coordinated domain policy',async()=>{for(const method of ['set','update','remove','transaction','push','atomic']){const f=fixture({watchClients:true}),ref=f.db.ref('sisventas/clientes/c');if(method==='set')await ref.set({nombre:'Cliente ficticio'});if(method==='update')await ref.update({nombre:'Cliente ficticio'});if(method==='remove')await ref.remove();if(method==='transaction')await ref.transaction(c=>({...c,nombre:'Cliente ficticio'}));if(method==='push')await f.db.ref('sisventas/clientes').push({nombre:'Cliente ficticio'});if(method==='atomic')await f.db.ref().update({'sisventas/clientes/c/nombre':'Cliente ficticio'});assert.equal(f.calls.rawWrites.length,0,method+' cannot bypass the shared policy');assert.equal(f.calls.commits.length,1,method);}});

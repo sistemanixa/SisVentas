@@ -1,7 +1,7 @@
 'use strict';
-// Offline model only. Its output must not be enabled until every writer and
+// Shared preparation/component model. Enable only after every writer and
 // permission-specific reader maintains the same generation atomically.
-const Accounts=require('./client-account-projections');
+const Accounts=require('./client-account-projections'),Directory=require('./client-account-directory');
 const Account=require('./client-account-projection');
 const Commercial=require('./commercial-pages-model');
 const Identity=require('./commercial-models/client-identity-model');
@@ -30,6 +30,7 @@ function relation(record,sales){
  const matches=Object.entries(sales).filter(([key,sale])=>Matcher.belongsToSale(record,{...sale,fbKey:key})).map(([key])=>key);
  return matches.length===1?matches[0]:false;
 }
+function saleDependencies(domain,record){if(['ventas','presupuestos'].includes(domain)||!record)return[];const explicit=['ventaFbKey','ventaKey','ventaGeneradaFbKey','ventaOrigenFbKey'].map(k=>record[k]).filter(Boolean).map(String);if(explicit.length)return[...new Set(explicit.filter(Commercial.key).map(key=>Account.ROOT+'/sources/sales/'+key))];const result=[];for(const[kind,values]of Object.entries(Matcher.paymentReferences(record)))if(Array.isArray(values))for(const value of values)result.push(Commercial.ROOT+'/saleRefs/'+kind+'/'+Commercial.hash(value));return[...new Set(result)];}
 function rowFor(domain,key,record,identity,address){
  const row={schema:1,domain,key,identity:clone(identity),addressKey:address.key,addressStatus:address.status,
   number:safe(record.id||record.numero||key,128),date:date(record),status:safe(record.estado||record.estadoInst,60),
@@ -45,15 +46,29 @@ function rowFor(domain,key,record,identity,address){
  if(domain==='tickets'||domain==='reclamos')row.priority=safe(record.prioridad||record.prio,40);
  return row;
 }
+function applyFinancial(row,domain,contribution,record){
+    row.identity=contribution.identity;row.accountId=contribution.accountId;row.addressKey=contribution.public.addressKey;row.addressStatus=contribution.public.addressStatus;
+    Object.assign(row,domain==='ventas'?{totalCents:contribution.public.totalCents,paidCents:contribution.public.paidCents,balanceCents:contribution.public.balanceCents,metrics:{...contribution.sums,receivedCents:0}}:{amountCents:contribution.public.amountCents,receivedCents:contribution.public.cancelled?0:contribution.public.amountCents,saleKey:contribution.public.saleKey||''});
+    row.cancelled=contribution.public.cancelled===true;
+    if(domain==='ventas'){
+     row.number=contribution.public.number;
+     row.paymentSource=contribution.public.paymentSource;row.installationStatus=contribution.public.installation||'';row.invoiced=contribution.public.invoiced===true;
+     row.paymentStatus=row.cancelled?'anulada':row.totalCents===0?'sin_cargo':row.balanceCents===0?'pago_total':row.paidCents>0?'seniado':'pendiente_pago';
+    }else{row.medium=contribution.public.medium||'';row.saleNumber=contribution.public.saleNumber||'';row.hasReceipt=Object.hasOwn(contribution.public,'hasReceipt')?contribution.public.hasReceipt===true:!!(record.comprobanteRef||record.comprobanteAdjunto||record.comprobante);}
+ return row;
+}
 function verifyInput(input){
  if(!object(input?.records)||domains.some(domain=>!Object.hasOwn(input.records,domain)||!object(input.records[domain])))throw fail('Falta una fuente completa del historial.');
  if(!object(input.customers)||!['clients','index','structures'].every(key=>Object.hasOwn(input.customers,key)&&object(input.customers[key])))throw fail('Falta el directorio completo de clientes.');
  if(!Commercial.key(input.generation)||!Number.isSafeInteger(input.revision||1)||(input.revision||1)<1||typeof input.owner!=='function')throw fail('Falta una generación y política de responsables verificadas.');
 }
-async function prepare(input){
+async function collect(input,{sourceOnly=false,accountSources=null,resolutions=null,financialRows=null}={}){
  verifyInput(input);
  const {records,customers,generation,owner}=input,revision=input.revision||1;
- const directory=Identity.create(customers),account=await Accounts.prepare({sales:records.ventas,payments:records.pagos,customers,owner:(record,key)=>owner(record,'ventas',key),generation,revision});
+ const directory=Identity.create(customers),account=accountSources?{patch:Object.fromEntries(Object.entries(accountSources).map(([key,value])=>[Account.ROOT+'/sources/'+key,value]))}:await Accounts.prepare({sales:records.ventas,payments:records.pagos,customers,owner:(record,key)=>owner(record,'ventas',key),generation,revision});
+ if(sourceOnly&&!accountSources)throw fail('La contribución requiere las fuentes financieras verificadas.');
+ const preparedDirectory=Directory.prepare(customers),directoryRead=async path=>{if(Object.hasOwn(preparedDirectory,path))return preparedDirectory[path];const prefix=path+'/';const values=Object.entries(preparedDirectory).filter(([p])=>p.startsWith(prefix)&&!p.slice(prefix.length).includes('/'));return values.length?Object.fromEntries(values.map(([p,v])=>[p.slice(prefix.length),v])):null;},resolved=new Map();
+ for(const domain of domains)for(const[key,record]of Object.entries(records[domain]))resolved.set(domain+'/'+key,resolutions?.[domain+'/'+key]||await Directory.resolve(record,{read:directoryRead}));
  const patch={},sources={},identities=new Map(),groups=new Map(),coverage={},scopedCoverage=new Map(),embedded={pagos:[],equipos:[],tickets:[]};
  const paymentsBySale=new Map();
  for(const [path,value]of Object.entries(account.patch))if(path.startsWith(Account.ROOT+'/sources/payments/')&&value.public.saleKey){const list=paymentsBySale.get(value.public.saleKey)||[];list.push(value.key);paymentsBySale.set(value.public.saleKey,list);}
@@ -61,9 +76,13 @@ async function prepare(input){
  function add(domain,key,row,ownerUid){
   if(!Commercial.key(key)||typeof ownerUid!=='string'||ownerUid&&!Commercial.key(ownerUid))throw fail('Registro o responsable inválido.');
   const id=Account.hash(row.identity.accountKey);row={...row,accountId:id,generation,revision};
-  const requirements=domain==='ventas'?{embedded:row.relatedEmbeddedKeys||[],payments:row.relatedPaymentKeys||[]}:null;
+  const embeddedKeys=row.relatedEmbeddedKeys||[],paymentKeys=row.relatedPaymentKeys||[];const requirements=domain==='ventas'?{schema:1,embeddedCount:embeddedKeys.length,paymentsCount:paymentKeys.length,embedded:embeddedKeys,payments:paymentKeys}:null;
   row={...row};delete row.relatedEmbeddedKeys;delete row.relatedPaymentKeys;
-  row.sort=order(row);sources[domain+'/'+key]={row,ownerUid,...(requirements?{requirements}:{})};
+  row.sort=order(row);if(Object.hasOwn(sources,domain+'/'+key))throw fail('Un registro del historial aparece duplicado.');
+  const ownDependencies=resolved.get(domain+'/'+key)?.dependencies||[],parentDependencies=row.saleKey?sources['ventas/'+row.saleKey]?.dependencies||[]:[],financial=account.patch[Account.ROOT+'/sources/'+(domain==='ventas'?'sales/':domain==='pagos'?'payments/':'unsupported/')+key];
+  const embeddedDependencies=domain==='ventas'?['equipos','tickets'].flatMap(childDomain=>(records.ventas[key]?.[childDomain]||[]).map(item=>item?.[childDomain==='equipos'?'equipoFbKey':'ticketFbKey']||item?.fbKey||item?.key).filter(value=>value&&Commercial.key(String(value))).map(value=>ROOT+'/sources/'+childDomain+'/'+String(value))):[];
+  const dependencies=[...new Set([...embeddedDependencies,...ownDependencies,...parentDependencies,...saleDependencies(domain,records[domain][key]),...(financial?.dependencies||[])])].sort();sources[domain+'/'+key]={row,ownerUid,identityStamp:resolved.get(domain+'/'+key)?.identityStamp||(row.saleKey?sources['ventas/'+row.saleKey]?.identityStamp:'')||'',dependenciesCount:dependencies.length,dependencies,...(requirements?{requirements}:{})};
+  if(sourceOnly)return;
   // Financial ownership is already verified by Account. Operational audiences
   // require their separate reader policy; do not guess technician access here.
   for(const scope of scopes(domain,ownerUid)){
@@ -86,7 +105,7 @@ async function prepare(input){
   let count=0;
   for(const [key,record]of Object.entries(records[domain])){
    if(!Commercial.key(key)||!object(record))throw fail('Una fuente del historial no es válida.');
-   let identity=directory.resolve(record),address=directory.resolveAddress(record),parent=null;
+   const resolution=resolved.get(domain+'/'+key);let identity=resolution.identity,address=resolution.address,parent=null;
    if(!['ventas','presupuestos'].includes(domain)){
     const link=relation(record,records.ventas);
     if(link===false)identity={accountKey:'ambiguous:history:'+domain+':'+key,sourceKey:key,recordKey:'',status:'ambiguous',label:safe(record.cliente)||'Sin cliente verificado'};
@@ -98,19 +117,12 @@ async function prepare(input){
      identity=parent.identity;address=parent.address;
     }
    }
-   const row=rowFor(domain,key,record,identity,address);
+   const row=sourceOnly&&financialRows?.[domain+'/'+key]?{...clone(financialRows[domain+'/'+key]),identity:clone(identity),addressKey:address.key,addressStatus:address.status}:rowFor(domain,key,record,identity,address);
    let uid=parent?.ownerUid??owner(record,domain,key)??'';
    if(originalNames[domain]){
     const contribution=account.patch[Account.ROOT+'/sources/'+originalNames[domain]+'/'+key];
     if(!contribution)throw fail('Falta el miembro financiero del historial.');
-    row.identity=contribution.identity;row.accountId=contribution.accountId;row.addressKey=contribution.public.addressKey;row.addressStatus=contribution.public.addressStatus;
-    Object.assign(row,domain==='ventas'?{totalCents:contribution.public.totalCents,paidCents:contribution.public.paidCents,balanceCents:contribution.public.balanceCents,metrics:{...contribution.sums,receivedCents:0}}:{amountCents:contribution.public.amountCents,receivedCents:contribution.public.cancelled?0:contribution.public.amountCents,saleKey:contribution.public.saleKey||''});
-    row.cancelled=contribution.public.cancelled===true;
-    if(domain==='ventas'){
-     row.number=contribution.public.number;
-     row.paymentSource=contribution.public.paymentSource;row.installationStatus=contribution.public.installation||'';row.invoiced=contribution.public.invoiced===true;
-     row.paymentStatus=row.cancelled?'anulada':row.totalCents===0?'sin_cargo':row.balanceCents===0?'pago_total':row.paidCents>0?'seniado':'pendiente_pago';
-    }else{row.medium=contribution.public.medium||'';row.saleNumber=contribution.public.saleNumber||'';row.hasReceipt=!!(record.comprobanteRef||record.comprobanteAdjunto||record.comprobante);}
+    applyFinancial(row,domain,contribution,record);
     uid=contribution.ownerUid;
    }else if(parent)row.saleKey=parent.key;
    if(domain==='ventas'){
@@ -147,6 +159,7 @@ async function prepare(input){
   }
   coverage[domain]={schema:1,generation,revision,records:count,originalRecords:Object.keys(records[domain]).length,ready:true};
  }
+ if(sourceOnly)return{sources};
  function ends(keys){const sorted=keys.slice().sort();return sorted.filter((_,index)=>index%50===49||index===sorted.length-1);}
  // An operational tab must never expose financial totals from another tab.
  for(const [name,value]of groups)for(const domain of domains){
@@ -154,7 +167,7 @@ async function prepare(input){
   patch[ROOT+'/accounts/'+name+'/'+domain]={schema:1,generation,revision,scope,accountId,domain,identity:value.identity,totals:value.domains[domain],pageEnds:ends(value.order[domain]),addresses:Object.fromEntries(Object.entries(value.addresses).map(([key,totals])=>[key,{recordKey:value.addressOrder[key].recordKey,totals:totals[domain],pageEnds:ends(value.addressOrder[key].order[domain])}]))};
  }
  for(const [name,value]of Object.entries(sources)){
-  patch[ROOT+'/sources/'+name]=value;
+  patch[ROOT+'/sources/'+name]=value;for(const dependency of value.dependencies)patch[ROOT+'/dependents/'+Account.hash(dependency)+'/'+name]=true;
   if(value.row.saleKey)patch[ROOT+'/relatedSales/'+value.row.saleKey+'/'+name]=true;
  }
  if(!scopedCoverage.has('all'))scopedCoverage.set('all',Object.fromEntries(domains.map(domain=>[domain,{records:0,originalRecords:0,unlinkedRecords:0}])));
@@ -162,7 +175,8 @@ async function prepare(input){
   patch[ROOT+'/scopes/'+scope]=true;
   for(const [domain,count]of Object.entries(counts))patch[ROOT+'/coverage/'+scope+'/'+domain]={schema:1,generation,revision,ready:true,...count};
  }
- patch[ROOT+'/state']={schema:1,generation,revision,ready:true,records:Object.values(coverage).reduce((sum,row)=>sum+row.records,0)};
+ patch[ROOT+'/state']={schema:1,generation,revision,ready:true,dependencyManifest:1,records:Object.values(coverage).reduce((sum,row)=>sum+row.records,0)};
  return{patch,generation,revision,records:Object.values(coverage).reduce((sum,row)=>sum+row.records,0)};
 }
-module.exports={ROOT,domains,prepare,relation,empty,sum,scopes,order,addressId,totalFields};
+const prepare=input=>collect(input),contributions=(input,options)=>collect(input,{...options,sourceOnly:true});
+module.exports={ROOT,domains,prepare,contributions,relation,empty,sum,scopes,order,addressId,totalFields,rowFor,applyFinancial};

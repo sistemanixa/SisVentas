@@ -52,11 +52,11 @@ function createLaborDb({db,guard}){
    if(key==='orderByChild')return field=>{parts(field);return scoped(target.orderByChild(field),path,{field});};
    if(key==='equalTo')return value=>{if(!query?.field)throw fail('Consulta sin campo de orden');return scoped(target.equalTo(value),path,{...query,value});};
    if(key==='set')return value=>{if(!path||['sisventas','sisventas/config'].includes(path))throw fail('No se permite sustituir la base completa');return !guard.current()&&!watched(path)?target.set(value):stage({[path]:value});};
-   if(key==='remove')return ()=>{if(!path||['sisventas','sisventas/config'].includes(path))throw fail('No se permite borrar la base completa');return !guard.current()&&!affected(path)?target.remove():stage({[path]:null});};
-   if(key==='update')return patch=>{const flat=flatten(path,patch);return !guard.current()&&!Object.keys(flat).some(affected)?target.update(patch):stage(flat);};
+   if(key==='remove')return ()=>{if(!path||['sisventas','sisventas/config'].includes(path))throw fail('No se permite borrar la base completa');return !guard.current()&&!watched(path)?target.remove():stage({[path]:null});};
+   if(key==='update')return patch=>{const flat=flatten(path,patch);return !guard.current()&&!Object.keys(flat).some(watched)?target.update(patch):stage(flat);};
    if(key==='transaction')return async(update,completion,applyLocally)=>{
     if(!path||['sisventas','sisventas/config'].includes(path)||query)throw fail('La transacción requiere registros individuales');
-    if(!guard.current()&&!affected(path))return target.transaction(update,completion,applyLocally);
+    if(!guard.current()&&!watched(path))return target.transaction(update,completion,applyLocally);
     const perform=async()=>{const before=await get(),next=update(before.val());if(next&&typeof next.then==='function'){Promise.resolve(next).catch(()=>{});throw fail('La transformación debe ser síncrona');}if(next===undefined)return {committed:false,snapshot:before};await stage({[path]:next});return {committed:true,snapshot:snapshot(proxy,next)};};
     try{let result;if(guard.current())result=await perform();else await guard.run({...internal,operation:'service-transaction',input:{path}},async()=>{result=await perform();return {committed:result.committed};});completion?.(null,result.committed,result.snapshot);return result;}
     catch(error){completion?.(error,false,null);throw error;}
@@ -64,7 +64,7 @@ function createLaborDb({db,guard}){
    if(key==='push')return function(value){const raw=target.push(),p=scoped(target.child(raw.key),[path,raw.key].filter(Boolean).join('/'));if(!arguments.length)return p;const pending=p.set(value).then(()=>p);return new Proxy(p,{get(t,k){if(['then','catch','finally'].includes(k))return pending[k].bind(pending);return Reflect.get(t,k);}});};
    // A query shape without an implemented overlay must fail during a commit,
    // rather than accidentally querying the live Admin connection behind it.
-   if((guard.current()||path&&affected(path))&&['orderByKey','orderByValue','orderByPriority','startAt','startAfter','endAt','endBefore','limitToFirst','limitToLast','setWithPriority','setPriority','onDisconnect'].includes(key))return ()=>{throw fail('Operación no compatible con el guardado coordinado');};
+   if((guard.current()||path&&watched(path))&&['orderByKey','orderByValue','orderByPriority','startAt','startAfter','endAt','endBefore','limitToFirst','limitToLast','setWithPriority','setPriority','onDisconnect'].includes(key))return ()=>{throw fail('Operación no compatible con el guardado coordinado');};
    const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;
   }});return proxy;
  }
