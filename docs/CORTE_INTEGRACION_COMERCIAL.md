@@ -1,4 +1,10 @@
-## Bloqueo adicional de aceptación: entrega parcial de materiales
+## Estado actual de la candidata aislada
+
+La entrega parcial inicial ya tiene aceptación operacional local: recepción 2/3, selección pública de 2, comando /ot/ciclo, un remito, instalación de 2, corrección a 1 y recepción de 1. La repetición independiente agregó la venta sin estado previo y las pruebas de precisión: 11 PASS sin omisiones. El caso antiguo conservó su expectativa de cantidad 2; se sustituyó sólo el transporte de su fixture por la acción pública actual y el servidor de prueba. Su versión fallida anterior sigue disponible en el commit 875fbdb8338036ff82d72605eb8be11200f77334.
+
+Esto no autoriza un corte: quedan por integrar y verificar clasificación histórica, persistencia sucesiva de recuperadas y reglas exactas. El guardado coordinado general de OT está preparado e incorporado, sin activar remotos. La cadena usa almacenamiento/autenticación ficticios y un puente de transacción de stock sólo del fixture. No demuestra Firebase productivo ni todos los estados históricos. Las notas siguientes conservan la reproducción inicial y no deben confundirse con el resultado de esta candidata.
+
+## Reproducción inicial: entrega parcial de materiales
 
 Comparación estática posterior: la fuente de la publicación separada de fotos v3.18.20 (`312705c2bd5c5e938aab729585506b2be87b0c5a`) y la integración c190 tienen archivos Git idénticos para custodia, guarded-writes, operational-writes y record-list-model. El blob de custodia es `234856c6ddb111a2c03b96d82f13ae1294bae0b3`. La asignación de toda la cantidad pendiente ya estaba en esa fuente; no es exclusiva de la integración nueva. Esto no demuestra impacto en transacciones reales ni aceptación de reglas remotas.
 

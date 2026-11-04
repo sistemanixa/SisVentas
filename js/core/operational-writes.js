@@ -8,6 +8,24 @@
   function snapshot(reference,value){const saved=M.clone(value);return {ref:reference,key:reference.key||M.path(reference).split('/').at(-1),val:()=>M.clone(saved),exists:()=>saved!==null};}
   async function records(paths,transform,extra={}){
    const check=capture();check();const operation=root.crypto.randomUUID();paths=[...new Set(paths)];if(paths.some(path=>M.recordPath(path)!==path))throw Error('Seleccioná registros concretos para guardar.');
+   const routingPaths=paths.concat(Object.keys(extra||{}));
+   if(routingPaths.some(path=>path==='sisventas/ordenes_trabajo'||path.startsWith('sisventas/ordenes_trabajo/'))&&await root.SVLaborWrites?.prepareOT?.(routingPaths)){
+    // The installed SDK was captured before LaborWrites. Use its one atomic
+    // transport instead of that stale SDK; the server owns summary revisions.
+    check();let before,next,cancelled=false,unchanged=false;
+    const selected=[...new Set(routingPaths)].filter((path,_,all)=>!all.some(parent=>parent!==path&&path.startsWith(parent+'/')));
+    const result=await root.SVLaborWrites.atomic({paths:selected,build:values=>{
+     check();before=Object.fromEntries(paths.map(path=>[path,M.clone(values[path])]));next=transform(M.clone(before));cancelled=next===undefined;unchanged=false;
+     if(cancelled)return undefined;
+     if(!next||typeof next!=='object'||Array.isArray(next)||typeof next.then==='function'){if(next?.then)Promise.resolve(next).catch(()=>{});throw Error('La operación debe devolver los registros seleccionados.');}
+     if(paths.some(path=>!Object.hasOwn(next,path))||Object.keys(next).some(path=>!paths.includes(path)))throw Error('Falta un registro seleccionado o se intentó guardar uno no seleccionado.');
+     const patch={...extra};for(const path of paths){if(JSON.stringify(before[path])===JSON.stringify(next[path]))continue;M.plan(path,before[path],next[path],operation);patch[path]=M.clone(next[path]);}
+     unchanged=!Object.keys(patch).length;return unchanged?undefined:patch;
+    }});check();
+    if(cancelled||unchanged)return {committed:!cancelled,values:before};
+    const confirmed={};for(const path of paths)confirmed[path]=Object.hasOwn(result.value,path)?M.plan(path,before[path],next[path],result.operationId)[path]:before[path];
+    return {committed:result.committed,values:confirmed};
+   }
    for(let attempt=0;attempt<3;attempt++){
     const values=await Promise.all(paths.map(async path=>{const snap=await sdk.get(sdk.ref(root.fbDB,path));return [path,snap.val()];}));check();
     const before=Object.fromEntries(values),next=transform(M.clone(before));if(next===undefined)return {committed:false,values:before};

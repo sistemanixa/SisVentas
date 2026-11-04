@@ -41,15 +41,19 @@ test('receipt2/3 with lost ACK preserves another allocation and never consumes w
  await x.context.finishReceipt({...x.order,fbKey:'o'},[{index:0,item:x.item,qty:2,costoUnitarioReal:12,proveedor:'Proveedor ficticio',proveedorKey:'supplier'}]);
  const inv=x.f.get('sisventas/inventario_operativo/p');assert.deepEqual(inv.asignaciones.other,other);assert.equal(inv.reservado,7);assert.equal(inv.asignaciones.s.reservado,2);assert.equal(inv.general,0);assert.equal(inv.consumido,0);assert.equal(inv.enCompra,1);assert.equal(x.f.get('sisventas/ordenes/o/recepciones').length,1);x.unchangedFinance();
 });
-test('BLOCKED acceptance: receipt2/3 must allow delivery2/3 before installation and return, without inventing a partial-delivery adapter',async()=>{
- const x=await fixture();await x.context.finishReceipt({...x.order,fbKey:'o'},[{index:0,item:x.item,qty:2,costoUnitarioReal:12,proveedor:'Proveedor ficticio',proveedorKey:'supplier'}]);
- const root=x.root;root.otData=[{...x.f.get('sisventas/ordenes_trabajo/ot'),fbKey:'ot'}];root.otActualId='ot';root.prodData={p:{fbKey:'p',codigo:'P-FICTICIO',nombre:'Producto ficticio'}};root.svPrompt=async()=> '2';
- // Memory HTTP transport to the real supported compare gateway; no projection
- // rebuilding or invented stock/delivery business logic in this transport.
- root.SVGuardedWrites={restTransaction:async(r,transform)=>{const before=x.f.get(r.path),next=transform(structuredClone(before));const body=JSON.parse(JSON.stringify({id:'delivery-chain-fictitious',kind:'compare',path:r.path,value:next,expectedHash:digest(before)}));await x.f.gateway.write({uid:'u',claims:{uid:'u'}},body);return{committed:true,value:x.f.get(r.path)};}};
- const context={window:root,document:root.document,requestAnimationFrame(){}};vm.createContext(context);vm.runInContext(fs.readFileSync(require.resolve('../js/modules/ot-material-custody.js'),'utf8'),context);
- const inventoryBefore=x.f.get('sisventas/inventario_operativo');await root.otCustodiaEntregar();const current=x.f.get('sisventas/ordenes_trabajo/ot'),documents=Object.values(current.remitosEntrega||{});
- console.log(JSON.stringify({stage:'delivery-gap',received:2,ordered:3,delivered:current.materiales[0].entregada,documentQuantity:documents[0]?.items[0]?.cantidad,notes:x.notes,unexecuted:['installation','return/correction','end-to-end H7 after those stages']}));
- x.unchangedFinance();assert.deepEqual(x.f.get('sisventas/inventario_operativo'),inventoryBefore);assert.equal(documents.length,1);assert.equal(documents[0].items[0].cantidad,current.materiales[0].entregada);
- assert.equal(current.materiales[0].entregada,2,'Missing real partial-delivery action: public action delivers all3; do not rewrite vendida or seed a partial delivery in the fixture');
+test('receipt2/3 uses the actual public selector and authoritative delivery route without inventing an adapter',{timeout:45000},async()=>{
+ const {fixture:publicFixture}=require('./helpers/commercial-partial-chain.cjs');
+ const f=await publicFixture({width:1280}),p=f.page;
+ try{
+  const baseline=structuredClone(f.state.sisventas),inventoryBefore=f.get('sisventas/inventario_operativo');
+  await p.locator('#deliver').click();await p.locator('dialog input').waitFor({state:'visible'});await p.locator('dialog input').fill('2');
+  await p.getByRole('button',{name:'Confirmar entrega',exact:true}).click();await p.waitForFunction(()=>otData[0].materiales[0].entregada===2);
+  const current=f.get('sisventas/ordenes_trabajo/ot'),documents=Object.values(current.remitosEntrega||{});
+  assert.equal(current.materiales[0].vendida,3);assert.equal(current.materiales[0].entregada,2);
+  assert.equal(documents.length,1);assert.equal(documents[0].items[0].cantidad,2);
+  assert.deepEqual(f.get('sisventas/inventario_operativo'),inventoryBefore);
+  for(const domain of ['ventas','pagos','comisiones','gastos','ctaemp','productos','ordenes'])assert.deepEqual(f.get('sisventas/'+domain),baseline[domain]??null,'Delivery preserves '+domain);
+  assert.equal(f.get(Pages.ROOT+'/totals/all/debtCents'),26000);assert.equal(f.get(A.ROOT+'/totals/all/balanceCents'),26000);
+  assert.deepEqual(f.errors,[]);assert.deepEqual(f.blocked,[]);assert.deepEqual(f.failures,[]);
+ }finally{await f.close();}
 });

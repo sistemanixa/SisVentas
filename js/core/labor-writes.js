@@ -22,8 +22,10 @@
  }
  const serviceOnly=path=>/^(?:sv_labor_|sv_commission_|sv_client_accounts(?:_|$))/.test(path.split('/')[0]||'');
  const identityRoots=['clientes','clientes_unificados','clientes_unificados_indice','presupuestos'].map(key=>'sisventas/'+key);
+ const otRoot='sisventas/ordenes_trabajo';
+ const otIntersects=path=>path===otRoot||path.startsWith(otRoot+'/')||!path||otRoot.startsWith(path+'/');
  const identityIntersects=path=>identityRoots.some(base=>path===base||path.startsWith(base+'/')||!path||base.startsWith(path+'/'));
- const identityWatched=root=>root.SVClientAccountHost?.coordinated?.()===true?identityRoots:[];
+ const identityWatched=root=>root.SVClientAccountHost?.coordinated?.()===true?identityRoots.concat(otRoot):[];
  const baseIntersects=path=>serviceOnly(path)||watched.some(base=>path===base||path.startsWith(base+'/')||!path||base.startsWith(path+'/'));
  const baseAncestor=path=>watched.some(base=>base.startsWith(path+'/'))||!path;
  const copy=value=>value==null?null:JSON.parse(JSON.stringify(value));
@@ -64,7 +66,7 @@
   function prepareValue(value){validateJSON(value);return copy(value);}
   function prepareIdentity(paths,action){
    const host=root.SVClientAccountHost;
-   if(typeof host?.start!=='function'||!paths.some(identityIntersects))return action();
+   if(typeof host?.start!=='function'||!paths.some(path=>identityIntersects(path)||otIntersects(path)))return action();
    const check=capture();check();
    return Promise.resolve().then(()=>typeof host.prepareWrite==='function'?host.prepareWrite():host.start()).then(async()=>{
     check();const direct=host.coordinated?.()!==true;
@@ -125,6 +127,7 @@
    const path=pathOf(ref);return prepareIdentity([path],()=>setReady(ref,value,path));
   }
   function setReady(ref,value,path){
+   if(coordinatedOT(path))return throughOT(()=>sdk.set(ref,value));
    if(!intersectsPath(path))return sdk.set(ref,value);
    return held(async()=>{const check=capture();check();available();requireScoped(path);const prepared=prepareValue(value);await send({id:uuid(),kind:'set',path,value:prepared},check);});
   }
@@ -141,7 +144,7 @@
   }
   function update(ref,value){
    const path=pathOf(ref),flat=flattenPatch(path,value);
-   return prepareIdentity(Object.keys(flat),()=>{if(!Object.keys(flat).some(intersectsPath))return sdk.update(ref,value);
+   return prepareIdentity(Object.keys(flat),()=>{if(Object.keys(flat).some(coordinatedOT))return throughOT(()=>sdk.update(ref,value));if(!Object.keys(flat).some(intersectsPath))return sdk.update(ref,value);
    return held(async()=>{const check=capture();check();available();for(const key of Object.keys(flat))if(intersectsPath(key))requireScoped(key);
     const prepared=Object.create(null);for(const [key,data]of Object.entries(flat))prepared[key]=prepareValue(data);
     await send({id:uuid(),kind:'patch',path:'',value:prepared},check);});});
@@ -198,14 +201,23 @@
       if(purpose||intersectsPath(path)){requireScoped(path);if(!selected.some(before=>path===before||path.startsWith(before+'/')))throw fail('SV_LABOR_ATOMIC','Falta verificar un registro del guardado.');}
       prepared[path]=prepareValue(value);
      }
-     check();try{await send({id:uuid(),kind:'atomic',path:'',value:prepared,expectedHashes,...(purpose?{purpose}:{})},check);return {committed:true,value:copy(prepared)};}
+     check();try{const id=uuid();await send({id,kind:'atomic',path:'',value:prepared,expectedHashes,...(purpose?{purpose}:{})},check);return {committed:true,value:copy(prepared),operationId:id};}
      catch(error){if(error.statusCode===409&&error.code==='SV_CAS_CONFLICT'&&attempt<2){check();continue;}throw error;}
     }
    });
   }
-  function runTransaction(ref,transform,options){const path=pathOf(ref);return prepareIdentity([path],()=>intersectsPath(path)?compare(ref,transform):sdk.runTransaction(ref,transform,options));}
+  // Delegate concrete OT paths through the installed record-list adapter. Never
+  // delegate an ancestor replacement: that would reach an unscoped SDK write.
+  const coordinatedOT=path=>root.SVClientAccountHost?.coordinated?.()===true&&(path===otRoot||path.startsWith(otRoot+'/'));
+  function throughOT(action){
+   if(typeof root.SVRecordListWrites?.records!=='function'||typeof root.SVRecordListWrites?.transaction!=='function')throw fail('SV_OT_COORDINATED_WRITER','No está listo el guardado coordinado de OT. Recargá la aplicación.');
+   return action();
+  }
+  async function prepareOT(paths){await prepareIdentity(paths,()=>undefined);return paths.some(coordinatedOT);}
+  function runTransaction(ref,transform,options){const path=pathOf(ref);return prepareIdentity([path],()=>coordinatedOT(path)?throughOT(()=>sdk.runTransaction(ref,transform,options)):intersectsPath(path)?compare(ref,transform):sdk.runTransaction(ref,transform,options));}
   async function restTransaction(ref,transform){
    await prepareIdentity([pathOf(ref)],()=>undefined);
+   if(coordinatedOT(pathOf(ref))){const result=await throughOT(()=>root.SVRecordListWrites.transaction(ref,transform));return {committed:result.committed,...(result.committed?{value:result.snapshot.val()}:{})};}
    if(!intersectsPath(pathOf(ref)))throw fail('SV_LABOR_PATH','La operación no pertenece al guardado laboral.');
    const result=await compare(ref,transform);return {committed:result.committed,...(result.committed?{value:result.snapshot.val()}:{})};
   }
@@ -219,6 +231,6 @@
    wrappers={fbSet:set,fbUpdate:update,fbPush:push,fbRemove:remove,fbRunTransaction:runTransaction};
    Object.assign(root,wrappers);installed=true;return api;
   }
-  const api={install,canonical,hash,pathOf,intersects:ref=>intersectsPath(pathOf(ref)),restTransaction,atomic};return api;
+  const api={install,canonical,hash,pathOf,intersects:ref=>intersectsPath(pathOf(ref)),restTransaction,atomic,prepareOT};return api;
  };
 });
