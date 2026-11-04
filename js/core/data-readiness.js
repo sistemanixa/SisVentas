@@ -210,6 +210,19 @@
     if(statusLayer)statusLayer.remove();
     statusLayer=statusBox=statusTitle=statusDetail=statusRetry=null;
   }
+  function pendingKinds(keys){
+    return keys.map(function(key){
+      var counts={},sourceState=states[key];
+      Array.from(sourceState?.sources||[]).filter(function(source){return !source.ready;}).forEach(function(source){
+        // Clasificación fija: jamás transportar URL, filtros, UID o documento.
+        var match=String(source.reference||'').match(/^commercial-pages\/(totals|collectionTotals|sales|payments|lookup|detail)(?:[\/]|$)/);
+        var kind=match?'indexed-'+match[1]:source.reference?'other':'legacy';
+        counts[kind]=(counts[kind]||0)+1;
+      });
+      var kinds=Object.keys(counts).sort().map(function(kind){return kind+':'+counts[kind];}).join(',')||'unrequested';
+      return key+'='+kinds;
+    }).join(';');
+  }
   function mountStatus(page,name,state){
     if(!document.body)return;
     if(!statusBox){
@@ -219,6 +232,7 @@
       statusRetry.className='btn btn-sm';statusRetry.textContent='Reintentar carga';statusBox.append(statusTitle,statusDetail,statusRetry);
     }
     statusBox.dataset.svDataPage=name;
+    var diagnostic=pendingKinds(state.missing);if(statusBox.dataset.svPendingSources!==diagnostic)statusBox.dataset.svPendingSources=diagnostic;
     statusBox.classList.toggle('sv-data-error',!!state.errors.length);
     var text=presentation(state);
     if(statusTitle.textContent!==text.title)statusTitle.textContent=text.title;

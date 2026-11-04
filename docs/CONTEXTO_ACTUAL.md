@@ -1,3 +1,7 @@
+# Diagnóstico de fuentes preparado18.18, frío aún pendiente · 03/11/2026
+
+POST17real:fríoPresupuestosrecargado→Dashboard mantieneoverlayventas2272–3299ms, filas2455ms. Cálido1320ms sinoverlayventas. La corrección de cancelación local es válida, pero no resolvió todoelcaso; no atribuirésta como causa completa. Se prepara diagnósticoDOM interno sólo con clases fijas y contadores de fuentes (indexed-totals/sales/payments/lookup/detail,legacy,other), sin URL/filtros/UID/documentos/importes. Sin texto técnico visible ni consultas extra.8focalesPASS; pruebaDOMcomprueba ausenciaSECRET/URL y retirada al recibirfuentes; Primera gate falló por getAttribute ausente en DOMparcial; se usa dataset existente sin editar expectativas.23focales PASS; puerta final7257total/7230PASS/27omitidas/0fallos,846archivos/2lotes. Publicación pendiente. No es aún corrección de latencia.
+
 # v3.18.17 web publicada y verificada · 03/11/2026
 
 Hosting577activos/6cargas desde14e7d52fc81dbd25cd7c295b5b2bfd78f4359e31;12activosHTTPexactos inclDataReadiness, cabeceras/privados404, aviso17 sincronizado después.7230PASS/27omitidas/0fallos y8QAindependientes. Sin servidor/reglas/finanzas; comparación posterior autenticada todavía en curso. No declarar resuelto todo el arranque frío hasta repetir caso real.
