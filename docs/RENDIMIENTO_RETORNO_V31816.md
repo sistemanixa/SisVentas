@@ -72,3 +72,19 @@ recientes ya estaban visibles a2.659ms. No declarar ese retorno resuelto.
 Hay que reproducir localmente orden de fuentes y capa de carga; no ocultar
 un error de cobertura ni confundir el resumen recién recibido con todas las
 fuentes de una pantalla. No hubo guardados reales. Evidencia detallada privada.
+
+## Cierre acotado en v3.18.19
+
+La comprobación de vigencia se conserva. El Dashboard ya pintado del mismo
+acceso muestra una actualización breve sin ocultar su contenido; las fuentes
+siguen pendientes y el estado financiero actual no se entrega hasta verificar.
+Primera carga, error, otras dependencias faltantes o cambio de acceso/cobertura
+conservan la espera o el rechazo. Cobertura no disponible, aun con la misma
+revisión, retira el estado anterior. No se conservan originales editables.
+
+Prueba real19:regreso cálido con contenido visible y aviso inline a676ms,
+completo a986ms; primera entrada tras recargar otro módulo completa a1765ms,
+sin reutilizar una presentación anterior. Ningún error de consola ni guardado.
+Apertura histórica observada en18:2526ms frente a5263ms iniciales. Todas son
+muestras de UI con sobrecarga del control; no son TTFB, transferencia ni SLA.
+La auditoría integral y Cobranzas nuevas siguen fuera del cierre de esta tanda.

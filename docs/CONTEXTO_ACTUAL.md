@@ -1,3 +1,9 @@
+# Retorno Dashboard19 verificado en sesión real · 03/11/2026
+
+POST19 de sólo lectura:Dashboard ya pintado→Presupuestos→Dashboard conserva recientes visibles y muestra Actualizando inline a676ms, sin sv-data-status-layer y aria-busytrue; a986ms concluye, sin status/capa y recientes visibles. Primer Dashboard tras recargar Presupuestos conserva carga inicial normal (sin estado inline previo):una página y totales pendientes identificados; termina1765ms con recientes, sin capa.0erroresconsola. Pestaña real queda abierta en Dashboard19; no se registraron operaciones. Comparación de apertura histórica previa18:2526ms frente a5263ms iniciales. Son muestras de UI/control de navegador, no Network/TTFB ni garantía universal.
+
+Esto cierra la comprobación del arreglo acotado de apertura/retorno, no la auditoría general ni Cuenta corriente/Historial aún sin activar. Publicación fuente114296e53d7e7a6ffd1aedf9ce0bbed7a1f8b4c1,13activos exactos y aviso19 verificados;7234PASS27omitidas0fallos. Sin cambios servidor/reglas/originales financieros. Evidencia detallada sólo tmp privado.
+
 # Retorno Dashboard18.19 publicado, contraste visual en curso · 03/11/2026
 
 Fuente114296e53d7e7a6ffd1aedf9ce0bbed7a1f8b4c1,Hosting579activos/7cargas;13activosHTTPexactos inclCSS/host/readiness/app, cabeceras yprivados404, aviso19sincronizado después. Puertaexacta7261total/7234PASS/27skip/0fallos,847archivos. Sin servidor/reglas/originales. Falta respuesta de verificación visual de dos recorridos reales para cerrar este arreglo, no auditoría general.
