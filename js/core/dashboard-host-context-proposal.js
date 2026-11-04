@@ -12,7 +12,7 @@ function create(r,{timeZone='America/Argentina/Buenos_Aires',sourceLocale='es-AR
   const moduleAllowed=m=>r.permisoModulo?.(m)===true,actionAllowed=a=>r.tienePermiso?.(a)===true;
   const viewing=!!r._impersonacionOriginal,allowed=!disposed&&r.SVDataReadiness===readiness&&r.isAuthenticated===true&&!!uid&&user?.uid===uid&&!!db&&!viewing&&Policy.internalRoles.includes(role)&&moduleAllowed('dashboard')&&config?.indiceVersion===2&&Number.isSafeInteger(config.indiceRevision)&&config.indiceRevision>=0;
   const grants=Object.freeze(Object.fromEntries(domains.map(d=>[d,allowed&&Policy.allows(d,role,moduleAllowed,actionAllowed)?(d==='ordenes_trabajo'||role==='admin'?'all':'own'):null])));
-  const raw=r._svDashboardRawBlockedPresence?.[role],rawBlockedExists=raw&&raw.revision===config?.indiceRevision?raw.present:true;
+  const raw=r._svDashboardRawBlockedPresence?.[role],rawBlockedExists=raw&&raw.revision===config?.indiceRevision&&typeof raw.present==='boolean'?raw.present:true;
   return {allowed,viewing,uid,role,auth,user,db,permissionRevision:config?.indiceRevision,permissionSignature:JSON.stringify(config||null),sessionEpoch:r._svOperacionesSesionEpoch??0,dataEpoch:r.SVDataReadiness.snapshotEpoch(),timeZone,sourceLocale,asOfDay,month:asOfDay.slice(0,7),employeeLabel:String(r.currentUser||''),grants,connectionEpoch,connected:r.navigator?.onLine!==false&&r.fbOnline===true&&r.SVConnectionMonitor?.canSync?.()!==false,foreground:r.document?.hidden!==true&&r.SVForegroundSession?.isVisible?.()!==false,rawBlockedExists};
  }
  function valid(c){try{const current=capture();return !!c&&current.allowed&&fields.every(k=>c[k]===current[k])&&domains.every(d=>c.grants?.[d]===current.grants[d]);}catch(_){return false;}}

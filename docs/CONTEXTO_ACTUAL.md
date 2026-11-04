@@ -1,3 +1,7 @@
+## Contexto: corrección tras revisión independiente
+
+QA reprodujo que metadata revision7 sin campo present seleccionaba RTDB directo, contrariando la política conservadora; root confirmó7PASS/1FAIL en sus ocho pruebas intactas(SHA256B39BC433545C71478476910939A508E6BB18DE035AA1E7CF508E353A41A6A518). El contexto ahora exige present booleano y revisión coincidente; cualquier metadata incompleta usa servidor autorizado. No se alteran roles ni reglas. Repetición conjunta48PASS,0FAIL/SKIP, manteniendo expectativasQA; logs dashboard-host-context-independent-before/after.private.log. Incluye Source/Aggregate con resetreal, red y grants. El test no acredita el montaje final ni transporte productivo.
+
 ## KPI de presupuestos · consumidor Source preparado
 
 svPintarPresupuestosDashboard tiene una rama explícita SV_DASHBOARD_READS_LOCAL=true que sólo usa _svDashboardBudgetSource.peek(dashboard); no consulta pptoData ni la completitud global de presupuestos. Conserva los textos y el contenedor existentes. Cuenta0 sólo si existe snapshot válido; carga inicial/error sin datos muestra raya; revalidación conserva el último conteo de la misma autoridad con estado visible. Rechaza números no enteros/inconsistentes y porcentaje que no corresponda, sin presentar NaN. No instala el host ni inicia consultas desde el renderer; flag sigue apagado.
