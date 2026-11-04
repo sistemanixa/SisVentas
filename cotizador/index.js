@@ -2037,7 +2037,7 @@ const server = http.createServer(async (req, res) => {
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar el espacio privado. Conservá el formulario y reintentá.'});}return;
   }
 
-  if(commercialAdmissionPaused&&req.method==='POST'&&!commercialAdmission.allowsPausedRead(pathname)){
+  if(commercialAdmissionPaused&&((req.method==='POST'&&!commercialAdmission.allowsPausedRead(pathname))||(req.method==='GET'&&pathname==='/proyectos'&&requestUrl.searchParams.get('resumen')==='1'))){
     res.setHeader('Cache-Control','private, no-store');
     if(pathname==='/laboral/operacion'){
       try{const body=await readBody(req,2048);send(res,200,await commercialAdmission.resolveReadOnly({gateway:laborWriteGateway,read:laborRuntime.store.read,req,body}));}
