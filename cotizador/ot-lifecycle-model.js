@@ -1,5 +1,5 @@
 'use strict';
-const Rows=require('./ot-material-rows-model');
+const Rows=require('./ot-material-rows-model'),State=require('./ot-material-state'),Money=require('./commercial-models/commercial-money');
 const copy=v=>structuredClone(v),fail=m=>Object.assign(Error(m),{statusCode:409});
 const normalized=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().replace(/[ -]+/g,'_');
 const closed=o=>['completada','completado','completo','finalizada','finalizado','cerrada','cerrado','terminada','terminado','con_observaciones'].includes(normalized(o?.estado));
@@ -9,24 +9,25 @@ function checksComplete(checks){return Object.entries(CHECK_COUNTS).every(([phas
 function service(m,p={}){const txt=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();return m.esManoDeObra===true||p.esManoDeObra===true||['SERVICIO','MANO DE OBRA'].includes(txt(m.tipo||m.clase||p.tipo||p.clase))||/MANO DE OBRA|SERVICIO/.test(txt(m.categoria||p.categoria))||/INSTALACION|CONFIGURACION/.test(txt(p.categoria))||/^(?:\d+\s*-\s*)?(?:INSTALACION|CONFIGURACION|MANTENIMIENTO|VISITA TECNICA)\b/.test(txt(m.desc||m.descripcion||p.nombre||p.descripcion));}
 function custody(ot,products={}){
  const rows=Rows.view(ot).filter(m=>Rows.quantity(m)>0&&!service(m,products[m.productoKey||m.cod||m.codigo]));let pending=false;
- for(const m of rows){if(m._recuperado||m.stockPendiente)throw fail('Hay materiales pendientes de confirmar o registrar.');const delivered=amount(m.entregada),classified=['instalada','devueltaPendiente','devuelta','enTecnico','danada','faltante'].reduce((n,k)=>n+amount(m[k]),0);
-  if(m.custodiaActiva!==true||delivered<Rows.quantity(m)||classified>delivered+1e-6)throw fail('Revisá la entrega y la rendición de materiales.');
-  if(classified<delivered-1e-6||['devueltaPendiente','enTecnico','danada','faltante'].some(k=>amount(m[k])>0))pending=true;
+ for(const m of rows){if(m._recuperado||m.stockPendiente)throw fail('Hay materiales pendientes de confirmar o registrar.');const delivered=amount(m.entregada),classified=Money.quantitySum(['instalada','devueltaPendiente','devuelta','enTecnico','danada','faltante'].map(k=>amount(m[k])));
+  if(m.custodiaActiva!==true||delivered<Rows.quantity(m)||classified>delivered)throw fail('Revisá la entrega y la rendición de materiales.');
+  if(classified<delivered||['devueltaPendiente','enTecnico','danada','faltante'].some(k=>amount(m[k])>0))pending=true;
  }
  if(rows.length&&(!ot.custodiaIniciada||!ot.custodiaRendida))throw fail('Falta registrar la entrega o rendición de materiales.');
  return {pending,physical:rows.length};
 }
-const materialFields=new Set(['entregada','instalada','cantidadInstalada','devueltaPendiente','devuelta','enTecnico','danada','faltante','custodiaActiva','custodiaClasificada','estadoCustodia','recibidoEn','recibidoPor','stockRegistro','stockRevision','stockPendiente','stockBaseInstalada']);
+const materialFields=new Set(['entregada','entregadoEn','entregadoPor','entregadoA','instalada','cantidadInstalada','devueltaPendiente','devuelta','enTecnico','danada','faltante','custodiaActiva','custodiaClasificada','estadoCustodia','recibidoEn','recibidoPor','stockRegistro','stockRevision','stockPendiente','stockBaseInstalada']);
 function materialChanges(beforeOT,after,kind){
- const rows=Rows.view(beforeOT),before=Rows.persisted(rows),targets=Rows.persisted(Rows.view({materiales:after}));
- if(!Array.isArray(after)||before.length!==targets.length)throw fail('La lista de materiales cambió. Volvé a abrir la OT.');
- for(let i=0;i<before.length;i++){const a=before[i],b=targets[i];for(const k of new Set([...Object.keys(a),...Object.keys(b)]))if(!materialFields.has(k)&&JSON.stringify(a[k])!==JSON.stringify(b[k]))throw fail('La rendición no puede cambiar los productos de la OT.');
-  for(const k of ['entregada','custodiaActiva'])if(!rows[i]._recuperado&&JSON.stringify(a[k])!==JSON.stringify(b[k]))throw fail('La rendición no puede cambiar la entrega.');
-  if(rows[i]._recuperado&&(kind==='return'||amount(b.entregada)!==Rows.quantity(a)||b.custodiaActiva!==true))throw fail('El material histórico necesita entrega y consumo verificados.');
+ const changes=State.transitions(beforeOT,after),before=changes.map(c=>c.row),targets=changes.map(c=>c.target);
+ for(let i=0;i<before.length;i++){const a=before[i],b=targets[i];for(const k of new Set([...Object.keys(a),...Object.keys(b)]))if(!materialFields.has(k)&&!(k==='productoKey'&&changes[i].productCompletion)&&JSON.stringify(a[k])!==JSON.stringify(b[k]))throw fail('La rendición no puede cambiar los productos de la OT.');
+  if(changes[i].unchanged)continue;
+  for(const k of ['entregada','custodiaActiva','entregadoEn','entregadoPor','entregadoA'])if(!changes[i].recovery&&JSON.stringify(a[k])!==JSON.stringify(b[k]))throw fail('La rendición no puede cambiar la entrega.');
+  if(changes[i].historical&&(changes[i].recovery&&(kind==='return'||amount(b.entregada)!==Rows.quantity(a)||b.custodiaActiva!==true||b.instalada!==Rows.quantity(a))||changes[i].needsStockReceipt&&b.custodiaActiva!==true))throw fail('El material histórico necesita entrega y consumo verificados.');
   if(kind!=='return'&&amount(a.devuelta)!==amount(b.devuelta))throw fail('Las devoluciones requieren recepción administrativa.');
   if(kind==='return')for(const k of materialFields)if(!['devueltaPendiente','devuelta','recibidoEn','recibidoPor','estadoCustodia'].includes(k)&&JSON.stringify(a[k])!==JSON.stringify(b[k]))throw fail('La recepción sólo puede registrar devoluciones.');
-  if(kind==='return'&&(amount(b.devuelta)!==amount(a.devuelta)+amount(a.devueltaPendiente)||amount(b.devueltaPendiente)!==0))throw fail('La recepción no coincide con las unidades pendientes.');
+  if(kind==='return'&&(amount(b.devuelta)!==Money.quantitySum([amount(a.devuelta),amount(a.devueltaPendiente)])||amount(b.devueltaPendiente)!==0))throw fail('La recepción no coincide con las unidades pendientes.');
  }
+ return changes;
 }
 function validLink(ot,sale,otKey,primary,others){
  if(sale.otId===otKey)return true;
@@ -43,6 +44,7 @@ function plan({before,changes,kind,sale,primary=null,others={},products={},actor
  for(const field of ['custodiaIniciada','custodiaRendida'])if(Object.hasOwn(changes,field)&&typeof changes[field]!=='boolean')throw fail('Revisá la rendición de materiales.');
  const cleanChanges=copy(changes);delete cleanChanges.custodiaRendidaEn;delete cleanChanges.custodiaRendidaPor;
  const next={...copy(before),...cleanChanges};
+ if(!changes.materiales)for(const row of Rows.view(next))State.bounds(row,{unchanged:true});
  if(changes.materiales)materialChanges(before,changes.materiales,kind);
  if(kind==='close'){
   if(!checksComplete(next.checks))throw fail('Falta completar el checklist.');

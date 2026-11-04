@@ -12,7 +12,8 @@ for(const shape of ['record','leaf','nested','atomic','delete'])test('untyped de
 for(const path of ['sisventas','sisventas/ordenes_trabajo'])test('ancestor patches fail closed '+path,async()=>assert.rejects(run({[path]:{}}),/protocolo autorizado/));
 test('notes and authorized classifications/stock repair preserve unchanged delivery proof',async()=>{
  const before=structuredClone(original);before.materiales[0].entregada=2;before.materiales[0].custodiaActiva=true;
- for(const [who,patch]of [[{}, {[base+'/nota']:'fictitious'}],[actor('custody'),{[base+'/materiales/0/instalada']:1}],[actor('return'),{[base+'/materiales/0/devuelta']:1}],[actor('stockrepair'),{[base+'/materiales/0/stockRevision']:1}],[actor('close'),{[base+'/estado']:'completada'}]])assert.deepEqual(await run(patch,who,before),{svOTDeliveryUnchanged:true,svOTDeliveryCommitVersion:1,svOTDeliveryHistoricalVerified:false});
+ const receipt='c'.repeat(64),inventory=require('../cotizador/ot-stock-consumption-model').plan({general:2,reservado:2,consumido:0,asignaciones:{S1:{reservado:2,consumido:0}}},{ot:'O1',allocation:'S1',before:0,target:1,revision:0,receipt}),sources={'sisventas/productos/P1':{codigo:'P'},'sisventas/inventario_operativo/P1':inventory};
+ for(const [who,patch]of [[{}, {[base+'/nota']:'fictitious'}],[actor('custody'),{[base+'/materiales/0/instalada']:1,[base+'/materiales/0/stockRegistro']:receipt,[base+'/materiales/0/stockRevision']:1}],[actor('return'),{[base+'/materiales/0/devuelta']:1}],[actor('stockrepair'),{[base+'/materiales/0/stockRevision']:1}],[actor('close'),{[base+'/estado']:'completada'}]])assert.deepEqual(await run(patch,who,before,sources),{svOTDeliveryUnchanged:true,svOTDeliveryCommitVersion:1,svOTDeliveryHistoricalVerified:false});
 });
 test('valid delivery is typed and binds every affected OT',async()=>{
  assert.equal((await run({[base+'/materiales/0/entregada']:2},actor('delivery'))).svOTDeliveryUnchanged,false);
@@ -42,7 +43,8 @@ test('historical custody initialization requires the existing model and verified
  Object.assign(after[1],{entregada:1,custodiaActiva:true,instalada:1,stockRegistro:receipt,stockRevision:1});
  const patch={[base+'/materiales']:after},stockPath='sisventas/inventario_operativo/P2/rendicionesOT/'+receipt;
  await assert.rejects(run(patch,actor('custody'),before),/protocolo autorizado/);
- const proof=await run(patch,actor('custody'),before,{[stockPath]:{ot:'O1',instalada:1,revision:1}});
+ const inventory=require('../cotizador/ot-stock-consumption-model').plan({general:2,reservado:2,consumido:0,asignaciones:{S1:{reservado:2,consumido:0}}},{ot:'O1',allocation:'S1',before:0,target:1,revision:0,receipt,additional:true});
+ const proof=await run(patch,actor('custody'),before,{'sisventas/productos/P2':{codigo:'LEGACY'},'sisventas/inventario_operativo/P2':inventory});
  assert.equal(proof.svOTDeliveryUnchanged,false);assert.equal(proof.svOTDeliveryHistoricalVerified,true);
  const invalid=structuredClone(after);invalid[1].entregada=2;
  await assert.rejects(run({[base+'/materiales']:invalid},actor('custody'),before,{[stockPath]:{ot:'O1',instalada:1,revision:1}}),/histórico/);

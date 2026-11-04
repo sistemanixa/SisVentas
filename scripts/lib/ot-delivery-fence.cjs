@@ -23,6 +23,7 @@ function prepare(input){
  seal(ot[otKey],3,otKey+' === auth.token.svOTLifecycleOTKey && '+permission);
  const summaries=lists.ordenes_trabajo,summaryKeys=Object.keys(summaries).filter(k=>k.startsWith('$'));if(summaryKeys.length!==1)throw Error('El resumen OT necesita una regla por registro.');seal(summaries[summaryKeys[0]],4,summaryKeys[0]+' === auth.token.svOTLifecycleOTKey && '+permission);
  const indexes=ot['.indexOn']||[];if(!Array.isArray(indexes)&&typeof indexes!=='string')throw Error('Índice OT inválido.');ot['.indexOn']=[...new Set([...(Array.isArray(indexes)?indexes:[indexes]),'ventaFbKey'])];
+ const catalog=data.productos;if(!catalog||typeof catalog!=='object')throw Error('Falta inventariar el catálogo autoritativo.');const catalogIndexes=catalog['.indexOn']||[];if(!Array.isArray(catalogIndexes)&&typeof catalogIndexes!=='string')throw Error('Índice de catálogo inválido.');catalog['.indexOn']=[...new Set([...(Array.isArray(catalogIndexes)?catalogIndexes:[catalogIndexes]),'codigo','cod'])];
  root.sv_labor_config.otDeliveryVersion={'.validate':'newData.val() === 1'};return out;
 }
 module.exports={prepare};

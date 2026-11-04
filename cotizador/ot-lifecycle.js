@@ -1,5 +1,5 @@
 'use strict';
-const {digest}=require('./labor-guard'),Model=require('./ot-lifecycle-model'),Policy=require('./ot-lifecycle-policy'),Index=require('./record-list-model'),Assigned=require('./ot-personal-scope'),Rows=require('./ot-material-rows-model');
+const {digest}=require('./labor-guard'),Model=require('./ot-lifecycle-model'),Policy=require('./ot-lifecycle-policy'),Index=require('./record-list-model'),Assigned=require('./ot-personal-scope'),State=require('./ot-material-state'),Money=require('./commercial-models/commercial-money');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
 function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,now=Date.now}){
@@ -64,21 +64,17 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
      const inv=inventoryChanges.get(path),source=m.destinoVenta==='nueva'?m.ventaDestinoFbKey:ot.ventaFbKey||ot.ventaId||ot.id||body.otKey;
      const allocation=String(source||'').replace(/[.#$\[\]\/]/g,'_').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,120),owned=inv.asignaciones?.[allocation];
      if(!owned||!Number.isFinite(Number(inv.general||0))||Number(inv.general||0)<0||Number(owned.reservado||0)<qty||Number(inv.reservado||0)<qty)throw fail(409,'La reserva de la devolución requiere revisión.');
-     if(m.stockRegistro){const receipt=inv.rendicionesOT?.[m.stockRegistro];if(!receipt||receipt.ot!==body.otKey||receipt.venta!==allocation||Number(receipt.revision)!==Number(m.stockRevision)||Number(receipt.instalada)!==Number(m.instalada||0)||Number(receipt.enReserva||0)<qty||Number(receipt.recibidas||0)!==Number(m.devuelta||0))throw fail(409,'El registro de devolución cambió. Volvé a abrir la OT.');receipt.enReserva-=qty;receipt.recibidas=Number(receipt.recibidas||0)+qty;}
-     inv.reservado=Number(inv.reservado||0)-qty;owned.reservado=Number(owned.reservado||0)-qty;inv.general=Number(inv.general||0)+qty;owned.liberado=Number(owned.liberado||0)+qty;owned.ultimaDevolucionEn=Date.parse(actionAt);owned.ventaId=ot.ventaId||owned.ventaId||'';
-     m.devuelta=Number(m.devuelta||0)+qty;m.devueltaPendiente=0;m.recibidoEn=Date.parse(actionAt);m.recibidoPor=name;m.estadoCustodia=Number(m.enTecnico||0)>0?'en_tecnico':Number(m.danada||0)+Number(m.faltante||0)>0?'incidencia':Number(m.instalada||0)>0?'rendido':'devuelto';count+=qty;
+     if(m.stockRegistro){const receipt=inv.rendicionesOT?.[m.stockRegistro];if(!receipt||receipt.ot!==body.otKey||receipt.venta!==allocation||Number(receipt.revision)!==Number(m.stockRevision)||Number(receipt.instalada)!==Number(m.instalada||0)||Number(receipt.enReserva||0)<qty||Number(receipt.recibidas||0)!==Number(m.devuelta||0))throw fail(409,'El registro de devolución cambió. Volvé a abrir la OT.');receipt.enReserva=Money.quantitySum([Number(receipt.enReserva),-qty]);receipt.recibidas=Money.quantitySum([Number(receipt.recibidas||0),qty]);}
+     inv.reservado=Money.quantitySum([Number(inv.reservado||0),-qty]);owned.reservado=Money.quantitySum([Number(owned.reservado||0),-qty]);inv.general=Money.quantitySum([Number(inv.general||0),qty]);owned.liberado=Money.quantitySum([Number(owned.liberado||0),qty]);owned.ultimaDevolucionEn=Date.parse(actionAt);owned.ventaId=ot.ventaId||owned.ventaId||'';
+     m.devuelta=Money.quantitySum([Number(m.devuelta||0),qty]);m.devueltaPendiente=0;m.recibidoEn=Date.parse(actionAt);m.recibidoPor=name;m.estadoCustodia=Number(m.enTecnico||0)>0?'en_tecnico':Money.quantitySum([Number(m.danada||0),Number(m.faltante||0)])>0?'incidencia':Number(m.instalada||0)>0?'rendido':'devuelto';count=Money.quantitySum([count,qty]);
     }
     if(!count)throw fail(409,'No hay devoluciones pendientes en esta OT.');
     changes={materiales:materials};
    }
-   if(body.kind!=='return'&&changes?.materiales)for(let i=0;i<changes.materiales.length;i++){
-    const before=Rows.view(ot)[i],after=changes.materiales[i];if(!before||!after)continue;
-    const consumptionChanged=before._recuperado||['instalada','stockRegistro','stockRevision','stockPendiente','stockBaseInstalada'].some(k=>JSON.stringify(before[k])!==JSON.stringify(after[k]));
-    if(!consumptionChanged)continue;
-    const product=products[after.productoKey||after.cod||after.codigo],productKey=product?._key;
-    if(!key(productKey)||!/^[a-f0-9]{64}$/.test(after.stockRegistro||''))throw fail(409,'El movimiento requiere una referencia de stock verificable.');
-    const receipt=await track('sisventas/inventario_operativo/'+productKey+'/rendicionesOT/'+after.stockRegistro);
-    if(!receipt||receipt.ot!==body.otKey||Number(receipt.instalada)!==Number(after.instalada||0)||Number(receipt.revision)!==Number(after.stockRevision))throw fail(409,'El movimiento de stock todavía no está confirmado.');
+   if(body.kind!=='return'&&changes?.materiales)for(const transition of Model.materialChanges(ot,changes.materiales,body.kind)){
+    if(!transition.needsStockReceipt&&!transition.needsProductBinding)continue;
+    const productKey=await State.resolveProduct(transition.target,{read:track,query,source:transition.needsProductBinding?transition.source:null});
+    await State.verifyReceipt({ot,otKey:body.otKey,transition,productKey,read:track});
    }
    const plan=Model.plan({before:ot,changes,kind:body.kind,sale,primary,others,products,actor:{uid:identity.uid,name,otKey:body.otKey},at:actionAt,action:body.action});
    scope.beforeCommit(async({readFresh,readFreshAsUser})=>{

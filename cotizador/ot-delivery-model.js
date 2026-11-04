@@ -1,14 +1,15 @@
 'use strict';
 const {digest}=require('./labor-guard');
-const Lifecycle=require('./ot-lifecycle-model'),Money=require('./commercial-models/commercial-money');
+const Lifecycle=require('./ot-lifecycle-model'),Money=require('./commercial-models/commercial-money'),State=require('./ot-material-state');
 const sum=values=>Money.quantitySum(values);
 const fail=(message,code='SV_OT_DELIVERY_REVIEW')=>Object.assign(Error(message),{statusCode:409,code});
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
 function amount(v){if(typeof v!=='number'||!Number.isFinite(v)||v<0)throw fail('La custodia histórica requiere cantidades explícitas verificables.');return v;}
 function allocation(ot,m){const id=m.destinoVenta==='nueva'?m.ventaDestinoFbKey:ot.ventaFbKey;return key(id)?id:null;}
-function selections(ot,items){if(!Array.isArray(ot.materiales)||!Array.isArray(items)||!items.length||items.length>100)throw fail('Seleccioná materiales conocidos.');const seen=new Set();return items.map(item=>{if(!item||Object.keys(item).some(k=>!['index','qty'].includes(k))||!Number.isInteger(item.index)||item.index<0||seen.has(item.index))throw fail('La selección de materiales no es válida.');seen.add(item.index);const m=ot.materiales[item.index];if(!m||m._recuperado||m.stockPendiente||!key(m.productoKey)||!allocation(ot,m))throw fail('El producto o destino de la entrega requiere revisión.');const qty=amount(item.qty),pending=sum([amount(m.vendida),-amount(m.entregada)]);if(qty<=0||qty>pending)throw fail('La cantidad supera lo pendiente.','SV_OT_DELIVERY_QUANTITY');if(Lifecycle.closed(ot)&&m.adicionalOT!==true)throw fail('La OT cerrada requiere su circuito de corrección.');return{index:item.index,qty,product:m.productoKey,allocation:allocation(ot,m)};});}
+function selections(ot,items,catalog={}){if(!Array.isArray(ot.materiales)||!Array.isArray(items)||!items.length||items.length>100)throw fail('Seleccioná materiales conocidos.');const seen=new Set();return items.map(item=>{if(!item||Object.keys(item).some(k=>!['index','qty'].includes(k))||!Number.isInteger(item.index)||item.index<0||seen.has(item.index))throw fail('La selección de materiales no es válida.');seen.add(item.index);const m=ot.materiales[item.index];if(!m||m._recuperado||m.stockPendiente||!key(m.productoKey)||!allocation(ot,m))throw fail('El producto o destino de la entrega requiere revisión.');if(Lifecycle.service(m,catalog[m.productoKey]))throw fail('La entrega física no admite servicios ni mano de obra.','SV_OT_DELIVERY_SERVICE');const qty=amount(item.qty),pending=sum([amount(m.vendida),-amount(m.entregada)]);if(qty<=0||qty>pending)throw fail('La cantidad supera lo pendiente.','SV_OT_DELIVERY_QUANTITY');if(Lifecycle.closed(ot)&&m.adicionalOT!==true)throw fail('La OT cerrada requiere su circuito de corrección.');return{index:item.index,qty,product:m.productoKey,allocation:allocation(ot,m)};});}
 function plan({ot,otKey,items,others,inventory,catalog={},actor,operationId,at}){
- const selected=selections(ot,items),groups=new Map();
+ ot=State.normalizePristine(ot,{inventory,otKey});others=Object.fromEntries(Object.entries(others).map(([id,record])=>[id,State.normalizePristine(record,{inventory,otKey:id})]));
+ const selected=selections(ot,items,catalog),groups=new Map();
  for(const s of selected){const name=s.product+'/'+s.allocation,g=groups.get(name)||{...s,qty:0};g.qty=sum([g.qty,s.qty]);groups.set(name,g);}
  for(const g of groups.values()){
   const inv=inventory[g.product];if(!inv||!inv.asignaciones||!Object.hasOwn(inv.asignaciones,g.allocation))throw fail('La asignación de stock requiere revisión.');
@@ -16,6 +17,7 @@ function plan({ot,otKey,items,others,inventory,catalog={},actor,operationId,at})
   for(const [id,record]of Object.entries(others)){
    if(!Array.isArray(record.materiales))throw fail('Una OT vinculada tiene custodia desconocida.');
    for(const m of record.materiales){if(m.productoKey!==g.product)continue;const destination=allocation(record,m);if(destination===null)throw fail('Una custodia del producto tiene destino ambiguo.');if(destination!==g.allocation)continue;
+    State.bounds(m,{unchanged:true});
     const delivered=amount(m.entregada),installed=amount(m.instalada),returned=amount(m.devuelta);if(sum([installed,returned])>delivered||delivered>0&&m.custodiaActiva!==true)throw fail('Una custodia vinculada es inconsistente.');
     if(installed>0){const receipt=inv.rendicionesOT?.[m.stockRegistro];if(!receipt||receipt.ot!==id||receipt.venta!==g.allocation||receipt.revision!==m.stockRevision||receipt.instalada!==installed)throw fail('La instalación histórica no tiene consumo verificable.');}
     held=sum([held,delivered,-installed,-returned]);
