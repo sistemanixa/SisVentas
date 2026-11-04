@@ -6303,6 +6303,8 @@ function svPlanInicioDashboard() {
 function svCargarInicioDashboardDemandado() {
   var plan = svPlanInicioDashboard();
   if (!plan) throw new Error('No se pudo preparar el inicio. Volvé a intentar.');
+  var hostPresupuestos=window.SV_DASHBOARD_READS_LOCAL===true?svHostPresupuestosDashboard():null;
+  if(hostPresupuestos?.claimed('dashboard'))hostPresupuestos.ensure('dashboard').catch(function(){/* Source retains the visible result and its error. */});
   if (!window._svDashboardDemandReader) {
     window._svDashboardDemandReader = window.SVDashboardStartupDemand.create({
       capture: function(){ return svCapturarContextoCargaDashboard(); },

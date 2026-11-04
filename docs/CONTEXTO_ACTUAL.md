@@ -1,3 +1,6 @@
+## Demanda de resumen en arranque local: flag OFF conservado
+
+El arranque pide dashboard al host sólo con SV_DASHBOARD_READS_LOCAL===true, fuera del renderer; Source deduplica. No retira aún fuentes antiguas porque mensual ventas/actividad y demás consumidores siguen pendientes. Por tanto no se anuncia reducción final de descargas ni se activa este modo sobre la ventana real. Se agregó callpoint real con prueba de flagOFF/ON y separación de fuentes:3PASS. Primeras36pruebas de arranque dieron34PASS/2FAIL porque extracción aislada no incluía el helper; la llamada ahora está protegida por flag antes de resolver helper, preservando caminoOFF sin construcción: repetición36PASS intactas. Logs dashboard-startup-host-hook.private.log y dashboard-startup-host-hook-after.private.log. No reemplaza QA browser pendiente ni resuelve el conteo de eventos intermitente del host.
 ## Corrección de puente de sesión y consumidor mensual
 
 QA browser sobre44474115 detectó rechazo antes deHTTP: isAuthenticated es lexical let y el host consultaba window.isAuthenticated. Se agregó getter de sólo lectura junto a los puentes existentes de rol/usuario; no se copia el estado ni se introduce setter. Prueba propia confirma false→true→false desde la variable lexical, sin permitir otra fuente de sesión; falta repetición de la reproducción browser independiente sobre este delta.
