@@ -4,6 +4,7 @@ const Own=require('./commercial-ownership'),{digest}=require('./labor-guard');
 const {normalizeRtdb}=require('./payment-membership-index');
 const ACTIVE=Object.freeze(['borrador','revision','aprobado_int','enviado','visto','aceptado']);
 const NOTICE_ACTIVE=Object.freeze(ACTIVE.filter(s=>s!=='aceptado'));
+const DOCUMENT_ORDER='document-date-desc/budget-key-sha256-v1';
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const fail=(message='La proyección de presupuestos requiere revisión.',code='SV_BUDGET_PROPOSAL_INVALID')=>Object.assign(Error(message),{code});
 const check=(v,m)=>{if(!v)throw fail(m);};
@@ -16,6 +17,7 @@ function day(raw){
  if(!m)return null;let y,n,d;if(s.includes('/')){y=Number(m[3]);if(y<100)y+=2000;n=+m[2];d=+m[1];}else{y=+m[1];n=+m[2];d=+m[3];}
  const date=new Date(Date.UTC(y,n-1,d));if(date.getUTCFullYear()!==y||date.getUTCMonth()!==n-1||date.getUTCDate()!==d)return null;return date.toISOString().slice(0,10);
 }
+function documentSort(date,id){check(key(id)&&day(date)===date,'Documento sin clave o fecha canónica.');return String(99999999-Number(date.replaceAll('-',''))).padStart(8,'0')+'_'+digest(id);}
 const epoch=(s,offset)=>{const d=day(s);return d===null?0:Date.parse(d+'T00:00:00Z')-offset*60000;};
 const timestampDay=(n,offset)=>{if(!Number.isFinite(n)||n<=0)return null;const d=new Date(n+offset*60000);return Number.isFinite(d.getTime())?d.toISOString().slice(0,10):null;};
 function sentDay(row,offset){
@@ -47,7 +49,7 @@ function summarize(entries){
 function build({records,complete,users,identities,permissions,generation,revision=1,offsetMinutes}={}){
  check(complete===true&&object(records),'Falta una fuente completa de presupuestos.');check(key(generation)&&Number.isSafeInteger(revision)&&revision>=1&&Number.isInteger(offsetMinutes)&&Math.abs(offsetMinutes)<=840);
  const authority={users,identities,permissions},people=policy(authority),entries=Object.fromEntries(Object.entries(records).map(([id,row])=>[id,projectRecord({key:id,original:row,ownerUid:Own.owner(row,'presupuestos',people)||'',offsetMinutes})]));
- return {schema:1,proposal:true,activationAuthorized:false,generation,revision,complete:true,offsetMinutes,policyHash:policyHash(authority),sourceCount:Object.keys(records).length,unresolvedOwners:Object.values(entries).filter(e=>!e.ownerUid).length,entries,scopes:summarize(entries),receipts:{}};
+ return {schema:1,proposal:true,activationAuthorized:false,generation,revision,complete:true,offsetMinutes,documentOrder:DOCUMENT_ORDER,policyHash:policyHash(authority),sourceCount:Object.keys(records).length,unresolvedOwners:Object.values(entries).filter(e=>!e.ownerUid).length,entries,scopes:summarize(entries),receipts:{}};
 }
 function scope(model,{uid,users,identities,permissions}={}){
  check(model?.schema===1&&model.proposal===true&&model.complete===true&&model.activationAuthorized===false);
@@ -65,9 +67,10 @@ function recent(model,actor){
 function documentPrefix(model,actor,{context}={}){
  const s=scope(model,actor),grant=s.name==='all'?'all':'own',revision=actor.permissions?.[s.role]?.indiceRevision||0;
  check(context?.uid===s.uid&&context.role===s.role&&context.permissionRevision===revision&&context.auth&&context.db&&['ventas','pagos','ordenes_trabajo','presupuestos'].every(domain=>Object.hasOwn(context.grants||{},domain)&&[null,'all','own','assigned'].includes(context.grants[domain]))&&context.grants.presupuestos===grant&&!context.viewing&&context.online!==false,'El contexto no coincide con el prefijo autorizado.');
- const base={schema:1,domain:'presupuestos',kind:'verified-recent-prefix',context:{...context},scope:grant,generation:s.generation,revision:s.revision,order:'document-date-desc/source-order-v1',fromStart:true,filter:'all',precision:'day',certifiedActivityInstant:false};
+ check(model.documentOrder===DOCUMENT_ORDER,'El orden documental requiere reconstrucción.');
+ const base={schema:1,domain:'presupuestos',kind:'verified-recent-prefix',context:{...context},scope:grant,generation:s.generation,revision:s.revision,order:DOCUMENT_ORDER,fromStart:true,filter:'all',precision:'day',certifiedActivityInstant:false};
  if(s.rows.some(r=>!day(r.date)))return {...base,kind:'incomplete-budget-prefix',complete:false,reason:'unknown-document-dates',rows:[],exhausted:false};
- const rows=s.rows.map(r=>{const date=day(r.date),sort=String(99999999-Number(date.replaceAll('-',''))).padStart(8,'0')+'_'+Buffer.from(r.key,'utf8').toString('hex');return {key:r.key,date,sort,number:r.number,client:r.client,status:r.status,ownerUid:r.ownerUid,amountCents:null};}).sort((a,b)=>a.sort<b.sort?-1:a.sort>b.sort?1:0);
+ const rows=s.rows.map(r=>{const date=day(r.date),sort=documentSort(date,r.key);return {key:r.key,date,sort,number:r.number,client:r.client,status:r.status,ownerUid:r.ownerUid,amountCents:null};}).sort((a,b)=>a.sort<b.sort?-1:a.sort>b.sort?1:0);
  return {...base,complete:true,completeDocumentDatePrefix:true,exhausted:rows.length<=5,rows:rows.slice(0,5)};
 }
 function legacyMonth(model,actor,{month,employeeLabel}={}){
@@ -100,4 +103,4 @@ function apply(model,command,authority){
  const next=structuredClone(model),seen=new Set();for(const c of command.changes){check(key(c.key)&&!seen.has(c.key));seen.add(c.key);if((model.entries[c.key]?.sourceHash??digest(null))!==c.beforeHash)throw fail('El original cambió.','SV_BUDGET_PROPOSAL_CONFLICT');if(c.after===null)delete next.entries[c.key];else next.entries[c.key]=projectRecord({key:c.key,original:c.after,ownerUid:Own.owner(c.after,'presupuestos',people)||'',offsetMinutes:model.offsetMinutes});}
  next.revision++;check(Number.isSafeInteger(next.revision));next.sourceCount=Object.keys(next.entries).length;next.unresolvedOwners=Object.values(next.entries).filter(e=>!e.ownerUid).length;next.scopes=summarize(next.entries);next.receipts[command.id]=hash;return next;
 }
-module.exports={ACTIVE,NOTICE_ACTIVE,projectRecord,build,scope,metrics,recent,documentPrefix,legacyMonth,notices,apply,day};
+module.exports={ACTIVE,NOTICE_ACTIVE,DOCUMENT_ORDER,documentSort,projectRecord,build,scope,metrics,recent,documentPrefix,legacyMonth,notices,apply,day};

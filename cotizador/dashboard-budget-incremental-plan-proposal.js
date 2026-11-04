@@ -2,6 +2,7 @@
 // Plan only: join the existing guard commit; never acquire a lease or store receipts here.
 const {digest}=require('./labor-guard'),Own=require('./commercial-ownership'),Evidence=require('./client-account-owner-evidence'),Model=require('./dashboard-budget-projection-proposal');
 const {normalizeRtdb}=require('./payment-membership-index');
+const Activity=require('./dashboard-budget-activity-codec-proposal');
 const stable=value=>digest(normalizeRtdb(value));
 const ROOT='sv_dashboard_budget_proposal/v1',ORIGINAL='sisventas/presupuestos',AUTHORITY=['sv_usuarios','sv_chat_roles','sv_permisos'];
 const fields=['records','active','converted','totalNonCancelled','unknownDates','totalDueEligible'],mod=1n<<256n;
@@ -29,11 +30,12 @@ function validateRow(row,id,source,owner){
  return structuredClone(row);
 }
 function source(id,original,row){check(!row.admits||!Model.NOTICE_ACTIVE.includes(row.status)||!original.vence||typeof original.vence==='string'&&original.vence===row.dueRaw,'Badge raw due value cannot be represented exactly');return {key:id,sourceHash:stable(original),ownerUid:row.ownerUid,ownershipHash:ownershipHash(original),ownerEvidence:Evidence.fromRecord(original,'presupuestos'),row:structuredClone(row)};}
-function indexes(record){
+function indexes(record,activityMode=false){
  if(!record)return {};const row=record.row,out={};
  for(const scope of scopes(record.ownerUid)){
   const date=Model.day(row.date);
-  if(date){const sort=String(99999999-Number(date.replaceAll('-',''))).padStart(8,'0')+'_'+Buffer.from(row.key).toString('hex');out[ROOT+'/document/'+scope+'/'+sort]={key:row.key,date,sort,number:row.number,client:row.client,status:row.status,ownerUid:row.ownerUid,amountCents:null};}
+  if(activityMode){if(record.activity){const event=Activity.eventRow(record,scope);if(event)out[ROOT+'/document/'+scope+'/'+event.sort]=event;}}
+  else if(date){const sort=Model.documentSort(date,row.key);out[ROOT+'/document/'+scope+'/'+sort]={key:row.key,date,sort,number:row.number,client:row.client,status:row.status,ownerUid:row.ownerUid,amountCents:null};}
   const month=monthBucket(row);if(month)out[ROOT+'/monthMembers/'+scope+'/'+month+'/'+row.key]=true;
   if(badgeEligible(row))out[ROOT+'/noticeBadge/'+scope+'/'+badgeSort(row.dueRaw,row.key)]={key:row.key,dueRaw:row.dueRaw};
   if(row.admits){out[ROOT+'/noticeStatus/'+scope+'/'+stable(row.status)+'/'+row.key]=row;
@@ -46,7 +48,8 @@ function indexes(record){
 function set(root,path,value){const keys=path.split('/');let node=root;for(const key of keys.slice(0,-1))node=node[key]??={};node[keys.at(-1)]=structuredClone(value);}
 function bootstrap({model,records}={}){
  check(model?.schema===1&&model.proposal===true&&model.complete===true&&model.activationAuthorized===false&&object(records)&&model.sourceCount===Object.keys(records).length&&Object.keys(model.entries).length===Object.keys(records).length,'Complete offline bootstrap is required');
- const tree={sources:{},stats:{},scopeProof:{},months:{},monthProof:{},policy:{hash:model.policyHash}},coverage={schema:1,ready:true,generation:model.generation,revision:model.revision,offsetMinutes:model.offsetMinutes,policyHash:model.policyHash,records:0,unresolvedOwners:0,sourceAccumulator:'0'.repeat(64),scopeAbsenceIsZero:true};
+ check(model.documentOrder===Model.DOCUMENT_ORDER,'Document order requires explicit rebuild');
+ const tree={sources:{},stats:{},scopeProof:{},months:{},monthProof:{},policy:{hash:model.policyHash}},coverage={schema:1,ready:true,generation:model.generation,revision:model.revision,offsetMinutes:model.offsetMinutes,documentOrder:Model.DOCUMENT_ORDER,policyHash:model.policyHash,records:0,unresolvedOwners:0,sourceAccumulator:'0'.repeat(64),scopeAbsenceIsZero:true};
  for(const [id,original]of Object.entries(records)){
   check(key(id)&&object(original),'Invalid bootstrap record');const row=model.entries[id];validateRow(row,id,original,row?.ownerUid);const record=source(id,original,row);tree.sources[id]=record;coverage.records++;coverage.unresolvedOwners+=Number(!row.ownerUid);coverage.sourceAccumulator=sumHash(coverage.sourceAccumulator,stable([id,record.sourceHash]),1);
   for(const scope of scopes(row.ownerUid)){const stats=tree.stats[scope]??={schema:1,generation:model.generation,revision:model.revision,...zero()};for(const field of fields)stats[field]+=counts(row)[field];}
@@ -73,6 +76,8 @@ async function plan({patch,raw,get,generation,revision,beforeCommit,projectRecor
  if(!authorityChange&&!ids.size)return {patch:{},maintained:false,activationAuthorized:false};
  const coverage=await raw(ROOT+'/coverage'),ready=coverage?.ready===true||authorityChange&&coverage?.ready===false&&coverage?.requiresReconciliation===true;check(object(coverage)&&coverage.schema===1&&ready&&coverage.generation===generation&&coverage.revision===revision&&coverage.scopeAbsenceIsZero===true&&Number.isSafeInteger(coverage.records)&&coverage.records>=0&&Number.isSafeInteger(coverage.unresolvedOwners)&&coverage.unresolvedOwners>=0&&/^[a-f0-9]{64}$/.test(coverage.sourceAccumulator||'')&&/^[a-f0-9]{64}$/.test(coverage.policyHash||''),'Coverage is incomplete or stale');
  check(Number.isInteger(coverage.offsetMinutes)&&Math.abs(coverage.offsetMinutes)<=840,'Offset metadata is incomplete');
+ const activityMode=coverage.documentOrder===Activity.ORDER;
+ check(coverage.documentOrder===Model.DOCUMENT_ORDER||activityMode&&coverage.activitySchema===2&&typeof coverage.activityReady==='boolean','Document order requires explicit rebuild');
  const policy=await raw(ROOT+'/policy');check(policy?.hash===coverage.policyHash,'Authority policy needs reconciliation');const next=structuredClone(coverage),derived={},captured=[];
  const revisionNext=revision+1;check(Number.isSafeInteger(revisionNext),'Revision exhausted');
  beforeCommit(async({readFresh})=>{check(stable(await readFresh(ROOT+'/coverage'))===stable(coverage)&&stable(await readFresh(ROOT+'/policy'))===stable(policy),'Coverage/policy changed before commit');for(const [path,hash]of captured)check(stable(await readFresh(path))===hash,'Original changed before commit');});
@@ -82,12 +87,17 @@ async function plan({patch,raw,get,generation,revision,beforeCommit,projectRecor
   const path=ORIGINAL+'/'+id,sourcePath=ROOT+'/sources/'+id,[beforeRaw,afterRaw,storedPrevious]=await Promise.all([raw(path),get(path),raw(sourcePath)]),before=normalizeRtdb(beforeRaw),after=normalizeRtdb(afterRaw),previous=storedPrevious?{...storedPrevious,row:{ts:null,dueDay:null,sentDay:null,amount:null,...storedPrevious.row}}:null;captured.push([path,stable(before)],[sourcePath,stable(storedPrevious)]);
   check((previous?.sourceHash??stable(null))===stable(before)&&(!before||previous?.ownershipHash===ownershipHash(before)),'Original before hash is not covered');
   if(before){validateRow(previous?.row,id,before,previous?.ownerUid);Evidence.validate(previous.ownerEvidence);check(stable(previous.ownerEvidence)===stable(Evidence.fromRecord(before,'presupuestos'))&&ownerAfter(before,previous)===previous.ownerUid,'Stored ownership no longer matches its source');}
+  if(activityMode&&coverage.activityReady&&before){check(previous.activity?.sortInputs===Activity.sortInputs(before),'Activity source order evidence changed');for(const scope of scopes(previous.ownerUid))Activity.eventRow(previous,scope);}
   if(stable(before)===stable(after))continue;let record=null;
   if(after!==null){check(object(after)&&typeof projectRecord==='function','An explicit shared point-row codec is required');if(!previous)check(Object.hasOwn(after,'responsableUid')&&Own.owner(after,'presupuestos',[]),'A new budget needs the canonical owner already resolved by the existing writer protocol');const owner=ownerAfter(after,previous),row=validateRow(await projectRecord({key:id,original:structuredClone(after),ownerUid:owner,offsetMinutes:coverage.offsetMinutes}),id,after,owner);record=source(id,after,row);}
+  if(activityMode){
+   if(record&&previous?.activity&&record.ownerUid===previous.ownerUid&&Activity.sortInputs(after)===previous.activity.sortInputs)record.activity={...structuredClone(previous.activity),sourceHash:record.sourceHash};
+   else{next.activityReady=false;next.requiresActivityReconciliation=true;}
+  }
   derived[ROOT+'/sources/'+id]=record;
   for(const [old,sign]of [[previous,-1],[record,1]])if(old){next.records+=sign;next.unresolvedOwners+=sign*Number(!old.ownerUid);next.sourceAccumulator=sumHash(next.sourceAccumulator,stable([id,old.sourceHash]),sign);for(const scope of scopes(old.ownerUid)){const delta=deltas.get(scope)||zero();for(const field of fields)delta[field]+=sign*counts(old.row)[field];deltas.set(scope,delta);}}
   for(const [old,sign]of [[previous,-1],[record,1]])if(old)for(const scope of scopes(old.ownerUid)){const bucket=monthBucket(old.row);if(bucket){const path=scope+'/'+bucket,delta=monthDeltas.get(path)||{records:0,converted:0};delta.records+=sign;delta.converted+=sign*Number(old.row.status==='convertido');monthDeltas.set(path,delta);}}
-  const beforeIndexes=indexes(previous),afterIndexes=indexes(record);for(const path of new Set([...Object.keys(beforeIndexes),...Object.keys(afterIndexes)]))if(stable(beforeIndexes[path]??null)!==stable(afterIndexes[path]??null))derived[path]=afterIndexes[path]??null;
+  const beforeIndexes=indexes(previous,activityMode),afterIndexes=indexes(record,activityMode);for(const path of new Set([...Object.keys(beforeIndexes),...Object.keys(afterIndexes)]))if(stable(beforeIndexes[path]??null)!==stable(afterIndexes[path]??null))derived[path]=afterIndexes[path]??null;
  }
  if(!Object.keys(derived).length)return {patch:{},maintained:true,activationAuthorized:false};
  for(const [scope,delta]of deltas){const path=ROOT+'/stats/'+scope,[stored,proof]=await Promise.all([raw(path),raw(ROOT+'/scopeProof/'+scope)]);let stats=stored;

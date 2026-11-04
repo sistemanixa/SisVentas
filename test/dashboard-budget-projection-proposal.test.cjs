@@ -58,7 +58,16 @@ test('62 budgets expose the legacy sixty-window omission; authoritative document
  for(let i=0;i<61;i++)records['older'+i]=row('borrador',{id:'PP-'+String(100+i).padStart(4,'0'),fecha:'2026-11-03',ts:1793700000000+i});
  const model=build(records),legacy=P.recent(model,actor());assert(!legacy.rows.some(r=>r.key==='hot'));assert.equal(legacy.completeForBudgetContribution,false);assert.equal(legacy.completeGlobalTopFive,false);
  const context={uid:'admin',role:'admin',auth:{},db:{},permissionRevision:0,grants:{ventas:null,pagos:null,ordenes_trabajo:null,presupuestos:'all'}},prefix=P.documentPrefix(model,actor(),{context});assert.equal(prefix.rows[0].key,'hot');assert.equal(prefix.rows.length,5);assert.equal(prefix.precision,'day');assert.equal(prefix.certifiedActivityInstant,false);assert.equal(prefix.exhausted,false);assert(!Object.hasOwn(prefix.rows[0],'ms'));
- const merged=Activity.merge({context,sources:{presupuestos:prefix},expected:{presupuestos:{generation:model.generation,revision:model.revision}}});assert.equal(merged.complete,true,JSON.stringify(merged.sources));assert.equal(merged.items[0].key,'hot');assert.equal(merged.precision,'day');
+ const merged=Activity.merge({context,sources:{presupuestos:prefix},expected:{presupuestos:{generation:model.generation,revision:model.revision}}});assert.equal(merged.complete,false);assert.equal(merged.sources.presupuestos.reason,'not-an-authoritative-first-prefix');assert.equal(prefix.order,P.DOCUMENT_ORDER);assert.equal(merged.precision,'day');
+});
+
+test('bounded document digest preserves every original UTF-8 identity and explicitly changes only same-day tie order',()=>{
+ const crypto=require('node:crypto'),keys=['a'.repeat(128),'á'.repeat(128),'漢'.repeat(128),'😀'.repeat(64),'e\u0301'.repeat(64),'z','a'],records=Object.fromEntries(keys.map(key=>[key,row('enviado',{fecha:'2026-11-04'})])),model=build(records),context={uid:'admin',role:'admin',auth:{},db:{},permissionRevision:0,grants:{ventas:null,pagos:null,ordenes_trabajo:null,presupuestos:'all'}};
+ const expected=keys.map(key=>({key,sort:'79738895_'+crypto.createHash('sha256').update(JSON.stringify(key),'utf8').digest('hex')})).sort((a,b)=>a.sort<b.sort?-1:1);
+ const prefix=P.documentPrefix(model,actor(),{context});assert.deepEqual(prefix.rows.map(({key,sort})=>({key,sort})),expected.slice(0,5));
+ for(const key of keys){const sort=P.documentSort('2026-11-04',key);assert.equal(sort.length,73);assert.equal(model.entries[key].key,key);assert.equal(model.entries[key].sourceHash,digest(records[key]));}
+ assert.notDeepEqual(expected.map(r=>r.key),keys.slice().sort());assert.equal(P.documentSort('2026-11-05','a').slice(0,8),'79738894');
+ const old=structuredClone(model);delete old.documentOrder;assert.throws(()=>P.documentPrefix(old,actor(),{context}),/reconstrucción/);
 });
 test('document date and stored timestamp are distinct orders; unknown dates cannot certify an authoritative prefix',()=>{
  const model=build({oldDayNewStamp:row('borrador',{id:'PP-9999',fecha:'2026-01-01',ts:1793800000000}),newDayOldStamp:row('borrador',{id:'PP-0001',fecha:'2026-11-04',ts:1})}),context={uid:'one',role:'vendedor',auth:{},db:{},permissionRevision:0,grants:{ventas:null,pagos:null,ordenes_trabajo:null,presupuestos:'own'}};

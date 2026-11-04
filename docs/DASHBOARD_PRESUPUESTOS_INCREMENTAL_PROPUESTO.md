@@ -4,7 +4,7 @@
 
 `badgeCounts({raw,query,authorize,asOfDay,pageSize,maxPages})` es un lector propuesto sin importación activa. `authorize` debe resolver autorización fresca de servidor y devolver `{scope,policyHash}`; nunca se toma scope, UID o rol del solicitante. Se repite al terminar. El handler y freshAuth reales siguen pendientes: este puerto no constituye por sí mismo una autorización.
 
-Contrato **legacy-raw-lex/v1**: cinco estados exactos, admite avisos, `vence` no vacío y comparación de strings originales contra horizonte ISO hoy+2. `01/99/2026` cuenta como vencido aunque sea inválida; `2026-11-06T01:00:00Z` queda después de `2026-11-06`. No se corrigen históricos. Un vencimiento no-string truthy o truncado por la fila ligera exige reconciliación: bootstrap y planner rechazan antes de certificarlo. El codec congelado permanece igual.
+Contrato **legacy-raw-lex/v1**: cinco estados exactos, admite avisos, `vence` no vacío y comparación de strings originales contra horizonte ISO hoy+2. `01/99/2026` cuenta como vencido aunque sea inválida; `2026-11-06T01:00:00Z` queda después de `2026-11-06`. No se corrigen históricos. Un vencimiento no-string truthy o truncado por la fila ligera exige reconciliación: bootstrap y planner rechazan antes de certificarlo. projectRecord conserva su extracción; documentSort se coordina en la corrección posterior descrita al final.
 
 El commit existente mantiene `stats.totalDueEligible` y membresías `noticeBadge` en el mismo fence/recibo, incluidas bajas, flags y reasignaciones. No añade árbol acumulativo, reloj, servicio o recibos. Coberturas anteriores sin ese contador fallan cerradas y requieren reconstrucción offline; no se rellenan con cero. El desempate usa hash fijo de clave para que fechas de 80 unidades UTF-16 más identificadores multibyte no excedan el límite de una clave RTDB.
 
@@ -35,7 +35,7 @@ Raíz de propuesta: `sv_dashboard_budget_proposal/v1` (no instalada).
 | `sources/{budgetKey}` | Huella del original, propietario, huella de campos de propiedad y fila ligera privada. |
 | `stats/{all\|u_UID}` y `scopeProof/{scope}` | records, activos, convertidos, no anulados, fechas desconocidas y totalDueEligible; generación/revisión y prueba de metadata. Conversión se calcula al leer, no con redondeos acumulados. |
 | `months/{scope}/{hash(etiqueta,mes)}` y `monthProof` | Conteos completos total/convertidos de la faceta heredada. Etiqueta no concede acceso: primero se fija scope canónico. |
-| `document/{scope}/{sort}` | Prefijo por fecha comercial/clave UTF-8 para el contrato de Core; no timestamp horario. Fecha desconocida se cuenta y obliga al futuro lector a declarar ese prefijo incompleto. |
+| `document/{scope}/{sort}` | Prefijo por fecha comercial y digest estable de clave original (73 bytes ASCII); no timestamp horario. Contrato document-date-desc/budget-key-sha256-v1, pendiente adaptar en Core. Fecha desconocida se cuenta y obliga al futuro lector a declarar ese prefijo incompleto. |
 | `monthMembers` | Membresías puntuales de las facetas, no listas completas de originales. |
 | `noticeBadge/{scope}/{sort}` | Candidato mínimo key/dueRaw de cinco estados elegibles. Sort conserva orden UTF-16 raw y hash fijo de clave para desempatar. |
 | `noticeStatus`, `noticeDue`, `noticeSent` | Candidatos ligeros por estado, vencimiento válido o envío. No materializan “hoy”, capacidades de aprobación ni deduplicación local. |
@@ -73,3 +73,7 @@ Los índices de avisos permiten consultar candidatos por estado/día. No certifi
 ## Evidencia local
 
 Driver ficticio con guard real: alta, modificación anidada, reasignación y borrado; un commit original+derivados+recibo; replay sin callback; rechazo de metadata incompleta, before hash incorrecto, generación/revisión obsoletas y drift final; invalidación por autoridad; alias nuevo que falla cerrado; ausencia de campos pesados. Roundtrip con el normalizador RTDB compartido conserva huellas/metadata nullable y admite una segunda mutación incremental; no es una prueba de reglas o persistencia remota. Comparación de 1 y 1.001 presupuestos conserva cantidad de lecturas del planner y número de claves del commit para una modificación equivalente. No se presenta esa prueba de tamaño como benchmark de latencia productiva, el codec compartido sí se ejecuta en la operación. Para 1 y 1.001 originales se conservan 12 lecturas del planner y 21 paths de commit (dos más por el índice raw frente a la entrega anterior); el oráculo sólo contrasta el resultado.
+
+## Corrección de clave de documentos
+
+El índice document mantiene la misma ruta y un solo juego de membresías: fecha descendente más SHA256(JSON.stringify(clave original)). Reutiliza Model.documentSort en bootstrap, planner, modelo puro y lector. Clave original en valor/huella permanece intacta. coverage.documentOrder exige el contrato exacto; ausencia/orden anterior rechazan el planner y lector hasta reconstrucción offline explícita en generación nueva. No se aplica un toggle ni reindexación incidental. En reasignación/cambio de fecha el commit elimina la membresía anterior y agrega sólo la nueva, incluidas claves Unicode largas; no mantiene doble índice.

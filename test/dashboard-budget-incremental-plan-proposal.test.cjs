@@ -81,6 +81,16 @@ test('inclusive today lower bound keeps every same-date hash tie across exclusiv
  const f=await fixture(records),reader=badgeReader(f),result=await reader.read();assert.equal(result.badgeCount,100);assert.equal(result.upcoming48Count,100);assert.equal(result.candidates,101);assert.deepEqual(reader.queries.map(q=>q.returned),[50,50,1]);
  for(const sort of Object.keys(f.get(I.ROOT+'/noticeBadge/all')))assert(Buffer.byteLength(sort)<=768);
 });
+
+test('shared document digest survives guarded Unicode reassignment/date changes and refuses mixed old coverage',async()=>{
+ const id='漢'.repeat(128),original=budget(),f=await fixture({[id]:original}),before=structuredClone(f.state),oldSort=M.documentSort(original.fecha,id);
+ assert.equal(oldSort.length,73);assert.equal(f.get(I.ROOT+'/document/u_one/'+oldSort).key,id);
+ await f.run({['sisventas/presupuestos/'+id+'/fecha']:'2026-11-05',['sisventas/presupuestos/'+id+'/responsableUid']:'two'});
+ const sort=M.documentSort('2026-11-05',id);assert.equal(f.get(I.ROOT+'/document/u_one/'+oldSort),null);assert.equal(f.get(I.ROOT+'/document/all/'+oldSort),null);assert.equal(f.get(I.ROOT+'/document/u_two/'+sort).key,id);assert.equal(f.get(I.ROOT+'/sources/'+id+'/row/key'),id);
+ assert.equal(f.get(I.ROOT+'/sources/'+id+'/sourceHash'),digest({...original,fecha:'2026-11-05',responsableUid:'two'}));
+ const old=await fixture();delete old.state.sv_dashboard_budget_proposal.v1.coverage.documentOrder;const unchanged=structuredClone(old.state);await assert.rejects(old.run({'sisventas/presupuestos/a/estado':'convertido'}),/explicit rebuild/);assert.deepEqual(old.state,unchanged);assert.equal(old.commits.length,0);
+ const model=build({a:budget()});delete model.documentOrder;assert.throws(()=>I.bootstrap({model,records:canonicalRecords({a:budget()})}),/explicit rebuild/);assert.equal(before.sisventas.presupuestos[id].fecha,'2026-11-04');
+});
 test('parent replacements reject before planner fast return and leave originals and indexes intact under real guard',async()=>{
  const f=await fixture();
  for(const path of ['sisventas','']){
