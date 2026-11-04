@@ -22,7 +22,7 @@ test('cut protocol rejects legacy preflight before work and a current writer mis
  await rest('DELETE','sv_labor_config/writerSchema');
  await assert.rejects(legacyGuard.run({uid:'sv-labor-service',mode:'server',operation:'legacy-after-config-loss'},async()=>{work++;return {ok:true};}));
  assert.equal(work,0);assert.deepEqual(await rest('GET','sisventas/ventas/s'),before);
- const state=await rest('GET','');delete state.sv_client_history;delete state.sv_client_accounts;delete state.sv_labor_config.writerSchema;await rest('PUT','',state);
+ const state=await rest('GET','');delete state.sv_client_history;delete state.sv_client_accounts;delete state.sv_client_accounts_config;delete state.sv_labor_config.writerSchema;await rest('PUT','',state);
  const lease={fence:'legacy-before-cut-fence',opId:'legacy-before-cut-operation',digest:'a'.repeat(64),actorUid:'sv-labor-service',mode:'server',expiresAt:Date.now()+30000};
  await legacyStore.acquire(lease);
  await rest('PUT','sv_labor_config/writerSchema',2);
