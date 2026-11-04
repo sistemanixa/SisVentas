@@ -1,6 +1,7 @@
 'use strict';
 // Pure proposal. No transport, persistence, clock, activation or mutation of originals.
 const Own=require('./commercial-ownership'),{digest}=require('./labor-guard');
+const {normalizeRtdb}=require('./payment-membership-index');
 const ACTIVE=Object.freeze(['borrador','revision','aprobado_int','enviado','visto','aceptado']);
 const NOTICE_ACTIVE=Object.freeze(ACTIVE.filter(s=>s!=='aceptado'));
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
@@ -23,11 +24,14 @@ function sentDay(row,offset){
  const audit=Array.isArray(row.audit)?row.audit.slice().reverse():[];
  const event=audit.find(e=>/enviado al cliente/i.test(String(e?.accion||'')));return day(event?.fecha);
 }
-function entry(id,row,people,offset){
- check(key(id)&&object(row));const amount=parseFloat(row.total);
+function projectRecord({key:id,original:row,ownerUid,offsetMinutes:offset}={}){
+ check(key(id)&&object(row)&&[Object.prototype,null].includes(Object.getPrototypeOf(row)),'El original debe ser un registro JSON individual.');
+ check((ownerUid===''||typeof ownerUid==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(ownerUid))&&Number.isInteger(offset)&&Math.abs(offset)<=840,'Falta propietario resuelto u offset válido.');
+ try{check(object(normalizeRtdb(row)));}catch(_){throw fail('El original no es un snapshot JSON válido.');}
+ const sourceHash=digest(row),amount=parseFloat(row.total);
  const normalized=String(row.estado||'').trim().toLowerCase();
  const admits=!['eliminado','anulado','anulada','cancelado','cancelada'].some(k=>row[k]===true)&&!['anulado','anulada','cancelado','cancelada','eliminado','rechazado','vencido','convertido'].includes(normalized);
- return {key:id,sourceHash:digest(row),ownerUid:Own.owner(row,'presupuestos',people)||'',number:text(row.id||row.numero,128),client:text(row.cliente),status:text(row.estado,80),date:text(row.fecha,80),ts:['number','string'].includes(typeof row.ts)?row.ts:null,employeeLabel:text(row.empleado,160),dueRaw:text(row.vence,80),dueDay:day(row.vence),sentDay:sentDay(row,offset),admits,
+ return {key:id,sourceHash,ownerUid,number:text(row.id||row.numero,128),client:text(row.cliente),status:text(row.estado,80),date:text(row.fecha,80),ts:['number','string'].includes(typeof row.ts)?row.ts:null,employeeLabel:text(row.empleado,160),dueRaw:text(row.vence,80),dueDay:day(row.vence),sentDay:sentDay(row,offset),admits,
   approvalStamp:text(String(row.aprobadoEn||''),80),approvedBy:text(row.aprobadoPor,160),reason:text(row.motivo,500),amount:Number.isFinite(amount)?amount:null};
 }
 function counts(rows){const active=rows.filter(r=>ACTIVE.includes(r.status)).length,converted=rows.filter(r=>r.status==='convertido').length,totalNonCancelled=rows.filter(r=>r.status!=='anulado').length;return {active,converted,totalNonCancelled,conversionPercent:totalNonCancelled?Math.round(converted/totalNonCancelled*100):0};}
@@ -42,7 +46,7 @@ function summarize(entries){
 }
 function build({records,complete,users,identities,permissions,generation,revision=1,offsetMinutes}={}){
  check(complete===true&&object(records),'Falta una fuente completa de presupuestos.');check(key(generation)&&Number.isSafeInteger(revision)&&revision>=1&&Number.isInteger(offsetMinutes)&&Math.abs(offsetMinutes)<=840);
- const authority={users,identities,permissions},people=policy(authority),entries=Object.fromEntries(Object.entries(records).map(([id,row])=>[id,entry(id,row,people,offsetMinutes)]));
+ const authority={users,identities,permissions},people=policy(authority),entries=Object.fromEntries(Object.entries(records).map(([id,row])=>[id,projectRecord({key:id,original:row,ownerUid:Own.owner(row,'presupuestos',people)||'',offsetMinutes})]));
  return {schema:1,proposal:true,activationAuthorized:false,generation,revision,complete:true,offsetMinutes,policyHash:policyHash(authority),sourceCount:Object.keys(records).length,unresolvedOwners:Object.values(entries).filter(e=>!e.ownerUid).length,entries,scopes:summarize(entries),receipts:{}};
 }
 function scope(model,{uid,users,identities,permissions}={}){
@@ -93,7 +97,7 @@ function apply(model,command,authority){
  const people=policy(authority);if(policyHash(authority)!==model.policyHash)throw fail('La política cambió.','SV_BUDGET_PROPOSAL_POLICY_CHANGED');
  const hash=digest(command),receipt=Object.hasOwn(model.receipts,command.id)?model.receipts[command.id]:null;if(receipt){if(receipt!==hash)throw fail('El identificador corresponde a otro intento.','SV_BUDGET_PROPOSAL_CONFLICT');return structuredClone(model);}
  if(model.revision!==command.expectedRevision)throw fail('La revisión cambió.','SV_BUDGET_PROPOSAL_CONFLICT');
- const next=structuredClone(model),seen=new Set();for(const c of command.changes){check(key(c.key)&&!seen.has(c.key));seen.add(c.key);if((model.entries[c.key]?.sourceHash??digest(null))!==c.beforeHash)throw fail('El original cambió.','SV_BUDGET_PROPOSAL_CONFLICT');if(c.after===null)delete next.entries[c.key];else next.entries[c.key]=entry(c.key,c.after,people,model.offsetMinutes);}
+ const next=structuredClone(model),seen=new Set();for(const c of command.changes){check(key(c.key)&&!seen.has(c.key));seen.add(c.key);if((model.entries[c.key]?.sourceHash??digest(null))!==c.beforeHash)throw fail('El original cambió.','SV_BUDGET_PROPOSAL_CONFLICT');if(c.after===null)delete next.entries[c.key];else next.entries[c.key]=projectRecord({key:c.key,original:c.after,ownerUid:Own.owner(c.after,'presupuestos',people)||'',offsetMinutes:model.offsetMinutes});}
  next.revision++;check(Number.isSafeInteger(next.revision));next.sourceCount=Object.keys(next.entries).length;next.unresolvedOwners=Object.values(next.entries).filter(e=>!e.ownerUid).length;next.scopes=summarize(next.entries);next.receipts[command.id]=hash;return next;
 }
-module.exports={ACTIVE,NOTICE_ACTIVE,build,scope,metrics,recent,documentPrefix,legacyMonth,notices,apply,day};
+module.exports={ACTIVE,NOTICE_ACTIVE,projectRecord,build,scope,metrics,recent,documentPrefix,legacyMonth,notices,apply,day};

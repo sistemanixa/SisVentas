@@ -1,3 +1,9 @@
+## Codec de Presupuestos y actualización incremental preparados
+
+Se extrajo projectRecord como codec puro compartido por reconstrucción, transición y driver incremental: no duplica interpretación ni usa el oráculo como implementación. Los seis archivos de entrega se contrastaron con sus hashes congelados y las 45 pruebas combinadas aprobaron sin omisiones. El driver usa el guard real, conserva originales e índices ante fallo/reintento y mantiene 12 lecturas del planner y 19 paths de commit tanto con 1 como con 1.001 originales; esto no mide el total de solicitudes reales del guard, bytes o latencia de producción. Rechaza reemplazos de padres antes de consultar o guardar.
+
+El módulo incremental calcula un patch derivado por claves afectadas y reutiliza recibos del guard, sin locks ni servicios nuevos. Permanece propuesta sin importar en app/servicio/guard. Faltan cobertura de escritores y autoridades, gate de compatibilidad, conteo completo por rango de avisos, lectores/transporte y preparación/reconciliación/reglas antes de retirar la descarga completa. La operación HTTP actual de Presupuestos continúa sin ese reemplazo. No se activó una raíz nueva ni se modificaron datos de negocio reales.
+
 ## Selector de entrega preparado y verificado
 
 El selector nuevo de cantidades por ítem está separado de la aplicación activa: 12/12 pruebas puras y 10/10 nativas en 390 y 1280 px. Conserva original/adicional aunque compartan código, cantidades fraccionarias sin redondearlas y disponibilidad explícita cero. Cancelar, Enter sobre Cancelar, Escape, Tab, foco, errores y lista de 40 filas pasan. La revisión detectó dos fallos propios de cleanup (foco tras apertura fallida y diálogo retirado externamente); se corrigieron y se repitieron las mismas pruebas, conservando la evidencia fallida anterior.

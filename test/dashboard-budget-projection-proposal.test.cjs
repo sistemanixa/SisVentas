@@ -6,6 +6,25 @@ const row=(status='borrador',extra={})=>({id:'PP-0001',responsableUid:'one',esta
 const build=(records,extra={})=>P.build({records,complete:true,...authority(),generation:'budget-proposal-fiction',offsetMinutes:-180,...extra});
 const actor=(uid='admin',extra={})=>({uid,...authority(),...extra});
 const options=(extra={})=>({asOfDay:'2026-11-04',horizonDays:1,expiryEnabled:true,noResponseEnabled:true,canApprove:false,canApproveWithinLimit:false,...extra});
+
+test('shared point codec preserves full-build rows and original hashes without resolving supplied ownership',()=>{
+ const original=row('enviado',{total:123.456,enviadoTs:Date.UTC(2026,10,4,1),items:[{costo:91}],fotoBase64:'PRIVATE'}),before=structuredClone(original);
+ const point=P.projectRecord({key:'a',original,ownerUid:'one',offsetMinutes:-180});
+ assert.deepEqual(point,build({a:original}).entries.a);assert.equal(point.sourceHash,digest(original));assert.equal(point.sentDay,'2026-11-03');assert.deepEqual(original,before);
+ assert(!JSON.stringify(point).includes('PRIVATE'));assert(!Object.hasOwn(point,'items'));
+ const ambiguous=P.projectRecord({key:'a',original,ownerUid:'',offsetMinutes:-180});assert.equal(ambiguous.ownerUid,'');
+ assert.equal(P.projectRecord({key:'a',original,ownerUid:'two',offsetMinutes:840}).ownerUid,'two');
+});
+
+test('shared point codec rejects invalid snapshots, keys, unresolved contract and offsets',()=>{
+ const valid={key:'a',original:row(),ownerUid:'one',offsetMinutes:-180};
+ const cyclic=row();cyclic.self=cyclic;
+ for(const original of [null,[],new Date(),{},row('enviado',{total:Infinity}),row('enviado',{x:undefined}),cyclic])assert.throws(()=>P.projectRecord({...valid,original}));
+ for(const key of ['', 'a/b','__proto__'])assert.throws(()=>P.projectRecord({...valid,key}));
+ for(const ownerUid of [undefined,null,'bad/uid',12])assert.throws(()=>P.projectRecord({...valid,ownerUid}));
+ for(const offsetMinutes of [undefined,841,-841,0.5,NaN])assert.throws(()=>P.projectRecord({...valid,offsetMinutes}));
+ assert.equal(P.projectRecord({...valid,offsetMinutes:-840}).key,'a');
+});
 test('all KPI records beyond fifty match the actual active card arithmetic without mutating input',()=>{
  const states=[...P.ACTIVE,'convertido','anulado','rechazado','ENVIADO',''],records=Object.fromEntries(Array.from({length:501},(_,i)=>['b'+i,row(states[i%states.length],{items:[{secret:'NO COPIAR'}],fotoBase64:'NO COPIAR',total:987.654})])),before=structuredClone(records),model=build(records),metric=P.metrics(model,actor());
  const nodes=Object.fromEntries(['kpi-pptos','kpi-pptos-sub','kpi-pptos-conv'].map(id=>[id,{textContent:'',closest:()=>({setAttribute(){}})}]));
