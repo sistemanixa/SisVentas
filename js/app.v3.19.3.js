@@ -6159,7 +6159,10 @@ window.cargarMetricasUsoUsuarios = cargarMetricasUsoUsuarios;
 function svHostActividadDashboard() {
   if(window.SV_DASHBOARD_READS_LOCAL!==true||!window.SVDashboardActivityHostFactory)return null;
   if(!window.SVDashboardActivityHost)window.SVDashboardActivityHost=window.SVDashboardActivityHostFactory.create(window,{changed:function(){
-    if(typeof _svEsPaginaActiva==='function'&&_svEsPaginaActiva('dashboard')&&typeof window.dashRenderActividadReciente==='function')window.dashRenderActividadReciente();
+    if(typeof _svEsPaginaActiva==='function'&&_svEsPaginaActiva('dashboard')){
+      if(typeof window.dashRenderActividadReciente==='function')window.dashRenderActividadReciente();
+      if(window.tienePermiso?.('dashboard.miActividad')===true&&typeof renderDashAdministrativo==='function')renderDashAdministrativo();
+    }
   }});
   return window.SVDashboardActivityHost;
 }
@@ -53286,20 +53289,27 @@ function renderDashAdministrativo() {
   }
 
   // Mis ventas del mes
-  var misVentas = (ventasList||[]).filter(function(v){
-    return ventaResponsableComercialReporte(v) === usuario && (v.fecha||'').slice(0,7) === mesActual;
-  });
+  var ventasDesdeFuente=typeof window!=='undefined'&&window.SV_DASHBOARD_READS_LOCAL===true,misVentas=[],cantidadVentas;
+  if(ventasDesdeFuente){
+    var vistaVentas;try{vistaVentas=window.SVDashboardActivityHost?.peek();}catch(_){}
+    var mensualVentas=vistaVentas?.data?.salesAuthorMonthly;
+    var ventasValidas=vistaVentas?.authority==='current'&&vistaVentas.data.salesAuthorMonthlyComplete===true&&mensualVentas?.schema===1&&mensualVentas.complete===true&&mensualVentas.creator===usuario&&mensualVentas.month===mesActual&&mensualVentas.scope===(window.currentRole==='admin'?'all':'u_'+window.currentUserUid)&&typeof mensualVentas.generation==='string'&&mensualVentas.generation&&Number.isSafeInteger(mensualVentas.revision)&&mensualVentas.revision>=1&&Number.isSafeInteger(mensualVentas.count)&&mensualVentas.count>=0;
+    cantidadVentas=ventasValidas?mensualVentas.count:null;
+  }else{
+    misVentas=(ventasList||[]).filter(function(v){return ventaResponsableComercialReporte(v)===usuario&&(v.fecha||'').slice(0,7)===mesActual;});cantidadVentas=misVentas.length;
+  }
 
   var el = function(id){ return document.getElementById(id); };
   if(el('dash-adm-pptos'))     el('dash-adm-pptos').textContent     = cantidadPptos===null?'—':cantidadPptos;
   if(el('dash-adm-pptos-sub')) el('dash-adm-pptos-sub').textContent = cantidadConvertidos===null?'Pendiente de actualización':cantidadConvertidos + ' convertidos';
-  if(el('dash-adm-ventas'))    el('dash-adm-ventas').textContent    = misVentas.length;
-  if(el('dash-adm-ventas-sub'))el('dash-adm-ventas-sub').textContent= misVentas.length + ' este mes';
+  if(el('dash-adm-ventas'))    el('dash-adm-ventas').textContent    = cantidadVentas===null?'—':cantidadVentas;
+  if(el('dash-adm-ventas-sub'))el('dash-adm-ventas-sub').textContent= cantidadVentas===null?'Pendiente de actualización':cantidadVentas + ' este mes';
   if(el('dash-adm-conv'))      el('dash-adm-conv').textContent      = tasaConv===null?'—':tasaConv + '%';
 
   // Últimas ventas del administrativo
   var cont = el('dash-adm-ultventas');
   if (!cont) return;
+  if(ventasDesdeFuente){cont.innerHTML='<div style="text-align:center;color:var(--text3);padding:12px;font-size:13px">'+(cantidadVentas===0?'Sin ventas este mes':'Detalle de ventas pendiente de actualización.')+'</div>';return;}
   var ults = misVentas.slice().sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); }).slice(0,5);
   if (!ults.length) {
     cont.innerHTML = '<div style="text-align:center;color:var(--text3);padding:12px;font-size:13px">Sin ventas este mes</div>';
