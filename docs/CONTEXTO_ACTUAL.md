@@ -1,3 +1,7 @@
+# Diagnóstico web18.18 publicado, pendiente reproducción · 03/11/2026
+
+Sourcecd89672ae0c916b59ba90bab8255040e8f1fd11e,Hosting578activos/5cargas,12HTTPexactos/cabeceras/privados404, aviso18sincronizado.7230PASS27skip0fallos. Sólo atributoDOM con clases fijas y conteos, sin referencias ni nuevaslecturas; no es corrección de latencia. Reproducción autenticada encargada para identificar fuente que queda pendiente. Comparación17frío3299ms ycaliente1320ms:frío noresuelto. No cambios servidor/datos/reglas.
+
 # Diagnóstico de fuentes preparado18.18, frío aún pendiente · 03/11/2026
 
 POST17real:fríoPresupuestosrecargado→Dashboard mantieneoverlayventas2272–3299ms, filas2455ms. Cálido1320ms sinoverlayventas. La corrección de cancelación local es válida, pero no resolvió todoelcaso; no atribuirésta como causa completa. Se prepara diagnósticoDOM interno sólo con clases fijas y contadores de fuentes (indexed-totals/sales/payments/lookup/detail,legacy,other), sin URL/filtros/UID/documentos/importes. Sin texto técnico visible ni consultas extra.8focalesPASS; pruebaDOMcomprueba ausenciaSECRET/URL y retirada al recibirfuentes; Primera gate falló por getAttribute ausente en DOMparcial; se usa dataset existente sin editar expectativas.23focales PASS; puerta final7257total/7230PASS/27omitidas/0fallos,846archivos/2lotes. Publicación pendiente. No es aún corrección de latencia.
