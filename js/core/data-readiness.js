@@ -73,8 +73,9 @@
     agenda:['agenda','ordenes_trabajo'],caja:['caja'],
     historialcliente:['clientes','ventas','pagos','presupuestos','ordenes_trabajo','equipos','tickets','reclamos']
   };
-  var labels={dashboardBudgetNotices:'los avisos de presupuestos',budgetNoticeDetail:'el presupuesto solicitado',historyPointDetail:'el detalle solicitado',ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
+  var labels={clientAccounts:'las cuentas verificadas',dashboardBudgetNotices:'los avisos de presupuestos',budgetNoticeDetail:'el presupuesto solicitado',historyPointDetail:'el detalle solicitado',ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
   function requirements(page){
+    if(page==='cuentacorriente'&&global.SVClientAccountHost?.claimed===true)return ['clientAccounts'];
     if(page==='notificaciones'&&global.SV_BUDGET_NOTICES_LOCAL===true&&(typeof global.svPuedeLeerDominio!=='function'||global.svPuedeLeerDominio('presupuestos')))return ['dashboardBudgetNotices'];
     if(global.SV_BUDGET_NOTICES_LOCAL===true&&global._svBudgetNoticeDetailHost?.claimsPointView(page))return ['budgetNoticeDetail'];
     if(global.SVClientHistoryOriginalRuntime?.claimsPointView(page)===true)return ['historyPointDetail'];
