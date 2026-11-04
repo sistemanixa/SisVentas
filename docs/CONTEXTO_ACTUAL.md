@@ -1,3 +1,12 @@
+## Duodécima puerta limpia aprobada · 04/11/2026 09:58 UTC
+
+Commitbf015f7ee63cd2c9454a89aa1247359e9b2d2a62, checkout limpio:8382pruebas,8355PASS,0FAIL,27opt-in. SHA256log26d9e16416b23f2578045d0b58688ff55b5696e9fdd9306918a2293094c2bafe. Incluye corrección Accounts y alias OT con revisiones cruzadas sin objeciones.27opt-in reejecutadas desde ese código:27/27PASS. Primer intento arrancó antes de que Java escuchara9017 y falló ECONNREFUSED; se conserva el log, se confirmó PID/puerto antes de repetir. Emulador propio45876 detenido al terminar;9046 y servidorlocal intactos.
+
+Matrices compuestas:primer intento5PASS/1FAIL porque escenario precorte borraba raíz Accounts pero conservaba configuración instalada. Gate sticky rechazó correctamente acquire; se corrigió sólo el fixture retirando también configuración en RAM, sin acuñar autoridad al escritor legacy. Commit4b3662f044f33b9f0ffdc4be07c63c7c97a81685 cambia sólo esa línea de prueba .integration (excluida de la puerta general); código productivo idéntico a bf015. Matriz focal corregida1PASS; repetición conjunta6/6PASS,0omitidas desde4b366limpio. No se relajan negativos H7/Accounts ni reglas.
+
+Validador de archivos de corte agregado con23focalesPASS (43convalidadorescompartidos): contrasta hashes reales,baseline exacta,inventario observado,declaraciones y pausa/drenaje aportados. Devuelve siempre remoteVerified:false y activationAuthorized:false. No descubre un acceso omitido también de observación ni demuestra por sí mismo una pausa remota. No ejecutar el aplicador histórico de ownership como sustituto.
+
+Respaldo remoto integral sigue pendiente por rechazo interno GitHub; main intacto. No se activa producción general ni capacidades nuevas. Fuente local19.1 conserva el frontend verificado; app14WIP fuera de commits. No operaciones reales como prueba.
 ## Cierre Accounts y respaldo pendiente · 04/11/2026 09:52 UTC
 
 Core corrigió la capacidad reservada svClientAccountsWriterVersion en adquisición/commit y reglas candidatas; proviene únicamente de Pages+Accounts y sobreescribe claims entrantes. Matriz real aislada aprobada: rechazo antes del callback sin capacidad, mantenimiento atómico con capacidad, instalación entre adquisición y commit rechazada, falsificación y configuración parcial rechazadas, abort liberable, circuito sin Accounts conservado.80focales+19fiscales/empaquetado+1matrizPASS. Dependencia incluida en Docker y detectada recursivamente por el paquete fiscal. No reglas/configuración remotas aplicadas.
