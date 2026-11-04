@@ -16,7 +16,7 @@ index a0600ed6..e6a2b0b4 100644
 @@ -56105,7 +56104,13 @@ function generarNotificaciones() {
    // Ordenar: urgentes primero, luego por tipo
    todasNotifs.sort((a,b) => (b.urgente?1:0) - (a.urgente?1:0));
- 
+
 -  renderNotificaciones();
 +  var avisosPptosPendientes=window.SV_BUDGET_NOTICES_LOCAL===true&&!presupuestosAvisos&&(typeof window.permisoModulo!=='function'||window.permisoModulo('presupuesto')===true);
 +  if(!avisosPptosPendientes||todasNotifs.length||(typeof _svEsPaginaActiva==='function'&&_svEsPaginaActiva('notificaciones')))renderNotificaciones();
