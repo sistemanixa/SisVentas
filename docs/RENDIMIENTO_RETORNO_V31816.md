@@ -58,3 +58,17 @@ La corrida fallida se conserva como antecedente, no como puerta aprobada.
 La puerta final del paquete completo aprobó 7.226 pruebas, con 27 omitidas y
 0 fallos (7.253 casos, 844 archivos). QA independiente repitió sus 43 casos
 tras el ajuste de caché vacía: todos aprobados.
+
+## Comprobación posterior en web
+
+Publicación desde9766e2582e732fadf133d4c7e0a559b4e07c42f9, activos y
+aviso16 comprobados. Mismo recorrido histórico V-108487:2.745ms observados
+frente a5.263ms previos. Retornos Dashboard1.791/1.990ms frente a1.357/1.374ms:
+no prueban mejora en ese caso. Son muestras UI con sobrecarga de herramienta.
+
+Se reprodujo otro caso pendiente:recargar Presupuestos y entrar por primera
+vez aDashboard muestra aviso de espera de Ventas hasta3.464ms; las filas
+recientes ya estaban visibles a2.659ms. No declarar ese retorno resuelto.
+Hay que reproducir localmente orden de fuentes y capa de carga; no ocultar
+un error de cobertura ni confundir el resumen recién recibido con todas las
+fuentes de una pantalla. No hubo guardados reales. Evidencia detallada privada.
