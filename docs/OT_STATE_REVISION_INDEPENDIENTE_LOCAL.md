@@ -66,3 +66,21 @@ Huellas antes/después idénticas para runtime/custodia/Stock/V2 y builders/depe
 Test nuevo SHA256 `95458276d69ef8534c30182b1b4960bab2fbe3d71fe9642c120a9ca5dfc10980`. Log privado `C:/SisVentas/tmp/ot-state-current-composed-final.private.log`, SHA256 `8f8b39f8f6c65b5582103feece8baffe97ffe1812bbe295224d36bb0e9e152da`. Sintaxis y diff correctos.
 
 Aceptación limitada: pasan esos commits/negativos concretos con reglas exactas y V2 ficticio válido. No acredita todas las operaciones financieras, publicación/revocación operativa real, exclusividad de escritores externos privilegiados, autenticación productiva ni despliegue. Los 85 casos de privacidad del namespace son evidencia distinta, no se cuentan como operaciones de negocio ni se atribuyen a la vieja matriz de 26. Sin publicación, datos reales o cambios de runtime.
+
+## Revisión independiente del delta de alcance de claves
+
+Sobre `62d7a5019b2a041c96ebd20450b2ac31cfddbd42` (delta recibido `70474689`), se confirmó que el protocolo OT solo rechaza segmentos reservados dentro de su dominio y deja `gastos/__proto__` a su escritor financiero. Protocolo SHA256 `375224186053cb9c5d740daf96525fd950a2486bc6dca060aec0674bda411605`; su blob coincide exactamente con el commit importado. No se modificó fuente ni las ocho pruebas originales del delta.
+
+Foco: **9 PASS, 0 FAIL/SKIP** (ocho regresiones del delta y una propia nueva). `ot-protocol-expense-key-independent.test.cjs` usa guard/store/protocolo reales con HTTP/RAM ficticios. Verifica `__proto__` como propiedad propia en consulta staged, registro persistido, consulta REST y round trip JSON; prototipo estándar y descriptores globales intactos; ningún campo filtrado hacia objetos vacíos. No hay lecturas ni patches OT. El gasto previo de 5 se conserva, se agrega exactamente 1 (total 6), con un commit/PATCH y ventas, pagos, comisiones, cuenta de empleados, empleados y configuración idénticos. Los tres negativos de segmentos reservados OT siguen rechazando atómicamente antes de leer OT.
+
+El primer ensayo de la prueba propia esperaba incorrectamente prototipo `null` para el resultado staged, aunque `scope.query` retorna `Object.fromEntries` con `Object.prototype`. Se corrigió esa expectativa nueva para exigir el prototipo estándar intacto, manteniendo todas las comprobaciones de propiedad propia/contaminación. Log previo 8 PASS / 1 FAIL preservado en `C:/SisVentas/tmp/ot-expense-protocol-delta-independent.private.log`; no fue un fallo del delta ni se cambió una expectativa anterior.
+
+Se repitió sin modificarla la matriz nueva de commits sobre las reglas exactas: **15/15 PASS**, namespace `demo-otatt-2df7209cd0646b60` en 9046. Candidata de reglas sin cambios `8d98aab9ec9694d3e8b8b851c4dfbd6ce5d1373045c2cc5e398f5ebf1717cecd`, V2/State e índices actuales. Runtime/builders antes y después coinciden: `C:/SisVentas/tmp/ot-state-current-composed-20261104/protocol-62d7/before-after-hashes.private.json`; matriz en `current-state-composed-matrix.json` del mismo directorio. Esta es una repetición real posterior al delta, no atribución de los 15 anteriores.
+
+| Artefacto | SHA256 |
+| --- | --- |
+| Prueba propia nueva | `2e42c34a86d370d411d3f3976ebc8d6df7dd73d7e1222cc580bd9e98803f99a3` |
+| `tmp/ot-expense-protocol-delta-independent-final.private.log` (9 PASS) | `4319ec6458acff5eae76447723fabf8b5ade158089ee5a39f3fca210baeec560` |
+| `tmp/ot-state-current-composed-protocol-62d7.private.log` (15 PASS) | `20893d83ceaa44baa1acfb1b35a20622c269b4d771cf0914ba9113de19399fcc` |
+
+Aceptación acotada del delta en esos casos: sin bloqueo nuevo detectado. No se repitieron aquí los 27 opt-in financieros del coordinador ni la suite general; su informe 35/35 es evidencia separada. El gasto de la prueba independiente usa transporte ficticio; los commits OT de la matriz sí cruzan reglas reales de emulador. Sin producción, publicación ni cambios de runtime/builders.
