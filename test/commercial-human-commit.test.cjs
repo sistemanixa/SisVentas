@@ -67,7 +67,7 @@ test('nonadmin historical owner receives a clear prerequisite and cannot self-as
 test('account-enabled budget preparation commits as its authorized human and preserves unrelated finances',async()=>{
  const f=fixture({}, {clientAccounts:true,commercialPages:true});f.state.sisventas.presupuestos={budget:{id:'PP-FICTICIO',creadoPor:'Admin histórico',total:123.45}};
  const before=clone(f.state.sisventas.ventas),payments=clone(f.state.sisventas.pagos),actor=await f.authorize('admin','presupuestos');
- const result=await f.runtime.run(actor,'commercial-prepare',{id:'budget'},()=>f.commercial.prepare(actor,{id:'budget'}));
+ const result=await f.runtime.commercialMutation(actor,'prepare',{id:'budget'},()=>f.commercial.prepare(actor,{id:'budget'}));
  assert.equal(result.record.responsableUid,'admin');assert.equal(f.calls.find(c=>c.method==='PATCH').auth.uid,'admin');assert.deepEqual(f.direct,[]);assert.deepEqual(f.state.sisventas.ventas,before);assert.deepEqual(f.state.sisventas.pagos,payments);
 });
 for(const mode of ['module','revision','inactive'])test('account-enabled budget preparation rejects concurrent '+mode+' before commit',async()=>{

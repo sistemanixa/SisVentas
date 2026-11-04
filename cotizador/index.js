@@ -2033,7 +2033,7 @@ const server = http.createServer(async (req, res) => {
       if(req.method==='GET'&&match[2]==='registro'&&match[3]){const id=decodeURIComponent(match[3]);const records=await commercialOwnership.visibleRecordsByIds(actor,match[1],[id]);if(!records[id])throw Object.assign(Error('Registro no disponible'),{statusCode:404});result={record:{...records[id],fbKey:id}};}
       else if(req.method==='GET'&&!match[2])result=await commercialOwnership.list(actor);
       else if(req.method==='GET'&&match[2]==='opciones')result=await commercialOwnership.options(actor);
-      else if(req.method==='POST'&&['reasignar','preparar'].includes(match[2])){const body=await readBody(req,16384),method=match[2]==='reasignar'?'assign':'prepare';result=match[1]==='ventas'?await laborRuntime.run(actor,'commercial-'+method,body,()=>commercialOwnership[method](actor,body)):await commercialOwnership[method](actor,body);}
+      else if(req.method==='POST'&&['reasignar','preparar'].includes(match[2])){const body=await readBody(req,16384),method=match[2]==='reasignar'?'assign':'prepare';result=await laborRuntime.commercialMutation(actor,method,body,()=>commercialOwnership[method](actor,body));}
       else{send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
       if(req.method==='GET'&&!match[2])await sendCommercial(req,res,{ok:true,...result});
       else send(res,200,{ok:true,...result});

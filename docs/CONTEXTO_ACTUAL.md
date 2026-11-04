@@ -1,3 +1,9 @@
+# Entrada comercial coordinada preparada, sin activar · 03/11/2026
+
+La ruta HTTP real de preparar/reasignar Presupuestos ahora pasa por commercialMutation igual que Ventas cuando Cuenta corriente está habilitada. Con el flag apagado conserva el transporte anterior; una configuración de cuentas/historial sin guardado coordinado rechaza el arranque.27casos ficticios PASS incluyen ambas rutas reales y rechazo por revocación antes del commit. Puerta completa7469total/7442PASS/27skip/0fallos,868archivos/2lotes. Sintaxis/diffPASS. No publicado ni activado.
+
+Corrección de estado de navegador: sí hay sesión administrativa abierta comprobada por DOM, controlada por el chat QA autorizado. El error actual al tomarla es pertenencia exclusiva a ese chat, no falta de sesión ni necesidad de iniciar nuevamente. El titular confirmó ambos responsables ambiguos; se conserva intención privada, sin POST de asignación ni originales cambiados. Pasos oficiales:abrir venta, «Asignar responsable sin cambiar el creador», elegir Responsable en «Asignar venta»; el guardado usa POST comerciales/ventas/reasignar con revisión y dueño esperados. No se intentó ese POST en este bloque.
+
 # Cierre local de preparación y responsables ambiguos · 03/11/2026
 
 Puerta owner-review-final congelada:7463total/7436PASS/27skip/0fallos,866archivos. Revisión independiente24pruebas+9casos propiosPASS, hashes de fuentes intactos. Detectadas tres brechas y corregidas antes de activar: propiedad heredada del presupuesto, embebidos comerciales sin módulo operativo y miembros viejos por overlay. Homónimos/candidatos contradictorios rechazan toda preparación antes de emitir artefacto, sin certificar saldos cero ni parciales. No se aplicaron permisos/reglas/flags.

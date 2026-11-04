@@ -1,6 +1,7 @@
 'use strict';
 function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=false,fetchImpl,operationalSummaries=false,commercialPages=process.env.COMMERCIAL_PAGES_ENABLED==='true',clientAccounts=process.env.CLIENT_ACCOUNTS_ENABLED==='true',clientHistory=process.env.CLIENT_HISTORY_ENABLED==='true'}){
  if(readOnly&&!enabled)throw Error('El modo de revisión requiere conservar el circuito acotado');
+ if((clientAccounts||clientHistory)&&!enabled)throw Error('Las cuentas y el historial requieren el guardado coordinado habilitado.');
  const store=require('./labor-rtdb-store').createLaborRtdbStore({databaseURL,accessToken,fetchImpl});
  const guard=require('./labor-guard').createLaborGuard({store,readOnly,operationalSummaries,commercialPages,clientAccounts,clientHistory});
  const scopedDb=enabled?require('./labor-db').createLaborDb({db,guard}):db;
@@ -17,6 +18,10 @@ function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=f
   }:work);
   return commercial?pending.then(()=>commercialResult):pending;
  }
- return {db:scopedDb,store,guard,transaction,run};
+ function commercialMutation(actor,method,input,work){
+  if(!['ventas','presupuestos'].includes(actor?.domain)||!['assign','prepare'].includes(method))throw Object.assign(Error('Operación comercial inválida.'),{statusCode:400});
+  return actor.domain==='ventas'||clientAccounts?run(actor,'commercial-'+method,input,work):work();
+ }
+ return {db:scopedDb,store,guard,transaction,run,commercialMutation};
 }
 module.exports={createLaborRuntime};
