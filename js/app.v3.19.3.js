@@ -10873,6 +10873,7 @@ function normalizarPermisosRolesGuardados(data) {
   return normalizados;
 }
 function aplicarPermisosRolesGuardados(data) {
+  window._svDashboardRawBlockedPresence = Object.freeze(Object.fromEntries(Object.entries(data||{}).filter(function(entry){return entry[1]&&typeof entry[1]==='object'&&!Array.isArray(entry[1]);}).map(function(entry){return [entry[0],Object.freeze({revision:entry[1].indiceRevision,present:Object.prototype.hasOwnProperty.call(entry[1],'bloqueados')})];})));
   PERMISOS_ROLES = normalizarPermisosRolesGuardados(data);
 }
 // Fuente única para decisiones de permisos en botones/acciones.

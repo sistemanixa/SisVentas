@@ -305,5 +305,5 @@
   document.addEventListener('visibilitychange',schedule);
   document.addEventListener('DOMContentLoaded',schedule);
   global.addEventListener('online',schedule);global.addEventListener('offline',schedule);
-  global.SVDataReadiness={begin:begin,beginSource:beginSource,status:status,statusFor:statusFor,requirementsFor:requirements,invalidate:invalidate,holdStartup:holdStartup,waitForPage:waitForPage,reset:reset,render:schedule};
+  global.SVDataReadiness={begin:begin,beginSource:beginSource,status:status,statusFor:statusFor,requirementsFor:requirements,invalidate:invalidate,holdStartup:holdStartup,waitForPage:waitForPage,reset:reset,render:schedule,snapshotEpoch:function(){return generation;}};
 })(window);
