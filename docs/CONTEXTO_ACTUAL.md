@@ -1,3 +1,9 @@
+# Retiro de fuentes de carga preparado v3.18.17 · 03/11/2026
+
+Reproducido con DataReadiness real:una fuente anterior pendiente impide completar la carga aunque su reemplazo esté listo; cancelarla después no recalculaba ready. Corrección sólo promueve ready si queda al menos una fuente y todas terminaron. Vacío, pendiente, invalidación y fallo conservan su control.3regresiones unitarias (fallo previo reproducido) y1navegador con lector/DOM reales y fuentes ficticias PASS; no hace lecturas adicionales al retirar.21focales PASS. La prueba de navegador inicialmente omitía la dependencia Gastos; corregido montaje con fuente ficticia explícita, no expectativa. Puerta completa7257total/7230PASS/27omitidas/0fallos,846archivos/2lotes. QA independiente8PASS adicionales, sintaxis/diff/ValidarLocalPASS. Publicación y contraste posterior pendientes.
+
+Aún no es prueba de que ese orden explique todo el aviso de Dashboard observado en producción16. Comparación posterior real requerida antes de darlo por solucionado. Sin registros, servidor, permisos ni reglas modificados. Sólo web; CC/H permanecen fuera.
+
 # Rendimiento web v3.18.16 publicado · 03/11/2026
 
 Publicado desde9766e2582e732fadf133d4c7e0a559b4e07c42f9, sóloHosting (576activos/11cargas), sin servidor/reglas/configs comerciales/originales.12activosHTTPexactos, cabeceras yprivados404; aviso oficial18.16 sincronizado después.7226PASS/27skip/0fallos; emulador de reglas1PASS; navegadorlocal12PASS yQAindependiente43PASS repetidos tras el ajuste de caché vacía. Comparación posterior autenticada en curso; no afirmar mejora medida hasta recibirla. Auditoría integral yCobranzas nuevas siguen pendientes.

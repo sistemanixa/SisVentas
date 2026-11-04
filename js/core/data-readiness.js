@@ -185,7 +185,7 @@
       if(Array.from(state.sources).every(function(item){return item.ready;})){state.ready=true;state.failure=false;}
       schedule();
     }
-    return {ready:function(){finish(false);},error:function(){finish(true);},cancel:function(){if(!active||epoch!==generation)return;active=false;if(source.error)state.failure=true;state.sources.delete(source);schedule();}};
+    return {ready:function(){finish(false);},error:function(){finish(true);},cancel:function(){if(!active||epoch!==generation)return;active=false;if(source.error)state.failure=true;state.sources.delete(source);if(state.sources.size&&Array.from(state.sources).every(function(item){return item.ready;}))state.ready=true;schedule();}};
   }
   function checkDeadlines(){
     deadlineTimer=null;
