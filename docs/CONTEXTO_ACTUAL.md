@@ -1,3 +1,9 @@
+## Nativo mensual repetido contra 859 integrado
+
+Sólo se adaptó la referencia del harness: todas las funciones, reglas, fixtures, transportes y Legacy se cargan desde checkout aislado limpio 859afaf945ab29175b8f35dbf17519f4a762123f. Cuatro casos PASS sin cambiar cuerpos/expectativas; 57 módulos efectivos registrados con hashes y Legacy cliente/servidor actual coincidente. Sin diferencias funcionales en js/core/cotizador/security frente a c269609a. No se modificaron fuentes funcionales, Source/DTO, servicios, índices ni integración raíz; no se corrió general ni se implementó Mis ventas.
+
+Repetición final en emulador propio9197, namespace demo-activity-aggregate-18312 vacío verificado y proceso propio detenido. El intento previo en9089 ocupado se conservó aparte y no cuenta como aislamiento final; no se detuvo el proceso ajeno. Logs/manifiesto privados activity-aggregate-integrated859-native.private.log y activity-aggregate-integrated859-manifest.private.json, con hashes en docs/DASHBOARD_AGREGADOR_CUATRO_PREFIJOS_PROPUESTA.md. Sigue siendo evidencia standalone ficticia, no producción/UI/corte privilegiado.
+
 ## Delta del agregador sobre 29e · dataEpoch y permiso null
 
 Se agrega dataEpoch obligatorio como entero seguro no negativo a captura/same y resultado del agregador. Un reinicio de datos retira la lectura pendiente aunque Auth/User/UID no cambien; no hay default cero. El host debe enlazarlo con su epoch de datos ya vigente. Se valida dominio comercial esperado por posición y scope ANTES de comparar revisión o leer B1. Los grants null legítimamente denegados rechazan este paquete de cuatro fuentes antes de toda lectura; no se simula un prefijo vacío/completo. Mis ventas por autor/audit continúa null/no completo.
