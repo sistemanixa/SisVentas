@@ -64,7 +64,7 @@ function create(r,{enabled=()=>r.SV_DASHBOARD_READS_LOCAL===true,noticesEnabled=
   if(!kinds.includes(kind))return Promise.reject(Error('Invalid budget consumer'));
   try{const c=prepare(kind);if(!c.connected||!c.foreground)throw retired();demanded.add(kind);return source[explicit?'refresh':'ensure'](kind);}catch(error){if(pin&&!valid(pin))retire(true);return Promise.reject(error);}
  }
- function queueRefresh(){if(queued||!source||!demanded.size)return;const scheduled=source;queued=true;Promise.resolve().then(()=>{queued=false;if(source!==scheduled||disposed||!basic()||!claimed())return;const c=capture();marker=JSON.stringify([String(r.document?.querySelector?.('.page.active')?.id||''),c.foreground,c.connected,c.connectionEpoch]);if(!c.connected||!c.foreground)return;for(const kind of [...demanded])if(claimed(kind))load(kind,true).catch(()=>{});});}
+ function queueRefresh(){if(queued||!source||!demanded.size)return;const scheduled=source;queued=true;Promise.resolve().then(()=>{queued=false;if(source!==scheduled||disposed||!basic()||!claimed())return;const c=capture(),route=String(r.document?.querySelector?.('.page.active')?.id||'');marker=JSON.stringify([route,c.foreground,c.connected,c.connectionEpoch]);if(!c.connected||!c.foreground)return;for(const kind of [...demanded])if(claimed(kind)&&route===(kind==='dashboard'?'page-dashboard':'page-notificaciones'))load(kind,true).catch(()=>{});});}
  function event(name){
   if(disposed||!claimed())return;
   if(name==='sisventas:session-ended'){retire(true);return;}

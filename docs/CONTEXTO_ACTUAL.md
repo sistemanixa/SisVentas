@@ -1,3 +1,8 @@
+## QA browser: corregida relectura al navegar fuera del consumidor
+
+QA reprodujo sobrec53be3df dosGETpor navegación aVenta (resumen y avisos). Root copió tests nuevos y docs con hash verificado sin cambiar expectativas; reproducción local antes0PASS/2FAIL, log dashboard-unrelated-route-root-before.private.log. queueRefresh ahora sólo revalida dashboard en page-dashboard y notices en page-notificaciones; sesión/autoridad siguen retirando, demanda explícita sigue disponible y no se añade reloj.
+
+RepeticiónChrome real con mismo test intacto3129e646d45d30526af851c16f9b7009a7a352ea9a81366165bdfef2d0c02b17:7PASS,0FAIL/SKIP (cuatroavisos, startup y dos rutasajenas). GET al ir aVenta permanece1 en ambos. Log dashboard-browser-route-root-after.private.log, proceso finalizadoexit0; unitarioshost/callpoints19PASS. No equivale a montaje completo deactividad ni ahorro de bytes productivos. Se preserva evidencia roja y documentosQA atribuidos a susfuentes. Authbridge se ejercita real; datos/API ficticios, ninguna escritura real ni recarga de la ventana del titular.
 ## Revalidación host: espera corregida y evidencia nativa separada
 
 Importado373d7930, sólo test: retiene digest real WebCrypto, demuestra que30setImmediate dejan Source loading y que B1 completa la misma lectura. Después de la microtarea de evento se espera Source.ensure, que comparte la promesa pendiente. No se cambian conteos ni código host. Combinado root final84PASS,0FAIL/SKIP (los82anteriores más regresión digest y nuevo callpointstartup). Log dashboard-host-mounted-combined-after.private.log; rojo anterior conservado. No equivale a browser completo.
