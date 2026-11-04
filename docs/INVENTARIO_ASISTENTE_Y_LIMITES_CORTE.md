@@ -1,5 +1,185 @@
 # Asistente: procedencia y límites del inventario de corte
 
+## Inventario Functions ambas generaciones · 04/11/2026
+
+`gcloud functions list --project=nixa-sisventas` con proyección de campos
+sanitizados devuelve ocho funciones activas:cinco Gen2 y tres Gen1. Gen1 no trae
+environment en esa respuesta; entryPoint/eventTrigger/status y describe sin
+--gen2 las identifican. No se habilitaron APIs. Regiones extraídas de sus nombres
+de recurso, no deducidas por cercanía a Cotizador.
+
+| Función / entrada | Generación y región | Revisión o versión | Disparador | Clasificación de fuente exacta |
+|---|---|---|---|---|
+| emitirFactura | Gen2, southamerica-east1 | emitirfactura-00033-vib | HTTP | Escritor fiscal de ventas, jobs fiscales, auditoría y coordinación; proyecciones comerciales condicionales |
+| testTFApp | Gen2, southamerica-east1 | testtfapp-00009-rux | HTTP | Consulta autenticada de estado del proveedor; sin escritura comercial propia |
+| correoSolicitudConfirmada | Gen2, us-central1 | correosolicitudconfirmada-00005-yoh | RTDB created, sv_catalogo_solicitudes_atencion/{id} | Lee solicitud/evento, envía SMTP y escribe estado técnico de correo |
+| correoSolicitudDeclinada | Gen2, us-central1 | correosolicituddeclinada-00004-los | RTDB created, sv_catalogo_solicitudes_declinacion/{id} | Mismo código de correo; no modifica originales comerciales |
+| sisventasCostGuard | Gen2, us-central1 | sisventascostguard-00002-gaw | Pub/Sub, sisventas-cost-guard-60 | Sin escritura de registros comerciales; puede deshabilitar RTDB y modificar tráfico/escalado Cloud Run |
+| sisventasCommissionPayment / sisventasCommissionEventForward | Gen1, us-central1 | versionId1 | RTDB ref.write, sisventas/pagos/{payment}/monto | Forwarder autenticado del circuito escritor de comisiones; no excluir por no escribir RTDB directamente |
+| sisventasCommissionEnabled / sisventasCommissionEventForward | Gen1, us-central1 | versionId1 | RTDB ref.write, sisventas/ventas/{sale}/comisionHabilitada | Mismo forwarder |
+| sisventasCommissionPaid / sisventasCommissionEventForward | Gen1, us-central1 | versionId1 | RTDB ref.write, sisventas/ventas/{sale}/estadoPago | Mismo forwarder |
+
+Los disparadores RTDB apuntan a nixa-sisventas-default-rtdb; los Gen1 tienen
+failurePolicy.retry. No aparecen configuracionPush, registrarDispositivoPush,
+desregistrarDispositivoPush, despacharEventoNotificacion, notificarOtAsignada,
+notificarReclamoAsignado, notificarPresupuestoPendiente ni recordatoriosAgendaPush
+en este listado. Su presencia como exports condicionales del ZIP de40KB no
+demuestra despliegue. No se encontró otra función desplegada con esos handlers.
+Esto delimita Cloud Functions del proyecto en esta observación, no Scheduler,
+servicios externos, extensiones u otras herramientas fuera de ese inventario.
+
+### Gen1: procedencia y entrega exactas
+
+Los describe de las tres funciones confirman entrada sisventasCommissionEventForward,
+versión1 y builds us-central1:
+
+- Payment:4ecdf19a-6135-4444-94ca-57220cb3816b (SUCCESS consultado).
+- Enabled:0ef6a88d-bafa-4ee9-a7eb-c61d7ba6cf47.
+- Paid:a339e83f-84ec-409c-bb40-2ed53a231392.
+
+El build Payment no proporcionó source/sourceProvenance útil. Se obtuvo cada
+fuente mediante generateDownloadUrl con versionId1 explícita; no se registraron
+URLs firmadas ni tokens. La descarga se limitó a Content-Length positivo≤20MiB.
+Los tres ZIP tienen19.258bytes y SHA256 idéntico:
+`5e01b056b276746540d28917e276a1be3b8590cd8ea13b9fbad3e13980d9d46f`.
+Objetos exactos devueltos por esa API bajo storage.googleapis.com:
+
+- /gcf-sources-171899432710-us-central1/sisventasCommissionPayment-076d12c6-3edf-47c7-9014-6bf144428cf6/version-1/function-source.zip
+- /gcf-sources-171899432710-us-central1/sisventasCommissionEnabled-f67f0575-fca8-4b50-ad52-5574ac07020d/version-1/function-source.zip
+- /gcf-sources-171899432710-us-central1/sisventasCommissionPaid-76ca8f8a-3c7f-4f14-85e0-c34b00c03d86/version-1/function-source.zip
+
+Copias privadas C:/SisVentas/tmp/sisventasCommission{Payment,Enabled,Paid}-v1-source.private.zip.
+Contienen index.js y forwarder.js más metadatos de paquete. No usan Admin/DB:
+GoogleAuth obtiene identidad de servicio y forwarder.js:19 hace POST autenticado
+a deliveryURL+/internal/commission-event; sólo probe usa sufijo -probe. Valida
+tipo/recurso de evento y rutas de pagos/ventas antes de reenviar; no transporta
+los valores comerciales y eventos mayores a24horas quedan para conciliación.
+
+Se consultaron exclusivamente las tres opciones no secretas de destino en cada
+función: COMMISSION_EVENT_INSTANCE=nixa-sisventas-default-rtdb y TARGET/DELIVERY_URL
+ambos https://cotizador-is54pr4fha-rj.a.run.app, sin etiqueta antigua. No se
+leyeron otras variables ni secretos. La fuente limita destinos a ese host o
+URLs etiquetadas de él. **Son accesos indirectos al escritor de comisiones**:
+incluir triggers, reintentos/eventos pendientes y endpoint receptor en inventario,
+pausa y drenaje; bloquear sólo los clientes SDK no cierra esta vía. No se invocó
+el receptor ni se verificaron resultados de eventos reales. La escritura final
+de originales/proyecciones corresponde al receptor Cotizador y requiere su
+propia procedencia y análisis; este paquete no prueba qué versión atiende una
+entrega futura ni todos los efectos de su handler.
+
+### emitirFactura: fuente remota distinta y escritor vigente
+
+Cloud Functions confirma entrada emitirFactura, revisión emitirfactura-00033-vib,
+build e2ad684d-01ba-40f4-a638-cefce187d2ba (SUCCESS). La anotación de revisión
+vincula ese build y esta fuente exacta, coincidente con buildConfig.source:
+`gs://gcf-v2-sources-171899432710-southamerica-east1/emitirFactura/function-source.zip#1793679139918303`.
+Imagen:
+`southamerica-east1-docker.pkg.dev/nixa-sisventas/gcf-artifacts/nixa--sisventas__southamerica--east1__emitir_factura@sha256:6d699fcc37623c1395c0d07af22c393ec36812867fcdf9789a1d911e955a449d`.
+El build no devolvió procedencia Git útil. ZIP153.373bytes, generación
+1793679139918303, privado en C:/SisVentas/tmp/emitirfactura-00033-vib-source.private.zip;
+SHA256 `c1d5f1298309e9566aecc1c9f67bd6e91c5da487e30cd612dd7b59901f519b7e`.
+
+Se examinó esta fuente y sus dependencias vendorizadas, sin asumir equivalencia
+con el paquete local preparado. index.js llama fiscalBridge.begin/rejected/complete
+y resume; labor-bridge.cjs:34–62 adjunta mediante guard datos a sisventas/ventas:
+emisionesFiscales, factura, notaCredito, facturaAnulada/fecha/autor,
+historialFiscal, idNotaCredito y audit. Mantiene jobs durables en
+sv_fiscal_emissions mediante transacciones. index.js:548 agrega log_actividad.
+La coordinación usa sv_labor_guard/recibos y el commit condicionado del store.
+vendor/labor/labor-guard.js:171 puede aumentar proyecciones commercialPages,
+según configuración. No clasificar este servicio como simple proxy ni retirarlo
+del snapshot sólo porque su mutación sea fiscal.
+
+El runtime remoto del ZIP pasa commercialPages a createLaborGuard, pero no
+clientAccounts/clientHistory y el guard vendorizado no recibe esos parámetros.
+Esto no demuestra por sí solo un fallo con las capacidades actuales, pero sí
+impide usar esa revisión como prueba de coordinación integral futura de Accounts/H7.
+No se certifica la activación de proyecciones a partir de código condicional ni
+se atribuyen cambios de pagos/gastos/comisiones a este handler sin trazado.
+
+### Correo y CostGuard: fuentes vinculadas y alcance separado
+
+Cloud Functions enlaza estos storageSource exactos en bucket
+gcf-v2-sources-171899432710-us-central1:
+
+| Objeto/generación | Bytes | Build |
+|---|---:|---|
+| correoSolicitudConfirmada/function-source.zip#1791817849703337 |36711|71e2ab6d-0db8-4dd4-9992-1205cd4b7335|
+| correoSolicitudDeclinada/function-source.zip#1791817920606055 |36711|3a774f34-11c9-4c6c-a180-0986d2b950c2|
+| sisventasCostGuard/function-source.zip#1792361526082736 |19998|3aace571-8ed1-4405-a5c4-c3d4989868fc|
+
+Los ZIP de correo son idénticos, SHA256
+`06bcf1841a67fc9e67cec9f09ad2c9df50b8011e58afe2e8f441f6fc4dfd549a`.
+index.js lee el evento y mail.cjs:13–20 transacciona/setea sólo
+sv_catalogo_solicitudes_correo/{id}/{type}; lee sv_catalogo_solicitudes/{id} y
+envía SMTP. No escribe agenda/OT/ventas/pagos/gastos/comisiones ni sus proyecciones.
+
+ZIP CostGuard SHA256
+`6fac6cabf0636696d2c4dafcc42155b1b66f1ac04f24e1ad3803dbbe748a1ce3`.
+Su policy.cjs valida presupuesto/notificación, puede deshabilitar la instancia
+RTDB y cambiar escalado/tráfico de cotizador/asistente/emitirfactura/testtfapp.
+No escribe originales comerciales, pero sí puede afectar disponibilidad y
+tráfico durante un corte. La inspección estática no prueba que el umbral o
+presupuesto estén configurados efectivamente hoy. No se consultaron valores de
+presupuesto/credenciales ni se ejecutó ninguna acción del guard.
+
+Todos los ZIP permanecen en tmp privado, fuera de Git. No se invocaron funciones,
+leyeron registros comerciales, enviaron correos ni ejecutaron eventos, IAM,
+despliegues, instalación o modificaciones de infraestructura. Las afirmaciones
+de escritura se basan en fuente vinculada a versiones/revisiones observadas;
+no equivalen a trazas de operaciones reales ni demuestran drenaje efectivo.
+
+## Ampliación readonly: testtfapp-00009-rux · 04/11/2026
+
+Región `southamerica-east1` confirmada por label del servicio `testtfapp`.
+Cloud Run informa una única entrada de tráfico:100% a `testtfapp-00009-rux`,
+latestRevision=true, sin etiquetas en esa respuesta. URL observada, no invocada:
+`https://testtfapp-is54pr4fha-rj.a.run.app`.
+
+Procedencia:
+
+- Imagen de revisión:
+  `southamerica-east1-docker.pkg.dev/nixa-sisventas/gcf-artifacts/nixa--sisventas__southamerica--east1__test_t_f_app@sha256:5292c317d10eb353b95d5332adc173425dc24865983164e67aab9d1ddfeb95d2`.
+- Anotación build-id del contenedor worker:
+  `db0c8801-bb03-4f0a-bc7f-979d09d8d9af`. Cloud Build SUCCESS; su respuesta
+  seleccionada no incluye results.images ni procedencia Git, por lo que no se
+  afirma una segunda comparación del digest contra resultados del build.
+- Anotación build-source-location:
+  `gs://gcf-v2-sources-171899432710-southamerica-east1/testTFApp/function-source.zip#1792080582577358`.
+  Metadatos del objeto:40.293bytes, generación1792080582577358. Se descargó sólo
+  ese ZIP identificado a `C:/SisVentas/tmp/testtfapp-00009-rux-source.private.zip`.
+  SHA256 de sus bytes:
+  `252f8205a065a2cc78ccc77c0c43c3ccdfd9e6916616a6fcdf419dc5b1f9df50`.
+- Cloud Functions Gen2 `testTFApp` informa ACTIVE, build idéntico, el mismo
+  bucket/objeto/generación, serviceConfig.service=testtfapp y
+  serviceConfig.revision=testtfapp-00009-rux. **buildConfig.entryPoint=testTFApp**.
+  Esa vinculación permite distinguir el handler ejecutado de los otros exports
+  incluidos en el paquete; no se deduce la entrada por el nombre del servicio.
+
+El ZIP contiene index.js, package.json, package-lock.json, security-storage.cjs
+y service-auth.cjs. En index.js:537–572, testTFApp permite OPTIONS/POST,
+autoriza mediante chequearAuth(...,'fiscal-test') y hace POST al endpoint fijo
+`https://www.tusfacturas.app/app/api/v2/estado_servicios/alertas`; devuelve estado
+de facturación o error. No despacha según rutas ni llama a emitirFactura.
+chequearAuth (166–168) delega a service-auth.cjs, que verifica ID token y lee
+sv_chat_roles, sv_permisos y sv_access_resets. No hay escritura RTDB en este
+camino; la inicialización global sólo prepara Admin/DB y definiciones de funciones.
+
+**Clasificación:** proxy autenticado de consulta de estado del proveedor, sin
+escrituras propias de agenda, OT, ventas, pagos, gastos, comisiones u otros
+originales comerciales en el handler testTFApp examinado. No es una prueba de
+ausencia de efectos internos de auditoría/uso en el proveedor remoto o Auth.
+
+Límite esencial: el mismo index.js también exporta emitirFactura, que actualiza
+sisventas/ventas/.../factura y agrega log_actividad (522–523), y contiene
+funciones push condicionales con escrituras de dispositivos/eventos. No excluir
+el ZIP completo ni otros servicios como si fueran de sólo lectura: esas otras
+entradas necesitan su propio inventario. La exclusión se limita al servicio,
+revisión y entryPoint aquí vinculados, bajo los metadatos observados. No se
+invocaron endpoints, leyeron originales/credenciales, instalaron dependencias,
+descargaron contenedores, modificaron IAM ni desplegaron cambios. El ZIP queda
+privado en tmp, fuera de Git.
+
 Revisión readonly del 04/11/2026. Este documento pertenece al frente de revisión
 de escritores; no modifica CONTEXTO_ACTUAL, fuentes congeladas ni autoriza un
 corte. La observación es puntual y debe renovarse si cambia la revisión.
