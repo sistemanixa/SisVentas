@@ -1,3 +1,10 @@
+## Últimas personales: transporte y pantalla integrados, flag OFF
+
+Importadaentrega75d58780 y aplicado patch de cuatroarchivos trasgitapplycheck, preservando optimizaciónembebida y modoownMonthly. LectoractualVentas usa grupoexacto y hasta5filasPages, relee evidencia B0/B1 y proyecta sólo seis campospúblicos. Capacidadlatest es independiente; falloopcional no bloqueacontador ni actividadglobal. HTTPvalida campos/duplicados/cardinalidad/contexto/orden; Aggregate comparte segundaGETventas ya existente y hostownMonthly conserva1GET. No endpointnuevoni originales.
+
+Rendereractivo bajo flagON consume sólo latestcertificado actual con creador/mes/scope/generación/revisión/contrato/cardinalidad concordantes. Conserva ordenrecibido, resuelvenombrevigente porelhelperexistente, escapaHTML y muestra totales desde centavosenteros comotexto(sinMath.round ni conversiónflotante), incluido máximoseguro. Revalidación/error de mismaautoridad conserva5conestado visible; retiro elimina filas. Sin capacidad,detallependiente; cero sólo con evidenciacertificada. FlagsOFF y usuario sinrecarga.
+
+Root138transporte/host/modelosPASS y11UI/casosQA+budgetPASS,0FAIL/SKIP; logs dashboard-latest-transport-root.private.log y dashboard-personal-latest-render-root.private.log. Incluyen501miembros, 5globalesdeotrocreador, privacidad, cambioactor/grupo/filas/cobertura, ordentotaldelimitado y monedas0,01/negativos/máximoseguro. No prueban navegadorfinal,nativaactual o puertageneral; pendientes esasverificaciones. Desempate finaldeclaveestable es deliberadodepresentación segúncontrato90, no reescritura financiera. Sin push/publicación/datosreales.
 ## Personal/global en navegador y regresión de modalidades mensuales
 
 Root repitiósobre89e6ce7d la pruebaQA nueva de4fb y loscuatrocasos personales intactos:9PASS (5Chrome+4VM),0FAIL/SKIP, log dashboard-own-global-browser-root.private.log,exit0. El modo personal real hace1GETVentas y muestra501 sin ampliar losotrosgrants; global6GET sincapacidadcreador y7conella. Se conserva baseline8de b609 y sus expectativas; esta pruebaposterior es separada. No cubre todavía últimas5 ni datosreales.

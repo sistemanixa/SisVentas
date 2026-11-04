@@ -2,6 +2,7 @@
 // Not mounted. Uses existing business authentication, UID profile and domain policies.
 const M=require('./dashboard-commercial-activity-proposal'),Own=require('./commercial-ownership'),Policy=require('./domain-read-policy');
 const {createBusinessAuth}=require('./user-access'),{actorPin}=require('./dashboard-budget-reader-proposal'),Core=require('./commercial-models/dashboard-activity-model.v2');
+const CreatorLatest=require('./commercial-creator-latest');
 const Pages=require('./commercial-pages-model'),{digest}=require('./labor-guard');
 function createAuthority({auth,db}){
  const business=createBusinessAuth(auth,db);
@@ -42,11 +43,27 @@ function createReader({auth,db,enabled=false,getLegacyContext,getAsOfDay}={}){
     try{creatorMonthly={schema:1,complete:true,creator:actor.name,month:asOfDay.slice(0,7),scope,generation:pc.generation,revision:pc.revision,count:Pages.creatorMonthCount(totals,{creator:actor.name,month:asOfDay.slice(0,7)})};}catch(e){if(e.code!=='SV_COMMERCIAL_PAGES_NOT_READY')throw e;}
    }
   }
+  let creatorLatest;
+  if(domain==='ventas'){
+   creatorLatest={schema:1,complete:false};
+   if(creatorMonthly?.complete===true){
+    try{
+     const evidence=new Map();let stable=true;
+     const read=async path=>{const value=await raw(path),h=M.hash(value);if(evidence.has(path)&&evidence.get(path)!==h)stable=false;else evidence.set(path,h);return value;};
+     const latest=await CreatorLatest.readLatest({read,scope,creator:actor.name,month:creatorMonthly.month,locale:c.sourceLocale,expectedLocale:legacy.sourceLocale});
+     const verified=await Promise.all([...evidence].map(async([path,h])=>M.hash(await raw(path))===h));
+     if(stable&&verified.every(Boolean)&&latest.generation===pc.generation&&latest.revision===pc.revision&&latest.count===creatorMonthly.count){
+      const rows=latest.rows.map(row=>({key:row.key,number:row.number,client:row.client,clientRecordKey:row.clientRecordKey,rawDate:row.creatorRawDate,totalCents:row.totalCents}));
+      creatorLatest={schema:1,complete:true,creator:actor.name,month:latest.month,scope,generation:latest.generation,revision:latest.revision,locale:latest.locale,orderContract:latest.orderContract,count:latest.count,rows};
+     }
+    }catch(_){/* Optional latest evidence never substitutes originals or blocks the count. */}
+   }
+  }
   const finalActor=await authority.fresh(req,domain),after=await Promise.all(paths.map(raw));M.check(digest(actorPin(finalActor))===digest(pin)&&before.every((v,i)=>M.hash(v)===M.hash(after[i]))&&M.hash(legacy)===M.hash(await getLegacyContext())&&asOfDay===(domain==='ventas'&&typeof getAsOfDay==='function'?await getAsOfDay():null),'Actor o cobertura cambió durante la lectura.');
   const recent={schema:2,domain,kind:'verified-legacy-instant-prefix',scope:scope==='all'?'all':'own',generation:c.generation,revision:c.revision,order:Core.SOURCE_ORDER,timeZone:c.timeZone,sourceLocale:c.sourceLocale,fromStart:true,filter:domain==='pagos'?'legacy-not-annulled':'legacy-ms-truthy',exhausted:st.eligible<=5,rows};
   const context={uid:actor.uid,role:actor.role,auth,db,permissionRevision:actor.permissionRevision,timeZone:c.timeZone,sourceLocale:c.sourceLocale,grants:Object.fromEntries(Core.DOMAINS.map(d=>[d,d===domain?recent.scope:null]))};
   M.check(Core.merge({context,sources:{[domain]:{...recent,context}},expected:{[domain]:{generation:c.generation,revision:c.revision}}}).complete,'Prefijo no autorizado.');
-  return {schema:2,proposal:true,uid:actor.uid,role:actor.role,permissionRevision:actor.permissionRevision,recent,...(creatorMonthly?{creatorMonthly}:{}),coverage:{records:st.records,eligible:st.eligible,excluded:st.excluded},mixedActivityComplete:false,notificationCenterComplete:false};
+  return {schema:2,proposal:true,uid:actor.uid,role:actor.role,permissionRevision:actor.permissionRevision,recent,...(creatorMonthly?{creatorMonthly,creatorLatest}:{}),coverage:{records:st.records,eligible:st.eligible,excluded:st.excluded},mixedActivityComplete:false,notificationCenterComplete:false};
  }
  return Object.freeze({read});
 }

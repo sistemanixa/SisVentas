@@ -53309,7 +53309,20 @@ function renderDashAdministrativo() {
   // Últimas ventas del administrativo
   var cont = el('dash-adm-ultventas');
   if (!cont) return;
-  if(ventasDesdeFuente){cont.innerHTML='<div style="text-align:center;color:var(--text3);padding:12px;font-size:13px">'+(cantidadVentas===0?'Sin ventas este mes':'Detalle de ventas pendiente de actualización.')+'</div>';return;}
+  if(ventasDesdeFuente){
+    var ultimas= vistaVentas?.data?.salesAuthorLatest,clavesUltimas=new Set();
+    var ultimasValidas=vistaVentas?.authority==='current'&&vistaVentas.data.salesAuthorLatestComplete===true&&ultimas?.schema===1&&ultimas.complete===true&&ultimas.creator===usuario&&ultimas.month===mesActual&&ultimas.scope===(window.currentRole==='admin'?'all':'u_'+window.currentUserUid)&&typeof ultimas.generation==='string'&&ultimas.generation&&Number.isSafeInteger(ultimas.revision)&&ultimas.revision>=1&&typeof ultimas.locale==='string'&&ultimas.locale&&ultimas.orderContract==='raw-locale-desc_loader-time-desc_ts-desc_js-index-first-asc_other-codepoint-asc_v1'&&Number.isSafeInteger(ultimas.count)&&ultimas.count>=0&&(cantidadVentas===null||ultimas.count===cantidadVentas)&&Array.isArray(ultimas.rows)&&ultimas.rows.length===Math.min(5,ultimas.count)&&ultimas.rows.every(function(row){
+      if(!row||typeof row.key!=='string'||!row.key||clavesUltimas.has(row.key)||typeof row.number!=='string'||typeof row.client!=='string'||typeof row.clientRecordKey!=='string'||typeof row.rawDate!=='string'||row.rawDate.slice(0,7)!==mesActual||!Number.isSafeInteger(row.totalCents))return false;clavesUltimas.add(row.key);return true;
+    });
+    cont.setAttribute?.('aria-busy',String(vistaVentas?.status==='loading'||vistaVentas?.revalidating===true));
+    if(!ultimasValidas||!ultimas.rows.length){cont.innerHTML='<div style="text-align:center;color:var(--text3);padding:12px;font-size:13px">'+((ultimasValidas&&ultimas.count===0)||cantidadVentas===0?'Sin ventas este mes':'Detalle de ventas pendiente de actualización.')+'</div>';return;}
+    cont.innerHTML='<div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Mis últimas ventas</div>'+ultimas.rows.map(function(row){
+      var centavos=String(Math.abs(row.totalCents)).padStart(3,'0'),importe=(row.totalCents<0?'-':'')+'$ '+centavos.slice(0,-2).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+','+centavos.slice(-2);
+      var cliente=nombreClienteVigente({clienteFbKey:row.clientRecordKey,cliente:row.client},row.client);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:var(--radius)"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;overflow-wrap:anywhere">'+escapeHTML(cliente)+'</div><div style="font-size:11px;color:var(--text3)">'+escapeHTML(row.rawDate)+'</div></div><div style="font-size:13px;font-weight:500;color:var(--green);white-space:nowrap">'+escapeHTML(importe)+'</div></div>';
+    }).join('')+(vistaVentas.status==='error'?'<div role="status" style="color:var(--text3);font-size:12px">No se pudo actualizar.</div>':vistaVentas.status==='loading'?'<div role="status" style="color:var(--text3);font-size:12px">Actualizando…</div>':'');
+    return;
+  }
   var ults = misVentas.slice().sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); }).slice(0,5);
   if (!ults.length) {
     cont.innerHTML = '<div style="text-align:center;color:var(--text3);padding:12px;font-size:13px">Sin ventas este mes</div>';

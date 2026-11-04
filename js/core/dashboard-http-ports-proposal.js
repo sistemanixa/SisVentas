@@ -21,11 +21,20 @@ function activity(r,domain,c){
   if(Object.hasOwn(r,'monthly'))monthly(r,c);
  }else{const s=r.coverage;check(object(s)&&['records','eligible','excluded'].every(k=>integer(s[k]))&&s.eligible+s.excluded===s.records&&p.rows.length===Math.min(5,s.eligible)&&p.exhausted===(s.eligible<=5));}
  if(domain==='ventas'&&Object.hasOwn(r,'creatorMonthly'))r={...r,creatorMonthly:creatorMonthly(r.creatorMonthly,c)};
+ if(domain==='ventas'&&Object.hasOwn(r,'creatorLatest'))r={...r,creatorLatest:creatorLatest(r.creatorLatest,c)};
  return r;
 }
 function creatorMonthly(m,c){
  const fields=['schema','complete','creator','month','scope','generation','revision','count'];
  if(!object(m)||m.schema!==1||m.complete!==true||Object.keys(m).length!==fields.length||!fields.every(k=>Object.hasOwn(m,k))||m.creator!==c.employeeLabel||m.month!==c.month||m.scope!==(c.grants.ventas==='all'?'all':'u_'+c.uid)||typeof m.generation!=='string'||!m.generation||!Number.isSafeInteger(m.revision)||m.revision<1||!integer(m.count))return {schema:1,complete:false};
+ return m;
+}
+function creatorLatest(m,c){
+ const fields=['schema','complete','creator','month','scope','generation','revision','locale','orderContract','count','rows'],rowFields=['key','number','client','clientRecordKey','rawDate','totalCents'];
+ const key=v=>typeof v==='string'&&v.length>0&&v.length<=128&&!/[.#$\[\]\/\x00-\x1f\x7f]/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
+ const order='raw-locale-desc_loader-time-desc_ts-desc_js-index-first-asc_other-codepoint-asc_v1';
+ if(!object(m)||m.schema!==1||m.complete!==true||Object.keys(m).length!==fields.length||!fields.every(k=>Object.hasOwn(m,k))||m.creator!==c.employeeLabel||m.month!==c.month||m.scope!==(c.grants.ventas==='all'?'all':'u_'+c.uid)||typeof m.generation!=='string'||!m.generation||!Number.isSafeInteger(m.revision)||m.revision<1||m.locale!==c.sourceLocale||m.orderContract!==order||!integer(m.count)||!Array.isArray(m.rows)||m.rows.length!==Math.min(5,m.count))return {schema:1,complete:false};
+ const seen=new Set();for(const row of m.rows){if(!object(row)||Object.keys(row).length!==rowFields.length||!rowFields.every(k=>Object.hasOwn(row,k))||!key(row.key)||seen.has(row.key)||typeof row.number!=='string'||row.number.length>128||typeof row.client!=='string'||row.client.length>200||!(row.clientRecordKey===''||key(row.clientRecordKey))||typeof row.rawDate!=='string'||row.rawDate.slice(0,7)!==m.month||!Number.isSafeInteger(row.totalCents))return {schema:1,complete:false};seen.add(row.key);}
  return m;
 }
 function noticeRow(r,c){
