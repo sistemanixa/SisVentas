@@ -3,15 +3,15 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const {load}=require('./helpers/app-functions.cjs');
 class Clock extends Date { constructor(...a){super(...(a.length?a:['2026-11-03T12:00:00-03:00']));} static now(){return new Clock().getTime();} }
 function fixture(){
- const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',innerHTML:'',dataset:{},style:{setProperty(){}},classList:{add(){},remove(){}},setAttribute(){}});return nodes.get(id);};
+ const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',innerHTML:'',dataset:{},style:{setProperty(){}},classList:{add(){},remove(){}},setAttribute(){},closest(){return null;}});return nodes.get(id);};
  const totals={days:{'2026-10-31':{salesCents:999999,netCents:999999,paidCents:99,sales:1,payments:1},'2026-11-02':{salesCents:12101,netCents:10001,ivaCents:2100,paidCents:101,sales:1,payments:1},'2026-11-03':{salesCents:24200,netCents:20000,ivaCents:4200,paidCents:10001,sales:1,payments:1}}};
  const host={meta:{totals}};vm.createContext(host);vm.runInContext(fs.readFileSync('js/modules/sales-indexed-host.v1.js','utf8').split('\n').find(l=>l.startsWith('function dayTotals(')),host);
  const c={Date:Clock,document:{getElementById:node},currentUserUid:'fake',currentUser:'Ficticio',currentRole:'admin',DASHBOARD_ULTIMA_REVISION:-1,DASHBOARD_DATOS_REVISION:1,DASHBOARD_ULTIMO_CONTEXTO:'',
   tienePermiso:p=>p!=='dashboard.rentabilidad',SVCommercialPagesHost:{activeRoute:()=>true,financialState:()=>({debtCents:123456789,debtorCount:17,recent:[]}),dayTotals:host.dayTotals,monthTotals:host.monthTotals,paintLoading:()=>{node('loading').textContent='Cargando';return false;}},
   dashRenderOTResumen(){},dashRenderAgendaResumen(){},dashCargarAgendaInterna(){},obtenerVentasActivasSisVentas:()=>[],ventasVisiblesParaUsuario:x=>x,_svResumenCuentaCorriente:()=>({pendiente:0,clientesConSaldo:0}),_historialPagosCompleto:[],_ccMapActual:null,
-  pptoData:[{estado:'borrador'},{estado:'aprobado_int'},{estado:'convertido'},{estado:'anulado'}],actualizarDolarDashboard(){},actualizarVigenciaPreciosDashboard(){},actualizarKpiIvaDashboard(){},dashDatosOTResumen:()=>({abiertas:[]}),gastosData:[],
+  SVDataReadiness:{status:()=>({ready:true,errors:[]})},pptoData:[{estado:'borrador'},{estado:'aprobado_int'},{estado:'convertido'},{estado:'anulado'}],actualizarDolarDashboard(){},actualizarVigenciaPreciosDashboard(){},actualizarKpiIvaDashboard(){},dashDatosOTResumen:()=>({abiertas:[]}),gastosData:[],
   _set:(id,v)=>node(id).textContent=v,svEstadoGastosRentabilidadDashboard:()=> 'ready',resumenGastosPagadosMes:()=>({total:125.25,pagados:[{},{}]}),formatearMontoRentabilidad:n=>(n<0?'-$':'$')+Math.abs(n).toLocaleString('es-AR')};
- load(c,['renderKPIsDashboard','renderRentabilidadDashboard']);return{c,node,nodes,host};
+ load(c,['svPintarPresupuestosDashboard','renderKPIsDashboard','renderRentabilidadDashboard']);return{c,node,nodes,host};
 }
 function finiteOutput(f){for(const [id,n]of f.nodes)assert.doesNotMatch(JSON.stringify(n),/NaN|Infinity|undefined/,id);}
 test('tarjetas generales usan agregados completos, no las cinco ventas recientes ni los pagos vacíos',()=>{const f=fixture();f.c.renderKPIsDashboard(true);assert.equal(f.node('kpi-ventas-hoy').textContent,'$242');assert.equal(f.node('kpi-cobrado-hoy').textContent,'$100');assert.equal(f.node('kpi-deuda').textContent,'$1.234.568');assert.equal(f.node('kpi-deuda-sub').textContent,'17 clientes con saldo');assert.equal(f.node('kpi-pptos').textContent,'2');assert.match(f.node('kpi-pptos-conv').textContent,/1 convertidos · 33%/);assert.equal(f.node('bar-6').title,'03/11/2026: $242');finiteOutput(f);});
