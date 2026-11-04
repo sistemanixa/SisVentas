@@ -1,3 +1,10 @@
+## Actividad: host y arranque montados bajo flag OFF
+
+Importadof6f02f14 por diff de dosarchivos. Index carga ActivityHostFactory después de dependencias y app lo crea lazy al demandarDashboard, sólo con dashboard.actividad e interfaz.dashboard_admin_only; host valida además loscuatrodominios. Slot SVDashboardActivityHost usa Aggregate/HTTP reales, requireNotices:false y fuenteReadiness dashboardActivity independiente. No se marca completa ninguna colecciónoriginal. Eventos sólo revalidan con Dashboardvisible, sin reloj, y conservan datos ante error de la mismaautoridad; sesión/revisión retiran.
+
+Root13hostPASS y18montaje/callpoint/índicePASS;40startup+callpoints previosPASS. Log dashboard-activity-host-mount-root.private.log. Todavía falta QA navegador del recorrido completo y mensual ventas porcreador. Se mantienen cargadoresanteriores mientras tenganconsumidores, por lo que no se certifica la optimizaciónfinal. FlagsOFF, usuario sigue otra copia y no se recargó.
+
+Corrección de higiene posterior aimportarrender:c336308b registróCRLF como whitespace en el archivo existente; se normalizó sólo eseJS aLF en674c0395, sin cambiofuncional,15regresionesPASS y diffcheckposterior limpio. No se alteraron los fixtures históricos para eludirla. Sin datosreales, push o publicación.
 ## Renderer actividad reciente: preparado con transición explícita
 
 Importado diff2bc44+821a8084, sólo renderer, fixtures, contrato y pruebas pertinentes. SV_DASHBOARD_READS_LOCAL===true usa SVDashboardActivityHost.peek exclusivamente: no red ni arrays antiguos ante ausencia/error/retiro. OFF conserva HTML/visibilidad legacy exactos; no se activa flag ni slot. Se conserva oraclefecha anterior en fixture para caracterización histórica; pruebas deinstant siguen comparándolo y las deorden ejercitan el render nuevo validado.

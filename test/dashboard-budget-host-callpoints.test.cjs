@@ -13,3 +13,7 @@ test('actual startup explicitly demands the summary outside rendering and keeps 
  vm.runInContext(functionSource('svCargarInicioDashboardDemandado'),f.s);f.s.svCargarInicioDashboardDemandado();assert.equal(requested,1);assert.equal(starts,1);
  f.r.SV_DASHBOARD_READS_LOCAL=false;f.s.svCargarInicioDashboardDemandado();assert.equal(requested,1);assert.equal(starts,2);
 });
+test('actual activity host callpoint is lazy, reuses its slot and paints only the visible Dashboard',()=>{
+ const f=fixture();let creates=0,paint=0,changed;const host={};f.r.SVDashboardActivityHostFactory={create:(root,options)=>{assert.equal(root,f.r);creates++;changed=options.changed;return host;}};f.r.dashRenderActividadReciente=()=>paint++;
+ vm.runInContext(functionSource('svHostActividadDashboard'),f.s);f.r.SV_DASHBOARD_READS_LOCAL=false;assert.equal(f.s.svHostActividadDashboard(),null);assert.equal(creates,0);f.r.SV_DASHBOARD_READS_LOCAL=true;assert.equal(f.s.svHostActividadDashboard(),host);assert.equal(f.s.svHostActividadDashboard(),host);assert.equal(creates,1);changed();assert.equal(paint,1);f.page('venta');changed();assert.equal(paint,1);
+});

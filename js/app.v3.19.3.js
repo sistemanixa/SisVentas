@@ -6156,6 +6156,13 @@ async function cargarMetricasUsoUsuarios(periodo) {
 }
 window.cargarMetricasUsoUsuarios = cargarMetricasUsoUsuarios;
 
+function svHostActividadDashboard() {
+  if(window.SV_DASHBOARD_READS_LOCAL!==true||!window.SVDashboardActivityHostFactory)return null;
+  if(!window.SVDashboardActivityHost)window.SVDashboardActivityHost=window.SVDashboardActivityHostFactory.create(window,{changed:function(){
+    if(typeof _svEsPaginaActiva==='function'&&_svEsPaginaActiva('dashboard')&&typeof window.dashRenderActividadReciente==='function')window.dashRenderActividadReciente();
+  }});
+  return window.SVDashboardActivityHost;
+}
 function svHostPresupuestosDashboard() {
   if(window.SV_DASHBOARD_READS_LOCAL!==true||!window.SVDashboardBudgetHost)return null;
   if(!window._svDashboardBudgetHost)window._svDashboardBudgetHost=window.SVDashboardBudgetHost.create(window,{changed:function(kind){
@@ -6305,6 +6312,10 @@ function svCargarInicioDashboardDemandado() {
   if (!plan) throw new Error('No se pudo preparar el inicio. Volvé a intentar.');
   var hostPresupuestos=window.SV_DASHBOARD_READS_LOCAL===true?svHostPresupuestosDashboard():null;
   if(hostPresupuestos?.claimed('dashboard'))hostPresupuestos.ensure('dashboard').catch(function(){/* Source retains the visible result and its error. */});
+  if(window.SV_DASHBOARD_READS_LOCAL===true&&window.tienePermiso?.('dashboard.actividad')===true&&window.tienePermiso?.('interfaz.dashboard_admin_only')===true){
+    var hostActividad=svHostActividadDashboard();
+    if(hostActividad)hostActividad.ensure().catch(function(){/* Activity host owns error and coverage. */});
+  }
   if (!window._svDashboardDemandReader) {
     window._svDashboardDemandReader = window.SVDashboardStartupDemand.create({
       capture: function(){ return svCapturarContextoCargaDashboard(); },
