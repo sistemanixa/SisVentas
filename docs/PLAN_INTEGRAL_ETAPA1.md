@@ -11,7 +11,7 @@ Se contrastaron cuatro revisiones locales independientes: núcleo comercial, ví
 | Base | Estado conocido | Límite |
 |---|---|---|
 | Fuente publicada | v3.18.20, fuente `312705c2bd5c5e938aab729585506b2be87b0c5a`, HEAD documental `0c093b65` | Publicación de fotos separada verificada por activos/aviso; no incluye la integración |
-| Integración | `1c12e793cac105c00a1a6705b99ce2cb6198b63c`, candidata local v3.19.1 | Accounts y protección de referencias OT corregidos; pausas coordinadas agregadas. Puerta limpia de este SHA en curso; no activada |
+| Integración | `300142f2fe7449d77e5d1749c653e7ca2b8df0b3`, candidata local v3.19.1 | Accounts y protección de referencias OT corregidos; pausas coordinadas agregadas. Puerta limpia 8.455 PASS / cero FAIL; respaldo remoto confirmado. No activada |
 | Estado externo | Metadatos y fuentes remotas contrastados el 04/11; no modificados | Cotizador principal y 14 accesos antiguos inventariados; fuentes exactas fiscal/forwarders/Asistente identificadas. Revalidar antes del corte; no equivale a activación |
 
 Las copias están en `C:/SisVentas/.local/dashboard-readiness-v31817` y `C:/SisVentas/.local/restaurar-grilla-original-v31714`. La raíz del proyecto y otras ramas históricas no sustituyen esas bases. Se preserva el WIP sin incorporarlo como terminado.
