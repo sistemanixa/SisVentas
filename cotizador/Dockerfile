@@ -9,6 +9,10 @@ COPY index.js ./
 COPY commercial-admission.js ./
 COPY commercial-response.js ./
 COPY commercial-pages-model.js commercial-pages-projections.js native-payment-summary.js ./
+COPY dashboard-authority-policy-proposal.js dashboard-budget-projection-proposal.js dashboard-budget-incremental-plan-proposal.js ./
+COPY dashboard-budget-activity-codec-proposal.js dashboard-budget-reader-proposal.js dashboard-budget-activity-reader-proposal.js dashboard-budget-notice-candidates-proposal.js ./
+COPY dashboard-budget-writer-proposal.js dashboard-budget-read-view-augment-proposal.js dashboard-budget-sdk-dto-proposal.js ./
+COPY dashboard-commercial-activity-proposal.js dashboard-commercial-activity-reader-proposal.js ./
 COPY client-history-model.js client-history-delta.js client-history-projections.js ./
 COPY client-account-directory.js client-account-projection.js client-account-projections.js client-account-ledger.js ./
 COPY client-account-embedded.js client-account-documents.js client-account-owner-evidence.js client-account-scope.js client-account-scope-plan.js ./

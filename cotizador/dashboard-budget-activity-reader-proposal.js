@@ -1,5 +1,5 @@
 'use strict';
-const Shared=require('./dashboard-budget-reader-proposal'),Index=require('./dashboard-budget-incremental-plan-proposal'),Activity=require('./dashboard-budget-activity-codec-proposal'),Core=require('../js/core/dashboard-activity-model.v2');
+const Shared=require('./dashboard-budget-reader-proposal'),Index=require('./dashboard-budget-incremental-plan-proposal'),Activity=require('./dashboard-budget-activity-codec-proposal'),Core=require('./commercial-models/dashboard-activity-model.v2');
 const {digest}=require('./labor-guard'),{normalizeRtdb}=require('./payment-membership-index');
 const ROOT=Index.ROOT,ROUTE='/commercial/dashboard/presupuestos/actividad-v2',hash=v=>digest(normalizeRtdb(v)),check=Activity.check;
 const runtimeContext=()=>({timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone,sourceLocale:Intl.Collator().resolvedOptions().locale});

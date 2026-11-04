@@ -1,8 +1,8 @@
 'use strict';
-const Own=require('./commercial-ownership'),Index=require('./dashboard-budget-incremental-plan-proposal'),Core=require('../js/core/dashboard-activity-model.v2');
+const Own=require('./commercial-ownership'),Index=require('./dashboard-budget-incremental-plan-proposal'),Core=require('./commercial-models/dashboard-activity-model.v2');
 const {digest}=require('./labor-guard'),{normalizeRtdb}=require('./payment-membership-index');
 const AuthorityPolicy=require('./dashboard-authority-policy-proposal'),Activity=require('./dashboard-budget-activity-codec-proposal');
-const PermissionIndex=require('../js/core/permission-index');
+const PermissionIndex=require('./commercial-models/permission-index');
 const hash=v=>digest(normalizeRtdb(v)),fields=['records','active','converted','totalNonCancelled','totalDueEligible'];
 function check(v,m){if(!v)throw Object.assign(Error(m),{code:'SV_BUDGET_SDK_RECONCILE'});}
 // Offline projection only. A future writer must join these views to the same existing guard commit.

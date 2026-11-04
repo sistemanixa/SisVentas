@@ -38,12 +38,21 @@ if (!admin.apps.length) {
 
 const laborScopedEnabled=process.env.LABOR_SCOPED_ENABLED==='true';
 if(laborScopedEnabled&&process.env.COMMISSION_OBSERVER_ENABLED==='true')throw Error('El circuito acotado requiere el observador periódico apagado');
-const laborRuntime=require('./labor-runtime').createLaborRuntime({db:admin.database(),databaseURL:DATABASE_URL,enabled:laborScopedEnabled,operationalSummaries:process.env.OPERATIONAL_SUMMARIES_ENABLED==='true',readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true',accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
+const laborRuntime=require('./labor-runtime').createLaborRuntime({db:admin.database(),databaseURL:DATABASE_URL,enabled:laborScopedEnabled,commercialPages:process.env.COMMERCIAL_PAGES_ENABLED==='true',dashboardBudgets:process.env.DASHBOARD_BUDGETS_ENABLED==='true',dashboardActivity:process.env.DASHBOARD_COMMERCIAL_ACTIVITY_ENABLED==='true',dashboardPolicyRenewal:process.env.DASHBOARD_BUDGET_POLICY_RENEWAL_ENABLED==='true',operationalSummaries:process.env.OPERATIONAL_SUMMARIES_ENABLED==='true',readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true',accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const db = laborRuntime.db;
 // Resolve Auth only when handling an authenticated operation. Importing pure
 // parsers (or their tests) must not instantiate extra SDK services.
 const firebaseAuth = Object.fromEntries(['verifyIdToken','getUser','updateUser','setCustomUserClaims','revokeRefreshTokens'].map(method => [method,(...args)=>admin.auth()[method](...args)]));
 const businessAuth = require('./user-access').createBusinessAuth(firebaseAuth, db);
+const dashboardReadsEnabled=process.env.DASHBOARD_READS_ENABLED==='true';
+// Read-only controllers must keep native indexed queries outside write overlays.
+const dashboardReadDb=dashboardReadsEnabled?admin.database():null;
+const dashboardLegacyContext=Object.freeze({timeZone:'America/Argentina/Buenos_Aires',sourceLocale:'es-AR'});
+if(dashboardReadsEnabled){const c=laborRuntime.capabilities();if(!c.coordinated||!c.commercialPages||process.env.DASHBOARD_BUDGETS_ENABLED!=='true'||process.env.DASHBOARD_COMMERCIAL_ACTIVITY_ENABLED!=='true')throw Error('Las lecturas de Dashboard requieren ambos escritores coordinados y Pages.');}
+const dashboardAsOfDay=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:dashboardLegacyContext.timeZone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).filter(v=>v.type!=='literal').map(v=>[v.type,v.value]));return p.year+'-'+p.month+'-'+p.day;};
+const dashboardBudgetActivity=dashboardReadsEnabled?require('./dashboard-budget-activity-reader-proposal').createActivityReader({auth:firebaseAuth,db:dashboardReadDb,enabled:true,getAsOfDay:dashboardAsOfDay,getLegacyContext:()=>dashboardLegacyContext}):null;
+const dashboardBudgetNotices=dashboardReadsEnabled?require('./dashboard-budget-notice-candidates-proposal').create({auth:firebaseAuth,db:dashboardReadDb,enabled:true}):null;
+const dashboardCommercialActivity=dashboardReadsEnabled?require('./dashboard-commercial-activity-reader-proposal').createReader({auth:firebaseAuth,db:dashboardReadDb,enabled:true,getLegacyContext:()=>dashboardLegacyContext}):null;
 const userDirectory = require('./user-directory').createUserDirectory({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
 const chatOperations = require('./chat-operations').createChatOperations({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true',headerStore:process.env.CHAT_HEADERS_ENABLED==='true'?require('./chat-header-store').createChatHeaderStore({databaseURL:DATABASE_URL,isReady:async()=>(await db.ref('sv_chat_headers_config/ready').get()).val()===true,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token}):null});
 const distributorDocuments=require('./distributor-documents').createDistributorDocuments({auth:businessAuth,db,enabled:process.env.DISTRIBUTOR_DOCUMENTS_ENABLED==='true'});
@@ -2020,6 +2029,17 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);res.end();return;
+  }
+
+  if(/^\/commercial\/dashboard\/(?:presupuestos\/(?:actividad-v2|avisos)|(?:ventas|pagos|ordenes_trabajo)\/actividad-v2)$/.test(pathname)){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
+    try{
+      if(req.method!=='GET')throw Object.assign(Error('Método no permitido.'),{statusCode:405});
+      if(!dashboardReadsEnabled)throw Object.assign(Error('Lecturas de Dashboard deshabilitadas.'),{statusCode:503});
+      require('./dashboard-budget-reader-proposal').selection(req,pathname);
+      const result=pathname==='/commercial/dashboard/presupuestos/actividad-v2'?await dashboardBudgetActivity.read(req):pathname==='/commercial/dashboard/presupuestos/avisos'?await dashboardBudgetNotices.read(req):await dashboardCommercialActivity.read(req,pathname.split('/')[3]);
+      send(res,200,result);
+    }catch(error){send(res,[400,401,403,405,409,503].includes(error.statusCode)?error.statusCode:503,{error:'Dashboard no verificable.',code:error.code||'SV_DASHBOARD_READ_UNAVAILABLE'});}return;
   }
 
   if(pathname.startsWith('/privado/finanzas')){

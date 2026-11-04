@@ -1,6 +1,6 @@
 'use strict';
 // Inactive technical index: originals stay in their domains; Pages owns money/ownership.
-const Core=require('../js/core/dashboard-activity-model.v2'),Instant=require('../js/core/dashboard-activity-instant.v1');
+const Core=require('./commercial-models/dashboard-activity-model.v2'),Instant=require('./commercial-models/dashboard-activity-instant.v1');
 const Pages=require('./commercial-pages-model'),{digest}=require('./labor-guard'),{normalizeRtdb}=require('./payment-membership-index');
 const ROOT='sv_dashboard_commercial_activity_proposal/v1',DOMAINS=['ventas','pagos','ordenes_trabajo'],hash=v=>digest(normalizeRtdb(v));
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_COMMERCIAL_ACTIVITY_RECONCILE'});

@@ -5,7 +5,7 @@ const {digest}=require('./labor-guard'),{normalizeRtdb}=require('./payment-membe
 const ROOT=Index.ROOT,ROUTE='/commercial/dashboard/presupuestos/avisos',hash=v=>digest(normalizeRtdb(v));
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const check=(ok,message)=>{if(!ok)throw Object.assign(Error(message),{code:'SV_BUDGET_NOTICES_INCOMPLETE',statusCode:409});};
-const Notice=require('../js/core/dashboard-budget-notice-model-proposal'),project=Notice.project;
+const Notice=require('./commercial-models/dashboard-budget-notice-model-proposal'),project=Notice.project;
 function create({auth,db,enabled=false,maxPages=100}={}){
  check(Number.isInteger(maxPages)&&maxPages>=1&&maxPages<=1000,'Invalid notice page budget');
  const {fresh}=Shared.createBudgetAuthority({auth,db}),ports=Shared.createIndexPorts(db);

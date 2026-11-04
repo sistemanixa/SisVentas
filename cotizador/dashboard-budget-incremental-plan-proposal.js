@@ -4,7 +4,7 @@ const {digest}=require('./labor-guard'),Own=require('./commercial-ownership'),Ev
 const {normalizeRtdb}=require('./payment-membership-index');
 const Activity=require('./dashboard-budget-activity-codec-proposal');
 const Policy=require('./dashboard-authority-policy-proposal');
-const NoticeLegacy=require('../js/core/dashboard-budget-notice-legacy-proposal');
+const NoticeLegacy=require('./commercial-models/dashboard-budget-notice-legacy-proposal');
 const stable=value=>digest(normalizeRtdb(value));
 const ROOT='sv_dashboard_budget_proposal/v1',ORIGINAL='sisventas/presupuestos',AUTHORITY=['sv_usuarios','sv_chat_roles','sv_permisos'];
 const fields=['records','active','converted','totalNonCancelled','unknownDates','totalDueEligible','noticeEligible'],mod=1n<<256n;
@@ -22,7 +22,7 @@ const badgeEligible=r=>r.admits&&Model.NOTICE_ACTIVE.includes(r.status)&&!!r.due
 // Fixed-width UTF-16 preserves JS raw-string comparisons, including legacy non-ISO text.
 const rawSort=raw=>Array.from({length:raw.length},(_,i)=>raw.charCodeAt(i).toString(16).padStart(4,'0')).join('');
 const badgeSort=(raw,id)=>rawSort(raw)+'!'+stable(id);
-const noticeSort=require('../js/core/dashboard-budget-notice-model-proposal').sort;
+const noticeSort=require('./commercial-models/dashboard-budget-notice-model-proposal').sort;
 const counts=r=>r?{records:1,active:Number(Model.ACTIVE.includes(r.status)),converted:Number(r.status==='convertido'),totalNonCancelled:Number(r.status!=='anulado'),unknownDates:Number(!Model.day(r.date)),totalDueEligible:Number(badgeEligible(r)),noticeEligible:Number(r.admits)}:zero();
 const monthBucket=row=>/^\d{4}-(0[1-9]|1[0-2])$/.test(row.date.slice(0,7))?stable([row.employeeLabel,row.date.slice(0,7)]):null;
 function validateStats(stats,generation){check(object(stats)&&stats.schema===1&&stats.generation===generation&&Number.isSafeInteger(stats.revision)&&stats.revision>=1&&fields.every(k=>Number.isSafeInteger(stats[k])&&stats[k]>=0),'Scope metadata incomplete');check(stats.active+stats.converted<=stats.totalNonCancelled&&stats.totalNonCancelled<=stats.records&&stats.unknownDates<=stats.records&&stats.totalDueEligible<=stats.active&&stats.noticeEligible<=stats.records,'Scope counts inconsistent');}

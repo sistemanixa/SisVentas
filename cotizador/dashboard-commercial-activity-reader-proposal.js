@@ -1,7 +1,7 @@
 'use strict';
 // Not mounted. Uses existing business authentication, UID profile and domain policies.
 const M=require('./dashboard-commercial-activity-proposal'),Own=require('./commercial-ownership'),Policy=require('./domain-read-policy');
-const {createBusinessAuth}=require('./user-access'),{actorPin}=require('./dashboard-budget-reader-proposal'),Core=require('../js/core/dashboard-activity-model.v2');
+const {createBusinessAuth}=require('./user-access'),{actorPin}=require('./dashboard-budget-reader-proposal'),Core=require('./commercial-models/dashboard-activity-model.v2');
 const Pages=require('./commercial-pages-model'),{digest}=require('./labor-guard');
 function createAuthority({auth,db}){
  const business=createBusinessAuth(auth,db);

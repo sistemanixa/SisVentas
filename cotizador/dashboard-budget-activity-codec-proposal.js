@@ -1,5 +1,5 @@
 'use strict';
-const Core=require('../js/core/dashboard-activity-model.v2'),Instant=require('../js/core/dashboard-activity-instant.v1'),Model=require('./dashboard-budget-projection-proposal'),{digest}=require('./labor-guard');
+const Core=require('./commercial-models/dashboard-activity-model.v2'),Instant=require('./commercial-models/dashboard-activity-instant.v1'),Model=require('./dashboard-budget-projection-proposal'),{digest}=require('./labor-guard');
 const fail=message=>Object.assign(Error(message),{code:'SV_BUDGET_ACTIVITY_RECONCILE',statusCode:409});
 function check(value,message){if(!value)throw fail(message);}
 function canonicalZone(timeZone){try{return Instant.canonicalZone(timeZone);}catch(_){throw fail('Activity timezone is invalid');}}
