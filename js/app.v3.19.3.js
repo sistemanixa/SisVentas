@@ -53556,6 +53556,17 @@ function svPintarPresupuestosDashboard() {
   var card = valor.closest('.metric');
   var sub = document.getElementById('kpi-pptos-sub');
   var conversion = document.getElementById('kpi-pptos-conv');
+  if(window.SV_DASHBOARD_READS_LOCAL===true){
+    var vista=window._svDashboardBudgetSource?.peek('dashboard'),c= vista?.data?.counts;
+    var datos=!!(c&&['ready','loading','error'].includes(vista.status)&&['active','converted','totalNonCancelled','conversionPercent'].every(function(k){return Number.isSafeInteger(c[k])&&c[k]>=0;})&&c.active+c.converted<=c.totalNonCancelled&&c.conversionPercent===(c.totalNonCancelled?Math.round(100*c.converted/c.totalNonCancelled):0));
+    var fallo=vista?.status==='error'||!!vista?.error||!!c&&!datos,actualizando=vista?.status==='loading';
+    if(card){card.setAttribute('role','group');card.setAttribute('aria-busy',String(actualizando||(!datos&&!fallo)));}
+    valor.textContent=datos?String(c.active):'—';
+    if(sub)sub.textContent=datos?c.active+' activos'+(fallo?' · No se pudo actualizar':actualizando?' · Actualizando…':''):(fallo?'No se pudieron cargar':'Cargando presupuestos…');
+    if(conversion)conversion.textContent=datos?c.converted+' convertidos · '+c.conversionPercent+'% conversión':'';
+    if(card)card.setAttribute('aria-label',datos?'Presupuestos: '+c.active+' activos, '+c.converted+' convertidos, '+c.conversionPercent+'% conversión'+(fallo?', actualización pendiente':''):(fallo?'Presupuestos: no se pudieron cargar':'Presupuestos: cargando'));
+    return;
+  }
   var estado = window.SVDataReadiness?.status(['presupuestos']);
   var error = !!estado?.errors?.length;
   var completo = estado?.ready === true && !error;

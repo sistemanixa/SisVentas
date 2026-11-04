@@ -1,3 +1,9 @@
+## KPI de presupuestos · consumidor Source preparado
+
+svPintarPresupuestosDashboard tiene una rama explícita SV_DASHBOARD_READS_LOCAL=true que sólo usa _svDashboardBudgetSource.peek(dashboard); no consulta pptoData ni la completitud global de presupuestos. Conserva los textos y el contenedor existentes. Cuenta0 sólo si existe snapshot válido; carga inicial/error sin datos muestra raya; revalidación conserva el último conteo de la misma autoridad con estado visible. Rechaza números no enteros/inconsistentes y porcentaje que no corresponda, sin presentar NaN. No instala el host ni inicia consultas desde el renderer; flag sigue apagado.
+
+Cuatro pruebas del renderer activo más contexto/Source:22PASS,0FAIL/SKIP; log dashboard-kpi-source-context-root.private.log. Paridad textual con rama antigua, arrays globales prohibidos por getter durante camino nuevo,1090registros ficticios independientes de filas locales, pendiente frente a cero certificado, error/retiro y payload corrupto. No es prueba visual completa del Dashboard ni aprobación del mensual admin: la reproducción independiente de esa paridad sigue roja mientras Costos corrige alladmin/u_UIDotros. No publicación o datos reales.
+
 ## Contexto del host · generación real de Readiness y procedencia de Roles
 
 Antes de montar se inspeccionaron los usos de _svDataEpoch: en esta fuente se lee como respaldo, pero no se encontró un escritor de ese contador; no se afirma que ya detectara un reset real. El nuevo contexto usa snapshotEpoch(), acceso sólo de lectura a la generación existente de SVDataReadiness (reset ya la incrementa). No se añade otro contador de datos ni se altera el guardado financiero. También fija la referencia del engine para retirar una sustitución incluso si reinicia su contador en cero. Los consumidores antiguos de _svDataEpoch no se migran silenciosamente con este bloque.
