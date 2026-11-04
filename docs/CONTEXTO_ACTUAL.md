@@ -1,3 +1,8 @@
+## Centro tardío sin permiso de revisión: corregido y reproducido
+
+Aplicado parche f68fb3b2 de seis líneas funcionales: el verificador informa cuando ya generó avisos; el callback genera una vez si el verificador retornó antes por no tener revisión de vencidos. No agrega permisos, consultas ni cambia el guard de revisión. Cinco reproducciones originales conservadas y dos casos de permiso añadidos.
+
+QA independiente dashboard-late-notice-browser-independent.integration.cjs copiada intacta SHA256c1233eef9fccb70ada9449100b4c282bf34f33f7e53d7037613ce6ae9c99ac52: root antes0PASS/2FAIL; después14PASS incluyendo2Chrome1280/390 y doce focales,0FAIL/SKIP. Durante respuesta retenida se exige overlay de carga visible, ausencia de falso vacío y, tras entrega, aviso visible. Logs late-notice-root-before/after.private.log. No se añadió revisarVencidos al fixture para aprobar. Pendiente puerta vigente posterior a este delta, QA final y evidencia de fuente; gate2a no se reatribuye. Sin producción, push, recarga o datos reales.
 ## Puerta completa conjunta 2a0798 y límite de avisos tardíos
 
 Fuente congelada2a0798a9d25c62bc8c6640c494520c32348695d0, árbolbdf909a0ef073bed8bd906927f36b673c0e18caa. Puerta vigente finalizada04/11/2026 20:31:03UTC:9.487casos,9.456PASS,0FAIL,31SKIP,exit0,Node22.23.4. Log privado current-gate-2a0798a9.private.log SHA2569d063262344648d8874076b65a078e019462c65a4856b44e6e3d1c9825f11f75; metadata conserva inicio/fin/comando/fuente. No se sustituyen los31opt-in por un supuesto verde.

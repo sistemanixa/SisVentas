@@ -2331,7 +2331,7 @@ function _svMarcarAvisoVencimientoMostrado(p, fecha) {
 function verificarVencimientosPptos() {
   if (!_svSesionActivaParaVencimientos()) return;
   var presupuestosAvisos=window.SV_BUDGET_NOTICES_LOCAL===true?(window._svBudgetNoticeConsumerHost?.peek().rows||null):(pptoData||[]);
-  if(!presupuestosAvisos){var pendiente=document.getElementById('ppto-vence-badge'),resumenAvisos=window._svDashboardBudgetSource?.peek('dashboard').data?.badge;var resumenValido=!!(resumenAvisos&&resumenAvisos.complete===true&&resumenAvisos.contract==='legacy-raw-lex/v1'&&resumenAvisos.asOfDay===svFechaLocalISO(new Date())&&Number.isSafeInteger(resumenAvisos.badgeCount)&&resumenAvisos.badgeCount>=0&&Number.isSafeInteger(resumenAvisos.upcoming48Count)&&resumenAvisos.upcoming48Count>=0&&resumenAvisos.upcoming48Count<=resumenAvisos.badgeCount);if(pendiente){pendiente.textContent=resumenValido?String(resumenAvisos.badgeCount):'';pendiente.style.display=resumenValido&&resumenAvisos.badgeCount>0?'flex':'none';}if(typeof generarNotificaciones==='function')generarNotificaciones();return;}
+  if(!presupuestosAvisos){var pendiente=document.getElementById('ppto-vence-badge'),resumenAvisos=window._svDashboardBudgetSource?.peek('dashboard').data?.badge;var resumenValido=!!(resumenAvisos&&resumenAvisos.complete===true&&resumenAvisos.contract==='legacy-raw-lex/v1'&&resumenAvisos.asOfDay===svFechaLocalISO(new Date())&&Number.isSafeInteger(resumenAvisos.badgeCount)&&resumenAvisos.badgeCount>=0&&Number.isSafeInteger(resumenAvisos.upcoming48Count)&&resumenAvisos.upcoming48Count>=0&&resumenAvisos.upcoming48Count<=resumenAvisos.badgeCount);if(pendiente){pendiente.textContent=resumenValido?String(resumenAvisos.badgeCount):'';pendiente.style.display=resumenValido&&resumenAvisos.badgeCount>0?'flex':'none';}if(typeof generarNotificaciones==='function')generarNotificaciones();return true;}
   var hoy  = new Date();
   var hoyStr = svFechaLocalISO(hoy);
   var en48h  = svFechaLocalISO(new Date(hoy.getTime() + 48*3600*1000));
@@ -2356,6 +2356,7 @@ function verificarVencimientosPptos() {
   // También retirar avisos anteriores cuando el presupuesto se anula, vence
   // o se convierte, aunque no haya un nuevo aviso próximo por mostrar.
   if (typeof generarNotificaciones === 'function') generarNotificaciones();
+  return true;
 }
 
 
@@ -6174,7 +6175,8 @@ function svHostPresupuestosDashboard() {
       if(window.tienePermiso?.('dashboard.miActividad')===true&&typeof renderDashAdministrativo==='function')renderDashAdministrativo();
     }
     if(kind==='dashboard'||kind==='notices'){
-      if(typeof verificarVencimientosPptos==='function')verificarVencimientosPptos();
+      var avisosGenerados=typeof verificarVencimientosPptos==='function'&&verificarVencimientosPptos()===true;
+      if(!avisosGenerados&&typeof generarNotificaciones==='function')generarNotificaciones();
     }
   }});
   return window._svDashboardBudgetHost;
