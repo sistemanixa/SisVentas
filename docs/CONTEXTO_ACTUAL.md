@@ -1,3 +1,7 @@
+# v3.18.17 web publicada y verificada · 03/11/2026
+
+Hosting577activos/6cargas desde14e7d52fc81dbd25cd7c295b5b2bfd78f4359e31;12activosHTTPexactos inclDataReadiness, cabeceras/privados404, aviso17 sincronizado después.7230PASS/27omitidas/0fallos y8QAindependientes. Sin servidor/reglas/finanzas; comparación posterior autenticada todavía en curso. No declarar resuelto todo el arranque frío hasta repetir caso real.
+
 # Retiro de fuentes de carga preparado v3.18.17 · 03/11/2026
 
 Reproducido con DataReadiness real:una fuente anterior pendiente impide completar la carga aunque su reemplazo esté listo; cancelarla después no recalculaba ready. Corrección sólo promueve ready si queda al menos una fuente y todas terminaron. Vacío, pendiente, invalidación y fallo conservan su control.3regresiones unitarias (fallo previo reproducido) y1navegador con lector/DOM reales y fuentes ficticias PASS; no hace lecturas adicionales al retirar.21focales PASS. La prueba de navegador inicialmente omitía la dependencia Gastos; corregido montaje con fuente ficticia explícita, no expectativa. Puerta completa7257total/7230PASS/27omitidas/0fallos,846archivos/2lotes. QA independiente8PASS adicionales, sintaxis/diff/ValidarLocalPASS. Publicación y contraste posterior pendientes.
