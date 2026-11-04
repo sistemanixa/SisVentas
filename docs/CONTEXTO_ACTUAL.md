@@ -1,3 +1,7 @@
+## Regresión operativa posterior a la faceta personal
+
+Fuente b9a4416d1b7673e928424aca710e828fd80e0385, árbol funcional limpio. Selección explícita de pruebas sale-delete, ot-delete, purchase-order-delete y manual-delivery más commercial-complete-operational-chain.integration.cjs:206PASS,0FAIL/SKIP en Node22, procesoexit0. Incluye cadena operativa ficticia y servidores sólo loopback; no reglas remotas ni operaciones reales. Log privado operational-deletions-current-regression.private.log. Regresión dependiente anterior sobre la misma fuente:42PASS (cadena venta, cobranzas nativas/proyecciones y carreras de actividad), log creator-latest-financial-dependent.private.log. No son puerta general ni aceptación del transporte de últimas5 aún pendiente.
+
 ## Faceta personal: membresía y helper preparados, transporte pendiente
 
 Aplicado patchmodelo de958ffc51 sobre baseline d5 y helper/tests/docs con delta90da70f3. Pages mantiene pertenencia scope+creatorHash+mes en su mismo namespace/delta, con evidencia mínima deorden. Helperlee metadata del grupo exacto (O(n), no historial/ítems), valida cardinalidad y cobertura y obtiene hasta5filasPagespuntuales; no autoriza por sísolo ni marca coleccióncompleta. Schemaantiguo no se auto-repara ni certifica vacío. DockerCOPYincluye helper nuevo, evitando requirefaltante del modelo.
