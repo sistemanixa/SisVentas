@@ -1,3 +1,8 @@
+## Renderer actividad reciente: preparado con transición explícita
+
+Importado diff2bc44+821a8084, sólo renderer, fixtures, contrato y pruebas pertinentes. SV_DASHBOARD_READS_LOCAL===true usa SVDashboardActivityHost.peek exclusivamente: no red ni arrays antiguos ante ausencia/error/retiro. OFF conserva HTML/visibilidad legacy exactos; no se activa flag ni slot. Se conserva oraclefecha anterior en fixture para caracterización histórica; pruebas deinstant siguen comparándolo y las deorden ejercitan el render nuevo validado.
+
+Root39focalesPASS; Chrome1280/390: primer intento0PASS/2FAIL por faltar variable de carpeta privada de capturas, sin cambiar test/código; repetición con SV_ACTIVITY_RENDER_ARTIFACTS=tmpprivado2PASS. Logs dashboard-activity-render-browser-root.private.log y -after.private.log. Capturasreadydesktop/móvil inspeccionadas:cincofilas, truncado dentro del contenedor, sin desborde. Fixturevisualaislado no incluye fuenteiconos ni appcompleta; no se presenta como aceptación final. Actividadhost agregado sigue en preparación en otrochat; aún no hay sustitución dehistoriales por este consumidor. Sin publicación, operacionesreales ni recarga usuario.
 ## QA browser: corregida relectura al navegar fuera del consumidor
 
 QA reprodujo sobrec53be3df dosGETpor navegación aVenta (resumen y avisos). Root copió tests nuevos y docs con hash verificado sin cambiar expectativas; reproducción local antes0PASS/2FAIL, log dashboard-unrelated-route-root-before.private.log. queueRefresh ahora sólo revalida dashboard en page-dashboard y notices en page-notificaciones; sesión/autoridad siguen retirando, demanda explícita sigue disponible y no se añade reloj.
