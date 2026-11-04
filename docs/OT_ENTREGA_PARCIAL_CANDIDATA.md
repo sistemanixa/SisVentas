@@ -1,5 +1,11 @@
 # Entrega parcial: candidata aislada
 
+Estado local actualizado al corte funcional 67f0418cc2b67618b0b3d89cfed365c2acd352b9: comando, selector público y transporte están integrados. Los 206 casos operativos se repitieron sobre esa fuente sin fallos ni omisiones. La composición conjunta actual de reglas, firma real y entrega está documentada en REGLAS_CONJUNTAS_67_MANIFIESTO.md; conserva por separado cinco casos conjuntos y ocho matrices. Atestación V2 no requiere renovación diaria; ver OT_ATESTACION_V2_CONTRATO.md. No se certifica un despliegue remoto ni la aceptación del paquete frontend v3.19.4 por estos ensayos.
+
+## Antecedentes históricos
+
+Los pendientes y referencias de candidata que siguen describen su fecha original; no significan que la integración o selector continúen ausentes en 67. Se conserva íntegro el texto histórico.
+
 Base `e47fc15e46890bce6bd5f940b127aeb18ff8262d`, rama `codex/ot-partial-delivery-verification`. No publicada ni aplicada al checkout primario. El reproducer de la acción pública anterior permanece sin modificar: este bloque agrega el comando, no cambia todavía esa acción ni importa el selector nuevo.
 
 Fuente congelada de código: `adc80fd1c70f74057545b15b5435af489afbe871` y fixes `99655f633d7502ccec3e160af944b1556ccd61ab`. Las **164/164 focales** corresponden a99655f63, incluido legado por código y cableado real de atestación. El [manifiesto revisado](ot-delivery-candidate-manifest.json) fija árbol Git, hashes de archivos, comando de pruebas y límites. `7661eb92a6934e0b19b62e775aef608606ff94d6` contiene sólo CONTEXTO y se fusiona manualmente; no es una dependencia de código. Si la integración ya contiene el comando inicial, aplicar los fixes sin duplicar la base.

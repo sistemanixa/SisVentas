@@ -2,7 +2,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),cp=require('node:child_process'),crypto=require('node:crypto');
 const SHA='ee46d78edbcad865a09b159dbac325b9cf25903a';
 const read=p=>require('node:fs').readFileSync(require('node:path').join(__dirname,'..',p),'utf8');
-const app=read('js/app.v3.19.3.js'),sourceText=read('js/core/dashboard-budget-source-proposal.js');
+const app=require('./helpers/active-app').readActiveApp().source,sourceText=read('js/core/dashboard-budget-source-proposal.js');
 console.log(JSON.stringify({baseSHA:SHA,appSHA256:crypto.createHash('sha256').update(app).digest('hex'),sourceSHA256:crypto.createHash('sha256').update(sourceText).digest('hex')}));
 function fn(name){const start=app.search(new RegExp('^function '+name+'\\(','m')),ends=/^\}/gm;ends.lastIndex=start;for(let m;(m=ends.exec(app));){const text=app.slice(start,m.index+1);try{new vm.Script(text);return text;}catch(_){}}throw Error(name);}
 function fixture(){let now=0,page='dashboard',changed,paint=0,notifications=0,reads=0,resolve;const timers=[],badge={textContent:'',style:{display:'none'}};

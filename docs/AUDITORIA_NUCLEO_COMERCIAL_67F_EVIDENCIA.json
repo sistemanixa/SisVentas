@@ -1,0 +1,516 @@
+{
+  "sourceSHA": "67f0418cc2b67618b0b3d89cfed365c2acd352b9",
+  "sourceTree": "7404b706ba13a0a6efc8278d7f074ed8ce001ad4",
+  "checkoutHEAD": "96f8ab76104c31127584389ba80ed63d300dbba3",
+  "trackedCodeMatchesSource": true,
+  "node": "v22.23.4",
+  "nodeBinarySHA256": "dccc52de28d8df2ee22d2062424f8c563070d95d8ad70c54c4bf01d590dec14f",
+  "firebaseAdmin": "13.10.0",
+  "financialOptin": {
+    "tests": 27,
+    "pass": 27,
+    "fail": 0,
+    "skip": 0,
+    "exitCode": 0,
+    "testConcurrency": 1,
+    "files": [
+      "test/labor-runtime-emulator.test.cjs",
+      "test/labor-expense-race-emulator.test.cjs"
+    ],
+    "port": 9017,
+    "namespace": "demo-sisventas-fence-proof",
+    "historicalBaseSHA256": "c44a50deadc0d7af16b02d0226a0acf1642fa77dac722d08d14d3b47e14c93fb",
+    "historicalBaseSemanticHash": "136954197b29137f0f92f0765dedace395c84d19c316ed02d33958316e83822a",
+    "compiledCandidateHash": "978cea4169880cd9b5d2782fbe17b7243a2fea562cb1737cb15292ebaa2e1782",
+    "builderAccepted": true,
+    "noRemoteRulesFetched": true,
+    "loopbackPreloadSHA256": "a3025580685be454ea0455ba56dc7f06bb55640bb75ff9bbd9a06bc9c4ae3461",
+    "cleanupVerified": true,
+    "runner": "run-financial-27-67.private.ps1"
+  },
+  "selectedSourceHashes": {
+    "test/labor-runtime-emulator.test.cjs": "fb0d7dded4c951e1daff6fa56560dc4603785d9f4f7c1a3c10ebf19b242b451f",
+    "test/labor-expense-race-emulator.test.cjs": "6996841677c8ccdecfe0b9e6b7fd0c7b8240879b4ec42cd045c7b922e421a939",
+    "scripts/prepare-labor-fence-rules.cjs": "06374e1ca9b9620a5a201766f89147fc9fd7320bb4572919b578bdded8838c51",
+    "cotizador/labor-rtdb-store.js": "40204bb37b099433efff76ce654247810381fd88b51819f9b3dab0bc9f16298f",
+    "cotizador/labor-guard.js": "369e5f60e941d09a9bfb9c88fa379522379352fa88fa16668fa14427d74914ee",
+    "cotizador/labor-db.js": "64fa2d074c0298dfc32afeca6411252cfacacd993814e1c4e37c5f6ee8e3bc86",
+    "cotizador/labor-scoped-transaction.js": "0e52111f740745fea4ff26479dfec0692ffb5fe4ad98b487f8ba2c9fc64e460d",
+    "cotizador/labor-write-gateway.js": "2d0e27a24866d554ab2eac468ebbb3aed7948f3794b31d3ece46b927316e1355",
+    "cotizador/commission-generation.js": "25d92514f15b17592a30225abd26342a69f784b59397b522ea1d11cac350bbae",
+    "cotizador/commission-event.js": "6295f867a0291bba19158f329ceb451aea05f5426619c49f2287fb3f225a8f86",
+    "cotizador/commission-operations.js": "19a52b5ed8a261470bd02ee1e6abe2b5d16434434db4fa6dd983083eb25b672d",
+    "cotizador/commission-calculations.js": "63ed57d8a68db654281a46f12d9d274f133cd4600a7670ff427978afea1423f0",
+    "cotizador/payment-commands.js": "515c84c37348d1d4011512fe0fe8a940f322895ceeb2518c16d3477756657c17",
+    "cotizador/payment-snapshot.js": "c807067ac0dd678d0bf37b7a06b1b0b3ae82641ddfa8dee47290419b5cb9b559",
+    "cotizador/payment-membership-index.js": "20c363d4de496927f4120f304263a5ee688edd9d0bd3da680b5c08f1f85e4adb",
+    "cotizador/commercial-ownership.js": "ba91b9b2f9dc8a47653c845d5451199a8a71342f798c61a98558e57f49d39343",
+    "js/core/commercial-money.v1.js": "8d121746445718ca9b765094a3b6077ac94326785e5d47f92c22e41d73a94461",
+    "js/core/sale-costs.v1.js": "b5b5cf538b5b97157d9e7df3bce6acf54d5527198b4ae184bab425c3ffe13b92",
+    "js/core/sale-economics-model.v1.js": "2e7b61547d72b19309845cbb6fbb29413de58885470d2a162ebe098af2f89824"
+  },
+  "generalGate": {
+    "source": "67f0418cc2b67618b0b3d89cfed365c2acd352b9",
+    "node": "v22.23.4",
+    "exitCode": 0,
+    "tests": 9492,
+    "pass": 9461,
+    "fail": 0,
+    "skip": 31,
+    "logSHA256": "6d691e201901b12e34be7bb579d2d80a7870c52a1568aaa5237b0158ec784e63",
+    "metadataSHA256": "2e24cbb5da0d51aafb90d24bb1de263bac2f59d4b23ab016376654a983b20454",
+    "skipCases": [
+      {
+        "line": 13276,
+        "text": "ok 2207 - real SDK admission rules stop numbering before HTTP writer and resume the same draft 390 # SKIP"
+      },
+      {
+        "line": 13282,
+        "text": "ok 2208 - real SDK admission rules stop numbering before HTTP writer and resume the same draft 1280 # SKIP"
+      },
+      {
+        "line": 13307,
+        "text": "ok 2212 - opt-in complete HTML fictional boot and historical debt metrics # SKIP"
+      },
+      {
+        "line": 23361,
+        "text": "ok 996 - Chrome: retiring dataEpoch after point editor opens removes the stale form # SKIP"
+      },
+      {
+        "line": 33364,
+        "text": "ok 2656 - admin read before typed command does not duplicate the identical expense after the command commits # SKIP"
+      },
+      {
+        "line": 33370,
+        "text": "ok 2657 - admin first and typed command after it do not duplicate equal identities or lose original fields # SKIP"
+      },
+      {
+        "line": 33376,
+        "text": "ok 2658 - the same long optional input is rejected on both paths before any read, lease or business write # SKIP"
+      },
+      {
+        "line": 33382,
+        "text": "ok 2659 - gateway partial commission changes obey the global effective percentage and preserve paid history # SKIP"
+      },
+      {
+        "line": 33388,
+        "text": "ok 2660 - fiscal server journal is closed to client GET, PUT, DELETE and a mixed gateway patch # SKIP"
+      },
+      {
+        "line": 33394,
+        "text": "ok 2661 - event failures retain the five-attempt review cutoff inside the full runtime coordinator # SKIP"
+      },
+      {
+        "line": 33400,
+        "text": "ok 2662 - six deliveries across separate runtime guards cannot exceed five durable generation attempts # SKIP"
+      },
+      {
+        "line": 33945,
+        "text": "ok 31 - runtime REST store preserves emulator namespace and readAsUser enforces original record access # SKIP"
+      },
+      {
+        "line": 33951,
+        "text": "ok 32 - four real commands use guard/store/proxy/scoped transaction, preserving paid commission and indexes # SKIP"
+      },
+      {
+        "line": 33957,
+        "text": "ok 33 - gateway atomic uses actual UID permissions, exact hashes and a stable receipt replay # SKIP"
+      },
+      {
+        "line": 33963,
+        "text": "ok 34 - gateway resolve creates a cancellation receipt that rejects a late original POST # SKIP"
+      },
+      {
+        "line": 33969,
+        "text": "ok 35 - lost commit reply is resolved from the actual receipt without repeating the financial write # SKIP"
+      },
+      {
+        "line": 33975,
+        "text": "ok 36 - runtime commit rejects inactive changed while the lease is held # SKIP"
+      },
+      {
+        "line": 33981,
+        "text": "ok 37 - runtime commit rejects role changed while the lease is held # SKIP"
+      },
+      {
+        "line": 33987,
+        "text": "ok 38 - runtime commit rejects permissions changed while the lease is held # SKIP"
+      },
+      {
+        "line": 33993,
+        "text": "ok 39 - runtime commit rejects reset changed while the lease is held # SKIP"
+      },
+      {
+        "line": 33999,
+        "text": "ok 40 - runtime commit rejects expired changed while the lease is held # SKIP"
+      },
+      {
+        "line": 34005,
+        "text": "ok 41 - real commission generation inside the server guard stages job/control/sale/expense/movement in one PATCH # SKIP"
+      },
+      {
+        "line": 34011,
+        "text": "ok 42 - a child asynchronous callback cannot report a successful write after its guard already committed # SKIP"
+      },
+      {
+        "line": 34017,
+        "text": "ok 43 - Reference.ref cannot escape the scoped proxy and persist a write before an aborted guard # SKIP"
+      },
+      {
+        "line": 34023,
+        "text": "ok 44 - a snapshot obtained before the guard cannot leak an Admin reference into its callback # SKIP"
+      },
+      {
+        "line": 34029,
+        "text": "ok 45 - unsupported priority writes cannot bypass coordination outside an active context # SKIP"
+      },
+      {
+        "line": 34035,
+        "text": "ok 46 - live lease rejects normal permission deletion and a valid revision-changing update without changing values # SKIP"
+      },
+      {
+        "line": 34041,
+        "text": "ok 47 - permission delete/recreate before acquisition is detected by the captured digest despite equal revision # SKIP"
+      },
+      {
+        "line": 34047,
+        "text": "ok 48 - unresolved server sentinels cannot be committed with an index calculated from a different value # SKIP"
+      },
+      {
+        "line": 34053,
+        "text": "ok 49 - an exact query includes a staged record whose valid Firebase key is __proto__ # SKIP"
+      },
+      {
+        "line": 34059,
+        "text": "ok 50 - real bootstrap initializes only derived metadata and never rewrites the financial source # SKIP"
+      }
+    ]
+  },
+  "requirementAnchors": [
+    {
+      "file": "test/commercial-complete-sale-chain.test.cjs",
+      "anchorsFound": 1,
+      "examples": [
+        {
+          "title": "create, consult, collect, commission, account and report share one coordinated fictional sale",
+          "line": 11872,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/commercial-conversion-audit.test.cjs",
+      "anchorsFound": 7,
+      "examples": [
+        {
+          "title": "convertir preserva creador original y responsable aunque el operador y el comisionado sean distintos",
+          "line": 11878,
+          "skipped": false
+        },
+        {
+          "title": "conversión atómica guarda el mismo evento en venta y presupuesto; reintentar no duplica",
+          "line": 11884,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/budget-conversion-costs.test.cjs",
+      "anchorsFound": 5,
+      "examples": [
+        {
+          "title": "preserves confirmed historical cost and timestamp despite catalogue changes",
+          "line": 5739,
+          "skipped": false
+        },
+        {
+          "title": "object items and explicit current zero are supported",
+          "line": 5745,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/commercial-money-exact.test.cjs",
+      "anchorsFound": 5,
+      "examples": [
+        {
+          "title": "decimales exactos, descuentos por renglón y un único cierre al centavo",
+          "line": 13667,
+          "skipped": false
+        },
+        {
+          "title": "escritor y lector acuerdan el total exacto para combinaciones fraccionarias",
+          "line": 13673,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/sale-economics-model-parity.test.cjs",
+      "anchorsFound": 3,
+      "examples": [
+        {
+          "title": "browser and server economic source files are identical",
+          "line": 52144,
+          "skipped": false
+        },
+        {
+          "title": "decimal quantity, item discount and ten percent general discount parity VAT false",
+          "line": 52150,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/economic-integrated-review.test.cjs",
+      "anchorsFound": 3,
+      "examples": [
+        {
+          "title": "isolated item subtotal edit rejects without writes: sub",
+          "line": 27295,
+          "skipped": false
+        },
+        {
+          "title": "isolated sale header edit validates canonical economics: subtotal",
+          "line": 27325,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/economic-crossflow-review.test.cjs",
+      "anchorsFound": 6,
+      "examples": [
+        {
+          "title": "real sale writer rejects missing or invalid price undefined instead of creating a free sale",
+          "line": 27115,
+          "skipped": false
+        },
+        {
+          "title": "explicit authorized free line remains a distinct valid economic input",
+          "line": 27157,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/current-account-canonical-payments.test.cjs",
+      "anchorsFound": 8,
+      "examples": [
+        {
+          "title": "account total and statement never revive embedded or legacy copies after every global payment is annulled",
+          "line": 18279,
+          "skipped": false
+        },
+        {
+          "title": "account follows technical sale identity rather than a contradictory business alias",
+          "line": 18285,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/payment-commands.test.cjs",
+      "anchorsFound": 31,
+      "examples": [
+        {
+          "title": "administrativo autorizado cobra con PDF y recupera acuse sin duplicar ni leer cuenta privada",
+          "line": 41452,
+          "skipped": false
+        },
+        {
+          "title": "acuse y replay exponen sólo datos del cobro, nunca costos, comisionados ni documento comercial",
+          "line": 41458,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/payment-entry-idempotency.test.cjs",
+      "anchorsFound": 2,
+      "examples": [
+        {
+          "title": "el recibo conserva su temporizador explícito tras finalizar el cobro confirmado",
+          "line": 41854,
+          "skipped": false
+        },
+        {
+          "title": "cerrar y abrir la ventana real de Cuenta corriente descarta sólo un intento ya retirado",
+          "line": 41860,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/commission-collection-proof.test.cjs",
+      "anchorsFound": 3,
+      "examples": [
+        {
+          "title": "confirmed collection grants only its exact sale operation without mutating input",
+          "line": 15217,
+          "skipped": false
+        },
+        {
+          "title": "technician requires explicit collection action and never gains it by default",
+          "line": 15223,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/commission-generation.test.cjs",
+      "anchorsFound": 37,
+      "examples": [
+        {
+          "title": "usuario sin acceso a Comisiones genera su venta; no necesita permiso para administrar comisiones",
+          "line": 15715,
+          "skipped": false
+        },
+        {
+          "title": "confirmed collection proof generates original commission without giving commercial ownership",
+          "line": 15721,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/commercial-payment-commission-crossflow.test.cjs",
+      "anchorsFound": 3,
+      "examples": [
+        {
+          "title": "real coordinated payment and system generation retain original commission owner; missing cost false",
+          "line": 14237,
+          "skipped": false
+        },
+        {
+          "title": "authenticated fixture event invokes real coordinated systemGenerate once across duplicate deliveries",
+          "line": 14249,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/commission-original-margin.test.cjs",
+      "anchorsFound": 5,
+      "examples": [
+        {
+          "title": "ahorro exterior mejora la empresa sin aumentar la comisión, conservando descuento y mano de obra",
+          "line": 16015,
+          "skipped": false
+        },
+        {
+          "title": "la recepción real y su repetición conservan el costo original para comisiones",
+          "line": 16021,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/commissions-concurrency.test.cjs",
+      "anchorsFound": 4,
+      "examples": [
+        {
+          "title": "el límite del reparto incluye las participaciones pagadas",
+          "line": 17197,
+          "skipped": false
+        },
+        {
+          "title": "un pago externo impide guardar el reparto capturado al abrir",
+          "line": 17203,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/sale-cost-quantity-precision.test.cjs",
+      "anchorsFound": 5,
+      "examples": [
+        {
+          "title": "real OT additional flow keeps original quantities and precision snapshots untouched",
+          "line": 51616,
+          "skipped": false
+        },
+        {
+          "title": "real proposal combine uses precise explicit unit rather than rounded total divided by quantity",
+          "line": 51622,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/purchase-receipt-costs.test.cjs",
+      "anchorsFound": 4,
+      "examples": [
+        {
+          "title": "planned sale cost includes shipping and the effective USDT rate exactly once",
+          "line": 48732,
+          "skipped": false
+        },
+        {
+          "title": "two equal product codes resolve by captured source line, quantity and original cost",
+          "line": 48738,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "file": "test/stock-purchase-costs.test.cjs",
+      "anchorsFound": 7,
+      "examples": [
+        {
+          "title": "costo final del ingreso ya incluye gastos y se captura sin volver a sumarlos",
+          "line": 54518,
+          "skipped": false
+        },
+        {
+          "title": "cada unidad disponible participa una vez aunque el producto figure en dos renglones",
+          "line": 54524,
+          "skipped": false
+        }
+      ]
+    }
+  ],
+  "remainingSkipCoverage": [
+    {
+      "files": [
+        "test/commercial-full-app-metrics.test.cjs",
+        "test/dashboard-notice-rest-independent.test.cjs"
+      ],
+      "distinctOriginallySkipped": 2,
+      "reportedRun": {
+        "pass": 8,
+        "fail": 0,
+        "skip": 0
+      },
+      "logSHA256": "0f3b79c23e1bd8d9a8fe1428fda2b874fb1c1aa548f28044f260e19545b71c69",
+      "locallyRead": true
+    },
+    {
+      "file": "test/commercial-draft-transport-restart-native.test.cjs",
+      "distinctOriginallySkipped": 2,
+      "reportedRun": {
+        "pass": 6,
+        "fail": 0,
+        "skip": 0
+      },
+      "evidenceAuthority": "Coordinator reported QA6PASS in this audit; not re-executed here and no QA log path supplied in that message"
+    }
+  ],
+  "distinctOriginalSkipsCovered": 31,
+  "limits": "Financial commands/guard/store/rules use fictitious data and explicit emulator only. Auth is mocked. Historical rules base is not current remote rules. No production, installs or external Google calls requested. Functional source is67f; checkout contains later documentation only. No acceptance of future3.19.4ON artifact.",
+  "privateArtifacts": [
+    {
+      "file": "test.private.log",
+      "sha256": "eeffb70a1811cf8207ef26ca45ef45d9caecd930d85f62459d861f4d3af65173"
+    },
+    {
+      "file": "cleanup.private.log",
+      "sha256": "532a17e8ee0bea8554a2fac42f70bc4a11305f939a3e96839a0a8a73d13b181a"
+    },
+    {
+      "file": "run-financial-27-67.private.ps1",
+      "sha256": "baed5ae4572651186f55cd5ee7c8ca2f933cb83f7e50a4f80ce9b1f8daf28797"
+    }
+  ]
+}
