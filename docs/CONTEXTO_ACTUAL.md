@@ -1,3 +1,7 @@
+## Delta aislado · centro sin permiso revisarVencidos
+
+Sobre2a0798, callback Source garantiza una generación del centro aunque guard real de vencimientos salga temprano, sin ampliar dicho permiso ni red. 50focalesPASS; baselineconguardreal reproduce1roja, cinco casos previos intactos. No root/versiones/SHELL/producción/general/browser. QA debe repetir browser rojo tras integrar; contrato y patch en docs/DASHBOARD_NOTICE_PERMISSION_FIX.md.
+
 ## Comparación canónica de orden y navegador posterior
 
 Aplicado delta mínimo 603c32f1 del helper: compara exactamente cuatro campos propios/enumerables y valores estrictos, sin depender del orden de propiedades de JSON. Rechaza extras, símbolos, campos ocultos y tipos/valores distintos. Root107 focales PASS,0FAIL/SKIP en Node22; log canonical-order-integrated.private.log. Se conserva la prueba nativa roja independiente de ee46; falta repetir sobre esta nueva fuente.

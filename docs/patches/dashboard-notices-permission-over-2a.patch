@@ -1,0 +1,60 @@
+diff --git a/js/app.v3.19.3.js b/js/app.v3.19.3.js
+index e6a2b0b4..74215d8b 100644
+--- a/js/app.v3.19.3.js
++++ b/js/app.v3.19.3.js
+@@ -2331,7 +2331,7 @@ function _svMarcarAvisoVencimientoMostrado(p, fecha) {
+ function verificarVencimientosPptos() {
+   if (!_svSesionActivaParaVencimientos()) return;
+   var presupuestosAvisos=window.SV_BUDGET_NOTICES_LOCAL===true?(window._svBudgetNoticeConsumerHost?.peek().rows||null):(pptoData||[]);
+-  if(!presupuestosAvisos){var pendiente=document.getElementById('ppto-vence-badge'),resumenAvisos=window._svDashboardBudgetSource?.peek('dashboard').data?.badge;var resumenValido=!!(resumenAvisos&&resumenAvisos.complete===true&&resumenAvisos.contract==='legacy-raw-lex/v1'&&resumenAvisos.asOfDay===svFechaLocalISO(new Date())&&Number.isSafeInteger(resumenAvisos.badgeCount)&&resumenAvisos.badgeCount>=0&&Number.isSafeInteger(resumenAvisos.upcoming48Count)&&resumenAvisos.upcoming48Count>=0&&resumenAvisos.upcoming48Count<=resumenAvisos.badgeCount);if(pendiente){pendiente.textContent=resumenValido?String(resumenAvisos.badgeCount):'';pendiente.style.display=resumenValido&&resumenAvisos.badgeCount>0?'flex':'none';}if(typeof generarNotificaciones==='function')generarNotificaciones();return;}
++  if(!presupuestosAvisos){var pendiente=document.getElementById('ppto-vence-badge'),resumenAvisos=window._svDashboardBudgetSource?.peek('dashboard').data?.badge;var resumenValido=!!(resumenAvisos&&resumenAvisos.complete===true&&resumenAvisos.contract==='legacy-raw-lex/v1'&&resumenAvisos.asOfDay===svFechaLocalISO(new Date())&&Number.isSafeInteger(resumenAvisos.badgeCount)&&resumenAvisos.badgeCount>=0&&Number.isSafeInteger(resumenAvisos.upcoming48Count)&&resumenAvisos.upcoming48Count>=0&&resumenAvisos.upcoming48Count<=resumenAvisos.badgeCount);if(pendiente){pendiente.textContent=resumenValido?String(resumenAvisos.badgeCount):'';pendiente.style.display=resumenValido&&resumenAvisos.badgeCount>0?'flex':'none';}if(typeof generarNotificaciones==='function')generarNotificaciones();return true;}
+   var hoy  = new Date();
+   var hoyStr = svFechaLocalISO(hoy);
+   var en48h  = svFechaLocalISO(new Date(hoy.getTime() + 48*3600*1000));
+@@ -2356,6 +2356,7 @@ function verificarVencimientosPptos() {
+   // También retirar avisos anteriores cuando el presupuesto se anula, vence
+   // o se convierte, aunque no haya un nuevo aviso próximo por mostrar.
+   if (typeof generarNotificaciones === 'function') generarNotificaciones();
++  return true;
+ }
+
+
+@@ -6174,7 +6175,8 @@ function svHostPresupuestosDashboard() {
+       if(window.tienePermiso?.('dashboard.miActividad')===true&&typeof renderDashAdministrativo==='function')renderDashAdministrativo();
+     }
+     if(kind==='dashboard'||kind==='notices'){
+-      if(typeof verificarVencimientosPptos==='function')verificarVencimientosPptos();
++      var avisosGenerados=typeof verificarVencimientosPptos==='function'&&verificarVencimientosPptos()===true;
++      if(!avisosGenerados&&typeof generarNotificaciones==='function')generarNotificaciones();
+     }
+   }});
+   return window._svDashboardBudgetHost;
+diff --git a/test/dashboard-budget-host-callpoints.test.cjs b/test/dashboard-budget-host-callpoints.test.cjs
+index db83160a..28dfacd7 100644
+--- a/test/dashboard-budget-host-callpoints.test.cjs
++++ b/test/dashboard-budget-host-callpoints.test.cjs
+@@ -2,7 +2,7 @@
+ const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),{functionSource}=require('./helpers/app-functions.cjs');
+ function fixture(){let creates=0,reads=0,paint=0,notices=0,page='dashboard',changed;const host={claimed:k=>k==='notices',ensure:k=>{assert.equal(k,'notices');reads++;return Promise.resolve();}};
+  const r={SV_DASHBOARD_READS_LOCAL:true,SV_BUDGET_NOTICES_LOCAL:true,SVDashboardBudgetHost:{create:(root,options)=>{assert.equal(root,r);creates++;changed=options.changed;return host;}}};
+- const s={window:r,_svEsPaginaActiva:p=>p===page,svPintarPresupuestosDashboard:()=>paint++,verificarVencimientosPptos:()=>{if(page==='notificaciones')s.generarNotificaciones();},generarNotificaciones:()=>notices++};vm.createContext(s);for(const fn of ['svHostPresupuestosDashboard','svCargarAvisosPresupuestosDemandados'])vm.runInContext(functionSource(fn),s);
++ const s={window:r,_svEsPaginaActiva:p=>p===page,svPintarPresupuestosDashboard:()=>paint++,verificarVencimientosPptos:()=>{if(page==='notificaciones')s.generarNotificaciones();return true;},generarNotificaciones:()=>notices++};vm.createContext(s);for(const fn of ['svHostPresupuestosDashboard','svCargarAvisosPresupuestosDemandados'])vm.runInContext(functionSource(fn),s);
+  return {r,s,stats:()=>({creates,reads,paint,notices}),change:k=>changed(k),page:p=>page=p};}
+ test('actual host callpoint remains OFF without construction or demand',()=>{const f=fixture();f.r.SV_DASHBOARD_READS_LOCAL=false;assert.equal(f.s.svHostPresupuestosDashboard(),null);assert.equal(f.s.svCargarAvisosPresupuestosDemandados(),false);assert.equal(f.stats().creates,0);});
+ test('actual explicit notice demand reuses host and changed callbacks only repaint the visible consumer',async()=>{const f=fixture();f.s.svHostPresupuestosDashboard();f.s.svHostPresupuestosDashboard();assert.equal(f.stats().creates,1);assert.equal(f.stats().reads,0);await f.s.svCargarAvisosPresupuestosDemandados();assert.equal(f.stats().reads,1);f.change('dashboard');assert.equal(f.stats().paint,1);f.change('notices');assert.equal(f.stats().notices,0);f.page('notificaciones');f.change('notices');assert.equal(f.stats().notices,1);f.change('dashboard');assert.equal(f.stats().paint,1);assert.equal(f.stats().reads,1);});
+diff --git a/test/dashboard-late-consumers.test.cjs b/test/dashboard-late-consumers.test.cjs
+index bf690170..d6c4d818 100644
+--- a/test/dashboard-late-consumers.test.cjs
++++ b/test/dashboard-late-consumers.test.cjs
+@@ -15,9 +15,10 @@ function fixture(){let now=0,page='dashboard',changed,paint=0,notifications=0,re
+  s.SVDashboardBudgetHost={create:(r,o)=>{changed=o.changed;return {};}};
+  for(const name of ['generarNotificaciones','verificarVencimientosPptos','inicializarFlujoVentas','svHostPresupuestosDashboard'])vm.runInContext(fn(name),s);s.svHostPresupuestosDashboard();
+  const value={uid:'u',role:'admin',permissionRevision:1,generation:'g',revision:1,counts:{active:3,converted:0,totalNonCancelled:3,conversionPercent:0},badge:{complete:true,contract:'legacy-raw-lex/v1',asOfDay:'2026-11-04',badgeCount:3,upcoming48Count:2}};
+- return {s,source,badge,value,load:async()=>{const promise=source.ensure('dashboard');await Promise.resolve();return {promise,deliver:()=>resolve(value)};},tick:t=>{now=t;for(const timer of timers.splice(0))if(timer.at<=now)timer.cb();},change:k=>changed(k),page:p=>page=p,stats:()=>({paint,notifications,reads})};}
++ return {s,source,badge,value,load:async(kind='dashboard')=>{const promise=source.ensure(kind);await Promise.resolve();return {promise,deliver:()=>resolve(value)};},tick:t=>{now=t;for(const timer of timers.splice(0))if(timer.at<=now)timer.cb();},change:k=>changed(k),page:p=>page=p,stats:()=>({paint,notifications,reads})};}
+ test('RED late dashboard after 1200ms must repaint certified expiry badge without originals',async()=>{const f=fixture(),pending=await f.load();f.s.inicializarFlujoVentas();f.tick(1200);assert.equal(f.badge.style.display,'none');pending.deliver();await pending.promise;assert.equal(f.source.peek('dashboard').status,'ready');assert.equal(f.badge.textContent,'3');assert.equal(f.stats().reads,1);});
+ test('CONTROL snapshot before timer paints badge, showing arrival-order dependency',async()=>{const f=fixture(),pending=await f.load();pending.deliver();await pending.promise;f.s.inicializarFlujoVentas();f.tick(1200);assert.equal(f.badge.textContent,'3');assert.equal(f.badge.style.display,'flex');assert.equal(f.stats().reads,1);});
+ test('RED notices changed on visible centre must generate once without new reads',()=>{const f=fixture();f.page('notificaciones');f.change('notices');assert.equal(f.stats().reads,0);assert.equal(f.stats().notifications,1);});
+ test('RED pending notice rows must not publish empty list as a completed notification render',()=>{const f=fixture();f.s.generarNotificaciones();assert.equal(f.s.todasNotifs.length,0);assert.equal(f.stats().notifications,0);});
+ test('CONTROL actual administrative consumers accept both summary arrival orders without original arrays',async()=>{for(const first of ['budget','sales']){const f=fixture(),nodes=new Map(['dash-adm-pptos','dash-adm-pptos-sub','dash-adm-ventas','dash-adm-ventas-sub','dash-adm-conv','dash-adm-ultventas'].map(id=>[id,{textContent:'',innerHTML:'',setAttribute(){}}]));const originalGet=f.s.document.getElementById;f.s.document.getElementById=id=>nodes.get(id)||originalGet(id);const month=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0');f.s.currentUser='Admin';f.s.currentUserUid='u';f.s.currentRole='admin';f.s.tienePermiso=p=>p==='dashboard.miActividad';let salesView,activityChanged;f.s.SVDashboardActivityHostFactory={create:(r,o)=>{activityChanged=o.changed;return {peek:()=>salesView};}};for(const name of ['renderDashAdministrativo','svHostActividadDashboard'])vm.runInContext(fn(name),f.s);f.s.svHostActividadDashboard();f.value.monthly={complete:true,month,employeeLabel:'Admin',records:7,converted:2,conversionPercent:29};const pending=await f.load(),deliverSales=()=>{salesView={authority:'current',status:'ready',data:{salesAuthorMonthlyComplete:true,salesAuthorMonthly:{schema:1,complete:true,creator:'Admin',month,scope:'all',generation:'g',revision:1,count:3}}};activityChanged();};if(first==='budget'){pending.deliver();await pending.promise;assert.equal(nodes.get('dash-adm-ventas').textContent,'—');deliverSales();}else{deliverSales();assert.equal(nodes.get('dash-adm-pptos').textContent,'—');pending.deliver();await pending.promise;}assert.equal(nodes.get('dash-adm-pptos').textContent,7);assert.equal(nodes.get('dash-adm-ventas').textContent,3);assert.equal(f.stats().reads,1);}});
++for(const revisar of [false,true])test('late complete notices paint once with real expiry permission '+revisar,async()=>{const f=fixture();f.page('notificaciones');f.s.isAuthenticated=true;f.s.currentUserUid='u';f.s.fbAuth={currentUser:{uid:'u'}};f.s.tienePermiso=p=>p==='presupuestos.aprobar'||p==='presupuestos.revisarVencidos'&&revisar;const get=f.s.document.getElementById;f.s.document.getElementById=id=>id==='screen-app'?{classList:{contains:c=>c==='visible'}}:get(id);vm.runInContext(fn('_svSesionActivaParaVencimientos'),f.s);f.s._pptoAdmiteAvisosNotificacion=()=>true;f.value.notices={complete:true,rows:[{id:'P-FICTICIO',fbKey:'p1',estado:'revision',cliente:'Cliente ficticio'}]};f.s._svBudgetNoticeConsumerHost={peek:()=>{const view=f.source.peek('notices');return {status:view.status,rows:view.data?.notices?.rows||null,complete:view.data?.notices?.complete===true};}};const pending=await f.load('notices'),before=f.stats();assert.equal(f.s._svSesionActivaParaVencimientos(),revisar);pending.deliver();await pending.promise;assert.equal(f.source.peek('notices').status,'ready');assert.equal(f.s.todasNotifs.length,1);assert.equal(f.s.todasNotifs[0].id,'ppto_aprob_P-FICTICIO');assert.equal(f.stats().notifications,before.notifications+1);assert.equal(f.stats().reads,1);});
