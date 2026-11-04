@@ -36,7 +36,7 @@
     });
   }
   window.reservarSiguienteOTId=reservarSiguienteOTId;
-  function clonarOTParaCreacion(ot){
+  function copiarDatosOT(ot){
     var origen=ot&&typeof ot==='object'?ot:{};
     var copia;
     if(typeof structuredClone==='function'){
@@ -44,8 +44,12 @@
     }
     if(!copia){
       try{ copia=JSON.parse(JSON.stringify(origen)); }
-      catch(_e2){ copia=Object.assign({},origen); }
+      catch(_e2){ throw new Error('No se pudieron copiar los datos de la nueva OT'); }
     }
+    return copia;
+  }
+  function clonarOTParaCreacion(ot){
+    var copia=copiarDatosOT(ot);
     // Una creación nunca puede heredar la identidad técnica de otra visita.
     // También se clonan los datos anidados para que dos OT no compartan arrays
     // u objetos que luego puedan modificarse desde una pantalla abierta.
@@ -54,31 +58,56 @@
     return copia;
   }
   window.clonarOTParaCreacion=clonarOTParaCreacion;
+  function identidadOTPrevia(entrada){
+    return entrada&&typeof entrada==='object'&&(!!entrada.id||['fbKey','key','_firebaseKey','_arrayIndex','_svListRevision','_svListOperation','_svReadRevision','_svReadOperation'].some(function(key){return Object.prototype.hasOwnProperty.call(entrada,key);}));
+  }
+  function inicializarMaterialesNuevos(entrada,copia){
+    var propia=function(obj,key){return Object.prototype.hasOwnProperty.call(obj,key);};
+    var evidencia=function(obj,skipAudit){return Object.keys(obj).some(function(key){
+      return !(skipAudit&&key==='audit')&&/^(?:custodia|estadoCustodia|remito|stock|histori|recuper|_recuper|origenMaterialHistorico|movimientos|rendiciones|recibido|entregado|entregadaEn|devuelto|devueltaEn|audit)/i.test(key);
+    });};
+    if(!entrada||typeof entrada!=='object'||identidadOTPrevia(entrada)||evidencia(entrada,true)||!Array.isArray(copia.materiales)||(Array.isArray(entrada.items)&&entrada.items.length))return false;
+    if(entrada.estado&&entrada.estado!=='pendiente'||entrada.progreso!=null&&entrada.progreso!==0)return false;
+    if(entrada.audit!=null&&(!Array.isArray(entrada.audit)||entrada.audit.some(function(row){var action=String(row&&row.accion||'');return !/(?:cread|generad|creación)/i.test(action)||/entreg|devol|custodia|rendici|stock|recuper|instalad/i.test(action);})))return false;
+    var changed=false;
+    copia.materiales.forEach(function(row){
+      if(!row||typeof row!=='object'||Array.isArray(row)||row.instalada!==0||propia(row,'cantidadInstalada')&&row.cantidadInstalada!==0||evidencia(row))return;
+      if(['entregada','devuelta','devueltaPendiente','enTecnico','danada','faltante','custodiaActiva'].some(function(key){return propia(row,key);})||/histor|recuper/i.test(String(row.origen||'')))return;
+      var quantities=['vendida','qty','cantidad','cant'].filter(function(key){return propia(row,key);});
+      if(!quantities.length||quantities.some(function(key){return typeof row[key]!=='number'||!Number.isFinite(row[key])||row[key]<=0||row[key]!==row[quantities[0]];}))return;
+      row.entregada=0;row.devuelta=0;changed=true;
+    });
+    return changed;
+  }
   window.crearRegistroOTSeguro=function(ot,opciones){
     var evitarDoble=!!(opciones&&opciones.evitarDoble);
     if(evitarDoble&&window._otCreacionEnCurso) return window._otCreacionEnCurso;
-    var entradaEraNueva=!(ot&&typeof ot==='object'&&(ot.fbKey||ot.key||ot._firebaseKey));
+    var entradaEraNueva=!identidadOTPrevia(ot);
     var nuevaOT=clonarOTParaCreacion(ot);
+    var materialesInicializados=inicializarMaterialesNuevos(ot,nuevaOT);
+    function confirmarCreacion(key,guardada){
+      if(!key) throw new Error('Firebase no devolvió la identidad de la nueva OT');
+      var record=copiarDatosOT(Object.assign({},nuevaOT,guardada||{},{fbKey:key}));
+      // Los llamadores legacy conservan su objeto nuevo tras crear. Sustituir
+      // el array sólo al confirmar evita compartir o alterar filas de origen.
+      if(entradaEraNueva&&ot&&typeof ot==='object'){
+        ot.id=record.id;ot.ts=record.ts;
+        if(materialesInicializados)ot.materiales=copiarDatosOT(record.materiales);
+      }
+      return {key:key,fbKey:key,id:record.id,record:record};
+    }
     var promesa=reservarSiguienteOTId().then(function(id){
       nuevaOT.id=id;
       nuevaOT.ts=nuevaOT.ts||Date.now();
-      // Se conserva la compatibilidad de los flujos actuales, que crean un
-      // objeto nuevo y luego leen su número. Una visita existente nunca se muta.
-      if(entradaEraNueva&&ot&&typeof ot==='object'){
-        ot.id=nuevaOT.id;
-        ot.ts=nuevaOT.ts;
-      }
       if(typeof window.otPersistirGuardar==='function'){
         return window.otPersistirGuardar(nuevaOT).then(function(guardada){
           var key=guardada&&guardada.fbKey||'';
-          if(!key) throw new Error('Firebase no devolvió la identidad de la nueva OT');
-          return { key:key, fbKey:key, id:nuevaOT.id, record:Object.assign({},nuevaOT,{fbKey:key}) };
+          return confirmarCreacion(key,guardada);
         });
       }
       return window.fbPush(window.fbRef(window.fbDB,FB_PATHS.ordenesTrabajo),nuevaOT).then(function(ref){
         var key=ref&&ref.key||'';
-        if(!key) throw new Error('Firebase no devolvió la identidad de la nueva OT');
-        return { key:key, fbKey:key, id:nuevaOT.id, record:Object.assign({},nuevaOT,{fbKey:key}) };
+        return confirmarCreacion(key);
       });
     });
     if(evitarDoble){
