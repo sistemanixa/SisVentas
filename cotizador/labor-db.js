@@ -4,6 +4,19 @@
 const {affected,parts,child}=require('./labor-guard');
 const fail=(message)=>Object.assign(Error(message),{statusCode:400});
 const copy=value=>value==null?null:structuredClone(value);
+const {isDeepStrictEqual}=require('node:util');
+// An account transaction already retains its before image. Emit movements,
+// including the first one, without replacing the employee account parent.
+function transactionPatch(path,before,after){
+ if(!/^sisventas\/ctaemp\/[^/]+$/.test(path))return {[path]:after};
+ for(const value of [before,after])if(value!==null&&(typeof value!=='object'||Array.isArray(value)))throw fail('Cuenta laboral inválida');
+ const patch=Object.create(null);
+ for(const id of new Set([...Object.keys(before||{}),...Object.keys(after||{})])){
+  if(parts(id).length!==1)throw fail('Referencia de movimiento inválida');const previous=before?.[id]??null,next=after?.[id]??null;
+  if(!isDeepStrictEqual(previous,next))patch[path+'/'+id]=next;
+ }
+ return patch;
+}
 function snapshot(ref,value){
  const saved=copy(value);
  return {ref,key:ref.key,val:()=>copy(saved),exists:()=>saved!==null,toJSON:()=>copy(saved),exportVal:()=>copy(saved),getPriority:()=>null,
@@ -57,7 +70,7 @@ function createLaborDb({db,guard}){
    if(key==='transaction')return async(update,completion,applyLocally)=>{
     if(!path||['sisventas','sisventas/config'].includes(path)||query)throw fail('La transacción requiere registros individuales');
     if(!guard.current()&&!watched(path))return target.transaction(update,completion,applyLocally);
-    const perform=async()=>{const before=await get(),next=update(before.val());if(next&&typeof next.then==='function'){Promise.resolve(next).catch(()=>{});throw fail('La transformación debe ser síncrona');}if(next===undefined)return {committed:false,snapshot:before};await stage({[path]:next});return {committed:true,snapshot:snapshot(proxy,next)};};
+    const perform=async()=>{const before=await get(),original=before.val(),next=update(copy(original));if(next&&typeof next.then==='function'){Promise.resolve(next).catch(()=>{});throw fail('La transformación debe ser síncrona');}if(next===undefined)return {committed:false,snapshot:before};const patch=transactionPatch(path,original,next);if(Object.keys(patch).length)await stage(patch);return {committed:true,snapshot:snapshot(proxy,next)};};
     try{let result;if(guard.current())result=await perform();else await guard.run({...internal,operation:'service-transaction',input:{path}},async()=>{result=await perform();return {committed:result.committed};});completion?.(null,result.committed,result.snapshot);return result;}
     catch(error){completion?.(error,false,null);throw error;}
    };

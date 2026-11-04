@@ -54,3 +54,13 @@ COPY ot-office-count.js ot-office-count-model.js ot-stock-consumption-model.js .
 COPY ot-closed-products.js ot-lifecycle.js ot-lifecycle-model.js ot-lifecycle-policy.js ot-material-rows-model.js ot-personal-scope.js ./
 
 COPY sale-return-to-budget.js ./
+
+COPY sale-delete-http-adapter.js sale-delete-command.js sale-delete-relations.js sale-delete-fence.js sale-delete-activity.js ./
+
+COPY purchase-order-delete.js purchase-order-delete-model.js ./
+
+COPY ot-delete-command.js ot-delete-policy.js ot-delete-http-adapter.js ./
+
+COPY client-history-access.js client-history-query.js client-history-http-adapter.js client-history-complete-page.js client-history-client.js ./
+
+COPY sale-economics-validation.js sale-financial-dependencies-model.js sale-financial-dependencies-delta.js sale-financial-dependencies-projections.js sale-financial-dependencies-provider.js sale-financial-dependencies-protocol.js ./

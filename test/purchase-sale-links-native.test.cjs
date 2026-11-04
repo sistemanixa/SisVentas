@@ -1,0 +1,4 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),{fixture}=require('./helpers/purchase-delete-flow.cjs');
+for(const concurrent of [false,true])test('comando actual conserva referencias fuera de memoria '+(concurrent?'O2/O3':'O2'),async()=>{const f=await fixture({concurrent});await f.run();assert.equal(f.backend.commits.length,1);const expected=concurrent?['O2','O3']:['O2'];assert.deepEqual(f.backend.get('sisventas/ventas/s/ordenesCompraIds'),expected);assert.deepEqual(f.backend.get('sisventas/listas_materiales/L1/ordenesIds'),expected);assert.equal(f.backend.get('sisventas/ventas/s/total'),100);});
+test('fallo previo conserva orden y stock sin SDK legado',async()=>{const f=await fixture({reject:true});await f.run();assert.equal(f.backend.commits.length,0);assert.ok(f.backend.get('sisventas/ordenes/O1'));assert.equal(f.backend.get('sisventas/inventario_operativo/p/enCompra'),5);});

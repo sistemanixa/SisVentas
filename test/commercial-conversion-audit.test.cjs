@@ -1,10 +1,11 @@
 'use strict';
+const SaleEconomics=require('../js/core/sale-economics-model.v1.js');
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const {readActiveApp}=require('./helpers/active-app');
 const {fixture}=require('./helpers/commercial-ownership-fixtures.cjs');
 const moduleSource=fs.readFileSync('js/modules/commercial-document-controls.js','utf8');
 const app=readActiveApp().source;
-function context(){const c={window:null,document:{addEventListener(){}},currentUser:'Operador de prueba',currentUserUid:'operator',currentUserEmail:'',ventasList:[],FB_PATHS:{ventas:'sisventas/ventas',presupuestos:'sisventas/presupuestos'},escapeHTML:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')};c.window=c;c.SVSaleCosts=require('../js/core/sale-costs.v1.js').create(c);require('./helpers/sale-writer-fixture.cjs')(c);c.SVCommercialOwnership={author:p=>p.creadorOriginalNombre||p.creadoPor,clean:r=>r};vm.runInNewContext(moduleSource,c);return c;}
+function context(){const c={window:null,document:{addEventListener(){}},currentUser:'Operador de prueba',currentUserUid:'operator',currentRole:'admin',fbAuth:{currentUser:{uid:'operator'}},currentUserEmail:'',ventasList:[],FB_PATHS:{ventas:'sisventas/ventas',presupuestos:'sisventas/presupuestos'},escapeHTML:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')};c.window=c;c.SVSaleCosts=require('../js/core/sale-costs.v1.js').create(c);require('./helpers/sale-writer-fixture.cjs')(c);c.SVCommercialOwnership={author:p=>p.creadorOriginalNombre||p.creadoPor,clean:r=>r};vm.runInNewContext(moduleSource,c);return c;}
 test('convertir preserva creador original y responsable aunque el operador y el comisionado sean distintos',()=>{
  const c=context(),p={id:'PP-DEMO',creadoPor:'Autor de prueba',creadorOriginalUid:'author',responsableUid:'assigned',responsableNombre:'Asignado de prueba',responsableRevision:2};
  const base={id:'V-DEMO',presupuestoFbKey:'budget',usuario:'Operador incorrecto',empleado:'Comisionado de prueba',total:123,items:[{cantidad:1}]};
@@ -19,7 +20,7 @@ test('conversión atómica guarda el mismo evento en venta y presupuesto; reinte
  const first=app.slice(app.indexOf('async function '+names[0]+'('),app.indexOf('// Comportamiento común',app.indexOf('async function '+names[0]+'(')));
  const second=app.slice(app.indexOf('async function '+names[1]+'('),app.indexOf('async function pptoAccion('));
  c._maxNumeroVentaLocal=()=>9;vm.runInNewContext(first+'\n'+second,c);
- const base={usuario:'Autor obsoleto',creadorOriginalUid:'stale',total:100,items:[],empleado:'Comisionado'};
+ const base={usuario:'Autor obsoleto',creadorOriginalUid:'stale',...SaleEconomics.calculate({conIva:false,items:[{cod:'FICTICIO',qty:1,punit:100,costoUnitarioCompra:25}]} ),empleado:'Comisionado'};
  const acceptance={fecha:'16/10/2026 10:00',usuario:'Cliente aceptado',accion:'Cliente considerado visto y aceptado al convertir a venta'};
  const result=await c[names[1]]({fbKey:'budget',id:'PP-DEMO'},base,acceptance);
  const sale=db.root.sisventas.ventas.ppto_budget,budget=db.root.sisventas.presupuestos.budget;

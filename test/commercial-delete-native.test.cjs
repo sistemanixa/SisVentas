@@ -1,0 +1,17 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),{chromium}=require('playwright'),{start}=require('./fixtures/commercial-full-app.cjs');
+for(const [width,lostAck,cancel]of [[390,false,false],[1280,false,false],[1280,true,false],[390,false,true]])test('full HTML real sale delete width='+width+' lostACK='+lostAck+' cancel='+cancel,{timeout:30000},async()=>{
+ const local=await start({destructiveCommands:true,lostAck}),before=structuredClone(local.backend.state.sisventas);let browser;
+ try{
+  browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});const page=await browser.newPage({viewport:{width,height:900}});page.setDefaultTimeout(7000);await page.route('**/*',route=>route.request().url().startsWith(local.url)?route.continue():route.abort());
+  await page.goto(local.url);await page.locator('#ventas-tbody tr').nth(49).waitFor();const first=page.locator('#ventas-tbody tr').first(),saleKey=await first.getAttribute('data-indexed-sale');assert(saleKey);await first.click();await page.locator('#venta-detalle-view tr[data-venta-item-index]').nth(15).waitFor();
+  await page.locator('#venta-detalle-view').getByRole('button',{name:'Eliminar definitivamente',exact:true}).click();const confirmation=page.getByRole('button',{name:cancel?'Cancelar':'Confirmar',exact:true});await confirmation.click();
+  if(cancel){await page.waitForFunction(()=>!Object.keys(window._ventasEliminacionEnCurso||{}).length);assert.equal(local.backend.commits.length,0);assert.deepEqual(local.backend.state.sisventas,before);return;}
+  if(lostAck){await page.locator('#sv-labor-write-recovery').getByRole('button',{name:'Consultar operación',exact:true}).click();}
+  await page.waitForFunction(key=>!ventasList.some(sale=>sale.fbKey===key),saleKey);await page.locator('#ventas-tbody tr').nth(49).waitFor();
+  assert.equal(local.backend.commits.length,1);assert.equal(local.backend.get('sisventas/ventas/'+saleKey),null);assert.equal(local.backend.get('sv_commercial_pages/v1/records/sales/'+saleKey),null);assert.equal(local.backend.get('sv_client_accounts/v1/totals/all/balanceCents'),59*160000);assert.equal(local.backend.get('sv_client_history/v1/state/records'),59);
+  for(const domain of ['stock','comisiones','inventario_operativo'])assert.deepEqual(local.backend.get('sisventas/'+domain),before[domain]??null);
+  const visible=await page.locator('#ventas-tbody tr').evaluateAll(rows=>rows.map(row=>row.dataset.indexedSale));assert(!visible.includes(saleKey));await page.locator('[data-index-next]').click();await page.waitForFunction(()=>document.querySelectorAll('#ventas-tbody tr').length===9);assert(!await page.locator('#ventas-tbody tr').evaluateAll((rows,key)=>rows.some(row=>row.dataset.indexedSale===key),saleKey));
+ }catch(error){if(browser){const pages=browser.contexts().flatMap(context=>context.pages());if(pages[0])console.log(JSON.stringify(await pages[0].evaluate(()=>({notes:__moduleAudit?.notes,errors:__moduleAudit?.errors,route:location.hash,rows:document.querySelectorAll('#ventas-tbody tr').length,status:document.getElementById('ventas-search-status')?.textContent,readiness:SVDataReadiness.statusFor('detalle'),reads:__moduleAudit.reads.slice(-10),listStyle:document.getElementById('ventas-list-view')?.style.cssText,host:SVCommercialPagesHost.financialState(),counts:ventasList.length}))));}throw error;
+ }finally{await browser?.close();await new Promise(resolve=>{local.server.close(resolve);local.server.closeAllConnections();});}
+});

@@ -67,7 +67,7 @@ test('un error auténtico conserva la información pendiente y permite otra espe
 test('navegar durante el ingreso cambia las fuentes requeridas y las respuestas anteriores no cierran la nueva pantalla',async()=>{
  const f=fixture(),states=[];let done=false;
  const task=f.api.waitForPage(f.page,{onState:state=>states.push(state)}).then(result=>{done=true;return result;});f.flush();
- f.route('presupuesto');f.api.beginSource('ordenes_trabajo').ready();f.api.beginSource('clientes').ready();f.api.beginSource('productos').ready();f.flush();
+ f.route('presupuesto');f.api.beginSource('empleados').ready();f.api.beginSource('ordenes_trabajo').ready();f.api.beginSource('clientes').ready();f.api.beginSource('productos').ready();f.flush();
  await settle();assert.equal(done,false);assert.equal(states.at(-1).page,'presupuesto');assert.deepEqual(Array.from(states.at(-1).missing),['presupuestos']);
  f.api.beginSource('presupuestos').ready();f.flush();assert.equal((await task).page,'presupuesto');
 });

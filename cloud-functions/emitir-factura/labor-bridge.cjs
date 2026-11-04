@@ -29,7 +29,7 @@ function fiscalContract(data,provider,cycle){
 }
 function createFiscalLaborBridge({db,guard,now=Date.now,uuid=crypto.randomUUID}){
  if(!db||!guard)throw Error('Falta la coordinación fiscal');
- const actor=operation=>({uid:'sv-labor-service',mode:'server',operation});
+ const actor=operation=>({uid:'sv-labor-service',mode:'server',operation,requiresClientHistory:guard.clientHistory===true});
  const jobRef=id=>{if(!/^[a-f0-9]{64}$/.test(id||''))throw fail(400,'Referencia fiscal inválida');return db.ref('sv_fiscal_emissions/'+id);};
  async function attachment(job,result){
   const key=saleKey(job.ventaKey),salePath='sisventas/ventas/'+key;
@@ -123,11 +123,13 @@ function createFiscalLaborBridge({db,guard,now=Date.now,uuid=crypto.randomUUID})
  return {begin,complete,rejected,resume};
 }
 function runtime(admin){
+ const commercialPages=process.env.COMMERCIAL_PAGES_ENABLED==='true',clientAccounts=process.env.CLIENT_ACCOUNTS_ENABLED==='true',clientHistory=process.env.CLIENT_HISTORY_ENABLED==='true';
+ if(clientAccounts&&!commercialPages||clientHistory&&(!clientAccounts||!commercialPages))throw Error('Las cuentas y el historial fiscal requieren coordinación comercial emparejada.');
  const vendored=fs.existsSync(path.join(__dirname,'vendor/labor/manifest.json'));
  const guardModule=vendored?require('./vendor/labor/labor-guard'):require('../../cotizador/labor-guard');
  const storeModule=vendored?require('./vendor/labor/labor-rtdb-store'):require('../../cotizador/labor-rtdb-store');
  const app=admin.app(),credential=app.options.credential||admin.credential.applicationDefault();
  const store=storeModule.createLaborRtdbStore({databaseURL:app.options.databaseURL,accessToken:async()=>(await credential.getAccessToken()).access_token});
- return createFiscalLaborBridge({db:admin.database(),guard:guardModule.createLaborGuard({store,readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true',commercialPages:process.env.COMMERCIAL_PAGES_ENABLED==='true',clientAccounts:process.env.CLIENT_ACCOUNTS_ENABLED==='true'})});
+ return createFiscalLaborBridge({db:admin.database(),guard:guardModule.createLaborGuard({store,readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true',commercialPages,clientAccounts,clientHistory,saleFinancialDependencies:true})});
 }
 module.exports={createFiscalLaborBridge,runtime,fiscalContract,validateFiscalSource,canonical,hash};

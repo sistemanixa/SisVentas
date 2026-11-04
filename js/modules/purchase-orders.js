@@ -2182,61 +2182,33 @@
 
   async function deleteActiveOrder() {
     var order = state.activeOrder;
-    if (!order || !order.fbKey) return;
-    if(order.recepcionPendiente||String(order.fbKey).startsWith('plan_')){window.notify('Esta compra conserva su trazabilidad. Completá la recepción pendiente o cancelá la orden; no se elimina definitivamente.');return;}
-    var hasReceipts = (order.items || []).some(function (item) { return (parseFloat(item.cantidadRecibida) || 0) > 0; });
-    var warning = hasReceipts
-      ? '¿Eliminar definitivamente ' + (order.numero || 'esta orden') + '? Se revertirán sus materiales recibidos, la reserva y la conciliación de costos de la venta.'
-      : '¿Eliminar definitivamente ' + (order.numero || 'esta orden') + '? Esta acción no elimina la venta ni los productos.';
-    if (!await window.svConfirm(warning)) return;
-    var tasks = [];
-    if (order.estado !== 'cancelada') {
-      (order.items || []).forEach(function (item) {
-        var pending = Math.max(0, (parseFloat(item.cantidadOrdenada || item.cantidad) || 0) - (parseFloat(item.cantidadRecibida) || 0));
-        var received = parseFloat(item.cantidadRecibida) || 0;
-        if (pending || received) tasks.push(transactionInventory(item.productoKey || item.codigo, function (inv) {
-          if (pending) inv.enCompra = Math.max(0, (parseFloat(inv.enCompra) || 0) - pending);
-          if (received && (order.ventaId || order.ventaFbKey)) {
-            inv.reservado = Math.max(0, (parseFloat(inv.reservado) || 0) - received);
-            var allocationKey = safeKey(order.ventaFbKey || order.ventaId);
-            if (inv.asignaciones && inv.asignaciones[allocationKey]) inv.asignaciones[allocationKey].reservado = Math.max(0, (parseFloat(inv.asignaciones[allocationKey].reservado) || 0) - received);
-          } else if (received) inv.general = Math.max(0, (parseFloat(inv.general) || 0) - received);
-        }));
-      });
+    if (!order || !order.fbKey || state.orderDeletePending) return;
+    if (window.tienePermiso && !window.tienePermiso('ordenes.eliminar')) { window.notify('No tenés permiso para eliminar órdenes.'); return; }
+    if (order.recepcionPendiente || order.cancelacionPendiente || order.generacionPendiente || String(order.fbKey).startsWith('plan_')) { window.notify('Completá la recepción pendiente o cancelá la orden; conserva su trazabilidad.'); return; }
+    var valid = window.svCapturarContextoOperacion ? window.svCapturarContextoOperacion() : function(){ return true; };
+    if (!await window.svConfirm('¿Eliminar definitivamente '+(order.numero || 'esta orden')+' y sus vínculos? Se comprobarán juntos el stock y los costos antes de guardar.')) return;
+    if (!valid() || state.activeOrder !== order) { window.notify('La pantalla o la sesión cambió. Volvé a abrir la orden.'); return; }
+    var modal = document.getElementById('oc-order-modal'), button = modal && modal.querySelector && modal.querySelector('[onclick="ocEliminarOrdenActual()"]');
+    var label = button && button.innerHTML;
+    state.orderDeletePending = true;
+    if (button) { button.disabled=true; button.textContent='Eliminando…'; }
+    var confirmed = false;
+    try {
+      if (!window.SVFinancialCommands?.deleteOrder) throw Error('Actualizá SisVentas para eliminar la compra con protección.');
+      var result = await window.SVFinancialCommands.deleteOrder(order, order);
+      if (!result) throw Error('La eliminación conjunta de Compras aún no está habilitada. La orden se conserva.');
+      confirmed = true;
+      if (valid() && state.activeOrder === order) {
+        state.activeOrder = null;
+        if (modal) modal.style.display='none';
+        window.notify('Orden eliminada. Stock, costos y vínculos actualizados juntos.');
+      }
+    } catch(error) {
+      if (valid()) window.notify(confirmed ? 'La orden quedó eliminada. Actualizá el listado; no repitas la operación.' : 'No se pudo confirmar la eliminación: '+error.message);
+    } finally {
+      state.orderDeletePending = false;
+      if (button && state.activeOrder === order) { button.disabled=false; button.innerHTML=label; }
     }
-    if (hasReceipts && order.ventaFbKey && window.fbRunTransaction) {
-      tasks.push(window.fbRunTransaction(window.fbRef(window.fbDB, 'sisventas/ventas/' + order.ventaFbKey), function (sale) {
-        if (!sale) return sale;
-        (sale.items || []).forEach(function (saleItem) {
-          var code = String(saleItem.cod || saleItem.codigo || '').trim().toUpperCase();
-          var source = (order.items || []).find(function (item) { return (item.productoKey && [saleItem.productoKey, saleItem.productoId, saleItem.pid, saleItem.fbKeyProducto].some(function (key) { return String(key || '') === String(item.productoKey); })) || (code && code === String(item.codigo || '').trim().toUpperCase()); });
-          if (!source) return;
-          var qty = Math.max(1, parseFloat(saleItem.qty || saleItem.cantidad) || 1);
-          var budget = parseFloat(source.costoUnitarioPresupuestado || source.costoUnitario) || 0;
-          saleItem.cantidadCompraReal = 0;
-          saleItem.costoRealCompraAcumulado = 0;
-          saleItem.costoTotalCompra = qty * budget;
-          saleItem.costoUnitarioCompra = budget;
-          delete saleItem.ultimoCostoCompraReal;
-          delete saleItem.proveedorCompraReal;
-          delete saleItem.proveedorCompraRealKey;
-        });
-        sale.costoTotal = (sale.items || []).reduce(function (sum, item) { var qty = parseFloat(item.qty || item.cantidad) || 1; return sum + (parseFloat(item.costoTotalCompra) || (parseFloat(item.costoUnitarioCompra) || 0) * qty); }, 0);
-        var base = typeof window._rentIngresoNetoVenta==='function'?Number(window._rentIngresoNetoVenta(sale))||0:parseFloat(sale.subtotal)||parseFloat(sale.total)||0;
-        sale.margenPct = base > 0 ? ((base - sale.costoTotal) / base) * 100 : 0;
-        return sale;
-      }));
-    }
-    Promise.all(tasks).then(function () { return unlinkDeletedOrder(order); }).then(function () {
-      return remove(PATH_ORDERS + '/' + order.fbKey);
-    }).then(function () {
-      state.activeOrder = null;
-      var modal = document.getElementById('oc-order-modal');
-      if (modal) modal.style.display = 'none';
-      if (typeof window.notify === 'function') window.notify('Orden de compra eliminada');
-    }).catch(function (error) {
-      if (typeof window.notify === 'function') window.notify('No se pudo eliminar la orden: ' + error.message);
-    });
   }
 
   // Las órdenes del circuito anterior sólo se necesitan para su incorporación explícita.

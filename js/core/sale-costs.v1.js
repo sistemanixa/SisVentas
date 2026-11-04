@@ -5,6 +5,7 @@
  const round=n=>Money.amount(n);
  const quantity=i=>Number(i.qty??i.cantidad??1);
  function unit(item){const q=quantity(item);for(const k of ['costoTotalCompra','costoTotal','costo'])if(numeric(item[k])&&q>0)return Number(item[k])/q;for(const k of ['costoUnitarioCompra','costoUnitario','costoCompra','compra','precioCompra','precio_compra','costoUnitarioAntesPreparacion','costoUnitarioPresupuestado'])if(numeric(item[k]))return Number(item[k]);return null;}
+ function quantityUnit(item){const fallback=unit(item);if(item.costoVersion!==1||item.comisionCostoHistoricoPendiente===true||!numeric(item.costoUnitarioCompra)||!(quantity(item)>0))return fallback;const exact=Number(item.costoUnitarioCompra),totals=['costoTotalCompra','costoTotal','costo'].filter(k=>numeric(item[k]));return totals.every(k=>Number(item[k])===Money.product(exact,quantity(item)))?exact:fallback;}
  const same=(a,b)=>{const ak=a.productoFbKey||a.pid,bk=b.productoFbKey||b.pid;if(ak&&bk)return String(ak)===String(bk);const ac=a.cod||a.codigo,bc=b.cod||b.codigo;if(ac&&bc)return String(ac)===String(bc);return !ak&&!bk&&!ac&&!bc&&!!(a.desc||a.descripcion)&&String(a.desc||a.descripcion)===String(b.desc||b.descripcion);};
  function create(r){
   function capture(item){
@@ -14,7 +15,8 @@
    if(cost===null){if(!product)throw Error('Falta definir el costo de '+(item.cod||item.desc||'un ítem')+'. Revisá el producto antes de guardar.');const value=r.obtenerCostoUnitarioVenta?.(item.cod||item.codigo,{...item});if(!numeric(value))throw Error('Falta definir el costo de '+(item.cod||item.desc||'un ítem')+'.');cost=Number(value);source='catalogo_al_confirmar';
     if(cost===0&&!['compraARS','precioGremio','compra'].some(k=>numeric(product[k])&&Number(product[k])===0))throw Error('Falta definir el costo de '+(item.cod||item.desc||'un ítem')+'. No se tomó como cero.');
    }
-   if(cost===0&&(item.cod||item.codigo)&&!item.costoVersion&&!numeric(item.costoUnitarioPresupuestado)&&!numeric(item.costoUnitarioAntesPreparacion)&&(!product||!['compraARS','precioGremio','compra'].some(k=>numeric(product[k])&&Number(product[k])===0)))throw Error('Falta confirmar el costo de '+(item.cod||item.codigo)+'. No se tomó como cero.');
+   const explicitManualZero=!item.cod&&!item.codigo&&!item.pid&&!item.productoFbKey&&numeric(item.costoUnitarioCompra)&&!['costoTotalCompra','costoTotal','costo'].some(k=>numeric(item[k]));
+   if(cost===0&&!explicitManualZero&&!item.costoVersion&&item.costoOrigen!=='correccion_manual_autorizada'&&!numeric(item.costoUnitarioPresupuestado)&&!numeric(item.costoUnitarioAntesPreparacion)&&(!product||!['compraARS','precioGremio','compra'].some(k=>numeric(product[k])&&Number(product[k])===0)))throw Error('Falta confirmar el costo de '+(item.cod||item.codigo||item.desc||'un ítem')+'. No se tomó como cero.');
    if(!numeric(out.costoUnitarioCompra))out.costoUnitarioCompra=cost;
    if(!numeric(out.costoTotalCompra))out.costoTotalCompra=Money.product(cost,q);
    if(!numeric(out.costoUnitarioPresupuestado))out.costoUnitarioPresupuestado=cost;
@@ -25,7 +27,7 @@
   function preserve(item,old){
    const out={...item};for(const k of fields)delete out[k];for(const k of fields)if(Object.hasOwn(old,k))out[k]=old[k];
    if(Object.hasOwn(old,'esManoDeObra'))out.esManoDeObra=old.esManoDeObra;else delete out.esManoDeObra;
-   const oldUnit=unit(old),q=quantity(item),before=quantity(old);if(!Number.isFinite(q)||q<=0)throw Error('Revisá la cantidad del ítem.');
+   const oldUnit=quantityUnit(old),q=quantity(item),before=quantity(old);if(!Number.isFinite(q)||q<=0)throw Error('Revisá la cantidad del ítem.');
    if(oldUnit===null||old.comisionCostoHistoricoPendiente===true)return out;
    if(q!==before){for(const k of ['costoTotalCompra','costoTotal','costo'])if(numeric(old[k]))out[k]=round(oldUnit*q);}
    return out;
@@ -47,8 +49,8 @@
    const convert=(item,key)=>{let at=old.findIndex((o,i)=>!used.has(i)&&same(o,item));if(at<0&&old[key]&&!used.has(Number(key))&&![item,old[key]].some(i=>i.productoFbKey||i.pid||i.cod||i.codigo||i.desc||i.descripcion)&&Number(item.punit??item.precio)===Number(old[key].punit??old[key].precio))at=Number(key);if(at<0)return captureNew(item);used.add(at);return preserve(item,old[at]);};
    return {...record,items:Array.isArray(items)?items.map(convert):Object.fromEntries(Object.entries(items).map(([key,item])=>[key,convert(item,key)]))};
   }
-  function costCells(html,item){if(unit(item)!==null&&item.comisionCostoHistoricoPendiente!==true)return html;return html.replace('</td>','<small style="display:block;font-size:10px;color:var(--text3)" title="La venta no conserva un costo confirmado; esta referencia no demuestra el costo histórico.">Costo de referencia</small></td>');}
-  return Object.freeze({prepare,capture,preserve,unit,costCells});
+  function costCells(html,item){if(unit(item)!==null&&item.comisionCostoHistoricoPendiente!==true)return html;let index=0;return html.replace(/<td\b[^>]*>[\s\S]*?<\/td>/gi,function(){return '<td class="tr sv-comparacion-celda" style="white-space:nowrap;color:var(--text3)">—'+(index++===0?'<small style="display:block;font-size:10px" title="La venta no conserva un costo confirmado; no se calculan ganancia ni margen históricos.">Costo sin confirmar</small>':'')+'</td>';});}
+  return Object.freeze({prepare,capture,preserve,unit,quantityUnit,costCells});
  }
- return Object.freeze({create,unit,fields});
+ return Object.freeze({create,unit,quantityUnit,fields});
 });

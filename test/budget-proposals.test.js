@@ -11,7 +11,7 @@ function extract(name,next){return source.slice(source.indexOf('function '+name+
 test('costos de propuesta sobreviven lectura, edición, guardado y conversión a venta',()=>{
  const row={dataset:{costoPropuesta:JSON.stringify({cod:'A',costoUnitarioCompra:66,origenCompra:'Paraguay',porcentajeVentaCompra:30})},querySelector(sel){return sel.includes('prod-sel-cod')?{textContent:'A'}:sel.includes('desc')?{textContent:'Cámara'}:sel.includes('qty')?{value:2}:sel.includes('price')?{value:'85.8',dataset:{}}:sel.includes('disc')?{value:'10'}:null;}};
  const c={document:{querySelectorAll:()=>[row]},_redondearPrecioActual:budget.roundMoney,obtenerProductoPorCodigoVenta:()=>null};
- runModule(extract('getPpItems','stockBadgeHTML'),c);
+ require('./helpers/app-functions.cjs').load(c,['_svCostoGuardadoItem','_svDatosItemFila','getPpItems']);
  const items=c.getPpItems();assert.equal(items[0].costoUnitarioCompra,66);assert.equal(items[0].origenCompra,'Paraguay');
  const record=integration.fields({items,descuentoGeneral:5,conIva:true});const sale=integration.toSale(record);assert.equal(sale.items[0].costoUnitarioCompra,66);
  row.dataset.costoPropuesta=JSON.stringify({cod:'OTHER',costoUnitarioCompra:66});assert.equal(c.getPpItems()[0].costoUnitarioCompra,undefined);

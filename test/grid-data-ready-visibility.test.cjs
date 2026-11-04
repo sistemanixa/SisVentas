@@ -15,7 +15,7 @@ for(const width of [390,768,1280])test('primera apertura revela columnas tras da
  await page.setContent(html);await page.addScriptTag({content:readiness});await page.addScriptTag({content:grid});
  await page.evaluate(()=>{
   window.permisoModulo=()=>true;document.dispatchEvent(new CustomEvent('sisventas:session-ready'));
-  window.sources=['clientes','productos','presupuestos'].map(k=>SVDataReadiness.beginSource(k,'fixture/'+k));
+  window.sources=['clientes','productos','presupuestos','empleados'].map(k=>SVDataReadiness.beginSource(k,'fixture/'+k));
   document.getElementById('page-dashboard').classList.remove('active');document.getElementById('page-presupuesto').classList.add('active');
   SisVentas.prepareResizablePage(document.getElementById('page-presupuesto'));
   document.dispatchEvent(new CustomEvent('sisventas:page-changed',{detail:{page:'presupuesto'}}));

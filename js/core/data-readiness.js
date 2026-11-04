@@ -62,7 +62,7 @@
   var dependencies={
     dashboard:['clientes','productos','ventas','pagos'],
     productos:['productos'],catalogo:['productos'],actualizadorprecios:['productos','proveedores'],
-    clientes:['clientes'],venta:['clientes','productos','ventas'],presupuesto:['clientes','productos','presupuestos'],
+    clientes:['clientes'],venta:['clientes','productos','ventas','empleados'],presupuesto:['clientes','productos','presupuestos','empleados'],
     detalle:['ventas','clientes','pagos'],cobranzas:['ventas','clientes','pagos'],cuentacorriente:['ventas','clientes','pagos'],
     gastos:['gastos','empleados'],comisiones:['gastos','empleados','ventas'],
     ordentrabajo:['ordenes_trabajo','clientes','productos'],
@@ -73,9 +73,11 @@
     agenda:['agenda','ordenes_trabajo'],caja:['caja'],
     historialcliente:['clientes','ventas','pagos','presupuestos','ordenes_trabajo','equipos','tickets','reclamos']
   };
-  var labels={ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
+  var labels={historyPointDetail:'el detalle solicitado',ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
   function requirements(page){
-    var keys=(dependencies[page]||[]).slice();
+    if(global.SVClientHistoryOriginalRuntime?.claimsPointView(page)===true)return ['historyPointDetail'];
+    if(page==='historialcliente'&&global.SVClientHistoryRuntime?.claimed===true)return ['historialcliente'];
+    var keys=global.SVCommercialFormData?.requirements(page)||(dependencies[page]||[]).slice();
     if(page==='dashboard') {
       // Una lectura compartida puede estar autorizada por otra pantalla sin
       // que ninguna tarjeta visible del inicio la necesite.
@@ -188,7 +190,7 @@
       if(Array.from(state.sources).every(function(item){return item.ready;})){state.ready=true;state.failure=false;state.failureMessage='';}
       schedule();
     }
-    return {ready:function(){finish(false);},error:function(message){finish(true,message);},cancel:function(){if(!active||epoch!==generation)return;active=false;if(source.error){state.failure=true;state.failureMessage=source.message;}state.sources.delete(source);schedule();}};
+    return {ready:function(){finish(false);},error:function(message){finish(true,message);},cancel:function(){if(!active||epoch!==generation)return;active=false;if(source.error){state.failure=true;state.failureMessage=source.message;}state.sources.delete(source);if(state.sources.size&&Array.from(state.sources).every(function(item){return item.ready;}))state.ready=true;schedule();}};
   }
   function checkDeadlines(){
     deadlineTimer=null;
@@ -213,7 +215,20 @@
     if(statusLayer)statusLayer.remove();
     statusLayer=statusBox=statusTitle=statusDetail=statusRetry=null;
   }
-  function mountStatus(page,name,state){
+  function pendingKinds(keys){
+    return keys.map(function(key){
+      var counts={},sourceState=states[key];
+      Array.from(sourceState?.sources||[]).filter(function(source){return !source.ready;}).forEach(function(source){
+        // Clasificación fija: jamás transportar URL, filtros, UID o documento.
+        var match=String(source.reference||'').match(/^commercial-pages\/(totals|collectionTotals|sales|payments|lookup|detail)(?:[\/]|$)/);
+        var kind=match?'indexed-'+match[1]:source.reference?'other':'legacy';
+        counts[kind]=(counts[kind]||0)+1;
+      });
+      var kinds=Object.keys(counts).sort().map(function(kind){return kind+':'+counts[kind];}).join(',')||'unrequested';
+      return key+'='+kinds;
+    }).join(';');
+  }
+  function mountStatus(page,name,state,refreshing){
     if(!document.body)return;
     if(!statusBox){
       statusBox=document.createElement('div');statusBox.dataset.svDataStatus='1';statusBox.className='sv-data-status';
@@ -222,8 +237,11 @@
       statusRetry.className='btn btn-sm';statusRetry.textContent='Reintentar carga';statusBox.append(statusTitle,statusDetail,statusRetry);
     }
     statusBox.dataset.svDataPage=name;
+    var diagnostic=pendingKinds(state.missing);if(statusBox.dataset.svPendingSources!==diagnostic)statusBox.dataset.svPendingSources=diagnostic;
     statusBox.classList.toggle('sv-data-error',!!state.errors.length);
-    var text=presentation(state);
+    statusBox.classList.toggle('sv-data-refresh',refreshing===true);
+    var text=refreshing?{title:'Actualizando…',detail:'Verificando ventas y cobros.'}:presentation(state);
+    statusRetry.hidden=refreshing===true;
     if(statusTitle.textContent!==text.title)statusTitle.textContent=text.title;
     if(statusDetail.textContent!==text.detail)statusDetail.textContent=text.detail;
     statusRetry.onclick=function(){
@@ -232,7 +250,10 @@
       try{
         // Una recuperación explícita conserva página, filtros y formulario.
         // Sólo las pantallas a demanda tienen su mapa completo en la app.
-        if(demandPages.includes(name)&&typeof global.svReintentarDatosDePagina==='function'){
+        if(['detalle','dashboard'].includes(name)&&global.SVCommercialPagesHost?.activeRoute?.()){
+          Promise.resolve(global.SVCommercialPagesHost.ensure(true)).catch(report);
+        }
+        else if(demandPages.includes(name)&&typeof global.svReintentarDatosDePagina==='function'){
           var errors=status(requirements(name)).errors;
           var timedOut=errors.filter(function(key){return states[key]?.timeout;});
           var references=[];errors.forEach(function(key){Array.from(states[key]?.sources||[]).forEach(function(source){if(source.reference&&(source.error||(states[key].timeout&&!source.ready)))references.push({key:key,reference:source.reference});});});
@@ -244,7 +265,7 @@
       }catch(_){report();}
     };
     var focused=statusBox.contains(document.activeElement)?document.activeElement:null;
-    if(!state.ready){
+    if(!state.ready&&!refreshing){
       // Fuera de .page: sus animaciones/transformaciones no pueden cambiar
       // el centro del viewport. La tarjeta es la misma, nunca una copia.
       if(!statusLayer){statusLayer=document.createElement('div');statusLayer.id='sv-data-status-layer';statusLayer.className='sv-load-status-layer';document.body.append(statusLayer);}
@@ -265,11 +286,12 @@
       if(sessionActive&&page.classList.contains('active'))keys.forEach(ensure);
       var state=status(keys);
       var show=!state.ready||state.errors.length>0;
-      page.classList.toggle('sv-data-pending',!state.ready);
+      var refreshing=name==='dashboard'&&!state.ready&&!state.errors.length&&state.missing.every(function(key){return key==='ventas'||key==='pagos';})&&global.SVCommercialPagesHost?.canRetainDashboard?.()===true;
+      page.classList.toggle('sv-data-pending',!state.ready&&!refreshing);
       page.setAttribute('aria-busy',String(!state.ready&&!state.errors.length));
-      if(show&&sessionActive&&allowed&&page.classList.contains('active'))visible={page:page,name:name,state:state};
+      if(show&&sessionActive&&allowed&&page.classList.contains('active'))visible={page:page,name:name,state:state,refreshing:refreshing};
     });
-    if(visible)mountStatus(visible.page,visible.name,visible.state);else clearStatus();
+    if(visible)mountStatus(visible.page,visible.name,visible.state,visible.refreshing);else clearStatus();
     if(held){if(deadlineTimer!==null)global.clearTimeout(deadlineTimer);deadlineTimer=null;}else armDeadlines();
     document.dispatchEvent(new CustomEvent('sisventas:data-state-changed'));
   }

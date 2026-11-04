@@ -47,6 +47,9 @@ const chatOperations = require('./chat-operations').createChatOperations({auth:b
 const distributorDocuments=require('./distributor-documents').createDistributorDocuments({auth:businessAuth,db,enabled:process.env.DISTRIBUTOR_DOCUMENTS_ENABLED==='true'});
 const clientAccountScope=require('./client-account-scope').create({auth:firebaseAuth,db,guard:laborRuntime.guard,queryReader:laborRuntime.store.query,enabled:process.env.CLIENT_ACCOUNTS_ENABLED==='true'});
 const clientAccountDocuments=require('./client-account-documents').create({auth:businessAuth,db,enabled:process.env.CLIENT_ACCOUNTS_ENABLED==='true'});
+const clientHistoryAccess=require('./client-history-access').create({auth:businessAuth,db,readAsUser:laborRuntime.store.readAsUser});
+const clientHistoryClient=require('./client-history-client').create({access:clientHistoryAccess,read:laborRuntime.store.read,readClientAsUser:clientHistoryAccess.readClient,queryClientMembers:async(group,limit)=>(await db.ref('sv_client_accounts/v1/directory/index').orderByChild('clienteKey').equalTo(group).limitToFirst(limit).get()).val()||{}});
+const clientHistoryService=require('./client-history-http-adapter').create({access:clientHistoryAccess,read:laborRuntime.store.read,resolveClient:clientHistoryClient.resolve,query:async(path,{after,limit})=>{let ref=db.ref(path).orderByKey();if(after)ref=ref.startAt(after+'\u0000');return (await ref.limitToFirst(limit).get()).val();},enabled:laborRuntime.capabilities().clientHistory&&process.env.CLIENT_HISTORY_READ_ENABLED==='true'});
 const commercialCollectionReader=require('./commercial-collection-reader').createCommercialCollectionReader({databaseURL:DATABASE_URL,compressOverflow:true,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const projects = require('./projects').createProjects({auth:businessAuth,db,collectionReader:commercialCollectionReader,scopedReads:process.env.COMMERCIAL_SCOPED_READS_ENABLED==='true',queryReader:laborRuntime.store.query,enabled:process.env.PROJECTS_ENABLED==='true',storage:()=>require('firebase-admin').storage(),bucketName:process.env.PROJECTS_MEDIA_BUCKET,listStore:process.env.PROJECT_LISTS_ENABLED==='true'?require('./projects-list-store').createProjectListStore(db):undefined});
 const commercialOwnership=require('./commercial-ownership').createCommercialOwnership({auth:businessAuth,db,collectionReader:commercialCollectionReader,scopedReads:process.env.COMMERCIAL_SCOPED_READS_ENABLED==='true',queryReader:laborRuntime.store.query,enabled:process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'});
@@ -59,6 +62,10 @@ const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
 const laborTransaction = laborRuntime.transaction;
 const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
+laborRuntime.store.saleDeleteFenceReady=process.env.SALE_DELETE_FENCE_READY==='true';
+const saleDeleteService=require('./sale-delete-http-adapter').createSaleDeleteHttpAdapter({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.SALE_DELETE_READY==='true'});
+const purchaseDeleteService=require('./purchase-order-delete').createPurchaseOrderDelete({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.PURCHASE_ORDER_DELETE_READY==='true'});
+const otDeleteService=require('./ot-delete-http-adapter').createOTDeleteHttpAdapter({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.OT_DELETE_READY==='true'});
 const otOfficeCount=require('./ot-office-count').createOTOfficeCount({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_OFFICE_COUNT_ENABLED==='true'});
 const otLifecycle=require('./ot-lifecycle').createOTLifecycle({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_LIFECYCLE_ENABLED==='true',commercialPages:process.env.COMMERCIAL_PAGES_ENABLED==='true'});
 const expenseReimbursement=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled,reimbursement:true});
@@ -2023,6 +2030,21 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if(pathname==='/operaciones/ot/eliminar'){
+    res.setHeader('Cache-Control','private, no-store');
+    try{const body=await readBody(req,2048);send(res,200,await otDeleteService.handle(req,body));}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar la OT. Consultá la operación antes de repetirla.',...(error.code?{code:error.code}:{})});}return;
+  }
+  if(pathname==='/compras/ordenes/eliminar'){
+    res.setHeader('Cache-Control','private, no-store');
+    try{const body=await readBody(req,2048);send(res,200,await purchaseDeleteService.handle(req,body));}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar la compra. Consultá la operación antes de repetirla.',...(error.code?{code:error.code}:{})});}return;
+  }
+  if(pathname==='/comerciales/ventas/eliminar'){
+    res.setHeader('Cache-Control','private, no-store');
+    try{const body=await readBody(req,2048),result=await saleDeleteService.handle(req,body);send(res,result.statusCode,result.body);}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar la eliminación. Consultá la operación antes de repetirla.',...(error.code?{code:error.code}:{})});}return;
+  }
   if(pathname.startsWith('/comerciales/')){
     res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');
     try{
@@ -2077,6 +2099,12 @@ const server = http.createServer(async (req, res) => {
       send(res,200,{ok:true,...result});
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo cargar el directorio protegido. Reintentá.'});}
     return;
+  }
+
+  if(['/clientes/historial','/clientes/historial/cliente'].includes(pathname)){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
+    try{if(req.method!=='POST'){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}const reply=await clientHistoryService.handle(req,await readBody(req,2048));send(res,reply.statusCode,reply.body);}
+    catch(error){send(res,error.statusCode||503,{ok:false,code:error.code,mensaje:error.statusCode?error.message:'No se pudo verificar el historial. Volvé a actualizar.'});}return;
   }
 
   if(pathname==='/cuentas/preparar'){
@@ -2164,7 +2192,7 @@ const server = http.createServer(async (req, res) => {
       const actor=await service.authorize(req),body=await readBody(req,pathname==='/laboral/capacidades'?128:16*1024*1024);
       if(pathname==='/laboral/capacidades'){
         if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).length)throw Object.assign(Error('Solicitud inválida'),{statusCode:400});
-        send(res,200,{ok:true,payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability(),coordination:laborRuntime.capabilities(),revision:process.env.K_REVISION||'local'});
+        send(res,200,{ok:true,payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability(),saleDelete:{version:1,enabled:saleDeleteService.capability()},orderDelete:{version:1,enabled:purchaseDeleteService.capability()},otDelete:{version:1,enabled:otDeleteService.capability()},coordination:laborRuntime.capabilities(),saleReturn:require('./sale-return-to-budget').capability({enabled:process.env.SALE_RETURN_ECONOMICS_READY==='true',coordinated:laborRuntime.capabilities().coordinated&&!laborRuntime.capabilities().readOnly,rulesDigest:process.env.SALE_RETURN_RULES_DIGEST||''}),revision:process.env.K_REVISION||'local'});
       }else send(res,200,await service[['/cobranzas/operacion','/laboral/gastos/editar-administrativo'].includes(pathname)?'execute':'create'](actor,body));
     }catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el guardado. Comprobá el intento antes de repetirlo.',...(error.code?{code:error.code}:{})});}return;
   }

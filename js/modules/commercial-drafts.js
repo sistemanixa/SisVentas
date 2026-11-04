@@ -325,7 +325,9 @@
         d.data.fields.forEach(function (f) { if (f.id === 'vf-numero-preview') return; var el = f.id ? document.getElementById(f.id) : elements[f.index]; if (el && scope.contains(el)) { el.value = f.value; if (el.type === 'checkbox' || el.type === 'radio') el.checked = f.checked; Object.assign(el.dataset, f.data); } });
         var body = document.getElementById(d.kind === 'venta' ? 'det-body' : 'pp-body'); body.replaceChildren();
         d.data.rows.forEach(function (r) {
-          var tr = crearFilaProducto(r.cod, r.desc, r.price, r.qty, r.disc); Object.assign(tr.dataset, r.data); body.appendChild(tr);
+          var prior = {}; try { prior = JSON.parse((r.data || {}).itemComercial || '{}'); } catch (_) {}
+          var source = Object.assign({}, prior, {cod:r.cod,desc:r.desc,productoFbKey:(r.data || {}).productoFbKey || prior.productoFbKey || '',imagenUrl:(r.data || {}).imagenUrl || prior.imagenUrl || ''});
+          var tr = crearFilaProducto(r.cod, r.desc, r.price, r.qty, r.disc, source); Object.assign(tr.dataset, r.data); body.appendChild(tr);
           var p = tr.querySelector('.price'); if (p) { p.value = r.priceText; Object.assign(p.dataset, r.priceData || {}, { raw: r.price }); }
           if (r.data.creditoHistorico === '1') tr.querySelectorAll('.qty,.price,.disc').forEach(function (el) { el.readOnly = true; });
           if (d.kind === 'presupuesto') tr.querySelectorAll('.qty,.price,.disc').forEach(function (el) { el.addEventListener('input', calcPpTotales); });

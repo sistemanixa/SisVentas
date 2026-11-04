@@ -8,7 +8,7 @@ test('parallel totals and first page share only their initial metadata reads',as
  assert.equal(f.calls.filter(c=>c.path==='sv_commercial_pages_config').length,1);
  assert.equal(f.calls.filter(c=>c.path.endsWith('/coverage')).length,3);
  assert.equal(f.calls.length,6);
- const n=f.calls.length;await r.totals();assert.equal(f.calls.length-n,4);
+ const n=f.calls.length;await r.totals();assert.equal(f.calls.length-n,3);assert(f.calls.slice(n).every(call=>call.path==='sv_commercial_pages_config'||call.path.endsWith('/coverage')));
 });
 for(const change of ['uid','role','permissionRevision','auth','db','online','hidden'])test('shared metadata rejects late results after '+change,async()=>{
  const f=await create({latency:5}),r=Reader.create({sdk:f.sdk,capture:()=>f.session});

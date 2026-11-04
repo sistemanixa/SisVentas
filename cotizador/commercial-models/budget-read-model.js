@@ -108,12 +108,15 @@
     var quantityValue = firstDefined(source, ['qty', 'cantidad', 'cant', 'unidades'], 1);
     var quantity = Math.max(0, parseNumber(quantityValue));
     var discountPct = percent(firstDefined(source, ['disc', 'descuentoPct', 'porcentajeDescuento', 'descuento'], 0));
-    var unitNet = Math.max(0, parseNumber(firstDefined(source, [
+    var unitValue = firstDefined(source, [
       'punit', 'precio', 'precioUnitario', 'precio_unitario', 'precioVenta', 'unitario', 'valorUnitario'
-    ], 0)));
+    ], null);
+    var explicitPrice = unitValue !== null;
+    var validPrice = explicitPrice && (typeof unitValue === 'number' ? Number.isFinite(unitValue) : /^-?[\d.,]+$/.test(String(unitValue).trim())) && parseNumber(unitValue) >= 0;
+    var unitNet = validPrice ? parseNumber(unitValue) : 0;
     var storedLineValues = values(source, ['sub', 'subtotal', 'totalItem', 'importe']);
 
-    if (!(unitNet > 0) && storedLineValues.length && quantity > 0) {
+    if (!explicitPrice && storedLineValues.length && storedLineValues[0].value > 0 && quantity > 0) {
       var factor = 1 - discountPct / 100;
       unitNet = factor > 0
         ? storedLineValues[0].value / quantity / factor
@@ -128,7 +131,7 @@
     if (!(quantity > 0)) {
       conflicts.push(Object.freeze({ kind: 'invalid-quantity', path: 'items[' + index + '].quantity' }));
     }
-    if (!(unitNet > 0)) {
+    if (!(validPrice || !explicitPrice && unitNet > 0)) {
       conflicts.push(Object.freeze({ kind: 'missing-unit-price', path: 'items[' + index + '].unitNet' }));
     }
 

@@ -1,6 +1,6 @@
 # Plan integral de SisVentas — etapa 1
 
-Fecha de decisión: 3 de noviembre de 2026. Estado: planificación consolidada; implementación, pruebas nuevas y publicaciones pausadas. Este documento ordena la continuación y no acredita que la auditoría funcional esté cerrada.
+Fecha de decisión: 3 de noviembre de 2026. Estado original: planificación consolidada. Ejecución local reanudada por el titular; integración y pruebas en curso durante la ventana del04/11, sin activación general de producción. Este documento ordena la continuación y no acredita que la auditoría funcional esté cerrada.
 
 Actualización posterior del titular: ejecución local del plan reanudada, con coordinación técnica delegada y sin pedir priorizaciones rutinarias. La pausa anterior describe el cierre de etapa1, no el estado de ejecución actual. Se conserva el control de alcance y evidencia antes de activar producción.
 
@@ -10,8 +10,8 @@ Se contrastaron cuatro revisiones locales independientes: núcleo comercial, ví
 
 | Base | Estado conocido | Límite |
 |---|---|---|
-| Fuente publicada | v3.18.19, fuente `114296e53d7e7a6ffd1aedf9ce0bbed7a1f8b4c1`, HEAD documental `0225979825e2d7110072bd419e7afcee78968110` | Evidencia previa de publicación; esta etapa no volvió a consultar remoto |
-| Integración | `ae2fe53ffccd570a8e7c7594f62d83492e930c08`, app activa v3.18.14, cambios funcionales sin commit | Preparación local, no versión para desplegar sobre la 19 |
+| Fuente publicada | v3.18.20, fuente `312705c2bd5c5e938aab729585506b2be87b0c5a`, HEAD documental `0c093b65` | Publicación de fotos separada verificada por activos/aviso; no incluye la integración |
+| Integración | `72ee1392`, app activa v3.18.14 con cambios locales de integración | Preparación local, no paquete inmutable para desplegar sobre la20 |
 | Estado externo | No recertificado en esta etapa | Revisión efectiva de servidor, reglas, configuración, índices y tráfico se comprobará antes del corte |
 
 Las copias están en `C:/SisVentas/.local/dashboard-readiness-v31817` y `C:/SisVentas/.local/restaurar-grilla-original-v31714`. La raíz del proyecto y otras ramas históricas no sustituyen esas bases. Se preserva el WIP sin incorporarlo como terminado.

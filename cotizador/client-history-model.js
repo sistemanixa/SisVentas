@@ -89,8 +89,8 @@ async function collect(input,{sourceOnly=false,accountSources=null,resolutions=n
    if(!scopedCoverage.has(scope))scopedCoverage.set(scope,Object.fromEntries(domains.map(domain=>[domain,{records:0,originalRecords:0,unlinkedRecords:0}])));
    const covered=scopedCoverage.get(scope)[domain];covered.records++;if(!row.embedded)covered.originalRecords++;if(row.identity.status!=='linked')covered.unlinkedRecords++;
    const name=scope+'/'+id;let group=groups.get(name);
-   if(!group){group={identity:clone(row.identity),domains:Object.fromEntries(domains.map(d=>[d,empty()])),order:Object.fromEntries(domains.map(d=>[d,[]])),addresses:{},addressOrder:{}};groups.set(name,group);}
-   sum(group.domains[domain],row);
+   if(!group){group={identity:clone(row.identity),domains:Object.fromEntries(domains.map(d=>[d,empty()])),unlinked:Object.fromEntries(domains.map(d=>[d,0])),order:Object.fromEntries(domains.map(d=>[d,[]])),addresses:{},addressOrder:{}};groups.set(name,group);}
+   sum(group.domains[domain],row);if(row.identity.status!=='linked')group.unlinked[domain]++;
    const address=addressId(row);
    group.addresses[address]||=Object.fromEntries(domains.map(d=>[d,empty()]));sum(group.addresses[address][domain],row);
    group.addressOrder[address]||={recordKey:row.addressKey||null,order:Object.fromEntries(domains.map(d=>[d,[]]))};
@@ -164,7 +164,7 @@ async function collect(input,{sourceOnly=false,accountSources=null,resolutions=n
  // An operational tab must never expose financial totals from another tab.
  for(const [name,value]of groups)for(const domain of domains){
   const [scope,accountId]=name.split('/');
-  patch[ROOT+'/accounts/'+name+'/'+domain]={schema:1,generation,revision,scope,accountId,domain,identity:value.identity,totals:value.domains[domain],pageEnds:ends(value.order[domain]),addresses:Object.fromEntries(Object.entries(value.addresses).map(([key,totals])=>[key,{recordKey:value.addressOrder[key].recordKey,totals:totals[domain],pageEnds:ends(value.addressOrder[key].order[domain])}]))};
+  patch[ROOT+'/accounts/'+name+'/'+domain]={schema:1,generation,revision,scope,accountId,domain,identity:value.identity,unlinkedRecords:value.unlinked[domain],totals:value.domains[domain],pageEnds:ends(value.order[domain]),addresses:Object.fromEntries(Object.entries(value.addresses).map(([key,totals])=>[key,{recordKey:value.addressOrder[key].recordKey,totals:totals[domain],pageEnds:ends(value.addressOrder[key].order[domain])}]))};
  }
  for(const [name,value]of Object.entries(sources)){
   patch[ROOT+'/sources/'+name]=value;for(const dependency of value.dependencies)patch[ROOT+'/dependents/'+Account.hash(dependency)+'/'+name]=true;

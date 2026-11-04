@@ -3,7 +3,8 @@ function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=f
  if(readOnly&&!enabled)throw Error('El modo de revisión requiere conservar el circuito acotado');
  if((clientAccounts||clientHistory)&&!enabled)throw Error('Las cuentas y el historial requieren el guardado coordinado habilitado.');
  const store=require('./labor-rtdb-store').createLaborRtdbStore({databaseURL,accessToken,fetchImpl});
- const guard=require('./labor-guard').createLaborGuard({store,readOnly,operationalSummaries,commercialPages,clientAccounts,clientHistory});
+ const guard=require('./labor-guard').createLaborGuard({store,readOnly,operationalSummaries,commercialPages,clientAccounts,clientHistory,saleFinancialDependencies:true});
+ store.saleDeleteFinancialEvidence=require('./sale-financial-dependencies-provider').create();
  const scopedDb=enabled?require('./labor-db').createLaborDb({db,guard}):db;
  const transaction=enabled?require('./labor-scoped-transaction').createScopedTransaction({guard}):require('./labor-transaction').createRootTransaction({databaseURL,accessToken,fetchImpl});
  function run(actor,operation,input,work,{system=false}={}){

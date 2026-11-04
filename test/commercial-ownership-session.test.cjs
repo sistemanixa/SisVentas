@@ -8,6 +8,23 @@ test('error del servidor nunca usa un historial global como fallback',async()=>{
 test('revocación cierra el detalle y vacía la colección ya mostrada',async()=>{const elements={'venta-detalle-view':{style:{display:'block'}},'ventas-list-view':{style:{display:'none'}}};const {c}=setup(async()=>({ok:false,status:403,json:async()=>({mensaje:'Bloqueado'})}));c.document.getElementById=id=>elements[id];c._ventaDetalleActual={fbKey:'private'};let cleared=false;c.SVCommercialOwnership.onValue('ventas',snap=>{cleared=Object.keys(snap.val()).length===0;});await new Promise(r=>setImmediate(r));assert.equal(cleared,true);assert.equal(c._ventaDetalleActual,null);assert.equal(elements['venta-detalle-view'].style.display,'none');});
 test('fechaOrden derivada solo para ordenar no se introduce en la base de una edición histórica',()=>{const {c}=setup(async()=>({}));const clean=c.SVCommercialOwnership.clean({fecha:'2020-01-01',fechaOrden:'2020-01-01',_svDerivedFechaOrden:true,total:100});assert.equal(clean.fechaOrden,undefined);assert.equal(clean.fecha,'2020-01-01');assert.equal(clean.total,100);});
 function readiness(c){c.URL=URL;c.addEventListener=()=>{};c.requestAnimationFrame=()=>{};vm.runInNewContext(fs.readFileSync('js/core/data-readiness.js','utf8'),c);return c.SVDataReadiness;}
+
+test('el acuse de conversión agrega presupuesto y retira sólo la venta confirmada, con contextos separados',()=>{
+ const {c}=setup(async()=>{throw Error('No requiere red');});const own=c.SVCommercialOwnership;
+ const saleContext=own.captureWriteContext('ventas'),budgetContext=own.captureWriteContext('presupuestos');
+ c.ventasList=[{fbKey:'converted',total:121},{fbKey:'other',total:55}];c.pptoData=[{fbKey:'old',total:17}];
+ own.confirmWrite('presupuestos',{fbKey:'desde_venta_converted',total:121},budgetContext);
+ assert.throws(()=>own.confirmDelete('ventas','converted',budgetContext),/Acuse/);
+ assert.equal(c.ventasList.length,2);own.confirmDelete('ventas','converted',saleContext);
+ assert.equal(c.ventasList.length,1);assert.equal(c.ventasList[0].fbKey,'other');assert.equal(c.ventasList[0].total,55);
+ assert.equal(c.pptoData.length,2);assert.equal(c.pptoData.find(p=>p.fbKey==='desde_venta_converted').total,121);
+});
+
+test('acuse de venta de una sesión anterior no retira registros de la nueva sesión',()=>{
+ const {c}=setup(async()=>({})),own=c.SVCommercialOwnership,context=own.captureWriteContext('ventas');
+ c.ventasList=[{fbKey:'same',total:100}];c.currentUserUid='another';
+ assert.throws(()=>own.confirmDelete('ventas','same',context),/sesión/);assert.equal(c.ventasList.length,1);
+});
 test('Ventas completa la carga de pantalla solo después de procesar su respuesta HTTP',async()=>{
  let finish;const {c}=setup(async()=>({ok:true,json:async()=>({ok:true,records:{demo:{total:100}}})})),load=readiness(c);
  c.SVCommercialOwnership.onValue('ventas',()=>new Promise(resolve=>finish=resolve));await new Promise(r=>setImmediate(r));assert.equal(load.status(['ventas']).ready,false);

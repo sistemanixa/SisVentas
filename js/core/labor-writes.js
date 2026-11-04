@@ -177,14 +177,17 @@
     const check=capture();check();available();
     if(!Array.isArray(paths)||!paths.length||paths.length>128||typeof build!=='function'||purpose!==undefined&&!['relationship-normalization','expense-removal','employee-bonus-batch','employee-sac-batch','employee-sac-migration','sale-cost-correction','sale-return-to-budget'].includes(purpose))throw fail('SV_LABOR_ATOMIC','El guardado requiere hasta 128 registros y una transformación.');
     const selected=paths.map(pathOf);if(new Set(selected).size!==selected.length)throw fail('SV_LABOR_ATOMIC','Hay registros repetidos en el guardado.');
-    await prepareIdentity(selected,()=>undefined);check();
+    // Este comando siempre va al guardado coordinado; no decide entre escritura
+    // directa y servidor consultando una configuración privada de Cta. corriente.
+    // El servidor conserva el bloqueo, la sesión y los permisos del comando.
+    if(purpose!=='sale-return-to-budget')await prepareIdentity(selected,()=>undefined);check();
     for(const path of selected)requireScoped(path);
     for(let attempt=0;attempt<3;attempt++){
      check();const values=Object.create(null),expectedHashes=Object.create(null);let cursor=0,failure;
      await Promise.all(Array.from({length:Math.min(6,selected.length)},async()=>{
       while(!failure&&cursor<selected.length){const path=selected[cursor++];try{
        const value=purpose==='sale-return-to-budget'&&/^sisventas\/presupuestos\/desde_venta_[^/]+$/.test(path)?null:(await read(sdk.ref(root.fbDB,path),check)).val();check();values[path]=copy(value);expectedHashes[path]=await hash(value);check();
-      }catch(error){failure||=error;}}
+      }catch(error){if(purpose==='sale-return-to-budget')root.console?.warn?.('[Retorno presupuesto] leer_registro',path.split('/')[1]);failure||=error;}}
      }));
      if(failure)throw failure;check();const changes=build(copy(values));
      if(changes&&typeof changes.then==='function'){Promise.resolve(changes).catch(()=>{});throw fail('SV_LABOR_CALLBACK','La transformación del guardado debe ser síncrona.');}

@@ -9,18 +9,19 @@ const copy=value=>value==null?null:structuredClone(value);
 const at=(root,path)=>path.split('/').filter(Boolean).reduce((value,key)=>value&&Object.hasOwn(value,key)?value[key]:null,root)??null;
 function apply(root,patch){for(const [path,value]of Object.entries(patch)){const keys=path.split('/'),last=keys.pop();let node=root;for(const key of keys){if(!Object.hasOwn(node,key)||!node[key]||typeof node[key]!=='object')Object.defineProperty(node,key,{value:{},enumerable:true,configurable:true,writable:true});node=node[key];}if(value===null)delete node[last];else Object.defineProperty(node,last,{value:copy(value),enumerable:true,configurable:true,writable:true});}}
 function load(context,names){const source=active.source;for(const name of names){const expression=new RegExp('^(?:async )?function '+name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\(', 'm'),match=expression.exec(source);assert.ok(match,'Función activa: '+name);const tail=source.slice(match.index+match[0].length),next=/\n(?:async )?function [\w$]+\(/.exec(tail),chunk=source.slice(match.index,next?match.index+match[0].length+next.index:source.length);vm.runInContext(chunk,context,{filename:active.filename+':'+name});}}
-function createBackend(initial={}){
+function createBackend(initial={},options={}){
  const state={sisventas:{empleados:{e:{nombre:'Persona ficticia',activo:true,cargoId:'c'}},gastos:{},ctaemp:{e:{}},ventas:{v:{id:'V-FICTICIA',fbKey:'v',comisionHabilitada:true,subtotal:2000,costoTotal:1000}},haberes:{},config:{maxComisionPct:10,cargos:{c:{valorHora:100}}},sentinel:{privado:'Conservar'},...copy(initial)},sv_labor_config:{ready:true,schema:1},sv_chat_roles:{u:{activo:true,rol:'admin'}}};
- apply(state,Index.buildIndex(state.sisventas));let sequence=0,hook=null,rejectPatch=null;
+ apply(state,Index.buildIndex(state.sisventas));let sequence=0,hook=null,rejectPatch=null,returnCapability={ok:true,revision:'fixture-real',saleReturn:{version:1,enabled:false}};const capabilityCalls=[];
  const reads=[],commits=[],commands=[],direct=[],tokens={u:{uid:'u',name:'Titular ficticio',passwordAccessVersion:1}};
  const store={
+  async exists(path){reads.push(['exists',path]);return at(state,path)!==null;},
   async read(path){assert.notEqual(path,'sisventas','No descargar la base completa');reads.push(['server',path]);return copy(at(state,path));},
   async readAsUser(path,actor){assert.ok(tokens[actor.uid]);reads.push(['user',path]);return copy(at(state,path));},
   async acquire(lease){assert.equal(state.sv_labor_guard??null,null);state.sv_labor_guard=copy(lease);},
   async commit(patch,lease,actor){assert.equal(state.sv_labor_guard?.fence,lease.fence);assert.ok(lease.expiresAt>Date.now());if(actor.mode!=='server')assert.equal(state.sv_chat_roles[actor.uid]?.activo,true);else assert.equal(actor.uid,'sv-labor-service');assert.equal(patch.sv_labor_guard,null);assert.ok(patch['sv_labor_receipts/'+lease.opId]);if(rejectPatch)await rejectPatch(patch,actor);commits.push(copy(patch));apply(state,patch);},
   async abort(lease){if(state.sv_labor_guard?.fence===lease.fence)delete state.sv_labor_guard;}
  };
- const guard=createLaborGuard({store,operationalSummaries:true,uuid:()=> 'fixture-guard-'+(++sequence),delay:async()=>{}}),auth={verifyIdToken:async(token,revoked)=>{assert.equal(revoked,true);assert.equal(token,'fixture-token');return tokens.u;}},db={ref:path=>({get:async()=>({val:()=>copy(at(state,path))})})};
+ const guard=createLaborGuard({store,saleFinancialDependencies:true,operationalSummaries:true,commercialPages:options.coordinated===true,clientAccounts:options.coordinated===true,clientHistory:options.coordinated===true,uuid:()=> 'fixture-guard-'+(++sequence),delay:async()=>{}}),auth={verifyIdToken:async(token,revoked)=>{assert.equal(revoked,true);assert.equal(token,'fixture-token');return tokens.u;}},db={ref:path=>({get:async()=>({val:()=>copy(at(state,path))})})};
  const gateway=createLaborWriteGateway({auth,db,store,guard,enabled:true});
  const payment=require('../../cotizador/bonus-payment').createBonusPayment({authorize:gateway.authorize,db,store,guard,enabled:true,expense:true,now:()=>Date.parse('2026-10-20T15:00:00Z')});
  const adjustment=require('../../cotizador/expense-payment-adjustment').createExpensePaymentAdjustment({authorize:gateway.authorize,store,guard,enabled:true});
@@ -38,9 +39,10 @@ function createBackend(initial={}){
    SisVentas:{carga:{mostrar:()=>()=>{}}},empData:{e:{fbKey:'e',nombre:'Persona ficticia',cargoId:'c'}},_habFilasActuales:[],gastosData:[],ventasList:[],_comisionManualVentasMap:{},_gastosFechaImputacionCache:new WeakMap(),
    fetch:async(url,options)=>{assert.ok(['https://gateway.invalid/laboral/escritura','https://gateway.invalid/laboral/gastos/pagar','https://gateway.invalid/laboral/gastos/corregir-pago'].includes(url));const command=JSON.parse(options.body);commands.push(copy(command));try{if(hook)await hook(command);const actor=await gateway.authorize({method:'POST',url:'/laboral/escritura',headers:{authorization:options.headers.Authorization}});const result=url.endsWith('/gastos/pagar')?await payment.execute(actor,command):url.endsWith('/gastos/corregir-pago')?await adjustment.execute(actor,command):await gateway.write(actor,command);return {ok:true,status:200,json:async()=>copy(result)};}catch(error){return {ok:false,status:error.statusCode||503,json:async()=>({ok:false,code:error.code,mensaje:error.message})};}}
   };
+  const writeFetch=context.fetch;context.fetch=async(url,options)=>{if(!url.endsWith('/laboral/capacidades'))return writeFetch(url,options);assert.equal(url,'https://gateway.invalid/laboral/capacidades');assert.equal(options.method,'POST');capabilityCalls.push({method:options.method});try{await gateway.authorize({method:'POST',url:'/laboral/capacidades',headers:{authorization:options.headers.Authorization}});return {ok:true,status:200,json:async()=>copy(returnCapability)};}catch(error){return {ok:false,status:error.statusCode||403,json:async()=>({ok:false})};}};
   context.window=context;context.fbGet=sdk.get;context.fbRef=ref;
   vm.createContext(context);vm.runInContext(fs.readFileSync(require.resolve('../../js/core/commercial-money.v1.js'),'utf8'),context);vm.runInContext(fs.readFileSync(require.resolve('../../js/core/labor-writes.js'),'utf8'),context);context.SVLaborWrites.install({sdk});
-  for(const filename of ['bonus-payment-model.v1.js','labor-write-recovery.js','bonus-payment.v1.js'])vm.runInContext(fs.readFileSync(require.resolve('../../js/core/'+filename),'utf8'),context);
+  for(const filename of ['sale-return-capability.v1.js','sale-budget-transition.v1.js','bonus-payment-model.v1.js','labor-write-recovery.js','bonus-payment.v1.js'])vm.runInContext(fs.readFileSync(require.resolve('../../js/core/'+filename),'utf8'),context);
   context.sessionStorage={getItem:()=>null,setItem(){},removeItem(){}};
   // Business-flow fixtures surface failures; interactive lost-response recovery
   // is exercised separately in bonus-payment-client.test.cjs.
@@ -51,6 +53,6 @@ function createBackend(initial={}){
   load(context,['_movEmpPagosArray','_gastoLaboralDesdeMovimiento','_guardarMovimientoVinculadoAtomico','_crearGastoAdelantoDesdeMovimiento','_crearGastoEmpresaDesdeMovimiento','_buscarEmpleadoPorKeyCta','_comisionNormFecha','_estadoGastoComisionDesdeMovimiento','_crearGastoComisionDesdeMovimiento','_cambiarEstadoGastoVinculadoAtomico']);
   return {context,nodes,node,messages,get holds(){return holds;},load:names=>load(context,names),refresh(){context.gastosData=Object.entries(state.sisventas.gastos||{}).map(([fbKey,g])=>({...copy(g),fbKey}));context.ventasList=Object.entries(state.sisventas.ventas||{}).map(([fbKey,v])=>({...copy(v),fbKey}));}};
  }
- return {state,store,guard,gateway,reads,commits,commands,direct,page,get:path=>copy(at(state,path)),setHook:fn=>{hook=fn;},setRejectPatch:fn=>{rejectPatch=fn;}};
+ return {state,store,guard,gateway,reads,commits,commands,direct,page,capabilityCalls,setReturnCapability:value=>{returnCapability=copy(value);},get:path=>copy(at(state,path)),setHook:fn=>{hook=fn;},setRejectPatch:fn=>{rejectPatch=fn;}};
 }
 module.exports={createBackend,load,copy,apply};

@@ -60,8 +60,8 @@ async function delta(changes,{read,generation,revision}={}){
   const previous=await read(ROOT+'/accounts/'+name),members=keys(await read(ROOT+'/memberKeys/'+name));
   if(!previous&&members.size)throw fail('Falta el resumen de un historial existente.');
   if(previous&&(previous.schema!==1||previous.generation!==generation||previous.scope!==scope||previous.accountId!==row.accountId||previous.domain!==row.domain||previous.revision>state.revision))throw fail('El resumen del historial cambió.');
-  const meta=previous?copy(previous):{schema:1,generation,revision,scope,accountId:row.accountId,domain:row.domain,identity:copy(row.identity),totals:Model.empty(),pageEnds:[],addresses:{}};
-  verifySummary(meta.totals,members,meta.pageEnds);meta.addresses||={};
+  const meta=previous?copy(previous):{schema:1,generation,revision,scope,accountId:row.accountId,domain:row.domain,identity:copy(row.identity),unlinkedRecords:0,totals:Model.empty(),pageEnds:[],addresses:{}};
+  verifySummary(meta.totals,members,meta.pageEnds);if(!Number.isSafeInteger(meta.unlinkedRecords)||meta.unlinkedRecords<0||meta.unlinkedRecords>meta.totals.rows)throw fail('Falta el contador completo de identidad del cliente.');meta.addresses||={};
   const value={name,meta,members,addresses:new Map()};buckets.set(name,value);return value;
  }
  async function address(bucket,row){
@@ -82,7 +82,7 @@ async function delta(changes,{read,generation,revision}={}){
     const covered=(await coverageFor(scope))[change.domain];covered.records+=sign;covered.originalRecords+=row.embedded?0:sign;covered.unlinkedRecords+=row.identity.status!=='linked'?sign:0;affectedDomains.add(scope+'/'+change.domain);
     const group=await bucket(scope,row),location=await address(group,row);
     for(const set of [group.members,location.members]){if(sign<0&&!set.has(row.sort)||sign>0&&set.has(row.sort))throw fail('La membresía del historial cambió.');if(sign>0)set.add(row.sort);else set.delete(row.sort);}
-    Model.sum(group.meta.totals,row,sign);Model.sum(location.meta.totals,row,sign);
+    Model.sum(group.meta.totals,row,sign);if(row.identity.status!=='linked')group.meta.unlinkedRecords+=sign;Model.sum(location.meta.totals,row,sign);
     if(sign>0)group.meta.identity=copy(row.identity);
     patch[ROOT+'/pages/'+group.name+'/'+row.sort]=sign>0?row:null;
     patch[ROOT+'/addresses/'+group.name+'/'+location.id+'/'+row.sort]=sign>0?row:null;
@@ -92,6 +92,7 @@ async function delta(changes,{read,generation,revision}={}){
   }
  }
  for(const group of buckets.values()){
+  if(!Number.isSafeInteger(group.meta.unlinkedRecords)||group.meta.unlinkedRecords<0||group.meta.unlinkedRecords>group.meta.totals.rows)throw fail('El contador de identidad del cliente cambió.');
   group.meta.revision=revision;group.meta.pageEnds=ends([...group.members].sort());verifySummary(group.meta.totals,group.members,group.meta.pageEnds);
   for(const location of group.addresses.values()){location.meta.pageEnds=ends([...location.members].sort());verifySummary(location.meta.totals,location.members,location.meta.pageEnds);group.meta.addresses[location.id]=location.meta;}
   const combined=Model.empty();
@@ -107,7 +108,7 @@ async function delta(changes,{read,generation,revision}={}){
   if(keys(await read(ROOT+'/memberKeys/'+name)).size)throw fail('Falta un historial existente al preparar sus solapas.');
   const sample=[...buckets.values()].find(group=>group.name.startsWith(customer+'/')).meta;
   const [scope,accountId]=customer.split('/');
-  patch[ROOT+'/accounts/'+name]={schema:1,generation,revision:(await coverageFor(scope))[domain].revision,scope,accountId,domain,identity:copy(sample.identity),totals:Model.empty(),pageEnds:[],addresses:{}};
+  patch[ROOT+'/accounts/'+name]={schema:1,generation,revision:(await coverageFor(scope))[domain].revision,scope,accountId,domain,identity:copy(sample.identity),unlinkedRecords:0,totals:Model.empty(),pageEnds:[],addresses:{}};
  }
  for(const [scope,values]of scopeCoverage)for(const [domain,value]of Object.entries(values))if(affectedDomains.has(scope+'/'+domain)||!await read(ROOT+'/coverage/'+scope+'/'+domain)){
   if(value.records<0||value.originalRecords<0||value.unlinkedRecords<0||value.records<value.originalRecords||value.records<value.unlinkedRecords)throw fail('La cobertura del historial quedó incompleta.');value.revision=revision;patch[ROOT+'/coverage/'+scope+'/'+domain]=value;

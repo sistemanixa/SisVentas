@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.18.14-firebase' -->
+<!-- VERSION: 'v3.19.0-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,7 +21,7 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.18.14.js"></script>
+<script src="./js/core/version.v3.19.0.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.18.4"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.18.4"></script>
@@ -42,7 +42,7 @@
 <script src="./js/core/access-control.js?v=3.10.32"></script>
 <script src="./js/core/domain-read-policy.js?v=3.10.34"></script>
 <link rel="stylesheet" href="./css/app.css?v=3.18.4">
-<link rel="stylesheet" href="./css/loading-status.css?v=3.13.1">
+<link rel="stylesheet" href="./css/loading-status.css?v=3.19.0">
 <link rel="stylesheet" href="./css/surveys.css?v=3.17.7">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.8.20-menu2">
 <link rel="stylesheet" href="./css/surface-scroll.css?v=3.12.12-menu">
@@ -51,14 +51,16 @@
 <script>(function(){var p=new URLSearchParams(location.search).get('preview'),s='';try{s=localStorage.getItem('sisventas_visual_style')||sessionStorage.getItem('sisventas_visual_preview')||'v3';}catch(e){s='v3';}if(p==='v3'){s='v3';try{localStorage.setItem('sisventas_visual_style','v3');sessionStorage.setItem('sisventas_visual_preview','v3');}catch(e){}}if(s==='v3')document.documentElement.classList.add('sv-v3-preview');})();</script>
 
   <!-- Firebase SDK -->
-  <script src="./js/core/data-readiness.js?v=3.18.14"></script>
+  <script src="./js/core/commercial-form-data.v1.js?v=1"></script>
+  <script src="./js/core/data-readiness.js?v=3.19.0"></script>
   <script src="./js/core/dashboard-startup-demand.v1.js?v=3.15.1"></script>
   <script src="./js/core/foreground-session.js?v=3.13.2"></script>
   <script src="./js/core/labor-write-recovery.js?v=3.15.12"></script>
-  <script src="./js/core/labor-writes.js?v=3.18.14-budget"></script>
+  <script src="./js/core/labor-writes.js?v=3.19.0"></script>
+  <script src="./js/core/manual-delivery-writer.v1.js?v=1"></script>
   <script src="./js/core/bonus-payment-model.v1.js?v=3.18.4"></script>
   <script src="./js/core/bonus-payment.v1.js?v=3.18.4"></script>
-  <script src="./js/core/financial-commands.js?v=3.18.6"></script>
+  <script src="./js/core/financial-commands.js?v=3.19.0"></script>
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=3.17.12"></script>
 <link rel="stylesheet" href="./css/dashboard-privacy.css?v=3.14.5">
 <link rel="stylesheet" href="./css/bonus-grant.css?v=3.14.6">
@@ -3227,12 +3229,13 @@ Listo para analizar.
               <thead><tr><th>Empleado</th><th style="text-align:right">Ventas</th><th style="text-align:right">Monto</th><th style="text-align:right">Comisión</th></tr></thead>
               <tbody id="est-tbody-emp"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Sin datos</td></tr></tbody>
             </table>
+            <div id="est-commission-scope" style="font-size:12px;color:var(--text3);margin-top:8px"></div>
           </div>
         </div>
         <div class="card">
-          <div class="card-head"><span class="card-title">Productos más vendidos</span></div>
+          <div class="card-head"><span class="card-title">Productos más vendidos</span><span id="est-prod-period" style="font-size:12px;color:var(--text3)"></span></div>
           <table>
-            <thead><tr><th>Producto</th><th style="text-align:right">Unidades</th><th style="text-align:right">Monto total</th></tr></thead>
+            <thead><tr><th>Producto</th><th style="text-align:right">Ventas</th><th style="text-align:right">Monto total</th></tr></thead>
             <tbody id="est-tbody-prod"><tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px">Sin datos</td></tr></tbody>
           </table>
         </div>
@@ -3811,7 +3814,7 @@ Listo para analizar.
           <div class="card">
             <div class="card-head"><span class="card-title">Tickets de soporte</span></div>
             <div class="table-wrap"><table>
-              <thead><tr><th>N°</th><th>Descripción</th><th class="tr">Prioridad</th><th class="tr">Estado</th></tr></thead>
+              <thead><tr><th>N°</th><th>Descripción</th><th class="tr">Prioridad</th><th class="tr">Estado</th><th>Acciones</th></tr></thead>
               <tbody id="hc-tickets-body"></tbody>
             </table></div>
           </div>
@@ -3822,7 +3825,7 @@ Listo para analizar.
           <div class="card">
             <div class="card-head"><span class="card-title">Equipos instalados</span></div>
             <div class="table-wrap"><table>
-              <thead><tr><th>Equipo</th><th>N° serie</th><th>Instalación</th><th class="tr">Garantía hasta</th><th class="tr">Estado</th></tr></thead>
+              <thead><tr><th>Equipo</th><th>N° serie</th><th>Instalación</th><th class="tr">Garantía hasta</th><th class="tr">Estado</th><th>Acciones</th></tr></thead>
               <tbody id="hc-eq-body"></tbody>
             </table></div>
           </div>
@@ -3837,7 +3840,7 @@ Listo para analizar.
             </div>
             <div style="margin-bottom:14px;padding:10px 14px;background:var(--amber-bg);border-radius:var(--radius);font-size:12px;color:var(--amber)">
               <i class="ti ti-shield-lock" style="font-size:14px;margin-right:6px"></i>
-              Información confidencial. Acceso visible para todos los roles pero solo editable por admin y administrativo.
+              Información confidencial. El acceso y la edición dependen de los permisos de tu rol.
             </div>
             <div id="hc-cred-lista" style="display:flex;flex-direction:column;gap:10px">
               <div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Sin credenciales cargadas</div>
@@ -5814,11 +5817,14 @@ Listo para analizar.
 <script src="js/core/product-ranking.js?v=3.12.17"></script>
 <script src="js/modules/product-ranking-dialog.js?v=3.12.17"></script>
 <script src="js/core/connection-monitor.js?v=3.17.0"></script>
-<script src="js/core/commercial-ownership.js?v=3.17.12"></script>
+<script src="js/core/commercial-ownership.js?v=3.18.14-confirmed-delete"></script>
 <script src="js/core/commercial-money.v1.js?v=3.17.7"></script>
+<script src="./js/core/sale-budget-transition.v1.js?v=1"></script>
+<script src="./js/core/sale-return-capability.v1.js?v=1"></script>
 <script src="js/core/stock-purchase-costs.v1.js?v=3.17.7"></script>
 <script src="js/core/sale-costs.v1.js?v=3.18.4"></script>
 <script src="js/core/budget-conversion-costs.v1.js?v=3.16.11"></script>
+<script src="js/core/sale-economics-model.v1.js"></script>
 <script src="js/core/sale-writer.v1.js?v=3.17.12"></script>
 <script src="js/core/sale-cost-correction.v1.js?v=3.16.11"></script>
 <script src="js/modules/sale-cost-editor.v1.js?v=3.17.7"></script>
@@ -5840,26 +5846,28 @@ Listo para analizar.
 <script src="./js/core/chat-text.v1.js?v=3.18.4"></script>
 <script src="./js/core/purchase-order-links.v1.js?v=3.18.4"></script>
 <script src="./js/core/ot-sale-origin.v1.js?v=3.18.13"></script>
-<script src="./js/core/commercial-report-read.v1.js?v=3.18.13"></script>
-<script src="./js/modules/commercial-report-host.v1.js?v=3.18.4"></script>
-<script src="./js/app.v3.18.14.js"></script>
+<script src="./js/core/commercial-report-read.v1.js?v=3.19.0"></script>
+<script src="./js/modules/commercial-report-host.v1.js?v=3.19.0"></script>
+<script src="./js/app.v3.19.0.js"></script>
 <script src="./js/core/sales-search-model.v1.js?v=3.18.4"></script>
 <script src="./js/core/collection-search-model.v1.js?v=3.18.13"></script>
-<script src="./js/core/commercial-pages-reader.v1.js?v=3.18.13"></script>
+<script src="./js/core/commercial-pages-reader.v1.js?v=3.19.0"></script>
 <script src="./js/core/payment-actor-names.v1.js?v=3.18.4"></script>
 <script src="./js/modules/payment-actor-labels.v1.js?v=3.18.4"></script>
-<script src="./js/modules/sales-indexed-host.v1.js?v=3.18.13"></script>
+<script src="./js/modules/sales-indexed-host.v1.js?v=3.19.0"></script>
 <script src="./js/modules/collections-indexed-host.v1.js?v=3.18.13"></script>
 <script src="./js/core/client-account-mode.v1.js?v=3.18.20"></script>
 <script src="./js/core/client-account-reader.v1.js?v=3.18.14"></script>
-<script src="./js/modules/client-account-host.v1.js?v=3.18.14"></script>
+<script>window.SV_CLIENT_ACCOUNTS_ROLLOUT=Object.freeze({schema:1,enabled:false});</script>
+<script>window.SV_CLIENT_HISTORY_ROLLOUT=Object.freeze({schema:1,enabled:false});</script>
+<script src="./js/modules/client-account-host.v1.js?v=3.19.0"></script>
 <script src="./js/modules/bonus-concepts.js?v=3.14.6"></script>
 <script src="./js/modules/bonus-grant.js?v=3.14.6"></script>
 <script src="./js/modules/projects.js?v=3.18.4"></script>
 <script src="./js/modules/roles-help.js?v=3.10.35"></script>
 <script src="./js/modules/navigation-back.js?v=3.10.20-home"></script>
 <script src="./js/modules/partial-invoices.js?v=1"></script>
-<script src="./js/modules/commercial-drafts.js?v=3.13.17"></script>
+<script src="./js/modules/commercial-drafts.js?v=3.19.0"></script>
 <script src="./js/modules/chat-access.js?v=3.17.7"></script>
 <script src="./js/modules/chat-presence.v2.js?v=3.16.11"></script>
 <script src="./js/modules/chat-direct-contacts.v1.js?v=3.16.11"></script>
@@ -6417,7 +6425,7 @@ Listo para analizar.
 <script src="./js/v3/product-provider-read-model.js?v=3.0.0-shadow-v279"></script>
 <script src="./js/v3/record-repository.js?v=3.0.0-shadow-v279"></script>
 <script src="./js/v3/attachment-task.js?v=3.0.0-shadow-v279"></script>
-<script src="./js/v3/budget-read-model.js?v=3.0.0-shadow-v279"></script>
+<script src="./js/v3/budget-read-model.js?v=3.19.0"></script>
 <script src="./js/v3/sales-read-model.js?v=3.0.0-shadow-v279"></script>
 <script src="./js/v3/ot-read-model.js?v=3.0.0-shadow-v279"></script>
 <script src="./js/v3/journey-audit.js?v=3.0.0-shadow-v279"></script>
@@ -6448,7 +6456,15 @@ Listo para analizar.
 <script src="./js/modules/budget-presentation-view.js?v=3.13.19"></script>
 <script src="./js/modules/budget-presentation.js?v=3.13.19"></script>
 <script src="./js/core/salary-coverage-model.v1.js?v=3.16.13"></script>
-<script src="./js/core/salary-coverage-read.v1.js?v=3.18.4"></script>
+<script src="./js/core/salary-coverage-read.v1.js?v=3.19.0"></script>
 <script src="./js/modules/salary-coverage.v1.js?v=3.17.4"></script>
+<script src="./js/core/client-history-audience.v1.js"></script>
+<script src="./js/core/client-history-service-reader.v1.js"></script>
+<script src="./js/modules/client-history-host.v1.js"></script>
+<script src="./js/core/client-history-timeline-reader.v1.js"></script>
+<script src="./js/core/client-history-credentials-context.v1.js"></script>
+<script src="./js/modules/client-history-credentials-host.v1.js"></script>
+<script src="./js/modules/client-history-original-actions.v1.js"></script>
+<script src="./js/modules/client-history-bootstrap.v1.js"></script>
 </body>
 </html>

@@ -77,6 +77,14 @@ function descripcionVisibleItemDocumento(item) {
   return String(item.descripcionPersonalizada || item.desc || item.descripcion || item.nombre || item.producto || '').trim();
 }
 
+function _svCostoGuardadoItem(item) {
+  var out = {};
+  ['costoUnitarioCompra','costoTotalCompra','costoUnitario','costoCompra','compra','precioCompra','precio_compra','costoTotal','costo','costoUnitarioPresupuestado','costoUnitarioAntesPreparacion','comisionCostoHistoricoPendiente','costoCapturadoEn','costoOrigen','costoVersion','costoStockReferencia','esManoDeObra'].forEach(function(field) {
+    if (item && Object.hasOwn(item, field)) out[field] = item[field];
+  });
+  return out;
+}
+
 function pptoNormalizarItemGuardado(item) {
   item = item || {};
   var qty = pptoNumeroGuardado(item.qty ?? item.cantidad ?? item.cant ?? item.unidades ?? 1) || 1;
@@ -88,7 +96,7 @@ function pptoNormalizarItemGuardado(item) {
     punit = factor > 0 ? subtotal / qty / factor : subtotal / qty;
   }
   return {
-    ...(Number(item.costoUnitarioCompra)>0 ? {costoUnitarioCompra:Number(item.costoUnitarioCompra), origenCompra:item.origenCompra||'', porcentajeVentaCompra:item.porcentajeVentaCompra ?? null} : {}),
+    ..._svCostoGuardadoItem(item),
     cod: item.cod || item.codigo || item.sku || '',
     desc: descripcionVisibleItemDocumento(item),
     descripcionPersonalizada: item.descripcionPersonalizada || '',
@@ -100,8 +108,8 @@ function pptoNormalizarItemGuardado(item) {
     precioUsdOriginal: pptoNumeroGuardado(item.precioUsdOriginal || item.precioUSD || 0),
     cotizacionUsada: pptoNumeroGuardado(item.cotizacionUsada || item.tipoCambio || 0),
     cotizacionTipo: item.cotizacionTipo || '',
-    pid: item.pid || item.productoFbKey || item.productoKey || '',
-    productoFbKey: item.productoFbKey || item.pid || item.productoKey || '',
+    pid: item.pid || item.productoFbKey || item.productoKey || item.productoId || item.fbKeyProducto || '',
+    productoFbKey: item.productoFbKey || item.pid || item.productoKey || item.productoId || item.fbKeyProducto || '',
     imagenUrl: item.imagenUrl || item.productoImagenUrl || ''
   };
 }
@@ -497,4 +505,4 @@ function prepararVentaParaNotaCredito(venta, snapshot) {
     origenNotaCredito:'factura-original'
   });
 }
-module.exports={names:["normalizarNumeroExcel","pptoNumeroGuardado","descripcionVisibleItemDocumento","pptoNormalizarItemGuardado","ventaSubtotalBruto","ventaTieneDescuentoItem","ventaNormalizarDescuentoParaVista","ventaPorcentajeDescuentoEfectivo","ventaEsSinCargo","resumenEconomicoComprobanteVenta","resumenFiscalParaComprobanteVenta","importeComprobanteVenta","prepararVentaParaFacturacion","_resumenSnapshotFiscal","prepararVentaParaNotaCredito"],normalizarSolicitudEmisionFiscal,prepararVentaParaFacturacion,prepararVentaParaNotaCredito,resumenEconomicoComprobanteVenta,resumenFiscalParaComprobanteVenta};
+module.exports={names:["_svCostoGuardadoItem","normalizarNumeroExcel","pptoNumeroGuardado","descripcionVisibleItemDocumento","pptoNormalizarItemGuardado","ventaSubtotalBruto","ventaTieneDescuentoItem","ventaNormalizarDescuentoParaVista","ventaPorcentajeDescuentoEfectivo","ventaEsSinCargo","resumenEconomicoComprobanteVenta","resumenFiscalParaComprobanteVenta","importeComprobanteVenta","prepararVentaParaFacturacion","_resumenSnapshotFiscal","prepararVentaParaNotaCredito"],normalizarSolicitudEmisionFiscal,prepararVentaParaFacturacion,prepararVentaParaNotaCredito,resumenEconomicoComprobanteVenta,resumenFiscalParaComprobanteVenta};

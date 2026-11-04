@@ -46,7 +46,8 @@
    const state={session,promise:null};
    state.promise=request('/laboral/capacidades',{},session,{capability:true}).then(data=>{
     for(const key of ['payments','adminExpense'])if(!data[key]||typeof data[key].enabled!=='boolean'||data[key].version!==1)throw fail('SV_FINANCIAL_CAPABILITIES','No se pudo comprobar la versión del guardado seguro.',503);
-    session.check();return {payments:{enabled:data.payments.enabled,version:1},adminExpense:{enabled:data.adminExpense.enabled,version:1}};
+    for(const key of ['saleDelete','orderDelete','otDelete'])if(data[key]!==undefined&&(!data[key]||typeof data[key].enabled!=='boolean'||data[key].version!==1))throw fail('SV_FINANCIAL_CAPABILITIES','No se pudo comprobar la eliminación protegida.',503);
+    session.check();return {payments:{enabled:data.payments.enabled,version:1},adminExpense:{enabled:data.adminExpense.enabled,version:1},saleDelete:{enabled:data.saleDelete?.enabled===true,version:1},orderDelete:{enabled:data.orderDelete?.enabled===true,version:1},otDelete:{enabled:data.otDelete?.enabled===true,version:1}};
    }).catch(error=>{if(capabilities===state)capabilities=null;if(error&&typeof error==='object')error.svLaborAttempted=false;throw error;});
    capabilities=state;return state.promise;
   }
@@ -71,7 +72,7 @@
     if(attempt.promise)return attempt.promise;
    }
    const available=await flags(session);session.check();
-   if(!available[feature].enabled)return null;
+   if(!available[feature].enabled){if(['saleDelete','orderDelete','otDelete'].includes(feature)&&capabilities&&same(capabilities.session,session))capabilities=null;return null;}
    // Otro clic pudo completar la consulta de capacidades mientras esperábamos.
    attempt=attempt||(reference&&typeof reference==='object'?rememberedAttempt(reference):null)||pending.get(key);
    if(attempt){attempt.session.check();if(!same(attempt.session,session)||attempt.signature!==signature)throw fail('SV_PAYMENT_ATTEMPT_CHANGED','Hay un intento anterior de guardado. Confirmalo antes de cambiar sus datos.',409);if(attempt.promise)return attempt.promise;}
@@ -117,6 +118,9 @@
   }
   root.document?.addEventListener?.('sisventas:session-ended',()=>{capabilities=null;pending.clear();remembered=new WeakMap();});
   async function editExpense(key,vista,datos,foto){const payload={key,expectedHash:await hash(root._gastoBaseEdicion(vista)),datos,...(foto?{foto}:{})};return command('adminExpense','edit-expense:'+key,payload,datos,'/laboral/gastos/editar-administrativo',data=>{if(data?.key!==key)throw fail('SV_LABOR_COMMIT_UNCONFIRMED','No se recibió la confirmación del gasto.',503);return {key};});}
-  return {register,annul,createExpense,editExpense};
+  async function deleteSale(ventaKey,reference){const session=capture();if(!reference||reference.fbKey!==ventaKey||reference._svListSummary||reference._svPagedSummary)throw fail('SV_SALE_DELETE_SOURCE','Volvé a abrir la venta original antes de eliminarla.',409);const original=clone(reference);delete original.fbKey;const expectedHash=await hash(original);session.check();return command('saleDelete','delete-sale:'+String(ventaKey),{ventaKey,expectedHash},reference,'/comerciales/ventas/eliminar',data=>{if(data?.ventaKey!==ventaKey)throw Object.assign(fail('SV_LABOR_COMMIT_UNCONFIRMED','No se recibió la confirmación de la venta eliminada.',503),{svLaborAttempted:true});return {ventaKey};});}
+  async function deleteOrder(order,reference=order){const session=capture();if(!order||typeof order.fbKey!=='string'||!order.fbKey||order._svListSummary||order._svPagedSummary)throw fail('SV_PURCHASE_DELETE_SOURCE','Volvé a abrir la orden original antes de eliminarla.',409);const original=clone(order);delete original.fbKey;const expectedHash=await hash(original);session.check();return command('orderDelete','delete-order:'+order.fbKey,{orderKey:order.fbKey,expectedHash},reference,'/compras/ordenes/eliminar',data=>{if(data?.orderKey!==order.fbKey)throw Object.assign(fail('SV_LABOR_COMMIT_UNCONFIRMED','No se recibió la confirmación de la orden eliminada.',503),{svLaborAttempted:true});return {orderKey:order.fbKey};});}
+  async function deleteOT(ot,reference=ot){const session=capture();if(!ot||typeof ot.fbKey!=='string'||!ot.fbKey||ot._svListSummary||ot._svPagedSummary)throw fail('SV_OT_DELETE_SOURCE','Volvé a abrir la OT original antes de eliminarla.',409);const original=clone(ot);delete original.fbKey;const expectedHash=await hash(original);session.check();return command('otDelete','delete-ot:'+ot.fbKey,{otKey:ot.fbKey,expectedHash},reference,'/operaciones/ot/eliminar',data=>{if(data?.otKey!==ot.fbKey)throw Object.assign(fail('SV_LABOR_COMMIT_UNCONFIRMED','No se recibió la confirmación de la OT eliminada.',503),{svLaborAttempted:true});return {otKey:ot.fbKey};});}
+  return {register,annul,createExpense,editExpense,deleteSale,deleteOrder,deleteOT};
  };
 });

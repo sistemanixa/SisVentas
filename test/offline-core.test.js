@@ -19,6 +19,9 @@ assert(!core.includes("badge.id = 'sv-offline-status'"), 'El preview offline no 
 const appScriptIndex = html.search(/js\/app(?:\.v[0-9.]+)?\.js/);
 assert(appScriptIndex >= 0 && html.indexOf('offline-core.js') < appScriptIndex, 'El núcleo offline debe envolver Firebase antes de iniciar la aplicación');
 assert(worker.includes("url.origin === 'https://www.gstatic.com'"), 'El arranque offline debe cachear dependencias Firebase ESM');
-assert(worker.includes("'./js/modules/offline-core.js'"), 'El núcleo offline debe formar parte del shell PWA');
+const shellMatch=worker.match(/const SHELL = (\[[\s\S]*?\]);/);assert(shellMatch,'Falta el manifiesto del shell');
+const shell=require('node:vm').runInNewContext(shellMatch[1]);
+const offlineUrl=html.match(/<script src="(\.\/js\/modules\/offline-core\.js(?:\?[^"\s]*)?)"/);assert(offlineUrl,'Falta el núcleo offline en el índice');
+assert(shell.includes(offlineUrl[1]),'El shell PWA debe cachear la URL exacta del núcleo offline que carga el índice');
 
 console.log('OK: núcleo offline encapsulado, durable y con operaciones críticas protegidas.');

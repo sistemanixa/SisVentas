@@ -1,23 +1,9 @@
-(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./commercial-money.v1.js'):root.SVCommercialMoney);if(typeof module==='object'&&module.exports)module.exports=api;else root.SVSaleWriter=api.create(root);})(typeof window==='object'?window:null,function(Money){
+(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./commercial-money.v1.js'):root.SVCommercialMoney,typeof module==='object'&&module.exports?require('./sale-economics-model.v1.js'):root.SVSaleEconomicsModel);if(typeof module==='object'&&module.exports)module.exports=api;else root.SVSaleWriter=api.create(root);})(typeof window==='object'?window:null,function(Money,Economics){
  'use strict';
  const clone=v=>v===undefined?undefined:JSON.parse(JSON.stringify(v));
+ const itemPrice=Economics.itemPrice;
  const protectedFields=['pagos','totalPagado','factura','facturas','comisionGenerada','comisionesGeneradas','comisionHabilitada','comisionados','empleado','empleadoUid','comisionadoPrincipalUid','comisionadoSecundarioUid'];
- const round=n=>Math.round((n+Number.EPSILON)*100)/100;
- function calculate(record,baseline){
-  const merged={...baseline,...record},items=Object.values(merged.items||{});
-  if(!items.length)return record;
-  const general=Number(merged.descuentoGeneral??merged.descuentoPct??merged.porcentajeDescuento??0);
-  if(!Number.isFinite(general)||general<0||general>100)throw Error('Revisá el descuento general de la venta.');
-  let gross=0,net=0,netCents=0;
-  const normalize=item=>{const qty=Number(item.qty??item.cantidad??1),price=Number(item.punit??item.precio??item.precioUnitario??0),disc=Number(item.disc??item.descuento??0);if(!Number.isFinite(qty)||qty<=0||!Number.isFinite(price)||!Number.isFinite(disc)||disc<0||disc>100)throw Error('Revisá los ítems de la venta.');const sub=Money.line(qty,price,disc)/100;gross+=Money.line(qty,price,0)/100;net+=sub;netCents+=Money.line(qty,price,disc);return {...item,sub};};
-  const calculatedItems=Array.isArray(merged.items)?merged.items.map(normalize):Object.fromEntries(Object.entries(merged.items).map(([key,item])=>[key,normalize(item)]));
-  const subtotal=Money.discount(netCents,general)/100;
-  const prior=baseline||record;
-  const rate=merged.conIva===false?0:merged.conIva===true?.21:Number(prior.subtotal)>0?Number(prior.iva||0)/Number(prior.subtotal):0;
-  if(!Number.isFinite(rate)||rate<0)throw Error('Revisá el IVA de la venta.');
-  const iva=rate===.21?Money.vat(Money.cents(Money.decimal(subtotal)))/100:round(subtotal*rate);
-  return {...record,items:calculatedItems,subtotal,iva,total:round(subtotal+iva),descuento:round(gross-subtotal)};
- }
+ const calculate=Economics.calculate;
  function create(root){
   function prepare(record,baseline,stockContext){
    if(!record||typeof record!=='object'||Array.isArray(record))throw Error('La venta no es válida.');
@@ -27,7 +13,7 @@
    if(!baseline){
     next={moneda:'ARS',monedaOperativa:'ARS',pagos:[],totalPagado:0,estadoPago:'pendiente_pago',...next};
     const normalize=item=>{
-     const qty=Number(item.qty??item.cantidad??1),punit=Number(item.punit??item.precio??item.precioUnitario??0),disc=Number(item.disc??item.descuento??0);
+     const qty=Number(item.qty??item.cantidad??1),punit=itemPrice(item),disc=Number(item.disc??item.descuento??0);
      if(!Number.isFinite(qty)||qty<=0||!Number.isFinite(punit)||!Number.isFinite(disc)||disc<0||disc>100)throw Error('Revisá cantidad, precio y descuento de la venta.');
      const sub=Number(item.sub??Math.round(qty*punit*(1-disc/100)*100)/100);
      if(!Number.isFinite(sub))throw Error('El subtotal del ítem no es válido.');
@@ -52,7 +38,7 @@
    root.garantiaSnapshotVenta?.(next);
    return next;
   }
-  function session(){const uid=root.currentUserUid,role=root.currentRole,user=root.fbAuth?.currentUser;return()=>{if(uid!==root.currentUserUid||role!==root.currentRole||user!==root.fbAuth?.currentUser)throw Error('La sesión cambió. Volvé a abrir la venta.');};}
+  function session(){const uid=root.currentUserUid,role=root.currentRole,auth=root.fbAuth,user=auth?.currentUser,db=root.fbDB,revision=root.PERMISOS_ROLES?.[role]?.indiceRevision,epoch=root._svOperacionesSesionEpoch;const check=()=>{if(!uid||!role||root._impersonacionOriginal||auth&&(!user||user.uid!==uid)||uid!==root.currentUserUid||role!==root.currentRole||auth!==root.fbAuth||user!==root.fbAuth?.currentUser||db!==root.fbDB||revision!==root.PERMISOS_ROLES?.[role]?.indiceRevision||epoch!==root._svOperacionesSesionEpoch)throw Error('La sesión cambió o se modificó el contexto. Volvé a abrir la venta.');};check();return check;}
   // Todos los documentos comerciales terminan aquí. Los vínculos se confirman
   // en la misma escritura existente; no se separan venta, OT y presupuesto.
   async function commit({record,baseline,key,related={},basePath='',partial=false,transaction,confirmLocal=false}={}){

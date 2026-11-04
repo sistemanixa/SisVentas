@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const {load}=require('./helpers/app-functions.cjs');
 function session(store,uid){
- const c={URL,AbortSignal,TextEncoder,currentUserUid:uid,fbAuth:{currentUser:{uid,getIdToken:async()=>'fake-token'}},fbDB:{},FB_PATHS:{ventas:'ventas',presupuestos:'presupuestos'},fbRef:(_,p)=>({path:p,toString:()=>'https://fixture.invalid/'+p}),
+ const c={URL,AbortSignal,TextEncoder,currentUserUid:uid,currentRole:'admin',fbAuth:{currentUser:{uid,getIdToken:async()=>'fake-token'}},fbDB:{},FB_PATHS:{ventas:'ventas',presupuestos:'presupuestos'},fbRef:(_,p)=>({path:p,toString:()=>'https://fixture.invalid/'+p}),
  fbGet:async()=>({}),fbRunTransaction:async(ref,fn)=>{const path=ref.path;
   const next=fn(structuredClone(store[path]));if(next===undefined)return {committed:false};
   store[path]=next;return {committed:true,snapshot:{val:()=>structuredClone(next)}};

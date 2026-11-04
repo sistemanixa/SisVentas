@@ -1,0 +1,13 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
+const Builder=require('../scripts/lib/operational-write-fence.cjs'),{rest,restrictedFetch,base,ns}=require('./helpers/demo-rtdb-rules.cjs'),{createLaborGuard}=require('../cotizador/labor-guard'),{createLaborRtdbStore}=require('../cotizador/labor-rtdb-store');
+test('copied operational rules preserve idle authority, exclude competing SDK writes and allow one guarded commit',{skip:process.env.FIREBASE_DATABASE_EMULATOR_HOST!=='127.0.0.1:9046'||!process.env.SV_RULES_TEST_FILE,timeout:60000},async()=>{
+ const original=JSON.parse(fs.readFileSync(process.env.SV_RULES_TEST_FILE,'utf8')),candidate=Builder.prepare(original);
+ function data(){return {sv_labor_config:{ready:true,schema:1},sv_chat_roles:{u:{rol:'admin',activo:true}},sv_permisos:{admin:{indiceVersion:2,indiceRevision:1,indiceModulos:Object.fromEntries(['agenda','ordenes','balancecompra','remitos','equipos','soporte','ordentrabajo'].map(key=>[key,true]))}},sisventas:Object.fromEntries(Builder.domains.map(domain=>[domain,{fiction:{numero:'FICTICIO',responsableUid:'u'}}]))};}
+ async function write(domain,uid='u'){const url=new URL(base+'/sisventas/'+domain+'/fiction.json');url.searchParams.set('ns',ns);url.searchParams.set('auth_variable_override',JSON.stringify({uid,token:{uid}}));const response=await restrictedFetch(url,{method:'DELETE'});await response.body?.cancel();return response.status;}
+ const statuses=new Map();await rest('PUT','.settings/rules',original);for(const domain of Builder.domains){await rest('PUT','',data());statuses.set(domain,await write(domain));}
+ await rest('PUT','.settings/rules',candidate);for(const domain of Builder.domains){await rest('PUT','',data());assert.equal(await write(domain),statuses.get(domain),domain+' idle authority changed');await rest('PUT','',data());await rest('PUT','sv_labor_guard',{expiresAt:Date.now()+60000});assert.equal(await write(domain),401,domain+' competing SDK write must be excluded');}
+ await rest('PUT','',data());const store=createLaborRtdbStore({databaseURL:base+'/?ns='+ns,accessToken:async()=>'owner',fetchImpl:restrictedFetch}),guard=createLaborGuard({store,delay:async()=>{}});
+ await guard.run({uid:'u',claims:{uid:'u'},mode:'user',opId:'fixture-operational-delete',operation:'fixture-operational-delete'},async scope=>{await scope.update({'sisventas/remitos/fiction':null});return {ok:true};});
+ assert.equal(await rest('GET','sisventas/remitos/fiction'),null);assert.equal(await rest('GET','sv_labor_guard'),null);assert.equal((await rest('GET','sv_labor_receipts/fixture-operational-delete')).actorUid,'u');
+});

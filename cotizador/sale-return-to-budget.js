@@ -3,7 +3,12 @@ const {isDeepStrictEqual:same}=require('node:util');
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_SALE_RETURN_BLOCKED'});
 const technical=['ventaFbKey','ventaKey','ventaGeneradaFbKey','ventaOrigenFbKey'],visible=['venta','ventaId','idVenta','nroVenta','numeroVenta','ventaNumero'];
 const Payments=require('./payment-membership-index');
+const Transition=require('./commercial-models/sale-budget-transition.v1.js');
 const PURPOSE='sale-return-to-budget';
+function capability({enabled=false,coordinated=false,rulesDigest}={}){
+ const verified=typeof rulesDigest==='string'&&/^[a-f0-9]{64}$/.test(rulesDigest);
+ return {version:1,enabled:enabled===true&&coordinated===true&&verified,purpose:PURPOSE,coordinated:coordinated===true,rules:{version:1,verified,digest:verified?rulesDigest:null}};
+}
 function describe(body){
  const patch=body?.value,budgets=Object.entries(patch||{}).filter(([p,v])=>/^sisventas\/presupuestos\/[^/]+$/.test(p)&&v&&typeof v==='object'&&!Array.isArray(v));
  if(body?.kind!=='atomic'||body.purpose!==PURPOSE||budgets.length!==1)throw fail('La devolución requiere una venta y un presupuesto nuevos.');
@@ -24,7 +29,7 @@ async function validate({actor,patch,raw,query,beforeCommit,digest}){
  if(!budgets.length)return;if(budgets.length!==1)throw fail('Mové una venta por vez.');
  const [budgetPath,budget]=budgets[0],key=budget.ventaOrigenFbKey,salePath='sisventas/ventas/'+key,sale=await raw(salePath);
  if(!sale||await raw(budgetPath))throw fail('La venta o el presupuesto cambió. Volvé a abrir el detalle.');if(await raw('sv_commission_generation/'+key)||hasFlow(sale))throw fail('La venta ya tiene actividad. Revisá sus cobros, factura u OT antes de volver a presupuesto.');
- for(const field of ['items','subtotal','descuento','iva','total'])if(!same(budget[field]??null,sale[field]??null))throw fail('El presupuesto debe conservar los productos, costos e importes originales.');
+ try{Transition.validateEconomicTransition(sale,budget);}catch(error){throw fail('El presupuesto debe conservar la economía original: '+error.message);}
  const profile=await raw('sv_chat_roles/'+actor.uid),cfg=await raw('sv_permisos/'+profile?.rol);if(profile?.activo!==true||cfg?.acciones?.ventas?.moverPresupuesto===false||profile.rol!=='admin'&&cfg?.acciones?.ventas?.moverPresupuesto!==true)throw fail('No tenés permiso para volver la venta a presupuesto.');
  await assertNoPayments(raw,sale,key);
  const permissionHash=digest({profile,cfg}),listRoot='sisventas/listas_materiales',lists=await related(query,'listas_materiales',key,sale),allowed=new Set([salePath,budgetPath]);
@@ -33,4 +38,4 @@ async function validate({actor,patch,raw,query,beforeCommit,digest}){
  if(Object.keys(patch).some(p=>!allowed.has(p)))throw fail('Volver a presupuesto no elimina cobros, OT ni movimientos de stock.');
  beforeCommit(async({readFresh,queryFresh})=>{if(await readFresh('sv_commission_generation/'+key))throw fail('Se generaron comisiones: no se modificó la venta.');await assertNoPayments(readFresh,sale,key);if(digest({profile:await readFresh('sv_chat_roles/'+actor.uid),cfg:await readFresh('sv_permisos/'+profile.rol)})!==permissionHash)throw fail('Los permisos cambiaron.');for(const domain of roots)if(Object.keys(await related(queryFresh,domain,key,sale)).length)throw fail('Se agregó actividad a la venta; no se guardaron cambios.');if(digest(await related(queryFresh,'listas_materiales',key,sale))!==digest(lists))throw fail('La preparación cambió.');});
 }
-module.exports={validate,hasFlow,draftOnly,related,assertNoPayments,describe,PURPOSE};
+module.exports={validate,hasFlow,draftOnly,related,assertNoPayments,describe,PURPOSE,capability};

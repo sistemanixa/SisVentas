@@ -20,7 +20,7 @@ test('abrir el detalle no recalcula ni persiste importes', () => {
 });
 
 test('el editor usa exclusivamente el precio guardado en la venta', () => {
-  const editor = body('cargarRegistroVentaEnEditor', 'fbGuardarVenta');
+  const editor = require('./helpers/app-functions.cjs').functionSource('cargarRegistroVentaEnEditor');
   assert.match(editor, /precioHistoricoItemVenta\(it\)/);
   assert.doesNotMatch(editor, /precioVentaCanonicoProducto/);
   assert.doesNotMatch(editor, /normalizarPrecioItemVentaParaEditor/);

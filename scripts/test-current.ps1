@@ -1,4 +1,4 @@
-param([switch]$IncludeBrowser)
+param([switch]$IncludeBrowser, [ValidateRange(1,16)][int]$TestConcurrency = 4)
 $ErrorActionPreference = 'Stop'
 
 # Las instantáneas históricas se ejecutan por separado.
@@ -12,8 +12,28 @@ if (-not $currentTests) { throw 'No se encontraron pruebas de la versión actual
 if (-not $IncludeBrowser) { Write-Host 'Prueba de navegador separada: usar -IncludeBrowser con Playwright y Chrome; usa archivos y datos aislados.' }
 Push-Location (Join-Path $PSScriptRoot '..')
 try {
-  # Rutas relativas evitan el límite de longitud del comando en worktrees Windows.
-  node --test $currentTests
-  $currentSuiteExit = $LASTEXITCODE
+  # El inventario vigente ya supera el límite de argumentos de Windows.
+  # Ejecutar todos los archivos en lotes conserva exactamente la selección.
+  # Limitar procesos evita que las pruebas nativas compitan con decenas de Chrome.
+  # Se conserva la misma selección completa; no se omiten archivos.
+  $currentSuiteExit = 0
+  $batch = @()
+  $batchLength = 0
+  foreach ($testFile in $currentTests) {
+    if ($batch.Count -gt 0 -and ($batchLength + $testFile.Length + 3) -gt 12000) {
+      Write-Host "Pruebas vigentes: lote de $($batch.Count) archivos"
+      node --test --test-concurrency=$TestConcurrency $batch
+      if ($LASTEXITCODE -ne 0) { $currentSuiteExit = $LASTEXITCODE }
+      $batch = @()
+      $batchLength = 0
+    }
+    $batch += $testFile
+    $batchLength += $testFile.Length + 3
+  }
+  if ($batch.Count -gt 0) {
+    Write-Host "Pruebas vigentes: lote de $($batch.Count) archivos"
+    node --test --test-concurrency=$TestConcurrency $batch
+    if ($LASTEXITCODE -ne 0) { $currentSuiteExit = $LASTEXITCODE }
+  }
 } finally { Pop-Location }
 if ($currentSuiteExit -ne 0) { exit $currentSuiteExit }

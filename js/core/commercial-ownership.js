@@ -107,16 +107,18 @@
  }
  function confirmDelete(domain,id,c){
   if(!isWriteContext(c))throw Error('La sesión cambió. La eliminación confirmada pertenece a la sesión anterior.');
-  if(domain!=='presupuestos'||c.domain!==domain||typeof id!=='string'||!id||/[.#$\[\]\/\x00-\x1f\x7f]/.test(id))throw Error('Acuse de eliminación de presupuesto inválido');
+  if(!['presupuestos','ventas'].includes(domain)||c.domain!==domain||typeof id!=='string'||!id||/[.#$\[\]\/\x00-\x1f\x7f]/.test(id))throw Error('Acuse de eliminación comercial inválido');
   // El remove ya fue confirmado. Aplicar sólo esa clave, sin descargar otra
   // vez el historial ni depender de una escucha RTDB que esta lista no usa.
-  root.pptoData=(Array.isArray(root.pptoData)?root.pptoData:[]).filter(record=>record?.fbKey!==id);
+  const listName=domain==='ventas'?'ventasList':'pptoData';
+  root[listName]=(Array.isArray(root[listName])?root[listName]:[]).filter(record=>record?.fbKey!==id);
   const s=subscriptions.get(domain);
   if(s){
    let records={};try{records=JSON.parse(s.snapshot||'{}');}catch(_){}
    delete records[id];s.snapshot=JSON.stringify(records);
    s.writeRevision=(s.writeRevision||0)+1;delete s.etag;
   }
+  if(domain==='ventas'&&typeof CustomEvent==='function')document.dispatchEvent(new CustomEvent('sisventas:commercial-write-confirmed'));
   return id;
  }
  async function prepare(domain,id,baseline){

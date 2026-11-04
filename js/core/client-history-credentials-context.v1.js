@@ -1,0 +1,28 @@
+(function(root,factory){'use strict';const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.SVClientHistoryCredentialsContext=api;})(typeof window==='object'?window:globalThis,function(){'use strict';
+ const fields=['uid','auth','db','role','permissionRevision','epoch'];
+ const validKey=value=>typeof value==='string'&&value.length>0&&value.length<=768&&!/[.#$\[\]\/\x00-\x1f\x7f]/.test(value)&&!['__proto__','constructor','prototype'].includes(value);
+ const fail=(message,code='SV_CREDENTIALS_CONTEXT')=>Object.assign(Error(message),{code});
+ function create({captureContext,canRead,canEdit}){
+  if([captureContext,canRead,canEdit].some(callback=>typeof callback!=='function'))throw fail('Falta verificar el contexto de credenciales.');
+  let epoch=0,bound=null;const tokens=new WeakMap();
+  function reset(){epoch++;bound=null;}
+  function actor(){const source=captureContext();if(!source||!validKey(source.uid)||source.auth?.uid!==source.uid||!source.db||typeof source.role!=='string'||!Number.isSafeInteger(source.permissionRevision)||!Number.isSafeInteger(source.epoch)||!canRead())throw fail('No se pudo verificar el acceso a credenciales.');return Object.freeze(Object.fromEntries(fields.map(field=>[field,source[field]])));}
+  function same(left,right){return fields.every(field=>left[field]===right[field]);}
+  function issue(kind){const token=Object.freeze({kind});tokens.set(token,{epoch,actor:actor(),kind});return token;}
+  function check(token){const entry=tokens.get(token);if(!entry||entry.epoch!==epoch)throw fail('La consulta de credenciales ya no está vigente.');let current;try{current=actor();}catch(error){reset();throw error;}if(!same(entry.actor,current)){reset();throw fail('El cliente o la sesión cambió. Volvé a abrir las credenciales.');}return entry;}
+  function begin(){reset();return issue('resolve');}
+  function bind(result,addressKey,request){const entry=check(request);if(entry.kind!=='resolve'||bound)throw fail('La consulta de cliente ya terminó.');
+   if(result?.identity?.status!=='linked'||!/^[a-f0-9]{64}$/.test(result.accountId||'')||result.addressesComplete!==true||!Array.isArray(result.members)||!result.members.length||result.members.length>100||!Array.isArray(result.addresses))throw fail('Faltan domicilios autorizados completos.');
+   const members=result.members.map(member=>{if(!validKey(member?.fbKey))throw fail('Domicilio inválido.');let legacyId=null;if(member.id!==undefined&&member.id!==null){if(!['string','number'].includes(typeof member.id)||!validKey(String(member.id)))throw fail('Identidad histórica inválida.');legacyId=String(member.id);}const safe={fbKey:member.fbKey,legacyId};for(const field of ['nombre','estado','activo','categoria','dir','direccion'])if(['string','number','boolean'].includes(typeof member[field]))safe[field]=member[field];return Object.freeze(safe);});
+   const keys=members.map(member=>member.fbKey),addresses=result.addresses.map(address=>address?.key);if(new Set(keys).size!==keys.length||new Set(addresses).size!==addresses.length||keys.length!==addresses.length||addresses.some(key=>!keys.includes(key))||!keys.includes(result.selectedClientKey)||!keys.includes(result.identity.recordKey)||addressKey!==null&&!keys.includes(addressKey))throw fail('La selección no pertenece al cliente autorizado.');
+   bound=Object.freeze({accountId:result.accountId,selectedClientKey:result.selectedClientKey,addressKey,members:Object.freeze(members)});tokens.delete(request);return capture();
+  }
+  function capture(){if(!bound)throw fail('Elegí un cliente verificado.');return issue('bound');}
+  function assert(token,{edit=false,ownerKey}={}){const entry=check(token);if(entry.kind!=='bound'||!bound)throw fail('Falta el cliente verificado.');if(edit&&!canEdit())throw fail('No tenés permiso para editar credenciales.','SV_CREDENTIALS_EDIT_DENIED');if(ownerKey!==undefined&&!selectedMembers(token).some(member=>member.fbKey===ownerKey))throw fail('El domicilio no está seleccionado.');return true;}
+  function selectedMembers(token){const entry=check(token);if(entry.kind!=='bound'||!bound)throw fail('Falta el cliente verificado.');return bound.members.filter(member=>bound.addressKey===null||member.fbKey===bound.addressKey);}
+  function readTargets(token){return selectedMembers(token).flatMap(member=>[{source:'new',ownerKey:member.fbKey,legacyId:member.legacyId,path:'sisventas/credencialesPorCliente/'+member.fbKey},...(member.legacyId?[{source:'legacy',ownerKey:member.fbKey,legacyId:member.legacyId,path:'sisventas/credenciales/'+member.legacyId}]:[])]).map(target=>Object.freeze(target));}
+  function entries(token,responses){assert(token);const targets=readTargets(token);if(!Array.isArray(responses)||responses.length!==targets.length||new Set(responses.map(response=>response.path)).size!==responses.length)throw fail('Faltan respuestas de credenciales verificadas.');const rows=[];for(const target of targets){const response=responses.find(response=>response.path===target.path);if(!response||response.data!==null&&(typeof response.data!=='object'||Array.isArray(response.data)))throw fail('Respuesta de credenciales inválida.');for(const [key,value]of Object.entries(response.data||{})){if(!validKey(key)||!value||typeof value!=='object'||Array.isArray(value))throw fail('Credencial inválida.');rows.push({source:target.source,ownerKey:target.ownerKey,legacyId:target.legacyId,key,path:target.path+'/'+key,value});}}return rows.map(row=>({...row,collision:rows.some(other=>other!==row&&other.ownerKey===row.ownerKey&&other.key===row.key)}));}
+  return Object.freeze({begin,bind,capture,assert,reset,selectedMembers,readTargets,entries});
+ }
+ return Object.freeze({create});
+});

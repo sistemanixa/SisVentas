@@ -1,0 +1,39 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const {createOTDeleteCommand}=require('../cotizador/ot-delete-command'),{createLaborGuard,digest}=require('../cotizador/labor-guard'),{createBackend,apply}=require('./helpers/labor-ui-flow.cjs');
+const actor={uid:'u',claims:{uid:'u'}},body={id:'fiction-delete',otKey:'OT1',expectedHash:digest({id:'OT-1',clienteFbKey:'c',responsableUid:'u',materiales:[]})};
+function fixture({fenced=true,history=true}={}){
+ const backend=createBackend({ordenes_trabajo:{OT1:{id:'OT-1',clienteFbKey:'c',responsableUid:'u',materiales:[]}},reclamos:{R1:{otKey:'OT1'}}});
+ apply(backend.state,{'sv_permisos/admin':{indiceVersion:2,indiceModulos:{ordentrabajo:true},acciones:{ot:{eliminar:true}}}});
+ backend.store.otDeleteFenceReady=fenced;
+ const guard=createLaborGuard({store:backend.store,clientHistory:history,operationalSummaries:true,delay:async()=>{}});
+ let verified=0;const command=createOTDeleteCommand({guard,store:backend.store,enabled:true,verifyActor:async()=>{verified++;}});
+ return {backend,command,verified:()=>verified};
+}
+test('guard real rechaza capacidad de cierre ausente antes de escribir',async()=>{const f=fixture({fenced:false});assert.equal(f.command.capability(),false);await assert.rejects(f.command.execute(actor,body),/cierre de escritores/);assert.equal(f.backend.commits.length,0);});
+test('guard real sin Historial no declara capacidad OT',async()=>{const f=fixture({history:false});assert.equal(f.command.capability(),false);await assert.rejects(f.command.execute(actor,body),/cierre de escritores/);assert.equal(f.backend.commits.length,0);});
+test('guard real lee reclamo completo fuera de caché y veta borrado',async()=>{const f=fixture();await assert.rejects(f.command.execute(actor,body),{code:'SV_OT_DELETE_LINKED'});assert.equal(f.backend.commits.length,0);assert.equal(f.backend.get('sisventas/ordenes_trabajo/OT1').id,'OT-1');assert.ok(f.verified()>=2);assert.ok(f.backend.reads.some(row=>row[1]==='sisventas/reclamos'));});
+test('permiso revocado rechaza antes de entrar al guard',async()=>{const f=fixture();apply(f.backend.state,{'sv_permisos/admin/acciones/ot/eliminar':false});await assert.rejects(f.command.execute(actor,body),/permiso explícito/);assert.equal(f.backend.commits.length,0);});
+async function coordinated(){
+ const backend=await require('./helpers/coordinated-backend.cjs').createCoordinatedBackend({ordenes_trabajo:{OT1:{id:'OT-1',clienteFbKey:'c',responsableUid:'u',materiales:[]}}});
+ apply(backend.state,{sv_record_list_config:{ready:true,schema:1},'sisventas/listados_resumen/ordenes_trabajo/OT1':require('../cotizador/record-list-model').summary('ordenes_trabajo',backend.get('sisventas/ordenes_trabajo/OT1'))});
+ apply(backend.state,{'sv_permisos/admin':{indiceVersion:2,indiceModulos:{ordentrabajo:true},acciones:{ot:{eliminar:true}}}});backend.store.otDeleteFenceReady=true;
+ return {backend,command:createOTDeleteCommand({guard:backend.guard,store:backend.store,enabled:true,verifyActor:async()=>{}})};
+}
+test('backend coordinado elimina original y resumen en el mismo recibo',async()=>{const f=await coordinated();await f.command.execute(actor,body);assert.equal(f.backend.get('sisventas/ordenes_trabajo/OT1'),null);assert.equal(f.backend.get('sisventas/listados_resumen/ordenes_trabajo/OT1'),null);assert.equal(f.backend.commits.length,1);const patch=f.backend.commits[0];assert.equal(patch['sisventas/ordenes_trabajo/OT1'],null);assert.equal(patch['sisventas/listados_resumen/ordenes_trabajo/OT1'],null);assert.ok(patch['sv_labor_receipts/'+body.id]);});
+for(const [role,override,allowed]of [['admin',undefined,true],['admin',false,false],['administrativo',true,true],['administrativo',false,false],['administrativo',undefined,false]])test('permiso canónico '+role+' '+override,async()=>{const f=await coordinated();apply(f.backend.state,{'sv_chat_roles/u/rol':role,['sv_permisos/'+role]:{indiceVersion:2,indiceModulos:{ordentrabajo:true},...(override===undefined?{}:{acciones:{ot:{eliminar:override}}})}});if(allowed){await f.command.execute(actor,body);assert.equal(f.backend.commits.length,1);}else{await assert.rejects(f.command.execute(actor,body),/permiso explícito/);assert.equal(f.backend.commits.length,0);}});
+test('reset de sesión revocado impide cualquier borrado',async()=>{const f=await coordinated();apply(f.backend.state,{'sv_access_resets/u':{required:true}});await assert.rejects(f.command.execute(actor,body));assert.equal(f.backend.commits.length,0);});
+test('original visible parcial no reemplaza el original autoritativo',async()=>{const f=await coordinated();f.backend.store.readAsUser=async()=>({id:'OT-1'});await assert.rejects(f.command.execute(actor,body),/original completo/);assert.equal(f.backend.commits.length,0);});
+test('CAS obsoleto veta edición autoritativa sin borrar',async()=>{const f=await coordinated();apply(f.backend.state,{'sisventas/ordenes_trabajo/OT1/observaciones':'Cambio concurrente ficticio'});await assert.rejects(f.command.execute(actor,body),/OT cambió/);assert.equal(f.backend.commits.length,0);});
+test('fbKey histórico coherente no cambia hash canónico',async()=>{const f=await coordinated();apply(f.backend.state,{'sisventas/ordenes_trabajo/OT1/fbKey':'OT1'});await f.command.execute(actor,body);assert.equal(f.backend.commits.length,1);});
+test('ID de recibo no puede reutilizarse para otra OT',async()=>{const f=await coordinated();await f.command.execute(actor,body);await assert.rejects(f.command.execute(actor,{...body,otKey:'OT2'}));assert.equal(f.backend.commits.length,1);});
+for(const role of ['tecnico','vendedor','tecnico_vendedor'])test('override explícito de '+role+' respeta acceso al original',async()=>{const f=await coordinated();apply(f.backend.state,{'sv_chat_roles/u/rol':role,['sv_permisos/'+role]:{indiceVersion:2,indiceModulos:{ordentrabajo:true},acciones:{ot:{eliminar:true}}}});await f.command.execute(actor,body);assert.equal(f.backend.commits.length,1);});
+test('replay OT con guard real conserva un solo commit y resultado',async()=>{const f=await coordinated();const first=await f.command.execute(actor,body),second=await f.command.execute(actor,body);assert.equal(f.backend.commits.length,1);assert.equal(first.otKey,'OT1');assert.equal(second.otKey,'OT1');});
+test('ACK perdido después del commit se reconcilia por recibo sin repetir borrado',async()=>{const f=await coordinated(),commit=f.backend.store.commit;let lost=true;f.backend.store.commit=async(...args)=>{await commit(...args);if(lost){lost=false;throw Object.assign(Error('ACK perdido'),{statusCode:503});}};await assert.rejects(f.command.execute(actor,body),/ACK perdido/);assert.equal(f.backend.commits.length,1);assert.equal((await f.command.execute(actor,body)).otKey,'OT1');assert.equal(f.backend.commits.length,1);});
+for(const invalid of [{id:'short',otKey:'OT1'},{...body,otKey:'__proto__'},{...body,otKey:'constructor'},{...body,extra:true}])test('entrada OT inválida rechaza antes del commit '+JSON.stringify(invalid),async()=>{const f=await coordinated();await assert.rejects(f.command.execute(actor,invalid));assert.equal(f.backend.commits.length,0);});
+for(const activity of ['reclamo','entrega'])test('backend coordinado veta carrera '+activity+' antes del commit',async()=>{
+ const f=await coordinated();
+ const read=f.backend.store.read;let reads=0;
+ f.backend.store.read=async path=>{if(path==='sisventas/ordenes_trabajo/OT1'&&++reads===2){if(activity==='reclamo')apply(f.backend.state,{'sisventas/reclamos/late':{otKey:'OT1'}});else apply(f.backend.state,{'sisventas/ordenes_trabajo/OT1/materiales':[{entregada:1}]});}return read(path);};
+ await assert.rejects(f.command.execute(actor,body),/vinculad|entregas|instalaciones|OT cambió/);assert.ok(reads>=2,'alcanzó la revalidación fresca');assert.equal(f.backend.commits.length,0);assert.ok(f.backend.get('sisventas/ordenes_trabajo/OT1'));
+});
