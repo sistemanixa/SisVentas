@@ -1,3 +1,9 @@
+## Selector de entrega preparado y verificado
+
+El selector nuevo de cantidades por ítem está separado de la aplicación activa: 12/12 pruebas puras y 10/10 nativas en 390 y 1280 px. Conserva original/adicional aunque compartan código, cantidades fraccionarias sin redondearlas y disponibilidad explícita cero. Cancelar, Enter sobre Cancelar, Escape, Tab, foco, errores y lista de 40 filas pasan. La revisión detectó dos fallos propios de cleanup (foco tras apertura fallida y diálogo retirado externamente); se corrigieron y se repitieron las mismas pruebas, conservando la evidencia fallida anterior.
+
+Módulo: js/modules/ot-delivery-selection.v1.js, SHA256 fb9bad9cc455d25bc42b1a204f0b930157911493c52cc85d295093d0c60f2e0b. Prueba nativa SHA256 6427ab605590d7f0e9196fd9c6ceb7246d98cb76894eccfe3fe10c768c971800. Evidencia privada ot-delivery-selection-native-20261104/review3. El selector devuelve sólo una propuesta index/cantidad: no consulta, guarda ni certifica stock. No está importado por index ni reemplaza todavía la entrega general. El comando autoritativo y el fence se preparan en checkout aislado; la reproducción de entrega 3 frente a recibidas 2 sigue siendo bloqueo vigente del primario.
+
 ## Recuperación y exposición verificadas en local
 
 La prueba de borrador y reinicio de transporte cerró con 9/9 PASS, sin omisiones: seis casos nativos en móvil/escritorio y tres de limpieza de setup parcial. La pausa SDK se contrastó con reglas reales del emulador en namespaces ficticios propios; la pausa HTTP y el ACK perdido usan listener reiniciado con el mismo backend/guard/almacenamiento vivo. Conserva borrador e identidad y no duplica la venta. Esto no demuestra reinicio de proceso ni equivalencia con Cloud Run. Evidencia privada: commercial-draft-restart-cleanup-final.private.json y su log; hashes de los tres archivos revisados antes de respaldar. No se detuvieron procesos ajenos.

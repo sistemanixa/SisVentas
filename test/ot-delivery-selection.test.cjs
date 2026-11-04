@@ -1,0 +1,8 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),S=require('../js/modules/ot-delivery-selection.v1');
+const rows=()=>[{index:0,description:'Original ficticio',pending:3,available:2},{index:1,description:'Adicional del mismo producto',pending:1,available:1},{index:2,description:'Cable ficticio',pending:1.5}];
+test('explicit quantities retain original/additional identity and leave unavailable unit pending',()=>{const before=rows(),original=structuredClone(before);assert.deepEqual(S.selected(before,{0:'2',1:'0',2:'0,25'}),[{index:0,cantidad:2},{index:2,cantidad:0.25}]);assert.deepEqual(before,original);assert.equal(S.normalized(before)[0].pending,3);assert.equal(S.normalized(before)[0].maximum,2);});
+for(const values of [{0:'3'},{0:'-1'},{0:'NaN'},{0:'1.000,2'},{0:'1e0'},{0:'0'},{0:'0.10000000000000001'},{0:'1',99:'1'}])test('invalid, excessive or imprecise quantity rejected '+JSON.stringify(values),()=>assert.throws(()=>S.selected(rows(),values)));
+test('zero availability is known zero, not a fallback to ordered quantity',()=>{const r=[{index:0,description:'Ficticio',pending:3,available:0}];assert.equal(S.normalized(r)[0].maximum,0);assert.throws(()=>S.selected(r,{0:1}));});
+test('duplicate indices are rejected instead of merging identical product descriptions',()=>assert.throws(()=>S.normalized([{index:0,description:'P',pending:1},{index:0,description:'P',pending:1}])));
+test('selection is only a proposal and never mutates stock or persists anything',()=>{const result=S.selected([{index:4,description:'Ficticio',pending:0.3}],{4:'0.3'});assert.deepEqual(result,[{index:4,cantidad:0.3}]);assert.equal(Object.keys(result[0]).join(','),'index,cantidad');});
