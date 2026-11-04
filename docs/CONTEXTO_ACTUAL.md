@@ -1,3 +1,7 @@
+# Fotos v3.18.20 publicada y verificada · 04/11/2026
+
+Fuente 312705c2bd5c5e938aab729585506b2be87b0c5a, Hosting 580 activos/9 cargas. Dominio real entregó index, app20, marcador inmutable/liviano y Service Worker exactamente iguales a los archivos del commit. Aviso Firebase sincronizado después de la verificación HTTP. Puerta final 7272 casos:7245PASS/27omitidos/0fallos; 2 pruebas visuales aisladas de imágenes decodificadas en Chrome390/1280. No se probó el login ni una operación financiera real como parte de esta publicación. No cambió Cotizador, reglas ni registros. La auditoría general continúa en la integración local; no queda cerrada por esta entrega.
+
 # Fotos de documentos v3.18.20 preparada · 04/11/2026
 
 Publicación acotada autorizada por el titular sobre la base publicada v3.18.19 (0225979825e2d7110072bd419e7afcee78968110). No incluye la integración de Cuenta corriente/Historial ni servidor/reglas. Abrir una ficha de venta inicia el catálogo existente si falta; su llegada refresca únicamente miniaturas de venta y editores, sin reconstruir filas ni modificar valores. Presupuestos conserva su refresco y comparte resolución normalizada de códigos históricos. La imagen archivada disponible no se descarta por la URL original. No hay escrituras de registros ni consultas por reloj.
