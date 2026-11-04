@@ -11,7 +11,7 @@ Se contrastaron cuatro revisiones locales independientes: núcleo comercial, ví
 | Base | Estado conocido | Límite |
 |---|---|---|
 | Fuente publicada | v3.18.20, fuente `312705c2bd5c5e938aab729585506b2be87b0c5a`, HEAD documental `0c093b65` | Publicación de fotos separada verificada por activos/aviso; no incluye la integración |
-| Integración | `72ee1392`, app activa v3.18.14 con cambios locales de integración | Preparación local, no paquete inmutable para desplegar sobre la20 |
+| Integración | `e7894ceccd19ddda00cd2269952c76fb935c85bb`, candidata inmutable v3.19.1 | Puerta limpia8298PASS/0FAIL; corrección adicional de protocolo Accounts en curso, no activada |
 | Estado externo | No recertificado en esta etapa | Revisión efectiva de servidor, reglas, configuración, índices y tráfico se comprobará antes del corte |
 
 Las copias están en `C:/SisVentas/.local/dashboard-readiness-v31817` y `C:/SisVentas/.local/restaurar-grilla-original-v31714`. La raíz del proyecto y otras ramas históricas no sustituyen esas bases. Se preserva el WIP sin incorporarlo como terminado.

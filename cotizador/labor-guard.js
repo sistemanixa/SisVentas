@@ -54,7 +54,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
   const lease={fence:uuid(),opId,digest:requestDigest,expiresAt:now()+leaseMs,actorUid:actor.uid,mode:actor.mode};
   for(let attempt=0;;attempt++){
    lease.expiresAt=now()+leaseMs;
-   try{await store.acquire(lease,{clientHistoryWriterVersion:clientHistory?1:0,saleFinancialWriterVersion:saleFinancialDependencies?1:0});break;}
+   try{await store.acquire(lease,{clientAccountsWriterVersion:clientAccounts&&commercialPages?1:0,clientHistoryWriterVersion:clientHistory?1:0,saleFinancialWriterVersion:saleFinancialDependencies?1:0});break;}
    catch(error){
     // Las reglas niegan adquirir si el recibo ya existe. Otra instancia pudo
     // confirmar tras la lectura inicial: recuperar sólo ese recibo propio.
@@ -184,7 +184,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     }
     if(revalidateAdvancePeriod)await revalidateAdvancePeriod();
     for(const check of finalChecks){live();await check({readFresh:path=>store.read(path),readFreshAsUser:path=>store.readAsUser(path,{uid:actor.uid,claims:actor.claims}),queryFresh:(...args)=>store.query(...args)});live();}
-    live();await store.commit(patch,lease,{...actor,clientHistoryWriterVersion:clientHistory?1:0,saleFinancialWriterVersion:financialMaintenance.maintained?1:0});completed=true;return result;
+    live();await store.commit(patch,lease,{...actor,clientAccountsWriterVersion:clientAccounts&&commercialPages?1:0,clientHistoryWriterVersion:clientHistory?1:0,saleFinancialWriterVersion:financialMaintenance.maintained?1:0});completed=true;return result;
    });
   }finally{phase='closed';if(!completed)await store.abort(lease).catch(()=>{});}
  }

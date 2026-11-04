@@ -2,14 +2,16 @@
 const fail=(code,message)=>Object.assign(Error(message),{code});
 const domains=['reclamos','ventas','pagos','equipos','tickets','remitos'];
 const keys=['otKey','otFbKey','ordenTrabajoKey','ordenTrabajoFbKey'];
-const numbers=['otId','otNumero','ordenTrabajoId'];
+const numbers=['otId','otNumero','ordenTrabajoId','ot'];
 const populated=value=>value!=null&&value!==''&&value!==false&&(!(typeof value==='object')||Object.keys(value).length>0);
 function plan(key,original,sources){
  if(typeof key!=='string'||!key||/[.#$\[\]\/]/.test(key))throw fail('SV_OT_DELETE_KEY','La referencia de la OT no es válida.');
  if(!original)throw fail('SV_OT_DELETE_MISSING','La OT no existe en la fuente autoritativa.');
  if(original._svListSummary||original._svPagedSummary)throw fail('SV_OT_DELETE_SOURCE','Hace falta el original completo de la OT.');
  for(const domain of domains)if(!Object.hasOwn(sources||{},domain)||!sources[domain]||typeof sources[domain]!=='object'||Array.isArray(sources[domain]))throw fail('SV_OT_DELETE_COVERAGE','No se verificaron todas las fuentes vinculadas.');
- const matches=record=>record&&typeof record==='object'&&(keys.some(field=>String(record[field]||'')===key)||numbers.some(field=>original.id&&String(record[field]||'')===String(original.id)));
+ const reference=value=>typeof value==='string'?value.trim():typeof value==='number'&&Number.isFinite(value)?String(value):'';
+ const identities=new Set([key,original.id,original.numero,original.otId].map(reference).filter(Boolean));
+ const matches=record=>record&&typeof record==='object'&&(keys.some(field=>reference(record[field])===key)||numbers.some(field=>identities.has(reference(record[field]))));
  function linked(value){if(!value||typeof value!=='object')return false;if(matches(value))return true;return Object.values(value).some(child=>child&&typeof child==='object'&&linked(child));}
  for(const domain of domains)if(linked(sources[domain]))throw fail('SV_OT_DELETE_LINKED','La OT tiene registros vinculados. Conservá su historial.');
  if(keys.concat(numbers).concat(['reclamoKey','reclamoFbKey','reclamoId','ventaFbKey','ventaKey','ventaId','presupuestoFbKey']).some(field=>populated(original[field])))throw fail('SV_OT_DELETE_ORIGIN','La OT conserva un vínculo de origen.');

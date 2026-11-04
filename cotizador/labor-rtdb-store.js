@@ -1,6 +1,7 @@
 'use strict';
 const {parts}=require('./labor-guard');
 const FinancialProtocol=require('./sale-financial-dependencies-protocol');
+const AccountsProtocol=require('./client-account-writer-protocol');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.now,requestMs=20000}){
  const base=new URL(databaseURL);if(base.protocol!=='https:'&&!(base.protocol==='http:'&&['127.0.0.1','localhost'].includes(base.hostname)))throw Error('Destino de datos inválido');
@@ -14,11 +15,11 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   if(!response.ok){await response.body?.cancel();throw fail(response.status===401||response.status===403?403:response.status===412?409:503,'No se pudo confirmar el acceso o el guardado',response.status===412?'SV_CAS_CONFLICT':undefined);}
   return response;
  }
- const service=(mode,lease,actor)=>({uid:actor?.mode==='user'?actor.uid:'sv-labor-service',token:{...(actor?.mode==='user'?actor.claims||{}:{}),svLaborService:true,svLaborWriterSchema:2,...FinancialProtocol.reservedClaims(actor?.saleFinancialWriterVersion),svClientHistoryWriterVersion:actor?.clientHistoryWriterVersion===1?1:0,svPaymentIndexVersion:1,svFinancialAction:actor?.mode==='user'?actor.financialAction||'':'',svFinancialActorRole:actor?.mode==='user'&&actor.financialAction?actor.role||'':'',svFinancialPermissionRevision:actor?.mode==='user'&&actor.financialAction?actor.permissionRevision??null:null,mode,fence:lease.fence,opId:lease.opId,digest:lease.digest,actorUid:lease.actorUid,...(actor?.mode==='command'?{actorAccessVersion:actor.claims?.svAccessVersion||'',actorPasswordChangeRequired:actor.claims?.svPasswordChangeRequired===true,actorRole:actor.role||'',actorPermissionRevision:actor.permissionRevision??null}:{})}});
+ const service=(mode,lease,actor)=>({uid:actor?.mode==='user'?actor.uid:'sv-labor-service',token:{...(actor?.mode==='user'?actor.claims||{}:{}),svLaborService:true,svLaborWriterSchema:2,...FinancialProtocol.reservedClaims(actor?.saleFinancialWriterVersion),...AccountsProtocol.reservedClaims(actor?.clientAccountsWriterVersion),svClientHistoryWriterVersion:actor?.clientHistoryWriterVersion===1?1:0,svPaymentIndexVersion:1,svFinancialAction:actor?.mode==='user'?actor.financialAction||'':'',svFinancialActorRole:actor?.mode==='user'&&actor.financialAction?actor.role||'':'',svFinancialPermissionRevision:actor?.mode==='user'&&actor.financialAction?actor.permissionRevision??null:null,mode,fence:lease.fence,opId:lease.opId,digest:lease.digest,actorUid:lease.actorUid,...(actor?.mode==='command'?{actorAccessVersion:actor.claims?.svAccessVersion||'',actorPasswordChangeRequired:actor.claims?.svPasswordChangeRequired===true,actorRole:actor.role||'',actorPermissionRevision:actor.permissionRevision??null}:{})}});
  async function read(path){const r=await request('GET',path);return r.json();}
  async function acquire(lease,writer={}){
   // La exclusión la aplican las reglas en un PUT pequeño; no hay lectura raíz.
-  let response;try{response=await request('PUT','sv_labor_guard',lease,{override:service('acquire',lease,{clientHistoryWriterVersion:writer.clientHistoryWriterVersion===1?1:0,saleFinancialWriterVersion:writer.saleFinancialWriterVersion===1?1:0})});}catch(error){if(error.statusCode===403){const current=await read('sv_labor_guard');if(current?.expiresAt>now())throw fail(423,'Hay otro guardado en curso. Reintentá en unos segundos.','SV_LABOR_BUSY');}throw error;}await response.body?.cancel();
+  let response;try{response=await request('PUT','sv_labor_guard',lease,{override:service('acquire',lease,{clientAccountsWriterVersion:writer.clientAccountsWriterVersion===1?1:0,clientHistoryWriterVersion:writer.clientHistoryWriterVersion===1?1:0,saleFinancialWriterVersion:writer.saleFinancialWriterVersion===1?1:0})});}catch(error){if(error.statusCode===403){const current=await read('sv_labor_guard');if(current?.expiresAt>now())throw fail(423,'Hay otro guardado en curso. Reintentá en unos segundos.','SV_LABOR_BUSY');}throw error;}await response.body?.cancel();
  }
  async function commit(patch,lease,actor){
   if(actor?.commercialContext===true){

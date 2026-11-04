@@ -63,4 +63,4 @@ COPY ot-delete-command.js ot-delete-policy.js ot-delete-http-adapter.js ./
 
 COPY client-history-access.js client-history-query.js client-history-http-adapter.js client-history-complete-page.js client-history-client.js ./
 
-COPY sale-economics-validation.js sale-financial-dependencies-model.js sale-financial-dependencies-delta.js sale-financial-dependencies-projections.js sale-financial-dependencies-provider.js sale-financial-dependencies-protocol.js ./
+COPY sale-economics-validation.js sale-financial-dependencies-model.js sale-financial-dependencies-delta.js sale-financial-dependencies-projections.js sale-financial-dependencies-provider.js sale-financial-dependencies-protocol.js client-account-writer-protocol.js ./
