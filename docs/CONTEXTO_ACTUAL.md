@@ -1,3 +1,21 @@
+## Corrección de aperturas tardías · 04/11/2026 09:16 UTC
+
+Causa de la novena puerta demostrada con demora ficticia300ms: mientras se abría copy-fixture seguía visible y accionable fixture0. El botón anterior convirtió correctamente fixture0, no la copia; por eso había aviso de éxito y faltaba el resultado que esperaba la prueba. No era sólo timeout de prueba ni un fallo de atomicidad del comando. La contraprueba espera identidad exacta además de16renglones. La reproducción no tocó datos reales.
+
+Correcciones locales posteriores a6c149239: SalesHost retira el detalle antes del primerawait y cada apertura tiene intención/lector propios; respuestas obsoletas no llegan a caché/resumen/panel. Fallo/Volver/contexto cambiado dejan retiradas las acciones.39regresiones y4flujos completos PASS;9nativas con indicador de actividad PASS. verOT oculta y vuelve inert el panel anterior antes de esperar, conserva contexto/token y publica otActualId al render válido.11nativas de demora/inversión/error/contexto y4H7 PASS; prueba adicional confirma retiro del cartel al salir antes de resolver la lectura. Su carga no persiste al navegar; avisos financieros intactos.47focales OT existentes PASS.
+
+Bootstrap H7 corrige otra carrera comprobada: última solicitud de presupuesto gana en ambos órdenes A/B. Cancela pendientes al cambiar contexto/cliente/domicilio/reset/dispose. Conserva Volver durante la salida normal y reinserta el original después del loader.18focales y4nativas390/1280 PASS con retorno al mismo cliente/domicilio/solapa. Cuenta Corriente no reprodujo la sustitución tardía: ya marca inert y valida objeto detail vigente. Formularios/duplicados/borradores:19focales y4comprobaciones privadas PASS sin mezcla observada; no equivale a certificación universal.
+
+Todos los frentes congelados otra vez. Pendiente guardar estos cambios y ejecutar la décima puerta desde su SHA limpio; la novena sigue registrada como fallida. No se declara respaldo remoto de la integración ni publicación general. Producción/roles/registros reales intactos; fotos20 permanece el único despliegue de esta ventana.
+
+## Verificación limpia: fallo móvil pendiente · 04/11/2026 08:58 UTC
+
+Commit local integral6c149239206b8b54a7f779646f346679a6e8958b en codex/ot-entrega-resumen,261archivos revisados; no subido aún a GitHub. App14de trabajo se conserva fuera de ese commit. Copia limpia detached en .local/integracion-v3190-verificada, versión local coherente19.0 y árbol limpio. Novena puerta desde ese SHA terminó fallida: una prueba móvil del HTML completo no encontró el retorno de la copia a presupuesto, aunque la UI indicó éxito; no equivale a candidata aprobada por la octava puerta del árbol anterior.
+
+Hipótesis en verificación: la espera de16renglones podía coincidir con el detalle anterior mientras se abría otra venta; hay que comprobar y bloquear acciones sobre esa ficha anterior, no sólo aumentar esperas. Frente Ventas reproduce con demora controlada y registra comandos/commits ficticios; prepara retiro del detalle anterior y token de intención, sin tocar el checkout limpio. Historial revisa en privado la misma clase de apertura en Presupuestos/OT, sin cambios de fuente. Los otros dos frentes siguen congelados. No publicación general, no cambio de capacidades ni originales reales.
+
+Las27regresiones financieras opt-in sí aprobaron27/27 en su emulador9017; ese proceso específico se detuvo al finalizar.9046 se conserva. El bloque de fotos20 continúa publicado y respaldado con SHA remoto verificado; eso no demuestra respaldo ni publicación de la integración6c149239.
+
 ## Puerta integral aprobada · 04/11/2026 08:46 UTC
 
 Octava puerta vigente sobre candidata localv3.19.0:8293pruebas,8266PASS,0fallos,27opt-in. Inventario congelado262archivos; todos conservaron SHA256 durante la ejecución. Los27opt-in se ejecutaron además explícitamente y aprobaron27/27, sin omisiones, en emulador9017 y proyecto demo fijo, contra su base histórica pre-coordinación compatible. El primer intento usó por error una base ya coordinada: el constructor la rechazó antes de iniciar casos; no se relajan reglas ni se toma ese intento como aprobado. Las cinco matrices nuevas sobre la copia reciente de reglas en9046 también siguen5/5PASS. Esto acredita pruebas ficticias, no reglas remotas ni corte de producción.

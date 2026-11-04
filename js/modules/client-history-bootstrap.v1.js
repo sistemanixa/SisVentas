@@ -10,7 +10,7 @@
   if(installed)return installed;
   if(!root.SVClientHistoryServiceReader?.create||!root.SVClientHistoryHost?.install||!root.SVClientHistoryAudience||!root.SVDomainReads||!root.SVClientHistoryTimelineReader||!root.SVClientHistoryCredentialsContext||!root.SVClientHistoryCredentialsHost)throw Error('Falta completar la aplicación del historial.');
   const base=String(root.SISVENTAS_FUNCTIONS?.cotizadorProveedor||'').replace(/\/$/,'');if(!base)throw Error('No está disponible la consulta del historial.');
-  const previousBudgetReturn=root.volverListaPpto;let returnContext=null;
+  const previousBudgetReturn=root.volverListaPpto;let returnContext=null,budgetIntent=0;
   const sameIdentity=actor=>{const now=capture();return same({...actor,route:now.route},now);};
   const budgetReturn=function(){const origin=returnContext,matching=origin&&root.pptoActualId===origin.key;returnContext=null;const result=previousBudgetReturn?.apply(this,arguments);if(matching&&sameIdentity(origin.actor))return root.verHistorialCliente?.(origin.clientId);return result;};
   if(typeof previousBudgetReturn==='function')root.volverListaPpto=budgetReturn;
@@ -36,18 +36,18 @@
    const actor={...capture()};if(!same(actor,capture())||!actor.allowedDomains.includes(domain))return;
    if(domain==='ventas')return root.abrirVentaDesdeHistorialCliente?.(key);
    if(pointActions?.canNavigate(domain))return pointActions.navigate(domain,key,origin);
-   if(domain!=='presupuestos')return;
+   if(domain!=='presupuestos')return;const intent=++budgetIntent;
    try{
     if(typeof root.SVCommercialOwnership?.request!=='function')throw Error('No se pudo verificar el presupuesto.');
-    const response=await root.SVCommercialOwnership.request('presupuestos','registro/'+encodeURIComponent(key));if(!same(actor,capture()))return;
+    const response=await root.SVCommercialOwnership.request('presupuestos','registro/'+encodeURIComponent(key));if(intent!==budgetIntent||!same(actor,capture()))return;
     const record=response?.record;if(!record||typeof record!=='object'||Array.isArray(record)||record.fbKey&&record.fbKey!==key)throw Error('No se encontró el presupuesto autorizado.');
-    const rows=Array.isArray(root.pptoData)?root.pptoData:[],index=rows.findIndex(row=>row.fbKey===key),next=rows.slice(),value={...record,fbKey:key};if(index<0)next.push(value);else next[index]=value;root.pptoData=next;
-    returnContext={...origin,actor,key};return root.svNavegarDirecto?.('presupuesto',()=>{if(sameIdentity(actor))root.verPpto?.(key);},null);
+    const value={...record,fbKey:key};
+    returnContext={...origin,actor,key};return root.svNavegarDirecto?.('presupuesto',()=>{if(!sameIdentity(actor)||returnContext?.key!==key)return;const rows=Array.isArray(root.pptoData)?root.pptoData:[],index=rows.findIndex(row=>row.fbKey===key),next=rows.slice();if(index<0)next.push(value);else next[index]=value;root.pptoData=next;root.verPpto?.(key);},null);
    }catch(error){if(same(actor,capture()))root.notify?.(error.message||'No se pudo abrir el presupuesto.');}
   }
-  installed=root.SVClientHistoryHost.install(root,{reader,resolveClient,getAllowedDomains:()=>capture().allowedDomains,navigateOriginal,canNavigateOriginal:domain=>['ventas','presupuestos'].includes(domain)||pointActions?.canNavigate(domain)===true,timelineReader,ticketReader,canReadCredentials,openCredentials:()=>credentials.open(),onReset:()=>credentials.reset(),onResolved:(result,address)=>{const request=credentialRequests.get(result);if(request&&canReadCredentials())credentials.bind(result,address,request);}} );
+  installed=root.SVClientHistoryHost.install(root,{reader,resolveClient,getAllowedDomains:()=>capture().allowedDomains,navigateOriginal,canNavigateOriginal:domain=>['ventas','presupuestos'].includes(domain)||pointActions?.canNavigate(domain)===true,timelineReader,ticketReader,canReadCredentials,openCredentials:()=>credentials.open(),onReset:()=>{budgetIntent++;credentials.reset();},onResolved:(result,address)=>{const request=credentialRequests.get(result);if(request&&canReadCredentials())credentials.bind(result,address,request);}} );
   const pageChanged=event=>{if(returnContext&&!['presupuesto','historialcliente'].includes(event.detail?.page))returnContext=null;};root.document.addEventListener?.('sisventas:page-changed',pageChanged);
-  const dispose=installed.dispose?.bind(installed);installed={...installed,dispose(){returnContext=null;pointActions?.dispose();if(root.editarClienteDesdeHistorial===clientEditor)root.editarClienteDesdeHistorial=previousClientEditor;credentials.dispose();timelineReader.reset();ticketReader.reset();root.document.removeEventListener?.('sisventas:page-changed',pageChanged);if(root.volverListaPpto===budgetReturn)root.volverListaPpto=previousBudgetReturn;dispose?.();}};return installed;
+  const dispose=installed.dispose?.bind(installed);installed={...installed,dispose(){budgetIntent++;returnContext=null;pointActions?.dispose();if(root.editarClienteDesdeHistorial===clientEditor)root.editarClienteDesdeHistorial=previousClientEditor;credentials.dispose();timelineReader.reset();ticketReader.reset();root.document.removeEventListener?.('sisventas:page-changed',pageChanged);if(root.volverListaPpto===budgetReturn)root.volverListaPpto=previousBudgetReturn;dispose?.();}};return installed;
  }
  root.SVClientHistoryBootstrap=Object.freeze({install,capture});
  if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',install,{once:true});else install();

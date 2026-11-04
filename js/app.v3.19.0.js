@@ -11458,7 +11458,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Alta y edición de Gastos conservan vínculos, pagos y adjuntos sin exigir acceso a cuentas privadas.']),
   RELEASE_FEATURE: Object.freeze({page:'dashboard',actionLabel:'Ver Dashboard'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.19.0',date:'04/11/2026',title:'Edición y carga comercial verificadas',notes:Object.freeze(['La edición conserva sus datos mientras se completan las fuentes autorizadas.','Los duplicados actualizan precios y costos juntos; los importes se verifican antes de guardar.','Las consultas descartan respuestas de una sesión anterior.'])}),
+ Object.freeze({version:'v3.19.0',date:'04/11/2026',title:'Edición y carga comercial verificadas',notes:Object.freeze(['Las fichas retiran sus acciones hasta cargar el registro solicitado.','Los duplicados actualizan precios y costos juntos; los importes se verifican antes de guardar.','Historial conserva cliente, domicilio y solapa al regresar.'])}),
  Object.freeze({version:'v3.18.20',date:'04/11/2026',title:'Fotos en ventas y presupuestos',notes:Object.freeze(['Las fotos se completan al llegar el catálogo sin reconstruir los datos de la edición.','Se reconocen códigos históricos y se conservan las imágenes guardadas.'])}),
  Object.freeze({version:'v3.18.19',date:'03/11/2026',title:'Regreso al inicio sin tapar los datos',notes:Object.freeze(['Al regresar al Dashboard se verifica la vigencia con un aviso breve, conservando la pantalla anterior del mismo acceso.','La primera carga y los errores siguen mostrando su estado; no se omiten verificaciones.'])}),
  Object.freeze({version:'v3.18.18',date:'03/11/2026',title:'Verificación de carga del inicio',notes:Object.freeze(['Se incorpora una comprobación interna de las consultas pendientes, sin datos privados ni lecturas adicionales.'])}),
@@ -49965,13 +49965,22 @@ async function verOT(id) {
   var ot = otData.find(function(o){ return o.fbKey === id; })
         || otData.find(function(o){ return o.id === id; });
   if (!ot) { notify('OT no encontrada'); return; }
+  var aperturaToken = (verOT._svAperturaToken || 0) + 1;
+  verOT._svAperturaToken = aperturaToken;
+  var panelApertura = document.getElementById('ot-detalle-view');
+  if (panelApertura) { panelApertura.inert = true; panelApertura.style.display = 'none'; panelApertura.setAttribute('aria-busy', 'true'); }
+  var actorApertura = { uid:window.currentUserUid, auth:window.fbAuth?.currentUser, db:window.fbDB, role:window.currentRole, revision:window.PERMISOS_ROLES?.[window.currentRole]?.indiceRevision, epoch:window._svOperacionesSesionEpoch||0, route:window.location?.hash };
+  var vigenteApertura = function() { return verOT._svAperturaToken === aperturaToken && !document.hidden && !window._impersonacionOriginal && !!actorApertura.uid && actorApertura.auth?.uid === actorApertura.uid && window.currentUserUid === actorApertura.uid && window.fbAuth?.currentUser === actorApertura.auth && window.fbDB === actorApertura.db && window.currentRole === actorApertura.role && window.PERMISOS_ROLES?.[window.currentRole]?.indiceRevision === actorApertura.revision && (window._svOperacionesSesionEpoch||0) === actorApertura.epoch && window.location?.hash === actorApertura.route; };
+  var cerrarCargaApertura = window.SisVentas?.carga?.mostrar('Cargando orden de trabajo…');
+  var aperturaCompleta = false;
+  try {
+  if (!vigenteApertura()) return;
   var checklistReconstruido = normalizarChecklistOT(ot);
-  otActualId = ot.fbKey || ot.id || id;
   if (window.SVOTSaleOrigin && (ot.ventaId || ot.ventaFbKey || ot.ventaKey || ot.idVenta || ot.venta)) {
-    var consultaOT = otActualId;
     await window.SVOTSaleOrigin.open(ot);
-    if (otActualId !== consultaOT) return;
   }
+  if (!vigenteApertura()) return;
+  otActualId = ot.fbKey || ot.id || id;
   _hide('ot-list-view');
   _block('ot-detalle-view');
   var avisoEl = document.getElementById('ot-aviso-cambio-externo');
@@ -50258,7 +50267,18 @@ async function verOT(id) {
     '</div>';
   }).join('');
   actualizarPanelIntegridadOT();
+  aperturaCompleta = true;
   document.dispatchEvent(new CustomEvent('sisventas:ot-opened',{detail:{id:id,ot:ot}}));
+  } catch(error) {
+    if (vigenteApertura()) notify('No se pudo abrir la OT: ' + (error.message || 'Volvé a intentar.'));
+  } finally {
+    if (verOT._svAperturaToken === aperturaToken && panelApertura) {
+      panelApertura.inert = !aperturaCompleta || !vigenteApertura();
+      panelApertura.removeAttribute('aria-busy');
+      if (panelApertura.inert) panelApertura.style.display = 'none';
+    }
+    if (typeof cerrarCargaApertura === 'function') cerrarCargaApertura();
+  }
 }
 
 
