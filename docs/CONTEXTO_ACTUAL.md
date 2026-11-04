@@ -1,3 +1,11 @@
+## Puerto HTTP cliente de cinco GET · entrega aislada
+
+Nuevo js/core/dashboard-http-ports-proposal.js, defaultOFF, factory SVDashboardHTTPPortsProposal.create. Base explícita igual SISVENTAS_FUNCTIONS.cotizadorProveedor confiable del host; cinco rutas cerradas de Dashboard, GET no-store sin body/query/redirecciones/referrer, token forceRefresh y plazo acotado desde token hasta JSON. Captura Aggregate fija User/Auth/UID/rol/config/revisión/sessionEpoch/dataEpoch/connectionEpoch/DB/grants/calendario. Recibe capture/valid del SVDashboardHostContext root831, con dataEpoch real de Readiness; no inventa epochs. Sin Ver como, logs de tokens, retry ni fallback.
+
+Devuelve .ports.budget/.commercial/.month tipados y .read('dashboard'|'notices') para Source. Payload directo sin wrapperok; actividad schema2 intacta y avisos schema1 normalizados a schema2/notices.complete/rows con17 campos y Legacy actual. Monthly exige campo del GET de actividad Presupuestos y el scope autorizado: all con grant global (administrador), u_UID con grant propio. Sin él o denegado no consultaRTDB ni inventa un total global. Fixture obtenido de lectores reales e24fa2b8 de Costos, que ya devuelve exactamente el contrato Monthport; rutas/index sin cambios de f23. No se modifica servidor/Source/app/index ni Mis ventas.
+
+Evidencia: 59 focales PASS (33HTTP+26contexto/agregado/merge) y dos fetch loopback PASS, cero FAIL/SKIP. Fixtures ficticios de cinco lectores con provenance/hashes. Sin puerta general ni publicación/producción. Handoff de factory, puertos y contrato mensual en docs/DASHBOARD_HTTP_PORTS_CONTRATO.md. Falta montaje root/UI y comprobar CORS desplegado; no se declaran completos Dashboard, pptoData original ni Ventas por autor.
+
 ## Nativo mensual repetido contra 859 integrado
 
 Sólo se adaptó la referencia del harness: todas las funciones, reglas, fixtures, transportes y Legacy se cargan desde checkout aislado limpio 859afaf945ab29175b8f35dbf17519f4a762123f. Cuatro casos PASS sin cambiar cuerpos/expectativas; 57 módulos efectivos registrados con hashes y Legacy cliente/servidor actual coincidente. Sin diferencias funcionales en js/core/cotizador/security frente a c269609a. No se modificaron fuentes funcionales, Source/DTO, servicios, índices ni integración raíz; no se corrió general ni se implementó Mis ventas.
