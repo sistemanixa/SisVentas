@@ -173,7 +173,9 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     await require('./operational-projections').augment({patch,raw,get,enabled:operationalSummaries,actor,result,operationId:opId});
     await require('./record-list-projections').augment({patch,raw,get,enabled:operationalSummaries,actor,result,operationId:opId});
     if(clientAccounts&&!commercialPages)throw failure(503,'Las cuentas requieren el listado comercial coordinado.','SV_CLIENT_ACCOUNTS_INCOMPLETE');
-    if(commercialPages)await require('./commercial-pages-projections').augment({patch,raw,get});
+    const pageSnapshots=new Map(),pageRaw=async path=>{const value=await raw(path);pageSnapshots.set(path,digest(value));return value;},pageGet=async path=>{await pageRaw(path);return get(path);};
+    if(commercialPages)await require('./commercial-pages-projections').augment({patch,raw:dashboardActivity?pageRaw:raw,get:dashboardActivity?pageGet:get});
+    if(dashboardActivity&&pageSnapshots.size)finalChecks.push(async({readFresh})=>{for(const[path,hash]of pageSnapshots)if(digest(await readFresh(path))!==hash)throw failure(409,'Las fuentes o estadísticas de Pages cambiaron antes del commit.','SV_COMMERCIAL_ACTIVITY_RECONCILE');});
     if(dashboardActivity)await dashboardActivity.augment({patch,raw,get,beforeCommit:fn=>finalChecks.push(fn)});
     if(clientAccounts){await require('./client-account-projections').augment({patch,raw,get});await require('./client-account-scope-plan').augment({actor,patch,raw});}
     if(clientHistory){if(!clientAccounts||!commercialPages)throw failure(503,'El historial requiere las fuentes financieras coordinadas.','SV_CLIENT_HISTORY_INCOMPLETE');await require('./client-history-projections').augment({patch,raw,get,enabled:true});}

@@ -41,9 +41,10 @@ async function delta(changes,{raw,coverage,revision,preparing=false}){
  return patch;
 }
 // Offline-only preparation, never called by a request or a writer.
-async function build({originals,complete=false,pages,config,generation,timeZone,sourceLocale}={}){
+async function build({originals,complete=false,pages,pagesEvidence,config,generation,timeZone,sourceLocale}={}){
  check(complete===true&&originals&&DOMAINS.every(d=>originals[d]&&typeof originals[d]==='object'&&!Array.isArray(originals[d])),'Se requiere un snapshot completo explícito de los tres dominios.');
  pagesReady(config,pages?.coverage);
+ check(pagesEvidence?.schema===1&&pagesEvidence.kind==='canonical-pages-build-snapshot'&&pagesEvidence.salesHash===hash(originals.ventas)&&pagesEvidence.paymentsHash===hash(originals.pagos)&&pagesEvidence.rowsHash===hash({sales:pages.records?.sales||{},payments:pages.records?.payments||{}})&&pagesEvidence.coverageHash===hash(pages.coverage),'Falta el recibo del mismo snapshot canónico de Pages o sus fuentes/filas cambiaron.');
  check(Object.keys(originals.ventas).length===pages.coverage.sales&&Object.keys(originals.pagos).length===pages.coverage.payments,'El snapshot y Pages difieren.');
  for(const d of ['ventas','pagos'])check(Object.keys(pages.records?.[pageKind(d)]||{}).length===Object.keys(originals[d]).length,'Las filas Pages están incompletas.');
  const coverage=context({schema:3,ready:true,generation,revision:1,order:Core.SOURCE_ORDER,timeZone:zone(timeZone),sourceLocale,pagesGeneration:pages.coverage.generation,pagesRevision:pages.coverage.revision,scopes:Object.fromEntries(DOMAINS.map(d=>[d,{all:true}]))});
@@ -54,6 +55,7 @@ async function build({originals,complete=false,pages,config,generation,timeZone,
  patch[ROOT+'/coverage']=coverage;return {patch,coverage};
 }
 async function augment({patch,raw,get,beforeCommit}){
+ const snapshots=new Map(),read=raw;raw=async path=>{const value=await read(path);snapshots.set(path,digest(value));return value;};
  const keys=new Map(DOMAINS.map(d=>[d,new Set()]));
  for(const path of Object.keys(patch)){
   check(path!=='sisventas'&&!DOMAINS.some(d=>path==='sisventas/'+d),'Actividad requiere escrituras puntuales.');
@@ -64,16 +66,16 @@ async function augment({patch,raw,get,beforeCommit}){
  const c=context(await raw(ROOT+'/coverage')),pc=await raw(Pages.ROOT+'/coverage'),config=await raw('sv_commercial_pages_config');pagesReady(config,pc);
  check(c.pagesGeneration===pc.generation&&c.pagesRevision===pc.revision,'Pages cambió sin mantener actividad.');
  const nextPC=patch[Pages.ROOT+'/coverage']||pc;pagesReady(config,nextPC);check(nextPC.generation===pc.generation,'Cambió la generación de Pages.');
- const changes=[],originalChecks=[];
+ const changes=[];
  for(const [domain,ids]of keys)for(const key of ids){
   const path='sisventas/'+domain+'/'+key,old=await raw(path),original=await get(path),recordPath=ROOT+'/records/'+domain+'/'+key,before=await raw(recordPath),pp=Pages.ROOT+'/records/'+pageKind(domain)+'/'+key;
   const oldPage=domain==='ordenes_trabajo'?null:await raw(pp),page=domain==='ordenes_trabajo'?null:(Object.hasOwn(patch,pp)?patch[pp]:oldPage);
   check(hash(before)===hash(project(domain,key,old,oldPage,c.timeZone)),'El punto anterior de actividad no coincide con sus fuentes.');
-  changes.push({domain,key,before,after:project(domain,key,original,page,c.timeZone)});originalChecks.push([path,hash(old)]);
+  changes.push({domain,key,before,after:project(domain,key,original,page,c.timeZone)});
  }
  const revision=c.revision+1;check(Number.isSafeInteger(revision),'Se agotó la revisión de actividad.');
  const known=structuredClone(c.scopes);for(const change of changes)if(change.after)for(const scope of scopes(change.domain,change.after))known[change.domain][scope]=true;
  Object.assign(patch,await delta(changes,{raw,coverage:c,revision}));patch[ROOT+'/coverage']={...c,revision,pagesRevision:nextPC.revision,scopes:known};
- beforeCommit(async({readFresh})=>{for(const[p,h]of [[ROOT+'/coverage',hash(c)],[Pages.ROOT+'/coverage',hash(pc)],['sv_commercial_pages_config',hash(config)],...originalChecks])check(hash(await readFresh(p))===h,'Las fuentes de actividad cambiaron antes del commit.');});
+ beforeCommit(async({readFresh})=>{for(const[p,h]of snapshots)check(digest(await readFresh(p))===h,'Las fuentes o pruebas de actividad cambiaron antes del commit.');});
 }
 module.exports={ROOT,DOMAINS,zone,hash,check,context,stats,pagesReady,project,build,augment,pageKind};
