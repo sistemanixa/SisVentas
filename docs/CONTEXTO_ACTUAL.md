@@ -1,3 +1,8 @@
+## Pages: productor de contador mensual por creador
+
+Importadoc8e713c9 por diffacotado del modelo y testpropio; no se copió el writer deotrofrente. Cada fila preserva evidencia mínima del creador textual exacto y mescrudo; totales existentes por alcance cuentan también anuladas, sin cambiar authorvisible/owner/finanzas. Capacidad tiene marcador/cardinalidad; metadataantigua no se certifica como cero. No nueva raíz, endpoint o índice; todavía falta lector/DTO/host y últimas5ventaspersonales.
+
+Root13pruebas nuevasPASS inicialmente (dos nombres de archivos de regresión solicitados no existían y no se computan). Repetición con archivosreales Pages dio45PASS/1fallo dearranque UI por NODE_PATH ausente, no regresióndedatos. Con dependenciasexistentes y Chrome/loopback:47PASS,0FAIL/SKIP en modelonuevo+Pages+UI390/1280. Logs dashboard-creator-month-root.private.log, dashboard-creator-pages-root.private.log y -after.private.log. La metadata no se preparó en base real ni se activó capacidad; no se modifica histórico. Sin push/publicación/operacionesreales.
 ## Actividad: host y arranque montados bajo flag OFF
 
 Importadof6f02f14 por diff de dosarchivos. Index carga ActivityHostFactory después de dependencias y app lo crea lazy al demandarDashboard, sólo con dashboard.actividad e interfaz.dashboard_admin_only; host valida además loscuatrodominios. Slot SVDashboardActivityHost usa Aggregate/HTTP reales, requireNotices:false y fuenteReadiness dashboardActivity independiente. No se marca completa ninguna colecciónoriginal. Eventos sólo revalidan con Dashboardvisible, sin reloj, y conservan datos ante error de la mismaautoridad; sesión/revisión retiran.
