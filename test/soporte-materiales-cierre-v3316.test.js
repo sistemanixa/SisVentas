@@ -49,7 +49,7 @@ test('devolución parcial cobra sólo cantidad no devuelta y conserva historial 
  assert.equal(merge({items:[]},{materiales:[{...m,devuelta:0,devueltaPendiente:2}]})[0].qty,3);
 });
 test('rendición completa con devolución no deja observaciones; incidencias siguen pendientes',()=>{
- const c={window:{}};vm.createContext(c);vm.runInContext(fs.readFileSync('js/modules/ot-material-custody.js','utf8'),c);
+ const c={window:{}};vm.createContext(c);c.window.SVCommercialMoney=require('../js/core/commercial-money.v1');vm.runInContext(fs.readFileSync('js/modules/ot-material-custody.js','utf8'),c);
  const mat={custodiaActiva:true,vendida:1,entregada:1,devuelta:1};
  assert.equal(c.window.otCustodiaResumen({materiales:[mat]}).conObservaciones,false);
  for(const field of ['devueltaPendiente','enTecnico','danada','faltante'])assert.equal(c.window.otCustodiaResumen({materiales:[{...mat,devuelta:0,[field]:1}]}).conObservaciones,true);

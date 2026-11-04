@@ -12,7 +12,7 @@ function setup({role='admin',rendered=false,failed=false,general=3,additional=fa
  // La rendición conserva estas pruebas de consumo; ahora persiste por el
  // comando conjunto. Su autorización/derivación se prueba con el backend real.
  w.SVOTLifecycle={prepare:async()=>true,save:async(before,draft)=>{writes++;if(fail)throw Error('Fallo ficticio de guardado');return {confirmed:true,ot:JSON.parse(JSON.stringify(draft))};}};
- const c={window:w,TextEncoder,document:{getElementById:id=>nodes[id]||null,createElement:()=>({style:{},remove(){delete nodes[this.id];}}),body:{},documentElement:{}},requestAnimationFrame:()=>{}};vm.createContext(c);vm.runInContext(fs.readFileSync('js/modules/ot-material-custody.js','utf8'),c);
+ const c={window:w,TextEncoder,document:{getElementById:id=>nodes[id]||null,createElement:()=>({style:{},remove(){delete nodes[this.id];}}),body:{},documentElement:{}},requestAnimationFrame:()=>{}};vm.createContext(c);c.window.SVCommercialMoney=require('../js/core/commercial-money.v1');vm.runInContext(fs.readFileSync('js/modules/ot-material-custody.js','utf8'),c);
  return {w,ot,nodes,notices,inv:()=>inv,writes:()=>writes,allowSave:()=>fail=false,render:()=>w.otCustodiaRenderMateriales(ot,ot.materiales)};
 }
 test('admin puede habilitar corrección en OT cerrada aunque rendición figure completa',async()=>{const x=setup({rendered:true});x.render();assert.ok(x.nodes['ot-corregir-materiales']);await x.nodes['ot-corregir-materiales'].onclick();assert.equal(x.nodes['ot-btn-excepciones'].style.display,'');assert.equal(x.nodes['ot-btn-todo-instalado'].style.display,'');assert.equal(x.writes(),0);});

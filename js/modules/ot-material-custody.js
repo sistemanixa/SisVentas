@@ -6,6 +6,8 @@
     return Number.isFinite(number) && number > 0 ? number : 0;
   }
 
+  function quantitySum(values) { return window.SVCommercialMoney.quantitySum(values); }
+
   function esc(value) {
     if (typeof window.escapeHTML === 'function') return window.escapeHTML(String(value == null ? '' : value));
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (char) {
@@ -93,7 +95,7 @@
       Object.values(ot.items || {}).filter(function(item){return item && isAdditional(item) && group(item) === group(source);}).length === 1;
   }
   function quantity(material) {return window.SVOTMaterialRows ? window.SVOTMaterialRows.quantity(material) : n(material.vendida ?? material.qty ?? material.cantidad ?? material.cant);}
-  function installationTarget(material) {return Math.max(0,n(material.entregada) - n(material.devuelta) - n(material.devueltaPendiente) - n(material.danada) - n(material.faltante));}
+  function installationTarget(material) {return Math.max(0,quantitySum([n(material.entregada),-n(material.devuelta),-n(material.devueltaPendiente),-n(material.danada),-n(material.faltante)]));}
   function controllable(material) {
     if (!material || quantity(material) <= 0) return false;
     var product = productFor(material);
@@ -119,7 +121,7 @@
       return !m._recuperado && m.custodiaActiva === true && delivered >= quantity(m) &&
         /^[a-f0-9]{64}$/.test(String(m.stockRegistro || '')) &&
         Number.isSafeInteger(m.stockRevision) && m.stockRevision > 0 &&
-        n(m.instalada) === delivered && Math.abs(classified(m) - delivered) < 0.000001;
+        n(m.instalada) === delivered && Math.abs(quantitySum([classified(m),-delivered])) < 0.000001;
     });
   }
 
@@ -136,7 +138,7 @@
       var unit = String(material.unidad || product.unidad || 'unidades').trim().toLowerCase();
       if (/^(u|un|uni|unidad|unidades|uds|ud)$/.test(unit)) unit = 'unidades';
       if (/^(m|mt|mts|metro|metros)$/.test(unit)) unit = 'metros';
-      groups[unit] = (groups[unit] || 0) + n(material.vendida);
+      groups[unit] = quantitySum([groups[unit] || 0,n(material.vendida)]);
     });
     return Object.keys(groups).map(function(unit) {
       return Number(groups[unit].toFixed(6)).toLocaleString('es-AR', {maximumFractionDigits:6}) + ' ' + unit;
@@ -163,7 +165,7 @@
 
   function classified(material) {
     material = normalizeMaterial(material);
-    return material.instalada + material.devueltaPendiente + material.devuelta + material.enTecnico + material.danada + material.faltante;
+    return quantitySum([material.instalada,material.devueltaPendiente,material.devuelta,material.enTecnico,material.danada,material.faltante]);
   }
 
   function summary(ot) {
@@ -172,16 +174,16 @@
       var material = normalizeMaterial(raw);
       if (!material.custodiaActiva) return;
       result.controlados += 1;
-      result.entregados += material.entregada;
-      result.instalados += material.instalada;
-      result.devolucionPendiente += material.devueltaPendiente;
-      result.devueltos += material.devuelta;
-      result.enTecnico += material.enTecnico;
-      result.danados += material.danada;
-      result.faltantes += material.faltante;
-      result.sinClasificar += Math.max(0, material.entregada - classified(material));
+      result.entregados = quantitySum([result.entregados,material.entregada]);
+      result.instalados = quantitySum([result.instalados,material.instalada]);
+      result.devolucionPendiente = quantitySum([result.devolucionPendiente,material.devueltaPendiente]);
+      result.devueltos = quantitySum([result.devueltos,material.devuelta]);
+      result.enTecnico = quantitySum([result.enTecnico,material.enTecnico]);
+      result.danados = quantitySum([result.danados,material.danada]);
+      result.faltantes = quantitySum([result.faltantes,material.faltante]);
+      result.sinClasificar = quantitySum([result.sinClasificar,Math.max(0,quantitySum([material.entregada,-classified(material)]))]);
     });
-    result.conObservaciones = result.sinClasificar + result.devolucionPendiente + result.enTecnico + result.danados + result.faltantes > 0;
+    result.conObservaciones = quantitySum([result.sinClasificar,result.devolucionPendiente,result.enTecnico,result.danados,result.faltantes]) > 0;
     return result;
   }
 
@@ -238,7 +240,7 @@
     material = normalizeMaterial(material);
     if (!material.custodiaActiva) return '<span class="badge">No entregado</span>';
     var parts = [];
-    var pending = Math.max(0, material.entregada - classified(material));
+    var pending = Math.max(0, quantitySum([material.entregada,-classified(material)]));
     if (pending) parts.push('<span class="badge b-amber">Con técnico: ' + pending + '</span>');
     if (material.stockPendiente) parts.push('<span class="badge b-amber">Stock pendiente · completar registro</span>');
     if (material.instalada && !material.stockPendiente) parts.push('<span class="badge b-green">Instalado: ' + material.instalada + '</span>');
@@ -374,7 +376,7 @@
     if (deliveryFingerprint(current) !== deliveryFingerprint(baseline)) throw Error('Los materiales o el técnico cambiaron. Volvé a abrir la OT antes de entregar.');
     var next = JSON.parse(JSON.stringify(current)), rows = [];
     next.materiales = (current.materiales || []).map(function(raw) {
-      var m = normalizeMaterial(raw), delta = m.vendida - m.entregada;
+      var m = normalizeMaterial(raw), delta = quantitySum([m.vendida,-m.entregada]);
       if (!controllable(m) || delta <= 0 || (command.onlyAdditional && !isAdditional(m))) return raw;
       var product = productFor(m) || {};
       rows.push({codigo:m.cod,descripcion:m.desc,cantidad:delta,unidad:String(m.unidad || product.unidad || 'unidades'),adicional:isAdditional(m)});
@@ -462,7 +464,7 @@
     (ot.materiales || []).forEach(function (material, index) {
       var oldMaterial = before[index] || {};
       if (n(oldMaterial.instalada) !== n(material.instalada)) {
-        oldMaterial = Object.assign({}, oldMaterial, {_stockLegacyTotal:before.filter(function(m){return String(m.cod||m.codigo)===String(material.cod||material.codigo) && String(m.destinoVenta||'original')===String(material.destinoVenta||'original') && String(m.ventaDestinoFbKey||'')===String(material.ventaDestinoFbKey||'');}).reduce(function(sum,m){return sum+n(m.instalada);},0)});
+        oldMaterial = Object.assign({}, oldMaterial, {_stockLegacyTotal:before.filter(function(m){return String(m.cod||m.codigo)===String(material.cod||material.codigo) && String(m.destinoVenta||'original')===String(material.destinoVenta||'original') && String(m.ventaDestinoFbKey||'')===String(material.ventaDestinoFbKey||'');}).reduce(function(sum,m){return quantitySum([sum,n(m.instalada)]);},0)});
         jobs.push(function(){return window.SisVentasCompras.syncOTConsumption(ot, oldMaterial, material);});
       }
     });
@@ -514,7 +516,7 @@
       var material = normalizeMaterial(raw);
       if (!material.custodiaActiva && historicalRecoveryCandidate(ot, material)) {material.custodiaActiva=true;material.entregada=quantity(material);material.entregadoPor=window.currentUser||'Administración';material.entregadoA=ot.tecnico||'';material.entregadoEn=Date.now();}
       if (!material.custodiaActiva) return material;
-      material.instalada = Math.max(0, material.entregada - material.devuelta);
+      material.instalada = Math.max(0, quantitySum([material.entregada,-material.devuelta]));
       material.devueltaPendiente = 0;
       material.enTecnico = 0;
       material.danada = 0;
@@ -533,7 +535,7 @@
   function exceptionRow(material, index) {
     material = normalizeMaterial(material);
     if (!material.custodiaActiva) return '';
-    return '<div class="ot-custodia-ex-row" data-index="' + index + '" data-entregada="' + Math.max(0, material.entregada - material.devuelta) + '" style="padding:12px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius)">' +
+    return '<div class="ot-custodia-ex-row" data-index="' + index + '" data-entregada="' + Math.max(0, quantitySum([material.entregada,-material.devuelta])) + '" style="padding:12px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius)">' +
       '<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:9px"><div><strong>' + esc(material.cod || '') + '</strong> · ' + esc(material.desc || '') + '</div><span class="badge b-blue">Entregado: ' + material.entregada + '</span></div>' +
       '<div style="font-size:11px;color:var(--text3);margin-bottom:7px">Indicá solamente las excepciones. El resto se calculará automáticamente como instalado.</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:7px">' +
@@ -568,8 +570,8 @@
     var row = element && element.closest ? element.closest('.ot-custodia-ex-row') : element;
     if (!row) return;
     var delivered = n(row.dataset.entregada);
-    var exceptions = n((row.querySelector('.ot-ex-return') || {}).value) + n((row.querySelector('.ot-ex-tech') || {}).value) + n((row.querySelector('.ot-ex-damaged') || {}).value) + n((row.querySelector('.ot-ex-missing') || {}).value);
-    var installed = delivered - exceptions;
+    var exceptions = quantitySum([n((row.querySelector('.ot-ex-return') || {}).value),n((row.querySelector('.ot-ex-tech') || {}).value),n((row.querySelector('.ot-ex-damaged') || {}).value),n((row.querySelector('.ot-ex-missing') || {}).value)]);
+    var installed = quantitySum([delivered,-exceptions]);
     var label = row.querySelector('.ot-ex-installed');
     if (label) {
       label.textContent = installed >= 0 ? 'Se instalaron: ' + installed : 'Las excepciones superan lo entregado';
@@ -591,14 +593,14 @@
       var technician = n((row.querySelector('.ot-ex-tech') || {}).value);
       var damaged = n((row.querySelector('.ot-ex-damaged') || {}).value);
       var missing = n((row.querySelector('.ot-ex-missing') || {}).value);
-      var exceptionTotal = returned + technician + damaged + missing;
-      if (exceptionTotal > Math.max(0, material.entregada - material.devuelta)) invalid = (material.cod || material.desc || 'Un material') + ': las excepciones superan lo entregado.';
+      var exceptionTotal = quantitySum([returned,technician,damaged,missing]);
+      if (exceptionTotal > Math.max(0, quantitySum([material.entregada,-material.devuelta]))) invalid = (material.cod || material.desc || 'Un material') + ': las excepciones superan lo entregado.';
       material.devueltaPendiente = returned;
       material.enTecnico = technician;
       material.danada = damaged;
       material.faltante = missing;
-      material.instalada = Math.max(0, material.entregada - material.devuelta - exceptionTotal);
-      material.custodiaClasificada = exceptionTotal <= Math.max(0, material.entregada - material.devuelta);
+      material.instalada = Math.max(0, quantitySum([material.entregada,-material.devuelta,-exceptionTotal]));
+      material.custodiaClasificada = exceptionTotal <= Math.max(0, quantitySum([material.entregada,-material.devuelta]));
       material.estadoCustodia = technician ? 'en_tecnico' : (returned ? 'devolucion_pendiente' : (damaged || missing ? 'incidencia' : 'instalado'));
       ot.materiales[index] = material;
     });
@@ -627,7 +629,7 @@
       if (quantity) receptions.push({ material:Object.assign({}, material), cantidad:quantity });
     });
     if (!receptions.length) { window.notify('No hay devoluciones pendientes en esta OT'); return; }
-    var total = receptions.reduce(function (sum, entry) { return sum + entry.cantidad; }, 0);
+    var total = receptions.reduce(function (sum, entry) { return quantitySum([sum,entry.cantidad]); }, 0);
     receptionBusy = true;
     try {
     if (!await window.svConfirm('¿Confirmás que depósito recibió ' + total + ' unidad(es)?')) return;
@@ -640,7 +642,7 @@
       ot.materiales = (ot.materiales || []).map(function (raw) {
         var material = normalizeMaterial(raw);
         if (!material.devueltaPendiente) return material;
-        material.devuelta += material.devueltaPendiente;
+        material.devuelta = quantitySum([material.devuelta,material.devueltaPendiente]);
         material.devueltaPendiente = 0;
         material.recibidoEn = Date.now();
         material.recibidoPor = window.currentUser || 'Administración';
@@ -721,13 +723,13 @@
     var incidents = 0;
     (window.otData || []).forEach(function (ot) {
       var totals = summary(ot);
-      custodyUnits += totals.sinClasificar + totals.enTecnico;
-      returns += totals.devolucionPendiente;
-      incidents += totals.danados + totals.faltantes;
+      custodyUnits = quantitySum([custodyUnits,totals.sinClasificar,totals.enTecnico]);
+      returns = quantitySum([returns,totals.devolucionPendiente]);
+      incidents = quantitySum([incidents,totals.danados,totals.faltantes]);
     });
     var metric = document.getElementById('ot-met-custodia');
     var sub = document.getElementById('ot-met-custodia-sub');
-    if (metric) metric.textContent = custodyUnits + returns + incidents;
+    if (metric) metric.textContent = quantitySum([custodyUnits,returns,incidents]);
     if (sub) sub.textContent = returns ? returns + ' esperando recepción' : (incidents ? incidents + ' con incidencia' : (custodyUnits ? custodyUnits + ' en técnicos' : 'sin pendientes'));
   }
 
@@ -742,12 +744,12 @@
     var rows = [];
     (window.otData || []).forEach(function (ot) {
       var totals = summary(ot);
-      var pending = totals.sinClasificar + totals.devolucionPendiente + totals.enTecnico + totals.danados + totals.faltantes;
+      var pending = quantitySum([totals.sinClasificar,totals.devolucionPendiente,totals.enTecnico,totals.danados,totals.faltantes]);
       if (!pending) return;
       var materiales = controllableMaterials(ot).map(function (raw) {
         var material = normalizeMaterial(raw);
         if (!material.custodiaActiva) return '';
-        var sinClasificar = Math.max(0, material.entregada - classified(material));
+        var sinClasificar = Math.max(0, quantitySum([material.entregada,-classified(material)]));
         var estados = [];
         if (sinClasificar) estados.push('sin rendir: ' + sinClasificar);
         if (material.devueltaPendiente) estados.push('por recibir: ' + material.devueltaPendiente);
