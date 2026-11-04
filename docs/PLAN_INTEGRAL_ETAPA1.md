@@ -1,3 +1,5 @@
+Actualización 04/11/2026 12:50 UTC: fuente local final probada c1908c7280c41099f524c44cb79d3f8d26d30957, v3.19.2, puerta20 con8485PASS/0FAIL/28opt-in. Respaldo GitHub verificado56c2dac4949a07f88f0be35b4431162138ad6f15, misma rama sin main. Las referencias300142f2 y manifiestos anteriores de este documento son antecedentes, no paquete final de activación. Paquete fiscal final manifest c34f971a4980b7d8fc54feac04ae8fd8555a94d21672aec702f18a0f809cc78c. Producción general no activada; siguiente paso sigue requiriendo estado remoto fresco y artefacto de rollout probado antes de cualquier pausa. Pendiente adicional: proyección de presupuestos del Dashboard sin descarga completa, preservando métricas y actividad. Evidencia y límites actuales en CONTEXTO_ACTUAL.md.
+
 # Plan integral de SisVentas — etapa 1
 
 Fecha de decisión: 3 de noviembre de 2026. Estado original: planificación consolidada. Ejecución local reanudada por el titular; integración y pruebas en curso durante la ventana del04/11, sin activación general de producción. Este documento ordena la continuación y no acredita que la auditoría funcional esté cerrada.

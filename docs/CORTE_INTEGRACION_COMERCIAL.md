@@ -1,3 +1,5 @@
+Actualización 04/11/2026 12:50 UTC: fuente local final probada c1908c7280c41099f524c44cb79d3f8d26d30957, v3.19.2, puerta20 con8485PASS/0FAIL/28opt-in. Respaldo GitHub verificado56c2dac4949a07f88f0be35b4431162138ad6f15, misma rama sin main. Las referencias300142f2 y manifiestos anteriores de este documento son antecedentes, no paquete final de activación. Paquete fiscal final manifest c34f971a4980b7d8fc54feac04ae8fd8555a94d21672aec702f18a0f809cc78c. Producción general no activada; siguiente paso sigue requiriendo estado remoto fresco y artefacto de rollout probado antes de cualquier pausa. Pendiente adicional: proyección de presupuestos del Dashboard sin descarga completa, preservando métricas y actividad. Evidencia y límites actuales en CONTEXTO_ACTUAL.md.
+
 # Propuesta operativa de corte comercial
 
 04/11/2026. **Preparación local; no es autorización ni constancia de ejecución.** Ningún paso de este documento fue ejecutado para redactarlo. Cada avance requiere evidencia del estado real y autorización del alcance exacto. Si una condición no puede demostrarse, mantener la pausa y no avanzar.
