@@ -54,8 +54,8 @@ async function readLatest({read,scope,creator,month,locale,expectedLocale}={}){
  const members=await read(root+'/creatorMonths/'+scope+'/'+Model.hash(JSON.stringify(creator))+'/'+month);
  const selected=select({meta,coverage:header,scope,creator,month,members,locale,expectedLocale});
  const rows=await Promise.all(selected.refs.map(async ref=>{
- const row=await read(root+'/records/sales/'+ref.key),member=members[ref.key];
- if(!row||row.key!==ref.key||row.creatorHash!==selected.creatorHash||row.creatorMonth!==month||scope!=='all'&&row.ownerUid!==scope.slice(2)||JSON.stringify(row.creatorOrder)!==JSON.stringify({schema:member.schema,rawDate:member.rawDate,loaderTime:member.loaderTime,loaderTs:member.loaderTs})||!Number.isSafeInteger(row.totalCents))throw unavailable();
+ const row=await read(root+'/records/sales/'+ref.key),member=members[ref.key],order=row?.creatorOrder,fields=['schema','rawDate','loaderTime','loaderTs'];
+ if(!row||row.key!==ref.key||row.creatorHash!==selected.creatorHash||row.creatorMonth!==month||scope!=='all'&&row.ownerUid!==scope.slice(2)||!order||Object.prototype.toString.call(order)!=='[object Object]'||Reflect.ownKeys(order).length!==fields.length||fields.some(k=>!Object.prototype.propertyIsEnumerable.call(order,k)||order[k]!==member[k])||!Number.isSafeInteger(row.totalCents))throw unavailable();
  return {...row,creatorRawDate:ref.rawDate};
  }));
  const after=await read(root+'/coverage');

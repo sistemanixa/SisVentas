@@ -1,3 +1,8 @@
+## Comparación canónica de orden y navegador posterior
+
+Aplicado delta mínimo 603c32f1 del helper: compara exactamente cuatro campos propios/enumerables y valores estrictos, sin depender del orden de propiedades de JSON. Rechaza extras, símbolos, campos ocultos y tipos/valores distintos. Root107 focales PASS,0FAIL/SKIP en Node22; log canonical-order-integrated.private.log. Se conserva la prueba nativa roja independiente de ee46; falta repetir sobre esta nueva fuente.
+
+Prueba browser independiente QA copiada con hash verificado sin modificar: dashboard-latest-final-browser-independent.integration.cjs. Repetición sobre12d3b1eb dio4ChromePASS,0FAIL/SKIP: escritorio/móvil, cinco personales y centavos, nombres vigentes, privacidad, retorno/retiro, global6/7GET. Log latest-browser-after-ui-anchor.private.log. No certifica corte nativo o puerta general final ni ventana del usuario; no hubo recarga, push, publicación o escrituras reales.
 ## Integración local: avisos tardíos, caché y anclas de lectura
 
 La puerta completa sobre ee46 terminó sus cuatro lotes con 9.404 casos: 9.369 PASS, 4 FAIL y 31 SKIP. El handle de proceso ya no estaba disponible al recuperar la sesión; se conserva el log completo current-gate-ee46.private.log, sin afirmar código de salida recuperado. Fallos: SHELL incompleto, conteo HTTP anterior de siete frente a cinco y dos conteos por relectura redundante de totales. No es una puerta aprobada.
