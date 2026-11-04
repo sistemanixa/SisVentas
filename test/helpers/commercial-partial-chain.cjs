@@ -23,10 +23,11 @@ async function receivePurchase(f,order,item,{loseInventoryAck=false}={}){
  for(const domain of ['pagos','comisiones','gastos','ctaemp','productos'])assert.deepEqual(f.get('sisventas/'+domain),initial[domain]);
  return{initial,commits:f.commits.length,commands,sdkPatches,notes,ackLost};
 }
-async function fixture({width=1280,lostAck=false}={}){
+async function fixture({width=1280,lostAck=false,omitSaleInstallationState=false}={}){
  const material={cod:'P-FICTICIO',desc:'Producto ficticio',productoKey:'p',vendida:3,entregada:0,instalada:0,devuelta:0,custodiaActiva:false};
  const ot={id:'OT-FICTICIA',clienteFbKey:'c',ventaFbKey:'s',ventaId:'V-FICTICIA',tecnico:'Técnico ficticio',estado:'en_curso',materiales:[material],audit:[]};
  const sale={id:'V-FICTICIA',otId:'ot',estadoInst:'pendiente',fecha:'2026-10-20',clienteFbKey:'c',responsableUid:'u',total:300,subtotal:300,iva:0,conIva:false,items:[{cod:material.cod,qty:3,punit:100,sub:300,costoUnitarioCompra:10,costoTotalCompra:30}]};
+ if(omitSaleInstallationState)delete sale.estadoInst;
  Object.assign(sale.items[0],{codigo:material.cod,productoKey:'p',productoFbKey:'p',costoUnitarioPresupuestado:10,costoTotalPresupuestado:30,costoVersion:1});
  const item={codigo:material.cod,productoKey:'p',descripcion:'Producto ficticio',cantidadOrdenada:3,cantidadRecibida:0,costoUnitario:10},order={numero:'OC-CHAIN',ventaFbKey:'s',ventaId:sale.id,estado:'ordenada',items:[item],recepciones:[]};
  const f=await createCoordinatedBackend({ventas:{s:sale},pagos:{pay:{ventaFbKey:'s',monto:40,fecha:sale.fecha}},ordenes:{o:order},ordenes_trabajo:{ot},inventario_operativo:{p:{general:4,reservado:5,consumido:0,enCompra:3,_svReadRevision:1,asignaciones:{foreign:{reservado:5,consumido:0}}}},comisiones:{sentinel:{monto:7}},productos:{p:{codigo:material.cod,nombre:'Producto ficticio'}}});

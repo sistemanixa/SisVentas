@@ -7,11 +7,12 @@ async function capture(page,name){if(evidence){fs.mkdirSync(evidence,{recursive:
 // Same-base real finishReceipt2/3 before opening the browser public delivery UI.
 // Purchase form presentation is not exercised. No real Firebase, production HTTP,
 // or deployed rules; the fixture documents its RAM/Auth/SDK-stock boundaries.
-for(const [width,lostAck]of [[1280,false],[390,true]])test('finishReceipt2of3 → public delivery2 → install2of3 → correct1 → receive1; '+width+(lostAck?' lost ACK':''),{timeout:45000},async()=>{
- const f=await fixture({width,lostAck}),p=f.page,before=structuredClone(f.state.sisventas);
+for(const [width,lostAck,omitSaleInstallationState=false]of [[1280,false],[390,true],[1280,true,true]])test('finishReceipt2of3 → public delivery2 → install2of3 → correct1 → receive1; '+width+(lostAck?' lost ACK':'')+(omitSaleInstallationState?' missing initial estadoInst':''),{timeout:45000},async()=>{
+ const f=await fixture({width,lostAck,omitSaleInstallationState}),p=f.page,before=structuredClone(f.state.sisventas),evidenceSuffix=width+(omitSaleInstallationState?'-missing-state':'');
  const material=()=>f.get('sisventas/ordenes_trabajo/ot/materiales/0'),inventory=()=>f.get('sisventas/inventario_operativo/p');
  try{
   assert.equal(inventory().asignaciones.s.reservado,2);assert.equal(inventory().enCompra,1);assert.equal(f.get('sisventas/ventas/s/items/0/costoTotalCompra'),34);assert.equal(f.purchase.ackLost,lostAck);const purchaseCommits=f.purchase.commits;financialProjections(f);
+  if(omitSaleInstallationState){assert.equal(Object.hasOwn(f.purchase.initial.ventas.s,'estadoInst'),false,'legacy state absent before purchase');assert.equal(Object.hasOwn(before.ventas.s,'estadoInst'),false,'purchase must not invent installation state');}
   await p.locator('#deliver').click();await p.locator('dialog input').fill('2');await p.getByRole('button',{name:'Confirmar entrega',exact:true}).click();
   if(lostAck){await p.getByRole('button',{name:'Consultar operación',exact:true}).waitFor();assert.equal(material().entregada,2);assert.equal(f.commits.length,purchaseCommits+1);await p.getByRole('button',{name:'Consultar operación',exact:true}).click();}
   await p.waitForFunction(()=>otData[0].materiales[0].entregada===2);assert.equal(f.commits.length,purchaseCommits+1);assert.equal(f.requests.filter(r=>r.method==='POST'&&r.path==='/ot/ciclo').length,1);assert.equal(f.dropped,lostAck);
@@ -22,7 +23,8 @@ for(const [width,lostAck]of [[1280,false],[390,true]])test('finishReceipt2of3 �
   await p.locator('#install').click();await p.waitForFunction(()=>otData[0].materiales[0].instalada===2);
   assert.deepEqual([material().vendida,material().entregada,material().instalada],[3,2,2]);assert.equal(inventory().consumido,2);assert.equal(inventory().asignaciones.s.reservado,0);assert.equal(inventory().general,4);
   financialProjections(f);
-  await capture(p,'installed2of3-'+width);
+  await capture(p,'installed2of3-'+evidenceSuffix);
+  if(omitSaleInstallationState){const audit=f.get('sisventas/ventas/s/audit');assert.equal(audit.length,1);assert.equal(audit[0].antes,null);assert.equal(audit[0].despues,'en_instalacion');assert.equal(Object.hasOwn(audit[0],'antes'),true);assert.deepEqual(JSON.parse(JSON.stringify(audit)),audit,'audit must survive JSON round trip without dropping fields');}
   const consumed=structuredClone(inventory()),commits=f.commits.length;await p.locator('#install').click();await p.waitForTimeout(150);assert.deepEqual(inventory(),consumed,'repeat installation never consumes twice');assert.equal(f.commits.length,commits);
   await p.locator('#exceptions').click();await p.locator('.ot-ex-return').fill('1');await p.getByRole('button',{name:'Guardar rendición'}).click();await p.waitForFunction(()=>otData[0].materiales[0].devueltaPendiente===1);
   assert.equal(material().instalada,1);assert.equal(inventory().consumido,1);assert.equal(inventory().asignaciones.s.reservado,1);assert.equal(inventory().general,4);
@@ -38,6 +40,6 @@ for(const [width,lostAck]of [[1280,false],[390,true]])test('finishReceipt2of3 �
   assert.deepEqual(f.failures,[]);assert.deepEqual(f.errors,[]);assert.deepEqual(f.blocked,[]);
   financialProjections(f);assert.deepEqual(f.get('sisventas/ordenes/o'),before.ordenes.o,'custody/return cannot rewrite the partial purchase reception');
   assert.equal(f.commits.length,purchaseCommits+6,'one delivery, two SDK stock adjustments, two custody saves and one return');assert.equal(f.lifecycleCommands.filter(c=>c.kind==='delivery').length,2);assert.equal(f.requests.filter(r=>r.path==='/laboral/operacion').length,lostAck?1:0);
-  await capture(p,'returned1-'+width);if(evidence)fs.writeFileSync(path.join(evidence,'chain-'+width+'.json'),JSON.stringify({width,lostAck,real:'native public custody/selector/lifecycle/recovery, source HTTP route branches, lifecycle services, guard, list/H7/operational projections',fixtureOnly:'synthetic HTML host, RAM store/auth/fence proof, SDK-stock CAS bridge; purchase finishReceipt/transactionInventory/syncSalePurchaseCosts extracted from real source, memory SDK transport; not RTDB rules or deployed server',material:material(),inventory:inventory(),requests:f.requests,commits:f.commits.length,financialBaseUnchanged:true},null,2));
+  await capture(p,'returned1-'+evidenceSuffix);if(evidence)fs.writeFileSync(path.join(evidence,'chain-'+evidenceSuffix+'.json'),JSON.stringify({width,lostAck,omitSaleInstallationState,real:'native public custody/selector/lifecycle/recovery, source HTTP route branches, lifecycle services, guard, list/H7/operational projections',fixtureOnly:'synthetic HTML host, RAM store/auth/fence proof, SDK-stock CAS bridge; purchase finishReceipt/transactionInventory/syncSalePurchaseCosts extracted from real source, memory SDK transport; not RTDB rules or deployed server',material:material(),inventory:inventory(),requests:f.requests,commits:f.commits.length,financialBaseUnchanged:true},null,2));
  }catch(error){console.error('Fixture diagnostic: '+JSON.stringify({notifications:await p.evaluate(()=>notifications),material:material(),inventory:inventory(),serverFailures:f.failures,browserErrors:f.errors,requests:f.requests}));throw error;}finally{await f.close();}
 });

@@ -6,6 +6,21 @@ Se agregaron únicamente `test/commercial-partial-delivery-chain.integration.cjs
 
 ## Resultado congelado
 
+Ampliación posterior sobre `b13fcd43`, con la corrección compartida del modelo todavía local: **3 PASS, 0 FAIL, 0 SKIP**. Se agregó `omitSaleInstallationState` al helper y una tercera cadena completa de 1280 px, con pérdida de ACK y `estadoInst` ausente desde antes de la compra. La recepción no inventa ese campo. La instalación genera un solo evento con `antes: null` y `despues: "en_instalacion"`; conserva explícitamente la propiedad `antes` al serializar y releer JSON. La cadena completa termina sin errores de guard/JSON y conserva los mismos saldos. No se modificó código servidor en esta ampliación.
+
+El coordinador informó una repetición independiente anterior de 5/5 PASS en `ot-partial-chain-root-independent.private.log`, SHA256 `680d1aac4b5232b7591f1ef31aaed8c49cdd1b0ba7a047c65bbbfb6a66f2d5b3`. Esa repetición precede a la nueva variante histórica; su repetición independiente sigue pendiente.
+
+Evidencia privada nueva: `C:/SisVentas/tmp/partial-delivery-chain-missing-state.private.log` y `C:/SisVentas/tmp/partial-delivery-chain-native-20261104/missing-state/`. Se usó la variable correcta `SV_CHAIN_EVIDENCE`; los nombres de capturas y JSON distinguen `1280-missing-state` para no sobrescribir la variante normal. Sintaxis y diff de los dos archivos correctos.
+
+| Huellas de la ampliación | SHA256 |
+| --- | --- |
+| Test actualizado | `7b85f8e129cc9e0a602d582df7439a5ba8c510ef86fe682a5826daf206ca7300` |
+| Helper actualizado | `38084f5b2e53770932977c454812b334150c14c32c51ee3add34664aa6391ba8` |
+| Log 3 variantes | `a206c1e7303e5e48678a1f32e00740a3d046baf282063095fa3281cc17567c46` |
+| Modelo compartido con corrección `antes` | `c935159a25ddc0bfc71e3fdf4e9dfbc7b7647269b49a3533515d469954b66702` |
+
+### Evidencia anterior conservada
+
 **2 PASS, 0 FAIL, 0 SKIP**, Chrome nativo en 1280×844 y 390×844. La repetición final se hizo sobre HEAD `e0e8166a`, con cambios compartidos de custodia todavía locales. Sintaxis de ambos archivos correcta. La repetición independiente del coordinador queda pendiente.
 
 En una sola base ficticia, la prueba ejecuta las funciones originales `transactionInventory`, `syncSalePurchaseCosts` y `finishReceipt`, extraídas de `purchase-orders.js`. Parte de una orden de 3 unidades sin recepción y otra reserva independiente de 5. Recibe 2 a costo real 12: una recepción parcial, 2 reservadas para la venta, 1 en compra y costo total de venta 34; conserva costo presupuestado 30. Rechaza repetir la recepción obsoleta sin alterar la base. La variante móvil pierde también el ACK de inventario de compra y recupera el resultado existente.
@@ -22,7 +37,7 @@ Cada fase conserva deuda comercial, saldo de cuenta e historial financiero en 26
 - Ficticios: HTML anfitrión, identidad, almacenamiento en RAM y prueba de activación del fence. El transporte de compra es SDK/memoria. La transacción SDK de consumo usa un puente exclusivo del fixture con comparación de hash y guard/proyecciones reales; ese puente no es un endpoint de producción.
 - No se ejercita la presentación del formulario de compra, la aplicación completa, reglas RTDB desplegadas, servidor desplegado ni datos reales. Las capturas muestran el host sintético y no acreditan el diseño de la aplicación completa. Todo el navegador queda restringido al origen loopback efímero; no usa el puerto 8765.
 
-Un primer fixture omitía `venta.estadoInst`: el modelo intentó generar un evento con `antes: undefined`, rechazado por el guard después de consumir stock. Se completó el estado inicial ficticio con `pendiente`. El hallazgo se comunicó al coordinador; esta prueba no corrige ni certifica ventas históricas sin ese campo.
+Un primer fixture omitía `venta.estadoInst`: el modelo intentó generar un evento con `antes: undefined`, rechazado por el guard después de consumir stock. Se completó inicialmente el estado ficticio con `pendiente` y se comunicó el hallazgo. El coordinador corrigió posteriormente el modelo a `antes: sale.estadoInst ?? null`; la ampliación de tres variantes descrita arriba valida ahora también esa ausencia histórica en la misma cadena, sin modificar el servidor desde esta prueba.
 
 ## Repetición y huellas
 
