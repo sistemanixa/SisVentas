@@ -121,7 +121,7 @@
       return !m._recuperado && m.custodiaActiva === true && delivered >= quantity(m) &&
         /^[a-f0-9]{64}$/.test(String(m.stockRegistro || '')) &&
         Number.isSafeInteger(m.stockRevision) && m.stockRevision > 0 &&
-        n(m.instalada) === delivered && Math.abs(quantitySum([classified(m),-delivered])) < 0.000001;
+        n(m.instalada) === delivered && quantitySum([classified(m),-delivered]) === 0;
     });
   }
 
