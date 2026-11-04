@@ -45,8 +45,8 @@ const db = laborRuntime.db;
 const firebaseAuth = Object.fromEntries(['verifyIdToken','getUser','updateUser','setCustomUserClaims','revokeRefreshTokens'].map(method => [method,(...args)=>admin.auth()[method](...args)]));
 const businessAuth = require('./user-access').createBusinessAuth(firebaseAuth, db);
 const dashboardReadsEnabled=process.env.DASHBOARD_READS_ENABLED==='true';
-// Read-only controllers must keep native indexed queries outside write overlays.
-const dashboardReadDb=dashboardReadsEnabled?admin.database():null;
+// REST avoids Admin get() reusing an active listener cache between fresh checks.
+const dashboardReadDb=dashboardReadsEnabled?require('./dashboard-rtdb-read-db').create({store:laborRuntime.store}):null;
 const dashboardLegacyContext=Object.freeze({timeZone:'America/Argentina/Buenos_Aires',sourceLocale:'es-AR'});
 if(dashboardReadsEnabled){const c=laborRuntime.capabilities();if(!c.coordinated||!c.commercialPages||process.env.DASHBOARD_BUDGETS_ENABLED!=='true'||process.env.DASHBOARD_COMMERCIAL_ACTIVITY_ENABLED!=='true')throw Error('Las lecturas de Dashboard requieren ambos escritores coordinados y Pages.');}
 const dashboardAsOfDay=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:dashboardLegacyContext.timeZone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).filter(v=>v.type!=='literal').map(v=>[v.type,v.value]));return p.year+'-'+p.month+'-'+p.day;};

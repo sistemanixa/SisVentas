@@ -1,3 +1,9 @@
+## Lectura backend fresca · integración local inactiva
+
+Integrado15d9b71e desde53b8: los cinco lectores preparados de Dashboard usan una fachada sólo de lectura sobre el store REST existente, en vez de Admin SDK get. La reproducción del autor con Admin13.10.0/listener retenido confirmó revisión1 en get y consulta UID tras escritura REST confirmada de revisión2; REST vio revisión2. No se modifica el driver de escrituras: se añade readQuery limitado a key/UID y máximo50, junto con el empaquetado de la fachada. Permanecen autenticación, validadores, límites5/50 y flags OFF.
+
+Root repitió adaptador, montaje y agregador/mensual/QA:55PASS,0FAIL/SKIP. Log privado dashboard-rest-aggregate-root.private.log. Los dos nativos del autor y17focales están descritos en DASHBOARD_ADMIN_CACHE_FRESHNESS; no sustituyen la puerta conjunta ni el arranque visual integrado. No producción, datos reales, push ni recarga del usuario.
+
 ## Agregación y mensual · integración local inactiva
 
 Importados selectivamente29e524eb y68bbf02a: agregador de cuatro prefijos con presupuesto B0/B1 alrededor de las lecturas comerciales y puerto mensual propio mediante HTTP readFresh. No carga originales ni certifica como completos Mis ventas por creador, centro global de notificaciones o la colección de presupuestos. El mensual conserva el criterio exacto empleado/mes de la interfaz antigua y prueba ausencia certificada frente a metadatos faltantes. dataEpoch es obligatorio junto con User, sesión, permisos, conexión y contexto de fechas; un grant denegado rechaza el paquete antes de consultar, sin fabricar un prefijo vacío.
