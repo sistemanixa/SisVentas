@@ -1,3 +1,12 @@
+## Apertura histórica y caída real de proceso · cierre local en curso
+
+Root ce57f454 contiene eab8ca31 traducido únicamente de app3.19.4 a la activa3.19.3: verDetalleVenta espera preparación de Sales vigente antes de decidir entre nativo/legacy. Veintiún focales propios PASS, sin alterar importes ni permisos. QA independiente con arranque real desde Clientes (fbCargarTodo tras permisos, sin Accounts ni Sales precalentado) contrastó mismo fixture/asserts: antes de eab0PASS/2FAIL VentaNoEncontrada; después2PASS/0FAIL, hostactivo, una lectura puntual y vuelta H7 tras hidratar. Recorrido amplio original2PASS escritorio/móvil frío/caliente. El mínimo original sin arranque queda conservado rojo: no inicia fuentes clientes/pagos, distinto del fallo inicial de bootstrap. No se cambió Readiness para ocultar esa omisión del fixture.
+
+Paquete aislado funcional1ade4b10: app3.19.4 con eab, cuatro flagsON, módulos Accounts/readiness?v3.19.4. Root repitió upgradeSW con fuente1ade explícita:2PASS/0FAIL/SKIP (sw-upgrade-1ade-root.private.log), bytes nuevos ejecutados/cacheados online y offline en documento estático de módulos; query desconocida rechazada; no equivale a operación financiera offline. Rebind final de activos en curso; manifiesto0b2 anterior no certifica app nueva. Falta puerta vigente del paquete final.
+
+Entrega721a8877 incorporada: prueba de runtime/guard/store reales en procesos distintos con adaptador REST ficticio durable en disco. Root repitió2PASS/0FAIL/SKIP (runtime-process-root.private.log): después de commit sin respuesta recupera recibo y un único efecto; caída con lease adquirido persiste pendiente y tras vencimiento real deja rechazo durable sin efecto. Sólo procesos propios y carpeta temporal; no prueba reglas reales ni CloudRun. El ensayo anterior de reinicio de listener conserva su límite.
+
+Servidor8765 PID43000 verificado HTTP200, pestaña sin recarga ni cierre. No datos comerciales reales, push, main ni activación general. Fuente publicada de fotos continúa separada.
 ## Retorno Accounts corregido y aceptación conjunta todavía abierta
 
 Integrado 727d2f81 por parche explícito en root a33dfcee y paquete ON 0b2d9e4c. Accounts usa su canal clientAccounts, sin completar ni invalidar ventas/pagos/clientes originales; cada entrada y boot comprueba visita/sesión vigentes. Se conserva fallback sólo para configuración genuinamente legacy. Candidato cachea las dos URLs compartidas nuevas exactamente con v3.19.4; root no cambia rollouts ni pestaña.
