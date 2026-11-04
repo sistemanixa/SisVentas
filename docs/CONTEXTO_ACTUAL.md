@@ -1,3 +1,13 @@
+## Actividad comercial integrada con el guard común · preparación local
+
+Se incorporó el bloque b35fe07c sobre 0ca5cced sin sustituir la versión del guard que ya mantiene Presupuestos. Ventas/Cobros reutilizan filas canónicas Pages para UID e importes; OT sigue la lectura por módulo y no transporta dinero. Los prefijos son de cinco instantes con desempate estable, excluyen cobros anulados y mantienen cobertura incremental con el mismo commit. Default deshabilitado y proyector inyectado, sin requerirlo desde el contenedor habitual.
+
+Se verificaron antes de importar dos fallas de la propuesta original: snapshots Pages con iguales claves/conteos pero valores distintos y revalidación incompleta de sus lecturas. El delta exige un recibo de integridad de la misma preparación canónica y revalida los puntos/proofs/estadísticas. El recibo no es firma ni prueba del estado remoto actual. El autor conserva once reproducciones focales y cinco carreras RTDB fallidas contra 0ca5; delta77focales y10nativos PASS. No se atribuyen esos resultados a esta integración root.
+
+Repetición root: 45 focales PASS de actividad comercial, carrera, guard, empaque y presupuesto. Prueba nueva con ambos proyectores activos: dos casos PASS, incluyendo presupuesto+venta en un commit y rechazo conjunto ante proof de Presupuestos incorrecto; sentinels financieros intactos. Log dashboard-mixed-writer-commit.private.log separa esos dos de las nueve pruebas del bridge. No se sustituyó la puerta global por pruebas focales.
+
+Límite demostrado en RTDB: un escritor privilegiado posterior al último check todavía puede ser sobrescrito. No es CAS atómico; la activación requiere cercar los escritores e inventariar/revocar los privilegiados externos. No se promete seguridad frente a ese bypass por tener tests verdes. No hay preparación remota, montaje de rutas/consumidores, cambios reales, publicación o push.
+
 ## Guardado común de Presupuestos y cabeceras · integración local
 
 Se fusionaron selectivamente 848064e4 (renovación de política con ownership equivalente) y a1632534 (cabeceras UID). Se conservaron noticeEligible, noticeCandidates y el esquema de avisos del bloque root; no se sustituyó Index.plan completo por una copia anterior. El DTO conserva 23 campos y comprueba el proof del objeto completo de estadísticas, incluidos campos nuevos. Cambiar UID/alias efectivos mantiene la reconciliación explícita; no reasigna históricos por nombres ni cambia comisiones.
