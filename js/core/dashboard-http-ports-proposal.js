@@ -44,14 +44,14 @@ function create({enabled=false,baseURL:configuredBase,host=globalThis,capture,va
   function active(){if(expired)throw timeout;if(done)throw fail('SV_ACTIVITY_CONTEXT_RETIRED');live(c);}
   const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>{expired=true;controller.abort();reject(timeout);},requestMs);});
   try{return await Promise.race([deadline,(async()=>{
-   check(typeof c.user.getIdToken==='function','SV_DASHBOARD_HTTP_TOKEN');const token=await c.user.getIdToken(true);active();check(typeof token==='string'&&token&&!/[\r\n]/.test(token),'SV_DASHBOARD_HTTP_TOKEN');const url=base+ROUTES[kind];
+   check(typeof c.user.getIdToken==='function','SV_DASHBOARD_HTTP_TOKEN');const token=await c.user.getIdToken();active();check(typeof token==='string'&&token&&!/[\r\n]/.test(token),'SV_DASHBOARD_HTTP_TOKEN');const url=base+ROUTES[kind];
    const response=await fetchImpl(url,{method:'GET',headers:{Authorization:'Bearer '+token,Accept:'application/json'},cache:'no-store',credentials:'omit',redirect:'error',referrerPolicy:'no-referrer',signal:controller.signal});
    try{active();}catch(e){await discard(response);throw e;}
    check(response&&response.redirected!==true&&(!response.url||response.url===url),'SV_DASHBOARD_HTTP_REDIRECT');if(!response.ok){await discard(response);throw fail('SV_DASHBOARD_HTTP_DENIED',Number.isInteger(response.status)?response.status:503);}check(response.status===200,'SV_DASHBOARD_HTTP_CONTRACT');
    const value=await response.json();active();return copy(kind==='avisos'?notices(value,c):activity(value,kind,c));
   })()]);}catch(e){if(e?.code==='SV_ACTIVITY_CONTEXT_RETIRED'||e?.code?.startsWith('SV_DASHBOARD_HTTP_'))throw e;throw fail('SV_DASHBOARD_HTTP_UNAVAILABLE',503);}finally{done=true;clearTimeout(timer);controller.abort();}
  }
- async function budget(c){const b=await get('presupuestos',c),n=await get('avisos',c);check(revision(b)===revision(n),'SV_DASHBOARD_HTTP_REVISION');live(c);return {...b,notices:n.notices};}
+ function budget(c){return get('presupuestos',c);}
  function port(kind){const wrapped=Aggregate.port({capture,valid,read:async q=>kind==='budget'?budget(q.context):kind==='month'?monthly(await get('presupuestos',q.context),q.context):get(q.domain,q.context)});return Object.freeze({async read(q){check(object(q)&&Object.keys(q).length===(kind==='commercial'?3:2)&&q.schema===1&&Object.hasOwn(q,'context')&&(kind!=='commercial'||['ventas','pagos','ordenes_trabajo'].includes(q.domain)),'SV_DASHBOARD_HTTP_ROUTE');return wrapped.read(q);}});}
  const ports=Object.freeze({budget:port('budget'),commercial:port('commercial'),month:port('month')});
  return Object.freeze({ports,async read(kind='dashboard'){check(kind==='dashboard'||kind==='notices','SV_DASHBOARD_HTTP_ROUTE');const c=Aggregate.snapshot(capture());live(c);return kind==='dashboard'?budget(c):get('avisos',c);}});

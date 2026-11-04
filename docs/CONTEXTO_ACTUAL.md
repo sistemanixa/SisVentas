@@ -1,3 +1,9 @@
+## Delta mínimo cliente HTTP · token y centro separados
+
+Sobre 6356affe, getIdToken() sin forceRefresh por GET y Dashboard/ports.budget sólo actividad Presupuestos (un GET), sin descargar centro ni inventar notices.complete. Avisos se consultan únicamente por read('notices') explícito. Host Aggregate debe usar requireNotices:false. No se agrega endpoint, modo combinado, fallback ni otro contrato; se conservan pins, plazos y errores 401/403.
+
+Traza roja previa; delta 60 focales y dos HTTP loopback PASS, cero FAIL/SKIP. Sin puerta general, producción ni root. API factory y puertos exactos permanecen iguales. Handoff actualizado en docs/DASHBOARD_HTTP_PORTS_CONTRATO.md; evidencia privada dashboard-http-separated-focal.private.log y dashboard-http-separated-loopback.private.log. El texto anterior describe 6356 y su forceRefresh/avisos acoplados, reemplazados por este delta.
+
 ## Puerto HTTP cliente de cinco GET · entrega aislada
 
 Nuevo js/core/dashboard-http-ports-proposal.js, defaultOFF, factory SVDashboardHTTPPortsProposal.create. Base explícita igual SISVENTAS_FUNCTIONS.cotizadorProveedor confiable del host; cinco rutas cerradas de Dashboard, GET no-store sin body/query/redirecciones/referrer, token forceRefresh y plazo acotado desde token hasta JSON. Captura Aggregate fija User/Auth/UID/rol/config/revisión/sessionEpoch/dataEpoch/connectionEpoch/DB/grants/calendario. Recibe capture/valid del SVDashboardHostContext root831, con dataEpoch real de Readiness; no inventa epochs. Sin Ver como, logs de tokens, retry ni fallback.
