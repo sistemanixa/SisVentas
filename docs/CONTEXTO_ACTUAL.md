@@ -1,3 +1,7 @@
+## Delta autorizado · desempate estable de últimas ventas
+
+Sobre958ffc51, sólo helper/prueba/docs. Ante empate rawDate/loaderTime/ts: índices JS primero y numéricos ascendentes, otras claves por punto de código ascendente; orderContract explícito en DTO. Cambio deliberado de presentación frente al último empate de inserción legacy no certificado, cuyo oracle sigue caracterizado. Locale real sigue obligatorio; no hay default ni equivalencia UTF8. 56 focales PASS, sintaxis/diff correctos; sin cambios en modelo/HTTP/finanzas/datos reales, sin general ni activación. Handoff actualizado en docs/DASHBOARD_CREATOR_LATEST_PAGES.md. Root aún debe importar958 más este delta.
+
 ## Últimas ventas personales · entrega aislada Pages
 
 Pertenencia scope/creatorHash/mes crudo mantenida por delta y helper servidor sin originales; lee metadata del grupo y hasta cinco filas Pages. Orden raw locale explícito, loader real/ts; empate de entrada no probado o locale no certificado retira sólo esta capacidad. 54 focales PASS, sin general/UI/producción ni activación. Base contador d5afe8ce; handoff y límites en docs/DASHBOARD_CREATOR_LATEST_PAGES.md. Hist conserva lector/HTTP/agregado; root integra hunks de modelo y helper, no el checkout completo.

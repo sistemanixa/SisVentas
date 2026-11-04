@@ -15,6 +15,15 @@ function evidence(s){try{
  return Number.isFinite(loaderTime)&&Number.isFinite(loaderTs)?{schema:1,rawDate:raw,loaderTime,loaderTs}:null;
  }catch(_){return null;}}
 const indexKey=k=>/^(0|[1-9]\d*)$/.test(k)&&Number(k)<4294967295;
+const ORDER_CONTRACT='raw-locale-desc_loader-time-desc_ts-desc_js-index-first-asc_other-codepoint-asc_v1';
+function stableKeyCompare(a,b){
+ const ai=indexKey(a),bi=indexKey(b);
+ if(ai&&bi)return Number(a)-Number(b);
+ if(ai!==bi)return ai?-1:1;
+ const ac=Array.from(a,c=>c.codePointAt(0)),bc=Array.from(b,c=>c.codePointAt(0));
+ for(let i=0;i<Math.min(ac.length,bc.length);i++)if(ac[i]!==bc[i])return ac[i]-bc[i];
+ return ac.length-bc.length;
+}
 function select({meta,coverage,scope,creator,month,members,locale,expectedLocale}={}){
  const Model=require('./commercial-pages-model');
  if(!coverage?.ready||coverage.schema!==1||coverage.scopes?.[scope]!==true||meta?.generation!==coverage.generation||!Number.isSafeInteger(meta?.revision)||meta.revision<0||meta.revision>coverage.revision||meta?.creatorLatestSchema!==1)throw unavailable();
@@ -30,14 +39,12 @@ function select({meta,coverage,scope,creator,month,members,locale,expectedLocale
  rows.sort((a,b)=>{
  const raw=collator.compare(b.rawDate,a.rawDate);if(raw)return raw;
  const load=b.loaderTime-a.loaderTime||b.loaderTs-a.loaderTs;if(load)return load;
- // Object.entries proves this order only for JS array-index property names.
- // Non-numeric source insertion order is not certified by Pages/RTDB.
- if(indexKey(a.key)&&indexKey(b.key))return Number(a.key)-Number(b.key);
- throw unavailable();
+ // Deliberate presentation tie-break; no claim of legacy insertion-order parity.
+ return stableKeyCompare(a.key,b.key);
  });
- return {schema:1,generation:coverage.generation,revision:coverage.revision,scope,creatorHash:Model.hash(JSON.stringify(creator)),month,locale,count,scanned:rows.length,refs:rows.slice(0,5).map(v=>({key:v.key,rawDate:v.rawDate}))};
+ return {schema:1,orderContract:ORDER_CONTRACT,generation:coverage.generation,revision:coverage.revision,scope,creatorHash:Model.hash(JSON.stringify(creator)),month,locale,count,scanned:rows.length,refs:rows.slice(0,5).map(v=>({key:v.key,rawDate:v.rawDate}))};
 }
-module.exports={evidence,select,timestamp};
+module.exports={evidence,select,timestamp,stableKeyCompare,ORDER_CONTRACT};
 
 // The caller authorizes scope and supplies a fresh server read; no originals path.
 async function readLatest({read,scope,creator,month,locale,expectedLocale}={}){
