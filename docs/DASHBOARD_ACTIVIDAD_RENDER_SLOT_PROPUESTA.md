@@ -1,6 +1,6 @@
 # Consumidor de actividad reciente · slot de host propuesto
 
-Diff aislado para `js/modules/activity-history.js`, sin tocar app/index ni integración root. Mantiene `window.dashRenderActividadReciente()`, IDs `dash-actividad-card` / `dash-actividad-lista`, cinco filas, iconos/clases/colores, estructura flex/ellipsis y formato visual legacy de importes enteros. Los importes vienen de `amountCents` canónicos; no se escriben ni redondean originales. OT/Presupuesto no muestran importes. Se conserva la condición `tienePermiso('dashboard.actividad')` y la clase de tarjeta existente; no se amplía acceso de roles.
+Diff aislado para `js/modules/activity-history.js`, sin tocar app/index ni integración root. El camino nuevo sólo se elige cuando window.SV_DASHBOARD_READS_LOCAL === true; OFF/ausente/no booleano conserva el renderer legacy estable. Mantiene `window.dashRenderActividadReciente()`, IDs `dash-actividad-card` / `dash-actividad-lista`, cinco filas, iconos/clases/colores, estructura flex/ellipsis y formato visual legacy de importes enteros. Los importes vienen de `amountCents` canónicos; no se escriben ni redondean originales. OT/Presupuesto no muestran importes. Se conserva la condición `tienePermiso('dashboard.actividad')` y la clase de tarjeta existente; no se amplía acceso de roles.
 
 ## API frontend para conectar desde root
 
@@ -32,7 +32,7 @@ Root es dueño de lectura, readiness del nuevo consumidor, retención e invalida
 - Autoridad retirada: borra las filas incluso si el host todavía pasó un dato viejo. No recupera filas de una caché interna.
 - Permiso de tarjeta denegado: oculta/limpia y ni siquiera consulta el slot. Al reautorizar restaura sólo la visibilidad que había ocultado el módulo.
 
-No accede a ventasList, pagos, otData, pptoData ni SVDataReadiness original; no declara completas esas colecciones. No llama fetch/fbGet/onValue/ensure/refresh. El calendario de etiquetas sigue siendo presentación Date/es-AR como antes; la selección/orden de eventos proviene del merge validado, no de un parser local.
+La rama ON no accede a ventasList, pagos, otData, pptoData ni SVDataReadiness original; no declara completas esas colecciones. No llama fetch/fbGet/onValue/ensure/refresh. El calendario de etiquetas sigue siendo presentación Date/es-AR como antes; la selección/orden de eventos proviene del merge validado, no de un parser local.
 
 ## Pruebas y entrega
 
@@ -45,3 +45,13 @@ Dos casos Chrome headless PASS, 1280 y390px: fuente JS real servida sólo por lo
 Repetir navegador con `SV_ACTIVITY_RENDER_BROWSER=1`, `SV_ACTIVITY_RENDER_ARTIFACTS` en carpeta privada existente, NODE_PATH a Playwright y opcional SV_CHROME_PATH. Los servidores/Chrome de prueba se cierran al terminar. Logs privados `activity-history-render-focal.private.log` y `activity-history-render-browser.private.log`. No se ejecutó general ni se recargó la ventana del titular; sigue pendiente montar host/contexto/readiness y comprobar la unidad en la aplicación real. No hay publicación, cambios financieros ni nuevos endpoints.
 
 SHA256 focal: B786847778F3880DB3D002A662D976351CE97B53DDAFB7AC2C0259471A84E6A1; navegador: C23D96F82E7123940A9AD01323A0D3EC2BE0E929F31C82BF2CCBE804431259E9.
+
+## Transición explícita sobre 2bc44c5a
+
+Se corrige el reemplazo incondicional: se preserva la implementación legacy de 9779d059 dentro de una función privada y sólo se usa con SV_DASHBOARD_READS_LOCAL distinto de true booleano. No se establece/activa el flag en producción, no se modifica app/index y no se duplica ni crea un host. OFF no inspecciona el slot ni requiere Core; mantiene exactamente el HTML, arrays, parser y permiso anteriores. Es una compatibilidad temporal explícita, no una reparación de las limitaciones legacy.
+
+ON continúa usando exclusivamente el snapshot verificado. Missing/error/retired no cambian el flag ni llaman legacy: el caso ON tiene getters de arrays que fallan si se acceden. Las pruebas anteriores de consumidor/renderer y navegador ahora declaran ON sólo dentro de sus fixtures. El oracle de fechas legacy ya congelado queda intacto. Un nuevo oracle del renderer estable permite comparar HTML y visibilidad OFF sin cambiar las expectativas anteriores.
+
+Resultado del delta: 39 focales PASS, cero FAIL/SKIP (34 anteriores más cuatro flags OFF/no booleanos y un caso ON sin fallback); cada caso OFF compara también vacío y permiso denegado contra el legacy congelado. Dos Chrome ON PASS a1280/390, cero FAIL/SKIP. Logs privados activity-history-transition-focal.private.log y activity-history-transition-browser.private.log. No se ejecutó general, no hubo publicación ni recarga de la aplicación; root conectará el slot y la activación en su unidad.
+
+SHA256 transición: focal 83A1C89EA72AE63E21F348F6888E046253D14C26BFDB24B2F92E7F4EC186743B; navegador 3B7CA0F73B29D598510C0CDC2596C71855D27AC1D05D027473A1EEFF868A5115.

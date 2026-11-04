@@ -1,3 +1,9 @@
+## Delta de transición actividad · OFF estable, ON sin fallback
+
+Sobre 2bc44c5a, renderer nuevo sólo con SV_DASHBOARD_READS_LOCAL === true. OFF/ausente/valores no booleanos ejecutan la implementación legacy privada preservada de9779d059, sin consultar slot ni Core. ON missing/error/autoridad retirada nunca accede a arrays ni vuelve a legacy. No se activa el flag, no se crea otro host y no se modifica app/index/root. El oracle de fechas existente permanece intacto.
+
+Delta validado con39 focales PASS y dos Chrome ON PASS a1280/390, cero FAIL/SKIP. Paridad exacta de HTML/visibilidad OFF frente a oracle legacy (datos, vacío y permiso), ON instrumentado contra accesos a arrays, estados/snapshot y pruebas previas. Sin general/publicación/recarga real; logs privados activity-history-transition-focal.private.log y activity-history-transition-browser.private.log. Handoff actualizado en docs/DASHBOARD_ACTIVIDAD_RENDER_SLOT_PROPUESTA.md; root importará consumidor y transición juntos y conectará slot.
+
 ## Consumidor de actividad reciente · propuesta de renderer aislada
 
 Se adaptó sólo js/modules/activity-history.js para consumir SVDashboardActivityHost.peek() síncrono, con data=paquete real del agregador, status y autoridad current/retired. No lee arrays de ventas/pagos/OT/ppto ni readiness original; no red desde renderer. Mantiene IDs/markup de cinco filas, iconos/paleta, permiso dashboard.actividad y formato visual legacy. Pendiente inicial no es cero; revalidación y error conservan únicamente datos válidos de autoridad actual; retiro/permiso limpian filas. Root debe conectar el slot y notificar cada transición, especialmente retiro, sin que peek inicie consultas.
