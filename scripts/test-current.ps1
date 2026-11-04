@@ -13,7 +13,12 @@ if (-not $IncludeBrowser) { Write-Host 'Prueba de navegador separada: usar -Incl
 Push-Location (Join-Path $PSScriptRoot '..')
 try {
   # Rutas relativas evitan el límite de longitud del comando en worktrees Windows.
-  node --test $currentTests
-  $currentSuiteExit = $LASTEXITCODE
+  $currentSuiteExit = 0
+  $batch = @(); $chars = 0
+  foreach ($file in $currentTests) {
+    if ($chars + $file.Length -gt 12000 -and $batch.Count) { node --test $batch; if ($LASTEXITCODE -ne 0) { $currentSuiteExit = $LASTEXITCODE }; $batch = @(); $chars = 0 }
+    $batch += $file; $chars += $file.Length + 1
+  }
+  if ($batch.Count) { node --test $batch; if ($LASTEXITCODE -ne 0) { $currentSuiteExit = $LASTEXITCODE } }
 } finally { Pop-Location }
 if ($currentSuiteExit -ne 0) { exit $currentSuiteExit }

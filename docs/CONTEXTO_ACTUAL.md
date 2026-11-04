@@ -1,3 +1,9 @@
+# Fotos de documentos v3.18.20 preparada · 04/11/2026
+
+Publicación acotada autorizada por el titular sobre la base publicada v3.18.19 (0225979825e2d7110072bd419e7afcee78968110). No incluye la integración de Cuenta corriente/Historial ni servidor/reglas. Abrir una ficha de venta inicia el catálogo existente si falta; su llegada refresca únicamente miniaturas de venta y editores, sin reconstruir filas ni modificar valores. Presupuestos conserva su refresco y comparte resolución normalizada de códigos históricos. La imagen archivada disponible no se descarta por la URL original. No hay escrituras de registros ni consultas por reloj.
+
+9 casos focales nuevos y 2 visuales de Chrome aislado (390/1280) aprobados: imagen decodificada, ausencia de red exterior, campos/foco/selección/filas intactos. Suite final aprobada: 7272 casos, 7245 PASS, 27 omitidos y 0 fallos; el primer intento completo detectó una fixture aislada sin el nuevo helper: corregida cargando la función real, 16 focales PASS. La prueba del Dashboard conservado también pasó. Publicación y aviso aún pendientes; no declarar remoto aplicado por este documento. La integración local en 8765 y PP0159 corregido por el titular permanecen intactos.
+
 # Retorno Dashboard19 verificado en sesión real · 03/11/2026
 
 POST19 de sólo lectura:Dashboard ya pintado→Presupuestos→Dashboard conserva recientes visibles y muestra Actualizando inline a676ms, sin sv-data-status-layer y aria-busytrue; a986ms concluye, sin status/capa y recientes visibles. Primer Dashboard tras recargar Presupuestos conserva carga inicial normal (sin estado inline previo):una página y totales pendientes identificados; termina1765ms con recientes, sin capa.0erroresconsola. Pestaña real queda abierta en Dashboard19; no se registraron operaciones. Comparación de apertura histórica previa18:2526ms frente a5263ms iniciales. Son muestras de UI/control de navegador, no Network/TTFB ni garantía universal.
