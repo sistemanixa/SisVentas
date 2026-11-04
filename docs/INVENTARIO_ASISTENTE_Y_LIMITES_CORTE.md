@@ -277,15 +277,15 @@ usar exclusivamente evidencias previamente sanitizadas, nunca originales ni
 credenciales. Admite archivos públicos o privados fuera del checkout; no copia
 sus contenidos al repositorio ni los devuelve en el resultado.
 
-Contrato schema 1:
+Contrato schema 2 (sustituye schema1; este último se rechaza):
 
 - Cada referencia de archivo es `{path, sha256}`: ruta absoluta, hash SHA256 de
   bytes exactos, archivo regular hasta20MiB. Rechaza enlaces simbólicos finales;
   no se presenta como un sandbox contra directorios padres enlazados. Las rutas
   son entradas confiables y explícitas del operador, sin enumeración recursiva.
 - bundle contiene únicamente schema, manifest, baseline, inventory, declarations,
-  pause y artifacts. Los primeros cuatro documentos de evidencia se aportan como
-  referencias de archivo (manifest, baseline, inventory, pause); declarations es
+  pause, fiscal y artifacts. Los documentos de evidencia se aportan como
+  referencias de archivo (manifest, baseline, inventory, pause, fiscal); declarations es
   un array y artifacts es la lista de referencias de archivos probatorios.
 - options exige expectedBaselineSha256, now (epoch ms) y maxAgeMs positivo hasta
   24horas. La huella basal se aporta por separado; debe coincidir con los bytes
@@ -328,3 +328,86 @@ este resultado como permiso para ejecutar ownership/apply o activar flags.
 Verificación ficticia:23casos nuevos más20del validador compartido,43/43PASS;
 node --check de ambos archivos nuevos y git diff --check sin errores. No se
 ejecutaron aplicadores, consultas de red ni operaciones sobre datos reales.
+
+### Evidencia fiscal obligatoria integrada (schema2)
+
+La reproducción ficticia old→new documentada privadamente por el frente fiscal
+confirmó que un job despachada sin resultado o un resultado durable pendiente
+pueden coexistir con sv_labor_guard vacío. No se usa guardEmpty como sustituto
+del drenaje HTTP, de la clasificación completa de jobs ni de su conciliación.
+No se cambia el runtime ni se expiran/reemiten jobs ambiguos para obtener ceros.
+
+bundle.fiscal exige referencia absoluta `{path,sha256}` de un JSON minimizado,
+sin payloads fiscales, clientes, CAE ni originales. El documento debe contener
+exactamente:
+
+- schema=1; baselineSha256, inventorySha256, manifestSha256 y pauseSha256
+  coincidentes con los archivos exactos de esta validación.
+- observedAt ISO posterior o igual al drainedAt de la pausa, no futuro y fresco
+  según maxAgeMs; la pausa también conserva su propia validación de antigüedad.
+- admissionBlocked=true y admissionAccessIds con exactamente todos los id del
+  inventario, sin omisiones, añadidos ni duplicados. Evidencia conservadora:
+  incluso un acceso excluido debe quedar contabilizado. El bloqueo debe abarcar
+  revisión principal, etiquetas, rutas y entradas retry/worker pertinentes.
+- activeRequests=0, ambiguousJobs=0, pendingAttachments=0, explícitamente números.
+  Ausente, null, string, false, negativo o positivo no equivalen a cero. Requests
+  refiere a ejecución HTTP aceptada, incluso entre preflight y reserva; no se
+  inventa una colección sv_fiscal_requests ni se infiere drenaje por una espera.
+- jobInventoryComplete=true, markersReconciled=true, resultsReconciled=true y
+  guardEmpty=true. AmbiguousJobs incluye despachada sin resultado, estados
+  desconocidos/corruptos y relaciones contradictorias no resueltas. Un resultado
+  durable sin marcador coincidente mantiene pendingAttachments o ambigüedad;
+  necesita conciliación/recuperación autorizada, nunca reemisión automática.
+- admissionProofSha256, requestsProofSha256, jobInventorySha256,
+  reconciliationProofSha256 y guardProofSha256 deben identificar archivos
+  explícitos de artifacts, cuyos bytes se leen y verifican. Se permiten resúmenes
+  minimizados y huellas/conteos; no ingresar originales ni credenciales.
+
+El inventario fiscal debe conservar y clasificar historia terminal válida, no
+borrarla para conseguir cero: rechazada sin resultado se distingue de autorización
+incierta; un marcador histórico válido puede seguir conciliado aunque después
+se haya reemplazado la factura actual. La evidencia debe provenir de observación
+final estable mientras la admisión continúa bloqueada y debe revalidarse antes
+de reabrir escritores. Este validador verifica estructura, vínculos, hashes y
+afirmaciones aportadas; no inspecciona jobs reales ni acredita que se haya tomado
+un bloqueo remoto. La veracidad y exhaustividad del observador siguen siendo
+límites explícitos.
+
+La salida añade fiscalSha256 y schema2, manteniendo remoteVerified=false y
+activationAuthorized=false. No hay contrato alternativo ni aplicador nuevo.
+Validación actual:56casos de archivos (incluidos33nuevos fiscales) más20del
+validador compartido,76/76PASS; sintaxis JS y git diff --check correctos. Los
+negativos incluyen cada estado, vínculos basales/de pausa/inventario/manifiesto,
+antigüedad, prueba ausente/alterada y accesos antiguos omitidos. Sin red ni lectura
+de jobs reales en esta ampliación.
+
+### Contraste del inventario fiscal minimizado con el resumen
+
+Corrección posterior dentro del mismo schema2: jobInventorySha256 ya no admite
+un texto genérico como prueba. Debe identificar en artifacts un archivo JSON
+minimizado con exactamente schema, observedAt, baselineSha256, inventorySha256,
+manifestSha256, complete, ambiguousJobs, pendingAttachments, markersReconciled
+y resultsReconciled. schema debe ser1; los tres vínculos deben coincidir con la
+baseline y archivos de inventario/manifiesto exactos de la puerta.
+
+complete debe coincidir estrictamente con fiscal.jobInventoryComplete;
+ambiguousJobs, pendingAttachments, markersReconciled y resultsReconciled deben
+coincidir estrictamente con sus campos homónimos del resumen fiscal. Así se
+exigen true/0 numérico, sin coerción ni valores ausentes. Una declaración fiscal
+de cero se rechaza si el archivo de inventario declara un job ambiguo o pendiente,
+o conciliación incompleta, aunque el hash del archivo sea válido.
+
+observedAt debe ser una cadena de fecha válida, no futura, posterior o igual al
+drenaje, fresca según maxAgeMs y exactamente igual a fiscal.observedAt. El
+resumen fiscal debe representar esa misma observación final, no una fecha nueva
+que haga parecer vigente un inventario anterior. No se computan conteos desde
+jobs raw ni se inventa su clasificación: estas cifras minimizadas deben provenir
+de conciliación autorizada externa. El validador sólo comprueba la consistencia
+de esos documentos y sus bytes; mantiene remoteVerified=false y
+activationAuthorized=false.
+
+Regresión actual:97/97PASS (los76anteriores más21negativos nuevos), con casos de
+ambigüedad1/resumen0, pendiente1, conciliaciones false, tipos incorrectos,
+observación obsoleta/previa al drenaje/futura/distinta, baseline/inventario/
+manifiesto distintos y prueba de texto noJSON. Sintaxis y diff correctos. Sólo
+se modificaron este documento, el validador propio y su prueba ficticia.

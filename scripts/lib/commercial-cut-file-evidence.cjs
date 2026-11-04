@@ -10,8 +10,8 @@ const hash=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
 function fields(v,names){if(!object(v)||Object.keys(v).length!==names.length||names.some(k=>!Object.hasOwn(v,k)))fail();}
 function rows(values,key){if(!Array.isArray(values)||!values.length)fail();const result=new Map();for(const v of values){const id=key(v);if(!text(id)||result.has(id))fail();result.set(id,v);}return result;}
 function validate(bundle,{expectedBaselineSha256,now,maxAgeMs}={}){
- fields(bundle,['schema','manifest','baseline','inventory','declarations','pause','artifacts']);
- if(bundle.schema!==1||!hash(expectedBaselineSha256)||!Number.isSafeInteger(now)||!Number.isSafeInteger(maxAgeMs)||maxAgeMs<=0||maxAgeMs>86400000)fail();
+ fields(bundle,['schema','manifest','baseline','inventory','declarations','pause','fiscal','artifacts']);
+ if(bundle.schema!==2||!hash(expectedBaselineSha256)||!Number.isSafeInteger(now)||!Number.isSafeInteger(maxAgeMs)||maxAgeMs<=0||maxAgeMs>86400000)fail();
  // Explicit absolute paths only; never traverse directories or follow links.
  function read(ref){
   fields(ref,['path','sha256']);if(!text(ref.path)||!path.isAbsolute(ref.path)||!hash(ref.sha256))fail();
@@ -49,6 +49,21 @@ function validate(bundle,{expectedBaselineSha256,now,maxAgeMs}={}){
  if(sources.size!==7)fail();for(const name of ['sales','payments','budgets','customers','users','identities','permissions']){const s=sources.get(name);fields(s,['name','paused','drained','proofSha256']);if(s.paused!==true||s.drained!==true||!artifacts.has(s.proofSha256))fail();}
  const pausedAccesses=rows(pause.accesses,a=>a?.id);if(pausedAccesses.size!==accesses.size)fail();
  for(const id of accesses.keys()){const a=pausedAccesses.get(id);fields(a,['id','paused','inFlight','proofSha256']);if(a.paused!==true||a.inFlight!==0||!artifacts.has(a.proofSha256))fail();}
- return {...result,scope:'offline-files-and-declared-observations-only',inventorySha256:bundle.inventory.sha256,baselineSha256:expectedBaselineSha256,remoteVerified:false,activationAuthorized:false};
+ // Empty financial leases do not account for accepted HTTP execution or durable
+ // fiscal jobs: reservation/result persistence can happen outside that lease.
+ const fiscal=json(bundle.fiscal);
+ fields(fiscal,['schema','baselineSha256','inventorySha256','manifestSha256','pauseSha256','observedAt','admissionBlocked','admissionAccessIds','activeRequests','ambiguousJobs','pendingAttachments','jobInventoryComplete','markersReconciled','resultsReconciled','guardEmpty','admissionProofSha256','requestsProofSha256','jobInventorySha256','reconciliationProofSha256','guardProofSha256']);
+ const fiscalObserved=typeof fiscal.observedAt==='string'?Date.parse(fiscal.observedAt):NaN;
+ if(fiscal.schema!==1||fiscal.baselineSha256!==expectedBaselineSha256||fiscal.inventorySha256!==bundle.inventory.sha256||fiscal.manifestSha256!==bundle.manifest.sha256||fiscal.pauseSha256!==bundle.pause.sha256||!Number.isFinite(fiscalObserved)||fiscalObserved<drained||fiscalObserved>now||now-fiscalObserved>maxAgeMs)fail();
+ if(fiscal.admissionBlocked!==true||fiscal.activeRequests!==0||fiscal.ambiguousJobs!==0||fiscal.pendingAttachments!==0||fiscal.jobInventoryComplete!==true||fiscal.markersReconciled!==true||fiscal.resultsReconciled!==true||fiscal.guardEmpty!==true)fail();
+ const fiscalAccesses=rows(fiscal.admissionAccessIds,id=>id);
+ if(fiscalAccesses.size!==accesses.size||[...accesses.keys()].some(id=>!fiscalAccesses.has(id)))fail();
+ for(const key of ['admissionProofSha256','requestsProofSha256','jobInventorySha256','reconciliationProofSha256','guardProofSha256'])if(!artifacts.has(fiscal[key]))fail();
+ const jobs=json(artifacts.get(fiscal.jobInventorySha256));
+ fields(jobs,['schema','observedAt','baselineSha256','inventorySha256','manifestSha256','complete','ambiguousJobs','pendingAttachments','markersReconciled','resultsReconciled']);
+ const jobsObserved=typeof jobs.observedAt==='string'?Date.parse(jobs.observedAt):NaN;
+ if(jobs.schema!==1||jobs.baselineSha256!==expectedBaselineSha256||jobs.inventorySha256!==bundle.inventory.sha256||jobs.manifestSha256!==bundle.manifest.sha256||!Number.isFinite(jobsObserved)||jobsObserved<drained||jobsObserved>now||now-jobsObserved>maxAgeMs||jobs.observedAt!==fiscal.observedAt)fail();
+ if(jobs.complete!==fiscal.jobInventoryComplete||jobs.ambiguousJobs!==fiscal.ambiguousJobs||jobs.pendingAttachments!==fiscal.pendingAttachments||jobs.markersReconciled!==fiscal.markersReconciled||jobs.resultsReconciled!==fiscal.resultsReconciled)fail();
+ return {...result,schema:2,scope:'offline-files-and-declared-observations-only',inventorySha256:bundle.inventory.sha256,baselineSha256:expectedBaselineSha256,fiscalSha256:bundle.fiscal.sha256,remoteVerified:false,activationAuthorized:false};
 }
 module.exports={validate,digest};
