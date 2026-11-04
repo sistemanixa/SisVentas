@@ -2,7 +2,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),Source=require('../js/core/dashboard-budget-source-proposal');
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};},tick=()=>new Promise(r=>setImmediate(r));
 function fixture(){
- const ctx={allowed:true,uid:'u',role:'vendedor',permissionRevision:7,permissionSignature:'fictitious-permissions',sessionEpoch:1,auth:{currentUser:{uid:'u'}},db:{},timeZone:'America/Argentina/Buenos_Aires',sourceLocale:'es'},reads=[],events=[],handles=[],invalidated=[];let next=async()=>result();
+ const ctx={allowed:true,uid:'u',role:'vendedor',permissionRevision:7,permissionSignature:'fictitious-permissions',sessionEpoch:1,dataEpoch:1,auth:{currentUser:{uid:'u'}},db:{},timeZone:'America/Argentina/Buenos_Aires',sourceLocale:'es'},reads=[],events=[],handles=[],invalidated=[];let next=async()=>result();
  function result(extra={}){return{schema:2,uid:ctx.uid,role:ctx.role,permissionRevision:ctx.permissionRevision,generation:'fictitious-generation',revision:1,counts:{active:0,converted:0,totalNonCancelled:0,conversionPercent:0},notices:{complete:true,rows:[]},...extra};}
  const readiness={beginSource(key){assert(!['presupuestos','ventas','pagos'].includes(key));const h={key,readyCalls:0,errorCalls:0,cancelCalls:0,ready(){h.readyCalls++;},error(){h.errorCalls++;},cancel(){h.cancelCalls++;}};handles.push(h);return h;},invalidate(key){invalidated.push(key);}};
  const source=Source.create({capture:()=>ctx,valid:()=>true,read:async kind=>{reads.push(kind);return next(kind);},readiness,changed:(kind,view)=>events.push({kind,...view})});

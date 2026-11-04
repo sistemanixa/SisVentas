@@ -9,3 +9,11 @@ Nueve pruebas focales PASS, sin FAIL/SKIP: demanda reentrante, revalidación sin
 También se importaron dos archivos de evidencia de 6f95a451: diez nativos de guard real + lector fresco sobre fuente congelada 1e4078d259a01f2a3908019cf89d6d1ee62f3b20, sin SKIP. Incluyen mutaciones seguidas de KPI/prefijo/avisos, revocaciones y sentinels financieros; cero lecturas normales de originales por el lector. Hash de log f342bf881e4f4911c6cc1ea39c15672e787ed859ef7cac085dde40c607ec1b2b verificado por root. No se los atribuye a fuentes funcionales posteriores sin repetirlos.
 
 Siguen abiertos el codec histórico de avisos, montaje conjunto, fuentes mensuales de Mi actividad (no usar total alltime ni cinco filas), empaque/rutas y la puerta final. Sin operaciones reales, publicación o push.
+
+## Corrección del puente tras revisión independiente de Readiness
+
+QA reprodujo dos defectos del bridge 4dec3f66 con SVDataReadiness real: iniciar el otro consumidor bajo un rol nuevo dejaba certificado el anterior, y consultar el anterior podía cancelar la nueva lectura legítima. Se retiran todas las entradas de otra autoridad ANTES de iniciar/consultar un consumidor. También se fija dataEpoch obligatorio (window._svDataEpoch del host), además de sessionEpoch, para no reutilizar resultados después de reiniciar datos manteniendo el mismo Auth/User. La captura del host debe proporcionar ambos contadores enteros.
+
+Nueve controles originales de QA: baseline7PASS/2FAIL. Sus dos casos de dataEpoch adicionales fallaron tras arreglar sólo el cruce; los logs rojos se conservan por separado. QA f8e03090124d9bb6666387375b5322123b70b863 repitió11/11 PASS sin editar expectativas, con Readiness real y transporte de índice ficticio. Root repitió esos11 más9 propios:20PASS,0FAIL/SKIP. El fixture propio sólo incorporó el dataEpoch requerido por el nuevo contrato, sin cambiar las expectativas de resultado. Hash del bridge revisado afdcb6a9c5258bc69a43776172a0f443778e4ccccd2856a3040bd53bde43f860. Log root dashboard-budget-source-real-epoch-root-after.private.log.
+
+No se afirma arranque completo del HTML ni montaje en la ventana visible. El renderer/host todavía debe conectar eventos de sesión/permisos/datos y pasar los lectores verificados; el puente no instala sondeos ni marca completa la colección original. Se conservan las denegaciones403 sin bucle de reintentos por render.

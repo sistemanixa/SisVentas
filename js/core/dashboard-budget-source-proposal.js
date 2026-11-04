@@ -2,11 +2,11 @@
 'use strict';
 const kinds=['dashboard','notices'],keys={dashboard:'dashboardBudgets',notices:'dashboardBudgetNotices'};
 const cancelled=()=>Object.assign(Error('Budget source retired'),{name:'AbortError',code:'SV_BUDGET_SOURCE_RETIRED'});
-const fields=['uid','role','permissionRevision','permissionSignature','sessionEpoch','auth','db','timeZone','sourceLocale'];
+const fields=['uid','role','permissionRevision','permissionSignature','sessionEpoch','dataEpoch','auth','db','timeZone','sourceLocale'];
 function create({capture,valid,read,readiness,changed=()=>{}}={}){
  if(typeof capture!=='function'||typeof valid!=='function'||typeof read!=='function'||typeof changed!=='function'||typeof readiness?.beginSource!=='function'||typeof readiness?.invalidate!=='function')throw Error('Missing budget source host contract');
  const entries=new Map();let sequence=0,blocked=null;
- function scope(){try{const c=capture(),user=c?.auth?.currentUser;if(!c||c.allowed!==true||c.viewing||!user||typeof c.uid!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(c.uid)||user.uid!==c.uid||typeof c.role!=='string'||!c.role||typeof c.permissionSignature!=='string'||!Number.isSafeInteger(c.permissionRevision)||c.permissionRevision<0||!Number.isSafeInteger(c.sessionEpoch)||c.sessionEpoch<0||!c.db||!valid(c))return null;return Object.freeze({...Object.fromEntries(fields.map(f=>[f,c[f]])),user});}catch(_){return null;}}
+ function scope(){try{const c=capture(),user=c?.auth?.currentUser;if(!c||c.allowed!==true||c.viewing||!user||typeof c.uid!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(c.uid)||user.uid!==c.uid||typeof c.role!=='string'||!c.role||typeof c.permissionSignature!=='string'||!Number.isSafeInteger(c.permissionRevision)||c.permissionRevision<0||!Number.isSafeInteger(c.sessionEpoch)||c.sessionEpoch<0||!Number.isSafeInteger(c.dataEpoch)||c.dataEpoch<0||!c.db||!valid(c))return null;return Object.freeze({...Object.fromEntries(fields.map(f=>[f,c[f]])),user});}catch(_){return null;}}
  function same(a,b){return !!a&&!!b&&fields.every(f=>a[f]===b[f])&&a.user===b.user;}
  function live(entry){return entries.get(entry.kind)===entry&&same(entry.scope,scope());}
  function view(entry){return entry?Object.freeze({status:entry.status,data:entry.data,error:entry.error,revalidating:entry.status==='loading'&&entry.data!==null,sequence:entry.sequence}):Object.freeze({status:'idle',data:null,error:null,revalidating:false,sequence:0});}
@@ -14,10 +14,11 @@ function create({capture,valid,read,readiness,changed=()=>{}}={}){
  function finish(pending,error,value){if(!pending.active)return;pending.active=false;if(error)pending.reject(error);else pending.resolve(value);}
  function retire(kind){const entry=entries.get(kind);if(!entry)return;entries.delete(kind);entry.source?.cancel();if(entry.pending)finish(entry.pending,cancelled());entry.data=null;entry.error=null;entry.status='idle';readiness.invalidate(keys[kind]);notify(entry);}
  function invalidate(){for(const kind of kinds)retire(kind);}
- function peek(kind='dashboard'){if(!kinds.includes(kind))throw Error('Invalid budget consumer');const entry=entries.get(kind);if(entry&&!live(entry)){invalidate();return view(null);}if(blocked&&same(blocked.scope,scope()))return view({status:'error',data:null,error:blocked.error,sequence:0});return view(entry);}
+ function peek(kind='dashboard'){if(!kinds.includes(kind))throw Error('Invalid budget consumer');const captured=scope();if([...entries.values()].some(entry=>!same(entry.scope,captured))){invalidate();return view(null);}if(blocked&&same(blocked.scope,captured))return view({status:'error',data:null,error:blocked.error,sequence:0});return view(entries.get(kind));}
  function load(kind='dashboard',explicit=false){
   if(!kinds.includes(kind))return Promise.reject(Error('Invalid budget consumer'));
   const captured=scope();if(!captured){invalidate();return Promise.reject(cancelled());}
+  if([...entries.values()].some(entry=>!same(entry.scope,captured)))invalidate();
   if(blocked&&same(blocked.scope,captured)&&!explicit)return Promise.reject(blocked.error);blocked=null;
   let entry=entries.get(kind);if(entry&&!same(entry.scope,captured)){invalidate();entry=null;}
   if(entry?.pending?.active)return entry.pending.promise;

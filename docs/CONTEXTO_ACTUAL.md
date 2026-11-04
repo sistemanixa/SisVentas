@@ -1,3 +1,11 @@
+## Corrección del puente tras revisión independiente de Readiness
+
+QA reprodujo dos defectos del bridge 4dec3f66 con SVDataReadiness real: iniciar el otro consumidor bajo un rol nuevo dejaba certificado el anterior, y consultar el anterior podía cancelar la nueva lectura legítima. Se retiran todas las entradas de otra autoridad ANTES de iniciar/consultar un consumidor. También se fija dataEpoch obligatorio (window._svDataEpoch del host), además de sessionEpoch, para no reutilizar resultados después de reiniciar datos manteniendo el mismo Auth/User. La captura del host debe proporcionar ambos contadores enteros.
+
+Nueve controles originales de QA: baseline7PASS/2FAIL. Sus dos casos de dataEpoch adicionales fallaron tras arreglar sólo el cruce; los logs rojos se conservan por separado. QA f8e03090124d9bb6666387375b5322123b70b863 repitió11/11 PASS sin editar expectativas, con Readiness real y transporte de índice ficticio. Root repitió esos11 más9 propios:20PASS,0FAIL/SKIP. El fixture propio sólo incorporó el dataEpoch requerido por el nuevo contrato, sin cambiar las expectativas de resultado. Hash del bridge revisado afdcb6a9c5258bc69a43776172a0f443778e4ccccd2856a3040bd53bde43f860. Log root dashboard-budget-source-real-epoch-root-after.private.log.
+
+No se afirma arranque completo del HTML ni montaje en la ventana visible. El renderer/host todavía debe conectar eventos de sesión/permisos/datos y pasar los lectores verificados; el puente no instala sondeos ni marca completa la colección original. Se conservan las denegaciones403 sin bucle de reintentos por render.
+
 ## Puente de lectura de Dashboard · preparación de montaje
 
 Se agregó dashboard-budget-source-proposal con consumidores separados dashboardBudgets y dashboardBudgetNotices; nunca marca completa la colección presupuestos original. ensure comparte solicitudes pendientes y no consulta otra vez al renderizar un resultado listo o fallido. refresh sólo se invoca por una acción/evento real desde el host. Revalidar conserva la vista de la misma autoridad; un error no se convierte en cero. User, UID, rol, firma/revisión de permisos, epoch, Auth, DB y contexto zonal retiran respuestas anteriores. Un 401/403 borra ambos consumidores y bloquea el reintento implícito hasta cambiar autoridad o actualizar explícitamente. No instala listeners ni tareas por reloj.
