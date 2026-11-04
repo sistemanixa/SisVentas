@@ -73,3 +73,22 @@ Se agrega dataEpoch a CapturedContext, campos de snapshot/same y resultado. Es o
 Siete reproducciones nuevas fallaron en 29e524eb: dataEpoch cambiado durante lectura con Auth/User idénticos, dominio comercial intercambiado que antes llegaba hasta B1, cuatro grants null que antes iniciaban lecturas y validación de enteros seguros ausente. Con el delta pasan las siete. Foco completo: 26 PASS, cero FAIL/SKIP (13 agregador previos, siete nuevos y seis merge). No se repitió general ni emulador; los cuatro RTDB anteriores son evidencia de 29e, no de una repetición nueva. Mis ventas sigue null/no completo.
 
 Logs privados: activity-aggregate-data-epoch-red.private.log SHA256 7A0C1DEAB47ECDB547FF49F992DF5BD1B89AA0EB123D5E2587DA9F5CA54A1B6E; activity-aggregate-data-epoch-focal.private.log SHA256 E362244A857DFF836C4ECCC073A59D5ABC907706335D26B2459417565B893156.
+
+## Repetición nativa integrada 859afaf9 · referencia y Legacy actuales
+
+Se adaptó solamente el harness nativo para cargar TODOS los módulos funcionales y fixtures de una referencia aislada, limpia y fijada en `859afaf945ab29175b8f35dbf17519f4a762123f`, en lugar de mezclar fuentes locales con el SDK 4dec. No se modificó ninguna fuente funcional, DTO, regla, proyector, servicio o índice. La comparación de `js/core`, `cotizador` y `security` entre ese SHA y `c269609a0dc03887b4429036b666a6e7f8a891ae` no mostró diferencias. No se editó la integración raíz.
+
+Resultado final: cuatro PASS, cero FAIL/SKIP, Node22.23.4, emulador propio RTDB4.11.2 loopback9197, namespace `demo-activity-aggregate-18312`, raíz vacía verificada y emulador propio detenido. Se mantuvieron exactamente los cuatro cuerpos de prueba/expectativas de 68bbf02a, salvo el título de referencia y normalización de LF/CRLF para comparar: hash de cuerpos `d2ca7b353e55ccab9d7b7f54277a0863b48868e2c8b5148ed3ccb5a3a618bd40`. El harness comprueba esa igualdad automáticamente.
+
+El manifiesto privado registra 57 dependencias efectivamente cargadas desde 859, sus SHA256 de bytes, SHA del harness, referencia Git limpia antes/después y Legacy actual capturado/validado. Incluye las dos reglas restrictivas, transportes HTTP fresh, SDK, agregador, puerto mensual, builders y espejos canónicos backend `commercial-models`. Legacy cliente/servidor coinciden en `a74a1567d5c22ecc83f5cb5605b4cae38017e0d9753461a35df6ded25463720f`.
+
+Evidencia: paquete con avisos completos, 54 presupuestos mensuales frente a cinco eventos, cero originales; denegaciones reales de raíces, scopes ajenos, miembros sin límite y escrituras. La revocación se comprueba por HTTP fresco, epoch retirado durante token no inicia GET, y se distingue ausencia certificada de conteos/pruebas perdidos con miembros todavía presentes. Mis ventas por autor y Dashboard siguen no completos.
+
+Artefactos privados fuera de Git:
+
+- `C:/SisVentas/tmp/activity-aggregate-integrated859-manifest.private.json`, SHA256 `BD45EE95AB6BE56CC3D1AFED97C80BD724F84C99CAE975B257E2D4A82D958F6E`.
+- `C:/SisVentas/tmp/activity-aggregate-integrated859-native.private.log`, SHA256 `6A4B5F37E8F8E7A73AADD93E82945B3AA299D9C5631E244A3EFA1EF71DC8AE44`.
+
+Reproducir el harness con `SV_ACTIVITY_AGGREGATE_EMULATOR=1`, `SV_ACTIVITY_AGGREGATE_QA_PORT=9197`, `FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:9197`, `SV_ACTIVITY_SDK_CONTRACT_ROOT` apuntando a checkout limpio de 859, `SV_ACTIVITY_ADMIN_MODULE` al SDK Admin local y `SV_ACTIVITY_REFERENCE_MANIFEST` a un destino privado. El harness exige SHA exacto y manifiesto explícito; no acepta silenciosamente otra referencia. La primera ejecución encontró9089 ocupado y no cumplía el requisito de emulador propio; se conservó por separado como `activity-aggregate-integrated859-first-shared-port*`, no como evidencia final. Su namespace quedó vacío; el proceso ajeno no se detuvo.
+
+Límites: reglas standalone ficticias, tokens de emulador y verificador comercial ficticio; no acreditan producción, UI montada, corte privilegiado ni seguridad global. No se ejecutó puerta general ni se cambió el contrato de Source/filas/header. No se implementó la faceta Mis ventas.
