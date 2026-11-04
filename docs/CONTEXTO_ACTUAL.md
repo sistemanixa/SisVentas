@@ -1,3 +1,9 @@
+## Consumidor de actividad reciente · propuesta de renderer aislada
+
+Se adaptó sólo js/modules/activity-history.js para consumir SVDashboardActivityHost.peek() síncrono, con data=paquete real del agregador, status y autoridad current/retired. No lee arrays de ventas/pagos/OT/ppto ni readiness original; no red desde renderer. Mantiene IDs/markup de cinco filas, iconos/paleta, permiso dashboard.actividad y formato visual legacy. Pendiente inicial no es cero; revalidación y error conservan únicamente datos válidos de autoridad actual; retiro/permiso limpian filas. Root debe conectar el slot y notificar cada transición, especialmente retiro, sin que peek inicie consultas.
+
+34 focales PASS (diez renderer, dieciocho modelo previo y seis v2) y dos Chrome headless PASS a1280/390, cero FAIL/SKIP. Capturas ficticias revisadas: sin overflow, elipsis, retención de error y retiro. Maqueta de componente oscuro, no HTML completo ni glifos Tabler externos. La prueba antigua de página histórica se actualizó al consumidor real; el oracle de fecha legacy se conserva congelado en fixture sin cambiar sus casos. Handoff docs/DASHBOARD_ACTIVIDAD_RENDER_SLOT_PROPUESTA.md. Sin app/index/root/publicación, general ni recarga de ventana del titular; faltan montaje y QA de unidad real.
+
 ## Delta mínimo cliente HTTP · token y centro separados
 
 Sobre 6356affe, getIdToken() sin forceRefresh por GET y Dashboard/ports.budget sólo actividad Presupuestos (un GET), sin descargar centro ni inventar notices.complete. Avisos se consultan únicamente por read('notices') explícito. Host Aggregate debe usar requireNotices:false. No se agrega endpoint, modo combinado, fallback ni otro contrato; se conservan pins, plazos y errores 401/403.
