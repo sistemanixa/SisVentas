@@ -1,3 +1,17 @@
+## Cierre de la ventana de ocho horas · 04/11/2026 12:47 UTC
+
+Fuente funcional probada: c1908c7280c41099f524c44cb79d3f8d26d30957, aplicación v3.19.2. Puerta 20 completa: 8.513 casos, 8.485 PASS, cero FAIL/cancelados, 28 opt-in. Log SHA256 e2d1f266e893c144dbcd3f641290511d26abc5106e01b7adccd5a6cd089a4a9e. La puerta 19 falló en dos fixtures VM que no cargaban el nuevo pintor; se corrigió su enlace a la función real y se conservaron las expectativas anteriores. Ocho pruebas focales y la puerta completa posterior aprobaron.
+
+Corregido el falso cero de Presupuestos en Dashboard: pendiente muestra actividad y raya, error muestra fallo, vacío completo sí muestra cero. Se conserva el cálculo anterior cuando la fuente está completa. Prueba HTML sintética 1280x900: pendiente, error, vacío y recuperación; cero comandos y originales intactos. No agrega consultas ni relojes. La lectura completa de presupuestos aún requiere una proyección específica que cubra totales y actividad; limitarla a 50 falsearía métricas. Este pendiente sigue abierto.
+
+La rama local codex/ot-entrega-resumen avanzó por fast-forward desde 196b a c190 después de PASS; WIP desconocido de app.v3.18.14 y data-readiness se conserva. Se recargó realmente la pestaña integrada de 8765: muestra v3.19.2 y pantalla de ingreso, por lo que no se afirma aceptación autenticada del Dashboard de esta última revisión. Las capturas autenticadas previas corresponden a v3.19.1. La pestaña local se deja abierta; no se registraron operaciones reales ni se modificaron PP-0159/V-910199.
+
+Preparador offline de corte incorporado: fuentes completas explícitas, generación nueva, hashes/precondiciones y cinco destinos completos; no aplica ni autoriza cambios remotos. Paquete fiscal c190: 67 hashes y 64 JS verificados con Node22; manifest c34f971a4980b7d8fc54feac04ae8fd8555a94d21672aec702f18a0f809cc78c. Evidencia fiscal 47/10/36 y financiera 27/7 se conserva por igualdad de módulos, no como nuevas ejecuciones.
+
+Rendimiento: nueve recorridos exitosos de 16 pasos en v3.19.1 (fuente300), 1.095 ventas/cobros y entidades relacionadas; escenario grande configura 500 fotos, visita 16 y comprueba 16 respuestas cacheadas. No replica distribución real, no certifica entrada de galería ni mide ahorro facturado. Benchmark portable respaldado en196b y smoke de16pasos aprobado sobre19.1; no se atribuyen esas mediciones a19.2. Fallos previos del arnés preservados como tales.
+
+Producción general sigue sin activar: Accounts/H7 false, sin nuevos índices/reglas/configuraciones reales. Sólo fotos v3.18.20 tiene publicación separada verificada. Queda corte coordinado con inventario fresco de Cotizador/fiscal/14 accesos, pausa y drenaje, snapshot privado, reconciliación, derivados/reglas emparejados y aceptación antes de reabrir. No se ejecuta por el transcurso de ocho horas ni por esta documentación. GitHub se verifica por separado al cerrar; main no se toca y ningún artefacto privado integra el commit.
+
 ## Integración local verificada y respaldada · 04/11/2026 11:45 UTC
 
 Fuente funcional: 300142f2fe7449d77e5d1749c653e7ca2b8df0b3, rama codex/ot-entrega-resumen, aplicación local v3.19.1. La copia de verificación estaba limpia. GitHub aceptó el push no forzado y ls-remote confirmó ese SHA; main no se modificó. WIP previo de app.v3.18.14.js y cambio de fin de línea de data-readiness se conservaron fuera de los commits; parche privado de recuperación en tmp, nunca publicado.
