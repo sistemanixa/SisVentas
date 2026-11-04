@@ -54694,6 +54694,13 @@ async function credEliminar() {
 
 
 function verDetalleVenta(ventaId) {
+  var pages=window.SVCommercialPagesHost;
+  if(pages?.ready===false&&typeof pages.start==='function'&&!window._svPagedOpening){
+    var vigente=svCapturarContextoOperacion(),db=window.fbDB,apertura=window._svSolicitudFichaRevision,readiness=window.SVDataReadiness,dataEpoch=readiness?.snapshotEpoch?.();
+    var sigueVigente=function(){return vigente()&&isAuthenticated&&window.fbAuth?.currentUser?.uid===currentUserUid&&db===window.fbDB&&pages===window.SVCommercialPagesHost&&apertura===window._svSolicitudFichaRevision&&readiness===window.SVDataReadiness&&dataEpoch===readiness?.snapshotEpoch?.()&&_svEsPaginaActiva('detalle')&&!document.hidden&&!window._impersonacionOriginal&&permisoModulo('detalle')===true&&svPuedeLeerDominio('ventas')===true;};
+    if(!sigueVigente())return Promise.resolve(false);
+    return Promise.resolve(pages.start(function(){if(!sigueVigente())return false;return verDetalleVenta(ventaId);})).catch(function(error){if(sigueVigente()&&error?.name!=='AbortError')notify('No se pudo abrir la venta. Volvé a intentarlo.');return false;});
+  }
   if(window.SVCommercialPagesHost?.activeRoute()&&!window._svPagedOpening)return window.SVCommercialPagesHost.openSale(ventaId);
   toggleImagenComprobante('venta', false);
   var venta = _svResolverVentaRegistro(ventaId);
