@@ -28,6 +28,9 @@ test('month proof mutation during the bracket rejects; old bucket revision is le
 test('full consumer readiness requires actual complete notices, never implies pptoData readiness',async()=>{
  const f=await fixture();await assert.rejects(f.create({requireNotices:true}).read(),/Budget consumers incomplete/);
 });
-test('two individually valid monthly values at one unchanged header are rejected if the bucket changed',async()=>{
- const f=await fixture(),key=await Month.hash(['u','2026-11']),path=BIndex.ROOT+'/months/u_u/'+key;const original=f.ports.commercial;let changed=false;f.ports.commercial={async read(q){const r=await original.read(q);if(!changed){changed=true;const value=f.read(path);value.records++;f.set(path,value);f.set(BIndex.ROOT+'/monthProof/u_u/'+key,await Month.hash(value));}return r;}};await assert.rejects(f.create().read(),/Monthly metric/);
+test('monthly bucket drift at unchanged header is caught by the budget interval now including monthly',async()=>{
+ const f=await fixture(),key=await Month.hash(['u','2026-11']),path=BIndex.ROOT+'/months/u_u/'+key;const original=f.ports.commercial;let changed=false;f.ports.commercial={async read(q){const r=await original.read(q);if(!changed){changed=true;const value=f.read(path);value.records++;f.set(path,value);f.set(BIndex.ROOT+'/monthProof/u_u/'+key,await Month.hash(value));}return r;}};await assert.rejects(f.create().read(),/Budget changed across commercial interval/);
+});
+test('separate monthly port disagreement still fails its own monthly interval check',async()=>{
+ const f=await fixture(),original=f.ports.month;let reads=0;f.ports.month={async read(q){const result=await original.read(q);if(++reads!==2)return result;const records=result.value.records+1;return {...result,value:{...result.value,records,conversionPercent:Math.round(100*result.value.converted/records)}};}};await assert.rejects(f.create().read(),/Monthly metric/);
 });

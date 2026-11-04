@@ -38,7 +38,7 @@ test('actual index refuses read startup without both prepared writer plugins',()
 });
 test('five actual GET routes read prepared DTOs through existing current Auth without writes',async()=>{
  const fdata=await data(),before=structuredClone(fdata.data()),f=boot({env:flags,state:fdata.data(),main:true});assert.equal(f.listeners,1);assert.equal(f.reads.length,0);
- for(const route of routes){const r=await f.request(route);assert.equal(r.status,200,route+' '+JSON.stringify(r.body));assert.equal(r.body.uid,'u');if(route.endsWith('/avisos')){assert.equal(r.body.complete,true);assert.equal(r.body.rows.length,1);}else{assert.equal(r.body.recent.timeZone,'America/Buenos_Aires');assert.equal(r.body.recent.sourceLocale,'es-AR');assert(r.body.recent.rows.length<=5);}assert(!JSON.stringify(r.body).includes('NEVER_TRANSPORT'));}
+ for(const route of routes){const r=await f.request(route);assert.equal(r.status,200,route+' '+JSON.stringify(r.body));assert.equal(r.body.uid,'u');if(route.endsWith('/avisos')){assert.equal(r.body.complete,true);assert.equal(r.body.rows.length,1);}else{assert.equal(r.body.recent.timeZone,'America/Buenos_Aires');assert.equal(r.body.recent.sourceLocale,'es-AR');assert(r.body.recent.rows.length<=5);}if(route===routes[0]){assert.equal(r.body.monthly.scope,'u_u');assert.equal(r.body.monthly.employeeLabel,'u');assert.equal(r.body.monthly.complete,true);}assert(!JSON.stringify(r.body).includes('NEVER_TRANSPORT'));}
  assert(f.auth.calls.length>5);assert.equal(f.transport,0);assert.deepEqual(fdata.data(),before);
  for(const route of routes){assert.equal((await f.request(route,{method:'POST'})).status,405);assert.equal((await f.request(route+'?verComo=v')).status,400);assert.equal((await f.request(route,{body:{scope:'all'}})).status,400);}
 });
@@ -54,6 +54,6 @@ test('packaged canonical helpers are byte-identical, including sibling dependenc
 test('Docker COPY payload alone boots actual index false/true without ../js dependencies',async()=>{
  const temp=fs.mkdtempSync(path.join(os.tmpdir(),'sv-dashboard-pack-'));
  try{for(const line of fs.readFileSync(path.join(root,'Dockerfile'),'utf8').split(/\r?\n/)){if(!line.startsWith('COPY '))continue;for(const item of line.trim().split(/\s+/).slice(1,-1)){if(item.includes('*'))continue;const src=path.join(root,item),dest=path.join(temp,item);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.cpSync(src,dest,{recursive:true});}}
-  assert.equal(boot({directory:temp,main:true}).listeners,1);const prepared=await data(),on=boot({directory:temp,env:flags,state:prepared.data(),main:true});for(const route of routes)assert.equal((await on.request(route)).status,200);assert.equal(on.transport,0);
+  assert.equal(boot({directory:temp,main:true}).listeners,1);const prepared=await data(),on=boot({directory:temp,env:flags,state:prepared.data(),main:true});for(const route of routes){const response=await on.request(route);assert.equal(response.status,200);if(route===routes[0])assert.equal(response.body.monthly.complete,true);}assert.equal(on.transport,0);
  }finally{assert(path.isAbsolute(temp)&&path.dirname(temp)===path.resolve(os.tmpdir())&&path.basename(temp).startsWith('sv-dashboard-pack-'),'Remove only the named fixture directory');fs.rmSync(temp,{recursive:true,force:true});}
 });

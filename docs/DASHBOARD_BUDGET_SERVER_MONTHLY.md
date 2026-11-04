@@ -1,0 +1,23 @@
+# Aporte mensual del lector autorizado de Presupuestos
+
+2026-11-04. Base `f23a5124`, rama `codex/dashboard-budget-server-monthly`, checkout `C:/SisVentas/.local/dashboard-budget-server-monthly`. Delta de un único módulo backend existente; no crea endpoint, servicio, índice, permiso ni flag. El montaje continúa OFF.
+
+`dashboard-budget-activity-reader-proposal` agrega `monthly` al resultado del GET de actividad existente. Usa el mes de `getAsOfDay`, el `actor.name` exacto (sin trim/normalización) y el scope autorizado: `all` para administrador y `u_<actor.uid>` para los demás. El bucket es el digest existente de `[employeeLabel, month]`; no se deduce de conteos globales sin filtro, del top cinco ni de los originales. La restricción inicial a UID propio también para admin era incorrecta y queda reemplazada por la paridad del renderer documentada en `DASHBOARD_MONTH_ADMIN_SCOPE.md`.
+
+El objeto replica el puerto mensual cliente: schema, uid, role, permissionRevision, generation, revision, policyHash, scope, month, employeeLabel, records, converted, conversionPercent, bucketRevision, absenceCertified y complete. Mantiene revisiones de bucket válidas anteriores a la revisión global. No cambia Source.row17 ni header23.
+
+Se leen únicamente months/monthProof puntuales y, ante ausencia, monthMembers con orderByKey/limitToFirst 1 antes y después. Metadata presente exige los mismos cinco campos, generación/revisión y proof del contrato cliente. Metadata y proof ausentes sólo certifican cero con scopeAbsenceIsZero y dos consultas de miembros vacías; si quedaron miembros o falta sólo una mitad, falla. Como el puerto cliente, esto confía en la preparación y exclusividad de la metadata: perder simultáneamente las tres estructuras bajo un bypass privilegiado no se puede distinguir de una ausencia mediante estos puntos, sin recorrer originales.
+
+Los puntos mensuales se revalidan dentro del intervalo del lector existente, antes de su autoridad final y su segunda lectura de coverage/policy/stats/proofs. El día de evaluación se captura una vez para badge y mensual y se comprueba al cierre. Nombre, rol, revisión/grants, contexto o metadata concurrentes provocan rechazo. El camino mounted usa exclusivamente la fachada REST fresca ya integrada; no se agrega SDK/Admin get ni fallback tras un error. Un bloqueado legacy ajeno al módulo puede elegir authorized-server legítimamente, sin necesitar el puerto mensual directo que las reglas deniegan.
+
+## Evidencia y empaque
+
+**54 PASS, cero FAIL/SKIP**, sin puerta general. Incluye 17 casos mensuales nuevos, una prueba independiente adicional del intervalo mensual y 36 regresiones relacionadas. Se verifican legacy autorizado/revocado, propiedad propia del administrador, nombre exacto con espacios, otro empleado/mes/UID, 61 registros frente a cinco filas recientes, ausencia certificada, metadata perdida, proof inválido, revisión de bucket anterior válida/futura inválida y cambios concurrentes de contadores, proof, actor, permisos o miembros. El mock REST rechaza originales y métodos de escritura.
+
+Se ejecutan arranque/rutas existentes, prueba de payload COPY y dependencias del contenedor: el archivo actualizado ya está en Dockerfile, sin helper ni COPY nuevo. El GET montado y el payload empaquetado comprueban la presencia de monthly. Sólo se ampliaron los paths de metadata permitidos por el tracer de tests; no reglas productivas.
+
+El test de agregación que muta un bucket real conservando el header detecta ahora la diferencia antes, mediante Budget B0/B1, porque el presupuesto incluye monthly. Se actualiza su expectativa al error exacto de ese intervalo. Una prueba separada sigue exigiendo el error Monthly metric cuando sólo discrepan los dos valores del puerto mensual. No se altera código del agregador/SDK para eludir ningún fence. La primera repetición conjunta de 50 PASS/1 FAIL por esa fase antigua se conserva en `dashboard-budget-server-monthly-aggregate-phase.private.log`.
+
+Log final privado: `C:/SisVentas/tmp/stage1-integral-plan/dashboard-budget-server-monthly-final.private.log`, SHA256 `c41b5964c232cb525b14ae84f2d2e69bab3468c09fb192ecb7d17b969f8a1647`. Sintaxis de los cinco JS/CJS afectados y diff-check: PASS. No se ejecutó un nativo nuevo ni se construyó una imagen Docker real; el empaque se comprueba con el payload y mocks existentes.
+
+Sin edición de root, UI/SDK, precios, permisos, producción, push o activación. Pendiente integrar y conectar el consumidor authorized-server al monthly recibido, conservando su contexto y sus intervalos; esta entrega no declara aceptación global ni migra históricos.

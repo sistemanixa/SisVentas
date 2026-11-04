@@ -22,6 +22,8 @@ function traceDb(db,{onRead}={}){
    assert(!path.startsWith('sisventas/'),'reader cannot load originals');
    if(path==='sv_usuarios'){assert.equal(spec.field,'uid');assert.equal(typeof spec.equalTo,'string');assert.equal(spec.limit,2);}
    else if(/\/(?:document|noticeBadge)\//.test(path)){assert.equal(spec.orderBy,'key');assert(spec.limit>=1&&spec.limit<=50);}
+   else if(/\/monthMembers\/(?:all|u_[A-Za-z0-9_-]+)\/[a-f0-9]{64}$/.test(path)){assert.equal(spec.orderBy,'key');assert.equal(spec.limit,1);}
+   else if(/\/(?:months|monthProof)\/(?:all|u_[A-Za-z0-9_-]+)\/[a-f0-9]{64}$/.test(path))assert.equal(spec.limit,undefined);
    else assert(/^(?:sv_access_resets\/[auv]|sv_chat_roles\/[auv]|sv_permisos\/(?:admin|vendedor)|sv_dashboard_budget_proposal\/v1\/(?:coverage|policy|stats\/(?:all|u_[uv])|scopeProof\/(?:all|u_[uv])))$/.test(path),'unexpected point '+path);
    const snapshot=await ref.get();reads.push({path,...spec});if(onRead)await onRead({path,spec,reads});return snapshot;
   }
