@@ -1,5 +1,15 @@
 # REST y detalle puntual: revisión independiente
 
+## Cierre independiente sobre f23a5124
+
+04/11/2026. **Falla del editor retirado cerrada** en `f23a51240bb9129ca79e221d66b65519d7ce8ac6`. La evidencia roja de08267 que sigue abajo se conserva como antecedente histórico. Repetición serial independiente: **24 PASS, 0 FAIL, 0 SKIP**, con11 casos del helper, siete propios (incluye Chrome), cinco Chrome de navegación y uno de reentrancia del coordinador. Mi test conserva SHA256 `69530ec0d219ddee1190bfec58d152c661d2ff443479b0da4e0137cdb1e37f24` sin cambios de fuente ni expectativas.
+
+El cambio de dataEpoch después de abrir el editor ahora oculta el formulario y limpia su identidad. También pasan el retiro durante preparación, el retiro dentro del callback y la preservación de un editor reemplazado con igual clave pero otra base. Retorno,403/404, salida durante GET y visibilidad siguen pasando. No se añadieron escenarios ni se amplió el alcance.
+
+Comando: `node --test --test-concurrency=1 test/dashboard-budget-notice-detail-runtime.test.cjs test/dashboard-notice-rest-independent.test.cjs test/dashboard-budget-notice-detail-native.integration.cjs test/dashboard-budget-notice-editor-reentry.test.cjs`, con `NODE_PATH=C:/SisVentas/cotizador/node_modules`, `SV_DASHBOARD_NOTICE_INDEPENDENT_NATIVE=1`, `SV_BUDGET_NOTICE_DETAIL_NATIVE=1` y acceso loopback. Log privado `C:/SisVentas/tmp/dashboard-notice-editor-f23-independent.private.log`, SHA256 `2c606b3d0d76caebf97708b17c6b65de6b8d6288e635bb0ed7a4d850c7f53744`. Helper ensayado blob `38077ad2c5197963aedcd1925c2686b87c6d3331`, SHA256 `f02e05e0c25858f0fcc5552588a859bdf962aad2ba54c83669bd4bfc2fdb223e`; coincide con el freeze.
+
+Se mantienen los límites: backend/token ficticios en Chrome, sin Auth/RTDB reales, guardado posterior al retiro, montaje completo de consumidores, minimización física ni puerta general. Sin cambios funcionales, staging, publicación o recarga del usuario. Sólo se actualiza este documento propio; el contexto compartido queda a cargo del coordinador.
+
 04/11/2026. Freeze `08267f5c61375885b50516401aa89fbff309ac53`. Alcance: transporte REST preparado, autorización del detalle, fuente separada, cambios de epoch y retorno. Sin cambios funcionales, staging, puerta general, datos reales ni publicación.
 
 ## Falla reproducible: editor visible tras retiro
