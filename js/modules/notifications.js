@@ -58,6 +58,11 @@
     var tecnico=global.SisVentas&&global.SisVentas.Access&&global.SisVentas.Access.is('tecnico');
     return tecnico?source.filter(notifPermitidaTecnico):source;
   }
+  function avisosPresupuestosPendientes(){
+    if(global.SV_BUDGET_NOTICES_LOCAL!==true)return false;
+    if(typeof global.permisoModulo==='function'&&global.permisoModulo('presupuesto')!==true)return false;
+    try{var view=global._svBudgetNoticeConsumerHost?.peek();return !(view?.complete===true&&Array.isArray(view.rows));}catch(_){return true;}
+  }
   // Notificaciones: urgent filter + estados persistidos por usuario
   function currentIdentity(){
     var ctx=sessionContext();
@@ -403,9 +408,13 @@
     filtro=filtro||'';
     var lista=document.getElementById('notif-lista'), lbl=document.getElementById('notif-count-label');
     if(!lista) return;
+    var pendiente=avisosPresupuestosPendientes();
+    lista.setAttribute?.('aria-busy',String(pendiente));
     var rows=notifSource().filter(function(n){ return visibleNotif(n,filtro); });
     var nuevas=notifSource().filter(function(n){ var st=getN(n.id); return visibleNotif(n,'') && !st.estado; });
-    if(lbl) lbl.textContent = nuevas.length ? (nuevas.length + ' nueva' + (nuevas.length!==1?'s':'') + ' / ' + rows.length + ' visible' + (rows.length!==1?'s':'')) : 'Todo al día ✓';
+    if(lbl) lbl.textContent = nuevas.length ? (nuevas.length + ' nueva' + (nuevas.length!==1?'s':'') + ' / ' + rows.length + ' visible' + (rows.length!==1?'s':'')) : (pendiente?'Avisos de presupuestos pendientes':'Todo al día ✓');
+    if(pendiente&&lbl&&nuevas.length)lbl.textContent+=' · Avisos de presupuestos pendientes';
+    if(!rows.length&&pendiente){lista.textContent='Avisos de presupuestos pendientes de actualización.';return;}
     if(!rows.length){ lista.innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--text3)"><i class="ti ti-checks" style="font-size:32px;display:block;margin-bottom:10px"></i><div style="font-size:14px;font-weight:500">Sin notificaciones</div><div style="font-size:12px;margin-top:4px">No hay pendientes para este filtro</div></div>'; return; }
     var colorMap={red:'var(--red)',amber:'var(--amber)',blue:'var(--blue)',green:'var(--green)',purple:'var(--purple)'};
     lista.innerHTML=rows.map(function(n){
@@ -436,7 +445,8 @@
   window.filtrarNotifs = function(tipo){ renderNotificaciones(tipo || ''); };
   window.actualizarBadgeNotif = function(){
     var count=notifSource().filter(function(n){ var st=getN(n.id); return visibleNotif(n,'') && !st.estado; }).length;
-    var b=document.getElementById('notif-badge'); if(b) b.style.display=count?'block':'none';
+    var pendiente=avisosPresupuestosPendientes(),b=document.getElementById('notif-badge');
+    if(b){b.style.display=count||pendiente?'block':'none';b.setAttribute?.('aria-busy',String(pendiente));b.setAttribute?.('aria-label',pendiente?'Notificaciones: avisos de presupuestos pendientes':(count?'Notificaciones pendientes':'Sin notificaciones pendientes'));}
   };
   var ultimaActualizacionAutomatica=0;
   var actualizacionAutomaticaEnCurso=false;

@@ -1,0 +1,17 @@
+diff --git a/cotizador/dashboard-commercial-activity-reader-proposal.js b/cotizador/dashboard-commercial-activity-reader-proposal.js
+index 7abcce77..0a463fb8 100644
+--- a/cotizador/dashboard-commercial-activity-reader-proposal.js
++++ b/cotizador/dashboard-commercial-activity-reader-proposal.js
+@@ -48,8 +48,11 @@ function createReader({auth,db,enabled=false,getLegacyContext,getAsOfDay}={}){
+    creatorLatest={schema:1,complete:false};
+    if(creatorMonthly?.complete===true){
+     try{
++     // These request-local anchors are checked fresh by the outer B1 below.
++     // Each helper access gets its own copy; only group/point evidence needs replay here.
++     const anchors=new Map([[Pages.ROOT+'/coverage',structuredClone(pc)],[Pages.ROOT+'/totals/'+scope,structuredClone(totals)]]);
+      const evidence=new Map();let stable=true;
+-     const read=async path=>{const value=await raw(path),h=M.hash(value);if(evidence.has(path)&&evidence.get(path)!==h)stable=false;else evidence.set(path,h);return value;};
++     const read=async path=>{if(anchors.has(path))return structuredClone(anchors.get(path));const value=await raw(path),h=M.hash(value);if(evidence.has(path)&&evidence.get(path)!==h)stable=false;else evidence.set(path,h);return value;};
+      const latest=await CreatorLatest.readLatest({read,scope,creator:actor.name,month:creatorMonthly.month,locale:c.sourceLocale,expectedLocale:legacy.sourceLocale});
+      const verified=await Promise.all([...evidence].map(async([path,h])=>M.hash(await raw(path))===h));
+      if(stable&&verified.every(Boolean)&&latest.generation===pc.generation&&latest.revision===pc.revision&&latest.count===creatorMonthly.count){

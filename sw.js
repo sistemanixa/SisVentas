@@ -2,6 +2,23 @@
    Estrategia: red primero con cache de respaldo. */
 const CACHE = 'sisventas-v3.19.3';
 const SHELL = [
+  './js/core/dashboard-activity-instant.v1.js?v=3.19.3',
+  './js/core/dashboard-activity-model.v2.js?v=3.19.3',
+  './js/core/dashboard-budget-notice-legacy-proposal.js?v=3.19.3',
+  './js/core/dashboard-budget-notice-model-proposal.js?v=3.19.3',
+  './js/core/dashboard-budget-transport-plan-proposal.js?v=3.19.3',
+  './js/core/dashboard-host-context-proposal.js?v=3.19.3',
+  './js/core/dashboard-budget-fresh-rtdb-proposal.js?v=3.19.3',
+  './js/core/dashboard-budget-sdk-proposal.js?v=3.19.3',
+  './js/core/dashboard-activity-aggregate-proposal.js?v=3.19.3',
+  './js/core/dashboard-budget-month-port-proposal.js?v=3.19.3',
+  './js/core/dashboard-http-ports-proposal.js?v=3.19.3',
+  './js/core/dashboard-budget-source-proposal.js?v=3.19.3',
+  './js/core/dashboard-budget-notice-adapter-proposal.js?v=3.19.3',
+  './js/core/dashboard-budget-notice-consumer-proposal.js?v=3.19.3',
+  './js/core/dashboard-budget-notice-detail-proposal.js?v=3.19.3',
+  './js/modules/dashboard-budget-host.v1.js?v=3.19.3',
+  './js/modules/dashboard-activity-host.v1.js?v=3.19.3',
   './js/core/purchase-order-links.v1.js?v=3.18.4',
   './js/core/ot-sale-origin.v1.js?v=3.18.13',
   './js/core/commercial-report-read.v1.js?v=3.19.0',

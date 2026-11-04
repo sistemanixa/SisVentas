@@ -1,3 +1,10 @@
+## Integración local: avisos tardíos, caché y anclas de lectura
+
+La puerta completa sobre ee46 terminó sus cuatro lotes con 9.404 casos: 9.369 PASS, 4 FAIL y 31 SKIP. El handle de proceso ya no estaba disponible al recuperar la sesión; se conserva el log completo current-gate-ee46.private.log, sin afirmar código de salida recuperado. Fallos: SHELL incompleto, conteo HTTP anterior de siete frente a cinco y dos conteos por relectura redundante de totales. No es una puerta aprobada.
+
+Integradas entregas 02ae9e5f y 6eed87a mediante parches explícitos: badge al llegar resumen, una generación por cambio de avisos, pendiente visible en lugar de falso vacío, diecisiete URL exactas del índice en SHELL y reutilización sólo durante la petición de anclas B0 con comprobación fresca B1. Se conservan las cinco reproducciones originales y rechazos concurrentes. Treinta y una pruebas focales PASS. Ajustado sólo el conteo HTTP a cinco con comprobación de dos presupuestos y tres dominios exactos; otras 34 PASS. Sin cambios de importes ni autoridad.
+
+La nativa independiente de ee46 detectó otro defecto: comparación JSON sensible al orden de propiedades de creatorOrder en respuesta REST. Corrección aislada en preparación y repetición nativa pendientes. Estos cambios no están en la ventana del usuario ni publicados. Sin operaciones reales, push o cambios remotos.
 ## Últimas personales: transporte y pantalla integrados, flag OFF
 
 Importadaentrega75d58780 y aplicado patch de cuatroarchivos trasgitapplycheck, preservando optimizaciónembebida y modoownMonthly. LectoractualVentas usa grupoexacto y hasta5filasPages, relee evidencia B0/B1 y proyecta sólo seis campospúblicos. Capacidadlatest es independiente; falloopcional no bloqueacontador ni actividadglobal. HTTPvalida campos/duplicados/cardinalidad/contexto/orden; Aggregate comparte segundaGETventas ya existente y hostownMonthly conserva1GET. No endpointnuevoni originales.
