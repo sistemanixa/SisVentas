@@ -1,3 +1,10 @@
+## Corrección de puente de sesión y consumidor mensual
+
+QA browser sobre44474115 detectó rechazo antes deHTTP: isAuthenticated es lexical let y el host consultaba window.isAuthenticated. Se agregó getter de sólo lectura junto a los puentes existentes de rol/usuario; no se copia el estado ni se introduce setter. Prueba propia confirma false→true→false desde la variable lexical, sin permitir otra fuente de sesión; falta repetición de la reproducción browser independiente sobre este delta.
+
+renderDashAdministrativo, sólo bajo flag local, ahora usa monthly completo del Source para presupuestos del nombre/mes, sin leer pptoData; valida contadores, porcentaje, nombre y mes. Ausencia/desacuerdo muestra pendiente, nunca cero supuesto. Ventas mensuales personales siguen su recorrido anterior y son pendiente explícita del frente Pages; no se retiró el cargador general de inicio ni se activó el flag. Callback sólo pinta esta tarjeta cuando está visible y autorizada.
+
+Seis pruebas focales PASS (puente, consumidor, paridad admin y callpoints); log dashboard-auth-month-root.private.log. Antes, la combinación82tests dio81PASS/1FAIL en conteo de revalidaciones host (8frente7); caso aislado repetido PASS. Se conserva rojo dashboard-host-mounted-combined.private.log y repetición dashboard-host-events-repeat.private.log: causa pendiente, no se cambió expectativa ni se certifica ausencia de duplicados. Autor investiga espera real frente a flush artificial. QA y nativos trabajan sobre la congelación44474115; sus futuros resultados no amparan automáticamente este delta.
 ## Host de presupuestos: montaje inicial inactivo
 
 Importados por diff 2f65ce30 (host y quince pruebas). Index carga las fábricas en orden, sin Auth/DB/red al importar; una prueba ejecuta los scripts reales del índice en contexto browser. La app crea el host perezosamente sólo con flag local explícito y demanda avisos al entrar al centro; callback reconstruye notificaciones sólo en esa página. No activa flags ni sustituye todavía el cargador original de presupuestos del inicio: quedan pendientes el mensual de ventas por creador y actividad reciente antes de retirar esas dependencias.

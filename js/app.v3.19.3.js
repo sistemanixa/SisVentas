@@ -6159,7 +6159,10 @@ window.cargarMetricasUsoUsuarios = cargarMetricasUsoUsuarios;
 function svHostPresupuestosDashboard() {
   if(window.SV_DASHBOARD_READS_LOCAL!==true||!window.SVDashboardBudgetHost)return null;
   if(!window._svDashboardBudgetHost)window._svDashboardBudgetHost=window.SVDashboardBudgetHost.create(window,{changed:function(kind){
-    if(kind==='dashboard'&&typeof _svEsPaginaActiva==='function'&&_svEsPaginaActiva('dashboard'))svPintarPresupuestosDashboard();
+    if(kind==='dashboard'&&typeof _svEsPaginaActiva==='function'&&_svEsPaginaActiva('dashboard')){
+      svPintarPresupuestosDashboard();
+      if(window.tienePermiso?.('dashboard.miActividad')===true&&typeof renderDashAdministrativo==='function')renderDashAdministrativo();
+    }
     if(kind==='notices'){
       if(typeof verificarVencimientosPptos==='function')verificarVencimientosPptos();
       if(typeof _svEsPaginaActiva==='function'&&_svEsPaginaActiva('notificaciones')&&typeof generarNotificaciones==='function')generarNotificaciones();
@@ -15046,6 +15049,10 @@ let currentRole = '';
 // Fuente de verdad compartida para los bloques legacy y los parches finales.
 // Una variable declarada con `let` no se publica automáticamente en `window`;
 // varios controles de permisos consultan `window.currentRole`.
+Object.defineProperty(window, 'isAuthenticated', {
+  configurable: true,
+  get: function() { return isAuthenticated; }
+});
 Object.defineProperty(window, 'currentRole', {
   configurable: true,
   get: function() { return currentRole; },
@@ -53254,11 +53261,15 @@ function renderDashAdministrativo() {
   var usuario   = currentUser || '';
 
   // Mis presupuestos del mes
-  var misPptos = (pptoData||[]).filter(function(p){
-    return p.empleado === usuario && (p.fecha||'').slice(0,7) === mesActual;
-  });
-  var misConvertidos = misPptos.filter(function(p){ return p.estado === 'convertido'; });
-  var tasaConv = misPptos.length > 0 ? Math.round(misConvertidos.length / misPptos.length * 100) : 0;
+  var cantidadPptos,cantidadConvertidos,tasaConv;
+  if(typeof window!=='undefined'&&window.SV_DASHBOARD_READS_LOCAL===true){
+    var resumen=window._svDashboardBudgetSource?.peek('dashboard')?.data?.monthly;
+    var mesValido=resumen?.complete===true&&resumen.month===mesActual&&resumen.employeeLabel===usuario&&Number.isSafeInteger(resumen.records)&&resumen.records>=0&&Number.isSafeInteger(resumen.converted)&&resumen.converted>=0&&resumen.converted<=resumen.records&&resumen.conversionPercent===(resumen.records?Math.round(100*resumen.converted/resumen.records):0);
+    cantidadPptos=mesValido?resumen.records:null;cantidadConvertidos=mesValido?resumen.converted:null;tasaConv=mesValido?resumen.conversionPercent:null;
+  }else{
+    var misPptos = (pptoData||[]).filter(function(p){return p.empleado === usuario && (p.fecha||'').slice(0,7) === mesActual;});
+    cantidadPptos=misPptos.length;cantidadConvertidos=misPptos.filter(function(p){return p.estado==='convertido';}).length;tasaConv=cantidadPptos?Math.round(100*cantidadConvertidos/cantidadPptos):0;
+  }
 
   // Mis ventas del mes
   var misVentas = (ventasList||[]).filter(function(v){
@@ -53266,11 +53277,11 @@ function renderDashAdministrativo() {
   });
 
   var el = function(id){ return document.getElementById(id); };
-  if(el('dash-adm-pptos'))     el('dash-adm-pptos').textContent     = misPptos.length;
-  if(el('dash-adm-pptos-sub')) el('dash-adm-pptos-sub').textContent = misConvertidos.length + ' convertidos';
+  if(el('dash-adm-pptos'))     el('dash-adm-pptos').textContent     = cantidadPptos===null?'—':cantidadPptos;
+  if(el('dash-adm-pptos-sub')) el('dash-adm-pptos-sub').textContent = cantidadConvertidos===null?'Pendiente de actualización':cantidadConvertidos + ' convertidos';
   if(el('dash-adm-ventas'))    el('dash-adm-ventas').textContent    = misVentas.length;
   if(el('dash-adm-ventas-sub'))el('dash-adm-ventas-sub').textContent= misVentas.length + ' este mes';
-  if(el('dash-adm-conv'))      el('dash-adm-conv').textContent      = tasaConv + '%';
+  if(el('dash-adm-conv'))      el('dash-adm-conv').textContent      = tasaConv===null?'—':tasaConv + '%';
 
   // Últimas ventas del administrativo
   var cont = el('dash-adm-ultventas');
