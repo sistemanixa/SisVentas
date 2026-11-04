@@ -1,3 +1,9 @@
+## Delta del agregador sobre 29e · dataEpoch y permiso null
+
+Se agrega dataEpoch obligatorio como entero seguro no negativo a captura/same y resultado del agregador. Un reinicio de datos retira la lectura pendiente aunque Auth/User/UID no cambien; no hay default cero. El host debe enlazarlo con su epoch de datos ya vigente. Se valida dominio comercial esperado por posición y scope ANTES de comparar revisión o leer B1. Los grants null legítimamente denegados rechazan este paquete de cuatro fuentes antes de toda lectura; no se simula un prefijo vacío/completo. Mis ventas por autor/audit continúa null/no completo.
+
+Siete reproducciones rojas sobre 29e524eb; delta 26 focales PASS, cero FAIL/SKIP. No se repitió general, emulador ni pruebas de UI por alcance del coordinador. Sólo agregador, helper/prueba y documentación; no Source, SDK existente, reglas, montador root ni publicación. Handoff actualizado en docs/DASHBOARD_AGREGADOR_CUATRO_PREFIJOS_PROPUESTA.md, con hashes de logs privados.
+
 ## Agregador de actividad y mensual · entrega aislada al frontend root
 
 Se implementó un agregador inactivo con puertos tipados inyectados, captura única de sesión/usuario/epoch/conexión/permisos/calendario y secuencia B0 → mes0 → comerciales → mes1 → B1. Exige las tres generaciones/revisiones comerciales iguales y Presupuestos estable antes/después; luego fusiona cuatro prefijos con Core existente. Sin índice nuevo, lock, originales, importes, UI ni index modificados. El puerto mensual propio usa months/monthProof existentes; el cero exige indicador de ausencia y consulta acotada a un miembro del monthMembers existente, para no confundir conteos perdidos con ausencia.

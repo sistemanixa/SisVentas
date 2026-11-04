@@ -6,18 +6,18 @@ Implementado en el checkout aislado sobre `b35fe07cd052f704634a8c0cdec15c49d6348
 
 `dashboard-activity-aggregate-proposal.js` exporta `create`, `port`, `snapshot` y `same` (UMD/CommonJS). Sus JSDoc definen `CapturedContext`, `PortRequest`, `PortResponse` y `VerifiedPort`, además de validaciones en ejecución. `create({enabled,capture,valid,ports,requireNotices:true}).read()` requiere:
 
-- Una captura síncrona con UID/rol, Auth y DB reales, usuario Auth actual, `permissionRevision`, `permissionSignature`, `sessionEpoch` monotónico incluso para reautenticación del mismo UID, conexión y `connectionEpoch`, zona IANA/locale explícitos, grants, mes `YYYY-MM`, día `YYYY-MM-DD` y etiqueta exacta de empleado.
+- Una captura síncrona con UID/rol, Auth y DB reales, usuario Auth actual, `permissionRevision`, `permissionSignature`, `sessionEpoch` monotónico incluso para reautenticación del mismo UID, `dataEpoch` obligatorio (entero seguro no negativo) para reinicios de datos aun con los mismos objetos Auth/User, conexión y `connectionEpoch`, zona IANA/locale explícitos, grants, mes `YYYY-MM`, día `YYYY-MM-DD` y etiqueta exacta de empleado.
 - `ports.budget.read({schema:1,context})`: resultado del lector existente de Presupuestos con actividad, contadores, badge y avisos completos cuando se exige `requireNotices`.
 - `ports.commercial.read({schema:1,context,domain})`: resultado del lector autorizado existente para ventas, pagos u OT.
 - `ports.month.read({schema:1,context})`: métrica propia mensual, vinculada a generación/revisión global de Presupuestos.
 
 `port({capture,valid,read})` envuelve un lector real y devuelve `{schema:1,context,value}` únicamente si conserva esa misma captura antes/después. No confiere autoridad: los lectores inyectados siguen verificando permisos frescos. El host no debe envolver memorias parciales ni DTO inventados como si fueran lectores verificados. Los objetos Auth/DB/contexto permanecen locales; no se serializan a una ruta HTTP.
 
-Esta primera versión exige los cuatro prefijos autorizados. Un permiso denegado no se transforma en fuente vacía ni en un cero. No implementa reintento ni fallback; ante un error no devuelve resultado parcial. El host puede conservar presentación anterior explícitamente obsoleta, pero no marcar lista una captura rechazada. No se promete abortar físicamente GET ya enviados por lectores independientes.
+Esta primera versión exige los cuatro prefijos autorizados. Un grant null legítimo se acepta como estado de captura, pero rechaza el paquete de cuatro fuentes ANTES de cualquier lectura; no se inventa un prefijo vacío ni se declara completa una fuente denegada. Un permiso denegado no se transforma en fuente vacía ni en un cero. No implementa reintento ni fallback; ante un error no devuelve resultado parcial. El host puede conservar presentación anterior explícitamente obsoleta, pero no marcar lista una captura rechazada. No se promete abortar físicamente GET ya enviados por lectores independientes.
 
 ## Intervalo comprobado
 
-Secuencia: B0 → mes0 → los tres comerciales → mes1 → B1. Cada llamada se valida contra la misma captura. Se comparan exactamente generación/revisión de los TRES comerciales, aunque individualmente sus lecturas sean válidas. B0/B1 deben ser lecturas verificadas e iguales, incluyendo generación/revisión y consumidores. Las dos métricas mensuales deben ser iguales y estar ancladas a esa revisión global de Presupuestos. El bucket puede tener una revisión menor: no se confunde una revisión puntual antigua válida con una cobertura global distinta.
+Secuencia: B0 → mes0 → los tres comerciales → mes1 → B1. Cada llamada se valida contra la misma captura. Primero se valida que cada resultado comercial tenga el dominio esperado por posición y su alcance autorizado, antes de leer B1 o comparar revisiones. Se comparan exactamente generación/revisión de los TRES comerciales, aunque individualmente sus lecturas sean válidas. B0/B1 deben ser lecturas verificadas e iguales, incluyendo generación/revisión y consumidores. Las dos métricas mensuales deben ser iguales y estar ancladas a esa revisión global de Presupuestos. El bucket puede tener una revisión menor: no se confunde una revisión puntual antigua válida con una cobertura global distinta.
 
 Sólo después se llama al `Core.merge` existente con los cuatro prefijos, un único contexto y revisiones verificadas por dominio. No se exige que el índice de Presupuestos tenga la misma generación/revisión numérica que el índice comercial: se valida su estabilidad durante el tramo comercial. No se presenta como snapshot atómico frente a escritores privilegiados que omitan el protocolo o reviertan revisiones.
 
@@ -65,3 +65,11 @@ const packet = await aggregate.read();
 Siguiente paso del root: importar esta entrega, conectar puertos reales y readiness en su freeze, renderizar los consumidores juntos y validar arranque/retorno desde Notificaciones con HTML real. Quedan vigentes las precondiciones de corte de escritores privilegiados y publicación/seguridad; no se desplegó ni publicó nada.
 
 SHA256 focal: 88535FCAEB2D3C2E4F30FE7F6E9CBAF0F21F6113F03584AA6B4480953AD15E0D. SHA256 RTDB: A4FF4CFE8F4343CE318A01DC302126F82897ACD83B289F15F153647966C904A2.
+
+## Delta sobre 29e524eb · retiro de datos y validación temprana
+
+Se agrega dataEpoch a CapturedContext, campos de snapshot/same y resultado. Es obligatorio, entero seguro no negativo y sin default: el host debe incrementarlo en cada reinicio/invalidez de datos aunque conserve UID, Auth y User. El puerto mensual y el adaptador de puertos heredan el mismo retiro porque usan snapshot/same compartidos. No se modifica Source, SDK existente, DTO, permisos ni reglas.
+
+Siete reproducciones nuevas fallaron en 29e524eb: dataEpoch cambiado durante lectura con Auth/User idénticos, dominio comercial intercambiado que antes llegaba hasta B1, cuatro grants null que antes iniciaban lecturas y validación de enteros seguros ausente. Con el delta pasan las siete. Foco completo: 26 PASS, cero FAIL/SKIP (13 agregador previos, siete nuevos y seis merge). No se repitió general ni emulador; los cuatro RTDB anteriores son evidencia de 29e, no de una repetición nueva. Mis ventas sigue null/no completo.
+
+Logs privados: activity-aggregate-data-epoch-red.private.log SHA256 7A0C1DEAB47ECDB547FF49F992DF5BD1B89AA0EB123D5E2587DA9F5CA54A1B6E; activity-aggregate-data-epoch-focal.private.log SHA256 E362244A857DFF836C4ECCC073A59D5ABC907706335D26B2459417565B893156.
