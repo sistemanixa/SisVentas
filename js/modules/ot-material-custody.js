@@ -264,7 +264,7 @@
   function deliveryItemAction(ot, material, view, index) {
     if (view._recuperado || index < 0 || !deliveryAllowed(ot) || !controllable(material) || quantity(material) <= n(material.entregada)) return '';
     var closed = typeof window.otEstaCerrada === 'function' ? window.otEstaCerrada(ot) : ['completada','con_observaciones'].includes(String(ot.estado || '').toLowerCase());
-    if (closed && !correcting(ot) && !isAdditional(material)) return '';
+    if (closed && material.adicionalOT !== true) return '';
     return '<button type="button" class="btn btn-sm" onclick="otCustodiaEntregar(' + index + ')">Entregar</button>';
   }
 
@@ -308,7 +308,7 @@
     var exceptions = document.getElementById('ot-btn-excepciones');
     var receive = document.getElementById('ot-btn-recibir-devolucion');
     var pending = pendingDelivery(ot);
-    var canDeliver = pending.some(function (material) { return !isClosed || material.adicionalOT === true; });
+    var canDeliver = pending.some(function (material) { return !closedRecord || material.adicionalOT === true; });
     if (deliver) {
       deliver.style.display = admin && canDeliver ? '' : 'none';
       deliver.textContent = deliveryStarted ? 'Entregar materiales pendientes' : 'Entregar materiales al técnico';
@@ -326,7 +326,7 @@
       correction.className = 'btn btn-sm';
       correction.textContent = 'Corregir materiales';
       correction.onclick = async function () {
-        if (!await window.svConfirm('Se habilitará la corrección de entrega y rendición de esta OT cerrada. Cada operación quedará en el historial. No se modificarán los cobros.')) return;
+        if (!await window.svConfirm('Se habilitará la corrección de rendición de esta OT cerrada. Cada operación quedará en el historial. No se modificarán los cobros.')) return;
         correctionKey = String(ot.fbKey || ot.id);
         render(ot, visibleMaterials);
       };
@@ -368,7 +368,7 @@
   function deliveryAllowed(ot) {
     if (!ot || window._impersonacionOriginal || !isAdministration()) return false;
     var closed = typeof window.otEstaCerrada === 'function' ? window.otEstaCerrada(ot) : ['completada','con_observaciones'].includes(String(ot.estado || '').toLowerCase());
-    return !closed || correcting(ot) || pendingDelivery(ot).some(isAdditional);
+    return !closed || pendingDelivery(ot).some(function(material){return material.adicionalOT === true;});
   }
   function prepareDelivery(current, baseline, command) {
     if (!current) throw Error('La OT ya no existe. Volvé al listado.');
@@ -401,8 +401,8 @@
     if (deliveryBusy || renditionBusy || additionalBusy || !ot || window._impersonacionOriginal || !isAdministration()) return;
     if (!ot.tecnico) { window.notify('Asigná un técnico antes de entregar materiales'); return; }
     var closed = typeof window.otEstaCerrada === 'function' ? window.otEstaCerrada(ot) : ['completada','con_observaciones'].includes(String(ot.estado || '').toLowerCase());
-    var onlyAdditional = closed && !correcting(ot);
-    var eligible = pendingDelivery(ot).filter(function(m){return !onlyAdditional || isAdditional(m);});
+    var onlyAdditional = closed;
+    var eligible = pendingDelivery(ot).filter(function(m){return !onlyAdditional || m.adicionalOT === true;});
     if (Number.isInteger(itemIndex)) eligible = eligible.filter(function(m){return (ot.materiales || []).indexOf(m) === itemIndex;});
     if (!eligible.length) { window.notify('No hay materiales pendientes de entregar.'); return; }
     var baseline = JSON.parse(JSON.stringify(ot)), user = window.fbAuth?.currentUser, uid = window.currentUserUid, role = window.currentRole;
