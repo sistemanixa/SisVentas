@@ -65,6 +65,18 @@ Con pausa y drenajes aún válidos, tomar snapshot privado completo de las fuent
 
 Calcular y reconciliar offline los derivados desde ese snapshot: identidad y membresías, cuentas, páginas/totales, historial, dependencias financieras, cobertura, generaciones y huellas. Identificar ambigüedades/faltantes; no inventar domicilio, responsable, cobro o costo para completar la cobertura. Un gasto fiscal canónico de categoría Impuestos no requiere `porcentaje`; conservar veto ante comisión verdaderamente ambigua o registros históricos sin contrato verificable.
 
+El preparador conjunto local es `scripts/prepare-commercial-cut.cjs`; su contrato está en `scripts/lib/commercial-cut-preparation.cjs`. Recibe un archivo privado con `schema`, `sources`, `destinations`, `snapshotManifest` y `generations`. Exige las 17 fuentes explícitas y sus declaraciones de completitud, cantidades y huellas, incluso cuando estén vacías. Los destinos observados incluyen los padres completos Accounts/H7/Financial y sus configuraciones: ausencia de un hijo no acredita ausencia del padre. Esta preparación inicial rechaza padres o configuraciones nuevas ya instaladas; no es una herramienta de reparación de instalaciones parciales.
+
+Ejecutar únicamente sobre archivos privados, sin conexión ni modo de aplicación:
+
+```text
+node scripts/prepare-commercial-cut.cjs --input C:/SisVentas/tmp/corte/snapshot.private.json --output C:/SisVentas/tmp/corte/preparacion.private.json
+```
+
+El directorio debe existir y la salida debe ser nueva y privada; no sobrescribe archivos. Entrada y salida están limitadas a 128 MiB. El artefacto reúne los cinco destinos derivados —Pages, pertenencia de pagos, Accounts/Directory, H7 y dependencias financieras— y conserva las configuraciones de activación separadas. Conciliación, huellas de fuentes y destinos, generaciones observadas, importes y problemas quedan en un manifiesto único. Una reconstrucción comercial exige generación nueva respecto de la observada; no reinicia la revisión reutilizando la generación anterior. Se preserva la metadata canónica de Roles y su `indiceRevision`.
+
+La completitud declarada se contrasta con el archivo proporcionado; **no prueba que se haya capturado toda la base remota**. `remoteVerified`, `activationAuthorized` y `cutEligible` permanecen en false, incluso con preparación correcta. Los problemas de identidad, autoría, dependencias o importes desconocidos no se corrigen inventando originales. La prueba local de consumidores y mutación coordinada no autoriza aplicar el artefacto. La exclusión real de escritores, frescura del snapshot, pruebas del corte y revisión del alcance siguen siendo condiciones externas obligatorias.
+
 Preparar un plan multipath acotado a derivados/configuraciones, con hashes previos y resultado esperado. **No reescribir originales ni recalcular comisiones/históricos** para hacer coincidir un índice. Releer huellas de fuentes antes de aplicar: cualquier deriva invalida snapshot y plan. No usar el aplicador histórico de ownership como instalador de esta integración.
 
 **Evidencia:** snapshot identificado por hash y hora, raíces/configuraciones observadas, reconciliación sin omisiones y manifiesto de cambios exactos. **Abortar:** deriva, coberturas incompletas, identidad ambigua no resuelta o necesidad de modificar originales fuera del alcance autorizado.
