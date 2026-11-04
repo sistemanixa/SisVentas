@@ -92,6 +92,9 @@
       // el array sólo al confirmar evita compartir o alterar filas de origen.
       if(entradaEraNueva&&ot&&typeof ot==='object'){
         ot.id=record.id;ot.ts=record.ts;
+        ['_svListRevision','_svListOperation'].forEach(function(campo){
+          if(Object.prototype.hasOwnProperty.call(record,campo))ot[campo]=record[campo];
+        });
         if(materialesInicializados)ot.materiales=copiarDatosOT(record.materiales);
       }
       return {key:key,fbKey:key,id:record.id,record:record};

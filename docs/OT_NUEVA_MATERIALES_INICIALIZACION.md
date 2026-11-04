@@ -52,3 +52,28 @@ La prueba de gateway usa la autoridad disponible en este checkout; no reemplaza
 la validación posterior con el estado estricto `pristine` de Costos cuando se
 integre su propuesta separada. Los faltantes históricos se preservan para que
 esa autoridad los siga rechazando, sin una excepción nueva en servidor.
+
+## Seguimiento: revisión confirmada en el objeto original del creador
+
+Se reprodujo un fallo posterior: `crearOT` conserva su objeto de entrada en
+`otData` e ignora `ref.record`. Aunque la respuesta traía revisión 1, aquel objeto
+no la tenía y `SVOTLifecycle.save` lo comparaba como revisión 0, rechazando antes
+de enviar el comando con «La OT cambió».
+
+`confirmarCreacion` copia ahora exclusivamente `_svListRevision` y
+`_svListOperation` cuando están presentes en el registro confirmado, sólo al
+objeto inequívocamente nuevo. No inventa valores ausentes, no copia otro estado
+de servidor ni actualiza una entrada histórica. El manejo de materiales,
+cantidades y costos conserva los límites anteriores. Los casos de fallo siguen
+comprobando que la entrada entera permanezca intacta.
+
+La octava prueba propia ejecuta creador → `input.fbKey = ref.key` →
+`otData.push(input)` → `prepare(custody)` → `save(custody)`, sin reemplazar el
+objeto por `ref.record`. Usa cliente, servicio y guard reales, con cobertura
+ficticia preparada: confirma dos commits (alta/custodia), revisión 2 en servidor,
+ningún recibo inventado y fuentes/costos intactos. Antes del cambio fallaba en la
+comparación local 0 vs. 1; después pasa el circuito completo.
+
+Validación focal final: **41 PASS, 0 FAIL, 0 SKIP**, Node 22.23.4. Log privado:
+`tmp/ot-new-material-metadata-final.private.log`. Sin otra puerta global ni cambios
+en aplicación, servidor, reglas o permisos.
