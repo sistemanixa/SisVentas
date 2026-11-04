@@ -1,3 +1,13 @@
+## Candidata inmutable nueva antes de la puerta final · 04/11/2026 09:27 UTC
+
+Décima puerta desde3176372901055143fc261e28ee83bc9258af7051 y árbol limpio:8325pruebas,8296PASS,2FAIL,27opt-in. Los dos fallos fueron aserciones literales del prefijo de reset/retireVerified; las pruebas de interacción sí aprobaron. Se reemplazaron por ejecución de las funciones reales: retirar cobertura preserva filas de borradores pero cancela el detalle pendiente; reset de sesión borra filas privadas, lectores, acciones y metadatos.3/3focales PASS. No se modificó el host para adaptarlo a esas expectativas.
+
+Se prepara candidata19.1 para conservar19.0 congelada en Git y evitar reutilizar el mismo nombre de caché/archivo después de verificarlo.19.0 nunca se publicó.19.1 conserva funciones verificadas,259activos y229URLs JS/CSS exactas, nuevos URLs de los hosts modificados, marcador/índice/SW concordantes.6focales de shell/offline/borradores y validación local de versión PASS. Pendiente commit exacto y undécima puerta desde copia limpia. No aprobación global nueva ni despliegue de producción.
+
+Metadatos remotos readonly09:19UTC, región southamerica-east1 verificada: Cotizador mantiene100% en return910199-bbf61e86;14etiquetas anteriores siguen en expenses3186a-bfe0052f. LABOR_SCOPED_ENABLED,COMMERCIAL_PAGES_ENABLED,PAYMENT_SCOPED_ENABLED,ADMIN_EXPENSE_SCOPED_ENABLED=true. CLIENT_ACCOUNTS_ENABLED,CLIENT_HISTORY_ENABLED,CLIENT_HISTORY_READ_ENABLED y flags nuevos de borrado ausentes en la revisión vigente; no se infiere existencia/ausencia de índices originales a partir de eso. No se mostraron secretos ni consultaron registros comerciales. La consulta inicial a región equivocada devolvió servicio inexistente; se corrigió usando inventario, sin cambios.
+
+General continúa preparado, no publicado ni respaldado remotamente. App14local conservada sin incorporar su copia modificada. Fotos20 sí permanece publicada y en su rama verificada. Los27opt-in de runtime y5matrices compuestas ya pasaron separadamente sobre sus bases declaradas; no prueban un corte remoto ni sustituyen el cierre de los accesos antiguos para activar las nuevas capacidades.
+
 ## Corrección de aperturas tardías · 04/11/2026 09:16 UTC
 
 Causa de la novena puerta demostrada con demora ficticia300ms: mientras se abría copy-fixture seguía visible y accionable fixture0. El botón anterior convirtió correctamente fixture0, no la copia; por eso había aviso de éxito y faltaba el resultado que esperaba la prueba. No era sólo timeout de prueba ni un fallo de atomicidad del comando. La contraprueba espera identidad exacta además de16renglones. La reproducción no tocó datos reales.
