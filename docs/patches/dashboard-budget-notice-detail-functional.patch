@@ -1,0 +1,135 @@
+diff --git a/js/app.v3.19.3.js b/js/app.v3.19.3.js
+index 25cc4840..c4203354 100644
+--- a/js/app.v3.19.3.js
++++ b/js/app.v3.19.3.js
+@@ -6162,6 +6162,7 @@ function svCargarDatosDePaginaActual(pagina) {
+   }
+   if (!permisoModulo(pagina)) return;
+   if(pagina==='historialcliente'&&window.SVClientHistoryRuntime?.claimed===true)return window.SVClientHistoryRuntime.ensure();
++  if(window.SV_BUDGET_NOTICES_LOCAL===true&&window._svBudgetNoticeDetailHost?.claimsPointView(pagina))return true;
+   if(window.SVClientHistoryOriginalRuntime?.claimsPointView(pagina)===true)return true;
+   if(window.SVCommercialPagesHost?.activeRoute()&&['detalle','cobranzas'].includes(pagina))return window.SVCommercialPagesHost.ensure();
+   if (['empleados','ctaemp','configuracion','comisiones','vacaciones'].includes(pagina) && typeof cargarCargos === 'function') cargarCargos();
+@@ -6210,6 +6211,7 @@ function svCargarDatosDePaginaActual(pagina) {
+ function svReintentarDatosDePagina(pagina, estado) {
+   if (!isAuthenticated || !permisoModulo(pagina)) return;
+   if(pagina==='historialcliente'&&window.SVClientHistoryRuntime?.claimed===true)return window.SVClientHistoryRuntime.refresh();
++  if(window.SV_BUDGET_NOTICES_LOCAL===true&&window._svBudgetNoticeDetailHost?.claimsPointView(pagina))return window._svBudgetNoticeDetailHost.refresh();
+   if(window.SVClientHistoryOriginalRuntime?.claimsPointView(pagina)===true)return window.SVClientHistoryOriginalRuntime.refresh();
+   estado = estado || window.SVDataReadiness?.statusFor(pagina) || {};
+   var fallidas = (estado.errors || []).filter(function(key){return svPuedeLeerDominio(key) || (key === 'empleados' && ['informes','equipos','soporte'].includes(pagina));});
+@@ -11299,7 +11301,7 @@ function showPage(id, el) {
+     }, 100);
+   }
+   if (id === 'detalle')       { _svPrepararVistaModulo(id, 30, function(){ if(aperturaDirecta || window._ventaDesdeHistorialOrigen) return; if(typeof volverListaVentas==='function') volverListaVentas(); if(typeof renderMetricasVentas==='function') renderMetricasVentas(); }); }
+-  if (id === 'presupuesto')   { _svPrepararVistaModulo(id, 30, function(){ if(typeof renderPptoTabla==='function') renderPptoTabla(); }); }
++  if (id === 'presupuesto')   { _svPrepararVistaModulo(id, 30, function(){ if(window.SV_BUDGET_NOTICES_LOCAL===true&&window._svBudgetNoticeDetailHost?.claimsPointView(id))return; if(typeof renderPptoTabla==='function') renderPptoTabla(); }); }
+   if (id === 'catalogo')      { _svPrepararVistaModulo(id, 30, function(){ if(typeof renderCatalogo==='function') renderCatalogo(); }); }
+   if (id === 'ordentrabajo')  { _svPrepararVistaModulo(id, 30, function(){ if(aperturaDirecta) return; if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }); }
+   if (id === 'venta' && !preservarFormularioVenta && !aperturaDirecta) { setTimeout(function(){ if(typeof iniciarNuevaVenta==='function') iniciarNuevaVenta(); if(typeof iniciarMonedaVenta==='function') iniciarMonedaVenta(); }, 50); }
+@@ -34878,6 +34880,7 @@ window.addEventListener('scroll', function(){
+ window.addEventListener('resize', function(){ cerrarMenusPpto(); cerrarMenuPptoGlobal(); });
+ 
+ function buscarPptoPorRef(pptoId) {
++  if(window.SV_BUDGET_NOTICES_LOCAL===true&&window._svBudgetNoticeDetailHost?.ownsPointView('presupuesto'))return window._svBudgetNoticeDetailHost.resolve(pptoId);
+   var ref = String(pptoId == null ? '' : pptoId).trim().toLowerCase();
+   if (!ref) return null;
+ 
+@@ -47476,6 +47479,7 @@ window.seleccionarClienteDuplicadoPpto = seleccionarClienteDuplicadoPpto;
+ window.confirmarDuplicadoPresupuesto = confirmarDuplicadoPresupuesto;
+ 
+ function abrirEditorPpto(id) {
++  if(window.SV_BUDGET_NOTICES_LOCAL===true&&window._svBudgetNoticeDetailHost?.needsFormData(id))return window._svBudgetNoticeDetailHost.enterForm(id,function(){abrirEditorPpto(id);});
+   toggleImagenComprobante('ppto', false);
+   var p = buscarPptoPorRef(id);
+   if (!p) { notify('Presupuesto no encontrado o número duplicado. Abrilo nuevamente desde la lista.'); return; }
+@@ -47538,6 +47542,7 @@ function abrirEditorPpto(id) {
+ }
+ 
+ function editarPptoParaMigrar(id) {
++  if(window.SV_BUDGET_NOTICES_LOCAL===true&&window._svBudgetNoticeDetailHost?.needsFormData(id))return window._svBudgetNoticeDetailHost.enterForm(id,function(){editarPptoParaMigrar(id);});
+   var p = buscarPptoPorRef(id);
+   if (!p) return;
+ 
+@@ -47796,7 +47801,7 @@ function verPpto(id) {
+     '<tr><td colspan="'+(mostrarComparacion ? '9' : '5')+'" style="padding:16px;text-align:center">' +
+       '<div style="color:var(--text3);font-size:13px;margin-bottom:8px">Este presupuesto no tiene ítems guardados en Firebase.</div>' +
+       '<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Total del presupuesto: <strong>$' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '</strong></div>' +
+-      '<button class="btn btn-sm" onclick="editarPptoParaMigrar(\'' + p.id + '\')" style="color:var(--blue);border-color:var(--blue)">' +
++      '<button class="btn btn-sm" onclick="editarPptoParaMigrar(\'' + jsStringAttr(p.fbKey||p.id) + '\')" style="color:var(--blue);border-color:var(--blue)">' +
+         '<i class="ti ti-edit"></i> Abrir para editar y guardar ítems' +
+       '</button>' +
+     '</td></tr>';
+@@ -49103,6 +49108,7 @@ async function guardarPresupuesto(modo) {
+ 
+ // Navegación
+ function volverListaPpto() {
++  if(window.SV_BUDGET_NOTICES_LOCAL===true&&window._svBudgetNoticeDetailHost?.ownsPointView('presupuesto'))return window._svBudgetNoticeDetailHost.back();
+   window.SVProjects?.resetBudgetContext();
+   if (window.svDrafts) window.svDrafts.flush();
+   // Salir del formulario, incluso al cancelar, descarta la identidad de una
+@@ -55837,7 +55843,7 @@ function generarNotificaciones() {
+           titulo: 'Requiere aprobación — ' + p.id,
+           sub: p.cliente + ' — ' + (p.motivo || 'Enviado para revisión y aprobación interna'),
+           tiempo: 'Pendiente · Sistema',
+-          accion: { label:'Revisar', tipo:'presupuesto', id:String(p.id) },
++          accion: { label:'Revisar', tipo:'presupuesto', id:String(window.SV_BUDGET_NOTICES_LOCAL===true?p.fbKey:p.id) },
+         });
+       }
+ 
+@@ -55851,7 +55857,7 @@ function generarNotificaciones() {
+           titulo: 'Presupuesto aprobado — ' + p.id,
+           sub: p.cliente + ' — Ya podés imprimirlo, enviarlo al cliente o convertirlo en venta.',
+           tiempo: 'Aprobado por ' + (p.aprobadoPor || 'Administración'),
+-          accion: { label:'Abrir presupuesto', tipo:'presupuesto', id:String(p.id) },
++          accion: { label:'Abrir presupuesto', tipo:'presupuesto', id:String(window.SV_BUDGET_NOTICES_LOCAL===true?p.fbKey:p.id) },
+         });
+       }
+ 
+@@ -55880,7 +55886,7 @@ function generarNotificaciones() {
+           titulo: 'Presupuesto ' + p.id + (dias === 0 ? ' vence hoy' : ' vence en ' + dias + ' día' + (dias === 1 ? '' : 's')),
+           sub: p.cliente + ' — $' + (parseFloat(p.total)||0).toLocaleString('es-AR') + '. Estado: ' + (pptoEstadoLabel(p.estado)) + '.',
+           tiempo: 'Hoy · Sistema',
+-          accion: { label:'Ver presupuesto', tipo:'presupuesto', id:String(p.id) },
++          accion: { label:'Ver presupuesto', tipo:'presupuesto', id:String(window.SV_BUDGET_NOTICES_LOCAL===true?p.fbKey:p.id) },
+         });
+       }
+ 
+@@ -55899,7 +55905,7 @@ function generarNotificaciones() {
+             titulo: 'Sin respuesta — Presupuesto ' + p.id,
+             sub: p.cliente + ' — Enviado el ' + fechaEnvioNotif.toLocaleDateString('es-AR') + '. Sin confirmación del cliente.',
+             tiempo: 'Hace ' + diasSinRespuesta + ' día' + (diasSinRespuesta === 1 ? '' : 's') + ' · Sistema',
+-            accion: { label:'Ver presupuesto', tipo:'presupuesto', id:String(p.id) },
++            accion: { label:'Ver presupuesto', tipo:'presupuesto', id:String(window.SV_BUDGET_NOTICES_LOCAL===true?p.fbKey:p.id) },
+           });
+         }
+       }
+
+diff --git a/js/modules/notifications.js b/js/modules/notifications.js
+index d39bdf0e..997f666c 100644
+--- a/js/modules/notifications.js
++++ b/js/modules/notifications.js
+@@ -377,6 +377,7 @@
+     refreshNotifUI();
+   };
+   window.abrirPresupuestoDesdeNotificacion = function(id){
++    if(window.SV_BUDGET_NOTICES_LOCAL===true){if(window._svBudgetNoticeDetailHost)return window._svBudgetNoticeDetailHost.open(id);global.notify?.('No está disponible la apertura puntual de presupuestos.');return false;}
+     var presupuesto = typeof global.buscarPptoPorRef==='function' ? global.buscarPptoPorRef(id) : null;
+     if(typeof global.buscarPptoPorRef==='function' && !presupuesto){
+       if(typeof notify==='function') notify('El presupuesto relacionado ya no está disponible.');
+
+diff --git a/js/core/data-readiness.js b/js/core/data-readiness.js
+index 58ff00ed..4ed49aae 100644
+--- a/js/core/data-readiness.js
++++ b/js/core/data-readiness.js
+@@ -73,8 +73,9 @@
+     agenda:['agenda','ordenes_trabajo'],caja:['caja'],
+     historialcliente:['clientes','ventas','pagos','presupuestos','ordenes_trabajo','equipos','tickets','reclamos']
+   };
+-  var labels={historyPointDetail:'el detalle solicitado',ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
++  var labels={budgetNoticeDetail:'el presupuesto solicitado',historyPointDetail:'el detalle solicitado',ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
+   function requirements(page){
++    if(global.SV_BUDGET_NOTICES_LOCAL===true&&global._svBudgetNoticeDetailHost?.claimsPointView(page))return ['budgetNoticeDetail'];
+     if(global.SVClientHistoryOriginalRuntime?.claimsPointView(page)===true)return ['historyPointDetail'];
+     if(page==='historialcliente'&&global.SVClientHistoryRuntime?.claimed===true)return ['historialcliente'];
+     var keys=global.SVCommercialFormData?.requirements(page)||(dependencies[page]||[]).slice();

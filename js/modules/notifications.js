@@ -377,6 +377,7 @@
     refreshNotifUI();
   };
   window.abrirPresupuestoDesdeNotificacion = function(id){
+    if(window.SV_BUDGET_NOTICES_LOCAL===true){if(window._svBudgetNoticeDetailHost)return window._svBudgetNoticeDetailHost.open(id);global.notify?.('No está disponible la apertura puntual de presupuestos.');return false;}
     var presupuesto = typeof global.buscarPptoPorRef==='function' ? global.buscarPptoPorRef(id) : null;
     if(typeof global.buscarPptoPorRef==='function' && !presupuesto){
       if(typeof notify==='function') notify('El presupuesto relacionado ya no está disponible.');

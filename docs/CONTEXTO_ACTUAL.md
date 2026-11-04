@@ -1,3 +1,13 @@
+## Avisos → detalle puntual · integrado local, flag OFF
+
+Se importaron los cinco archivos dea08b73aa, el delta026ab1dd(dataEpoch obligatorio/firma/visibilidad) y el patch84715868. El patch originala08 era corrupto por nueve blancos de contexto sin prefijo: git apply rechazó antes de cambiar app; se conserva ese antecedente, no se lo presenta como aplicado. La versión847 pasó git apply --check y se aplicó a appv3.19.3, notifications y Readiness intactos frentea53b8. No se sustituyeron fuentes enteras ni se alteró el transporte REST ya integrado.
+
+El host de detalle se instala explícitamente y exige SV_BUDGET_NOTICES_LOCAL=true; todavía no se carga desde index ni se conecta Source.peek(notices). Abrir usa un GET autorizado porfbKey, no inserta el original en pptoData ni completa la colección. Acciones de editar esperan sus fuentes propias y permisos. Cambiar sesión/época/autoridad retira respuestas; ocultar con la misma autoridad conserva el detalle, sin apertura nueva de fondo ni relectura por reloj. Son hooks locales apagados, no aceptación del Dashboard completo.
+
+Root repitió9del helper+28Source/Readiness:37PASS,0FAIL/SKIP. Luego Chrome headless sobre HTML/app integrados dio5PASS,0FAIL/SKIP, con GET/authorize/visibleRecordsByIds reales sobre backend ficticio; no ejecuta indexservidor ni Auth real. Casos1280/390, key con apóstrofo, edición/retorno por teclado,403/404, salida durante GET y visibilitychange. Las capturas notice-point-1280/390 fueron inspeccionadas; el tema claro pertenece al fixture, no se cambió CSS ni preferencia real. Log dashboard-notice-native-integrated-root.private.log. No es minimizar físico delSO ni prueba de todos los formularios.
+
+Siguiente paso: freeze de esta unidad con QA independiente y posterior cableado de los consumidores de Source/agregador, conservando la métrica Mis ventas por creador como pendiente explícita. Sin recarga del usuario, publicación, operaciones reales o push.
+
 ## Verificaciones adicionales sobre85d0e730
 
 Regresión acotada del store/runtime/eliminación con datos ficticios: primera corrida7PASS,1FAIL(fetch local en primera llamada antes del guard),20SKIP. Repetición idéntica con loopback permitido:8PASS,0FAIL,20SKIP. No se editaron expectativas ni fuentes para repetir. Logs dashboard-rest-store-regression-root.private.log y dashboard-rest-store-regression-root-loopback.private.log; los20 casos de emulador no ejecutados no se presentan como aprobados.
