@@ -1,3 +1,7 @@
+## Últimas ventas personales · entrega aislada Pages
+
+Pertenencia scope/creatorHash/mes crudo mantenida por delta y helper servidor sin originales; lee metadata del grupo y hasta cinco filas Pages. Orden raw locale explícito, loader real/ts; empate de entrada no probado o locale no certificado retira sólo esta capacidad. 54 focales PASS, sin general/UI/producción ni activación. Base contador d5afe8ce; handoff y límites en docs/DASHBOARD_CREATOR_LATEST_PAGES.md. Hist conserva lector/HTTP/agregado; root integra hunks de modelo y helper, no el checkout completo.
+
 ## Delta de transición actividad · OFF estable, ON sin fallback
 
 Sobre 2bc44c5a, renderer nuevo sólo con SV_DASHBOARD_READS_LOCAL === true. OFF/ausente/valores no booleanos ejecutan la implementación legacy privada preservada de9779d059, sin consultar slot ni Core. ON missing/error/autoridad retirada nunca accede a arrays ni vuelve a legacy. No se activa el flag, no se crea otro host y no se modifica app/index/root. El oracle de fechas existente permanece intacto.
