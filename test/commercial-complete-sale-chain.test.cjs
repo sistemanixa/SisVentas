@@ -9,6 +9,7 @@ const {createCommissionGeneration}=require('../cotizador/commission-generation')
 const Pages=require('../cotizador/commercial-pages-model');
 const Accounts=require('../cotizador/client-account-projection');
 const History=require('../cotizador/client-history-model');
+const {create:createReportRead}=require('../js/core/commercial-report-read.v1');
 
 // One memory database is retained across the whole chain. No source is rebuilt
 // between stages: each command must maintain the actual coordinated projections.
@@ -44,10 +45,22 @@ test('create, consult, collect, commission, account and report share one coordin
   assert.equal(actual.responsableUid,'u');assert.equal(actual.empleadoFbKey,'e');
  }
  function noPrematureCommission(){assert.deepEqual(f.get('sisventas/gastos'),{});assert.equal(Object.values(f.get('sisventas/ctaemp/e')||{}).filter(m=>m.tipo==='comision').length,0);}
- verify(0);assert.notEqual((await generate()).status,'generada');noPrematureCommission();
+ async function verifyReport(paid){
+  const calls=[],events=[],root={currentRole:'admin',currentUserUid:'u',fbAuth:{currentUser:{uid:'u'}},fbDB:{},PERMISOS_ROLES:{admin:{indiceRevision:1}},document:{hidden:false},permisoModulo:()=>true,svPuedeLeerDominio:()=>true,
+   fbRef:(_,path)=>path,fbQuery:(path,...args)=>({path,args}),fbOrderByKey:()=>({order:true}),fbStartAt:start=>({start}),fbEndAt:end=>({end}),fbLimitToFirst:limit=>({limit}),SVDataReadiness:{beginSource:()=>({ready:()=>events.push('ready'),error:()=>events.push('error'),cancel:()=>events.push('cancel')})}};
+  root.fbGet=async query=>{const path=typeof query==='string'?query:query.path;calls.push(query);assert.notEqual(path,'sisventas/ventas');assert.notEqual(path,'sisventas/pagos');let value=f.get(path);
+   if(typeof query!=='string'){const start=query.args.find(a=>a.start!==undefined)?.start||'',end=query.args.find(a=>a.end!==undefined)?.end||'\uf8ff',limit=query.args.find(a=>a.limit)?.limit;value=Object.fromEntries(Object.entries(value||{}).filter(([key])=>key>=start&&key<=end).sort(([a],[b])=>a.localeCompare(b)).slice(0,limit));}return{val:()=>structuredClone(value)};};
+  const before=structuredClone(f.state),commits=f.commits.length;
+  const result=await createReportRead(root).load({page:'reportes',from:'2026-10-01',to:'2026-10-31',expenses:false,payments:{from:'2026-10-01',to:'2026-10-31'}});
+  assert.equal(result.sales.length,1);assert.equal(result.sales[0].total,100);assert.equal(result.sales[0].items[0].costoUnitarioCompra,20);assert.equal(result.sales[0]._svReportPaidCents,paid);
+  assert.equal(Math.round(result.payments.reduce((n,p)=>n+p.monto,0)*100),paid);assert.equal(result.meta.debtCents,10000-paid);
+  assert.deepEqual(events,['ready','cancel']);assert.deepEqual(f.state,before);assert.equal(f.commits.length,commits);
+  assert(calls.filter(q=>q.path?.includes('/pages/')).every(q=>q.args.some(a=>a.limit===50)));
+ }
+ verify(0);await verifyReport(0);assert.notEqual((await generate()).status,'generada');noPrematureCommission();
  for(const [id,amount,paid]of [['partial',40,4000],['final',60,10000]]){
   const command={id:'chain-'+id,kind:'registrar',opciones:{grupoPago:'chain-group-'+id,solicitudes:[{ventaFbKey:'chain',pagoKey:'chain-payment-'+id,monto:amount,pago:{fecha:'2026-10-20',usuario:'Cobrador ficticio',ts:1792530000000}}],montoTotal:amount}};
-  assert.equal((await payments.execute(actor,command)).committed,true);verify(paid);
+  assert.equal((await payments.execute(actor,command)).committed,true);verify(paid);await verifyReport(paid);
   const commits=f.commits.length;await payments.execute(actor,structuredClone(command));assert.equal(f.commits.length,commits);verify(paid);
   if(id==='partial'){assert.notEqual((await generate()).status,'generada');noPrematureCommission();}
  }
