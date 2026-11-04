@@ -1,3 +1,13 @@
+## Guardado común de Presupuestos y cabeceras · integración local
+
+Se fusionaron selectivamente 848064e4 (renovación de política con ownership equivalente) y a1632534 (cabeceras UID). Se conservaron noticeEligible, noticeCandidates y el esquema de avisos del bloque root; no se sustituyó Index.plan completo por una copia anterior. El DTO conserva 23 campos y comprueba el proof del objeto completo de estadísticas, incluidos campos nuevos. Cambiar UID/alias efectivos mantiene la reconciliación explícita; no reasigna históricos por nombres ni cambia comisiones.
+
+Se agregó dashboard-budget-writer-proposal como proyector opt-in inyectado en createLaborGuard. El guard lo ejecuta después de las proyecciones comerciales y antes del commit; mantiene original, cobertura, contadores y headers en una sola escritura. Con el plugin activo, la llamada de negocio no puede fabricar campos de esa rama derivada. Sin plugin se conserva el comportamiento previo y no se incorpora una dependencia nueva al contenedor activo. No se añadió otro bloqueo, recibo ni servicio.
+
+233 focales/regresiones PASS, cero FAIL/SKIP: presupuesto/actividad/avisos/política/headers, guard común, escrituras coordinadas, integración de cobros y dependencias de contenedor. Incluye seis casos nuevos del plugin: atomicidad, reintento, rechazo de metadata fabricada y reemplazo padre, retiro por permisos, carrera y preparación incompleta. Log privado dashboard-budget-writer-joined-focus.private.log. No sustituye la puerta completa conjunta ni la prueba nativa de lector después de mutar, que sigue asignada separadamente.
+
+El montaje sigue pendiente de cerrar la paridad del centro de avisos: sentDay y el fallback id || numero no reproducen ciertos históricos. No se acepta conectar un adaptador que los marque por defecto como correctos. Los otros proveedores de actividad también se revisan por consistencia de la preparación y concurrencia. No se actualizó la app visible, datos reales, reglas remotas, Hosting o main.
+
 ## Avisos de Presupuestos completos y acotados · preparación local
 
 El índice agrega noticeEligible por alcance y noticeCandidates plano con claves k_ + UTF16, mantenidos en el mismo Index.plan que el original. Esto evita el orden numérico especial de RTDB y limita cada consulta a 50 filas. noticeCandidateSchema 1 exige preparación explícita: un índice antiguo no se interpreta como vacío. La proyección omite fotos, ítems, costos y hash del original. Lectura administrativa completa comprueba stats/all contra coverage.records; los alcances propios vacíos requieren la certificación scopeAbsenceIsZero vigente.

@@ -68,8 +68,9 @@ function ownerAfter(original,previous){
  if(!['creadoPor','usuario','empleado'].some(k=>original[k]))return '';
  check(previous&&previous.ownershipHash===ownershipHash(original),'New or changed legacy owner needs explicit reconciliation');return previous.ownerUid;
 }
-async function plan({patch,raw,get,generation,revision,beforeCommit,projectRecord}={}){
+async function plan({patch,raw,get,generation,revision,beforeCommit,projectRecord,allowPolicyRenewal=false}={}){
  check(object(patch)&&typeof raw==='function'&&typeof get==='function'&&typeof beforeCommit==='function'&&key(generation)&&Number.isSafeInteger(revision)&&revision>=1,'Missing guard-bound planner contract');
+ check(typeof allowPolicyRenewal==='boolean','Explicit policy renewal proposal flag required');
  const paths=Object.keys(patch);
  check(!paths.some(p=>p===''||[ORIGINAL,...AUTHORITY].some(root=>root.startsWith(p+'/'))),'Parent replacement intersects maintained originals or authority');
  check(!paths.some(p=>p===ROOT||p.startsWith(ROOT+'/')||ROOT.startsWith(p+'/')),'Caller cannot write proposed derived metadata');
@@ -95,7 +96,22 @@ async function plan({patch,raw,get,generation,revision,beforeCommit,projectRecor
  const policy=await raw(ROOT+'/policy');check(policy?.hash===coverage.policyHash,'Authority policy needs reconciliation');const next=structuredClone(coverage),derived={},captured=[];
  const revisionNext=revision+1;check(Number.isSafeInteger(revisionNext),'Revision exhausted');
  beforeCommit(async({readFresh})=>{check(stable(await readFresh(ROOT+'/coverage'))===stable(coverage)&&stable(await readFresh(ROOT+'/policy'))===stable(policy),'Coverage/policy changed before commit');for(const [path,hash]of captured)check(stable(await readFresh(path))===hash,'Original changed before commit');});
- if(authorityChange){derived[ROOT+'/coverage']={...next,ready:false,revision:revisionNext,requiresReconciliation:true};return {patch:derived,maintained:false,requiresReconciliation:true,activationAuthorized:false};}
+ let policyRenewed=false;
+ if(authorityChange&&allowPolicyRenewal){
+  const beforeAuthority={},afterAuthority={},names=['users','identities','permissions'];
+  for(let i=0;i<AUTHORITY.length;i++){beforeAuthority[names[i]]=await raw(AUTHORITY[i]);afterAuthority[names[i]]=await get(AUTHORITY[i]);}
+  const beforePolicyHash=Policy.hash(beforeAuthority);
+  check(beforePolicyHash===coverage.policyHash,'Current authority is not covered; explicit reconciliation required');
+  beforeCommit(async({readFresh})=>{
+   const fresh={};for(let i=0;i<AUTHORITY.length;i++)fresh[names[i]]=await readFresh(AUTHORITY[i]);
+   check(Policy.hash(fresh)===beforePolicyHash,'Authority changed before policy renewal commit');
+  });
+  // Never rehabilitate an already retired generation by changing only its header.
+  if(coverage.ready===true&&coverage.requiresReconciliation!==true&&Policy.ownershipHash(beforeAuthority)===Policy.ownershipHash(afterAuthority)){
+   next.policyHash=Policy.hash(afterAuthority);derived[ROOT+'/policy']={...policy,hash:next.policyHash};policyRenewed=true;
+  }
+ }
+ if(authorityChange&&!policyRenewed){derived[ROOT+'/coverage']={...next,ready:false,revision:revisionNext,requiresReconciliation:true};return {patch:derived,maintained:false,requiresReconciliation:true,activationAuthorized:false};}
  const deltas=new Map(),monthDeltas=new Map();
  for(const id of ids){
   const path=ORIGINAL+'/'+id,sourcePath=ROOT+'/sources/'+id,[beforeRaw,afterRaw,storedPrevious]=await Promise.all([raw(path),get(path),raw(sourcePath)]),before=normalizeRtdb(beforeRaw),after=normalizeRtdb(afterRaw),previous=storedPrevious?{...storedPrevious,row:{ts:null,dueDay:null,sentDay:null,amount:null,...storedPrevious.row}}:null;captured.push([path,stable(before)],[sourcePath,stable(storedPrevious)]);
@@ -125,7 +141,7 @@ async function plan({patch,raw,get,generation,revision,beforeCommit,projectRecor
   const result={...stats,revision:revisionNext,records:stats.records+delta.records,converted:stats.converted+delta.converted};check(Number.isSafeInteger(result.records)&&Number.isSafeInteger(result.converted)&&result.records>=0&&result.converted>=0&&result.converted<=result.records,'Month bucket counts invalid');derived[path]=result;derived[proofPath]=stable(result);
  }
  check(next.records>=0&&next.unresolvedOwners>=0&&next.unresolvedOwners<=next.records,'Global coverage counts inconsistent');next.revision=revisionNext;derived[ROOT+'/coverage']=next;
- return {patch:derived,maintained:true,activationAuthorized:false,originalWrites:0,recovery:'existing-sv_labor_receipts'};
+ return {patch:derived,maintained:true,activationAuthorized:false,originalWrites:0,recovery:'existing-sv_labor_receipts',...(policyRenewed?{policyRenewed:true,requiresReadViewRefresh:true,policyHash:next.policyHash}:{})};
 }
 // authorize is the future handler's fresh server authorization, never caller-supplied scope/role.
 // query must execute an ordered, exclusive-cursor RTDB key query and return snapshot children.
