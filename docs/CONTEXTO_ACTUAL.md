@@ -1,3 +1,8 @@
+## Inicio: sustitución de colección presupuestos y época real
+
+Plan de inicio excluye sólo presupuestos cuando ambos flagsnuevos sontrue y todos sus consumidores declarados son los ya adaptados(metrics/activity/recentActivity). Un consumidor futuro noadaptado conserva fuente; con flagOFF o sólo unflag no cambia camino estable. El host sigue demandando resumen acotado y avisos aparte; listas/formularios explícitos conservan suscargadores. No se retiran ventas/pagos/OT que aún tenganconsumidores sin migrar ni se certifica ahorroglobal.
+
+svCapturarContextoCargaDashboard agrega snapshotEpoch real deReadiness a su identidad, conservando camposanteriores: antes dependía de_svDataEpoch sin escritorcomprobado. Prueba con engine real reset y mismoAuth/UID retira identidad sin inventarcontador.39startuppruebasPASS,0FAIL/SKIP; log dashboard-budget-startup-substitution-final.private.log. Falta repetir navegadorfull sobreestafuentefinal; flagsOFF y ventanausuario sinrecarga. Sin producción/operacionesreales/push.
 ## Pages: productor de contador mensual por creador
 
 Importadoc8e713c9 por diffacotado del modelo y testpropio; no se copió el writer deotrofrente. Cada fila preserva evidencia mínima del creador textual exacto y mescrudo; totales existentes por alcance cuentan también anuladas, sin cambiar authorvisible/owner/finanzas. Capacidad tiene marcador/cardinalidad; metadataantigua no se certifica como cero. No nueva raíz, endpoint o índice; todavía falta lector/DTO/host y últimas5ventaspersonales.

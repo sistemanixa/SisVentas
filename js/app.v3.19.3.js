@@ -6288,7 +6288,7 @@ function svCapturarContextoCargaDashboard() {
   var user=window.fbAuth?.currentUser,view=window._impersonacionOriginal;
   var visible=document.hidden!==true&&window.SVForegroundSession?.isVisible?.()!==false;
   var authenticated=isAuthenticated===true&&!!currentUserUid&&!!user&&user.uid===currentUserUid;
-  var signature=JSON.stringify([currentUserUid,currentRole,window.PERMISOS_ROLES?.[currentRole]||null,window._svOperacionesSesionEpoch||0,window._svDataEpoch||0,page,visible,authenticated]);
+  var signature=JSON.stringify([currentUserUid,currentRole,window.PERMISOS_ROLES?.[currentRole]||null,window._svOperacionesSesionEpoch||0,window._svDataEpoch||0,window.SVDataReadiness?.snapshotEpoch?.()??null,page,visible,authenticated]);
   if(cache.scope&&cache.signature===signature&&cache.user===user&&cache.view===view)return cache.scope;
   var directoryAllowed=authenticated&&['admin','administrativo','vendedor','tecnico_vendedor','tecnico'].includes(rolActualNormalizado());
   var can=function(action){return window.tienePermiso(action)===true;};
@@ -6303,6 +6303,7 @@ function svPlanInicioDashboard() {
   var options = scope.options || scope;
   var selected = window.SVDashboardStartupDemand.plan(options);
   var sources = selected.sources.slice();
+  if(window.SV_DASHBOARD_READS_LOCAL===true&&window.SV_BUDGET_NOTICES_LOCAL===true&&selected.reasons.presupuestos?.every(function(consumer){return ['metrics','activity','recentActivity'].includes(consumer);}))sources=sources.filter(function(source){return source!=='presupuestos';});
   // Preserve the existing alias/group contract until full parity proves it dispensable.
   if (sources.includes('clientes') && !sources.includes('clientes_unificados')) sources.push('clientes_unificados');
   return { scope:scope, options:options, selected:selected, sources:sources };
