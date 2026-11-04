@@ -1,0 +1,539 @@
+{
+  "provenance": {
+    "commit": "e24fa2b89ec6c11130f1417e0eb4fc5a871247b7",
+    "fictitious": true,
+    "readers": {
+      "cotizador/dashboard-budget-activity-reader-proposal.js": "a57809f02e681e165661eaa27f81f8d88516aa2bf3b7ce3b7c0e48c8f6eafae3",
+      "cotizador/dashboard-budget-notice-candidates-proposal.js": "74efbe9c24ee41d3d683ca189b1177df5e71bdd2b7ab9711f20e0065effae904",
+      "cotizador/dashboard-commercial-activity-reader-proposal.js": "3225589f91ee3e3c8c844f26866f73a7ae38f60812d59426559993a2665da66f",
+      "cotizador/index.js": "9c021a523e4194afdd77c5b0725c95abda955f3879f178724133d231c102d25b"
+    }
+  },
+  "context": {
+    "uid": "u",
+    "role": "vendedor",
+    "permissionRevision": 7,
+    "permissionSignature": "a40c68c5bac9dfa2249376f826e27368895e10a07f379eb72466f7b41dc0e640",
+    "sessionEpoch": 1,
+    "dataEpoch": 1,
+    "connectionEpoch": 1,
+    "connected": true,
+    "timeZone": "America/Buenos_Aires",
+    "sourceLocale": "es-AR",
+    "month": "2026-11",
+    "asOfDay": "2026-11-04",
+    "employeeLabel": "u",
+    "grants": {
+      "ventas": "own",
+      "pagos": "own",
+      "ordenes_trabajo": "all",
+      "presupuestos": "own"
+    }
+  },
+  "responses": {
+    "/commercial/dashboard/presupuestos/actividad-v2": {
+      "schema": 2,
+      "proposal": true,
+      "uid": "u",
+      "role": "vendedor",
+      "permissionRevision": 7,
+      "scope": "own",
+      "generation": "budget-aggregate-generation",
+      "revision": 1,
+      "counts": {
+        "active": 4,
+        "converted": 3,
+        "totalNonCancelled": 7,
+        "conversionPercent": 43
+      },
+      "recent": {
+        "schema": 2,
+        "domain": "presupuestos",
+        "kind": "verified-legacy-instant-prefix",
+        "scope": "own",
+        "generation": "budget-aggregate-generation",
+        "revision": 1,
+        "order": "legacy-ms-desc/stable-key-utf16-v3",
+        "timeZone": "America/Buenos_Aires",
+        "sourceLocale": "es-AR",
+        "fromStart": true,
+        "filter": "legacy-ms-truthy",
+        "exhausted": false,
+        "rows": [
+          {
+            "key": "b14",
+            "date": "2026-11-04",
+            "ms": 2014,
+            "sort": "3f6087ffffffffff_006200310034",
+            "number": "PP-14",
+            "client": "Ficticio",
+            "status": "borrador",
+            "ownerUid": "u",
+            "amountCents": null
+          },
+          {
+            "key": "b12",
+            "date": "2026-11-04",
+            "ms": 2012,
+            "sort": "3f608fffffffffff_006200310032",
+            "number": "PP-12",
+            "client": "Ficticio",
+            "status": "convertido",
+            "ownerUid": "u",
+            "amountCents": null
+          },
+          {
+            "key": "b10",
+            "date": "2026-11-04",
+            "ms": 2010,
+            "sort": "3f6097ffffffffff_006200310030",
+            "number": "PP-10",
+            "client": "Ficticio",
+            "status": "anulado",
+            "ownerUid": "u",
+            "amountCents": null
+          },
+          {
+            "key": "b8",
+            "date": "2026-11-04",
+            "ms": 2008,
+            "sort": "3f609fffffffffff_00620038",
+            "number": "PP-8",
+            "client": "Ficticio",
+            "status": "borrador",
+            "ownerUid": "u",
+            "amountCents": null
+          },
+          {
+            "key": "b6",
+            "date": "2026-11-04",
+            "ms": 2006,
+            "sort": "3f60a7ffffffffff_00620036",
+            "number": "PP-6",
+            "client": "Ficticio",
+            "status": "convertido",
+            "ownerUid": "u",
+            "amountCents": null
+          }
+        ]
+      },
+      "badge": {
+        "asOfDay": "2026-11-04",
+        "horizon": "2026-11-06",
+        "badgeCount": 4,
+        "upcoming48Count": 4,
+        "complete": true,
+        "contract": "legacy-raw-lex/v1"
+      },
+      "monthly": {
+        "schema": 1,
+        "uid": "u",
+        "role": "vendedor",
+        "permissionRevision": 7,
+        "generation": "budget-aggregate-generation",
+        "revision": 1,
+        "policyHash": "07d670ff1337a9c3026be1ca6517176419727d7fdfa0fb8fe40cbac379a76ca2",
+        "scope": "u_u",
+        "month": "2026-11",
+        "employeeLabel": "u",
+        "records": 6,
+        "converted": 2,
+        "conversionPercent": 33,
+        "bucketRevision": 1,
+        "absenceCertified": false,
+        "complete": true
+      },
+      "notificationCenterComplete": false,
+      "mixedActivityComplete": false
+    },
+    "/commercial/dashboard/presupuestos/avisos": {
+      "schema": 1,
+      "uid": "u",
+      "role": "vendedor",
+      "permissionRevision": 7,
+      "scope": "own",
+      "generation": "budget-aggregate-generation",
+      "revision": 1,
+      "complete": true,
+      "rows": [
+        {
+          "key": "b14",
+          "ownerUid": "u",
+          "number": "PP-14",
+          "client": "Ficticio",
+          "status": "borrador",
+          "date": "2026-11-04",
+          "ts": 2014,
+          "employeeLabel": "otro",
+          "dueRaw": "2026-11-05",
+          "dueDay": "2026-11-05",
+          "sentDay": null,
+          "admits": true,
+          "approvalStamp": "",
+          "approvedBy": "",
+          "reason": "",
+          "amount": null,
+          "noticeLegacy": {
+            "sentTs": null,
+            "schema": 1,
+            "idPresent": true,
+            "idValue": "PP-14",
+            "sentRaw": "",
+            "auditSentRaw": ""
+          }
+        },
+        {
+          "key": "b2",
+          "ownerUid": "u",
+          "number": "PP-2",
+          "client": "Ficticio",
+          "status": "borrador",
+          "date": "2026-11-04",
+          "ts": 2002,
+          "employeeLabel": "u",
+          "dueRaw": "2026-11-05",
+          "dueDay": "2026-11-05",
+          "sentDay": null,
+          "admits": true,
+          "approvalStamp": "",
+          "approvedBy": "",
+          "reason": "",
+          "amount": null,
+          "noticeLegacy": {
+            "sentTs": null,
+            "schema": 1,
+            "idPresent": true,
+            "idValue": "PP-2",
+            "sentRaw": "",
+            "auditSentRaw": ""
+          }
+        },
+        {
+          "key": "b4",
+          "ownerUid": "u",
+          "number": "PP-4",
+          "client": "Ficticio",
+          "status": "borrador",
+          "date": "2026-11-04",
+          "ts": 2004,
+          "employeeLabel": "u",
+          "dueRaw": "2026-11-05",
+          "dueDay": "2026-11-05",
+          "sentDay": null,
+          "admits": true,
+          "approvalStamp": "",
+          "approvedBy": "",
+          "reason": "",
+          "amount": null,
+          "noticeLegacy": {
+            "sentTs": null,
+            "schema": 1,
+            "idPresent": true,
+            "idValue": "PP-4",
+            "sentRaw": "",
+            "auditSentRaw": ""
+          }
+        },
+        {
+          "key": "b8",
+          "ownerUid": "u",
+          "number": "PP-8",
+          "client": "Ficticio",
+          "status": "borrador",
+          "date": "2026-11-04",
+          "ts": 2008,
+          "employeeLabel": "u",
+          "dueRaw": "2026-11-05",
+          "dueDay": "2026-11-05",
+          "sentDay": null,
+          "admits": true,
+          "approvalStamp": "",
+          "approvedBy": "",
+          "reason": "",
+          "amount": null,
+          "noticeLegacy": {
+            "sentTs": null,
+            "schema": 1,
+            "idPresent": true,
+            "idValue": "PP-8",
+            "sentRaw": "",
+            "auditSentRaw": ""
+          }
+        }
+      ]
+    },
+    "/commercial/dashboard/ventas/actividad-v2": {
+      "schema": 2,
+      "proposal": true,
+      "uid": "u",
+      "role": "vendedor",
+      "permissionRevision": 7,
+      "recent": {
+        "schema": 2,
+        "domain": "ventas",
+        "kind": "verified-legacy-instant-prefix",
+        "scope": "own",
+        "generation": "activity-fixture",
+        "revision": 1,
+        "order": "legacy-ms-desc/stable-key-utf16-v3",
+        "timeZone": "America/Buenos_Aires",
+        "sourceLocale": "es-AR",
+        "fromStart": true,
+        "filter": "legacy-ms-truthy",
+        "exhausted": false,
+        "rows": [
+          {
+            "key": "s0126",
+            "date": "04/11/2026",
+            "ms": 1126,
+            "sort": "3f6e67ffffffffff_00730030003100320036",
+            "number": "V-126",
+            "client": "Ficticio",
+            "status": "seniado",
+            "ownerUid": "u",
+            "amountCents": 12345
+          },
+          {
+            "key": "s0124",
+            "date": "04/11/2026",
+            "ms": 1124,
+            "sort": "3f6e6fffffffffff_00730030003100320034",
+            "number": "V-124",
+            "client": "Ficticio",
+            "status": "seniado",
+            "ownerUid": "u",
+            "amountCents": 12345
+          },
+          {
+            "key": "s0122",
+            "date": "04/11/2026",
+            "ms": 1122,
+            "sort": "3f6e77ffffffffff_00730030003100320032",
+            "number": "V-122",
+            "client": "Ficticio",
+            "status": "seniado",
+            "ownerUid": "u",
+            "amountCents": 12345
+          },
+          {
+            "key": "s0120",
+            "date": "04/11/2026",
+            "ms": 1120,
+            "sort": "3f6e7fffffffffff_00730030003100320030",
+            "number": "V-120",
+            "client": "Ficticio",
+            "status": "seniado",
+            "ownerUid": "u",
+            "amountCents": 12345
+          },
+          {
+            "key": "s0118",
+            "date": "04/11/2026",
+            "ms": 1118,
+            "sort": "3f6e87ffffffffff_00730030003100310038",
+            "number": "V-118",
+            "client": "Ficticio",
+            "status": "seniado",
+            "ownerUid": "u",
+            "amountCents": 12345
+          }
+        ]
+      },
+      "coverage": {
+        "records": 64,
+        "eligible": 64,
+        "excluded": 0
+      },
+      "mixedActivityComplete": false,
+      "notificationCenterComplete": false
+    },
+    "/commercial/dashboard/pagos/actividad-v2": {
+      "schema": 2,
+      "proposal": true,
+      "uid": "u",
+      "role": "vendedor",
+      "permissionRevision": 7,
+      "recent": {
+        "schema": 2,
+        "domain": "pagos",
+        "kind": "verified-legacy-instant-prefix",
+        "scope": "own",
+        "generation": "activity-fixture",
+        "revision": 1,
+        "order": "legacy-ms-desc/stable-key-utf16-v3",
+        "timeZone": "America/Buenos_Aires",
+        "sourceLocale": "es-AR",
+        "fromStart": true,
+        "filter": "legacy-not-annulled",
+        "exhausted": false,
+        "rows": [
+          {
+            "key": "p0126",
+            "date": "04/11/2026",
+            "ms": 1126,
+            "sort": "3f6e67ffffffffff_00700030003100320036",
+            "number": "V-126",
+            "client": "Ficticio",
+            "status": "",
+            "ownerUid": "u",
+            "amountCents": 1234
+          },
+          {
+            "key": "p0124",
+            "date": "04/11/2026",
+            "ms": 1124,
+            "sort": "3f6e6fffffffffff_00700030003100320034",
+            "number": "V-124",
+            "client": "Ficticio",
+            "status": "",
+            "ownerUid": "u",
+            "amountCents": 1234
+          },
+          {
+            "key": "p0122",
+            "date": "04/11/2026",
+            "ms": 1122,
+            "sort": "3f6e77ffffffffff_00700030003100320032",
+            "number": "V-122",
+            "client": "Ficticio",
+            "status": "",
+            "ownerUid": "u",
+            "amountCents": 1234
+          },
+          {
+            "key": "p0120",
+            "date": "04/11/2026",
+            "ms": 1120,
+            "sort": "3f6e7fffffffffff_00700030003100320030",
+            "number": "V-120",
+            "client": "Ficticio",
+            "status": "",
+            "ownerUid": "u",
+            "amountCents": 1234
+          },
+          {
+            "key": "p0118",
+            "date": "04/11/2026",
+            "ms": 1118,
+            "sort": "3f6e87ffffffffff_00700030003100310038",
+            "number": "V-118",
+            "client": "Ficticio",
+            "status": "",
+            "ownerUid": "u",
+            "amountCents": 1234
+          }
+        ]
+      },
+      "coverage": {
+        "records": 64,
+        "eligible": 64,
+        "excluded": 0
+      },
+      "mixedActivityComplete": false,
+      "notificationCenterComplete": false
+    },
+    "/commercial/dashboard/ordenes_trabajo/actividad-v2": {
+      "schema": 2,
+      "proposal": true,
+      "uid": "u",
+      "role": "vendedor",
+      "permissionRevision": 7,
+      "recent": {
+        "schema": 2,
+        "domain": "ordenes_trabajo",
+        "kind": "verified-legacy-instant-prefix",
+        "scope": "all",
+        "generation": "activity-fixture",
+        "revision": 1,
+        "order": "legacy-ms-desc/stable-key-utf16-v3",
+        "timeZone": "America/Buenos_Aires",
+        "sourceLocale": "es-AR",
+        "fromStart": true,
+        "filter": "legacy-ms-truthy",
+        "exhausted": false,
+        "rows": [
+          {
+            "key": "o0126",
+            "date": "04/11/2026",
+            "ms": 1126,
+            "sort": "3f6e67ffffffffff_006f0030003100320036",
+            "number": "OT-126",
+            "client": "Ficticio",
+            "status": "pendiente",
+            "ownerUid": "",
+            "amountCents": null
+          },
+          {
+            "key": "o0125",
+            "date": "04/11/2026",
+            "ms": 1125,
+            "sort": "3f6e6bffffffffff_006f0030003100320035",
+            "number": "OT-125",
+            "client": "Ficticio",
+            "status": "pendiente",
+            "ownerUid": "",
+            "amountCents": null
+          },
+          {
+            "key": "o0124",
+            "date": "04/11/2026",
+            "ms": 1124,
+            "sort": "3f6e6fffffffffff_006f0030003100320034",
+            "number": "OT-124",
+            "client": "Ficticio",
+            "status": "pendiente",
+            "ownerUid": "",
+            "amountCents": null
+          },
+          {
+            "key": "o0123",
+            "date": "04/11/2026",
+            "ms": 1123,
+            "sort": "3f6e73ffffffffff_006f0030003100320033",
+            "number": "OT-123",
+            "client": "Ficticio",
+            "status": "pendiente",
+            "ownerUid": "",
+            "amountCents": null
+          },
+          {
+            "key": "o0122",
+            "date": "04/11/2026",
+            "ms": 1122,
+            "sort": "3f6e77ffffffffff_006f0030003100320032",
+            "number": "OT-122",
+            "client": "Ficticio",
+            "status": "pendiente",
+            "ownerUid": "",
+            "amountCents": null
+          }
+        ]
+      },
+      "coverage": {
+        "records": 127,
+        "eligible": 127,
+        "excluded": 0
+      },
+      "mixedActivityComplete": false,
+      "notificationCenterComplete": false
+    }
+  },
+  "monthlyOracle": {
+    "schema": 1,
+    "uid": "u",
+    "role": "vendedor",
+    "permissionRevision": 7,
+    "generation": "budget-aggregate-generation",
+    "revision": 1,
+    "policyHash": "07d670ff1337a9c3026be1ca6517176419727d7fdfa0fb8fe40cbac379a76ca2",
+    "scope": "u_u",
+    "month": "2026-11",
+    "employeeLabel": "u",
+    "records": 6,
+    "converted": 2,
+    "conversionPercent": 33,
+    "bucketRevision": 1,
+    "absenceCertified": false,
+    "complete": true
+  }
+}

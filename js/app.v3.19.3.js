@@ -2330,6 +2330,8 @@ function _svMarcarAvisoVencimientoMostrado(p, fecha) {
 
 function verificarVencimientosPptos() {
   if (!_svSesionActivaParaVencimientos()) return;
+  var presupuestosAvisos=window.SV_BUDGET_NOTICES_LOCAL===true?(window._svBudgetNoticeConsumerHost?.peek().rows||null):(pptoData||[]);
+  if(!presupuestosAvisos){var pendiente=document.getElementById('ppto-vence-badge'),resumenAvisos=window._svDashboardBudgetSource?.peek('dashboard').data?.badge;var resumenValido=!!(resumenAvisos&&resumenAvisos.complete===true&&resumenAvisos.contract==='legacy-raw-lex/v1'&&resumenAvisos.asOfDay===svFechaLocalISO(new Date())&&Number.isSafeInteger(resumenAvisos.badgeCount)&&resumenAvisos.badgeCount>=0&&Number.isSafeInteger(resumenAvisos.upcoming48Count)&&resumenAvisos.upcoming48Count>=0&&resumenAvisos.upcoming48Count<=resumenAvisos.badgeCount);if(pendiente){pendiente.textContent=resumenValido?String(resumenAvisos.badgeCount):'';pendiente.style.display=resumenValido&&resumenAvisos.badgeCount>0?'flex':'none';}if(typeof generarNotificaciones==='function')generarNotificaciones();return;}
   var hoy  = new Date();
   var hoyStr = svFechaLocalISO(hoy);
   var en48h  = svFechaLocalISO(new Date(hoy.getTime() + 48*3600*1000));
@@ -2337,7 +2339,7 @@ function verificarVencimientosPptos() {
 
   // La fecha determina la vigencia visible; consultar nunca anula ni guarda.
   // 2. Alertar los que vencen en las próximas 48hs
-  var proximos = (pptoData||[]).filter(function(p){
+  var proximos = presupuestosAvisos.filter(function(p){
     return p.vence && p.vence >= hoyStr && p.vence <= en48h && _pptoAdmiteAvisosNotificacion(p) && estadosActivos.includes(p.estado) && !_svAvisoVencimientoYaMostrado(p, hoyStr);
   });
   if (proximos.length) {
@@ -2348,7 +2350,7 @@ function verificarVencimientosPptos() {
   }
 
   // 3. Actualizar badge en sidebar
-  var totalActivos = (pptoData||[]).filter(function(p){ return _pptoAdmiteAvisosNotificacion(p) && estadosActivos.includes(p.estado) && p.vence && p.vence <= en48h; }).length;
+  var totalActivos = presupuestosAvisos.filter(function(p){ return _pptoAdmiteAvisosNotificacion(p) && estadosActivos.includes(p.estado) && p.vence && p.vence <= en48h; }).length;
   var badge = document.getElementById('ppto-vence-badge');
   if (badge) { badge.style.display = totalActivos > 0 ? 'flex' : 'none'; badge.textContent = totalActivos; }
   // También retirar avisos anteriores cuando el presupuesto se anula, vence
@@ -55843,8 +55845,9 @@ function generarNotificaciones() {
   const hoy   = ahora.toLocaleDateString('es-AR');
   // No se generan alertas de “sin stock” para el catálogo completo. Nixa compra
   // a demanda y los faltantes reales nacen en la lista de materiales de la venta.
-  if (typeof pptoData !== 'undefined') {
-    pptoData.forEach(function(p) {
+  var presupuestosAvisos=window.SV_BUDGET_NOTICES_LOCAL===true?(window._svBudgetNoticeConsumerHost?.peek().rows||null):(typeof pptoData==='undefined'?null:pptoData);
+  if (presupuestosAvisos) {
+    presupuestosAvisos.forEach(function(p) {
       if (!_pptoAdmiteAvisosNotificacion(p)) return;
 
       // La revisión es una tarea exclusiva del administrador.

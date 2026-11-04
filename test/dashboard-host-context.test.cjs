@@ -10,7 +10,7 @@ function fixture(){
  const api=Context.create(r,{now:()=>new Date('2026-11-01T01:00:00Z')});return {r,api,modules};
 }
 test('capture uses actual readiness generation and explicit business month; aggregate pins remain valid',()=>{
- const {r,api}=fixture(),c=api.capture();assert(c.allowed);assert(api.valid(c));assert.equal(c.asOfDay,'2026-10-31');assert.equal(c.month,'2026-10');assert.equal(c.dataEpoch,r.SVDataReadiness.snapshotEpoch());assert(api.valid(Aggregate.snapshot(c)));r.SVDataReadiness.reset();assert.equal(api.valid(c),false);assert.equal(api.capture().dataEpoch,c.dataEpoch+1);
+ const {r,api}=fixture(),c=api.capture();assert(c.allowed);assert(api.valid(c));assert.equal(c.asOfDay,'2026-10-31');assert.equal(c.month,'2026-10');assert.equal(c.timeZone,new Intl.DateTimeFormat('en-US',{timeZone:c.timeZone}).resolvedOptions().timeZone);assert.equal(c.dataEpoch,r.SVDataReadiness.snapshotEpoch());assert(api.valid(Aggregate.snapshot(c)));r.SVDataReadiness.reset();assert.equal(api.valid(c),false);assert.equal(api.capture().dataEpoch,c.dataEpoch+1);
 });
 test('transport policy is conservative until raw restriction presence and revision are certified',()=>{
  const {r,api}=fixture();assert.equal(api.decision().kind,'authorized-server');r._svDashboardRawBlockedPresence={admin:{revision:7,present:false}};assert.equal(api.decision().kind,'direct-rtdb');r._svDashboardRawBlockedPresence.admin.revision=6;assert.equal(api.decision().kind,'authorized-server');

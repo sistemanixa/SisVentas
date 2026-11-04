@@ -1,0 +1,81 @@
+diff --git a/js/app.v3.19.3.js b/js/app.v3.19.3.js
+index c4203354..778384cf 100644
+--- a/js/app.v3.19.3.js
++++ b/js/app.v3.19.3.js
+@@ -2330,6 +2330,8 @@ function _svMarcarAvisoVencimientoMostrado(p, fecha) {
+ 
+ function verificarVencimientosPptos() {
+   if (!_svSesionActivaParaVencimientos()) return;
++  var presupuestosAvisos=window.SV_BUDGET_NOTICES_LOCAL===true?(window._svBudgetNoticeConsumerHost?.peek().rows||null):(pptoData||[]);
++  if(!presupuestosAvisos){var pendiente=document.getElementById('ppto-vence-badge');if(pendiente){pendiente.textContent='';pendiente.style.display='none';}if(typeof generarNotificaciones==='function')generarNotificaciones();return;}
+   var hoy  = new Date();
+   var hoyStr = svFechaLocalISO(hoy);
+   var en48h  = svFechaLocalISO(new Date(hoy.getTime() + 48*3600*1000));
+@@ -2337,7 +2339,7 @@ function verificarVencimientosPptos() {
+ 
+   // La fecha determina la vigencia visible; consultar nunca anula ni guarda.
+   // 2. Alertar los que vencen en las próximas 48hs
+-  var proximos = (pptoData||[]).filter(function(p){
++  var proximos = presupuestosAvisos.filter(function(p){
+     return p.vence && p.vence >= hoyStr && p.vence <= en48h && _pptoAdmiteAvisosNotificacion(p) && estadosActivos.includes(p.estado) && !_svAvisoVencimientoYaMostrado(p, hoyStr);
+   });
+   if (proximos.length) {
+@@ -2348,7 +2350,7 @@ function verificarVencimientosPptos() {
+   }
+ 
+   // 3. Actualizar badge en sidebar
+-  var totalActivos = (pptoData||[]).filter(function(p){ return _pptoAdmiteAvisosNotificacion(p) && estadosActivos.includes(p.estado) && p.vence && p.vence <= en48h; }).length;
++  var totalActivos = presupuestosAvisos.filter(function(p){ return _pptoAdmiteAvisosNotificacion(p) && estadosActivos.includes(p.estado) && p.vence && p.vence <= en48h; }).length;
+   var badge = document.getElementById('ppto-vence-badge');
+   if (badge) { badge.style.display = totalActivos > 0 ? 'flex' : 'none'; badge.textContent = totalActivos; }
+   // También retirar avisos anteriores cuando el presupuesto se anula, vence
+@@ -55831,8 +55833,9 @@ function generarNotificaciones() {
+   const hoy   = ahora.toLocaleDateString('es-AR');
+   // No se generan alertas de “sin stock” para el catálogo completo. Nixa compra
+   // a demanda y los faltantes reales nacen en la lista de materiales de la venta.
+-  if (typeof pptoData !== 'undefined') {
+-    pptoData.forEach(function(p) {
++  var presupuestosAvisos=window.SV_BUDGET_NOTICES_LOCAL===true?(window._svBudgetNoticeConsumerHost?.peek().rows||null):(typeof pptoData==='undefined'?null:pptoData);
++  if (presupuestosAvisos) {
++    presupuestosAvisos.forEach(function(p) {
+       if (!_pptoAdmiteAvisosNotificacion(p)) return;
+ 
+       // La revisión es una tarea exclusiva del administrador.
+
+diff --git a/js/core/data-readiness.js b/js/core/data-readiness.js
+index 4ed49aae..93f3dfee 100644
+--- a/js/core/data-readiness.js
++++ b/js/core/data-readiness.js
+@@ -73,8 +73,9 @@
+     agenda:['agenda','ordenes_trabajo'],caja:['caja'],
+     historialcliente:['clientes','ventas','pagos','presupuestos','ordenes_trabajo','equipos','tickets','reclamos']
+   };
+-  var labels={budgetNoticeDetail:'el presupuesto solicitado',historyPointDetail:'el detalle solicitado',ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
++  var labels={dashboardBudgetNotices:'los avisos de presupuestos',budgetNoticeDetail:'el presupuesto solicitado',historyPointDetail:'el detalle solicitado',ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
+   function requirements(page){
++    if(page==='notificaciones'&&global.SV_BUDGET_NOTICES_LOCAL===true&&(typeof global.svPuedeLeerDominio!=='function'||global.svPuedeLeerDominio('presupuestos')))return ['dashboardBudgetNotices'];
+     if(global.SV_BUDGET_NOTICES_LOCAL===true&&global._svBudgetNoticeDetailHost?.claimsPointView(page))return ['budgetNoticeDetail'];
+     if(global.SVClientHistoryOriginalRuntime?.claimsPointView(page)===true)return ['historyPointDetail'];
+     if(page==='historialcliente'&&global.SVClientHistoryRuntime?.claimed===true)return ['historialcliente'];
+@@ -117,6 +118,11 @@
+     var missing=keys.filter(function(k){return !states[k]||!states[k].ready;});
+     var errors=keys.filter(function(k){return failed(states[k]);});
+     var messages=[];errors.forEach(function(key){var state=states[key];if(state.failureMessage)messages.push(state.failureMessage);Array.from(state.sources).forEach(function(source){if(source.error&&source.message)messages.push(source.message);});});
++    if(global.SV_BUDGET_NOTICES_LOCAL===true&&keys.includes('dashboardBudgetNotices')&&global._svBudgetNoticeConsumerHost){
++      var notices=global._svBudgetNoticeConsumerHost.peek();
++      if(!notices.complete&&!missing.includes('dashboardBudgetNotices'))missing.push('dashboardBudgetNotices');
++      if(notices.status==='error'){if(!errors.includes('dashboardBudgetNotices'))errors.push('dashboardBudgetNotices');messages.push('No se pudo actualizar la información de presupuestos.');}
++    }
+     return {ready:!missing.length,missing:missing,errors:errors,messages:Array.from(new Set(messages)).slice(0,3)};
+   }
+   function statusFor(page){return status(requirements(page));}
+@@ -280,7 +286,8 @@
+   }
+   function render(){
+     var visible=null,held=startupHolds.size>0;
+-    Object.keys(dependencies).forEach(function(name){
++    var pages=Object.keys(dependencies);if(global.SV_BUDGET_NOTICES_LOCAL===true&&!pages.includes('notificaciones'))pages.push('notificaciones');
++    pages.forEach(function(name){
+       var page=document.getElementById('page-'+name);if(!page)return;
+       var allowed=typeof global.permisoModulo!=='function'||global.permisoModulo(name);
+       var keys=sessionActive&&allowed&&!held?requirements(name):[];

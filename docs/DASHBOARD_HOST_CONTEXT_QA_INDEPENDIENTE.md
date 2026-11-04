@@ -1,5 +1,11 @@
 # Contexto del host: QA independiente sobre831ea79b
 
+## Cierre sobre0edac181
+
+04/11/2026. **Falla de procedencia incompleta cerrada.** Repetición independiente de los ocho casos propios intactos sobre `0edac181`: **8 PASS, 0 FAIL/SKIP**. El test conserva SHA256 `b39bc433545c71478476910939a508e6bb18de035aa1e7cf508e353a41a6a518`. La metadata sin booleano explícito ahora toma servidor autorizado; ausencia certificada permite directo y denegación de dashboard conserva grants null.
+
+Context ensayado blob `44a7a94da1075f2d218a5b14b7d48e3fdb4bfb6d`. Comando `node --test test/dashboard-host-context-independent.test.cjs`; log privado `C:/SisVentas/tmp/dashboard-host-context-boolean-independent-after.private.log`, SHA256 `04722b4c08fab8ac1b59d10f84d05b4ba2bd77425b5f2b845abac664a91f1197`. Se conserva debajo la reproducción roja histórica. No se repitió puerta general, nativo ni backend mensual administrativo; sus cambios WIP ajenos permanecen separados. Sólo se actualiza este documento propio, sin staging ni modificaciones funcionales.
+
 04/11/2026. Alcance acotado a Readiness real, Source y Aggregate reales; sin modificar fuentes, staging, puerta general, pruebas nativas ni datos reales. Se conservaron los cambios mensuales ajenos presentes en el checkout y no se ejecutaron sus pruebas. Los módulos revisados no tienen diferencias frente a831ea79b.
 
 ## Hallazgo: procedencia incompleta habilita ruta directa

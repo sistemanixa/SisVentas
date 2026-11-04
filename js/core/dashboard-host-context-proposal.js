@@ -5,6 +5,7 @@ const fields=['uid','role','auth','user','db','permissionRevision','permissionSi
 function create(r,{timeZone='America/Argentina/Buenos_Aires',sourceLocale='es-AR',now=()=>new Date()}={}){
  if(!r||typeof now!=='function'||typeof r.SVDataReadiness?.snapshotEpoch!=='function')throw Error('Falta la generación real de lectura');
  const readiness=r.SVDataReadiness,calendar=new Intl.DateTimeFormat('en-US',{timeZone,year:'numeric',month:'2-digit',day:'2-digit'}),listeners=[];let connectionEpoch=0,disposed=false;
+ timeZone=calendar.resolvedOptions().timeZone;
  for(const name of ['offline','online','sisventas:connection-lost','sisventas:connection-restored']){const handler=()=>{connectionEpoch++;};r.addEventListener?.(name,handler);listeners.push([name,handler]);}
  function capture(){
   const role=String(r.currentRole||''),uid=r.currentUserUid,auth=r.fbAuth,user=auth?.currentUser,db=r.fbDB,config=r.PERMISOS_ROLES?.[role];

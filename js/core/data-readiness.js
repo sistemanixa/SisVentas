@@ -73,8 +73,9 @@
     agenda:['agenda','ordenes_trabajo'],caja:['caja'],
     historialcliente:['clientes','ventas','pagos','presupuestos','ordenes_trabajo','equipos','tickets','reclamos']
   };
-  var labels={budgetNoticeDetail:'el presupuesto solicitado',historyPointDetail:'el detalle solicitado',ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
+  var labels={dashboardBudgetNotices:'los avisos de presupuestos',budgetNoticeDetail:'el presupuesto solicitado',historyPointDetail:'el detalle solicitado',ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
   function requirements(page){
+    if(page==='notificaciones'&&global.SV_BUDGET_NOTICES_LOCAL===true&&(typeof global.svPuedeLeerDominio!=='function'||global.svPuedeLeerDominio('presupuestos')))return ['dashboardBudgetNotices'];
     if(global.SV_BUDGET_NOTICES_LOCAL===true&&global._svBudgetNoticeDetailHost?.claimsPointView(page))return ['budgetNoticeDetail'];
     if(global.SVClientHistoryOriginalRuntime?.claimsPointView(page)===true)return ['historyPointDetail'];
     if(page==='historialcliente'&&global.SVClientHistoryRuntime?.claimed===true)return ['historialcliente'];
@@ -117,6 +118,11 @@
     var missing=keys.filter(function(k){return !states[k]||!states[k].ready;});
     var errors=keys.filter(function(k){return failed(states[k]);});
     var messages=[];errors.forEach(function(key){var state=states[key];if(state.failureMessage)messages.push(state.failureMessage);Array.from(state.sources).forEach(function(source){if(source.error&&source.message)messages.push(source.message);});});
+    if(global.SV_BUDGET_NOTICES_LOCAL===true&&keys.includes('dashboardBudgetNotices')&&global._svBudgetNoticeConsumerHost){
+      var notices=global._svBudgetNoticeConsumerHost.peek();
+      if(!notices.complete&&!missing.includes('dashboardBudgetNotices'))missing.push('dashboardBudgetNotices');
+      if(notices.status==='error'){if(!errors.includes('dashboardBudgetNotices'))errors.push('dashboardBudgetNotices');messages.push('No se pudo actualizar la información de presupuestos.');}
+    }
     return {ready:!missing.length,missing:missing,errors:errors,messages:Array.from(new Set(messages)).slice(0,3)};
   }
   function statusFor(page){return status(requirements(page));}
@@ -280,7 +286,8 @@
   }
   function render(){
     var visible=null,held=startupHolds.size>0;
-    Object.keys(dependencies).forEach(function(name){
+    var pages=Object.keys(dependencies);if(global.SV_BUDGET_NOTICES_LOCAL===true&&!pages.includes('notificaciones'))pages.push('notificaciones');
+    pages.forEach(function(name){
       var page=document.getElementById('page-'+name);if(!page)return;
       var allowed=typeof global.permisoModulo!=='function'||global.permisoModulo(name);
       var keys=sessionActive&&allowed&&!held?requirements(name):[];
