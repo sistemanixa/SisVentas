@@ -1,4 +1,4 @@
-(function(root,factory){'use strict';const api=factory(typeof module==='object'&&module.exports?require('./dashboard-activity-model.v2'):root.SVDashboardActivityModelV2);if(typeof module==='object'&&module.exports)module.exports=api;else root.SVDashboardBudgetSDKProposal=api;})(typeof window==='object'?window:globalThis,function(Core){
+(function(root,factory){'use strict';const api=factory(typeof module==='object'&&module.exports?require('./dashboard-activity-model.v2'):root.SVDashboardActivityModelV2,typeof module==='object'&&module.exports?require('./dashboard-budget-notice-model-proposal'):root.SVDashboardBudgetNoticeModel);if(typeof module==='object'&&module.exports)module.exports=api;else root.SVDashboardBudgetSDKProposal=api;})(typeof window==='object'?window:globalThis,function(Core,Notice){
 'use strict';
 const ROOT='sv_dashboard_budget_proposal/v1',object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v),uid=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
 const fields=['schema','uid','role','profileKey','profileRole','permissionRevision','scope','generation','revision','policyHash','ready','activityReady','order','timeZone','sourceLocale','directCompatible','records','active','converted','totalNonCancelled','totalDueEligible','eventEligible','eventExcluded'];
@@ -9,8 +9,8 @@ const canonical=v=>v===null||typeof v!=='object'?JSON.stringify(v):Array.isArray
 async function identityHash(key){const bytes=await globalThis.crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(key)));return Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');}
 function create({readFresh,capture,valid,getAsOfDay,maxPages=100}={}){
  check(Core&&typeof readFresh==='function'&&typeof capture==='function'&&typeof valid==='function'&&typeof getAsOfDay==='function'&&Number.isInteger(maxPages)&&maxPages>=1&&maxPages<=1000,'Missing direct SDK contract');
- async function read({activity=true,badge=true}={}){
-  check(typeof activity==='boolean'&&typeof badge==='boolean','Invalid consumer');
+ async function read({activity=true,badge=true,notices=false}={}){
+  check(typeof activity==='boolean'&&typeof badge==='boolean'&&typeof notices==='boolean','Invalid consumer');
   const initial=capture(),user=initial?.auth?.currentUser,ctx={...initial,grants:{...initial?.grants}};
   let cancelled=false,firstError;
   function live(){if(cancelled)throw firstError;const now=capture();if(!uid(ctx.uid)||!user||ctx.auth?.currentUser!==user||user.uid!==ctx.uid||now.auth?.currentUser!==user||!Number.isSafeInteger(ctx.sessionEpoch)||ctx.sessionEpoch<0||now.sessionEpoch!==ctx.sessionEpoch||ctx.connected!==true||now.connected!==true||!Number.isSafeInteger(ctx.connectionEpoch)||now.connectionEpoch!==ctx.connectionEpoch||!valid(ctx)||now.uid!==ctx.uid||now.role!==ctx.role||now.auth!==ctx.auth||now.db!==ctx.db||now.permissionRevision!==ctx.permissionRevision||now.timeZone!==ctx.timeZone||now.sourceLocale!==ctx.sourceLocale||Core.DOMAINS.some(d=>now.grants?.[d]!==ctx.grants[d]))throw fail('Retired SDK context','SV_BUDGET_SDK_RETIRED');}
@@ -30,13 +30,30 @@ function create({readFresh,capture,valid,getAsOfDay,maxPages=100}={}){
    }
    check(done,'Badge page budget exhausted');return {asOfDay:day,horizon,badgeCount:before.totalDueEligible-future,upcoming48Count:upcoming,complete:true,contract:'legacy-raw-lex/v1'};
   }
-  const tasks=await Promise.all([activity?consumer(events):null,badge?consumer(badgeCounts):null]);
+  async function noticeCandidates(){
+   check(Notice&&typeof Notice.project==='function','Missing notice codec');
+   const count=(await get(ROOT+'/stats/'+before.scope+'/noticeEligible')).val();
+   const expected=count===null&&before.records===0?0:count;
+   check(Number.isSafeInteger(expected)&&expected>=0&&expected<=before.records,'Uncertified notice count');
+   const rows=[],seen=new Set();let cursor=null,anchor=null,complete=false;
+   for(let page=0;page<maxPages;page++){
+    const query={orderByKey:true,limitToFirst:50};if(cursor!==null)query.startAt=cursor;
+    const snap=await get(ROOT+'/noticeCandidates/'+before.scope,query),children=[];snap.forEach(child=>children.push({key:child.key,value:child.val()}));
+    check(children.length<=50,'Excessive notice page');let start=0,previous=cursor;
+    if(cursor!==null){check(children.length>0&&children[0].key===cursor&&canonical(children[0].value)===anchor,'Notice anchor changed');start=1;}
+    for(const child of children.slice(start)){check((previous===null||child.key>previous)&&!seen.has(child.key),'Notice page order changed');rows.push(Notice.project(child.value,child.key,{uid:ctx.uid,role:ctx.role}));seen.add(child.key);previous=child.key;}
+    check(rows.length<=expected,'Notice index exceeds coverage');
+    if(children.length<50){complete=true;break;}cursor=children.at(-1).key;anchor=canonical(children.at(-1).value);
+   }
+   check(complete&&rows.length===expected,'Incomplete notice index');return {complete:true,rows};
+  }
+  const tasks=await Promise.all([activity?consumer(events):null,badge?consumer(badgeCounts):null,notices?consumer(noticeCandidates):null]);
   const after=header((await get(path)).val());check(canonical(before)===canonical(after),'SDK generation/revision changed');live();
   const result={schema:2,uid:ctx.uid,role:ctx.role,permissionRevision:ctx.permissionRevision,scope:ctx.grants.presupuestos,generation:before.generation,revision:before.revision,counts:{active:before.active,converted:before.converted,totalNonCancelled:before.totalNonCancelled,conversionPercent:before.totalNonCancelled?Math.round(before.converted/before.totalNonCancelled*100):0},notificationCenterComplete:false,mixedActivityComplete:false};
   if(activity){result.recent=tasks[0];const prefix=Core.budgetPrefix({result,captured:ctx,context:ctx}),proof=Core.merge({context:ctx,sources:{presupuestos:prefix},expected:{presupuestos:{generation:before.generation,revision:before.revision}}});check(proof.sources.presupuestos.complete,'Uncertified instant rows');}
-  if(badge)result.badge=tasks[1];return result;
+  if(badge)result.badge=tasks[1];if(notices)result.notices=tasks[2];return result;
  }
- return Object.freeze({read,metrics:()=>read({activity:false,badge:false})});
+ return Object.freeze({read,metrics:()=>read({activity:false,badge:false}),notices:()=>read({activity:false,badge:false,notices:true})});
 }
 return Object.freeze({ROOT,create});
 });

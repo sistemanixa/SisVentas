@@ -6,7 +6,7 @@ const Activity=require('./dashboard-budget-activity-codec-proposal');
 const Policy=require('./dashboard-authority-policy-proposal');
 const stable=value=>digest(normalizeRtdb(value));
 const ROOT='sv_dashboard_budget_proposal/v1',ORIGINAL='sisventas/presupuestos',AUTHORITY=['sv_usuarios','sv_chat_roles','sv_permisos'];
-const fields=['records','active','converted','totalNonCancelled','unknownDates','totalDueEligible'],mod=1n<<256n;
+const fields=['records','active','converted','totalNonCancelled','unknownDates','totalDueEligible','noticeEligible'],mod=1n<<256n;
 const ownershipFields=['responsableUid','creadaPorUid','creadoPorUid','usuarioUid','empleadoUid','creadoPor','usuario','empleado'];
 const rowFields=['key','sourceHash','ownerUid','number','client','status','date','ts','employeeLabel','dueRaw','dueDay','sentDay','admits','approvalStamp','approvedBy','reason','amount'];
 const fail=(reason)=>Object.assign(Error(reason),{code:'SV_BUDGET_INCREMENTAL_RECONCILE',statusCode:409});
@@ -21,9 +21,10 @@ const badgeEligible=r=>r.admits&&Model.NOTICE_ACTIVE.includes(r.status)&&!!r.due
 // Fixed-width UTF-16 preserves JS raw-string comparisons, including legacy non-ISO text.
 const rawSort=raw=>Array.from({length:raw.length},(_,i)=>raw.charCodeAt(i).toString(16).padStart(4,'0')).join('');
 const badgeSort=(raw,id)=>rawSort(raw)+'!'+stable(id);
-const counts=r=>r?{records:1,active:Number(Model.ACTIVE.includes(r.status)),converted:Number(r.status==='convertido'),totalNonCancelled:Number(r.status!=='anulado'),unknownDates:Number(!Model.day(r.date)),totalDueEligible:Number(badgeEligible(r))}:zero();
+const noticeSort=require('../js/core/dashboard-budget-notice-model-proposal').sort;
+const counts=r=>r?{records:1,active:Number(Model.ACTIVE.includes(r.status)),converted:Number(r.status==='convertido'),totalNonCancelled:Number(r.status!=='anulado'),unknownDates:Number(!Model.day(r.date)),totalDueEligible:Number(badgeEligible(r)),noticeEligible:Number(r.admits)}:zero();
 const monthBucket=row=>/^\d{4}-(0[1-9]|1[0-2])$/.test(row.date.slice(0,7))?stable([row.employeeLabel,row.date.slice(0,7)]):null;
-function validateStats(stats,generation){check(object(stats)&&stats.schema===1&&stats.generation===generation&&Number.isSafeInteger(stats.revision)&&stats.revision>=1&&fields.every(k=>Number.isSafeInteger(stats[k])&&stats[k]>=0),'Scope metadata incomplete');check(stats.active+stats.converted<=stats.totalNonCancelled&&stats.totalNonCancelled<=stats.records&&stats.unknownDates<=stats.records&&stats.totalDueEligible<=stats.active,'Scope counts inconsistent');}
+function validateStats(stats,generation){check(object(stats)&&stats.schema===1&&stats.generation===generation&&Number.isSafeInteger(stats.revision)&&stats.revision>=1&&fields.every(k=>Number.isSafeInteger(stats[k])&&stats[k]>=0),'Scope metadata incomplete');check(stats.active+stats.converted<=stats.totalNonCancelled&&stats.totalNonCancelled<=stats.records&&stats.unknownDates<=stats.records&&stats.totalDueEligible<=stats.active&&stats.noticeEligible<=stats.records,'Scope counts inconsistent');}
 function validateRow(row,id,source,owner){
  check(object(row)&&Object.keys(row).length===rowFields.length&&rowFields.every(k=>Object.hasOwn(row,k))&&row.key===id&&row.sourceHash===stable(source)&&row.ownerUid===owner&&(owner===''||/^[A-Za-z0-9_-]{1,128}$/.test(owner)),'Point projector has no matching source evidence');
  check(rowFields.every(k=>row[k]===null||['string','number','boolean'].includes(typeof row[k])),'Point projector leaked nested data');
@@ -39,7 +40,7 @@ function indexes(record,activityMode=false){
   else if(date){const sort=Model.documentSort(date,row.key);out[ROOT+'/document/'+scope+'/'+sort]={key:row.key,date,sort,number:row.number,client:row.client,status:row.status,ownerUid:row.ownerUid,amountCents:null};}
   const month=monthBucket(row);if(month)out[ROOT+'/monthMembers/'+scope+'/'+month+'/'+row.key]=true;
   if(badgeEligible(row))out[ROOT+'/noticeBadge/'+scope+'/'+badgeSort(row.dueRaw,row.key)]={key:row.key,dueRaw:row.dueRaw};
-  if(row.admits){out[ROOT+'/noticeStatus/'+scope+'/'+stable(row.status)+'/'+row.key]=row;
+  if(row.admits){out[ROOT+'/noticeCandidates/'+scope+'/'+noticeSort(row.key)]=row;out[ROOT+'/noticeStatus/'+scope+'/'+stable(row.status)+'/'+row.key]=row;
    if(row.dueDay)out[ROOT+'/noticeDue/'+scope+'/'+row.dueDay+'/'+row.key]=row;
    if(row.sentDay&&row.status==='enviado'&&row.dueDay)out[ROOT+'/noticeSent/'+scope+'/'+row.sentDay+'/'+row.key]=row;
   }
@@ -50,7 +51,7 @@ function set(root,path,value){const keys=path.split('/');let node=root;for(const
 function bootstrap({model,records}={}){
  check(model?.schema===1&&model.proposal===true&&model.complete===true&&model.activationAuthorized===false&&object(records)&&model.sourceCount===Object.keys(records).length&&Object.keys(model.entries).length===Object.keys(records).length,'Complete offline bootstrap is required');
  check(model.documentOrder===Model.DOCUMENT_ORDER,'Document order requires explicit rebuild');
- const tree={sources:{},stats:{},scopeProof:{},months:{},monthProof:{},policy:{hash:model.policyHash}},coverage={schema:1,ready:true,generation:model.generation,revision:model.revision,offsetMinutes:model.offsetMinutes,documentOrder:Model.DOCUMENT_ORDER,policyHash:model.policyHash,records:0,unresolvedOwners:0,sourceAccumulator:'0'.repeat(64),scopeAbsenceIsZero:true};
+ const tree={sources:{},stats:{},scopeProof:{},months:{},monthProof:{},policy:{hash:model.policyHash}},coverage={schema:1,ready:true,generation:model.generation,revision:model.revision,offsetMinutes:model.offsetMinutes,documentOrder:Model.DOCUMENT_ORDER,policyHash:model.policyHash,records:0,unresolvedOwners:0,sourceAccumulator:'0'.repeat(64),scopeAbsenceIsZero:true,noticeCandidateSchema:1};
  for(const [id,original]of Object.entries(records)){
   check(key(id)&&object(original),'Invalid bootstrap record');const row=model.entries[id];validateRow(row,id,original,row?.ownerUid);const record=source(id,original,row);tree.sources[id]=record;coverage.records++;coverage.unresolvedOwners+=Number(!row.ownerUid);coverage.sourceAccumulator=sumHash(coverage.sourceAccumulator,stable([id,record.sourceHash]),1);
   for(const scope of scopes(row.ownerUid)){const stats=tree.stats[scope]??={schema:1,generation:model.generation,revision:model.revision,...zero()};for(const field of fields)stats[field]+=counts(row)[field];}
@@ -150,4 +151,4 @@ async function badgeCounts({raw,query,authorize,asOfDay,pageSize=50,maxPages=100
  const after=await Promise.all(paths.map(p=>raw(p))),accessAfter=await authorize();check(before.every((v,i)=>stable(v)===stable(after[i]))&&stable(access)===stable(accessAfter),'Badge coverage or authorization changed during read');
  return {scope:access.scope,generation:coverage.generation,revision:coverage.revision,asOfDay,horizon,badgeCount:stats.totalDueEligible-future,upcoming48Count:upcoming,complete:true,pages,candidates:future+upcoming,contract:'legacy-raw-lex/v1'};
 }
-module.exports={ROOT,bootstrap,plan,badgeCounts};
+module.exports={ROOT,bootstrap,plan,badgeCounts,noticeSort};
