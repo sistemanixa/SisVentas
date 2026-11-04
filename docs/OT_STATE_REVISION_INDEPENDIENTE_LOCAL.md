@@ -2,6 +2,8 @@
 
 04/11/2026. Checkout aislado `integracion-v3190-verificada`, HEAD `ffd59fda` más importación local de `729f6a40e08cd59d55700e08cd0fc1187f3c5228`. Se conservaron los modelos de stock exactos, atestación V2 y auditoría `antes: null` del checkout receptor. No se editó servidor, cliente, fixtures compartidos ni expectativas anteriores durante esta repetición.
 
+El coordinador integró después esas mismas fuentes en `2a154bd8` y el test/documento propios en `ccf5dc3d`; las 14 huellas volvieron a coincidir después de esos commits y de la prueba de namespace siguiente. Aclaración de alcance/autoría: `ccf5dc3d` no es un commit exclusivamente de QA; por cruce del índice compartido incluye además `docs/CONTEXTO_ACTUAL.md`, `index.html` y `sw.js` del coordinador. No se reescribió historia ni se retiraron archivos.
+
 **Resultado: 9 PASS, 0 FAIL, 0 SKIP**, únicamente los casos solicitados:
 
 - Prueba propia nueva: entregadas 2 / instaladas 3 con recibo mínimo rechaza con `SV_OT_MATERIAL_REVIEW` antes de todo PATCH; cero commits/proofs y base comercial idéntica.
@@ -33,4 +35,34 @@ Logs privados (fuera de Git):
 
 Capturas/trazas ficticias: `C:/SisVentas/tmp/ot-state-imported-native-20261104/installed/` y `uninstalled/`. Sintaxis de la prueba propia y diff correctos.
 
-Aceptación limitada: las dos reproducciones bloqueantes originales quedan rechazadas y los positivos solicitados no presentan regresión en estos bytes. Los comandos usan servicios, guard y store REST reales con persistencia HTTP, identidad y prueba de fence ficticias; las cadenas usan el navegador aislado y las mismas fronteras previamente documentadas. No se repitieron emulador ni matriz histórica de 26: esta validación no certifica reglas compuestas nuevas, TTL/V2, exclusividad de escritores, suite general o despliegue. No hubo operaciones reales ni publicación. Este commit contiene solo prueba y documento propios; la importación State pertenece al coordinador.
+Aceptación limitada: las dos reproducciones bloqueantes originales quedan rechazadas y los positivos solicitados no presentan regresión en estos bytes. Los comandos usan servicios, guard y store REST reales con persistencia HTTP, identidad y prueba de fence ficticias; las cadenas usan el navegador aislado y las mismas fronteras previamente documentadas. No se repitió la matriz histórica de 26 ni se la atribuye a esta versión. No hubo operaciones reales ni publicación. La prueba y este documento son propios; la importación State pertenece al coordinador.
+
+## Namespace con la composición nueva
+
+Repetición independiente posterior de `ot-attestation-private-namespace.integration.cjs`: **85 PASS, 0 FAIL, 0 SKIP** (84 denegaciones más caso contenedor), namespace nuevo `demo-otatt-0e044487737f356f` en el emulador existente 127.0.0.1:9046. Base histórica privada local + commercial-write-cut + fence importado + reglas del marcador privado. Candidata SHA256 `8d98aab9ec9694d3e8b8b851c4dfbd6ce5d1373045c2cc5e398f5ebf1717cecd`; builders y dependencias congelados antes/después, sin drift.
+
+Builders: commercial-write-cut `b4d20a61d4e6b509b99528121b50408064ec6790a53b1c93da237319a75945fa`; fence nuevo `837626a23199b89519d1f5c245ea1d0f2a1280c77ca0d37c65538d38bb435c6e`; marcador `97ca6db84ad1dbabc97d55ad1c82dc805b955c8896c8b7fa04259a37f1889260`.
+
+Log privado `C:/SisVentas/tmp/ot-attestation-namespace-state-imported.private.log`, SHA256 `bccaff7d458b08126145572d5659bf908faccef7ccac45579711aa375457ee78`. Matriz y manifiesto: `C:/SisVentas/tmp/ot-attestation-private-namespace-20261104/state-imported/attestation-namespace-matrix.json`. Valida únicamente el aislamiento de marcador/padre/descendientes/raíz ante sesiones de aplicación y claims falsos; no valida la aceptación de todos los commits OT bajo reglas nuevas, TTL/V2, exclusividad de escritores, suite general o despliegue. No sustituye la matriz operativa de permisos del coordinador/Costos.
+
+## Matriz nueva de commits sobre las reglas exactas
+
+Después de la puerta 22 informada por el coordinador, se agregó `test/ot-state-composed-rules-current.integration.cjs`: **15 PASS, 0 FAIL, 0 SKIP** (14 escenarios más contenedor). No reutiliza ni renombra la matriz histórica de 26. Compone los mismos tres builders exactos y la base privada local: candidata `8d98aab9ec9694d3e8b8b851c4dfbd6ce5d1373045c2cc5e398f5ebf1717cecd`, namespace nuevo `demo-otatt-879e3bf30472030f` en el proceso existente 127.0.0.1:9046. No inicia/reinicia/detiene procesos.
+
+Los patches y capacidades válidos se preparan con el ciclo/guard/store reales del fixture en RAM. Después se ejecuta de nuevo el commit con **store real, protocolo State real, verificador V2 real y HTTP REST al emulador con sus reglas**, sin sustituir el resultado de autorización. La firma usa una clave Ed25519 efímera ficticia, no escrita en disco ni Git; el marcador corresponde al hash exacto de la candidata. No es un corte/publisher productivo.
+
+Escenarios:
+
+- Entrega 2/3 con V2 firmado tres días antes: permitida, sin expiración diaria artificial.
+- Marcador revocado, firma incorrecta y generación diferente: rechazo del servidor antes de PATCH; base intacta.
+- Fence, OT o revisión de permisos incorrectos, ausencia de kind o recibo: rechazo bajo las reglas actuales; sin persistir datos comerciales ni recibo confirmado.
+- Original instalado antes de persistir el adicional histórico intacto: commit permitido.
+- Recuperación histórica de fuente sin clave canónica, catálogo que tiene solo `cod` y ledger producido por `Stock.plan`: permitida. Se verifican tanto `.indexOn` `codigo/cod/ventaFbKey` como la **consulta REST real con `orderBy=cod`**, y el material completo persistido.
+- Recibo mínimo sin consumo respaldado y clasificación instalada superior a entrega: rechazo State antes de PATCH aun con capacidad legítima y reglas reales; base intacta.
+- Administrador de aplicación no puede reemplazar OT activada, padre canónico ni padre de resúmenes: tres denegaciones efectivas.
+
+Huellas antes/después idénticas para runtime/custodia/Stock/V2 y builders/dependencias. Detalle privado: `C:/SisVentas/tmp/ot-state-current-composed-20261104/final/before-after-hashes.private.json`; resultados y manifiesto: `current-state-composed-matrix.json` en el mismo directorio. Ningún runtime/builders fue editado durante esta matriz.
+
+Test nuevo SHA256 `95458276d69ef8534c30182b1b4960bab2fbe3d71fe9642c120a9ca5dfc10980`. Log privado `C:/SisVentas/tmp/ot-state-current-composed-final.private.log`, SHA256 `8f8b39f8f6c65b5582103feece8baffe97ffe1812bbe295224d36bb0e9e152da`. Sintaxis y diff correctos.
+
+Aceptación limitada: pasan esos commits/negativos concretos con reglas exactas y V2 ficticio válido. No acredita todas las operaciones financieras, publicación/revocación operativa real, exclusividad de escritores externos privilegiados, autenticación productiva ni despliegue. Los 85 casos de privacidad del namespace son evidencia distinta, no se cuentan como operaciones de negocio ni se atribuyen a la vieja matriz de 26. Sin publicación, datos reales o cambios de runtime.
