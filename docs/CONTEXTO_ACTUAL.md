@@ -1,3 +1,14 @@
+## Cierre de validación local conjunta · 04/11/2026 20:40 UTC
+
+Fuente funcional congelada67f0418cc2b67618b0b3d89cfed365c2acd352b9, árbol7404b706ba13a0a6efc8278d7f074ed8ce001ad4. Puerta vigente completa:9.492casos,9.461PASS,0FAIL,31SKIP,exit0,Node22.23.4. Inicio20:35:06UTC,fin20:40:11UTC. Log privado current-gate-67f0418c.private.log SHA2566d691e201901b12e34be7bb579d2d80a7870c52a1568aaa5237b0158ec784e63. Se conserva la selección completa en cuatro lotes; no se cambiaron las expectativas financieras para aprobar.
+
+Misma fuente: nativa14PASS,0FAIL/SKIP,exit0 (DASHBOARD_NATIVE_CUT_67F0418 y manifiesto), más6ChromePASS independientes de escritorio/móvil (DASHBOARD_BROWSER_QA_67_CIERRE). Quedan comprobados para su alcance: últimas5personales frente501registros y50parciales, centavos exactos, privacidad, retorno/retiro, global6/7GET y centro de avisos tardíos sin exigir revisarVencidos. Las31omisiones de la puerta no se presentan como aprobadas por estas20pruebas distintas.
+
+No cambió código funcional después de67; sólo se agregaron evidencias/documentación. Prepared no equivale a publicado: flags nuevosOFF, originales reales intactos, sin pagos/stock/comisiones de prueba, sin push ni cambios remotos. La publicación de fotos v3.18.20 sigue siendo un bloque anterior separado. Main intacto.
+
+Pendientes externos concretos antes de activación general: estado remoto fresco, revisión de todos los accesos/escritores y paquete fiscal, instalación controlada de Accounts/H7/proyecciones/reglas y comprobación del corte conforme CORTE_INTEGRACION_COMERCIAL.md. No ejecutar preparación real basándose únicamente en esta puerta local. La pestaña del usuario sigue sin recargarse: IAB figura en inventario, pero getTab devuelve browser.user is unavailable incluso con ID exacto; no se usó Chrome ni se manipuló su edición por otra vía. El servidor8765 todavía apunta a otra copia, por lo que no anunciar estas mejoras como visibles allí.
+
+Siguiente paso de integración: mostrar la fuente validada en la pestaña local cuando el control de ese panel esté disponible, preservando cualquier edición; después preparar activación con el procedimiento y evidencia remota vigente. No repetir auditorías generales ni añadir prestaciones por rutina: código local tiene su corte comprobado, publicación sigue separada.
 ## Centro tardío sin permiso de revisión: corregido y reproducido
 
 Aplicado parche f68fb3b2 de seis líneas funcionales: el verificador informa cuando ya generó avisos; el callback genera una vez si el verificador retornó antes por no tener revisión de vencidos. No agrega permisos, consultas ni cambia el guard de revisión. Cinco reproducciones originales conservadas y dos casos de permiso añadidos.
