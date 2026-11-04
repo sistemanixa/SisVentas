@@ -1,3 +1,10 @@
+## Retorno Accounts corregido y aceptación conjunta todavía abierta
+
+Integrado 727d2f81 por parche explícito en root a33dfcee y paquete ON 0b2d9e4c. Accounts usa su canal clientAccounts, sin completar ni invalidar ventas/pagos/clientes originales; cada entrada y boot comprueba visita/sesión vigentes. Se conserva fallback sólo para configuración genuinamente legacy. Candidato cachea las dos URLs compartidas nuevas exactamente con v3.19.4; root no cambia rollouts ni pestaña.
+
+Root: 37 PASS, 0 FAIL/SKIP en handoff, readiness y navegador nativo, Node22; log account-handoff-root-allowed.private.log. El intento restringido previo terminó 19 PASS/18 FAIL por ERR_NETWORK_ACCESS_DENIED en loopback, conservado como account-handoff-root.private.log. Revisión independiente: 41 focales PASS de handoff/contexto/acciones/H7, sin defectos nuevos de permisos. QA confirmó retorno mínimo original escritorio/móvil; recorrido amplio todavía no aprobado: fixture Pages no había preparado searchReady/searchSchema e índice de búsqueda. Se corrige el fixture con modelo real, sin apagar asserts ni cambiar producto para ocultarlo. Las 50 filas vistas anteriormente no certificaban por sí solas lector nativo.
+
+Manifiesto del paquete anterior a401 queda obsoleto respecto de cuatro activos públicos modificados. Core prepara rebind intermedio; acceptanceComplete sigue false hasta regresión del paquete exacto y prueba SW de actualización. Sin datos reales, publicación, push ni main. El servidor local sigue abierto; no afirmar recarga de usuario.
 ## Estado de continuación · paquete habilitado y carrera de retorno
 
 Root local limpio: bf5acd154aba6e04e250fe24a025f403d60921ee, rama codex/dashboard-budget-integration-v3194, app activa 3.19.3 con guard de data:null ya corregido. Servidor estático propio 8765 sigue apuntando a este checkout; no se recargó la pestaña del titular. El índice local mantiene rollouts OFF y no se cambió producción.
