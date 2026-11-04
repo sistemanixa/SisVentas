@@ -6316,7 +6316,7 @@ function svCargarInicioDashboardDemandado() {
   if (!plan) throw new Error('No se pudo preparar el inicio. Volvé a intentar.');
   var hostPresupuestos=window.SV_DASHBOARD_READS_LOCAL===true?svHostPresupuestosDashboard():null;
   if(hostPresupuestos?.claimed('dashboard'))hostPresupuestos.ensure('dashboard').catch(function(){/* Source retains the visible result and its error. */});
-  if(window.SV_DASHBOARD_READS_LOCAL===true&&window.tienePermiso?.('dashboard.actividad')===true&&window.tienePermiso?.('interfaz.dashboard_admin_only')===true){
+  if(window.SV_DASHBOARD_READS_LOCAL===true&&(window.tienePermiso?.('dashboard.miActividad')===true||(window.tienePermiso?.('dashboard.actividad')===true&&window.tienePermiso?.('interfaz.dashboard_admin_only')===true))){
     var hostActividad=svHostActividadDashboard();
     if(hostActividad)hostActividad.ensure().catch(function(){/* Activity host owns error and coverage. */});
   }

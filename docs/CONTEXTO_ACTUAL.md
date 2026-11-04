@@ -1,3 +1,10 @@
+## Host personal y reutilización mensual: integrados bajo flagOFF
+
+Aplicados hunksd85dd5fe con contextoestrecho que preservó el bloquecreatorMonthlydeHist, y7f20004f host/test. Aggregate usa monthly ya verificadodeB0/B1 cuando estápresente:5GET sincapacidadcreador,6consegundoGETventaspara esacapacidad. Si B0noincluyemonthly conservaordenanterior m0→comercial→m1→B1(7GET); mensualpresenteinválidorechaza,sinfallback. No cachecrosscontext ni endpointnuevo.
+
+Mismo ActivityHost elige modoantesdered: activity con permisos+cuatrogrants; ownMonthly conmiActividad ygrantVentas,1GETactualVentas,sinAggregate. Cambio de modo retira autoridad/dato; error no cambia de camino. App iniciahost también para miActividad sola y callback ya pinta tarjeta cuando visible/autorizada. No nuevos permisos ni datosreales. Últimas5personales permanecenpendientes.
+
+Primer combinado67casos:64PASS/3FAIL sólo por conteos deGETdeltestnuevo deHist(6frente8/5frente7); seactualizaron esosconteos y se agregó exigir2GETpresupuestos, manteniendo todasexpectativas501/finanzas/autoridad. Después al sumarhostexistente85casos:82PASS/3FAIL por lasmismas reducciones7→5 en inicio/retorno/reconexión. Seajustaron sólo conteos y se agregó2Bheaders; combinadofinal85PASS,0FAIL/SKIP, log dashboard-own-embedded-callpoints-after.private.log. Rojospreviosconservados. No se modificó pruebaindependientepersonal ni expectativasfinancieras. Falta repetir navegadorconmediciónactual y regresiónfinal; gate23noamparaestefuente. Sin activación/push/publicación.
 ## Tarjeta personal: corregido total parcial, últimas cinco pendientes
 
 QA roja sobrefae7e766:4FAIL por50memoria frente501certificadas, falsoSinventas y falta deestado pendiente. Rootcopió test/documento conhashverificado y repitió4FAIL antes. renderDashAdministrativo bajo flagON ahora usa SVDashboardActivityHost.peek().salesAuthorMonthly completo con creador/mes/scope/revisión/count válidos; no lee ventasList ni pptoData. Muestra pendiente si nohaycapacidad. Sólo cero certificado permite Sinventas; con501y sinlistaactualmuestra detallependiente. No usa top5global ni datosparciales como reemplazo.
