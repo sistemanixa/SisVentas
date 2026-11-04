@@ -7,6 +7,12 @@
   }
 
   function quantitySum(values) { return window.SVCommercialMoney.quantitySum(values); }
+  function quantityDescription(value) {
+    var decimal=window.SVCommercialMoney.decimal(value),scale=decimal.d.toString().length-1;
+    var digits=decimal.n.toString().padStart(scale+1,'0');
+    var integer=scale?digits.slice(0,-scale):digits;
+    return integer.replace(/\B(?=(\d{3})+(?!\d))/g,'.')+(scale?','+digits.slice(-scale):'');
+  }
 
   function esc(value) {
     if (typeof window.escapeHTML === 'function') return window.escapeHTML(String(value == null ? '' : value));
@@ -141,7 +147,7 @@
       groups[unit] = quantitySum([groups[unit] || 0,n(material.vendida)]);
     });
     return Object.keys(groups).map(function(unit) {
-      return Number(groups[unit].toFixed(6)).toLocaleString('es-AR', {maximumFractionDigits:6}) + ' ' + unit;
+      return quantityDescription(groups[unit]) + ' ' + unit;
     }).join(' + ') + ' en ' + materials.length + (materials.length === 1 ? ' renglón' : ' renglones');
   }
 

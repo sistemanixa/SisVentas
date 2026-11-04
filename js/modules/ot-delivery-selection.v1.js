@@ -2,6 +2,12 @@
 'use strict';
 const positive=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0;
 function lessOrEqual(a,b){const x=Money.decimal(a),y=Money.decimal(b);return x.n*y.d<=y.n*x.d;}
+function quantityText(value){
+ // decimal() supplies a nonnegative integer numerator and power-of-ten scale
+ // for these validated quantities. Expand its text without float formatting.
+ const valueDecimal=Money.decimal(value),scale=valueDecimal.d.toString().length-1,digits=valueDecimal.n.toString().padStart(scale+1,'0');
+ return scale?digits.slice(0,-scale)+'.'+digits.slice(-scale):digits;
+}
 function normalized(rows){
  if(!Array.isArray(rows)||!rows.length||rows.length>5000)throw Error('No hay materiales para entregar.');
  const seen=new Set();return rows.map(row=>{
@@ -36,8 +42,8 @@ function create(root){let current=null;
    const subtitle=doc.createElement('p');subtitle.textContent=technician?'Para '+technician:'Elegí las cantidades que se entregan ahora.';subtitle.style.cssText='margin:0;color:var(--text2);font-size:13px';header.append(title,subtitle);form.appendChild(header);
    const body=doc.createElement('div');body.style.cssText='padding:4px 20px;overflow:auto;overscroll-behavior:contain;min-height:0';form.appendChild(body);const inputs=new Map();
    for(const row of list){const label=doc.createElement('label');label.style.cssText='display:grid;grid-template-columns:minmax(0,1fr) 100px;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid var(--border)';
-    const description=doc.createElement('span'),name=doc.createElement('strong'),detail=doc.createElement('small');name.textContent=row.description;name.style.cssText='display:block;font-size:13px;overflow-wrap:anywhere';detail.textContent='Pendiente: '+row.pending+' '+row.unit+(row.availabilityKnown?' · Disponible: '+row.maximum:'');detail.style.cssText='display:block;margin-top:5px;color:var(--text2);font-size:11px';description.append(name,detail);
-    const input=doc.createElement('input');input.type='text';input.inputMode='decimal';input.value=String(row.maximum);input.className='search-input';input.setAttribute('aria-label','Cantidad de '+row.description);input.style.cssText='width:100%;min-width:0;text-align:right';inputs.set(row.index,input);label.append(description,input);body.appendChild(label);
+    const description=doc.createElement('span'),name=doc.createElement('strong'),detail=doc.createElement('small');name.textContent=row.description;name.style.cssText='display:block;font-size:13px;overflow-wrap:anywhere';detail.textContent='Pendiente: '+quantityText(row.pending)+' '+row.unit+(row.availabilityKnown?' · Disponible: '+quantityText(row.maximum):'');detail.style.cssText='display:block;margin-top:5px;color:var(--text2);font-size:11px;overflow-wrap:anywhere';description.append(name,detail);
+    const input=doc.createElement('input');input.type='text';input.inputMode='decimal';input.value=quantityText(row.maximum);input.className='search-input';input.setAttribute('aria-label','Cantidad de '+row.description);input.style.cssText='width:100%;min-width:0;text-align:right';inputs.set(row.index,input);label.append(description,input);body.appendChild(label);
    }
    const footer=doc.createElement('footer');footer.style.cssText='padding:14px 20px;background:var(--bg2);flex-shrink:0';const error=doc.createElement('p');error.setAttribute('role','alert');error.style.cssText='margin:0 0 10px;color:var(--red);font-size:12px';error.hidden=true;footer.appendChild(error);
    const actions=doc.createElement('div');actions.className='flex-end';const cancel=doc.createElement('button');cancel.type='button';cancel.className='btn';cancel.textContent='Cancelar';const accept=doc.createElement('button');accept.type='submit';accept.className='btn btn-primary';accept.textContent='Confirmar entrega';actions.append(cancel,accept);footer.appendChild(actions);form.appendChild(footer);
