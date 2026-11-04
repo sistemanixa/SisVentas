@@ -10,7 +10,7 @@ const fail=(message='La proyección de presupuestos requiere revisión.',code='S
 const check=(v,m)=>{if(!v)throw fail(m);};
 const key=v=>typeof v==='string'&&v.length>0&&v.length<=128&&!/[.#$\[\]\/\x00-\x1f\x7f]/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
 const text=(v,max=200)=>typeof v==='string'?v.slice(0,max):'';
-const policyHash=s=>digest({users:s.users,identities:s.identities,permissions:s.permissions});
+const policyHash=require('./dashboard-authority-policy-proposal').hash;
 function policy(s){check(object(s)&&['users','identities','permissions'].every(k=>object(s[k])));return Own.profiles(s.users,s.identities);}
 function day(raw){
  const s=typeof raw==='string'?raw.trim():'',m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|T|\s)/)||s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:$|\s)/);

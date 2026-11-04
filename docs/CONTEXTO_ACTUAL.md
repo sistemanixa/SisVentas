@@ -1,3 +1,11 @@
+## Lectura fresca y sesión de Presupuestos · integración local pendiente de montaje
+
+Se reunieron la frontera HTTP fresca/plan legacy de 2e50ab53, la política semántica de 8c84aed2 y la captura de User/sessionEpoch/cancelación de 2f876f43 sobre actividad estable v3. El DTO valida Activity.SCHEMA y usa el mismo hash semántico que la proyección; el lector exige nueve campos de actividad sin ordinal global. Los fixtures unitarios se adaptaron al contrato nuevo sin retirar comprobaciones de permisos, cancelación ni cobertura.
+
+Repetición conjunta root: 85 focales PASS, cero FAIL/SKIP; log privado dashboard-budget-unified-focus.private.log. Dentro de ese alcance, 20 casos de transporte fresco/DTO/sesión/cancelación PASS; baseline anterior fallido conservado en dashboard-budget-contract-merge-before.private.log. Esto no certifica las pruebas nativas en el contrato reunido: se repiten aparte. QA independiente revisa la integración.
+
+No se retiró la escucha completa, no se montaron escritores/consumidores ni se cambió la ventana del titular. Pendientes: cabeceras UID en la misma escritura, consumidores de avisos y métricas, proveedores de otros dominios, empaque y regresión del arranque. Las propuestas no equivalen a optimización publicada. Sin datos reales, push ni activación remota.
+
 ## Actividad de Presupuestos incremental · integración local
 
 Se incorporaron los diez archivos de `f0bf209c98cae070d44a1d7a88046acbf2eff7a4` sobre la base y el helper zonal revisados. Repetición root: 70 focales PASS, cero FAIL/SKIP. El test independiente `23f7b5ca`, conservado sin editar, pasó después 7/7 frente a su baseline de seis fallos y un aprobado. Cubre altas, cambio de instante, fecha comercial con ts primario intacto, reasignación, baja, empates y trabajo puntual independiente de 8/1.008 originales. Sentinels de ventas, pagos, costos de productos, stock, comisiones y cuenta del empleado permanecen intactos; no se ejecuta bootstrap después de mutar.

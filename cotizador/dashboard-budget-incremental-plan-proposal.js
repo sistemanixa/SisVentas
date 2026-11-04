@@ -3,6 +3,7 @@
 const {digest}=require('./labor-guard'),Own=require('./commercial-ownership'),Evidence=require('./client-account-owner-evidence'),Model=require('./dashboard-budget-projection-proposal');
 const {normalizeRtdb}=require('./payment-membership-index');
 const Activity=require('./dashboard-budget-activity-codec-proposal');
+const Policy=require('./dashboard-authority-policy-proposal');
 const stable=value=>digest(normalizeRtdb(value));
 const ROOT='sv_dashboard_budget_proposal/v1',ORIGINAL='sisventas/presupuestos',AUTHORITY=['sv_usuarios','sv_chat_roles','sv_permisos'];
 const fields=['records','active','converted','totalNonCancelled','unknownDates','totalDueEligible'],mod=1n<<256n;
@@ -71,7 +72,19 @@ async function plan({patch,raw,get,generation,revision,beforeCommit,projectRecor
  const paths=Object.keys(patch);
  check(!paths.some(p=>p===''||[ORIGINAL,...AUTHORITY].some(root=>root.startsWith(p+'/'))),'Parent replacement intersects maintained originals or authority');
  check(!paths.some(p=>p===ROOT||p.startsWith(ROOT+'/')||ROOT.startsWith(p+'/')),'Caller cannot write proposed derived metadata');
- const authorityChange=paths.some(p=>AUTHORITY.some(root=>p===root||p.startsWith(root+'/'))),ids=new Set();
+ let authorityChange=false;const profileChecks=new Set(),ids=new Set();
+ for(const path of paths){
+  if(!AUTHORITY.some(root=>path===root||path.startsWith(root+'/')))continue;
+  const parts=path.split('/');
+  if(parts[0]==='sv_usuarios'&&key(parts[1])&&(parts.length===2||parts.length===3&&Policy.TELEMETRY.includes(parts[2])))profileChecks.add('sv_usuarios/'+parts[1]);
+  else authorityChange=true;
+ }
+ if(!authorityChange&&profileChecks.size){
+  const capturedProfiles=[];
+  for(const path of profileChecks){const before=await raw(path),after=await get(path);capturedProfiles.push([path,stable(before)]);if(Policy.profileHash(before)!==Policy.profileHash(after))authorityChange=true;}
+  // A complete PUT must not overwrite authority changed after the point comparison.
+  beforeCommit(async({readFresh})=>{for(const [path,hash]of capturedProfiles)check(stable(await readFresh(path))===hash,'Authority profile changed before commit');});
+ }
  for(const path of paths)if(path===ORIGINAL||path.startsWith(ORIGINAL+'/')){const parts=path.split('/');check(parts.length>=3&&key(parts[2]),'Individual budget originals required');ids.add(parts[2]);}
  if(!authorityChange&&!ids.size)return {patch:{},maintained:false,activationAuthorized:false};
  const coverage=await raw(ROOT+'/coverage'),ready=coverage?.ready===true||authorityChange&&coverage?.ready===false&&coverage?.requiresReconciliation===true;check(object(coverage)&&coverage.schema===1&&ready&&coverage.generation===generation&&coverage.revision===revision&&coverage.scopeAbsenceIsZero===true&&Number.isSafeInteger(coverage.records)&&coverage.records>=0&&Number.isSafeInteger(coverage.unresolvedOwners)&&coverage.unresolvedOwners>=0&&/^[a-f0-9]{64}$/.test(coverage.sourceAccumulator||'')&&/^[a-f0-9]{64}$/.test(coverage.policyHash||''),'Coverage is incomplete or stale');
