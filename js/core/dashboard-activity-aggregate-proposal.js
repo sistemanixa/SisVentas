@@ -46,9 +46,15 @@ function create({enabled=false,capture,valid,ports,requireNotices=true}={}){
   const m1=await call('month'),b1=await call('budget');budget(b1);live();
   check(stamp(b0)===stamp(b1)&&JSON.stringify(b0)===JSON.stringify(b1),'Budget changed across commercial interval');
   check(stamp(m0)===stamp(b0)&&stamp(m1)===stamp(b1)&&JSON.stringify(m0)===JSON.stringify(m1)&&m0.complete===true&&m0.scope===(ctx.role==='admin'?'all':'u_'+ctx.uid)&&m0.month===ctx.month&&m0.employeeLabel===ctx.employeeLabel&&Number.isSafeInteger(m0.records)&&Number.isSafeInteger(m0.converted)&&m0.records>=0&&m0.converted>=0&&m0.converted<=m0.records&&m0.conversionPercent===(m0.records?Math.round(100*m0.converted/m0.records):0),'Monthly metric is not from the budget interval');
+  let salesAuthorMonthly=null;
+  const candidate=commercial[0].creatorMonthly;
+  if(candidate?.schema===1&&candidate.complete===true&&candidate.creator===ctx.employeeLabel&&candidate.month===ctx.month&&candidate.scope===(ctx.grants.ventas==='all'?'all':'u_'+ctx.uid)&&typeof candidate.generation==='string'&&candidate.generation&&Number.isSafeInteger(candidate.revision)&&candidate.revision>=1&&Number.isSafeInteger(candidate.count)&&candidate.count>=0){
+   const sales1=await call('commercial','ventas');live();
+   if(sales1.recent?.domain==='ventas'&&sales1.recent.scope===ctx.grants.ventas&&stamp(sales1.recent)===stamp(commercial[0].recent)&&JSON.stringify(candidate)===JSON.stringify(sales1.creatorMonthly))salesAuthorMonthly=candidate;
+  }
   const sources={},expected={};for(const [i,d]of domains.entries()){const r=d==='presupuestos'?b1.recent:commercial[i].recent;check(r.domain===d&&r.scope===ctx.grants[d],'Unexpected domain/scope');sources[d]={...r,context:ctx};expected[d]={generation:r.generation,revision:r.revision};}
   const activity=Core.merge({context:ctx,sources,expected});check(activity.complete,'Four-prefix merge incomplete');live();
-  return {schema:1,uid:ctx.uid,role:ctx.role,permissionRevision:ctx.permissionRevision,sessionEpoch:ctx.sessionEpoch,dataEpoch:ctx.dataEpoch,activity,monthly:m1,counts:b1.counts,badge:b1.badge,notices:b1.notices??null,coverage:{commercial:{generation:commercial[0].recent.generation,revision:commercial[0].recent.revision},budget:{generation:b1.generation,revision:b1.revision}},consumersComplete:requireNotices&&b1.notices?.complete===true,budgetNoticesComplete:requireNotices&&b1.notices?.complete===true,salesAuthorMonthly:null,salesAuthorMonthlyComplete:false,dashboardComplete:false,originalCollectionComplete:false,notificationCenterComplete:false};
+  return {schema:1,uid:ctx.uid,role:ctx.role,permissionRevision:ctx.permissionRevision,sessionEpoch:ctx.sessionEpoch,dataEpoch:ctx.dataEpoch,activity,monthly:m1,counts:b1.counts,badge:b1.badge,notices:b1.notices??null,coverage:{commercial:{generation:commercial[0].recent.generation,revision:commercial[0].recent.revision},budget:{generation:b1.generation,revision:b1.revision}},consumersComplete:requireNotices&&b1.notices?.complete===true,budgetNoticesComplete:requireNotices&&b1.notices?.complete===true,salesAuthorMonthly,salesAuthorMonthlyComplete:salesAuthorMonthly!==null,dashboardComplete:false,originalCollectionComplete:false,notificationCenterComplete:false};
  }
  return Object.freeze({read});
 }

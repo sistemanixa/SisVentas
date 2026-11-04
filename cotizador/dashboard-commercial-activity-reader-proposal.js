@@ -19,25 +19,34 @@ function createAuthority({auth,db}){
  }
  return {fresh};
 }
-function createReader({auth,db,enabled=false,getLegacyContext}={}){
+function createReader({auth,db,enabled=false,getLegacyContext,getAsOfDay}={}){
  M.check(typeof getLegacyContext==='function'&&typeof db?.ref==='function'&&typeof auth?.verifyIdToken==='function','Falta contexto explícito o transporte.');
  const authority=createAuthority({auth,db}),raw=async p=>(await db.ref(p).get()).val();
  async function read(req,domain){
   M.check(enabled===true&&M.DOMAINS.includes(domain),'Proveedor inactivo o dominio inválido.');
   const actor=await authority.fresh(req,domain),pin=actorPin(actor),legacy=structuredClone(await getLegacyContext()),scope=domain==='ordenes_trabajo'||actor.role==='admin'?'all':'u_'+actor.uid;
   const paths=[M.ROOT+'/coverage',M.ROOT+'/stats/'+domain+'/'+scope,M.ROOT+'/proof/'+domain+'/'+scope,Pages.ROOT+'/coverage','sv_commercial_pages_config'];
-  const before=await Promise.all(paths.map(raw)),[coverage,storedStats,proof,pc,config]=before,c=M.context(coverage);M.pagesReady(config,pc);
+  if(domain==='ventas')paths.push(Pages.ROOT+'/totals/'+scope);
+  const asOfDay=domain==='ventas'&&typeof getAsOfDay==='function'?await getAsOfDay():null;
+  const before=await Promise.all(paths.map(raw)),[coverage,storedStats,proof,pc,config,totals]=before,c=M.context(coverage);M.pagesReady(config,pc);
   M.check(c.timeZone===M.zone(legacy.timeZone)&&c.sourceLocale===legacy.sourceLocale&&c.pagesGeneration===pc.generation&&c.pagesRevision===pc.revision,'Contexto o Pages desactualizado.');
   const known=c.scopes?.[domain]?.[scope]===true,st=storedStats||{generation:c.generation,revision:c.revision,records:0,eligible:0,excluded:0};M.check(known?!!storedStats:!storedStats&&proof===null,'Ámbito sin certificado.');
   M.stats(st,c);M.check(known?proof===M.hash(st):proof===null,'Prefijo sin prueba de cobertura.');
   const snap=await db.ref(M.ROOT+'/document/'+domain+'/'+scope).orderByKey().limitToFirst(5).get(),rows=[];
   snap.forEach(child=>{const value=child.val(),r={...value,amountCents:value?.amountCents??null},fields=['key','date','ms','sort','number','client','status','ownerUid','amountCents'];M.check(r&&Object.keys(r).length===9&&fields.every(k=>Object.hasOwn(r,k))&&r.sort===child.key&&r.sort===Core.eventSort(r.ms,r.key)&&typeof r.date==='string'&&r.date.length<=80&&typeof r.number==='string'&&r.number.length<=128&&typeof r.client==='string'&&r.client.length<=200&&typeof r.status==='string'&&r.status.length<=80&&typeof r.ownerUid==='string'&&(domain==='ordenes_trabajo'?r.amountCents===null&&r.ownerUid==='':Number.isSafeInteger(r.amountCents)),'Fila de actividad inválida.');rows.push(r);});
   M.check(rows.length===Math.min(5,st.eligible),'Prefijo truncado o incompleto.');
-  const finalActor=await authority.fresh(req,domain),after=await Promise.all(paths.map(raw));M.check(digest(actorPin(finalActor))===digest(pin)&&before.every((v,i)=>M.hash(v)===M.hash(after[i]))&&M.hash(legacy)===M.hash(await getLegacyContext()),'Actor o cobertura cambió durante la lectura.');
+  let creatorMonthly;
+  if(domain==='ventas'){
+   creatorMonthly={schema:1,complete:false};
+   if(typeof asOfDay==='string'&&/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(asOfDay)&&pc.scopes?.[scope]===true&&totals?.generation===pc.generation&&Number.isSafeInteger(totals.revision)&&totals.revision>=1&&totals.revision<=pc.revision){
+    try{creatorMonthly={schema:1,complete:true,creator:actor.name,month:asOfDay.slice(0,7),scope,generation:pc.generation,revision:pc.revision,count:Pages.creatorMonthCount(totals,{creator:actor.name,month:asOfDay.slice(0,7)})};}catch(e){if(e.code!=='SV_COMMERCIAL_PAGES_NOT_READY')throw e;}
+   }
+  }
+  const finalActor=await authority.fresh(req,domain),after=await Promise.all(paths.map(raw));M.check(digest(actorPin(finalActor))===digest(pin)&&before.every((v,i)=>M.hash(v)===M.hash(after[i]))&&M.hash(legacy)===M.hash(await getLegacyContext())&&asOfDay===(domain==='ventas'&&typeof getAsOfDay==='function'?await getAsOfDay():null),'Actor o cobertura cambió durante la lectura.');
   const recent={schema:2,domain,kind:'verified-legacy-instant-prefix',scope:scope==='all'?'all':'own',generation:c.generation,revision:c.revision,order:Core.SOURCE_ORDER,timeZone:c.timeZone,sourceLocale:c.sourceLocale,fromStart:true,filter:domain==='pagos'?'legacy-not-annulled':'legacy-ms-truthy',exhausted:st.eligible<=5,rows};
   const context={uid:actor.uid,role:actor.role,auth,db,permissionRevision:actor.permissionRevision,timeZone:c.timeZone,sourceLocale:c.sourceLocale,grants:Object.fromEntries(Core.DOMAINS.map(d=>[d,d===domain?recent.scope:null]))};
   M.check(Core.merge({context,sources:{[domain]:{...recent,context}},expected:{[domain]:{generation:c.generation,revision:c.revision}}}).complete,'Prefijo no autorizado.');
-  return {schema:2,proposal:true,uid:actor.uid,role:actor.role,permissionRevision:actor.permissionRevision,recent,coverage:{records:st.records,eligible:st.eligible,excluded:st.excluded},mixedActivityComplete:false,notificationCenterComplete:false};
+  return {schema:2,proposal:true,uid:actor.uid,role:actor.role,permissionRevision:actor.permissionRevision,recent,...(creatorMonthly?{creatorMonthly}:{}),coverage:{records:st.records,eligible:st.eligible,excluded:st.excluded},mixedActivityComplete:false,notificationCenterComplete:false};
  }
  return Object.freeze({read});
 }

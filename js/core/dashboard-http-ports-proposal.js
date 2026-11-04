@@ -20,7 +20,13 @@ function activity(r,domain,c){
   const b=r.badge,horizon=new Date(Date.parse(c.asOfDay+'T00:00:00Z')+2*86400000).toISOString().slice(0,10);check(object(b)&&b.complete===true&&b.asOfDay===c.asOfDay&&b.horizon===horizon&&integer(b.badgeCount)&&integer(b.upcoming48Count)&&b.upcoming48Count<=b.badgeCount&&b.contract==='legacy-raw-lex/v1');
   if(Object.hasOwn(r,'monthly'))monthly(r,c);
  }else{const s=r.coverage;check(object(s)&&['records','eligible','excluded'].every(k=>integer(s[k]))&&s.eligible+s.excluded===s.records&&p.rows.length===Math.min(5,s.eligible)&&p.exhausted===(s.eligible<=5));}
+ if(domain==='ventas'&&Object.hasOwn(r,'creatorMonthly'))r={...r,creatorMonthly:creatorMonthly(r.creatorMonthly,c)};
  return r;
+}
+function creatorMonthly(m,c){
+ const fields=['schema','complete','creator','month','scope','generation','revision','count'];
+ if(!object(m)||m.schema!==1||m.complete!==true||Object.keys(m).length!==fields.length||!fields.every(k=>Object.hasOwn(m,k))||m.creator!==c.employeeLabel||m.month!==c.month||m.scope!==(c.grants.ventas==='all'?'all':'u_'+c.uid)||typeof m.generation!=='string'||!m.generation||!Number.isSafeInteger(m.revision)||m.revision<1||!integer(m.count))return {schema:1,complete:false};
+ return m;
 }
 function noticeRow(r,c){
  const fields=['key','ownerUid','number','client','status','date','ts','employeeLabel','dueRaw','dueDay','sentDay','admits','approvalStamp','approvedBy','reason','amount','noticeLegacy'];
