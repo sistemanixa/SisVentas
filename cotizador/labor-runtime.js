@@ -1,8 +1,9 @@
 'use strict';
-function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=false,fetchImpl,operationalSummaries=false,commercialPages=process.env.COMMERCIAL_PAGES_ENABLED==='true',clientAccounts=process.env.CLIENT_ACCOUNTS_ENABLED==='true',clientHistory=process.env.CLIENT_HISTORY_ENABLED==='true'}){
+function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=false,fetchImpl,operationalSummaries=false,commercialPages=process.env.COMMERCIAL_PAGES_ENABLED==='true',clientAccounts=process.env.CLIENT_ACCOUNTS_ENABLED==='true',clientHistory=process.env.CLIENT_HISTORY_ENABLED==='true',deliveryEnvironment=process.env}){
  if(readOnly&&!enabled)throw Error('El modo de revisión requiere conservar el circuito acotado');
  if((clientAccounts||clientHistory)&&!enabled)throw Error('Las cuentas y el historial requieren el guardado coordinado habilitado.');
- const store=require('./labor-rtdb-store').createLaborRtdbStore({databaseURL,accessToken,fetchImpl});
+ const verifyOTDeliveryFence=require('./ot-delivery-attestation').createVerifier({env:deliveryEnvironment});
+ const store=require('./labor-rtdb-store').createLaborRtdbStore({databaseURL,accessToken,fetchImpl,verifyOTDeliveryFence});
  const guard=require('./labor-guard').createLaborGuard({store,readOnly,operationalSummaries,commercialPages,clientAccounts,clientHistory,saleFinancialDependencies:true});
  store.saleDeleteFinancialEvidence=require('./sale-financial-dependencies-provider').create();
  const scopedDb=enabled?require('./labor-db').createLaborDb({db,guard}):db;

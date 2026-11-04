@@ -3,7 +3,7 @@ const {parts}=require('./labor-guard');
 const FinancialProtocol=require('./sale-financial-dependencies-protocol');
 const AccountsProtocol=require('./client-account-writer-protocol');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
-function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.now,requestMs=20000}){
+function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.now,requestMs=20000,verifyOTDeliveryFence}){
  const base=new URL(databaseURL);if(base.protocol!=='https:'&&!(base.protocol==='http:'&&['127.0.0.1','localhost'].includes(base.hostname)))throw Error('Destino de datos inválido');
  const local=['127.0.0.1','localhost'].includes(base.hostname),namespace=local?base.searchParams.get('ns'):null;
  if(base.search&&(!local||[...base.searchParams.keys()].some(key=>key!=='ns')))throw Error('Configuración de datos inválida');
@@ -27,13 +27,15 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
    require('./commercial-ownership').validateCommercialActor(actor,checked[0].value,checked[1].value);
   }
   if(actor?.otLifecycle)require('./ot-lifecycle-policy').validate(actor,await read('sv_chat_roles/'+actor.uid),await read('sv_permisos/'+actor.role));
+  if(actor?.otLifecycle?.kind==='delivery'){const proof=await verifyOTDeliveryFence?.({read});if(proof?.schema!==1||proof.verified!==true||proof.canonicalOT!==true||proof.inventory!==true||!/^[a-f0-9]{64}$/.test(proof.rulesDigest||''))throw fail(503,'Fence de entrega no verificado.','SV_OT_DELIVERY_NOT_READY');}
   const override=service('commit',lease,actor);if(actor?.otLifecycle||Object.keys(actor?.claims||{}).some(k=>k.startsWith('svOTLifecycle')))Object.assign(override.token,require('./ot-lifecycle-policy').token(actor,lease));
+  Object.assign(override.token,await require('./ot-delivery-commit-protocol').claims({patch,lease,actor,read}));
   const token=await accessToken(),destination=target('.json');destination.searchParams.set('auth_variable_override',JSON.stringify(override));destination.searchParams.set('print','silent');
   const response=await fetchImpl(destination,{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(patch),signal:AbortSignal.timeout(requestMs)});
   if(response.ok){await response.body?.cancel();return;}
   await response.body?.cancel();throw fail(response.status===401||response.status===403?409:503,'No se pudo confirmar la operación. Revisá su estado antes de reintentar.','SV_LABOR_COMMIT_UNCONFIRMED');
  }
  async function abort(lease){const r=await request('DELETE','sv_labor_guard',undefined,{override:service('abort',lease)});await r.body?.cancel();}
- return {read,exists:async(path)=>{parts(path);const response=await request('GET',path,undefined,{query:{shallow:true}});return await response.json()!==null;},acquire,commit,abort,query:async(path,field,value)=>{const r=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return r.json();},queryFrom:async(path,field,value)=>{parts(field);if(typeof value!=='string')throw fail(400,'Límite de consulta inválido');const r=await request('GET',path,undefined,{query:{orderBy:field,startAt:value}});return r.json();},readAsUser:async(path,actor)=>{const r=await request('GET',path,undefined,{override:{uid:actor.uid,token:actor.claims||{}}});return r.json();}};
+ return {read,verifyOTDeliveryFence:async()=>verifyOTDeliveryFence?.({read})??null,exists:async(path)=>{parts(path);const response=await request('GET',path,undefined,{query:{shallow:true}});return await response.json()!==null;},acquire,commit,abort,query:async(path,field,value)=>{const r=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return r.json();},queryFrom:async(path,field,value)=>{parts(field);if(typeof value!=='string')throw fail(400,'Límite de consulta inválido');const r=await request('GET',path,undefined,{query:{orderBy:field,startAt:value}});return r.json();},readAsUser:async(path,actor)=>{const r=await request('GET',path,undefined,{override:{uid:actor.uid,token:actor.claims||{}}});return r.json();}};
 }
 module.exports={createLaborRtdbStore};

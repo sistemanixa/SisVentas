@@ -1,7 +1,7 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports={create:api};else root.SVOTLifecycle=api(root);})(typeof window==='object'?window:null,function(){
 'use strict';
 const clone=v=>JSON.parse(JSON.stringify(v));
-const fields={close:['conformidadCliente','nombreConformidad','observacionesCierre'],custody:['materiales','custodiaIniciada','custodiaRendida','custodiaRendidaEn','custodiaRendidaPor'],return:['materiales']};
+const fields={close:['conformidadCliente','nombreConformidad','observacionesCierre'],custody:['materiales','custodiaIniciada','custodiaRendida','custodiaRendidaEn','custodiaRendidaPor'],return:['materiales'],delivery:['entregas']};
 return function create(root){
  const busy=new Set();
  async function prepare(context,{kind='custody'}={}){

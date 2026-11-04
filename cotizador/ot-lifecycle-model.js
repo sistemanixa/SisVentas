@@ -66,4 +66,4 @@ function plan({before,changes,kind,sale,primary=null,others={},products={},actor
  }
  return {ot:next,saleStatus,saleChanges};
 }
-module.exports={closed,custody,plan,service,CHECK_COUNTS,checksComplete};
+module.exports={closed,custody,plan,service,CHECK_COUNTS,checksComplete,materialChanges};

@@ -1,0 +1,347 @@
+{
+  "schema": 1,
+  "reviewDate": "2026-11-04",
+  "scope": "isolated OT partial-delivery server candidate; no production or UI-chain acceptance",
+  "source": {
+    "baseCommit": "e47fc15e46890bce6bd5f940b127aeb18ff8262d",
+    "initialCommandCommit": "adc80fd1c70f74057545b15b5435af489afbe871",
+    "fixesCommit": "99655f633d7502ccec3e160af944b1556ccd61ab",
+    "repositoryTreeOid": "289f79311efefcb1c1d5573db7b766b4e1d6a32c",
+    "contextOnlyCommit": "7661eb92a6934e0b19b62e775aef608606ff94d6",
+    "contextOnlyCommitRequiredForCode": false,
+    "changedCodeAndTests": [
+      {
+        "path": "cotizador/Dockerfile",
+        "gitBlobOid": "0b1a61cbff7445f1cebd278dcdf5551513c9bd2f",
+        "gitBlobSha256": "dc3ca6254e808ffe2e12fb8b3579605ef9630e342fca6b919aab516ba0accd90",
+        "checkoutBytesSha256": "adf70365d8173e2e8d0f6e24c6d3a9235dd4bbbd364f52b9b5a03c7a31373fbd"
+      },
+      {
+        "path": "cotizador/labor-rtdb-store.js",
+        "gitBlobOid": "829f37957afe813a6377d23ff16b4ec50ac7a1f3",
+        "gitBlobSha256": "f1fffa1dc65df52dcea1c982a7f7fa73827009e912c6a59931bf90880a4858c3",
+        "checkoutBytesSha256": "50a88a554a8b73adbed17cb069bdaa628f3ae5e5273a144bcef298994ee77adb"
+      },
+      {
+        "path": "cotizador/labor-runtime.js",
+        "gitBlobOid": "e3d575c3c17378ecc78d197f4be47b1a8c70fa16",
+        "gitBlobSha256": "18a982b99a480bb7f70fe9d07965600bb89551f006ac96e3e438fa04e91a1be0",
+        "checkoutBytesSha256": "8339808e1656c2d416fe1c5f7aef15f3510aaae93ce8fd6cc386fce1e91ae407"
+      },
+      {
+        "path": "cotizador/ot-delivery-attestation.js",
+        "gitBlobOid": "a825a4048f03fcdab187e6cc696080c603ffed72",
+        "gitBlobSha256": "596e63e827163ec32b128f4806adef660e58c0e4c2647c41473d20f53d3991c9",
+        "checkoutBytesSha256": "596e63e827163ec32b128f4806adef660e58c0e4c2647c41473d20f53d3991c9"
+      },
+      {
+        "path": "cotizador/ot-delivery-commit-protocol.js",
+        "gitBlobOid": "85e481fc2c08e0872eed92034a45e05fe5dea68f",
+        "gitBlobSha256": "3c7a5ef7d3ba81ec7ecc343f918900725c55b1cb7df43e1866ab61ef671c910b",
+        "checkoutBytesSha256": "3c7a5ef7d3ba81ec7ecc343f918900725c55b1cb7df43e1866ab61ef671c910b"
+      },
+      {
+        "path": "cotizador/ot-delivery-model.js",
+        "gitBlobOid": "48f2c1f9fab0eb156d333005b062456697682f4a",
+        "gitBlobSha256": "d19d834d8418d1df1c581a2eb91ecbc403a471fda8a71ab78a4cbfd6d84119c0",
+        "checkoutBytesSha256": "d19d834d8418d1df1c581a2eb91ecbc403a471fda8a71ab78a4cbfd6d84119c0"
+      },
+      {
+        "path": "cotizador/ot-delivery.js",
+        "gitBlobOid": "0cbb3d2e469456b613b69a96e0a328d260558a64",
+        "gitBlobSha256": "584a4b795deb4910cd97e7e380b0d628a6bb07a607bdce64d5b7e2b31224af30",
+        "checkoutBytesSha256": "584a4b795deb4910cd97e7e380b0d628a6bb07a607bdce64d5b7e2b31224af30"
+      },
+      {
+        "path": "cotizador/ot-lifecycle-model.js",
+        "gitBlobOid": "4e96ca7e6ecce18f9d2affbea54ec1c9208f5129",
+        "gitBlobSha256": "7fd493a39d3218c8487e0266d1143669b78c1652738b5b004d2b054a5507196e",
+        "checkoutBytesSha256": "3df4cda53363eece1f47a028280f60ce6158d2d216d74ee2546b2348659a470b"
+      },
+      {
+        "path": "cotizador/ot-lifecycle-policy.js",
+        "gitBlobOid": "6ee974567b6e3c156de81632ff76fd2c5e0034cc",
+        "gitBlobSha256": "bb9422899445270ad8730b5c7609df64964203d3031cb7896d5f9bcfb2535b46",
+        "checkoutBytesSha256": "0ea5b400a0cb2f11a06051c5089ad40b7642c17b4b7ee3f237322109c257700a"
+      },
+      {
+        "path": "cotizador/ot-lifecycle.js",
+        "gitBlobOid": "c405ccd41cf745207104274de253bf58bcb2dde2",
+        "gitBlobSha256": "6ad59d3923d7eed980f71baefc348fd66c7f5fc63bd2814a3a81bbe8692b960d",
+        "checkoutBytesSha256": "a5b8182b9f5c0f3fdeea71f294b51f7bac5f223f42224fc4a6b85556d9b11a70"
+      },
+      {
+        "path": "js/modules/ot-lifecycle.js",
+        "gitBlobOid": "4ca24fce50652fd41c72ef5d6d6ca49c9d405167",
+        "gitBlobSha256": "c46c8ec149e76b2bf72c7ef0ac3f7049fed6aa5648250278b16176533e658a6c",
+        "checkoutBytesSha256": "2e6aac2455333d81799d7c45428f50f202d996743773522fee5642f30cf520bc"
+      },
+      {
+        "path": "scripts/lib/ot-delivery-attestation-cut.cjs",
+        "gitBlobOid": "c1ca43055c4d84e9ebafa1b9c35a2b4fc1f0cb77",
+        "gitBlobSha256": "4f07ced2090aaf83d31c6ee613332a36a080e24407bc37614b5e3d1a03e7b1d7",
+        "checkoutBytesSha256": "4f07ced2090aaf83d31c6ee613332a36a080e24407bc37614b5e3d1a03e7b1d7"
+      },
+      {
+        "path": "scripts/lib/ot-delivery-attestation-rules.cjs",
+        "gitBlobOid": "63b43755f78c987ecb30c8d8a9a358d7fdd1bc1a",
+        "gitBlobSha256": "8618d124f6a26a0e7797e414cbb052887afbeb7540ba5366b6e4622c3f729ec4",
+        "checkoutBytesSha256": "8618d124f6a26a0e7797e414cbb052887afbeb7540ba5366b6e4622c3f729ec4"
+      },
+      {
+        "path": "scripts/lib/ot-delivery-fence.cjs",
+        "gitBlobOid": "cc6266d264a9018efae7457d03acb28cf521368f",
+        "gitBlobSha256": "68274e8752a0c436a4a723c2514e1bbf62b4350fcb93db2b80f2218388423fba",
+        "checkoutBytesSha256": "68274e8752a0c436a4a723c2514e1bbf62b4350fcb93db2b80f2218388423fba"
+      },
+      {
+        "path": "test/ot-delivery-attestation.test.cjs",
+        "gitBlobOid": "522c4c3aa7078db92e00be7e18b237d6dd575b4e",
+        "gitBlobSha256": "5c168098dec2984453e5be782306aeaa88f714b6e40268075ae7b27abafd4372",
+        "checkoutBytesSha256": "5c168098dec2984453e5be782306aeaa88f714b6e40268075ae7b27abafd4372"
+      },
+      {
+        "path": "test/ot-delivery-commit-protocol.test.cjs",
+        "gitBlobOid": "5147f05a259964fc90140d20df4c33b416d4f91f",
+        "gitBlobSha256": "183a2bf5746f5394fbff47af2fa46916f9a1d9e35fe184b1b1fd99a1b83ba2f7",
+        "checkoutBytesSha256": "183a2bf5746f5394fbff47af2fa46916f9a1d9e35fe184b1b1fd99a1b83ba2f7"
+      },
+      {
+        "path": "test/ot-delivery-fence.test.cjs",
+        "gitBlobOid": "096504dc6a6058f48a6f47d649cfa1ec46ad8fcf",
+        "gitBlobSha256": "d6d9156d73d308bb0b6bf134f21d271390216cc3173a4426f0b5fa7e458c54c7",
+        "checkoutBytesSha256": "d6d9156d73d308bb0b6bf134f21d271390216cc3173a4426f0b5fa7e458c54c7"
+      },
+      {
+        "path": "test/ot-partial-delivery.test.cjs",
+        "gitBlobOid": "2bc1c6cd84fbc8eb18a04068c118b75bd9f0514e",
+        "gitBlobSha256": "6c9352a2d1a4b49be09c03963a758cd51efb740d9f7460a7eeaa9bba5da51309",
+        "checkoutBytesSha256": "6c9352a2d1a4b49be09c03963a758cd51efb740d9f7460a7eeaa9bba5da51309"
+      }
+    ]
+  },
+  "focalTests": {
+    "command": [
+      "node",
+      "--test",
+      "test/ot-delivery-commit-protocol.test.cjs",
+      "test/ot-partial-delivery.test.cjs",
+      "test/ot-delivery-fence.test.cjs",
+      "test/ot-lifecycle-command.test.cjs",
+      "test/ot-lifecycle-policy.test.cjs",
+      "test/ot-lifecycle-integration.test.cjs",
+      "test/ot-lifecycle-client.test.cjs",
+      "test/ot-delivery-remito.test.cjs",
+      "test/ot-stock-idempotent.test.cjs",
+      "test/labor-rtdb-store.test.cjs",
+      "test/cotizador-container-dependencies.test.cjs",
+      "test/ot-delivery-attestation.test.cjs"
+    ],
+    "testInputs": [
+      {
+        "path": "test/ot-delivery-commit-protocol.test.cjs",
+        "gitBlobOid": "5147f05a259964fc90140d20df4c33b416d4f91f",
+        "gitBlobSha256": "183a2bf5746f5394fbff47af2fa46916f9a1d9e35fe184b1b1fd99a1b83ba2f7",
+        "checkoutBytesSha256": "183a2bf5746f5394fbff47af2fa46916f9a1d9e35fe184b1b1fd99a1b83ba2f7"
+      },
+      {
+        "path": "test/ot-partial-delivery.test.cjs",
+        "gitBlobOid": "2bc1c6cd84fbc8eb18a04068c118b75bd9f0514e",
+        "gitBlobSha256": "6c9352a2d1a4b49be09c03963a758cd51efb740d9f7460a7eeaa9bba5da51309",
+        "checkoutBytesSha256": "6c9352a2d1a4b49be09c03963a758cd51efb740d9f7460a7eeaa9bba5da51309"
+      },
+      {
+        "path": "test/ot-delivery-fence.test.cjs",
+        "gitBlobOid": "096504dc6a6058f48a6f47d649cfa1ec46ad8fcf",
+        "gitBlobSha256": "d6d9156d73d308bb0b6bf134f21d271390216cc3173a4426f0b5fa7e458c54c7",
+        "checkoutBytesSha256": "d6d9156d73d308bb0b6bf134f21d271390216cc3173a4426f0b5fa7e458c54c7"
+      },
+      {
+        "path": "test/ot-lifecycle-command.test.cjs",
+        "gitBlobOid": "487fc40abd0df22ed7b44a323495a8b901eb4e56",
+        "gitBlobSha256": "d4810a4e3b3152da9c219e5ad958986937a08c68093eb8d9261e30dd3e41abb1",
+        "checkoutBytesSha256": "479f7cd1a167e3313c4789bf05b8d9de9f795ec46eae4644741d705f9b8d20c3"
+      },
+      {
+        "path": "test/ot-lifecycle-policy.test.cjs",
+        "gitBlobOid": "580209b70417aaf78cb3a0ed2bc406c9308935c6",
+        "gitBlobSha256": "024c9a3b8b73f4dd29e98ec33a1f72edecd6046a06ba53c1f15455a0f6d83694",
+        "checkoutBytesSha256": "3ad65222c4284d3873f28fcd5e7dea0d25a49875fc498bc57f45055a6d0128eb"
+      },
+      {
+        "path": "test/ot-lifecycle-integration.test.cjs",
+        "gitBlobOid": "6da22f6815daab16734561156a2627acdf7cbb55",
+        "gitBlobSha256": "9e4d5a84abb61a77762f2cb08c4814d5d041795ab497e6f30f8d46c1de938433",
+        "checkoutBytesSha256": "c029f255d4dfb61b9c901e6fc60418442d213157f4d67ada778996055c718015"
+      },
+      {
+        "path": "test/ot-lifecycle-client.test.cjs",
+        "gitBlobOid": "3fd2b750cef1052f172fc893f9539ace56086d1e",
+        "gitBlobSha256": "eb3348598ada21daf0b88ce717ab6146d0cc57d58d1d062ab74b65fbf76e85d7",
+        "checkoutBytesSha256": "b326905b21c4f56fd76a8ab27b233024ab49e01bf4816d75d492d439f230140b"
+      },
+      {
+        "path": "test/ot-delivery-remito.test.cjs",
+        "gitBlobOid": "a14bb5cb968c133c7c44b3fb4915a422392a9caf",
+        "gitBlobSha256": "b1062ff7d01cfc149277ba9ba818fe7fac3f6b580d12b52383cfff1f105653eb",
+        "checkoutBytesSha256": "67a75a4f78acbdbfbf046e14258a7f682479793aa67682c86b5abc33b32bc853"
+      },
+      {
+        "path": "test/ot-stock-idempotent.test.cjs",
+        "gitBlobOid": "89261770605a288e193ad0edfe99b08c199bf127",
+        "gitBlobSha256": "73e9354c654507330fdcc3d5a98ab3af4edeef1c2958df062d771b03ea2ea561",
+        "checkoutBytesSha256": "bc347bc97437122d4ed190aa4ad1ae7676fed86eeb5f28eaa1dddc51ae3951e3"
+      },
+      {
+        "path": "test/labor-rtdb-store.test.cjs",
+        "gitBlobOid": "821a5b9f5d5a4f573e6415799dbc999d94a7b9f3",
+        "gitBlobSha256": "67f1eb7596b5c32f04b3273450cc32570be43e026c11b83758de807f2dde7296",
+        "checkoutBytesSha256": "e0b45ad276f6042bf0468cf8812c2948d0b526eaae78d678017657278f57cacd"
+      },
+      {
+        "path": "test/cotizador-container-dependencies.test.cjs",
+        "gitBlobOid": "19776fd185bfb8f89c996de9b6026ced2f90325c",
+        "gitBlobSha256": "b445b9f6e0a567df8f9984a76fd34b3da688e9ccde1d7e53ec632e3dfedccf00",
+        "checkoutBytesSha256": "10c7a6793aabc8fa842116bcda8fa2e6dd5840a9c0565858773bd931eb5e72df"
+      },
+      {
+        "path": "test/ot-delivery-attestation.test.cjs",
+        "gitBlobOid": "522c4c3aa7078db92e00be7e18b237d6dd575b4e",
+        "gitBlobSha256": "5c168098dec2984453e5be782306aeaa88f714b6e40268075ae7b27abafd4372",
+        "checkoutBytesSha256": "5c168098dec2984453e5be782306aeaa88f714b6e40268075ae7b27abafd4372"
+      }
+    ],
+    "nodeVersion": "v24.17.0",
+    "result": {
+      "tests": 164,
+      "pass": 164,
+      "fail": 0,
+      "skipped": 0
+    },
+    "evidenceLog": "protocol-final-commit-focal.log",
+    "evidenceLogSha256": "6136d65b2ee61e14eb27500599c48efdbeb0aaa480519e10e802191fb32be775",
+    "usesRealRuntimeModule": true,
+    "productionWrites": false
+  },
+  "emulatorStoreAndRules": {
+    "result": {
+      "tests": 15,
+      "pass": 15,
+      "fail": 0
+    },
+    "evidenceLog": "protocol-idle-store-run2.log",
+    "evidenceLogSha256": "c446f3d10907f7752f42860446dd9c3942a836447b51d86c823f24d460003e30",
+    "scope": "own real-store and composed-rules fixtures; idle SDK controls included; not complete commercial chain",
+    "testTracked": false
+  },
+  "independentQA": {
+    "reportedBy": "coordinator",
+    "result": {
+      "pass": 26
+    },
+    "scope": "composed delivery rules only",
+    "builderCheckoutSha256": "68274e8752a0c436a4a723c2514e1bbf62b4350fcb93db2b80f2218388423fba",
+    "storeCheckoutSha256": "50a88a554a8b73adbed17cb069bdaa628f3ae5e5273a144bcef298994ee77adb",
+    "coversFinalRuntimeWiring": false,
+    "coversUI": false,
+    "coversCommercialChain": false
+  },
+  "untrackedFilesExcluded": [
+    {
+      "path": "test/helpers/ot-delivery-candidate-harness.cjs",
+      "checkoutBytesSha256": "e6def23ecfbb3cb1fca9281613d005ec81742e94556951652feec4afe855afb3",
+      "owner": "independent QA",
+      "tracked": false,
+      "includeInIntegration": false
+    },
+    {
+      "path": "test/ot-delivery-composed-fence.integration.cjs",
+      "checkoutBytesSha256": "88945d90e3fa8c014fa29a53ef940256a61afd39408788eeaf05c160db6b2a06",
+      "owner": "independent QA",
+      "tracked": false,
+      "includeInIntegration": false
+    },
+    {
+      "path": "test/ot-material-equality-semantics.integration.cjs",
+      "checkoutBytesSha256": "2fd80289e9c477965bb7d07e55dd06b4ecc3cf58ab243a44d738c77e308c06f7",
+      "owner": "independent QA",
+      "tracked": false,
+      "includeInIntegration": false
+    },
+    {
+      "path": "test/ot-delivery-commit-store.integration.cjs",
+      "checkoutBytesSha256": "a40d0baf992cf6643b280154920ff682e1c20b678dda683212b4284cccc58698",
+      "owner": "implementation agent; depends on untracked QA helper",
+      "tracked": false,
+      "includeInIntegration": false
+    }
+  ],
+  "limits": {
+    "fullCurrentGate": "not approved in this isolated checkout: missing Playwright, sandbox temporary Git permissions, timing threshold failure",
+    "primaryCheckoutGate": "separate coordinator evidence; not acceptance for this candidate",
+    "legacyCodeResolution": "authoritative unique codigo/cod queries, fresh-before-commit, secondary custody deduction, ambiguity rejection; no bulk migration",
+    "runtimeAttestation": "wired and fixture-tested against real runtime; no deployment marker or environment configured",
+    "pending": [
+      "exact private-attestation rules namespace composition and emulator checks",
+      "authorized cut executor integration for marker publication/revocation and exclusive deployment control",
+      "frontend selector and retirement of legacy SDK delivery",
+      "all 14 frontend entry points on required H7/guard path",
+      "receipt-delivery-installation-correction-return on one fixture base via integrated frontend"
+    ],
+    "closedOriginalDelivery": "Server rejects original-row delivery on closed OT, including admin UI correction. Dedicated server permission/capability contract is not implemented in frozen source."
+  },
+  "publication": {
+    "pushed": false,
+    "deployed": false,
+    "remoteRulesObservedByThisEvidence": false,
+    "realBusinessWrites": false
+  },
+  "receiptMetadataFollowup": {
+    "baseFixesCommit": "99655f633d7502ccec3e160af944b1556ccd61ab",
+    "scope": "receipt unidad and descripcion preservation only; no rule/authorization changes",
+    "codeAndTests": [
+      {
+        "path": "cotizador/ot-delivery-model.js",
+        "checkoutBytesSha256": "65bff378dc6fa3d4cbb4a8d7ec87bed4f631ea62855746157c57e538324fa8b6",
+        "normalizedLfSha256": "65bff378dc6fa3d4cbb4a8d7ec87bed4f631ea62855746157c57e538324fa8b6"
+      },
+      {
+        "path": "cotizador/ot-delivery.js",
+        "checkoutBytesSha256": "208ae537317d664b647caba95feb4ec1ba2642765a906330a306a95284526d78",
+        "normalizedLfSha256": "208ae537317d664b647caba95feb4ec1ba2642765a906330a306a95284526d78"
+      },
+      {
+        "path": "test/ot-delivery-receipt-metadata.test.cjs",
+        "checkoutBytesSha256": "3bbc9ba59c4e4e0943fb21daecc2b4ddc61af5dff0b00ee6f709cba13523b8c2",
+        "normalizedLfSha256": "3bbc9ba59c4e4e0943fb21daecc2b4ddc61af5dff0b00ee6f709cba13523b8c2"
+      }
+    ],
+    "command": [
+      "node",
+      "--test",
+      "test/ot-delivery-receipt-metadata.test.cjs",
+      "test/ot-delivery-commit-protocol.test.cjs",
+      "test/ot-partial-delivery.test.cjs",
+      "test/ot-delivery-fence.test.cjs",
+      "test/ot-lifecycle-command.test.cjs",
+      "test/ot-lifecycle-policy.test.cjs",
+      "test/ot-lifecycle-integration.test.cjs",
+      "test/ot-lifecycle-client.test.cjs",
+      "test/ot-delivery-remito.test.cjs",
+      "test/ot-stock-idempotent.test.cjs",
+      "test/labor-rtdb-store.test.cjs",
+      "test/cotizador-container-dependencies.test.cjs",
+      "test/ot-delivery-attestation.test.cjs"
+    ],
+    "result": {
+      "tests": 167,
+      "pass": 167,
+      "fail": 0,
+      "skipped": 0
+    },
+    "evidenceLog": "receipt-followup-focal.log",
+    "evidenceLogSha256": "56dca44f0ecb35db3fa931845f72b1f277771531f5c8bef2a49f23ac776c896a",
+    "independentQAExtended": false,
+    "commercialChainAccepted": false
+  }
+}

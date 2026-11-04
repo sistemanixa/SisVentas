@@ -24,6 +24,7 @@ COPY oauth-authorization.js ./
 COPY labor-calculations.js labor-operations.js labor-submissions.js labor-transaction.js ./
 COPY sale-cost-correction.js sale-cost-correction-model.js ./
 COPY labor-guard.js labor-index.js labor-rtdb-store.js labor-scoped-transaction.js labor-db.js labor-runtime.js labor-write-gateway.js labor-fence-policy.js labor-commission-limit.js ./
+COPY ot-delivery-commit-protocol.js ot-delivery-attestation.js ./
 COPY operational-projections.js operational-read-model.js record-list-projections.js record-list-model.js ./
 COPY labor-bonus-batch.js bonus-quantity-model.js ./
 COPY labor-sac-batch.js payroll-legacy-sac-model.js ./
@@ -52,7 +53,7 @@ ENV NODE_ENV=production
 CMD ["npm", "start"]
 
 COPY ot-office-count.js ot-office-count-model.js ot-stock-consumption-model.js ./
-COPY ot-closed-products.js ot-lifecycle.js ot-lifecycle-model.js ot-lifecycle-policy.js ot-material-rows-model.js ot-personal-scope.js ./
+COPY ot-closed-products.js ot-lifecycle.js ot-delivery.js ot-delivery-model.js ot-lifecycle-model.js ot-lifecycle-policy.js ot-material-rows-model.js ot-personal-scope.js ./
 
 COPY sale-return-to-budget.js ./
 

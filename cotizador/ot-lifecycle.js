@@ -3,9 +3,11 @@ const {digest}=require('./labor-guard'),Model=require('./ot-lifecycle-model'),Po
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
 function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,now=Date.now}){
+ const delivery=require('./ot-delivery').createOTDelivery({store,guard,enabled,now});
  const read=async path=>(await db.ref(path).get()).val();
  async function activation(){const configs=await Promise.all([read('sv_labor_config'),read('sv_operational_read_config'),read('sv_record_list_config')]);if(!enabled||configs[0]?.otLifecycleVersion!==1||configs.some(c=>c?.schema!==1||c?.ready!==true))throw fail(503,'El nuevo circuito de OT todavía no está habilitado.','SV_OT_LIFECYCLE_DISABLED');if(commercialPages){const [config,coverage]=await Promise.all([read('sv_commercial_pages_config'),read('sv_commercial_pages/v1/coverage')]);if(config?.schema!==1||config.ready!==true||typeof config.generation!=='string'||!config.generation||coverage?.schema!==1||coverage.ready!==true||coverage.generation!==config.generation||!Number.isSafeInteger(coverage.revision)||coverage.revision<0)throw fail(503,'El listado comercial todavía no está preparado.','SV_COMMERCIAL_PAGES_NOT_READY');}}
  async function available(identity,{otKey,kind='custody'}={}){
+  if(kind==='delivery')return delivery.available(identity,{otKey});
   await activation();
   if(!identity?.uid||identity.claims?.uid!==identity.uid||!key(otKey)||!['close','custody','return'].includes(kind))throw fail(400,'Solicitud de OT inválida.');
   const profile=await read('sv_chat_roles/'+identity.uid),cfg=await read('sv_permisos/'+profile?.rol),ot=await store.readAsUser('sisventas/ordenes_trabajo/'+otKey,identity);
@@ -91,7 +93,7 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
   });
   return {...result,ot:await store.readAsUser(otPath,identity)};
  }
- async function execute(identity,body){let started=false;try{return await executeInternal(identity,body,()=>{started=true;});}catch(error){if(!started)error.svLaborAttempted=false;throw error;}}
+ async function execute(identity,body){if(body?.kind==='delivery')return delivery.execute(identity,body);let started=false;try{return await executeInternal(identity,body,()=>{started=true;});}catch(error){if(!started)error.svLaborAttempted=false;throw error;}}
  return {execute,available};
 }
 module.exports={createOTLifecycle};
