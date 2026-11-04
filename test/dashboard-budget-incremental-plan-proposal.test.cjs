@@ -2,6 +2,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),M=require('../cotizador/dashboard-budget-projection-proposal'),I=require('../cotizador/dashboard-budget-incremental-plan-proposal');
 const {digest,createLaborGuard}=require('../cotizador/labor-guard'),{createBackend,apply}=require('./helpers/labor-ui-flow.cjs');
 const {normalizeRtdb}=require('../cotizador/payment-membership-index');
+const vm=require('node:vm'),{functionSource}=require('./helpers/app-functions.cjs');
 function authority(){return {users:{admin:{uid:'u',nombre:'Admin ficticio',rol:'admin',activo:true},a:{uid:'one',nombre:'Uno',rol:'vendedor',activo:true},b:{uid:'two',nombre:'Dos',rol:'administrativo',activo:true}},identities:{u:{activo:true,rol:'admin'},one:{activo:true,rol:'vendedor'},two:{activo:true,rol:'administrativo'}},permissions:{}};}
 const budget=(extra={})=>({id:'PP-FICTICIO',responsableUid:'one',clienteFbKey:'c',cliente:'Cliente ficticio',fecha:'2026-11-04',vence:'2026-11-05',estado:'borrador',ts:100,total:100,subtotal:100,iva:0,conIva:false,descuento:0,items:[{cod:'FICTICIO',qty:1,punit:100,sub:100,costoUnitarioCompra:20}],foto:'PRIVATE PHOTO',...extra});
 const canonicalRecords=records=>Object.fromEntries(Object.entries(records).map(([id,row])=>[id,normalizeRtdb(row)]));
@@ -21,6 +22,65 @@ async function fixture(records={a:budget()}){
  }
  return {...f,guard,run};
 }
+
+function badgeReader(f,{scope='all',queryTransform,readTransform,authorizeTransform,maxPages=100}={}){
+ const pointReads=[],queries=[];let bytes=0;
+ const read=()=>I.badgeCounts({asOfDay:'2026-11-04',pageSize:50,maxPages,
+  authorize:async()=>{const access={scope,policyHash:f.get(I.ROOT+'/coverage/policyHash')};return authorizeTransform?authorizeTransform(access):access;},
+  raw:async path=>{assert([I.ROOT+'/coverage',I.ROOT+'/stats/'+scope,I.ROOT+'/scopeProof/'+scope].includes(path));pointReads.push(path);const value=readTransform?readTransform(path,f.get(path)):f.get(path);bytes+=Buffer.byteLength(JSON.stringify(value));return structuredClone(value);},
+  query:async spec=>{assert.equal(spec.path,I.ROOT+'/noticeBadge/'+scope);assert.equal(spec.limit,50);assert.equal(spec.orderBy,'key');const candidates=Object.entries(f.get(spec.path)||{}).sort(([a],[b])=>a<b?-1:a>b?1:0).filter(([sort])=>(!spec.startAt||sort>=spec.startAt)&&(!spec.startAfter||sort>spec.startAfter)).slice(0,spec.limit).map(([sort,value])=>({sort,value}));const result=queryTransform?queryTransform(candidates,spec,queries.length):candidates;queries.push({spec,returned:result.length,bytes:Buffer.byteLength(JSON.stringify(result))});bytes+=Buffer.byteLength(JSON.stringify(result));return structuredClone(result);}
+ });return {read,pointReads,queries,get bytes(){return bytes;}};
+}
+
+function legacyBadge(records){
+ const ctx={};vm.runInNewContext(functionSource('_pptoAdmiteAvisosNotificacion'),ctx);
+ const eligible=Object.values(records).filter(p=>ctx._pptoAdmiteAvisosNotificacion(p)&&M.NOTICE_ACTIVE.includes(p.estado)&&p.vence);
+ return {badgeCount:eligible.filter(p=>p.vence<='2026-11-06').length,upcoming48Count:eligible.filter(p=>p.vence>='2026-11-04'&&p.vence<='2026-11-06').length};
+}
+
+test('raw-lex badge counts preserve ISO, slash, whitespace, invalid and UTF-16 legacy dates across guarded mutations',async()=>{
+ const dates=['2026-01-01','2026-11-04','2026-11-06','2026-11-06T01:00:00Z','2026-11-07','04/11/2026','31/02/2026','01/99/2026',' 2026-11-07','2026-2-1','garbage','😀','\ue000',''],records=Object.fromEntries(dates.map((vence,i)=>['d'+i,budget({vence})]));
+ Object.assign(records,{accepted:budget({estado:'aceptado'}),disabled:budget({eliminado:true}),other:budget({responsableUid:'two'})});
+ const f=await fixture(records),check=async()=>{const result=await badgeReader(f).read();const expected=legacyBadge(f.get('sisventas/presupuestos'));assert.equal(result.badgeCount,expected.badgeCount);assert.equal(result.upcoming48Count,expected.upcoming48Count);assert.equal(result.complete,true);assert.equal(result.contract,'legacy-raw-lex/v1');};
+ await check();await f.run({'sisventas/presupuestos/d0/vence':'2026-11-10','sisventas/presupuestos/d1/estado':'convertido','sisventas/presupuestos/d2/responsableUid':'two','sisventas/presupuestos/d3':null});await check();
+ for(const scope of ['u_one','u_two']){const result=await badgeReader(f,{scope}).read(),expected=legacyBadge(Object.fromEntries(Object.entries(f.get('sisventas/presupuestos')).filter(([,p])=>p.responsableUid===scope.slice(2))));assert.equal(result.badgeCount,expected.badgeCount);assert.equal(result.upcoming48Count,expected.upcoming48Count);}
+ assert.notEqual(M.day('04/11/2026'),'04/11/2026');assert('04/11/2026'<'2026-11-04');
+});
+
+test('5001 past and 50 future dates read only 50 future candidates in two bounded pages after real planner commit',async t=>{
+ const run=async past=>{const records=Object.fromEntries(Array.from({length:past},(_,i)=>['p'+i,budget({vence:'2020-01-01'})]));for(let i=0;i<50;i++)records['f'+i]=budget({vence:'2027-01-01'});const f=await fixture(records);await f.run({'sisventas/presupuestos/f0/vence':'2026-11-05'});const reader=badgeReader(f),r=await reader.read();assert.equal(r.badgeCount,past+1);assert.equal(r.upcoming48Count,1);assert.equal(r.candidates,50);assert.equal(r.pages,2);assert.equal(reader.pointReads.length,6);assert.deepEqual(reader.queries.map(q=>q.returned),[50,0]);return {pages:r.pages,candidates:r.candidates,queryBytes:reader.queries.reduce((n,q)=>n+q.bytes,0),mockBytes:reader.bytes};};
+ const short=await run(1),long=await run(5001);assert.equal(short.queryBytes,long.queryBytes);assert.equal(short.pages,long.pages);t.diagnostic('MOCK only: '+JSON.stringify({past1:short,past5001:long})+'; no real network savings measured');
+});
+
+test('badge refuses page exhaustion, malformed pages, stale coverage and unknown legacy representation rather than partial zero',async()=>{
+ const f=await fixture(Object.fromEntries(Array.from({length:50},(_,i)=>['b'+i,budget({vence:'2027-01-01'})])));
+ await assert.rejects(badgeReader(f,{maxPages:1}).read(),/page budget exhausted/);
+ await assert.rejects(badgeReader(f,{queryTransform:rows=>rows.slice().reverse()}).read(),/unordered/);
+ await assert.rejects(badgeReader(f,{queryTransform:rows=>rows.length?[...rows,rows[0]]:rows}).read(),/query page/);
+ await assert.rejects(badgeReader(f,{queryTransform:rows=>rows.map(r=>({...r,value:{...r.value,dueRaw:'changed'}}))}).read(),/candidate/);
+ await assert.rejects(badgeReader(f,{readTransform:(path,value)=>path.endsWith('/stats/all')?{...value,totalDueEligible:undefined}:value}).read(),/metadata/);
+ let reads=0;await assert.rejects(badgeReader(f,{readTransform:(path,value)=>path.endsWith('/coverage')&&++reads>1?{...value,revision:value.revision+1}:value}).read(),/changed during read/);
+ let auth=0;await assert.rejects(badgeReader(f,{authorizeTransform:a=>++auth>1?{...a,scope:'u_one'}:a}).read(),/authorization changed/);
+ const before=structuredClone(f.state);await assert.rejects(f.run({'sisventas/presupuestos/b0/vence':'x'.repeat(81)}),/cannot be represented exactly/);assert.deepEqual(f.state,before);
+ await assert.rejects(f.run({'sisventas/presupuestos/b0/vence':123}),/cannot be represented exactly/);assert.deepEqual(f.state,before);
+ await f.run({'sv_permisos/admin':{indiceRevision:2}});await assert.rejects(badgeReader(f).read(),/coverage incomplete/);
+});
+
+test('badge zero requires complete certified scope; RTDB normalization and flag transitions preserve exact counts',async()=>{
+ const empty=await fixture({});assert.equal((await badgeReader(empty).read()).badgeCount,0);
+ await assert.rejects(badgeReader(empty,{scope:'u_one'}).read(),/metadata/);
+ const f=await fixture({a:budget({vence:'01/99/2026'}),b:budget({vence:'2027-01-01'})});
+ const normalize=()=>{const next=normalizeRtdb(f.state);for(const k of Object.keys(f.state))delete f.state[k];Object.assign(f.state,next);};normalize();
+ assert.equal((await badgeReader(f).read()).badgeCount,1);
+ await f.run({'sisventas/presupuestos/a/cancelada':true});normalize();assert.equal((await badgeReader(f).read()).badgeCount,0);
+ await f.run({'sisventas/presupuestos/a/cancelada':null,'sisventas/presupuestos/b':null});normalize();assert.equal((await badgeReader(f).read()).badgeCount,1);
+});
+
+test('inclusive today lower bound keeps every same-date hash tie across exclusive pages',async()=>{
+ const records=Object.fromEntries(Array.from({length:100},(_,i)=>['today'+i,budget({vence:'2026-11-04'})]));records['漢'.repeat(128)]=budget({vence:'z'.repeat(80)});
+ const f=await fixture(records),reader=badgeReader(f),result=await reader.read();assert.equal(result.badgeCount,100);assert.equal(result.upcoming48Count,100);assert.equal(result.candidates,101);assert.deepEqual(reader.queries.map(q=>q.returned),[50,50,1]);
+ for(const sort of Object.keys(f.get(I.ROOT+'/noticeBadge/all')))assert(Buffer.byteLength(sort)<=768);
+});
 test('parent replacements reject before planner fast return and leave originals and indexes intact under real guard',async()=>{
  const f=await fixture();
  for(const path of ['sisventas','']){

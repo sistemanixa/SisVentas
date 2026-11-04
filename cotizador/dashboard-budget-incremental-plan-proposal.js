@@ -4,7 +4,7 @@ const {digest}=require('./labor-guard'),Own=require('./commercial-ownership'),Ev
 const {normalizeRtdb}=require('./payment-membership-index');
 const stable=value=>digest(normalizeRtdb(value));
 const ROOT='sv_dashboard_budget_proposal/v1',ORIGINAL='sisventas/presupuestos',AUTHORITY=['sv_usuarios','sv_chat_roles','sv_permisos'];
-const fields=['records','active','converted','totalNonCancelled','unknownDates'],mod=1n<<256n;
+const fields=['records','active','converted','totalNonCancelled','unknownDates','totalDueEligible'],mod=1n<<256n;
 const ownershipFields=['responsableUid','creadaPorUid','creadoPorUid','usuarioUid','empleadoUid','creadoPor','usuario','empleado'];
 const rowFields=['key','sourceHash','ownerUid','number','client','status','date','ts','employeeLabel','dueRaw','dueDay','sentDay','admits','approvalStamp','approvedBy','reason','amount'];
 const fail=(reason)=>Object.assign(Error(reason),{code:'SV_BUDGET_INCREMENTAL_RECONCILE',statusCode:409});
@@ -15,22 +15,27 @@ const ownershipHash=r=>stable(Object.fromEntries(ownershipFields.filter(k=>Objec
 const scopes=uid=>uid?['all','u_'+uid]:['all'];
 const sumHash=(before,hash,sign)=>((BigInt('0x'+before)+BigInt(sign)*BigInt('0x'+hash)+mod)%mod).toString(16).padStart(64,'0');
 const zero=()=>Object.fromEntries(fields.map(k=>[k,0]));
-const counts=r=>r?{records:1,active:Number(Model.ACTIVE.includes(r.status)),converted:Number(r.status==='convertido'),totalNonCancelled:Number(r.status!=='anulado'),unknownDates:Number(!Model.day(r.date))}:zero();
+const badgeEligible=r=>r.admits&&Model.NOTICE_ACTIVE.includes(r.status)&&!!r.dueRaw;
+// Fixed-width UTF-16 preserves JS raw-string comparisons, including legacy non-ISO text.
+const rawSort=raw=>Array.from({length:raw.length},(_,i)=>raw.charCodeAt(i).toString(16).padStart(4,'0')).join('');
+const badgeSort=(raw,id)=>rawSort(raw)+'!'+stable(id);
+const counts=r=>r?{records:1,active:Number(Model.ACTIVE.includes(r.status)),converted:Number(r.status==='convertido'),totalNonCancelled:Number(r.status!=='anulado'),unknownDates:Number(!Model.day(r.date)),totalDueEligible:Number(badgeEligible(r))}:zero();
 const monthBucket=row=>/^\d{4}-(0[1-9]|1[0-2])$/.test(row.date.slice(0,7))?stable([row.employeeLabel,row.date.slice(0,7)]):null;
-function validateStats(stats,generation){check(object(stats)&&stats.schema===1&&stats.generation===generation&&Number.isSafeInteger(stats.revision)&&stats.revision>=1&&fields.every(k=>Number.isSafeInteger(stats[k])&&stats[k]>=0),'Scope metadata incomplete');check(stats.active+stats.converted<=stats.totalNonCancelled&&stats.totalNonCancelled<=stats.records&&stats.unknownDates<=stats.records,'Scope counts inconsistent');}
+function validateStats(stats,generation){check(object(stats)&&stats.schema===1&&stats.generation===generation&&Number.isSafeInteger(stats.revision)&&stats.revision>=1&&fields.every(k=>Number.isSafeInteger(stats[k])&&stats[k]>=0),'Scope metadata incomplete');check(stats.active+stats.converted<=stats.totalNonCancelled&&stats.totalNonCancelled<=stats.records&&stats.unknownDates<=stats.records&&stats.totalDueEligible<=stats.active,'Scope counts inconsistent');}
 function validateRow(row,id,source,owner){
  check(object(row)&&Object.keys(row).length===rowFields.length&&rowFields.every(k=>Object.hasOwn(row,k))&&row.key===id&&row.sourceHash===stable(source)&&row.ownerUid===owner&&(owner===''||/^[A-Za-z0-9_-]{1,128}$/.test(owner)),'Point projector has no matching source evidence');
  check(rowFields.every(k=>row[k]===null||['string','number','boolean'].includes(typeof row[k])),'Point projector leaked nested data');
  check(row.status===String(source.estado||'').slice(0,80)&&row.date===String(source.fecha||'').slice(0,80),'Point projector changed status/date');
  return structuredClone(row);
 }
-function source(id,original,row){return {key:id,sourceHash:stable(original),ownerUid:row.ownerUid,ownershipHash:ownershipHash(original),ownerEvidence:Evidence.fromRecord(original,'presupuestos'),row:structuredClone(row)};}
+function source(id,original,row){check(!row.admits||!Model.NOTICE_ACTIVE.includes(row.status)||!original.vence||typeof original.vence==='string'&&original.vence===row.dueRaw,'Badge raw due value cannot be represented exactly');return {key:id,sourceHash:stable(original),ownerUid:row.ownerUid,ownershipHash:ownershipHash(original),ownerEvidence:Evidence.fromRecord(original,'presupuestos'),row:structuredClone(row)};}
 function indexes(record){
  if(!record)return {};const row=record.row,out={};
  for(const scope of scopes(record.ownerUid)){
   const date=Model.day(row.date);
   if(date){const sort=String(99999999-Number(date.replaceAll('-',''))).padStart(8,'0')+'_'+Buffer.from(row.key).toString('hex');out[ROOT+'/document/'+scope+'/'+sort]={key:row.key,date,sort,number:row.number,client:row.client,status:row.status,ownerUid:row.ownerUid,amountCents:null};}
   const month=monthBucket(row);if(month)out[ROOT+'/monthMembers/'+scope+'/'+month+'/'+row.key]=true;
+  if(badgeEligible(row))out[ROOT+'/noticeBadge/'+scope+'/'+badgeSort(row.dueRaw,row.key)]={key:row.key,dueRaw:row.dueRaw};
   if(row.admits){out[ROOT+'/noticeStatus/'+scope+'/'+stable(row.status)+'/'+row.key]=row;
    if(row.dueDay)out[ROOT+'/noticeDue/'+scope+'/'+row.dueDay+'/'+row.key]=row;
    if(row.sentDay&&row.status==='enviado'&&row.dueDay)out[ROOT+'/noticeSent/'+scope+'/'+row.sentDay+'/'+row.key]=row;
@@ -98,4 +103,28 @@ async function plan({patch,raw,get,generation,revision,beforeCommit,projectRecor
  check(next.records>=0&&next.unresolvedOwners>=0&&next.unresolvedOwners<=next.records,'Global coverage counts inconsistent');next.revision=revisionNext;derived[ROOT+'/coverage']=next;
  return {patch:derived,maintained:true,activationAuthorized:false,originalWrites:0,recovery:'existing-sv_labor_receipts'};
 }
-module.exports={ROOT,bootstrap,plan};
+// authorize is the future handler's fresh server authorization, never caller-supplied scope/role.
+// query must execute an ordered, exclusive-cursor RTDB key query and return snapshot children.
+async function badgeCounts({raw,query,authorize,asOfDay,pageSize=50,maxPages=100}={}){
+ check(typeof raw==='function'&&typeof query==='function'&&typeof authorize==='function'&&Model.day(asOfDay)===asOfDay&&Number.isInteger(pageSize)&&pageSize>=1&&pageSize<=50&&Number.isInteger(maxPages)&&maxPages>=1&&maxPages<=1000,'Invalid badge read contract');
+ const access=await authorize();check(object(access)&&/^(all|u_[A-Za-z0-9_-]{1,128})$/.test(access.scope||'')&&/^[a-f0-9]{64}$/.test(access.policyHash||''),'Fresh authorized scope required');
+ const paths=[ROOT+'/coverage',ROOT+'/stats/'+access.scope,ROOT+'/scopeProof/'+access.scope];
+ const before=await Promise.all(paths.map(p=>raw(p))),[coverage,stats,proof]=before;
+ check(coverage?.schema===1&&coverage.ready===true&&coverage.scopeAbsenceIsZero===true&&Number.isSafeInteger(coverage.records)&&coverage.records>=0&&/^[a-f0-9]{64}$/.test(coverage.sourceAccumulator||'')&&key(coverage.generation)&&Number.isSafeInteger(coverage.revision)&&coverage.revision>=1&&coverage.policyHash===access.policyHash,'Badge coverage incomplete or unauthorized');
+ validateStats(stats,coverage.generation);check(stats.revision<=coverage.revision&&proof===stable(stats)&&stats.totalDueEligible<=stats.records&&(access.scope!=='all'||stats.records===coverage.records),'Badge scope metadata incomplete');
+ const horizon=new Date(Date.parse(asOfDay+'T00:00:00Z')+2*86400000).toISOString().slice(0,10),startAt=rawSort(asOfDay)+'!',seen=new Set();check(Model.day(horizon)===horizon,'Badge horizon outside supported date range');let cursor=null,future=0,upcoming=0,pages=0,exhausted=false;
+ for(;pages<maxPages;){
+  const rows=await query({path:ROOT+'/noticeBadge/'+access.scope,orderBy:'key',...(cursor?{startAfter:cursor}:{startAt}),limit:pageSize});pages++;
+  check(Array.isArray(rows)&&rows.length<=pageSize,'Invalid badge query page');
+  for(const child of rows){
+   const value=child?.value;check(object(child)&&Object.keys(child).length===2&&object(value)&&Object.keys(value).length===2&&key(value.key)&&typeof value.dueRaw==='string'&&value.dueRaw.length>=1&&value.dueRaw.length<=80&&child.sort===badgeSort(value.dueRaw,value.key)&&child.sort>=startAt&&(!cursor||child.sort>cursor)&&!seen.has(value.key),'Invalid, duplicate or unordered badge candidate');
+   seen.add(value.key);cursor=child.sort;if(value.dueRaw>horizon)future++;else upcoming++;
+  }
+  check(future+upcoming<=stats.totalDueEligible,'Badge candidate count contradicts metadata');
+  if(rows.length<pageSize){exhausted=true;break;}
+ }
+ check(exhausted,'Badge query page budget exhausted; no exact count available');
+ const after=await Promise.all(paths.map(p=>raw(p))),accessAfter=await authorize();check(before.every((v,i)=>stable(v)===stable(after[i]))&&stable(access)===stable(accessAfter),'Badge coverage or authorization changed during read');
+ return {scope:access.scope,generation:coverage.generation,revision:coverage.revision,asOfDay,horizon,badgeCount:stats.totalDueEligible-future,upcoming48Count:upcoming,complete:true,pages,candidates:future+upcoming,contract:'legacy-raw-lex/v1'};
+}
+module.exports={ROOT,bootstrap,plan,badgeCounts};
