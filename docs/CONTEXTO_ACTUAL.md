@@ -1,3 +1,15 @@
+## Puente de lectura de Dashboard · preparación de montaje
+
+Se agregó dashboard-budget-source-proposal con consumidores separados dashboardBudgets y dashboardBudgetNotices; nunca marca completa la colección presupuestos original. ensure comparte solicitudes pendientes y no consulta otra vez al renderizar un resultado listo o fallido. refresh sólo se invoca por una acción/evento real desde el host. Revalidar conserva la vista de la misma autoridad; un error no se convierte en cero. User, UID, rol, firma/revisión de permisos, epoch, Auth, DB y contexto zonal retiran respuestas anteriores. Un 401/403 borra ambos consumidores y bloquea el reintento implícito hasta cambiar autoridad o actualizar explícitamente. No instala listeners ni tareas por reloj.
+
+Contrato de host: capture proporciona allowed y contexto de autoridad actual (no un permiso autoconcedido); valid confirma vigencia; read(kind) usa el transporte ya elegido y normaliza ambos caminos al envelope verificado con uid, role, permissionRevision, generation y revision. Dashboard requiere counts completos, incluido conversionPercent; Notices requiere notices.complete=true y rows. beginSource/error/cancel e invalidate usan SVDataReadiness; cambiadas la sesión o los permisos, el host debe invalidar también sin esperar otra petición. El renderer debe usar este snapshot sólo para sus consumidores y conservar la fuente del formulario/listado por separado. Todavía no se montó en index/app ni se cambió la ventana del usuario.
+
+Nueve pruebas focales PASS, sin FAIL/SKIP: demanda reentrante, revalidación sin vaciar, retiro de sesión/permisos, error/denegación, consumidores separados, payload incompleto y rechazo tardío. Log dashboard-budget-source.private.log. La integración con SVDataReadiness real se revisa aparte; estas pruebas usan puertos de readiness ficticios y no son una prueba del arranque completo del HTML.
+
+También se importaron dos archivos de evidencia de 6f95a451: diez nativos de guard real + lector fresco sobre fuente congelada 1e4078d259a01f2a3908019cf89d6d1ee62f3b20, sin SKIP. Incluyen mutaciones seguidas de KPI/prefijo/avisos, revocaciones y sentinels financieros; cero lecturas normales de originales por el lector. Hash de log f342bf881e4f4911c6cc1ea39c15672e787ed859ef7cac085dde40c607ec1b2b verificado por root. No se los atribuye a fuentes funcionales posteriores sin repetirlos.
+
+Siguen abiertos el codec histórico de avisos, montaje conjunto, fuentes mensuales de Mi actividad (no usar total alltime ni cinco filas), empaque/rutas y la puerta final. Sin operaciones reales, publicación o push.
+
 ## Actividad comercial integrada con el guard común · preparación local
 
 Se incorporó el bloque b35fe07c sobre 0ca5cced sin sustituir la versión del guard que ya mantiene Presupuestos. Ventas/Cobros reutilizan filas canónicas Pages para UID e importes; OT sigue la lectura por módulo y no transporta dinero. Los prefijos son de cinco instantes con desempate estable, excluyen cobros anulados y mantienen cobertura incremental con el mismo commit. Default deshabilitado y proyector inyectado, sin requerirlo desde el contenedor habitual.
