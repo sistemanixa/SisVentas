@@ -22,6 +22,7 @@ function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=f
   if(!['ventas','presupuestos'].includes(actor?.domain)||!['assign','prepare'].includes(method))throw Object.assign(Error('Operación comercial inválida.'),{statusCode:400});
   return actor.domain==='ventas'||clientAccounts?run(actor,'commercial-'+method,input,work):work();
  }
- return {db:scopedDb,store,guard,transaction,run,commercialMutation};
+ const capabilities=()=>Object.freeze({schema:1,coordinated:enabled===true,readOnly:readOnly===true,commercialPages:commercialPages===true,clientAccounts:enabled===true&&commercialPages===true&&clientAccounts===true,clientHistory:enabled===true&&commercialPages===true&&clientAccounts===true&&clientHistory===true,writerMode:require('./commercial-models/client-account-mode.v1').WRITER});
+ return {db:scopedDb,store,guard,transaction,run,commercialMutation,capabilities};
 }
 module.exports={createLaborRuntime};

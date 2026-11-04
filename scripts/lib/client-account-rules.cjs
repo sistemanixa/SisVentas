@@ -11,7 +11,7 @@ function prepare(input){
  r.sv_client_accounts.v1.coverage.$scope['.read']='('+active+') && '+allowed+' && '+own+" && root.child('sv_client_accounts_config/ready').val() === true && root.child('sv_client_accounts_config/schema').val() === 1";
  // A child fence cannot revoke an ancestor or wildcard grant in RTDB.
  if(![false,'false',undefined].includes(r.sisventas?.['.write']))throw Error('Revisar escrituras padre antes de coordinar clientes.');
- const coordinated=depth=>"(root.child('sv_client_accounts_config/ready').val() !== true || ("+financial.replaceAll('newData.parent()','newData'+'.parent()'.repeat(depth))+"))";
+ const coordinated=depth=>"((root.child('sv_client_accounts_config/ready').val() !== true && root.child('sv_client_accounts_config/writerMode').val() !== 'coordinated-v1' && !root.child('sv_client_accounts/v1/coverage/all').exists()) || ("+financial.replaceAll('newData.parent()','newData'+'.parent()'.repeat(depth))+"))";
  function fence(node,depth=2){if(!node||typeof node!=='object')return;for(const[k,v]of Object.entries(node)){if(k==='.write'&&v!==false&&v!=='false')node[k]='('+v+') && '+coordinated(depth);else if(!k.startsWith('.'))fence(v,depth+1);}}
  for(const name of ['clientes','clientes_unificados','clientes_unificados_indice','presupuestos'])fence(r.sisventas?.[name]);
  // Preserve every unrelated domain grant, while fencing any wildcard route

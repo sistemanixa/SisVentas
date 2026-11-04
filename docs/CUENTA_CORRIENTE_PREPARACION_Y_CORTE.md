@@ -91,3 +91,35 @@ no enumera todos los destinos otra vez para cada lectura puntual. Sólo se añad
 destinos de extracto durante esa pasada; fuentes y membresías permanecen fijas.
 Tres pruebas comprueban equivalencia, copias y una sola enumeración ante mil
 consultas sobre diez mil destinos ajenos. Este ajuste no prueba latencia web.
+
+## Ventanas abiertas y pausa persistente: implementación local
+
+El modo de escritura se comparte mediante client-account-mode.v1 entre navegador
+y servidor. Antes de cada acción de identidad, prepareWrite consulta sólo su
+configuración puntual: una ventana con el puente que vio readyfalse no conserva
+ese resultado para elegir el SDK tras la activación. La comprobación no cierra
+ni reinicia el formulario y no requiere consultar una cuenta privada.
+
+writerMode=coordinated-v1 persiste cuando readyfalse representa una pausa. Las
+reglas mantienen el fence por esa marca o por la cobertura global ya instalada;
+quitar la disponibilidad o perder la configuración no vuelve a abrir el SDK. El
+servidor usa el mismo clasificador y rechaza el commit completo si la cobertura
+instalada quedó pausada, antes de tocar fuentes. Sólo el estado nunca instalado
+conserva el transporte anterior. La activación preparada incluye writerMode.
+
+Si la activación sucede entre el GET de modo legado y un SDK rechazado por
+PERMISSION_DENIED, se permite una única consulta diagnóstica de modo. No se repite
+la escritura: si cambió el circuito se conserva el formulario y se solicita un
+reintento explícito. Un error de red incierto no activa ese diagnóstico ni un
+replay automático. El endpoint autorizado de capacidades existente incluye ahora
+los flags emparejados reales y la revisión del servidor, sin consultar originales;
+el corte debe comprobarlos antes de levantar la pausa.
+
+Límite importante: este puente debe publicarse y probarse con el paquete completo
+actualizado antes del corte. Una pestaña anterior al puente no puede adquirir
+código nuevo por magia: sus SDK son rechazados por reglas, conservando originales,
+y requiere actualización segura. No afirmar compatibilidad transparente de esos
+clientes ni aplicar fences mientras haya formularios no resguardados. Aún falta
+concretar el protocolo de recarga de esas ventanas y la foto coherente de todas
+las fuentes bajo pausa, incluidos directorios/identidades/permisos. Nada de este
+bloque se aplicó remotamente.

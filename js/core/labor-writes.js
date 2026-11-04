@@ -66,7 +66,17 @@
    const host=root.SVClientAccountHost;
    if(typeof host?.start!=='function'||!paths.some(identityIntersects))return action();
    const check=capture();check();
-   return Promise.resolve().then(()=>host.start()).then(()=>{check();return action();});
+   return Promise.resolve().then(()=>typeof host.prepareWrite==='function'?host.prepareWrite():host.start()).then(async()=>{
+    check();const direct=host.coordinated?.()!==true;
+    try{return await action();}catch(error){
+     // RTDB rejects the complete SDK write. Only a definite permission denial
+     // can be diagnosed; uncertain network failures are never replayed.
+     if(!direct||typeof host.prepareWrite!=='function'||!['PERMISSION_DENIED','database/permission-denied','permission-denied'].includes(error?.code))throw error;
+     try{await host.prepareWrite();check();}catch(modeError){if(modeError?.code==='SV_CLIENT_ACCOUNTS_PAUSED')throw modeError;throw error;}
+     if(host.coordinated?.()===true)throw fail('SV_CLIENT_ACCOUNTS_MODE_CHANGED','SisVentas se actualizó durante el guardado. No se guardaron cambios; reintentá con el mismo formulario.');
+     throw error;
+    }
+   });
   }
   function requireScoped(path){
    if(serviceOnly(path))throw fail('SV_LABOR_SERVICE_ONLY','Esta información sólo puede actualizarla el servidor.');

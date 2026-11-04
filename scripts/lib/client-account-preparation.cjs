@@ -66,7 +66,7 @@ async function prepare({sources,generation,commercialGeneration,revision=1,accou
   totals:{totalCents,paidCents,balanceCents},
   // Separate from data: a caller must finish rules, fences and compatible
   // clients before activation. A successful preparation is never permission.
-  activation:{accounts:{schema:1,generation,ready:true,scopeBootstrapVersion:1},commercial:{schema:1,generation:commercialGeneration,ready:true,nativeCollectionsReady:true,nativeCollectionsSchema:1}}};
+  activation:{accounts:{schema:1,generation,ready:true,writerMode:require('../../js/core/client-account-mode.v1').WRITER,scopeBootstrapVersion:1},commercial:{schema:1,generation:commercialGeneration,ready:true,nativeCollectionsReady:true,nativeCollectionsSchema:1}}};
  return{...plan,artifactDigest:digest(plan)};
 }
 function verify(plan,sources){

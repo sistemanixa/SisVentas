@@ -25,3 +25,5 @@ test('linked budget author evidence survives later edits through the real shared
  assert.deepEqual(f.get('sisventas/pagos'),payments);assert.equal(f.get(P.ROOT+'/totals/all/balanceCents'),5000);
  assert(!f.reads.some(([,path])=>path==='sisventas/presupuestos'));
 });
+
+test('paused or accidentally missing account configuration cannot commit a source write against an installed index',async()=>{for(const mode of ['paused','missing']){const f=await fixture(),before=f.get('sisventas');apply(f.state,{'sv_client_accounts_config':mode==='missing'?null:{ready:false,schema:1,generation:'account-writer',writerMode:'coordinated-v1'}});await assert.rejects(f.run({'sisventas/clientes/c/nombre':'No cambiar'}),/temporalmente/);assert.deepEqual(f.get('sisventas'),before);assert.equal(f.commits.length,0);assert.equal(f.get('sv_labor_guard'),null);}});

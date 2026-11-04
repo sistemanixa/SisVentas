@@ -1,3 +1,17 @@
+# Plan integral consolidado, etapa 1 · 03/11/2026
+
+Después de la entrega, el titular reanudó ejecución del plan y delegó el orden técnico. Puerta del puente pendiente completada con Chrome autorizado y fixtures:7479total/7452PASS/27skip/0fallos,870archivos/2lotes. Intento previo restringido interrumpido por fallos de ejecución visual, conservado como intento no aprobado; aislada visual3PASS con Chrome autorizado. La nueva puerta aprobada corresponde a la base antes de incorporar mejoras Dashboard19. Sin remoto ni operaciones reales. Los cuatro chats revisan bloques separados; se integra localmente antes de cualquier activación.
+
+El titular pausó implementación/publicaciones y luego autorizó etapa1 de planificación con cuatro chats de revisión paralela. Los cuatro entregaron análisis estático local; no ejecutaron matrices nuevas, no consultaron producción ni modificaron fuentes. Plan y orden único en [PLAN_INTEGRAL_ETAPA1.md](PLAN_INTEGRAL_ETAPA1.md): conservar Dashboard19, cerrar núcleo Ventas/Cobros/CC, vínculos operativos, Historial, consumidores y corte compatible. Distingue publicado/preparado/desconocido externo, hipótesis de defectos probados y pruebas propuestas de ejecutadas. No declara auditoría terminada ni autoriza etapa2. El WIP anterior permanece preservado; sin publicación, push, cambios de permisos ni operaciones reales en este bloque.
+
+# Puente de modo de cuentas y pausa persistente preparado · 03/11/2026
+
+Hallazgo real de código:host.start cacheaba modo desactivado para siempre. Nuevo prepareWrite comprueba configuración puntual por acción de identidad; SDK elige guardado después de esa comprobación, preservando formulario. Modo único compartido navegador/servidor empaquetado; activated writerMode persiste en pausa. Reglas conservan fence con marca o cobertura instalada aun si falta config; servidor rechaza commit entero pausado/missing. Carrera entrecomprobar ySDK403 hace un diagnóstico acotado, sin replay automático. Se conservan controles de sesión/rol/Auth/db/revisión/oculto/offline/Ver como.
+
+Se agregan capacidades reales de coordinación al endpoint autorizado existente, con revisión de servidor y sin leer originales.35focales SDK/modoPASS;31modelo/escritoresHistorialPASS;18nativeUI PASS tras conservar mensaje compatible de actualización;3RTDBemuladosPASS con paused/configmissing/preparing e invariantes de originales. Se repetirán emulador actualizado y puerta final antes de cerrar el bloque. Sin remoto, sin servidor publicado, sin reglas aplicadas, sin datos reales.
+
+No confundir puente nuevo con compatibilidad automática de pestañas anteriores: necesitan actualización segura. Siguen pendientes protocolo concreto de cutover/recarga y foto coherente completa, Historial host/transporte/índices de audiencias y restantes consumidores. Publicación19 de rendimiento verificada queda fuera, no usar esta rama antigua como Hosting sin emparejarla con lo publicado. Ver CUENTA_CORRIENTE_PREPARACION_Y_CORTE.md.
+
 # Entrada comercial coordinada preparada, sin activar · 03/11/2026
 
 La ruta HTTP real de preparar/reasignar Presupuestos ahora pasa por commercialMutation igual que Ventas cuando Cuenta corriente está habilitada. Con el flag apagado conserva el transporte anterior; una configuración de cuentas/historial sin guardado coordinado rechaza el arranque.27casos ficticios PASS incluyen ambas rutas reales y rechazo por revocación antes del commit. Puerta completa7469total/7442PASS/27skip/0fallos,868archivos/2lotes. Sintaxis/diffPASS. No publicado ni activado.
