@@ -4,6 +4,7 @@ const {digest}=require('./labor-guard'),Own=require('./commercial-ownership'),Ev
 const {normalizeRtdb}=require('./payment-membership-index');
 const Activity=require('./dashboard-budget-activity-codec-proposal');
 const Policy=require('./dashboard-authority-policy-proposal');
+const NoticeLegacy=require('../js/core/dashboard-budget-notice-legacy-proposal');
 const stable=value=>digest(normalizeRtdb(value));
 const ROOT='sv_dashboard_budget_proposal/v1',ORIGINAL='sisventas/presupuestos',AUTHORITY=['sv_usuarios','sv_chat_roles','sv_permisos'];
 const fields=['records','active','converted','totalNonCancelled','unknownDates','totalDueEligible','noticeEligible'],mod=1n<<256n;
@@ -31,7 +32,7 @@ function validateRow(row,id,source,owner){
  check(row.status===String(source.estado||'').slice(0,80)&&row.date===String(source.fecha||'').slice(0,80),'Point projector changed status/date');
  return structuredClone(row);
 }
-function source(id,original,row){check(!row.admits||!Model.NOTICE_ACTIVE.includes(row.status)||!original.vence||typeof original.vence==='string'&&original.vence===row.dueRaw,'Badge raw due value cannot be represented exactly');return {key:id,sourceHash:stable(original),ownerUid:row.ownerUid,ownershipHash:ownershipHash(original),ownerEvidence:Evidence.fromRecord(original,'presupuestos'),row:structuredClone(row)};}
+function source(id,original,row){check(!row.admits||!Model.NOTICE_ACTIVE.includes(row.status)||!original.vence||typeof original.vence==='string'&&original.vence===row.dueRaw,'Badge raw due value cannot be represented exactly');return {key:id,sourceHash:stable(original),ownerUid:row.ownerUid,ownershipHash:ownershipHash(original),ownerEvidence:Evidence.fromRecord(original,'presupuestos'),noticeLegacy:row.admits?NoticeLegacy.capture(original):null,row:structuredClone(row)};}
 function indexes(record,activityMode=false){
  if(!record)return {};const row=record.row,out={};
  for(const scope of scopes(record.ownerUid)){
@@ -40,7 +41,7 @@ function indexes(record,activityMode=false){
   else if(date){const sort=Model.documentSort(date,row.key);out[ROOT+'/document/'+scope+'/'+sort]={key:row.key,date,sort,number:row.number,client:row.client,status:row.status,ownerUid:row.ownerUid,amountCents:null};}
   const month=monthBucket(row);if(month)out[ROOT+'/monthMembers/'+scope+'/'+month+'/'+row.key]=true;
   if(badgeEligible(row))out[ROOT+'/noticeBadge/'+scope+'/'+badgeSort(row.dueRaw,row.key)]={key:row.key,dueRaw:row.dueRaw};
-  if(row.admits){out[ROOT+'/noticeCandidates/'+scope+'/'+noticeSort(row.key)]=row;out[ROOT+'/noticeStatus/'+scope+'/'+stable(row.status)+'/'+row.key]=row;
+  if(row.admits){out[ROOT+'/noticeCandidates/'+scope+'/'+noticeSort(row.key)]={...row,noticeLegacy:NoticeLegacy.validate(record.noticeLegacy)};out[ROOT+'/noticeStatus/'+scope+'/'+stable(row.status)+'/'+row.key]=row;
    if(row.dueDay)out[ROOT+'/noticeDue/'+scope+'/'+row.dueDay+'/'+row.key]=row;
    if(row.sentDay&&row.status==='enviado'&&row.dueDay)out[ROOT+'/noticeSent/'+scope+'/'+row.sentDay+'/'+row.key]=row;
   }
@@ -116,7 +117,7 @@ async function plan({patch,raw,get,generation,revision,beforeCommit,projectRecor
  for(const id of ids){
   const path=ORIGINAL+'/'+id,sourcePath=ROOT+'/sources/'+id,[beforeRaw,afterRaw,storedPrevious]=await Promise.all([raw(path),get(path),raw(sourcePath)]),before=normalizeRtdb(beforeRaw),after=normalizeRtdb(afterRaw),previous=storedPrevious?{...storedPrevious,row:{ts:null,dueDay:null,sentDay:null,amount:null,...storedPrevious.row}}:null;captured.push([path,stable(before)],[sourcePath,stable(storedPrevious)]);
   check((previous?.sourceHash??stable(null))===stable(before)&&(!before||previous?.ownershipHash===ownershipHash(before)),'Original before hash is not covered');
-  if(before){validateRow(previous?.row,id,before,previous?.ownerUid);Evidence.validate(previous.ownerEvidence);check(stable(previous.ownerEvidence)===stable(Evidence.fromRecord(before,'presupuestos'))&&ownerAfter(before,previous)===previous.ownerUid,'Stored ownership no longer matches its source');}
+  if(before){check(stable(previous.row?.admits?NoticeLegacy.validate(previous?.noticeLegacy):(previous?.noticeLegacy??null))===stable(previous.row?.admits?NoticeLegacy.capture(before):null),'Stored legacy notice evidence differs from original');validateRow(previous?.row,id,before,previous?.ownerUid);Evidence.validate(previous.ownerEvidence);check(stable(previous.ownerEvidence)===stable(Evidence.fromRecord(before,'presupuestos'))&&ownerAfter(before,previous)===previous.ownerUid,'Stored ownership no longer matches its source');}
   if(activityMode&&before){const expectedActivity=Activity.point({key:id,original:before,ownerUid:previous.ownerUid,offsetMinutes:coverage.offsetMinutes,timeZone:coverage.activityTimeZone});check(stable(previous.activity)===stable(expectedActivity),'Activity instant evidence changed');Activity.eventRow(previous);}
   if(stable(before)===stable(after))continue;let record=null;
   if(after!==null){check(object(after)&&typeof projectRecord==='function','An explicit shared point-row codec is required');if(!previous)check(Object.hasOwn(after,'responsableUid')&&Own.owner(after,'presupuestos',[]),'A new budget needs the canonical owner already resolved by the existing writer protocol');const owner=ownerAfter(after,previous),row=validateRow(await projectRecord({key:id,original:structuredClone(after),ownerUid:owner,offsetMinutes:coverage.offsetMinutes}),id,after,owner);record=source(id,after,row);}

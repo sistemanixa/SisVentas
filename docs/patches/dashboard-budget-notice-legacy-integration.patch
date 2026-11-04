@@ -1,0 +1,65 @@
+diff --git a/cotizador/dashboard-budget-incremental-plan-proposal.js b/cotizador/dashboard-budget-incremental-plan-proposal.js
+index dfc53654..5588e639 100644
+--- a/cotizador/dashboard-budget-incremental-plan-proposal.js
++++ b/cotizador/dashboard-budget-incremental-plan-proposal.js
+@@ -4,6 +4,7 @@ const {digest}=require('./labor-guard'),Own=require('./commercial-ownership'),Ev
+ const {normalizeRtdb}=require('./payment-membership-index');
+ const Activity=require('./dashboard-budget-activity-codec-proposal');
+ const Policy=require('./dashboard-authority-policy-proposal');
++const NoticeLegacy=require('../js/core/dashboard-budget-notice-legacy-proposal');
+ const stable=value=>digest(normalizeRtdb(value));
+ const ROOT='sv_dashboard_budget_proposal/v1',ORIGINAL='sisventas/presupuestos',AUTHORITY=['sv_usuarios','sv_chat_roles','sv_permisos'];
+ const fields=['records','active','converted','totalNonCancelled','unknownDates','totalDueEligible','noticeEligible'],mod=1n<<256n;
+@@ -31,7 +32,7 @@ function validateRow(row,id,source,owner){
+  check(row.status===String(source.estado||'').slice(0,80)&&row.date===String(source.fecha||'').slice(0,80),'Point projector changed status/date');
+  return structuredClone(row);
+ }
+-function source(id,original,row){check(!row.admits||!Model.NOTICE_ACTIVE.includes(row.status)||!original.vence||typeof original.vence==='string'&&original.vence===row.dueRaw,'Badge raw due value cannot be represented exactly');return {key:id,sourceHash:stable(original),ownerUid:row.ownerUid,ownershipHash:ownershipHash(original),ownerEvidence:Evidence.fromRecord(original,'presupuestos'),row:structuredClone(row)};}
++function source(id,original,row){check(!row.admits||!Model.NOTICE_ACTIVE.includes(row.status)||!original.vence||typeof original.vence==='string'&&original.vence===row.dueRaw,'Badge raw due value cannot be represented exactly');return {key:id,sourceHash:stable(original),ownerUid:row.ownerUid,ownershipHash:ownershipHash(original),ownerEvidence:Evidence.fromRecord(original,'presupuestos'),noticeLegacy:row.admits?NoticeLegacy.capture(original):null,row:structuredClone(row)};}
+ function indexes(record,activityMode=false){
+  if(!record)return {};const row=record.row,out={};
+  for(const scope of scopes(record.ownerUid)){
+@@ -40,7 +41,7 @@ function indexes(record,activityMode=false){
+   else if(date){const sort=Model.documentSort(date,row.key);out[ROOT+'/document/'+scope+'/'+sort]={key:row.key,date,sort,number:row.number,client:row.client,status:row.status,ownerUid:row.ownerUid,amountCents:null};}
+   const month=monthBucket(row);if(month)out[ROOT+'/monthMembers/'+scope+'/'+month+'/'+row.key]=true;
+   if(badgeEligible(row))out[ROOT+'/noticeBadge/'+scope+'/'+badgeSort(row.dueRaw,row.key)]={key:row.key,dueRaw:row.dueRaw};
+-  if(row.admits){out[ROOT+'/noticeCandidates/'+scope+'/'+noticeSort(row.key)]=row;out[ROOT+'/noticeStatus/'+scope+'/'+stable(row.status)+'/'+row.key]=row;
++  if(row.admits){out[ROOT+'/noticeCandidates/'+scope+'/'+noticeSort(row.key)]={...row,noticeLegacy:NoticeLegacy.validate(record.noticeLegacy)};out[ROOT+'/noticeStatus/'+scope+'/'+stable(row.status)+'/'+row.key]=row;
+    if(row.dueDay)out[ROOT+'/noticeDue/'+scope+'/'+row.dueDay+'/'+row.key]=row;
+    if(row.sentDay&&row.status==='enviado'&&row.dueDay)out[ROOT+'/noticeSent/'+scope+'/'+row.sentDay+'/'+row.key]=row;
+   }
+@@ -116,7 +117,7 @@ async function plan({patch,raw,get,generation,revision,beforeCommit,projectRecor
+  for(const id of ids){
+   const path=ORIGINAL+'/'+id,sourcePath=ROOT+'/sources/'+id,[beforeRaw,afterRaw,storedPrevious]=await Promise.all([raw(path),get(path),raw(sourcePath)]),before=normalizeRtdb(beforeRaw),after=normalizeRtdb(afterRaw),previous=storedPrevious?{...storedPrevious,row:{ts:null,dueDay:null,sentDay:null,amount:null,...storedPrevious.row}}:null;captured.push([path,stable(before)],[sourcePath,stable(storedPrevious)]);
+   check((previous?.sourceHash??stable(null))===stable(before)&&(!before||previous?.ownershipHash===ownershipHash(before)),'Original before hash is not covered');
+-  if(before){validateRow(previous?.row,id,before,previous?.ownerUid);Evidence.validate(previous.ownerEvidence);check(stable(previous.ownerEvidence)===stable(Evidence.fromRecord(before,'presupuestos'))&&ownerAfter(before,previous)===previous.ownerUid,'Stored ownership no longer matches its source');}
++  if(before){check(stable(previous.row?.admits?NoticeLegacy.validate(previous?.noticeLegacy):(previous?.noticeLegacy??null))===stable(previous.row?.admits?NoticeLegacy.capture(before):null),'Stored legacy notice evidence differs from original');validateRow(previous?.row,id,before,previous?.ownerUid);Evidence.validate(previous.ownerEvidence);check(stable(previous.ownerEvidence)===stable(Evidence.fromRecord(before,'presupuestos'))&&ownerAfter(before,previous)===previous.ownerUid,'Stored ownership no longer matches its source');}
+   if(activityMode&&before){const expectedActivity=Activity.point({key:id,original:before,ownerUid:previous.ownerUid,offsetMinutes:coverage.offsetMinutes,timeZone:coverage.activityTimeZone});check(stable(previous.activity)===stable(expectedActivity),'Activity instant evidence changed');Activity.eventRow(previous);}
+   if(stable(before)===stable(after))continue;let record=null;
+   if(after!==null){check(object(after)&&typeof projectRecord==='function','An explicit shared point-row codec is required');if(!previous)check(Object.hasOwn(after,'responsableUid')&&Own.owner(after,'presupuestos',[]),'A new budget needs the canonical owner already resolved by the existing writer protocol');const owner=ownerAfter(after,previous),row=validateRow(await projectRecord({key:id,original:structuredClone(after),ownerUid:owner,offsetMinutes:coverage.offsetMinutes}),id,after,owner);record=source(id,after,row);}
+
+diff --git a/js/core/dashboard-budget-notice-model-proposal.js b/js/core/dashboard-budget-notice-model-proposal.js
+index c97c923f..6dae66a1 100644
+--- a/js/core/dashboard-budget-notice-model-proposal.js
++++ b/js/core/dashboard-budget-notice-model-proposal.js
+@@ -1,10 +1,10 @@
+-(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.SVDashboardBudgetNoticeModel=api;})(typeof globalThis==='object'?globalThis:this,function(){
++(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./dashboard-budget-notice-legacy-proposal'):root.SVBudgetNoticeLegacyProposal);if(typeof module==='object'&&module.exports)module.exports=api;else root.SVDashboardBudgetNoticeModel=api;})(typeof globalThis==='object'?globalThis:this,function(NoticeLegacy){
+ 'use strict';
+ const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
+ const check=(ok,message)=>{if(!ok)throw Object.assign(Error(message),{code:'SV_BUDGET_NOTICES_INCOMPLETE',statusCode:409});};
+ const key=v=>typeof v==='string'&&v.length>0&&v.length<=128&&!/[.#$\[\]\/\x00-\x1f\x7f]/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
+ const sort=id=>'k_'+Array.from({length:id.length},(_,i)=>id.charCodeAt(i).toString(16).padStart(4,'0')).join('');
+-const fields=['key','sourceHash','ownerUid','number','client','status','date','ts','employeeLabel','dueRaw','dueDay','sentDay','admits','approvalStamp','approvedBy','reason','amount'];
++const fields=['key','sourceHash','ownerUid','number','client','status','date','ts','employeeLabel','dueRaw','dueDay','sentDay','admits','approvalStamp','approvedBy','reason','amount','noticeLegacy'];
+ function project(row,recordKey,actor){
+  check(object(row),'Invalid notice candidate');
+  row={ts:null,dueDay:null,sentDay:null,amount:null,...row};
+@@ -12,6 +12,7 @@ function project(row,recordKey,actor){
+  check(typeof row.ownerUid==='string'&&(actor.role==='admin'||row.ownerUid===actor.uid),'Notice candidate outside scope');
+  for(const [field,max]of [['number',128],['client',200],['status',80],['date',80],['employeeLabel',160],['dueRaw',80],['approvalStamp',80],['approvedBy',160],['reason',500]])check(typeof row[field]==='string'&&row[field].length<=max,'Invalid notice text');
+  check(/^[a-f0-9]{64}$/.test(row.sourceHash)&&[row.dueDay,row.sentDay].every(v=>v===null||typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v))&&(row.ts===null||['string','number'].includes(typeof row.ts))&&(row.amount===null||typeof row.amount==='number'&&Number.isFinite(row.amount)),'Invalid notice evidence');
++ row.noticeLegacy=NoticeLegacy.validate(row.noticeLegacy);
+  // Original row hashes and private fields are not transported to the browser.
+  return Object.fromEntries(fields.filter(f=>f!=='sourceHash').map(f=>[f,structuredClone(row[f])]));
+ }

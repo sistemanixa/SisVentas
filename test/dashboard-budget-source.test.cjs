@@ -38,3 +38,11 @@ test('valid metadata alone cannot certify absent metrics or a truncated notice p
 test('invalidating a pending consumer settles immediately while its late rejection stays handled',async()=>{
  const f=fixture(),d=deferred();f.setRead(()=>d.promise);const pending=f.source.ensure();await tick();f.source.invalidate();await assert.rejects(pending,{code:'SV_BUDGET_SOURCE_RETIRED'});d.reject(Error('Late transport failure'));await tick();assert.equal(f.source.peek().status,'idle');assert.equal(f.handles[0].readyCalls,0);
 });
+
+test('connection retirement with unchanged authority keeps visible data for event-driven revalidation',async()=>{
+ const f=fixture();await f.source.ensure();const old=f.source.peek().data;f.setRead(async()=>{throw Object.assign(Error('Connection epoch changed'),{code:'SV_BUDGET_SDK_RETIRED'});});await assert.rejects(f.source.refresh());assert.equal(f.source.peek().data,old);assert.equal(f.source.peek().status,'error');assert.equal(f.invalidated.length,0);f.setRead(async()=>f.result({revision:2}));await f.source.refresh();assert.equal(f.source.peek().data.revision,2);
+});
+
+test('derived grants changing without a role-name change retire cached data before another read',async()=>{
+ const f=fixture();f.ctx.grants={presupuestos:'own'};await f.source.ensure();f.ctx.grants.presupuestos=null;assert.equal(f.source.peek().data,null);assert(f.invalidated.includes('dashboardBudgets'));
+});

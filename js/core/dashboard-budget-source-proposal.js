@@ -2,11 +2,11 @@
 'use strict';
 const kinds=['dashboard','notices'],keys={dashboard:'dashboardBudgets',notices:'dashboardBudgetNotices'};
 const cancelled=()=>Object.assign(Error('Budget source retired'),{name:'AbortError',code:'SV_BUDGET_SOURCE_RETIRED'});
-const fields=['uid','role','permissionRevision','permissionSignature','sessionEpoch','dataEpoch','auth','db','timeZone','sourceLocale'];
+const fields=['uid','role','permissionRevision','permissionSignature','grantSignature','sessionEpoch','dataEpoch','auth','db','timeZone','sourceLocale'];
 function create({capture,valid,read,readiness,changed=()=>{}}={}){
  if(typeof capture!=='function'||typeof valid!=='function'||typeof read!=='function'||typeof changed!=='function'||typeof readiness?.beginSource!=='function'||typeof readiness?.invalidate!=='function')throw Error('Missing budget source host contract');
  const entries=new Map();let sequence=0,blocked=null;
- function scope(){try{const c=capture(),user=c?.auth?.currentUser;if(!c||c.allowed!==true||c.viewing||!user||typeof c.uid!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(c.uid)||user.uid!==c.uid||typeof c.role!=='string'||!c.role||typeof c.permissionSignature!=='string'||!Number.isSafeInteger(c.permissionRevision)||c.permissionRevision<0||!Number.isSafeInteger(c.sessionEpoch)||c.sessionEpoch<0||!Number.isSafeInteger(c.dataEpoch)||c.dataEpoch<0||!c.db||!valid(c))return null;return Object.freeze({...Object.fromEntries(fields.map(f=>[f,c[f]])),user});}catch(_){return null;}}
+ function scope(){try{const c=capture(),user=c?.auth?.currentUser;if(!c||c.allowed!==true||c.viewing||!user||typeof c.uid!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(c.uid)||user.uid!==c.uid||typeof c.role!=='string'||!c.role||typeof c.permissionSignature!=='string'||!Number.isSafeInteger(c.permissionRevision)||c.permissionRevision<0||!Number.isSafeInteger(c.sessionEpoch)||c.sessionEpoch<0||!Number.isSafeInteger(c.dataEpoch)||c.dataEpoch<0||!c.db||!valid(c))return null;return Object.freeze({...Object.fromEntries(fields.map(f=>[f,c[f]])),grantSignature:JSON.stringify(['ventas','pagos','ordenes_trabajo','presupuestos'].map(d=>c.grants?.[d]??null)),user});}catch(_){return null;}}
  function same(a,b){return !!a&&!!b&&fields.every(f=>a[f]===b[f])&&a.user===b.user;}
  function live(entry){return entries.get(entry.kind)===entry&&same(entry.scope,scope());}
  function view(entry){return entry?Object.freeze({status:entry.status,data:entry.data,error:entry.error,revalidating:entry.status==='loading'&&entry.data!==null,sequence:entry.sequence}):Object.freeze({status:'idle',data:null,error:null,revalidating:false,sequence:0});}
@@ -35,7 +35,7 @@ function create({capture,valid,read,readiness,changed=()=>{}}={}){
   }).catch(error=>{
    if(!pending.active)return;if(!live(entry)){invalidate();return;}
    entry.pending=null;
-   if([401,403].includes(error?.statusCode)||['SV_BUDGET_SDK_RETIRED','SV_BUDGET_SOURCE_RETIRED'].includes(error?.code)){blocked={scope:entry.scope,error};invalidate();finish(pending,error);return;}
+   if([401,403].includes(error?.statusCode)||error?.code==='SV_BUDGET_SOURCE_RETIRED'){blocked={scope:entry.scope,error};invalidate();finish(pending,error);return;}
    entry.error=error;entry.status='error';entry.source.error('No se pudo actualizar la información de presupuestos.');notify(entry);finish(pending,error);
   });
   return pending.promise;
