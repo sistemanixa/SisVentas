@@ -1,5 +1,17 @@
 # Bridge de Presupuestos: Readiness real y sesiones
 
+## Ampliación sobre Source congelado cf9bb1e2
+
+04/11/2026. Fuente `cf9bb1e2a790453328eef2974cb3b831e761017c`, mismos bytes en `53b8f128`: blob Git `b76fc2c5c9bba56bc20570be090a66dd29a7e186`, SHA256 `14fb74842660b7559b2895b30fdd30f3e60d18596cee19cf7ab31a808fd1060b`. Se repitieron primero los once casos anteriores intactos: **11 PASS**. Después se añadieron seis casos: **17 PASS, 0 FAIL, 0 SKIP** en total.
+
+- `SV_BUDGET_SDK_RETIRED` tras cambiar sólo `connectionEpoch` conserva datos y aviso de error bajo la misma autoridad. `ensure` no repite lecturas; un refresh explícito válido renueva la vista y limpia el error. El consumidor hermano sigue listo.
+- Cambiar en sitio cualquiera de los cuatro grants (`ventas`, `pagos`, `ordenes_trabajo`, `presupuestos`) retira ambas cachés y sus certificaciones reales de Readiness, aunque rol, firma de configuración, sesión y User permanezcan iguales.
+- `dataEpoch` ausente, null, negativo, fraccionario, string o NaN rechaza antes de iniciar lecturas del SDK. Los dos controles anteriores de reset siguen pasando.
+
+El caso SDK_RETIRED inyecta el error en el puerto de lectura; verifica la reacción del Source, no reproduce aquí el transporte de una desconexión real. Se mantiene el uso de Readiness real y de SDK/DTO reales para las lecturas correctas del fixture. No se modificaron Source ni Readiness: hashes antes/después idénticos; test ampliado SHA256 `a8c2d28cc50040d3ad3b4aa1dbd076ddcab8635f5572e62100508365381a6e65`. Logs privados `C:/SisVentas/tmp/dashboard-budget-source-readiness-cf9-original11.private.log` y `C:/SisVentas/tmp/dashboard-budget-source-readiness-cf9-extended.private.log`. Se conservaron las evidencias rojas históricas de abajo.
+
+Sintaxis del test y `git diff --check` correctos. No se ejecutó puerta general ni se verificó HTML, montaje visible o producción. Sólo test y este documento propios; sin staging ni commit por indicación del coordinador. La actualización del contexto compartido queda a cargo de la integración.
+
 04/11/2026. Revisión independiente del bridge propuesto, sin montaje en aplicación ni edición de runtime compartido. `test/dashboard-budget-source-readiness-independent.test.cjs` carga `js/core/data-readiness.js` real en VM y usa el lector SDK real con DTO proyectado real; DOM, transporte de snapshots y solicitudes host son fixtures en memoria. No usa un mock de los handles de Readiness ni fabrica los resultados finales del lector SDK.
 
 ## Defectos reproducidos y preservados
