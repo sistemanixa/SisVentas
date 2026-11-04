@@ -62,7 +62,7 @@ function plan({before,changes,kind,sale,primary=null,others={},products={},actor
   const linked=Object.entries(others).filter(([k,o])=>k!==actor.otKey&&(o.ventaFbKey===saleKey||String(o.ventaId||'').replace(/^#/,'').trim().toUpperCase()===id));
   const unresolved=linked.some(([,o])=>!closed(o)||normalized(o.estado)==='con_observaciones');
   const state=closed(next)&&!next.cierreConObservaciones&&!unresolved?'instalado':'en_instalacion';saleStatus={saleKey,estadoInst:state};
-  if(sale.estadoInst!==state){if(sale.audit!=null&&!Array.isArray(sale.audit))throw fail('El historial de la venta requiere revisión.');saleChanges={estadoInst:state,audit:[...(sale.audit||[]),{fecha:at,usuario:actor.name,actorUid:actor.uid,accion:'Estado de instalación actualizado por el circuito de OT',otId:before.id,antes:sale.estadoInst,despues:state}]};}
+  if(sale.estadoInst!==state){if(sale.audit!=null&&!Array.isArray(sale.audit))throw fail('El historial de la venta requiere revisión.');saleChanges={estadoInst:state,audit:[...(sale.audit||[]),{fecha:at,usuario:actor.name,actorUid:actor.uid,accion:'Estado de instalación actualizado por el circuito de OT',otId:before.id,antes:sale.estadoInst??null,despues:state}]};}
  }
  return {ot:next,saleStatus,saleChanges};
 }

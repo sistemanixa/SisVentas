@@ -1,7 +1,8 @@
-(function(root,factory){'use strict';const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.SVOTStock=api;})(typeof window==='object'?window:null,function(){
+(function(root,factory){'use strict';const api=factory(typeof module==='object'&&module.exports?require('./commercial-models/commercial-money.v1.js'):root.SVCommercialMoney);if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.SVOTStock=api;})(typeof window==='object'?window:null,function(Money){
 'use strict';
 const copy=v=>JSON.parse(JSON.stringify(v));
-function quantity(v){const n=Number(v??0);if(!Number.isFinite(n)||n<0)throw Error('Cantidad de stock inválida');return Math.round(n*1000000)/1000000;}
+const sum=(...values)=>Money.quantitySum(values);
+function quantity(v){const n=Number(v??0);if(!Number.isFinite(n)||n<0)throw Error('Cantidad de stock inválida');return n;}
 function plan(input,command){
  const inv=copy(input||{general:0,reservado:0,consumido:0,asignaciones:{}}),c=command;
  const before=quantity(c.before),target=quantity(c.target),revision=quantity(c.revision),next=revision+1;
@@ -13,22 +14,22 @@ function plan(input,command){
  inv.asignaciones=inv.asignaciones||{};const a=inv.asignaciones[c.allocation]||{reservado:0,consumido:0,liberado:0};
  if(!found&&before>0&&(quantity(a.consumido)<quantity(c.legacyTotal??before)||quantity(inv.consumido)<quantity(c.legacyTotal??before)))throw Error('La instalación anterior no tiene consumo verificable. Revisá el stock antes de corregir.');
  const entry=found?copy(found):{revision,instalada:before,deReserva:before,deGeneral:0};
- let delta=quantity(target)-quantity(before);
+ let delta=sum(quantity(target),-quantity(before));
  if(delta>0){
   const reserved=Math.min(delta,quantity(a.reservado),c.additional?quantity(entry.enReserva):delta);
   if(quantity(inv.reservado)<reserved)throw Error('La reserva del producto requiere revisión');
-  const general=quantity(delta-reserved);
+  const general=quantity(sum(delta,-reserved));
   if(quantity(inv.general)<general)throw Error('Stock disponible insuficiente. Resolvé el origen del material antes de registrar su instalación.');
-  inv.reservado=quantity(inv.reservado)-reserved;a.reservado=quantity(a.reservado)-reserved;
-  inv.general=quantity(inv.general)-general;inv.consumido=quantity(inv.consumido)+delta;a.consumido=quantity(a.consumido)+delta;
-  entry.deReserva=quantity(entry.deReserva)+reserved;entry.deGeneral=quantity(entry.deGeneral)+general;entry.enReserva=Math.max(0,quantity(entry.enReserva)-reserved);
+  inv.reservado=sum(quantity(inv.reservado),-reserved);a.reservado=sum(quantity(a.reservado),-reserved);
+  inv.general=sum(quantity(inv.general),-general);inv.consumido=sum(quantity(inv.consumido),delta);a.consumido=sum(quantity(a.consumido),delta);
+  entry.deReserva=sum(quantity(entry.deReserva),reserved);entry.deGeneral=sum(quantity(entry.deGeneral),general);entry.enReserva=Math.max(0,sum(quantity(entry.enReserva),-reserved));
  }else if(delta<0){
   const amount=-delta;if(quantity(a.consumido)<amount||quantity(inv.consumido)<amount)throw Error('El consumo registrado requiere revisión');
-  const general=Math.min(amount,quantity(entry.deGeneral)),reserved=quantity(amount-general);
+  const general=Math.min(amount,quantity(entry.deGeneral)),reserved=quantity(sum(amount,-general));
   if(quantity(entry.deReserva)<reserved)throw Error('No se puede reconstruir el origen del material');
-  inv.consumido=quantity(inv.consumido)-amount;a.consumido=quantity(a.consumido)-amount;
-  inv.reservado=quantity(inv.reservado)+amount;a.reservado=quantity(a.reservado)+amount;
-  entry.deGeneral=quantity(entry.deGeneral)-general;entry.deReserva=quantity(entry.deReserva)-reserved;entry.enReserva=quantity(entry.enReserva)+amount;
+  inv.consumido=sum(quantity(inv.consumido),-amount);a.consumido=sum(quantity(a.consumido),-amount);
+  inv.reservado=sum(quantity(inv.reservado),amount);a.reservado=sum(quantity(a.reservado),amount);
+  entry.deGeneral=sum(quantity(entry.deGeneral),-general);entry.deReserva=sum(quantity(entry.deReserva),-reserved);entry.enReserva=sum(quantity(entry.enReserva),amount);
  }
  for(const name of ['general','reservado','consumido'])inv[name]=quantity(inv[name]);
  for(const name of ['reservado','consumido'])a[name]=quantity(a[name]);
@@ -53,7 +54,7 @@ async function sync(root,ot,before,after){
  if(!allocationSource)throw Error('No se identificó la venta destino del material');
  const allocation=String(allocationSource).replace(/[.#$\[\]\/]/g,'_').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,120);
  if(!allocation||!/^[a-f0-9]{64}$/.test(receipt))throw Error('Referencia de stock inválida');
- const legacyTotal=(ot.materiales||[]).filter(m=>String(m.cod||m.codigo)===String(after.cod||after.codigo)&&String(m.destinoVenta||'original')===String(after.destinoVenta||'original')&&String(m.ventaDestinoFbKey||'')===String(after.ventaDestinoFbKey||'')).reduce((sum,m)=>sum+quantity(m===after?oldQty:m.instalada),0);
+ const legacyTotal=(ot.materiales||[]).filter(m=>String(m.cod||m.codigo)===String(after.cod||after.codigo)&&String(m.destinoVenta||'original')===String(after.destinoVenta||'original')&&String(m.ventaDestinoFbKey||'')===String(after.ventaDestinoFbKey||'')).reduce((total,m)=>sum(total,quantity(m===after?oldQty:m.instalada)),0);
  const cmd={before:oldQty,target:newQty,revision:quantity(before?.stockRevision),receipt,allocation,ot:otKey,additional:after.adicionalOT===true,legacyTotal:before?._stockLegacyTotal??legacyTotal};
  if(!live())throw Error('La sesión cambió. Volvé a abrir la OT.');
  let applied=false;
