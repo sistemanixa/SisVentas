@@ -1,3 +1,11 @@
+## Actividad de Presupuestos incremental · integración local
+
+Se incorporaron los diez archivos de `f0bf209c98cae070d44a1d7a88046acbf2eff7a4` sobre la base y el helper zonal revisados. Repetición root: 70 focales PASS, cero FAIL/SKIP. El test independiente `23f7b5ca`, conservado sin editar, pasó después 7/7 frente a su baseline de seis fallos y un aprobado. Cubre altas, cambio de instante, fecha comercial con ts primario intacto, reasignación, baja, empates y trabajo puntual independiente de 8/1.008 originales. Sentinels de ventas, pagos, costos de productos, stock, comisiones y cuenta del empleado permanecen intactos; no se ejecuta bootstrap después de mutar.
+
+Se conserva el instante principal y la prioridad entre dominios. El desempate cambia deliberadamente de rangos globales legacy a clave original codificada en UTF16 hex; no se afirma paridad exacta de empates anteriores. El contrato de orden nuevo y activitySchema 3 rechazan los índices antiguos hasta su preparación explícita. No cambia importes ni fechas originales y no exige modificar el TZ global. La prueba usa guard/store/planner reales con transporte, Auth y persistencia ficticios; no acredita Firebase productivo ni la aplicación montada. Logs privados `dashboard-activity-stable-root.private.log` y `dashboard-activity-continuity-root-after.private.log`.
+
+Siguen pendientes los consumidores SDK/REST/DTO, su política legacy, sus escritores y el montaje conjunto de métricas, actividad y avisos. La versión activa y la ventana del titular no se cambiaron.
+
 ## Integración de la base de consultas de Presupuestos · sin montar
 
 Condición de integración: `verificarVencimientosPptos`, `generarNotificaciones`, `svPintarPresupuestosDashboard` y la actividad reciente todavía consumen `pptoData` o su readiness global. Retirar la escucha completa exige adaptar todos esos consumidores; no se acepta una tarjeta correcta con el centro de avisos vacío. Un prefijo de cinco filas o un agregado no debe marcar como completa la colección original de Presupuestos ni alterar el formulario/listado. La prueba del arranque y del retorno desde Notificaciones debe medir ambas cosas.
