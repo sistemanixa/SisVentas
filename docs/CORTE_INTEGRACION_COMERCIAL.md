@@ -1,3 +1,10 @@
+## Bloqueo adicional de aceptación: entrega parcial de materiales
+
+La integración no es elegible para corte mientras falle 
+ode --test test/commercial-complete-operational-chain.integration.cjs. Reproducción independiente sobre fuente funcional c190:3PASS/1FAIL, recepción2de3 seguida de entrega pública/remito3 (3 !== 2). Recepción parcial, costo34/presupuestado30 y recuperación de ACK aprueban; instalación/devolución posteriores no ejecutadas. No es una prueba de reglas remotas. El módulo de reproducción tiene SHA256 ee11a2b87c9fca8bf5be419b3fce9e9ceb8b9da24dedad9bb80a97c1f2de64f7. La prueba se ejecuta explícitamente además de la puerta vigente: su extensión integration.cjs no permite omitir el bloqueo por obtener verde en test-current.
+
+La corrección debe usar el circuito OT existente con permiso entregarMateriales, selección por ítem, disponibilidad/custodia completa entre OT y un commit de OT/remito/derivados; no consumo adicional al entregar ni bypass SDK. Revisar el fence de la raíz canónica ordenes_trabajo por separado del alias ordenesTrabajo y su emparejamiento con inventario. Hay trabajo aislado en preparación; todavía no es arreglo aplicado ni autorización para activar.
+
 Actualización 04/11/2026 12:50 UTC: fuente local final probada c1908c7280c41099f524c44cb79d3f8d26d30957, v3.19.2, puerta20 con8485PASS/0FAIL/28opt-in. Respaldo GitHub verificado56c2dac4949a07f88f0be35b4431162138ad6f15, misma rama sin main. Las referencias300142f2 y manifiestos anteriores de este documento son antecedentes, no paquete final de activación. Paquete fiscal final manifest c34f971a4980b7d8fc54feac04ae8fd8555a94d21672aec702f18a0f809cc78c. Producción general no activada; siguiente paso sigue requiriendo estado remoto fresco y artefacto de rollout probado antes de cualquier pausa. Pendiente adicional: proyección de presupuestos del Dashboard sin descarga completa, preservando métricas y actividad. Evidencia y límites actuales en CONTEXTO_ACTUAL.md.
 
 # Propuesta operativa de corte comercial
