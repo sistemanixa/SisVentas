@@ -6,6 +6,7 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 COPY index.js ./
+COPY commercial-admission.js ./
 COPY commercial-response.js ./
 COPY commercial-pages-model.js commercial-pages-projections.js native-payment-summary.js ./
 COPY client-history-model.js client-history-delta.js client-history-projections.js ./

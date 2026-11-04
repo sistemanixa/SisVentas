@@ -1,5 +1,83 @@
 # Asistente: procedencia y límites del inventario de corte
 
+## Pausa de admisión Cotizador preparada localmente · 04/11/2026
+
+`SV_COMMERCIAL_ADMISSION_PAUSED` se captura al iniciar cada proceso/revisión.
+Ausente o cadena exacta false conserva la admisión anterior; true, vacío y
+cualquier otro valor cierran la admisión por defecto seguro. No acepta override
+del body. No se aplicó esta configuración a ningún servicio remoto.
+
+El router real de cotizador/index.js resuelve primero OPTIONS con CORS y luego
+el dominio privado /privado/finanzas con su autorización existente intacta.
+Después, la pausa rechaza los POST comerciales antes de leer body o ejecutar
+handlers:503, Retry-After:5, retryable=true y SV_COMMERCIAL_ADMISSION_PAUSED.
+Incluye entrada común aunque un handler no pase por LaborGuard; no se modifica
+Guard, store, permisos, reglas ni índices. Los eventos /internal/commission-event
+y -probe reciben503, nunca ACK exitoso, para que el emisor conserve su reintento.
+Otros POST que sólo consultan, como Historial, también quedan503 durante esta
+ventana conservadora. Los GET siguen su circuito actual; no se atribuye al flag
+un cierre universal de efectos que no entren por POST o por este proceso.
+
+Excepción exacta POST /laboral/operacion: durante pausa usa
+commercial-admission.resolveReadOnly, con authorize real del gateway (sesión,
+rol activo, circuito habilitado y veto Ver como). Lee únicamente el recibo
+solicitado y comprueba actorUid/digest. Si existe, devuelve confirmed/rejected
+sólo según resultado explícito; ausente o sin resultado reconocible devuelve
+pending. No invoca gateway.resolve ni guard.run: el resolve normal puede crear
+un recibo de cancelación y no es una consulta pura. Esta excepción no cancela
+intentos, adquiere leases ni crea recibos; no declarar rechazo a partir de una
+ausencia que podría preceder a un POST aceptado aún en vuelo. Sin pausa, el
+resolve previo conserva su comportamiento.
+
+Paso concreto futuro de corte: preparar esta versión compatible en todas las
+revisiones/rutas comerciales pertinentes; aplicar admisión pausada sólo bajo
+el corte autorizado y comprobar rechazos. Conservar ready=true mientras se
+drenan solicitudes previamente aceptadas y se concilian/vinculan jobs fiscales
+por el circuito autorizado del frente fiscal. **Este flag no cancela peticiones
+ya aceptadas ni prueba drenaje.** Obtener evidencia final estable y luego
+freeze SDK/ready=false según el plan coordinado. Las revisiones/tags que no
+ejecuten el flag y escritores privilegiados ajenos requieren cierre propio;
+este cambio local no los modifica. El dominio privado sigue independiente.
+
+Verificación focal:8pruebas nuevas del callback HTTP real con fakes y Auth/gateway
+reales más22regresiones de router/guard/eventos,30/30PASS. Incluyen default,
+flags inválidos, POST genéricos de roles/usuarios/clientes/finanzas/eventos sin
+body/handler/efectos, permisos privados, OPTIONS/GET y recuperación sin commits.
+Las rutas hipotéticas/desconocidas también se bloquean por entrada común; esa
+comprobación no certifica implementaciones de handlers inexistentes en index.
+Dos casos inicialmente no cargaron por resolución local de Playwright; repetidos
+con NODE_PATH=C:/SisVentas/cotizador/node_modules ya instalado aprobaron, sin
+instalar dependencias. node --check de index/helper/test y diff correctos.
+Pendiente puerta integral coordinada sobre paquete final; no se ejecuta otra
+suite completa en paralelo ni se anuncia corte remoto desde estos resultados.
+
+Corrección de revisión: se retiró el fallback typeof del router; la constante
+commercialAdmissionPaused es dependencia obligatoria inicializada por el módulo.
+Las fixtures vigentes que extraen sólo el callback ahora declaran explícitamente
+commercialAdmissionPaused=false: client-history-index-route.test.cjs,
+ot-delete-index-route.test.cjs, purchase-delete-index-route.test.cjs y
+sale-delete-index-route.test.cjs. Sólo cambió ese binding; sus aserciones de
+seguridad y comportamiento permanecen intactas. No se modificaron instantáneas
+históricas excluidas. Dockerfile incorpora COPY commercial-admission.js.
+
+El lookup además rechaza actor.viewing, actor._viewAs o actor.realUid distinto
+de uid cuando el autorizador expone esos indicadores, antes de leer el recibo.
+No acepta actor/uid/contexto aportado por body: sólo id/digest. El gateway actual
+retorna uid/claims y veta query verComo; no se afirma que exponga todos los estados
+de presentación del frontend. Esos estados no conceden identidad ni permisos;
+el helper no construye un actor a partir de ellos. FreshAuth/revocación y rol
+activo siguen dependiendo del autorizador existente. No se amplían permisos ni
+se devuelve result, claves del recibo, importes o payload: sólo ok/status.
+
+Validación posterior:39/39PASS, incluyendo12propias, bootstrap del módulo real
+con flags ausente/false/true/inválido, Auth revocada sin lecturas privadas,
+contextos viewing/_viewAs/realUid ajeno con0lecturas, cuerpo sin actor y resultado
+mínimo con0commits. El bootstrap no abre listener, red ni credenciales; utiliza
+fakes locales con dependencias ya instaladas. Sintaxis y diff correctos. Esta
+corrección agrega como archivos de alcance Dockerfile y las cuatro fixtures
+citadas, además de index/helper/test/doc propios; no cambia backend compartido
+Guard/store/reglas ni inicia un despliegue.
+
 ## Inventario Functions ambas generaciones · 04/11/2026
 
 `gcloud functions list --project=nixa-sisventas` con proyección de campos

@@ -1,5 +1,7 @@
 const { normalizarFicha, fichaDesdeApi, extraerFichaPagina, validarUrlFicha, identidadAlta, protegerNavegacionFicha } = require('./ficha-producto');
 const http = require('http');
+const commercialAdmission=require('./commercial-admission');
+const commercialAdmissionPaused=commercialAdmission.isPaused(process.env.SV_COMMERCIAL_ADMISSION_PAUSED);
 const crypto = require('crypto');
 const {sendCommercial}=require('./commercial-response');
 const commissionPublic=require('./commission-public-response');
@@ -2016,17 +2018,40 @@ const server = http.createServer(async (req, res) => {
   const requestUrl = new URL(req.url, 'http://localhost');
   const pathname = requestUrl.pathname;
 
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);res.end();return;
+  }
+
+  if(pathname.startsWith('/privado/finanzas')){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
+    try{
+      const actor=await privateFinance.authorize(req);let result;
+      if(req.method==='GET'&&pathname==='/privado/finanzas/acceso')result={allowed:true};
+      else if(req.method==='GET'&&pathname==='/privado/finanzas')result=await privateFinance.get(actor);
+      else if(req.method==='POST'&&pathname==='/privado/finanzas/guardar')result=await privateFinance.save(actor,await readBody(req,2*1024*1024));
+      else if(req.method==='POST'&&pathname==='/privado/finanzas/documentos')result=await privateFinance.upload(actor,await readBody(req,22*1024*1024));
+      else if(req.method==='GET'&&/^\/privado\/finanzas\/documentos\/[a-f0-9]{64}$/.test(pathname)){
+        const file=await privateFinance.download(actor,pathname.split('/').at(-1));res.writeHead(200,{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="resumen.pdf"','Content-Length':file.bytes.length});res.end(file.bytes);return;
+      }else{send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+      send(res,200,{ok:true,...result});
+    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar el espacio privado. Conservá el formulario y reintentá.'});}return;
+  }
+
+  if(commercialAdmissionPaused&&req.method==='POST'){
+    res.setHeader('Cache-Control','private, no-store');
+    if(pathname==='/laboral/operacion'){
+      try{const body=await readBody(req,2048);send(res,200,await commercialAdmission.resolveReadOnly({gateway:laborWriteGateway,read:laborRuntime.store.read,req,body}));}
+      catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo consultar el intento. Conservá su identificador.'});}return;
+    }
+    res.setHeader('Retry-After','5');
+    send(res,503,{ok:false,code:'SV_COMMERCIAL_ADMISSION_PAUSED',retryable:true,mensaje:'Guardados temporalmente pausados. Conservá el formulario y reintentá.'});return;
+  }
+
   if(pathname==='/internal/commission-event'||pathname==='/internal/commission-event-probe'){
     // Drain the delivery without parsing or trusting any financial payload.
     req.resume();res.setHeader('Cache-Control','no-store');
     try{const result=await (pathname.endsWith('-probe')?commissionEvent.probe(req):commissionEvent.handle(req));send(res,200,{ok:true,...result});}
     catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo completar el evento'});}
-    return;
-  }
-
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    res.end();
     return;
   }
 
@@ -2060,21 +2085,6 @@ const server = http.createServer(async (req, res) => {
       if(req.method==='GET'&&!match[2])await sendCommercial(req,res,{ok:true,...result});
       else send(res,200,{ok:true,...result});
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la operación comercial'});}return;
-  }
-
-  if(pathname.startsWith('/privado/finanzas')){
-    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
-    try{
-      const actor=await privateFinance.authorize(req);let result;
-      if(req.method==='GET'&&pathname==='/privado/finanzas/acceso')result={allowed:true};
-      else if(req.method==='GET'&&pathname==='/privado/finanzas')result=await privateFinance.get(actor);
-      else if(req.method==='POST'&&pathname==='/privado/finanzas/guardar')result=await privateFinance.save(actor,await readBody(req,2*1024*1024));
-      else if(req.method==='POST'&&pathname==='/privado/finanzas/documentos')result=await privateFinance.upload(actor,await readBody(req,22*1024*1024));
-      else if(req.method==='GET'&&/^\/privado\/finanzas\/documentos\/[a-f0-9]{64}$/.test(pathname)){
-        const file=await privateFinance.download(actor,pathname.split('/').at(-1));res.writeHead(200,{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="resumen.pdf"','Content-Length':file.bytes.length});res.end(file.bytes);return;
-      }else{send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
-      send(res,200,{ok:true,...result});
-    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar el espacio privado. Conservá el formulario y reintentá.'});}return;
   }
 
   if (req.method === 'GET' && pathname === '/mercadolibre/oauth/start') {

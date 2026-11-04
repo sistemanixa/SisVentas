@@ -341,6 +341,14 @@ exports.emitirFactura = onRequest(
       return;
     }
 
+    // Pausa sólo la admisión de emisiones nuevas. Las consultas y la
+    // vinculación autenticada anteriores siguen disponibles para drenar jobs.
+    // Un valor desconocido cierra la admisión; el body nunca decide este estado.
+    var pausaAdmisionFiscal = process.env.SV_FISCAL_ADMISSION_PAUSED;
+    if (pausaAdmisionFiscal !== undefined && pausaAdmisionFiscal !== 'false') {
+      res.status(503).json({ error:true, code:'SV_FISCAL_ADMISSION_PAUSED', mensaje:'Las nuevas emisiones fiscales están pausadas. Podés consultar o vincular comprobantes existentes.' }); return;
+    }
+
     var venta = data.venta;
     var tipoComprobante = data.tipoComprobante;
     var provincia = data.provincia;
