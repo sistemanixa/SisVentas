@@ -1,3 +1,9 @@
+## Verificaciones adicionales sobre85d0e730
+
+Regresión acotada del store/runtime/eliminación con datos ficticios: primera corrida7PASS,1FAIL(fetch local en primera llamada antes del guard),20SKIP. Repetición idéntica con loopback permitido:8PASS,0FAIL,20SKIP. No se editaron expectativas ni fuentes para repetir. Logs dashboard-rest-store-regression-root.private.log y dashboard-rest-store-regression-root-loopback.private.log; los20 casos de emulador no ejecutados no se presentan como aprobados.
+
+Se verificaron hashes del manifiesto y log nativo mensual de1be6a42f: BD45EE95AB6BE56CC3D1AFED97C80BD724F84C99CAE975B257E2D4A82D958F6E y6A4B5F37E8F8E7A73AADD93E82945B3AA299D9C5631E244A3EFA1EF71DC8AE44. Harness/evidencia importados en d36334af, sin fuente funcional. Sus4PASS acreditan referencia859, no el transporte backend REST posterior ni montaje de pantalla. El detalle de avisos sigue en revisión antes de integrarse: exigencia de dataEpoch y retorno de visibilidad deben quedar probados antes del freeze. Sin cambios externos.
+
 ## Lectura backend fresca · integración local inactiva
 
 Integrado15d9b71e desde53b8: los cinco lectores preparados de Dashboard usan una fachada sólo de lectura sobre el store REST existente, en vez de Admin SDK get. La reproducción del autor con Admin13.10.0/listener retenido confirmó revisión1 en get y consulta UID tras escritura REST confirmada de revisión2; REST vio revisión2. No se modifica el driver de escrituras: se añade readQuery limitado a key/UID y máximo50, junto con el empaquetado de la fachada. Permanecen autenticación, validadores, límites5/50 y flags OFF.
