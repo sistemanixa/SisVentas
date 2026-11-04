@@ -6156,6 +6156,22 @@ async function cargarMetricasUsoUsuarios(periodo) {
 }
 window.cargarMetricasUsoUsuarios = cargarMetricasUsoUsuarios;
 
+function svHostPresupuestosDashboard() {
+  if(window.SV_DASHBOARD_READS_LOCAL!==true||!window.SVDashboardBudgetHost)return null;
+  if(!window._svDashboardBudgetHost)window._svDashboardBudgetHost=window.SVDashboardBudgetHost.create(window,{changed:function(kind){
+    if(kind==='dashboard'&&typeof _svEsPaginaActiva==='function'&&_svEsPaginaActiva('dashboard'))svPintarPresupuestosDashboard();
+    if(kind==='notices'){
+      if(typeof verificarVencimientosPptos==='function')verificarVencimientosPptos();
+      if(typeof _svEsPaginaActiva==='function'&&_svEsPaginaActiva('notificaciones')&&typeof generarNotificaciones==='function')generarNotificaciones();
+    }
+  }});
+  return window._svDashboardBudgetHost;
+}
+function svCargarAvisosPresupuestosDemandados() {
+  var host=svHostPresupuestosDashboard();
+  if(!host||!host.claimed('notices'))return false;
+  return host.ensure('notices');
+}
 function svCargarDatosDePaginaActual(pagina) {
   pagina = pagina || (typeof _svPaginaDesdeRuta === 'function' ? _svPaginaDesdeRuta() : '');
   if (!pagina) {
@@ -6163,6 +6179,7 @@ function svCargarDatosDePaginaActual(pagina) {
     pagina = activa ? String(activa.id || '').replace(/^page-/, '') : 'dashboard';
   }
   if (!permisoModulo(pagina)) return;
+  if(pagina==='notificaciones'&&window.SV_DASHBOARD_READS_LOCAL===true&&window.SV_BUDGET_NOTICES_LOCAL===true)return svCargarAvisosPresupuestosDemandados();
   if(pagina==='historialcliente'&&window.SVClientHistoryRuntime?.claimed===true)return window.SVClientHistoryRuntime.ensure();
   if(window.SV_BUDGET_NOTICES_LOCAL===true&&window._svBudgetNoticeDetailHost?.claimsPointView(pagina))return true;
   if(window.SVClientHistoryOriginalRuntime?.claimsPointView(pagina)===true)return true;

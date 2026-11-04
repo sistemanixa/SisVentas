@@ -1,3 +1,8 @@
+## Host de presupuestos: montaje inicial inactivo
+
+Importados por diff 2f65ce30 (host y quince pruebas). Index carga las fábricas en orden, sin Auth/DB/red al importar; una prueba ejecuta los scripts reales del índice en contexto browser. La app crea el host perezosamente sólo con flag local explícito y demanda avisos al entrar al centro; callback reconstruye notificaciones sólo en esa página. No activa flags ni sustituye todavía el cargador original de presupuestos del inicio: quedan pendientes el mensual de ventas por creador y actividad reciente antes de retirar esas dependencias.
+
+Root: 18PASS,0FAIL/SKIP (host15, callpoints2, índice1), log dashboard-host-callpoints-root.private.log; sintaxis del app correcta. No constituye arranque completo, aceptación visual o reglas nativas actuales. La propia ventana del usuario sigue en la copia anterior sin recarga. Falta QA independiente de este montaje y conectar consumidores restantes. Sin producción, push ni datos reales.
 ## Cliente HTTP y consumidor de avisos: integración local pendiente de montaje
 
 Importados por diff explícito HTTP 9779d059 y consumidor 4cdfedff, preservando cambios locales. El GET de resumen no renueva forzadamente el token ni descarga candidatos de avisos: estos se solicitan aparte. El consumidor conserva filas previamente validadas ante fallo de conexión, pero retira datos al cambiar autoridad; Readiness no oculta una vista válida por error de revalidación. El badge usa el resumen ya validado cuando el centro aún no fue demandado, con día y política comprobados; no descarga originales para completar el contador.
