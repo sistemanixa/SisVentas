@@ -11,8 +11,8 @@ Se contrastaron cuatro revisiones locales independientes: núcleo comercial, ví
 | Base | Estado conocido | Límite |
 |---|---|---|
 | Fuente publicada | v3.18.20, fuente `312705c2bd5c5e938aab729585506b2be87b0c5a`, HEAD documental `0c093b65` | Publicación de fotos separada verificada por activos/aviso; no incluye la integración |
-| Integración | `e7894ceccd19ddda00cd2269952c76fb935c85bb`, candidata inmutable v3.19.1 | Puerta limpia8298PASS/0FAIL; corrección adicional de protocolo Accounts en curso, no activada |
-| Estado externo | No recertificado en esta etapa | Revisión efectiva de servidor, reglas, configuración, índices y tráfico se comprobará antes del corte |
+| Integración | `1c12e793cac105c00a1a6705b99ce2cb6198b63c`, candidata local v3.19.1 | Accounts y protección de referencias OT corregidos; pausas coordinadas agregadas. Puerta limpia de este SHA en curso; no activada |
+| Estado externo | Metadatos y fuentes remotas contrastados el 04/11; no modificados | Cotizador principal y 14 accesos antiguos inventariados; fuentes exactas fiscal/forwarders/Asistente identificadas. Revalidar antes del corte; no equivale a activación |
 
 Las copias están en `C:/SisVentas/.local/dashboard-readiness-v31817` y `C:/SisVentas/.local/restaurar-grilla-original-v31714`. La raíz del proyecto y otras ramas históricas no sustituyen esas bases. Se preserva el WIP sin incorporarlo como terminado.
 
@@ -113,6 +113,20 @@ Medir por recorrido solicitudes, bytes de respuesta, originales consultados, con
 
 Se mantiene el rango inicial de 18–30 horas efectivas para el conjunto: planificación1–2, núcleo5–8, vínculos6–10, consultas3–5 y transición3–5. Son rangos de trabajo, no promesa de plazo ni ahorro lineal por cuatro chats; se ajustarán con evidencia de implementación. Esperas humanas/de despliegue se informan por separado.
 
-La etapa1 se entrega con este plan. No autoriza por sí sola iniciar etapa2. No hace falta que el titular priorice cada defecto: el orden anterior es responsabilidad del coordinador. Se pedirán decisiones sólo por ambigüedad de negocio no resuelta, ventana de corte/costo o alcance real que carezca de autorización; los responsables ambiguos ya decididos no se vuelven a preguntar.
+La etapa1 se entregó con este plan; posteriormente el titular reanudó expresamente la ejecución local y la ventana de ocho horas. No hace falta que priorice cada defecto: el orden anterior es responsabilidad del coordinador. Se pedirán decisiones sólo por ambigüedad de negocio no resuelta, ventana de corte/costo o alcance real que carezca de autorización; los responsables ambiguos ya decididos no se vuelven a preguntar.
 
-Pendientes de evidencia para ejecutar: trazado exhaustivo de escritores legacy y temporizadores, controles servidor de eliminarOT/remitos, protocolo de snapshot y ACK incierto, matriz completa de consumidores y aceptación nueva. Quedan identificados como trabajo planificado, no fallos demostrados ni auditoría cerrada.
+## Avance comprobado de ejecución local · 04/11/2026
+
+Esta sección reemplaza el estado pendiente original cuando aporta una prueba concreta. No convierte las observaciones estáticas anteriores en defectos demostrados ni acredita un corte productivo.
+
+| Etapa | Evidencia local disponible | Límite actual |
+|---|---|---|
+| Base y núcleo | Dashboard publicado previamente conservado; apertura tardía retira acciones de la venta anterior; costos, dinero, duplicación y contratos compartidos cubiertos por la suite vigente | No modificar históricos para aprobar una prueba. Frontend nativo de Accounts/H7 permanece deshabilitado contra producción no preparada |
+| Cuenta Corriente | Pertenencias y totales coordinados; claim reservado independiente de H7 verificado en acquire/commit; 30 contrastes old/new de agregados monetarios sin diferencias | Pruebas ficticias, no conciliación de todas las cuentas reales |
+| Relaciones | Borrados conjuntos y compensaciones probados con reglas; alias técnicos/visibles de OT protegidos; remito manual conserva identidad en reintento; originales y stock ficticios controlados | No se eliminaron ventas/OT ni movió stock real para comprobarlo |
+| Historial | Lectores completos por cliente/domicilio y originales autorizados; cambios de sesión/rol/revisión cancelan respuestas; proyecciones emparejadas | Índices/configuración nuevos ausentes en observación remota; requieren instalación controlada |
+| Consultas | Arranque HTML real ficticio, 1.095 ventas/cobros: primeras 50 filas, búsqueda antigua, cinco recientes en Dashboard y deuda completa; sin escrituras ni lecturas SDK de raíces ventas/pagos | Bytes de fixture separados del bootstrap; no equivalen a transferencia productiva ni ahorro facturado. Otros dominios mantienen sus lecturas declaradas |
+| Transición | Fuente fiscal exacta contrastada; 47 pruebas fiscales, 10 mixtas de jobs y 36 contrastes. Pausas SDK, Cotizador y nueva emisión fiscal preparadas; siete matrices de reglas/recuperación aprobadas sobre 1c12e793 | Pausas no activadas. Guard vacío solo no prueba drenaje; consultar jobs/reconciliar y verificar todos los accesos en el corte real |
+| Revisión humana local | Dashboard, lista de 50 filas y detalle de una venta existente con imágenes visibles en el navegador integrado; sin guardar operaciones | Revisión visual focal, no prueba manual de todos los formularios ni de futuras capacidades remotas |
+
+El procedimiento operativo vigente está en `CORTE_INTEGRACION_COMERCIAL.md`. La puerta limpia y los SHA de respaldo se registran en `CONTEXTO_ACTUAL.md`; resultados de una fuente anterior no certifican cambios posteriores. La publicación general sigue separada de esta integración local.

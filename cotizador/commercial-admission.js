@@ -1,6 +1,7 @@
 'use strict';
 // Revision-local admission switch. Only absent or exact "false" means open.
 function isPaused(value){return value!==undefined&&value!=='false';}
+function allowsPausedRead(pathname){return ['/laboral/capacidades','/clientes/historial','/clientes/historial/cliente'].includes(pathname);}
 const fail=(statusCode,message)=>Object.assign(Error(message),{statusCode});
 async function resolveReadOnly({gateway,read,req,body}){
  const actor=await gateway.authorize(req);
@@ -14,4 +15,4 @@ async function resolveReadOnly({gateway,read,req,body}){
  if(receipt.result?.ok===false&&receipt.result?.committed===false)return {ok:true,status:'rejected'};
  return {ok:true,status:'pending'};
 }
-module.exports={isPaused,resolveReadOnly};
+module.exports={isPaused,allowsPausedRead,resolveReadOnly};

@@ -1,5 +1,60 @@
 # Asistente: procedencia y límites del inventario de corte
 
+## Validación de lectores sin reabrir mutaciones · excepción local posterior a1c12e793
+
+Se resuelve la dependencia circular de aceptación previa a reapertura mediante
+una allowlist exacta en commercial-admission.allowsPausedRead: POST
+/laboral/capacidades, /clientes/historial y /clientes/historial/cliente pasan a sus
+handlers existentes con la admisión pausada. No se agregan endpoints, nuevos
+permisos ni handlers alternativos. Paths con slash final o sufijos no se admiten.
+POST /cuentas/preparar **sigue cerrado**: su bootstrap puede crear un ámbito y no
+se usa como comprobación de lectura. Las demás mutaciones y eventos siguen503.
+Este bloque sustituye la afirmación previa de que todos los POST H7/capacidades
+quedan503 durante la pausa.
+
+Revisión de ruta: capacidades autoriza con el gateway existente, exige body
+vacío y sólo lee getters capability/capabilities; no invoca execute/create.
+Historial usa client-history-http-adapter y Query.page o Client.resolve,
+Access.authorize/readOriginal/readClient y fuentes de lectura/query. Conserva
+FreshAuth, permisos, prohibición Ver como, validación de body/query,
+configuración, identidad y cobertura originales. No entra al guard ni instala
+índices/ámbitos. El encabezado de capacidades describe las capacidades de la
+revisión, no acredita que la admisión mutante esté abierta; un POST mutante
+continúa503 aunque los getters indiquen enabled=true.
+
+Orden futuro de aceptación: mantener pausadas todas las entradas comerciales y
+la admisión fiscal, drenar/conciliar y obtener snapshot estable; conservar el
+fence SDK independiente sdkAdmissionPaused=true. Instalar/verificar el conjunto
+emparejado de índices/reglas/configuración bajo la exclusión autorizada. Cuando
+ese conjunto tenga ready/cobertura válidos, comprobar los tres POST de lectura
+anteriores sin quitar SV_COMMERCIAL_ADMISSION_PAUSED ni el fence SDK. Ready=true
+es condición de lectura H7/Accounts, no prueba de exclusión: no usar ready=false
+como único bloqueo en esa fase. Comprobar Accounts mediante lectores GET
+existentes con reglas y snapshot; nunca invocar /cuentas/preparar para validarlo.
+Mantener asimismo cerrados escritores privilegiados ajenos al SDK. Ante cualquier
+fallo, conservar pausas; la reapertura requiere evidencias finales y autorización
+del corte, no se deduce de estas lecturas ni del paso de pruebas ficticias.
+
+Prueba nueva commercial-admission-readonly.test.cjs ejecuta bootstrap/router
+completos con servicios/adaptadores reales, Auth y fuentes ficticias mínimas;
+sólo sustituye transporte/DB y el acceso al backend por RAM. Usa el constructor
+real de runtime con flags explícitos en la fixture porque sus módulos Node
+importados no heredan el process.env del VM. Los índices se preparan en RAM
+antes de las solicitudes; cada llamada compara estado antes/después y exige
+0commits/0guard. Red/proveedor/credenciales/listener están bloqueados. Comprueba
+positivos de capacidades/H7/cliente y negativos de Auth revocada, contraseña
+pendiente/reset, rol inactivo, Ver como, body inyectado, configuración/permiso/
+cobertura inválidos y rutas hermanas mutantes cerradas.
+
+71/71focales PASS, incluidos los39anteriores y adapters/access H7 existentes;
+sintaxis JS y diff correctos. Un primer fixture omitía pasar flags explícitos
+al constructor Node y apuntaba al padre de cobertura en vez del dominio ventas;
+se corrigieron ambas entradas ficticias, sin relajar validaciones productivas.
+Cambian index.js, commercial-admission.js, prueba propia paused (la ruta H7 deja
+de contarse como bloqueada), prueba nueva readonly y este documento. Sin cambio
+de otros adaptadores, backend compartido, despliegue ni índices/registros reales.
+Requiere nueva puerta integral desde SHA limpio, separada de la puerta15.
+
 ## Pausa de admisión Cotizador preparada localmente · 04/11/2026
 
 `SV_COMMERCIAL_ADMISSION_PAUSED` se captura al iniciar cada proceso/revisión.
