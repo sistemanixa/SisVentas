@@ -9,7 +9,8 @@
   const same=a=>{const b=actor();return !!a&&!!b&&['uid','role','permissionRevision','permissionSignature','sessionEpoch','dataEpoch','auth','user','db','connectionEpoch','grantsKey'].every(k=>a[k]===b[k]);};
   const current=()=>!disposed&&enabled()===true&&entry&&same(entry.actor);
   function display(id,value){const el=root.document?.getElementById(id);if(el)el.style.display=value;}
-  function reset(){const previous=entry;epoch++;entry=null;previous?.token?.cancel();if(previous){display('ppto-detalle-view','none');if(root.pptoActualId===previous.key)root.pptoActualId=null;root.SVDataReadiness?.invalidate(sourceKey);}}
+  function retireEditor(e){const editor=e?.editor;if(editor&&editor.key===e.key&&root._pptoEditandoFbKey===editor.key&&root._pptoEditorBase===editor.base&&root._pptoEditandoId===editor.id){display('ppto-form-view','none');root._pptoEditorBase=null;root._pptoEditandoFbKey=null;root._pptoEditandoId=null;}}
+  function reset(){const previous=entry;epoch++;entry=null;previous?.token?.cancel();if(previous){display('ppto-detalle-view','none');retireEditor(previous);if(root.pptoActualId===previous.key)root.pptoActualId=null;root.SVDataReadiness?.invalidate(sourceKey);}}
   function ownsPointView(page){if(!current()){if(entry)reset();return false;}return page==='presupuesto'&&(route()===page||navigating&&route()===entry.origin);}
   const claimsPointView=page=>ownsPointView(page)&&entry.mode==='detail';
   function resolve(key){return ownsPointView('presupuesto')&&key===entry.key?entry.record:null;}
@@ -33,7 +34,7 @@
   function needsFormData(key){return ownsPointView('presupuesto')&&key===entry.key&&!!entry.record&&!entry.formReady;}
   async function enterForm(key,openForm){
    if(!needsFormData(key)||typeof openForm!=='function')return false;const e=entry;if(root.puedeEditarPresupuestoPermiso?.(e.record)!==true){root.notify?.('Sin permisos para editar el presupuesto.');return false;}if(e.formPending)return e.formPending;e.mode='form';
-   e.formPending=(async()=>{try{root.svCargarDatosDePaginaActual('presupuesto');await root.SVDataReadiness.waitForPage('presupuesto',{isCurrent:()=>entry===e&&ownsPointView('presupuesto')});if(entry!==e||!ownsPointView('presupuesto'))return false;e.formReady=true;openForm();return true;}catch(error){if(entry===e&&ownsPointView('presupuesto')){e.mode='detail';e.token.error(error.message||'No se pudo cargar el formulario.');root.notify?.(error.message);}return false;}finally{e.formPending=null;}})();return e.formPending;
+   e.formPending=(async()=>{try{root.svCargarDatosDePaginaActual('presupuesto');await root.SVDataReadiness.waitForPage('presupuesto',{isCurrent:()=>entry===e&&ownsPointView('presupuesto')});if(entry!==e||!ownsPointView('presupuesto'))return false;e.formReady=true;openForm();e.editor={key:root._pptoEditandoFbKey,base:root._pptoEditorBase,id:root._pptoEditandoId};if(entry!==e||!ownsPointView('presupuesto')){retireEditor(e);return false;}return true;}catch(error){if(entry===e&&ownsPointView('presupuesto')){e.mode='detail';e.token.error(error.message||'No se pudo cargar el formulario.');root.notify?.(error.message);}return false;}finally{e.formPending=null;}})();return e.formPending;
   }
   const check=()=>{if(entry&&!current())reset();};
   for(const name of ['sisventas:session-ended','sisventas:role-changed','sisventas:session-changed','sisventas:permissions-changed','sisventas:data-state-changed','visibilitychange']){const handler=()=>{if(name==='sisventas:session-ended')reset();else check();};root.document?.addEventListener(name,handler);listeners.push([name,handler]);}

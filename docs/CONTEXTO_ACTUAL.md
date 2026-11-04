@@ -1,3 +1,11 @@
+## Retiro del editor puntual · corrección tras QA independiente
+
+QA sobre08267 encontró editor visible e identidad de edición viva trasdataEpoch:42PASS/1FAIL focal,5Chrome previosPASS y reproducciónChrome nuevaFAIL; test independiente SHA25669530EC0D219DDEE1190BFEC58D152C661D2FF443479B0DA4E0137CDB1E37F24 intacto. Root confirmó5PASS/1FAIL/1SKIP antes. Se importó81602e1b(helper+tests): captura la identidad real del editor de esa excursión y sólo la retira si base/clave/id siguen siendo los mismos, conservando editores reemplazados y borradores ajenos.
+
+Root añadió una reproducción durante el propio callback de apertura: cambiardataEpoch dentro del renderer dejaba un editor sin registrar todavía y devolvía éxito. La prueba dashboard-budget-notice-editor-reentry falló1/1 antes; se extrajo limpieza idempotente y se volvió a validar tras el callback. Repetición focal18PASS/1SKIP, sin cambiar la expectativa de QA. Log rojo dashboard-editor-reentry-root-before.private.log y verde dashboard-editor-reentry-root-after.private.log.
+
+Repetición final serial de11propias,7QA(incluyeChrome),5Chrome del recorrido y1reentrancia:24PASS,0FAIL/SKIP. Log dashboard-notice-editor-native-final-root.private.log. Usa app integrada/root, permisos y GET reales sobrebackend ficticio; no indexservidor completo, auth real ni minimizarSO. Se conservaron originales de prueba y testQA intacto. Falta revisión final de este delta y posterior conexión Source/agregador al host; no se afirma aceptación global. Sin producción, operaciones reales, push ni recarga del usuario.
+
 ## Avisos → detalle puntual · integrado local, flag OFF
 
 Se importaron los cinco archivos dea08b73aa, el delta026ab1dd(dataEpoch obligatorio/firma/visibilidad) y el patch84715868. El patch originala08 era corrupto por nueve blancos de contexto sin prefijo: git apply rechazó antes de cambiar app; se conserva ese antecedente, no se lo presenta como aplicado. La versión847 pasó git apply --check y se aplicó a appv3.19.3, notifications y Readiness intactos frentea53b8. No se sustituyeron fuentes enteras ni se alteró el transporte REST ya integrado.
