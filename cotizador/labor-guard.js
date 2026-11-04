@@ -193,6 +193,6 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
   const previous=tail;let release;tail=new Promise(resolve=>{release=resolve;});await previous;
   try{return await execute(actor,work,op);}finally{release();}
  }
- return {run,clientAccounts,clientHistory,affects:path=>affected(path)||clientHistory&&/^sisventas\/(ventas|pagos|presupuestos|ordenes_trabajo|reclamos|tickets|equipos)(\/|$)/.test(path)||clientAccounts&&/^sisventas\/(clientes|clientes_unificados|clientes_unificados_indice)(\/|$)/.test(path),current:()=>{const active=context.getStore();active?.assertActive();return active;}};
+ return {run,clientAccounts,clientHistory,affects:path=>affected(path)||clientHistory&&/^sisventas\/(ventas|pagos|presupuestos|ordenes_trabajo|reclamos|tickets|equipos)(\/|$)/.test(path)||clientAccounts&&/^sisventas\/(clientes|clientes_unificados|clientes_unificados_indice|presupuestos)(\/|$)/.test(path),current:()=>{const active=context.getStore();active?.assertActive();return active;}};
 }
 module.exports={createLaborGuard,canonical,digest,affected,parts,child,put,domains,config};

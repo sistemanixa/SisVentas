@@ -4,13 +4,13 @@ const {createLaborRuntime}=require('../cotizador/labor-runtime'),{createCommerci
 const Permissions=require('../js/core/permission-index');
 const clone=v=>v==null?null:structuredClone(v),at=(v,p)=>p.split('/').filter(Boolean).reduce((n,k)=>n?.[k],v)??null;
 function put(root,path,value){const keys=path.split('/').filter(Boolean),last=keys.pop();let n=root;for(const k of keys)n=n[k]||={};if(value===null)delete n[last];else n[last]=clone(value);}
-function fixture(extra={}){
+function fixture(extra={},options={}){
  const sale={id:'V-FICTICIA',creadaPor:'Admin histórico',fecha:'2026-10-01',total:100,totalPagado:100,comisionesGeneradas:true,...extra};
  const state={sv_labor_config:{schema:1,ready:true},sv_chat_roles:{admin:{activo:true,rol:'admin'},seller:{activo:true,rol:'vendedor'}},sv_chat_directorio:{admin:{nombre:'Admin actual'},seller:{nombre:'Vendedor actual'}},sv_usuarios:{a:{uid:'admin',activo:true,rol:'admin',nombre:'Admin histórico'},s:{uid:'seller',activo:true,rol:'vendedor',nombre:'Vendedor histórico'}},sv_permisos:Permissions.build({admin:{bloqueados:[],acciones:{}},vendedor:{bloqueados:[],acciones:{}}}),sisventas:{ventas:{sale},pagos:{keep:{ventaFbKey:'sale',monto:100}},gastos:{keep:{monto:10,tipoPagable:'comision',estado:'pagado'}}}};
  const calls=[],direct=[],profileReads={},rawReads=[];let hook,denyCommit=false;
  const response=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>clone(data),body:{cancel:async()=>{}}});
  const raw={ref(path=''){const r={key:path.split('/').at(-1),toString:()=> 'https://fixture.invalid/'+path,get:async()=>{rawReads.push(path);const value=clone(at(state,path));return {val:()=>clone(value),ref:r};},on(event,success,failure){r.get().then(success,failure);return success;},off(){},child:p=>raw.ref([path,p].filter(Boolean).join('/')),transaction(){direct.push('transaction');throw Error('Unscoped transaction');}};return r;}};
- const runtime=createLaborRuntime({db:raw,databaseURL:'https://fixture.invalid',accessToken:async()=>'fictitious-loopback-token',enabled:true,fetchImpl:async(url,init)=>{
+ const runtime=createLaborRuntime({db:raw,databaseURL:'https://fixture.invalid',accessToken:async()=>'fictitious-loopback-token',enabled:true,...options,fetchImpl:async(url,init)=>{
   const target=new URL(url);assert.equal(target.origin,'https://fixture.invalid');const path=decodeURIComponent(target.pathname).replace(/^\/|\.json$/g,''),auth=JSON.parse(target.searchParams.get('auth_variable_override')||'null');calls.push({method:init.method,path,auth});
   if(init.method==='GET'){profileReads[path]=(profileReads[path]||0)+1;await hook?.(path,profileReads[path]);return response(at(state,path));}
   if(init.method==='PUT'){put(state,path,JSON.parse(init.body));return response(null);}
@@ -62,4 +62,16 @@ test('a canonical nonadmin record prepares without changing ownership or adding 
 
 test('nonadmin historical owner receives a clear prerequisite and cannot self-assign through preparation',async()=>{
  const f=fixture({creadaPor:'Vendedor histórico'}),before=clone(f.state.sisventas);await assert.rejects(f.prepare('seller'),e=>e.statusCode===403&&/administrador/.test(e.message));assert.deepEqual(f.state.sisventas,before);assert.equal(f.calls.filter(c=>c.method==='PATCH').length,0);
+});
+
+test('account-enabled budget preparation commits as its authorized human and preserves unrelated finances',async()=>{
+ const f=fixture({}, {clientAccounts:true,commercialPages:true});f.state.sisventas.presupuestos={budget:{id:'PP-FICTICIO',creadoPor:'Admin histórico',total:123.45}};
+ const before=clone(f.state.sisventas.ventas),payments=clone(f.state.sisventas.pagos),actor=await f.authorize('admin','presupuestos');
+ const result=await f.runtime.run(actor,'commercial-prepare',{id:'budget'},()=>f.commercial.prepare(actor,{id:'budget'}));
+ assert.equal(result.record.responsableUid,'admin');assert.equal(f.calls.find(c=>c.method==='PATCH').auth.uid,'admin');assert.deepEqual(f.direct,[]);assert.deepEqual(f.state.sisventas.ventas,before);assert.deepEqual(f.state.sisventas.pagos,payments);
+});
+for(const mode of ['module','revision','inactive'])test('account-enabled budget preparation rejects concurrent '+mode+' before commit',async()=>{
+ const f=fixture({}, {clientAccounts:true,commercialPages:true});f.state.sisventas.presupuestos={budget:{id:'PP-FICTICIO',creadoPor:'Admin histórico',total:123.45}};const before=clone(f.state.sisventas),actor=await f.authorize('admin','presupuestos');
+ f.setHook((path,n)=>{if(n!==2)return;if(mode==='module'&&path==='sv_permisos/admin')f.state.sv_permisos.admin.indiceModulos.presupuesto=false;if(mode==='revision'&&path==='sv_permisos/admin')f.state.sv_permisos.admin.indiceRevision++;if(mode==='inactive'&&path==='sv_chat_roles/admin')f.state.sv_chat_roles.admin.activo=false;});
+ await assert.rejects(f.runtime.run(actor,'commercial-prepare',{id:'budget'},()=>f.commercial.prepare(actor,{id:'budget'})));assert.deepEqual(f.state.sisventas,before);assert(!f.calls.some(c=>c.method==='PATCH'));assert.deepEqual(f.direct,[]);
 });

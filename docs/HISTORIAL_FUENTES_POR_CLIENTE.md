@@ -48,6 +48,19 @@ remotas, escritura del servidor o preparación de todas las audiencias.
 
 ## Dependencias antes de activar
 
+Política pura adicional preparada: `js/core/client-history-audience.v1.js`.
+Consulta la política compartida de módulos y las acciones efectivas entregadas
+por un contexto autenticado. OT usa `ot.verTodas` y el helper canónico de
+asignación; no se sustituye una identidad de empleado por un UID. Reclamos,
+tickets y equipos originales conservan su habilitación operativa actual. Los
+embebidos exigen acceso financiero a la venta padre y responsable propio
+salvo administrador. Su lectura conserva el permiso comercial incluso sin módulo
+operativo: en ese caso los originales siguen cerrados. Comisiones por sí solo no habilita esa información.
+Ocho pruebas ficticias PASS, incluyendo revocación, restablecimiento, Ver como,
+homónimos, claves prioritarias y paridad CommonJS/navegador. No está conectada al
+lector ni concede rutas: faltan los índices de audiencias y su transporte. El
+lector publicado/local sigue rechazando ámbitos técnicos no preparados.
+
 1. Conectar la proyección al guard compartido y verificar cada escritor de las
    siete fuentes, incluidos embebidos y clientes/unificaciones. Todos los
    vínculos deben actualizarse en la misma operación; no por un reloj.

@@ -65,7 +65,7 @@ function verifyInput(input){
 async function collect(input,{sourceOnly=false,accountSources=null,resolutions=null,financialRows=null}={}){
  verifyInput(input);
  const {records,customers,generation,owner}=input,revision=input.revision||1;
- const directory=Identity.create(customers),account=accountSources?{patch:Object.fromEntries(Object.entries(accountSources).map(([key,value])=>[Account.ROOT+'/sources/'+key,value]))}:await Accounts.prepare({sales:records.ventas,payments:records.pagos,customers,owner:(record,key)=>owner(record,'ventas',key),generation,revision});
+ const directory=Identity.create(customers),account=accountSources?{patch:Object.fromEntries(Object.entries(accountSources).map(([key,value])=>[Account.ROOT+'/sources/'+key,value]))}:await Accounts.prepare({sales:records.ventas,payments:records.pagos,budgets:records.presupuestos,customers,owner:(record,key)=>owner(record,'ventas',key),generation,revision});
  if(sourceOnly&&!accountSources)throw fail('La contribución requiere las fuentes financieras verificadas.');
  const preparedDirectory=Directory.prepare(customers),directoryRead=async path=>{if(Object.hasOwn(preparedDirectory,path))return preparedDirectory[path];const prefix=path+'/';const values=Object.entries(preparedDirectory).filter(([p])=>p.startsWith(prefix)&&!p.slice(prefix.length).includes('/'));return values.length?Object.fromEntries(values.map(([p,v])=>[p.slice(prefix.length),v])):null;},resolved=new Map();
  for(const domain of domains)for(const[key,record]of Object.entries(records[domain]))resolved.set(domain+'/'+key,resolutions?.[domain+'/'+key]||await Directory.resolve(record,{read:directoryRead}));

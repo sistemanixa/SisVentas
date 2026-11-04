@@ -6,14 +6,16 @@ const uid=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
 const normalize=v=>String(v||'').trim().normalize('NFC').toLocaleLowerCase('es');
 const hash=v=>crypto.createHash('sha256').update(normalize(v)).digest('hex');
 const fail=()=>Object.assign(Error('No se puede verificar un ámbito vacío. Un administrador debe revisar su habilitación.'),{code:'SV_CLIENT_ACCOUNTS_INCOMPLETE'});
-function fromSale(record){
+function fromRecord(record,domain='ventas'){
  if(!record||typeof record!=='object'||Array.isArray(record))throw fail();
  let explicit=[];
  if(Object.hasOwn(record,'responsableUid'))explicit=[record.responsableUid];
  else explicit=['creadaPorUid','creadoPorUid','usuarioUid','empleadoUid'].map(k=>record[k]).filter(Boolean);
- const names=explicit.length||Object.hasOwn(record,'responsableUid')?[]:['creadaPor','creadoPor','createdBy','usuario'].map(k=>record[k]).filter(Boolean);
+ const names=explicit.length||Object.hasOwn(record,'responsableUid')?[]:(domain==='presupuestos'?['creadoPor','usuario','empleado']:['creadaPor','creadoPor','createdBy','usuario']).map(k=>record[k]).filter(Boolean);
  const uids=[...new Set(explicit.filter(uid))].sort(),legacyAliases=[...new Set(names.map(hash))].sort();return{schema:1,complete:true,uidsCount:uids.length,legacyAliasesCount:legacyAliases.length,uids,legacyAliases};
 }
+const fromSale=record=>fromRecord(record,'ventas');
+function fromSaleAndBudgets(record,budgets){const source=require('./commercial-ownership').ownerSource(record,'ventas',budgets),rows=[fromSale(record),fromRecord(source.record,source.domain)],uids=[...new Set(rows.flatMap(row=>row.uids))].sort(),legacyAliases=[...new Set(rows.flatMap(row=>row.legacyAliases))].sort();return{schema:1,complete:true,uidsCount:uids.length,legacyAliasesCount:legacyAliases.length,uids,legacyAliases};}
 function validate(value){const uids=value?.uids??(value?.uidsCount===0?[]:null),legacyAliases=value?.legacyAliases??(value?.legacyAliasesCount===0?[]:null);if(value?.schema!==1||value.complete!==true||!Array.isArray(uids)||!Array.isArray(legacyAliases)||value.uidsCount!==uids.length||value.legacyAliasesCount!==legacyAliases.length||uids.some(v=>!uid(v))||legacyAliases.some(v=>typeof v!=='string'||!/^[a-f0-9]{64}$/.test(v)))throw fail();return{...value,uids,legacyAliases};}
 function additions(rows){const patch={};for(const row of rows){const value=validate(row);for(const id of value.uids)patch[ROOT+'/ownerUIDHistory/'+id]=true;for(const alias of value.legacyAliases)patch[ROOT+'/ownerAliasHistory/'+alias]=true;}return patch;}
 // Proof only: never writes coverage and never treats absent evidence as an empty history.
@@ -23,4 +25,4 @@ async function proveEmpty({identity,aliases,generation,coverage,evidence,read}){
  for(const path of paths)if(await read(path)!==null)throw fail();
  return{schema:1,generation,revision:coverage.revision,uid:identity,verifiedEmpty:true};
 }
-module.exports={ROOT,fromSale,validate,additions,proveEmpty};
+module.exports={ROOT,fromSale,fromRecord,fromSaleAndBudgets,validate,additions,proveEmpty};

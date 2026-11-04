@@ -21,7 +21,7 @@
   return path;
  }
  const serviceOnly=path=>/^(?:sv_labor_|sv_commission_|sv_client_accounts(?:_|$))/.test(path.split('/')[0]||'');
- const identityRoots=['clientes','clientes_unificados','clientes_unificados_indice'].map(key=>'sisventas/'+key);
+ const identityRoots=['clientes','clientes_unificados','clientes_unificados_indice','presupuestos'].map(key=>'sisventas/'+key);
  const identityIntersects=path=>identityRoots.some(base=>path===base||path.startsWith(base+'/')||!path||base.startsWith(path+'/'));
  const identityWatched=root=>root.SVClientAccountHost?.coordinated?.()===true?identityRoots:[];
  const baseIntersects=path=>serviceOnly(path)||watched.some(base=>path===base||path.startsWith(base+'/')||!path||base.startsWith(path+'/'));

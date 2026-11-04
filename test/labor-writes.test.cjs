@@ -209,3 +209,9 @@ test('compare espera primer plano antes del primer GET y no retiene DB mientras 
  const pending=f.root.fbRunTransaction(f.ref('sisventas/gastos/g'),value=>value);
  await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(f.reads,[]);assert.equal(f.holds,0);visible.resolve();await pending;assert.equal(f.reads.length,1);
 });
+
+test('budget mutations join account coordination only when its verified configuration is enabled',async()=>{
+ const f=fixture(),ready=deferred();let enabled=false;f.root.SVClientAccountHost={start:async()=>{await ready.promise;enabled=true;},coordinated:()=>enabled};f.put('sisventas/presupuestos/b',{id:'PP-FICTICIO',total:100});
+ const pending=f.root.fbUpdate(f.ref('sisventas/presupuestos/b'),{observaciones:'Cambio ficticio'});assert.equal(f.direct.length,0);assert.equal(f.commands.length,0);ready.resolve();await pending;assert.equal(f.commands.length,1);assert.equal(f.direct.length,0);
+ const disabled=fixture();disabled.root.SVClientAccountHost={start:async()=>false,coordinated:()=>false};await disabled.root.fbSet(disabled.ref('sisventas/presupuestos/b'),{id:'PP-FICTICIO',total:100});assert.equal(disabled.commands.length,0);assert.equal(disabled.direct.length,1);
+});

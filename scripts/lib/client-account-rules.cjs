@@ -13,10 +13,10 @@ function prepare(input){
  if(![false,'false',undefined].includes(r.sisventas?.['.write']))throw Error('Revisar escrituras padre antes de coordinar clientes.');
  const coordinated=depth=>"(root.child('sv_client_accounts_config/ready').val() !== true || ("+financial.replaceAll('newData.parent()','newData'+'.parent()'.repeat(depth))+"))";
  function fence(node,depth=2){if(!node||typeof node!=='object')return;for(const[k,v]of Object.entries(node)){if(k==='.write'&&v!==false&&v!=='false')node[k]='('+v+') && '+coordinated(depth);else if(!k.startsWith('.'))fence(v,depth+1);}}
- for(const name of ['clientes','clientes_unificados','clientes_unificados_indice'])fence(r.sisventas?.[name]);
+ for(const name of ['clientes','clientes_unificados','clientes_unificados_indice','presupuestos'])fence(r.sisventas?.[name]);
  // Preserve every unrelated domain grant, while fencing any wildcard route
  // that could also match one of these three explicit customer roots.
- function wildcardFence(node,name,depth=2){if(!node||typeof node!=='object')return;for(const[k,v]of Object.entries(node)){if(k==='.write'&&v!==false&&v!=='false')node[k]='('+v+') && ((('+name+" !== 'clientes' && "+name+" !== 'clientes_unificados' && "+name+" !== 'clientes_unificados_indice') || "+coordinated(depth)+'))';else if(!k.startsWith('.'))wildcardFence(v,name,depth+1);}}
+ function wildcardFence(node,name,depth=2){if(!node||typeof node!=='object')return;for(const[k,v]of Object.entries(node)){if(k==='.write'&&v!==false&&v!=='false')node[k]='('+v+') && ((('+name+" !== 'clientes' && "+name+" !== 'clientes_unificados' && "+name+" !== 'clientes_unificados_indice' && "+name+" !== 'presupuestos') || "+coordinated(depth)+'))';else if(!k.startsWith('.'))wildcardFence(v,name,depth+1);}}
  for(const[name,node]of Object.entries(r.sisventas||{}))if(name.startsWith('$')){if(!/^\$[A-Za-z_][A-Za-z0-9_]*$/.test(name))throw Error('Revisar el comodín de dominio.');wildcardFence(node,name);}
  return out;
 }
