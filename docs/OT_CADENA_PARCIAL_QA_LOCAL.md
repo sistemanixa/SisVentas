@@ -6,6 +6,10 @@ Se agregaron únicamente `test/commercial-partial-delivery-chain.integration.cjs
 
 ## Resultado congelado
 
+Repetición posterior de las mismas tres variantes sobre los modelos de stock corregidos por el coordinador para usar `Money.quantitySum`: **3 PASS, 0 FAIL, 0 SKIP**. Test y helper permanecen idénticos al commit `b7cd6c6d`; no se editaron modelos de stock. Esta cadena usa cantidades enteras y verifica regresión del flujo, no sustituye los casos específicos de precisión decimal del coordinador. La variante con `estadoInst` ausente también vuelve a pasar.
+
+Log privado: `C:/SisVentas/tmp/partial-delivery-chain-stock-precision.private.log`, SHA256 `e2b1c8d00f2e3a14c9bf4de9607adbe8561521cbdb4a6181fbb8e72d3e3fdef9`. Capturas/JSON: `C:/SisVentas/tmp/partial-delivery-chain-native-20261104/stock-precision/`, usando `SV_CHAIN_EVIDENCE`. Modelos ensayados: navegador `7988f7cce514d17d3a3a293b40eb4f89bf0d3e76081bbe44746799ac786d7373`; servidor `6351a9c512a9fa4f62c8350c7b397946b6aafd7795aacd32a8ecb882fff43397`.
+
 Ampliación posterior sobre `b13fcd43`, con la corrección compartida del modelo todavía local: **3 PASS, 0 FAIL, 0 SKIP**. Se agregó `omitSaleInstallationState` al helper y una tercera cadena completa de 1280 px, con pérdida de ACK y `estadoInst` ausente desde antes de la compra. La recepción no inventa ese campo. La instalación genera un solo evento con `antes: null` y `despues: "en_instalacion"`; conserva explícitamente la propiedad `antes` al serializar y releer JSON. La cadena completa termina sin errores de guard/JSON y conserva los mismos saldos. No se modificó código servidor en esta ampliación.
 
 El coordinador informó una repetición independiente anterior de 5/5 PASS en `ot-partial-chain-root-independent.private.log`, SHA256 `680d1aac4b5232b7591f1ef31aaed8c49cdd1b0ba7a047c65bbbfb6a66f2d5b3`. Esa repetición precede a la nueva variante histórica; su repetición independiente sigue pendiente.
