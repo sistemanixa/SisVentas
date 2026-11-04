@@ -1,0 +1,10 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),path=require('node:path');
+const root=process.env.SV_CREATOR_ORDER_REVIEW_SOURCE||path.resolve(__dirname,'..'),load=p=>require(path.join(root,p)),M=load('cotizador/commercial-pages-model'),L=load('cotizador/commercial-creator-latest'),Activity=load('cotizador/dashboard-commercial-activity-proposal');
+async function fixture(){const built=await M.build({sales:{a:{creadaPor:'u',fecha:'2026-11-04',ts:100,total:1}},owner:()=> 'u',generation:'review-generation'}),state=built.patch;
+ const read=async p=>{if(Object.hasOwn(state,p))return structuredClone(state[p]);const rows=Object.entries(state).filter(([k,v])=>k.startsWith(p+'/')&&v!=null);return rows.length?Object.fromEntries(rows.map(([k,v])=>[k.slice(p.length+1),structuredClone(v)])):null;};
+ return {state,row:state[M.ROOT+'/records/sales/a'],latest:()=>L.readLatest({read,scope:'u_u',creator:'u',month:'2026-11',locale:'es-AR',expectedLocale:'es-AR'})};
+}
+test('semantic creatorOrder equality accepts a reordered RTDB object without weakening selected row validation',async()=>{const f=await fixture(),v=f.row.creatorOrder;f.row.creatorOrder={loaderTs:v.loaderTs,loaderTime:v.loaderTime,rawDate:v.rawDate,schema:v.schema};assert.equal((await f.latest()).rows[0].key,'a');});
+test('each actual creatorOrder field change still rejects the point',async()=>{for(const field of ['schema','rawDate','loaderTime','loaderTs']){const f=await fixture();f.row.creatorOrder[field]=field==='rawDate'?'2026-11-05':f.row.creatorOrder[field]+1;await assert.rejects(f.latest(),{code:'SV_CREATOR_LATEST_NOT_READY'},field);}});
+test('B1 canonical hashes already ignore property insertion order and detect actual order-field changes',()=>{const a={schema:1,rawDate:'2026-11-04',loaderTime:123,loaderTs:456},b={loaderTs:456,loaderTime:123,rawDate:'2026-11-04',schema:1};assert.equal(Activity.hash(a),Activity.hash(b));for(const field of Object.keys(a)){const c={...b,[field]:field==='rawDate'?'2026-11-05':b[field]+1};assert.notEqual(Activity.hash(a),Activity.hash(c));}});

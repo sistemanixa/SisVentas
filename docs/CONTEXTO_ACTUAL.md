@@ -1,3 +1,10 @@
+## Puerta completa conjunta 2a0798 y límite de avisos tardíos
+
+Fuente congelada2a0798a9d25c62bc8c6640c494520c32348695d0, árbolbdf909a0ef073bed8bd906927f36b673c0e18caa. Puerta vigente finalizada04/11/2026 20:31:03UTC:9.487casos,9.456PASS,0FAIL,31SKIP,exit0,Node22.23.4. Log privado current-gate-2a0798a9.private.log SHA2569d063262344648d8874076b65a078e019462c65a4856b44e6e3d1c9825f11f75; metadata conserva inicio/fin/comando/fuente. No se sustituyen los31opt-in por un supuesto verde.
+
+Nativa independiente sobre mismo2a:14PASS,0FAIL/SKIP,exit0; testoriginal rojoee46 intacto y manifiesto nuevo DASHBOARD_NATIVE_CUT_2A0798_MANIFEST.json. Contrasta reglas mensuales, cinco GET, contador501/últimas5mínimas, permisos limitados, concurrencia, reset/revocación; sin producción. Revisión independiente3casos adicionales de igualdad porcampos/anclasPASS sobre código concreto.
+
+QA final4Chrome de últimaspersonales/globalPASS sobre2a. Un caso adicional tardío de Notificaciones detectó Source completo con pantalla pendiente cuando falta presupuestos.revisarVencidos: callback delega en verificador que retorna antes de generar centro. Es bloqueo UI acotado comprobado, pendiente corrección y repetición; la puerta general no lo cubría. No se da porcerrado ni publicado. No se modificó ventana local; herramienta IAB no devolvió acceso y no se intentó recargar por otra vía.
 ## Comparación canónica de orden y navegador posterior
 
 Aplicado delta mínimo 603c32f1 del helper: compara exactamente cuatro campos propios/enumerables y valores estrictos, sin depender del orden de propiedades de JSON. Rechaza extras, símbolos, campos ocultos y tipos/valores distintos. Root107 focales PASS,0FAIL/SKIP en Node22; log canonical-order-integrated.private.log. Se conserva la prueba nativa roja independiente de ee46; falta repetir sobre esta nueva fuente.
