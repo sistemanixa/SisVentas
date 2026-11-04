@@ -1,3 +1,10 @@
+## Faceta personal: membresía y helper preparados, transporte pendiente
+
+Aplicado patchmodelo de958ffc51 sobre baseline d5 y helper/tests/docs con delta90da70f3. Pages mantiene pertenencia scope+creatorHash+mes en su mismo namespace/delta, con evidencia mínima deorden. Helperlee metadata del grupo exacto (O(n), no historial/ítems), valida cardinalidad y cobertura y obtiene hasta5filasPagespuntuales; no autoriza por sísolo ni marca coleccióncompleta. Schemaantiguo no se auto-repara ni certifica vacío. DockerCOPYincluye helper nuevo, evitando requirefaltante del modelo.
+
+Orden anterior de fecha cruda y desempates porfechaorden/ts conservados; si queda empatecompleto sinordenentrada demostrable, hay contrato explícito de claveestable. Es cambio deliberado de presentación eneseúltimocaso, no paridaduniversal deentrada histórica ni cambio deimportes. Oraclelegacyconservado; locale debe estar certificado por el contexto, no defaultinventado. No se prepara ningún grupo real ni se habilita en laweb.
+
+Root56pruebasmodelo/helper/PagesPASS y65incluyendoempaquetado/montajebackendPASS; log dashboard-creator-latest-packaged.private.log. Únicoajustedepruebacontador excluye lasnuevasrutasderivadascreatorMonths al comparar finanzasentrecreadores, conservando lasexpectativasfinancieras. Falta integrarlector/DTO/host/render y pruebasnativas/finales. No nuevoendpoint/servicio, push o despliegue.
 ## Host personal y reutilización mensual: integrados bajo flagOFF
 
 Aplicados hunksd85dd5fe con contextoestrecho que preservó el bloquecreatorMonthlydeHist, y7f20004f host/test. Aggregate usa monthly ya verificadodeB0/B1 cuando estápresente:5GET sincapacidadcreador,6consegundoGETventaspara esacapacidad. Si B0noincluyemonthly conservaordenanterior m0→comercial→m1→B1(7GET); mensualpresenteinválidorechaza,sinfallback. No cachecrosscontext ni endpointnuevo.
