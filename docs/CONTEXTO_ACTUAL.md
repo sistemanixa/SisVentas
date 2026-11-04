@@ -1,3 +1,11 @@
+## Agregación y mensual · integración local inactiva
+
+Importados selectivamente29e524eb y68bbf02a: agregador de cuatro prefijos con presupuesto B0/B1 alrededor de las lecturas comerciales y puerto mensual propio mediante HTTP readFresh. No carga originales ni certifica como completos Mis ventas por creador, centro global de notificaciones o la colección de presupuestos. El mensual conserva el criterio exacto empleado/mes de la interfaz antigua y prueba ausencia certificada frente a metadatos faltantes. dataEpoch es obligatorio junto con User, sesión, permisos, conexión y contexto de fechas; un grant denegado rechaza el paquete antes de consultar, sin fabricar un prefijo vacío.
+
+Primera repetición13PASS; conjunta inicial33PASS. Tras integrar el delta de dataEpoch/dominio/scope:40PASS,0FAIL/SKIP en agregador, controles nuevos, Source y montaje backend. Log privado dashboard-aggregate-epoch-mount-root.private.log. Los siete casos rojos previos del delta pertenecen al checkout del autor, no a la puerta general root. Las reglas mensuales son propuesta standalone no aplicada. El test nativo conserva su referencia congelada4dec y todavía no se repitió contra esta integración: no atribuir evidencia anterior al código actual.
+
+Continúan pendientes navegación puntual real de avisos, prueba de frescura Admin SDK del servidor y montaje frontend conjunto. La ventana del usuario no se recargó ni se publicó este bloque; no se registraron operaciones reales. Se conserva el cambio de QA en su test independiente fuera del alcance de este commit.
+
 ## Montaje backend integrado, inactivo por defecto
 
 Se incorporaron los16 archivos de a8a35a29 de forma selectiva. createLaborRuntime inyecta los dos proyectores sólo bajo flags explícitos, exige guardado coordinado y Pages, y conserva el contrato de capacidades existente. index prepara cinco rutas GET con autenticación vigente, contexto BA/es-AR y rechazo de filtros/cuerpos/Ver como; no añade observadores ni guardados al leer. Los flags de lectura/escritores/renovación siguen apagados por defecto y no se activaron en ningún servicio.
