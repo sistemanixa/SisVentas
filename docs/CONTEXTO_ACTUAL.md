@@ -9,6 +9,16 @@ Rama aislada `codex/commercial-return-cache-local` desde 05be68ac. Conserva sól
 Focal final 41 PASS, revisión independiente 49 PASS superpuestos, rojos iniciales/carreras preservados. Regresión adicional 135 PASS / 1 FAIL por loopback restringido; archivo de transporte repetido con acceso local pasó sin modificar expectativas. Evidencia y límites en COMMERCIAL_RETURN_VALIDATION_LOCAL.md. No afirmar ahorro RTDB del backend ni latencia real a partir de estos fixtures.
 
 Componente no integrado/servido todavía: falta URL/cachebust coherente, unión con buscador y puerta conjunta/UI de la fuente final. Ventana 8765 y paquetes congelados intactos; sin push, publicación, datos reales ni flags operativos.
+## V3 resumen de ventas: propuesta aislada de menor trabajo · 2026-11-05
+
+Repositorio: rama codex/v3-sales-summary-cost desde92479e43; comparar con base05be. Única fuente funcional modificada: js/v3/sales-read-model.js. Reader/host entregados, index/SW/versiones,root8765 y otros componentes intactos. Sin builders/gates globales, push, producción, Firebase real o recarga de usuario.
+
+Hallazgo: summaryFor reconstruía dos veces el mismo modelo económico;50.000 resúmenes generaban100.000 builds. Helper privado permite compartirlo dentro de la llamada,50000 builds; no caché entre llamadas ni cambio de identidad/pagos/reglas monetarias. Mutaciones posteriores se observan. Medición5 rondas alternadas mismoNode22.23.4/Windows y fixture: medianas base424,2ms,entrega439,7ms,propuesta267,3ms (~39% menos frente a entrega). Contador y resultado idénticos entre rondas, excepto reducción exacta de builds50%.
+
+Validación:53focalesPASS,0FAIL/SKIP; v3-core original35/35 en base,entrega ypropuesta,umbral1500ms sin modificar. La prueba nueva de trabajo conservó rojo2000!=1000 y pasa con la mejora; incluye mutación entre llamadas,ambigüedad y384combinaciones contra escritor. Syntax/diff PASS. No se atribuye la demora histórica a CPU no medida: los tres controles actuales pasan, y los rojos previos quedan conservados. No afirmar puerta global verde sobre este parche.
+
+Evidencia y reproducción: docs/V3_SALES_SUMMARY_COSTE_LOCAL.md, harness test/helpers/v3-sales-summary-benchmark.cjs y logs/15mediciones privados ignorados en tmp/v3-summary-comparison-frozen.private.json. Próximo paso: revisión/integración conjunta y contraste temporal en su puerta autorizada; ajustar URL/caché del js/v3 al integrar (siguev3.0.0-shadow-v279). Ninguna entrega visual o externa en este bloque.
+
 ## Detalle de ventas: propuesta local de retención · 2026-11-05
 
 Repositorio: base 05be68ac4cbc92feb0318b849449d80bb4a48a9e, rama aislada codex/detalle-ventas-busqueda-retencion. Fuente local: sales-indexed-host.v1 y commercial-pages-reader.v1; pruebas focales nuevas y documento DETALLE_VENTAS_BUSQUEDA_RETENCION_LOCAL. No integrar implícitamente componentes de otros chats. Comparación local sobre js/v3 y test/v3-core.test.js sin cambios.
