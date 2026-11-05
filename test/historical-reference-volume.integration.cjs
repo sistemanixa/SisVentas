@@ -9,6 +9,7 @@ test('historical-reference generator preserves numeric cardinalities and histogr
  assert.deepEqual(s.collections,F.profile.collections);assert.deepEqual(s.salesItemsHistogram,F.profile.salesItemsHistogram);assert.deepEqual(s.providerOffersHistogram,F.profile.providerOffersHistogram);
  assert.equal(Object.values(a.data.ventas).reduce((n,r)=>n+r.items.length,0),5913);assert.equal(Object.values(a.data.productos).reduce((n,r)=>n+Object.keys(r.proveedores).length,0),865);
  assert.equal(Object.values(a.data.ventas).filter(r=>!r.fecha).length,81);assert.equal(s.currentEquivalent,false);assert.equal(s.coherentSnapshot,false);
+ const resized=F.generate(F.profile.seed,{ventas:1100,clientes:500});assert.equal(Object.keys(resized.data.ventas).length,1100);assert.equal(Object.keys(resized.data.clientes).length,500);assert.deepEqual(resized.data.ventas[F.id('sale',0)],a.data.ventas[F.id('sale',0)]);assert.equal(Object.keys(a.data.ventas).length,1095);assert.throws(()=>F.generate(F.profile.seed,{ventas:-1}));
  console.log('HISTORICAL PROFILE '+JSON.stringify(s));
 });
 test('historical volume: real pages -> partial/full payment -> commission -> duplicate replay on one coordinated state',{timeout:180000},async()=>{

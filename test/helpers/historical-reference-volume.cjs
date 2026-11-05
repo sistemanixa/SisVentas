@@ -2,7 +2,7 @@
 const profile=require('../fixtures/historical-reference-profile.json'),crypto=require('node:crypto');
 const id=(kind,n)=>'syn_'+kind+'_'+String(n).padStart(5,'0');
 const histogram=a=>a.reduce((out,n)=>(out[n]=(out[n]||0)+1,out),{});
-function generate(seed=profile.seed){
+function generate(seed=profile.seed,capacity){
  let state=seed>>>0;const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state;};
  const expand=h=>{const a=Object.entries(h).flatMap(([n,count])=>Array(count).fill(Number(n)));for(let i=a.length-1;i>0;i--){const j=random()%(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;};
  const data=Object.fromEntries(Object.keys(profile.collections).map(k=>[k,{}])),itemCounts=expand(profile.salesItemsHistogram),offerCounts=expand(profile.providerOffersHistogram);
@@ -28,11 +28,21 @@ function generate(seed=profile.seed){
  for(let i=0;i<111;i++)data.inventario_operativo[id('product',i)]={general:10,reservado:0,enCompra:i<40?3:0,consumido:0,asignaciones:{}};
  data.empleados=empleados;data.config={maxComisionPct:25,comisionesEmpleados:Object.fromEntries(Object.keys(empleados).map(k=>[k,{pct:25}]))};
  const roles=['admin','administrativo','vendedor','tecnico_vendedor','tecnico','distribuidora'],users={},identities={};for(let i=0;i<8;i++){const rol=roles[i%6];users[uid(i)]={uid:uid(i),nombre:'Integrante sintético '+i,rol,activo:true,empleadoFbKey:id('employee',i)};identities[uid(i)]={rol,activo:true};}
- return {profile:structuredClone(profile),seed,data,users,identities,target:id('sale',0)};
+ if(capacity){
+  // Capacity is a private caller input. Original historical histograms remain
+  // unchanged; extra synthetic rows repeat a deterministic historical shape.
+  for(const [collection,wanted] of Object.entries(capacity)){
+   if(!Object.hasOwn(profile.collections,collection)||!Number.isSafeInteger(wanted)||wanted<0)throw Error('Invalid synthetic capacity');
+   const entries=Object.entries(data[collection]);if(wanted>entries.length&&!entries.length)throw Error('Cannot extend an empty template');
+   for(let i=entries.length;i<wanted;i++){const row=structuredClone(entries[i%entries.length][1]);if(row.id)row.id='SYN-CAPACITY-'+collection+'-'+i;if(row.numero)row.numero='SYN-CAPACITY-'+i;data[collection][id('capacity_'+collection,i)]=row;}
+   for(const key of Object.keys(data[collection]).slice(wanted))delete data[collection][key];
+  }
+ }
+ return {profile:structuredClone(profile),seed,data,users,identities,target:id('sale',0),...(capacity?{capacityOverride:true}: {})};
 }
 function summary(f){const collections=Object.fromEntries(Object.keys(profile.collections).map(k=>[k,Object.keys(f.data[k]).length])),bytes=Object.fromEntries(Object.keys(profile.referenceBodyBytes).map(k=>[k,{generated:Buffer.byteLength(JSON.stringify(f.data[k])),historicalReference:profile.referenceBodyBytes[k]}]));return {kind:profile.kind,currentEquivalent:false,coherentSnapshot:false,seed:f.seed,collections,salesItemsHistogram:histogram(Object.values(f.data.ventas).map(r=>r.items.length)),providerOffersHistogram:histogram(Object.values(f.data.productos).map(r=>Object.keys(r.proveedores).length)),bytes,digest:crypto.createHash('sha256').update(JSON.stringify(f)).digest('hex')};}
-async function createFixture(){
- const synthetic=generate(),started=performance.now(),backend=await require('./coordinated-backend.cjs').createCoordinatedBackend(synthetic.data),{apply}=require('./labor-ui-flow.cjs');
+async function createFixture({capacity,seed=profile.seed}={}){
+ const synthetic=generate(seed,capacity),started=performance.now(),backend=await require('./coordinated-backend.cjs').createCoordinatedBackend(synthetic.data),{apply}=require('./labor-ui-flow.cjs');
  apply(backend.state,{sv_usuarios:synthetic.users,sv_chat_roles:synthetic.identities});
  const model=require('../../cotizador/commercial-pages-model'),search=require('../../scripts/lib/sales-search-plan.cjs').prepare({rows:backend.get(model.ROOT+'/records/sales'),coverage:backend.get(model.ROOT+'/coverage'),config:backend.get('sv_commercial_pages_config'),originals:synthetic.data.ventas,targetEmpty:true});apply(backend.state,search.patch);backend.state.sv_commercial_pages_config=search.activate;
  const index=require('../../scripts/lib/record-list-activation.cjs'),prepared=await index.scan(async p=>backend.get(p));apply(backend.state,{[index.target]:prepared.indexes,sv_record_list_config:{schema:1,ready:true}});
