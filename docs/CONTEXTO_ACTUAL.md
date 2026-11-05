@@ -9,6 +9,17 @@ Rama aislada `codex/commercial-return-cache-local` desde 05be68ac. Conserva sól
 Focal final 41 PASS, revisión independiente 49 PASS superpuestos, rojos iniciales/carreras preservados. Regresión adicional 135 PASS / 1 FAIL por loopback restringido; archivo de transporte repetido con acceso local pasó sin modificar expectativas. Evidencia y límites en COMMERCIAL_RETURN_VALIDATION_LOCAL.md. No afirmar ahorro RTDB del backend ni latencia real a partir de estos fixtures.
 
 Componente no integrado/servido todavía: falta URL/cachebust coherente, unión con buscador y puerta conjunta/UI de la fuente final. Ventana 8765 y paquetes congelados intactos; sin push, publicación, datos reales ni flags operativos.
+## Detalle de ventas: propuesta local de retención · 2026-11-05
+
+Repositorio: base 05be68ac4cbc92feb0318b849449d80bb4a48a9e, rama aislada codex/detalle-ventas-busqueda-retencion. Fuente local: sales-indexed-host.v1 y commercial-pages-reader.v1; pruebas focales nuevas y documento DETALLE_VENTAS_BUSQUEDA_RETENCION_LOCAL. No integrar implícitamente componentes de otros chats. Comparación local sobre js/v3 y test/v3-core.test.js sin cambios.
+
+Comportamiento: coincidencias inmediatas provisorias de la página verificada; la búsqueda histórica conserva debounce120ms, descarta respuestas retiradas y no vacía filas/totales por un repintado. Máximo50 inalterado. Consultas cortas locales, errores transitorios con aviso, invalidaciones reales y escrituras confirmadas retiran datos. GET con revisión nueva antes del listener deja preparación no lista; volver a una consulta ya verificada recupera su paginador.
+
+Evidencia final: 73 focales PASS y25 navegador PASS; HTML real/Readiness real, MutationObserver, respuestas retenidas,1120 ventas ficticias (320 actuales/800 históricas),1280/390px. Misma deuda, sin lecturas extra de totales por filtrar,0 raíces Ventas/Pagos y límites por consulta<=50. HTTP del host correlacionado por SHA con el checkout. Capturas oscuras y scroll móvil inspeccionados; no todos los formularios. Node22.23.4, syntax/diff checks PASS.
+
+Puerta final:9551 casos,9519PASS,1FAIL,31SKIP,exit1. Único rojo: límite temporal1500ms de50.000 consultas en v3-core (1829,7ms); archivo aislado34PASS/1FAIL, y Git-base05be con sus módulos también34PASS/1FAIL. No cambiar expectativas ni atribuir causa CPU no medida. La segunda puerta anterior pasó9548/9517PASS/0FAIL/31SKIP antes del último ajuste; no atribuirla a esta fuente. Primer rojo6 regresiones conservado y corregido. Detalles y logs privados ignorados en el documento del bloque.
+
+Estado externo: sin push, producción, Firebase real, publicación ni recarga de ventana del usuario. Root8765 y paquete19.4 congelado intactos. No se comprobó el JS en memoria de la ventana real. Propuesta v1 todavía no publicable por sí sola: referencias actuales index/SHELL siguen host?v=3.19.1 y reader?v=3.19.0. Próximo paso de integración: nuevas URLs inmutables, versión/caché/SHELL/Novedades coherentes, prueba SW real y nueva verificación del límite temporal antes de publicar. Los tests de este bloque bloquean SW y no sustituyen esa entrega.
 
 ## Fase local verificada y entregada · panel recuperado
 
