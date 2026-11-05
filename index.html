@@ -3096,6 +3096,16 @@ Listo para analizar.
           </a>
         </div>
 
+        <div class="card" style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <label for="fact-periodo-select" style="font-weight:600">Período</label>
+            <div class="fg" style="width:260px;max-width:100%">
+              <select id="fact-periodo-select" aria-label="Período de comprobantes ARCA" style="min-height:42px" onchange="factSelPeriodo(this.value)"></select>
+            </div>
+          </div>
+          <div id="fact-periodo-label" style="font-size:16px;font-weight:700;margin-top:10px"></div>
+        </div>
+
         <!-- Compensación de IVA — Débito (Facturas Realizadas) vs Crédito (Crédito Fiscal) -->
         <div class="card" id="fact-compensacion-card" style="display:none">
           <div class="card-head"><span class="card-title">Compensación de IVA</span></div>
@@ -3109,6 +3119,7 @@ Listo para analizar.
 
         <!-- PESTAÑA: CRÉDITO FISCAL -->
         <div id="fact-cf" class="fact-panel" style="display:none">
+          <p id="fact-cf-estado" role="status" style="color:var(--text2);margin:0 0 12px">Cargando comprobantes…</p>
 
           <!-- Carga de CSV -->
           <div class="card">
@@ -3126,10 +3137,10 @@ Listo para analizar.
               <div style="font-size:13px;color:var(--text2);margin-bottom:2px" id="cf-drop-txt">Arrastrá el CSV de comprobantes recibidos de AFIP o hacé clic para seleccionarlo</div>
               <div style="font-size:11px;color:var(--text3)">AFIP → Mis Comprobantes → Recibidos → Exportar CSV</div>
             </div>
-            <div id="cf-periodos-box" style="margin-top:12px;display:none">
-              <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Períodos cargados</div>
-              <div id="cf-periodos-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-            </div>
+            <details id="cf-periodos-box" style="margin-top:12px;display:none">
+              <summary style="color:var(--text3);cursor:pointer">Administrar período</summary>
+              <div id="cf-periodos-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
+            </details>
           </div>
 
           <!-- Totales -->
@@ -3168,6 +3179,7 @@ Listo para analizar.
 
         <!-- PESTAÑA: FACTURAS REALIZADAS -->
         <div id="fact-fv" class="fact-panel">
+          <p id="fact-fv-estado" role="status" style="color:var(--text2);margin:0 0 12px">Cargando comprobantes…</p>
 
           <!-- Carga de CSV -->
           <div class="card">
@@ -3185,10 +3197,10 @@ Listo para analizar.
               <div style="font-size:13px;color:var(--text2);margin-bottom:2px" id="fv-drop-txt">Arrastrá el CSV de comprobantes emitidos de AFIP o hacé clic para seleccionarlo</div>
               <div style="font-size:11px;color:var(--text3)">AFIP → Mis Comprobantes → Emitidos → Exportar CSV</div>
             </div>
-            <div id="fv-periodos-box" style="margin-top:12px;display:none">
-              <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Períodos cargados</div>
-              <div id="fv-periodos-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-            </div>
+            <details id="fv-periodos-box" style="margin-top:12px;display:none">
+              <summary style="color:var(--text3);cursor:pointer">Administrar período</summary>
+              <div id="fv-periodos-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
+            </details>
           </div>
 
           <!-- Totales -->

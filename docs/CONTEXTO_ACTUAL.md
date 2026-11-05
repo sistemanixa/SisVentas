@@ -20,6 +20,9 @@ Evidencia final: 73 focales PASS y25 navegador PASS; HTML real/Readiness real, M
 Puerta final:9551 casos,9519PASS,1FAIL,31SKIP,exit1. Único rojo: límite temporal1500ms de50.000 consultas en v3-core (1829,7ms); archivo aislado34PASS/1FAIL, y Git-base05be con sus módulos también34PASS/1FAIL. No cambiar expectativas ni atribuir causa CPU no medida. La segunda puerta anterior pasó9548/9517PASS/0FAIL/31SKIP antes del último ajuste; no atribuirla a esta fuente. Primer rojo6 regresiones conservado y corregido. Detalles y logs privados ignorados en el documento del bloque.
 
 Estado externo: sin push, producción, Firebase real, publicación ni recarga de ventana del usuario. Root8765 y paquete19.4 congelado intactos. No se comprobó el JS en memoria de la ventana real. Propuesta v1 todavía no publicable por sí sola: referencias actuales index/SHELL siguen host?v=3.19.1 y reader?v=3.19.0. Próximo paso de integración: nuevas URLs inmutables, versión/caché/SHELL/Novedades coherentes, prueba SW real y nueva verificación del límite temporal antes de publicar. Los tests de este bloque bloquean SW y no sustituyen esa entrega.
+## ARCA período único · candidata aislada, no integrada
+
+Base 05be68ac4cbc92feb0318b849449d80bb4a48a9e; rama codex/arca-periodo-unico-local. Selector común, mes calendario incluso vacío, estados de carga/error/permisos y retiro de sesión. Sin operaciones fiscales, datos reales, servidor8765 ni publicación. Evidencia y límites en docs/ARCA_PERIODO_UNICO_LOCAL.md. Red7/7; funciones9/9 y UI4/4 verdes; dos suites exit1 por fixtures reparados, focal30/30 y tercera puerta completa exit0:9543 casos/9512PASS/0FAIL/31SKIP. Integrador debe verificar su paquete combinado y versionar en su paquete actual antes de publicar.
 
 ## Fase local verificada y entregada · panel recuperado
 

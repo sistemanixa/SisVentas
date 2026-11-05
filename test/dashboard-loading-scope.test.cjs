@@ -59,6 +59,9 @@ test('en una ruta comercial autorizada el progreso sigue esperando los datos per
 test('el técnico no suscribe colecciones comerciales bloqueadas; conserva dependencias compartidas de OT',()=>{
  const s=setup('tecnico',['dashboard.miCuenta','dashboard.misOT']);
  s.c.svPuedeLeerDominio=s.window.svPuedeLeerDominio;
+
+ s.c.FACT_ESTADOS={cf:'pending',fv:'pending'};s.c.factActualizarVista=()=>{}; // Sólo política de lectura; render fiscal cubierto por arca-period-current.
+ load(s.c,['factPuedeLeer']);
  s.window.fbDB={};s.window.fbRef=()=>assert.fail('No consultar Firebase para un dominio bloqueado');
  for(const fn of ['fbCargarPagos','fbCargarVentas','fbCargarPresupuestos','fbCargarCaja','cfCargar','fvCargar']){
   load(s.c,[fn]);s.c[fn]();

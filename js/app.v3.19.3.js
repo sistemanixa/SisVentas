@@ -36159,6 +36159,68 @@ var SP_ESTADOS = {
 var CF_DATA = [];          // todos los comprobantes (acumulado histórico)
 var CF_PERIODO_ACTIVO = null;
 
+// Un período compartido. undefined inicializa; null significa Todos explícitamente.
+var FACT_PERIODO_ACTIVO;
+var FACT_PERIODO_EXPLICITO = false;
+var FACT_ESTADOS = {cf:'pending',fv:'pending'};
+var FACT_CONTEXTOS = {};
+var FACT_EPOCH = 0;
+function factMesActual() { var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function factFechaISO(value) {
+  var text=String(value||'').trim(),m=text.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/),y,month,day;
+  if(m){y=+m[1];month=+m[2];day=+m[3];}
+  else {m=text.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})$/);if(!m)return '';y=+m[3];month=+m[2];day=+m[1];}
+  if(y<1900||y>9999||month<1||month>12||day<1||day>new Date(y,month,0).getDate())return '';
+  return String(y)+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+}
+function factAsegurarPeriodo() {
+  if(FACT_PERIODO_ACTIVO===undefined||!FACT_PERIODO_EXPLICITO)FACT_PERIODO_ACTIVO=factMesActual();
+  CF_PERIODO_ACTIVO=FV_PERIODO_ACTIVO=FACT_PERIODO_ACTIVO;
+  return FACT_PERIODO_ACTIVO;
+}
+function factEtiquetaPeriodo() { var p=factAsegurarPeriodo();return p?new Date(p+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'}):'todos los períodos'; }
+function factCapturarLectura() { return {epoch:FACT_EPOCH,uid:typeof currentUserUid==='undefined'?'':currentUserUid,role:typeof currentRole==='undefined'?'':currentRole,auth:window.fbAuth?.currentUser,db:window.fbDB,revision:typeof PERMISOS_ROLES==='undefined'?0:PERMISOS_ROLES[currentRole]?.indiceRevision||0}; }
+function factPuedeLeer(kind) { return typeof svPuedeLeerDominio==='function'&&svPuedeLeerDominio(kind==='cf'?'comprobantesCompra':'comprobantesVenta'); }
+function factDetenerLectura(kind) { var key=kind==='cf'?'comprobantesCompra':'comprobantesVenta',stop=window._svModuleListeners?.[key];if(typeof stop==='function')stop(); }
+function factLecturaVigente(c,kind) {
+  var n=factCapturarLectura();return !!c&&c.epoch===n.epoch&&c.uid===n.uid&&c.role===n.role&&c.auth===n.auth&&c.db===n.db&&c.revision===n.revision&&factPuedeLeer(kind);
+}
+function factEstado(kind) { if(!factPuedeLeer(kind))return 'denied';if(FACT_ESTADOS[kind]==='ready'&&!factLecturaVigente(FACT_CONTEXTOS[kind],kind))return 'pending';return FACT_ESTADOS[kind]; }
+function factFiltrar(data) { var p=factAsegurarPeriodo();return (data||[]).filter(function(c){return p===null||factFechaISO(c.fecha).slice(0,7)===p;}); }
+function factRenderPeriodo() {
+  var select=document.getElementById('fact-periodo-select'),label=document.getElementById('fact-periodo-label');
+  var p=factAsegurarPeriodo(),months=new Set([factMesActual()]);if(p)months.add(p);
+  ['cf','fv'].forEach(function(kind){if(factEstado(kind)==='ready')(kind==='cf'?CF_DATA:FV_DATA).forEach(function(c){var d=factFechaISO(c.fecha);if(d)months.add(d.slice(0,7));});});
+  var html=Array.from(months).sort().reverse().map(function(month){return '<option value="'+month+'">'+new Date(month+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'})+'</option>';}).join('')+'<option value="all">Todos los períodos</option>';
+  if(select){if(select.innerHTML!==html)select.innerHTML=html;select.value=p===null?'all':p;}
+  if(label)label.textContent=factEtiquetaPeriodo();
+}
+function factRenderAdministracion(kind) {
+  var box=document.getElementById(kind+'-periodos-chips'),cont=document.getElementById(kind+'-periodos-box');if(!box||!cont)return;
+  var permission=kind==='cf'?'creditofiscal.eliminarPeriodo':'facturas.eliminarPeriodo',p=factAsegurarPeriodo(),data=kind==='cf'?CF_DATA:FV_DATA;
+  var show=!!p&&factEstado(kind)==='ready'&&window.tienePermiso(permission)&&factFiltrar(data).length>0;
+  cont.style.display=show?'block':'none';
+  box.innerHTML=show?'<button type="button" class="btn btn-sm" style="color:var(--red)" onclick="'+kind+'EliminarPeriodo(\''+p+'\')">Eliminar comprobantes de '+factEtiquetaPeriodo()+'</button>':'';
+}
+function factRenderEstado(kind,comps) {
+  var state=factEstado(kind),el=document.getElementById('fact-'+kind+'-estado'),text=state==='ready'?(comps.length?comps.length+' comprobantes · '+factEtiquetaPeriodo():'Sin comprobantes cargados · '+factEtiquetaPeriodo()):state==='error'?'No se pudieron cargar los comprobantes. Volvé a abrir esta sección para reintentar.':state==='denied'?'No tenés permiso para consultar estos comprobantes.':'Cargando comprobantes…';
+  if(el)el.textContent=text;
+  return state==='ready';
+}
+function factActualizarVista() { factRenderPeriodo();cfActualizarPeriodosUI();fvActualizarPeriodosUI();cfRenderTodo();fvRenderTodo();fvRenderCompensacion(); }
+function factSelPeriodo(value) {
+  var p=value==='all'?null:value;if(p!==null&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(p)))return;
+  FACT_PERIODO_ACTIVO=p;FACT_PERIODO_EXPLICITO=true;factActualizarVista();
+}
+function factRetirarSesion() {
+  factDetenerLectura('cf');factDetenerLectura('fv');
+  FACT_EPOCH++;CF_DATA=[];FV_DATA=[];FACT_ESTADOS={cf:'pending',fv:'pending'};FACT_CONTEXTOS={};FACT_PERIODO_ACTIVO=undefined;FACT_PERIODO_EXPLICITO=false;
+  factActualizarVista();
+}
+document.addEventListener('sisventas:session-ended',factRetirarSesion);
+document.addEventListener('sisventas:role-changed',factRetirarSesion);
+document.addEventListener('sisventas:page-changed',function(){if(document.getElementById('page-creditofiscal')?.classList.contains('active')){factActualizarVista();cfCargar();fvCargar();}});
+
 var CF_TIPOS_COMP = {
   '1':'Factura A','2':'Nota Débito A','3':'Nota Crédito A',
   '6':'Factura B','7':'Nota Débito B','8':'Nota Crédito B',
@@ -36180,28 +36242,27 @@ function cfPesos(v) { return '$' + v.toLocaleString('es-AR', {minimumFractionDig
 var FACT_TAB_ACTIVA = 'fv';
 
 function showFactTab(id, el) {
-  FACT_TAB_ACTIVA = id;
-  document.querySelectorAll('.fact-panel').forEach(function(p){ p.style.display = 'none'; });
-  document.querySelectorAll('.fact-tab').forEach(function(t){ t.classList.remove('active'); });
-  document.getElementById('fact-' + id).style.display = 'block';
-  el.classList.add('active');
-  if (id === 'fv' && typeof fvCargar === 'function') fvCargar();
-  if (typeof fvRenderCompensacion === 'function') fvRenderCompensacion();
+  FACT_TAB_ACTIVA=id;
+  document.querySelectorAll('.fact-panel').forEach(function(p){p.style.display='none';});
+  document.querySelectorAll('.fact-tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('fact-'+id).style.display='block';el.classList.add('active');
+  cfCargar();fvCargar();factActualizarVista();
 }
 
 function cfCargar() {
-  if (!svPuedeLeerDominio('comprobantesCompra')) return;
-  if (!window.fbDB) return;
-  _suscribirModuloUnaVez('comprobantesCompra', 'sisventas/comprobantesCompra', function(snap) {
-    var data = snap.val() || {};
-    CF_DATA = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]}, e[1]); });
-    var periodos = [...new Set(CF_DATA.map(function(c){ return (c.fecha||'').slice(0,7); }))].filter(Boolean).sort();
-    if (!CF_PERIODO_ACTIVO && periodos.length) CF_PERIODO_ACTIVO = periodos[periodos.length-1];
-    cfActualizarPeriodosUI();
-    if (CF_DATA.length) cfRenderTodo();
-    if (typeof fvRenderCompensacion === 'function') fvRenderCompensacion();
-    if (typeof actualizarKpiIvaDashboard === 'function') actualizarKpiIvaDashboard();
-  });
+  if(!factPuedeLeer('cf')){FACT_ESTADOS.cf='denied';factActualizarVista();return;}
+  if(!window.fbDB)return;
+  var context=factCapturarLectura();
+  if(FACT_CONTEXTOS.cf&&!factLecturaVigente(FACT_CONTEXTOS.cf,'cf'))factDetenerLectura('cf');
+  if(factEstado('cf')!=='ready')FACT_ESTADOS.cf='pending';
+  FACT_CONTEXTOS.cf=context;
+  _suscribirModuloUnaVez('comprobantesCompra','sisventas/comprobantesCompra',function(snap){
+    if(!factLecturaVigente(context,'cf'))return;
+    var data=snap.val()||{};
+    CF_DATA=Object.entries(data).map(function(e){return Object.assign({fbKey:e[0]},e[1]);});
+    FACT_ESTADOS.cf='ready';FACT_CONTEXTOS.cf=context;factActualizarVista();
+    if(typeof actualizarKpiIvaDashboard==='function')actualizarKpiIvaDashboard();
+  },function(){if(factLecturaVigente(context,'cf')){FACT_ESTADOS.cf='error';factActualizarVista();}});
 }
 // o emitidos (facturas realizadas) mirando las columnas del encabezado.
 // Recibidos: tienen columna "Denominación Emisor" o "Cuit Emisor"
@@ -36349,40 +36410,7 @@ function cfSubirAFirebase(rows) {
     if (nuevos > 0) setTimeout(function(){ if(typeof cfRenderTodo==='function') cfRenderTodo(); }, 1500);
   }).catch(function(e){ notify('Error: '+e.message); });
 }
-function cfActualizarPeriodosUI() {
-  var periodos = [...new Set(CF_DATA.map(function(c){ return (c.fecha||'').slice(0,7); }))].filter(Boolean).sort();
-  var box = document.getElementById('cf-periodos-chips');
-  var cont = document.getElementById('cf-periodos-box');
-  if (!box || !cont) return;
-  if (!periodos.length) { cont.style.display='none'; return; }
-  cont.style.display='block';
-  var esAdmin = window.tienePermiso('creditofiscal.eliminarPeriodo');
-  var aniosCF = [...new Set(periodos.map(function(p){ return p.slice(0,4); }))].sort();
-  var htmlCF = '';
-  if (aniosCF.length > 1) {
-    aniosCF.forEach(function(anio) {
-      var meses = periodos.filter(function(p){ return p.startsWith(anio); });
-      htmlCF += '<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;padding-left:2px">'+anio+'</div><div style="display:flex;flex-wrap:wrap;gap:4px">';
-      meses.forEach(function(p) {
-        var d = new Date(p+'-01T12:00:00');
-        var lbl = d.toLocaleDateString('es-AR',{month:'long'});
-        var activo = p === CF_PERIODO_ACTIVO;
-        var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();cfEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:10px;vertical-align:middle"></i>' : '';
-        htmlCF += '<span onclick="cfSelPeriodo(\''+p+'\')" style="padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
-      });
-      htmlCF += '</div></div>';
-    });
-  } else {
-    htmlCF = periodos.map(function(p) {
-      var d = new Date(p+'-01T12:00:00');
-      var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-      var activo = p === CF_PERIODO_ACTIVO;
-      var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();cfEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:11px;vertical-align:middle" title="Eliminar período"></i>' : '';
-      return '<span onclick="cfSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
-    }).join('');
-  }
-  htmlCF += '<span onclick="cfSelPeriodo(null)" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(!CF_PERIODO_ACTIVO?'var(--blue)':'var(--bg3)')+';color:'+(!CF_PERIODO_ACTIVO?'#fff':'var(--text3)')+'">Todos</span>';
-  box.innerHTML = htmlCF;
+function cfActualizarPeriodosUI() { factRenderPeriodo();factRenderAdministracion('cf');
 }
 
 async function cfEliminarPeriodo(periodo) {
@@ -36390,27 +36418,33 @@ async function cfEliminarPeriodo(periodo) {
   if (!window.fbDB) { notify('Sin conexión'); return; }
   var d = new Date(periodo+'-01T12:00:00');
   var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-  var comps = CF_DATA.filter(function(c){ return (c.fecha||'').slice(0,7) === periodo; });
+  var comps = CF_DATA.filter(function(c){ return factFechaISO(c.fecha).slice(0,7) === periodo; });
   if (!await svConfirm('⚠️ ATENCIÓN: Esto borra los '+comps.length+' comprobantes de '+lbl+' de FIREBASE (base de datos).\n\nNo es solo ocultar la vista — los datos se eliminan permanentemente.\nPodés volver a cargar el CSV después si los necesitás.\n\n¿Confirmar eliminación?')) return;
   var promesas = comps.map(function(c){ return window.fbRemove(window.fbRef(window.fbDB, 'sisventas/comprobantesCompra/'+c.fbKey)); });
   Promise.all(promesas).then(function(){
-    if (CF_PERIODO_ACTIVO === periodo) CF_PERIODO_ACTIVO = null;
+    factAsegurarPeriodo();
     notify('✓ Período '+lbl+' eliminado de Firebase ('+comps.length+' comprobantes)');
     if (typeof fvRenderCompensacion === 'function') fvRenderCompensacion();
     if (typeof actualizarKpiIvaDashboard === 'function') actualizarKpiIvaDashboard();
   }).catch(function(e){ notify('Error: '+e.message); });
 }
 
-function cfSelPeriodo(p) { CF_PERIODO_ACTIVO = p; cfActualizarPeriodosUI(); cfRenderTodo(); if (typeof fvRenderCompensacion==='function') fvRenderCompensacion(); }
+function cfSelPeriodo(p) { factSelPeriodo(p); }
 
 function cfGetCompFiltrados() {
-  return CF_DATA.filter(function(c){ return !CF_PERIODO_ACTIVO || (c.fecha||'').startsWith(CF_PERIODO_ACTIVO); });
+  return factEstado('cf')==='ready'?factFiltrar(CF_DATA):[];
 }
 function cfRenderTodo() {
+  factRenderPeriodo();
   var comps = cfGetCompFiltrados();
+  factRenderEstado('cf',comps);
   document.getElementById('cf-card-totales').style.display = comps.length ? '' : 'none';
   document.getElementById('cf-card-historial').style.display = comps.length ? '' : 'none';
-  if (!comps.length) return;
+  if (!comps.length) {
+    ['cf-metrics-box','cf-alicuotas-box','cf-tipos-box','cf-historial-box'].forEach(function(id){var e=document.getElementById(id);if(e)e.innerHTML='';});
+    var title=document.getElementById('cf-totales-titulo');if(title)title.textContent='Totales — '+factEtiquetaPeriodo();
+    var qty=document.getElementById('cf-totales-qty');if(qty)qty.textContent='';return;
+  }
 
   var lbl = CF_PERIODO_ACTIVO
     ? new Date(CF_PERIODO_ACTIVO+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'})
@@ -36578,19 +36612,19 @@ function fvMontoFirmado(c, campo) { return (parseFloat(c && c[campo]) || 0) * fv
 function fvPesosFirmado(c, campo) { return cfPesos(fvMontoFirmado(c, campo)); }
 
 function fvCargar() {
-  if (!svPuedeLeerDominio('comprobantesVenta')) return;
-  if (!window.fbDB) return;
-  _suscribirModuloUnaVez('comprobantesVenta', 'sisventas/comprobantesVenta', function(snap) {
-    var data = snap.val() || {};
-    FV_DATA = Object.entries(data).map(function(e){ return Object.assign({fbKey:e[0]}, e[1]); });
-    var periodos = [...new Set(FV_DATA.map(function(c){ return (c.fecha||'').slice(0,7); }))].filter(Boolean).sort();
-    if (!FV_PERIODO_ACTIVO && periodos.length) FV_PERIODO_ACTIVO = periodos[periodos.length-1];
-    fvActualizarPeriodosUI();
-    if (FV_DATA.length) fvRenderTodo();
-    if (typeof fvRenderConciliacion === 'function') fvRenderConciliacion();
-    if (typeof fvRenderCompensacion === 'function') fvRenderCompensacion();
-    if (typeof actualizarKpiIvaDashboard === 'function') actualizarKpiIvaDashboard();
-  });
+  if(!factPuedeLeer('fv')){FACT_ESTADOS.fv='denied';factActualizarVista();return;}
+  if(!window.fbDB)return;
+  var context=factCapturarLectura();
+  if(FACT_CONTEXTOS.fv&&!factLecturaVigente(FACT_CONTEXTOS.fv,'fv'))factDetenerLectura('fv');
+  if(factEstado('fv')!=='ready')FACT_ESTADOS.fv='pending';
+  FACT_CONTEXTOS.fv=context;
+  _suscribirModuloUnaVez('comprobantesVenta','sisventas/comprobantesVenta',function(snap){
+    if(!factLecturaVigente(context,'fv'))return;
+    var data=snap.val()||{};
+    FV_DATA=Object.entries(data).map(function(e){return Object.assign({fbKey:e[0]},e[1]);});
+    FACT_ESTADOS.fv='ready';FACT_CONTEXTOS.fv=context;factActualizarVista();
+    if(typeof actualizarKpiIvaDashboard==='function')actualizarKpiIvaDashboard();
+  },function(){if(factLecturaVigente(context,'fv')){FACT_ESTADOS.fv='error';factActualizarVista();}});
 }
 // Drop zone para Facturas Realizadas
 (function() {
@@ -36696,40 +36730,7 @@ function fvSubirAFirebase(rows) {
     notify('✓ ' + nuevos + ' comprobantes nuevos importados' + (existentes ? ' ('+existentes+' ya estaban cargados)' : ''));
   }).catch(function(e){ notify('Error: '+e.message); });
 }
-function fvActualizarPeriodosUI() {
-  var periodos = [...new Set(FV_DATA.map(function(c){ return (c.fecha||'').slice(0,7); }))].filter(Boolean).sort();
-  var box = document.getElementById('fv-periodos-chips');
-  var cont = document.getElementById('fv-periodos-box');
-  if (!box || !cont) return;
-  if (!periodos.length) { cont.style.display='none'; return; }
-  cont.style.display='block';
-  var esAdmin = window.tienePermiso('facturas.eliminarPeriodo');
-  var aniosFV = [...new Set(periodos.map(function(p){ return p.slice(0,4); }))].sort();
-  var htmlFV = '';
-  if (aniosFV.length > 1) {
-    aniosFV.forEach(function(anio) {
-      var meses = periodos.filter(function(p){ return p.startsWith(anio); });
-      htmlFV += '<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;padding-left:2px">'+anio+'</div><div style="display:flex;flex-wrap:wrap;gap:4px">';
-      meses.forEach(function(p) {
-        var d = new Date(p+'-01T12:00:00');
-        var lbl = d.toLocaleDateString('es-AR',{month:'long'});
-        var activo = p === FV_PERIODO_ACTIVO;
-        var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();fvEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:10px;vertical-align:middle"></i>' : '';
-        htmlFV += '<span onclick="fvSelPeriodo(\''+p+'\')" style="padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
-      });
-      htmlFV += '</div></div>';
-    });
-  } else {
-    htmlFV = periodos.map(function(p) {
-      var d = new Date(p+'-01T12:00:00');
-      var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-      var activo = p === FV_PERIODO_ACTIVO;
-      var equis = esAdmin ? '<i class="ti ti-x" onclick="event.stopPropagation();fvEliminarPeriodo(\''+p+'\')" style="margin-left:6px;font-size:11px;vertical-align:middle" title="Eliminar período"></i>' : '';
-      return '<span onclick="fvSelPeriodo(\''+p+'\')" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(activo?'var(--blue)':'var(--blue-bg)')+';color:'+(activo?'#fff':'var(--blue)')+'">'+lbl+equis+'</span>';
-    }).join('');
-  }
-  htmlFV += '<span onclick="fvSelPeriodo(null)" style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:'+(!FV_PERIODO_ACTIVO?'var(--blue)':'var(--bg3)')+';color:'+(!FV_PERIODO_ACTIVO?'#fff':'var(--text3)')+'">Todos</span>';
-  box.innerHTML = htmlFV;
+function fvActualizarPeriodosUI() { factRenderPeriodo();factRenderAdministracion('fv');
 }
 
 async function fvEliminarPeriodo(periodo) {
@@ -36737,42 +36738,38 @@ async function fvEliminarPeriodo(periodo) {
   if (!window.fbDB) { notify('Sin conexión'); return; }
   var d = new Date(periodo+'-01T12:00:00');
   var lbl = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-  var comps = FV_DATA.filter(function(c){ return (c.fecha||'').slice(0,7) === periodo; });
+  var comps = FV_DATA.filter(function(c){ return factFechaISO(c.fecha).slice(0,7) === periodo; });
   if (!await svConfirm('⚠️ ATENCIÓN: Esto borra los '+comps.length+' comprobantes de '+lbl+' de FIREBASE (base de datos).\n\nNo es solo ocultar la vista — los datos se eliminan permanentemente.\nPodés volver a cargar el CSV después si los necesitás.\n\n¿Confirmar eliminación?')) return;
   var promesas = comps.map(function(c){ return window.fbRemove(window.fbRef(window.fbDB, 'sisventas/comprobantesVenta/'+c.fbKey)); });
   Promise.all(promesas).then(function(){
-    if (FV_PERIODO_ACTIVO === periodo) FV_PERIODO_ACTIVO = null;
+    factAsegurarPeriodo();
     notify('✓ Período '+lbl+' eliminado de Firebase ('+comps.length+' comprobantes)');
     fvRenderCompensacion();
     if (typeof actualizarKpiIvaDashboard === 'function') actualizarKpiIvaDashboard();
   }).catch(function(e){ notify('Error: '+e.message); });
 }
 
-function fvSelPeriodo(p) {
-  FV_PERIODO_ACTIVO = p;
-  var busq = document.querySelector('#fv-historial-box ~ * input, [oninput*="fvFiltrarHistorial"]');
-  if (!busq) {
-    document.querySelectorAll('input').forEach(function(el){
-      if (el.placeholder && el.placeholder.includes('CUIT')) { el.value = ''; }
-    });
-  } else {
-    busq.value = '';
-  }
-  fvActualizarPeriodosUI();
-  fvRenderTodo();
-  fvRenderCompensacion();
+function fvSelPeriodo(p) { factSelPeriodo(p);
 }
 
 function fvGetCompFiltrados() {
-  return FV_DATA.filter(function(c){ return !FV_PERIODO_ACTIVO || (c.fecha||'').startsWith(FV_PERIODO_ACTIVO); });
+  return factEstado('fv')==='ready'?factFiltrar(FV_DATA):[];
 }
 function fvRenderTodo() {
+  factRenderPeriodo();
   var comps = fvGetCompFiltrados();
+  factRenderEstado('fv',comps);
   document.getElementById('fv-card-totales').style.display = comps.length ? '' : 'none';
   document.getElementById('fv-card-historial').style.display = comps.length ? '' : 'none';
-  fvRenderConciliacion();
-  fvRenderVentasFacturadas((document.getElementById('fv-ventas-facturadas-buscar') || {}).value || '');
-  if (!comps.length) return;
+  if (factEstado('fv') === 'ready') {
+    fvRenderConciliacion();
+    fvRenderVentasFacturadas((document.getElementById('fv-ventas-facturadas-buscar') || {}).value || '');
+  }
+  if (!comps.length) {
+    ['fv-metrics-box','fv-alicuotas-box','fv-tipos-box','fv-historial-box'].forEach(function(id){var e=document.getElementById(id);if(e)e.innerHTML='';});
+    var title=document.getElementById('fv-totales-titulo');if(title)title.textContent='Totales — '+factEtiquetaPeriodo();
+    var qty=document.getElementById('fv-totales-qty');if(qty)qty.textContent='';return;
+  }
 
   var lbl = FV_PERIODO_ACTIVO
     ? new Date(FV_PERIODO_ACTIVO+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'})
@@ -37325,8 +37322,8 @@ function fvToggleCliente(id) {
 }
 // periodo: 'YYYY-MM' o null/undefined para todos los períodos cargados.
 function calcularCompensacionIVA(periodo) {
-  var compCF = (CF_DATA||[]).filter(function(c){ return !periodo || (c.fecha||'').startsWith(periodo); });
-  var compFV = (FV_DATA||[]).filter(function(c){ return !periodo || (c.fecha||'').startsWith(periodo); });
+  var compCF = (CF_DATA||[]).filter(function(c){ return !periodo || factFechaISO(c.fecha).slice(0,7)===periodo; });
+  var compFV = (FV_DATA||[]).filter(function(c){ return !periodo || factFechaISO(c.fecha).slice(0,7)===periodo; });
   var credito = compCF.filter(function(c){ return typeof cfEsCreditoFiscal === 'function' && cfEsCreditoFiscal(c.tipo); })
     .reduce(function(s,c){ return s + ((parseFloat(c.totalIVA)||0) * (typeof cfSigno === 'function' ? cfSigno(c) : 1)); }, 0);
   var debito = compFV.reduce(function(s,c){ return s + (typeof fvMontoFirmado === 'function' ? fvMontoFirmado(c,'totalIVA') : (parseFloat(c.totalIVA)||0)); }, 0);
@@ -37352,13 +37349,14 @@ function fvRenderCompensacion() {
   var card = document.getElementById('fact-compensacion-card');
   var box = document.getElementById('fact-compensacion-box');
   if (!box || !card) return;
-  var hayDatos = (CF_DATA && CF_DATA.length) || (FV_DATA && FV_DATA.length);
-  card.style.display = hayDatos ? '' : 'none';
-  if (!hayDatos) return;
-  // Sigue el período de la pestaña que el usuario está mirando en este momento.
-  var periodo = FACT_TAB_ACTIVA === 'fv'
-    ? (FV_PERIODO_ACTIVO || CF_PERIODO_ACTIVO || null)
-    : (CF_PERIODO_ACTIVO || FV_PERIODO_ACTIVO || null);
+  card.style.display='';
+  var states=['cf','fv'].map(factEstado);
+  if(states.some(function(state){return state!=='ready';})){
+    var message=states.includes('denied')?'No tenés permiso para consultar la compensación completa.':states.includes('error')?'No se pudo completar la carga. Volvé a abrir esta sección para reintentar.':'Cargando comprobantes…';
+    box.innerHTML='<p class="text-muted" role="status">'+message+'</p>';return;
+  }
+  var periodo=factAsegurarPeriodo();
+  if(!factFiltrar(CF_DATA).length&&!factFiltrar(FV_DATA).length){box.innerHTML='<p role="status">Sin comprobantes cargados · '+factEtiquetaPeriodo()+'</p>';return;}
   var c = calcularCompensacionIVA(periodo);
   var lblPeriodo = periodo ? new Date(periodo+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'}) : 'todos los períodos';
   var creditoDisponible = Math.max(0, -c.saldo);

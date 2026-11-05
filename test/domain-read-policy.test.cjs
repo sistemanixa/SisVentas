@@ -23,6 +23,7 @@ const loaders={cfCargar:'comprobantesCompra',fvCargar:'comprobantesVenta',cargar
 test('Cada cargador bloqueado retorna antes de consultar Firebase, incluso si se invoca directamente',async()=>{
  for(const [name,domain] of Object.entries(loaders)){
   const start=source.indexOf('function '+name+'('),ctx={Promise,svPuedeLeerDominio:d=>{assert.equal(d,domain);return false;}};
+  if(name==='cfCargar'||name==='fvCargar'){ctx.FACT_ESTADOS={cf:'pending',fv:'pending'};ctx.factActualizarVista=()=>{};require('./helpers/app-functions.cjs').load(ctx,['factPuedeLeer']);}
   vm.runInNewContext(source.slice(start,source.indexOf('\n}',start)+2),ctx);
   await ctx[name](); // Sin window: acceder a Firebase provocaría una excepción.
  }
