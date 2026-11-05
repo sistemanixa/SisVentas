@@ -1,0 +1,23 @@
+{
+  "kind": "historical-reference",
+  "seed": 20261104,
+  "asOfDay": "2026-11-04",
+  "currentEquivalent": false,
+  "coherentSnapshot": false,
+  "collections": {
+    "ventas":1095,"pagos":1095,"presupuestos":123,"clientes":492,
+    "clientes_unificados":407,"clientes_unificados_indice":488,
+    "productos":639,"ordenes_trabajo":131,"reclamos":40,"gastos":252,
+    "ordenes":40,"listas_materiales":27,"inventario_operativo":111
+  },
+  "salesItemsHistogram":{"1":177,"2":134,"3":146,"4":105,"5":105,"6":94,"7":62,"8":62,"9":43,"10":26,"11":44,"12":22,"13":11,"14":22,"15":14,"16":10,"17":5,"18":3,"19":1,"20":1,"21":1,"23":1,"24":2,"25":1,"26":2,"28":1},
+  "providerOffersHistogram":{"0":85,"1":296,"2":206,"3":51,"4":1},
+  "referenceBodyBytes":{"ventas":5364288,"pagos":503429,"presupuestos":1255694,"clientes":135468,"clientes_unificados":171899,"clientes_unificados_indice":48456,"productos":5563775},
+  "provenance":[
+    {"collections":["ventas","pagos","presupuestos","clientes","clientes_unificados","clientes_unificados_indice"],"observedAtUTC":"2026-11-04T00:48:15.154Z","localReference":"account-cut31814/sources-diagnostic.private.json","referenceSHA256":"86492aca9e38130690d9f30468b5c1b67e46afcdb668e84eba6e354d7d41274c","coherentForActivation":false},
+    {"collections":["productos"],"observedAtUTC":"2026-11-03T04:35:47.920Z","localReference":"bulk-price-review/report.private.json","referenceSHA256":"cb4c381257a85bdc67888ae3d9527ae01f3b7d27a9c56bc85ad9581976a511ec"},
+    {"collections":["ordenes_trabajo","reclamos","gastos"],"observedAtUTC":"2026-10-31T15:07:04.966Z","localReference":"record-list-audit/activation-plan.private.json","referenceSHA256":"edf65c7b3f7dd3f36bc2144c32c44a530e525ab896c8224d5f388977ef278b4a"},
+    {"collections":["ordenes","listas_materiales","inventario_operativo"],"observedAtUTC":"2026-10-30T23:03:00.489Z","localReference":"operational-summary-audit/activation-plan.private.json","referenceSHA256":"92f0809dc49d90be3ce2cd31c248b419022ca5a87c4f61bb34ac5ca9be7eafe8"}
+  ],
+  "limits":["Generator never reads private references; only these numeric aggregates are inputs.","Owner/customer topology, calendar distribution, prices, currencies and role mix are synthetic assumptions.","81 non-ISO-or-missing sale dates are modeled as missing fecha with explicit synthetic ts; original subtype split is unknown.","No images, personal data, credentials, real IDs, exact monetary history or payload padding copied.","Raw body byte comparisons are descriptive; same counts do not imply equivalent rendering/transfer costs."]
+}
