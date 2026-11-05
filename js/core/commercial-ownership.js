@@ -1,9 +1,9 @@
 (function(root){
  'use strict';
- let generation=0,key='';const subscriptions=new Map(),readControllers=new Set(),accessRevisions=new Map(),accessBlocked=new Set();
+ let generation=0,key='';const retained=new Map(),subscriptions=new Map(),readControllers=new Set(),accessRevisions=new Map(),accessBlocked=new Set();
  const context=()=>({epoch:generation,user:root.fbAuth?.currentUser,uid:root.currentUserUid,role:root.currentRole});
  const valid=c=>c.epoch===generation&&c.user===root.fbAuth?.currentUser&&c.uid===root.currentUserUid&&c.role===root.currentRole;
- function invalidateAccess(domain){accessRevisions.set(domain,(accessRevisions.get(domain)||0)+1);accessBlocked.add(domain);}
+ function invalidateAccess(domain){retained.delete(domain);accessRevisions.set(domain,(accessRevisions.get(domain)||0)+1);accessBlocked.add(domain);}
  const clean=r=>{const value=Object.fromEntries(Object.entries(r||{}).filter(([k])=>k!=='fbKey'&&!k.startsWith('_sv')));if(r?._svDerivedFechaOrden)delete value.fechaOrden;return value;};
  async function request(domain,path='',body,validator){
   const c=context();if(!c.user)throw Error('Sesión requerida');
@@ -25,23 +25,42 @@
   if(domain==='presupuestos'&&root.pptoActualId){missing=!keys.includes(root.pptoActualId)&&!values.some(r=>r.id===root.pptoActualId);if(missing)root.pptoActualId='';}
   if(!missing)return;const detail=document.getElementById?.(domain==='ventas'?'venta-detalle-view':'ppto-detalle-view'),list=document.getElementById?.(domain==='ventas'?'ventas-list-view':'ppto-list-view');if(detail)detail.style.display='none';if(list)list.style.display='';
  }
+ // Dormant complete responses are only validators, never a source until a
+ // fresh authorized response confirms them. At most two in-memory snapshots,
+ // eight million characters each; no persistence and no periodic reads.
+ function retain(domain,s){
+  retained.delete(domain);
+  if(!['ventas','presupuestos'].includes(domain)||!s?.snapshot||!s.etag||s.needsReplay||s.snapshot.length>8*1024*1024||!s.cachedContext||!valid(s.cachedContext)||accessBlocked.has(domain)||s.cachedPermissionRevision!==(root.PERMISOS_ROLES?.[root.currentRole]?.indiceRevision||0)||s.cachedDB!==root.fbDB||s.cachedBase!==root.SISVENTAS_FUNCTIONS?.cotizadorProveedor)return;
+  retained.set(domain,{snapshot:s.snapshot,etag:s.etag,cachedContext:s.cachedContext,cachedPermissionRevision:s.cachedPermissionRevision,cachedDB:s.cachedDB,cachedBase:s.cachedBase});
+ }
+ function takeRetained(domain){
+  const value=retained.get(domain);retained.delete(domain);
+  if(!value||!valid(value.cachedContext)||accessBlocked.has(domain)||value.cachedPermissionRevision!==(root.PERMISOS_ROLES?.[root.currentRole]?.indiceRevision||0)||value.cachedDB!==root.fbDB||value.cachedBase!==root.SISVENTAS_FUNCTIONS?.cotizadorProveedor)return {};
+  return {...value,needsReplay:true};
+ }
  async function refresh(domain,{joinPending=false}={}){
   const s=subscriptions.get(domain);if(!s||root.navigator?.onLine===false)return;
   if(root.SVConnectionMonitor?.canSync()===false){await root.SVConnectionMonitor.check?.();if(subscriptions.get(domain)!==s||root.SVConnectionMonitor.canSync()===false)return;joinPending=true;}
   if(s.pending){if(!joinPending)s.again=true;return s.pending;}
   const c=context(),writeRevision=s.writeRevision||0,permissionRevision=root.PERMISOS_ROLES?.[c.role]?.indiceRevision||0;
   const current=()=>valid(c)&&subscriptions.get(domain)===s;
-  const currentRead=()=>current()&&writeRevision===(s.writeRevision||0);
+  const readDB=root.fbDB,readBase=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor,accessRevision=accessRevisions.get(domain)||0;
+  const currentRead=()=>current()&&accessRevision===(accessRevisions.get(domain)||0)&&writeRevision===(s.writeRevision||0)&&readDB===root.fbDB&&readBase===root.SISVENTAS_FUNCTIONS?.cotizadorProveedor&&permissionRevision===(root.PERMISOS_ROLES?.[c.role]?.indiceRevision||0);
   s.pending=(async()=>{try{
-   const data=await request(domain,'',undefined,s.etag?{etag:s.etag}:undefined);
+   const data=await request(domain,'',undefined,s.etag&&!accessBlocked.has(domain)?{etag:s.etag}:undefined);
    // Una lectura iniciada antes del acuse de escritura no puede reponer el
    // estado anterior en la lista ni restaurar su ETag.
    if(!currentRead())return;
    if(!data._svNotModified){
     accessBlocked.delete(domain);
     const snapshot=JSON.stringify(data.records||{});
-    if(snapshot!==s.snapshot){await s.callback({val:()=>data.records});if(!currentRead())return;s.snapshot=snapshot;if(c.role!=='admin')forgetDetail(domain,data.records);}
-    s.etag=data._svEtag;s.cachedContext=c;s.cachedPermissionRevision=permissionRevision;
+    if(snapshot!==s.snapshot||s.needsReplay){await s.callback({val:()=>data.records});if(!currentRead())return;s.snapshot=snapshot;if(c.role!=='admin')forgetDetail(domain,data.records);}
+    s.etag=data._svEtag;
+   }else if(s.needsReplay){
+    await s.callback({val:()=>JSON.parse(s.snapshot)});if(!currentRead())return;
+   }
+   s.needsReplay=false;s.cachedContext=c;s.cachedPermissionRevision=permissionRevision;s.cachedDB=readDB;s.cachedBase=readBase;
+   if(false){
    }
    s.loading?.ready();
   }catch(e){
@@ -50,13 +69,13 @@
    if(current()&&(currentRead()||[401,403].includes(e.status))){
     s.loading?.error();root.SVConnectionMonitor?.failure(domain,e);
     if([401,403].includes(e.status)){if(!e._svAccessRevoked)invalidateAccess(domain);delete s.snapshot;delete s.etag;s.callback({val:()=>({})});forgetDetail(domain,{});}
-    if(s.snapshot===undefined||[401,403].includes(e.status))s.error?.(e);
+    if(s.snapshot===undefined||s.needsReplay||[401,403].includes(e.status))s.error?.(e);
    }
   }})().finally(()=>{s.pending=null;if(s.again&&subscriptions.get(domain)===s){s.again=false;refresh(domain);}});
   return s.pending;
  }
- function stop(){generation++;for(const s of subscriptions.values())s.loading?.cancel();subscriptions.clear();accessBlocked.clear();root._ventasListenerActivo=false;root._pptoListenerActivo=false;root.ventasList=[];root.pptoData=[];root.ventasPendientesHistoricasList=[];}
- function stopDomain(domain){const s=subscriptions.get(domain);s?.loading?.cancel();subscriptions.delete(domain);if(domain==='ventas')root._ventasListenerActivo=false;else if(domain==='presupuestos')root._pptoListenerActivo=false;}
+ function stop(){generation++;retained.clear();for(const s of subscriptions.values())s.loading?.cancel();subscriptions.clear();accessBlocked.clear();root._ventasListenerActivo=false;root._pptoListenerActivo=false;root.ventasList=[];root.pptoData=[];root.ventasPendientesHistoricasList=[];}
+ function stopDomain(domain){const s=subscriptions.get(domain);if(s)retain(domain,s);s?.loading?.cancel();subscriptions.delete(domain);if(domain==='ventas')root._ventasListenerActivo=false;else if(domain==='presupuestos')root._pptoListenerActivo=false;}
  function contextChanged(){const next=[root.fbAuth?.currentUser?.uid,root.currentUserUid,root.currentRole,root.PERMISOS_ROLES?.[root.currentRole]?.indiceRevision||0].join('|');if(next!==key){const reload=subscriptions.size>0;stop();key=next;if(reload)queueMicrotask(()=>{root.fbCargarVentas?.();root.fbCargarPresupuestos?.();});}}
  // Avisos del mismo regreso comparten la lectura pendiente. Las llamadas
  // explícitas a refresh conservan again para no perder un cambio real.
@@ -69,13 +88,13 @@
   for(const [domain,s]of subscriptions){if(unrelated){s.foregroundDeferred=true;continue;}s.foregroundDeferred=false;refresh(domain,{joinPending:true});}
  }
  function refreshDeferred(){if([...subscriptions.values()].some(s=>s.foregroundDeferred))refreshVisible();}
- function onValue(domain,callback,error){contextChanged();subscriptions.get(domain)?.loading?.cancel();const s={callback,error,loading:root.SVDataReadiness?.beginSource(domain)};subscriptions.set(domain,s);refresh(domain);return ()=>{if(subscriptions.get(domain)===s){s.loading?.cancel();subscriptions.delete(domain);}};}
+ function onValue(domain,callback,error){contextChanged();const previous=subscriptions.get(domain);if(previous)retain(domain,previous);previous?.loading?.cancel();const s={...takeRetained(domain),callback,error,loading:root.SVDataReadiness?.beginSource(domain)};subscriptions.set(domain,s);refresh(domain);return ()=>{if(subscriptions.get(domain)===s){retain(domain,s);s.loading?.cancel();subscriptions.delete(domain);}};}
  function belongs(r){return !!r&&(r.responsableUid||r._svOwnerUid)===root.currentUserUid;}
  // Sólo devuelve la proyección ya autorizada de esta sesión. No inicia lecturas
  // ni permite que una advertencia del catálogo dependa de acceso global a ventas.
  function cachedRecords(domain){
   const s=subscriptions.get(domain);
-  if(!s?.snapshot||!s.cachedContext||!valid(s.cachedContext)||accessBlocked.has(domain)||s.cachedPermissionRevision!==(root.PERMISOS_ROLES?.[root.currentRole]?.indiceRevision||0))return null;
+  if(!s?.snapshot||s.needsReplay||!s.cachedContext||!valid(s.cachedContext)||accessBlocked.has(domain)||s.cachedPermissionRevision!==(root.PERMISOS_ROLES?.[root.currentRole]?.indiceRevision||0)||s.cachedDB!==root.fbDB||s.cachedBase!==root.SISVENTAS_FUNCTIONS?.cotizadorProveedor)return null;
   try{return JSON.parse(s.snapshot);}catch(_){return null;}
  }
  function author(r){return r?._svOriginalAuthor?.name||r?.creadorOriginalNombre||r?.creadaPor||r?.creadoPor||r?.usuario||'Sin registrar';}
@@ -87,6 +106,7 @@
   if(!['presupuestos','ventas'].includes(domain)||c.domain!==domain||!record||typeof record!=='object'||Array.isArray(record))throw Error('Acuse comercial inválido');
   const id=typeof record.fbKey==='string'?record.fbKey:'';
   if(!id||/[.#$\[\]\/\x00-\x1f\x7f]/.test(id))throw Error('El acuse requiere la clave técnica del presupuesto');
+  retained.delete(domain);
   const listName=domain==='ventas'?'ventasList':'pptoData';
   const saved=JSON.parse(JSON.stringify(clean(record))),list=Array.isArray(root[listName])?root[listName]:[],at=list.findIndex(r=>r&&r.fbKey===id);
   const projection=Object.fromEntries(Object.entries(at<0?{}:list[at]).filter(([k])=>k.startsWith('_sv')));
@@ -101,13 +121,14 @@
    let records={};try{records=JSON.parse(s.snapshot||'{}');}catch(_){}
    records[id]={...projection,...saved};s.snapshot=JSON.stringify(records);
    s.writeRevision=(s.writeRevision||0)+1;delete s.etag;
-   if(domain==='ventas'&&s.pending&&!s.cachedContext)s.again=true;
+   if(s.pending&&(s.needsReplay||domain==='ventas'&&!s.cachedContext))s.again=true;
   }
   return visible;
  }
  function confirmDelete(domain,id,c){
   if(!isWriteContext(c))throw Error('La sesión cambió. La eliminación confirmada pertenece a la sesión anterior.');
   if(!['presupuestos','ventas'].includes(domain)||c.domain!==domain||typeof id!=='string'||!id||/[.#$\[\]\/\x00-\x1f\x7f]/.test(id))throw Error('Acuse de eliminación comercial inválido');
+  retained.delete(domain);
   // El remove ya fue confirmado. Aplicar sólo esa clave, sin descargar otra
   // vez el historial ni depender de una escucha RTDB que esta lista no usa.
   const listName=domain==='ventas'?'ventasList':'pptoData';
@@ -117,6 +138,7 @@
    let records={};try{records=JSON.parse(s.snapshot||'{}');}catch(_){}
    delete records[id];s.snapshot=JSON.stringify(records);
    s.writeRevision=(s.writeRevision||0)+1;delete s.etag;
+   if(s.pending&&s.needsReplay)s.again=true;
   }
   if(domain==='ventas'&&typeof CustomEvent==='function')document.dispatchEvent(new CustomEvent('sisventas:commercial-write-confirmed'));
   return id;

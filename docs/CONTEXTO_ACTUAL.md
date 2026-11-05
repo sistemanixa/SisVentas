@@ -1,3 +1,11 @@
+## Retorno comercial completo · componente local pendiente de integración
+
+Rama aislada `codex/commercial-return-cache-local` desde 05be68ac. Conserva sólo validadores y representaciones completas acotadas de Ventas/Presupuestos entre suscripciones, sin entregarlas antes de una validación autorizada nueva. Ligado a sesión/identidad/rol/permisos/base/servicio; invalida por revocaciones y acuses, cubre 304 tardío y reconciliación durante un acuse. No reemplaza historia completa por la página de 50 ni modifica negocio.
+
+Focal final 41 PASS, revisión independiente 49 PASS superpuestos, rojos iniciales/carreras preservados. Regresión adicional 135 PASS / 1 FAIL por loopback restringido; archivo de transporte repetido con acceso local pasó sin modificar expectativas. Evidencia y límites en COMMERCIAL_RETURN_VALIDATION_LOCAL.md. No afirmar ahorro RTDB del backend ni latencia real a partir de estos fixtures.
+
+Componente no integrado/servido todavía: falta URL/cachebust coherente, unión con buscador y puerta conjunta/UI de la fuente final. Ventana 8765 y paquetes congelados intactos; sin push, publicación, datos reales ni flags operativos.
+
 ## Fase local verificada y entregada · panel recuperado
 
 Se recuperó IAB2/tab23 reiniciando únicamente la sesión CUA. No hubo automatización de la aplicación de escritorio ni Chrome. La pestaña se actualizó automáticamente y mostró v3.19.3; el DOM confirmó ./js/app.v3.19.3.js, Dashboard sincronizado, sin formulario en edición. Se cerró sólo el aviso informativo de actualización. visibility.set(true) seguido de comprobación posterior devolviótrue y se marcó tab23 entregable; permanece abierto. Captura privada local-dashboard-verified-v3193.jpg SHA256a7c6f0c4b7983f326b17feff8c61932651a1af02099a8d95b2e3943bc3604e37. Bloqueo de panel resuelto, contador de impasse reiniciado.
