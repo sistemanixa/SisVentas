@@ -66,8 +66,7 @@
     return model;
   }
 
-  function saleTotal(sale) {
-    var economic = saleEconomic(sale);
+  function saleTotalFromEconomic(sale, economic) {
     // The writer rounds each discounted line once. Older readers rounded the
     // discount first, which can subtract an extra cent. Accept only the exact
     // stored line/subtotal/tax chain, never a blanket balance tolerance.
@@ -90,6 +89,10 @@
           Math.abs(cents(stored) - cents(economic.total)) <= Math.min(5, sale.items.length + 1)) return stored;
     }
     return economic.mode === 'items' ? economic.total : storedSaleTotal(sale);
+  }
+
+  function saleTotal(sale) {
+    return saleTotalFromEconomic(sale, saleEconomic(sale));
   }
 
   function paymentAmount(payment) {
@@ -208,8 +211,9 @@
         payments: Object.freeze([])
       });
     }
-    var total = saleTotal(resolved.value);
+    // Reuse within this call only: records and payments can change between reads.
     var economic = saleEconomic(resolved.value);
+    var total = saleTotalFromEconomic(resolved.value, economic);
     var payments = this.paymentsFor(resolved.value);
     var paid = payments.reduce(function (sum, payment) {
       return sum + paymentAmount(payment);
