@@ -1,3 +1,9 @@
+## Cierre local conjunto v3.19.5 verificado · 05/11/2026
+
+Fuente funcional exacta 76a549ff989abd00f594fb700692448791fe7601. Puerta completa con navegador:9604 casos/9573PASS/0FAIL/31SKIP; los31 opt-in pasaron aparte sobre la misma fuente. UpgradeSW+arranque/retornosOFF390/1280:4PASS; cadena sintética única:1PASS. InputsRAW3021 antes/después idénticos, contrato público624archivos20788370bytes. Novedades/índice/marcadores/SHELL coherentes, sin activar Accounts/H7. Informes rojos conservados y corregidos sin relajar pruebas. Evidencia y límites en INTEGRACION_CIRCUITOS_LOCAL_V3195.md y manifiesto público INTEGRACION_CIRCUITOS_V3195_MANIFEST.json.
+
+Cierre documental posterior separado de la fuente funcional congelada. No cambios en datos reales ni pruebas sobre ellos; emuladores ficticios vacíos/detenidos. Ventana8765 y paquete3.19.4ON intactos; no recarga, publicación, push, main ni cambios remotos. Las activaciones y el corte del paqueteON siguen fuera de alcance; no afirmar sistema productivo migrado ni todos los formularios certificados.
+
 ## Ventas: guarda de intención durante repintado · propuesta aislada 2026-11-05
 
 Rama codex/sales-search-intent-repaint desde fuente conjunta fdd161713870a951542f47cab26e2445dc7af43d. Único cambio funcional: host ventas recuerda inputText en preview y no consulta filtroA si inputB espera debounce. Reproducción host real:preview1→20filasA/24lecturasextra; pruebas iniciales0PASS/3FAIL y navegador0PASS/1FAIL por lecturas nuevas antes del timer nativo120ms.
