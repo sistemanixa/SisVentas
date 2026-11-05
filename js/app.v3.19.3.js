@@ -11344,7 +11344,13 @@ function showPage(id, el) {
   if (id === 'detalle')       { _svPrepararVistaModulo(id, 30, function(){ if(aperturaDirecta || window._ventaDesdeHistorialOrigen) return; if(typeof volverListaVentas==='function') volverListaVentas(); if(typeof renderMetricasVentas==='function') renderMetricasVentas(); }); }
   if (id === 'presupuesto')   { _svPrepararVistaModulo(id, 30, function(){ if(window.SV_BUDGET_NOTICES_LOCAL===true&&window._svBudgetNoticeDetailHost?.claimsPointView(id))return; if(typeof renderPptoTabla==='function') renderPptoTabla(); }); }
   if (id === 'catalogo')      { _svPrepararVistaModulo(id, 30, function(){ if(typeof renderCatalogo==='function') renderCatalogo(); }); }
-  if (id === 'ordentrabajo')  { _svPrepararVistaModulo(id, 30, function(){ if(aperturaDirecta) return; if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();} }); }
+  if (id === 'ordentrabajo') {
+    var aperturaOTEntrada = verOT._svAperturaToken || 0;
+    _svPrepararVistaModulo(id, 30, function(){
+      if(aperturaDirecta || !_svEsPaginaActiva(id) || (verOT._svAperturaToken || 0) !== aperturaOTEntrada) return;
+      if(typeof volverListaOT==='function'){volverListaOT();renderOTTabla();}
+    });
+  }
   if (id === 'venta' && !preservarFormularioVenta && !aperturaDirecta) { setTimeout(function(){ if(typeof iniciarNuevaVenta==='function') iniciarNuevaVenta(); if(typeof iniciarMonedaVenta==='function') iniciarMonedaVenta(); }, 50); }
   if (id === 'gastos')        { _svPrepararVistaModulo(id, 30, function(){ if(typeof renderTablaGastos==='function'){ renderTablaGastos(); actualizarMetricasGastos(); }}); }
   if (id === 'dashboard') {
