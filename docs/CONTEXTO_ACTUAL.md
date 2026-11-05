@@ -1,3 +1,7 @@
+## Selector de venta para Cobranzas · componente local
+
+Se agrupan las pulsaciones del selector durante 250 ms y se cancela la consulta pendiente al limpiar, salir o revocar acceso. Conserva selección puntual autorizada, importes, referencia sin guardar y tarjetas. Baseline ficticio 0 PASS / 4 FAIL; después 14 PASS / 0 FAIL junto a la UI nativa en 390, 768 y 1280. Logs privados collection-picker-debounce-before/after.private.log en tmp. node --check y diff --check aprobados. Aún no integrado, servido ni publicado; falta prueba conjunta con el buscador de Ventas y versión coherente de activos. No datos reales.
+
 ## Retorno comercial completo · componente local pendiente de integración
 
 Rama aislada `codex/commercial-return-cache-local` desde 05be68ac. Conserva sólo validadores y representaciones completas acotadas de Ventas/Presupuestos entre suscripciones, sin entregarlas antes de una validación autorizada nueva. Ligado a sesión/identidad/rol/permisos/base/servicio; invalida por revocaciones y acuses, cubre 304 tardío y reconciliación durante un acuse. No reemplaza historia completa por la página de 50 ni modifica negocio.

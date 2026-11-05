@@ -1,0 +1,12 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),{chromium}=require('playwright'),{start}=require('../scripts/dev-collections-indexed.cjs');
+const exe='C:/Program Files/Google/Chrome/Application/chrome.exe';
+test('collection picker coalesces typing without rereading cards or changing unsaved payment inputs',async()=>{
+ const local=await start();let browser;try{browser=await chromium.launch({headless:true,executablePath:exe});const page=await browser.newPage({viewport:{width:1280,height:900}});await page.goto(local.url);await page.locator('#pagos-tbody tr').nth(49).waitFor();await page.locator('#cob-ref').fill('Referencia ficticia sin guardar');await page.locator('#cob-monto').fill('12.34');const totals=local.measures.filter(r=>r.path.endsWith('/collectionTotals')).length;
+ const search=page.locator('#cob-venta');await search.fill('his');await search.fill('hist');await search.fill('histórica');await page.locator('#cob-drop button').first().waitFor();assert.equal(local.measures.filter(r=>r.path.includes('/search/collection/')).length,1);assert.equal(local.measures.filter(r=>r.path.endsWith('/collectionTotals')).length,totals);assert.equal(await page.locator('#cob-ref').inputValue(),'Referencia ficticia sin guardar');assert.equal(await page.locator('#cob-monto').inputValue(),'12.34');
+ }finally{await browser?.close();await new Promise(r=>local.server.close(r));}
+});
+for(const action of ['clear','revoke','leave'])test('pending collection picker debounce is retired on '+action,async()=>{
+ const local=await start();let browser;try{browser=await chromium.launch({headless:true,executablePath:exe});const page=await browser.newPage({viewport:{width:390,height:900}});await page.goto(local.url);await page.locator('#pagos-tbody tr').nth(49).waitFor();await page.locator('#cob-venta').fill('histórica');if(action==='clear')await page.locator('#cob-venta').fill('');else await page.evaluate(action=>{if(action==='revoke'){fixturePermission=false;document.dispatchEvent(new Event('sisventas:role-changed'));}else{fixtureRoute='gastos';SVCommercialPagesHost.beforePage('gastos');document.dispatchEvent(new Event('sisventas:page-changed'));}},action);await page.waitForTimeout(350);assert.equal(local.measures.filter(r=>r.path.includes('/search/collection/')).length,0);assert.equal(await page.locator('#cob-drop button').count(),0);
+ }finally{await browser?.close();await new Promise(r=>local.server.close(r));}
+});
