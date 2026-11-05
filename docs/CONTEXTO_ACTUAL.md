@@ -1,3 +1,7 @@
+## Integración compatible local v3.19.5 · puerta conjunta pendiente
+
+Copia aislada integracion-circuitos-local: reunidos retorno comercial, selector Cobros, búsqueda Ventas, filtros de comisiones, período ARCA y carrera de apertura OT; reducción de cálculo redundante sin alterar dinero. Fuentes y límites en INTEGRACION_CIRCUITOS_LOCAL_V3195.md. Nueva aplicación inmutable/URLs/worker coherentes, Accounts/H7 OFF. Se conservaron los informes y rojos individuales. Falta puerta conjunta y upgrade SW contra bytes RAW congelados. No servido a la ventana8765, sin datos reales, publicación ni push.
+
 ## Selector de venta para Cobranzas · componente local
 
 Se agrupan las pulsaciones del selector durante 250 ms y se cancela la consulta pendiente al limpiar, salir o revocar acceso. Conserva selección puntual autorizada, importes, referencia sin guardar y tarjetas. Baseline ficticio 0 PASS / 4 FAIL; después 14 PASS / 0 FAIL junto a la UI nativa en 390, 768 y 1280. Logs privados collection-picker-debounce-before/after.private.log en tmp. node --check y diff --check aprobados. Aún no integrado, servido ni publicado; falta prueba conjunta con el buscador de Ventas y versión coherente de activos. No datos reales.
