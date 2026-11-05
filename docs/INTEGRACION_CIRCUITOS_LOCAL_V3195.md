@@ -4,6 +4,12 @@ Estado final: integración local verificada sobre la fuente funcional congelada
 `76a549ff989abd00f594fb700692448791fe7601`. Publicación y push detenidos.
 Este cierre documental no cambia los activos probados ni recarga la ventana.
 
+Comprobación productiva posterior: la publicación exacta quedó bloqueada por
+las capacidades nativas ausentes de Cobranzas. La evidencia local no cubría
+ese estado del backend publicado. Ver
+PUBLICACION_OFF_V3195_BLOQUEO_COMPATIBILIDAD.md. No se publicó ni se activaron
+índices para sortear el bloqueo.
+
 Base compatible: `05be68ac4cbc92feb0318b849449d80bb4a48a9e`.
 Rama: `codex/integracion-circuitos-local`. La ventana 8765 y la candidata
 3.19.4 con activaciones pendientes permanecen intactas. No hay autorización
