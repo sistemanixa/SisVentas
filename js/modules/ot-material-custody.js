@@ -267,13 +267,6 @@
     return '<button type="button" class="btn btn-sm" data-material-index="' + index + '" onclick="otCustodiaInstalarItem(' + index + ')" ' + ((done || available === 0) ? 'disabled' : '') + '>' + label + '</button>';
   }
 
-  function deliveryItemAction(ot, material, view, index) {
-    if (view._recuperado || index < 0 || !deliveryAllowed(ot) || !controllable(material) || quantity(material) <= n(material.entregada)) return '';
-    var closed = typeof window.otEstaCerrada === 'function' ? window.otEstaCerrada(ot) : ['completada','con_observaciones'].includes(String(ot.estado || '').toLowerCase());
-    if (closed && material.adicionalOT !== true) return '';
-    return '<button type="button" class="btn btn-sm" onclick="otCustodiaEntregar(' + index + ')">Entregar</button>';
-  }
-
   function render(ot, visibleMaterials) {
     var verified = verifiedInstalledCustody(ot);
     var deliveryStarted = ot.custodiaIniciada || verified;
@@ -292,7 +285,7 @@
         '<td class="tr">' + n(material.vendida) + '</td>' +
         '<td class="tr">' + (material.custodiaActiva ? material.entregada : '—') + '</td>' +
         '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + stateBadge(material) + '</div></td><td class="tr"><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">' +
-        deliveryItemAction(ot, material, view, index) + itemAction(ot, material, view, index) + (window.SVOTOfficeCount?.button(ot, material, index) || '') +
+        itemAction(ot, material, view, index) + (window.SVOTOfficeCount?.button(ot, material, index) || '') +
         (!view._recuperado && typeof window.otPuedeCorregirProductos === 'function' && window.otPuedeCorregirProductos() ? '<button type="button" class="btn btn-sm btn-icon" title="Quitar producto y actualizar venta" aria-label="Quitar producto" onclick="otEliminarProductoMaterial(' + index + ')" style="color:var(--red)">×</button>' : '') + '</div></td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:12px">Sin materiales controlables</td></tr>';
@@ -405,40 +398,44 @@
   async function deliver(itemIndex) {
     var ot = currentOT();
     if (deliveryBusy || renditionBusy || additionalBusy || !ot || window._impersonacionOriginal || !isAdministration()) return;
+    if (itemIndex !== undefined) { window.notify('Usá Entregar materiales pendientes para confirmar la entrega completa.'); return; }
     if (!ot.tecnico) { window.notify('Asigná un técnico antes de entregar materiales'); return; }
     var closed = typeof window.otEstaCerrada === 'function' ? window.otEstaCerrada(ot) : ['completada','con_observaciones'].includes(String(ot.estado || '').toLowerCase());
-    var onlyAdditional = closed;
-    var eligible = pendingDelivery(ot).filter(function(m){return !onlyAdditional || m.adicionalOT === true;});
-    if (Number.isInteger(itemIndex)) eligible = eligible.filter(function(m){return (ot.materiales || []).indexOf(m) === itemIndex;});
+    var eligible = pendingDelivery(ot).filter(function(m){return !closed || m.adicionalOT === true;});
     if (!eligible.length) { window.notify('No hay materiales pendientes de entregar.'); return; }
-    var baseline = JSON.parse(JSON.stringify(ot)), user = window.fbAuth?.currentUser, uid = window.currentUserUid, role = window.currentRole;
-    if (!ot.fbKey || /[.#$\[\]\/]/.test(ot.fbKey) || !user || user.uid !== uid || !window.SVOTLifecycle || !window.SVOTDeliverySelection) {
+    if (!ot.fbKey || /[.#$\[\]\/]/.test(ot.fbKey) || !window.fbRef || !window.fbDB || !window.crypto?.randomUUID || !window.SVGuardedWrites?.restTransaction) {
       window.notify('No está disponible el guardado seguro de la entrega. Actualizá SisVentas.');return;
     }
-    var valid = function(){return user === window.fbAuth?.currentUser && uid === window.currentUserUid && role === window.currentRole && currentOT() === ot && deliveryAllowed(ot) && deliveryFingerprint(ot) === deliveryFingerprint(baseline);};
+    var ref = window.fbRef(window.fbDB,'sisventas/ordenes_trabajo/' + ot.fbKey);
+    // The OFF service has no delivery command. Require the installed atomic
+    // record/summary adapter; never fall through to a raw OT-only PUT.
+    if (!window.SVRecordListWrites?.intersects?.(ref) || typeof window.SVRecordListWrites.transaction !== 'function' || window.SVLaborWrites?.intersects?.(ref)) {
+      window.notify('No está disponible la entrega completa compatible. No se modificaron materiales.');return;
+    }
+    var baseline = JSON.parse(JSON.stringify(ot)), user = window.fbAuth?.currentUser, uid = window.currentUserUid, role = window.currentRole, db = window.fbDB;
+    var epoch = window._svOperacionesSesionEpoch || 0, revision = window.PERMISOS_ROLES?.[role]?.indiceRevision, context = window.svCapturarContextoOperacion?.();
+    var valid = function(){return !!user && user.uid === uid && user === window.fbAuth?.currentUser && uid === window.currentUserUid && role === window.currentRole && db === window.fbDB && epoch === (window._svOperacionesSesionEpoch || 0) && revision === window.PERMISOS_ROLES?.[role]?.indiceRevision && (!context || context()) && currentOT() === ot && deliveryAllowed(ot) && deliveryFingerprint(ot) === deliveryFingerprint(baseline);};
+    var command = {id:window.crypto.randomUUID(),ts:Date.now(),usuario:window.currentUser || 'Administración',uid:uid,onlyAdditional:closed};
+    var deliveryText = deliveryDescription(eligible.map(function(m){return Object.assign({},m,{vendida:quantity(m)-n(m.entregada)});}));
     deliveryBusy = true;
     var finish;
     try {
-      finish = window.SisVentas?.carga?.mostrar?.('Preparando entrega…',{persistirAlNavegar:true});
-      await window.SVOTLifecycle.prepare(baseline,{kind:'delivery'});
-      if (typeof finish === 'function') finish();
-      finish = null;
       if (!valid()) throw Error('La sesión o los materiales cambiaron. Volvé a abrir la OT.');
-      var rows = eligible.map(function(m){
-        var product = productFor(m) || {};
-        return {index:(ot.materiales || []).indexOf(m),description:String(m.desc || m.descripcion || m.cod || m.codigo || 'Material'),unit:String(m.unidad || product.unidad || 'unidades'),pending:window.SVCommercialMoney.quantitySum([quantity(m),-n(m.entregada)])};
-      });
-      var selection = await window.SVOTDeliverySelection.choose({rows:rows,technician:ot.tecnico,valid:valid});
-      if (!selection) return;
+      if (!await window.svConfirm('Se entregarán ' + deliveryText + ' a ' + ot.tecnico + ' y se generará su remito. ¿Confirmar entrega completa?')) return;
       if (!valid()) throw Error('La sesión o los permisos cambiaron. Volvé a abrir la OT.');
       finish = window.SisVentas?.carga?.mostrar?.('Registrando entrega y remito…',{persistirAlNavegar:true});
-      var result = await window.SVOTLifecycle.save(baseline,{entregas:selection},{kind:'delivery',action:'Entrega de materiales al técnico'});
-      if (!result.confirmed || !result.ot) throw Error('No se confirmó la entrega. Volvé a abrir la OT para verificarla.');
-      Object.assign(ot,result.ot);
+      var saved;
+      var result = await window.SVGuardedWrites.restTransaction(ref,function(current){
+        if (!valid()) throw Error('La sesión o los permisos cambiaron. Volvé a abrir la OT.');
+        saved = prepareDelivery(current,baseline,command);return saved;
+      });
+      if (!result.committed) throw Error('No se confirmó la entrega. Volvé a abrir la OT para verificarla.');
+      if (!valid()) return;
+      Object.assign(ot,result.value || saved);
       window._otGuardandoLocalHasta = Date.now() + 3000;
       updateGlobal();if (currentOT() === ot) render(ot,controllableMaterials(ot));
       window.notify('✓ Entrega registrada y remito generado.');
-    } catch(error) { window.notify('No se pudo confirmar la entrega: ' + error.message + ' Verificá la OT antes de reintentar.'); }
+    } catch(error) { if (valid()) window.notify('No se pudo confirmar la entrega: ' + error.message + ' Verificá la OT antes de reintentar.'); }
     finally { deliveryBusy = false;if (typeof finish === 'function') finish(); }
   }
   function receiptHTML(receipt) {
