@@ -6,23 +6,36 @@ function fixture(options={}){
  const original={fbKey:'ot-fiction',id:'OT-FICTICIA',tecnico:'Técnico ficticio',estado:'pendiente',cliente:'Cliente ficticio',materiales:[{cod:'FIC-A',desc:'Equipo ficticio',vendida:3,entregada:1,instalada:1,custodiaActiva:true}],...options.ot};
  let remote=clone(original),writes=0,stock=0,ids=0,notes=[],confirmed=0;
  const w={otData:[original],otActualId:original.fbKey,prodData:{},currentUser:'Administración ficticia',currentUserUid:'fiction',currentRole:'admin',fbAuth:{currentUser:{uid:'fiction'}},fbDB:{},fbRef:(_,p)=>{assert.equal(p,'sisventas/ordenes_trabajo/ot-fiction');return p;},crypto:{randomUUID:()=> 'doc-'+(++ids)},tienePermiso:()=>true,notify:m=>notes.push(m),svConfirm:async()=>{confirmed++;if(options.confirm)return options.confirm(w);return true;},SisVentasCompras:{syncOTConsumption:()=>{stock++;throw Error('No se debe llamar a stock');}},scrollTo:()=>{}};
- // These are public-action unit tests. The legacy pure receipt formatter is
- // only a simulated server response; real quantity/stock/guard/recovery behavior
- // is covered by ot-partial-delivery and the complete native chain.
+ // OFF public-handler contract: use the real record/summary model, atomic
+ // writer and GuardedWrites. Only the SDK/network boundary is fictitious.
  w.SVCommercialMoney=require('../js/core/commercial-money.v1');
- w.SVOTDeliverySelection={choose:async({rows,valid})=>{confirmed++;if(options.confirm&&!await options.confirm(w))return null;if(!valid())throw Error('La sesión o los permisos cambiaron.');return rows.map(r=>({index:r.index,cantidad:r.pending}));}};
- w.SVOTLifecycle={prepare:async()=>true,save:async(baseline,draft,{kind})=>{
-  assert.equal(kind,'delivery');assert.deepEqual(Object.keys(draft),['entregas']);
-  const user=w.fbAuth.currentUser,uid=w.currentUserUid,role=w.currentRole;
-  if(options.beforeCommit)await options.beforeCommit(w,remote);
-  if(user!==w.fbAuth.currentUser||uid!==w.currentUserUid||role!==w.currentRole||!w.tienePermiso('ot.entregarMateriales'))throw Error('La sesión o los permisos cambiaron.');
-  for(const row of draft.entregas)assert.equal(row.cantidad,Number(baseline.materiales[row.index].vendida)-Number(baseline.materiales[row.index].entregada||0));
-  const next=w.SVOTDeliveryReceipt.prepare(clone(remote),baseline,{id:w.crypto.randomUUID(),ts:1,usuario:w.currentUser,uid,onlyAdditional:remote.estado==='completada'});
-  if(options.failBefore)throw Error('Sin conexión');remote=clone(next);writes++;if(options.lostResponse)throw Error('Respuesta perdida');return {confirmed:true,ot:clone(remote)};
- }};
- w.SVGuardedWrites={restTransaction:()=>assert.fail('Delivery must not return to SDK transaction')};
+ const Model=require('../js/core/record-list-model');
+ let hookUsed=false;
+ const sdk={
+  ref:(_,path='')=>path,
+  get:async path=>{
+   assert.equal(path,'sisventas/ordenes_trabajo/ot-fiction');
+   if(!hookUsed&&options.beforeCommit){hookUsed=true;await options.beforeCommit(w,remote);}
+   const value=clone(remote);return{val:()=>value};
+  },
+  update:async(_,patch)=>{
+   const path='sisventas/ordenes_trabajo/ot-fiction',summary='sisventas/listados_resumen/ordenes_trabajo/ot-fiction';
+   assert.deepEqual(Object.keys(patch).sort(),[path,summary].sort());
+   assert.deepEqual(patch[summary],Model.summary('ordenes_trabajo',patch[path]));
+   assert.equal(patch[path]._svListRevision,(remote._svListRevision||0)+1);
+   assert.equal(patch[path]._svListOperation,patch[summary]._svListOperation);
+   if(options.failBefore)throw Error('Sin conexión');
+   remote=clone(patch[path]);writes++;
+   if(options.lostResponse)throw Error('Respuesta perdida');
+  }
+ };
+ w.SVRecordListWrites=require('../js/core/operational-writes').create(w,Model);
+ w.SVRecordListWrites.install({sdk});
+ w.fetch=()=>assert.fail('OFF must use the atomic record/summary adapter, not raw HTTP');
+ w.SVOTLifecycle={prepare:()=>assert.fail('OFF must not request the future delivery server capability'),save:()=>assert.fail('OFF must not send the future delivery command')};
+ w.SVOTDeliverySelection={choose:()=>assert.fail('OFF must not open the unpublished partial selector')};
  const context={window:w,document:{getElementById:()=>null,documentElement:{},body:{}},requestAnimationFrame:()=>{}};
- vm.createContext(context);vm.runInContext(source,context);
+ vm.createContext(context);vm.runInContext(fs.readFileSync('js/core/guarded-writes.js','utf8'),context);vm.runInContext(source,context);
  return {w,original,remote:()=>remote,writes:()=>writes,stock:()=>stock,notes,confirmed:()=>confirmed,replaceRemote:v=>remote=clone(v)};
 }
 test('entrega incremental y remito en una sola escritura, sin finanzas ni stock',async()=>{const f=fixture();await f.w.otCustodiaEntregar();const d=Object.values(f.remote().remitosEntrega);assert.equal(f.writes(),1);assert.equal(f.stock(),0);assert.equal(d.length,1);assert.equal(d[0].items[0].cantidad,2);assert.equal(f.original.materiales[0].entregada,3);assert.equal(f.original.materiales[0].instalada,1);assert.deepEqual(Object.keys(d[0].items[0]).sort(),['adicional','cantidad','codigo','descripcion','unidad']);});
