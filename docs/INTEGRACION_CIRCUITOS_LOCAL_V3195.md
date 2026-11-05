@@ -49,3 +49,28 @@ upgrade del worker y binding RAW; luego aceptación de este bloque local.
 Los resultados de ramas individuales no sustituyen esa puerta. Las pruebas
 opt-in omitidas y los límites de cobertura se informarán expresamente.
 No implica permisos remotos, corte, publicación, push ni operaciones reales.
+
+## Primer congelamiento y corrección de integración
+
+Fuente `fdd161713870a951542f47cab26e2445dc7af43d`: RAW 624 archivos,
+20.788.008 bytes. Upgrade SW real 2 PASS en 390/1280, con carga online y
+probe estático offline de cinco módulos y rechazo de query desconocida.
+El primer ensayo SW 0/2 se conserva: el arranque del fixture activaba Accounts
+pese a probar OFF. Se agregó una opción ficticia con el valor por defecto
+anterior; el ensayo OFF la fija en false. No se cambió el producto por ello.
+
+La puerta completa de esa fuente terminó exit1: 9598 casos, 9552 PASS,
+15 FAIL y 31 SKIP. Catorce contrastes de igualdad de modelos encontraron
+LF público frente a CRLF de las copias del servidor; además faltaba llevar
+la optimización canónica al modelo empaquetado de ventas. No se relajaron
+comparaciones ni se reetiqueta ese resultado como aprobado. Log privado
+current-gate.private.log SHA256
+6ce31dd28cf14c1ddb3d4e56557df49ccc37b68681d99b5cc1fa1765fa79dc70.
+
+En `17ae4151a373d5161fe585801bf013eeac350141` se alineó la copia local del
+servidor con el modelo canónico. Después se materializaron los 3017 inputs
+tracked desde los blobs RAW de ese commit, no desde expectativas de pruebas.
+Los 15 archivos que fallaron pasaron 275/275; el contraste compartido previo
+también pasó 96/96. Son focales superpuestos, no una nueva puerta completa.
+No se actualizó Cotizador. La siguiente fuente conjunta debe incluir además
+la corrección de intención de búsqueda antes de repetir gate y aceptación.

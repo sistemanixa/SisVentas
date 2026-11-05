@@ -22,7 +22,10 @@ for(const width of [1280,390])test('real OFF boot, historical volume, retained p
  const rows=()=>page.locator('#ventas-tbody tr[data-indexed-sale]');
  const totals=async()=>{
   const value=await page.evaluate(()=>SVCommercialPagesHost.financialState());assert(value);assert.equal(value.sales,expected.sales);assert.equal(value.payments,expected.payments);assert.equal(value.debtCents,expected.debtCents);
-  assert.equal(value.days['2020-01-01'].sales,expected.historicalSales);assert.equal(value.days['2020-01-01'].salesCents-value.days['2020-01-01'].paidCents,expected.historicalDebtCents);
+  assert.equal(value.days['2020-01-01'].sales,expected.historicalSales);
+  // These historical receipts were paid on Jan 2, not the sale date Jan 1.
+  const historical=Object.entries(value.days).filter(([day])=>day.startsWith('2020-01-')).reduce((sum,[,day])=>({sales:sum.sales+day.salesCents,paid:sum.paid+day.paidCents}),{sales:0,paid:0});
+  assert.equal(historical.sales,128000000);assert.equal(historical.paid,32000000);assert.equal(historical.sales-historical.paid,expected.historicalDebtCents);
   assert.equal(Object.values(value.days).reduce((n,d)=>n+d.salesCents,0),expected.totalCents);assert.equal(Object.values(value.days).reduce((n,d)=>n+d.paidCents,0),expected.paidCents);
  };
  try{
