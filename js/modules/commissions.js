@@ -72,8 +72,19 @@
   }
   function renderPersonalCommissionList(){
     commissionTableHeader(true);var body=document.getElementById('comisiones-tbody'),items=itemsDetalleSeguro((window.gastosData||[]).filter(esComision));
+    var query=String((document.getElementById('com-f-buscar')||{}).value||'').trim().toLowerCase();
+    var filter=String((document.getElementById('com-f-estado')||{}).value||'');
+    var manage=gestionDelegadaComisiones(),api=commissionPresentation();
+    // Search only visible columns, after filtering ownership and authorized states.
+    items=items.filter(function(g){
+      var id=api&&typeof api.saleId==='function'?api.saleId(g):'';
+      var client=id&&api&&typeof api.clientName==='function'?api.clientName(g):'';
+      var text=[id,client,manage?g.empleadoNombre||'':''].join(' ').toLowerCase();
+      return (!query||text.indexOf(query)>=0)&&coincideEstadoFiltro({items:[g]},filter);
+    });
     var own=window.svEmpleadoPropio&&window.svEmpleadoPropio();
     var empty=window._gastosCargaError?'No se pudieron cargar las comisiones.':!fuenteComisionesLista()?'Cargando las comisiones…':own||gestionDelegadaComisiones()?'Sin comisiones confirmadas':'Esperando los datos de tu cuenta…';
+    if(!window._gastosCargaError&&fuenteComisionesLista()&&(own||manage)&&(query||filter))empty='No hay comisiones para estos filtros';
     if(body)body.innerHTML=items.length?items.map(personalCommissionRow).join(''):'<tr><td colspan="'+(gestionDelegadaComisiones()?6:3)+'" style="text-align:center;padding:24px;color:var(--text3)">'+empty+'</td></tr>';
     ['pendientes','aprobadas','rechazadas','total'].forEach(function(id){var value=document.getElementById('com-kpi-'+id),sub=document.getElementById('com-kpi-'+id+'-sub');if(value)value.textContent='—';if(sub)sub.textContent='';});
     ultimaListaPersonal=estadoDatosComisionesPersonales();
