@@ -1,3 +1,11 @@
+## Ventas: guarda de intención durante repintado · propuesta aislada 2026-11-05
+
+Rama codex/sales-search-intent-repaint desde fuente conjunta fdd161713870a951542f47cab26e2445dc7af43d. Único cambio funcional: host ventas recuerda inputText en preview y no consulta filtroA si inputB espera debounce. Reproducción host real:preview1→20filasA/24lecturasextra; pruebas iniciales0PASS/3FAIL y navegador0PASS/1FAIL por lecturas nuevas antes del timer nativo120ms.
+
+Parche mínimo:46focalesPASS (5intención+19retención+22reader), navegador real1PASS. Preserva cursor de página2 hasta confirmarB, foco, importes sin relectura, límite50 y retirada por permisos. Foco browser:input+sortTabla síncrono, ceroGET nuevos antes del debounce; datos ficticios340ventas sin cambios. Logs rojos y verdes ignorados en tmp; detalle en VENTAS_INTENCION_DEBOUNCE_LOCAL.md.
+
+No se modifica fuente conjunta congelada ni su gate activo, backend, ownership/reader/economics, app/index/SW ni URLs3.19.5. Sin builders/gate global, push, producción, Firebase real o ventana8765. Próximo paso: coordinador integra este delta, sincroniza copia económica backend según contrato y materializa inputsRAW coherentes antes de nuevo freeze; no atribuir esta validación al gate de fdd16171 ni a entrega visual/SWreal.
+
 ## Integración compatible local v3.19.5 · puerta conjunta pendiente
 
 Copia aislada integracion-circuitos-local: reunidos retorno comercial, selector Cobros, búsqueda Ventas, filtros de comisiones, período ARCA y carrera de apertura OT; reducción de cálculo redundante sin alterar dinero. Fuentes y límites en INTEGRACION_CIRCUITOS_LOCAL_V3195.md. Nueva aplicación inmutable/URLs/worker coherentes, Accounts/H7 OFF. Se conservaron los informes y rojos individuales. Falta puerta conjunta y upgrade SW contra bytes RAW congelados. No servido a la ventana8765, sin datos reales, publicación ni push.
