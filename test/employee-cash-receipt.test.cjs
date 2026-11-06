@@ -5,6 +5,50 @@ const vm=require('node:vm');
 const {eligible,model,html}=require('../js/modules/employee-cash-receipt.js');
 const gasto={empleadoId:'e1',empleadoNombre:'Empleado de prueba',descripcion:'Haberes septiembre',monto:100000,mes:'2026-09'};
 const pago={medio:'Efectivo',monto:12500.40,fecha:'2026-10-01',usuario:'Administración'};
+
+function historyFixture(){
+  let resolve,permitted=true,valid=true,calls=0;
+  const rows=[],markers={},modal={style:{display:'flex'}};
+  const body={querySelector:s=>markers[s],contains:r=>rows.includes(r)};
+  const document={getElementById:id=>id==='hpg-body'?body:id==='modal-hist-pago-gasto'?modal:null,addEventListener(){},createElement:()=>({setAttribute(){}})};
+  const root={document,currentUserUid:'test',fbAuth:{currentUser:{}},puedeAdministrarGastos:()=>permitted,svCapturarContextoOperacion:()=>()=>valid,
+    gastosData:[{...gasto,fbKey:'g1',pagos:[]}],_gastoPagosArray:g=>g.pagos,
+    verPagosGasto(){calls++;return new Promise(r=>{resolve=r;});}};
+  vm.runInNewContext(fs.readFileSync(require.resolve('../js/modules/employee-cash-receipt.js'),'utf8'),{window:root,document,console});
+  function render(payments){root.gastosData[0].pagos=payments;rows.length=0;payments.forEach((p,i)=>{const actions={buttons:[],appendChild:b=>actions.buttons.push(b)};const row={lastElementChild:actions,querySelector:()=>actions.buttons[0]};rows.push(row);markers['[data-payment-actor="'+i+'"]']={parentElement:{parentElement:{parentElement:row}}};});}
+  return {root,rows,modal,render,resolver:()=>resolve,resolve:v=>resolve(v),deny:()=>permitted=false,invalidate:()=>valid=false,calls:()=>calls};
+}
+
+test('integración activa hidrata antes del recibo y ancla filas aun con adjunto del gasto',()=>{
+  const {source}=require('./helpers/active-app.js').readActiveApp();
+  assert.match(source,/const full=await api\.detail\(domain,key\)/);
+  assert.match(source,/expose\(domain,key,full\);const out=original\.apply/);
+  assert.match(source,/data-payment-actor=/);
+});
+
+test('historial asíncrono agrega recibos después del detalle, sólo efectivo vigente y una sola vez',async()=>{
+  const c=historyFixture(),pending=c.root.verPagosGasto('g1');
+  assert.equal(c.rows.length,0);
+  c.render([{...pago,_key:'cash1'},{...pago,medio:'Transferencia'}, {...pago,anulado:true},{...pago,_key:'cash2'}]);
+  c.resolve('detalle');assert.equal(await pending,'detalle');assert.equal(c.calls(),1);
+  assert.deepEqual(c.rows.map(r=>r.lastElementChild.buttons.length),[1,0,0,1]);
+  const again=c.root.verPagosGasto('g1');c.resolve('otra');await again;
+  assert.deepEqual(c.rows.map(r=>r.lastElementChild.buttons.length),[1,0,0,1]);
+});
+
+for(const change of ['deny','invalidate','closed','session'])test('historial pendiente no agrega recibos después de '+change,async()=>{
+  const c=historyFixture(),pending=c.root.verPagosGasto('g1');c.render([pago]);
+  if(change==='closed')c.modal.style.display='none';else if(change==='session')c.root.currentUserUid='other';else c[change]();
+  c.resolve();await pending;assert.equal(c.rows[0].lastElementChild.buttons.length,0);
+});
+
+test('respuesta anterior no decora el historial de una solicitud posterior',async()=>{
+  const c=historyFixture(),first=c.root.verPagosGasto('g1'),resolveFirst=c.resolver();
+  const second=c.root.verPagosGasto('g1');
+  c.render([pago]);resolveFirst();await first;
+  assert.equal(c.rows[0].lastElementChild.buttons.length,0);
+  c.resolve();await second;assert.equal(c.rows[0].lastElementChild.buttons.length,1);
+});
 test('recibo identifica el pago parcial, fecha y DNI sin confundirlo con el total del haber',()=>{
   const m=model(gasto,'g1',pago,'p1',{nombre:'Empleado de prueba',dni:'12345678'},{nombre:'Empresa de prueba'});
   assert.equal(m.amount,12500.40);assert.equal(m.reference,'RE-g1-p1');
