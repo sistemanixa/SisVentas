@@ -1,3 +1,14 @@
+## QA autenticada de Comisiones3.19.13 aprobada · 06/11/2026
+
+Owner recargó únicamente IAB Comisiones y confirmóapp3.19.13; sin entrarVentas/CC abriódetalle objetivo en frío, verificó neto/descuento/costo/base/porcentaje/importe/MO y estado aprobado falta pagar. Cerrar/reabrir conservó valores y no hubo erroresJS. Modalvisiblealterminar;0Guardar/Agregar/Rechazar/Abonar y0operacionesfinancierasdeprueba. ChromeconOT179no recargado. Esto verifica ese recorrido real, no toda gestión financiera ni cierre de auditoría global.
+
+## Comisiones v3.19.13 publicada y verificada por activos · 06/11/2026
+
+Fuente funcional exacta da9e6e231cde274e27df053e3e21cede2f2661f4. Puerta final9797casos/9766PASS/0FAIL/31SKIP,exit0; opt-in no ejecutados no se presentan como aprobados.6Chrome ficticios sobre módulo final PASS. RAW632activos21113819bytes, antes/despuésidéntico0d24a91ceb09e9ff99c53317ba3bdb099b853a69e18239e3d9730596ec591e57. Hosting sites/nixa-sisventas-seguro/versions/ddaf51cb7f0251f8,7cargas. Sieteactivosbyteexactos,CSP/nosniff,3rutasprivadas404;endpointanónimo401ymanifiestoprivado403. Script oficial confirmó web/marcador/SW/Firebase3.19.13-firebase. QA autenticada del detalle pendiente al redactar este cierre de activos.
+
+Ajustepuntualhumanoverificado se ejecutó separado: guard/fence existente, respaldo privado dentro del guard, revalidación de seis fuentes y derivados, parche atómico, recibo e índices; ambos registros y resumen coherentes después, venta sin cambios y guard liberado. Sin pago real, otras comisiones, precios/cobros/stock/reglas/flags/servidor. Owner ya verificó el importe en el listado web antes de publicar el detalle. No se suben plan, datos, firmas, PDF, reglas privadas o credenciales a Git. La base general de generación no cambia.
+
+Evidencia roja previa conservada:4fallosdeprecondicionesDOMdelasfixturesdeconcurrencia,corregidas sin relajar sus aserciones; una ejecución posterior se interrumpió al añadir la compatibilidad de porcentaje autorizado. Sólo la puerta final congelada acredita esta fuente. No incorpora el bloque local31912(Presentación/Compartir/Soporte), eliminaciones, Tecnoprices ni la propuesta local de conservar causa inicial OT53b1ad71. No push ni main. Pendientes independientes de auditoría no quedan cerrados por esta publicación.
 ## Comisión: ajuste puntual confirmado; publicación UI pendiente · 06/11/2026
 
 Corrección humana específica aplicada por guard existente con respaldo privado, precondiciones, proyecciones y recibo; aprobación, porcentaje y venta conservados, sin ejecutar pago. Comprobación posterior de ambos registros y resumen coherente, guard liberado.11pruebasplan y emuladorreglasexactas con2negativos yreplayPASS. UI75focales+6ChromePASS; fuente31913sinotrosbloques. Faltafreeze/gate/Hosting/aviso yQAweb; no confundirajustedatosconpublicación. Evidencia privada fueraGit. VerCOMISIONES_DETALLE_V31913.md.
