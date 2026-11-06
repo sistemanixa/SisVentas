@@ -77,11 +77,29 @@
     const result=await sync.apply(this,arguments);try{offer(g,key,payment,token);}catch(error){console.warn('[Recibos]',error);}return result;
   };
   const history=root.verPagosGasto;
+  let historyRequest=0;
   if(typeof history==='function')root.verPagosGasto=function(key){
-    const result=history.apply(this,arguments);if(!allowed())return result;
-    const g=(root.gastosData||[]).find(x=>x.fbKey===key),body=document.getElementById('hpg-body');if(!g||!body)return result;
-    const payments=root._gastoPagosArray(g);
-    payments.forEach((p,i)=>{if(!eligible(g,p))return;const row=body.children[i];if(!row)return;const button=document.createElement('button');button.className='btn btn-sm';button.textContent='Imprimir recibo';button.onclick=()=>preview(key,p._key||'legacy_'+p._idx);row.lastElementChild.appendChild(button);});return result;
+    const request=++historyRequest,user=root.fbAuth?.currentUser,uid=root.currentUserUid;
+    const context=typeof root.svCapturarContextoOperacion==='function'?root.svCapturarContextoOperacion():()=>true;
+    const decorate=()=>{
+      if(request!==historyRequest||!context()||user!==root.fbAuth?.currentUser||uid!==root.currentUserUid||!allowed())return;
+      const g=(root.gastosData||[]).find(x=>x.fbKey===key),body=document.getElementById('hpg-body');
+      const modal=document.getElementById('modal-hist-pago-gasto');
+      if(!g||!body||!modal||modal.style.display==='none')return;
+      root._gastoPagosArray(g).forEach((p,i)=>{
+        if(!eligible(g,p))return;
+        // An original expense attachment can precede the payment rows.
+        const marker=body.querySelector('[data-payment-actor="'+i+'"]');
+        const row=marker?.parentElement?.parentElement?.parentElement;
+        if(!row||!body.contains(row)||row.querySelector('[data-cash-receipt]'))return;
+        const actions=row.lastElementChild;if(!actions)return;
+        const button=document.createElement('button');button.className='btn btn-sm';button.textContent='Imprimir recibo';
+        button.setAttribute('data-cash-receipt','');button.onclick=()=>preview(key,p._key||'legacy_'+p._idx);actions.appendChild(button);
+      });
+    };
+    const result=history.apply(this,arguments);
+    if(result&&typeof result.then==='function')return result.then(value=>{decorate();return value;});
+    decorate();return result;
   };
   document.addEventListener('sisventas:session-ended',()=>{document.getElementById('employee-cash-receipt')?.remove();document.getElementById('employee-cash-receipts-ready')?.remove();});
   root.SVEmployeeCashReceipt={preview};
