@@ -58,6 +58,43 @@
     // field contract instead of treating a legitimate discount as a mismatch.
     delete prepared.subtotal;
     var model = economics.build(prepared);
+    // Older sale writers rounded the discount amount before subtracting it.
+    // Recognize that exact stored chain; never accept an unexplained cent gap.
+    var exactDecimal = function (a, b) {
+      try { var x=money.decimal(a), y=money.decimal(b); return x.n*y.d === y.n*x.d; } catch (_) { return false; }
+    };
+    var exactAmount = function (a, b) { return money.isAmount(a) && money.isAmount(b) && Number(a)>=0 && Number(b)>=0 && exactDecimal(a,b); };
+    var present = function (object, field) { return Object.prototype.hasOwnProperty.call(object,field); };
+    var historicalLinesExact = function () { return model.items.every(function (item) {
+      var raw=item.source, fields=['sub','subtotal','totalItem','importe','total'];
+      if (item.conflicts.length || !present(raw,'qty') || !present(raw,'punit') || !fields.some(function (field) { return present(raw,field); })) return false;
+      if (!['qty','cantidad','cant','unidades'].every(function (field) { return !present(raw,field) || exactDecimal(raw[field],item.quantity); }) ||
+          !['punit','precio','precioUnitario','precio_unitario','precioVenta','unitario','valorUnitario'].every(function (field) { return !present(raw,field) || exactDecimal(raw[field],item.unitNet); }) ||
+          !['disc','descuentoPct','porcentajeDescuento','descuento'].every(function (field) { return !present(raw,field) || exactDecimal(raw[field],item.discountPct); })) return false;
+      try { if (money.line(raw.qty,raw.punit,raw.disc==null?0:raw.disc)/100 !== item.net) return false; } catch (_) { return false; }
+      return fields.every(function (field) { return !present(raw,field) || exactAmount(raw[field],item.net); });
+    }); };
+    if (!model.ready && model.mode === 'items' && typeof source.conIva === 'boolean' &&
+        ['descuento','subtotal','iva','total'].every(function (field) { return money.isAmount(source[field]) && Number(source[field])>=0; }) &&
+        source.descuentoGeneral != null && source.descuentoGeneral !== '' && exactDecimal(source.descuentoGeneral,Number(source.descuentoGeneral)) &&
+        Number(source.descuentoGeneral) >= 0 && Number(source.descuentoGeneral) <= 100 &&
+        ['descuentoPct','porcentajeDescuento'].every(function (field) { return !present(source,field) || exactDecimal(source[field],source.descuentoGeneral); }) &&
+        ['ivaPct','tasaIva','porcentajeIva'].every(function (field) { return !present(source,field) || (exactDecimal(source[field],Number(source[field])) && Number(source[field])>=0 && Number(source[field])<=100 && (!source.conIva || exactDecimal(source[field],model.ivaRate))); }) &&
+        historicalLinesExact()) {
+      var historicalDiscount = money.percentage(model.subtotal, Number(source.descuentoGeneral));
+      var historicalBase = money.sum([model.subtotal, -historicalDiscount]);
+      if (exactAmount(source.descuento, money.sum([model.lineDiscount, historicalDiscount])) &&
+          exactAmount(source.subtotal, historicalBase) &&
+          (!present(source,'descuentoAmt') || exactAmount(source.descuentoAmt,historicalDiscount))) {
+        var amountBased = Object.assign({}, prepared, { descuentoAmt:historicalDiscount });
+        ['descuentoGeneral', 'descuentoPct', 'porcentajeDescuento', 'descuento'].forEach(function (field) { delete amountBased[field]; });
+        var historicalModel = economics.build(amountBased);
+        if (historicalModel.ready && ['total','totalPresupuesto','importeTotal'].every(function (field) { return !present(source,field) || exactAmount(source[field],historicalModel.total); }) &&
+            exactAmount(source.iva, historicalModel.iva)) {
+          model = Object.freeze(Object.assign({}, historicalModel, { source:model.source, generalDiscountPct:Number(source.descuentoGeneral) }));
+        }
+      }
+    }
     if (source.subtotal != null && !economics.moneyValuesEqual(number(source.subtotal), model.taxableBase) &&
         !economics.moneyValuesEqual(number(source.subtotal), model.subtotal)) {
       var conflicts = model.conflicts.concat([{kind:'subtotal-mismatch',path:'sale.subtotal',stored:number(source.subtotal),computed:model.taxableBase}]);

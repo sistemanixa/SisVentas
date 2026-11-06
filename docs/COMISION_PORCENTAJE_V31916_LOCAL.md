@@ -1,0 +1,15 @@
+# Porcentaje y habilitación de comisión: candidata local v3.19.16
+
+Base publicada v3.19.14, cierre cd09d870. Esta candidata no está publicada ni servida a la ventana del titular. No modifica el módulo de detalle ya publicado, el servidor, reglas, importes guardados o configuración de comisión.
+
+El evento de escritura reponía el porcentaje del empleado cuando el campo quedaba vacío o valía cero. Ahora sólo lo repone una inicialización explícita o el cambio de empleado. Cero no crea una comisión: se conserva durante la edición y se valida al registrar. La prueba roja tuvo dos fallos; después se verifican vacío, cero, decimal, veinte y cambio de empleado.
+
+El detalle ofrecía preparar una comisión aunque faltara su habilitación explícita. El editor además mostraba marcada una opción ausente. Se alinean ambos con la validación existente del registro y del servidor, sin convertir ausencias históricas en autorizaciones nuevas. La tarjeta conserva los participantes históricos y agrega el estado pendiente de habilitar; una comisión existente sigue consultable.
+
+Pruebas ficticias focales y dos recorridos Chrome del campo real en 390/1280. El navegador de prueba está sin red y no abre ni guarda movimientos reales. La ventana humana con su porcentaje permanece intacta.
+
+El diagnóstico privado puntual encontró una habilitación ausente y, en una simulación únicamente en memoria, un desacuerdo histórico de un centavo entre el total guardado y el cálculo canónico. No se alteró la venta ni se habilitó/generó la comisión. Se preparó en el lector compartido la compatibilidad de descuento monetario primero: exige cantidades y precios originales, cada subtotal y alias de línea exactos, descuento guardado coherente con el porcentaje, neto, IVA y total exactos, sin fracciones de centavo ni tipos inválidos. La copia del servidor está sincronizada, todavía sin desplegar. No se introduce una tolerancia de balance.
+
+La revisión independiente rechazó dos propuestas iniciales por admitir tipos inválidos, redondeos o alias contradictorios. Se conservaron los rojos privados; después pasan los 26 y 14 controles adversariales. La puerta focal de 142 casos pasó antes del último endurecimiento; después pasan 103 casos de generación/cadena/adversariales y 68 de regresión de ventas, resúmenes, reportes y dinero exacto. Dos pruebas Chrome del input pasaron sin conexiones ni operaciones comerciales. El control de generación en memoria crea una sola comisión ficticia, su repetición conserva los destinos y las validaciones siguen rechazando una habilitación ausente. No equivale a probar el servidor desplegado ni a habilitar una venta real.
+
+Pendiente: revisión final, integrar la base del hotfix independiente de recibos v3.19.15 cuando termine, puerta completa congelada y eventual publicación expresamente coordinada de cliente y copia de lector del servidor. v3.19.16 está reservada sólo como candidata local; no publicar sobre una base productiva más nueva sin integrar. No mezclar con el hotfix independiente de recibos en efectivo.

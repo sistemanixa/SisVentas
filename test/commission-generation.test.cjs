@@ -16,6 +16,18 @@ test('usuario sin acceso a Comisiones genera su venta; no necesita permiso para 
  const r=await s.svc.generate(actor,{ventaFbKey:'sale'});assert.equal(r.status,'generada');const expenses=Object.values(s.db.root.sisventas.gastos);assert.equal(expenses.length,1);assert.equal(expenses[0].monto,30);assert.equal(expenses[0].estado,'pendiente_aprobacion');assert.equal(expenses[0].requiereAprobacion,true);assert.equal(s.sale.audit[0].actorUid,'a');assert.equal(s.sale.creadorOriginalNombre,'Autor de prueba');
 });
 
+test('exact discount-first historical chain generates once in fictional storage without changing the sale amounts',async()=>{
+ const s=setup({sale:{items:[{cod:'P-FICTION',qty:1,punit:101.05,sub:101.05,costoUnitarioPresupuestado:20}],subtotal:90.94,descuento:10.11,descuentoGeneral:10,iva:0,conIva:false,total:90.94,totalPagado:90.94}});
+ s.db.root.sisventas.pagos.p.monto=90.94;s.db.root.sisventas.config.comisionesEmpleados.e.pct=20;
+ const preview=await s.svc.inspect(await s.actor(),'sale');assert.equal(preview.base.ventaNeta,90.94);
+ const first=await s.svc.systemGenerate('sale');assert.equal(first.status,'generada');assert.equal(first.participantes[0].monto,14.19);
+ assert.equal((await s.svc.systemGenerate('sale')).reutilizada,true);assert.equal(Object.keys(s.db.root.sisventas.gastos).length,1);assert.equal(s.sale.total,90.94);assert.equal(s.sale.subtotal,90.94);assert.equal(s.sale.descuento,10.11);assert.equal(Object.keys(s.db.root.sisventas.pagos).length,1);
+});
+
+test('historical chain without explicit enablement still cannot generate a commission',async()=>{
+ const s=setup({sale:{comisionHabilitada:undefined}});assert.equal((await s.svc.systemGenerate('sale')).status,'no_aplica');assert.equal(Object.keys(s.db.root.sisventas.gastos).length,0);assert.equal(Object.keys(s.db.root.sisventas.ctaemp).length,0);
+});
+
 test('confirmed collection proof generates original commission without giving commercial ownership',async()=>{
  const s=setup(),cfg=s.db.root.sv_permisos.vendedor;cfg.indiceModulos.cobranzas=true;cfg.acciones.cobranzas={registrar:true};
  const actor=await s.actor('b'),id='fictitious-collection-proof',digest='a'.repeat(64);

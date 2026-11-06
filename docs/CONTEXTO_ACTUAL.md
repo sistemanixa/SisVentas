@@ -1,3 +1,7 @@
+## Candidata local v3.19.16: porcentaje de comisión · 06/11/2026
+
+Checkout aislado codex/commission-input-v31915 desde cd09d870; candidata renumerada16 para reservar15 al hotfix independiente de recibos. Corrige edición de porcentaje y estado de habilitación mostrado, conservando validaciones y participantes históricos. Ver COMISION_PORCENTAJE_V31916_LOCAL.md. Compatibilidad económica preparada en lector cliente/servidor: reconoce sólo cadena exacta de descuento primero; rechaza datos inválidos y alias contradictorios sin tolerancia de centavos. Evidencia focal y adversarial en documento; falta revisión final/puerta completa e integración de base recibo15 antes de publicar. Diagnóstico privado: sin comisión, pago, habilitación, importes o escritura real. No se considera resuelto el registro real: falta habilitación explícita, que no se modifica como prueba. Producción base verificada14; no publicación, push, servidor o reglas por este bloque; formulario humano sin recargar.
+
 ## Web v3.19.14 publicada y verificada · 06/11/2026
 
 Publicación humana solicitada en este chat. Fuente exacta `0e8079046d1753a11113c760b11ac32e68e37553`, árbol limpio. Puerta final: 9.867 casos, 9.830 aprobados, cero fallos, 37 omitidos; log SHA256 `2fd3c682248f8dbd315384ca02ce089a819edf902bf298f9d304604fc138d0fc`. Los 42 recorridos Chrome especiales pasaron por separado sobre los mismos activos funcionales. RAW antes/después idéntico: `8c9cf60b40efa16d9b7f7aa7475d58e68f96a98ca4257a3d12064e1f8d3400a1`, 634 archivos y 21.074.980 bytes.
