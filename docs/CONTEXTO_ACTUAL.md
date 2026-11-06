@@ -1,4 +1,14 @@
-## Candidata conjunta local3.19.14 preparada · 06/11/2026
+## Web v3.19.14 publicada y verificada · 06/11/2026
+
+Publicación humana solicitada en este chat. Fuente exacta `0e8079046d1753a11113c760b11ac32e68e37553`, árbol limpio. Puerta final: 9.867 casos, 9.830 aprobados, cero fallos, 37 omitidos; log SHA256 `2fd3c682248f8dbd315384ca02ce089a819edf902bf298f9d304604fc138d0fc`. Los 42 recorridos Chrome especiales pasaron por separado sobre los mismos activos funcionales. RAW antes/después idéntico: `8c9cf60b40efa16d9b7f7aa7475d58e68f96a98ca4257a3d12064e1f8d3400a1`, 634 archivos y 21.074.980 bytes.
+
+Hosting `sites/nixa-sisventas-seguro/versions/12e50f99f424b3d9`, diez cargas. Ocho activos byte exactos, cabeceras de seguridad y tres rutas privadas 404. Script oficial confirmó web, marcador, Service Worker y aviso Firebase `v3.19.14-firebase`. Sin actualizar Cotizador, reglas, permisos, pagos, comisiones, stock, DNS, main ni push. No recarga de la ventana humana ni operaciones reales de prueba.
+
+Alcance: Presentación/Compartir y demanda de Soporte/Garantías; conserva Comisiones publicada. El bloqueo de captura de la aplicación se corrigió; no se atribuyen ni declaran solucionados los iconos vacíos del panel nativo de Windows. Tecnoprices no se activó, eliminaciones siguen sin corte remoto y la causa específica de OT179 sigue pendiente. No equivale a cierre global de auditoría.
+
+Se conservan los resultados rojos anteriores: ocho fallos iniciales, bloqueo de loopback en entorno restringido y una aserción antigua de Garantías. La última se actualizó para exigir lectura vigente y filtro por cliente; luego se repitió la puerta completa congelada sin fallos.
+
+## Antecedente: candidata conjunta local3.19.14 preparada · 06/11/2026
 
 Base6a5b970c/publicada13, integracheckpoint54cd99a3 local12 sin perderComisiones: módulo byteexacto7bf5314bb20815c54d0c152fa89bfb8e241811fdf89c395e531ab0d7d39d26f6.36ChromeconjuntosPASS/0FAIL/0SKIP(20PresentaciónCompartir+10Soporte+6Comisiones),56focales+7fixture+12contratosTecnopricesPASS. Sintaxis/diff/versionlocal14PASS. VerINTEGRACION_LOCAL_V31914.md. Faltafreeze/RAW/puertacompleta; fuente no servida a sesión humana. Producción13yservidorpresentation3198sin cambios. No datos reales, publicación, push o activación por este bloque. ContenedorTecnoprices sinmotor yeliminacionesOFFsonlímitesacotados; no dar auditoría global cerrada. PropuestaOT53b1aisladafuera de esta candidata.
 ## QA autenticada de Comisiones3.19.13 aprobada · 06/11/2026

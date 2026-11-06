@@ -1,5 +1,11 @@
 # Integración local 3.19.14
 
+## Cierre publicado
+
+Fuente `0e8079046d1753a11113c760b11ac32e68e37553`: puerta final 9.830 PASS, cero FAIL, 37 SKIP, exit 0. Los omitidos no se presentan como aprobados; los 42 Chrome especiales tienen evidencia separada sobre los mismos activos. Tras corregir la aserción antigua de Garantías se repitió toda la puerta sin cambios funcionales adicionales.
+
+Hosting `12e50f99f424b3d9`, 634 activos y diez cargas. Ocho archivos web coinciden por bytes y tres rutas privadas devuelven 404. Aviso oficial confirmado en v3.19.14-firebase. Sólo web; no datos comerciales, servidor, reglas, permisos, push o main. Los límites descritos al final siguen pendientes; los párrafos de preparación siguientes son antecedentes.
+
 Base: cierre publicado de Comisiones 6a5b970c, cuya fuente funcional es da9e6e23. Se incorpora el checkpoint local 54cd99a3 de Presentación, Compartir, demanda puntual de Soporte/Garantías y artefactos de composición Tecnoprices. Esta candidata no está publicada ni servida a la ventana del titular.
 
 Comisiones conserva exactamente los bytes publicados del módulo. La nueva aplicación mantiene la lógica de la integración anterior y sólo agrega metadatos de versión y Novedades de 13/14. Se retienen las fixtures de concurrencia corregidas en la publicación. No se aplica la propuesta independiente OT53b1ad71 ni se activan eliminaciones.
