@@ -9,7 +9,8 @@ test('garantías selecciona un cliente válido y ofrece solamente sus ventas', (
   assert.match(app, /autocomplete-cliente-garantia/);
   assert.match(app, /function filterDropGarantiaCliente\(/);
   assert.match(app, /function garantiaCargarVentasCliente\(/);
-  assert.match(app, /ventasValidasDeCliente\(cliente\)/);
+  assert.match(app, /var rows = await read\.complete\(\);\s*read\.assertCurrent\(\);\s*return ventasValidasDeCliente\(cliente, rows\)/);
+  assert.match(app, /await window\.SVPostventaDemand\.perform/);
   assert.match(app, /function garantiaVentaSeleccionada\(/);
   assert.match(app, /function garantiaCargarEquiposVenta\(/);
   assert.match(app, /ordenarItemsComerciales\(venta\.items\)\.filter\(garantiaItemEsEquipo\)/);
