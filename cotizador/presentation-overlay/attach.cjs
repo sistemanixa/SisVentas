@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('node:fs'),crypto=require('node:crypto');
+const file=process.argv[2]||'/app/index.js',source=fs.readFileSync(file,'utf8');
+if(crypto.createHash('sha256').update(Buffer.from(source)).digest('hex')!=='50e9a049d412515ad4062af0acb793b9a268d3919da97376e4f4dbd66c7bee85')throw Error('The published server baseline changed; no patch applied');
+const declaration="const server = http.createServer(async (req, res) => {",route="  const pathname = requestUrl.pathname;";
+if(source.split(declaration).length!==2||source.split(route).length!==2)throw Error('Ambiguous published entrypoint');
+const setup="const budgetPresentationTrial = require('./budget-presentation-trial').create({auth:businessAuth,db,storage:()=>admin.storage(),bucketName:process.env.PROJECTS_MEDIA_BUCKET});\n";
+const handler="\n  if(pathname==='/presupuestos/presentacion-proyecto'&&req.method!=='OPTIONS'){res.setHeader('Cache-Control','private, no-store');try{const body=await readBody(req,2048);const result=await budgetPresentationTrial.handle(req,body);send(res,200,result);}catch(error){send(res,error.statusCode||503,{ok:false,code:error.code||'PRESENTATION_UNAVAILABLE',mensaje:error.statusCode?error.message:'No se pudo preparar la presentación.'});}return;}\n";
+const updated=source.replace(declaration,setup+declaration).replace(route,route+handler);
+if(updated.replace(setup,'').replace(handler,'')!==source)throw Error('Unexpected source change');fs.writeFileSync(file,updated);

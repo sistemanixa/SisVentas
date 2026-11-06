@@ -1,3 +1,9 @@
+## Presentación de PP-0167 preparada y probada · 06/11/2026
+
+Prioridad humana explícita: terminar y publicar el botón Modo presentación para Administrador. Fuente aislada sobre publicada8de364cd; no mezcla eliminaciones/Tecnoprices ni activa otros paquetes. Vista/PDF dinámicos, ARS guardados convertidos a USD con la cotización visible de la barra al generar. Seis ilustraciones privadas verificadas, nunca en Git/Hosting; endpoint sólo lectura con autorización y snapshot revalidados. Sin escrituras comerciales, reglas/IAM ni servicios nuevos. Alcance y evidencia en docs/PRESENTACION_PP0167_V3198.md.
+
+Modelo61+servidor61PASS; UI4PASS aparte; PDF6páginas escritorio/móvil generado/renderizado e inspeccionado. Puerta9748totales/9717PASS/0FAIL/31SKIP/exit0. Las omisiones especiales no se atribuyen como aprobadas. Imagen candidata compilada sobre servidor exacto, sin tráfico;401/204 y preservación de accesos/recursos comprobados. Publicación/aviso/validación web autenticada aún pendientes a este punto. No afirmar entrega por esta preparación.
+
 ## Publicación OFF v3.19.5 bloqueada por compatibilidad · 05/11/2026 05:00 UTC
 
 Se retomó sólo Hosting según autorización humana de publicar lo probado; no hubo revocación humana genérica comprobada. Preflight real: webv3.18.20, Cotizador return910199-bbf61e86, cabeceras/destinos conservados y CommercialPages ready/searchReady. Faltan nativeCollectionsReady/nativeCollectionsSchema. El host nuevo reclama Cobranzas pese a enabled=false y oculta el circuito legacy; reproducción ficticia:active=true/0filas/aviso no preparado, sin escrituras. Por eso NO se publicó la fuente76a/cierree8fe ni se activaron índices o Accounts/H7. El siguiente paso es fallback frontend local + pruebas de capacidades ausentes, nueva fuente y revalidación; no pedir confirmación genérica en lugar de resolverlo.
