@@ -52,3 +52,7 @@ test('authorized current-cost snapshot preserves 15 percent, approved amount and
 test('inconsistent authorized snapshot fails closed without changing approved records',async()=>{
  const f=fixture();f.expense.baseComisionAjustada={schema:1,ventaFbKey:'sale',neto:1170,costo:700,costoManoObra:200,ganancia:470,pct:10,monto:47};const before=JSON.stringify(f.expense),task=f.w.abrirDetalleComision('sale');await f.wait();f.resolve({record:f.sale});await task;assert.match(f.node('com-det-info').textContent,/base ajustada.*revisión/);assert.equal(f.node('com-det-guardar').disabled,true);assert.equal(JSON.stringify(f.expense),before);
 });
+
+test('a later coherent authorized percentage change keeps the recorded cost basis usable',async()=>{
+ const f=fixture();Object.assign(f.expense,{gananciaBase:470,pct:15,monto:70.5,baseComisionAjustada:{schema:1,ventaFbKey:'sale',neto:1170,costo:700,costoManoObra:200,ganancia:470,pct:10,monto:47}});const before=JSON.stringify(f.expense),task=f.w.abrirDetalleComision('sale');await f.wait();f.resolve({record:f.sale});await task;assert.match(f.node('com-det-info').innerHTML,/COSTO DE CÁLCULO/);assert.equal(f.node('com-det-guardar').disabled,false);assert.equal(JSON.stringify(f.expense),before);
+});

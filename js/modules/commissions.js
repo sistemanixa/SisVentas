@@ -182,7 +182,7 @@
     var ajustes=(grupo?.items||[]).filter(function(g){return estado(g)!=='rechazado'&&g.baseComisionAjustada;});
     if(ajustes.length){
       var snapshot=ajustes[0].baseComisionAjustada,money=window.SVCommercialMoney;
-      var validSnapshot=function(g){var a=g.baseComisionAjustada;return a&&a.schema===1&&a.ventaFbKey===venta.fbKey&&['neto','costo','costoManoObra','ganancia','pct','monto'].every(function(k){return typeof a[k]==='number'&&Number.isFinite(a[k])&&a[k]>=0;})&&a.costoManoObra<=a.costo&&money.sum([a.neto,-a.costo])===a.ganancia&&money.percentage(a.ganancia,a.pct)===a.monto&&g.gananciaBase===a.ganancia&&g.pct===a.pct&&g.monto===a.monto&&a.neto===snapshot.neto&&a.costo===snapshot.costo;};
+      var validSnapshot=function(g){var a=g.baseComisionAjustada;return a&&a.schema===1&&a.ventaFbKey===venta.fbKey&&['neto','costo','costoManoObra','ganancia','pct','monto'].every(function(k){return typeof a[k]==='number'&&Number.isFinite(a[k])&&a[k]>=0;})&&a.costoManoObra<=a.costo&&money.sum([a.neto,-a.costo])===a.ganancia&&money.percentage(a.ganancia,a.pct)===a.monto&&g.gananciaBase===a.ganancia&&Number.isFinite(g.pct)&&g.pct>=0&&money.percentage(a.ganancia,g.pct)===g.monto&&a.neto===snapshot.neto&&a.costo===snapshot.costo;};
       if(ajustes.length!==(grupo?.items||[]).filter(function(g){return estado(g)!=='rechazado';}).length||!ajustes.every(validSnapshot))throw new Error('La base ajustada de la comisión requiere revisión.');
       var actual=window.SisVentas?.V3?.SalesReadModel?.saleEconomic(venta);
       if(!actual?.ready||actual.taxableBase!==snapshot.neto)throw new Error('La venta cambió respecto de la base ajustada. Revisá la comisión.');
