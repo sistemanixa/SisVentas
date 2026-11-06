@@ -1,3 +1,9 @@
+## Hotfix Cuenta corriente v3.19.11 preparado · 06/11/2026
+
+Urgencia humana autorizada: corregir y publicar carga CC, sin datos reales. Base exacta publicada477c9af4; checkout aislado codex/cc-ready-hotfix-v31911. Se integra únicamente client-account-legacy-reconcile.v1.js del bloque local b1cf32fe, sin incorporar Presentación31910/Compartir, eliminaciones ni Tecnoprices. Callback comercial conciliaba antes de ready; al completarse readiness no repintaba. Reproducción con ownership/readiness real acredita que sin helper queda Cargando; el helper repinta una vez por evento/cambio válido sin nuevas consultas, respetando fuentes legibles, host nativo y revocaciones.
+
+27 focales y4 casos Chrome ficticios(390/1280,ambos órdenes) aprobados. No hay operación comercial real ni modificación de fórmulas, pagos, permisos, comisiones o stock. Tarjeta vencidos legacy sin cálculo previo permanece pendiente; no inventar importe. Puerta completa, freeze, Hosting/bytes/aviso y QA web pendientes. Producción sigue3199 y servidor presentation3198 sin cambios.
+
 ## Presentación: hotfix visual v3.19.9 preparado · 06/11/2026
 
 La v3.19.8 está publicada desde 77425f18: 628 activos, 81 cargas, siete activos byte exacto, cabeceras CSP y tres rutas privadas 404. El endpoint exige autenticación (401) y el manifiesto privado rechaza acceso anónimo (403). Cotizador presentation3198-a75ce892 quedó al 100%, conservando los accesos anteriores, recursos, variables y cuenta. Aviso oficial sincronizado. Administrador abrió PP-0167 en la web: botón, imágenes y totales correctos; se detectaron siete páginas por la agrupación del NSPanel. No se guardaron operaciones.
