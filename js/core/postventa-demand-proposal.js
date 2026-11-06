@@ -17,8 +17,9 @@
    async function byKey(key){if(!safe(key))throw Error('Referencia de venta inválida.');return record((await request('registro/'+encodeURIComponent(key))).record,key);}
    async function financialByKey(key){
     assertCurrent();if(!safe(key)||!root.SVCommercialPagesReader?.create)throw Error('El detalle financiero puntual no está disponible.');
-    const reader=root.SVCommercialPagesReader.create({sdk:{ref:root.fbRef,get:root.fbGet},capture:()=>current()?{...actor,permissionRevision:actor.revision,hidden:false,viewing:false,online:true}:null,detailRead:async()=>byKey(key)});
-    try{const result=await reader.detail('sales',key);assertCurrent();const value=record(result.record,key),summary=result.summary;
+    let original;
+    const reader=root.SVCommercialPagesReader.create({sdk:{ref:root.fbRef,get:root.fbGet},capture:()=>current()?{...actor,permissionRevision:actor.revision,hidden:false,viewing:false,online:true}:null,detailRead:async()=>{original=await byKey(key);return original;}});
+    try{const result=await reader.detail('sales',key);assertCurrent();const value=record(original,key),summary=result.summary;
      if(summary?.key!==key||!['totalCents','paidCents','balanceCents'].every(k=>Number.isSafeInteger(summary[k])&&summary[k]>=0))throw Error('No se pudo verificar el estado financiero vigente.');
      financial.set(value,{actor,summary});return value;
     }finally{reader.reset();}
@@ -46,7 +47,8 @@
    const key=await read.saleKey(reclamo,ot);read.assertCurrent();if(!key)throw Error('El reclamo no tiene una venta referenciada.');
    const value=await read.financialByKey(key);read.assertCurrent();
    if(root.permisoModulo?.('detalle')!==true||root.svPuedeLeerDominio?.('ventas')!==true)throw Error('Tu rol no permite abrir ventas.');
-   point={actor:read.actor,record:value,reclamoKey:reclamo.fbKey,origin:route(),focus:root.document?.activeElement,scroll:root.document?.querySelector?.('.content')?.scrollTop};
+   const view={...value,_svOwnerUid:summary(value).ownerUid};financial.set(view,financial.get(value));
+   point={actor:read.actor,record:view,reclamoKey:reclamo.fbKey,origin:route(),focus:root.document?.activeElement,scroll:root.document?.querySelector?.('.content')?.scrollTop};
    navigating=true;let opened=false;try{opened=root.svNavegarDirecto('detalle',()=>{if(!claimsPointView('detalle'))return;root.spCerrarModal?.();root.verVenta(value.fbKey);});}catch(error){reset();throw error;}finally{navigating=false;}
    if(opened!==true||!claimsPointView('detalle')){reset();return false;}const panel=root.document?.getElementById?.('venta-detalle-view');if(panel?.dataset)panel.dataset.svPostventaPoint='true';return true;
   },()=>intent===opening&&isCurrent()===true);}

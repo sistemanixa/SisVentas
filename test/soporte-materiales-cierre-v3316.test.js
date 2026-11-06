@@ -3,6 +3,15 @@ const src=require('./helpers/active-app').readActiveApp().source;
 function extract(name){const start=src.indexOf('function '+name+'(');const end=src.indexOf('\nfunction ',start+10);return src.slice(start,end);}
 const ctx={};vm.createContext(ctx);vm.runInContext(extract('_redondearPrecioActual'),ctx);vm.runInContext(extract('spIntegrarMaterialesOT'),ctx);
 const merge=(v,ot)=>JSON.parse(JSON.stringify(ctx.spIntegrarMaterialesOT(v,ot)));
+
+test('financialByKey conserva el original puntual exacto y mantiene owner del resumen sólo para la vista',async()=>{
+ for(const storedOwner of [false,true]){
+  const original={fbKey:'v',total:100,items:[{cod:'P',qty:1,punit:100}],audit:[{accion:'Original ficticio'}],...(storedOwner?{_svOwnerUid:'metadata-original'}:{})},calls=[];
+  const root={currentUserUid:'operator',currentRole:'vendedor',fbAuth:{currentUser:{uid:'operator'}},fbDB:{},PERMISOS_ROLES:{vendedor:{indiceRevision:1}},SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://fixture.invalid'},navigator:{onLine:true},document:{hidden:false,querySelector:()=>({id:'page-soporte'}),getElementById:()=>null,addEventListener(){}},SVCommercialOwnership:{request:async(domain,path)=>{assert.equal(domain,'ventas');assert.equal(path,'registro/v');calls.push(path);return {record:structuredClone(original)};}},SVCommercialPagesReader:require('../js/core/commercial-pages-reader.v1.js'),fbRef:(_,p)=>p,fbGet:async p=>({val:()=>p==='sv_commercial_pages_config'?{ready:true,schema:1,generation:'fixture'}:p.endsWith('/coverage')?{ready:true,schema:1,generation:'fixture',revision:1}:{key:'v',ownerUid:'operator',totalCents:10000,paidCents:0,balanceCents:10000}})};
+  const api=require('../js/core/postventa-demand-proposal.js').create(root),result=await api.begin().financialByKey('v');
+  assert.deepEqual(result,original);assert.equal(Object.hasOwn(result,'_svOwnerUid'),storedOwner);assert.equal(api.summary(result).ownerUid,'operator');assert.deepEqual(calls,['registro/v']);
+ }
+});
 test('agrega mano de obra existente y adicionales con centavos, sin modificar originales',()=>{const v={items:[{cod:'MO',qty:1,punit:96480,sub:96480}]};const ot={fbKey:'ot',materiales:[{cod:'C',adicionalOT:true,qty:2,punit:2557.1,desc:'Cable'}]};const out=merge(v,ot);assert.equal(out.length,2);assert.equal(out[1].sub,5114.2);assert.equal(v.items.length,1);assert.deepEqual(merge({items:out},ot),out);});
 test('mismo código en venta original y adicionales suma sólo la cantidad pendiente',()=>{const v={items:[{cod:'C',qty:2,punit:10,sub:20}]};const ot={materiales:[{cod:'C',vendida:2},{cod:'C',adicionalOT:true,qty:3,punit:12.25}]};const out=merge(v,ot);assert.equal(out[1].qty,3);assert.equal(out[1].sub,36.75);assert.deepEqual(merge({items:out},ot),out);});
 test('material ya incorporado manualmente no se duplica',()=>{const v={items:[{cod:'C',qty:3,punit:10}]};assert.equal(merge(v,{materiales:[{cod:'C',adicionalOT:true,qty:3,punit:10}]}).length,1);});
@@ -17,8 +26,19 @@ test('cerrar cobra o bonifica sólo mano de obra y persiste materiales y reclamo
    _svResolverVentaRegistro:()=>venta,_buscarOTCanonicaPorClave:()=>ot,otEstaCerrada:o=>o.estado==='completada',spVentaTieneDefinicionComercial:()=>false,
    svCrearProgresoBoton:()=>({finalizar(){}}),svFechaLocalISO:()=> '2026-09-05',spRenderLista(){},spActualizarMetricas(){},spAbrirModal(){},notify:m=>{if(m.startsWith('No se pudo'))throw Error(m);},
    window:{currentUserUid:'operator',currentRole:'vendedor',fbAuth:{currentUser:{uid:'operator'}},tienePermiso:p=>p==='soporte.resolver',fbDB:{},fbRef:(_,p)=>p||'',fbGet:async p=>({val:()=>p.includes('reclamos')?reclamo:p.includes('ordenes_trabajo')?ot:venta}),fbUpdate:async(p,data)=>writes.push({p,data})}};
+  // The active resolution checks the authorized original + financial coverage.
+  // Keep the real postventa reader, actor guards and sale writer; fake transport only.
+  const pointReads=[],read=c.window.fbGet;
+  c.window.document={hidden:false,querySelector:()=>({id:'page-soporte'}),getElementById:()=>null,addEventListener(){}};
+  c.window.navigator={onLine:true};c.window.PERMISOS_ROLES={vendedor:{indiceRevision:1}};c.window.SISVENTAS_FUNCTIONS={cotizadorProveedor:'https://fixture.invalid'};c.window.notify=c.notify;
+  c.window.SVCommercialOwnership={request:async(domain,path)=>{assert.equal(domain,'ventas');assert.equal(path,'registro/v');pointReads.push(path);return {record:structuredClone(venta)};}};
+  c.window.SVCommercialPagesReader=require('../js/core/commercial-pages-reader.v1.js');
+  c.window.fbGet=async path=>path==='sv_commercial_pages_config'?{val:()=>({ready:true,schema:1,generation:'fixture-close'})}:path==='sv_commercial_pages/v1/coverage'?{val:()=>({ready:true,schema:1,generation:'fixture-close',revision:1})}:path==='sv_commercial_pages/v1/records/sales/v'?{val:()=>({key:'v',ownerUid:'operator',totalCents:10000,paidCents:0,balanceCents:10000})}:read(path);
+  c.window.SVPostventaDemand=require('../js/core/postventa-demand-proposal.js').create(c.window);
+  vm.runInNewContext(fs.readFileSync('js/core/guarded-writes.js','utf8'),{window:c.window});
   c.window.SVSaleCosts ||= require('../js/core/sale-costs.v1.js').create({obtenerProductoPorCodigoVenta:()=>({compraARS:5}),obtenerCostoUnitarioVenta:()=>5});c.window.SVCommercialDocument ||= {preserve:r=>r};require('./helpers/sale-writer-fixture.cjs')(c.window);c.window.SisVentas={carga:{mostrar:()=>()=>{}}};vm.createContext(c);require('./helpers/app-functions.cjs').load(c,['_svCargaOperacion_otGuardarCorreccionProductos']);vm.runInContext(extract('spIntegrarMaterialesOT'),c);const start=src.indexOf('async function spConfirmarResolucionVisita('),end=src.indexOf('\nfunction ',start+10);vm.runInContext(src.slice(start,end),c);
   await c.spConfirmarResolucionVisita('r','v','MO',{querySelector:()=>({value:bonificada?'bonificada':'cobrada'}),remove(){}});
+  assert.deepEqual(pointReads,['registro/v','registro/v']);
   assert.equal(writes.length,1);assert.equal(writes[0].p,'');assert.equal(writes[0].data['sisventas/ventas/v/total'],bonificada?20.5:120.5);assert.equal(writes[0].data['sisventas/reclamos/r/estado'],'cerrado');assert.equal(writes[0].data['sisventas/ventas/v/items'][1].sub,20.5);
  }
 });

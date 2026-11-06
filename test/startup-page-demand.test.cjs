@@ -32,12 +32,13 @@ test('el ingreso no conecta ocho colecciones de pantallas sin visitar',()=>{
 
 test('cada pantalla inicia sus fuentes al navegar después del ingreso',()=>{
  const cases={equipos:['fbCargarEquipos','fbCargarClientes','fbCargarEmpleados'],informes:['fbCargarInformes','fbCargarClientes','fbCargarEmpleados'],
-  garantias:['fbCargarGarantias','fbCargarEquipos','fbCargarClientes','fbCargarVentas','fbCargarProductos'],soporte:['spCargar','fbCargarClientes','fbCargarOTs','fbCargarVentas','fbCargarEmpleados'],
+  garantias:['fbCargarGarantias','fbCargarEquipos','fbCargarClientes','fbCargarProductos'],soporte:['spCargar','fbCargarClientes','fbCargarOTs','fbCargarEmpleados'],
   remitos:['fbCargarRemitos','fbCargarClientes'],agenda:['fbCargarAgenda','fbCargarOTs'],
   servicios:['fbCargarServicios','fbCargarClientes'],caja:['fbCargarCaja'],vacaciones:['fbCargarEmpleados','fbCargarVacaciones']};
  for(const [page,expected] of Object.entries(cases)){
   const e=environment();e.c._fbCargaTodoActiva=true;e.c.svActualizarLecturasPorAccion(page);
   for(const name of expected)assert.ok(e.calls.includes(name),page+' requiere '+name);
+  if(['garantias','soporte'].includes(page))assert.equal(e.calls.includes('fbCargarVentas'),false,page+' no descarga historial de Ventas; consulta puntual al abrir el vínculo');
   for(const name of deferred.filter(n=>!expected.includes(n)))assert.ok(!e.calls.includes(name),page+' no requiere '+name);
  }
 });

@@ -7122,8 +7122,8 @@ function reservarSiguienteVentaId() {
 window.reservarSiguienteVentaId = reservarSiguienteVentaId;
 
 function fbCargarVentas() {
-  if(['soporte','garantias'].includes(_svPaginaDesdeRuta())||window.SVPostventaDemand?.claimsPointView('detalle'))return;
   if (!svPuedeLeerDominio('ventas')) return;
+  if(['soporte','garantias'].includes(_svPaginaDesdeRuta())||window.SVPostventaDemand?.claimsPointView('detalle'))return;
   if(window.SVCommercialPagesHost&&!window.SVCommercialPagesHost.ready&&window.fbDB&&window.fbAuth?.currentUser)return window.SVCommercialPagesHost.start(fbCargarVentas);
   if(window.SVCommercialPagesHost?.activeRoute())return window.SVCommercialPagesHost.ensure();
   if (!window.fbDB) return;
@@ -57256,12 +57256,62 @@ function garantiaClienteEscribiendo(inp) {
   filterDropGarantiaCliente(inp);
 }
 
-function garantiaCargarVentasCliente(cliente) {
+async function garantiaCargarVentasCliente(cliente) {
   var select = document.getElementById('ng2-venta');
   if (!select) return;
-  var ventas = cliente ? ventasValidasDeCliente(cliente) : [];
+  if (select._svGarantiaCleanup) select._svGarantiaCleanup();
+  window._garantiaVentasCliente = [];
+  select.disabled = true;
+  select.innerHTML = '<option value="">' + (cliente ? '— Verificando ventas del cliente… —' : '— Primero seleccioná un cliente —') + '</option>';
+  garantiaCargarEquiposVenta(null);
+  if (!cliente) return;
+  var modal = document.getElementById('modal-nuevo'), token = modal && modal._svFormToken;
+  var input = document.getElementById('ng2-cli'), key = input && input.dataset.clienteKey, nombre = input && input.value;
+  var intent = {}, active = true, readContext;
+  select._svGarantiaIntent = intent;
+  function current() {
+    return active && document.getElementById('modal-nuevo') === modal && modal.classList.contains('open') && modal._svFormToken === token &&
+      _modalTipo === 'garantia' && document.getElementById('ng2-venta') === select && select._svGarantiaIntent === intent &&
+      document.getElementById('ng2-cli') === input && input.dataset.clienteKey === key && input.value === nombre;
+  }
+  function clear() {
+    if (!active) return;
+    active = false;
+    window._garantiaVentasCliente = [];
+    select._svGarantiaCurrent = null;
+    select._svGarantiaCliente = null;
+    select._svGarantiaIntent = null;
+    select._svGarantiaEquipoIntent = null;
+    select._svGarantiaCleanup = null;
+    select.disabled = true;
+    select.innerHTML = '<option value="">— Primero seleccioná un cliente —</option>';
+    garantiaCargarEquiposVenta(null);
+    observer.disconnect();
+    events.forEach(function(event) { document.removeEventListener(event, clear); });
+  }
+  var events = ['sisventas:session-ended', 'sisventas:role-changed', 'sisventas:session-changed', 'sisventas:permissions-changed'];
+  var observer = new MutationObserver(function() { if (!current() || (readContext && !readContext.current())) clear(); });
+  observer.observe(modal, {attributes:true, attributeFilter:['class']});
+  events.forEach(function(event) { document.addEventListener(event, clear); });
+  select._svGarantiaCleanup = clear;
+  select._svGarantiaCurrent = function() { return current() && !!readContext && readContext.current(); };
+  select._svGarantiaCliente = cliente;
+  var ventas = await window.SVPostventaDemand.perform(async function(read) {
+    readContext = read;
+    try {
+      var rows = await read.complete();
+      read.assertCurrent();
+      return ventasValidasDeCliente(cliente, rows);
+    } catch(error) {
+      if (current() && error.name === 'AbortError') clear();
+      if (current()) select.innerHTML = '<option value="">— No se pudieron verificar las ventas —</option>';
+      throw error;
+    }
+  }, current);
+  if (!current()) return;
+  if (ventas === false) { window._garantiaVentasCliente = []; return; }
   window._garantiaVentasCliente = ventas;
-  select.innerHTML = '<option value="">' + (cliente ? (ventas.length ? '— Seleccionar venta —' : '— Este cliente no tiene ventas válidas —') : '— Primero seleccioná un cliente —') + '</option>';
+  select.innerHTML = '<option value="">' + (ventas.length ? '— Seleccionar venta —' : '— Este cliente no tiene ventas válidas —') + '</option>';
   ventas.forEach(function(v, indice) {
     var option = document.createElement('option');
     option.value = v.id || v.numero || v.fbKey || '';
@@ -57303,10 +57353,27 @@ function garantiaCargarEquiposVenta(venta) {
   select.disabled = items.length === 0;
 }
 
-function garantiaVentaSeleccionada(select) {
+async function garantiaVentaSeleccionada(select) {
   var option = select && select.selectedOptions && select.selectedOptions[0];
-  var indice = option && option.dataset.indiceVenta !== undefined ? parseInt(option.dataset.indiceVenta, 10) : -1;
-  garantiaCargarEquiposVenta(indice >= 0 ? (window._garantiaVentasCliente || [])[indice] : null);
+  garantiaCargarEquiposVenta(null);
+  if (!select || !select._svGarantiaCurrent || !select._svGarantiaCurrent()) { select?._svGarantiaCleanup?.(); return; }
+  var intent = {}, key = option && option.dataset.fbKey, cliente = select._svGarantiaCliente;
+  select._svGarantiaEquipoIntent = intent;
+  if (!key) return;
+  var current = function() { return select._svGarantiaCurrent?.() === true && select._svGarantiaEquipoIntent === intent && select.selectedOptions[0] === option; };
+  var equipos = document.getElementById('ng2-eq');
+  equipos.innerHTML = '<option value="">— Verificando equipo de la venta… —</option>';
+  await window.SVPostventaDemand.perform(async function(read) {
+    try {
+      var venta = await read.byKey(key); read.assertCurrent();
+      if (!ventasValidasDeCliente(cliente, [venta]).length) throw Error('La venta ya no es válida para este cliente.');
+      garantiaCargarEquiposVenta(venta);
+    } catch(error) {
+      if (error.name === 'AbortError' && select._svGarantiaEquipoIntent === intent && document.getElementById('ng2-venta') === select) select._svGarantiaCleanup?.();
+      if (current()) { garantiaCargarEquiposVenta(null); equipos.innerHTML = '<option value="">— No se pudo verificar el equipo —</option>'; }
+      throw error;
+    }
+  }, current);
 }
 
 function _gFilterDropSel(inputId, valor, fbKey) {
@@ -57355,9 +57422,9 @@ function pptoClienteEscribiendo(inp) {
   filterDrop('pp-cli','pp-drop');
 }
 
-function ventasValidasDeCliente(cli) {
+function ventasValidasDeCliente(cli, fuente) {
   if (!cli) return [];
-  return (ventasList || []).filter(function(v) {
+  return (Array.isArray(fuente) ? fuente : (ventasList || [])).filter(function(v) {
     var estado = String(v.estado || v.estadoVenta || '').toLowerCase();
     if (v.anulada || v.anulado || estado === 'anulada' || estado === 'anulado' || estado === 'cancelada') return false;
     return _svRegistroPerteneceCliente(v, cli, true);

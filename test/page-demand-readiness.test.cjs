@@ -2,12 +2,70 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const policy=require('../js/core/domain-read-policy.js');
 const {load}=require('./helpers/app-functions.cjs');
+test('ventas del cliente con fuente explícita conserva el criterio y no lee ventasList',()=>{
+ const c={_svRegistroPerteneceCliente:(row,cli)=>row.clienteFbKey===cli.fbKey};
+ Object.defineProperty(c,'ventasList',{get(){throw Error('No consultar caché global');}});
+ load(c,['ventasValidasDeCliente']);
+ const rows=[{id:'vieja',clienteFbKey:'c',fecha:'2026-01-01'},{id:'nueva',clienteFbKey:'c',fecha:'2026-02-01'},{id:'ajena',clienteFbKey:'otro'},{clienteFbKey:'c',estado:'cancelada'},{clienteFbKey:'c',anulada:true}];
+ assert.deepEqual(Array.from(c.ventasValidasDeCliente({fbKey:'c'},rows),v=>v.id),['nueva','vieja']);
+ assert.equal(c.ventasValidasDeCliente({fbKey:'c'},[]).length,0);
+});
+// Opt-in real HTML reproduction; does not run Chrome in the global Node gate.
+for(const width of [390,1280])test('Nueva garantía fría resuelve cliente y original fuera de memoria '+width,{skip:process.env.SV_GARANTIA_MANUAL_RUN!=='1'||!process.env.SV_GARANTIA_MANUAL_CHROME},async()=>{
+ const local=await require('./fixtures/postventa-full-app.cjs').start();let browser;
+ try{
+  browser=await require('playwright').chromium.launch({headless:true,executablePath:process.env.SV_GARANTIA_MANUAL_CHROME});const page=await browser.newPage({viewport:{width,height:900}});
+  await page.route('**/*',route=>new URL(route.request().url()).origin===local.url?route.continue():route.abort());
+  await page.goto(local.url);await page.waitForFunction(()=>window.__postventaQA?.ready&&SVDataReadiness.statusFor('soporte').ready);
+  await page.evaluate(()=>showPage('garantias'));await page.waitForFunction(()=>SVDataReadiness.statusFor('garantias').ready);
+  assert.equal(local.measures.length,0);assert.equal(await page.evaluate(()=>ventasList.length),0);
+  await page.locator('#page-garantias').getByRole('button',{name:'Nueva garantía',exact:true}).click();await page.locator('#modal-nuevo.open').waitFor();
+  await page.locator('#ng2-cli').fill('Cliente ficticio');await page.locator('#busq-drop-global').getByText('Cliente ficticio vigente',{exact:true}).click();
+  await page.waitForFunction(()=>!document.getElementById('ng2-venta').disabled&&document.getElementById('ng2-venta').options.length>1,{},{timeout:5000});
+  assert.deepEqual(local.measures.map(r=>r.path),['/comerciales/ventas']);
+  await page.locator('#ng2-venta').selectOption('V-FICTION-1');await page.waitForFunction(()=>!document.getElementById('ng2-eq').disabled&&document.getElementById('ng2-eq').options.length>1);
+  assert.deepEqual(local.measures.map(r=>r.path),['/comerciales/ventas','/comerciales/ventas/registro/sale1']);
+  assert.equal(await page.locator('#ng2-eq option').nth(1).getAttribute('data-producto-key'),'p');assert.equal(await page.evaluate(()=>ventasList.length),0);
+  assert.deepEqual(await page.evaluate(()=>__moduleAudit.writes),[]);assert.deepEqual(await page.evaluate(()=>__moduleAudit.errors),[]);assert.deepEqual(await page.evaluate(()=>__moduleAudit.blocked),[]);
+ }finally{await browser?.close();await local.close();}
+});
+for(const scenario of ['denied','client-changed','modal-closed','session-ended'])test('Nueva garantía fría descarta '+scenario,{skip:process.env.SV_GARANTIA_MANUAL_RUN!=='1'||!process.env.SV_GARANTIA_MANUAL_CHROME},async()=>{
+ const local=await require('./fixtures/postventa-full-app.cjs').start();let browser;
+ try{
+  browser=await require('playwright').chromium.launch({headless:true,executablePath:process.env.SV_GARANTIA_MANUAL_CHROME});const page=await browser.newPage({viewport:{width:390,height:900}});
+  await page.route('**/*',route=>new URL(route.request().url()).origin===local.url?route.continue():route.abort());
+  await page.goto(local.url);await page.waitForFunction(()=>window.__postventaQA?.ready&&SVDataReadiness.statusFor('soporte').ready);
+  await page.evaluate(()=>showPage('garantias'));await page.waitForFunction(()=>SVDataReadiness.statusFor('garantias').ready);
+  await page.locator('#page-garantias').getByRole('button',{name:'Nueva garantía',exact:true}).click();
+  if(scenario==='denied')await page.evaluate(()=>__postventaQA.mode('deny'));
+  await page.locator('#ng2-cli').fill('Cliente ficticio');await page.locator('#busq-drop-global').getByText('Cliente ficticio vigente',{exact:true}).click();
+  if(scenario==='denied'){
+   await page.waitForFunction(()=>document.getElementById('ng2-venta').textContent.includes('No se pudieron verificar'));
+   assert.equal(await page.locator('#ng2-venta').isDisabled(),true);assert.doesNotMatch(await page.locator('#ng2-venta').textContent(),/no tiene ventas/);
+  }else{
+   await page.waitForFunction(()=>!document.getElementById('ng2-venta').disabled);
+   await page.evaluate(()=>__postventaQA.mode('hold'));await page.locator('#ng2-venta').selectOption('V-FICTION-1');
+   await page.waitForFunction(async()=> (await __postventaQA.measures()).measures.length===2);
+   assert.equal(await page.locator('#ng2-eq').isDisabled(),true);assert.match(await page.locator('#ng2-eq').textContent(),/Verificando/);
+   // Session shutdown actively aborts transport; the other two cases verify an actual late HTTP response.
+   const delivered=scenario==='session-ended'?Promise.resolve():page.waitForResponse(response=>response.url().endsWith('/comerciales/ventas/registro/sale1'),{timeout:5000}).then(response=>response.finished());
+   if(scenario==='client-changed')await page.locator('#ng2-cli').fill('Otro cliente');
+   if(scenario==='modal-closed')await page.evaluate(()=>cerrarModalNuevoGenerico());
+   if(scenario==='session-ended')await page.evaluate(()=>{document.dispatchEvent(new Event('sisventas:session-ended'));});
+   await page.evaluate(()=>__postventaQA.release());await delivered;
+   await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,50)));
+   await page.waitForFunction(()=>document.getElementById('ng2-venta').disabled&&document.getElementById('ng2-eq').disabled&&window._garantiaVentasCliente.length===0);
+   assert.equal(await page.locator('#ng2-eq option').count(),1);
+  }
+  assert.equal(await page.evaluate(()=>ventasList.length),0);assert.deepEqual(await page.evaluate(()=>__moduleAudit.writes),[]);assert.deepEqual(await page.evaluate(()=>__moduleAudit.errors),[]);assert.deepEqual(await page.evaluate(()=>__moduleAudit.blocked),[]);
+ }finally{await browser?.close();await local.close();}
+});
 function setup(allowed=()=>true){
  const c={URL,window:{addEventListener(){},svPuedeLeerDominio:allowed},document:{addEventListener(){}},requestAnimationFrame(){}};
  vm.runInNewContext(fs.readFileSync('js/core/data-readiness.js','utf8'),c);return c.window.SVDataReadiness;
 }
-const pages={informes:['informes','clientes','empleados'],equipos:['equipos','clientes','empleados'],garantias:['garantias','equipos','clientes','ventas','productos'],
- soporte:['reclamos','clientes','ordenes_trabajo','ventas','empleados'],remitos:['remitos','clientes'],servicios:['servicios','clientes'],agenda:['agenda','ordenes_trabajo'],caja:['caja'],
+const pages={informes:['informes','clientes','empleados'],equipos:['equipos','clientes','empleados'],garantias:['garantias','equipos','clientes','productos'],
+ soporte:['reclamos','clientes','ordenes_trabajo','empleados'],remitos:['remitos','clientes'],servicios:['servicios','clientes'],agenda:['agenda','ordenes_trabajo'],caja:['caja'],
  historialcliente:['clientes','ventas','pagos','presupuestos','ordenes_trabajo','equipos','tickets','reclamos']};
 
 test('las pantallas a demanda esperan sus fuentes y un vacío confirmado sí libera su contenido',()=>{
@@ -219,11 +277,13 @@ test('la recuperación del directorio reducido funciona sin permiso de lectura d
  }
 });
 
-test('Nueva garantía espera clientes, ventas y catálogo aunque ya llegaron las garantías y equipos',()=>{
+test('Garantías espera clientes y catálogo en ambos órdenes; una venta puntual no sustituye esas fuentes',()=>{
+ for(const order of [['clientes','productos'],['productos','clientes']]){
  const e=renderedEnvironment('garantias');e.api.beginSource('garantias').ready();e.api.beginSource('equipos').ready();e.flush();
- assert.deepEqual(Array.from(e.api.statusFor('garantias').missing),['clientes','ventas','productos']);
- for(const key of ['clientes','ventas'])e.api.beginSource(key).ready();e.flush();assert.equal(e.page.classList.contains('sv-data-pending'),true);
- e.api.beginSource('productos').ready();e.flush();assert.equal(e.box(),null);
+ assert.deepEqual(Array.from(e.api.statusFor('garantias').missing),['clientes','productos']);
+ e.api.beginSource('ventas/registro/ficticia').ready();e.api.beginSource(order[0]).ready();e.flush();assert.equal(e.page.classList.contains('sv-data-pending'),true);
+ e.api.beginSource(order[1]).ready();e.flush();assert.equal(e.box(),null);
+ }
 });
 
 test('Soporte espera Reclamos, no se libera con Tickets y recupera la escucha real vencida',()=>{

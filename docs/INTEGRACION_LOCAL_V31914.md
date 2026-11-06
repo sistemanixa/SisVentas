@@ -14,7 +14,11 @@ Comisiones conserva exactamente los bytes publicados del módulo. La nueva aplic
 
 El primer cotejo de bytes de Comisiones detectó exclusivamente la conversión CRLF del checkout de Windows frente al archivo LF publicado. Se copiaron los bytes publicados exactos y se acreditó igualdad SHA256; no se alteró su lógica. Los informes previos rojos de las fuentes anteriores se conservan; sus verdes parciales no sustituyen una puerta conjunta de esta fuente.
 
-Falta congelar commit/inventario RAW y ejecutar la puerta vigente completa sobre ese estado inmóvil. No se acredita todavía una aceptación global.
+La primera puerta conjunta detectó ocho fallos (9.855 casos, 9.816 aprobados, 31 omitidos). Se conserva el informe rojo. Se corrigió el orden de comprobación de permisos, el recorrido manual de garantía y la separación entre el original financiero y los metadatos de consulta; no se modificaron escritores financieros ni se relajaron sus controles de concurrencia. Las expectativas de carga se actualizaron al contrato puntual, después de comprobar el formulario manual completo.
+
+La repetición visual posterior aprobó los 36 recorridos y seis casos adicionales de Nueva garantía: 42 aprobados, cero fallos u omisiones. Incluye cancelación, cierre, cambio de cliente y sesión finalizada. Cuatro pruebas independientes verifican que la lectura financiera conserva el original y rechaza responsables inconsistentes. Una selección explícita de cliente todavía puede leer la colección autorizada completa: no se presenta como una consulta histórica ya indexada por cliente.
+
+La puerta completa posterior está en ejecución. No se acredita todavía una aceptación global ni se publica esta candidata.
 
 ## Límites y estado externo
 
