@@ -3,6 +3,7 @@
 
   var detalleActual = null;
   var movimientosDetalle = {};
+  var ventaDetalleActual=null, lecturaDetalleComision=0, contextoCargaComision=null;
   var guardandoDetalle = false;
   var altaPendienteDetalle=null;
   var formatoMoneda = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -115,6 +116,7 @@
     ['pendientes','aprobadas','rechazadas','total'].forEach(function(id){var value=document.getElementById('com-kpi-'+id),sub=document.getElementById('com-kpi-'+id+'-sub');if(value)value.textContent='—';if(sub)sub.textContent='';});
   }
   function repintarComisionesPersonalesTrasDatos(){
+    if(contextoCargaComision&&!contextoDetalleComisionVigente(contextoCargaComision)){cerrarDetalleComision();return;}
     if(detallePersonalFoco&&!detallePersonalFoco.valid()){cerrarDetalleComision();return;}
     if(realCommissionAdmin()||document.hidden)return;
     var state=estadoDatosComisionesPersonales(),page=typeof document.querySelector==='function'&&document.querySelector('.page.active');
@@ -158,8 +160,45 @@
     return pct > 0 ? (parseFloat(gasto.monto) || 0) * 100 / pct : 0;
   }
 
+  function contextoDetalleComision(){
+    return [window.currentUserUid,window.currentRole,window.fbAuth&&window.fbAuth.currentUser,window.fbDB,window.SISVENTAS_FUNCTIONS&&window.SISVENTAS_FUNCTIONS.cotizadorProveedor,JSON.stringify(window.PERMISOS_ROLES&&window.PERMISOS_ROLES[window.currentRole]||null),document.querySelector('.page.active')?.id||''];
+  }
+  function contextoDetalleComisionVigente(actor,permitirOculta){
+    var now=contextoDetalleComision();return !!actor&&!!actor[0]&&actor[2]?.uid===actor[0]&&!!actor[3]&&realCommissionAdmin()&&(permitirOculta||!document.hidden)&&actor.every(function(value,index){return value===now[index];});
+  }
+  async function consultarVentaDetalleComision(grupo,actor,intent){
+    if(!contextoDetalleComisionVigente(actor)||!window.SVCommercialOwnership?.request)throw new Error('Verificá tu sesión antes de consultar la venta.');
+    var key=String(grupo.ventaFbKey||'');
+    if(!key){var matches=(window.ventasList||[]).filter(function(v){return String(v.id||v.numero||'')===String(grupo.ventaId||'');});if(matches.length===1)key=String(matches[0].fbKey||'');}
+    if(!key||/[.#$\[\]\/\x00-\x1f\x7f]/.test(key)||key.length>768)throw new Error('La comisión necesita una referencia inequívoca de venta. Abrí la venta vinculada para revisarla.');
+    var result=await window.SVCommercialOwnership.request('ventas','registro/'+encodeURIComponent(key));
+    if(detalleActual!==grupo||intent!==lecturaDetalleComision||!contextoDetalleComisionVigente(actor))throw Object.assign(new Error('La consulta cambió.'),{name:'AbortError'});
+    var sale=result&&result.record;if(!sale||typeof sale!=='object'||Array.isArray(sale)||sale._svListSummary||sale._svPagedSummary||sale.fbKey!=null&&sale.fbKey!==key)throw new Error('No se pudo verificar la venta completa.');
+    var normalize=function(v){return String(v||'').replace(/^#/,'').trim().toUpperCase();};
+    if(grupo.ventaId&&normalize(sale.id||sale.numero)!==normalize(grupo.ventaId))throw new Error('La venta consultada no coincide con la comisión.');
+    return Object.assign({},sale,{fbKey:key});
+  }
+  function resumenOriginalComision(venta,grupo){
+    var ajustes=(grupo?.items||[]).filter(function(g){return estado(g)!=='rechazado'&&g.baseComisionAjustada;});
+    if(ajustes.length){
+      var snapshot=ajustes[0].baseComisionAjustada,money=window.SVCommercialMoney;
+      var validSnapshot=function(g){var a=g.baseComisionAjustada;return a&&a.schema===1&&a.ventaFbKey===venta.fbKey&&['neto','costo','costoManoObra','ganancia','pct','monto'].every(function(k){return typeof a[k]==='number'&&Number.isFinite(a[k])&&a[k]>=0;})&&a.costoManoObra<=a.costo&&money.sum([a.neto,-a.costo])===a.ganancia&&money.percentage(a.ganancia,a.pct)===a.monto&&g.gananciaBase===a.ganancia&&g.pct===a.pct&&g.monto===a.monto&&a.neto===snapshot.neto&&a.costo===snapshot.costo;};
+      if(ajustes.length!==(grupo?.items||[]).filter(function(g){return estado(g)!=='rechazado';}).length||!ajustes.every(validSnapshot))throw new Error('La base ajustada de la comisión requiere revisión.');
+      var actual=window.SisVentas?.V3?.SalesReadModel?.saleEconomic(venta);
+      if(!actual?.ready||actual.taxableBase!==snapshot.neto)throw new Error('La venta cambió respecto de la base ajustada. Revisá la comisión.');
+      return {baseNeta:snapshot.neto,costoTotal:snapshot.costo,costoManoObra:snapshot.costoManoObra,ganancia:snapshot.ganancia,descuento:money.sum([actual.lineDiscount,actual.generalDiscount]),ajustada:true};
+    }
+    var economic=window.SisVentas?.V3?.SalesReadModel?.saleEconomic(venta),items=Object.values(venta&&venta.items||{});
+    if(!economic?.ready||!items.length)throw new Error('No se pudieron verificar los importes originales de la venta.');
+    var valid=function(v){return v!==''&&v!==null&&v!==undefined&&Number.isFinite(Number(v))&&Number(v)>=0;};
+    if(items.some(function(item){return item.comisionCostoHistoricoPendiente===true||!['costoUnitarioAntesPreparacion','costoUnitarioPresupuestado','costoTotalCompra','costoTotal','costo','costoUnitarioCompra','costoUnitario','costoCompra','compra','precioCompra','precio_compra'].some(function(k){return valid(item[k]);})&&!(valid(item.costoUnitarioUSD)&&valid(item.cotizacionUsada)&&Number(item.cotizacionUsada)>0);}))throw new Error('Hay costos originales sin confirmar. Revisá la venta antes de distribuir la comisión.');
+    var calculation=window._calcularBaseComisionVenta(Object.assign({},venta,{items:items}));
+    if(!Number.isFinite(calculation.costoTotal)||calculation.costoTotal<0)throw new Error('No se pudo verificar el costo original.');
+    return Object.assign({},calculation,{baseNeta:economic.taxableBase,descuento:window.SVCommercialMoney.sum([economic.lineDiscount,economic.generalDiscount]),ganancia:window.SVCommercialMoney.sum([economic.taxableBase,-calculation.costoTotal])});
+  }
   function ventaDelGrupo(grupo) {
     if (!grupo) return null;
+    if(ventaDetalleActual&&ventaDetalleActual.grupo===grupo&&contextoDetalleComisionVigente(ventaDetalleActual.actor))return ventaDetalleActual.venta;
     return (window.ventasList || []).find(function (venta) {
       return (grupo.ventaFbKey && String(venta.fbKey || '') === String(grupo.ventaFbKey)) ||
         (grupo.ventaId && String(venta.id || venta.numero || '') === String(grupo.ventaId));
@@ -337,7 +376,8 @@
   async function abrirDetalleComision(clave) {
     detalleActual = grupos().find(function (g) { return g.clave === String(clave); }) || null;
     if (!detalleActual) { window.notify('No se encontró la comisión'); return; }
-    movimientosDetalle = {};
+    movimientosDetalle = {};ventaDetalleActual=null;
+    var intent=++lecturaDetalleComision,actor=contextoDetalleComision();
     var grupoCargando = detalleActual;
     var modal = document.getElementById('modal-comision-gestion');
     var info = document.getElementById('com-det-info');
@@ -348,16 +388,21 @@
     if (modal) modal.style.display = 'flex';
     if(!realCommissionAdmin()){detallePersonalClave=detalleActual.clave;pintarDetallePersonal();detalleActual=null;movimientosDetalle={};return;}
     if(guardar)guardar.style.display='';
+    if(!contextoDetalleComisionVigente(actor)){if(info)info.textContent='Iniciá sesión nuevamente para consultar la venta.';return;}
+    contextoCargaComision=actor;
     try {
-      var movimientos = await Promise.all(grupoCargando.items.map(cargarMovimiento));
-      if (detalleActual !== grupoCargando) return;
+      var values=await Promise.all([Promise.all(grupoCargando.items.map(cargarMovimiento)),consultarVentaDetalleComision(grupoCargando,actor,intent)]);
+      var movimientos=values[0];
+      if (detalleActual !== grupoCargando||intent!==lecturaDetalleComision||!contextoDetalleComisionVigente(actor)) return;
+      ventaDetalleActual={grupo:grupoCargando,actor:actor,venta:values[1]};
       grupoCargando.items.forEach(function(g,i) { movimientosDetalle[g.fbKey] = movimientos[i]; });
       pintarDetalle();
       if (guardar) guardar.disabled = false;
     } catch (error) {
-      console.error('No se pudo cargar el detalle de la comisión', error);
-      if (detalleActual !== grupoCargando) return;
-      if (info) info.textContent = 'No se pudo cargar el detalle. Cerrá esta ventana e intentá nuevamente.';
+      if (error.name==='AbortError'){if(detalleActual===grupoCargando&&intent===lecturaDetalleComision&&contextoDetalleComisionVigente(actor,true)&&info)info.textContent='La consulta se interrumpió. Cerrá y volvé a abrir la comisión para reintentar.';return;}
+      if(detalleActual !== grupoCargando||intent!==lecturaDetalleComision||!contextoDetalleComisionVigente(actor))return;
+      ventaDetalleActual=null;
+      if (info) info.textContent = error.message || 'No se pudo cargar el detalle. Cerrá esta ventana e intentá nuevamente.';
       window.notify('No se pudo consultar la comisión. Podés seguir en el listado e intentar nuevamente.');
       return;
     }
@@ -373,10 +418,10 @@
     var suma = activos.reduce(function (s,g) { return s + porcentaje(g, movimientosDetalle[g.fbKey]); }, 0);
     var base = detalleActual.items.reduce(function (valor,g) { return valor || baseGanancia(g, movimientosDetalle[g.fbKey]); }, 0);
     var info = document.getElementById('com-det-info');
-    var venta=ventaDelGrupo(detalleActual); var calculo=venta&&typeof window._calcularBaseComisionVenta==='function'?window._calcularBaseComisionVenta(venta):null;
+    var venta=ventaDelGrupo(detalleActual); var calculo=resumenOriginalComision(venta,detalleActual);
     var neto=calculo?calculo.baseNeta:0; var costo=calculo?calculo.costoTotal:Math.max(0,neto-base); var descuento=calculo?calculo.descuento:0;
     var margenAntes=neto>0?base/neto*100:0;
-    if (info) info.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px"><strong>Resumen de la venta</strong><span style="font-size:11px;color:var(--text3)">La comisión excluye el ahorro posterior en compras.</span>'+(detalleActual.ventaId?'<button class="btn btn-sm" onclick="abrirVentaDesdeComisiones()"><i class="ti ti-external-link"></i> Ver venta</button>':'')+'</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding-bottom:10px;border-bottom:0.5px solid var(--border)"><div><span style="font-size:10px;color:var(--text3)">VENTA NETA</span><strong style="display:block;margin-top:3px">'+moneda(neto)+'</strong></div><div><span style="font-size:10px;color:var(--text3)">DESCUENTO</span><strong style="display:block;margin-top:3px;color:var(--red)">'+moneda(descuento)+'</strong></div><div><span style="font-size:10px;color:var(--text3)">COSTO</span><strong style="display:block;margin-top:3px">'+moneda(costo)+'</strong></div><div><span style="font-size:10px;color:var(--text3)">MARGEN ORIGINAL</span><strong style="display:block;margin-top:3px">'+margenAntes.toLocaleString('es-AR',{maximumFractionDigits:1})+'%</strong></div></div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding-top:10px"><div><span style="font-size:10px;color:var(--text3)">GANANCIA BASE</span><strong style="display:block;margin-top:3px">' + moneda(base) + '</strong></div><div><span style="font-size:10px;color:var(--text3)">REPARTO ACTIVO</span><strong id="com-resumen-reparto" style="display:block;margin-top:3px;color:' + (suma>maxPct?'var(--red)':'var(--green)') + '">' + suma.toLocaleString('es-AR') + '% / ' + maxPct + '%</strong></div><div><span style="font-size:10px;color:var(--text3)">COMISIONES</span><strong id="com-resumen-monto" style="display:block;margin-top:3px;color:var(--amber)">'+moneda(base*suma/100)+'</strong></div><div><span style="font-size:10px;color:var(--text3)">MARGEN DESPUÉS</span><strong id="com-resumen-margen" data-neto="'+neto+'" data-ganancia="'+base+'" data-max="'+maxPct+'" style="display:block;margin-top:3px">—</strong></div></div>';
+    if (info) info.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px"><strong>Resumen de la venta</strong><span style="font-size:11px;color:var(--text3)">Base registrada de la comisión. La consulta no modifica el importe aprobado.</span>'+(detalleActual.ventaId?'<button class="btn btn-sm" onclick="abrirVentaDesdeComisiones()"><i class="ti ti-external-link"></i> Ver venta</button>':'')+'</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding-bottom:10px;border-bottom:0.5px solid var(--border)"><div><span style="font-size:10px;color:var(--text3)">VENTA NETA</span><strong style="display:block;margin-top:3px">'+moneda(neto)+'</strong></div><div><span style="font-size:10px;color:var(--text3)">DESCUENTO</span><strong style="display:block;margin-top:3px;color:var(--red)">'+moneda(descuento)+'</strong></div><div><span style="font-size:10px;color:var(--text3)">'+(calculo.ajustada?'COSTO DE CÁLCULO':'COSTO ORIGINAL')+'</span><strong style="display:block;margin-top:3px">'+moneda(costo)+'</strong></div><div><span style="font-size:10px;color:var(--text3)">'+(calculo.ajustada?'MARGEN DE CÁLCULO':'MARGEN ORIGINAL')+'</span><strong style="display:block;margin-top:3px">'+margenAntes.toLocaleString('es-AR',{maximumFractionDigits:1})+'%</strong></div></div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding-top:10px"><div><span style="font-size:10px;color:var(--text3)">GANANCIA BASE</span><strong style="display:block;margin-top:3px">' + moneda(base) + '</strong></div><div><span style="font-size:10px;color:var(--text3)">REPARTO ACTIVO</span><strong id="com-resumen-reparto" style="display:block;margin-top:3px;color:' + (suma>maxPct?'var(--red)':'var(--green)') + '">' + suma.toLocaleString('es-AR') + '% / ' + maxPct + '%</strong></div><div><span style="font-size:10px;color:var(--text3)">COMISIONES</span><strong id="com-resumen-monto" style="display:block;margin-top:3px;color:var(--amber)">'+moneda(base*suma/100)+'</strong></div><div><span style="font-size:10px;color:var(--text3)">MARGEN DESPUÉS</span><strong id="com-resumen-margen" data-neto="'+neto+'" data-ganancia="'+base+'" data-max="'+maxPct+'" style="display:block;margin-top:3px">—</strong></div></div>';
     var cont = document.getElementById('com-det-participantes');
     if (cont) cont.innerHTML = detalleActual.items.map(function (g) {
       var est = estado(g); var pct = porcentaje(g, movimientosDetalle[g.fbKey]); var pagada = est === 'pagado' || est === 'pagado_parcial';
@@ -429,7 +474,7 @@
   }
 
   function cerrarDetalleComision() {
-    altaPendienteDetalle=null;
+    altaPendienteDetalle=null;ventaDetalleActual=null;contextoCargaComision=null;lecturaDetalleComision++;
     var focus=detallePersonalFoco;detallePersonalFoco=null;detallePersonalClave='';
     if(focus&&typeof document.removeEventListener==='function')document.removeEventListener('keydown',focus.keyboard,true);
     var modal=document.getElementById('modal-comision-gestion');if(modal)modal.style.display='none';detalleActual=null;movimientosDetalle={};
@@ -531,6 +576,7 @@
   window.actualizarBadgeComisiones=actualizarBadgeComisiones;
   document.addEventListener('sisventas:session-ready', actualizarBadgeComisiones);
   document.addEventListener('sisventas:role-changed', limpiarComisionesDeSesion);
+  ['sisventas:page-changed','sisventas:permissions-changed'].forEach(function(name){document.addEventListener(name,function(){if(contextoCargaComision&&!contextoDetalleComisionVigente(contextoCargaComision))cerrarDetalleComision();});});
   document.addEventListener('sisventas:data-state-changed', repintarComisionesPersonalesTrasDatos);
   document.addEventListener('sisventas:session-ended', function() {
     limpiarComisionesDeSesion();

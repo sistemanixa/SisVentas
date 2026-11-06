@@ -8,7 +8,8 @@ function entorno(origen = 'gastos') {
   const modal = {style:{display:'none'}};
   const pagina = {id:'page-' + origen};
   const calls = [];
-  const window = {currentRole:'admin',permisoModulo:()=>true,gastosData:[{fbKey:'g1',tipo:'comision',ventaId:'V1',monto:100}],
+  const original={fbKey:'V1',id:'V1',items:[{qty:1,punit:100,sub:100,costoTotalCompra:50}],subtotal:100,total:100,iva:0,conIva:false};
+  const window = {currentRole:'admin',currentUserUid:'u',fbAuth:{currentUser:{uid:'u'}},fbDB:{},PERMISOS_ROLES:{admin:{indiceRevision:1}},SVCommercialMoney:require('../js/core/commercial-money.v1'),SisVentas:{V3:{SalesReadModel:require('../js/v3/sales-read-model')}},SVCommercialOwnership:{request:async()=>({record:original})},_calcularBaseComisionVenta:()=>({costoTotal:50,costoManoObra:0}),permisoModulo:()=>true,gastosData:[{fbKey:'g1',tipo:'comision',ventaId:'V1',ventaFbKey:'V1',monto:100}],
     showPage(){throw new Error('No debe cambiar de módulo al consultar');},
     notify(m){calls.push(m);}, irAVentaDesdeGastoComision(key){calls.push(key);},
     svNavegarDirecto(id, callback){calls.push(id);callback();},

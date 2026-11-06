@@ -1,0 +1,11 @@
+# Detalle de comisiones: lectura puntual y base registrada
+
+La vista administrativa consultaba la venta únicamente en el listado cargado en memoria. Si todavía no se había abierto Ventas o Cuenta Corriente, mostraba ceros aunque el gasto conservase una comisión calculada. Ahora solicita el original vinculado al abrir el detalle y valida identidad, sesión, permisos y vigencia antes de presentarlo. No incorpora ese original al listado global ni descarga el historial.
+
+El resumen calcula neto y descuentos con el modelo comercial compartido. Los costos originales incompletos producen un aviso identificable; no se sustituyen por cero ni por el catálogo actual. Las respuestas tardías no repintan otra sesión, pantalla o comisión. La consulta no ejecuta pagos, regeneraciones ni cambios de aprobación.
+
+Un ajuste puntual autorizado puede conservar un snapshot `baseComisionAjustada` en los registros de esa comisión. La vista comprueba sus importes, porcentaje, vínculo y coherencia con el neto de la venta antes de mostrarlo. Reabrir el detalle conserva esa base registrada. Esto no cambia la política general de generación ni recalcula otras comisiones; la corrección de datos tiene su respaldo y ejecución independiente, fuera del código público.
+
+Validación focal inicial: 16 casos aprobados, incluidos reapertura del ajuste, metadatos incoherentes, rechazo de venta ajena y cambios de sesión/permisos. Las fixtures existentes incorporan una identidad ficticia completa y el contrato de consulta puntual; no se relajan los controles de privacidad. Versión local 3.19.13 coherente. QA de navegador, puerta congelada y publicación aún pendientes en este checkpoint. No afirmar ejecución del ajuste real a partir de estas pruebas.
+
+Actualización:75 casos focales y6 recorridos Chrome reales ficticios aprobados. El ajuste puntual autorizado se confirmó por separado mediante el guard existente y reglas sin cambios; se verificaron registros, proyección, recibo y liberación del guard, sin ejecutar pago ni cambiar la venta. El primer intento se detuvo localmente antes del commit por omitir un resumen derivado en el control de alcance; se verificó ausencia de cambios antes de completar el alcance correcto. No se publican los registros o respaldos privados. Pendientes: puerta completa congelada, Hosting y comprobación web.

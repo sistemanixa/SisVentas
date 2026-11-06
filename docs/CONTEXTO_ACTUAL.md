@@ -1,3 +1,10 @@
+## Comisión: ajuste puntual confirmado; publicación UI pendiente · 06/11/2026
+
+Corrección humana específica aplicada por guard existente con respaldo privado, precondiciones, proyecciones y recibo; aprobación, porcentaje y venta conservados, sin ejecutar pago. Comprobación posterior de ambos registros y resumen coherente, guard liberado.11pruebasplan y emuladorreglasexactas con2negativos yreplayPASS. UI75focales+6ChromePASS; fuente31913sinotrosbloques. Faltafreeze/gate/Hosting/aviso yQAweb; no confundirajustedatosconpublicación. Evidencia privada fueraGit. VerCOMISIONES_DETALLE_V31913.md.
+
+## Comisión: detalle puntual v3.19.13 preparado · 06/11/2026
+
+Urgencia humana verificada: corregir/publicar detalle y ajustar puntualmente la base de una comisión aprobada sin pagar, sin modificar otras comisiones ni ejecutar pago. Checkout aislado sobre65e5bcee; contexto de producción31911 y servidorpresentation3198 conservados. UI consulta original autorizado al abrir, no depende de Ventas/CC precargadas, conserva aprobación y admite snapshot puntual coherente. Ver COMISIONES_DETALLE_V31913.md.16focalesPASS, coherencia localversion/sintaxisPASS; faltanQAChrome,freeze/gate/publicación. Datos y plan de corrección sólo privados; todavía no aplicados en este checkpoint. No se incorporan Presentación/Compartir31912, Soporte, eliminaciones ni Tecnoprices.
 ## Hotfix Cuenta corriente v3.19.11 preparado · 06/11/2026
 
 Urgencia humana autorizada: corregir y publicar carga CC, sin datos reales. Base exacta publicada477c9af4; checkout aislado codex/cc-ready-hotfix-v31911. Se integra únicamente client-account-legacy-reconcile.v1.js del bloque local b1cf32fe, sin incorporar Presentación31910/Compartir, eliminaciones ni Tecnoprices. Callback comercial conciliaba antes de ready; al completarse readiness no repintaba. Reproducción con ownership/readiness real acredita que sin helper queda Cargando; el helper repinta una vez por evento/cambio válido sin nuevas consultas, respetando fuentes legibles, host nativo y revocaciones.

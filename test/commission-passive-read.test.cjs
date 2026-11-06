@@ -29,6 +29,7 @@ function setup(records = []) {
  const window = {
   currentUser:'Administrador ficticio',currentUserUid:'fixture-admin',currentRole:'admin',
   gastosData:structuredClone(records), empData:{}, ventasList:[], APROBACION_CONFIG:{maxComisionPct:10},
+  fbAuth:{currentUser:{uid:'fixture-admin'}},PERMISOS_ROLES:{admin:{indiceRevision:1}},SVCommercialMoney:require('../js/core/commercial-money.v1'),SisVentas:{V3:{SalesReadModel:require('../js/v3/sales-read-model')}},SVCommercialOwnership:{request:async(domain,path)=>{assert.equal(domain,'ventas');assert.equal(path,'registro/fixture-sale');return{record:{fbKey:'fixture-sale',id:'VENTA FICTICIA',items:[{qty:1,punit:2000,sub:2000,costoTotalCompra:1000}],subtotal:2000,total:2000,iva:0,conIva:false}};}},_calcularBaseComisionVenta:()=>({costoTotal:1000,costoManoObra:0}),
   tienePermiso:()=>true,permisoModulo:()=>true,fbDB:{},fbRef:(_,p)=>p,
   svNavegarDirecto:id=>{calls.navigation.push(id);return true;},
   fbGet:async p=>{calls.gets.push(p);return {val:()=>({})};},
