@@ -1,3 +1,6 @@
+## Candidata conjunta local3.19.14 preparada · 06/11/2026
+
+Base6a5b970c/publicada13, integracheckpoint54cd99a3 local12 sin perderComisiones: módulo byteexacto7bf5314bb20815c54d0c152fa89bfb8e241811fdf89c395e531ab0d7d39d26f6.36ChromeconjuntosPASS/0FAIL/0SKIP(20PresentaciónCompartir+10Soporte+6Comisiones),56focales+7fixture+12contratosTecnopricesPASS. Sintaxis/diff/versionlocal14PASS. VerINTEGRACION_LOCAL_V31914.md. Faltafreeze/RAW/puertacompleta; fuente no servida a sesión humana. Producción13yservidorpresentation3198sin cambios. No datos reales, publicación, push o activación por este bloque. ContenedorTecnoprices sinmotor yeliminacionesOFFsonlímitesacotados; no dar auditoría global cerrada. PropuestaOT53b1aisladafuera de esta candidata.
 ## QA autenticada de Comisiones3.19.13 aprobada · 06/11/2026
 
 Owner recargó únicamente IAB Comisiones y confirmóapp3.19.13; sin entrarVentas/CC abriódetalle objetivo en frío, verificó neto/descuento/costo/base/porcentaje/importe/MO y estado aprobado falta pagar. Cerrar/reabrir conservó valores y no hubo erroresJS. Modalvisiblealterminar;0Guardar/Agregar/Rechazar/Abonar y0operacionesfinancierasdeprueba. ChromeconOT179no recargado. Esto verifica ese recorrido real, no toda gestión financiera ni cierre de auditoría global.

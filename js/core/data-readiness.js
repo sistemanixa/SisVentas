@@ -68,8 +68,8 @@
     ordentrabajo:['ordenes_trabajo','clientes','productos'],
     balancecompra:['ventas','presupuestos','productos','proveedores'],ordenes:['productos','proveedores'],
     proveedores:['proveedores'],empleados:['empleados'],usuarios:['usuarios'],
-    informes:['informes','clientes','empleados'],equipos:['equipos','clientes','empleados'],garantias:['garantias','equipos','clientes','ventas','productos'],
-    soporte:['reclamos','clientes','ordenes_trabajo','ventas','empleados'],remitos:['remitos','clientes'],servicios:['servicios','clientes'],
+    informes:['informes','clientes','empleados'],equipos:['equipos','clientes','empleados'],garantias:['garantias','equipos','clientes','productos'],
+    soporte:['reclamos','clientes','ordenes_trabajo','empleados'],remitos:['remitos','clientes'],servicios:['servicios','clientes'],
     agenda:['agenda','ordenes_trabajo'],caja:['caja'],
     historialcliente:['clientes','ventas','pagos','presupuestos','ordenes_trabajo','equipos','tickets','reclamos']
   };
@@ -78,6 +78,7 @@
     if(page==='cuentacorriente'&&global.SVClientAccountHost?.claimed===true)return ['clientAccounts'];
     if(page==='notificaciones'&&global.SV_BUDGET_NOTICES_LOCAL===true&&(typeof global.svPuedeLeerDominio!=='function'||global.svPuedeLeerDominio('presupuestos')))return ['dashboardBudgetNotices'];
     if(global.SV_BUDGET_NOTICES_LOCAL===true&&global._svBudgetNoticeDetailHost?.claimsPointView(page))return ['budgetNoticeDetail'];
+    if(global.SVPostventaDemand?.claimsPointView(page)===true)return [];
     if(global.SVClientHistoryOriginalRuntime?.claimsPointView(page)===true)return ['historyPointDetail'];
     if(page==='historialcliente'&&global.SVClientHistoryRuntime?.claimed===true)return ['historialcliente'];
     var keys=global.SVCommercialFormData?.requirements(page)||(dependencies[page]||[]).slice();

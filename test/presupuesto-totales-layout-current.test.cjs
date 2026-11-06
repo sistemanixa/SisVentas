@@ -12,5 +12,5 @@ for(const detail of [false,true])for(const image of [false,true])for(const long 
  assert.equal((html.match(/class="ppto-summary-cell"/g)||[]).length,1);assert.doesNotMatch(summary[2],/Ganancia|Costo/);
 });
 test('download/share/native print retain a single existing source and complete PDF capture',async()=>{
- const {html}=await render();assert.match(html,/imprimirVistaPresupuesto\(this\)/);assert.match(html,/generarPdfPresupuesto\(\'descargar\',this\)/);assert.match(html,/generarPdfPresupuesto\(\'compartir\',this\)/);assert.match(html,/var blob=await crearPdfCompleto\(elementoCaptura,opciones\);if\(modo==="compartir"\)/);assert.match(html,/width:794px/);assert.match(html,/atomicSelectors:"\.info-box,\.tfoot-row,\.footer"/);
+ const {html}=await render();assert.match(html,/imprimirVistaPresupuesto\(this\)/);assert.match(html,/generarPdfPresupuesto\(\'descargar\',this\)/);assert.match(html,/generarPdfPresupuesto\(\'compartir\',this\)/);assert.match(html,/var blob=await crearPdfCompleto\(elementoCaptura,opciones\);if\(captura&&captura\.host\)\{captura\.host\.remove\(\);captura=null;\}if\(modo==="compartir"\)/);assert.match(html,/width:794px/);assert.match(html,/atomicSelectors:"\.info-box,\.tfoot-row,\.footer"/);
 });

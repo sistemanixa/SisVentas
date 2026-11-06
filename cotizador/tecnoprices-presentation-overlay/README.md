@@ -1,0 +1,43 @@
+# Tecnoprices sobre Presentación: candidata local
+
+Este contexto Docker es autocontenido: sólo `Dockerfile`, aplicador y helper público. No copiar aquí el entrypoint privado, imágenes, datos ni credenciales. No usar el Dockerfile general de Cotizador para este alcance.
+
+La base es exclusivamente la imagen de Presentación `813a22a1b2614280109ddecd2320c5ac9a768963c8cc2cf80bc6e00f52ef813b`. No se consultó el registro ni se construyó o desplegó una imagen en esta preparación. El digest identifica la imagen indicada por el coordinador; la comprobación de bytes se hizo con la referencia local conservada.
+
+El aplicador exige el entrypoint SHA256 `c20743a481d1c51fed8e1631aec015ca12f4cf7ed10dc914015d57e3b652c9eb`, derivado exactamente del baseline `50e9a049d412515ad4062af0acb793b9a268d3919da97376e4f4dbd66c7bee85` mediante el overlay original de Presentación. Conserva sus finales de línea mixtos. El resultado compuesto es `bff5551748755a7ea7370b6c213dca89d9ba817419269c468a7a8a3de8efbb0c`; revertir reconstruye exactamente el SHA de entrada. Rechaza aplicación duplicada, bases diferentes y reversión de un resultado alterado.
+
+Sólo cambia tres sitios dentro de `cotizarProveedorConLogin`: login Tecnoprices, comprobación de sesión antes de precio y error breve/invalidez de caché. Todos los bytes externos a esa función, incluidos endpoint y autorización de Presentación, permanecen intactos. Free Electron conserva su rama. El helper es el blob exacto del cierre `b1cf32fe`, SHA256 `61de81562c642a3481eab004dbe328242779642961855263acda5c9e96b9c322`.
+
+El Dockerfile no declara ENV, CMD, ENTRYPOINT, USER ni puertos; hereda la imagen base. Recursos, cuenta, configuración y flags del servicio quedan fuera del artefacto y no se han modificado. Este overlay no incorpora el runtime nuevo de eliminaciones ni habilita capacidades. Conservar los flags OFF es también condición de cualquier despliegue futuro; el código no acredita por sí solo la configuración externa.
+
+## Verificación y reversión
+
+El contexto para una futura construcción revisada es esta carpeta, no la raíz del repositorio. Una construcción fallará si el entrypoint o helper no coinciden con las huellas fijadas. No se ejecutó Docker durante esta preparación.
+
+Dentro de una copia de la imagen compuesta, `node /app/tecnoprices-overlay-attach.cjs verify /app/index.js` comprueba helper y reversibilidad sin escribir. `revert` reconstruye el entrypoint anterior, y `apply` aplica el delta sobre esa base exacta. No ejecutar estos comandos sobre una instancia productiva como procedimiento de despliegue. La reversión operativa futura debe devolver tráfico a la revisión previa de Presentación y conservar su configuración.
+
+Prueba ligera: `node --test test/tecnoprices-presentation-overlay.test.cjs`. Las comprobaciones de la referencia privada se habilitan con `SV_PRESENTATION_ENTRYPOINT_FILE`, `SV_PRESENTATION_BASELINE_FILE` y `SV_PRESENTATION_SOURCE_ROOT` apuntando a las copias locales revisadas. Sin esas tres entradas se omiten explícitamente; no presentarlas como aprobadas. Las pruebas no abren navegador, red o emulador: ejecutan el helper y el scraper compuesto con transporte sintético, verifican autorización del módulo real de Presentación y comparan bytes/reversión.
+
+Límites: sin construcción de contenedor, imagen remota, TLS, login real de Tecnoprices ni verificación remota de configuración. No hay autorización de publicación o activación de eliminaciones. Antes de publicar: revisar el artefacto combinado construido y sus dependencias, comprobar el baseline vigente, probar rutas y regresiones pertinentes, fijar revisión/configuración/rollback exactos y obtener autorización para ese alcance.
+
+## Reanudación: dependencia local y contrato de contenedor
+
+La revisión posterior encontró este worktree limpio en `52725bec`, sin una construcción posterior. No hay ejecutables Docker/Podman/nerdctl/buildctl disponibles ni Docker Desktop/Podman en las rutas habituales; `wsl --list --quiet` informa que WSL no está instalado. El inventario del Service Control Manager no estuvo permitido; no se infiere por eso el estado de servicios. No se instaló, inició ni descargó ningún motor o imagen. La presencia local de la imagen exacta no pudo inspeccionarse sin un motor; no se afirma que esté almacenada ni que falte.
+
+Se conservaron fuentes locales del build de Presentación: el módulo `budget-presentation-trial.js` tiene SHA256 `6559e9588a4c484afd45e9de5b36881a1d5271dff03b362f49104b2e6a4a29eb` y el modelo `2c817da2d3b1fd5909eff3b60de92adbff978bddce9536eac7a7394681b8dd5e`, iguales a su manifiesto técnico retenido. Las pruebas nuevas materializan estos dos archivos y el entrypoint compuesto en una carpeta temporal, comprueban las cuatro huellas, sintaxis, reversión exacta, rechazo por alteraciones y autorización 401 del módulo real. Esto verifica el filesystem esperado, **no una imagen ni un contenedor**. La carpeta temporal se elimina al terminar; los privados no se agregan al repositorio.
+
+El verificador reutilizable es `test/helpers/tecnoprices-container-contract.cjs`. Para un operador con motor local y base ya disponible:
+
+1. Inspeccionar **localmente** la base por digest con `docker image inspect`, sin pull. Conservar el JSON sólo en evidencia privada. Si no existe la base exacta o el builder necesita resolver/descargar desde el registro, detenerse: esta preparación no autoriza acceso remoto. Una construcción offline necesita un motor/builder operativo y esa imagen ya disponible; `--network=none` del build sólo restringe los pasos RUN, no demuestra que el resolvedor del builder no contacte registros.
+2. Construir en un builder efectivamente aislado de red, usando únicamente esta carpeta como contexto, `--pull=false` y `--network=none`. Etiqueta local propuesta: `sisventas-tecnoprices-presentation:local`. No enviar contexto al builder remoto.
+3. Comparar los JSON de `docker image inspect` de base y resultado mediante `node test/helpers/tecnoprices-container-contract.cjs config BASE_JSON RESULT_JSON`. Exige el digest de base y conserva Env, Entrypoint, Cmd, User, WorkingDir, ExposedPorts, Volumes, Healthcheck, StopSignal y Shell. No imprime valores de configuración; ante fallo sólo informa que el contrato no pasó. Esto no verifica recursos, IAM o configuración del servicio externo.
+4. Montar únicamente la carpeta del verificador como `/checks:ro` y ejecutar una instancia de la imagen local con `--pull=never --network=none --read-only --entrypoint node`, pasando `/checks/tecnoprices-container-contract.cjs container /app`. No montar datos, credenciales ni configuración productiva. Comprueba huellas, reversión, sintaxis, autorización anónima/revocada y disponibilidad de APIRequest de Playwright; no inicia el servidor ni el navegador. El registro de `docker run`, imagen ID y exit code deben acompañar el resultado: el JSON aislado del script no prueba dónde se ejecutó.
+5. Conservar logs, ID/digest del resultado, igualdad de configuración y resultado de ejecución. Separar esa evidencia de las pruebas host. La verificación de HTTP del servidor en ejecución y de una sesión real del proveedor continúa fuera de estas comprobaciones; no presentar el 401 de la llamada directa al módulo como un recorrido HTTP.
+
+Las dos pruebas nuevas se ejecutan con `SV_PRESENTATION_ENTRYPOINT_FILE` y `SV_PRESENTATION_RETAINED_SOURCE` y `node --test test/tecnoprices-container-contract.test.cjs`. Sin referencias locales explícitas, la materialización se omite. No se repitieron las nueve pruebas anteriores ni la puerta global.
+
+## Alternativa HTTP local sin motor
+
+`test/tecnoprices-overlay-http-loopback.test.cjs`, con las mismas dos referencias explícitas, agrega una prueba HTTP real en puerto efímero de `127.0.0.1`: aplica y revierte sobre el entrypoint exacto, usa el helper empaquetado y ejecuta el scraper extraído de esos bytes. La ruta exacta preservada de Presentación usa el módulo retenido real con Auth ficticio y comprueba 401 sin sesión/token revocado. `/fixture/cotizar` es sólo un arnés local autenticado ficticio, no una afirmación de haber arrancado el servidor completo: verifica respuesta con precio y rechazo de login antes de extraerlo. El transporte del proveedor es un objeto API explícitamente simulado que nunca hace red; no se inicia Chrome. El único servidor creado se cierra en `finally`. Resultado: 1 PASS, 0 FAIL, 0 SKIP; no se repitieron los once controles anteriores.
+
+Esta alternativa añade HTTP al contrato de bytes y autenticación, pero no acredita ejecución de imagen/contenedor, cookie jar real, TLS, recursos externos o proveedor real. La construcción/ejecución offline del apartado anterior sigue pendiente de motor local y de verificar que la base exacta esté disponible allí.
