@@ -1,8 +1,14 @@
-## Presentación de PP-0167 preparada y probada · 06/11/2026
+## Presentación: hotfix visual v3.19.9 preparado · 06/11/2026
 
-Prioridad humana explícita: terminar y publicar el botón Modo presentación para Administrador. Fuente aislada sobre publicada8de364cd; no mezcla eliminaciones/Tecnoprices ni activa otros paquetes. Vista/PDF dinámicos, ARS guardados convertidos a USD con la cotización visible de la barra al generar. Seis ilustraciones privadas verificadas, nunca en Git/Hosting; endpoint sólo lectura con autorización y snapshot revalidados. Sin escrituras comerciales, reglas/IAM ni servicios nuevos. Alcance y evidencia en docs/PRESENTACION_PP0167_V3198.md.
+La v3.19.8 está publicada desde 77425f18: 628 activos, 81 cargas, siete activos byte exacto, cabeceras CSP y tres rutas privadas 404. El endpoint exige autenticación (401) y el manifiesto privado rechaza acceso anónimo (403). Cotizador presentation3198-a75ce892 quedó al 100%, conservando los accesos anteriores, recursos, variables y cuenta. Aviso oficial sincronizado. Administrador abrió PP-0167 en la web: botón, imágenes y totales correctos; se detectaron siete páginas por la agrupación del NSPanel. No se guardaron operaciones.
 
-Modelo61+servidor61PASS; UI4PASS aparte; PDF6páginas escritorio/móvil generado/renderizado e inspeccionado. Puerta9748totales/9717PASS/0FAIL/31SKIP/exit0. Las omisiones especiales no se atribuyen como aprobadas. Imagen candidata compilada sobre servidor exacto, sin tráfico;401/204 y preservación de accesos/recursos comprobados. Publicación/aviso/validación web autenticada aún pendientes a este punto. No afirmar entrega por esta preparación.
+Hotfix 3.19.9 sólo frontend: distingue panel de control de tecla eléctrica y conserva el pie de la página económica cuando hay nombres largos. El rojo ficticio reprodujo dos fallos; después pasan los cuatro casos UI. La copia documental local de sólo lectura produjo seis páginas y un PDF completo, con importes intactos. La primera puerta 3.19.9 no sirve como evidencia del freeze final porque hubo ajustes visuales durante su ejecución; se conserva el log y se repite sobre fuente congelada. Pendientes: esa puerta final y nueva publicación Hosting/aviso 3.19.9. Servidor e imágenes privadas no requieren otra compilación. Eliminaciones, Tecnoprices y auditoría permanecen separados.
+
+## Presentación de PP-0167 implementada · 06/11/2026
+
+Prioridad humana explícita: terminar y publicar Modo presentación para Administrador. Fuente aislada sobre publicada 8de364cd. Vista y PDF dinámicos; importes ARS guardados convertidos a USD con la cotización visible de la barra al generar. Seis ilustraciones privadas verificadas, fuera de Git y Hosting; endpoint de sólo lectura con autorización y snapshot revalidados. Sin escrituras comerciales, reglas, IAM ni servicios nuevos. Alcance en docs/PRESENTACION_PP0167_V3198.md.
+
+Modelo 61 + servidor 61 PASS; cuatro casos UI ejecutados aparte. PDF de seis páginas de escritorio y móvil generado, renderizado e inspeccionado. Puerta 3.19.8: 9.748 casos, 9.717 PASS, cero fallos, 31 SKIP, exit 0. Las omisiones especiales no se presentan como aprobadas. La revisión autenticada posterior y su ajuste visual se describen arriba.
 
 ## Publicación OFF v3.19.5 bloqueada por compatibilidad · 05/11/2026 05:00 UTC
 

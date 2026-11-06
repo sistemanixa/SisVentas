@@ -25,3 +25,7 @@ Base de imagen `cotizador:return910199-bbf61e86@sha256:09a9d7f6bfffb4a13ec2aa002
 - Candidata remota sin tráfico: endpoint sin autenticación 401, preflight 204 con origen correcto, endpoint comercial existente 401. Estas verificaciones no equivalen a una prueba autenticada de la vista en producción.
 
 La publicación y el aviso de versión sólo se consideran completados tras verificar los activos reales y el recorrido autorizado. El estado externo de ese cierre se registra en CONTEXTO_ACTUAL; este documento no afirma por sí solo que se activó tráfico.
+
+## Ajuste visual posterior v3.19.9
+
+La primera comprobación autenticada de 3.19.8 detectó siete páginas: NSPanel quedaba en Iluminación. La 3.19.9 distingue panel de control de panel/tecla eléctrica y conserva las seis páginas del documento revisado. El ajuste de padding de la tabla económica evita que nombres largos empujen el total y su equivalente sobre el pie. Se conservaron los rojos ficticios y se revisó un PDF de la copia documental real en modo sólo lectura. No cambia ningún cálculo, clasificación financiera ni presupuesto. La evidencia de la puerta final de 3.19.9 y el cierre externo se registran en CONTEXTO_ACTUAL.
