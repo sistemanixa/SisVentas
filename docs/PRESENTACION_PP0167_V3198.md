@@ -29,3 +29,5 @@ La publicación y el aviso de versión sólo se consideran completados tras veri
 ## Ajuste visual posterior v3.19.9
 
 La primera comprobación autenticada de 3.19.8 detectó siete páginas: NSPanel quedaba en Iluminación. La 3.19.9 distingue panel de control de panel/tecla eléctrica y conserva las seis páginas del documento revisado. El ajuste de padding de la tabla económica evita que nombres largos empujen el total y su equivalente sobre el pie. Se conservaron los rojos ficticios y se revisó un PDF de la copia documental real en modo sólo lectura. No cambia ningún cálculo, clasificación financiera ni presupuesto. La evidencia de la puerta final de 3.19.9 y el cierre externo se registran en CONTEXTO_ACTUAL.
+
+El diálogo declara su cierre propio para que el manejador global de Escape no navegue el presupuesto de fondo. Un quinto caso de navegador usa ese manejador real de la aplicación activa: el rojo se reprodujo y, tras corregir el propietario de Escape, se cierra sólo la presentación; Enter en Volver tampoco confirma otra acción.
