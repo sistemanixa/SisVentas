@@ -4,18 +4,18 @@ const clone=v=>JSON.parse(JSON.stringify(v));
 const fields={close:['conformidadCliente','nombreConformidad','observacionesCierre'],custody:['materiales','custodiaIniciada','custodiaRendida','custodiaRendidaEn','custodiaRendidaPor'],return:['materiales'],delivery:['entregas']};
 return function create(root){
  const busy=new Set();
- async function prepare(context,{kind='custody'}={}){
+ async function prepare(context,{kind='custody',atomicStock=false}={}){
   const uid=root.currentUserUid,user=root.fbAuth?.currentUser,role=root.currentRole,epoch=root._svOperacionesSesionEpoch||0;
   const check=()=>{if(!uid||user?.uid!==uid||root.currentUserUid!==uid||root.fbAuth?.currentUser!==user||root.currentRole!==role||root._impersonacionOriginal||(root._svOperacionesSesionEpoch||0)!==epoch)throw Error('La sesión cambió. Volvé a abrir la OT.');};check();
   const base=(root.SISVENTAS_FUNCTIONS?.cotizadorProveedor||'').replace(/\/$/,'');
   if(!base||!context?.fbKey)throw Error('No está listo el registro de la OT.');
   const headers=await root.SVServiceAuth.headers();check();
-  const response=await root.fetch(base+'/ot/ciclo/disponible?otKey='+encodeURIComponent(context.fbKey)+'&kind='+encodeURIComponent(kind),{method:'GET',headers,cache:'no-store',signal:AbortSignal.timeout(20000)});
-  const data=await response.json();check();
-  if(!response.ok||data.ok!==true||data.ready!==true||data.version!==1)throw Error(data.mensaje||'El circuito de OT está pendiente de habilitar. No se movió stock.');
+  const response=await root.fetch(base+(atomicStock?'/ot/rendicion/disponible':'/ot/ciclo/disponible')+'?otKey='+encodeURIComponent(context.fbKey)+'&kind='+encodeURIComponent(kind),{method:'GET',headers,cache:'no-store',signal:AbortSignal.timeout(20000)});
+  const data=await response.json().catch(()=>({}));check();
+  if(!response.ok||data.ok!==true||data.ready!==true||data.version!==1||atomicStock&&data.protocol!=='ot-rendition-atomic-v1')throw Error(data.mensaje||'El circuito de OT está pendiente de habilitar. No se movió stock.');
   return true;
  }
- async function save(context,draft,{kind='custody',action=''}={}){
+ async function save(context,draft,{kind='custody',action='',atomicStock=false}={}){
   if(!context?.fbKey||!fields[kind])throw Error('Falta identificar la operación de la OT.');
   if(busy.has(context.fbKey))throw Error('La OT ya se está guardando.');
   const uid=root.currentUserUid,user=root.fbAuth?.currentUser,role=root.currentRole,epoch=root._svOperacionesSesionEpoch||0;
@@ -28,13 +28,13 @@ return function create(root){
    const original=(await root.fbGet(root.fbRef(root.fbDB,path))).val();check();
    if(!original||(original._svListRevision||0)!==(context._svListRevision||0))throw Error('La OT cambió. Volvé a abrirla antes de guardar.');
    const changes={};for(const key of fields[kind])if(Object.hasOwn(draft,key))changes[key]=clone(draft[key]);
-   const command={id:root.crypto.randomUUID(),otKey:context.fbKey,expectedOTHash:await root.SVLaborWrites.hash(original),kind,changes,action:String(action).slice(0,240)};check();
+   const command={id:root.crypto.randomUUID(),otKey:context.fbKey,expectedOTHash:await root.SVLaborWrites.hash(original),kind,changes,action:String(action).slice(0,240),...(atomicStock?{protocol:'ot-rendition-atomic-v1'}:{})};check();
    const digest=await root.SVLaborWrites.hash(command);check();
    const send=async()=>{
     const base=(root.SISVENTAS_FUNCTIONS?.cotizadorProveedor||'').replace(/\/$/,'');
     if(!base)throw Object.assign(Error('No está disponible el guardado del cierre.'),{svLaborAttempted:false});
     const headers=await root.SVServiceAuth.headers({'Content-Type':'application/json'});check();
-    const response=await root.fetch(base+'/ot/ciclo',{method:'POST',headers,body:JSON.stringify(command),cache:'no-store',signal:AbortSignal.timeout(90000)});
+    const response=await root.fetch(base+(atomicStock?'/ot/rendicion':'/ot/ciclo'),{method:'POST',headers,body:JSON.stringify(command),cache:'no-store',signal:AbortSignal.timeout(90000)});
     const data=await response.json();check();
     if(!response.ok||data.ok!==true||data.committed!==true||data.operationId!==command.id)throw Object.assign(Error(data.mensaje||data.message||'No se pudo confirmar el cierre. Consultá la operación antes de reintentar.'),{statusCode:response.status,code:data.code,...(data.svLaborAttempted===false?{svLaborAttempted:false}:{})});
     return data;

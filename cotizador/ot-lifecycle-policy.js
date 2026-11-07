@@ -1,9 +1,9 @@
 'use strict';
 const {digest}=require('./labor-guard');
-const issued=new WeakSet(),key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
-function issue({uid,otKey,saleKey,operationId,kind,role,permissionRevision,permissionDigest}){
+const issued=new WeakSet(),atomicPlans=new WeakMap(),key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
+function issue({uid,otKey,saleKey,operationId,kind,role,permissionRevision,permissionDigest,atomicStock=false}){
  if(!key(uid)||!key(otKey)||!key(saleKey)||!key(operationId)||!['close','custody','return','stockrepair','delivery'].includes(kind))throw Error('Capacidad de OT inválida.');
- const cap=Object.freeze({uid,otKey,saleKey,operationId,kind,role,permissionRevision,permissionDigest});issued.add(cap);return cap;
+ const cap=Object.freeze({uid,otKey,saleKey,operationId,kind,role,permissionRevision,permissionDigest,atomicStock:atomicStock===true});issued.add(cap);return cap;
 }
 function token(actor,lease){
  const c=actor?.otLifecycle;
@@ -20,4 +20,15 @@ function authority(profile,cfg,kind,closed=false){
  return {role,permissionRevision:cfg?.indiceRevision??null,permissionDigest:digest(cfg||{})};
 }
 function validate(actor,profile,cfg){const c=actor.otLifecycle;if(!issued.has(c))throw Error('Falta la capacidad interna de OT.');const current=authority(profile,cfg,c.kind,actor.otClosed);if(digest(current)!==digest({role:c.role,permissionRevision:c.permissionRevision,permissionDigest:c.permissionDigest}))throw Object.assign(Error('Los permisos de OT cambiaron. Volvé a abrirla.'),{statusCode:409});}
-module.exports={issue,token,authority,validate};
+// Internal capability only: never derive this from incoming JWT/body claims.
+function allowsAtomicStock(actor,lease){return actor?.otLifecycle?.atomicStock===true&&actor.otLifecycle.kind==='custody'&&token(actor,lease).svOTLifecycleVersion===1;}
+function bindAtomicStock(actor,lease,inventory){if(!allowsAtomicStock(actor,lease)||!(inventory instanceof Map))throw Error('Falta la capacidad interna de stock.');atomicPlans.set(actor.otLifecycle,new Map(Array.from(inventory,([path,value])=>[path,structuredClone(value)])));}
+function verifyAtomicStockPatch(actor,lease,patch){
+ if(!allowsAtomicStock(actor,lease))return false;const expected=atomicPlans.get(actor.otLifecycle);if(!expected)throw Error('Falta el plan interno de stock.');
+ const actual=Object.keys(patch).filter(path=>path==='sisventas/inventario_operativo'||path.startsWith('sisventas/inventario_operativo/'));
+ if(actual.length!==expected.size||actual.some(path=>!expected.has(path)))throw Error('El PATCH no coincide con el plan interno de stock.');
+ const plain=value=>{const copy=structuredClone(value);delete copy._svReadRevision;delete copy._svReadOperation;return copy;};
+ for(const path of actual)if(digest(plain(patch[path]))!==digest(plain(expected.get(path))))throw Error('El stock del PATCH no coincide con el plan interno.');
+ return true;
+}
+module.exports={issue,token,authority,validate,allowsAtomicStock,bindAtomicStock,verifyAtomicStockPatch};

@@ -1,8 +1,12 @@
 'use strict';
 const {test}=require('node:test'),a=require('node:assert/strict'),{webcrypto}=require('node:crypto');
 const {fixture}=require('./helpers/ot-material-coherence-fixture.cjs'),Stock=require('../js/modules/ot-stock-consumption.v1'),Model=require('../js/core/operational-read-model'),Writes=require('../js/core/operational-writes');
+// Preserve the exact published handler that exposed the split sequence. The
+// atomic candidate is exercised separately; do not rewrite this characterization
+// to hide the historical partial-consumption result.
+const custodySource=require('node:child_process').execFileSync('git',['show','d671090b814735db51a0d071444a7e6d80141dcd:js/modules/ot-material-custody.js'],{encoding:'utf8',windowsHide:true});
 function setup({firstMissing=false,secondMissing=true,lostAck=false}={}){
- const ot={fbKey:'ot-fiction',id:'OT-FICTION',ventaFbKey:'sale-fiction',estado:'pendiente',tecnico:'Persona ficticia',custodiaIniciada:true,custodiaRendida:false,materiales:['A','B'].map(cod=>({cod,vendida:1,entregada:1,instalada:0,custodiaActiva:true}))},f=fixture({ot}),data={},patches=[];let ackLost=false;
+ const ot={fbKey:'ot-fiction',id:'OT-FICTION',ventaFbKey:'sale-fiction',estado:'pendiente',tecnico:'Persona ficticia',custodiaIniciada:true,custodiaRendida:false,materiales:['A','B'].map(cod=>({cod,vendida:1,entregada:1,instalada:0,custodiaActiva:true}))},f=fixture({ot,custodySource}),data={},patches=[];let ackLost=false;
  const inv=()=>({general:2,reservado:0,consumido:0,asignaciones:{}});
  if(!firstMissing)data['sisventas/inventario_operativo/p0']=inv();if(!secondMissing)data['sisventas/inventario_operativo/p1']=inv();
  Object.assign(f.w,{crypto:webcrypto,fbRef:(_,path='')=>path,prodData:{p0:{fbKey:'p0',codigo:'A'},p1:{fbKey:'p1',codigo:'B'}}});

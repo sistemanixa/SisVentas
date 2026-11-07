@@ -62,12 +62,13 @@
     renditionBusy = true;
     var finish = window.SisVentas?.carga?.mostrar?.('Guardando materiales y stock…', {persistirAlNavegar:true});
     try {
-      if (draft.ventaFbKey || draft.ventaId || draft.venta) {
+      var linked=!!(draft.ventaFbKey || draft.ventaId || draft.venta);
+      if (linked) {
         if (!window.SVOTLifecycle) throw Error('Recargá la aplicación para guardar la rendición de forma segura.');
-        await window.SVOTLifecycle.prepare(original,{kind:'custody'});
+        await window.SVOTLifecycle.prepare(original,{kind:'custody',atomicStock:true});
       }
-      await syncInstalled(draft, before);
-      await save(draft, action);
+      if(!linked)await syncInstalled(draft, before);
+      await save(draft, action,linked?{atomicStock:true}:undefined);
       Object.assign(original, draft);
       updateGlobal();
       if (typeof window.actualizarPanelIntegridadOT === 'function') window.actualizarPanelIntegridadOT();
@@ -257,7 +258,7 @@
     var linked = !!(ot.ventaFbKey || ot.ventaId || ot.venta);
     var promise = linked
       ? (window.SVOTLifecycle
-        ? window.SVOTLifecycle.save(currentOT() || ot, ot, {kind:options && options.kind || 'custody',action:action || ''}).then(function(result){Object.assign(ot,result.ot);return result;})
+        ? window.SVOTLifecycle.save(currentOT() || ot, ot, {kind:options && options.kind || 'custody',action:action || '',...(options?.atomicStock?{atomicStock:true}:{})}).then(function(result){Object.assign(ot,result.ot);return result;})
         : Promise.reject(new Error('Recargá la aplicación para guardar la rendición de forma segura.')))
       : (typeof window.fbGuardarOT === 'function' ? window.fbGuardarOT(ot) : Promise.reject(new Error('Firebase no está disponible')));
     var materialCard = document.getElementById('ot-materiales-card');
@@ -741,13 +742,13 @@
       var draft = JSON.parse(JSON.stringify(ot));
       if (ot.ventaFbKey || ot.ventaId || ot.venta) {
         if (!window.SVOTLifecycle) throw Error('Recargá la aplicación para guardar la rendición de forma segura.');
-        await window.SVOTLifecycle.prepare(ot,{kind:'custody'});
+        await window.SVOTLifecycle.prepare(ot,{kind:'custody',atomicStock:true});
       }
       for (var i=0;i<draft.materiales.length;i++) {
         var material = draft.materiales[i];if (!material.stockPendiente) continue;
         if (material.adicionalOT !== true || material.stockBaseInstalada == null) throw Error('El adicional requiere revisar su registro de instalación.');
         var before = Object.assign({}, material, {instalada:material.stockBaseInstalada});
-        await window.SisVentasCompras.syncOTConsumption(draft, before, material);
+        if(!(ot.ventaFbKey || ot.ventaId || ot.venta))await window.SisVentasCompras.syncOTConsumption(draft, before, material);
         material.stockPendiente = false;delete material.stockBaseInstalada;
       }
       draft.custodiaIniciada = true;
@@ -756,7 +757,7 @@
       var auditRows = (draft.audit || []).concat([{fecha:new Date().toLocaleString('es-AR'),usuario:window.currentUser||'Sistema',accion:'Stock de adicionales instalados registrado sin duplicar consumos'}]);
       if (ot.ventaFbKey || ot.ventaId || ot.venta) {
         if (!window.SVOTLifecycle) throw Error('Recargá la aplicación para guardar la rendición de forma segura.');
-        var result = await window.SVOTLifecycle.save(ot, draft, {kind:'custody',action:'Stock de adicionales instalados registrado sin duplicar consumos'});
+        var result = await window.SVOTLifecycle.save(ot, draft, {kind:'custody',atomicStock:true,action:'Stock de adicionales instalados registrado sin duplicar consumos'});
         Object.assign(draft,result.ot);
       } else await window.otPersistirActualizar(ot.fbKey, {materiales:draft.materiales,custodiaIniciada:true,custodiaRendida:draft.custodiaRendida,audit:auditRows});
       if (ot.ventaFbKey || ot.ventaId || ot.venta) Object.assign(ot,draft);

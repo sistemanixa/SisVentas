@@ -78,7 +78,7 @@ const saleDeleteService=require('./sale-delete-http-adapter').createSaleDeleteHt
 const purchaseDeleteService=require('./purchase-order-delete').createPurchaseOrderDelete({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.PURCHASE_ORDER_DELETE_READY==='true'});
 const otDeleteService=require('./ot-delete-http-adapter').createOTDeleteHttpAdapter({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.OT_DELETE_READY==='true'});
 const otOfficeCount=require('./ot-office-count').createOTOfficeCount({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_OFFICE_COUNT_ENABLED==='true'});
-const otLifecycle=require('./ot-lifecycle').createOTLifecycle({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_LIFECYCLE_ENABLED==='true',commercialPages:process.env.COMMERCIAL_PAGES_ENABLED==='true'});
+const otLifecycle=require('./ot-lifecycle').createOTLifecycle({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_LIFECYCLE_ENABLED==='true',commercialPages:process.env.COMMERCIAL_PAGES_ENABLED==='true',atomicCustody:process.env.OT_ATOMIC_RENDITION_READY==='true'});
 const expenseReimbursement=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled,reimbursement:true});
 const expensePaymentAdjustment=require('./expense-payment-adjustment').createExpensePaymentAdjustment({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 const expensePayment=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled,expense:true});
@@ -2225,6 +2225,16 @@ const server = http.createServer(async (req, res) => {
         send(res,200,{ok:true,payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability(),saleDelete:{version:1,enabled:saleDeleteService.capability()},orderDelete:{version:1,enabled:purchaseDeleteService.capability()},otDelete:{version:1,enabled:otDeleteService.capability()},coordination:laborRuntime.capabilities(),saleReturn:require('./sale-return-to-budget').capability({enabled:process.env.SALE_RETURN_ECONOMICS_READY==='true',coordinated:laborRuntime.capabilities().coordinated&&!laborRuntime.capabilities().readOnly,rulesDigest:process.env.SALE_RETURN_RULES_DIGEST||''}),revision:process.env.K_REVISION||'local'});
       }else send(res,200,await service[['/cobranzas/operacion','/laboral/gastos/editar-administrativo'].includes(pathname)?'execute':'create'](actor,body));
     }catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el guardado. Comprobá el intento antes de repetirlo.',...(error.code?{code:error.code}:{})});}return;
+  }
+  if(pathname==='/ot/rendicion/disponible'){
+    res.setHeader('Cache-Control','private, no-store');
+    try{if(req.method!=='GET')throw Object.assign(Error('Método no permitido'),{statusCode:405});const actor=await laborWriteGateway.authorize({method:'POST',url:req.url,headers:req.headers});send(res,200,await otLifecycle.availableAtomic(actor,{otKey:requestUrl.searchParams.get('otKey')}));}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo comprobar la rendición conjunta.',...(error.code?{code:error.code}:{}),svLaborAttempted:false});}return;
+  }
+  if(pathname==='/ot/rendicion'){
+    res.setHeader('Cache-Control','private, no-store');
+    try{if(req.method!=='POST')throw Object.assign(Error('Método no permitido'),{statusCode:405});const actor=await laborWriteGateway.authorize(req),body=await readBody(req,2*1024*1024);send(res,200,await otLifecycle.executeAtomic(actor,body));}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar la rendición. Consultá la operación antes de repetirla.',...(error.code?{code:error.code}:{}),...(error.svLaborAttempted===false?{svLaborAttempted:false}:{})});}return;
   }
   if(pathname==='/ot/ciclo/disponible'){
     res.setHeader('Cache-Control','private, no-store');

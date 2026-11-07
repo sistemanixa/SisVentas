@@ -2,7 +2,7 @@
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),{page}=require('../../scripts/dev-module-audit.cjs'),Model=require('../../cotizador/commercial-pages-model');
 const root=path.resolve(__dirname,'../..');
 const {createCoordinatedBackend}=require('../helpers/coordinated-backend.cjs');
-async function start({accountsRollout=true,lostAck=false,destructiveCommands=false,currentPrices=false,count=60,historicalCount=0,paymentAmount=0}={}){
+async function start({accountsRollout=true,lostAck=false,destructiveCommands=false,currentPrices=false,count=60,historicalCount=0,paymentAmount=0,prepareBackendInput}={}){
  if(typeof accountsRollout!=='boolean'||!Number.isInteger(count)||count<1||count>5000||!Number.isInteger(historicalCount)||historicalCount<0||historicalCount>count||!Number.isFinite(paymentAmount)||paymentAmount<0||paymentAmount>1600)throw Error('Invalid fictional metrics fixture size or payment');
  const measures=[];let phase='boot';
  let responseLost=false;
@@ -10,7 +10,9 @@ async function start({accountsRollout=true,lostAck=false,destructiveCommands=fal
  const items=Array.from({length:16},(_,index)=>{products['p'+index]={fbKey:'p'+index,codigo:'P-'+index,nombre:'Producto '+index,imagenUrl:image,compraARS:currentPrices?37:20,ventaARS:currentPrices?137:100,pventa:currentPrices?137:100};return {cod:'P-'+index,productoFbKey:'p'+index,desc:'Producto '+index,qty:1,punit:100,sub:100,costoUnitarioCompra:20,costoVersion:1};});
  for(let index=0;index<count;index++){const historical=index>=count-historicalCount;sales['fixture'+index]={id:'V-FIXTURE-'+index,fecha:historical?'2020-01-01':'2026-11-04',cliente:historical?'Antigua ficticia':'Cliente ficticio',clienteFbKey:'c',responsableUid:'fixture',conIva:false,items,total:1600,subtotal:1600,descuento:0,iva:0};if(paymentAmount)payments['payment'+index]={ventaFbKey:'fixture'+index,ventaId:'V-FIXTURE-'+index,cliente:sales['fixture'+index].cliente,fecha:historical?'2020-01-02':'2026-11-04',monto:paymentAmount,medio:'Transferencia',ts:historical?1577923200000:1793790000000};}
  const built=await Model.build({sales,payments,owner:()=> 'fixture',generation:'fixture-full-html-generation'}),data={};
- const backend=await createCoordinatedBackend({ventas:sales,pagos:payments,productos:products,clientes:{c:{id:'c',nombre:'Cliente ficticio'}},...(destructiveCommands?{stock:{preserved:{cantidad:7}},inventario_operativo:{preserved:{general:7,reservado:0,enCompra:0}},comisiones:{preserved:{monto:9,estado:'aprobada'}}}:{})});
+ const backendInput={ventas:sales,pagos:payments,productos:products,clientes:{c:{id:'c',nombre:'Cliente ficticio'}},...(destructiveCommands?{stock:{preserved:{cantidad:7}},inventario_operativo:{preserved:{general:7,reservado:0,enCompra:0}},comisiones:{preserved:{monto:9,estado:'aprobada'}}}:{})};
+ if(prepareBackendInput!==undefined){if(typeof prepareBackendInput!=='function')throw Error('Invalid fictional backend setup');await prepareBackendInput(backendInput);}
+ const backend=await createCoordinatedBackend(backendInput);
  const deletion=destructiveCommands?require('../../cotizador/sale-delete-http-adapter').createSaleDeleteHttpAdapter({authorize:backend.gateway.authorize,guard:backend.guard,store:backend.store,enabled:true}):null;
  if(destructiveCommands){backend.state.sv_permisos={admin:{indiceVersion:2,indiceRevision:1,indiceModulos:{venta:true,detalle:true,clientes:true,cuentacorriente:true},acciones:{ventas:{eliminar:true}}}};require('../helpers/sale-delete-financial-evidence.cjs').install(backend);backend.store.saleDeleteFenceReady=true;backend.store.saleDeleteActivityFenceReady=true;}
  backend.state.sv_commercial_pages_config.searchReady=true;backend.state.sv_commercial_pages_config.searchSchema=1;

@@ -2,11 +2,11 @@
 const {digest}=require('./labor-guard'),Model=require('./ot-lifecycle-model'),Policy=require('./ot-lifecycle-policy'),Index=require('./record-list-model'),Assigned=require('./ot-personal-scope'),State=require('./ot-material-state'),Money=require('./commercial-models/commercial-money');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
-function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,now=Date.now}){
+function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,atomicCustody=false,now=Date.now}){
  const delivery=require('./ot-delivery').createOTDelivery({store,guard,enabled,now});
  const read=async path=>(await db.ref(path).get()).val();
  async function activation(){const configs=await Promise.all([read('sv_labor_config'),read('sv_operational_read_config'),read('sv_record_list_config')]);if(!enabled||configs[0]?.otLifecycleVersion!==1||configs.some(c=>c?.schema!==1||c?.ready!==true))throw fail(503,'El nuevo circuito de OT todavía no está habilitado.','SV_OT_LIFECYCLE_DISABLED');if(commercialPages){const [config,coverage]=await Promise.all([read('sv_commercial_pages_config'),read('sv_commercial_pages/v1/coverage')]);if(config?.schema!==1||config.ready!==true||typeof config.generation!=='string'||!config.generation||coverage?.schema!==1||coverage.ready!==true||coverage.generation!==config.generation||!Number.isSafeInteger(coverage.revision)||coverage.revision<0)throw fail(503,'El listado comercial todavía no está preparado.','SV_COMMERCIAL_PAGES_NOT_READY');}}
- async function available(identity,{otKey,kind='custody'}={}){
+ async function availableInternal(identity,{otKey,kind='custody'}={}){
   if(kind==='delivery')return delivery.available(identity,{otKey});
   await activation();
   if(!identity?.uid||identity.claims?.uid!==identity.uid||!key(otKey)||!['close','custody','return'].includes(kind))throw fail(400,'Solicitud de OT inválida.');
@@ -20,17 +20,17 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
   }
   return {ok:true,ready:true,version:1};
  }
- async function executeInternal(identity,body,started){
+ async function executeInternal(identity,body,started,atomic=false){
   await activation();
   if(!identity?.uid||identity.claims?.uid!==identity.uid)throw fail(401,'Sesión requerida.');
-  if(!body||typeof body!=='object'||Object.keys(body).some(k=>!['id','otKey','expectedOTHash','kind','changes','action'].includes(k))||!key(body.id)||body.id.length<8||!key(body.otKey)||!/^[a-f0-9]{64}$/.test(body.expectedOTHash)||!['close','custody','return'].includes(body.kind)||typeof body.action!=='string'||body.action.length>240)throw fail(400,'Revisá los datos de la OT.');
+  if(!body||typeof body!=='object'||Object.keys(body).some(k=>![...['id','otKey','expectedOTHash','kind','changes','action'],...(atomic?['protocol']:[])].includes(k))||!key(body.id)||body.id.length<8||!key(body.otKey)||!/^[a-f0-9]{64}$/.test(body.expectedOTHash)||!['close','custody','return'].includes(body.kind)||typeof body.action!=='string'||body.action.length>240||atomic&&(body.kind!=='custody'||body.protocol!=='ot-rendition-atomic-v1'))throw fail(400,'Revisá los datos de la OT.');
   const allowed=body.kind==='close'?['conformidadCliente','nombreConformidad','observacionesCierre']:['materiales','custodiaIniciada','custodiaRendida','custodiaRendidaEn','custodiaRendidaPor'];
   if(!body.changes||typeof body.changes!=='object'||Array.isArray(body.changes)||Object.keys(body.changes).some(k=>!allowed.includes(k)))throw fail(400,'El guardado contiene campos no autorizados.');
   const profile=await read('sv_chat_roles/'+identity.uid),cfg=await read('sv_permisos/'+profile?.rol),otPath='sisventas/ordenes_trabajo/'+body.otKey;
   const initial=await store.readAsUser(otPath,identity);if(!initial)throw fail(409,'La OT ya no existe.');
   const context=Policy.authority(profile,cfg,body.kind,Model.closed(initial));if(!key(initial?.ventaFbKey))throw fail(409,'La OT necesita una venta vinculada inequívoca.');
   const salePath='sisventas/ventas/'+initial.ventaFbKey,actor={uid:identity.uid,claims:identity.claims,mode:'user',...context,otClosed:Model.closed(initial),opId:body.id,transportDigest:digest(body),operation:'ot-lifecycle',input:body};
-  actor.otLifecycle=Policy.issue({uid:identity.uid,otKey:body.otKey,saleKey:initial.ventaFbKey,operationId:body.id,kind:body.kind,...context});
+  actor.otLifecycle=Policy.issue({uid:identity.uid,otKey:body.otKey,saleKey:initial.ventaFbKey,operationId:body.id,kind:body.kind,...context,atomicStock:atomic});
   started();const result=await guard.run(actor,async scope=>{
    const tracked=new Map(),queries=[];
    const track=async path=>{const value=await scope.get(path);tracked.set(path,value);return value;};
@@ -44,7 +44,8 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
     const directory=!hasKey&&employee?.nombre?await query('sisventas/empleados','nombre',employee.nombre):{};
     if(!employee||employee.activo===false||!Assigned.assigned(ot,{...employee,fbKey:account.empleadoFbKey},Object.fromEntries(Object.entries(directory).map(([k,v])=>[k,{...v,fbKey:k}]))))throw fail(403,'La OT no está asignada a tu cuenta.');
    }
-   const sale=await scope.get(salePath),index=await scope.get(Index.index+'/ordenes_trabajo'),others=Index.parseIndex('ordenes_trabajo',index),products={};
+   const sale=await scope.get(salePath),index=await scope.get(Index.index+'/ordenes_trabajo'),products={};let others;
+   try{others=Index.parseIndex('ordenes_trabajo',index);}catch(error){if(!atomic)throw error;throw Object.assign(fail(409,'El listado de OT no está preparado. Actualizá la pantalla; no se modificaron materiales ni stock.','SV_OT_RECORD_LIST_NOT_READY'),{svLaborAttempted:false});}
    if(!others[body.otKey]||others[body.otKey]._svListRevision!==(ot._svListRevision||0))throw fail(409,'El resumen de la OT requiere actualizarse.');
    const primary=sale?.otId!==body.otKey&&key(sale?.otId)?await track('sisventas/ordenes_trabajo/'+sale.otId):null;
    const rowSource=[...(ot.materiales||[]),...(ot.items||[])];
@@ -55,6 +56,13 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
    const inventoryChanges=new Map(),inventoryBefore=new Map();
    const actionAt=new Date(now()).toISOString(),name=(await scope.get('sv_chat_directorio/'+identity.uid))?.nombre||'Usuario';
    let changes=body.changes;
+   if(atomic){
+    if(!Array.isArray(changes.materiales))throw fail(400,'Falta la rendición de materiales.');
+    const prepared=await require('./ot-rendition-stock-plan').stage({ot,otKey:body.otKey,targets:changes.materiales,read:track,query});
+    changes={...changes,materiales:prepared.materials};
+    for(const [path,value]of prepared.inventory)inventoryChanges.set(path,value);
+    for(const [path,value]of prepared.before)inventoryBefore.set(path,value);
+   }
    if(body.kind==='return'){
     const materials=structuredClone(ot.materiales||[]);let count=0;
     for(const m of materials){const qty=Number(m.devueltaPendiente||0);if(!qty)continue;if(!Number.isFinite(qty)||qty<0)throw fail(409,'La cantidad devuelta requiere revisión.');
@@ -74,7 +82,7 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
    if(body.kind!=='return'&&changes?.materiales)for(const transition of Model.materialChanges(ot,changes.materiales,body.kind)){
     if(!transition.needsStockReceipt&&!transition.needsProductBinding)continue;
     const productKey=await State.resolveProduct(transition.target,{read:track,query,source:transition.needsProductBinding?transition.source:null});
-    await State.verifyReceipt({ot,otKey:body.otKey,transition,productKey,read:track});
+    await State.verifyReceipt({ot,otKey:body.otKey,transition,productKey,read:path=>inventoryChanges.has(path)?inventoryChanges.get(path):track(path)});
    }
    const plan=Model.plan({before:ot,changes,kind:body.kind,sale,primary,others,products,actor:{uid:identity.uid,name,otKey:body.otKey},at:actionAt,action:body.action});
    scope.beforeCommit(async({readFresh,readFreshAsUser})=>{
@@ -85,11 +93,15 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
     for(const q of queries)if(digest(await store.query(q.path,q.field,q.value))!==digest(q.rows))throw fail(409,'El catálogo o la asignación cambió. Volvé a abrirla.');
    });
    const patch={[otPath]:plan.ot};for(const [path,value]of inventoryChanges)patch[path]=value;for(const [k,v]of Object.entries(plan.saleChanges))patch[salePath+'/'+k]=v;
+   if(atomic)Policy.bindAtomicStock(actor,scope.lease,inventoryChanges);
    await scope.update(patch);return {ok:true,committed:true,operationId:body.id,saleStatus:plan.saleStatus};
   });
   return {...result,ot:await store.readAsUser(otPath,identity)};
  }
+ async function available(identity,args){if(atomicCustody&&(!args?.kind||args.kind==='custody'))throw fail(503,'Actualizá SisVentas para rendir materiales con el nuevo circuito seguro. No se movió stock.','SV_OT_ATOMIC_REQUIRED');return availableInternal(identity,args);}
+ async function availableAtomic(identity,args){if(!atomicCustody)throw fail(503,'La rendición conjunta todavía no está habilitada. No se movió stock.','SV_OT_ATOMIC_DISABLED');const result=await availableInternal(identity,{...args,kind:'custody'});return {...result,protocol:'ot-rendition-atomic-v1'};}
  async function execute(identity,body){if(body?.kind==='delivery')return delivery.execute(identity,body);let started=false;try{return await executeInternal(identity,body,()=>{started=true;});}catch(error){if(!started)error.svLaborAttempted=false;throw error;}}
- return {execute,available};
+ async function executeAtomic(identity,body){let started=false;try{if(!atomicCustody)throw fail(503,'La rendición conjunta todavía no está habilitada. No se movió stock.','SV_OT_ATOMIC_DISABLED');return await executeInternal(identity,body,()=>{started=true;},true);}catch(error){if(!started)error.svLaborAttempted=false;throw error;}}
+ return {execute,available,executeAtomic,availableAtomic};
 }
 module.exports={createOTLifecycle};

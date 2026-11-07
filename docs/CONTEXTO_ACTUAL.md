@@ -1,3 +1,7 @@
+## OT187: comando atómico en preparación local aislada · 07/11/2026
+
+Checkout codex/ot187-atomic-rendition-local desde169833d1, separado de unidades5875d381/1f7cbc2f cuya puerta9984/9938PASS/0FAIL/46SKIP quedó verificada aparte. Nuevas rutas ot/rendicion GETdisponible/POST con flagOT_ATOMIC_RENDITION_READYfalse predeterminado, capacidad interna, CAS, plan stock por todas las filas, un PATCH y recuperación por recibo. No cambios de reglas:6escenarios emulador con copia exacta publicadaPASS,72focales previos y43variantes/corrección cerradaPASS (solapados, no sumar),4ChromeHTMLcompletoPASS. Caracterización publicada18 fijada por commit conserva el defecto de consumo parcial antiguo; nuevos negativos exigen cero efectos. Falta fuente congelada/puerta final y overlay exacto de la imagen activa; no desplegar cotizador completo ni tratar el repo como imagen actual. Sin publicar, servidor/flags/reglas/datos reales ni reintento OT187. Alcance/compatibilidad/rollback y límite de manuales sin venta en OT187_RENDICION_ATOMICA_PREPARACION_LOCAL.md. La autorización frontend18 no cubre este corte nuevo.
+
 ## OT187 frontend18 publicado y verificado · 07/11/2026
 
 Autorización humana específica retransmitida por coordinación01a18b3e: ante «¿Autorizás publicar la versión 3.19.18 con esta corrección de pantalla, manteniendo sin cambios el servidor, las reglas y los datos reales?», titular respondió «Siiiii». Alcance exclusivo frontend18 desde fuente probada d671090b/cierre0a6a45e0; sin selector de técnicos.
