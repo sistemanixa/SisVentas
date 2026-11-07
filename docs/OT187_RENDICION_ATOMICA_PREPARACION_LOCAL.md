@@ -100,7 +100,7 @@ La puerta de f0d90ad5 terminó con cinco fallos: una dependencia ausente en el D
 
 `scripts/prepare-ot-rendition-overlay.cjs` prepara offline un contexto nuevo desde un commit limpio y exige las ocho huellas de la fuente retenida de la imagen cf7bcefb. Modifica únicamente index, ciclo OT y su política; los modelos precisos nuevos quedan aislados del recorrido anterior. La aplicación y verificación exigen manifiesto y dependencias exactas, y rechazan otra base o aplicación duplicada. El plan de stock se verifica antes del PATCH también con el store retenido. No contiene credenciales ni consulta servicios.
 
-Las tres pruebas del artefacto componen y ejecutan el runtime retenido en el host; no equivalen a construir o ejecutar una imagen. Falta validar el artefacto congelado con las reglas exactas en emulador y la puerta final. No hay motor Docker/Podman disponible, por lo que la ejecución del contenedor sigue siendo un límite explícito antes de cualquier corte.
+Las tres pruebas del artefacto componen y ejecutan el runtime retenido en el host; no equivalen a construir o ejecutar una imagen. Fuente congelada 8e37b62d: seis escenarios del runtime compuesto contra reglas exactas en emulador PASS y puerta final 10.017 casos/9.971 PASS/0 FAIL/46 SKIP/exit0. Manifiesto y hashes de evidencia en CONTEXTO_ACTUAL. No hay motor Docker/Podman disponible, por lo que la ejecución del contenedor sigue siendo un límite explícito antes de cualquier corte.
 
 Una vez probado el overlay exacto: respaldar revisión/configuración/tráfico y
 Hosting, comprobar estado de intentos admitidos y no repetir los inciertos.
