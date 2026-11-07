@@ -56,7 +56,8 @@ function historicalConversionAudit(record,budgets){
  const event=events[0],author=originalAuthor(record,'ventas',budgets);
  return {tipo:'conversion_presupuesto_venta',fecha:event.fecha,usuario:event.usuario,accion:'Conversión histórica de '+(source.id||'presupuesto de origen')+' a '+(record.id||'venta')+' · Creador original: '+author.name+' · Según auditoría del presupuesto',referenciaHistorica:true};
 }
-function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectionReader,scopedReads=false,queryReader}){
+function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectionReader,scopedReads=false,queryReader,listReadConcurrency=6}){
+ if(!Number.isInteger(listReadConcurrency)||listReadConcurrency<1||listReadConcurrency>16)throw Error('La concurrencia de lectura debe estar entre 1 y 16.');
  if(scopedReads&&typeof queryReader!=='function')throw Error('La lectura acotada requiere consultas indexadas');
  // Instantánea privada, de un solo uso dentro de la petición que autorizó al actor.
  // No es una caché entre consultas: cada authorize vuelve a verificar Auth y roles.
@@ -134,10 +135,10 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   Object.defineProperty(actor,'permissionDigest',{value:require('./labor-guard').digest(c.permissions[identity.rol]||{})});
   requestContexts.set(actor,c);return actor;
  }
- async function linkedBudgets(records){
+ async function linkedBudgets(records,concurrency=6){
   const ids=[...new Set(Object.values(records||{}).map(record=>linkedBudgetKey(record?.presupuestoFbKey)).filter(Boolean))],budgets=Object.create(null);
   let cursor=0,failed=false,failure;
-  await Promise.all(Array.from({length:Math.min(6,ids.length)},async()=>{
+  await Promise.all(Array.from({length:Math.min(concurrency,ids.length)},async()=>{
    while(!failed&&cursor<ids.length){
     const id=ids[cursor++];
     try{budgets[id]=await read('sisventas/presupuestos/'+id);}
@@ -155,7 +156,9 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   // fichas de origen de ventas ajenas que nunca podrán integrar esta respuesta.
   // Las ventas antiguas sin responsable conservan la resolución histórica.
   const records=actor&&actor.role!=='admin'?Object.fromEntries(Object.entries(loaded||{}).filter(([,r])=>!Object.hasOwn(r,'responsableUid')||r.responsableUid===actor.uid)):loaded||{};
-  const budgets=domain==='ventas'?await linkedBudgets(records):null;
+  // Only complete list reads opt into a wider bounded pool. Point lookups and
+  // write validation retain their existing six-reader limit and fresh reads.
+  const budgets=domain==='ventas'?await linkedBudgets(records,useCollectionReader?listReadConcurrency:6):null;
   if(c.scoped)for(const r of Object.values(records)){
    const source=domain==='ventas'?budgets?.[linkedBudgetKey(r?.presupuestoFbKey)]:null,candidate=Object.hasOwn(r,'responsableUid')?r:source||r;
    // Sólo la resolución histórica por nombre necesita el directorio completo
