@@ -64,8 +64,30 @@ privada `C:/SisVentas/tmp/ot187-state-local-20261107/`, fuera de Git.
 
 ## Estado de este checkpoint
 
-Sintaxis, diff y marcadores18 locales coherentes. Pendiente ejecutar la puerta
-completa sobre la fuente congelada y registrar su resultado. No atribuir a esta
+La primera puerta congelada sobre8c43e7ec terminó con9970casos:
+9912PASS/12FAIL/46SKIP, exit1. Se conserva `gate.private.log`; no está aprobada.
+Once regresiones pertenecían a entrega incremental/remito: la clasificación
+nueva rechazaba filas antiguas con custodia explícita y sin indicador agregado.
+La restante era el manifiesto SW, que conservaba dos URL anteriores al índice.
+
+Corrección congelada d671090b814735db51a0d071444a7e6d80141dcd: permite
+continuar la entrega incremental antigua desde su evidencia de fila, sin
+deducir instalación/rendición ni sustituir un indicador global explícitamente
+falso. Corrige las dos URL del SHELL. Conserva las expectativas anteriores y
+añade dos negativos de ausencia frente a falso.82focalesPASS/0FAIL/0SKIP,
+incluidos entrega/remito/concurrencia y precisión0.0000001 sin tolerancia.
+La puerta completa sobre esa fuente terminó con9972casos:
+9926PASS/0FAIL/46SKIP, exit0. Los cuatro lotes suman2947+2744+2445+1836.
+Log privado `gate-d671090b.private.log`, SHA256
+`ca75f19f98b7ea3ee50c6c2ca80c5103cb7f74a3779e04e0592a211f64be4a4d`.
+Las46omisiones siguen siendo omisiones, no se acreditan como aprobadas.
+El negativo intermedio de precisión también se conserva: el primer arreglo
+permitía mostrar custodia sin confirmar agregado; se corrigió separando la
+admisión de entrega incremental del estado de instalación/rendición, sin
+cambiar la expectativa0.0000001. El resultado final conserva ambos negativos.
+
+Sintaxis, diff y marcadores18 locales coherentes. Verificación local completada
+sobre fuente congelada; no atribuir a esta
 candidata la puerta9.910PASS/46SKIP de la publicación17. No publicar por este
 seguimiento. La captura/versión actual del teléfono particular sigue siendo
 necesaria sólo si se quiere acreditar su comportamiento exacto.
