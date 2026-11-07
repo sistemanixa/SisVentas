@@ -242,6 +242,7 @@
     if(wiz && options.scroll!==false) wiz.scrollIntoView({behavior:'smooth',block:'start'});
   }
   window.otWizardIr=function(step){ show(step||'cliente'); };
+  window.otWizardRefrescar=function(){show(window._otWizardStep||'cliente',{scroll:false});};
   window.otWizardSiguiente=function(){ var vis=pasosVisibles(), idx=vis.findIndex(function(p){return p.id===(window._otWizardStep||'cliente');}); if(idx<vis.length-1) show(vis[idx+1].id); };
   window.otWizardAnterior=function(){ var vis=pasosVisibles(), idx=vis.findIndex(function(p){return p.id===(window._otWizardStep||'cliente');}); if(idx>0) show(vis[idx-1].id); };
   window.otPasoIr=window.otWizardIr;
@@ -277,8 +278,9 @@
     window._otWizardOTId=openedId;
     if(!sameOT) window._otWizardStep='cliente';
     var targetStep=window._otWizardStep||'cliente';
-    setTimeout(function(){ show(targetStep,{scroll:!sameOT}); },250);
-    setTimeout(function(){ show(window._otWizardStep||'cliente',{scroll:false}); },900);
+    // ot-opened is emitted after the detail has finished rendering. A delayed
+    // replay could otherwise return to Cliente after the user chose Materiales.
+    show(targetStep,{scroll:!sameOT});
   });
   window.instalarWizardOT=function(){ show(window._otWizardStep||'cliente'); };
   document.addEventListener('sisventas:ot-closed',function(){ var w=q('ot-wizard-301'); if(w) w.remove(); });

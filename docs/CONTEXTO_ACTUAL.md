@@ -1,3 +1,7 @@
+## OT187: candidata local18 corregida, regresión pendiente · 07/11/2026
+
+Rama codex/ot187-material-state-local desde1136ae6a; sin cambios remotos. Estado canónico de filas/entrega/rendición en UI; inconsistentes e históricos no confirmados piden revisión, sin inferir cantidades. Lista para finalizar comprueba materiales; confirmación Todo instalado descarta sesión/rol/permisos/revisión/cantidades cambiadas. Actualización por evento existente sin consultas ni sondeos; wizard sin replay retardado de Cliente.56focalesPASS y2ChromeHTMLcompleto390/1280PASS; cancelaciones/revocación/late-data con0POSToperación/commits y finanzasficticias conservadas. Sintaxis/diff/marcadores18 coherentes. Falta puerta completa congelada, no nueva publicación. Ver OT187_ESTADO_MATERIALES_LOCAL_V31918.md; rojos y capturasprivados. No OTreal, stock, pagos, comisiones ni permisos modificados. No confundir con fuente publicada72db ni su suite.
+
 ## Incidente separado de materiales OT187 · diagnóstico07/11/2026
 
 Sin cambios funcionales ni publicación. Caso identificado por capturas del coordinador como OT187, no179; luego inspeccionado enla ventana web existente. DosGETpuntuales original/resumen: revisión6coincidente, entrega ya iniciada, rendición pendiente, unremito; Todo instalado visibleenescritorio. No se registró esa entrega ni se tocó stock, instalación o cierre. El estado actual difiere de lascapturas, sin snapshot anterior para atribuir causalidad.

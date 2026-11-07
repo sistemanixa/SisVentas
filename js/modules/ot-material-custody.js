@@ -30,6 +30,7 @@
   }
   function mayRend(ot) {
     if (!ot || window._impersonacionOriginal || !window.tienePermiso?.('ot.rendirMateriales')) return false;
+    if (window.fbAuth && (!window.fbAuth.currentUser || window.fbAuth.currentUser.uid !== window.currentUserUid)) return false;
     var closed = typeof window.otEstaCerrada === 'function' ? window.otEstaCerrada(ot) : ['completada','con_observaciones'].includes(String(ot.estado || '').toLowerCase());
     return (!closed || correcting(ot)) && !(ot.materiales || []).some(function(m){return m.stockPendiente === true;});
   }
@@ -132,9 +133,35 @@
   }
 
   function pendingDelivery(ot) {
-    return controllableMaterials(ot).filter(function (material) {
-      return quantity(material) > n(material.entregada);
+    return materialState(ot).pending;
+  }
+
+  var lastReviewNotice='';
+  function notifyReview(state){lastReviewNotice=state.message;window.notify(state.message);}
+
+  // Read-only classification shared by rows, actions and close readiness.
+  // Quantities never prove a missing custody flag or recover a historical row.
+  function materialState(ot) {
+    var rows = materialRows(ot).filter(controllable), verified = verifiedInstalledCustody(ot);
+    var started = ot.custodiaIniciada === true || verified;
+    var problems = rows.filter(function(m) {
+      var q=quantity(m),d=n(m.entregada),values=['entregada','instalada','devueltaPendiente','devuelta','enTecnico','danada','faltante'];
+      return m._recuperado || values.some(function(k){return m[k]!=null&&(!Number.isFinite(Number(m[k]))||Number(m[k])<0);}) ||
+        d>q || classified(m)>d || (!m.custodiaActiva && (d>0||classified(m)>0)) ||
+        (m.custodiaActiva===true && (d===0||!started));
     });
+    var historical=problems.some(function(m){return m._recuperado;});
+    var recoverable=problems.length>0&&correcting(ot)&&problems.every(function(m){return m._recuperado&&historicalRecoveryCandidate(ot,m);});
+    return {rows:rows,verified:verified,started:started,review:problems.length>0,recoverable:recoverable,
+      problems:problems,pending:rows.filter(function(m){return problems.indexOf(m)<0&&quantity(m)>n(m.entregada);}),
+      message:historical?'Hay materiales anteriores pendientes de confirmar. Revisalos en Materiales antes de continuar.':'Los datos de entrega no coinciden. Revisá los materiales y el remito antes de continuar.'};
+  }
+
+  function captureRendition(ot) {
+    var uid=window.currentUserUid,role=window.currentRole,user=window.fbAuth?.currentUser,db=window.fbDB,epoch=window._svOperacionesSesionEpoch;
+    var revision=window.PERMISOS_ROLES?.[role]?.indiceRevision;
+    var stamp=function(o){return JSON.stringify([o.estado,o._svListRevision,o.materiales,o.items,o.custodiaIniciada,o.custodiaRendida]);},before=stamp(ot);
+    return function(){return currentOT()===ot&&uid===window.currentUserUid&&role===window.currentRole&&user===window.fbAuth?.currentUser&&db===window.fbDB&&epoch===window._svOperacionesSesionEpoch&&revision===window.PERMISOS_ROLES?.[role]?.indiceRevision&&stamp(ot)===before&&mayRend(ot);};
   }
 
   function deliveryDescription(materials) {
@@ -261,6 +288,7 @@
   function itemAction(ot, material, view, index) {
     if (!mayRend(ot) || !controllable(material) || (ot.custodiaRendida && !correcting(ot) && !needsRendition(ot))) return '';
     if ((!material.custodiaActiva || n(material.entregada) === 0) && historicalRecoveryCandidate(ot, material)) return '<button type="button" class="btn btn-sm" data-material-index="' + index + '" onclick="otCustodiaInstalarItem(' + index + ')">Revisar instalación</button>';
+    if (materialState(ot).problems.some(function(m){return m._indice===view._indice;})) return '<button type="button" class="btn btn-sm" disabled>Revisar registro</button>';
     var available = material.custodiaActiva ? installationTarget(material) : 0;
     var done = material.instalada >= available && !view._recuperado;
     var label = !material.custodiaActiva ? 'Pendiente de entrega' : available === 0 ? 'Sin unidades por instalar' : (done ? 'Instalado' : 'Marcar instalado');
@@ -268,8 +296,9 @@
   }
 
   function render(ot, visibleMaterials) {
-    var verified = verifiedInstalledCustody(ot);
-    var deliveryStarted = ot.custodiaIniciada || verified;
+    var state = materialState(ot), verified = state.verified;
+    if(!state.review&&lastReviewNotice){var notice=document.getElementById('notif');if(notice?.textContent.trim()===lastReviewNotice)notice.classList.remove('show');lastReviewNotice='';}
+    var deliveryStarted = state.started;
     var renditionDone = ot.custodiaRendida || verified;
     renderDeliveryReceipts(ot);
     var tbody = document.getElementById('ot-materiales');
@@ -284,7 +313,7 @@
         '<td>' + esc(material.desc || material.descripcion || '') + '<div style="font-size:10px;color:var(--text3)">' + (isAdditional(material) ? 'Adicional' : 'Original') + (view._recuperado ? ' · registro anterior' : '') + '</div></td>' +
         '<td class="tr">' + n(material.vendida) + '</td>' +
         '<td class="tr">' + (material.custodiaActiva ? material.entregada : '—') + '</td>' +
-        '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + stateBadge(material) + '</div></td><td class="tr"><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">' +
+        '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + (state.problems.some(function(m){return m._indice===view._indice;}) ? '<span class="badge b-amber">Revisar registro</span>' : stateBadge(material)) + '</div></td><td class="tr"><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">' +
         itemAction(ot, material, view, index) + (window.SVOTOfficeCount?.button(ot, material, index) || '') +
         (!view._recuperado && typeof window.otPuedeCorregirProductos === 'function' && window.otPuedeCorregirProductos() ? '<button type="button" class="btn btn-sm btn-icon" title="Quitar producto y actualizar venta" aria-label="Quitar producto" onclick="otEliminarProductoMaterial(' + index + ')" style="color:var(--red)">×</button>' : '') + '</div></td>' +
       '</tr>';
@@ -306,14 +335,14 @@
     var allInstalled = document.getElementById('ot-btn-todo-instalado');
     var exceptions = document.getElementById('ot-btn-excepciones');
     var receive = document.getElementById('ot-btn-recibir-devolucion');
-    var pending = pendingDelivery(ot);
+    var pending = state.pending;
     var canDeliver = pending.some(function (material) { return !closedRecord || material.adicionalOT === true; });
     if (deliver) {
-      deliver.style.display = admin && canDeliver ? '' : 'none';
-      deliver.textContent = deliveryStarted ? 'Entregar materiales pendientes' : 'Entregar materiales al técnico';
+      deliver.style.display = admin && (canDeliver || state.review) ? '' : 'none';
+      deliver.textContent = state.review ? 'Revisar entrega' : deliveryStarted ? 'Entregar materiales pendientes' : 'Entregar materiales al técnico';
     }
-    if (allInstalled) allInstalled.style.display = !isClosed && mayRend(ot) && deliveryStarted && (!renditionDone || correcting(ot) || needsRendition(ot)) ? '' : 'none';
-    if (exceptions) exceptions.style.display = !isClosed && mayRend(ot) && deliveryStarted && (!renditionDone || correcting(ot) || needsRendition(ot)) ? '' : 'none';
+    if (allInstalled) allInstalled.style.display = !isClosed && mayRend(ot) && deliveryStarted && (!state.review || state.recoverable) && (!renditionDone || correcting(ot) || needsRendition(ot)) ? '' : 'none';
+    if (exceptions) exceptions.style.display = !isClosed && mayRend(ot) && deliveryStarted && !state.review && (!renditionDone || correcting(ot) || needsRendition(ot)) ? '' : 'none';
     if (receive) receive.style.display = admin && totals.devolucionPendiente > 0 ? '' : 'none';
 
     var status = document.getElementById('ot-custodia-estado');
@@ -332,14 +361,14 @@
       status.parentNode.insertBefore(correction, status.nextSibling);
     }
     if (status) {
-      status.textContent = isClosed && eligible.length && !deliveryStarted
+      status.textContent = state.review ? state.message : isClosed && eligible.length && !deliveryStarted
         ? 'Atención histórica: esta OT se completó con ' + eligible.length + ' producto' + (eligible.length === 1 ? '' : 's') + ' sin entrega ni rendición registradas'
         : !deliveryStarted ? 'El administrativo todavía no registró una entrega' :
         (!renditionDone ? 'Material bajo responsabilidad de ' + (ot.custodiaTecnico || ot.tecnico || 'técnico') + ' · falta rendición' :
           (totals.devolucionPendiente ? 'Rendición realizada · falta confirmar la devolución en depósito' :
             (totals.enTecnico || totals.danados || totals.faltantes ? 'Rendición realizada con materiales pendientes' : 'Rendición completa')));
-      status.style.color = isClosed && eligible.length && !deliveryStarted ? 'var(--red)' : '';
-      status.style.fontWeight = isClosed && eligible.length && !deliveryStarted ? '700' : '';
+      status.style.color = state.review ? 'var(--amber)' : isClosed && eligible.length && !deliveryStarted ? 'var(--red)' : '';
+      status.style.fontWeight = state.review ? '600' : isClosed && eligible.length && !deliveryStarted ? '700' : '';
     }
     var box = document.getElementById('ot-custodia-resumen');
     if (box) {
@@ -353,7 +382,19 @@
         (totals.faltantes ? '<span style="color:var(--red)"><strong>' + totals.faltantes + '</strong> faltantes</span>' : '') +
       '</div>';
     }
+    lastRenderSignature = renderSignature(ot);
   }
+
+  var lastRenderSignature='';
+  function renderSignature(ot){return JSON.stringify([ot.fbKey||ot.id,ot._svListRevision,ot.estado,ot.custodiaIniciada,ot.custodiaRendida,materialRows(ot).map(function(m){return [m,controllable(m)];}),window.currentRole,window.currentUserUid,window._impersonacionOriginal?true:false,window.tienePermiso?.('ot.rendirMateriales'),window.tienePermiso?.('ot.entregarMateriales')]);}
+  if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('sisventas:data-state-changed',function(){
+    var ot=currentOT(),page=document.getElementById('page-ordentrabajo'),detail=document.getElementById('ot-detalle-view');
+    if(!ot||!page?.classList.contains('active')||!detail||detail.style.display==='none'||renditionBusy||deliveryBusy)return;
+    if(renderSignature(ot)===lastRenderSignature)return;
+    render(ot);
+    var badge=document.getElementById('ot-det-estado-badge');if(badge&&typeof window.otBadge==='function')badge.innerHTML=window.otBadge(ot);
+    window.otWizardRefrescar?.();
+  });
 
   // Delivery and its receipt are one OT transaction. Neither operation consumes stock.
   var deliveryBusy = false;
@@ -399,6 +440,8 @@
     var ot = currentOT();
     if (deliveryBusy || renditionBusy || additionalBusy || !ot || window._impersonacionOriginal || !isAdministration()) return;
     if (itemIndex !== undefined) { window.notify('Usá Entregar materiales pendientes para confirmar la entrega completa.'); return; }
+    var state=materialState(ot);
+    if (state.review) { notifyReview(state); return; }
     if (!ot.tecnico) { window.notify('Asigná un técnico antes de entregar materiales'); return; }
     var closed = typeof window.otEstaCerrada === 'function' ? window.otEstaCerrada(ot) : ['completada','con_observaciones'].includes(String(ot.estado || '').toLowerCase());
     var eligible = pendingDelivery(ot).filter(function(m){return !closed || m.adicionalOT === true;});
@@ -482,6 +525,8 @@
     var material = normalizeMaterial(selected);
     var needsDelivery = !material.custodiaActiva || n(material.entregada) <= 0;
     var recovering = needsDelivery && historicalRecoveryCandidate(original, material);
+    var state=materialState(original);
+    if(!recovering&&state.problems.some(function(m){return m._indice===selected._indice;})){notifyReview(state);return;}
     if (needsDelivery && !recovering) { window.notify('Confirmá primero la entrega de este material al técnico.'); return; }
     if (material.stockPendiente) { window.notify('Completá primero el stock pendiente.'); return; }
     if (!needsDelivery && material.instalada >= installationTarget(material) && !selected._recuperado) return;
@@ -510,7 +555,10 @@
     if (typeof window.tienePermiso !== 'function' || !window.tienePermiso('ot.rendirMateriales')) { window.notify('No tenés permiso para rendir materiales.'); return; }
     var ot = currentOT();
     if (!ot || !ot.custodiaIniciada || !mayRend(ot) || (ot.custodiaRendida && !correcting(ot) && !needsRendition(ot)) || renditionBusy || deliveryBusy) return;
+    var state=materialState(ot),valid=captureRendition(ot);
+    if(state.review&&!state.recoverable){notifyReview(state);return;}
     if (!await window.svConfirm('¿Confirmás que todo el material entregado quedó instalado?')) return;
+    if(!valid()){window.notify('La sesión, los permisos o los materiales cambiaron. Volvé a abrir la OT.');return;}
     var effectiveRows = materialRows(ot);
     ot = JSON.parse(JSON.stringify(ot));
     ot.materiales = persistedRows(effectiveRows);
@@ -554,6 +602,7 @@
     if (typeof window.tienePermiso !== 'function' || !window.tienePermiso('ot.rendirMateriales')) { window.notify('No tenés permiso para rendir materiales.'); return; }
     var ot = currentOT();
     if (!ot || !ot.custodiaIniciada || !mayRend(ot) || (ot.custodiaRendida && !correcting(ot) && !needsRendition(ot)) || renditionBusy || deliveryBusy) return;
+    if(materialState(ot).review){notifyReview(materialState(ot));return;}
     var previous = document.getElementById('ot-custodia-modal');
     if (previous) previous.remove();
     var overlay = document.createElement('div');
@@ -586,6 +635,7 @@
     var ot = currentOT();
     var modal = document.getElementById('ot-custodia-modal');
     if (!ot || !modal || !mayRend(ot) || renditionBusy || deliveryBusy) return;
+    if(materialState(ot).review){notifyReview(materialState(ot));return;}
     ot = JSON.parse(JSON.stringify(ot));
     var before = (ot.materiales || []).map(function (material) { return Object.assign({}, material); });
     var invalid = '';
@@ -700,12 +750,12 @@
   function validateClose(ot) {
     if (!ot) return { ok:true, conObservaciones:false };
     if ((ot.materiales || []).some(function(m){return m.stockPendiente === true;})) return {ok:false,message:'Hay un adicional instalado con stock pendiente. Completá su registro en Materiales.'};
-    var recovered = materialRows(ot).filter(function(m){return m._recuperado && controllable(m);});
-    if (recovered.length) return {ok:false,message:'Hay materiales anteriores pendientes de confirmar. Revisalos en Repuestos.'};
-    var eligible = controllableMaterials(ot);
+    var state=materialState(ot);
+    if(state.review)return {ok:false,requiereRevision:true,message:state.message};
+    var eligible = state.rows;
     if (!eligible.length) return { ok:true, conObservaciones:false };
-    var verified = verifiedInstalledCustody(ot);
-    if (!ot.custodiaIniciada && !verified) {
+    var verified = state.verified;
+    if ((!state.started || state.pending.length) && !verified) {
       return {
         ok:false,
         requiereEntrega:true,
