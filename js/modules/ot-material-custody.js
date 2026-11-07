@@ -148,7 +148,10 @@
       var q=quantity(m),d=n(m.entregada),values=['entregada','instalada','devueltaPendiente','devuelta','enTecnico','danada','faltante'];
       return m._recuperado || values.some(function(k){return m[k]!=null&&(!Number.isFinite(Number(m[k]))||Number(m[k])<0);}) ||
         d>q || classified(m)>d || (!m.custodiaActiva && (d>0||classified(m)>0)) ||
-        (m.custodiaActiva===true && (d===0||!started));
+        // Legacy incremental delivery can omit the aggregate flag. Its explicit
+        // row custody permits delivering the remainder, not inferring that the
+        // aggregate installation/rendition gate has been confirmed.
+        (m.custodiaActiva===true && (d===0||(!started&&ot.custodiaIniciada!=null)));
     });
     var historical=problems.some(function(m){return m._recuperado;});
     var recoverable=problems.length>0&&correcting(ot)&&problems.every(function(m){return m._recuperado&&historicalRecoveryCandidate(ot,m);});

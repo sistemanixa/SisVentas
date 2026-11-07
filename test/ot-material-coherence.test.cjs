@@ -6,6 +6,13 @@ for(const shape of ['inconsistent','legacy'])test('delivery and row status reque
  await f.w.otCustodiaEntregar();a.match(f.notes.at(-1),/revis|confirm/i);a.doesNotMatch(f.notes.at(-1),/No hay materiales pendientes/);a.equal(JSON.stringify(f.ot),before);a.deepEqual(f.writes,[]);
 });
 test('partial delivery retains exact pending quantities and installation of delivered material only',()=>{const f=fixture();Object.assign(f.ot,{custodiaIniciada:true});Object.assign(f.ot.materiales[0],{vendida:2.75,entregada:0.25,custodiaActiva:true});f.render();a.equal(f.nodes['ot-btn-entregar-materiales'].style.display,'');a.equal(f.nodes['ot-btn-todo-instalado'].style.display,'');a.equal(f.ot.materiales[0].entregada,0.25);a.equal(f.w.otCustodiaValidarCierre(f.ot).ok,false);});
+
+for(const aggregate of [undefined,false])test('legacy row custody is evidence only when aggregate flag is absent: '+aggregate,()=>{
+ const f=fixture();f.ot.custodiaIniciada=aggregate;Object.assign(f.ot.materiales[0],{vendida:2.75,entregada:0.25,custodiaActiva:true});const before=JSON.stringify(f.ot);f.render();
+ if(aggregate===false)a.match(f.nodes['ot-custodia-estado'].textContent,/revis/i);
+ else a.doesNotMatch(f.nodes['ot-custodia-estado'].textContent,/no coinciden/i);
+ a.equal(JSON.stringify(f.ot),before);a.deepEqual(f.writes,[]);a.equal(f.w.otCustodiaValidarCierre(f.ot).ok,false);
+});
 test('confirmed partial bulk installation never installs or delivers the missing quantity',async()=>{const f=fixture();Object.assign(f.ot,{custodiaIniciada:true});Object.assign(f.ot.materiales[0],{vendida:2.75,entregada:0.25,custodiaActiva:true});await f.w.otCustodiaTodoInstalado();a.deepEqual(f.targets,[0.25]);a.equal(f.drafts.length,1);a.equal(f.ot.materiales[0].vendida,2.75);a.equal(f.ot.materiales[0].entregada,0.25);a.equal(f.ot.materiales[0].instalada,0.25);a.equal(f.ot.custodiaRendida,false);});
 for(const kind of ['permission','session','record','quantity','role','revision'])test('bulk confirmation discards stale or revoked intent: '+kind,async()=>{
  const f=fixture();f.ot.custodiaIniciada=true;f.ot.materiales[0].custodiaActiva=true;
