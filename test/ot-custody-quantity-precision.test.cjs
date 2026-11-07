@@ -4,10 +4,17 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{webcrypto}=require('node:crypto');
 const Money=require('../js/core/commercial-money.v1'),Stock=require('../js/modules/ot-stock-consumption.v1');
 function fixture(){
- const ot={fbKey:'ot',id:'OT-DECIMAL-FICTICIA',ventaFbKey:'s',tecnico:'Técnico ficticio',estado:'en_curso',custodiaIniciada:true,materiales:[{cod:'P',productoKey:'p',vendida:0.3,entregada:0.3,devuelta:0.1,instalada:0,custodiaActiva:true}],audit:[]},commands=[],notes=[],stockTargets=[],nodes={};
- let inv={general:0.1,reservado:0.2,consumido:0,asignaciones:{s:{reservado:0.2,consumido:0,liberado:0.1}}};
+ const receipt='a'.repeat(64),ot={fbKey:'ot',id:'OT-DECIMAL-FICTICIA',ventaFbKey:'s',tecnico:'Técnico ficticio',estado:'en_curso',custodiaIniciada:true,materiales:[{cod:'P',productoKey:'p',stockRegistro:receipt,stockRevision:1,vendida:0.3,entregada:0.3,devuelta:0.1,instalada:0,custodiaActiva:true}],audit:[]},commands=[],notes=[],stockTargets=[],nodes={};
+ let inv={general:0.1,reservado:0.2,consumido:0,asignaciones:{s:{reservado:0.2,consumido:0,liberado:0.1}},rendicionesOT:{[receipt]:{ot:'ot',venta:'s',revision:1,instalada:0,deReserva:0,deGeneral:0,enReserva:0,recibidas:0.1}}};
  const w={otData:[ot],otActualId:'ot',currentUserUid:'u',currentRole:'admin',currentUser:'Persona ficticia',fbAuth:{currentUser:{uid:'u'}},fbDB:{},fbRef:(_,p)=>p,crypto:webcrypto,SVCommercialMoney:Money,prodData:{p:{fbKey:'p',codigo:'P'}},tienePermiso:()=>true,svConfirm:async()=>true,notify:m=>notes.push(m),scrollTo(){},SVOTLifecycle:{prepare:async()=>true,save:async(_baseline,draft,options)=>{commands.push({draft:structuredClone(draft),options});return{confirmed:true,ot:structuredClone(draft)};}},fbRunTransaction:async(p,transform)=>{assert.equal(p,'sisventas/inventario_operativo/p');inv=transform(inv);return{committed:true};}};
  w.SisVentasCompras={syncOTConsumption:async(o,b,a)=>{stockTargets.push(a.instalada);return Stock.sync(w,o,b,a);}};
+ const legacySave=w.SVOTLifecycle.save;
+ w.SVOTLifecycle.save=async(before,draft,options)=>{
+  if(!options?.atomicStock)return legacySave(before,draft,options);
+  const staged=await require('../cotizador/ot-rendition-stock-plan').stage({ot:before,otKey:'ot',targets:draft.materiales,read:async p=>structuredClone(p==='sisventas/inventario_operativo/p'?inv:p==='sisventas/productos/p'?w.prodData.p:null),query:async(_p,field,value)=>w.prodData.p[field]===value?{p:w.prodData.p}:{}});
+  for(const m of staged.materials)if(staged.inventory.has('sisventas/inventario_operativo/p'))stockTargets.push(staged.inventory.get('sisventas/inventario_operativo/p').rendicionesOT[m.stockRegistro].instalada);
+  inv=staged.inventory.get('sisventas/inventario_operativo/p')||inv;return legacySave(before,{...draft,materiales:staged.materials},options);
+ };
  const c={window:w,document:{getElementById:id=>nodes[id]||null,body:{},documentElement:{}},requestAnimationFrame(){},console};vm.createContext(c);vm.runInContext(fs.readFileSync(require.resolve('../js/modules/ot-material-custody.js'),'utf8'),c);
  function exceptions({returned=0,technician=0,damaged=0,missing=0}={}){const inputs={'.ot-ex-return':{value:String(returned)},'.ot-ex-tech':{value:String(technician)},'.ot-ex-damaged':{value:String(damaged)},'.ot-ex-missing':{value:String(missing)},'.ot-ex-installed':{textContent:'',style:{}}},row={dataset:{index:'0',entregada:'0.2'},querySelector:s=>inputs[s]};nodes['ot-custodia-modal']={querySelectorAll:()=>[row],remove(){delete nodes['ot-custodia-modal'];}};return{row,inputs};}
  return{w,ot,commands,notes,stockTargets,inventory:()=>inv,exceptions,nodes};

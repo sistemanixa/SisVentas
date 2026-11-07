@@ -1,8 +1,9 @@
 'use strict';
 // Explicit opt-in, fixed loopback emulator, exact supplied rules: no rule builder
 // or production transport. No permissions are widened to make these tests pass.
-const {test,before,after}=require('node:test'),a=require('node:assert/strict'),fs=require('node:fs'),{createRequire}=require('node:module');
-const dep=createRequire(process.env.SV_SECURITY_TOOLS+'/package.json'),sdk=dep('firebase/database'),{initializeTestEnvironment}=dep('@firebase/rules-unit-testing'),{fixture}=require('./helpers/ot-lifecycle-fixture.cjs'),Index=require('../cotizador/record-list-model'),{digest,createLaborGuard}=require('../cotizador/labor-guard'),{createLaborRtdbStore}=require('../cotizador/labor-rtdb-store'),{createOTLifecycle}=require('../cotizador/ot-lifecycle');
+const {test,before,after}=require('node:test'),a=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{createRequire}=require('node:module');
+const runtime=process.env.SV_OT_ATOMIC_RUNTIME?path.resolve(process.env.SV_OT_ATOMIC_RUNTIME):path.resolve(__dirname,'../cotizador');
+const dep=createRequire(process.env.SV_SECURITY_TOOLS+'/package.json'),sdk=dep('firebase/database'),{initializeTestEnvironment}=dep('@firebase/rules-unit-testing'),{fixture}=require('./helpers/ot-lifecycle-fixture.cjs'),Index=require(path.join(runtime,'record-list-model')),{digest,createLaborGuard}=require(path.join(runtime,'labor-guard')),{createLaborRtdbStore}=require(path.join(runtime,'labor-rtdb-store')),{createOTLifecycle}=require(path.join(runtime,'ot-lifecycle'));
 const host='127.0.0.1:9073',ns='demo-ot187-atomic';let env;
 before(async()=>{a.equal(process.env.FIREBASE_DATABASE_EMULATOR_HOST,host);const rules=fs.readFileSync(process.env.SV_OT_ATOMIC_RULES,'utf8');env=await initializeTestEnvironment({projectId:ns,database:{host:'127.0.0.1',port:9073,rules}});});
 after(async()=>{if(env){await env.clearDatabase();await env.cleanup();}});

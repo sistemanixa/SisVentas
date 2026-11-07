@@ -58,6 +58,7 @@ ENV NODE_ENV=production
 CMD ["npm", "start"]
 
 COPY ot-office-count.js ot-office-count-model.js ot-stock-consumption-model.js ./
+COPY ot-rendition-stock-plan.js ./
 COPY ot-closed-products.js ot-lifecycle.js ot-delivery.js ot-delivery-model.js ot-lifecycle-model.js ot-lifecycle-policy.js ot-material-rows-model.js ot-personal-scope.js ./
 
 COPY sale-return-to-budget.js ./
