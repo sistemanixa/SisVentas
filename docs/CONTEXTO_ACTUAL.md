@@ -1,3 +1,9 @@
+## Cuenta Corriente y OT v3.19.17 publicadas · 07/11/2026
+
+Fuente funcional72db94334701bad67525445a08ec94ba0476cd7f; puerta9956/9910PASS/0FAIL/46SKIP, servidor94PASS y emulador25escenarios en ambos modos Pages sin/con, sin sumar solapados. Corrige concurrencia acotada de lectura CC y cierre OT con vínculo unidireccional verificado sin crear otId. Overlay mínimo sobre candidata CC, no servidor completo. Reglas: sólo estadoInst/audit de venta dentro de capacidad OT; respaldadas, revalidadas y releídas, sin roles ni originales.
+
+Cotizador ccot31917-dd416173 al100% con15accesos, recursos/env/identidad conservados. Hosting082c4e8d365a887a/637activos/5cargas;7bytesexactos,3privadas404,2anónimos401. Aviso oficial17 confirmado. QAweb autenticada CC lista/saldos y retorno; lista visible503ms, revalidación sigue1,99–2,03s: no afirmar instantánea ni ahorro de transferencia. OT179 restaurada enFinalizar sin guardar/cerrar; modelo exacto aceptado sólo enmemoria. Cero pagos/comisiones/stock o cierres reales de prueba. Emulador vacío/detenido. Respaldo/rollback privados. No push/main ni otrosfrentes. Ver CUENTA_CORRIENTE_OT_V31917.md para hashes, rojos y límites.
+
 ## Cuenta Corriente: candidata local validada, publicación retenida por OT · 07/11/2026
 
 Hotfix aislado codex/cc-opening-v31917 desde publicada16/fdc05b03; fuente bc20dc066fbc02bbb9254dfba18770081d308f61. Conserva completo el historial y sus autores. Concurrencia configurable estricta de1a16 sólo para listados; predeterminado y verificación de guardados seis. Prueba96orígenes/288ventas ficticias251→105ms, mismosGET y salida idéntica. Lectura web autorizada mostró espera de servidor2,46–4,96s en200/304, no equivalente al render. No es reducción acreditada de lecturas ni activación de Accounts/H7.
