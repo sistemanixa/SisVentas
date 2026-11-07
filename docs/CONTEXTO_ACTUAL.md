@@ -1,3 +1,7 @@
+## Stock de oficina simple: componente aislado inicial · 07/11/2026
+
+Se prepara después del cierre local OT187, sin tocar su artefacto ni la conciliación real asignada a otro trabajador. Modelo puro y UI nuevos, adaptador ficticio solamente: 13 pruebas específicas PASS y revisión visual390/1280. Foto/producto/disponible, lápiz, observación e historial; Compras idéntica. No está conectado al backend real ni al menú: faltan adaptador/comando guardado, readiness/permisos/reglas y prueba integrada/puerta general. Ver STOCK_OFICINA_SIMPLE_LOCAL.md para alcance, cantidades y decisiones no asumidas. No publicar este checkout completo como paquete OT ni dar módulo por habilitado; sin operaciones reales.
+
 ## OT187: fuente atómica congelada y verificada localmente · 07/11/2026
 
 Fuente funcional `8e37b62deeeaeac9d2a264bd7d4c3b2c42008b8d`. Puerta final exit0: 10.017 casos, 9.971 PASS, cero FAIL, 46 SKIP explícitos; log privado gate-atomic8e37b62d.private.log SHA256 `e986ae8c40d58e67f9a4b2876f6de02068c4b95e5444e9ce533fba44b00b809a`. Conservado rojo f0d90ad5 de cinco fallos; dependencia Docker incluida y cuatro fixtures actualizados al plan real sin cambiar cantidades esperadas. Composición comprobada y diff sin errores. Sin corridas simultáneas de esta puerta.
