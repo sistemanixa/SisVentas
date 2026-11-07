@@ -1,3 +1,9 @@
+## Revisión posterior de evidencia CC/OT · 07/11/2026
+
+Sin cambios funcionales ni nuevo despliegue. Fuente publicada72db se conserva; las diferencias posteriores son documentación. Las46omisiones de su puerta corresponden a9archivos opt-in:0deesos46casosexactos acreditados aparte en esta entrega; cobertura específica OT25sin/conPages y otras pruebas se documenta separadamente, sin sustituirlos. Inventario exacto y límites en CUENTA_CORRIENTE_OT_V31917_CIERRE_EVIDENCIA.md y CUENTA_CORRIENTE_OT_V31917_OMISIONES.json.
+
+Rollback comprobado sólo enlectura: Hostingae098a6081d3db8dFINALIZED, Cotizadorcommission31916-db724deeReady y15accesosprevios, reglas respaldadasdee40945… con actualesb3ff492f… coincidentes. No se ejecutó reversión. Defecto OT aúnabierto confirmado enVMficticia: selector agrega histórico «no disponible» antes de cargar empleados y luego no repuebla al llegar; requiere arreglo de readiness/selección, no resuelto por el vínculo publicado. OT179real no cerrada ni reintentada. Cero operaciones comerciales/pruebasreales; Costos y demásfrentes sin reactivar.
+
 ## Cuenta Corriente y OT v3.19.17 publicadas · 07/11/2026
 
 Fuente funcional72db94334701bad67525445a08ec94ba0476cd7f; puerta9956/9910PASS/0FAIL/46SKIP, servidor94PASS y emulador25escenarios en ambos modos Pages sin/con, sin sumar solapados. Corrige concurrencia acotada de lectura CC y cierre OT con vínculo unidireccional verificado sin crear otId. Overlay mínimo sobre candidata CC, no servidor completo. Reglas: sólo estadoInst/audit de venta dentro de capacidad OT; respaldadas, revalidadas y releídas, sin roles ni originales.

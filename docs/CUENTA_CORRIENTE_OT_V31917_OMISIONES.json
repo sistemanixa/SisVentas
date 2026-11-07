@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "functionalSourceCommit": "72db94334701bad67525445a08ec94ba0476cd7f",
+  "gateLogSha256": "4254cd1fb019cfe29f82327b1789f71ccbbd41f771577e530a34b84b436cdc3e",
+  "total": 46,
+  "allOptIn": true,
+  "exactSkippedCasesExecutedSeparatelyInThisRelease": 0,
+  "groups": [
+    {
+      "file": "test/commercial-draft-transport-restart-native.test.cjs",
+      "count": 2,
+      "activationCondition": "FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:<port>",
+      "reason": "opt-in prerequisites not enabled in the joint gate",
+      "exactCases": [
+        "real SDK admission rules stop numbering before HTTP writer and resume the same draft 390",
+        "real SDK admission rules stop numbering before HTTP writer and resume the same draft 1280"
+      ],
+      "status": "not executed for this release; not counted as PASS",
+      "separateExactCaseResult": null
+    },
+    {
+      "file": "test/commercial-full-app-metrics.test.cjs",
+      "count": 1,
+      "activationCondition": "SV_RUN_COMMERCIAL_METRICS=1",
+      "reason": "opt-in prerequisites not enabled in the joint gate",
+      "exactCases": [
+        "opt-in complete HTML fictional boot and historical debt metrics"
+      ],
+      "status": "not executed for this release; not counted as PASS",
+      "separateExactCaseResult": null
+    },
+    {
+      "file": "test/dashboard-notice-rest-independent.test.cjs",
+      "count": 1,
+      "activationCondition": "SV_DASHBOARD_NOTICE_INDEPENDENT_NATIVE=1",
+      "reason": "opt-in prerequisites not enabled in the joint gate",
+      "exactCases": [
+        "Chrome: retiring dataEpoch after point editor opens removes the stale form"
+      ],
+      "status": "not executed for this release; not counted as PASS",
+      "separateExactCaseResult": null
+    },
+    {
+      "file": "test/labor-expense-race-emulator.test.cjs",
+      "count": 7,
+      "activationCondition": "FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:9017 + SV_LABOR_RULES_BASE",
+      "reason": "opt-in prerequisites not enabled in the joint gate",
+      "exactCases": [
+        "admin read before typed command does not duplicate the identical expense after the command commits",
+        "admin first and typed command after it do not duplicate equal identities or lose original fields",
+        "the same long optional input is rejected on both paths before any read, lease or business write",
+        "gateway partial commission changes obey the global effective percentage and preserve paid history",
+        "fiscal server journal is closed to client GET, PUT, DELETE and a mixed gateway patch",
+        "event failures retain the five-attempt review cutoff inside the full runtime coordinator",
+        "six deliveries across separate runtime guards cannot exceed five durable generation attempts"
+      ],
+      "status": "not executed for this release; not counted as PASS",
+      "separateExactCaseResult": null
+    },
+    {
+      "file": "test/labor-runtime-emulator.test.cjs",
+      "count": 20,
+      "activationCondition": "FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:9017 + SV_LABOR_RULES_BASE",
+      "reason": "opt-in prerequisites not enabled in the joint gate",
+      "exactCases": [
+        "runtime REST store preserves emulator namespace and readAsUser enforces original record access",
+        "four real commands use guard/store/proxy/scoped transaction, preserving paid commission and indexes",
+        "gateway atomic uses actual UID permissions, exact hashes and a stable receipt replay",
+        "gateway resolve creates a cancellation receipt that rejects a late original POST",
+        "lost commit reply is resolved from the actual receipt without repeating the financial write",
+        "runtime commit rejects inactive changed while the lease is held",
+        "runtime commit rejects role changed while the lease is held",
+        "runtime commit rejects permissions changed while the lease is held",
+        "runtime commit rejects reset changed while the lease is held",
+        "runtime commit rejects expired changed while the lease is held",
+        "real commission generation inside the server guard stages job/control/sale/expense/movement in one PATCH",
+        "a child asynchronous callback cannot report a successful write after its guard already committed",
+        "Reference.ref cannot escape the scoped proxy and persist a write before an aborted guard",
+        "a snapshot obtained before the guard cannot leak an Admin reference into its callback",
+        "unsupported priority writes cannot bypass coordination outside an active context",
+        "live lease rejects normal permission deletion and a valid revision-changing update without changing values",
+        "permission delete/recreate before acquisition is detected by the captured digest despite equal revision",
+        "unresolved server sentinels cannot be committed with an index calculated from a different value",
+        "an exact query includes a staged record whose valid Firebase key is __proto__",
+        "real bootstrap initializes only derived metadata and never rewrites the financial source"
+      ],
+      "status": "not executed for this release; not counted as PASS",
+      "separateExactCaseResult": null
+    },
+    {
+      "file": "test/page-demand-readiness.test.cjs",
+      "count": 6,
+      "activationCondition": "SV_GARANTIA_MANUAL_RUN=1 + SV_GARANTIA_MANUAL_CHROME",
+      "reason": "opt-in prerequisites not enabled in the joint gate",
+      "exactCases": [
+        "Nueva garantía fría resuelve cliente y original fuera de memoria 390",
+        "Nueva garantía fría resuelve cliente y original fuera de memoria 1280",
+        "Nueva garantía fría descarta denied",
+        "Nueva garantía fría descarta client-changed",
+        "Nueva garantía fría descarta modal-closed",
+        "Nueva garantía fría descarta session-ended"
+      ],
+      "status": "not executed for this release; not counted as PASS",
+      "separateExactCaseResult": null
+    },
+    {
+      "file": "test/tecnoprices-container-contract.test.cjs",
+      "count": 1,
+      "activationCondition": "SV_PRESENTATION_ENTRYPOINT_FILE + SV_PRESENTATION_RETAINED_SOURCE",
+      "reason": "opt-in prerequisites not enabled in the joint gate",
+      "exactCases": [
+        "retained image sources form the exact reversible combined filesystem; not a container run"
+      ],
+      "status": "not executed for this release; not counted as PASS",
+      "separateExactCaseResult": null
+    },
+    {
+      "file": "test/tecnoprices-overlay-http-loopback.test.cjs",
+      "count": 1,
+      "activationCondition": "SV_PRESENTATION_ENTRYPOINT_FILE + SV_PRESENTATION_RETAINED_SOURCE",
+      "reason": "opt-in prerequisites not enabled in the joint gate",
+      "exactCases": [
+        "exact composed scraper and preserved Presentation handler over own HTTP loopback; provider API is fictitious"
+      ],
+      "status": "not executed for this release; not counted as PASS",
+      "separateExactCaseResult": null
+    },
+    {
+      "file": "test/tecnoprices-presentation-overlay.test.cjs",
+      "count": 7,
+      "activationCondition": "SV_PRESENTATION_ENTRYPOINT_FILE + SV_PRESENTATION_BASELINE_FILE + SV_PRESENTATION_SOURCE_ROOT",
+      "reason": "opt-in prerequisites not enabled in the joint gate",
+      "exactCases": [
+        "CLI apply/verify/revert are exact and refused writes leave their input intact",
+        "private reference is exactly deterministic Presentation overlay of the pinned old entrypoint",
+        "apply and reversal preserve every byte outside the login scraper, including Presentation/auth/deletion behavior",
+        "Presentation model authorization still requires genuine active admin context; no data IO",
+        "patched exact scraper with real helper and synthetic API: authenticated",
+        "patched exact scraper with real helper and synthetic API: HTTP401",
+        "patched exact scraper with real helper and synthetic API: login-with-price"
+      ],
+      "status": "not executed for this release; not counted as PASS",
+      "separateExactCaseResult": null
+    }
+  ]
+}

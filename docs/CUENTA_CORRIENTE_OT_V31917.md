@@ -95,3 +95,14 @@ la corrección de la condición rechazada; deliberadamente no acredita un cierre
 real de esa OT. No pagos, comisiones, stock ni pruebas financieras reales.
 Sin push ni cambios en main. El cierre se limita a CC y OT; no activa los otros
 frentes ni declara concluida toda la auditoría.
+
+
+## Revisión posterior de evidencia
+
+Ver CUENTA_CORRIENTE_OT_V31917_CIERRE_EVIDENCIA.md y su inventario JSON de las
+46 omisiones. Las 46 son opt-in y no se acreditan como PASS por la cobertura OT
+separada. Las referencias de rollback se comprobaron en lectura sin aplicarlas.
+La revisión además reprodujo con datos ficticios un defecto aún abierto del
+selector de técnico cuando empleados llegan tarde; no forma parte del arreglo
+de vínculo publicado ni se declara corregido. Esta ampliación es documental,
+sin nueva publicación o cambios funcionales.
