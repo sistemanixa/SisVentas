@@ -14,6 +14,26 @@
     return integer.replace(/\B(?=(\d{3})+(?!\d))/g,'.')+(scale?','+digits.slice(-scale):'');
   }
 
+  function materialUnit(material) {
+    var product=productFor(material),raw=material.unidad || material.unidadMedida || product?.unidad || product?.unidadMedida;
+    var unit=String(raw || '').trim().toLowerCase();
+    if (/^(u|un|uni|unidad|unidades|uds|ud)$/.test(unit)) unit='unidades';
+    if (/^(m|mt|mts|metro|metros)$/.test(unit)) unit='metros';
+    if (/^(kg|kilo|kilos|kilogramo|kilogramos)$/.test(unit)) unit='kg';
+    if (/^(l|lt|lts|litro|litros)$/.test(unit)) unit='litros';
+    if(unit)return {key:unit,label:unit};
+    // Fractionability and package size do not establish a measurement unit.
+    // Unknown rows stay separate until their own catalog metadata arrives.
+    var code=String(material.cod || material.codigo || material._indice || 'producto');
+    return {key:'unknown:'+code,label:'sin unidad confirmada ('+code+')'};
+  }
+  function materialQuantity(material,value){return quantityDescription(value)+' '+materialUnit(material).label;}
+  function unitTotals(ot){
+    var groups=new Map();materialRows(ot).filter(controllable).forEach(function(m){var unit=materialUnit(m);if(!groups.has(unit.key))groups.set(unit.key,{unit:unit.label,rows:[]});groups.get(unit.key).rows.push(m);});
+    return Array.from(groups.values()).map(function(g){var totals=summary({materiales:g.rows});totals.pendientes=quantitySum([totals.sinClasificar,totals.devolucionPendiente,totals.enTecnico,totals.danados,totals.faltantes]);return Object.assign({unit:g.unit},totals);});
+  }
+  function aggregateQuantity(ot,field){return unitTotals(ot).filter(function(g){return g[field]>0;}).map(function(g){return quantityDescription(g[field])+' '+g.unit;}).join(' + ') || '0';}
+
   function esc(value) {
     if (typeof window.escapeHTML === 'function') return window.escapeHTML(String(value == null ? '' : value));
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (char) {
@@ -170,10 +190,7 @@
   function deliveryDescription(materials) {
     var groups = {};
     materials.forEach(function(material) {
-      var product = productFor(material) || {};
-      var unit = String(material.unidad || product.unidad || 'unidades').trim().toLowerCase();
-      if (/^(u|un|uni|unidad|unidades|uds|ud)$/.test(unit)) unit = 'unidades';
-      if (/^(m|mt|mts|metro|metros)$/.test(unit)) unit = 'metros';
+      var unit = materialUnit(material).label;
       groups[unit] = quantitySum([groups[unit] || 0,n(material.vendida)]);
     });
     return Object.keys(groups).map(function(unit) {
@@ -314,8 +331,8 @@
       return '<tr>' +
         '<td style="font-size:12px;color:var(--text3)">' + esc(material.cod || material.codigo || '') + '</td>' +
         '<td>' + esc(material.desc || material.descripcion || '') + '<div style="font-size:10px;color:var(--text3)">' + (isAdditional(material) ? 'Adicional' : 'Original') + (view._recuperado ? ' · registro anterior' : '') + '</div></td>' +
-        '<td class="tr">' + n(material.vendida) + '</td>' +
-        '<td class="tr">' + (material.custodiaActiva ? material.entregada : '—') + '</td>' +
+        '<td class="tr">' + esc(materialQuantity(material,n(material.vendida))) + '</td>' +
+        '<td class="tr">' + (material.custodiaActiva ? esc(materialQuantity(material,material.entregada)) : '—') + '</td>' +
         '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + (state.problems.some(function(m){return m._indice===view._indice;}) ? '<span class="badge b-amber">Revisar registro</span>' : stateBadge(material)) + '</div></td><td class="tr"><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">' +
         itemAction(ot, material, view, index) + (window.SVOTOfficeCount?.button(ot, material, index) || '') +
         (!view._recuperado && typeof window.otPuedeCorregirProductos === 'function' && window.otPuedeCorregirProductos() ? '<button type="button" class="btn btn-sm btn-icon" title="Quitar producto y actualizar venta" aria-label="Quitar producto" onclick="otEliminarProductoMaterial(' + index + ')" style="color:var(--red)">×</button>' : '') + '</div></td>' +
@@ -377,19 +394,19 @@
     if (box) {
       box.style.display = deliveryStarted ? '' : 'none';
       box.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 12px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);font-size:12px">' +
-        '<span><strong>' + totals.entregados + '</strong> entregados</span><span style="color:var(--green)"><strong>' + totals.instalados + '</strong> instalados</span>' +
-        (totals.sinClasificar ? '<span style="color:var(--amber)"><strong>' + totals.sinClasificar + '</strong> sin clasificar</span>' : '') +
-        (totals.devolucionPendiente ? '<span style="color:var(--amber)"><strong>' + totals.devolucionPendiente + '</strong> esperando recepción</span>' : '') +
-        (totals.enTecnico ? '<span style="color:var(--amber)"><strong>' + totals.enTecnico + '</strong> continúan con técnico</span>' : '') +
-        (totals.danados ? '<span style="color:var(--red)"><strong>' + totals.danados + '</strong> dañados</span>' : '') +
-        (totals.faltantes ? '<span style="color:var(--red)"><strong>' + totals.faltantes + '</strong> faltantes</span>' : '') +
+        '<span><strong>' + esc(aggregateQuantity(ot,'entregados')) + '</strong> entregados</span><span style="color:var(--green)"><strong>' + esc(aggregateQuantity(ot,'instalados')) + '</strong> instalados</span>' +
+        (totals.sinClasificar ? '<span style="color:var(--amber)"><strong>' + esc(aggregateQuantity(ot,'sinClasificar')) + '</strong> sin clasificar</span>' : '') +
+        (totals.devolucionPendiente ? '<span style="color:var(--amber)"><strong>' + esc(aggregateQuantity(ot,'devolucionPendiente')) + '</strong> esperando recepción</span>' : '') +
+        (totals.enTecnico ? '<span style="color:var(--amber)"><strong>' + esc(aggregateQuantity(ot,'enTecnico')) + '</strong> continúan con técnico</span>' : '') +
+        (totals.danados ? '<span style="color:var(--red)"><strong>' + esc(aggregateQuantity(ot,'danados')) + '</strong> dañados</span>' : '') +
+        (totals.faltantes ? '<span style="color:var(--red)"><strong>' + esc(aggregateQuantity(ot,'faltantes')) + '</strong> faltantes</span>' : '') +
       '</div>';
     }
     lastRenderSignature = renderSignature(ot);
   }
 
   var lastRenderSignature='';
-  function renderSignature(ot){return JSON.stringify([ot.fbKey||ot.id,ot._svListRevision,ot.estado,ot.custodiaIniciada,ot.custodiaRendida,materialRows(ot).map(function(m){return [m,controllable(m)];}),window.currentRole,window.currentUserUid,window._impersonacionOriginal?true:false,window.tienePermiso?.('ot.rendirMateriales'),window.tienePermiso?.('ot.entregarMateriales')]);}
+  function renderSignature(ot){return JSON.stringify([ot.fbKey||ot.id,ot._svListRevision,ot.estado,ot.custodiaIniciada,ot.custodiaRendida,materialRows(ot).map(function(m){return [m,controllable(m),materialUnit(m)];}),window.currentRole,window.currentUserUid,window._impersonacionOriginal?true:false,window.tienePermiso?.('ot.rendirMateriales'),window.tienePermiso?.('ot.entregarMateriales')]);}
   if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('sisventas:data-state-changed',function(){
     var ot=currentOT(),page=document.getElementById('page-ordentrabajo'),detail=document.getElementById('ot-detalle-view');
     if(!ot||!page?.classList.contains('active')||!detail||detail.style.display==='none'||renditionBusy||deliveryBusy)return;
@@ -768,7 +785,7 @@
     }
     var totals = summary(ot);
     if ((!ot.custodiaRendida && !verified) || totals.sinClasificar > 0) {
-      return { ok:false, message:'Falta rendir ' + (totals.sinClasificar || totals.entregados) + ' unidad(es) entregadas. Confirmá “Todo instalado” o informá las excepciones.' };
+      return { ok:false, message:'Falta rendir ' + aggregateQuantity(ot,totals.sinClasificar?'sinClasificar':'entregados') + '. Confirmá “Todo instalado” o informá las excepciones.' };
     }
     return { ok:true, conObservaciones:totals.conObservaciones, resumen:totals };
   }
@@ -777,7 +794,9 @@
     var custodyUnits = 0;
     var returns = 0;
     var incidents = 0;
+    var allRows=[];
     (window.otData || []).forEach(function (ot) {
+      allRows=allRows.concat(materialRows(ot).filter(controllable));
       var totals = summary(ot);
       custodyUnits = quantitySum([custodyUnits,totals.sinClasificar,totals.enTecnico]);
       returns = quantitySum([returns,totals.devolucionPendiente]);
@@ -785,8 +804,8 @@
     });
     var metric = document.getElementById('ot-met-custodia');
     var sub = document.getElementById('ot-met-custodia-sub');
-    if (metric) metric.textContent = quantitySum([custodyUnits,returns,incidents]);
-    if (sub) sub.textContent = returns ? returns + ' esperando recepción' : (incidents ? incidents + ' con incidencia' : (custodyUnits ? custodyUnits + ' en técnicos' : 'sin pendientes'));
+    if (metric) metric.textContent = aggregateQuantity({materiales:allRows},'pendientes');
+    if (sub) sub.textContent = returns ? 'Hay devoluciones esperando recepción' : (incidents ? 'Hay materiales con incidencia' : (custodyUnits ? 'Materiales pendientes de rendición' : 'sin pendientes'));
   }
 
   function openOT(key) {
@@ -820,11 +839,11 @@
           '<div style="font-size:11px;color:var(--text2)">' + esc(estados.join(' · ')) + '</div></div>';
       }).filter(Boolean).join('');
       rows.push('<tr><td><strong>' + esc(ot.id || 'OT') + '</strong><div style="font-size:10px;color:var(--text3)">' + esc(ot.cliente || '') + '</div></td><td>' + esc(ot.custodiaTecnico || ot.tecnico || 'Sin asignar') + '</td><td>' + (materiales || '<span style="color:var(--text3)">Sin detalle disponible</span>') + '</td><td>' +
-        (totals.sinClasificar ? '<span class="badge b-amber">Sin rendir ' + totals.sinClasificar + '</span> ' : '') +
-        (totals.devolucionPendiente ? '<span class="badge b-amber">Por recibir ' + totals.devolucionPendiente + '</span> ' : '') +
-        (totals.enTecnico ? '<span class="badge b-blue">Con técnico ' + totals.enTecnico + '</span> ' : '') +
-        (totals.danados ? '<span class="badge b-red">Dañado ' + totals.danados + '</span> ' : '') +
-        (totals.faltantes ? '<span class="badge b-red">Faltante ' + totals.faltantes + '</span>' : '') +
+        (totals.sinClasificar ? '<span class="badge b-amber">Sin rendir ' + esc(aggregateQuantity(ot,'sinClasificar')) + '</span> ' : '') +
+        (totals.devolucionPendiente ? '<span class="badge b-amber">Por recibir ' + esc(aggregateQuantity(ot,'devolucionPendiente')) + '</span> ' : '') +
+        (totals.enTecnico ? '<span class="badge b-blue">Con técnico ' + esc(aggregateQuantity(ot,'enTecnico')) + '</span> ' : '') +
+        (totals.danados ? '<span class="badge b-red">Dañado ' + esc(aggregateQuantity(ot,'danados')) + '</span> ' : '') +
+        (totals.faltantes ? '<span class="badge b-red">Faltante ' + esc(aggregateQuantity(ot,'faltantes')) + '</span>' : '') +
         '</td><td class="tr"><button class="btn btn-sm" onclick="otCustodiaAbrirOT(\'' + esc(ot.fbKey || ot.id || '') + '\')">Ver OT</button></td></tr>');
     });
     var previous = document.getElementById('ot-custodia-panel');

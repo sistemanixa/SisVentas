@@ -1,0 +1,19 @@
+'use strict';
+const {test}=require('node:test'),a=require('node:assert/strict'),path=require('node:path'),{chromium}=require('playwright'),{start}=require('./fixtures/commercial-full-app.cjs'),Index=require('../js/core/record-list-model'),{apply}=require('./helpers/labor-ui-flow.cjs');
+for(const width of [390,1280])test('full OT wizard keeps heterogeneous units separate and resolves late metadata '+width,{timeout:60000},async()=>{
+ const f=await start({accountsRollout:false}),key='fiction-unit-ot',ref='sisventas/ordenes_trabajo/'+key,rows=[['SW',1],['CABLE',305],['BOX',2],['PLUG',6],['WEIGHT',2.5]];
+ const ot={id:'OT-UNIT-FICTION',cliente:'Cliente ficticio',tecnico:'Persona ficticia',estado:'pendiente',custodiaIniciada:true,custodiaRendida:false,materiales:rows.map(([cod,q])=>({cod,desc:'Material ficticio '+cod,vendida:q,entregada:q,instalada:0,custodiaActiva:true})),checks:{preparacion:[],instalacion:[],verificacion:[]}};
+ apply(f.backend.state,{...Index.plan(ref,null,ot,'fiction-unit-seed'),'sv_record_list_config':{schema:1,ready:true}});const before=structuredClone(f.backend.state.sisventas);let browser;
+ try{
+  browser=await chromium.launch({headless:true,executablePath:process.env.SV_TEST_CHROME||'C:/Program Files/Google/Chrome/Application/chrome.exe'});const context=await browser.newContext({viewport:{width,height:900},serviceWorkers:'block'}),page=await context.newPage(),posts=[];page.setDefaultTimeout(10000);
+  await context.route('**/*',route=>{const request=route.request();if(request.method()==='POST'&&!request.url().includes('/disponible'))posts.push(request.url());return new URL(request.url()).origin===new URL(f.url).origin?route.continue():route.abort();});
+  await page.goto(f.url);await page.evaluate(()=>{__moduleAuditSourceControl.release('productos');__moduleAuditSourceControl.release('empleados');});await page.locator('#ventas-tbody tr').nth(49).waitFor();
+  await page.evaluate(()=>{showPage('ordentrabajo');svCargarDatosDePaginaActual('ordentrabajo');});await page.waitForFunction(k=>otData.some(o=>o.fbKey===k),key);await page.evaluate(k=>verOT(k),key);await page.locator('#ot-wiz301-nav').getByRole('button',{name:/2 Materiales/}).click();
+  const box=page.locator('#ot-custodia-resumen');await box.filter({hasText:/sin unidad confirmada/}).waitFor({state:'visible'});a.doesNotMatch(await box.innerText(),/316,5|314 entregados/);
+  await page.evaluate(()=>{for(const [codigo,unidad]of [['SW','Unidad'],['CABLE','Metro'],['BOX','unidades'],['PLUG','u'],['WEIGHT','kg']])prodData['unit-'+codigo]={codigo,unidad,fraccionable:['CABLE','WEIGHT'].includes(codigo),cantidadPorPresentacion:305};document.dispatchEvent(new CustomEvent('sisventas:data-state-changed'));});
+  await box.filter({hasText:/9 unidades \+ 305 metros \+ 2,5 kg/}).waitFor({state:'visible'});a.doesNotMatch(await box.innerText(),/316,5|sin unidad confirmada/);a.match(await page.locator('#ot-materiales').innerText(),/305 metros/);a.match(await page.locator('#ot-materiales').innerText(),/2,5 kg/);a.equal(await page.locator('#ot-materiales-card').isVisible(),true);
+  const stable=await page.evaluate(()=>{const row=document.querySelector('#ot-materiales tr');document.dispatchEvent(new CustomEvent('sisventas:data-state-changed'));return row===document.querySelector('#ot-materiales tr');});a.equal(stable,true);
+  a.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);a.deepEqual(f.backend.state.sisventas,before);a.equal(f.backend.commits.length,0);a.deepEqual(posts,[]);
+  if(process.env.SV_OT187_EVIDENCE)await page.screenshot({path:path.join(process.env.SV_OT187_EVIDENCE,'unit-wizard-'+width+'.private.png'),fullPage:true});
+ }finally{await browser?.close();await new Promise(resolve=>{f.server.close(resolve);f.server.closeAllConnections();});}
+});
