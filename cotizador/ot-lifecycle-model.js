@@ -33,6 +33,10 @@ function validLink(ot,sale,otKey,primary,others){
  if(sale.otId===otKey)return true;
  const norm=v=>String(v||'').replace(/^#/,'').trim().toUpperCase();
  const row=others[otKey],main=others[sale.otId];
+ // Older automatic OTs can have a verified forward link without a primary
+ // pointer on the sale. Do not invent/reassign that pointer or accept aliases
+ // to another OT: the original and its exact indexed revision must agree.
+ if(sale.otId==null&&!['otFbKey','otKey','ordenTrabajoId','ordenTrabajoFbKey','ot','otNumero'].some(k=>sale[k]!=null)&&Object.hasOwn(others,otKey)&&row&&typeof ot.id==='string'&&ot.id.length>0&&row.id===ot.id&&Number.isSafeInteger(row._svListRevision)&&row._svListRevision>0&&row._svListRevision===ot._svListRevision&&row.ventaFbKey===ot.ventaFbKey&&row.ventaId===sale.id&&ot.ventaId===sale.id)return true;
  return !!(primary&&row&&main&&primary.ventaFbKey===ot.ventaFbKey&&norm(primary.ventaId)===norm(sale.id)&&row.ventaFbKey===ot.ventaFbKey&&norm(row.ventaId)===norm(sale.id)&&main.ventaFbKey===ot.ventaFbKey&&norm(main.ventaId)===norm(sale.id)&&main._svListRevision===(primary._svListRevision||0));
 }
 function plan({before,changes,kind,sale,primary=null,others={},products={},actor,at,action,allowPending=false}){

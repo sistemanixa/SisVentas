@@ -11516,7 +11516,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Las fichas cargan el registro solicitado antes de habilitar acciones.','Duplicados y guardados conservan precios y costos coherentes.']),
   RELEASE_FEATURE: Object.freeze({page:'dashboard',actionLabel:'Ver Dashboard'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.19.17',date:'07/11/2026',title:'Apertura de Cuenta corriente',notes:Object.freeze(['La consulta de ventas resuelve sus referencias con lecturas simultáneas acotadas.','Se conserva el historial completo, sus saldos y los permisos existentes.'])}),
+ Object.freeze({version:'v3.19.17',date:'07/11/2026',title:'Cuenta corriente y cierre de OT',notes:Object.freeze(['Mejora la apertura de Cuenta corriente conservando historial y saldos.','Permite finalizar una OT con vínculo verificado a su venta aunque falte el enlace inverso, sin duplicar movimientos.'])}),
  Object.freeze({version:'v3.19.16',date:'06/11/2026',title:'Edición del porcentaje de comisión',notes:Object.freeze(['El porcentaje conserva lo escrito mientras se edita, incluido cero o un campo vacío.'])}),
  Object.freeze({version:'v3.19.15',date:'06/11/2026',title:'Recibos de efectivo',notes:Object.freeze(['Los pagos en efectivo a empleados vuelven a ofrecer Imprimir recibo desde su historial.','El recibo corresponde al pago seleccionado y no registra otro pago.'])}),
  Object.freeze({version:'v3.19.14',date:'06/11/2026',title:'Documentos y seguimiento',notes:Object.freeze(['La vista de documentos conserva sus controles al compartir o cancelar.','Soporte abre la venta vinculada cuando se necesita y conserva el regreso al reclamo.'])}),
