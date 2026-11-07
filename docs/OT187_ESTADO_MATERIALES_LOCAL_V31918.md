@@ -96,3 +96,29 @@ No cambia la política de asignación del técnico, no completa nombres o actas,
 no mueve cantidades reales, no cambia permisos, pagos, comisiones o stock, y
 no activa otros frentes. El defecto separado del selector de técnicos conserva
 su propio pendiente.
+
+## Publicación autorizada posterior
+
+El07/11/2026, coordinación retransmitió autorización humana específica:
+«¿Autorizás publicar la versión 3.19.18 con esta corrección de pantalla,
+manteniendo sin cambios el servidor, las reglas y los datos reales?»;
+respuesta «Siiiii». Reemplaza para este alcance la retención de publicación
+anterior; no amplía el alcance a otros frentes.
+
+Fuente de publicación0a6a45e029c54714fc8d2e573032390f40fd95be, limpia y sin
+cambio público respecto a la fuente probada d671090b. RAW638activos,
+21.175.615bytes; manifiesto SHA256
+`04eaa30470a7cc0d7cdfe227c54b8b10b7713c6adbda571cbff3c4520110b49b`.
+Hosting: `sites/nixa-sisventas-seguro/versions/7c8ee763638d3dfa`, seis cargas.
+Sieteactivos verificados byteexactos con cabeceras; tres rutas privadas404.
+Script oficial verificó web, marcadores, SW y avisoFirebase18. CUA observó
+arranque autenticado hasta Dashboard sincronizado, sin acciones comerciales.
+La pestaña original de OT no se recargó ni cambió.
+
+Servidor: metadatos completos idénticos antes/después, revisión
+`cotizador-ccot31917-dd416173`. No cambios de reglas, servidor ni registros
+comerciales. Sólo se actualizó el aviso oficial de versión tras verificar web.
+Rollback Hosting17 `sites/nixa-sisventas-seguro/versions/082c4e8d365a887a`
+FINALIZED respaldado y conservado, sin ejecutarlo. Evidencia privada en
+`preflight18.private.json`, `hosting-before18.private.json` y
+`release18-verified.private.json`. No push, main ni activación de otros frentes.
