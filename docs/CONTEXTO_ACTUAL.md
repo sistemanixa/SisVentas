@@ -1,3 +1,9 @@
+## Incidente separado de materiales OT187 · diagnóstico07/11/2026
+
+Sin cambios funcionales ni publicación. Caso identificado por capturas del coordinador como OT187, no179; luego inspeccionado enla ventana web existente. DosGETpuntuales original/resumen: revisión6coincidente, entrega ya iniciada, rendición pendiente, unremito; Todo instalado visibleenescritorio. No se registró esa entrega ni se tocó stock, instalación o cierre. El estado actual difiere de lascapturas, sin snapshot anterior para atribuir causalidad.
+
+Componente real ficticio390/1280:8escenarios, sinmutación y escriturasbloqueadas. Reproduce contradicción por cantidadentregada/custodiaenfalso y por vista recuperada deitems frente a pendingDelivery sólo materiales; Todo instalado aparece enambosanchos conentrega ypermiso. VMconfirma Lista parafinalizar basada sólo enprogreso100 aunque faltenentrega/rendición. Pendiente unificar estado canónico y mensajes/acciones; no reparado ni publicado aquí. Selector detécnicos esotro defecto. Versión/captura móvil actual completa sólo faltaría si persiste con estado vigente. Ver OT187_MATERIALES_DIAGNOSTICO_LOCAL.md; originales/capturasficticias privadosfueraGit. Fuente funcional72db permaneceidéntica; no reutilizar puerta anterior como resultado de estos nuevos escenarios.
+
 ## Revisión posterior de evidencia CC/OT · 07/11/2026
 
 Sin cambios funcionales ni nuevo despliegue. Fuente publicada72db se conserva; las diferencias posteriores son documentación. Las46omisiones de su puerta corresponden a9archivos opt-in:0deesos46casosexactos acreditados aparte en esta entrega; cobertura específica OT25sin/conPages y otras pruebas se documenta separadamente, sin sustituirlos. Inventario exacto y límites en CUENTA_CORRIENTE_OT_V31917_CIERRE_EVIDENCIA.md y CUENTA_CORRIENTE_OT_V31917_OMISIONES.json.
