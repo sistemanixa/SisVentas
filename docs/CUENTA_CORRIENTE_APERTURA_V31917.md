@@ -58,3 +58,21 @@ posterior se registrarán al completarse: los resultados sintéticos no prueban
 por sí solos una mejora en producción. No se permiten operaciones financieras
 reales de prueba, cambios de reglas, índices, main ni inclusión de los otros
 bloques locales.
+
+## Validación terminada y cambio de orden
+
+La puerta de la fuente congelada bc20dc06 terminó: 9.940 casos, 9.894 aprobados,
+cero fallos, cero cancelados y 46 omitidos, salida0. Log SHA256
+`efbeb63a4b82a1a6beb674518d45620a011a3b070487b3cfc404aa2d272e185a`.
+Las omisiones no se consideran aprobadas. Servidor:94 aprobadas sin omisiones.
+El ensayo explícito de overlay y concurrencia:5 aprobadas.
+
+La imagen de esta solución se compiló y la candidata quedó sin tráfico: conserva
+la revisión activa, sus accesos, variables, recursos e identidad. Rechazos
+anónimos401 en cuatro rutas y CORS204 correctos; cero escrituras comerciales.
+No se publicó Hosting ni se activó el tráfico.
+
+El titular cambió después el orden: terminar CC, resolver OT-179 y publicar
+únicamente cuando ambas soluciones estén verificadas. La candidata CC queda
+retenida; no se debe activar ni publicar separadamente. La corrección OT requiere
+su diagnóstico, pruebas y artefacto propio antes de integrarlos.

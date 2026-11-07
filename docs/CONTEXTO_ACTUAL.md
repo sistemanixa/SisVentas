@@ -1,3 +1,11 @@
+## Cuenta Corriente: candidata local validada, publicación retenida por OT · 07/11/2026
+
+Hotfix aislado codex/cc-opening-v31917 desde publicada16/fdc05b03; fuente bc20dc066fbc02bbb9254dfba18770081d308f61. Conserva completo el historial y sus autores. Concurrencia configurable estricta de1a16 sólo para listados; predeterminado y verificación de guardados seis. Prueba96orígenes/288ventas ficticias251→105ms, mismosGET y salida idéntica. Lectura web autorizada mostró espera de servidor2,46–4,96s en200/304, no equivalente al render. No es reducción acreditada de lecturas ni activación de Accounts/H7.
+
+Puerta local9940casos/9894PASS/0FAIL/46SKIP/exit0, hash EFBEB63A4B82A1A6BEB674518D45620A011A3B070487B3CFC404AA2D272E185A. Servidor94PASS; overlay exacto y límites5PASS aparte. Compilación SUCCESS y candidata cotizador-cc31917 preparada SIN tráfico: mantiene revisión principal y accesos anteriores, env/recursos/identidad; cuatro401 y CORS204. No Hosting, aviso remoto, activación, reglas ni datos comerciales modificados. Ver CUENTA_CORRIENTE_APERTURA_V31917.md.
+
+Instrucción humana posterior transmitida: terminar CC, investigar/resolver OT-179 y publicar únicamente cuando ambas soluciones estén verificadas. Por tanto NO activar ni publicar esta candidata separadamente. El caso OT no queda resuelto por el diagnóstico local53b1 ni por tests de Eliminaciones. Esos bloques y Tecnoprices siguen excluidos. Siguiente paso: recuperar evidencia exacta autorizada de OT-179 sin repetir cierres inciertos; luego integración y validación conjunta.
+
 ## Cierre v3.19.16 publicado y verificado · 06/11/2026
 
 Estado posterior que reemplaza las limitaciones de la candidata descrita debajo. Fuente congelada 3f2ca7b30721d4d1b426b774c4dfc027d531720b, integra el recibo publicado15. Puerta completa: 9.935 casos, 9.898 aprobados, cero fallos, 37 omitidos. Pruebas focales, navegador y adversariales de descuento y porcentaje aprobadas. Hosting publicó 636 activos; siete archivos comprobados byte a byte, cabeceras y tres rutas privadas404. El script oficial confirmó web, marcador, Service Worker y aviso Firebase v3.19.16-firebase.
@@ -4281,4 +4289,3 @@ Sobre publicada cd09d870/v3.19.14, checkout aislado codex/employee-cash-receipt-
 ## Candidata recibo v3.19.15 verificada localmente · 06/11/2026
 
 Release aislada sobre cd09d870: módulo de recibo e immutable15 con sólo metadata/Novedades, índice, marcador y SW coherentes. Puerta completa con Chrome/loopback autorizados y -IncludeBrowser: 9874 casos, 9837 PASS, cero fallos, 37 omitidos; log privado tmp/employee-cash-receipt-31915/gate-final.log SHA256 5feb9e11a6b7cbbd11e3a8af60d98fd6bbb44b580fb37ccd3f8ab776dbf393a0. Primer intento restringido con ERR_NETWORK_ACCESS_DENIED conservado; intento parcial sin IncludeBrowser interrumpido, no evidencia final. Nueva QA navegador 390/768/1280: 3/3 PASS, renderer activo, hidratación diferida, adjunto previo, efectivo/transferencia, preview del segundo pago e impresión simulada; 0 red exterior, 0 escrituras y datos ficticios idénticos. Capturas inspeccionadas en tmp/employee-cash-receipt-31915. Sintaxis y ValidarLocal PASS. Pendiente revisión/publicación única por integrador y QA web real; no publicado desde esta rama ni modificados pagos reales. No incluye candidata de comisiones16.
-
