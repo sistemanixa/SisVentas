@@ -1,10 +1,10 @@
 'use strict';
 // Independent browser acceptance. Only fictional config responses are varied.
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
-const hash=b=>crypto.createHash('sha256').update(b).digest('hex'),root=path.resolve(__dirname,'..');
+const Off=require('./helpers/retained-commercial-off-source.cjs'),hash=b=>crypto.createHash('sha256').update(b).digest('hex'),root=Off.resolve().root;
 const cents=s=>Math.round(Number(s.replace(/\./g,'').replace(',','.').replace(/[^\d.-]/g,''))*100);
 async function setup(width,{capability='absent',prepared=false}={}){
- const local=prepared?await require('../scripts/dev-collections-indexed.cjs').start():await require('./fixtures/commercial-full-app.cjs').start({accountsRollout:false,count:80,historicalCount:60,paymentAmount:400});
+ const local=prepared?await require(path.join(root,'scripts/dev-collections-indexed.cjs')).start():await require(path.join(root,'test/fixtures/commercial-full-app.cjs')).start({accountsRollout:false,count:80,historicalCount:60,paymentAmount:400});
  if(!prepared){const cfg=local.backend.state.sv_commercial_pages_config;delete cfg.nativeCollectionsReady;delete cfg.nativeCollectionsSchema;if(capability==='incomplete')cfg.nativeCollectionsReady=true;}
  const before=structuredClone(local.backend.state.sisventas),requests=[],external=[],errors=[];let deny=false,gate=null;
  const browser=await require('playwright').chromium.launch({headless:true,executablePath:process.env.SV_TEST_CHROME||'C:/Program Files/Google/Chrome/Application/chrome.exe'}),context=await browser.newContext({viewport:{width,height:900},serviceWorkers:'block'});

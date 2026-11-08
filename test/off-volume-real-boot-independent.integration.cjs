@@ -3,15 +3,15 @@
 // Synthetic shape/prices/dates; matching sale cardinality proves no real payload parity.
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
-const root=path.resolve(__dirname,'..'),hash=b=>crypto.createHash('sha256').update(b).digest('hex');
+const Off=require('./helpers/retained-commercial-off-source.cjs'),hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 for(const width of [1280,390])test('real OFF boot, historical volume, retained presentation and return '+width,{skip:process.env.SV_OFF_VOLUME_BOOT_QA!=='1',timeout:120000},async()=>{
- const source=process.env.SV_OFF_BOOT_SOURCE_SHA,output=process.env.SV_OFF_BOOT_EVIDENCE;
+ const root=Off.resolve().root,source=process.env.SV_OFF_BOOT_SOURCE_SHA,output=process.env.SV_OFF_BOOT_EVIDENCE;
  assert.match(source||'',/^[a-f0-9]{40}$/,'Explicit final source SHA required');assert(output&&path.isAbsolute(output),'Private absolute evidence directory required');
- const active=require('./helpers/active-app').readActiveApp(),runtime=['index.html','sw.js','js/'+active.filename,'js/core/commercial-ownership.js','js/modules/sales-indexed-host.v1.js','js/modules/collections-indexed-host.v1.js','js/core/commercial-pages-reader.v1.js','js/modules/commissions.js','test/fixtures/commercial-full-app.cjs'];
+ assert.equal(source,Off.SOURCE_SHA,'Reviewed retained OFF19 source required');const active=require(path.join(root,'test/helpers/active-app.js')).readActiveApp(),runtime=['index.html','sw.js','js/'+active.filename,'js/core/commercial-ownership.js','js/modules/sales-indexed-host.v1.js','js/modules/collections-indexed-host.v1.js','js/core/commercial-pages-reader.v1.js','js/modules/commissions.js','test/fixtures/commercial-full-app.cjs'];
  const binding={};for(const file of runtime){const local=fs.readFileSync(path.join(root,file)),frozen=cp.execFileSync('git',['show',source+':'+file],{cwd:root,maxBuffer:20e6});assert.deepEqual(local,frozen,'RAW source binding '+file);binding[file]=hash(local);}
  assert(active.index.includes('SV_CLIENT_ACCOUNTS_ROLLOUT=Object.freeze({schema:1,enabled:false})'));
  assert(active.index.includes('SV_CLIENT_HISTORY_ROLLOUT=Object.freeze({schema:1,enabled:false})'));
- const {start}=require('./fixtures/commercial-full-app.cjs');assert.match(start.toString(),/accountsRollout/,'Requires fdd fixture option; do not silently ignore OFF');
+ const {start}=require(path.join(root,'test/fixtures/commercial-full-app.cjs'));assert.match(start.toString(),/accountsRollout/,'Requires fdd fixture option; do not silently ignore OFF');
  const local=await start({accountsRollout:false,count:1096,historicalCount:800,paymentAmount:400}),before=structuredClone(local.backend.state.sisventas);
  let browser,context,page,gate;const queries=[],external=[],writeAttempts=[],errors=[],steps=[],frames=[];
  const expected={sales:1096,payments:1096,totalCents:175360000,paidCents:43840000,debtCents:131520000,historicalSales:800,historicalDebtCents:96000000};
