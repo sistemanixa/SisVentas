@@ -4390,3 +4390,15 @@ Pedido vigente: terminar todos los pendientes y publicar al finalizar el conjunt
 ### Actualización de cierre posterior
 
 Fuente congelada10aecd47: nueva puerta10556/10489PASS/0FAIL/67SKIP y servidor150PASS. Único build adicional autorizado f6423019-7755-442e-9d52-bdca18a50143 SUCCESS; imagen retenida e1f5880e03170ec40325806bc3d6a6d764dea41338cc3b8bf833f4b04433c3d5, sin tráfico ni Hosting. No repetir build. Detalle de manifiesto y límites en INTEGRACION_STOCK_ELIMINACIONES_TECNOPRICES_20261108.md. Herramientas nuevas locales105PASS conjuntas, todavía sin ejecutor remoto integral certificado. Los tres frentes existentes continúan con emulador completo, inventario operacional y coherencia del artefacto frontend20. Publicar al finalizar todo; no usar operaciones reales como prueba. Producción y Git no se deducen del éxito local.
+
+### Persistencia y preparación fiscal verificadas; autorización adicional pendiente
+
+Commits locales posteriores:2a681772 herramientas/cierre build;7de12605 comparador ficticio CC;395f9cec preparador frontend exacto;20004391 ETags/emulador/resultado fiscal tardío;04c4bd7a análisis retiro;ec0ae2f4 matriz escritor antiguo;3eafa960 plan fiscal sin tráfico. No push ni Hosting por estos commits. Comparador no mide tiempos reales de web ni cargos.
+
+Emulador propio de persistencia:6escenarios/7testsPASS, originales17fuentes yStock intactos, limpieza comprobada. Emulador de reglas de escritor antiguo1PASS; bridge tardío2PASS; inspector fiscal12PASS. Matriz conjunta de herramientas+comparador122PASS antes de añadir el plan fiscal9PASS. No sumar como pruebas únicas con suites anteriores. La exclusión HTTP no se deduce de estas pruebas.
+
+Observación auténtica de control-plane08/11/2026 21:00:10UTC: función emitirFactura33-vib, servicio generación33 sin reconciliación,100% en esa revisión. Inventario completo6revisiones:28–32 muestran condición Active fallida con revisionReason RETIRED;33 sigue activa. IAM de función/servicio leído después sin modificación. Metadata privada en tmp, fueraGit. No se borró ni retiró ninguna revisión mediante estas lecturas.
+
+El paquete fiscal final73archivos de10aecd47 mantiene manifest71bd5b10d5bc5bf90a3b6c913d300724bcecbe125abd9da762c3435d05650e41. Todavía NO subido/construido/desplegado. Se presentó al titular una pregunta específica para preparar esa nueva revisión sin tráfico (estimado<USD1 adicional más almacenamiento variable, no tope): la autorización del único buildCotizador ya fue consumida y no cubre esta otra función. No ejecutar hasta respuesta. Plan local exige pin explícito a33 y readback antes del PATCH Functions, conserva IAM/recursos/env/secretos y verifica ausencia de tráfico/tags hacia candidata; false por sí solo no garantiza aislamiento.
+
+QA OFF19 conserva aserciones originales, con checkout retenido exacto C:/SisVentas/.local/off19-10aecd47-lf. Selección explícita de fuentes para la puerta20 en preparación; no declarar todavía puerta completa20 aprobada ni artefacto publicado. La fuente funcional de la imagen sigue10aecd47: cambios posteriores son preparación, documentación y pruebas.
