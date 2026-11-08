@@ -133,6 +133,8 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     if(saleFinancialDependencies){const Financial=require('./sale-financial-dependencies-model');financialCoverage=await raw(Financial.ROOT+'/coverage');if(financialCoverage!=null){Financial.validateCoverage(financialCoverage);financialInstalled=true;}else{if(typeof store.exists!=='function'||await store.exists(Financial.ROOT)!==false)throw Financial.fail('Existe el índice financiero sin cobertura completa o no se pudo verificar su ausencia.');}if(financialInstalled)finalChecks.push(async({readFresh})=>{if(digest(await readFresh(Financial.ROOT+'/coverage'))!==digest(financialCoverage))throw Financial.fail('La cobertura financiera cambió durante el guardado.');});}
     const result=await work(scope);live();phase='committing';
     const ready=await get('sv_labor_config');if(actor.mode!=='bootstrap'&&(ready?.ready!==true||ready.schema!==Index.VERSION))throw failure(503,'El circuito de guardado todavía no está habilitado');
+    const customerPatch=Object.fromEntries(staged),customerPolicy=require('./customer-delete-policy');
+    if(await customerPolicy.validate({patch:customerPatch,read:raw,enabled:clientAccounts||clientHistory}))finalChecks.push(({readFresh})=>customerPolicy.validate({patch:customerPatch,read:readFresh,enabled:true}));
     const records=new Set();
     for(const path of staged.keys())for(const domain of ['gastos','hsextra_solicitudes']){
      const root='sisventas/'+domain;if(path===root||root.startsWith(path+'/')){const [before,after]=await Promise.all([raw(root),get(root)]);for(const key of new Set([...Object.keys(before||{}),...Object.keys(after||{})]))records.add(domain+'/'+key);}

@@ -16,3 +16,11 @@ test('runtime imports preserve Stock and refuse unconfigured deletion authority 
 test('container checks deny production, metadata, DNS and subprocess use',()=>{
  a.throws(()=>fetch('https://metadata.google.internal'),/forbidden/);a.throws(()=>require('node:https').get('https://production.invalid'),/forbidden/);a.throws(()=>require('node:child_process').spawn('anything'),/forbidden/);
 });
+test('image blocks physical customer pruning and preserves edits/deactivation without history reads',async()=>{
+ const Policy=require(path.join(root,'customer-delete-policy')),before={nombre:'Synthetic',domicilio:{calle:'Synthetic'}},reads=[];
+ const read=async p=>{reads.push(p);a.equal(p,'sisventas/clientes/c');return structuredClone(before);};
+ for(const patch of [{'sisventas/clientes/c':null},{'sisventas/clientes/c':{}},{'sisventas/clientes/c/nombre':null,'sisventas/clientes/c/domicilio/calle':null}])await a.rejects(Policy.validate({enabled:true,patch,read}),{code:'SV_CUSTOMER_PHYSICAL_DELETE_BLOCKED'});
+ await Policy.validate({enabled:true,patch:{'sisventas/clientes/c/activo':false},read});await Policy.validate({enabled:true,patch:{'sisventas/clientes/c/nombre':'Edited'},read});const n=reads.length;await Policy.validate({enabled:true,patch:{'sisventas/ventas/s/observaciones':'Edited'},read});a.equal(reads.length,n);
+ const {createLaborGuard}=require(path.join(root,'labor-guard'));let commits=0;const store={read:async p=>p==='sv_labor_config'?{schema:1,ready:true}:p==='sisventas/clientes/c'?structuredClone(before):null,acquire:async()=>{},abort:async()=>{},commit:async()=>{commits++;}};
+ await a.rejects(createLaborGuard({store,commercialPages:true,clientAccounts:true,clientHistory:true}).run({uid:'sv-labor-service',mode:'server',operation:'image-customer-guard'},scope=>scope.update({'sisventas/clientes/c':null})),{code:'SV_CUSTOMER_PHYSICAL_DELETE_BLOCKED'});a.equal(commits,0);
+});

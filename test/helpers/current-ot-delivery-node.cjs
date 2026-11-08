@@ -23,6 +23,6 @@ async function fixture({coordinated=true}={}){
  w.SVRecordListWrites=Operational.create(w,Records);w.SVRecordListWrites.install({sdk});
  w.SVLaborWrites=Labor.create(w);w.SVLaborWrites.install({sdk:{...sdk,set:w.fbSet,update:w.fbUpdate,push:w.fbPush,remove:w.fbRemove,runTransaction:w.fbRunTransaction}});
  const moduleContext={window:w,document:{getElementById:()=>null,documentElement:{},body:{},addEventListener(){}},requestAnimationFrame:()=>{}};vm.createContext(moduleContext);vm.runInContext(fs.readFileSync(path.join(root,'js/core/guarded-writes.js'),'utf8'),moduleContext);vm.runInContext(fs.readFileSync(path.join(root,'js/modules/ot-material-custody.js'),'utf8'),moduleContext);
- return{...f,w,purchase,notes,commands,sdkPatches};
+ return{...f,w,document:moduleContext.document,purchase,notes,commands,sdkPatches};
 }
 module.exports={fixture};

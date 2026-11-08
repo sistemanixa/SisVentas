@@ -464,7 +464,9 @@
     var user=window.fbAuth?.currentUser,uid=window.currentUserUid,role=window.currentRole,db=window.fbDB;
     var epoch=window._svOperacionesSesionEpoch||0,revision=window.PERMISOS_ROLES?.[role]?.indiceRevision;
     var fingerprint=deliveryFingerprint(ot),context=window.svCapturarContextoOperacion?.();
-    var valid=function(){return !!user&&user.uid===uid&&user===window.fbAuth?.currentUser&&uid===window.currentUserUid&&role===window.currentRole&&db===window.fbDB&&epoch===(window._svOperacionesSesionEpoch||0)&&revision===window.PERMISOS_ROLES?.[role]?.indiceRevision&&(!context||context())&&currentOT()===ot&&deliveryAllowed(ot)&&deliveryFingerprint(ot)===fingerprint;};
+    var route=window.location?.hash,page=document.getElementById('page-ordentrabajo'),detail=document.getElementById('ot-detalle-view');
+    var visible=function(){return window.location?.hash===route&&(!page||(document.getElementById('page-ordentrabajo')===page&&page.classList.contains('active')))&&(!detail||(document.getElementById('ot-detalle-view')===detail&&detail.style.display!=='none'));};
+    var valid=function(){return visible()&&!!user&&user.uid===uid&&user===window.fbAuth?.currentUser&&uid===window.currentUserUid&&role===window.currentRole&&db===window.fbDB&&epoch===(window._svOperacionesSesionEpoch||0)&&revision===window.PERMISOS_ROLES?.[role]?.indiceRevision&&(!context||context())&&currentOT()===ot&&deliveryAllowed(ot)&&deliveryFingerprint(ot)===fingerprint;};
     var ready=false;deliveryBusy=true;
     try{
       if(!valid())return;
