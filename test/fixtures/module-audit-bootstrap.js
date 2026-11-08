@@ -1,4 +1,12 @@
 'use strict';
+// Registered in the fixture's head, before the real H7 bootstrap registers its
+// own DOMContentLoaded listener. The monolith assigns its service table later;
+// redirect that table before H7 captures its endpoint, without changing flags.
+/* fixture-service-origin:begin */
+document.addEventListener('DOMContentLoaded',function fixtureLocalServiceOrigin(){
+ if(window.SISVENTAS_FUNCTIONS&&typeof window.SISVENTAS_FUNCTIONS==='object')window.SISVENTAS_FUNCTIONS.cotizadorProveedor=window.location.origin;
+},{once:true});
+/* fixture-service-origin:end */
 window.__moduleAudit={errors:[],writes:[],blocked:[],pages:[],reads:[],subscriptions:[]};
 addEventListener('error',e=>__moduleAudit.errors.push(e.message));
 addEventListener('unhandledrejection',e=>__moduleAudit.errors.push(String(e.reason?.message||e.reason)));

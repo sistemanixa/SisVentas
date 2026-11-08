@@ -471,14 +471,18 @@
       window.notify('No está disponible el guardado seguro de la entrega. Actualizá SisVentas.');return;
     }
     var ref = window.fbRef(window.fbDB,'sisventas/ordenes_trabajo/' + ot.fbKey);
-    // The OFF service has no delivery command. Require the installed atomic
-    // record/summary adapter; never fall through to a raw OT-only PUT.
-    if (!window.SVRecordListWrites?.intersects?.(ref) || typeof window.SVRecordListWrites.transaction !== 'function' || window.SVLaborWrites?.intersects?.(ref)) {
+    // The installed record/summary adapter owns both modes. In coordinated
+    // mode it delegates through LaborWrites.atomic, never the captured SDK.
+    var coordinatedWriter = window.SVClientAccountHost?.coordinated?.() === true &&
+      typeof window.SVLaborWrites?.prepareOT === 'function' && typeof window.SVLaborWrites?.atomic === 'function';
+    if (!window.SVRecordListWrites?.intersects?.(ref) || typeof window.SVRecordListWrites.transaction !== 'function' ||
+        (window.SVLaborWrites?.intersects?.(ref) && !coordinatedWriter)) {
       window.notify('No está disponible la entrega completa compatible. No se modificaron materiales.');return;
     }
     var baseline = JSON.parse(JSON.stringify(ot)), user = window.fbAuth?.currentUser, uid = window.currentUserUid, role = window.currentRole, db = window.fbDB;
+    var coordinatedMode = window.SVClientAccountHost?.coordinated?.() === true;
     var epoch = window._svOperacionesSesionEpoch || 0, revision = window.PERMISOS_ROLES?.[role]?.indiceRevision, context = window.svCapturarContextoOperacion?.();
-    var valid = function(){return !!user && user.uid === uid && user === window.fbAuth?.currentUser && uid === window.currentUserUid && role === window.currentRole && db === window.fbDB && epoch === (window._svOperacionesSesionEpoch || 0) && revision === window.PERMISOS_ROLES?.[role]?.indiceRevision && (!context || context()) && currentOT() === ot && deliveryAllowed(ot) && deliveryFingerprint(ot) === deliveryFingerprint(baseline);};
+    var valid = function(){return !!user && user.uid === uid && user === window.fbAuth?.currentUser && uid === window.currentUserUid && role === window.currentRole && db === window.fbDB && epoch === (window._svOperacionesSesionEpoch || 0) && revision === window.PERMISOS_ROLES?.[role]?.indiceRevision && coordinatedMode === (window.SVClientAccountHost?.coordinated?.() === true) && (!context || context()) && currentOT() === ot && deliveryAllowed(ot) && deliveryFingerprint(ot) === deliveryFingerprint(baseline);};
     var command = {id:window.crypto.randomUUID(),ts:Date.now(),usuario:window.currentUser || 'Administración',uid:uid,onlyAdditional:closed};
     var deliveryText = deliveryDescription(eligible.map(function(m){return Object.assign({},m,{vendida:quantity(m)-n(m.entregada)});}));
     deliveryBusy = true;

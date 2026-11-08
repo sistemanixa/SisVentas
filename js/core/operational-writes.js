@@ -9,7 +9,11 @@
   async function records(paths,transform,extra={}){
    const check=capture();check();const operation=root.crypto.randomUUID();paths=[...new Set(paths)];if(paths.some(path=>M.recordPath(path)!==path))throw Error('Seleccioná registros concretos para guardar.');
    const routingPaths=paths.concat(Object.keys(extra||{}));
-   if(routingPaths.some(path=>path==='sisventas/ordenes_trabajo'||path.startsWith('sisventas/ordenes_trabajo/'))&&await root.SVLaborWrites?.prepareOT?.(routingPaths)){
+   const touchesOT=routingPaths.some(path=>path==='sisventas/ordenes_trabajo'||path.startsWith('sisventas/ordenes_trabajo/'));
+   const coordinatedOT=touchesOT&&root.SVClientAccountHost?.coordinated?.()===true;
+   const preparedOT=touchesOT&&await root.SVLaborWrites?.prepareOT?.(routingPaths);
+   if(touchesOT&&(coordinatedOT!==(root.SVClientAccountHost?.coordinated?.()===true)||coordinatedOT&&preparedOT!==true))throw Error('La preparación coordinada de OT cambió. No se guardaron cambios.');
+   if(preparedOT){
     // The installed SDK was captured before LaborWrites. Use its one atomic
     // transport instead of that stale SDK; the server owns summary revisions.
     check();let before,next,cancelled=false,unchanged=false;

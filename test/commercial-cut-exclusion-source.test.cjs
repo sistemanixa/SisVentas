@@ -1,0 +1,12 @@
+'use strict';
+const {test}=require('node:test'),a=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),{execFileSync}=require('node:child_process'),{createLaborGuard}=require('../cotizador/labor-guard'),Admission=require('../cotizador/commercial-admission');
+const root=path.resolve(__dirname,'..'),source='10aecd47a71954ccffb455c956c011bc90e62325',hashes={
+ 'cotizador/index.js':'157125d7ce7d0755f5e159a2775ad28186ac97c415f5902d7914874547e4d405',
+ 'cotizador/commercial-admission.js':'5b8f2fd1d36d5e3bbca905fe5e1f0a6f1a3a8928fc1b83892979d71a382fd178',
+ 'cotizador/labor-guard.js':'a28c5acd6baf8e169426fa03d2be829645d4ee32fb15113b49781b96d0ed62de',
+ 'cotizador/labor-runtime.js':'2d1785b1ec8a92460108388027ab3970e4cf0cb2a3fcbef3a344ffe63bb24d06',
+ 'cloud-functions/emitir-factura/index.js':'089d33e27a75c242e7ddd042ef5c4722ff236953679991487f0fd89bd0632123',
+ 'cloud-functions/emitir-factura/labor-bridge.cjs':'fac5c5cf60ddc2c336ad7b26d3e92bcbc6a0d9f5c297fa49ddc4b9283283c762'};
+test('exclusion analysis is pinned to the inspected runtime bytes and current source still matches',()=>{for(const[file,sha]of Object.entries(hashes)){const bytes=execFileSync('git',['show',source+':'+file],{cwd:root});a.equal(crypto.createHash('sha256').update(bytes).digest('hex'),sha);a.equal(fs.readFileSync(path.join(root,file),'utf8').replace(/\r\n/g,'\n'),bytes.toString('utf8').replace(/\r\n/g,'\n'));}});
+test('real readOnly guard rejects fiscal attachment, commissions and commercial work before any IO',async()=>{let calls=0;const store={read:async()=>{calls++;throw Error('unexpected IO');},acquire:async()=>{calls++;},commit:async()=>{calls++;}},guard=createLaborGuard({store,readOnly:true});for(const operation of ['fiscal-preflight','fiscal-attachment','commission-event','system-commission','service-write'])await a.rejects(guard.run({uid:'sv-labor-service',mode:'server',operation},async()=>{calls++;}),{code:'SV_LABOR_READ_ONLY'});a.equal(calls,0);});
+test('paused operation lookup uses only receipt reads even when an attempt has no receipt',async()=>{let reads=0;const result=await Admission.resolveReadOnly({gateway:{authorize:async()=>({uid:'u',claims:{uid:'u'}})},req:{},body:{id:'synthetic-attempt',digest:'a'.repeat(64)},read:async p=>{reads++;a.equal(p,'sv_labor_receipts/synthetic-attempt');return null;}});a.deepEqual(result,{ok:true,status:'pending'});a.equal(reads,1);a.equal(Admission.isPaused('true'),true);});
