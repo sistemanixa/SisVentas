@@ -12,3 +12,15 @@ Estado local comprobado:
 Pendiente de cierre: puerta sobre la fuente congelada posterior; prueba del artefacto/imágenes exactos; contraste del estado remoto actual, cobertura y exclusión de escritores del corte completo antes de activación. El titular pidió publicar sólo al terminar el conjunto: no publicación parcialStock. Los originales de negocio no se usan como prueba ni se reescriben para conciliar proyecciones. Conservación de comisiones, pagos, cantidades y reservas obligatoria.
 
 Las pruebas actuales no sustituyen el procedimiento CORTE_INTEGRACION_COMERCIAL.md. No se emite una activación real con las claves ficticias de los fixtures. No se usó otro build ni se cambiaron reglas, banderas, tráfico o IAM. Evidencia privada y capturas quedan en tmp/eliminaciones-tecnoprices-20261108, fuera deGit.
+
+## Evidencia posterior sobre fuente congelada
+
+Fuente exacta: `10aecd47a71954ccffb455c956c011bc90e62325`. Puerta vigente: 10.556 casos, 10.489 aprobados, cero fallos y 67 omitidos. Cotizador: 150 aprobados. Los omitidos no se cuentan como aprobados; las matrices aisladas de reglas y navegador conservan su alcance propio.
+
+Con autorización humana específica se ejecutó un único build adicional, `f6423019-7755-442e-9d52-bdca18a50143`, región southamerica-east1. Estado SUCCESS: construcción y verificación aislada del contenedor aprobadas. Inicio 20:43:40.217893116 UTC y fin 20:44:48.425341 UTC del 08/11/2026. No se activó tráfico ni se publicó la web por este build.
+
+Imagen del registro existente: `cotizador:audit-validation-10aecd47`, digest `sha256:e1f5880e03170ec40325806bc3d6a6d764dea41338cc3b8bf833f4b04433c3d5`. Manifiesto de runtime: `116f19d340b1b3fc75eb4fb586ff43b09ef9c530dbfaf54d2b1929269cdb7ce2`. Usar esta imagen sin reconstruir. La autorización no comprende otra compilación fiscal ni equivale a activación productiva.
+
+La nueva infraestructura local de preparación/corte pasó en ejecución conjunta 105 pruebas: captura e instalación técnica, recuperación ante respuesta perdida, CAS, orquestación, firma y transporte acotado. Sigue pendiente integrar observadores operacionales fiables y ensayar el corte completo contra un emulador propio. Los adaptadores inyectados y una imagen construida no acreditan por sí solos exclusión de escritores, drenaje fiscal ni publicación.
+
+Frontend preparado v3.19.20: validación funcional Accounts/History y Service Worker en 390/1280 aprobada con datos ficticios. El índice fuente v3.19.19 conserva las banderas desactivadas deliberadamente; sólo el artefacto generado contiene la activación conjunta. Falta materializar y revisar su checkout público exacto, además del corte remoto coordinado. No afirmar mejora publicada de Cuenta corriente ni comparación real antes/después todavía.
