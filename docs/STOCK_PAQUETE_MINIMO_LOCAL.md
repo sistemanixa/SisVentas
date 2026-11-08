@@ -34,3 +34,5 @@ Ocultar/deshabilitar módulo y rechazar nuevos comandos; primero resolver operac
 ## Autorización indispensable para un corte futuro
 
 Separada de este bloque: build de imagen exacta sobre registro/CloudBuild aprobado (si local no hay motor), eventual coste estimado; despliegue Cotizador conservando configuración/accesos; escritura acotada de validadores de inventario y resumen, índice fecha, officeStockVersion; guardado de casillas Stock en Roles; Hosting y aviso oficial. Cada acción requiere alcance concreto revisado; nada está ejecutado ni se solicita activar ahora. Costos y OT real permanecen separados y pausados donde corresponda.
+
+Artefacto final: fuente28436175d7013ab63ea61115ba6dae31df0b8ae2; manifiesto b894cfeb792cce04278bc5c3dd04f7c6e96700456f8212a37c56bf2bed37d4bf,22archivos verificados. Servidor byteidéntico al compuesto13/13PASS. Regresión70/70PASS. Evidencia exacta y límite de imagen en CONTEXTO_ACTUAL.
