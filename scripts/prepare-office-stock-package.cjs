@@ -33,6 +33,7 @@ function prepare({baseline,out,commit,clean}){
  output['office-stock-model.js']=once(read('cotizador/office-stock-model.js').toString(),"require('./commercial-models/commercial-money.v1.js')","require('./office-stock-money')");
  output['office-stock-money.js']=read('cotizador/commercial-models/commercial-money.v1.js');
  const files={...Object.fromEntries(Object.entries(output).map(([n,b])=>['server/'+n,b])),...Object.fromEntries(FRONT.map(n=>['frontend/'+n,read(n)]))};
+ files.Dockerfile='FROM southamerica-east1-docker.pkg.dev/nixa-sisventas/cloud-run-source-deploy/cotizador@'+BASE_IMAGE+'\nWORKDIR /app\nCOPY server/ ./\nRUN node --check index.js && node --check labor-guard.js && node --check labor-rtdb-store.js && node -e "require(\'./office-stock\');require(\'./office-stock-policy\');require(\'./office-stock-model\');"\n';
  const manifest={schema:1,sourceCommit:commit,baseImage:BASE_IMAGE,baseline:BASE,files:Object.fromEntries(Object.entries(files).map(([n,b])=>[n,sha(b)])),productionApplied:false};
  fs.mkdirSync(out,{recursive:true});for(const[n,b]of Object.entries(files)){fs.mkdirSync(path.dirname(path.join(out,n)),{recursive:true});fs.writeFileSync(path.join(out,n),b);}
  fs.writeFileSync(path.join(out,'stock-package.manifest.json'),JSON.stringify(manifest,null,2));return{commit,files:Object.keys(files).length,manifestSha:sha(fs.readFileSync(path.join(out,'stock-package.manifest.json'))),baseImage:BASE_IMAGE,productionApplied:false};
