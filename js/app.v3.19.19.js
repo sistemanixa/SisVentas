@@ -26931,7 +26931,7 @@ function guardarPermisosRoles() {
     if (mod) {
       if(mod==='distribuidora')nuevos[rol].distribuidora=!!chk.checked;
       if (!chk.checked) nuevos[rol].bloqueados.push(mod);
-      else if (esModuloNuevoSinRegistro(mod)) nuevos[rol].permitidos.push(mod);
+      else if (mod==='stockoficina' || esModuloNuevoSinRegistro(mod)) nuevos[rol].permitidos.push(mod);
       return;
     }
     var permiso = chk.dataset.perm;
@@ -26943,7 +26943,7 @@ function guardarPermisosRoles() {
     nuevos[rol].acciones[grupo][accion] = !!chk.checked;
   });
   if (!window.fbDB) { notify('Sin conexión: no se guardaron los permisos.'); return; }
-  if(window.SVPermissionIndex)nuevos=window.SVPermissionIndex.build(nuevos,[],PERMISOS_ROLES);
+  if(window.SVPermissionIndex)nuevos=window.SVPermissionIndex.build(nuevos,['stockoficina'],PERMISOS_ROLES);
   return window.fbSet(window.fbRef(window.fbDB,window.svRutaPermisos()), nuevos)
     .then(function(){
       aplicarPermisosRolesGuardados(nuevos);
