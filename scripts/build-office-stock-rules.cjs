@@ -8,7 +8,9 @@ function candidate(input){const out=structuredClone(input),r=out.rules;if(!r?.si
  const unblocked=Array.from({length:64},(_,i)=>['stockoficina','productos'].map(module=>"root.child('sv_permisos').child(auth.token.svOfficeStockRole).child('bloqueados').child('"+i+"').val() !== '"+module+"'").join(' && ')).join(' && ');
  const ready=own+" && root.child('sv_operational_read_config').child('schema').val() === 1 && root.child('sv_operational_read_config').child('ready').val() === true && "+unblocked;
  for(const node of [r.sisventas.inventario_operativo,r.sisventas.compras_resumen.inventario_operativo]){const before=node.$record['.validate']??true;if(String(before).includes('svOfficeStockVersion'))throw Error('Stock validation already present');node.$record['.validate']='('+before+') && (auth == null || auth.token.svOfficeStockVersion !== 1 || ('+ready+'))';const parent=node['.validate']??true;node['.validate']='('+parent+") && (auth == null || auth.token.svOfficeStockVersion !== 1 || newData.child(auth.token.svOfficeStockInventoryKey).exists())";}
- const counts=r.sisventas.inventario_operativo.$record.ajustesConteo||(r.sisventas.inventario_operativo.$record.ajustesConteo={});const index=counts['.indexOn']||[];counts['.indexOn']=[...new Set([...(Array.isArray(index)?index:[index]),'fecha'])];return out;
+ const counts=r.sisventas.inventario_operativo.$record.ajustesConteo||(r.sisventas.inventario_operativo.$record.ajustesConteo={});const index=counts['.indexOn']||[];counts['.indexOn']=[...new Set([...(Array.isArray(index)?index:[index]),'fecha'])];
+ if(r.sv_labor_config){if(r.sv_labor_config.officeStockVersion)throw Error('Review existing Stock capability validator');r.sv_labor_config.officeStockVersion={'.validate':'newData.val() === 1'};}
+ return out;
 }
 if(require.main===module){if(process.argv.length!==4||fs.existsSync(process.argv[3]))throw Error('Explicit input and new candidate output required');fs.writeFileSync(process.argv[3],JSON.stringify(candidate(JSON.parse(fs.readFileSync(process.argv[2],'utf8')))));console.log('Candidate prepared locally; no deployment.');}
 module.exports={candidate};
