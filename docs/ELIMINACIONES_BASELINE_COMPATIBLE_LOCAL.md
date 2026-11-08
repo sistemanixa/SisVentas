@@ -1,0 +1,13 @@
+# Adaptaciones locales acotadas del baseline
+
+Archivos exclusivos del frente Núcleo; no cambian reglas remotas ni activan capacidades.
+
+`scripts/lib/commercial-delete-sales-parent.cjs.prepare(input)` sólo acepta el padre Ventas EXACTO `Fence.financialRule(2, 'false')`, digest canónico a7938a6aaaad2b1a86e3aa2984993724c283ab6534e382aa1c7135069f30be3b, y un único hijo de registro llamado `$venta`. Exige root/sisventas sin grant padre y rechaza comodines raíz/dominio activos y estructuras ambiguas. Reemplaza el padre por false y la autoridad de fila por `financialRule(3, 'false') OR autoridadOriginalFila`. Regenera la profundidad por el constructor, no mediante sustitución de texto. No mueve ni reinterpreta el data/newData de la fila original, sus descendientes, lecturas, validaciones o índices. Rechaza reglas booleanas abiertas y otras plantillas; no es un normalizador genérico ni un grant basado en un hash arbitrario. Un segundo uso sobre padre ya cerrado se rechaza: componer una vez.
+
+Este paso va ANTES de Accounts/Operational/H7 y Atomic, según el orden de preparación que controla el principal. La comparación local cubre creación/edición/borrado con SDK autorizado/ajeno, usuario de servicio, server y command, con/sin lease. Conserva las decisiones de autoridad antes/después; el veto destructivo nuevo se aplica después, en Atomic. No afirmar una política más restrictiva que la autoridad de fila original en este paso de compatibilidad.
+
+`scripts/lib/commercial-delete-receipt-baseline.cjs` reconoce únicamente las salidas exactas de los constructores versionados existentes: recibo base labor-fence, eliminación Gastos, Bonos y SAC/migración SAC. Importa `baselineReceipt` y `receiptContext` de los preparadores existentes, sin lexer genérico, búsqueda por substring o excepción basada en hash de una regla proporcionada. Atomic sólo permite esa excepción en `sv_labor_receipts/$op/.write`; sigue exigiendo la plantilla guard y rechazando grants metadata desconocidos.
+
+Atomic conserva TODA la expresión previa del recibo entre paréntesis y añade AND de autoridad atómica. Las pruebas comparan permisos de recibo ordinario y las cuatro acciones restringidas con permisos explícitamente denegados: no se pierde el veto de Gastos/Bonos/SAC al incorporar el nuevo protocolo.
+
+La matriz utiliza expresiones reales y snapshots ficticios en proceso. No acredita el parser de reglas, el baseline retenido completo ni la publicación; sigue pendiente QA en el emulador del principal y contraste exacto de la salida SAC real. No se reinterpreta otra expresión porque tenga longitud o hash parecidos.

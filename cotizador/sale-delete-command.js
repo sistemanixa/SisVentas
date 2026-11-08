@@ -69,10 +69,13 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   key(body?.id);key(body?.ventaKey);
   if(!/^[a-f0-9]{64}$/.test(body.expectedHash||''))throw fail('Falta verificar la revisión original de la venta.');
   const captured=await access(path=>store.read(path),actor),timestamp=now(),person={...actor,name:captured.profile.nombre||captured.profile.login||''};
-  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',role:'admin',permissionRevision:captured.permissions.indiceRevision,permissionDigest:digest(captured.permissions),opId:body.id,transportDigest:digest(body),operation:'sale-delete',input:body},async scope=>{
+  const commercialDeleteProof=await store.commercialDeleteReadiness?.capture('saleDelete');
+  const result=await guard.run({uid:actor.uid,claims:actor.claims,commercialDeleteProof,mode:'user',role:'admin',permissionRevision:captured.permissions.indiceRevision,permissionDigest:digest(captured.permissions),opId:body.id,transportDigest:digest(body),operation:'sale-delete',input:body},async scope=>{
+   if(commercialDeleteProof)await store.commercialDeleteReadiness.assertCurrent(commercialDeleteProof,scope.get);
    if(digest(await access(scope.get,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
    const initial=await plan(scope.get,scope.query,body.ventaKey,person,timestamp,body.expectedHash);
    scope.beforeCommit(async({readFresh,queryFresh})=>{
+    if(commercialDeleteProof)await store.commercialDeleteReadiness.assertCurrent(commercialDeleteProof,readFresh);
     if(digest(await access(readFresh,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
     const fresh=await plan(readFresh,queryFresh,body.ventaKey,person,timestamp,body.expectedHash);
     if(digest(fresh.snapshot)!==digest(initial.snapshot))throw fail('Los vínculos cambiaron; no se eliminó ningún registro.');

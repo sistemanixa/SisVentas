@@ -73,7 +73,6 @@ const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
 const laborTransaction = laborRuntime.transaction;
 const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
-laborRuntime.store.saleDeleteFenceReady=process.env.SALE_DELETE_FENCE_READY==='true';
 const saleDeleteService=require('./sale-delete-http-adapter').createSaleDeleteHttpAdapter({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.SALE_DELETE_READY==='true'});
 const purchaseDeleteService=require('./purchase-order-delete').createPurchaseOrderDelete({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.PURCHASE_ORDER_DELETE_READY==='true'});
 const otDeleteService=require('./ot-delete-http-adapter').createOTDeleteHttpAdapter({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.OT_DELETE_READY==='true'});
@@ -1707,9 +1706,7 @@ async function cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo, 
         await page.locator('form[action*="iniciar-sesion"] #submit-login').click();
       } else {
         await page.goto('https://www.tecnoprices.com/ingresar', { waitUntil:'domcontentloaded', timeout:30000 });
-        await page.locator('form[action="control.php"] input[name="usuario"]').fill(usuario);
-        await page.locator('form[action="control.php"] input[name="password"]').fill(password);
-        await page.locator('form[action="control.php"] button[type="submit"]').click();
+        await require('./tecnoprices-login').login(page, usuario, password);
       }
       await page.waitForLoadState('domcontentloaded', { timeout:5000 }).catch(() => {});
       await page.waitForTimeout(500);
@@ -1742,6 +1739,7 @@ async function cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo, 
       bodyText = await page.locator('body').innerText({ timeout:15000 });
       if (/iniciar sesi[oó]n para ver precios|ingresar para ver precios/i.test(bodyText)) throw new Error('No se pudo iniciar sesión o la cuenta no permite ver precios');
     }
+    if (tipo === 'tecnoprices') await require('./tecnoprices-login').assertSession(page);
     const evidenciaPrecio = await extraerPrecioPaginaProveedor(page, tipo, bodyText);
     const precioArs = evidenciaPrecio.precioArs;
     const disponibilidad = await extraerDisponibilidadPaginaProveedor(page, tipo, bodyText);
@@ -1778,6 +1776,10 @@ async function cotizarProveedorConLogin({ proveedor, proveedorKey, url, codigo, 
     }
     return datosResultado;
   } catch (e) {
+    if (tipo === 'tecnoprices') {
+      sesionesProveedorManual.delete(claveSesionProveedorManual(proveedorKey, tipo));
+      throw Object.assign(new Error('No se pudo consultar Tecnoprices. Revisá la sesión y la URL exacta del producto.'), { code:'TECNOPRICES_LOOKUP_FAILED' });
+    }
     e.trace = trace;
     throw e;
   } finally {
@@ -2223,7 +2225,8 @@ const server = http.createServer(async (req, res) => {
       const actor=await service.authorize(req),body=await readBody(req,pathname==='/laboral/capacidades'?128:16*1024*1024);
       if(pathname==='/laboral/capacidades'){
         if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).length)throw Object.assign(Error('Solicitud inválida'),{statusCode:400});
-        send(res,200,{ok:true,payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability(),saleDelete:{version:1,enabled:saleDeleteService.capability()},orderDelete:{version:1,enabled:purchaseDeleteService.capability()},otDelete:{version:1,enabled:otDeleteService.capability()},coordination:laborRuntime.capabilities(),saleReturn:require('./sale-return-to-budget').capability({enabled:process.env.SALE_RETURN_ECONOMICS_READY==='true',coordinated:laborRuntime.capabilities().coordinated&&!laborRuntime.capabilities().readOnly,rulesDigest:process.env.SALE_RETURN_RULES_DIGEST||''}),revision:process.env.K_REVISION||'local'});
+        const deleteReady=await laborRuntime.deleteReadiness.available();
+        send(res,200,{ok:true,payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability(),saleDelete:{version:1,enabled:deleteReady&&saleDeleteService.capability()},orderDelete:{version:1,enabled:deleteReady&&purchaseDeleteService.capability()},otDelete:{version:1,enabled:deleteReady&&otDeleteService.capability()},coordination:laborRuntime.capabilities(),saleReturn:require('./sale-return-to-budget').capability({enabled:process.env.SALE_RETURN_ECONOMICS_READY==='true',coordinated:laborRuntime.capabilities().coordinated&&!laborRuntime.capabilities().readOnly,rulesDigest:process.env.SALE_RETURN_RULES_DIGEST||''}),revision:process.env.K_REVISION||'local'});
       }else send(res,200,await service[['/cobranzas/operacion','/laboral/gastos/editar-administrativo'].includes(pathname)?'execute':'create'](actor,body));
     }catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el guardado. Comprobá el intento antes de repetirlo.',...(error.code?{code:error.code}:{})});}return;
   }

@@ -24,12 +24,14 @@ function createOTDeleteCommand({guard,store,verifyActor,enabled=false}){
   const otKey=key(body?.otKey);key(body?.id);
   if(!guard?.clientHistory||!guard.affects?.('sisventas/ordenes_trabajo/'+otKey)||store?.otDeleteFenceReady!==true)throw fail('Falta el cierre de escritores OT y fuentes vinculadas. No se eliminó la OT.');
   const captured=await access(path=>store.read(path),actor);
-  return guard.run({uid:actor.uid,claims:actor.claims,mode:'user',role:captured.profile.rol,permissionRevision:captured.permissions.indiceRevision,permissionDigest:digest(captured.permissions),opId:body.id,transportDigest:digest(body),operation:'ot-delete',input:body},async scope=>{
+  const commercialDeleteProof=await store.commercialDeleteReadiness?.capture('otDelete');
+  return guard.run({uid:actor.uid,claims:actor.claims,commercialDeleteProof,mode:'user',role:captured.profile.rol,permissionRevision:captured.permissions.indiceRevision,permissionDigest:digest(captured.permissions),opId:body.id,transportDigest:digest(body),operation:'ot-delete',input:body},async scope=>{
+   if(commercialDeleteProof)await store.commercialDeleteReadiness.assertCurrent(commercialDeleteProof,scope.get);
    if(digest(await access(scope.get,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
    const initial=await evidence(scope.get,otKey,body.expectedHash);
    async function visible(){if(typeof store.readAsUser!=='function'||digest(await store.readAsUser('sisventas/ordenes_trabajo/'+otKey,actor))!==digest(initial.original))throw fail('No se pudo confirmar el acceso al original completo de la OT.');}
    await visible();
-   scope.beforeCommit(async({readFresh})=>{if(digest(await access(readFresh,actor))!==digest(captured))throw fail('Los permisos cambiaron.');if(digest(await evidence(readFresh,otKey,body.expectedHash))!==digest(initial))throw fail('Los vínculos o la OT cambiaron.');await visible();});
+   scope.beforeCommit(async({readFresh})=>{if(commercialDeleteProof)await store.commercialDeleteReadiness.assertCurrent(commercialDeleteProof,readFresh);if(digest(await access(readFresh,actor))!==digest(captured))throw fail('Los permisos cambiaron.');if(digest(await evidence(readFresh,otKey,body.expectedHash))!==digest(initial))throw fail('Los vínculos o la OT cambiaron.');await visible();});
    await scope.update({['sisventas/ordenes_trabajo/'+otKey]:null});
    return {ok:true,otKey};
   });

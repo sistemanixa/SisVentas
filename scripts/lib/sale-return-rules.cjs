@@ -13,4 +13,15 @@ function build(input){
  if(!node['.write'].endsWith(' || '+addition))node['.write']='('+node['.write']+') || '+addition;
  return out;
 }
-module.exports={build};
+// Reuse the existing exact return grant at deeper record children without
+// opening a second authority. Callers still AND it with the old row grant.
+function deletionGrant(depth,id,record,recordNew){
+ const probe={rules:{sisventas:{ventas:{$venta:{'.write':'false'}}}}};
+ const expression=build(probe).rules.sisventas.ventas.$venta['.write'];
+ const suffix=expression.slice('(false) || '.length);
+ // The builder emits single lexical identifiers; replace whole identifiers
+ // only, so nested paths and economic fields remain byte-for-byte unchanged.
+ const prefix='('+fence(3,userActor)+' && ';if(!suffix.startsWith(prefix))throw Error('La regla de retorno cambió; revisar su composición.');
+ return '('+fence(depth,userActor)+' && '+suffix.slice(prefix.length).replace(/\bnewData\b/g,()=>recordNew).replace(/\bdata\b/g,()=>record).replace(/\$venta\b/g,()=>id);
+}
+module.exports={build,deletionGrant};

@@ -49,6 +49,8 @@ COPY private-finance.js private-finance-model.js private-finance-storage.js ./
 COPY catalog-request.js catalog-promotions.js ./
 COPY ficha-producto.js ./
 COPY proveedor-automatico.js ./
+COPY tecnoprices-login.js ./
+COPY commercial-delete-attestation.js commercial-delete-commit-protocol.js commercial-delete-runtime.js ./
 COPY nissei.js ./
 COPY compras-paraguay.js ./
 COPY conversion-proveedor.js ./

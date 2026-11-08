@@ -1,3 +1,4 @@
 # Unified patches require a single space on empty context lines.
 docs/patches/dashboard-budget-notice-detail-functional.patch whitespace=-blank-at-eol
 docs/patches/dashboard-budget-notice-consumer.patch whitespace=-blank-at-eol
+cotizador/tecnoprices-stock-overlay/* text eol=lf

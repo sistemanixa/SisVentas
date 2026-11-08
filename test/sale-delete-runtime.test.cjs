@@ -1,6 +1,6 @@
 'use strict';
 const saleHash=value=>{const original=structuredClone(value);if(original)delete original.fbKey;return require('../cotizador/labor-guard').digest(original);};
-const {createCoordinatedBackend}=require('./helpers/coordinated-backend.cjs');
+const {fixture:signedFixture}=require('./helpers/commercial-delete-attestation-fixture.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict'),http=require('node:http');
 const {createLaborRuntime}=require('../cotizador/labor-runtime');
 const {createLaborWriteGateway}=require('../cotizador/labor-write-gateway');
@@ -10,7 +10,7 @@ const Payments=require('../cotizador/payment-membership-index');
 test('full runtime REST store, real gateway and local HTTP dispatch preserve routes and private receipts',async()=>{
  let state={sv_labor_config:{schema:1,ready:true},sv_chat_roles:{u:{activo:true,rol:'admin'},other:{activo:true,rol:'admin'}},sv_permisos:{admin:{indiceVersion:2,indiceModulos:{venta:true},acciones:{ventas:{eliminar:true}}}},sisventas:{ventas:{s:{id:'V-0001'}},pagos:{p:{venta:'PREFIX / 0001',monto:1}},ordenes_trabajo:{},presupuestos:{},reclamos:{}}};
  for(const [path,value]of Object.entries(Payments.buildIndex(state.sisventas.pagos,{generation:'runtime-fixture',ready:true}).patch))state=put(state,parts(path),value);
- const prepared=await createCoordinatedBackend({...state.sisventas,ventas:Object.fromEntries(Object.entries(state.sisventas.ventas).map(([id,sale])=>[id,{...sale,total:100,fecha:'2026-11-01',clienteFbKey:'c',responsableUid:'u'}])),pagos:Object.fromEntries(Object.entries(state.sisventas.pagos).map(([id,payment])=>[id,{...payment,fecha:'2026-11-01'}]))});
+ const prepared=await signedFixture({...state.sisventas,ventas:Object.fromEntries(Object.entries(state.sisventas.ventas).map(([id,sale])=>[id,{...sale,total:100,fecha:'2026-11-01',clienteFbKey:'c',responsableUid:'u'}])),pagos:Object.fromEntries(Object.entries(state.sisventas.pagos).map(([id,payment])=>[id,{...payment,fecha:'2026-11-01'}]))});
  Object.assign(prepared.state.sv_chat_roles,state.sv_chat_roles);prepared.state.sv_permisos=state.sv_permisos;state=prepared.state;
  let commits=0,authCalls=0;const calls=[];
  const fetchImpl=async(target,options)=>{
@@ -22,8 +22,7 @@ test('full runtime REST store, real gateway and local HTTP dispatch preserve rou
   return new Response('null');
  };
  const db={ref:path=>({toString:()=> 'https://fixture.invalid/'+path,get:async()=>({val:()=>structuredClone(child(state,parts(path)))})})};
- const runtime=createLaborRuntime({db,databaseURL:'https://fixture.invalid',accessToken:async()=> 'fixture-service',fetchImpl,enabled:true,commercialPages:true,clientAccounts:true,clientHistory:true,operationalSummaries:true});
- require('./helpers/sale-delete-financial-evidence.cjs').install({store:runtime.store,get:path=>child(state,parts(path))});runtime.store.saleDeleteFenceReady=true;runtime.store.saleDeleteActivityFenceReady=true;
+ const runtime=createLaborRuntime({db,databaseURL:'https://fixture.invalid',accessToken:async()=> 'fixture-service',fetchImpl,enabled:true,commercialPages:true,clientAccounts:true,clientHistory:true,operationalSummaries:true,deleteEnvironment:{COMMERCIAL_DELETE_ENABLED:'true',COMMERCIAL_DELETE_ATTESTATION_PUBLIC_KEY:prepared.publicKey,COMMERCIAL_DELETE_PINS_JSON:JSON.stringify(prepared.pins)}});
  const auth={verifyIdToken:async(token,checkRevoked)=>{authCalls++;assert.equal(checkRevoked,true);if(!['u','other'].includes(token))throw Error('invalid fixture token');return {uid:token};}};
  const gateway=createLaborWriteGateway({auth,db,guard:runtime.guard,store:runtime.store,enabled:true});
  const adapter=createSaleDeleteHttpAdapter({authorize:gateway.authorize,guard:runtime.guard,store:runtime.store,enabled:true});
@@ -49,4 +48,11 @@ test('full runtime REST store, real gateway and local HTTP dispatch preserve rou
   const foreign=await send(body,'other');assert.equal(foreign.status,409);assert.equal(commits,1);assert.equal(child(state,parts('sisventas/ventas/s')),null);
   assert(authCalls>=6);assert.deepEqual(await(await fetch(base+'/existing')).json(),{existing:true});
  }finally{await new Promise(resolve=>server.close(resolve));}
+});
+
+test('full runtime remains OFF without signed deployment configuration; no Auth or REST fallback',async()=>{
+ let calls=0;const runtime=createLaborRuntime({db:{ref(){throw Error('No SDK read expected');}},databaseURL:'https://fixture.invalid',accessToken:async()=> 'fixture-service',fetchImpl:async()=>{calls++;throw Error('No REST read expected');},enabled:true,commercialPages:true,clientAccounts:true,clientHistory:true,operationalSummaries:true,deleteEnvironment:{}});
+ const adapter=createSaleDeleteHttpAdapter({authorize:async()=>{calls++;throw Error('No Auth expected');},guard:runtime.guard,store:runtime.store,enabled:true});
+ assert.equal(adapter.capability(),false);assert.equal(await runtime.store.commercialDeleteReadiness.available(),false);
+ await assert.rejects(adapter.handle({url:PATH,method:'POST'},{id:'operation-off-runtime',ventaKey:'s',expectedHash:'a'.repeat(64)}));assert.equal(calls,0);
 });

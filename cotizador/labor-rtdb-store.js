@@ -3,7 +3,7 @@ const {parts}=require('./labor-guard');
 const FinancialProtocol=require('./sale-financial-dependencies-protocol');
 const AccountsProtocol=require('./client-account-writer-protocol');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
-function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.now,requestMs=20000,verifyOTDeliveryFence}){
+function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.now,requestMs=20000,verifyOTDeliveryFence,commercialDeleteReadiness}){
  const base=new URL(databaseURL);if(base.protocol!=='https:'&&!(base.protocol==='http:'&&['127.0.0.1','localhost'].includes(base.hostname)))throw Error('Destino de datos inválido');
  const local=['127.0.0.1','localhost'].includes(base.hostname),namespace=local?base.searchParams.get('ns'):null;
  if(base.search&&(!local||[...base.searchParams.keys()].some(key=>key!=='ns')))throw Error('Configuración de datos inválida');
@@ -36,12 +36,14 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   require('./office-stock-policy').validate(actor,lease,patch);
   const override=service('commit',lease,actor);if(actor?.officeStock||actor.operation==='office-stock-adjustment'||Object.keys(actor?.claims||{}).some(k=>k.startsWith('svOfficeStock')))Object.assign(override.token,require('./office-stock-policy').token(actor,lease));if(actor?.otLifecycle||Object.keys(actor?.claims||{}).some(k=>k.startsWith('svOTLifecycle')))Object.assign(override.token,require('./ot-lifecycle-policy').token(actor,lease));
   Object.assign(override.token,await require('./ot-delivery-commit-protocol').claims({patch,lease,actor,read,query:async(path,field,value)=>{const response=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return response.json();}}));
+  Object.assign(override.token,require('./commercial-delete-commit-protocol').reservedClaims(actor?.claims));
+  if(commercialDeleteReadiness)Object.assign(override.token,await commercialDeleteReadiness.commitClaims({patch,lease,actor,readFresh:read}));
   const token=await accessToken(),destination=target('.json');destination.searchParams.set('auth_variable_override',JSON.stringify(override));destination.searchParams.set('print','silent');
   const response=await fetchImpl(destination,{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(patch),signal:AbortSignal.timeout(requestMs)});
   if(response.ok){await response.body?.cancel();return;}
   await response.body?.cancel();throw fail(response.status===401||response.status===403?409:503,'No se pudo confirmar la operación. Revisá su estado antes de reintentar.','SV_LABOR_COMMIT_UNCONFIRMED');
  }
  async function abort(lease){const r=await request('DELETE','sv_labor_guard',undefined,{override:service('abort',lease)});await r.body?.cancel();}
- return {read,readQuery,verifyOTDeliveryFence:async()=>verifyOTDeliveryFence?.({read})??null,exists:async(path)=>{parts(path);const response=await request('GET',path,undefined,{query:{shallow:true}});return await response.json()!==null;},acquire,commit,abort,query:async(path,field,value)=>{const r=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return r.json();},queryFrom:async(path,field,value)=>{parts(field);if(typeof value!=='string')throw fail(400,'Límite de consulta inválido');const r=await request('GET',path,undefined,{query:{orderBy:field,startAt:value}});return r.json();},readAsUser:async(path,actor)=>{const r=await request('GET',path,undefined,{override:{uid:actor.uid,token:actor.claims||{}}});return r.json();}};
+ return {read,readQuery,commercialDeleteReadiness,verifyOTDeliveryFence:async()=>verifyOTDeliveryFence?.({read})??null,exists:async(path)=>{parts(path);const response=await request('GET',path,undefined,{query:{shallow:true}});return await response.json()!==null;},acquire,commit,abort,query:async(path,field,value)=>{const r=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return r.json();},queryFrom:async(path,field,value)=>{parts(field);if(typeof value!=='string')throw fail(400,'Límite de consulta inválido');const r=await request('GET',path,undefined,{query:{orderBy:field,startAt:value}});return r.json();},readAsUser:async(path,actor)=>{const r=await request('GET',path,undefined,{override:{uid:actor.uid,token:actor.claims||{}}});return r.json();}};
 }
 module.exports={createLaborRtdbStore};

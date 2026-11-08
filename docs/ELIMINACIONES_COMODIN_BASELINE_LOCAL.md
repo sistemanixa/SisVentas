@@ -1,0 +1,15 @@
+# Cierre acotado del comodín retenido
+
+La baseline local dee40945c7224f449a1f460193c268796341bd97e3c82c8e00ea236385be1fb7 tiene una hoja sisventas/$dominio con .read/.write. No se copia el archivo privado a Git. Su autoridad original ya excluye los tres orígenes; no se acredita esa propiedad por substring ni se elimina la autoridad del resto.
+
+`commercial-delete-domain-wildcard.prepare` admite sólo esa forma de hoja y conserva lectura y expresión original. Añade AND excluyendo exactamente ventas, ordenes y ordenes_trabajo. Rechaza otro nombre, hijos, validaciones, índices o grants booleanos abiertos. Es idempotente sólo para su propia envoltura exacta. Atomic reconoce esa envoltura en esa hoja y rechaza otras concesiones activas de comodín.
+
+Orden requerido: `SalesParent.prepare(baseline)` → `CommercialWriteCut.prepare` → `DomainWildcard.prepare` → `Atomic.prepare`. La primera etapa ya estrecha la hoja para poder bajar el padre conocido de Ventas. Las etapas Accounts/Operational/H7/pausa agregan envolturas propias: por eso hay que aplicar de nuevo DomainWildcard justo antes de Atomic. Esa última restricción no retira autoridad ajena ni sustituye los fences agregados por esas etapas.
+
+La composición completa sobre los bytes retenidos pasó en proceso, sin escribir candidata ni reglas. La prueba opt-in requiere SV_DELETE_RETAINED_RULES_FILE y SHA256 explícito. También compara decisiones de SDK/servicio, con/sin lease, para orígenes y dominios ajenos, incluida la expresión real retenida con controles autorizados no vacuos. El adaptador de evaluación local traduce únicamente beginsWith de strings RTDB a startsWith de JS; no cambia las reglas emitidas.
+
+El corte comercial agrega a guard/receipt la envoltura del protocolo de escritor. `commercial-delete-metadata-baseline` reconstruye salidas EXACTAS del constructor `commercial-writer-protocol-rules` sobre la plantilla guard y los cuatro recibos reconocidos (base/Gastos/Bonos/SAC). Atomic preserva toda esa autoridad anterior como operando y añade su AND; rechaza espacios/sufijos añadidos, otras rutas y gates desconocidos. Ningún hash arbitrario autoriza una excepción.
+
+La envoltura no se reconoce sólo por prefijo/sufijo. Se verifica que el operando original tenga paréntesis balanceados sin cierre exterior prematuro, comillas simples/dobles cerradas y escapes completos. Esto rechaza el escape `false) || true || (false` que, envuelto por texto, podría dejar un OR true fuera del operando. También se valida el valor recibido antes de envolverlo. La hoja conocida no usa regex/división/comentarios: slash, backtick y punto y coma fuera de strings quedan fuera del subconjunto admitido y se rechazan, para no confundir paréntesis dentro de esos tokens con sintaxis de agrupación. No se pretende un lexer genérico de reglas.
+
+No se ejecutó emulador, acceso remoto, publicación ni activación. La comparación es offline; corresponde al principal repetir QA del parser/semántica RTDB sobre el candidato final y el runtime montado.
