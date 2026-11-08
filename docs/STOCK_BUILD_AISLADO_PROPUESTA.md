@@ -21,3 +21,6 @@ scripts/prepare-office-stock-build-proposal.cjs sólo genera archivos, no puede 
 Contexto v2 privado stock-build-proposal-28436175-v2:15archivos permitidos, manifiesto eb315a3eb31bfa55d05e2a67a3c0eba52c57c2a1a348fed1646e25661594e56b. Primera preparación v1 se conserva sólo como antecedente, NO ejecutar: el runner v2 evita subprocess y respeta el preloader. Antes de enviar revalidar contexto, origen/base y configuración de build; no reintentar automáticamente generando otro cargo. El comando de envío no se ejecutó.
 
 Aprobación pendiente: ejecución pagada descrita y almacenamiento de esa imagen candidata. Publicación productiva sigue separada. Si falla, conservar log/ID/causa y corregir en local; no modificar datos/permisos reales para hacer pasar pruebas.
+
+## Resultado autorizado posterior
+El08/11 el titular autorizó un único build y retener candidata. Build0f27e6e9-ef58-4b74-a4b6-c656f7d071e9 SUCCESS;9tests dentro deimagenPASS/0FAIL. Digest sha256:ce214d16acc17a89acecab937a499c4984ca49c5f6a097fedba2d5aab73fb8a2 guardado/verificado.63,855s; estimación cómputoUSD0,0063855+extras, nofactura. Producción/revisión/tráfico15accesos idénticos. No publicación ni datos reales. Sustituye únicamente la condición anterior de build pendiente; evidencia en CONTEXTO_ACTUAL. Futuro corte debe usar digest ya probado, sin reconstrucción.

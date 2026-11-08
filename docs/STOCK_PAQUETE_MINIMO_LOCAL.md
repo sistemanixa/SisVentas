@@ -36,3 +36,6 @@ Ocultar/deshabilitar módulo y rechazar nuevos comandos; primero resolver operac
 Separada de este bloque: build de imagen exacta sobre registro/CloudBuild aprobado (si local no hay motor), eventual coste estimado; despliegue Cotizador conservando configuración/accesos; escritura acotada de validadores de inventario y resumen, índice fecha, officeStockVersion; guardado de casillas Stock en Roles; Hosting y aviso oficial. Cada acción requiere alcance concreto revisado; nada está ejecutado ni se solicita activar ahora. Costos y OT real permanecen separados y pausados donde corresponda.
 
 Artefacto final: fuente28436175d7013ab63ea61115ba6dae31df0b8ae2; manifiesto b894cfeb792cce04278bc5c3dd04f7c6e96700456f8212a37c56bf2bed37d4bf,22archivos verificados. Servidor byteidéntico al compuesto13/13PASS. Regresión70/70PASS. Evidencia exacta y límite de imagen en CONTEXTO_ACTUAL.
+
+## Imagen exacta ya comprobada
+Build autorizado0f27e6e9-ef58-4b74-a4b6-c656f7d071e9 SUCCESS el08/11/2026,9tests contenedorPASS/0FAIL. Imagen guardada sha256:ce214d16acc17a89acecab937a499c4984ca49c5f6a097fedba2d5aab73fb8a2. Queda superado el límite anterior de imagen sin construir. Producción no activada; orden de habilitación/rollback permanece propuesto. Usar este digest sin otro build en eventual corte autorizado. Evidencias exactas en CONTEXTO_ACTUAL.
