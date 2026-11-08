@@ -21,6 +21,7 @@
 
   function canAccess(moduleId, permissions, defaults) {
     if (!moduleId) return false;
+    if(moduleId==='stockoficina'&&(!['admin','administrativo'].includes(current())||global._impersonacionOriginal))return false;
     if(moduleId==='coberturasalarial')return !(global.PERMISOS_ROLES?.admin?.bloqueados||[]).includes(moduleId)&&!!global.SVSalaryCoverageRead?.create(global).allowed();
     if(moduleId==='gastospersonales')return !!global.SVPrivateFinancePortal?.allowed();
     var role = current();

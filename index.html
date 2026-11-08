@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.19.18-firebase' -->
+<!-- VERSION: 'v3.19.19-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,7 +21,7 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.19.18.js"></script>
+<script src="./js/core/version.v3.19.19.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.18.4"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.18.4"></script>
@@ -73,7 +73,7 @@
   <script src="./js/modules/dashboard-budget-host.v1.js?v=3.19.3"></script>
   <script src="./js/modules/dashboard-activity-host.v1.js?v=3.19.3"></script>
   <script src="./js/core/foreground-session.js?v=3.13.2"></script>
-  <script src="./js/core/labor-write-recovery.js?v=3.15.12"></script>
+  <script src="./js/core/labor-write-recovery.js?v=3.19.19"></script>
   <script src="./js/core/labor-writes.js?v=3.19.3"></script>
   <script src="./js/core/manual-delivery-writer.v1.js?v=1"></script>
   <script src="./js/core/bonus-payment-model.v1.js?v=3.18.4"></script>
@@ -88,6 +88,7 @@
 <link rel="stylesheet" href="./css/dashboard-personal-notices.css?v=3.14.11">
 <link rel="stylesheet" href="./css/chat-directs.v1.css?v=3.15.13">
 <link rel="stylesheet" href="./css/ot-search.v1.css?v=3.15.13">
+<link rel="stylesheet" href="./css/office-stock.css?v=3.19.19">
 </head>
 <body>
 
@@ -285,6 +286,7 @@
         <i class="ti ti-building-store"></i>Proveedores
       </div>
       <div class="nav-item" onclick="showPage('balancecompra',this)"><i class="ti ti-scale"></i>Compras de exterior</div>
+      <div class="nav-item admin-o-administrativo" onclick="showPage('stockoficina',this)"><i class="ti ti-package"></i>Stock de oficina</div>
       <div class="nav-item" onclick="showPage('ordenes',this)">
         <i class="ti ti-shopping-cart"></i>Órdenes de compra
       </div>
@@ -3003,6 +3005,7 @@ Listo para analizar.
 
       <!-- ── ÓRDENES DE COMPRA ── -->
       <div id="page-balancecompra" class="page"><div id="balance-compra-content"></div></div>
+      <div id="page-stockoficina" class="page"><button type="button" class="btn btn-sm" onclick="volverAtrasSisVentas()">← Volver</button><div id="office-stock-content"></div></div>
       <div id="page-ordenes" class="page">
 
         <!-- Métricas del mes -->
@@ -5881,7 +5884,7 @@ Listo para analizar.
 <script src="./js/core/ot-sale-origin.v1.js?v=3.18.13"></script>
 <script src="./js/core/commercial-report-read.v1.js?v=3.19.0"></script>
 <script src="./js/modules/commercial-report-host.v1.js?v=3.19.0"></script>
-<script src="./js/app.v3.19.18.js"></script>
+<script src="./js/app.v3.19.19.js"></script>
 <script src="./js/core/sales-search-model.v1.js?v=3.18.4"></script>
 <script src="./js/core/collection-search-model.v1.js?v=3.18.13"></script>
 <script src="./js/core/commercial-pages-reader.v1.js?v=3.19.6"></script>
@@ -6501,5 +6504,9 @@ Listo para analizar.
 <script src="./js/modules/client-history-credentials-host.v1.js"></script>
 <script src="./js/modules/client-history-original-actions.v1.js"></script>
 <script src="./js/modules/client-history-bootstrap.v1.js?v=3.19.1"></script>
+<script src="./js/core/office-stock-adjustment.js?v=3.19.19"></script>
+<script src="./js/modules/office-stock.js?v=3.19.19"></script>
+<script src="./js/modules/office-stock-adapter.js?v=3.19.19"></script>
+<script src="./js/modules/office-stock-host.js?v=3.19.19"></script>
 </body>
 </html>

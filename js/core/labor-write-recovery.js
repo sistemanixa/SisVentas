@@ -25,6 +25,7 @@
    if(!layer){
     previousFocus=document.activeElement;
     layer=document.createElement('section');layer.id='sv-labor-write-recovery';layer.className='modal-overlay open sv-labor-write-recovery';
+    layer.setAttribute('data-sv-modal-behavior','compact');
     layer.setAttribute('role','alertdialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-label','Confirmación del guardado');layer.setAttribute('aria-describedby','sv-labor-recovery-status');
     layer.style.cssText='position:fixed;inset:0;z-index:2147483000;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);place-items:center!important;padding:16px;box-sizing:border-box;pointer-events:auto;background:rgba(0,0,0,.64);overscroll-behavior:contain';
     const card=document.createElement('div');card.className='sv-data-status';card.style.cssText='pointer-events:auto;width:min(480px,100%);min-width:0;max-height:calc(100dvh - 32px);overflow:auto;padding:24px;margin:0;align-items:center;text-align:center;border:1px solid var(--border,#34425c);border-radius:14px;background:var(--bg2,#111c2e);color:var(--text,#eef0f5);box-sizing:border-box;box-shadow:0 12px 36px #0007';

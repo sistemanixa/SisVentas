@@ -135,6 +135,7 @@
     'presupuestos.eliminar':     { modulo:'presupuesto', admin:true },
     'presupuestos.anular':       { modulo:'presupuesto', admin:true },
     'ot.editar':                 { modulo:'ordentrabajo', roles:['admin','administrativo','tecnico_vendedor','tecnico'] },
+    'stock.ajustar': {modulo:'stockoficina',label:'Ajustar cantidad de oficina',roles:['admin','administrativo']},
     'ot.ajustarStockOficina':    { modulo:'ordentrabajo', label:'Ajustar stock de oficina desde OT', roles:['admin'] },
     'ot.corregirMateriales':     { modulo:'ordentrabajo', roles:['admin','administrativo','vendedor'] },
     'ot.entregarMateriales':     { modulo:'ordentrabajo', roles:['admin','administrativo','vendedor'] },

@@ -60,6 +60,7 @@
   var waitLimit=15000;
   var demandPages=['cuentacorriente','informes','equipos','garantias','soporte','remitos','servicios','agenda','caja','historialcliente'];
   var dependencies={
+    stockoficina:['officeStock'],
     dashboard:['clientes','productos','ventas','pagos'],
     productos:['productos'],catalogo:['productos'],actualizadorprecios:['productos','proveedores'],
     clientes:['clientes'],venta:['clientes','productos','ventas','empleados'],presupuesto:['clientes','productos','presupuestos','empleados'],
@@ -73,7 +74,7 @@
     agenda:['agenda','ordenes_trabajo'],caja:['caja'],
     historialcliente:['clientes','ventas','pagos','presupuestos','ordenes_trabajo','equipos','tickets','reclamos']
   };
-  var labels={clientAccounts:'las cuentas verificadas',dashboardBudgetNotices:'los avisos de presupuestos',budgetNoticeDetail:'el presupuesto solicitado',historyPointDetail:'el detalle solicitado',ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
+  var labels={officeStock:'stock de oficina',clientAccounts:'las cuentas verificadas',dashboardBudgetNotices:'los avisos de presupuestos',budgetNoticeDetail:'el presupuesto solicitado',historyPointDetail:'el detalle solicitado',ordenes_trabajo:'órdenes de trabajo',pagos:'cobros',empleados:'directorio de empleados',proveedores:'directorio de proveedores',equipos:'equipos instalados',garantias:'garantías',tickets:'tickets de soporte',caja:'caja del día'};
   function requirements(page){
     if(page==='cuentacorriente'&&global.SVClientAccountHost?.claimed===true)return ['clientAccounts'];
     if(page==='notificaciones'&&global.SV_BUDGET_NOTICES_LOCAL===true&&(typeof global.svPuedeLeerDominio!=='function'||global.svPuedeLeerDominio('presupuestos')))return ['dashboardBudgetNotices'];
