@@ -458,6 +458,23 @@
     return next;
   }
   async function deliver(itemIndex) {
+    var ot=currentOT();
+    if(deliveryBusy||renditionBusy||additionalBusy||!ot||window._impersonacionOriginal||!isAdministration())return;
+    if(itemIndex!==undefined||typeof window.SVClientAccountHost?.prepareWrite!=='function')return deliverPrepared(itemIndex);
+    var user=window.fbAuth?.currentUser,uid=window.currentUserUid,role=window.currentRole,db=window.fbDB;
+    var epoch=window._svOperacionesSesionEpoch||0,revision=window.PERMISOS_ROLES?.[role]?.indiceRevision;
+    var fingerprint=deliveryFingerprint(ot),context=window.svCapturarContextoOperacion?.();
+    var valid=function(){return !!user&&user.uid===uid&&user===window.fbAuth?.currentUser&&uid===window.currentUserUid&&role===window.currentRole&&db===window.fbDB&&epoch===(window._svOperacionesSesionEpoch||0)&&revision===window.PERMISOS_ROLES?.[role]?.indiceRevision&&(!context||context())&&currentOT()===ot&&deliveryAllowed(ot)&&deliveryFingerprint(ot)===fingerprint;};
+    var ready=false;deliveryBusy=true;
+    try{
+      if(!valid())return;
+      await window.SVClientAccountHost.prepareWrite();
+      ready=valid();
+    }catch(error){if(valid())window.notify('No se pudo preparar la entrega: '+error.message+' Volvé a intentarlo.');}
+    finally{deliveryBusy=false;}
+    if(ready)return deliverPrepared(itemIndex);
+  }
+  async function deliverPrepared(itemIndex) {
     var ot = currentOT();
     if (deliveryBusy || renditionBusy || additionalBusy || !ot || window._impersonacionOriginal || !isAdministration()) return;
     if (itemIndex !== undefined) { window.notify('Usá Entregar materiales pendientes para confirmar la entrega completa.'); return; }
