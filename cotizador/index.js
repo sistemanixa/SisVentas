@@ -77,6 +77,7 @@ laborRuntime.store.saleDeleteFenceReady=process.env.SALE_DELETE_FENCE_READY==='t
 const saleDeleteService=require('./sale-delete-http-adapter').createSaleDeleteHttpAdapter({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.SALE_DELETE_READY==='true'});
 const purchaseDeleteService=require('./purchase-order-delete').createPurchaseOrderDelete({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.PURCHASE_ORDER_DELETE_READY==='true'});
 const otDeleteService=require('./ot-delete-http-adapter').createOTDeleteHttpAdapter({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.OT_DELETE_READY==='true'});
+const officeStock=require('./office-stock').create({authorize:laborWriteGateway.authorize,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OFFICE_STOCK_ENABLED==='true'&&process.env.OPERATIONAL_SUMMARIES_ENABLED==='true',queryPage:async(path,o)=>{let ref=db.ref(path);ref=o.orderBy?ref.orderByChild(o.orderBy):ref.orderByKey();if(o.after)ref=ref.startAt(o.after+'\u0000');return (await (o.last?ref.limitToLast(o.limit):ref.limitToFirst(o.limit)).get()).val();}});
 const otOfficeCount=require('./ot-office-count').createOTOfficeCount({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_OFFICE_COUNT_ENABLED==='true'});
 const otLifecycle=require('./ot-lifecycle').createOTLifecycle({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_LIFECYCLE_ENABLED==='true',commercialPages:process.env.COMMERCIAL_PAGES_ENABLED==='true',atomicCustody:process.env.OT_ATOMIC_RENDITION_READY==='true'});
 const expenseReimbursement=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled,reimbursement:true});
@@ -2226,7 +2227,13 @@ const server = http.createServer(async (req, res) => {
       }else send(res,200,await service[['/cobranzas/operacion','/laboral/gastos/editar-administrativo'].includes(pathname)?'execute':'create'](actor,body));
     }catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el guardado. Comprobá el intento antes de repetirlo.',...(error.code?{code:error.code}:{})});}return;
   }
+  if(['/stock-oficina/listar','/stock-oficina/detalle','/stock-oficina/historial','/stock-oficina/ajustar'].includes(pathname)){
+    res.setHeader('Cache-Control','private, no-store');
+    try{const actor=await officeStock.authorize(req),body=await readBody(req,4096),method={'/stock-oficina/listar':'list','/stock-oficina/detalle':'detail','/stock-oficina/historial':'history','/stock-oficina/ajustar':'save'}[pathname];send(res,200,{ok:true,...await officeStock[method](actor,body)});}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el ajuste. Consultá la operación antes de repetirlo.',...(error.code?{code:error.code}:{}),...(error.svLaborAttempted===false?{svLaborAttempted:false}:{})});}return;
+  }
   if(pathname==='/ot/rendicion/disponible'){
+
     res.setHeader('Cache-Control','private, no-store');
     try{if(req.method!=='GET')throw Object.assign(Error('Método no permitido'),{statusCode:405});const actor=await laborWriteGateway.authorize({method:'POST',url:req.url,headers:req.headers});send(res,200,await otLifecycle.availableAtomic(actor,{otKey:requestUrl.searchParams.get('otKey')}));}
     catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo comprobar la rendición conjunta.',...(error.code?{code:error.code}:{}),svLaborAttempted:false});}return;

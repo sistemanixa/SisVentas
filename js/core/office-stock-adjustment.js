@@ -10,12 +10,12 @@ function plan(current,command,actor,now,product){
  if(!key(c.id)||!key(c.productKey)||!Number.isSafeInteger(now)||now<=0)throw Error('No se identificó el ajuste.');
  const count=quantity(c.quantity),reason=String(c.reason||'').trim();if(!reason||reason.length>240)throw Error('Ingresá una observación de hasta 240 caracteres.');
  const unit=String(product?.unidad||'').toLowerCase().trim();if(!Number.isInteger(count)&&!/^(m|metro|metros|kg|kilogramo|kilogramos|l|litro|litros)$/.test(unit))throw Error('Revisá la unidad del producto antes de ingresar una cantidad fraccionada.');
- if(!current||!Object.hasOwn(current,'general'))throw Error('Este producto requiere revisar su registro de stock.');
- const signature={productKey:c.productKey,quantity:count,reason,uid:actor.uid},prior=current.ajustesOficina?.[c.id];
+ if(current!==null&&(!current||!Object.hasOwn(current,'general')))throw Error('Este producto requiere revisar su registro de stock.');
+ const signature={productKey:c.productKey,quantity:count,reason,uid:actor.uid},prior=current?.ajustesConteo?.[c.id];
  if(prior){if(!same(prior.command,signature))throw Error('El ajuste ya tiene otros datos.');return{inventory:clone(current),replayed:true};}
  if(!same(current,c.expected))throw Error('El stock cambió. Actualizá la cantidad antes de guardar.');
- const before=quantity(current.general);if(count===before)throw Error('La cantidad no cambió.');
- const inventory=clone(current);inventory.general=count;inventory.ajustesOficina={...(inventory.ajustesOficina||{}),[c.id]:{command:signature,anterior:before,nueva:count,observacion:reason,usuarioUid:actor.uid,usuario:actor.name||actor.uid,fecha:new Date(now).toISOString(),ts:now}};
+ const before=current===null?null:quantity(current.general);if(count===before)throw Error('La cantidad no cambió.');
+ const inventory=current===null?{}:clone(current);inventory.general=count;inventory.ajustesConteo={...(inventory.ajustesConteo||{}),[c.id]:{tipo:'conteo_oficina',command:signature,cantidadAnterior:before,anteriorDesconocida:before===null,cantidadContada:count,motivo:reason,usuarioUid:actor.uid,usuario:actor.name||actor.uid,fecha:now}};
  return{inventory,replayed:false};
 }
 return Object.freeze({plan,authorize,quantity});
