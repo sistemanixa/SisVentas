@@ -13,3 +13,5 @@ Revisión paralela corrigió readiness persistente tras fallo recuperado. La rec
 Validación definitiva en curso: focales, aplicación completa escritorio/móvil, emulador ficticio y puerta general. Registrar resultados finales en CONTEXTO_ACTUAL al cerrar. Una ejecución iniciada no acredita aprobación.
 
 Producción requiere paquete mínimo separado de la preparación OT heredada, revisión de servidor/reglas/configuración y permisos. Nada fue activado en este bloque. La demo usa servidor/base en memoria y CSP de conexiones sólo al mismo origen; no conecta Firebase real. No equivale a una sesión real del titular.
+
+Cierre: fuente3c933f3b y ajuste visual d72a4fd8. Puerta10009PASS/0FAIL/46SKIP; emulador12PASS; ajuste visual5PASS. Evidencia y límites exactos en CONTEXTO_ACTUAL. Preparación local terminada; producción sin activar.
