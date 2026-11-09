@@ -1,3 +1,13 @@
+## Stock positivo: imagen construida, publicación pendiente · 08/11/2026
+
+Fuente funcional Stock `72d2bc22c076ad14e867597e69458e4c8c00efa5`: lista desde inventario positivo, cursor tipado y selector separado para productos sin existencia. 44 pruebas Node y dos nativas390/1280 PASS; no equivalen a validación con datos reales. Overlay mínimo retiene la imagen Stock19 y cambia sólo callback de listado/index y office-stock.js; modelo y política idénticos.
+
+Único build autorizado `b1eee9d2-5ddc-45ce-bfc8-54546a17c937` SUCCESS, imagen `sha256:ed8defdef80ece2ff43dad3b1dda6f6ed400d2e91eb3e1e9564353f1c75122d4`; verificación aislada sin red SUCCESS. Candidata `cotizador-stock31920-ed8defde` lista SIN tráfico, entorno/recursos/IAM y16 destinos conservados. Se aplicaron sólo índices general del resumen operativo y cod/id de Productos; comparación y relectura exactas, sin autoridad ni registros modificados.
+
+Web y tráfico principal aún Stock19. Frontend acotado20 preparado desde publicación19 `a1e489ac` y módulo72;645activos, seis cambios, Accounts/H7 OFF. Commit público local `4ef7fe382f86f27a1d2ddcb8d8bef9fd5a0680d7`. Puerta completa inicial falló comparaciones físicas CRLF/LF; log rojo conservado. Se repite sobre una copia LF del mismo commit, sin cambiar el artefacto ni las expectativas. No declarar publicado hasta verificar tráfico/web/aviso y apertura real.
+
+Auditoría H7 permanece aislada y no se incluye en este paquete. Ningún ajuste de stock, pago, comisión, reserva o registro real se ejecutó como prueba. Evidencia y respaldos sólo privados fuera Git.
+
 ## Stock de oficina integrado localmente · 08/11/2026
 
 Checkout codex/stock-oficina-simple-local, v3.19.19. Menú/readiness/permisos, adaptador autenticado, comando protegido y validadores candidatos integrados sobre checkpoint34e089ce. La sección siguiente describe sólo el prototipo anterior. Tres revisores independientes revisaron permisos, UI y preparación; se corrigieron readiness fallido persistente y controles finales de disponibilidad/bloqueos. Aplicación completa ficticia: escritorio390/1280 y respuesta perdida con una única escritura,3PASS. Demo aislada en memoria inspeccionada visualmente, sin Firebase real; apertura en panel solicitada, tool devolvió queued y no acredita que el usuario ya la vea. Puerta completa y matriz emulador aún en cierre: no declarar aprobado antes de sus resultados. Nada publicado ni datos reales cambiados. Véase STOCK_OFICINA_SIMPLE_LOCAL.md. Mantener OT y su publicación separadas.
