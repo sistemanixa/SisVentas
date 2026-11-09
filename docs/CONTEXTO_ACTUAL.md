@@ -1,3 +1,15 @@
+## Stock v3.20.0 publicado · 09/11/2026
+
+Stock muestra existencias positivas desde el inventario indexado; Agregar stock consulta el catálogo canónico bajo acción explícita, incluyendo productos sin existencia. Backend funcional72d2bc22: único build autorizado b1eee9d2 SUCCESS, imagen ed8defdef80ece2ff43dad3b1dda6f6ed400d2e91eb3e1e9564353f1c75122d4, revisión cotizador-stock31920-ed8defde activa en16 destinos, IAM/entorno/recursos conservados. Se modificaron sólo índices de consulta, nunca cantidades, costos, reservas, cobros o comisiones.
+
+Frontend público52bdb62d5d5567fd9e25a06d02e94e817623b087:646activos/5cargas, seis archivos funcionales/versionado y prueba de composición. RAW a2d84caa15655fe1e39c90efb73a4b6364f266ebb10424b5b7bc219633df7489; seis archivos web exactos y aviso oficial3.20.0 verificados. Accounts/H7 siguenOFF. Puerta9991:9942PASS/0FAIL/49SKIP, logSHA2ec486b43aafdac533f5f737194bf25f7d1cec9cbd121a90f66c270be0ef5d8b. Stockfocal44 y nativas390/1280 aparte; no sumar solapados.
+
+Se conserva el incidente de publicación20: el paquete incluía UI pero omitió el adaptador con products(), de modo que Agregar stock buscaba sólo las filas visibles. Misma prueba final:20reproduce3FAIL,3.20.0tiene3PASS; UI+adapter+readiness reales sobre datos ficticios, producto cero sólo en selector, cierre sin escrituras. Cinco casos adicionales de recuperación/revocación PASS con readiness controlada, no equivalen al cargador Firebase completo. Corrección frontend exclusivamente, sin un segundo build.
+
+Vista real de lista positiva confirmada por CUA sin guardar; en esos datos no se necesitó otra página. Selector real20 detectó el incidente; tras el hotfix se comprobaron bytes web/local y pruebas nativas, pero la captura de la ventana dejó de responder antes de confirmar visualmente su recarga final. Servidor local propio8766 sirve el mismo paquete3.20.0. No afirmar una inspección final visual no realizada.
+
+H7 lector/modelo v2 continúa aislado. Sus artefactos180/b377/final20son anteriores a estas mejoras de Stock y no deben activarse; requieren integrar la base publicada actual y nueva revisión. Sin nueva autorización de build H7 ni activación de ese circuito. Evidencias y respaldos reales permanecen privados fuera Git; no push/main en este bloque.
+
 ## Stock positivo: imagen construida, publicación pendiente · 08/11/2026
 
 Fuente funcional Stock `72d2bc22c076ad14e867597e69458e4c8c00efa5`: lista desde inventario positivo, cursor tipado y selector separado para productos sin existencia. 44 pruebas Node y dos nativas390/1280 PASS; no equivalen a validación con datos reales. Overlay mínimo retiene la imagen Stock19 y cambia sólo callback de listado/index y office-stock.js; modelo y política idénticos.
