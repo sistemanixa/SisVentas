@@ -1683,9 +1683,9 @@
 
   async function openOrder(key) {
     var order = state.orders.find(function (o) { return o.fbKey === key || o.numero === key; });
-    if (!order) return;
+    if (!order && !/^[A-Za-z0-9_-]{1,128}$/.test(String(key||''))) return;
     var opening=++state.detailEpoch;
-    try{order=await detail(PATH_ORDERS,order.fbKey);}catch(error){window.notify(error.message);return;}
+    try{order=await detail(PATH_ORDERS,order?order.fbKey:key);}catch(error){window.notify(error.message);return;}
     if(opening!==state.detailEpoch)return;
     state.orders=state.orders.map(function(row){return row.fbKey===order.fbKey?order:row;});window.ordenesData=state.orders;
     state.activeOrder = JSON.parse(JSON.stringify(order));
