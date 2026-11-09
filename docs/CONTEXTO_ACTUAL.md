@@ -1,4 +1,16 @@
-## OT-188: integración mínima en curso · 09/11/2026
+## OT-188 eliminada y v3.20.1 publicada · 09/11/2026
+
+Cierre posterior verificado: el titular reiteró su confirmación y se pulsó Confirmar en la misma pestaña IAB. El primer intento devolvió401 sin borrar: BusinessAuth revalidaba mediante el scope ya en fase de confirmación, y Gateway ocultaba SCOPE_CLOSED como sesión vencida. No era una pérdida de sesión del titular. Reproducción con guard/DB/Auth reales y autoridad OT canónica de sólo lectura:7PASS, incluidas cuatro revocaciones tardías. Fuente de ese arreglo d6fa8a99 e integración de referencia24e07ca7. Sólo dos archivos se superponen a808; no se modificó Auth compartida de pagos.
+
+Build adicional autorizado8c57a878 SUCCESS, imagen `977f670b2790a87163ba615508fdd3432dae756fd5a62797ee551bfc08be75d9`; revisión `cotizador-otdelete3201-977f670b` ACTIVA en las16 intenciones anteriores, IAM idéntico y sin etiqueta temporal. Rotadas únicamente actas/pines OT; reglas y época técnica operacional conservadas, sin pausa de finanzas/fiscal. No volver a808: conserva el fallo de revalidación.
+
+Segundo intento autorizado mostró «OT eliminada», abiertas17→16. Tres lecturas puntuales posteriores comprobaron originalOT y resumen ausentes, y venta vinculada EXACTAMENTE idéntica a su copia previa; no había backlinks que retirar. No se ejecutaron pagos, comisiones ni ajustes de stock de prueba. La pestaña local quedó abierta, con búsquedaOT188 sin resultados; captura privada fueraGit.
+
+Frontend público limpio `c527318f210d558c4dc6b0e8879fc566b4196ba5` (rama codex/ot-delete-v3201-release), v3.20.1. Hosting647activos/17cargas, RAWfinal `d2fa7a7fa81452ac157ffd8ef69a838d08f7aafb247d072dac05652b5f50ac33`; seis activos web200 e idénticos, cabeceras de seguridad conservadas y aviso Firebase actualizado tras verificación. Puerta9991:9926PASS/0FAIL/65SKIP; el commit final sólo agregó documentación sobre el fallo y conserva los647activos probados. Regresionesfocales74PASS con la autoridad corregida (no sumar sus solapamientos).
+
+Stock nuevo del otro chat continúa aislado y debe integrarse sobre pública3.20.1+c527 e imagen977, nunca contraed8/808/180. Los dos archivos visuales locales no incluidos en este cierre siguen sin alterar. Accounts/H7/Activity permanecen fuera de este corte. Los bloques siguientes describen la preparación histórica anterior y quedan supersedidos por este cierre para el estado externo.
+
+### Preparación anterior de OT-188 · 09/11/2026
 
 Actualización externa posterior: build único autorizado `f451d9fc-25de-4bb5-8957-e0c76fdc8443` SUCCESS; imagen `80826ad5c304709524cf6ce33257c1abd45b18f92ca604ee5e462681f13e0b11`, revisión `cotizador-otdelete3201-80826ad5` ACTIVA en las16 intenciones de tráfico conservadas. IAM idéntico, etiqueta temporal retirada, recursos conservados. Reglas AND-only verificadas sobre respaldo vivo y leídas de vuelta; época técnica operacional y actas OT instaladas y comprobadas criptográficamente. Accounts/H7/Activity siguen ausentes. Se comprobó en emulador que un guard/store financiero anterior puede finalizar atravesando la instalación sin poner ready=false; no se pausó finanzas ni fiscal ni se modificó una operación comercial mediante los scripts del corte.
 
