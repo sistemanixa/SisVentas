@@ -44,6 +44,9 @@ function deliveryZeroOrigin(ot,{inventory,otKey,deliveryContext,selectedIndexes,
  if(token.svOTLifecycleVersion!==1||token.svOTLifecycleKind!=='delivery'||token.svOTLifecycleOTKey!==otKey||token.svOTLifecycleSaleKey!==ot.ventaFbKey||!['admin','administrativo'].includes(token.svOTLifecycleRole))throw fail('La entrega requiere autorización física vigente.');
  if(!Array.isArray(selectedIndexes)||!selectedIndexes.length||new Set(selectedIndexes).size!==selectedIndexes.length||selectedIndexes.some(i=>!Number.isInteger(i)||i<0||!ot.materiales?.[i]))throw fail('La selección de entrega es ambigua.');
  const checked=structuredClone(ot);checked.estado='pendiente';checked.progreso=0;
+ // Documentary signatures do not prove a physical stock movement or close this open OT.
+ if(own(ot,'firmada')&&typeof ot.firmada!=='boolean'||own(ot,'firmaClienteUrl')&&typeof ot.firmaClienteUrl!=='string')throw fail('La firma documental requiere revisión.');
+ delete checked.firmada;delete checked.firmaClienteUrl;
  if(!['pendiente','asignada','programada','en_curso','en_progreso'].includes(ot.estado)||own(ot,'progreso')&&(typeof ot.progreso!=='number'||!Number.isFinite(ot.progreso)||ot.progreso<0||ot.progreso>100))throw fail('El estado de la OT requiere revisión.');
  const workflow=new Set(['OT iniciada','✓ Completó toda la etapa: Preparación','✓ Completó toda la etapa: Instalación','✓ Completó toda la etapa: Verificación y entrega']);
  checked.audit=Object.values(ot.audit||{}).filter(e=>!e||e.tipo||e.kind||!workflow.has(e.accion));
