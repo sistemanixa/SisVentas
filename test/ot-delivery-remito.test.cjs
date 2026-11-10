@@ -3,42 +3,35 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const source=fs.readFileSync('js/modules/ot-material-custody.js','utf8');
 const clone=x=>JSON.parse(JSON.stringify(x));
 function fixture(options={}){
- const original={fbKey:'ot-fiction',id:'OT-FICTICIA',tecnico:'Técnico ficticio',estado:'pendiente',cliente:'Cliente ficticio',materiales:[{cod:'FIC-A',desc:'Equipo ficticio',vendida:3,entregada:1,instalada:1,custodiaActiva:true}],...options.ot};
+ const original={fbKey:'ot-fiction',id:'OT-FICTICIA',tecnico:'Técnico ficticio',estado:'pendiente',ventaFbKey:'sale',cliente:'Cliente ficticio',materiales:[{cod:'FIC-A',desc:'Equipo ficticio',vendida:3,entregada:1,instalada:1,custodiaActiva:true}],...options.ot};
  let remote=clone(original),writes=0,stock=0,ids=0,notes=[],confirmed=0;
  const w={otData:[original],otActualId:original.fbKey,prodData:{},currentUser:'Administración ficticia',currentUserUid:'fiction',currentRole:'admin',fbAuth:{currentUser:{uid:'fiction'}},fbDB:{},fbRef:(_,p)=>{assert.equal(p,'sisventas/ordenes_trabajo/ot-fiction');return p;},crypto:{randomUUID:()=> 'doc-'+(++ids)},tienePermiso:()=>true,notify:m=>notes.push(m),svConfirm:async()=>{confirmed++;if(options.confirm)return options.confirm(w);return true;},SisVentasCompras:{syncOTConsumption:()=>{stock++;throw Error('No se debe llamar a stock');}},scrollTo:()=>{}};
- // OFF public-handler contract: use the real record/summary model, atomic
- // writer and GuardedWrites. Only the SDK/network boundary is fictitious.
+ // Real server delivery model; only transport/storage/auth are fictional.
  w.SVCommercialMoney=require('../js/core/commercial-money.v1');
- const Model=require('../js/core/record-list-model');
- let hookUsed=false;
- const sdk={
-  ref:(_,path='')=>path,
-  get:async path=>{
-   assert.equal(path,'sisventas/ordenes_trabajo/ot-fiction');
-   if(!hookUsed&&options.beforeCommit){hookUsed=true;await options.beforeCommit(w,remote);}
-   const value=clone(remote);return{val:()=>value};
-  },
-  update:async(_,patch)=>{
-   const path='sisventas/ordenes_trabajo/ot-fiction',summary='sisventas/listados_resumen/ordenes_trabajo/ot-fiction';
-   assert.deepEqual(Object.keys(patch).sort(),[path,summary].sort());
-   assert.deepEqual(patch[summary],Model.summary('ordenes_trabajo',patch[path]));
-   assert.equal(patch[path]._svListRevision,(remote._svListRevision||0)+1);
-   assert.equal(patch[path]._svListOperation,patch[summary]._svListOperation);
-   if(options.failBefore)throw Error('Sin conexión');
-   remote=clone(patch[path]);writes++;
-   if(options.lostResponse)throw Error('Respuesta perdida');
-  }
- };
- w.SVRecordListWrites=require('../js/core/operational-writes').create(w,Model);
- w.SVRecordListWrites.install({sdk});
- w.fetch=()=>assert.fail('OFF must use the atomic record/summary adapter, not raw HTTP');
- w.SVOTLifecycle={prepare:()=>assert.fail('OFF must not request the future delivery server capability'),save:()=>assert.fail('OFF must not send the future delivery command')};
- w.SVOTDeliverySelection={choose:()=>assert.fail('OFF must not open the unpublished partial selector')};
- const context={window:w,document:{getElementById:()=>null,documentElement:{},body:{}},requestAnimationFrame:()=>{}};
+ const Delivery=require('../cotizador/ot-delivery-model');let hookUsed=false,uncertain=false,operation=0;
+ let inventory={};
+ function identify(record){for(const [index,row]of record.materiales.entries()){row.entregada??=0;row.devuelta??=0;row.instalada??=0;row.productoKey=row.productoKey||'product_'+String(row.cod||index).replace(/[^a-zA-Z0-9_-]/g,'_');if(Number(row.instalada||0)>0&&!row.stockRegistro){row.stockRegistro='a'.repeat(64);row.stockRevision=1;}if(!inventory[row.productoKey])inventory[row.productoKey]={general:10,reservado:0,consumido:Number(row.instalada||0),asignaciones:{sale:{reservado:0,consumido:Number(row.instalada||0),liberado:0}},rendicionesOT:row.stockRegistro?{[row.stockRegistro]:{ot:'ot-fiction',venta:'sale',revision:1,instalada:row.instalada,deReserva:0,deGeneral:row.instalada,enReserva:0}}:{}};}}
+ identify(original);remote=clone(original);
+ w.SVGuardedWrites={restTransaction:()=>assert.fail('No OT-only transaction')};w.SVRecordListWrites={transaction:()=>assert.fail('No OT-only transaction')};
+ w.SVOTLifecycle={prepare:async()=>({atomicStock:options.atomicStock!==false}),save:async(before,draft,optionsSave)=>{
+  assert.equal(optionsSave.kind,'delivery');const uid=w.currentUserUid,role=w.currentRole;
+  if(!hookUsed&&options.beforeCommit){hookUsed=true;await options.beforeCommit(w,remote);}
+  if(uid!==w.currentUserUid||role!==w.currentRole||!w.tienePermiso('ot.entregarMateriales'))throw Error('La sesión o los permisos cambiaron');
+  if(uncertain){uncertain=false;return{confirmed:true,ot:clone(remote)};}
+  if(options.failBefore)throw Error('Sin conexión');
+  const id='fixture-delivery-'+(++operation),command={id,ts:Date.now(),usuario:w.currentUser,uid,onlyAdditional:['completada','con_observaciones'].includes(remote.estado)};
+  w.SVOTDeliveryReceipt.prepare(remote,before,command); // unchanged conflict checks
+  identify(remote);const catalog=Object.fromEntries(remote.materiales.map(m=>[m.productoKey,{nombre:m.desc,unidad:'unidades'}]));
+  const result=Delivery.plan({ot:remote,otKey:remote.fbKey,items:draft.entregas.map(e=>({index:e.index,qty:e.cantidad})),others:{[remote.fbKey]:clone(remote)},inventory,catalog,actor:{uid,role,name:w.currentUser},operationId:id,at:Date.now(),atomicStock:true});
+  remote=clone(result.ot);inventory=result.inventory;writes++;
+  if(options.lostResponse){uncertain=true;throw Error('Respuesta perdida');}
+  return{confirmed:true,ot:clone(remote)};
+ }};
+ const nodes={};const context={window:w,document:{getElementById:id=>nodes[id]||null,documentElement:{},body:{}},requestAnimationFrame:()=>{}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('js/core/guarded-writes.js','utf8'),context);vm.runInContext(source,context);
- return {w,original,remote:()=>remote,writes:()=>writes,stock:()=>stock,notes,confirmed:()=>confirmed,replaceRemote:v=>remote=clone(v)};
+ return {w,original,nodes,remote:()=>remote,writes:()=>writes,stock:()=>stock,notes,confirmed:()=>confirmed,replaceRemote:v=>remote=clone(v)};
 }
-test('entrega incremental y remito en una sola escritura, sin finanzas ni stock',async()=>{const f=fixture();await f.w.otCustodiaEntregar();const d=Object.values(f.remote().remitosEntrega);assert.equal(f.writes(),1);assert.equal(f.stock(),0);assert.equal(d.length,1);assert.equal(d[0].items[0].cantidad,2);assert.equal(f.original.materiales[0].entregada,3);assert.equal(f.original.materiales[0].instalada,1);assert.deepEqual(Object.keys(d[0].items[0]).sort(),['adicional','cantidad','codigo','descripcion','unidad']);});
+test('entrega incremental y remito en una sola escritura, sin finanzas ni stock',async()=>{const f=fixture();await f.w.otCustodiaEntregar();const d=Object.values(f.remote().remitosEntrega);assert.equal(f.writes(),1);assert.equal(f.stock(),0);assert.equal(d.length,1);assert.equal(d[0].items[0].cantidad,2);assert.equal(f.original.materiales[0].entregada,3);assert.equal(f.original.materiales[0].instalada,1);assert.deepEqual(Object.keys(d[0].items[0]).sort(),['adicional','cantidad','codigo','descripcion','index','productoKey','unidad','ventaFbKey']);});
 
 for(const role of ['admin','administrativo'])test('entrega autorizada de '+role+' conserva instalado y no mueve stock',async()=>{const f=fixture();f.w.currentRole=role;f.w.tienePermiso=p=>p==='ot.entregarMateriales';await f.w.otCustodiaEntregar();assert.equal(f.writes(),1);assert.equal(f.stock(),0);assert.equal(f.remote().materiales[0].instalada,1);assert.equal(Object.keys(f.remote().remitosEntrega).length,1);});
 for(const role of ['admin','administrativo','tecnico'])test(role+' sin permiso de entrega no confirma ni guarda',async()=>{const f=fixture();f.w.currentRole=role;f.w.tienePermiso=()=>false;await f.w.otCustodiaEntregar();assert.equal(f.confirmed(),0);assert.equal(f.writes(),0);assert.equal(f.stock(),0);});
@@ -57,3 +50,8 @@ test('Ver como no inicia la entrega',async()=>{const f=fixture();f.w._impersonac
 test('OT cerrada original requiere activar corrección; adicional conserva el circuito autorizado',async()=>{const a=fixture({ot:{estado:'completada'}});await a.w.otCustodiaEntregar();assert.equal(a.writes(),0);const b=fixture({ot:{estado:'completada',materiales:[{cod:'FIC-B',desc:'Adicional',vendida:1,adicionalOT:true}]}});await b.w.otCustodiaEntregar();assert.equal(b.writes(),1);});
 test('documento escapa HTML y no publica importes, costos ni porcentaje',()=>{const f=fixture(),doc={numero:'RE-FIC',otId:'OT-FIC',fecha:1,tecnico:'<script>mal</script>',cliente:'Cliente',entregadoPor:'Ficticio',items:[{codigo:'FIC',descripcion:'<img src=x onerror=mal>',cantidad:1,unidad:'unidades',precio:999,ganancia:100,porcentaje:5}]};const html=f.w.SVOTDeliveryReceipt.html(doc);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<img src=x/);assert.doesNotMatch(html,/999|ganancia|porcentaje/);});
 test('guardado general de OT no reenvía una copia vieja del libro de remitos',()=>{const app=require('./helpers/active-app.js').readActiveApp().source;const save=app.slice(app.indexOf('function fbGuardarOT(ot)'),app.indexOf('function fbGuardarOT(ot)')+2300);assert.match(save,/'remitosEntrega'/);});
+
+
+test('old server without atomic delivery capability never saves or starts browser transactions',async()=>{const f=fixture({atomicStock:false});await f.w.otCustodiaEntregar();assert.equal(f.writes(),0);assert.equal(f.stock(),0);assert.match(f.notes.at(-1),/pendiente de habilitar/);});
+test('known row delivery sends only that item and preserves other pending rows',async()=>{const f=fixture({ot:{materiales:[{cod:'A',desc:'Primero',vendida:2,entregada:0,instalada:0,devuelta:0},{cod:'B',desc:'Segundo',vendida:3,entregada:0,instalada:0,devuelta:0}]}});await f.w.otCustodiaEntregar(1);assert.equal(f.writes(),1);assert.equal(f.remote().materiales[0].entregada,0);assert.equal(f.remote().materiales[1].entregada,3);assert.equal(Object.values(f.remote().remitosEntrega)[0].items.length,1);assert.equal(Object.values(f.remote().remitosEntrega)[0].items[0].index,1);});
+test('delivery row action uses delivery permission independently of rendition permission',()=>{for(const role of ['admin','administrativo','tecnico']){const f=fixture();f.w.currentRole=role;f.w.tienePermiso=p=>p==='ot.entregarMateriales';f.nodes['ot-materiales']={innerHTML:''};f.w.otCustodiaRenderMateriales(f.original);assert.equal(f.nodes['ot-materiales'].innerHTML.includes('>Entregar</button>'),role!=='tecnico');}});
