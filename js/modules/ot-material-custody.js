@@ -39,6 +39,7 @@
     if (renditionBusy || deliveryBusy) return;
     var original = currentOT();
     if (!original || !mayRend(original)) throw Error('No tenés permiso para corregir esta OT.');
+    var confirmed=confirmedView(draft,'ot.rendirMateriales');
     renditionBusy = true;
     var finish = window.SisVentas?.carga?.mostrar?.('Guardando materiales y stock…', {persistirAlNavegar:true});
     try {
@@ -52,11 +53,9 @@
       // Installation and its inventory effects must commit together on the server.
       // Older servers are read-only for this action; never move stock first.
       if (installationChanged && capability?.atomicStock !== true) throw Error('La instalación segura está pendiente de habilitar. No se movió stock.');
-      await save(draft, action);
-      Object.assign(original, draft);
-      updateGlobal();
-      if (typeof window.actualizarPanelIntegridadOT === 'function') window.actualizarPanelIntegridadOT();
-      return draft;
+      var saved = await save(draft, action);
+      if (confirmed.visible() && typeof window.actualizarPanelIntegridadOT === 'function') window.actualizarPanelIntegridadOT();
+      return saved;
     } finally { renditionBusy = false; if (typeof finish === 'function') finish(); }
   }
 
@@ -64,6 +63,27 @@
     return (window.otData || []).find(function (ot) {
       return ot && (ot.fbKey === window.otActualId || ot.id === window.otActualId);
     }) || null;
+  }
+
+  // A subscription can replace this record while its own commit is awaiting a
+  // response. Intent guards apply before sending; reconciliation follows stable
+  // identity and revision, never the old object's reference or old fingerprint.
+  function confirmedView(ot, permission) {
+    var key=ot.fbKey,uid=window.currentUserUid,user=window.fbAuth?.currentUser,role=window.currentRole,db=window.fbDB;
+    var epoch=window._svOperacionesSesionEpoch,revision=window.PERMISOS_ROLES?.[role]?.indiceRevision,route=window.location?.hash;
+    function session(){return !window._impersonacionOriginal&&uid===window.currentUserUid&&user===window.fbAuth?.currentUser&&(!window.fbAuth||!!user&&user.uid===uid)&&role===window.currentRole&&db===window.fbDB&&epoch===window._svOperacionesSesionEpoch&&revision===window.PERMISOS_ROLES?.[role]?.indiceRevision&&window.tienePermiso?.(permission)===true;}
+    function visible(){var selected=currentOT(),page=document.getElementById('page-ordentrabajo'),detail=document.getElementById('ot-detalle-view');return session()&&selected?.fbKey===key&&route===window.location?.hash&&(!page||page.classList.contains('active'))&&(!detail||detail.style.display!=='none');}
+    return {key:key,session:session,visible:visible};
+  }
+  function reconcileConfirmed(ot, view) {
+    if (!view.session()) return null;
+    var current=(window.otData||[]).find(function(row){return row?.fbKey===view.key;});
+    if (!current) return null; // Never recreate a record removed by a later update.
+    var revision=function(row){return Number.isSafeInteger(row?._svListRevision)&&row._svListRevision>=0?row._svListRevision:0;};
+    if (revision(current)<=revision(ot)) Object.assign(current,ot);
+    updateGlobal();
+    if (view.visible()) render(current,controllableMaterials(current));
+    return current;
   }
 
   function productFor(material) {
@@ -240,6 +260,7 @@
 
   function save(ot, action, options) {
     if (!ot) return Promise.reject(new Error('OT no encontrada'));
+    var view=confirmedView(ot,options?.kind==='return'?'ot.entregarMateriales':'ot.rendirMateriales');
     if (action) audit(ot, action);
     window._otGuardandoLocalHasta = Date.now() + 3000;
     var linked = !!(ot.ventaFbKey || ot.ventaId || ot.venta);
@@ -259,21 +280,17 @@
     var scrollTop = usesWindow ? (window.scrollY || document.documentElement.scrollTop || 0) : scrollContainer.scrollTop;
     var cardTop = materialCard ? materialCard.getBoundingClientRect().top : 0;
     return Promise.resolve(promise).then(function () {
-      var selected = currentOT();
-      if (selected && selected.fbKey === ot.fbKey) Object.assign(selected,ot);
-      updateGlobal();
-      // Actualizar solamente Materiales evita que el detalle completo vuelva
-      // fugazmente a su vista inicial antes de regresar a esta sección.
-      render(ot, controllableMaterials(ot));
-      requestAnimationFrame(function () {
+      var selected=reconcileConfirmed(ot,view);
+      if (selected && view.visible()) requestAnimationFrame(function () {
         requestAnimationFrame(function () {
+          if (!view.visible()) return;
           var refreshedCard = document.getElementById('ot-materiales-card');
           var correction = refreshedCard ? refreshedCard.getBoundingClientRect().top - cardTop : 0;
           if (usesWindow) window.scrollTo(0, Math.max(0, scrollTop + correction));
           else if (scrollContainer && scrollContainer.isConnected) scrollContainer.scrollTop = Math.max(0, scrollTop + correction);
         });
       });
-      return ot;
+      return selected || ot;
     });
   }
 
@@ -462,6 +479,7 @@
     if (!ot.fbKey || /[.#$\[\]\/]/.test(ot.fbKey) || !(ot.ventaFbKey || ot.ventaId || ot.venta) || !window.SVOTLifecycle) {
       window.notify('No está disponible el guardado seguro de la entrega. Actualizá SisVentas.');return;
     }
+    var confirmed=confirmedView(ot,'ot.entregarMateriales');
     var baseline = JSON.parse(JSON.stringify(ot)), user = window.fbAuth?.currentUser, uid = window.currentUserUid, role = window.currentRole, db = window.fbDB;
     var epoch = window._svOperacionesSesionEpoch || 0, revision = window.PERMISOS_ROLES?.[role]?.indiceRevision, context = window.svCapturarContextoOperacion?.();
     var valid = function(){return !!user && user.uid === uid && user === window.fbAuth?.currentUser && uid === window.currentUserUid && role === window.currentRole && db === window.fbDB && epoch === (window._svOperacionesSesionEpoch || 0) && revision === window.PERMISOS_ROLES?.[role]?.indiceRevision && (!context || context()) && currentOT() === ot && deliveryAllowed(ot) && deliveryFingerprint(ot) === deliveryFingerprint(baseline);};
@@ -478,11 +496,10 @@
       if (!valid()) throw Error('La sesión o los permisos cambiaron. Volvé a abrir la OT.');
       if (capability?.atomicStock !== true) throw Error('La entrega segura está pendiente de habilitar. No se movió stock.');
       var result = await window.SVOTLifecycle.save(ot,{entregas:selections},{kind:'delivery',action:'Entrega de materiales al técnico'});
-      if (!valid()) return;
-      Object.assign(ot,result.ot);
+      if (!confirmed.session()) return;
+      reconcileConfirmed(result.ot,confirmed);
       window._otGuardandoLocalHasta = Date.now() + 3000;
-      updateGlobal();if (currentOT() === ot) render(ot,controllableMaterials(ot));
-      window.notify('✓ Entrega registrada y remito generado.');
+      if (confirmed.visible()) window.notify('✓ Entrega registrada y remito generado.');
     } catch(error) { if (valid()) window.notify('No se pudo confirmar la entrega: ' + error.message + ' Verificá la OT antes de reintentar.'); }
     finally { deliveryBusy = false;if (typeof finish === 'function') finish(); }
   }
@@ -556,6 +573,7 @@
     ot.materiales = persistedRows(effectiveRows);
     var before = (ot.materiales || []).map(function (material) { return Object.assign({}, material); });
     ot.materiales = (ot.materiales || []).map(function (raw, index) {
+      if (!controllable(raw) || raw.custodiaActiva !== true && !historicalRecoveryCandidate(ot,raw)) return raw;
       var material = normalizeMaterial(raw);
       if (!material.custodiaActiva && historicalRecoveryCandidate(ot, material)) {material.custodiaActiva=true;material.entregada=quantity(material);material.entregadoPor=window.currentUser||'Administración';material.entregadoA=ot.tecnico||'';material.entregadoEn=Date.now();}
       if (!material.custodiaActiva) return material;
