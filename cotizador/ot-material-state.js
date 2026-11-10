@@ -39,9 +39,25 @@ function pristine(ot,inventory,otKey){
   for(const receipt of entries)if(!receipt||!key(receipt.ot)||!key(receipt.venta)||!Number.isSafeInteger(receipt.revision)||receipt.revision<1||!Number.isFinite(receipt.instalada)||receipt.instalada<0||receipt.ot===otKey)throw fail('Hay consumo previo o un recibo ambiguo para la OT.');
  }
 }
-function normalizePristine(ot,{inventory={},otKey}={}){
+function deliveryZeroOrigin(ot,{inventory,otKey,deliveryContext,selectedIndexes,catalog}){
+ const token=require('./ot-lifecycle-policy').token(deliveryContext.actor,deliveryContext.lease);
+ if(token.svOTLifecycleVersion!==1||token.svOTLifecycleKind!=='delivery'||token.svOTLifecycleOTKey!==otKey||token.svOTLifecycleSaleKey!==ot.ventaFbKey||!['admin','administrativo'].includes(token.svOTLifecycleRole))throw fail('La entrega requiere autorización física vigente.');
+ if(!Array.isArray(selectedIndexes)||!selectedIndexes.length||new Set(selectedIndexes).size!==selectedIndexes.length||selectedIndexes.some(i=>!Number.isInteger(i)||i<0||!ot.materiales?.[i]))throw fail('La selección de entrega es ambigua.');
+ const checked=structuredClone(ot);checked.estado='pendiente';checked.progreso=0;
+ if(!['pendiente','asignada','programada','en_curso','en_progreso'].includes(ot.estado)||own(ot,'progreso')&&(typeof ot.progreso!=='number'||!Number.isFinite(ot.progreso)||ot.progreso<0||ot.progreso>100))throw fail('El estado de la OT requiere revisión.');
+ const workflow=new Set(['OT iniciada','✓ Completó toda la etapa: Preparación','✓ Completó toda la etapa: Instalación','✓ Completó toda la etapa: Verificación y entrega']);
+ checked.audit=Object.values(ot.audit||{}).filter(e=>!e||e.tipo||e.kind||!workflow.has(e.accion));
+ const selected=new Set(selectedIndexes),products=new Set(),codes=new Set(),cleanInventory={},code=row=>String(row.cod||row.codigo||row.sku||'').trim().toUpperCase();
+ for(const i of selectedIndexes){const row=ot.materiales[i],product=row.productoKey;if(require('./ot-lifecycle-model').service(row,catalog[product]))throw Object.assign(fail('La entrega física no admite servicios ni mano de obra.'),{code:'SV_OT_DELIVERY_SERVICE'});if(!key(product)||products.has(product))throw fail('La identidad física de la entrega es ambigua.');products.add(product);if(code(row))codes.add(code(row));const inv=inventory[product];if(!inv||typeof inv!=='object')throw fail('El inventario inicial requiere revisión.');cleanInventory[product]=structuredClone(inv);const assigned=inv.asignaciones?.[ot.ventaFbKey];if(!assigned)cleanInventory[product].asignaciones={...inv.asignaciones,[ot.ventaFbKey]:{reservado:0,consumido:0,liberado:0,recibidas:0}};}
+ // Reuse the strict evidence checks; only workflow metadata and absent own reservation differ.
+ pristine(checked,cleanInventory,otKey);
+ for(let i=0;i<ot.materiales.length;i++){const row=ot.materiales[i];if(!selected.has(i)&&(products.has(row.productoKey)||codes.has(code(row)))&&(!own(row,'entregada')||!own(row,'devuelta')))throw fail('Otra fila del producto tiene custodia desconocida.');}
+ const next=structuredClone(ot);for(const i of selectedIndexes){const row=next.materiales[i];if(!own(row,'entregada'))row.entregada=0;if(!own(row,'devuelta'))row.devuelta=0;}return next;
+}
+function normalizePristine(ot,{inventory={},otKey,deliveryContext,selectedIndexes,catalog={}}={}){
  const relevant=(ot?.materiales||[]).filter(m=>key(m?.productoKey)&&own(inventory,m.productoKey));
  if(!relevant.some(m=>!own(m,'entregada')||!own(m,'devuelta')))return structuredClone(ot);
+ if(deliveryContext)return deliveryZeroOrigin(ot,{inventory,otKey,deliveryContext,selectedIndexes,catalog});
  pristine(ot,inventory,otKey);const next=structuredClone(ot);
  for(const row of next.materiales)if(own(inventory,row.productoKey)){if(!own(row,'entregada'))row.entregada=0;if(!own(row,'devuelta'))row.devuelta=0;}
  return next;
