@@ -142,7 +142,7 @@ const SHELL = [
   './js/modules/commercial-approval.js?v=3.9.29',
   './js/core/provider-writes.js?v=3.17.7',
   './js/core/guarded-writes.js?v=3.18.4',
-  './js/core/session-assets.js?v=3.18.4',
+  './js/core/session-assets.js?v=3.20.3',
   './js/core/ot-personal-scope.js?v=3.14.0',
   './js/app.v3.20.3.js',
   './js/core/activity-period.v1.js',
