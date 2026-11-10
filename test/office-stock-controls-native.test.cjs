@@ -15,7 +15,7 @@ for(const width of [390,768,1280])test('Stock controls retain sorted positive ro
   await page.getByRole('button',{name:'Ver más',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('article').length===3);assert.match(await page.locator('article').first().innerText(),/Ficticio D/);
   await page.getByRole('button',{name:'Filtros y orden',exact:true}).click();await page.getByLabel('Ordenar productos cargados',{exact:true}).selectOption('quantity-asc');assert.match(await page.locator('article').first().innerText(),/Ficticio A/);
   await page.getByLabel('Buscar producto',{exact:true}).fill('B');assert.equal(await page.locator('article').count(),1);assert.equal(await page.evaluate(()=>calls.list),2);
-  await page.getByRole('button',{name:'Ver compras y ajustes de Ficticio B',exact:true}).click();await page.getByRole('link',{name:'OC-FICTICIA'}).click();assert.deepEqual(await page.evaluate(()=>calls.opened),['fake-order']);assert.equal(await page.locator('dialog').count(),0);
+  await page.getByRole('button',{name:'Ver compras y ajustes de Ficticio B',exact:true}).click();await page.getByRole('link',{name:'OC-FICTICIA'}).click();assert.deepEqual(await page.evaluate(()=>calls.opened),['fake-order']);await page.locator('dialog').waitFor({state:'detached',timeout:2000});assert.equal(await page.locator('dialog').count(),0);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.equal(await page.evaluate(()=>calls.writes),0);assert.equal(unexpected,0);
  }finally{await browser.close();}
 });

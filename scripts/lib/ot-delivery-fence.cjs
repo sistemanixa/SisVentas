@@ -15,10 +15,12 @@ function prepare(input){
  }
  function seal(node,depth,condition){if(!node||typeof node!=='object')throw Error('Regla OT inválida.');for(const [name,value]of Object.entries(node)){if(name==='.write'){
    if(closed(value))continue;if(typeof value!=='string')throw Error('Revisar autoridad OT no textual.');
-   const keyCondition=condition.split(' && ')[0];
-   const historical="auth.token.svOTDeliveryHistoricalVerified === true && auth.token.svOTLifecycleVersion === 1 && auth.token.svOTLifecycleKind === 'custody' && "+keyCondition+' && '+profile+".child('activo').val() === true && "+profile+".child('rol').val() === auth.token.svOTLifecycleRole && "+cfg+".child('indiceRevision').val() === auth.token.svOTLifecyclePermissionRevision && "+cfg+".child('indiceVersion').val() === 2 && "+cfg+".child('indiceModulos/ordentrabajo').val() === true && ("+cfg+".child('acciones/ot/rendirMateriales').val() === true || (!"+cfg+".child('acciones/ot/rendirMateriales').exists() && (auth.token.svOTLifecycleRole === 'admin' || auth.token.svOTLifecycleRole === 'administrativo' || auth.token.svOTLifecycleRole === 'tecnico' || auth.token.svOTLifecycleRole === 'tecnico_vendedor')))";
-   const protocol="(auth.token.svOTDeliveryCommitVersion === 1 && auth.token.svOTDeliveryUnchanged === true) || (auth.token.svOTLifecycleKind === 'delivery' && "+condition+') || (auth.token.svOTDeliveryCommitVersion === 1 && '+historical+')';
-   const wrapped="((root.child('sv_labor_config/otDeliveryVersion').val() !== 1) && ("+permissionsIdle+') && ('+value+')) || (('+financialRule(depth,value)+') && ('+protocol+'))';node[name]="(auth != null && auth.token.svOTLifecycleKind === 'delivery') ? (("+wrapped+') && '+condition+') : ('+wrapped+')';
+   // This release adds one delivery command, not a migration of every existing
+   // OT writer. Notes, custody and certified deletion retain their original
+   // authority inside the shared fence; only the new command needs its proof.
+   const wrapped='(('+permissionsIdle+') && ('+value+')) || ('+financialRule(depth,value)+')';
+   const delivery='('+financialRule(depth,value)+') && auth.token.svOTDeliveryCommitVersion === 1 && '+condition;
+   node[name]="(auth != null && auth.token.svOTLifecycleKind === 'delivery') ? ("+delivery+') : ('+wrapped+')';
   }else if(!name.startsWith('.'))seal(value,depth+1,condition);}}
  seal(ot[otKey],3,otKey+' === auth.token.svOTLifecycleOTKey && '+permission);
  const summaries=lists.ordenes_trabajo,summaryKeys=Object.keys(summaries).filter(k=>k.startsWith('$'));if(summaryKeys.length!==1)throw Error('El resumen OT necesita una regla por registro.');seal(summaries[summaryKeys[0]],4,summaryKeys[0]+' === auth.token.svOTLifecycleOTKey && '+permission);

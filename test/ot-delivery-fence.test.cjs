@@ -5,3 +5,11 @@ test('candidate seals canonical OT and inventory with existing guard rather than
 test('parent grants and unrecognized record authorities refuse composition instead of adding a bypass',()=>{for(const branch of ['root','ot','summary']){const input=rules();if(branch==='root')input.rules['.write']='auth != null';if(branch==='ot')input.rules.sisventas.ordenes_trabajo['.write']='auth != null';if(branch==='summary')input.rules.sisventas.listados_resumen['.write']='auth != null';assert.throws(()=>prepare(input));}});
 test('existing false grants remain closed and no new read is introduced',()=>{const input=rules();input.rules.sisventas.ordenes_trabajo.$ot['.write']=false;const out=prepare(input);assert.equal(out.rules.sisventas.ordenes_trabajo.$ot['.write'],false);assert.equal(out.rules.sv_labor_config['.read'],'config');assert.equal(out.rules.sisventas.ordenes_trabajo.$ot['.read'],'private');});
 test('legacy catalog alias resolution has both REST query indexes without changing catalog permissions',()=>{const input=rules();input.rules.sisventas.productos['.read']='auth != null';input.rules.sisventas.productos['.write']=false;const out=prepare(input);assert.deepEqual(out.rules.sisventas.productos,{'.indexOn':['codigo','cod'],'.read':'auth != null','.write':false});});
+
+test('ordinary OT writers and certified deletion retain original authority without new delivery claims',()=>{
+ const input=rules(),original="auth != null && auth.token.svOTDeleteOperationalVersion === 1";input.rules.sisventas.ordenes_trabajo.$ot['.write']=original;
+ const value=prepare(input).rules.sisventas.ordenes_trabajo.$ot['.write'],separator=') : (';
+ const ordinary=value.slice(value.lastIndexOf(separator)+separator.length,-1);
+ assert.ok(ordinary.includes(original));assert.match(ordinary,/sv_labor_guard/);assert.doesNotMatch(ordinary,/svOTDelivery|svOTLifecycle/);
+ const delivery=value.slice(0,value.lastIndexOf(separator));assert.match(delivery,/svOTDeliveryCommitVersion === 1/);assert.match(delivery,/entregarMateriales/);assert.match(delivery,/svOTLifecycleRole === 'administrativo'/);
+});

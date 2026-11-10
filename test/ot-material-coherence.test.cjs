@@ -13,7 +13,13 @@ for(const aggregate of [undefined,false])test('legacy row custody is evidence on
  else a.doesNotMatch(f.nodes['ot-custodia-estado'].textContent,/no coinciden/i);
  a.equal(JSON.stringify(f.ot),before);a.deepEqual(f.writes,[]);a.equal(f.w.otCustodiaValidarCierre(f.ot).ok,false);
 });
-test('confirmed partial bulk installation never installs or delivers the missing quantity',async()=>{const f=fixture();Object.assign(f.ot,{custodiaIniciada:true});Object.assign(f.ot.materiales[0],{vendida:2.75,entregada:0.25,custodiaActiva:true});await f.w.otCustodiaTodoInstalado();a.deepEqual(f.targets,[0.25]);a.equal(f.drafts.length,1);a.equal(f.ot.materiales[0].vendida,2.75);a.equal(f.ot.materiales[0].entregada,0.25);a.equal(f.ot.materiales[0].instalada,0.25);a.equal(f.ot.custodiaRendida,false);});
+test('confirmed partial bulk installation never installs or delivers the missing quantity',async()=>{const f=fixture();
+ f.ot.ventaFbKey='sale';let inventory=null;
+ f.w.SisVentasCompras.syncOTConsumption=()=>a.fail('No client stock transaction');
+ f.w.SVOTLifecycle={prepare:async()=>({atomicStock:true}),save:async(before,draft)=>{
+  const next=structuredClone(draft),old=before.materiales[0],row=next.materiales[0];f.targets.push(row.instalada);
+  const result=require('../cotizador/ot-physical-confirmation-model').confirm({inventory,kind:'installation',otKey:'ot-fiction',rowKey:'0',productKey:'p',allocation:'sale',operationId:'fixture-command-1',at:1,actor:{uid:'fiction',role:'admin',allowed:true},beforeDelivered:old.entregada,targetDelivered:row.entregada,beforeInstalled:old.instalada,targetInstalled:row.instalada,heldByOthers:0});inventory=result.inventory;row.stockRegistro=result.receipt;row.stockRevision=result.revision;f.drafts.push(next);f.writes.push('save');return{confirmed:true,ot:next};
+ }};Object.assign(f.ot,{custodiaIniciada:true});Object.assign(f.ot.materiales[0],{vendida:2.75,entregada:0.25,custodiaActiva:true});await f.w.otCustodiaTodoInstalado();a.deepEqual(f.targets,[0.25]);a.equal(f.drafts.length,1);a.equal(f.ot.materiales[0].vendida,2.75);a.equal(f.ot.materiales[0].entregada,0.25);a.equal(f.ot.materiales[0].instalada,0.25);a.equal(f.ot.custodiaRendida,false);});
 for(const kind of ['permission','session','record','quantity','role','revision'])test('bulk confirmation discards stale or revoked intent: '+kind,async()=>{
  const f=fixture();f.ot.custodiaIniciada=true;f.ot.materiales[0].custodiaActiva=true;
  f.w.PERMISOS_ROLES={admin:{indiceRevision:1}};

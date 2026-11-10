@@ -13,7 +13,7 @@ return function create(root){
   const response=await root.fetch(base+'/ot/ciclo/disponible?otKey='+encodeURIComponent(context.fbKey)+'&kind='+encodeURIComponent(kind),{method:'GET',headers,cache:'no-store',signal:AbortSignal.timeout(20000)});
   const data=await response.json();check();
   if(!response.ok||data.ok!==true||data.ready!==true||data.version!==1)throw Error(data.mensaje||'El circuito de OT está pendiente de habilitar. No se movió stock.');
-  return true;
+  return Object.freeze({ready:true,version:data.version,atomicStock:data.atomicStock===true});
  }
  async function save(context,draft,{kind='custody',action=''}={}){
   if(!context?.fbKey||!fields[kind])throw Error('Falta identificar la operación de la OT.');

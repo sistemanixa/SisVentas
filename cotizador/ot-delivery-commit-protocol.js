@@ -8,14 +8,28 @@ const fail=()=>Object.assign(Error('El cambio de entrega requiere el protocolo a
 function projection(ot){const materiales=Object.entries(ot?.materiales||{}).filter(([,row])=>row&&((row.entregada!=null&&Number(row.entregada)!==0)||row.custodiaActiva===true||['entregadoEn','entregadoPor','entregadoA'].some(k=>row[k]!=null))).map(([index,row])=>[index,Object.fromEntries(fields.filter(k=>row[k]!==undefined).map(k=>[k,row[k]]))]);const remitosEntrega=ot?.remitosEntrega??null;return {ventaFbKey:materiales.length||remitosEntrega?ot?.ventaFbKey??null:null,materiales,remitosEntrega};}
 function apply(record,path,value){if(!path.length)return structuredClone(value);let out=structuredClone(record)||{},at=out;for(const key of path.slice(0,-1)){if(!at[key]||typeof at[key]!=='object')at[key]={};at=at[key];}if(value===null)delete at[path.at(-1)];else at[path.at(-1)]=structuredClone(value);return out;}
 async function claims({patch,lease,actor,read,query}){
- const grouped=new Map();
+ const grouped=new Map(),inventoryEdits=new Map(),inventoryBase='sisventas/inventario_operativo';
  for(const [path,value]of Object.entries(patch)){
   const keys=parts(path),normalized=keys.join('/');
   if(normalized===base||base.startsWith(normalized+'/'))throw fail();
+  if(normalized===inventoryBase)throw fail();
+  if(normalized.startsWith(inventoryBase+'/')){
+   if(keys.some(k=>['__proto__','prototype','constructor'].includes(k)))throw fail();
+   const id=keys[2];if(!inventoryEdits.has(id))inventoryEdits.set(id,[]);inventoryEdits.get(id).push({keys:keys.slice(3),value});
+  }
   if(!normalized.startsWith(base+'/'))continue;
   if(keys.some(k=>['__proto__','prototype','constructor'].includes(k)))throw fail();
   const id=keys[2];if(!grouped.has(id))grouped.set(id,[]);grouped.get(id).push({keys:keys.slice(3),value});
  }
+ for(const edits of inventoryEdits.values())for(let i=0;i<edits.length;i++)for(let j=0;j<i;j++){const a=edits[i].keys.join('/'),b=edits[j].keys.join('/');if(a===b||!a||!b||a.startsWith(b+'/')||b.startsWith(a+'/'))throw fail();}
+ // Only receipt validation uses the proposed inventory. Product identity and OT
+ // transition preconditions continue to read committed originals.
+ const inventoryAfter=new Map(),receiptRead=async path=>{
+  if(!path.startsWith(inventoryBase+'/'))return read(path);
+  const keys=parts(path),id=keys[2],edits=inventoryEdits.get(id);if(!edits)return read(path);
+  if(!inventoryAfter.has(id)){let value=await read(inventoryBase+'/'+id);for(const edit of edits)value=apply(value,edit.keys,edit.value);inventoryAfter.set(id,value);}
+  let value=inventoryAfter.get(id);for(const key of keys.slice(3))value=value?.[key];return value===undefined?null:structuredClone(value);
+ };
  const token=Policy.token(actor,lease);let historical=false,changed=false;
  for(const [id,edits]of grouped){
   // Reject overlapping patches; the server must not guess their ordering.
@@ -27,7 +41,7 @@ async function claims({patch,lease,actor,read,query}){
    if(digest(before?.items??null)!==digest(after?.items??null))throw fail();
    const materialInput=digest(before?.materiales??null)===digest(after?.materiales??null)?Rows.persisted(Rows.view(before)):after?.materiales;
    transitions=require('./ot-lifecycle-model').materialChanges(before,materialInput,'custody');
-   for(const transition of transitions)if(transition.needsStockReceipt||transition.needsProductBinding){try{const productKey=await State.resolveProduct(transition.target,{read,query,source:transition.needsProductBinding?transition.source:null});await State.verifyReceipt({ot:before,otKey:id,transition,productKey,read});}catch(error){if(error.code==='SV_OT_MATERIAL_REVIEW')throw fail();throw error;}}
+   for(const transition of transitions)if(transition.needsStockReceipt||transition.needsProductBinding){try{const productKey=await State.resolveProduct(transition.target,{read,query,source:transition.needsProductBinding?transition.source:null});await State.verifyReceipt({ot:before,otKey:id,transition,productKey,read:receiptRead});}catch(error){if(error.code==='SV_OT_MATERIAL_REVIEW')throw fail();throw error;}}
    // Passive persistence retains the authoritative items history; it is not a
    // new delivery merely because Rows.persisted materializes the source row.
    if(digest(projection({...before,materiales:Rows.persisted(Rows.view(before))}))===digest(projection(after)))continue;

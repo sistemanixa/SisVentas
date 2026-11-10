@@ -42,11 +42,16 @@
     renditionBusy = true;
     var finish = window.SisVentas?.carga?.mostrar?.('Guardando materiales y stock…', {persistirAlNavegar:true});
     try {
+      var installationChanged = (draft.materiales || []).some(function(material,index){return n(material.instalada ?? material.cantidadInstalada) !== n((before[index] || {}).instalada ?? (before[index] || {}).cantidadInstalada);});
+      var valid = captureRendition(original), capability = null;
       if (draft.ventaFbKey || draft.ventaId || draft.venta) {
         if (!window.SVOTLifecycle) throw Error('Recargá la aplicación para guardar la rendición de forma segura.');
-        await window.SVOTLifecycle.prepare(original,{kind:'custody'});
+        capability = await window.SVOTLifecycle.prepare(original,{kind:'custody'});
       }
-      await syncInstalled(draft, before);
+      if (!valid()) throw Error('La sesión, los permisos o los materiales cambiaron. Volvé a abrir la OT.');
+      // Installation and its inventory effects must commit together on the server.
+      // Older servers are read-only for this action; never move stock first.
+      if (installationChanged && capability?.atomicStock !== true) throw Error('La instalación segura está pendiente de habilitar. No se movió stock.');
       await save(draft, action);
       Object.assign(original, draft);
       updateGlobal();
@@ -507,19 +512,6 @@
     box.querySelectorAll('[data-delivery-receipt]').forEach(function(button){button.onclick=function(){openDeliveryReceipt(button.dataset.deliveryReceipt);};});
   }
 
-  function syncInstalled(ot, before) {
-    if (!window.SisVentasCompras || typeof window.SisVentasCompras.syncOTConsumption !== 'function') return Promise.reject(new Error('No está listo el registro de stock. Actualizá SisVentas.'));
-    var jobs = [];
-    (ot.materiales || []).forEach(function (material, index) {
-      var oldMaterial = before[index] || {};
-      if (n(oldMaterial.instalada) !== n(material.instalada)) {
-        oldMaterial = Object.assign({}, oldMaterial, {_stockLegacyTotal:before.filter(function(m){return String(m.cod||m.codigo)===String(material.cod||material.codigo) && String(m.destinoVenta||'original')===String(material.destinoVenta||'original') && String(m.ventaDestinoFbKey||'')===String(material.ventaDestinoFbKey||'');}).reduce(function(sum,m){return quantitySum([sum,n(m.instalada)]);},0)});
-        jobs.push(function(){return window.SisVentasCompras.syncOTConsumption(ot, oldMaterial, material);});
-      }
-    });
-    return jobs.reduce(function(chain, job) { return chain.then(job); }, Promise.resolve());
-  }
-
   async function installOne(index) {
     var original = currentOT();
     if (!original || !mayRend(original) || renditionBusy || additionalBusy || deliveryBusy) return;
@@ -717,20 +709,23 @@
     if (additionalBusy || deliveryBusy) throw Error('Ya se está registrando el stock.');
     if (!window.tienePermiso?.('ot.corregirMateriales')) throw Error('No tenés permiso para corregir materiales.');
     ot = ot || currentOT();if (!ot) throw Error('OT no encontrada');
-    if (!window.SisVentasCompras?.syncOTConsumption || typeof window.otPersistirActualizar !== 'function') throw Error('No está listo el registro de stock');
+    if (!window.SVOTLifecycle || !(ot.ventaFbKey || ot.ventaId || ot.venta)) throw Error('El registro seguro de stock está pendiente de habilitar. No se movió stock.');
     additionalBusy = true;
     var finish = window.SisVentas?.carga?.mostrar?.('Registrando stock del adicional…', {persistirAlNavegar:true});
     try {
+      var originalStamp = JSON.stringify(ot), originalUser = window.fbAuth?.currentUser, originalUid = window.currentUserUid, originalRole = window.currentRole;
       var draft = JSON.parse(JSON.stringify(ot));
       if (ot.ventaFbKey || ot.ventaId || ot.venta) {
         if (!window.SVOTLifecycle) throw Error('Recargá la aplicación para guardar la rendición de forma segura.');
-        await window.SVOTLifecycle.prepare(ot,{kind:'custody'});
+        var capability = await window.SVOTLifecycle.prepare(ot,{kind:'custody'});
+        if (capability?.atomicStock !== true) throw Error('El registro seguro de stock está pendiente de habilitar. No se movió stock.');
       }
+      if (window._impersonacionOriginal || originalUser !== window.fbAuth?.currentUser || originalUid !== window.currentUserUid || originalRole !== window.currentRole || originalStamp !== JSON.stringify(ot)) throw Error('La sesión o los materiales cambiaron. Volvé a abrir la OT.');
       for (var i=0;i<draft.materiales.length;i++) {
         var material = draft.materiales[i];if (!material.stockPendiente) continue;
         if (material.adicionalOT !== true || material.stockBaseInstalada == null) throw Error('El adicional requiere revisar su registro de instalación.');
-        var before = Object.assign({}, material, {instalada:material.stockBaseInstalada});
-        await window.SisVentasCompras.syncOTConsumption(draft, before, material);
+        // The server reads stockBaseInstalada from the original row and commits
+        // its consumption with this OT update, including uncertain prior receipts.
         material.stockPendiente = false;delete material.stockBaseInstalada;
       }
       draft.custodiaIniciada = true;
