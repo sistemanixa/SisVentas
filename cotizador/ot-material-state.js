@@ -12,6 +12,8 @@ const group=row=>JSON.stringify([String(row.cod||row.codigo||row.sku||'').trim()
 const zeroOrAbsent=(row,k)=>!own(row,k)||row[k]===0;
 function units(value){if(typeof value!=='number'||!Number.isFinite(value)||value<0)throw fail('Hay cantidades de custodia o stock inválidas.');return Money.quantitySum([value]);}
 const sum=values=>Money.quantitySum(values);
+function legacyReceiptIdentity({otKey,rowKey,productKey,row}){if(!/^(0|[1-9][0-9]*)$/.test(String(rowKey)))throw fail('La fila del material es ambigua.');return require('node:crypto').createHash('sha256').update(JSON.stringify([otKey,Number(rowKey),productKey,row.destinoVenta||'original',row.ventaDestinoFbKey||'',row.agregadoEn||''])).digest('hex');}
+function receiptBoundToRow({otKey,rowKey,productKey,allocation,row,receipt,entry}){return !!entry&&entry.ot===otKey&&entry.venta===allocation&&(entry.fila!==undefined?entry.fila===String(rowKey):row.stockRegistro===receipt||legacyReceiptIdentity({otKey,rowKey,productKey,row})===receipt);}
 function bounds(row,{unchanged=false}={}){
  const delivered=row.entregada==null?null:units(row.entregada),known=sum(['instalada','devueltaPendiente','devuelta','enTecnico','danada','faltante'].filter(name=>row[name]!=null).map(name=>units(row[name])));
  if(delivered!==null&&known>delivered||delivered===null&&known>0&&!unchanged)throw fail('La instalación y clasificación superan la entrega verificada.');
@@ -69,7 +71,7 @@ async function resolveProduct(row,{read,query,source}){
  const code=(source||row).cod||(source||row).codigo;if(typeof code!=='string'||!code||typeof query!=='function')throw fail('El producto de la rendición requiere resolución autoritativa.');
  const matches={};for(const field of ['codigo','cod'])Object.assign(matches,await query('sisventas/productos',field,code)||{});const ids=Object.keys(matches);if(ids.length!==1||!key(ids[0])||source&&ids[0]!==row.productoKey)throw fail('El producto de la rendición falta o es ambiguo.');return ids[0];
 }
-async function verifyReceipt({ot,otKey,transition,productKey,read}){
+async function verifyReceipt({ot,otKey,transition,productKey,read,stockExceptionContext}){
  const m=transition.target;if(!key(productKey)||!/^[a-f0-9]{64}$/.test(m.stockRegistro||'')||!Number.isSafeInteger(m.stockRevision)||m.stockRevision<1||!Number.isFinite(m.instalada)||m.instalada<0||transition.recovery&&m.instalada<=0)throw fail('El movimiento requiere una referencia de stock verificable.');
  if(m.stockPendiente===true)throw fail('El movimiento todavía está pendiente de confirmar.');
  const inventory=await read('sisventas/inventario_operativo/'+productKey),sale=allocation(ot,m),receipt=inventory?.rendicionesOT?.[m.stockRegistro];
@@ -84,8 +86,32 @@ async function verifyReceipt({ot,otKey,transition,productKey,read}){
   if(sum([fromReserve,fromGeneral])!==installed)throw fail('El origen del consumo no coincide con la instalación.');
   const totals=perSale.get(entry.venta)||{installed:0,held:0,received:0};totals.installed=sum([totals.installed,installed]);totals.held=sum([totals.held,held]);totals.received=sum([totals.received,received]);perSale.set(entry.venta,totals);receiptConsumed=sum([receiptConsumed,installed]);receiptHeld=sum([receiptHeld,held]);
  }
- if(reservedAllocations>reserved||consumedAllocations>consumed||receiptConsumed>consumed||receiptHeld>reserved)throw fail('Los recibos no tienen consumo o reserva respaldados en el ledger.');
+ if(consumedAllocations>consumed||receiptConsumed>consumed||receiptHeld>reserved)throw fail('Los recibos no tienen consumo o reserva respaldados en el ledger.');
  for(const [id,totals]of perSale){const assigned=inventory.asignaciones[id];if(!assigned||totals.installed>units(assigned.consumido)||totals.held>units(assigned.reservado)||totals.received>units(assigned.liberado??0))throw fail('El consumo o devolución excede la asignación del ledger.');}
+ const c=stockExceptionContext,token=c&&require('./ot-lifecycle-policy').token(c.actor,c.lease),custodyContext=token?.svOTLifecycleVersion===1&&token.svOTLifecycleKind==='custody'&&token.svOTLifecycleOTKey===otKey&&typeof c.readOriginal==='function'&&Array.isArray(c.group);
+ const originalInventory=custodyContext?await c.readOriginal('sisventas/inventario_operativo/'+productKey):null;
+ const groupRow=custodyContext&&c.group.find(entry=>entry.transition===transition),originalReceipt=originalInventory?.rendicionesOT?.[m.stockRegistro];
+ if(custodyContext&&originalReceipt&&(!groupRow||!transition.row||!receiptBoundToRow({otKey,rowKey:groupRow.rowKey,productKey,allocation:sale,row:transition.row,receipt:m.stockRegistro,entry:originalReceipt})))throw fail('El recibo histórico no identifica esta fila del material.');
+ let originalDrift=false;
+ if(originalInventory!=null){
+  const originalAssigned=originalInventory.asignaciones??{};
+  if(!originalAssigned||typeof originalAssigned!=='object'||Array.isArray(originalAssigned))throw fail('La reserva original del inventario requiere revisión.');
+  const originalReserved=units(originalInventory.reservado),assignedValues=Object.values(originalAssigned).map(a=>{if(!a||typeof a!=='object'||Array.isArray(a))throw fail('La asignación original del inventario requiere revisión.');return Object.hasOwn(a,'reservado')?units(a.reservado):0;});
+  originalDrift=sum(assignedValues)>originalReserved;
+ }
+ if(reservedAllocations>reserved||originalDrift){
+  // An existing reservation discrepancy is never excused by persisted flags.
+  // Only a genuine custody command may prove a general-only consumption from
+  // the committed original, leaving every reservation and foreign row intact.
+  if(!custodyContext||!['admin','administrativo'].includes(token.svOTLifecycleRole)||c.actor.role!==token.svOTLifecycleRole||!transition.row||!c.group.some(entry=>entry.transition===transition))throw fail('Los recibos no tienen consumo o reserva respaldados en el ledger.');
+  try{const changes=c.group.map(({transition:t,rowKey})=>{
+   const pending=t.row.stockPendiente===true,beforeInstalled=pending?t.row.stockBaseInstalada:t.row.instalada??0;
+   // Legacy pending rows may already carry the applied receipt revision. Only
+   // an identical committed receipt can then prove adoption without stock edits.
+   const adoptedRevision=pending&&beforeInstalled<t.row.instalada&&t.target.stockRegistro===t.row.stockRegistro&&t.target.stockRevision===t.row.stockRevision;
+   return{allocation:allocation(ot,t.target),receipt:t.target.stockRegistro,beforeInstalled,targetInstalled:t.target.instalada,revision:(t.row.stockRevision??0)-(adoptedRevision?1:0),rowKey,sourceReceipt:t.row.stockRegistro??null,legacyReceipt:legacyReceiptIdentity({otKey,rowKey,productKey,row:t.row})};
+  });require('./ot-general-consumption-exception').validate({before:originalInventory,after:inventory,otKey,productKey,actor:{uid:c.actor.uid,role:token.svOTLifecycleRole,allowed:true},operationId:c.actor.opId,changes});}catch(error){throw fail('No se acredita el consumo de General sin alterar las reservas existentes.');}
+ }
  return receipt;
 }
-module.exports={normalizePristine,transitions,resolveProduct,verifyReceipt,provenance,bounds};
+module.exports={normalizePristine,transitions,resolveProduct,verifyReceipt,provenance,bounds,legacyReceiptIdentity,receiptBoundToRow};

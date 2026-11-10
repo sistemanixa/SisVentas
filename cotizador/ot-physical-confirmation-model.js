@@ -4,6 +4,7 @@
 // and its OT state in the same atomic patch. No database access occurs here.
 const crypto = require('node:crypto');
 const Money = require('./commercial-models/commercial-money.v1.js');
+const GeneralException = require('./ot-general-consumption-exception');
 const add = (...values) => Money.quantitySum(values);
 const clone = value => JSON.parse(JSON.stringify(value));
 function key(value) {
@@ -43,7 +44,8 @@ function confirm(command) {
     totalReserved = add(totalReserved, qty(value.reservado ?? 0));
     totalConsumed = add(totalConsumed, qty(value.consumido ?? 0));
   }
-  if (totalReserved > inv.reservado || totalConsumed > inv.consumido) throw Error('El inventario requiere conciliación');
+  const reservedDiscrepancy = totalReserved > inv.reservado;
+  if (totalConsumed > inv.consumido) throw Error('El inventario requiere conciliación');
   for (const name of ['confirmacionesOT','regularizacionesOT']) {
     if (inv[name] == null) continue;
     record(inv[name]);
@@ -65,6 +67,7 @@ function confirm(command) {
       }
     }
   }
+  const beforeInventory = clone(inv);
   inv.rendicionesOT ??= {}; record(inv.rendicionesOT);
   const receiptTotals = {};
   let receivedTotal = 0, heldTotal = 0;
@@ -90,6 +93,7 @@ function confirm(command) {
     if (prior.signature !== signature) throw Error('El intento ya corresponde a otra confirmación');
     return { inventory:inv, receipt:prior.receipt, revision:prior.revision, regularization:prior.regularization, replayed:true };
   }
+  if (reservedDiscrepancy && (c.kind !== 'installation' || ti <= bi || qty(inv.asignaciones[c.allocation]?.reservado ?? 0) !== 0)) throw Error('El inventario requiere conciliación');
   inv.rendicionesOT ??= {};
   if (typeof inv.rendicionesOT !== 'object' || Array.isArray(inv.rendicionesOT)) throw Error('Recibos inválidos');
   const found = inv.rendicionesOT[receipt];
@@ -114,7 +118,7 @@ function confirm(command) {
     inv.reservado = add(inv.reservado, missing); a.reservado = add(a.reservado, missing);
     entry.enReserva = required;
   } else if (!recovered) {
-    const delta = add(ti, -bi), reserve = Math.min(delta, Math.max(0, add(a.reservado, -held)));
+    const delta = add(ti, -bi), reserve = reservedDiscrepancy ? 0 : Math.min(delta, Math.max(0, add(a.reservado, -held)));
     const generalNeeded = add(delta, -reserve);
     regularization = Math.max(0, add(generalNeeded, -inv.general));
     inv.general = add(inv.general, regularization, -generalNeeded);
@@ -126,8 +130,10 @@ function confirm(command) {
   entry.revision = recovered ? found.revision : revision + 1;
   inv.rendicionesOT[receipt] = entry; inv.asignaciones[c.allocation] = a;
   const audit = { signature, receipt, revision:entry.revision, regularization, kind:c.kind, producto:c.productKey, ot:c.otKey, fila:c.rowKey, venta:c.allocation, autor:actor.uid, nombre:String(actor.name || ''), fecha:c.at, motivo:'Confirmación física de materiales por operador autorizado' };
+  if (reservedDiscrepancy) audit.stockDiscrepancy = {kind:'reserved-total-existing',assignedReserved:totalReserved,globalReserved:beforeInventory.reservado,difference:add(totalReserved,-beforeInventory.reservado),corrected:false};
   inv.confirmacionesOT ??= {}; inv.confirmacionesOT[c.operationId] ??= {}; inv.confirmacionesOT[c.operationId][auditRowKey] = audit;
   if (regularization > 0) { inv.regularizacionesOT ??= {}; inv.regularizacionesOT[c.operationId] ??= {}; inv.regularizacionesOT[c.operationId][auditRowKey] = clone(audit); }
+  if (reservedDiscrepancy) GeneralException.validate({before:beforeInventory,after:inv,productKey:c.productKey,allocation:c.allocation,otKey:c.otKey,receipt,beforeInstalled:bi,targetInstalled:ti,revision,actor,operationId:c.operationId,rowKey:c.rowKey});
   return { inventory:inv, receipt, revision:entry.revision, regularization, replayed:!!recovered };
 }
 module.exports = Object.freeze({ confirm });

@@ -12,7 +12,7 @@ for(const shape of ['record','leaf','nested','atomic','delete'])test('untyped de
 for(const path of ['sisventas','sisventas/ordenes_trabajo'])test('ancestor patches fail closed '+path,async()=>assert.rejects(run({[path]:{}}),/protocolo autorizado/));
 test('notes and authorized classifications/stock repair preserve unchanged delivery proof',async()=>{
  const before=structuredClone(original);before.materiales[0].entregada=2;before.materiales[0].custodiaActiva=true;
- const receipt='c'.repeat(64),inventory=require('../cotizador/ot-stock-consumption-model').plan({general:2,reservado:2,consumido:0,asignaciones:{S1:{reservado:2,consumido:0}}},{ot:'O1',allocation:'S1',before:0,target:1,revision:0,receipt}),sources={'sisventas/productos/P1':{codigo:'P'},'sisventas/inventario_operativo/P1':inventory};
+ const receipt=require('node:crypto').createHash('sha256').update(JSON.stringify(['O1',0,'P1','original','',''])).digest('hex'),inventory=require('../cotizador/ot-stock-consumption-model').plan({general:2,reservado:2,consumido:0,asignaciones:{S1:{reservado:2,consumido:0}}},{ot:'O1',allocation:'S1',before:0,target:1,revision:0,receipt}),sources={'sisventas/productos/P1':{codigo:'P'},'sisventas/inventario_operativo/P1':inventory};
  for(const [who,patch]of [[{}, {[base+'/nota']:'fictitious'}],[actor('custody'),{[base+'/materiales/0/instalada']:1,[base+'/materiales/0/stockRegistro']:receipt,[base+'/materiales/0/stockRevision']:1}],[actor('return'),{[base+'/materiales/0/devuelta']:1}],[actor('stockrepair'),{[base+'/materiales/0/stockRevision']:1}],[actor('close'),{[base+'/estado']:'completada'}]])assert.deepEqual(await run(patch,who,before,sources),{svOTDeliveryUnchanged:true,svOTDeliveryCommitVersion:1,svOTDeliveryHistoricalVerified:false});
 });
 test('valid delivery is typed and binds every affected OT',async()=>{
@@ -39,7 +39,7 @@ test('real store overwrites actor attestation flags and emits no PATCH for untyp
  assert.equal(claim.svOTDeliveryUnchanged,true);assert.equal(claim.svOTDeliveryHistoricalVerified,false);
 });
 test('historical custody initialization requires the existing model and verified stock receipt',async()=>{
- const Rows=require('../cotizador/ot-material-rows-model'),before={...original,items:[{cod:'LEGACY',productoKey:'P2',qty:1,adicionalOT:true}]},after=Rows.persisted(Rows.view(before)),receipt='b'.repeat(64);
+ const Rows=require('../cotizador/ot-material-rows-model'),before={...original,items:[{cod:'LEGACY',productoKey:'P2',qty:1,adicionalOT:true}]},after=Rows.persisted(Rows.view(before)),receipt=require('node:crypto').createHash('sha256').update(JSON.stringify(['O1',1,'P2','original','',''])).digest('hex');
  Object.assign(after[1],{entregada:1,custodiaActiva:true,instalada:1,stockRegistro:receipt,stockRevision:1});
  const patch={[base+'/materiales']:after},stockPath='sisventas/inventario_operativo/P2/rendicionesOT/'+receipt;
  await assert.rejects(run(patch,actor('custody'),before),/protocolo autorizado/);

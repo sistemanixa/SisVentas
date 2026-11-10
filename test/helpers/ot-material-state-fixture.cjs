@@ -1,7 +1,7 @@
 'use strict';
 // Real guard, command and REST store. HTTP is an in-memory fixture, not rules QA.
 const assert=require('node:assert/strict'),{createCoordinatedBackend}=require('./coordinated-backend.cjs'),{apply}=require('./labor-ui-flow.cjs'),{createLaborRtdbStore}=require('../../cotizador/labor-rtdb-store'),{createOTLifecycle}=require('../../cotizador/ot-lifecycle'),{digest}=require('../../cotizador/labor-guard'),Index=require('../../cotizador/record-list-model');
-const receipt='a'.repeat(64),legacyReceipt='b'.repeat(64);
+const receipt=require('node:crypto').createHash('sha256').update(JSON.stringify(['ot',0,'p','original','',''])).digest('hex'),legacyReceipt=require('node:crypto').createHash('sha256').update(JSON.stringify(['ot',1,'a','original','',''])).digest('hex');
 async function fixture({legacy=false,estado='pendiente'}={}){
  const material={cod:'P',desc:'Producto ficticio',vendida:3,instalada:0},ot={id:'OT-FICTION',ventaFbKey:'s',ventaId:'V-FICTION',clienteFbKey:'c',origen:'venta',tecnico:'',estado,materiales:[material],audit:[{accion:'OT creada y asociada desde la venta'}],ts:1790000000000};
  if(legacy){Object.assign(material,{productoKey:'p',vendida:1,entregada:1,custodiaActiva:true});ot.items=[{cod:'A',productoKey:'a',qty:1,adicionalOT:true,descripcion:'Adicional histórico'}];ot.audit=[{accion:'Histórico sin alterar'}];}

@@ -29,7 +29,7 @@ COPY oauth-authorization.js ./
 COPY labor-calculations.js labor-operations.js labor-submissions.js labor-transaction.js ./
 COPY sale-cost-correction.js sale-cost-correction-model.js ./
 COPY labor-guard.js labor-index.js labor-rtdb-store.js labor-scoped-transaction.js labor-db.js labor-runtime.js labor-write-gateway.js labor-fence-policy.js labor-commission-limit.js ./
-COPY ot-delivery-commit-protocol.js ot-delivery-attestation.js ot-material-state.js ot-physical-confirmation-model.js ./
+COPY ot-delivery-commit-protocol.js ot-delivery-attestation.js ot-material-state.js ot-physical-confirmation-model.js ot-general-consumption-exception.js ./
 COPY operational-projections.js operational-read-model.js record-list-projections.js record-list-model.js ./
 COPY labor-bonus-batch.js bonus-quantity-model.js ./
 COPY labor-sac-batch.js payroll-legacy-sac-model.js ./

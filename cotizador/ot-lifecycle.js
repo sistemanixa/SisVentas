@@ -98,8 +98,9 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
      // receipt already committed for this OT/destination/target. This path does
      // not invent a receipt, regularize or write the inventory a second time.
      if(already&&already.ot===body.otKey&&already.venta===c.allocation&&already.instalada===c.target&&already.revision===row.stockRevision){
+      if(!State.receiptBoundToRow({otKey:body.otKey,rowKey:String(c.i),productKey:c.productKey,allocation:c.allocation,row:source,receipt:row.stockRegistro,entry:already}))throw fail(409,'El recibo histórico no identifica esta fila del material.');
       if(row.stockRegistro!==source.stockRegistro&&source.stockRegistro||row.stockRevision!==(source.stockRevision??0)+1&&!(source.stockPendiente===true&&row.stockRevision===source.stockRevision))throw fail(409,'La revisión del consumo aplicado no coincide con el material.');
-      await State.verifyReceipt({ot,otKey:body.otKey,transition:c.t,productKey:c.productKey,read:async path=>inventoryChanges.has(path)?inventoryChanges.get(path):track(path)});
+      await State.verifyReceipt({ot,otKey:body.otKey,transition:c.t,productKey:c.productKey,read:async path=>inventoryChanges.has(path)?inventoryChanges.get(path):track(path),stockExceptionContext:{actor,lease:scope.lease,group:[{transition:c.t,rowKey:String(c.i)}],readOriginal:track}});
       stagedRows[c.i]=structuredClone(row);continue;
      }
      let held=0;
@@ -150,10 +151,13 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
     if(!count)throw fail(409,'No hay devoluciones pendientes en esta OT.');
     changes={materiales:materials};
    }
-   if(body.kind!=='return'&&changes?.materiales)for(const transition of Model.materialChanges(ot,changes.materiales,body.kind)){
-    if(!transition.needsStockReceipt&&!transition.needsProductBinding)continue;
-    const productKey=await State.resolveProduct(transition.target,{read:track,query,source:transition.needsProductBinding?transition.source:null});
-    await State.verifyReceipt({ot,otKey:body.otKey,transition,productKey,read:async path=>inventoryChanges.has(path)?inventoryChanges.get(path):track(path)});
+   if(body.kind!=='return'&&changes?.materiales){
+    const validations=[];
+    for(const [rowIndex,transition]of Model.materialChanges(ot,changes.materiales,body.kind).entries()){
+     if(!transition.needsStockReceipt&&!transition.needsProductBinding)continue;
+     const productKey=await State.resolveProduct(transition.target,{read:track,query,source:transition.needsProductBinding?transition.source:null});validations.push({transition,productKey,rowKey:String(rowIndex)});
+    }
+    for(const entry of validations)await State.verifyReceipt({ot,otKey:body.otKey,transition:entry.transition,productKey:entry.productKey,read:async path=>inventoryChanges.has(path)?inventoryChanges.get(path):track(path),stockExceptionContext:body.kind==='custody'?{actor,lease:scope.lease,group:validations.filter(v=>v.productKey===entry.productKey),readOriginal:track}:undefined});
    }
    const plan=Model.plan({before:ot,changes,kind:body.kind,sale,primary,others,products,actor:{uid:identity.uid,name,otKey:body.otKey},at:actionAt,action:body.action});
    scope.beforeCommit(async({readFresh,readFreshAsUser})=>{
