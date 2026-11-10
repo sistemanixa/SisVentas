@@ -8,7 +8,7 @@ RUN npm install --omit=dev
 COPY index.js ./
 COPY commercial-admission.js ./
 COPY commercial-response.js ./
-COPY commercial-pages-model.js commercial-pages-projections.js commercial-creator-latest.js native-payment-summary.js ./
+COPY commercial-pages-model.js commercial-pages-projections.js commercial-creator-latest.js native-payment-summary.js ot-installation-display-delta.js ./
 COPY dashboard-authority-policy-proposal.js dashboard-budget-projection-proposal.js dashboard-budget-incremental-plan-proposal.js ./
 COPY dashboard-budget-activity-codec-proposal.js dashboard-budget-reader-proposal.js dashboard-budget-activity-reader-proposal.js dashboard-budget-notice-candidates-proposal.js ./
 COPY dashboard-budget-writer-proposal.js dashboard-budget-read-view-augment-proposal.js dashboard-budget-sdk-dto-proposal.js ./

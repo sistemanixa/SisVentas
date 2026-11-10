@@ -1,6 +1,7 @@
 'use strict';
 const M=require('./commercial-pages-model'),Index=require('./payment-membership-index'),Own=require('./commercial-ownership'),Matcher=require('./payment-membership-matcher'),crypto=require('crypto');
 const same=(a,b)=>require('./labor-guard').canonical(a)===require('./labor-guard').canonical(b);
+const InstallationDisplay=require('./ot-installation-display-delta');
 function refs(s){if(!s)return[];const r=Matcher.saleReferences(s);return Object.entries(r).flatMap(([kind,values])=>values.map(v=>kind+'/'+M.hash(v)));}
 function recordIds(patch,domain){const found=new Set();for(const p of Object.keys(patch)){if(p==='sisventas'||p==='sisventas/'+domain)throw Error('La proyección comercial requiere registros individuales.');const a=p.split('/');if(a[0]==='sisventas'&&a[1]===domain&&a[2])found.add(a[2]);}return found;}
 async function augment({patch,raw,get}){if(!Object.keys(patch).some(p=>/^sisventas\/(ventas|pagos|presupuestos)(\/|$)/.test(p)||p==='sisventas'))return;const config=await raw('sv_commercial_pages_config');if(config?.ready!==true)return;if(config.schema!==1)throw Error('La configuración del listado comercial requiere revisión.');const coverage=await raw(M.ROOT+'/coverage');if(coverage?.ready!==true||coverage.schema!==1||coverage.generation!==config.generation||!Number.isSafeInteger(coverage.revision))throw Error('La cobertura comercial no está lista.');
@@ -23,7 +24,7 @@ async function augment({patch,raw,get}){if(!Object.keys(patch).some(p=>/^sisvent
    const row={...old,installation:String(after.estadoInst||'').slice(0,60),invoiced:!!after.factura,notes:String(after.observaciones||after.obs||'').slice(0,2000),...M.displayFields(after)};
    if(!same(row,old))changes.push({kind:'sales',key:id,before:old,after:row});
   }
-  if(safe){if(changes.length){const revision=coverage.revision+1;if(!Number.isSafeInteger(revision))throw Error('Secuencia comercial agotada.');Object.assign(patch,await M.delta(changes,{read:raw,generation:coverage.generation,revision,nativeCollections:config.nativeCollectionsReady===true&&config.nativeCollectionsSchema===1}));patch[M.ROOT+'/coverage']={...coverage,revision};}return;}
+  if(safe){if(changes.length){const revision=coverage.revision+1;if(!Number.isSafeInteger(revision))throw Error('Secuencia comercial agotada.');Object.assign(patch,config.nativeCollectionsReady!==true&&InstallationDisplay.plan(changes,M)||await M.delta(changes,{read:raw,generation:coverage.generation,revision,nativeCollections:config.nativeCollectionsReady===true&&config.nativeCollectionsSchema===1}));patch[M.ROOT+'/coverage']={...coverage,revision};}return;}
  }
 
  const readSale=async id=>{if(!saleSources.has(id))saleSources.set(id,await get('sisventas/ventas/'+id));return saleSources.get(id);};
