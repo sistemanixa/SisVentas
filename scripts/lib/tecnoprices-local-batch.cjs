@@ -1,0 +1,33 @@
+'use strict';
+// Read-only adapter for the normal local updater. All product/provider reads are keyed.
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const fail=(message,code='TECNOPRICES_SOURCE_CHANGED')=>Object.assign(Error(message),{statusCode:409,code});
+const key=x=>typeof x==='string'&&/^[-A-Za-z0-9_]{1,128}$/.test(x),canonicalName=x=>String(x||'').trim().toUpperCase()==='TECNOPRICES';
+function exactURL(value){try{const u=new URL(value);return typeof value==='string'&&value===value.trim()&&u.protocol==='https:'&&/^(www\.)?tecnoprices\.com$/.test(u.hostname)&&!u.username&&!u.password&&!u.port&&!u.hash&&require('../../cotizador/ficha-producto').validarUrlFicha(value,'tecnoprices')===value;}catch{return false;}}
+function priceValidator(indexPath){const source=fs.readFileSync(indexPath,'utf8'),start='function validarSaltoPrecio(',end='async function clickSiExiste(';if(source.split(start).length!==2||source.split(end).length!==2)throw Error('Fuente de validación incompatible.');const scope={};vm.runInNewContext(source.slice(source.indexOf(start),source.indexOf(end)),scope,{timeout:1000});return scope.validarResultadoPrecioIndividual;}
+function createBatchHandler({readServer,reader,authorize,indexPath=path.resolve(__dirname,'../../cotizador/index.js')}={}){
+ if([readServer,reader].some(fn=>typeof fn!=='function')||authorize!==undefined&&typeof authorize!=='function')throw TypeError('Falta el circuito de consulta local.');const validatePrice=priceValidator(indexPath),applyCondition=(()=>{const text=fs.readFileSync(path.resolve(__dirname,'../../cotizador/proveedor-automatico.js'),'utf8'),scope={};vm.runInNewContext(text.slice(text.indexOf('function aplicarCondicionComercial('),text.indexOf('function urlProveedor(')),scope,{timeout:1000});return scope.aplicarCondicionComercial;})();let active=false;
+ return async function handle(req,body){
+  const routeMode=body!==undefined;if(!routeMode){body=req;req=null;}
+  if(routeMode&&(req?.method!=='POST'||new URL(req.url,'http://127.0.0.1:8767').pathname!=='/tecnoprices/lote'||new URL(req.url,'http://127.0.0.1:8767').search))throw Object.assign(Error('Ruta inválida.'),{statusCode:400});
+  if(!body||typeof body!=='object'||Array.isArray(body)||!key(body.proveedorKey)||!Array.isArray(body.items)||body.items.length<1||body.items.length>4)throw Object.assign(Error('El lote requiere entre 1 y 4 productos.'),{statusCode:400});
+  const seen=new Set();for(const item of body.items){if(!item||typeof item!=='object'||!key(item.sourceProductKey)||!Number.isSafeInteger(item.sourceSupplierIdx)||item.sourceSupplierIdx<0||item.sourceSupplierIdx>1000||!exactURL(item.url))throw Object.assign(Error('Referencia de producto inválida.'),{statusCode:400});const pair=item.sourceProductKey+':'+item.sourceSupplierIdx;if(seen.has(pair))throw Object.assign(Error('Producto repetido en el lote.'),{statusCode:400});seen.add(pair);}
+  if(routeMode&&typeof authorize!=='function')throw Object.assign(Error('Falta autorización de la ruta.'),{statusCode:403});if(authorize)await authorize(req);if(active)throw Object.assign(Error('Ya hay un lote en curso.'),{statusCode:409});active=true;
+  try{const provider=await readServer('sisventas/proveedores/'+body.proveedorKey);let host='';try{host=new URL(provider?.web||'').hostname;}catch{}if(!provider||provider.activo===false||!canonicalName(provider.nombre)||provider.web&&!/^(www\.)?tecnoprices\.com$/.test(host))throw fail('El proveedor no coincide con Tecnoprices.');
+   const results=new Array(body.items.length);let cursor=0;
+   async function worker(){while(cursor<body.items.length){const i=cursor++,item=body.items[i];try{
+    const product=await readServer('sisventas/productos/'+item.sourceProductKey),row=product?.proveedores?.[item.sourceSupplierIdx];if(!product||product.activo===false||!row||row.activo===false||row.url!==item.url)throw fail('La ficha o su URL cambió. Volvé a cargar el actualizador.');
+    const links=[row.proveedorKey,row.proveedorFbKey].filter(v=>v!==undefined&&v!==null&&v!=='');if(links.length?links.some(v=>v!==body.proveedorKey):!canonicalName(row.nombre||row.proveedor))throw fail('El proveedor del producto no coincide.');
+    if(item.proveedorKey!==undefined&&item.proveedorKey!==body.proveedorKey)throw fail('La consulta contiene otro proveedor.');
+    const old=Number(item.precioAnteriorArs??row.costoRealArs??row.precio);if(!Number.isFinite(old)||old<0)throw fail('El costo anterior requiere revisión.');
+    const code=String(product.codigo||product.cod||''),name=String(product.nombre||product.descripcion||'');if(item.codigo!==undefined&&String(item.codigo)!==code)throw fail('El código del producto cambió.');
+    const raw=await reader({proveedor:provider,proveedorKey:body.proveedorKey,url:row.url,codigo:code,producto:name,incluirFicha:false,altaProducto:false,precioAnteriorArs:old});if(raw?.ok!==true||raw.requiereConfirmacionIdentidad||raw.url!==row.url)throw fail('No se pudo verificar el producto.','TECNOPRICES_LOOKUP_FAILED');
+    validatePrice(raw,old);const result=validatePrice(applyCondition(raw,provider.condicionComercial),old);
+    const safe=Object.fromEntries(['ok','precioArs','moneda','sinIva','ivaAlicuota','disponibilidadProveedor','disponibilidadProveedorTexto','url','urlFinal','tituloProveedor','fuente','precioPublicadoArs','descuentoProveedorPorcentaje','condicionComercialAplicada','selectorPrecio','identidad','fecha'].filter(k=>result[k]!==undefined).map(k=>[k,result[k]]));results[i]={...safe,codigoProducto:code,producto:result.tituloProveedor||name,textoPrecio:'ARS '+result.precioArs,sourceProductKey:item.sourceProductKey,sourceSupplierIdx:item.sourceSupplierIdx};
+   }catch(error){results[i]={ok:false,url:item.url,codigoProducto:String(item.codigo||''),sourceProductKey:item.sourceProductKey,sourceSupplierIdx:item.sourceSupplierIdx,mensaje:(error.codigo==='PRICE_VARIATION_REQUIRES_APPROVAL'||error.code==='PRICE_VARIATION_REQUIRES_APPROVAL')?'El cambio de precio requiere revisión.':error.code==='TECNOPRICES_SOURCE_CHANGED'?error.message:'No se pudo consultar Tecnoprices. Se conserva el precio anterior.',...(error.codigo==='PRICE_VARIATION_REQUIRES_APPROVAL'||error.code==='PRICE_VARIATION_REQUIRES_APPROVAL'?{codigo:'PRICE_VARIATION_REQUIRES_APPROVAL',precioAnteriorArs:error.precioAnteriorArs,precioCandidatoArs:error.precioCandidatoArs,relacion:error.relacion}: {})};}}
+   }
+   await Promise.all(Array.from({length:Math.min(2,body.items.length)},worker));return{ok:true,proveedor:provider.nombre,total:results.length,actualizados:results.filter(x=>x.ok).length,fallidos:results.filter(x=>!x.ok).length,resultados:results};
+  }finally{active=false;}
+ };
+}
+module.exports={createBatchHandler,exactURL,priceValidator};
