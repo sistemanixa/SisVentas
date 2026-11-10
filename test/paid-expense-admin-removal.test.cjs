@@ -75,8 +75,8 @@ test('a double click during confirmation or transmission creates one warning and
  const f=fixture();let accept;f.c.svConfirm=message=>{f.confirmations.push({message});return new Promise(resolve=>{accept=resolve;});};const first=f.remove(),second=f.remove();assert.equal(f.confirmations.length,1);accept(true);await Promise.all([first,second]);retired(f);assert.equal(Object.keys(f.get('sisventas/auditoria_pagos')).length,1);
 });
 
-test('only a confirmed retirement updates the retained cache and redraws the operative list',async()=>{
- const f=fixture();let release;const waiting=new Promise(resolve=>{release=resolve;});f.setHook(()=>waiting);const pending=f.remove();for(let i=0;i<50&&!f.commands.length;i++)await new Promise(setImmediate);assert.equal(f.commands.length,1);assert.equal(f.c.gastosData[0].bajaAdministrativa,undefined);assert.equal(f.renders,0);release();await pending;const {marker}=retired(f),cached=f.c.gastosData.find(g=>g.fbKey==='g');assert.ok(cached,'The canonical cache remains available to KPI/history');assert.deepEqual(copy(cached.bajaAdministrativa),marker);assert.ok(f.renders>0);
+test('only a confirmed retirement updates the retained cache and redraws the operative list',{timeout:10000},async()=>{
+ const f=fixture();let release,entered;const waiting=new Promise(resolve=>{release=resolve;}),started=new Promise(resolve=>{entered=resolve;});f.setHook(()=>{entered();return waiting;});const pending=f.remove();await started;assert.equal(f.commands.length,1);assert.equal(f.c.gastosData[0].bajaAdministrativa,undefined);assert.equal(f.renders,0);release();await pending;const {marker}=retired(f),cached=f.c.gastosData.find(g=>g.fbKey==='g');assert.ok(cached,'The canonical cache remains available to KPI/history');assert.deepEqual(copy(cached.bajaAdministrativa),marker);assert.ok(f.renders>0);
 });
 
 test('operative filters and saved KPI list rendering hide retirement while the canonical KPI eligibility and paid total remain unchanged',async()=>{
