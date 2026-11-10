@@ -243,7 +243,7 @@ const SHELL = [
   './js/modules/ot-material-rows.v1.js',
   './js/modules/ot-stock-consumption.v1.js?v=3.19.3',
   './js/modules/ot-office-count.js?v=3.16.17',
-  './js/modules/ot-material-custody.js?v=3.19.18',
+  './js/modules/ot-material-custody.js?v=3.20.5',
   './js/modules/release-tour.js?v=2.0.161',
   './js/modules/v3-launch.js',
   './js/modules/v3-visual-preview.js?v=3.0.6',
