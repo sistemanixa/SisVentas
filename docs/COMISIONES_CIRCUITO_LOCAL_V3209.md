@@ -36,3 +36,7 @@ El flujo nuevo usa dos lecturas de originales para confirmar el nuevo participan
 La demo estática usa los módulos reales de interfaz y el adaptador de redistribución sobre datos ficticios en memoria, con red externa bloqueada. Permite agregar, redistribuir, provocar un conflicto y asignar un principal. No se conecta a SisVentas ni ejecuta pagos o aprobaciones reales. Revisión visual en 390, 768 y 1280 píxeles; conflictos, doble clic, cambios de sesión y respuestas tardías se prueban por separado.
 
 La puerta vigente completa terminó con 10.442 PASS, 0 FAIL, 0 cancelados y 52 SKIP (10.494 casos, exit0). El resultado y sus límites se registran en `CONTEXTO_ACTUAL.md`. Los respaldos de reglas, capturas, trazas y datos privados quedan fuera de Git. La revisión local no sustituye la verificación posterior de una publicación autorizada.
+
+## Recuperación visible de intentos pendientes
+
+Un ajuste posterior conserva y vuelve a presentar el mismo intento al restaurar la sesión, incluso si su capa fue retirada o su diálogo nativo se cerró. No consulta ni reenvía automáticamente. Regresión específica: 20 casos unitarios y 3 nativos de recuperación, más 23 nativos relacionados; sin fallos. El gate completo indicado arriba precede este ajuste. No se aprobó ninguna comisión real como prueba.

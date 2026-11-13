@@ -2,7 +2,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto');
 const recoverySource=fs.readFileSync('js/core/labor-write-recovery.js','utf8'),writesSource=fs.readFileSync('js/core/labor-writes.js','utf8');
 const clone=value=>value==null?null:structuredClone(value),response=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>clone(data)});
-class Element{constructor(tag){this.tag=tag;this.children=[];this.attributes={};this.style={};this.listeners=new Map();this.isConnected=true;}setAttribute(k,v){this.attributes[k]=v;}append(...nodes){for(const node of nodes){node.parent=this;this.children.push(node);}}remove(){if(this.parent)this.parent.children=this.parent.children.filter(node=>node!==this);this.isConnected=false;}addEventListener(k,fn){this.listeners.set(k,fn);}contains(node){return node===this||this.children.some(child=>child.contains(node));}focus(options){this.focusOptions=options;this.focusCalls=(this.focusCalls||0)+1;}}
+class Element{constructor(tag){this.tag=tag;this.children=[];this.attributes={};this.style={};this.listeners=new Map();this.isConnected=true;}setAttribute(k,v){this.attributes[k]=v;}append(...nodes){for(const node of nodes){if(node.parent)node.parent.children=node.parent.children.filter(child=>child!==node);node.parent=node.parentNode=this;node.isConnected=true;this.children.push(node);}}remove(){if(this.parent)this.parent.children=this.parent.children.filter(node=>node!==this);this.parent=this.parentNode=null;this.isConnected=false;}addEventListener(k,fn){this.listeners.set(k,fn);}contains(node){return node===this||this.children.some(child=>child.contains(node));}matches(selector){return selector===':modal'&&this.tag==='dialog'&&this.open===true&&this.isConnected;}focus(options){this.focusOptions=options;this.focusCalls=(this.focusCalls||0)+1;}}
 function fixture({storage=new Map(),mode='loss',status='confirmed',rejectionCode='SV_BONUS_BATCH_CONFLICT',rejectionStatus=409}={}){
  const state={sisventas:{gastos:{g:{monto:100,montoPagado:0}},ctaemp:{emp:{m:{monto:100}}}}},commands=[],queries=[],receipts=new Map(),listeners=new Map(),nodes=[];
  const waiters=new Set();
@@ -12,7 +12,7 @@ function fixture({storage=new Map(),mode='loss',status='confirmed',rejectionCode
  const get=path=>path.split('/').reduce((node,key)=>node?.[key]??null,state),put=(path,value)=>{const parts=path.split('/'),key=parts.pop();let node=state;for(const part of parts)node=node[part]||={};if(value===null)delete node[key];else node[key]=clone(value);};
  const ref=(_,path='')=>({key:path.split('/').at(-1),toString:()=> 'https://fixture.invalid/'+path});
  const sdk={ref,async get(r){return {val:()=>clone(get(new URL(r.toString()).pathname.slice(1)))};},set(){throw Error('No SDK write');},update(){throw Error('No SDK write');},remove(){throw Error('No SDK write');},runTransaction(){throw Error('No SDK transaction');},push(r){return ref(null,new URL(r.toString()).pathname.slice(1)+'/key-'+(++sequence));}};
- const document={body:new Element('body'),documentElement:new Element('html'),createElement(tag){const el=new Element(tag);nodes.push(el);return el;},addEventListener(name,fn){listeners.set(name,fn);},removeEventListener(name,fn){if(listeners.get(name)===fn)listeners.delete(name);},dispatchEvent(event){listeners.get(event.type)?.(event);wake();return true;}};
+ const document={body:new Element('body'),documentElement:new Element('html'),createElement(tag){const el=new Element(tag);nodes.push(el);return el;},querySelectorAll(selector){return selector==='dialog[open]'?nodes.filter(node=>node.matches(':modal')):[];},addEventListener(name,fn){listeners.set(name,fn);},removeEventListener(name,fn){if(listeners.get(name)===fn)listeners.delete(name);},dispatchEvent(event){listeners.get(event.type)?.(event);wake();return true;}};
  const root={document,currentUserUid:'u',currentRole:'admin',fbDB:{},fbAuth:{currentUser:{uid:'u'}},PERMISOS_ROLES:{admin:{indiceRevision:1}},crypto:{subtle:crypto.webcrypto.subtle,randomUUID:()=> '00000000-0000-4000-8000-'+String(++sequence).padStart(12,'0')},SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://gateway.invalid'},
   CustomEvent:class{constructor(type,{detail}){this.type=type;this.detail=detail;}},
   sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},SVServiceAuth:{headers:async base=>({...base,Authorization:'Bearer ficticio'})},SVForegroundSession:{holdDatabase(){holds++;return ()=>holds--;},waitVisible:async()=>{}},
@@ -126,4 +126,34 @@ test('modal de recuperación bloquea fondo, scroll y Escape, atrapa Tab y restau
  for(const key of ['Tab','Escape']){let prevented=false,stopped=false;f.listeners.get('keydown')({key,preventDefault(){prevented=true;},stopImmediatePropagation(){stopped=true;}});assert.equal(prevented,true);assert.equal(stopped,true);assert.ok(f.root.SVLaborWriteRecovery.state());}
  let clicked=false;layer.listeners.get('click')({target:layer,preventDefault(){clicked=true;},stopPropagation(){}});assert.equal(clicked,true);
  await f.root.SVLaborWriteRecovery.check();await pending;assert.equal(f.root.document.body.style.overflow,'auto');assert.equal(f.root.document.documentElement.style.overflow,'scroll');assert.equal(f.listeners.has('keydown'),false);assert.equal(f.listeners.has('focusin'),false);assert.equal(previous.focusCalls,1);assert.equal(previous.focusOptions.preventScroll,true);assert.ok(stacks>=2);
+});
+
+test('startup restore presents stored metadata and same-UID restore is idempotent without any transport',()=>{
+ const row={uid:'u',id:'fiction-operation-startup',digest:'a'.repeat(64)},storage=new Map([['sisventas:labor-write-attempts:v1',JSON.stringify([row])]]),f=fixture({storage});
+ const first=f.root.SVLaborWriteRecovery.restore(),layer=f.root.document.body.children[0];assert.equal(first.id,row.id);assert.equal(layer._button.textContent,'Consultar operación');
+ for(let i=0;i<10;i++)f.root.SVLaborWriteRecovery.restore();
+ assert.equal(f.root.document.body.children.length,1);assert.equal(f.root.document.body.children[0],layer);assert.equal(f.commands.length+f.queries.length,0);assert.deepEqual(JSON.parse(storage.get(f.root.SVLaborWriteRecovery.STORAGE_KEY)),[row]);
+});
+
+test('same-UID restore reattaches a removed recovery layer while preserving its original pending Promise',async()=>{
+ const f=fixture(),pending=f.root.fbSet(f.ref('sisventas/gastos/g/montoPagado'),20);await f.when(()=>f.root.SVLaborWriteRecovery.state());
+ const layer=f.root.document.body.children[0],stored=f.storage.get(f.root.SVLaborWriteRecovery.STORAGE_KEY);layer.remove();f.root.document.body.style.overflow='auto';
+ f.root.SVLaborWriteRecovery.restore();
+ assert.equal(f.root.document.body.children[0],layer);assert.equal(layer.isConnected,true);assert.equal(layer._button.disabled,false);assert.equal(f.root.document.body.style.overflow,'hidden');assert.equal(f.storage.get(f.root.SVLaborWriteRecovery.STORAGE_KEY),stored);assert.equal(f.commands.length,1);assert.equal(f.queries.length,0);
+ await layer._button.onclick();await pending;assert.equal(f.commands.length,1);assert.equal(f.queries.length,1);assert.equal(f.root.SVLaborWriteRecovery.state(),null);assert.equal(f.root.document.body.children.length,0);
+});
+
+for(const retired of ['closed','removed'])test('restore moves the existing recovery out of a '+retired+' native parent without querying or resending',async()=>{
+ const f=fixture({mode:'unapplied',status:'rejected'}),dialog=f.root.document.createElement('dialog');dialog.open=true;f.root.document.body.style.overflow='auto';f.root.document.documentElement.style.overflow='scroll';f.root.document.body.append(dialog);
+ const pending=f.root.fbSet(f.ref('sisventas/gastos/g/montoPagado'),20),rejected=assert.rejects(pending,{code:'SV_LABOR_REJECTED'});await f.when(()=>f.root.SVLaborWriteRecovery.state());
+ const layer=dialog.children[0];assert.equal(layer.parentNode,dialog);if(retired==='closed')dialog.open=false;else dialog.remove();
+ f.root.SVLaborWriteRecovery.restore();assert.equal(layer.parentNode,f.root.document.body);assert.equal(layer._button.disabled,false);assert.equal(f.commands.length,1);assert.equal(f.queries.length,0);
+ await layer._button.onclick();await rejected;assert.equal(f.root.SVLaborWriteRecovery.state(),null);assert.equal(f.storage.size,0);assert.equal(f.get('sisventas/gastos/g').montoPagado,0);assert.equal(f.root.document.body.style.overflow,'auto');assert.equal(f.root.document.documentElement.style.overflow,'scroll');assert.equal(f.listeners.has('keydown'),false);assert.equal(f.commands.length,1);
+});
+
+test('same-UID restore after Auth revocation hides recovery while retaining metadata for explicit recovery after login',async()=>{
+ const f=fixture(),pending=f.root.fbSet(f.ref('sisventas/gastos/g/montoPagado'),20);await f.when(()=>f.root.SVLaborWriteRecovery.state());const stored=f.storage.get(f.root.SVLaborWriteRecovery.STORAGE_KEY);
+ f.root.fbAuth.currentUser=null;f.root.SVLaborWriteRecovery.restore();assert.equal(f.root.SVLaborWriteRecovery.state(),null);assert.equal(f.root.document.body.children.length,0);assert.equal(f.storage.get(f.root.SVLaborWriteRecovery.STORAGE_KEY),stored);assert.equal(f.commands.length,1);assert.equal(f.queries.length,0);
+ const stopped=assert.rejects(pending,{code:'SV_LABOR_SESSION'});f.root.SVLaborWriteRecovery.clear();await stopped;
+ f.root.fbAuth.currentUser={uid:'u'};f.root.SVLaborWriteRecovery.restore();assert.ok(f.root.SVLaborWriteRecovery.state());assert.equal(f.root.document.body.children.length,1);assert.equal(f.queries.length,0);await f.root.SVLaborWriteRecovery.check();assert.equal(f.commands.length,1);assert.equal(f.storage.size,0);
 });

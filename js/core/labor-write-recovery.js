@@ -33,7 +33,6 @@
     const message=document.createElement('p');message.id='sv-labor-recovery-status';message.setAttribute('role','status');message.setAttribute('aria-live','polite');
     const button=document.createElement('button');button.type='button';button.className='btn btn-primary';button.style.cssText='align-self:center;background:#f0f2f5;color:#161b24;border:1px solid #f0f2f5;border-radius:8px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer';button.textContent='Consultar operación';button.onclick=()=>check().catch(()=>{});
     card.append(message,button);layer.append(card);
-    const native=Array.from(document.querySelectorAll?.('dialog[open]')||[]).filter(node=>node.matches?.(':modal')).pop();(native||document.body).append(layer);
     layer._message=message;layer._button=button;layer._card=card;
     const overflow=document.body.style.overflow,htmlOverflow=document.documentElement?.style.overflow;
     document.body.style.overflow='hidden';if(document.documentElement)document.documentElement.style.overflow='hidden';
@@ -44,19 +43,31 @@
     document.addEventListener?.('keydown',keyboard,true);document.addEventListener?.('focusin',focusin,true);
     layer.addEventListener?.('click',event=>{event.stopPropagation();if(event.target===layer){event.preventDefault();focus();}});
     layer.addEventListener?.('touchmove',event=>{if(!card.contains(event.target))event.preventDefault();},{passive:false});
-    root.svSincronizarPilaModales?.();focus();
    }
+   // A view may have removed the layer or closed its native dialog while the
+   // durable attempt remains unknown. Re-present that same layer in a live host;
+   // never recreate or resend the financial attempt to repair its presentation.
+   const native=Array.from(document.querySelectorAll?.('dialog[open]')||[]).filter(node=>node.matches?.(':modal')).pop(),host=native||document.body;
+   const moved=layer.parentNode!==host||!layer.isConnected;
+   if(moved)host.append(layer);
+   if(document.body.style.overflow!=='hidden')document.body.style.overflow='hidden';
+   if(document.documentElement&&document.documentElement.style.overflow!=='hidden')document.documentElement.style.overflow='hidden';
    layer._message.textContent=checking?'Comprobando guardado…':'No se pudo confirmar el guardado. Consultá la operación antes de volver a guardar.';
    layer._button.disabled=checking;
+   if(moved){root.svSincronizarPilaModales?.();(checking?layer._card:layer._button).focus?.({preventScroll:true});}
   }
   function emit(){
    try{render();}catch(_){/* La presentación no cambia la confirmación financiera. */}
    try{if(root.CustomEvent)root.document?.dispatchEvent?.(new root.CustomEvent('sisventas:labor-write-recovery',{detail:state()}));}catch(_){}
   }
   function restore(){
-   const current=uid();if(!current||loadedUid===current)return;loadedUid=current;
-   for(const item of stored())if(item.uid===current)attempts.set(item.id,{uid:current,id:item.id,digest:item.digest,status:'unknown'});
-   persist();emit();
+   const current=uid();
+   if(current&&loadedUid!==current){
+    loadedUid=current;
+    for(const item of stored())if(item.uid===current&&!attempts.has(item.id))attempts.set(item.id,{uid:current,id:item.id,digest:item.digest,status:'unknown'});
+    persist();
+   }
+   emit();return state();
   }
   function assertAvailable(){restore();if(pending())throw fail('SV_LABOR_PENDING_OPERATION','Hay un guardado sin confirmar. Consultá la operación antes de volver a guardar.');}
   function finish(attempt,result,error){
