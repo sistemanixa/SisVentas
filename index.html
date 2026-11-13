@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.20.10-firebase' -->
+<!-- VERSION: 'v3.20.11-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,7 +21,7 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.20.10.js"></script>
+<script src="./js/core/version.v3.20.11.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.18.4"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.18.4"></script>
@@ -83,7 +83,8 @@
 <link rel="stylesheet" href="./css/dashboard-privacy.css?v=3.14.5">
 <link rel="stylesheet" href="./css/bonus-grant.css?v=3.14.6">
 <link rel="stylesheet" href="./css/payroll.css?v=3.14.7">
-<link rel="stylesheet" href="./css/budget-presentation.css?v=3.13.19">
+<link rel="stylesheet" href="./css/budget-presentation.css?v=3.20.11">
+<link rel="stylesheet" href="./css/proposal-deck.css?v=3.20.11">
 <link rel="stylesheet" href="./css/project-presentation-trial.css?v=3.20.9">
 <link rel="stylesheet" href="./css/dashboard-personal-notices.css?v=3.14.11">
 <link rel="stylesheet" href="./css/chat-directs.v1.css?v=3.15.13">
@@ -883,6 +884,7 @@
       <div class="card-head">
         <span class="card-title">Presupuestos</span>
         <div class="sv-card-head-actions">
+          <button class="btn btn-sm admin-only" onclick="presentarPropuestasDesdeListado()"><i class="ti ti-presentation"></i> Presentar propuestas</button>
           <button class="btn btn-sm btn-primary" onclick="abrirNuevoPresupuesto()"><i class="ti ti-plus"></i> Nuevo presupuesto</button>
           <button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('ppto-tabla')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button>
         </div>
@@ -5884,7 +5886,7 @@ Listo para analizar.
 <script src="./js/core/ot-sale-origin.v1.js?v=3.18.13"></script>
 <script src="./js/core/commercial-report-read.v1.js?v=3.19.0"></script>
 <script src="./js/modules/commercial-report-host.v1.js?v=3.19.0"></script>
-<script src="./js/app.v3.20.10.js"></script>
+<script src="./js/app.v3.20.11.js"></script>
 <script src="./js/core/sales-search-model.v1.js?v=3.18.4"></script>
 <script src="./js/core/collection-search-model.v1.js?v=3.18.13"></script>
 <script src="./js/core/commercial-pages-reader.v1.js?v=3.19.6"></script>
@@ -6490,10 +6492,12 @@ Listo para analizar.
 <script src="./js/modules/private-finance-portal.js?v=3.20.10"></script>
 <script src="./js/modules/serial-camera-scanner.js?v=3.12.10-encuadre"></script><script src="./js/modules/product-code-search.js?v=3.12.3"></script><script src="./js/modules/catalog-product-picker.js?v=3.12.3"></script><script src="./js/modules/distributor-documents.js?v=3.14.16-print"></script>
 <script src="./js/modules/dashboard-privacy.js?v=3.14.5"></script>
-<script src="./js/core/budget-presentation-model.js?v=3.13.19"></script>
-<script src="./js/modules/budget-presentation-view.js?v=3.13.19"></script>
-<script src="./js/modules/budget-presentation.js?v=3.13.19"></script>
+<script src="./js/core/budget-presentation-model.js?v=3.20.11"></script>
+<script src="./js/modules/budget-presentation-view.js?v=3.20.11"></script>
+<script src="./js/modules/budget-presentation.js?v=3.20.11"></script>
 <script src="./js/core/budget-presentation-model.v1.js?v=3.20.9"></script>
+<script src="./js/core/proposal-deck-model.js?v=3.20.11"></script>
+<script src="./js/modules/proposal-deck.js?v=3.20.11"></script>
 <script src="./js/modules/project-presentation-trial.js?v=3.20.9"></script>
 <script src="./js/core/expense-state.v1.js?v=3.20.4"></script>
 <script src="./js/core/salary-coverage-model.v1.js?v=3.20.4"></script>

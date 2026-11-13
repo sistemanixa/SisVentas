@@ -7,7 +7,7 @@ function publicPath(name) {
   if (typeof name !== 'string' || !name || name.includes('\\') || name.startsWith('/') ||
       name.split('/').some(p => !p || p === '.' || p === '..' || p.startsWith('.')) ||
       /(^|\/)(tmp|security|docs|drafts|node_modules)(\/|$)/i.test(name)) throw Error('Ruta pública inválida: ' + name);
-  if (!/^(?:js\/|css\/)/.test(name) && !/^(?:index\.html|personal-finance\.html|catalogo\.html|sw\.js|push-sw\.js|manifest\.webmanifest|logo_blanco\.jpg|nixa-icon-(?:192|512)\.png)$/.test(name)) throw Error('Ruta fuera del alcance público: ' + name);
+  if (!/^(?:js\/|css\/)/.test(name) && !/^assets\/proposal-scenes\/(?:(?:cerradura-camara|cerradura-teclado|portero-pantalla|portero-teclado|videovigilancia|portero-columna)(?:-thumb)?\.jpg|cover-fade\.png)$/.test(name) && !/^(?:index\.html|personal-finance\.html|catalogo\.html|sw\.js|push-sw\.js|manifest\.webmanifest|logo_blanco\.jpg|nixa-icon-(?:192|512)\.png)$/.test(name)) throw Error('Ruta fuera del alcance público: ' + name);
   return name;
 }
 function readRegular(root, name) {

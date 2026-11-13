@@ -1,7 +1,7 @@
 (function(root,factory){
   'use strict';
   if(typeof module==='object'&&module.exports)module.exports=factory(require('../v3/budget-read-model.js'));
-  else root.SVBudgetPresentationModel=factory(root.SisVentas&&root.SisVentas.V3&&root.SisVentas.V3.BudgetReadModel);
+  else {var api=factory(root.SisVentas&&root.SisVentas.V3&&root.SisVentas.V3.BudgetReadModel);root.SVBudgetLivePresentationModel=api;}
 })(typeof globalThis!=='undefined'?globalThis:this,function(Budget){
   'use strict';
   var WARNING='Este presupuesto necesita revisión';
