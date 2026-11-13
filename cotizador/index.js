@@ -1,5 +1,7 @@
 const { normalizarFicha, fichaDesdeApi, extraerFichaPagina, validarUrlFicha, identidadAlta, protegerNavegacionFicha } = require('./ficha-producto');
 const http = require('http');
+const commercialAdmission=require('./commercial-admission');
+const commercialAdmissionPaused=commercialAdmission.isPaused(process.env.SV_COMMERCIAL_ADMISSION_PAUSED);
 const crypto = require('crypto');
 const {sendCommercial}=require('./commercial-response');
 const commissionPublic=require('./commission-public-response');
@@ -36,15 +38,29 @@ if (!admin.apps.length) {
 
 const laborScopedEnabled=process.env.LABOR_SCOPED_ENABLED==='true';
 if(laborScopedEnabled&&process.env.COMMISSION_OBSERVER_ENABLED==='true')throw Error('El circuito acotado requiere el observador periódico apagado');
-const laborRuntime=require('./labor-runtime').createLaborRuntime({db:admin.database(),databaseURL:DATABASE_URL,enabled:laborScopedEnabled,operationalSummaries:process.env.OPERATIONAL_SUMMARIES_ENABLED==='true',readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true',accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
+const laborRuntime=require('./labor-runtime').createLaborRuntime({db:admin.database(),databaseURL:DATABASE_URL,enabled:laborScopedEnabled,commercialPages:process.env.COMMERCIAL_PAGES_ENABLED==='true',dashboardBudgets:process.env.DASHBOARD_BUDGETS_ENABLED==='true',dashboardActivity:process.env.DASHBOARD_COMMERCIAL_ACTIVITY_ENABLED==='true',dashboardPolicyRenewal:process.env.DASHBOARD_BUDGET_POLICY_RENEWAL_ENABLED==='true',operationalSummaries:process.env.OPERATIONAL_SUMMARIES_ENABLED==='true',readOnly:process.env.LABOR_SCOPED_READ_ONLY==='true',accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const db = laborRuntime.db;
 // Resolve Auth only when handling an authenticated operation. Importing pure
 // parsers (or their tests) must not instantiate extra SDK services.
 const firebaseAuth = Object.fromEntries(['verifyIdToken','getUser','updateUser','setCustomUserClaims','revokeRefreshTokens'].map(method => [method,(...args)=>admin.auth()[method](...args)]));
 const businessAuth = require('./user-access').createBusinessAuth(firebaseAuth, db);
+const dashboardReadsEnabled=process.env.DASHBOARD_READS_ENABLED==='true';
+// REST avoids Admin get() reusing an active listener cache between fresh checks.
+const dashboardReadDb=dashboardReadsEnabled?require('./dashboard-rtdb-read-db').create({store:laborRuntime.store}):null;
+const dashboardLegacyContext=Object.freeze({timeZone:'America/Argentina/Buenos_Aires',sourceLocale:'es-AR'});
+if(dashboardReadsEnabled){const c=laborRuntime.capabilities();if(!c.coordinated||!c.commercialPages||process.env.DASHBOARD_BUDGETS_ENABLED!=='true'||process.env.DASHBOARD_COMMERCIAL_ACTIVITY_ENABLED!=='true')throw Error('Las lecturas de Dashboard requieren ambos escritores coordinados y Pages.');}
+const dashboardAsOfDay=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:dashboardLegacyContext.timeZone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).filter(v=>v.type!=='literal').map(v=>[v.type,v.value]));return p.year+'-'+p.month+'-'+p.day;};
+const dashboardBudgetActivity=dashboardReadsEnabled?require('./dashboard-budget-activity-reader-proposal').createActivityReader({auth:firebaseAuth,db:dashboardReadDb,enabled:true,getAsOfDay:dashboardAsOfDay,getLegacyContext:()=>dashboardLegacyContext}):null;
+const dashboardBudgetNotices=dashboardReadsEnabled?require('./dashboard-budget-notice-candidates-proposal').create({auth:firebaseAuth,db:dashboardReadDb,enabled:true}):null;
+const dashboardCommercialActivity=dashboardReadsEnabled?require('./dashboard-commercial-activity-reader-proposal').createReader({auth:firebaseAuth,db:dashboardReadDb,enabled:true,getLegacyContext:()=>dashboardLegacyContext,getAsOfDay:dashboardAsOfDay}):null;
 const userDirectory = require('./user-directory').createUserDirectory({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true'});
 const chatOperations = require('./chat-operations').createChatOperations({auth:businessAuth,db,enabled:process.env.USER_DIRECTORY_ENABLED==='true',headerStore:process.env.CHAT_HEADERS_ENABLED==='true'?require('./chat-header-store').createChatHeaderStore({databaseURL:DATABASE_URL,isReady:async()=>(await db.ref('sv_chat_headers_config/ready').get()).val()===true,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token}):null});
 const distributorDocuments=require('./distributor-documents').createDistributorDocuments({auth:businessAuth,db,enabled:process.env.DISTRIBUTOR_DOCUMENTS_ENABLED==='true'});
+const clientAccountScope=require('./client-account-scope').create({auth:firebaseAuth,db,guard:laborRuntime.guard,queryReader:laborRuntime.store.query,enabled:process.env.CLIENT_ACCOUNTS_ENABLED==='true'});
+const clientAccountDocuments=require('./client-account-documents').create({auth:businessAuth,db,enabled:process.env.CLIENT_ACCOUNTS_ENABLED==='true'});
+const clientHistoryAccess=require('./client-history-access').create({auth:businessAuth,db,readAsUser:laborRuntime.store.readAsUser});
+const clientHistoryClient=require('./client-history-client').create({access:clientHistoryAccess,read:laborRuntime.store.read,readClientAsUser:clientHistoryAccess.readClient,queryClientMembers:async(group,limit)=>(await db.ref('sv_client_accounts/v1/directory/index').orderByChild('clienteKey').equalTo(group).limitToFirst(limit).get()).val()||{}});
+const clientHistoryService=require('./client-history-http-adapter').create({access:clientHistoryAccess,read:laborRuntime.store.read,resolveClient:clientHistoryClient.resolve,query:async(path,{after,limit})=>{let ref=db.ref(path).orderByKey();if(after)ref=ref.startAt(after+'\u0000');return (await ref.limitToFirst(limit).get()).val();},enabled:laborRuntime.capabilities().clientHistory&&process.env.CLIENT_HISTORY_READ_ENABLED==='true'});
 const commercialCollectionReader=require('./commercial-collection-reader').createCommercialCollectionReader({databaseURL:DATABASE_URL,compressOverflow:true,accessToken:async()=>(await admin.app().options.credential.getAccessToken()).access_token});
 const projects = require('./projects').createProjects({auth:businessAuth,db,collectionReader:commercialCollectionReader,scopedReads:process.env.COMMERCIAL_SCOPED_READS_ENABLED==='true',queryReader:laborRuntime.store.query,enabled:process.env.PROJECTS_ENABLED==='true',storage:()=>require('firebase-admin').storage(),bucketName:process.env.PROJECTS_MEDIA_BUCKET,listStore:process.env.PROJECT_LISTS_ENABLED==='true'?require('./projects-list-store').createProjectListStore(db):undefined});
 const commercialOwnership=require('./commercial-ownership').createCommercialOwnership({auth:businessAuth,db,collectionReader:commercialCollectionReader,listReadConcurrency:16,scopedReads:process.env.COMMERCIAL_SCOPED_READS_ENABLED==='true',queryReader:laborRuntime.store.query,enabled:process.env.COMMERCIAL_OWNERSHIP_ENABLED==='true'});
@@ -57,6 +73,9 @@ const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
 const laborTransaction = laborRuntime.transaction;
 const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
+laborRuntime.store.saleDeleteFenceReady=process.env.SALE_DELETE_FENCE_READY==='true';
+const saleDeleteService=require('./sale-delete-http-adapter').createSaleDeleteHttpAdapter({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.SALE_DELETE_READY==='true'});
+const purchaseDeleteService=require('./purchase-order-delete').createPurchaseOrderDelete({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.PURCHASE_ORDER_DELETE_READY==='true'});
 const otDeleteAuthority=require('./ot-delete-authority').createOTDeleteAuthority({auth:firebaseAuth,readServer:async path=>(await admin.database().ref(path).get()).val(),guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 const otDeleteService=require('./ot-delete-http-adapter').createOTDeleteHttpAdapter({authorize:otDeleteAuthority.authorize,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_DELETE_OPERATIONAL_READY==='true'});
 const officeStock=require('./office-stock').create({authorize:laborWriteGateway.authorize,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OFFICE_STOCK_ENABLED==='true'&&process.env.OPERATIONAL_SUMMARIES_ENABLED==='true',queryPage:async(path,o)=>{let ref=db.ref(path);ref=o.orderBy?ref.orderByChild(o.orderBy):ref.orderByKey();if(Object.hasOwn(o,'equalTo'))ref=ref.equalTo(o.equalTo);else if(Object.hasOwn(o,'startAt'))ref=o.after?ref.startAt(o.startAt,o.after):ref.startAt(o.startAt);else if(o.after)ref=ref.startAt(o.after+'\u0000');return (await (o.last?ref.limitToLast(o.limit):ref.limitToFirst(o.limit)).get()).val();}});
@@ -2018,35 +2037,19 @@ const server = http.createServer(async (req, res) => {
   if(pathname==='/presupuestos/presentacion-proyecto'&&req.method!=='OPTIONS'){res.setHeader('Cache-Control','private, no-store');try{const body=await readBody(req,2048);const result=await budgetPresentationTrial.handle(req,body);send(res,200,result);}catch(error){send(res,error.statusCode||503,{ok:false,code:error.code||'PRESENTATION_UNAVAILABLE',mensaje:error.statusCode?error.message:'No se pudo preparar la presentación.'});}return;}
 
 
-  if(pathname==='/internal/commission-event'||pathname==='/internal/commission-event-probe'){
-    // Native change metadata is read only after authenticating its delivery.
-    if(pathname.endsWith('-probe'))req.resume();res.setHeader('Cache-Control','no-store');
-    try{const result=await (pathname.endsWith('-probe')?commissionEvent.probe(req):commissionEvent.handle(req));send(res,200,{ok:true,...result});}
-    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo completar el evento'});}
-    return;
-  }
-
   if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    res.end();
-    return;
+    res.writeHead(204);res.end();return;
   }
 
-  if(pathname.startsWith('/comerciales/')){
-    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');
+  if(/^\/commercial\/dashboard\/(?:presupuestos\/(?:actividad-v2|avisos)|(?:ventas|pagos|ordenes_trabajo)\/actividad-v2)$/.test(pathname)){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
     try{
-      const match=pathname.match(/^\/comerciales\/(ventas|presupuestos)(?:\/(opciones|reasignar|preparar|registro)(?:\/([^/]+))?)?$/);
-      if(!match){send(res,404,{ok:false,mensaje:'Operación no disponible'});return;}
-      const view=new URL(req.url,'http://localhost').searchParams.get('verComo');
-      const actor=await commercialOwnership.authorize(req,match[1],view);let result;
-      if(req.method==='GET'&&match[2]==='registro'&&match[3]){const id=decodeURIComponent(match[3]);const records=await commercialOwnership.visibleRecordsByIds(actor,match[1],[id]);if(!records[id])throw Object.assign(Error('Registro no disponible'),{statusCode:404});const commissionDetail=new URL(req.url,'http://localhost').searchParams.get('para')==='comision';if(commissionDetail&&(match[1]!=='ventas'||actor.role!=='admin'||actor.viewing))throw Object.assign(Error('Sin acceso al detalle de comisión'),{statusCode:403});result={record:{...(commissionDetail?require('./commission-detail-projection').project(records[id]):records[id]),fbKey:id},...(commissionDetail?{projection:'commission-economic-v1'}:{})};}
-      else if(req.method==='GET'&&!match[2])result=await commercialOwnership.list(actor);
-      else if(req.method==='GET'&&match[2]==='opciones')result=await commercialOwnership.options(actor);
-      else if(req.method==='POST'&&['reasignar','preparar'].includes(match[2])){const body=await readBody(req,16384),method=match[2]==='reasignar'?'assign':'prepare';result=match[1]==='ventas'?await laborRuntime.run(actor,'commercial-'+method,body,()=>commercialOwnership[method](actor,body)):await commercialOwnership[method](actor,body);}
-      else{send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
-      if(req.method==='GET'&&!match[2])await sendCommercial(req,res,{ok:true,...result});
-      else send(res,200,{ok:true,...result});
-    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la operación comercial'});}return;
+      if(req.method!=='GET')throw Object.assign(Error('Método no permitido.'),{statusCode:405});
+      if(!dashboardReadsEnabled)throw Object.assign(Error('Lecturas de Dashboard deshabilitadas.'),{statusCode:503});
+      require('./dashboard-budget-reader-proposal').selection(req,pathname);
+      const result=pathname==='/commercial/dashboard/presupuestos/actividad-v2'?await dashboardBudgetActivity.read(req):pathname==='/commercial/dashboard/presupuestos/avisos'?await dashboardBudgetNotices.read(req):await dashboardCommercialActivity.read(req,pathname.split('/')[3]);
+      send(res,200,result);
+    }catch(error){send(res,[400,401,403,405,409,503].includes(error.statusCode)?error.statusCode:503,{error:'Dashboard no verificable.',code:error.code||'SV_DASHBOARD_READ_UNAVAILABLE'});}return;
   }
 
   if(pathname.startsWith('/privado/finanzas')){
@@ -2062,6 +2065,51 @@ const server = http.createServer(async (req, res) => {
       }else{send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
       send(res,200,{ok:true,...result});
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar el espacio privado. Conservá el formulario y reintentá.'});}return;
+  }
+
+  if(commercialAdmissionPaused&&((req.method==='POST'&&!commercialAdmission.allowsPausedRead(pathname))||(req.method==='GET'&&pathname==='/proyectos'&&requestUrl.searchParams.get('resumen')==='1'))){
+    res.setHeader('Cache-Control','private, no-store');
+    if(pathname==='/laboral/operacion'){
+      try{const body=await readBody(req,2048);send(res,200,await commercialAdmission.resolveReadOnly({gateway:laborWriteGateway,read:laborRuntime.store.read,req,body}));}
+      catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo consultar el intento. Conservá su identificador.'});}return;
+    }
+    res.setHeader('Retry-After','5');
+    send(res,503,{ok:false,code:'SV_COMMERCIAL_ADMISSION_PAUSED',retryable:true,mensaje:'Guardados temporalmente pausados. Conservá el formulario y reintentá.'});return;
+  }
+
+  if(pathname==='/internal/commission-event'||pathname==='/internal/commission-event-probe'){
+    // Native change metadata is read only after authenticating its delivery.
+    if(pathname.endsWith('-probe'))req.resume();res.setHeader('Cache-Control','no-store');
+    try{const result=await (pathname.endsWith('-probe')?commissionEvent.probe(req):commissionEvent.handle(req));send(res,200,{ok:true,...result});}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo completar el evento'});}
+    return;
+  }
+
+  if(pathname==='/compras/ordenes/eliminar'){
+    res.setHeader('Cache-Control','private, no-store');
+    try{const body=await readBody(req,2048);send(res,200,await purchaseDeleteService.handle(req,body));}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar la compra. Consultá la operación antes de repetirla.',...(error.code?{code:error.code}:{})});}return;
+  }
+  if(pathname==='/comerciales/ventas/eliminar'){
+    res.setHeader('Cache-Control','private, no-store');
+    try{const body=await readBody(req,2048),result=await saleDeleteService.handle(req,body);send(res,result.statusCode,result.body);}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar la eliminación. Consultá la operación antes de repetirla.',...(error.code?{code:error.code}:{})});}return;
+  }
+  if(pathname.startsWith('/comerciales/')){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');
+    try{
+      const match=pathname.match(/^\/comerciales\/(ventas|presupuestos)(?:\/(opciones|reasignar|preparar|registro)(?:\/([^/]+))?)?$/);
+      if(!match){send(res,404,{ok:false,mensaje:'Operación no disponible'});return;}
+      const view=new URL(req.url,'http://localhost').searchParams.get('verComo');
+      const actor=await commercialOwnership.authorize(req,match[1],view);let result;
+      if(req.method==='GET'&&match[2]==='registro'&&match[3]){const id=decodeURIComponent(match[3]);const records=await commercialOwnership.visibleRecordsByIds(actor,match[1],[id]);if(!records[id])throw Object.assign(Error('Registro no disponible'),{statusCode:404});const commissionDetail=new URL(req.url,'http://localhost').searchParams.get('para')==='comision';if(commissionDetail&&(match[1]!=='ventas'||actor.role!=='admin'||actor.viewing))throw Object.assign(Error('Sin acceso al detalle de comisión'),{statusCode:403});result={record:{...(commissionDetail?require('./commission-detail-projection').project(records[id]):records[id]),fbKey:id},...(commissionDetail?{projection:'commission-economic-v1'}:{})};}
+      else if(req.method==='GET'&&!match[2])result=await commercialOwnership.list(actor);
+      else if(req.method==='GET'&&match[2]==='opciones')result=await commercialOwnership.options(actor);
+      else if(req.method==='POST'&&['reasignar','preparar'].includes(match[2])){const body=await readBody(req,16384),method=match[2]==='reasignar'?'assign':'prepare';result=await laborRuntime.commercialMutation(actor,method,body,()=>commercialOwnership[method](actor,body));}
+      else{send(res,405,{ok:false,mensaje:'Método no permitido'});return;}
+      if(req.method==='GET'&&!match[2])await sendCommercial(req,res,{ok:true,...result});
+      else send(res,200,{ok:true,...result});
+    }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo confirmar la operación comercial'});}return;
   }
 
   if (req.method === 'GET' && pathname === '/mercadolibre/oauth/start') {
@@ -2085,6 +2133,26 @@ const server = http.createServer(async (req, res) => {
       const result=pathname==='/usuarios/perfil'?await userDirectory.profile(actor):await userDirectory.directory(actor,pathname==='/usuarios/administracion');
       send(res,200,{ok:true,...result});
     }catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo cargar el directorio protegido. Reintentá.'});}
+    return;
+  }
+
+  if(['/clientes/historial','/clientes/historial/cliente'].includes(pathname)){
+    res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Authorization, Origin');res.setHeader('X-Content-Type-Options','nosniff');
+    try{if(req.method!=='POST'){send(res,405,{ok:false,mensaje:'Método no permitido'});return;}const reply=await clientHistoryService.handle(req,await readBody(req,2048));send(res,reply.statusCode,reply.body);}
+    catch(error){send(res,error.statusCode||503,{ok:false,code:error.code,mensaje:error.statusCode?error.message:'No se pudo verificar el historial. Volvé a actualizar.'});}return;
+  }
+
+  if(pathname==='/cuentas/preparar'){
+    res.setHeader('Cache-Control','no-store');
+    try{const result=await clientAccountScope.execute(req,await readBody(req,1024));send(res,200,result);}
+    catch(e){send(res,e.statusCode||503,{ok:false,code:e.code,mensaje:e.statusCode?e.message:'No se pudo preparar la cuenta. Volvé a intentar.'});}
+    return;
+  }
+
+  if(['/cuentas/comprobante-embebido','/cuentas/comprobante'].includes(pathname)){
+    res.setHeader('Cache-Control','no-store');
+    try{const result=await clientAccountDocuments[pathname==='/cuentas/comprobante'?'loadPayment':'load'](req,Object.fromEntries(requestUrl.searchParams));send(res,200,{ok:true,...result});}
+    catch(e){send(res,e.statusCode||503,{ok:false,mensaje:e.statusCode?e.message:'No se pudo abrir el comprobante. Volvé a intentarlo.'});}
     return;
   }
 
@@ -2159,7 +2227,7 @@ const server = http.createServer(async (req, res) => {
       const actor=await service.authorize(req),body=await readBody(req,pathname==='/laboral/capacidades'?128:16*1024*1024);
       if(pathname==='/laboral/capacidades'){
         if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).length)throw Object.assign(Error('Solicitud inválida'),{statusCode:400});
-        send(res,200,{ok:true,payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability(),otDelete:{version:1,enabled:otDeleteService.capability()}});
+        send(res,200,{ok:true,payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability(),saleDelete:{version:1,enabled:saleDeleteService.capability()},orderDelete:{version:1,enabled:purchaseDeleteService.capability()},otDelete:{version:1,enabled:otDeleteService.capability()},coordination:laborRuntime.capabilities(),saleReturn:require('./sale-return-to-budget').capability({enabled:process.env.SALE_RETURN_ECONOMICS_READY==='true',coordinated:laborRuntime.capabilities().coordinated&&!laborRuntime.capabilities().readOnly,rulesDigest:process.env.SALE_RETURN_RULES_DIGEST||''}),revision:process.env.K_REVISION||'local'});
       }else send(res,200,await service[['/cobranzas/operacion','/laboral/gastos/editar-administrativo'].includes(pathname)?'execute':'create'](actor,body));
     }catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el guardado. Comprobá el intento antes de repetirlo.',...(error.code?{code:error.code}:{})});}return;
   }
@@ -2307,8 +2375,9 @@ const server = http.createServer(async (req, res) => {
 });
 
 if (require.main === module) {
-  if(process.env.COMMISSION_OBSERVER_ENABLED==='true')commissionGeneration.start();
-  else if(process.env.COMMISSION_GENERATION_ENABLED==='true'&&process.env.COMMISSION_EVENT_ENABLED!=='true')throw Error('No se puede detener el observador sin habilitar el receptor de eventos');
+  if(process.env.COMMISSION_OBSERVER_ENABLED==='true')throw Error('El observador periódico de comisiones fue retirado. Usá eventos o acciones explícitas.');
+  if(process.env.COMMISSION_GENERATION_ENABLED==='true'&&process.env.COMMISSION_EVENT_ENABLED!=='true')throw Error('La generación de comisiones requiere habilitar el receptor de eventos');
+
   server.listen(PORT, () => {
     console.log(`Cotizador NIXA listo en puerto ${PORT}`);
   });

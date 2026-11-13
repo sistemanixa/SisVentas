@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.20.10-firebase' -->
+<!-- VERSION: 'v3.20.12-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,7 +21,7 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.20.10.js"></script>
+<script src="./js/core/version.v3.20.12.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.18.4"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.18.4"></script>
@@ -83,12 +83,14 @@
 <link rel="stylesheet" href="./css/dashboard-privacy.css?v=3.14.5">
 <link rel="stylesheet" href="./css/bonus-grant.css?v=3.14.6">
 <link rel="stylesheet" href="./css/payroll.css?v=3.14.7">
-<link rel="stylesheet" href="./css/budget-presentation.css?v=3.13.19">
+<link rel="stylesheet" href="./css/budget-presentation.css?v=3.20.11">
+<link rel="stylesheet" href="./css/proposal-deck.css?v=3.20.11">
 <link rel="stylesheet" href="./css/project-presentation-trial.css?v=3.20.9">
 <link rel="stylesheet" href="./css/dashboard-personal-notices.css?v=3.14.11">
 <link rel="stylesheet" href="./css/chat-directs.v1.css?v=3.15.13">
 <link rel="stylesheet" href="./css/ot-search.v1.css?v=3.15.13">
 <link rel="stylesheet" href="./css/office-stock.css?v=3.20.4">
+<link rel="stylesheet" href="./css/employee-clothing.css?v=3.20.12">
 </head>
 <body>
 
@@ -883,6 +885,7 @@
       <div class="card-head">
         <span class="card-title">Presupuestos</span>
         <div class="sv-card-head-actions">
+          <button class="btn btn-sm admin-only" onclick="presentarPropuestasDesdeListado()"><i class="ti ti-presentation"></i> Presentar propuestas</button>
           <button class="btn btn-sm btn-primary" onclick="abrirNuevoPresupuesto()"><i class="ti ti-plus"></i> Nuevo presupuesto</button>
           <button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('ppto-tabla')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button>
         </div>
@@ -4859,6 +4862,7 @@ Listo para analizar.
         <button class="btn btn-sm gas-action-multi" id="btn-gastos-multiple" onclick="togglePagoMultipleGastos()"><i class="ti ti-checklist"></i> Pago múltiple</button>
         <button class="btn btn-sm gas-action-advance" data-permiso="empleados.gestionarAdelantos" onclick="abrirModalAdelantoGeneral()" style="color:var(--amber);border-color:var(--amber)" title="Registrar un adelanto para un empleado"><i class="ti ti-cash-banknote"></i> Cargar adelanto</button>
         <button class="btn btn-sm btn-icon admin-only sv-column-percent-btn" onclick="window.SisVentas&&window.SisVentas.openColumnPercentEditor&&window.SisVentas.openColumnPercentEditor('gas-tbl')" title="Configurar columnas" aria-label="Configurar columnas"><i class="ti ti-columns"></i></button>
+        <button type="button" class="btn btn-sm" data-permiso="empleados.indumentaria" data-employee-clothing=""><i class="ti ti-shirt"></i> Indumentaria</button>
         <button class="btn btn-sm btn-primary gas-action-new" onclick="abrirFormGasto(null)"><i class="ti ti-plus"></i> Nuevo gasto</button>
         </div>
       </div>
@@ -5831,7 +5835,7 @@ Listo para analizar.
 <script src="./js/core/chat-security.js?v=3.11.11"></script>
 <script src="./js/core/permission-index.js?v=3.11.11"></script>
 <script src="./js/modules/security-storage.js?v=3.13.2-foreground"></script>
-<script src="./js/modules/action-permissions.js?v=3.16.18"></script>
+<script src="./js/modules/action-permissions.js?v=3.20.12"></script>
 <script src="./js/modules/release-permissions.js?v=1"></script>
 <script src="./js/modules/offline-core.js?v=3.12.20"></script>
 <script src="./js/modules/comparacion-comercial.js?v=1"></script>
@@ -5884,19 +5888,20 @@ Listo para analizar.
 <script src="./js/core/ot-sale-origin.v1.js?v=3.18.13"></script>
 <script src="./js/core/commercial-report-read.v1.js?v=3.19.0"></script>
 <script src="./js/modules/commercial-report-host.v1.js?v=3.19.0"></script>
-<script src="./js/app.v3.20.10.js"></script>
+<script src="./js/app.v3.20.12.js"></script>
 <script src="./js/core/sales-search-model.v1.js?v=3.18.4"></script>
 <script src="./js/core/collection-search-model.v1.js?v=3.18.13"></script>
 <script src="./js/core/commercial-pages-reader.v1.js?v=3.19.6"></script>
 <script src="./js/core/payment-actor-names.v1.js?v=3.18.4"></script>
 <script src="./js/modules/payment-actor-labels.v1.js?v=3.18.4"></script>
-<script src="./js/modules/sales-indexed-host.v1.js?v=3.19.18"></script>
+<script src="./js/modules/sales-indexed-host.v1.js?v=3.20.12"></script>
 <script src="./js/modules/collections-indexed-host.v1.js?v=3.19.6"></script>
 <script src="./js/core/client-account-mode.v1.js?v=3.18.20"></script>
-<script src="./js/core/client-account-reader.v1.js?v=3.18.14"></script>
-<script>window.SV_CLIENT_ACCOUNTS_ROLLOUT=Object.freeze({schema:1,enabled:false});</script>
+<script src="./js/core/client-account-reader.v1.js?v=3.20.12"></script>
+<script>window.SV_CLIENT_ACCOUNTS_ROLLOUT=Object.freeze({schema:1,enabled:true});</script>
 <script>window.SV_CLIENT_HISTORY_ROLLOUT=Object.freeze({schema:1,enabled:false});</script>
-<script src="./js/modules/client-account-host.v1.js?v=3.19.0"></script>
+<script src="./js/core/client-account-writer-proof.v1.js?v=3.20.12"></script>
+<script src="./js/modules/client-account-host.v1.js?v=3.20.12"></script>
 <script src="./js/modules/client-account-legacy-reconcile.v1.js?v=3.19.11"></script>
 <script src="./js/modules/bonus-concepts.js?v=3.14.6"></script>
 <script src="./js/modules/bonus-grant.js?v=3.14.6"></script>
@@ -6490,15 +6495,17 @@ Listo para analizar.
 <script src="./js/modules/private-finance-portal.js?v=3.20.10"></script>
 <script src="./js/modules/serial-camera-scanner.js?v=3.12.10-encuadre"></script><script src="./js/modules/product-code-search.js?v=3.12.3"></script><script src="./js/modules/catalog-product-picker.js?v=3.12.3"></script><script src="./js/modules/distributor-documents.js?v=3.14.16-print"></script>
 <script src="./js/modules/dashboard-privacy.js?v=3.14.5"></script>
-<script src="./js/core/budget-presentation-model.js?v=3.13.19"></script>
-<script src="./js/modules/budget-presentation-view.js?v=3.13.19"></script>
-<script src="./js/modules/budget-presentation.js?v=3.13.19"></script>
+<script src="./js/core/budget-presentation-model.js?v=3.20.11"></script>
+<script src="./js/modules/budget-presentation-view.js?v=3.20.11"></script>
+<script src="./js/modules/budget-presentation.js?v=3.20.11"></script>
 <script src="./js/core/budget-presentation-model.v1.js?v=3.20.9"></script>
+<script src="./js/core/proposal-deck-model.js?v=3.20.11"></script>
+<script src="./js/modules/proposal-deck.js?v=3.20.11"></script>
 <script src="./js/modules/project-presentation-trial.js?v=3.20.9"></script>
 <script src="./js/core/expense-state.v1.js?v=3.20.4"></script>
-<script src="./js/core/salary-coverage-model.v1.js?v=3.20.4"></script>
+<script src="./js/core/salary-coverage-model.v1.js?v=3.20.12"></script>
 <script src="./js/core/salary-coverage-read.v1.js?v=3.19.0"></script>
-<script src="./js/modules/salary-coverage.v1.js?v=3.20.4"></script>
+<script src="./js/modules/salary-coverage.v1.js?v=3.20.12"></script>
 <script src="./js/core/client-history-audience.v1.js"></script>
 <script src="./js/core/client-history-service-reader.v1.js"></script>
 <script src="./js/modules/client-history-host.v1.js"></script>
@@ -6511,5 +6518,11 @@ Listo para analizar.
 <script src="./js/modules/office-stock.js?v=3.20.4"></script>
 <script src="./js/modules/office-stock-adapter.js?v=3.20.4"></script>
 <script src="./js/modules/office-stock-host.js?v=3.19.19"></script>
+<script src="./js/core/employee-clothing-model.js?v=3.20.12"></script>
+<script src="./js/core/expense-categories-model.js?v=3.20.12"></script>
+<script src="./js/modules/employee-clothing.js?v=3.20.12"></script>
+<script src="./js/modules/expense-categories.js?v=3.20.12"></script>
+<script src="./js/modules/employee-resources-host.js?v=3.20.12"></script>
+<script src="./js/modules/employee-resources-integration.js?v=3.20.12"></script>
 </body>
 </html>

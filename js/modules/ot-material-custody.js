@@ -560,11 +560,22 @@
   }
   window.otCustodiaInstalarItem = installOne;
 
+  function renditionActionState(ot) {
+    if (!ot) {window.notify('Volvé a abrir la OT antes de rendir materiales.');return null;}
+    if (renditionBusy || deliveryBusy) {window.notify('Se están guardando los materiales. Esperá a que termine.');return null;}
+    if (!mayRend(ot)) {window.notify('Esta OT no permite rendir materiales. Revisá su estado y los permisos.');return null;}
+    var state = materialState(ot);
+    if (!state.started) {if(state.review)notifyReview(state);else window.notify('Registrá primero la entrega de materiales al técnico.');return null;}
+    if ((ot.custodiaRendida || state.verified) && !correcting(ot) && !needsRendition(ot)) {window.notify('Los materiales ya están rendidos.');return null;}
+    return state;
+  }
+
   async function allInstalled() {
     if (typeof window.tienePermiso !== 'function' || !window.tienePermiso('ot.rendirMateriales')) { window.notify('No tenés permiso para rendir materiales.'); return; }
     var ot = currentOT();
-    if (!ot || !ot.custodiaIniciada || !mayRend(ot) || (ot.custodiaRendida && !correcting(ot) && !needsRendition(ot)) || renditionBusy || deliveryBusy) return;
-    var state=materialState(ot),valid=captureRendition(ot);
+    var available = renditionActionState(ot);
+    if (!available) return;
+    var state=available,valid=captureRendition(ot);
     if(state.review&&!state.recoverable){notifyReview(state);return;}
     if (!await window.svConfirm('¿Confirmás que todo el material entregado quedó instalado?')) return;
     if(!valid()){window.notify('La sesión, los permisos o los materiales cambiaron. Volvé a abrir la OT.');return;}
@@ -611,8 +622,9 @@
   function openExceptions() {
     if (typeof window.tienePermiso !== 'function' || !window.tienePermiso('ot.rendirMateriales')) { window.notify('No tenés permiso para rendir materiales.'); return; }
     var ot = currentOT();
-    if (!ot || !ot.custodiaIniciada || !mayRend(ot) || (ot.custodiaRendida && !correcting(ot) && !needsRendition(ot)) || renditionBusy || deliveryBusy) return;
-    if(materialState(ot).review){notifyReview(materialState(ot));return;}
+    var available = renditionActionState(ot);
+    if (!available) return;
+    if(available.review){notifyReview(available);return;}
     var previous = document.getElementById('ot-custodia-modal');
     if (previous) previous.remove();
     var overlay = document.createElement('div');

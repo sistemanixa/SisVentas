@@ -1,0 +1,11 @@
+# Cuenta corriente: consulta y transición de guardado
+
+El listado y los totales se leen juntos desde el resumen autorizado por cliente. La primera página contiene hasta50 clientes; búsqueda, detalle, extracto y deuda conservan el historial completo. El contacto se revalida únicamente para el cliente abierto, sin descargar todo el directorio. Los cambios de ventas, pagos y cliente invalidan su proyección; una respuesta de una sesión anterior no se reutiliza.
+
+El puente de guardado verifica primero la metadata comercial ya autorizada. Sólo un modo legado positivamente verificado conserva la escritura anterior. Una lectura denegada o incompleta no habilita un camino alternativo. Al activar cuentas, el servidor publica conjuntamente el envelope `accountWriter` y las configuraciones de Accounts y Pages. El cliente compara generaciones y campos de modo; una sesión que ya observó coordinación no regresa al SDK porque falte metadata. La carrera entre una lectura antigua y la escritura se rechaza en las reglas y conserva el formulario, sin repetir la operación automáticamente.
+
+La metadata de modo permanece después de guardar una venta, registrar un cobro, modificar un cliente o adjuntar un resultado fiscal. Las proyecciones actualizan filas, cobertura y totales; no reemplazan la configuración comercial. La preparación de la activación conserva los campos ya habilitados de búsqueda y cobertura salarial. El circuito de instalación se comprueba por separado con un lease finito y recibos condicionales; esta interfaz no aplica reglas ni crea proyecciones al abrir.
+
+Validaciones: modelos puros de modo, permisos y sesión; wrapper SDK real; emulador RTDB con reglas de referencia; navegador completo en escritorio y celular, ambos órdenes de carga, salida y regreso, revocación y respuestas tardías; datos ficticios con1100 y10000 ventas. Se compararon deuda y totales exactos, paginación histórica y preservación de stock/comisiones. La comparación histórica de Dashboard usa los activos de la fuente correspondiente, sin depender de que el servidor de la versión nueva todavía publique esa aplicación vieja.
+
+Estas pruebas no representan una instalación remota, una operación financiera de producción ni una medición de coste real. No contienen documentos, identidades ni registros comerciales reales.

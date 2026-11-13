@@ -99,7 +99,7 @@
       // El bloqueo explícito impide desplazar la página con rueda o gestos.
       if(typeof element.showModal!=='function')throw new Error('Este navegador no puede abrir el visualizador.');
       element.showModal();opened=true;
-      lock=[document.documentElement,document.body].filter(Boolean).map(el=>[el,el.style.getPropertyValue('overflow'),el.style.getPropertyPriority('overflow')]);
+      lock=[...new Set([document.documentElement,document.body,document.querySelector?.('.content')].filter(Boolean))].map(el=>[el,el.style.getPropertyValue('overflow'),el.style.getPropertyPriority('overflow')]);
       lock.forEach(([el])=>el.style.setProperty('overflow','hidden'));
       document.addEventListener('fullscreenchange',fullscreenState);back.focus({preventScroll:true});
     }
@@ -160,10 +160,11 @@
     function render(snapshot,state){
       if(closed)return;
       snapshot=snapshot||{};state=state||{};
+      attributeIfChanged(element,'aria-busy',state.loading?'true':'false');
       const top=content.scrollTop,left=content.scrollLeft,selected=select.value,viewStatus=statusOf(state.status),currency=snapshot.currency;
       number.textContent=snapshot.number?'Presupuesto '+String(snapshot.number):'Presupuesto';
       title.textContent=snapshot.title||'Tu presupuesto';client.textContent=snapshot.client||'';client.hidden=!snapshot.client;
-      status.textContent=viewStatus.label;status.className='sv-bp-status is-'+viewStatus.kind;
+      status.textContent=state.loading?'Cargando presupuesto…':viewStatus.label;status.className='sv-bp-status is-'+viewStatus.kind;
       updated.textContent=updatedText(state.updated);updated.hidden=!updated.textContent;
       saved.hidden=typeof options.onSaved!=='function'||!['En edición','Edición finalizada'].includes(viewStatus.label);
       const alternatives=Array.isArray(state.alternatives)?state.alternatives:[];
@@ -172,6 +173,7 @@
       showWarning(snapshot.warning||(snapshot.valid===false?'Revisá los importes de este presupuesto.':''));
       const items=Array.isArray(snapshot.items)?snapshot.items:[];
       reconcileItems(items,currency);
+      footer.hidden=state.loading===true;if(state.loading&&emptyItem)emptyItem.querySelector('p').textContent='Cargando productos e importes…';
       summary.replaceChildren();metric('Subtotal',amount(snapshot.subtotal,currency));
       metric('Descuento'+(numeric(snapshot.discountPct)!==null?' '+quantity(snapshot.discountPct)+'%':''),numeric(snapshot.discount)===null?'—':(numeric(snapshot.discount)>0?'− ':'')+amount(snapshot.discount,currency));
       if(snapshot.includesIva===true||numeric(snapshot.iva)>0)metric('IVA'+(numeric(snapshot.ivaRate)>0?' '+quantity(snapshot.ivaRate)+'%':''),amount(snapshot.iva,currency));
@@ -182,6 +184,7 @@
     saved.addEventListener('click',()=>invoke(options.onSaved,[],'No se pudo abrir la versión guardada. Volvé a intentarlo.'));
     fullscreen.addEventListener('click',toggleFullscreen);
     select.addEventListener('change',()=>invoke(options.onChooseDraft,[select.value],'No se pudo abrir esa edición. Volvé a intentarlo.'));
+    element.addEventListener('keydown',event=>{if(event.key!=='Tab'||event.target.closest?.('dialog')!==element)return;const focusable=Array.from(element.querySelectorAll('button:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter(el=>el.getClientRects().length&&el.closest('dialog')===element);const first=focusable[0],last=focusable.at(-1);if(!first){event.preventDefault();return;}if(event.shiftKey&&(document.activeElement===first||!element.contains(document.activeElement))){event.preventDefault();last.focus();}else if(!event.shiftKey&&(document.activeElement===last||!element.contains(document.activeElement))){event.preventDefault();first.focus();}});
     element.addEventListener('cancel',event=>{event.preventDefault();close();});element.addEventListener('close',release);
     for(const event of ['click','pointerdown','pointerup'])element.addEventListener(event,e=>e.stopPropagation());
     return {element,render,close};

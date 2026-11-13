@@ -91,7 +91,8 @@
    let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
    const attempt={uid:meta.uid,id:meta.id,digest:meta.digest,status:'sending',resolve,reject,validate};attempts.set(meta.id,attempt);
    try{persist(true);}catch(error){attempts.delete(meta.id);throw error;}
-   Promise.resolve().then(send).then(result=>finish(attempt,result),error=>{if(attempts.get(attempt.id)===attempt){if(uncertain(error)){attempt.status='unknown';emit();}else finish(attempt,null,error);}});
+   // Keep an OT rejection cause only in memory; it is definitive only after an explicit rejected receipt.
+   Promise.resolve().then(send).then(result=>finish(attempt,result),error=>{if(attempts.get(attempt.id)===attempt){if(uncertain(error)){if(error?.statusCode===409&&/^SV_OT_[A-Z0-9_]+$/.test(error?.code||''))attempt.rejectionError=error;attempt.status='unknown';emit();}else finish(attempt,null,error);}});
    return promise;
   }
   async function check(id){
@@ -107,7 +108,7 @@
     const data=await response.json();if(uid()!==current||root.fbAuth.currentUser!==user)throw fail('SV_LABOR_SESSION','La sesión cambió.');
     if(!response.ok||data.ok!==true)throw Error(data.mensaje||'No se pudo comprobar el guardado.');
     if(data.status==='confirmed'){finish(attempt,{ok:true,committed:true,recovered:true});if(!attempt.resolve)root.notify?.('Guardado confirmado.');}
-    else if(data.status==='rejected'){finish(attempt,null,fail('SV_LABOR_REJECTED',data.mensaje||'El intento no se guardó. Podés volver a intentarlo.'));if(!attempt.resolve)root.notify?.('El intento no se guardó. Podés volver a intentarlo.');}
+    else if(data.status==='rejected'){finish(attempt,null,attempt.rejectionError||fail('SV_LABOR_REJECTED',data.mensaje||'El intento no se guardó. Podés volver a intentarlo.'));if(!attempt.resolve)root.notify?.('El intento no se guardó. Podés volver a intentarlo.');}
     else if(data.status!=='pending')throw Error('No se recibió una confirmación definitiva.');
     return {status:data.status};
    }finally{checking=false;emit();}

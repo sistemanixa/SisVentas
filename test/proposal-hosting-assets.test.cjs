@@ -1,0 +1,6 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const {files}=require('../scripts/deploy-secure-hosting.cjs');
+const {publicPath}=require('../scripts/lib/hosting-raw-contract.cjs');
+test('Hosting includes only reviewed illustrative proposal scenes',()=>{const actual=files().filter(n=>n.startsWith('assets/'));const names=['cerradura-camara','cerradura-teclado','portero-pantalla','portero-teclado','videovigilancia','portero-columna'];const expected=[...names.flatMap(n=>['assets/proposal-scenes/'+n+'.jpg','assets/proposal-scenes/'+n+'-thumb.jpg']),'assets/proposal-scenes/cover-fade.png'];assert.deepEqual(actual.sort(),expected.sort());for(const n of expected){assert.equal(publicPath(n),n);assert.ok(fs.statSync(path.resolve(__dirname,'..',n)).size>0);}});
+test('raw contract rejects unrelated assets and private paths',()=>{for(const n of ['assets/private.jpg','assets/proposal-scenes/client.jpg','assets/proposal-scenes/cerradura-camara.svg','assets/proposal-scenes/../secret.jpg','assets/proposal-scenes/cerradura-camara.jpg/token','docs/CONTEXTO_ACTUAL.md','tmp/export.json','.git/config'])assert.throws(()=>publicPath(n));});

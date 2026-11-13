@@ -21,6 +21,8 @@
     return (cfg.bloqueados || []).indexOf(mod) === -1;
   }
   var PERMISOS_ACCION = {
+    'empleados.indumentaria':{modulo:'empleados',label:'Gestionar indumentaria laboral',roles:['admin','administrativo']},
+    'gastos.categorias':{modulo:'gastos',label:'Gestionar categorías de gastos',roles:['admin','administrativo']},
     'proyectos.crear':{modulo:'proyectos',label:'Crear proyectos',roles:['admin','administrativo','vendedor','tecnico_vendedor']},
     'proyectos.editar':{modulo:'proyectos',label:'Editar proyectos como integrante',roles:['admin','administrativo','vendedor','tecnico_vendedor','tecnico']},
     'proyectos.presupuestar':{modulo:'proyectos',label:'Preparar y vincular presupuestos',roles:['admin','administrativo','vendedor','tecnico_vendedor']},

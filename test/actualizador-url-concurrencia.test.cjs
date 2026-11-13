@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const {load}=require('./helpers/app-functions.cjs');
 const old={fbKey:'p',stock:3,proveedores:[{nombre:'ML',url:'old',precio:10},{nombre:'Local',url:'local',precio:20}]};
 const item={producto:old,proveedor:old.proveedores[0],proveedorIdx:0,url:'old'};
-function ctx(p){return load({prodData:{p},proveedoresVinculadosProducto:p=>p.proveedores,datosActualizadosProductoBiosegur:(i,r)=>({compra:r.precio,proveedores:i.producto.proveedores.map((p,n)=>n===i.proveedorIdx?{...p,precio:r.precio}:p)})},['proveedorRevisionCoincide','actualizadorItemVigente','actualizadorRespuestaVigente','productoConResultadosActualizador']);}
+function ctx(p){return load({prodData:{p},proveedoresVinculadosProducto:p=>p.proveedores,datosActualizadosProductoBiosegur:(i,r)=>({compra:r.precio,proveedores:i.producto.proveedores.map((p,n)=>n===i.proveedorIdx?{...p,precio:r.precio}:p)})},['actualizadorVersionProveedorPrecio','actualizadorFirmaGuardado','proveedorRevisionCoincide','actualizadorItemVigente','actualizadorRespuestaVigente','productoConResultadosActualizador']);}
 test('bloque pendiente consulta la URL vigente, no la copia inicial',()=>{
  const p=structuredClone(old);p.proveedores[0].url='new';const c=ctx(p);
  assert.equal(c.actualizadorItemVigente(Object.freeze(item)).url,'new');

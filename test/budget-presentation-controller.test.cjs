@@ -18,15 +18,15 @@ function element(tag){
  return {tagName:tag.toUpperCase(),dataset:{},children:[],attributes:{},parentElement:null,
   appendChild(child){child.parentElement=this;this.children.push(child);return child;},prepend(child){child.parentElement=this;this.children.unshift(child);},
   setAttribute(name,value){this.attributes[name]=String(value);},
-  matches(selector){return selector==='[data-budget-view]'&&this.dataset.budgetView!==undefined;},
+  matches(selector){if(selector==='[data-budget-view]')return this.dataset.budgetView!==undefined;if(selector.startsWith('.'))return String(this.className||'').split(/\s+/).includes(selector.slice(1));if(selector==='td.ppto-actions-cell')return this.tagName==='TD'&&this.className==='ppto-actions-cell';return false;},
   closest(selector){return this.matches(selector)?this:this.parentElement?.closest(selector)||null;},
-  querySelector(selector){if(selector==='.ppto-row-actions')return this.actions||null;for(const child of this.children){if(child.matches(selector))return child;const found=child.querySelector(selector);if(found)return found;}return null;}
+  querySelector(selector){for(const child of this.children){if(child.matches(selector))return child;const found=child.querySelector(selector);if(found)return found;}return null;},querySelectorAll(selector){const found=[];for(const child of this.children){if(child.matches(selector))found.push(child);found.push(...child.querySelectorAll(selector));}return found;}
  };
 }
 function fixture(options={}){
  const events=new Map(),windowEvents=new Map(),local=new Set(),subscriptions=[],reads=[],lookups=[],views=[],messages=[],observers=[],modelCalls=[],forbidden=[];
  const records={p1:record('p1'),p2:record('p2'),...copy(options.records||{})};
- const rows=['p1','p2'].map(key=>{const row=element('tr');row.dataset.pptoRef=key;row.actions=element('div');row.actions.className='ppto-row-actions';row.appendChild(row.actions);return row;});
+ const rows=['p1','p2'].map(key=>{const row=element('tr');row.dataset.pptoRef=key;row.actions=element('div');row.actions.className='ppto-row-actions';const cell=element('td');cell.className='ppto-actions-cell';cell.appendChild(row.actions);row.appendChild(cell);return row;});
  const tbody=element('tbody');rows.forEach(row=>tbody.appendChild(row));
  const on=(target,name,callback,capture)=>{const list=target.get(name)||[];list.push({callback,capture});target.set(name,list);};
  const state={ownerUid:'propio',ready:true,records:[],deletedIds:[],...copy(options.initial||{})};

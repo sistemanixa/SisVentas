@@ -22,6 +22,7 @@ function specific(path){
  parts(path);if(['sisventas','sisventas/config'].includes(path)||forbidden(path))throw fail(400,'Esta operación requiere guardar registros individuales');
 }
 function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
+ const affectedPath=typeof guard?.affects==='function'?path=>guard.affects(path):affected;
  async function authorize(req){
   if(!enabled)throw fail(503,'El nuevo circuito todavía no está habilitado');
   if(req.method!=='POST')throw fail(405,'Método no permitido');
@@ -45,16 +46,16 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
    if(body.path)parts(body.path);patch=flatten(body.path,body.value);
    if(!Object.keys(patch).length||Object.keys(patch).length>10000)throw fail(400,'Cambios de guardado inválidos');
    for(const [path,value]of Object.entries(patch)){specific(path);validate(value);}
-   if(!Object.keys(patch).some(affected)&&!normalization)throw fail(400,'La operación no pertenece a este circuito');
+   if(!Object.keys(patch).some(affectedPath)&&!normalization)throw fail(400,'La operación no pertenece a este circuito');
    if(normalization&&Object.entries(patch).some(([p,v])=>!normalizationTarget(p,v)))throw fail(400,'El plan de normalización excede sus referencias permitidas');
-  }else{specific(body.path);if(!affected(body.path))throw fail(400,'La operación no pertenece a este circuito');validate(body.value);patch={[body.path]:body.value};}
+  }else{specific(body.path);if(!affectedPath(body.path))throw fail(400,'La operación no pertenece a este circuito');validate(body.value);patch={[body.path]:body.value};}
   if(body.kind==='compare'&&!/^[a-f0-9]{64}$/.test(body.expectedHash))throw fail(400,'Falta verificar la versión del registro');
   if(body.kind!=='atomic'&&body.expectedHashes!==undefined)throw fail(400,'Comparación inválida');
   const expected=body.kind==='compare'?{[body.path]:body.expectedHash}:body.kind==='atomic'?body.expectedHashes:{};
   if(body.kind==='atomic'){
    if(!expected||typeof expected!=='object'||Array.isArray(expected)||!Object.keys(expected).length||Object.keys(expected).length>128)throw fail(400,'Comparación de registros inválida');
    for(const [path,hash]of Object.entries(expected)){specific(path);if(!/^[a-f0-9]{64}$/.test(hash)||normalization&&!normalizationSource(path))throw fail(400,'Comparación de registros inválida');}
-   for(const path of Object.keys(patch))if((normalization||affected(path))&&!Object.keys(expected).some(base=>path===base||path.startsWith(base+'/')))throw fail(400,'Falta verificar un registro del guardado');
+   for(const path of Object.keys(patch))if((normalization||affectedPath(path))&&!Object.keys(expected).some(base=>path===base||path.startsWith(base+'/')))throw fail(400,'Falta verificar un registro del guardado');
   }
   const saleReturnPlan=saleReturn?SaleReturn.describe({...body,value:patch}):null;
   if(commissionParticipant)CommissionParticipant.describe(body);

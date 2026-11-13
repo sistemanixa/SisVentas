@@ -1,3 +1,12 @@
+# Integración v3.20.12: candidata conjunta · 13/11/2026
+
+Integra lo publicado en v3.20.10 y v3.20.11 con Cuenta Corriente por cliente, categorías configurables e Indumentaria laboral, y la corrección atómica de reservas antiguas al entregar o instalar materiales de OT. La candidata no se considera publicada por un commit o por haber construido las imágenes: faltan la activación técnica coordinada y la comprobación HTTP final. No se ejecutan operaciones comerciales reales como prueba.
+
+Servidor reproducible: fuente base `6e31b865a0d7ee39ea2b68bf58095d7f4657717f` y parche OT `8c5f2a7a072a9c9921440606fb297754ee731eb0`; 147 archivos finales contrastados, sin reinstalar dependencias. Las imágenes se prepararon sin tráfico, conservando IAM, recursos y secretos. La activación de Accounts requiere proyecciones completas, configuraciones emparejadas y comprobantes firmados; no publicar sólo el interruptor del cliente. Indumentaria y categorías conservan sus validaciones del servidor y permisos configurables; no generan gastos ni modifican salarios por una entrega.
+
+Evidencia de alcance: 88 pruebas OT sobre runtime nativo exacto y pruebas de interfaz; 69 recorridos de navegador de ropa, categorías, Cuenta Corriente, preview y propuestas; regresiones específicas de hidratación de ventas y cambio de responsable. La puerta general conjunta no fue totalmente verde: existen fixtures históricos del runtime transformado y casos de navegador que deben distinguirse de fallos introducidos; las correcciones de fixtures se repiten conservando las aserciones funcionales. Evidencia detallada y estado externo se conservan en el registro privado del coordinador. No trasladar datos de preparación, reglas remotas, credenciales ni respaldos a Git.
+
+
 # Lector personal: candidata aislada, sin publicación · 13/11/2026
 
 Rama `codex/private-finance-reader-v3209`, base publicada `260ccb13`. Contraste local de monedas por columnas impresas, recuperación conservadora de pagos omitidos y separación de novedades informativas que no son cargos del resumen. Corrección manual de importe/moneda exclusivamente en lecturas pendientes, sin persistir por aplicar o cancelar. No modifica históricos, pagos ni reglas; no agrega llamadas de IA ni consultas periódicas. Ver `docs/gastos-personales/LECTOR_COLUMNAS_REVISION_LOCAL.md`.

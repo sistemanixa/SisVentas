@@ -4,7 +4,7 @@ const PATH='/operaciones/ot/eliminar';
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 function createOTDeleteHttpAdapter({authorize,guard,store,enabled=false}){
  if(typeof authorize!=='function'||!guard?.run||!store?.read)throw TypeError('Falta autoridad de OT.');
- const capability=()=>enabled===true&&guard.clientHistory===true&&store.otDeleteFenceReady===true;
+ const capability=()=>enabled===true&&guard.affects?.('sisventas/ordenes_trabajo/availability_check')===true&&((guard.clientHistory===true&&store.otDeleteFenceReady===true)||store.otDeleteOperationalReadiness?.configured===true);
  async function handle(req,body){
   const url=new URL(req.url,'http://fixture.invalid');
   if(url.pathname!==PATH)throw fail(404,'Ruta inexistente.','SV_OT_DELETE_ROUTE');
@@ -16,6 +16,7 @@ function createOTDeleteHttpAdapter({authorize,guard,store,enabled=false}){
   if(result?.ok!==true||result.otKey!==body.otKey)throw fail(503,'Consultá la operación antes de repetirla.','SV_OT_DELETE_UNCONFIRMED');
   return {ok:true,committed:true,otKey:body.otKey};
  }
- return {handle,capability,path:PATH};
+ async function preflight(req){if(req.method!=='POST')throw fail(405,'Método no permitido.','SV_OT_DELETE_METHOD');const actor=await authorize(req),verifyActor=async expected=>{const fresh=await authorize(req);if(fresh?.uid!==expected.uid||fresh.claims?.uid!==expected.uid||fresh.viewing)throw fail(403,'La sesión cambió.','SV_OT_DELETE_AUTH');};return{ok:true,version:1,enabled:await createOTDeleteCommand({guard,store,verifyActor,enabled}).available(actor)};}
+ return {handle,preflight,capability,path:PATH};
 }
 module.exports={createOTDeleteHttpAdapter,PATH};

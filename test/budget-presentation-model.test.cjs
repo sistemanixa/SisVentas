@@ -17,7 +17,7 @@ function freeze(value){if(value&&typeof value==='object'){Object.values(value).f
 test('CommonJS y navegador usan BudgetReadModel sin DOM, red ni infraestructura',()=>{
  assert.deepEqual(Object.keys(Model).sort(),['fromDraft','fromRecord']);
  const context={SisVentas:{V3:{BudgetReadModel:Budget}},URL};vm.createContext(context);vm.runInContext(fs.readFileSync('js/core/budget-presentation-model.js','utf8'),context);
- const browser=context.SVBudgetPresentationModel.fromRecord(record());assert.deepEqual(JSON.parse(JSON.stringify(browser)),Model.fromRecord(record()));
+ const browser=context.SVBudgetLivePresentationModel.fromRecord(record());assert.deepEqual(JSON.parse(JSON.stringify(browser)),Model.fromRecord(record()));
  assert.throws(()=>vm.runInNewContext(fs.readFileSync('js/core/budget-presentation-model.js','utf8'),{URL}),/cálculo de presupuestos/);
 });
 
