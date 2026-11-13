@@ -44851,13 +44851,32 @@ function _buscarCtaempMovimientoPorLegacyKey(legacyKey) {
   return Promise.resolve({ empFbKey:m[1], movFbKey:m[2], ref:window.fbRef(window.fbDB, 'sisventas/ctaemp/' + m[1] + '/' + m[2]) });
 }
 
-async function aprobarComisionDesdeGasto(gastoFbKey) {
-  if(!window.tienePermiso('comisiones.aprobar')){notify('Solo el administrador puede aprobar comisiones');return;}
-  var g=(gastosData||[]).find(function(x){return x.fbKey===gastoFbKey;});if(!g||String(g.tipoPagable||'').toLowerCase()!=='comision'){notify('No es una comisión');return;}
-  if(!await svConfirm('¿Aprobar esta comisión?'))return;
-  var cambios={estado:'pendiente_pago',requiereAprobacion:false,aprobadoPor:currentUser||'',fechaAprobacion:svFechaLocalISO(),aprobadoTs:Date.now()};
-  try{await _cambiarEstadoGastoVinculadoAtomico(gastoFbKey,cambios,Object.assign({},cambios,{estado:'aprobado'}),true);notify('✓ Comisión aprobada — pendiente de pago');if(typeof fbCargarGastos==='function')fbCargarGastos();if(typeof cargarCtaEmp==='function')cargarCtaEmp();}
-  catch(error){notify('Error aprobando comisión: '+error.message);}
+async function aprobarComisionDesdeGasto(gastoFbKey, opciones) {
+  opciones=opciones&&typeof opciones==='object'?opciones:{};
+  function avance(etapa){if(typeof opciones.onProgress==='function')try{opciones.onProgress(etapa);}catch(_){}}
+  function rechazar(mensaje){if(opciones.quietNotify!==true)notify(mensaje);if(opciones.throwOnError===true)throw new Error(mensaje);return {committed:false};}
+  if(!window.tienePermiso('comisiones.aprobar'))return rechazar('Solo el administrador puede aprobar comisiones');
+  var g=(gastosData||[]).find(function(x){return x.fbKey===gastoFbKey;});if(!g||String(g.tipoPagable||'').toLowerCase()!=='comision')return rechazar('No es una comisión');
+  var uidAprobacion=currentUserUid,authAprobacion=window.fbAuth?.currentUser,rolAprobacion=currentRole,autorAprobacion=currentUser||'';
+  var epochAprobacion=window._svOperacionesSesionEpoch||0,dataEpochAprobacion=window._svDataEpoch||0,vistaAprobacion=window._impersonacionOriginal;
+  var permisosAprobacion=JSON.stringify(window.PERMISOS_ROLES?.[rolAprobacion]||null);
+  function validarAprobacion(){
+    if(!uidAprobacion||authAprobacion?.uid!==uidAprobacion||uidAprobacion!==currentUserUid||authAprobacion!==window.fbAuth?.currentUser||rolAprobacion!==currentRole||epochAprobacion!==(window._svOperacionesSesionEpoch||0)||dataEpochAprobacion!==(window._svDataEpoch||0)||vistaAprobacion||window._impersonacionOriginal)throw Object.assign(new Error('La sesión cambió. Volvé a abrir la comisión antes de aprobar.'),{code:'SV_LABOR_SESSION',svLaborAttempted:false});
+    if(permisosAprobacion!==JSON.stringify(window.PERMISOS_ROLES?.[rolAprobacion]||null)||!window.tienePermiso('comisiones.aprobar'))throw Object.assign(new Error('Los permisos cambiaron. Volvé a abrir la comisión antes de aprobar.'),{code:'SV_LABOR_AUTH_CHANGED',svLaborAttempted:false});
+  }
+  try{
+    avance('confirming');
+    if(!await svConfirm('¿Aprobar esta comisión?'))return {committed:false,cancelled:true};
+    validarAprobacion();
+    var cambios={estado:'pendiente_pago',requiereAprobacion:false,aprobadoPor:autorAprobacion,fechaAprobacion:svFechaLocalISO(),aprobadoTs:Date.now()};
+    avance('saving');
+    validarAprobacion();
+    var resultado=await _cambiarEstadoGastoVinculadoAtomico(gastoFbKey,cambios,Object.assign({},cambios,{estado:'aprobado'}),true);
+    if(resultado?.committed!==true)return resultado||{committed:false};
+    if(opciones.quietNotify!==true)notify('✓ Comisión aprobada — pendiente de pago');
+    if(opciones.quietRefresh!==true){if(typeof fbCargarGastos==='function')fbCargarGastos();if(typeof cargarCtaEmp==='function')cargarCtaEmp();}
+    return resultado;
+  }catch(error){if(opciones.quietNotify!==true)notify('Error aprobando comisión: '+error.message);if(opciones.throwOnError===true)throw error;return {committed:false};}
 }
 
 async function rechazarComisionDesdeGasto(gastoFbKey) {

@@ -40,3 +40,11 @@ La puerta vigente completa terminó con 10.442 PASS, 0 FAIL, 0 cancelados y 52 S
 ## Recuperación visible de intentos pendientes
 
 Un ajuste posterior conserva y vuelve a presentar el mismo intento al restaurar la sesión, incluso si su capa fue retirada o su diálogo nativo se cerró. No consulta ni reenvía automáticamente. Regresión específica: 20 casos unitarios y 3 nativos de recuperación, más 23 nativos relacionados; sin fallos. El gate completo indicado arriba precede este ajuste. No se aprobó ninguna comisión real como prueba.
+
+## Aprobación sin perder el detalle
+
+El botón informa «Aprobando…» desde el inicio y bloquea dobles envíos. El detalle permanece abierto tanto ante errores como tras una aprobación confirmada. Para actualizar el resultado consulta únicamente el gasto y el movimiento afectados, sin recargar los historiales completos. Una respuesta tardía no puede reabrir un contexto retirado.
+
+La sesión, el rol y los permisos se capturan antes de la confirmación y se vuelven a comprobar antes del comando. Cancelar conserva la comisión; una respuesta sin confirmación de guardado no se presenta como aprobada. Los porcentajes sin guardar requieren guardar la distribución antes de aprobar.
+
+Regresión específica final: 82 casos del comando y compatibilidad, y 31 de interfaz con datos ficticios, sin fallos ni omisiones. Estas pruebas no registran aprobaciones o pagos reales. Las mediciones con demoras simuladas comprueban actividad visible y ausencia de recargas globales; no acreditan una reducción de latencia del servidor de producción.

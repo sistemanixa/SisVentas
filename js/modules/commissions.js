@@ -6,7 +6,7 @@
   var ventaDetalleActual=null, lecturaDetalleComision=0, contextoCargaComision=null;
   var guardandoDetalle = false;
   var altaPendienteDetalle=null,fuenteDetalleActual=null,detalleRequiereActualizar=false;
-  var altasComisionPendientes=new Map(),altasConfirmadasDetalle=new Set(),controlesDetalleBloqueados=[];
+  var altasComisionPendientes=new Map(),altasConfirmadasDetalle=new Set(),aprobacionesConfirmadasDetalle=new Map(),controlesDetalleBloqueados=[];
   var formatoMoneda = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   function moneda(valor) {
@@ -290,12 +290,12 @@
     if(ocupado){controlesDetalleBloqueados=Array.from(modal.querySelectorAll?.('input,select,button')||[]).filter(function(n){return !/cerrarDetalleComision/.test(n.getAttribute?.('onclick')||'');}).map(function(n){var previous=n.disabled;n.disabled=true;return {node:n,disabled:previous};});}
     else{controlesDetalleBloqueados.forEach(function(item){if(item.node.isConnected!==false)item.node.disabled=item.disabled;});controlesDetalleBloqueados=[];}
   }
-  function bloquearDetalleHastaActualizar(){detalleRequiereActualizar=true;var save=document.getElementById('com-det-guardar'),add=document.querySelector('#com-det-agregar button');if(save)save.disabled=true;if(add)add.disabled=true;}
+  function bloquearDetalleHastaActualizar(){detalleRequiereActualizar=true;var save=document.getElementById('com-det-guardar'),add=document.querySelector('#com-det-agregar button');if(save)save.disabled=true;if(add)add.disabled=true;Array.from(document.querySelectorAll('#com-det-participantes button[onclick*="aprobarComisionGestion"]')).forEach(function(button){button.disabled=true;});}
 
   function estadoDetalleComision(texto,actualizar){
     var node=document.getElementById('com-det-estado');
     if(!node&&document.createElement){node=document.createElement('div');node.id='com-det-estado';node.style.cssText='display:flex;align-items:center;gap:8px;min-height:24px;margin:0 0 10px;font-size:13px;color:var(--text2)';var info=document.getElementById('com-det-info');if(info&&info.parentNode)info.parentNode.insertBefore(node,info);}
-    if(!node)return;node.textContent=texto||'';node.setAttribute?.('role','status');node.setAttribute?.('aria-live','polite');node.setAttribute?.('aria-busy',/Guardando|Actualizando|Cargando/.test(texto||'')?'true':'false');
+    if(!node)return;node.textContent=texto||'';node.setAttribute?.('role','status');node.setAttribute?.('aria-live','polite');node.setAttribute?.('aria-busy',/Guardando|Actualizando|Cargando|Aprobando|Confirmá la aprobación/.test(texto||'')?'true':'false');
     if(actualizar&&document.createElement){var button=document.createElement('button');button.type='button';button.className='btn btn-sm';button.textContent='Actualizar detalle';button.addEventListener('click',actualizarDetalleComision);node.appendChild(button);}
   }
   function camposDetalleComision(){return Array.from(document.querySelectorAll('#com-det-participantes .comision-pct-input')).map(function(input){return {key:input.dataset.gasto,value:input.value};});}
@@ -333,6 +333,7 @@
     if(contextoCargaComision&&!contextoDetalleComisionVigente(contextoCargaComision)){cerrarDetalleComision();return;}
     if(altaPendienteDetalle){estadoDetalleComision(altaPendienteDetalle.incierta?'No se pudo confirmar el guardado. Consultá la operación antes de volver a agregar.':'Participante guardado. Actualizando el detalle…',!altaPendienteDetalle.incierta);return;}
     var actual=grupos().find(function(g){return g.clave===detalleActual.clave;});
+    if(actual&&fuenteDetalleActual&&aprobacionesConfirmadasDetalle.size&&actual.items.length===fuenteDetalleActual.length){var approvedSource=fuenteDetalleActual.map(function(before){var current=actual.items.find(function(g){return g.fbKey===before.fbKey;}),approved=aprobacionesConfirmadasDetalle.get(before.fbKey);if(!current||!approved||window.SVGuardedWrites.equal(current,before))return before;var matches=Object.keys(current).every(function(key){return key==='fbKey'||key.indexOf('_sv')===0||window.SVGuardedWrites.equal(current[key],approved[key]);});if(matches){aprobacionesConfirmadasDetalle.delete(before.fbKey);return current;}return before;});fuenteDetalleActual=approvedSource;}
     if(actual&&fuenteDetalleActual&&!window.SVGuardedWrites.equal(actual.items,fuenteDetalleActual)){var old=new Map(fuenteDetalleActual.map(function(g){return[g.fbKey,g];})),added=actual.items.filter(function(g){return !old.has(g.fbKey);});if(added.length&&added.every(function(g){return altasConfirmadasDetalle.has(g.fbKey);})&&fuenteDetalleActual.every(function(g){var current=actual.items.find(function(x){return x.fbKey===g.fbKey;});return current&&window.SVGuardedWrites.equal(current,g);})){fuenteDetalleActual=actual.items.slice();added.forEach(function(g){altasConfirmadasDetalle.delete(g.fbKey);});}}
     if(!fuenteComisionesLista()||!actual||!window.SVGuardedWrites.equal(actual.items,fuenteDetalleActual||detalleActual.items)){
       estadoDetalleComision('Esta comisión cambió. Actualizá el detalle antes de volver a guardar.',true);bloquearDetalleHastaActualizar();
@@ -411,7 +412,7 @@
   async function abrirDetalleComision(clave,options) {
     var group=grupos().find(function(g){return g.clave===String(clave);})||null;
     if(!group){window.notify('No se encontró la comisión');return;}
-    var preserve=!!options?.preservar&&detalleActual?.clave===group.clave;detalleRequiereActualizar=true;altasConfirmadasDetalle=new Set();
+    var preserve=!!options?.preservar&&detalleActual?.clave===group.clave;detalleRequiereActualizar=true;altasConfirmadasDetalle=new Set();aprobacionesConfirmadasDetalle=new Map();
     detalleActual=group;fuenteDetalleActual=group.items.slice();altaPendienteDetalle=null;
     if(!preserve){movimientosDetalle={};ventaDetalleActual=null;}
     var intent=++lecturaDetalleComision,actor=contextoDetalleComision(),grupoCargando=detalleActual,modal=document.getElementById('modal-comision-gestion'),info=document.getElementById('com-det-info'),guardar=document.getElementById('com-det-guardar');
@@ -502,7 +503,7 @@
   }
 
   function cerrarDetalleComision() {
-    altaPendienteDetalle=null;fuenteDetalleActual=null;ventaDetalleActual=null;contextoCargaComision=null;lecturaDetalleComision++;estadoDetalleComision('');
+    altaPendienteDetalle=null;fuenteDetalleActual=null;ventaDetalleActual=null;contextoCargaComision=null;aprobacionesConfirmadasDetalle=new Map();lecturaDetalleComision++;estadoDetalleComision('');
     var focus=detallePersonalFoco;detallePersonalFoco=null;detallePersonalClave='';
     if(focus&&typeof document.removeEventListener==='function')document.removeEventListener('keydown',focus.keyboard,true);
     var modal=document.getElementById('modal-comision-gestion');if(modal)modal.style.display='none';detalleActual=null;movimientosDetalle={};
@@ -611,7 +612,30 @@
     return abrirDetalleComision(claveGrupo(gasto));
   }
 
-  async function aprobarComisionGestion(gastoKey){await window.aprobarComisionDesdeGasto(gastoKey);setTimeout(function(){if(window.fbCargarGastos)window.fbCargarGastos();renderModuloComisiones();},250);cerrarDetalleComision();}
+  async function aprobarComisionGestion(gastoKey){
+    if(guardandoDetalle)return;
+    if(!detalleActual){await window.aprobarComisionDesdeGasto(gastoKey);setTimeout(function(){if(window.fbCargarGastos)window.fbCargarGastos();renderModuloComisiones();},250);cerrarDetalleComision();return;}
+    if(guardandoDetalle||altaPendienteDetalle||!window.tienePermiso('comisiones.aprobar'))return;
+    comprobarDetalleAbierto();if(detalleRequiereActualizar)return;
+    var actor=contextoCargaComision,grupo=detalleActual;if(!contextoDetalleComisionVigente(actor)){cerrarDetalleComision();return;}
+    var gasto=grupo.items.find(function(g){return g.fbKey===gastoKey;});if(!gasto||estado(gasto)!=='pendiente_aprobacion')return;
+    var campos=camposDetalleComision(),draft=campos.find(function(field){return field.key===gastoKey;});
+    if(draft&&Number(draft.value)!==porcentaje(gasto,movimientosDetalle[gastoKey])){estadoDetalleComision('Guardá la distribución antes de aprobar.');return;}
+    var botonAprobar=Array.from(document.querySelectorAll('#com-det-participantes .comision-participante')).find(function(row){return row.dataset.gasto===gastoKey;})?.querySelector('button[onclick*="aprobarComisionGestion"]'),textoAprobar=botonAprobar&&botonAprobar.innerHTML;
+    var confirmado=false;guardandoDetalle=true;bloquearControlesDetalle(true);estadoDetalleComision('Aprobando comisión…');if(botonAprobar){botonAprobar.innerHTML='<span class="spin" aria-hidden="true" style="display:inline-block">◌</span> Aprobando…';botonAprobar.setAttribute('aria-busy','true');}
+    function vigente(){return detalleActual===grupo&&contextoDetalleComisionVigente(actor,true);}
+    try{
+      var result=await window.aprobarComisionDesdeGasto(gastoKey,{quietRefresh:true,quietNotify:true,throwOnError:true,onProgress:function(stage){if(vigente())estadoDetalleComision(stage==='confirming'?'Confirmá la aprobación…':'Aprobando comisión…');}});
+      if(result?.cancelled===true){if(vigente())estadoDetalleComision('Aprobación cancelada.');return;}
+      if(result?.committed!==true)throw Object.assign(Error('La aprobación todavía no está confirmada.'),{code:'SV_LABOR_UNCONFIRMED'});
+      confirmado=true;if(!vigente())return;estadoDetalleComision('Comisión aprobada. Actualizando el detalle…');
+      var entry=await cargarParticipacionDetalle(gasto);if(!vigente())return;
+      if(!['aprobado','pendiente_pago','pagado','pagado_parcial'].includes(estado(entry.gasto)))throw Error('El estado aprobado requiere revisión.');
+      grupo.items=grupo.items.map(function(g){return g.fbKey===gastoKey?entry.gasto:g;});movimientosDetalle[gastoKey]=entry.movimiento;aprobacionesConfirmadasDetalle.set(gastoKey,entry.gasto);
+      pintarDetalle();restaurarCamposDetalleComision(campos.filter(function(field){return field.key!==gastoKey;}));estadoDetalleComision('Comisión aprobada.');
+    }catch(error){if(!vigente())return;estadoDetalleComision(confirmado?'La comisión se aprobó, pero falta actualizar el detalle.':conflictoDetalleComision(error)?'La comisión cambió. Actualizá el detalle antes de volver a aprobar.':'No se pudo aprobar la comisión: '+error.message,true);if(confirmado||conflictoDetalleComision(error)||confirmacionInciertaComision(error))bloquearDetalleHastaActualizar();}
+    finally{guardandoDetalle=false;if(botonAprobar&&botonAprobar.isConnected){botonAprobar.innerHTML=textoAprobar;botonAprobar.removeAttribute('aria-busy');}if(vigente()){bloquearControlesDetalle(false);if(detalleRequiereActualizar)bloquearDetalleHastaActualizar();comprobarDetalleAbierto();}else{controlesDetalleBloqueados=[];var modal=document.getElementById('modal-comision-gestion');if(modal)modal.setAttribute('aria-busy','false');}}
+  }
   async function rechazarComisionGestion(gastoKey){await window.rechazarComisionDesdeGasto(gastoKey);setTimeout(function(){if(window.fbCargarGastos)window.fbCargarGastos();renderModuloComisiones();},250);cerrarDetalleComision();}
 
   window.actualizarBadgeComisiones=actualizarBadgeComisiones;
