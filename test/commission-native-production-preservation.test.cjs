@@ -1,0 +1,19 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const root=path.resolve(__dirname,'../cotizador');
+const native={};
+native['labor-runtime.js']='16a7f7d31c9d51f2b93fa65c3590db79db4fec1b7647dbc9f4e86633559e625d';
+native['ot-delete-operational-runtime.js']='103f938f1bb94c998277d418ec0d744fa2f7097373cd97a4b76a85ff0893b23b';
+native['office-stock.js']='ec94803f75ea15249acbe75ff9144fb90526c1e70e028a15023a74ff36cc1429';
+native['office-stock-policy.js']='c6c125eae757f7aed9da74f80911bcaa253c671bd473637d9854c993791050e0';
+native['office-stock-model.js']='13e9d1af210c2dc9eedc21e56a67dc2651dd29cc5dbeb35b1ec23ab35526e137';
+native['office-stock-money.js']='0b4e003af1bf678c0be4f4e4770fdeb1b2c25cd62df0d68e0b0fce3f606c4fa5';
+native['ot-delete-authority.js']='7de42dae8a3b4bbea99616e68e607b2ec9a9078ca445f95deb66f8cc65df10a2';
+native['ot-delete-operational-contract.js']='2a9242d7c3cfc3340f6b64a58428ce7598f67d4583cfc8795e286854b1c3c33e';
+native['ot-delete-linked-plan.js']='cfe28131388669273f2a42fd12080cf06dc670fb02f38fbb537b916a0527ef16';
+test('published native Stock and OT-delete prerequisites retain exact image sources',()=>{for(const [file,expected] of Object.entries(native)){const actual=crypto.createHash('sha256').update(fs.readFileSync(path.join(root,file),'utf8').replace(/\r\n/g,'\n')).digest('hex');assert.equal(actual,expected,file);}});
+test('native Stock and OT-delete prerequisites are copied in standalone image',()=>{const docker=fs.readFileSync(path.join(root,'Dockerfile'),'utf8');for(const file of Object.keys(native))assert.ok(docker.split(/\r?\n/).some(line=>line.startsWith('COPY ')&&line.split(/\s+/).includes(file)),file);});
+test('commission integration preserves native Stock and OT-delete guarded commit hooks',()=>{const store=fs.readFileSync(path.join(root,'labor-rtdb-store.js'),'utf8'),entry=fs.readFileSync(path.join(root,'index.js'),'utf8');for(const marker of ["require('./office-stock-policy').validate(actor,lease,patch)","require('./office-stock-policy').token(actor,lease)","require('./ot-delete-operational-contract').reservedClaims(actor?.claims)",'api.otDeleteOperationalReadiness.commitClaims'])assert.ok(store.includes(marker),marker);for(const marker of ["require('./ot-delete-authority').createOTDeleteAuthority","require('./office-stock').create"] )assert.ok(entry.includes(marker),marker);});
+test('entire standalone local require closure resolves without replacing native hooks',()=>{const pending=['index.js'],seen=new Set();while(pending.length){const file=pending.pop();if(seen.has(file))continue;seen.add(file);const source=fs.readFileSync(path.join(root,file),'utf8');for(const match of source.matchAll(/require\(['"](\.[^'"]+)['"]\)/g)){const absolute=require.resolve(path.resolve(root,path.dirname(file),match[1]));assert.ok(absolute.startsWith(root+path.sep),match[1]);pending.push(path.relative(root,absolute));}}assert.ok(seen.size>140);});
+
+test('standalone runtime installs native OT-delete readiness and preserves production flag contract',()=>{const {createLaborRuntime}=require('../cotizador/labor-runtime');const runtime=createLaborRuntime({db:{ref(){throw Error('No test database reads expected');}},databaseURL:'https://fixture.invalid',accessToken:async()=>{throw Error('No credentials permitted');},enabled:true,readOnly:false,operationalSummaries:true,commercialPages:true,deleteEnvironment:{}});assert.equal(typeof runtime.store.otDeleteOperationalReadiness.commitClaims,'function');assert.equal(runtime.store.otDeleteOperationalReadiness.configured,false);});

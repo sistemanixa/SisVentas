@@ -48,3 +48,9 @@ El botón informa «Aprobando…» desde el inicio y bloquea dobles envíos. El 
 La sesión, el rol y los permisos se capturan antes de la confirmación y se vuelven a comprobar antes del comando. Cancelar conserva la comisión; una respuesta sin confirmación de guardado no se presenta como aprobada. Los porcentajes sin guardar requieren guardar la distribución antes de aprobar.
 
 Regresión específica final: 82 casos del comando y compatibilidad, y 31 de interfaz con datos ficticios, sin fallos ni omisiones. Estas pruebas no registran aprobaciones o pagos reales. Las mediciones con demoras simuladas comprueban actividad visible y ausencia de recargas globales; no acreditan una reducción de latencia del servidor de producción.
+
+## Preparación de publicación
+
+La puerta completa posterior a recuperación y aprobación terminó con 10.534 casos: 10.482 aprobados, cero fallos y 52 omitidos. La preparación detectó que cuatro fuentes del servidor del checkout diferían de la imagen vigente; no se envió una compilación con esa base. La integración del servidor debe conservar íntegramente los recorridos publicados de Stock y OT y añadir únicamente las inserciones de Comisiones verificadas. El paquete remoto copia nueve archivos sobre el digest vigente, con comprobaciones de integridad previas.
+
+El cambio de reglas también requiere renovar las verificaciones firmadas de entrega y eliminación de OT ligadas a sus hashes, manteniendo su configuración funcional. Compilar, preparar una revisión sin tráfico, activarla y publicar Hosting son estados separados; ni un commit ni esta documentación acreditan por sí mismos un despliegue.

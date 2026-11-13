@@ -68,6 +68,7 @@ COPY sale-delete-http-adapter.js sale-delete-command.js sale-delete-relations.js
 COPY purchase-order-delete.js purchase-order-delete-model.js ./
 
 COPY ot-delete-command.js ot-delete-policy.js ot-delete-http-adapter.js ./
+COPY office-stock.js office-stock-policy.js office-stock-model.js office-stock-money.js ot-delete-authority.js ot-delete-operational-contract.js ot-delete-linked-plan.js ot-delete-operational-runtime.js ./
 
 COPY client-history-access.js client-history-query.js client-history-http-adapter.js client-history-complete-page.js client-history-client.js ./
 
