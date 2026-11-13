@@ -32,10 +32,11 @@ function validateFinancialContext(actor,profile,permissions){
  if(Object.values(cfg.bloqueados||{}).includes(module)||permissions&&(cfg.indiceVersion!==2||cfg.indiceModulos?.[module]!==true)||(typeof override==='boolean'?!override:!defaults.includes(profile.rol)))throw failure(403,'El permiso de la operación ya no está habilitado');
  if((cfg.indiceRevision??null)!==(actor.permissionRevision??null)||digest(cfg)!==actor.permissionDigest)throw failure(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
 }
-function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=30000,readOnly=false,operationalSummaries=false,commercialPages=false,dashboardBudgets=false,dashboardActivity=false,clientAccounts=false,clientHistory=false,saleFinancialDependencies=false,delay=ms=>new Promise(resolve=>setTimeout(resolve,ms))}){
+function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=30000,readOnly=false,operationalSummaries=false,commercialPages=false,dashboardBudgets=false,dashboardActivity=false,clientAccounts=false,clientHistory=false,saleFinancialDependencies=false,otDeleteOperational=false,delay=ms=>new Promise(resolve=>setTimeout(resolve,ms))}){
  if(!store||!Number.isFinite(leaseMs)||leaseMs<1000||leaseMs>60000)throw Error('Configuración de coordinación inválida');
  if(dashboardBudgets&&(dashboardBudgets.enabled!==true||typeof dashboardBudgets.augment!=='function'||typeof dashboardBudgets.affects!=='function'))throw Error('El proyector de Presupuestos debe habilitarse explícitamente.');
  if(dashboardActivity&&(!commercialPages||typeof dashboardActivity.augment!=='function'))throw Error('La actividad requiere Pages coordinado y un proyector explícito.');
+ if(typeof otDeleteOperational!=='boolean')throw Error('La coordinación OT debe habilitarse explícitamente.');
  const context=new AsyncLocalStorage();let tail=Promise.resolve();
  function operation(actor){
   if(!actor||typeof actor.uid!=='string'||!actor.uid||!['command','user','server','bootstrap'].includes(actor.mode))throw failure(403,'Operación no autorizada');
@@ -203,6 +204,6 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
   const previous=tail;let release;tail=new Promise(resolve=>{release=resolve;});await previous;
   try{return await execute(actor,work,op);}finally{release();}
  }
- return {run,clientAccounts,clientHistory,saleFinancialDependencies,affects:path=>affected(path)||dashboardActivity&&/^sisventas\/(ventas|pagos|ordenes_trabajo)(\/|$)/.test(path)||dashboardBudgets&&dashboardBudgets.affects(path)||clientHistory&&/^sisventas\/(ventas|pagos|presupuestos|ordenes_trabajo|reclamos|tickets|equipos)(\/|$)/.test(path)||clientAccounts&&/^sisventas\/(clientes|clientes_unificados|clientes_unificados_indice|presupuestos)(\/|$)/.test(path),current:()=>{const active=context.getStore();active?.assertActive();return active;}};
+ return {run,clientAccounts,clientHistory,saleFinancialDependencies,affects:path=>affected(path)||otDeleteOperational&&/^sisventas\/(ordenes_trabajo|reclamos|ventas|pagos|equipos|tickets|remitos)(\/|$)/.test(path)||dashboardActivity&&/^sisventas\/(ventas|pagos|ordenes_trabajo)(\/|$)/.test(path)||dashboardBudgets&&dashboardBudgets.affects(path)||clientHistory&&/^sisventas\/(ventas|pagos|presupuestos|ordenes_trabajo|reclamos|tickets|equipos)(\/|$)/.test(path)||clientAccounts&&/^sisventas\/(clientes|clientes_unificados|clientes_unificados_indice|presupuestos)(\/|$)/.test(path),current:()=>{const active=context.getStore();active?.assertActive();return active;}};
 }
 module.exports={createLaborGuard,canonical,digest,affected,parts,child,put,domains,config};
