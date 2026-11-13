@@ -100,7 +100,7 @@ const commissionGeneration={...commissionGenerationBase,
  systemGenerate:id=>laborRuntime.run(null,'system-commission',{id},()=>commissionGenerationBase.systemGenerate(id),{system:true}),
  retryPending:id=>laborRuntime.run(null,'retry-commission',{id:id??null},()=>commissionGenerationBase.retryPending(id),{system:true})};
 let commissionEventOidc;
-const commissionEvent=require('./commission-event').createCommissionEvent({db,commissions:commissionGeneration,enabled:process.env.COMMISSION_EVENT_ENABLED==='true',audience:process.env.COMMISSION_EVENT_AUDIENCE,caller:process.env.COMMISSION_EVENT_CALLER,instance:process.env.COMMISSION_EVENT_INSTANCE,probeRef:process.env.COMMISSION_EVENT_PROBE_REF||'',verifyToken:async(token,audience)=>{
+const commissionEvent=require('./commission-event').createCommissionEvent({db,commissions:commissionGeneration,enabled:process.env.COMMISSION_EVENT_ENABLED==='true',audience:process.env.COMMISSION_EVENT_AUDIENCE,caller:process.env.COMMISSION_EVENT_CALLER,instance:process.env.COMMISSION_EVENT_INSTANCE,probeRef:process.env.COMMISSION_EVENT_PROBE_REF||'',readEventBody:req=>readBody(req,16*1024*1024),verifyToken:async(token,audience)=>{
   commissionEventOidc ||= new (require('google-auth-library').OAuth2Client)();
   return (await commissionEventOidc.verifyIdToken({idToken:token,audience})).getPayload();
 },coordinate:(event,work)=>laborRuntime.run(null,'commission-event',event,work,{system:true}),logger:status=>console.log(JSON.stringify(status))});
@@ -2068,8 +2068,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if(pathname==='/internal/commission-event'||pathname==='/internal/commission-event-probe'){
-    // Drain the delivery without parsing or trusting any financial payload.
-    req.resume();res.setHeader('Cache-Control','no-store');
+    // Native change metadata is read only after authenticating its delivery.
+    if(pathname.endsWith('-probe'))req.resume();res.setHeader('Cache-Control','no-store');
     try{const result=await (pathname.endsWith('-probe')?commissionEvent.probe(req):commissionEvent.handle(req));send(res,200,{ok:true,...result});}
     catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo completar el evento'});}
     return;
@@ -2097,7 +2097,7 @@ const server = http.createServer(async (req, res) => {
       if(!match){send(res,404,{ok:false,mensaje:'Operación no disponible'});return;}
       const view=new URL(req.url,'http://localhost').searchParams.get('verComo');
       const actor=await commercialOwnership.authorize(req,match[1],view);let result;
-      if(req.method==='GET'&&match[2]==='registro'&&match[3]){const id=decodeURIComponent(match[3]);const records=await commercialOwnership.visibleRecordsByIds(actor,match[1],[id]);if(!records[id])throw Object.assign(Error('Registro no disponible'),{statusCode:404});result={record:{...records[id],fbKey:id}};}
+      if(req.method==='GET'&&match[2]==='registro'&&match[3]){const id=decodeURIComponent(match[3]);const records=await commercialOwnership.visibleRecordsByIds(actor,match[1],[id]);if(!records[id])throw Object.assign(Error('Registro no disponible'),{statusCode:404});const commissionDetail=new URL(req.url,'http://localhost').searchParams.get('para')==='comision';if(commissionDetail&&(match[1]!=='ventas'||actor.role!=='admin'||actor.viewing))throw Object.assign(Error('Sin acceso al detalle de comisión'),{statusCode:403});result={record:{...(commissionDetail?require('./commission-detail-projection').project(records[id]):records[id]),fbKey:id},...(commissionDetail?{projection:'commission-economic-v1'}:{})};}
       else if(req.method==='GET'&&!match[2])result=await commercialOwnership.list(actor);
       else if(req.method==='GET'&&match[2]==='opciones')result=await commercialOwnership.options(actor);
       else if(req.method==='POST'&&['reasignar','preparar'].includes(match[2])){const body=await readBody(req,16384),method=match[2]==='reasignar'?'assign':'prepare';result=await laborRuntime.commercialMutation(actor,method,body,()=>commercialOwnership[method](actor,body));}

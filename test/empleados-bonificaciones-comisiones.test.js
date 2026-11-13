@@ -60,10 +60,12 @@ test('la comisión manual confirma control, destino y venta juntos; la automáti
   assert.match(app, /origenCarga: 'manual_empleados'/);
   assert.match(app, /sisventas\/comisiones_generacion/);
   const {createBackend}=require('./helpers/labor-ui-flow.cjs'),f=createBackend(),p=f.page();
-  await p.context._generarComisionVentaAtomica(p.context.empData.e,{tipo:'comision',monto:50,pct:5,gananciaBase:1000,ventaFbKey:'v',ventaId:'V-FICTICIA',fecha:'2026-10-20',ts:1000});
+  f.state.sv_permisos={admin:{indiceVersion:2,indiceModulos:{comisiones:true},acciones:{comisiones:{distribuir:true}}}};
+  await p.context._generarComisionVentaAtomica(p.context.empData.e,{tipo:'comision',estado:'pendiente',aprobadoPor:'',aprobadoTs:null,monto:50,pct:5,pctOriginal:5,ajustadoAlTope:false,gananciaBase:1000,ventaFbKey:'v',ventaId:'V-FICTICIA',cliente:'',descripcion:'Comisión venta V-FICTICIA · 5% sobre ganancia $1000 · carga manual',fecha:'2026-10-20',ts:1000,empleadoNombre:'Persona ficticia',origenCarga:'manual_empleados',cargadaManualmente:true,usuarioCarga:'Titular ficticio'});
   assert.equal(f.commands.length,1);assert.equal(f.commands[0].kind,'atomic');assert.equal(f.commits.length,1);
   assert.equal(f.get('sisventas/comisiones_generacion/comision_v_e').estado,'completada');assert.equal(f.get('sisventas/gastos/gasto_comision_v_e').monto,50);assert.equal(f.get('sisventas/ctaemp/e/comision_v_e').gastoFbKey,'gasto_comision_v_e');assert.equal(f.get('sisventas/ventas/v').comisionesGeneradas,true);
   assert.ok(!Object.values(f.commands[0].value).some(value=>value?.estado==='procesando'),'No hay reserva intermedia que pueda quedar sin sus destinos');
+  assert.equal(f.commands[0].purpose,'commission-participant');assert.deepEqual(f.reads.filter(row=>row[0]==='query').map(row=>row.slice(1)),[['sisventas/ctaemp/e','ventaFbKey','v'],['sisventas/ctaemp/e','ventaId','V-FICTICIA'],['sisventas/ctaemp/e','ventaFbKey','v'],['sisventas/ctaemp/e','ventaId','V-FICTICIA']]);assert.equal(f.reads.some(row=>row[0]==='server'&&row[1]==='sisventas/ctaemp/e'),false,'No se descarga la cuenta completa');
   const model = require('../cotizador/commission-generation-model');
   assert.equal(model.round(120 * 25 / 100), 30);
 });

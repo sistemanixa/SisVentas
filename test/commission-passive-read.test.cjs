@@ -29,10 +29,10 @@ function setup(records = []) {
  const window = {
   currentUser:'Administrador ficticio',currentUserUid:'fixture-admin',currentRole:'admin',
   gastosData:structuredClone(records), empData:{}, ventasList:[], APROBACION_CONFIG:{maxComisionPct:10},
-  fbAuth:{currentUser:{uid:'fixture-admin'}},PERMISOS_ROLES:{admin:{indiceRevision:1}},SVCommercialMoney:require('../js/core/commercial-money.v1'),SisVentas:{V3:{SalesReadModel:require('../js/v3/sales-read-model')}},SVCommercialOwnership:{request:async(domain,path)=>{assert.equal(domain,'ventas');assert.equal(path,'registro/fixture-sale');return{record:{fbKey:'fixture-sale',id:'VENTA FICTICIA',items:[{qty:1,punit:2000,sub:2000,costoTotalCompra:1000}],subtotal:2000,total:2000,iva:0,conIva:false}};}},_calcularBaseComisionVenta:()=>({costoTotal:1000,costoManoObra:0}),
+  fbAuth:{currentUser:{uid:'fixture-admin'}},PERMISOS_ROLES:{admin:{indiceRevision:1}},SVCommercialMoney:require('../js/core/commercial-money.v1'),SisVentas:{V3:{SalesReadModel:require('../js/v3/sales-read-model')}},SVCommercialOwnership:{request:async(domain,path)=>{assert.equal(domain,'ventas');assert.equal(path,'registro/fixture-sale?para=comision');return{record:{fbKey:'fixture-sale',id:'VENTA FICTICIA',items:[{qty:1,punit:2000,sub:2000,costoTotalCompra:1000}],subtotal:2000,total:2000,iva:0,conIva:false}};}},_calcularBaseComisionVenta:()=>({costoTotal:1000,costoManoObra:0}),
   tienePermiso:()=>true,permisoModulo:()=>true,fbDB:{},fbRef:(_,p)=>p,
   svNavegarDirecto:id=>{calls.navigation.push(id);return true;},
-  fbGet:async p=>{calls.gets.push(p);return {val:()=>({})};},
+  fbGet:async p=>{calls.gets.push(p);return {val:()=>{if(p.startsWith('sisventas/gastos/')){const raw={...window.gastosData.find(g=>g.fbKey===p.split('/')[2])};delete raw.fbKey;return raw;}const expense=window.gastosData.find(g=>g.legacyKey===p.replace('sisventas/',''));return expense?{pct:expense.pct,gananciaBase:expense.gananciaBase,monto:expense.monto,estado:expense.estado,pagos:expense.pagos||{}}:null;}};},
   fbUpdate:async(...args)=>{calls.writes.push(args);},fbSet:async(...args)=>{calls.writes.push(args);},
   sincronizarComisionesLegacyConModulo:async()=>{calls.migration++;return 2;},
   fbCargarGastos:()=>{calls.reload++;},notify(){},
@@ -64,7 +64,7 @@ test('Gastos modernos y migrados conservan importes, pagos, autoría y base orig
  assert.equal(JSON.stringify(h.window.gastosData),before);
  assert.match(h.el('com-det-participantes').innerHTML,/data-gasto="b"[^]*?value="4" disabled/);
  assert.match(h.el('com-det-participantes').innerHTML,/data-base="1000"/);
- assert.deepEqual(h.calls.gets,['sisventas/ctaemp/fixture-e/old-move']);
+ assert.deepEqual(h.calls.gets,['sisventas/gastos/a','sisventas/gastos/b','sisventas/ctaemp/fixture-e/old-move']);
  assert.deepEqual(h.calls.writes,[]);
 });
 

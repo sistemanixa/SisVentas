@@ -8,14 +8,14 @@ function fixture(){
  // Stored totals deliberately coherent with a 20% line discount on PRODUCT.
  sale.items[0].disc=20;sale.items[0].sub=800;sale.items[1].sub=500;sale.subtotal=1300;sale.descuento=130;sale.total=1170;
  const expense={fbKey:'g',tipoPagable:'comision',ventaId:'V-FICTION',ventaFbKey:'sale',empleadoFbKey:'e',empleadoNombre:'Persona ficticia',gananciaBase:370,pct:10,monto:37,estado:'pendiente_pago',aprobadoPor:'Admin'};
- const w={currentRole:'admin',currentUserUid:'u',fbAuth:{currentUser:{uid:'u'}},fbDB:{},PERMISOS_ROLES:{admin:{indiceRevision:1}},permisoModulo:()=>true,tienePermiso:()=>true,gastosData:[expense],ventasList:[],empData:{},APROBACION_CONFIG:{maxComisionPct:25},SVCommercialMoney:require('../js/core/commercial-money.v1'),SisVentas:{V3:{SalesReadModel:require('../js/v3/sales-read-model')}},notify:m=>notices.push(m),SVCommercialOwnership:{request:async(d,p)=>{requests.push([d,p]);return new Promise(r=>resolve=r);}},_calcularBaseComisionVenta:v=>({costoTotal:800,costoManoObra:200,baseNeta:1350,descuento:130,ganancia:550})};
+ const w={currentRole:'admin',currentUserUid:'u',fbAuth:{currentUser:{uid:'u'}},fbDB:{},PERMISOS_ROLES:{admin:{indiceRevision:1}},permisoModulo:()=>true,tienePermiso:()=>true,gastosData:[expense],ventasList:[],empData:{},APROBACION_CONFIG:{maxComisionPct:25},SVCommercialMoney:require('../js/core/commercial-money.v1'),SisVentas:{V3:{SalesReadModel:require('../js/v3/sales-read-model')}},fbRef:(_,path)=>path,fbGet:async path=>{assert.equal(path,'sisventas/gastos/g');const raw={...expense};delete raw.fbKey;return{val:()=>raw};},notify:m=>notices.push(m),SVCommercialOwnership:{request:async(d,p)=>{requests.push([d,p]);return new Promise(r=>resolve=r);}},_calcularBaseComisionVenta:v=>({costoTotal:800,costoManoObra:200,baseNeta:1350,descuento:130,ganancia:550})};
  const doc={hidden:false,getElementById:node,querySelector:()=>({id:'page-comisiones'}),querySelectorAll:()=>[],addEventListener:(k,f)=>events[k]=f,removeEventListener(){}};
  vm.runInNewContext(source,{window:w,document:doc,setTimeout(){},console:{error(){}}});
  return {w,node,sale,expense,requests,notices,events,resolve:value=>resolve(value),async wait(){for(let i=0;i<12;i++)await Promise.resolve();}};
 }
 test('opening commission requests only its original, shows canonical net and preserves approved amounts',async()=>{
  const f=fixture(),before=JSON.stringify(f.expense),pending=f.w.abrirDetalleComision('sale');await f.wait();
- assert.deepEqual(f.requests,[['ventas','registro/sale']]);assert.match(f.node('com-det-info').textContent,/Cargando/);assert.equal(f.node('com-det-guardar').disabled,true);
+ assert.deepEqual(f.requests,[['ventas','registro/sale?para=comision']]);assert.match(f.node('com-det-info').textContent,/Cargando/);assert.equal(f.node('com-det-guardar').disabled,true);
  f.resolve({record:f.sale});await pending;const html=f.node('com-det-info').innerHTML;
  assert.match(html,/1\.170/);assert.match(html,/COSTO ORIGINAL/);assert.match(html,/800/);assert.match(html,/200/);assert.equal(JSON.stringify(f.expense),before);assert.equal(f.w.ventasList.length,0);
 });

@@ -17,6 +17,7 @@ function createBackend(initial={},options={}){
   async exists(path){reads.push(['exists',path]);return at(state,path)!==null;},
   async read(path){assert.notEqual(path,'sisventas','No descargar la base completa');reads.push(['server',path]);return copy(at(state,path));},
   async readAsUser(path,actor){assert.ok(tokens[actor.uid]);reads.push(['user',path]);return copy(at(state,path));},
+  async query(path,field,value){assert.match(path,/^sisventas\/ctaemp\/[^/.#$\[\]\x00-\x1f\x7f]+$/,'Consulta de comisión limitada a una cuenta');assert.ok(['ventaFbKey','ventaId'].includes(field),'Sólo vínculos exactos de venta');assert.ok(typeof value==='string'||field==='ventaId'&&typeof value==='number'&&Number.isFinite(value));reads.push(['query',path,field,value]);return copy(Object.fromEntries(Object.entries(at(state,path)||{}).filter(([,row])=>row&&row[field]===value)));},
   async acquire(lease){assert.equal(state.sv_labor_guard??null,null);state.sv_labor_guard=copy(lease);},
   async commit(patch,lease,actor){assert.equal(state.sv_labor_guard?.fence,lease.fence);assert.ok(lease.expiresAt>Date.now());if(actor.mode!=='server')assert.equal(state.sv_chat_roles[actor.uid]?.activo,true);else assert.equal(actor.uid,'sv-labor-service');assert.equal(patch.sv_labor_guard,null);assert.ok(patch['sv_labor_receipts/'+lease.opId]);if(rejectPatch)await rejectPatch(patch,actor);commits.push(copy(patch));apply(state,patch);},
   async abort(lease){if(state.sv_labor_guard?.fence===lease.fence)delete state.sv_labor_guard;}

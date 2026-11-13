@@ -19,6 +19,7 @@ COPY client-account-directory.js client-account-projection.js client-account-pro
 COPY client-account-embedded.js client-account-documents.js client-account-owner-evidence.js client-account-scope.js client-account-scope-plan.js ./
 COPY commercial-collection-reader.js ./
 COPY commission-event.js ./
+COPY labor-commission-participant.js sale-commission-assignment.js commission-assignment-event.js commission-detail-projection.js commission-write-proof.js ./
 COPY distributor-documents.js ./
 COPY projects.js projects-model.js projects-list-store.js ./
 COPY user-directory.js ./

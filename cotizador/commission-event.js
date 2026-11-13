@@ -6,7 +6,7 @@ const fault=(statusCode,message)=>Object.assign(Error(message),{statusCode});
 
 // Candidate only. A signed delivery identifies an event; amounts and eligibility
 // always come from the existing canonical server calculation, never its payload.
-function createCommissionEvent({db,commissions,verifyToken,audience,caller,instance,probeRef='',enabled=false,now=Date.now,logger=()=>{},coordinate=async(_event,work)=>work()}){
+function createCommissionEvent({db,commissions,verifyToken,audience,caller,instance,probeRef='',enabled=false,now=Date.now,logger=()=>{},readEventBody,coordinate=async(_event,work)=>work()}){
  async function authorize(req){
   if(!enabled||!audience||!caller||!instance)throw fault(503,'Receptor de eventos no habilitado');
   if(req.method!=='POST')throw fault(405,'Método no permitido');
@@ -32,6 +32,9 @@ function createCommissionEvent({db,commissions,verifyToken,audience,caller,insta
   const match=String(h['ce-ref']||'').match(/^\/?sisventas\/(ventas|pagos)\/([A-Za-z0-9_-]{1,128})(?:\/(estadoPago|comisionHabilitada|monto))?$/);
   if(!match)throw fault(400,'Ruta de evento no admitida');
   if(match[3]&&(match[1]==='pagos'?match[3]!=='monto':!['estadoPago','comisionHabilitada'].includes(match[3])))throw fault(400,'Campo de evento no admitido');
+  const payload=readEventBody?await readEventBody(req):req.body;
+  if(readEventBody&&(!payload||typeof payload!=='object'||Array.isArray(payload)||!Object.hasOwn(payload,'data')||!Object.hasOwn(payload,'delta')))throw fault(400,'Entrega de evento incompleta');
+  if(match[1]==='ventas'&&!match[3]&&require('./commission-assignment-event').isAssignmentOnly(payload))return {status:'ignored',reason:'assignment_only'};
   const digest=crypto.createHash('sha256').update(JSON.stringify([source,id,match[1],match[2]])).digest('hex');
   const event={id,source,domain:match[1],key:match[2]},ref=db.ref('sv_commission_events/'+digest),leaseMs=120000,token=crypto.randomUUID();let reason;
   // Authenticated, immutable terminal receipts do not need a financial lease.

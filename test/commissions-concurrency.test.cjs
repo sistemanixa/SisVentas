@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 function setup(items,inputs){
  const messages=[];let writes=0;const data={gastos:Object.fromEntries(items.map(g=>{const v={...g};delete v.fbKey;return [g.fbKey,v]}))};
- const w={currentUserUid:'u',currentUser:'Admin',currentRole:'admin',permisoModulo:()=>true,gastosData:items,empData:{},APROBACION_CONFIG:{maxComisionPct:10},tienePermiso:()=>true,fbDB:{},fbRef:(_,p)=>p,fbGet:async()=>({val:()=>data}),fbRunTransaction:async(_,fn)=>{const next=fn(data);if(next===undefined)return{committed:false};writes++;Object.assign(data,next);return{committed:true,snapshot:{val:()=>data}};},notify:m=>messages.push(m)};
+ const w={currentUserUid:'u',currentUser:'Admin',currentRole:'admin',permisoModulo:()=>true,gastosData:items,empData:{},APROBACION_CONFIG:{maxComisionPct:10},tienePermiso:()=>true,fbDB:{},fbRef:(_,p)=>p,fbGet:async p=>({val:()=>p.split('/').slice(1).reduce((node,k)=>node?.[k],data)??null}),fbRunTransaction:async(_,fn)=>{const next=fn(data);if(next===undefined)return{committed:false};writes++;Object.assign(data,next);return{committed:true,snapshot:{val:()=>data}};},notify:m=>messages.push(m)};
  const button={disabled:false,innerHTML:'Guardar distribución',style:{}};
  const sale={fbKey:'sale',id:'V1',total:1000,subtotal:1000,iva:0,conIva:false,items:[{cod:'FICTICIO',qty:1,punit:1000,sub:1000,costoTotalCompra:0}]};
  Object.assign(w,{fbAuth:{currentUser:{uid:'u'}},PERMISOS_ROLES:{admin:{indiceRevision:1}},ventasList:[sale],SVCommercialOwnership:{request:async()=>({record:sale})},SisVentas:{V3:{SalesReadModel:require('../js/v3/sales-read-model')}},_calcularBaseComisionVenta:()=>({costoTotal:0,costoManoObra:0,ganancia:1000})});

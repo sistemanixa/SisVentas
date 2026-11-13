@@ -6,6 +6,9 @@ const BonusBatch=require('./labor-bonus-batch');
 const SACBatch=require('./labor-sac-batch');
 const CostCorrection=require('./sale-cost-correction');
 const SaleReturn=require('./sale-return-to-budget');
+const CommissionParticipant=require('./labor-commission-participant');
+const CommissionAssignment=require('./sale-commission-assignment');
+const CommissionWriteProof=require('./commission-write-proof');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const forbidden=path=>/^(sv_labor_[^/]*|sv_commission_generation|sv_commission_events|sv_commercial_pages|sv_commercial_pages_config|sv_client_accounts|sv_client_accounts_config|sv_client_history|sv_client_history_config)(\/|$)/.test(path);
 const normalizationFields={ventas:['clienteFbKey','clienteKey','clienteId'],presupuestos:['clienteFbKey','clienteKey','ventaFbKey','ventaGeneradaFbKey'],pagos:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],ordenesTrabajo:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],ordenes_trabajo:['ventaFbKey','ventaKey','clienteFbKey','clienteKey'],reclamos:['clienteFbKey','clienteKey'],productos:['categoriaFbKey','categoriaKey']};
@@ -34,9 +37,9 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
   if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['id','kind','path','value','expectedHash','expectedHashes','purpose'].includes(k))||!/^[A-Za-z0-9_-]{8,160}$/.test(body.id)||!['set','patch','compare','atomic'].includes(body.kind)||typeof body.path!=='string')throw fail(400,'Solicitud de guardado inválida');
   if(!actor?.uid||!actor.claims||actor.claims.uid!==actor.uid)throw fail(403,'Sesión requerida');
   if(Buffer.byteLength(JSON.stringify(body))>16*1024*1024)throw fail(413,'El guardado supera el tamaño permitido');
-  const costCorrection=body.purpose===CostCorrection.PURPOSE,saleReturn=body.purpose===SaleReturn.PURPOSE;
+  const costCorrection=body.purpose===CostCorrection.PURPOSE,saleReturn=body.purpose===SaleReturn.PURPOSE,commissionParticipant=body.purpose===CommissionParticipant.PURPOSE,commissionAssignment=body.purpose===CommissionAssignment.PURPOSE;
   const normalization=body.purpose==='relationship-normalization',removal=body.purpose==='expense-removal',bonus=body.purpose===BonusBatch.PURPOSE,sac=body.purpose===SACBatch.PURPOSE,sacMigration=body.purpose===SACBatch.MIGRATION_PURPOSE;
-  if(body.purpose!==undefined&&(!(normalization||removal||bonus||sac||sacMigration||costCorrection||saleReturn)||body.kind!=='atomic'))throw fail(400,'Propósito de guardado inválido');
+  if(body.purpose!==undefined&&(!(normalization||removal||bonus||sac||sacMigration||costCorrection||saleReturn||commissionParticipant||commissionAssignment)||body.kind!=='atomic'))throw fail(400,'Propósito de guardado inválido');
   let patch;
   if(['patch','atomic'].includes(body.kind)){
    if(body.expectedHash!==undefined)throw fail(400,'Comparación inválida');
@@ -55,6 +58,8 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
    for(const path of Object.keys(patch))if((normalization||affectedPath(path))&&!Object.keys(expected).some(base=>path===base||path.startsWith(base+'/')))throw fail(400,'Falta verificar un registro del guardado');
   }
   const saleReturnPlan=saleReturn?SaleReturn.describe({...body,value:patch}):null;
+  if(commissionParticipant)CommissionParticipant.describe(body);
+  if(commissionAssignment)CommissionAssignment.describe(body);
   if(removal)ExpenseRemoval.describe(body);
   if(bonus)BonusBatch.describe(body);
   if(sac)SACBatch.describe(body);
@@ -66,7 +71,8 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
   async function saleReturnAccess(read){const profile=await read('sv_chat_roles/'+actor.uid),role=profile?.rol,cfg=role?await read('sv_permisos/'+role):null,reset=await read('sv_access_resets/'+actor.uid);if(profile?.activo!==true||!['admin','administrativo','vendedor','tecnico_vendedor'].includes(role)||cfg!=null&&(cfg.indiceVersion!==2||cfg.indiceModulos?.venta!==true||cfg.indiceModulos?.presupuesto!==true||Object.values(cfg.bloqueados||{}).some(k=>['venta','presupuesto'].includes(k)))||(typeof cfg?.acciones?.ventas?.moverPresupuesto==='boolean'?!cfg.acciones.ventas.moverPresupuesto:role!=='admin')||actor.claims.svPasswordChangeRequired===true||reset?.required===true||reset?.version!=null&&reset.version!==actor.claims.svAccessVersion)throw fail(403,'No tenés permiso para volver la venta a presupuesto');return {role,permissionRevision:cfg?.indiceRevision??null,permissionDigest:digest(cfg||{})};}
   const initialRead=async path=>(await db.ref(path).get()).val(),normalizationContext=normalization?await normalizationAccess(initialRead):null,removalContext=removal?await removalAccess(initialRead):null,bonusContext=bonus?await bonusAccess(initialRead):null,sacContext=sac||sacMigration?await sacAccess(initialRead):null;
   const saleReturnContext=saleReturn?await saleReturnAccess(initialRead):null;
-  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',...(saleReturn?{...saleReturnContext,financialAction:'ventas.moverPresupuesto'}:{}),...(normalization?{...normalizationContext,financialAction:'mantenimiento.normalizar'}:{}),...(removal?{...removalContext,financialAction:'gastos.eliminar'}:{}),...(bonus?{...bonusContext,financialAction:'empleados.bonificar'}:{}),...(sac||sacMigration?{...sacContext,financialAction:sacMigration?'mantenimiento.migrar':'empleados.registrarHaberes'}:{}),opId:body.id,transportDigest:digest(body),operation:'legacy-'+body.kind,input:body},async scope=>{
+  const commissionWriteProof=commissionParticipant||commissionAssignment?await CommissionWriteProof.issue({body,actor,read:initialRead}):null;
+  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',...(commissionWriteProof?{commissionWriteProof}:{}),...(saleReturn?{...saleReturnContext,financialAction:'ventas.moverPresupuesto'}:{}),...(normalization?{...normalizationContext,financialAction:'mantenimiento.normalizar'}:{}),...(removal?{...removalContext,financialAction:'gastos.eliminar'}:{}),...(bonus?{...bonusContext,financialAction:'empleados.bonificar'}:{}),...(sac||sacMigration?{...sacContext,financialAction:sacMigration?'mantenimiento.migrar':'empleados.registrarHaberes'}:{}),opId:body.id,transportDigest:digest(body),operation:'legacy-'+body.kind,input:body},async scope=>{
    if(saleReturn&&digest(await saleReturnAccess(path=>scope.get(path)))!==digest(saleReturnContext))throw fail(409,'Los permisos cambiaron. Volvé a abrir la venta.','SV_LABOR_AUTH_CHANGED');
    if(normalization&&digest(await normalizationAccess(path=>scope.get(path)))!==digest(normalizationContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
    if(removal&&digest(await removalAccess(path=>scope.get(path)))!==digest(removalContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
@@ -85,6 +91,8 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
     if(current!==null&&current!==''&&current!==value)throw fail(409,'Una referencia ya cambió. Revisá el plan antes de aplicar.','SV_CAS_CONFLICT');
    }
    if(costCorrection)await CostCorrection.validate({scope,actor,patch,expected,digest});
+   if(commissionParticipant)await CommissionParticipant.validate({scope,actor,body:{...body,value:patch}});
+   if(commissionAssignment)await CommissionAssignment.validate({scope,actor,body:{...body,value:patch}});
    await scope.update(patch);
    return {ok:true,committed:true};
   });

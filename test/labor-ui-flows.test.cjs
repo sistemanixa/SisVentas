@@ -4,7 +4,8 @@ const {createBackend,copy}=require('./helpers/labor-ui-flow.cjs');
 const expense=()=>({monto:100,montoPagado:0,estado:'pendiente_pago',empleadoId:'e',empleadoFbKey:'e',legacyKey:'ctaemp/e/m',descripcion:'Gasto ficticio',fecha:'2026-10-01'});
 const movement=()=>({tipo:'sueldo',monto:100,estado:'aprobado',gastoFbKey:'g',fecha:'2026-10-01'});
 function payment(){const backend=createBackend({gastos:{g:expense()},ctaemp:{e:{m:movement()}}}),page=backend.page();page.refresh();return {...backend,...page};}
-const commission=()=>({tipo:'comision',monto:50,pct:5,pctOriginal:5,gananciaBase:1000,fecha:'2026-10-20',ventaId:'V-FICTICIA',ventaFbKey:'v',descripcion:'Comisión ficticia',ts:1000});
+const commission=()=>({tipo:'comision',estado:'pendiente',aprobadoPor:'',aprobadoTs:null,monto:50,pct:5,pctOriginal:5,ajustadoAlTope:false,gananciaBase:1000,fecha:'2026-10-20',ventaId:'V-FICTICIA',ventaFbKey:'v',cliente:'',descripcion:'Comisión ficticia',ts:1000,empleadoNombre:'Persona ficticia',origenCarga:'manual_empleados',cargadaManualmente:true,usuarioCarga:'Titular ficticio'});
+function commissionBackend(initial){const f=createBackend(initial);f.state.sv_permisos={admin:{indiceVersion:2,indiceModulos:{comisiones:true},acciones:{comisiones:{distribuir:true}}}};return f;}
 function installSacSources(backend,page,ids=['e']){
  const fs=require('node:fs'),vm=require('node:vm');
  page.load(['_mesesDelSemestre','_mesesTrabajadosEnSemestre','_calcularFilasAguinaldo']);
@@ -42,7 +43,7 @@ test('El fallo de CTA o adjunto no puede confirmar el pago en Gastos por separad
 });
 
 test('Una comisión manual nueva queda pendiente y su repetición no duplica ni recalcula',async()=>{
- const f=createBackend(),p=f.page(),emp=p.context.empData.e;
+ const f=commissionBackend(),p=f.page(),emp=p.context.empData.e;
  await p.context._generarComisionVentaAtomica(emp,commission());
  const before=copy(f.state.sisventas),key='gasto_comision_v_e',mov='comision_v_e';
  assert.equal(f.get('sisventas/gastos/'+key).monto,50);assert.equal(f.get('sisventas/gastos/'+key).estado,'pendiente_aprobacion');assert.equal(f.get('sisventas/ctaemp/e/'+mov).gastoFbKey,key);assert.equal(f.get('sisventas/ventas/v').comisionesGeneradas,true);
@@ -51,7 +52,7 @@ test('Una comisión manual nueva queda pendiente y su repetición no duplica ni 
 
 test('Faltar el control de generación no permite reemplazar una comisión de destino ya pagada',async()=>{
  const old={...commission(),montoPagado:50,estado:'pagado',aprobadoPor:'Autor anterior',pagos:{p:{monto:50,fecha:'2026-10-01'}}};
- const f=createBackend({gastos:{gasto_comision_v_e:{...old,legacyKey:'ctaemp/e/comision_v_e'}},ctaemp:{e:{comision_v_e:{...old,gastoFbKey:'gasto_comision_v_e'}}}}),p=f.page(),before=copy(f.state.sisventas);
+ const f=commissionBackend({gastos:{gasto_comision_v_e:{...old,legacyKey:'ctaemp/e/comision_v_e'}},ctaemp:{e:{comision_v_e:{...old,gastoFbKey:'gasto_comision_v_e'}}}}),p=f.page(),before=copy(f.state.sisventas);
  await assert.rejects(p.context._generarComisionVentaAtomica(p.context.empData.e,commission()));
  assert.deepEqual(f.state.sisventas,before,'Ningún control ausente autoriza a recalcular o borrar pagos existentes');
 });
@@ -101,18 +102,18 @@ test('Replay del mismo envelope confirmado recupera recibo sin otro pago ni otra
 
 test('Comisión manual rechaza base o tope cambiados y no deja reserva intermedia',async()=>{
  for(const initial of [{config:{maxComisionPct:4}},{ventas:{v:{id:'V-FICTICIA',comisionHabilitada:true,subtotal:2000,costoTotal:1500}}}]){
-  const f=createBackend(initial),p=f.page(),before=copy(f.state.sisventas);
+  const f=commissionBackend(initial),p=f.page(),before=copy(f.state.sisventas);
   await assert.rejects(p.context._generarComisionVentaAtomica(p.context.empData.e,commission()));assert.deepEqual(f.state.sisventas,before);assert.equal(f.commands.length,0);
  }
 });
 
 test('Rechazo del PATCH de comisión no deja control, gasto, movimiento ni marca de venta',async()=>{
- const f=createBackend(),p=f.page(),before=copy(f.state.sisventas);f.setRejectPatch(()=>{throw Object.assign(Error('Fallo ficticio de validación'),{statusCode:403});});
+ const f=commissionBackend(),p=f.page(),before=copy(f.state.sisventas);f.setRejectPatch(()=>{throw Object.assign(Error('Fallo ficticio de validación'),{statusCode:403});});
  await assert.rejects(p.context._generarComisionVentaAtomica(p.context.empData.e,commission()));assert.deepEqual(f.state.sisventas,before);assert.equal(f.commits.length,0);
 });
 
 test('El formulario manual real confirma una sola operación y respeta su permiso',async()=>{
- const f=createBackend(),p=f.page();p.refresh();p.load(['_comisionManualResolverVenta','_comisionManualEmpleadoSeleccionado','_ventaTieneComisionGenerada','cerrarModalComisionVenta','guardarComisionManualVenta']);
+ const f=commissionBackend(),p=f.page();p.refresh();p.load(['_comisionManualResolverVenta','_comisionManualEmpleadoSeleccionado','_ventaTieneComisionGenerada','cerrarModalComisionVenta','guardarComisionManualVenta']);
  p.node('comision-manual-empleado').value='e';p.node('comision-manual-venta').value='ficticia';p.context._comisionManualVentasMap.ficticia=p.context.ventasList[0];p.node('comision-manual-pct').value='5';p.node('comision-manual-fecha').value='2026-10-20';
  p.context.tienePermiso=()=>false;await p.context.guardarComisionManualVenta();assert.equal(f.commands.length,0);
  p.context.tienePermiso=()=>true;await p.context.guardarComisionManualVenta();assert.equal(f.commands.length,1);assert.equal(f.commits.length,1);assert.match(p.messages.at(-1),/pendiente de aprobación/);assert.equal(p.node('comision-manual-guardar').disabled,false);assert.equal(p.node('modal-comision-venta').style.display,'none');
