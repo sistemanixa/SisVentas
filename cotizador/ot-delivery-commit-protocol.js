@@ -54,7 +54,7 @@ async function claims({patch,lease,actor,read,query}){
    transitions=require('./ot-lifecycle-model').materialChanges(before,materialInput,'custody');
    const validations=[];
    const resolved=await batch(transitions,async(transition,rowIndex)=>{if(!transition.needsStockReceipt&&!transition.needsProductBinding)return null;try{const productKey=await State.resolveProduct(transition.target,{read,query,source:transition.needsProductBinding?transition.source:null});return{transition,productKey,rowKey:String(rowIndex)};}catch(error){if(error.code==='SV_OT_MATERIAL_REVIEW')throw fail();throw error;}});validations.push(...resolved.filter(Boolean));
-   await batch(validations,async entry=>{try{await State.verifyReceipt({ot:before,otKey:id,transition:entry.transition,productKey:entry.productKey,read:receiptRead,stockExceptionContext:{actor,lease,group:validations.filter(v=>v.productKey===entry.productKey),readOriginal}});}catch(error){if(error.code==='SV_OT_MATERIAL_REVIEW')throw fail();throw error;}});
+   await batch(validations,async entry=>{try{await State.verifyReceipt({ot:before,otKey:id,transition:entry.transition,productKey:entry.productKey,read:receiptRead,stockExceptionContext:{actor,lease,group:validations.filter(v=>v.productKey===entry.productKey),readOriginal,query}});}catch(error){if(error.code==='SV_OT_MATERIAL_REVIEW')throw fail();throw error;}});
    // Passive persistence retains the authoritative items history; it is not a
    // new delivery merely because Rows.persisted materializes the source row.
    if(digest(projection({...before,materiales:Rows.persisted(Rows.view(before))}))===digest(projection(after)))continue;

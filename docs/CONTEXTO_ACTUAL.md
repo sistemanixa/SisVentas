@@ -1,3 +1,7 @@
+# OT: candidata de entrega e instalación · 13/11/2026
+
+Rama aislada `codex/ot186-delivery-fix`, base publicada de cliente `c518caca9476548bd8542ef9cc4f488aa4989e58`. Corrige el tratamiento de diferencias antiguas de reservas al entregar/instalar, sin tocar asignaciones ajenas ni repetir movimientos. Comprobación de custodia desde originales, recuperación de causa tras rechazo y acciones UI canónicas. No publicación ni nuevas operaciones reales en este bloque. Evidencia y límites en [OT_RESERVAS_CIRCUITO_20261113.md](OT_RESERVAS_CIRCUITO_20261113.md). Coordinador principal es único publicador e integra con la versión vigente; no usar este checkout como servidor completo porque el guard del repositorio difiere del runtime real.
+
 # Lector personal: candidata aislada, sin publicación · 13/11/2026
 
 Rama `codex/private-finance-reader-v3209`, base publicada `260ccb13`. Contraste local de monedas por columnas impresas, recuperación conservadora de pagos omitidos y separación de novedades informativas que no son cargos del resumen. Corrección manual de importe/moneda exclusivamente en lecturas pendientes, sin persistir por aplicar o cancelar. No modifica históricos, pagos ni reglas; no agrega llamadas de IA ni consultas periódicas. Ver `docs/gastos-personales/LECTOR_COLUMNAS_REVISION_LOCAL.md`.

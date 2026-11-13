@@ -123,12 +123,12 @@ async function verifyReceipt({ot,otKey,transition,productKey,read,stockException
   // Only a genuine custody command may prove a general-only consumption from
   // the committed original, leaving every reservation and foreign row intact.
   if(!custodyContext||!['admin','administrativo'].includes(token.svOTLifecycleRole)||c.actor.role!==token.svOTLifecycleRole||!transition.row||!c.group.some(entry=>entry.transition===transition))throw fail('Los recibos no tienen consumo o reserva respaldados en el ledger.');
-  try{const changes=c.group.map(({transition:t,rowKey})=>{
+  try{const held=await require('./ot-custody-held-authority').compute({ot,otKey,productKey,group:c.group,read:c.readOriginal,query:c.query});const changes=c.group.map(({transition:t,rowKey})=>{
    const pending=t.row.stockPendiente===true,beforeInstalled=pending?t.row.stockBaseInstalada:t.row.instalada??0;
    // Legacy pending rows may already carry the applied receipt revision. Only
    // an identical committed receipt can then prove adoption without stock edits.
    const adoptedRevision=pending&&beforeInstalled<t.row.instalada&&t.target.stockRegistro===t.row.stockRegistro&&t.target.stockRevision===t.row.stockRevision;
-   return{allocation:allocation(ot,t.target),receipt:t.target.stockRegistro,beforeInstalled,targetInstalled:t.target.instalada,revision:(t.row.stockRevision??0)-(adoptedRevision?1:0),rowKey,sourceReceipt:t.row.stockRegistro??null,legacyReceipt:legacyReceiptIdentity({otKey,rowKey,productKey,row:t.row})};
+   return{allocation:allocation(ot,t.target),receipt:t.target.stockRegistro,beforeInstalled,targetInstalled:t.target.instalada,revision:(t.row.stockRevision??0)-(adoptedRevision?1:0),rowKey,heldByOthers:held.get(rowKey),sourceReceipt:t.row.stockRegistro??null,legacyReceipt:legacyReceiptIdentity({otKey,rowKey,productKey,row:t.row})};
   });require('./ot-general-consumption-exception').validate({before:originalInventory,after:inventory,otKey,productKey,actor:{uid:c.actor.uid,role:token.svOTLifecycleRole,allowed:true},operationId:c.actor.opId,changes});}catch(error){throw fail('No se acredita el consumo de General sin alterar las reservas existentes.');}
  }
  return receipt;

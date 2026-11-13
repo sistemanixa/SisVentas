@@ -93,7 +93,7 @@ function confirm(command) {
     if (prior.signature !== signature) throw Error('El intento ya corresponde a otra confirmación');
     return { inventory:inv, receipt:prior.receipt, revision:prior.revision, regularization:prior.regularization, replayed:true };
   }
-  if (reservedDiscrepancy && (c.kind !== 'installation' || ti <= bi || qty(inv.asignaciones[c.allocation]?.reservado ?? 0) !== 0)) throw Error('El inventario requiere conciliación');
+  if (reservedDiscrepancy && (c.kind === 'installation' ? ti <= bi : td <= bd)) throw Error('El inventario requiere conciliación');
   inv.rendicionesOT ??= {};
   if (typeof inv.rendicionesOT !== 'object' || Array.isArray(inv.rendicionesOT)) throw Error('Recibos inválidos');
   const found = inv.rendicionesOT[receipt];
@@ -108,9 +108,16 @@ function confirm(command) {
   const entry = found ? clone(found) : { revision, instalada:0, deReserva:0, deGeneral:0, enReserva:0, ot:c.otKey, venta:c.allocation, fila:c.rowKey };
   for (const field of ['instalada','deReserva','deGeneral','enReserva']) entry[field] = qty(entry[field] ?? 0);
   if (add(entry.deReserva, entry.deGeneral) !== entry.instalada || entry.instalada > a.consumido || entry.instalada > inv.consumido || entry.enReserva > a.reservado) throw Error('El recibo de consumo requiere conciliación');
-  let regularization = 0;
+  let regularization = 0, ownReservationReleased = 0;
+  // An old aggregate deficit is not authority to consume another allocation.
+  // Protect every foreign reservation and the verified custody of sibling OTs.
+  const foreignReserved = add(totalReserved, -a.reservado);
+  const unreceiptedBacking = Math.max(0, add(inv.reservado, -foreignReserved, -held));
+  const receiptedBacking = Math.min(entry.enReserva, Math.max(0, add(inv.reservado, -heldTotal, entry.enReserva)));
+  const backedReserve = Math.max(unreceiptedBacking, receiptedBacking);
   if (!recovered && c.kind === 'delivery') {
-    const required = add(td, -ti, -returned), available = Math.max(0, add(a.reservado, -held));
+    const required = add(td, -ti, -returned), ownAvailable = Math.max(0, add(a.reservado, -held));
+    const available = reservedDiscrepancy ? Math.min(ownAvailable, backedReserve) : ownAvailable;
     const missing = Math.max(0, add(required, -available));
     const transfer = Math.min(missing, inv.general);
     regularization = add(missing, -transfer);
@@ -118,11 +125,15 @@ function confirm(command) {
     inv.reservado = add(inv.reservado, missing); a.reservado = add(a.reservado, missing);
     entry.enReserva = required;
   } else if (!recovered) {
-    const delta = add(ti, -bi), reserve = reservedDiscrepancy ? 0 : Math.min(delta, Math.max(0, add(a.reservado, -held)));
+    const delta = add(ti, -bi), ownAvailable = Math.max(0, add(a.reservado, -held));
+    const reserve = Math.min(delta, ownAvailable, reservedDiscrepancy ? backedReserve : ownAvailable);
+    // Retire only this physically installed row's unbacked own reservation.
+    // Never leave those same installed units available for another delivery.
+    if (reservedDiscrepancy) ownReservationReleased = Math.min(add(delta, -reserve), add(ownAvailable, -reserve), add(totalReserved, -inv.reservado));
     const generalNeeded = add(delta, -reserve);
     regularization = Math.max(0, add(generalNeeded, -inv.general));
     inv.general = add(inv.general, regularization, -generalNeeded);
-    inv.reservado = add(inv.reservado, -reserve); a.reservado = add(a.reservado, -reserve);
+    inv.reservado = add(inv.reservado, -reserve); a.reservado = add(a.reservado, -reserve, -ownReservationReleased);
     inv.consumido = add(inv.consumido, delta); a.consumido = add(a.consumido, delta);
     entry.instalada = ti; entry.deReserva = add(entry.deReserva, reserve); entry.deGeneral = add(entry.deGeneral, generalNeeded);
     entry.enReserva = Math.max(0, add(entry.enReserva, -reserve));
@@ -131,9 +142,10 @@ function confirm(command) {
   inv.rendicionesOT[receipt] = entry; inv.asignaciones[c.allocation] = a;
   const audit = { signature, receipt, revision:entry.revision, regularization, kind:c.kind, producto:c.productKey, ot:c.otKey, fila:c.rowKey, venta:c.allocation, autor:actor.uid, nombre:String(actor.name || ''), fecha:c.at, motivo:'Confirmación física de materiales por operador autorizado' };
   if (reservedDiscrepancy) audit.stockDiscrepancy = {kind:'reserved-total-existing',assignedReserved:totalReserved,globalReserved:beforeInventory.reservado,difference:add(totalReserved,-beforeInventory.reservado),corrected:false};
+  if (ownReservationReleased > 0) Object.assign(audit.stockDiscrepancy,{corrected:true,ownReservationReleased});
   inv.confirmacionesOT ??= {}; inv.confirmacionesOT[c.operationId] ??= {}; inv.confirmacionesOT[c.operationId][auditRowKey] = audit;
   if (regularization > 0) { inv.regularizacionesOT ??= {}; inv.regularizacionesOT[c.operationId] ??= {}; inv.regularizacionesOT[c.operationId][auditRowKey] = clone(audit); }
-  if (reservedDiscrepancy) GeneralException.validate({before:beforeInventory,after:inv,productKey:c.productKey,allocation:c.allocation,otKey:c.otKey,receipt,beforeInstalled:bi,targetInstalled:ti,revision,actor,operationId:c.operationId,rowKey:c.rowKey});
+  if (reservedDiscrepancy) GeneralException.validate({before:beforeInventory,after:inv,productKey:c.productKey,allocation:c.allocation,otKey:c.otKey,receipt,kind:c.kind,beforeDelivered:bd,targetDelivered:td,beforeInstalled:bi,targetInstalled:ti,returned,heldByOthers:held,revision,actor,operationId:c.operationId,rowKey:c.rowKey});
   return { inventory:inv, receipt, revision:entry.revision, regularization, replayed:!!recovered };
 }
 module.exports = Object.freeze({ confirm });

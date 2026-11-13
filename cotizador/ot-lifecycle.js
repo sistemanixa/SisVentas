@@ -107,7 +107,7 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
      if(already&&already.ot===body.otKey&&already.venta===c.allocation&&already.instalada===c.target&&already.revision===row.stockRevision){
       if(!State.receiptBoundToRow({otKey:body.otKey,rowKey:String(c.i),productKey:c.productKey,allocation:c.allocation,row:source,receipt:row.stockRegistro,entry:already}))throw fail(409,'El recibo histórico no identifica esta fila del material.');
       if(row.stockRegistro!==source.stockRegistro&&source.stockRegistro||row.stockRevision!==(source.stockRevision??0)+1&&!(source.stockPendiente===true&&row.stockRevision===source.stockRevision))throw fail(409,'La revisión del consumo aplicado no coincide con el material.');
-      await State.verifyReceipt({ot,otKey:body.otKey,transition:c.t,productKey:c.productKey,read:async path=>inventoryChanges.has(path)?inventoryChanges.get(path):track(path),stockExceptionContext:{actor,lease:scope.lease,group:[{transition:c.t,rowKey:String(c.i)}],readOriginal:track}});
+      await State.verifyReceipt({ot,otKey:body.otKey,transition:c.t,productKey:c.productKey,read:async path=>inventoryChanges.has(path)?inventoryChanges.get(path):track(path),stockExceptionContext:{actor,lease:scope.lease,query,group:[{transition:c.t,rowKey:String(c.i)}],readOriginal:track}});
       stagedRows[c.i]=structuredClone(row);continue;
      }
      let held=0;
@@ -164,7 +164,7 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
      if(!transition.needsStockReceipt&&!transition.needsProductBinding)return null;
      const productKey=await State.resolveProduct(transition.target,{read:track,query,source:transition.needsProductBinding?transition.source:null});return{transition,productKey,rowKey:String(rowIndex)};
     });validations.push(...resolved.filter(Boolean));
-    await batch(validations,entry=>State.verifyReceipt({ot,otKey:body.otKey,transition:entry.transition,productKey:entry.productKey,read:async path=>inventoryChanges.has(path)?inventoryChanges.get(path):track(path),stockExceptionContext:body.kind==='custody'?{actor,lease:scope.lease,group:validations.filter(v=>v.productKey===entry.productKey),readOriginal:track}:undefined}));
+    await batch(validations,entry=>State.verifyReceipt({ot,otKey:body.otKey,transition:entry.transition,productKey:entry.productKey,read:async path=>inventoryChanges.has(path)?inventoryChanges.get(path):track(path),stockExceptionContext:body.kind==='custody'?{actor,lease:scope.lease,query,group:validations.filter(v=>v.productKey===entry.productKey),readOriginal:track}:undefined}));
    }
    const plan=Model.plan({before:ot,changes,kind:body.kind,sale,primary,others,products,actor:{uid:identity.uid,name,otKey:body.otKey},at:actionAt,action:body.action});
    scope.beforeCommit(async({readFresh,readFreshAsUser})=>{

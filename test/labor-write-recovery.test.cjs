@@ -157,3 +157,24 @@ test('same-UID restore after Auth revocation hides recovery while retaining meta
  const stopped=assert.rejects(pending,{code:'SV_LABOR_SESSION'});f.root.SVLaborWriteRecovery.clear();await stopped;
  f.root.fbAuth.currentUser={uid:'u'};f.root.SVLaborWriteRecovery.restore();assert.ok(f.root.SVLaborWriteRecovery.state());assert.equal(f.root.document.body.children.length,1);assert.equal(f.queries.length,0);await f.root.SVLaborWriteRecovery.check();assert.equal(f.commands.length,1);assert.equal(f.storage.size,0);
 });
+
+for(const status of ['rejected','confirmed'])test('OT business409 conserva incertidumbre y sólo devuelve causa tras rechazo autoritativo: '+status,async()=>{
+ const f=fixture({status}),api=f.root.SVLaborWriteRecovery;
+ const cause=Object.assign(Error('El material ficticio requiere revisar el stock.'),{statusCode:409,code:'SV_OT_STOCK_CONFIRMATION'});
+ let sends=0,settled=false;
+ const pending=api.execute({uid:'u',id:'fiction-ot-business-conflict',digest:'a'.repeat(64)},async()=>{sends++;throw cause;},()=>{});
+ const outcome=pending.then(result=>{settled=true;return {result};},error=>{settled=true;return {error};});
+ await f.when(()=>api.state());assert.equal(settled,false);assert.equal(sends,1);assert.equal(f.queries.length,0);
+ const metadata=JSON.parse(f.storage.get(api.STORAGE_KEY));assert.deepEqual(Object.keys(metadata[0]).sort(),['digest','id','uid']);assert.doesNotMatch(JSON.stringify(metadata),/material|stock|STOCK_CONFIRMATION/);
+ assert.throws(()=>api.assertAvailable(),{code:'SV_LABOR_PENDING_OPERATION'});
+ await api.check();const result=await outcome;
+ if(status==='rejected')assert.equal(result.error,cause);else{assert.equal(result.error,undefined);assert.equal(result.result.recovered,true);}
+ assert.equal(sends,1);assert.equal(f.queries.length,1);assert.equal(api.state(),null);assert.equal(f.storage.size,0);
+});
+
+test('OT business409 no se persiste y tras recargar conserva rechazo genérico seguro',async()=>{
+ const f=fixture({status:'rejected'}),api=f.root.SVLaborWriteRecovery;
+ const pending=api.execute({uid:'u',id:'fiction-ot-conflict-reload',digest:'a'.repeat(64)},async()=>{throw Object.assign(Error('Detalle sólo de memoria'),{statusCode:409,code:'SV_OT_MATERIAL_REVIEW'});},()=>{});
+ const ended=assert.rejects(pending,{code:'SV_LABOR_SESSION'});await f.when(()=>api.state());api.clear();await ended;
+ const fresh=fixture({storage:f.storage,status:'rejected'});fresh.root.SVLaborWriteRecovery.restore();await fresh.root.SVLaborWriteRecovery.check();assert.equal(fresh.storage.size,0);assert.equal(fresh.root.SVLaborWriteRecovery.state(),null);assert.equal(fresh.commands.length,0);
+});
