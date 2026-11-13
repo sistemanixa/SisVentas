@@ -1,6 +1,6 @@
 'use strict';
 // Confirmed physical movements may use only backed own reserves and General.
-// Only physically installed, unbacked own units can retire an old own deficit;
+// Only physically confirmed, unbacked own units can retire an old own deficit;
 // foreign assignments and their remaining discrepancy stay untouched. No marker
 // grants authority; callers must supply original and proposed authoritative data.
 const Money=require('./commercial-models/commercial-money.v1.js'),crypto=require('node:crypto');
@@ -47,13 +47,14 @@ function validate(input){
    reserve=Math.min(requested,Math.max(0,add(ownReserved,-held)),Math.max(unreceiptedBacking,receiptedBacking));
    generalNeeded=add(requested,-reserve);
    ownReservationReleased=Math.min(generalNeeded,Math.max(0,add(ownReserved,-held,-reserve)),add(assignedReserved,-expected.reservado));
-   releasedOwn=add(releasedOwn,ownReservationReleased);
   }else{
    const bd=q(change.beforeDelivered),td=q(change.targetDelivered),returned=q(change.returned??0);
    if(ti!==bi||td<=bd||add(ti,returned)>bd||held>ownReserved)throw fail();
    const required=add(td,-ti,-returned),available=Math.min(Math.max(0,add(ownReserved,-held)),Math.max(unreceiptedBacking,receiptedBacking));
    reservedAdded=Math.max(0,add(required,-available));generalNeeded=reservedAdded;
+   ownReservationReleased=Math.min(reservedAdded,Math.max(0,add(ownReserved,-held,-available)),add(assignedReserved,-expected.reservado));
   }
+  releasedOwn=add(releasedOwn,ownReservationReleased);
   const expectedAssignment={...(current||{reservado:0,consumido:0,liberado:0}),reservado:add(ownReserved,reservedAdded,-reserve,-ownReservationReleased),consumido:add(ownConsumed,kind==='installation'?requested:0)};
   expected.asignaciones??={};expected.asignaciones[allocation]=expectedAssignment;expected.reservado=add(expected.reservado,reservedAdded,-reserve);
   const expectedReceipt={...(old||{revision,instalada:0,deReserva:0,deGeneral:0,enReserva:0,ot:otKey,venta:allocation,fila:rowKey}),revision:revision+1,instalada:ti,deReserva:add(q(old?.deReserva??0),reserve),deGeneral:add(q(old?.deGeneral??0),kind==='installation'?generalNeeded:0),enReserva:kind==='delivery'?add(q(change.targetDelivered),-ti,-q(change.returned??0)):Math.max(0,add(oldHeld,-reserve))};

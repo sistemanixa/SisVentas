@@ -41,3 +41,12 @@ for(const role of ['admin','administrativo'])test('entrega con diferencia ajena,
  await f.api.execute(f.identity,f.body('custody',{materiales:delivered.materiales.map(row=>({...row,instalada:1,custodiaClasificada:true})),custodiaRendida:true}));
  const installed=f.get('sisventas/inventario_operativo/product');assert.equal(installed.general,1);assert.equal(installed.reservado,5);assert.equal(installed.asignaciones.sale.reservado,0);assert.equal(installed.consumido,13);assert.deepEqual(installed.asignaciones.foreign,inventory.asignaciones.foreign);assert.equal(Object.keys(f.get('sisventas/ordenes_trabajo/ot').remitosEntrega).length,1);
 });
+test('entrega con reserva propia sin respaldo no deja unidades fantasma después de instalar',async()=>{
+ const f=setup('admin'),ot=f.get('sisventas/ordenes_trabajo/ot');Object.assign(ot,{custodiaIniciada:false,materiales:[{cod:'P-FICTICIO',vendida:3,entregada:0,instalada:0,devuelta:0}]});
+ f.set('sisventas/ordenes_trabajo/ot',ot);f.set('sisventas/listados_resumen/ordenes_trabajo/ot',Index.summary('ordenes_trabajo',ot));
+ const foreign=structuredClone(f.get('sisventas/inventario_operativo/product/asignaciones/foreign'));
+ const command=f.body('delivery',{entregas:[{index:0,cantidad:3}]});await f.api.execute(f.identity,command);await f.api.execute(f.identity,command);
+ const delivered=f.get('sisventas/ordenes_trabajo/ot'),reserved=f.get('sisventas/inventario_operativo/product');assert.equal(reserved.general,1);assert.equal(reserved.reservado,3);assert.equal(reserved.asignaciones.sale.reservado,3);assert.equal(Object.keys(delivered.remitosEntrega).length,1);
+ const install=f.body('custody',{materiales:delivered.materiales.map(row=>({...row,instalada:3,custodiaClasificada:true})),custodiaRendida:true});await f.api.execute(f.identity,install);await f.api.execute(f.identity,install);
+ const final=f.get('sisventas/inventario_operativo/product');assert.equal(final.general,1);assert.equal(final.reservado,0);assert.equal(final.asignaciones.sale.reservado,0);assert.equal(final.consumido,5);assert.deepEqual(final.asignaciones.foreign,foreign);assert.equal(f.commits.length,2);
+});

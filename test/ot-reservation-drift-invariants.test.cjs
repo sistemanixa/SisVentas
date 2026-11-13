@@ -18,11 +18,20 @@ test('delivery followed by installation consumes the newly backed receipt once d
  const installation=command({inventory:d.inventory,operationId:'fictionalInstall',beforeDelivered:1,targetDelivered:1,targetInstalled:1,receipt:d.receipt,revision:d.revision}),i=confirm(installation);
  assert.equal(i.inventory.general,2);assert.equal(i.inventory.consumido,1);assert.equal(i.inventory.reservado,5);assert.equal(i.inventory.asignaciones.own.reservado,0);assert.equal(deficit(i.inventory),1);assert.deepEqual(i.inventory.asignaciones.foreign,original.asignaciones.foreign);assert.deepEqual(confirm({...installation,inventory:i.inventory}).inventory,i.inventory);
 });
-test('delivery does not reuse an unbacked own historical reservation as physical backing',()=>{
+test('delivery replaces only its own phantom backing then installation cannot leave it reusable',()=>{
  const inventory={general:3,reservado:1,consumido:0,asignaciones:{own:{reservado:3,consumido:0,liberado:0}}};
- const d=confirm(command({kind:'delivery',inventory,beforeDelivered:0,targetInstalled:0}));assert.equal(d.inventory.general,1);assert.equal(d.inventory.reservado,3);assert.equal(d.inventory.asignaciones.own.reservado,5);assert.equal(deficit(d.inventory),2);assert.equal(d.inventory.rendicionesOT[d.receipt].enReserva,3);
+ const delivery=command({kind:'delivery',inventory,beforeDelivered:0,targetInstalled:0}),d=confirm(delivery);assert.equal(d.inventory.general,1);assert.equal(d.inventory.reservado,3);assert.equal(d.inventory.asignaciones.own.reservado,3);assert.equal(deficit(d.inventory),0);assert.equal(d.inventory.rendicionesOT[d.receipt].enReserva,3);assert.deepEqual(confirm({...delivery,inventory:d.inventory}).inventory,d.inventory);
+ const installation=command({inventory:d.inventory,operationId:'fictionalInstall',receipt:d.receipt,revision:d.revision}),i=confirm(installation);assert.equal(i.inventory.general,1);assert.equal(i.inventory.reservado,0);assert.equal(i.inventory.asignaciones.own.reservado,0);assert.equal(i.inventory.consumido,3);assert.deepEqual(confirm({...installation,inventory:i.inventory}).inventory,i.inventory);
 });
 test('partial installation cannot retire more own reservation than its confirmed physical delta',()=>{
  const inventory={general:3,reservado:1,consumido:2,asignaciones:{own:{reservado:3,consumido:0,liberado:0},foreign:{reservado:2,consumido:2,liberado:0}}};
  const r=confirm(command({inventory,targetInstalled:1}));assert.equal(r.inventory.asignaciones.own.reservado,2);assert.equal(r.inventory.reservado,1);assert.equal(r.inventory.general,2);assert.equal(r.inventory.consumido,3);assert.deepEqual(r.inventory.asignaciones.foreign,inventory.asignaciones.foreign);assert.equal(deficit(r.inventory),3);
+});
+test('partial delivery preserves own reservation outside its physical delta and keeps foreign allocation identical',()=>{
+ const inventory={general:3,reservado:2,consumido:2,asignaciones:{own:{reservado:3,consumido:0,liberado:0},foreign:{reservado:1,consumido:2,liberado:0}}},original=clone(inventory);
+ const c=command({kind:'delivery',inventory,beforeDelivered:0,targetDelivered:1,targetInstalled:0}),r=confirm(c);assert.equal(r.inventory.general,3);assert.equal(r.inventory.reservado,2);assert.equal(r.inventory.asignaciones.own.reservado,3);assert.deepEqual(r.inventory.asignaciones.foreign,original.asignaciones.foreign);assert.equal(deficit(r.inventory),2);assert.deepEqual(confirm({...c,inventory:r.inventory}).inventory,r.inventory);
+});
+test('delivery preserves verified sibling custody while replacing only unbacked selected quantity',()=>{
+ const sibling='d'.repeat(64),inventory={general:3,reservado:2,consumido:0,asignaciones:{own:{reservado:4,consumido:0,liberado:0}},rendicionesOT:{[sibling]:{ot:'siblingOT',venta:'own',fila:'0',revision:1,instalada:0,deReserva:0,deGeneral:0,enReserva:1}}},original=clone(inventory);
+ const c=command({kind:'delivery',inventory,beforeDelivered:0,targetDelivered:3,targetInstalled:0,heldByOthers:1}),r=confirm(c);assert.equal(r.inventory.general,1);assert.equal(r.inventory.reservado,4);assert.equal(r.inventory.asignaciones.own.reservado,4);assert.deepEqual(r.inventory.rendicionesOT[sibling],original.rendicionesOT[sibling]);assert.equal(r.inventory.rendicionesOT[r.receipt].enReserva,3);assert.deepEqual(confirm({...c,inventory:r.inventory}).inventory,r.inventory);
 });

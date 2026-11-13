@@ -119,10 +119,13 @@ function confirm(command) {
     const required = add(td, -ti, -returned), ownAvailable = Math.max(0, add(a.reservado, -held));
     const available = reservedDiscrepancy ? Math.min(ownAvailable, backedReserve) : ownAvailable;
     const missing = Math.max(0, add(required, -available));
+    // The new backing replaces an unbacked own reservation for these delivered
+    // units; adding both would leave a reusable phantom after installation.
+    if (reservedDiscrepancy) ownReservationReleased = Math.min(missing, Math.max(0, add(ownAvailable, -available)), add(totalReserved, -inv.reservado));
     const transfer = Math.min(missing, inv.general);
     regularization = add(missing, -transfer);
     inv.general = add(inv.general, -transfer);
-    inv.reservado = add(inv.reservado, missing); a.reservado = add(a.reservado, missing);
+    inv.reservado = add(inv.reservado, missing); a.reservado = add(a.reservado, missing, -ownReservationReleased);
     entry.enReserva = required;
   } else if (!recovered) {
     const delta = add(ti, -bi), ownAvailable = Math.max(0, add(a.reservado, -held));
