@@ -1,3 +1,9 @@
+# Lector personal: candidata aislada, sin publicación · 13/11/2026
+
+Rama `codex/private-finance-reader-v3209`, base publicada `260ccb13`. Contraste local de monedas por columnas impresas, recuperación conservadora de pagos omitidos y separación de novedades informativas que no son cargos del resumen. Corrección manual de importe/moneda exclusivamente en lecturas pendientes, sin persistir por aplicar o cancelar. No modifica históricos, pagos ni reglas; no agrega llamadas de IA ni consultas periódicas. Ver `docs/gastos-personales/LECTOR_COLUMNAS_REVISION_LOCAL.md`.
+
+Los originales reales y la cola pendiente permanecen en la sesión privada del titular: no recargarla ni importar para probar. Las pruebas de interfaz usan únicamente datos ficticios, servicio en memoria y red limitada a loopback. La candidata necesita integración y validación conjunta; no se considera aplicada en la web ni completada la corrección manual de los borradores reales.
+
 # Comisiones v3.20.9: integración local probada · 13/11/2026
 
 Fuente aislada: rama codex/comisiones-participantes-flujo, basada en b4a7e68d (v3.20.8). Este bloque NO está publicado: Hosting, Cotizador, reglas y registros comerciales permanecen sin cambios. Las secciones anteriores de este documento son contexto histórico; no describen el estado externo vigente.

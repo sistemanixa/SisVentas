@@ -56,8 +56,37 @@
   });return proofs;
  }
 
+ function ledgerColumns(positionedPages=[]){
+  const proofs=[];
+  positionedPages.forEach((items,page)=>{
+   const rows=[];for(const item of items){if(!item.str?.trim())continue;const y=Math.round(item.transform[5]);let row=rows.find(r=>Math.abs(r.y-y)<2);if(!row)rows.push(row={y,items:[]});row.items.push(item);}
+   rows.sort((a,b)=>b.y-a.y);let columns=null;
+   for(const row of rows){const sorted=row.items.slice().sort((a,b)=>a.transform[4]-b.transform[4]),line=sorted.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
+    const pesos=sorted.find(i=>/^PESOS$/i.test(i.str.trim())),usd=sorted.find(i=>/^D[OÓ]LARES$/i.test(i.str.trim()));
+    if(pesos&&usd&&usd.transform[4]>pesos.transform[4]){columns={left:pesos.transform[4]-40,boundary:(pesos.transform[4]+pesos.width+usd.transform[4])/2};continue;}
+    if(/^(?:Novedades|Informaci[oó]n|Tasas|Legales|Plan V|Resumen de financiaci[oó]n)\b/i.test(line)){columns=null;continue;}
+    if(!columns)continue;
+    const dated=line.match(/^(\d{2}[/-](?:\d{2}|[A-Za-z]+)[/-]\d{2,4})\s+(.+)$/),undated=/^INTERESES COMPENSATORIOS\s/i.test(line);if(!dated&&!undated)continue;
+    const date=dated?sectionDate(dated[1]):null;if(dated&&!date)continue;
+    const charges=sorted.filter(i=>i.transform[4]>=columns.left&&decimal(i.str.trim())!=null).map(i=>({amount:decimal(i.str.trim()),currency:i.transform[4]+i.width/2>columns.boundary?'USD':'ARS'}));
+    if(charges.length!==1)continue;
+    const description=sorted.filter(i=>i.transform[4]<columns.left).map(i=>i.str).join(' '),concept=(dated?description.replace(/^\S+\s+/,''):description).replace(/^\*\s*/,'').trim();
+    if(concept.length<4)continue;
+    proofs.push({date,concept,...charges[0],page:page+1,original:line});
+   }
+  });return proofs;
+ }
+ function informationalDebits(pages){
+  const proofs=[];pages.forEach((content,page)=>{let active=false;for(const raw of content.split(/\r?\n/)){const line=raw.trim().replace(/\s+/g,' ');
+   if(/^[-\s]*Novedades\s+d[eé]bitos?\s+autom[aá]ticos?\b/i.test(line)){active=true;continue;}
+   if(!active)continue;
+   if(/^(?:Informaci[oó]n|Legales|Tasas|Total|Saldo|Detalle de consumos)\b/i.test(line)){active=false;continue;}
+   const m=line.match(/^(\d{2}[/-](?:\d{2}|[A-Za-z]+)[/-]\d{2,4})\s*-?\s+(.+?)\s+(?:\$\s*)?(\d+(?:\.\d{3})*,\d{2})$/);
+   if(m&&sectionDate(m[1])&&decimal(m[3])>0)proofs.push({date:sectionDate(m[1]),concept:m[2].replace(/\s*-\s*ref\..*$/i,'').trim(),amount:decimal(m[3]),page:page+1,original:line});
+  }});return proofs;
+ }
  function statementEvidence(pages,positionedPages=[]){
-  const proof={pages:pages.length,penalties:[],dates:[],openings:[],netOpenings:[],usdOpenings:[],creditType:null,references:currencyReferences(positionedPages)};
+  const proof={pages:pages.length,penalties:[],dates:[],openings:[],netOpenings:[],usdOpenings:[],creditType:null,references:currencyReferences(positionedPages),ledger:ledgerColumns(positionedPages),informational:informationalDebits(pages)};
   pages.forEach((content,i)=>{
    let year='',month='';const lines=content.split(/\r?\n/),hasColumns=/PESOS\s+D[OÓ]LARES/i.test(content);
    for(const raw of lines){const line=raw.trim().replace(/\s+/g,' '),plain=line.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -81,6 +110,19 @@
  }
  function reconcileEvidence(reading,proof={}){
   const result={...reading,...(Number.isInteger(proof.pages)&&proof.pages>0?{pages:proof.pages}:{}),fields:{...reading.fields},movements:reading.movements.map(m=>({...m})),warnings:[...(reading.warnings||[])]};
+  const sameConcept=(a,b)=>{const x=normalized(a),y=normalized(b);return x.length>=4&&y.startsWith(x)&&/^[0-9]*$/.test(y.slice(x.length));};
+  for(const p of proof.ledger||[]){
+   const match=m=>m.page===p.page&&(!p.date||m.date===p.date)&&m.amount===p.amount&&sameConcept(m.concept,p.concept),candidates=result.movements.filter(match);
+   if(candidates.length===1&&(proof.ledger||[]).filter(q=>q.page===p.page&&q.date===p.date&&q.amount===p.amount&&sameConcept(candidates[0].concept,q.concept)).length===1){candidates[0].currency=p.currency;candidates[0].currencySource={page:p.page,original:p.original,origin:'PDF · columna de moneda'};}
+   // Sólo recupera pagos omitidos con fecha, signo y columna impresos inequívocos.
+   else if(!candidates.length&&p.amount<0&&/^(?:SU PAGO(?: EN PESOS)?|PAGO CAJERO\/INTERNET)$/i.test(p.concept)&&!(proof.ledger||[]).some(q=>q!==p&&q.page===p.page&&q.date===p.date&&q.amount===p.amount)&&!result.movements.some(m=>m.page===p.page&&sameConcept(m.concept,p.concept)&&m.amount===p.amount))result.movements.push({...p,kind:'Pago del período anterior',origin:'PDF',dateSource:'documento',dateEvidence:{date:p.date,page:p.page,original:p.original}});
+  }
+  for(const p of proof.informational||[]){
+   const match=m=>m.page===p.page&&m.date===p.date&&m.amount===p.amount&&sameConcept(m.concept,p.concept),candidates=result.movements.filter(match);
+   if(candidates.length!==1||(proof.informational||[]).filter(q=>match({...q,page:q.page})).length!==1)continue;
+   if((proof.ledger||[]).some(q=>q.date===p.date&&q.amount===p.amount&&sameConcept(candidates[0].concept,q.concept)))continue;
+   result.informationalMovements=[...(result.informationalMovements||[]),{...candidates[0],original:p.original,section:'Novedades débito automático'}];result.movements=result.movements.filter(m=>m!==candidates[0]);
+  }
   for(const p of proof.references||[]){
    const matching=m=>m.page===p.page&&m.date===p.date&&normalized(m.concept).startsWith(normalized(p.concept));
    const charged=result.movements.filter(m=>matching(m)&&m.currency===p.charge.currency&&m.amount===p.charge.amount);
@@ -105,6 +147,16 @@
   }
   if(!result.fields.brand&&proof.creditType&&normalized(result.fields.bank?.value)==='mercadopago')result.fields.brand={...proof.creditType};
   return result;
+ }
+ function correctPendingMovement(target,id,change){
+  if(!target||target.saved||!target.newFile)throw Error('Sólo se puede corregir una lectura pendiente.');
+  const original=target.movements.find(m=>m.id===id);if(!original)throw Error('Movimiento no disponible.');
+  if(!['ARS','USD'].includes(change.currency)||!Number.isSafeInteger(change.amount)||Math.abs(change.amount)>1e13)throw Error('Revisá el importe y la moneda.');
+  const out=structuredClone(target),movement=out.movements.find(m=>m.id===id);
+  if(movement.currency===change.currency&&movement.amount===change.amount)return out;
+  out.readingCorrections=[...(out.readingCorrections||[]),{id,before:{amount:movement.amount,currency:movement.currency},after:{amount:change.amount,currency:change.currency}}];
+  movement.amount=change.amount;movement.currency=change.currency;
+  return out;
  }
 
  // El año ausente se resuelve contra el ciclo, no contra una suposición de la IA.
@@ -170,5 +222,5 @@
   const pdf=await open(bytes);
   try{if(pdf.numPages>150)throw Error('El PDF supera 150 páginas');const pages=[],positionedPages=[];for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),content=await p.getTextContent(),lines=[];positionedPages.push(content.items);let y=null,line=[];for(const item of content.items){if(!('str'in item))continue;const next=Math.round(item.transform[5]);if(y!=null&&Math.abs(y-next)>3){lines.push(line.join(' '));line=[];}line.push(item.str);y=next;if(item.hasEOL){lines.push(line.join(' '));line=[];y=null;}}if(line.length)lines.push(line.join(' '));pages.push(lines.join('\n'));}const result=parse(pages,positionedPages);if(!pages.some(p=>p.trim().length>30))result.warnings.unshift('No hay texto suficiente: archivo escaneado u OCR necesario. Completá manualmente.');return result;}finally{await pdf.destroy();}
  }
- return {cycleEvidence,mergeCycleEvidence,decimal,parse,extract,open,debitEvidence,classifyAutomaticDebits,statementEvidence,reconcileEvidence,currencyReferences,calendar};
+ return {cycleEvidence,mergeCycleEvidence,decimal,parse,extract,open,debitEvidence,classifyAutomaticDebits,statementEvidence,reconcileEvidence,currencyReferences,ledgerColumns,informationalDebits,correctPendingMovement,calendar};
 });

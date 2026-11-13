@@ -182,6 +182,16 @@ function resultBlockReason(target){
  return '';
 }
 function categoryAction(m){return M.canClassify(m)?button(esc(m.category||(M.suggestCategory(m)?'Seguro sugerido':'Clasificar')),'movementcategory',`data-id="${esc(m.id)}" aria-label="Clasificar ${esc(m.concept)}"`,'small ghost'+(!m.category&&M.suggestCategory(m)?' category-suggested':''),'edit'):'—';}
+function readingCorrectionModal(id){
+ if(!stage||stage.saved||!stage.newFile)return;
+ const m=stage.movements.find(m=>m.id===id);if(!m)return;
+ dialogContext={readingMovement:id,readingTarget:stage};
+ modal('Corregir lectura',`<p><b>${esc(m.concept)}</b> · ${date(m.date)}</p><div class="formgrid">${moneyfield('Importe con signo','amount',m.amount,'required')}${select('Moneda','currency',options([['ARS','ARS'],['USD','USD']],m.currency))}</div><p class="helptext">Compará con el PDF original. Se aplica sólo a esta lectura; todavía no se guarda el resumen.</p>`, '<button type="submit" class="btn primary">Aplicar a la lectura</button>','readingcorrection');
+}
+function readingCorrections(){
+ if(!stage||stage.saved||!stage.newFile)return '';
+ return `<details><summary>Corregir lectura</summary><div class="panelbody">${stage.movements.map(m=>`<div class="lineitem"><div><b>${esc(m.concept)}</b><small>${money(m.amount,m.currency)} · ${date(m.date)}</small></div>${button('Corregir','readingcorrection',`data-id="${esc(m.id)}" aria-label="Corregir ${esc(m.concept)}"`,'small ghost','edit')}</div>`).join('')}</div></details>`;
+}
 function calendarCorrection(target){
  if(!target?.saved||!window.SVPrivateFinancePDF?.calendar)return null;
  const s=target.statement,fields={...s.extracted};
@@ -204,7 +214,7 @@ function statementPage(){
  if(!stage)return importsPage();
  const s=stage.statement,checks=resultChecks(stage),c=card(stage.cardCreated||s.card),bank=c?.bank||stage.proposedCard?.bank||s.extracted?.bank?.value||'',brand=c?.brand||stage.proposedCard?.brand||s.extracted?.brand?.value||'';
  const title=[bank,brand].filter(Boolean).join(' ')||'Resumen de tarjeta',filename=stage.newFile?.name||state.documents.find(d=>d.id===s.file)?.name||'',purchases=stage.movements.filter(m=>['Consumo','Cuota','Seguro','Débito a confirmar'].includes(m.kind)),consumed=currency=>sum(purchases.filter(m=>m.currency===currency).map(m=>m.amount));
- const warning=checks.missing.length?'No se reconoció '+checks.missing.join(', ')+'. Volvé a escanear el documento.':checks.mismatch?'El saldo no coincide con los movimientos. Volvé a escanear o compará el PDF original.':'';
+ const warning=checks.missing.length?'No se reconoció '+checks.missing.join(', ')+'. Volvé a escanear el documento.':checks.mismatch?'El saldo no coincide con los movimientos. Compará el PDF original y usá Corregir lectura si el importe o la moneda se leyó mal.':'';
  const needsCard=checks.needsCard?`<div class="pdf-card-choice">${select('¿A qué tarjeta pertenece?', 'resultCard',cardOptions(s.card))}</div>`:'';
  const rows=stage.movements.map(m=>`<tr><td class="pdf-result-date" data-label="Fecha">${m.date?esc(m.date.slice(8,10)+'/'+m.date.slice(5,7)):'—'}</td><td class="pdf-result-concept"><strong>${esc(m.concept)}</strong>${m.current&&m.total?`<small class="pdf-mobile-quota">Cuota ${m.current} de ${m.total}</small>`:''}${['Consumo','Cuota'].includes(m.kind)?'':`<small>${esc(m.kind==='Pago del período anterior'?'Pago anterior':m.kind)}</small>`}</td><td data-label="Cuotas">${m.current&&m.total?esc(m.current+' / '+m.total):'—'}</td><td class="money ${m.currency==='ARS'?'':'pdf-no-amount'}" data-label="ARS">${m.currency==='ARS'?money(m.amount):'—'}</td><td class="money ${m.currency==='USD'?'':'pdf-no-amount'}" data-label="USD">${m.currency==='USD'?money(m.amount,'USD'):'—'}</td><td class="actions-col pdf-result-category" data-label="Categoría">${categoryAction(m)}</td></tr>`).join('');
  return `<div class="pdf-result"><div class="pdf-result-back">${button('Volver','resultback','','ghost','arrow-left')}</div>${head(esc(title),[s.period?esc(month(s.period)):'Período no reconocido',esc(filename)].filter(Boolean).join(' · '),(stage.newFile?.bytes||s.file?button('Ver PDF original','previeworiginal','','ghost','file'):'')+tag(stage.saved?'Guardado':'Lectura lista',stage.saved?'green':'gold'))}
@@ -213,6 +223,7 @@ function statementPage(){
   <div class="pdf-result-totals"><article><span>Saldo a pagar · ARS</span><strong>${money(s.total)}</strong>${s.usd?`<small>+ ${money(s.usd,'USD')} en dólares</small>`:''}</article><article><span>Pago mínimo · ${esc(s.minimumCurrency||'ARS')}</span><strong>${money(s.minimum,s.minimumCurrency||'ARS')}</strong></article><article><span>Vencimiento</span><strong>${date(s.due)}</strong></article></div>
   <div class="pdf-result-period"><span>Cierre: <b>${date(s.close)}</b></span>${purchases.length?`<span>Consumos: <b>${money(consumed('ARS'))}${consumed('USD')?' + '+money(consumed('USD'),'USD'):''}</b></span>`:''}</div>
   ${resultCycle(s)}${monthlyReview()}${panel('Movimientos',`<div class="tablewrap pdf-result-table"><table><thead><tr><th>Fecha</th><th>Detalle</th><th>Cuotas</th><th class="money">ARS</th><th class="money">USD</th><th class="actions-col">Categoría</th></tr></thead><tbody>${rows||'<tr><td colspan="6">No se reconocieron movimientos.</td></tr>'}</tbody></table></div>`)}
+  ${readingCorrections()}${stage.informationalMovements?.length?`<details><summary>Avisos del PDF · no suman al saldo</summary><div class="panelbody">${stage.informationalMovements.map(m=>`<p>${esc(m.concept)} · ${money(m.amount,m.currency)}</p>`).join('')}</div></details>`:''}
   <div id="resultError" class="error" role="alert"></div>
   ${!stage.saved&&checks.blocked?`<p class="pdf-save-reason" role="status">${esc(resultBlockReason(stage))}</p>`:''}
   <div class="pdf-result-actions"><div>${stage.saved&&calendarCorrection(stage)?button('Corregir año a '+calendarCorrection(stage).fields.period.value.slice(0,4),'correctcalendar','','ghost'):''}${!stage.saved?button('Volver a escanear','analyzepdf','','ghost'):''}${!stage.saved?button(saving?'Guardando…':'Guardar resumen','saveresult',(checks.blocked||saving?'disabled ':'')+(saving?'aria-busy="true"':''),'primary','check'):''}</div></div>
@@ -225,7 +236,7 @@ function pdfCardMatches(bank,brand){
 }
 function monthlyLinks(){return M.continuity(state,{...stage.statement,card:stage.cardCreated||stage.statement.card,movements:stage.movements});}
 function monthlyReview(){if(stage.saved)return '';const links=monthlyLinks();if(!links.length)return '';return panel('Continuidad entre meses',`<div class="panelbody monthly-continuity"><p>Conservá la misma ficha si es el mismo seguro o compra. Si es otro, elegí nuevo.</p>${links.map(l=>{const m=stage.movements.find(m=>m.id===l.movement);return `<div class="lineitem"><div><b>${esc(m.concept)}</b><small>${l.automatic?'Coincide con un registro anterior':l.options.length?'Revisá cuál corresponde':'Primer registro'}</small></div><select aria-label="Continuidad de ${esc(m.concept)}" data-monthly-movement="${esc(m.id)}" data-monthly-type="${l.type}">${options([...(l.locked?[]:[['','Elegir registro'],['new',l.type==='insurance'?'Es otro seguro':'Es otra compra']]),...l.options.map(i=>[i.id,i.name])],l.selected)}</select></div>`;}).join('')}</div>`);}
-function readReview(){return {...structuredClone(stage.statement),card:stage.cardCreated||stage.statement.card,movements:structuredClone(stage.movements),reviewed:true};}
+function readReview(){const s=structuredClone(stage.statement);if(stage.readingCorrections?.length)s.reconciliation=[s.reconciliation,...stage.readingCorrections.map(c=>{const m=stage.movements.find(m=>m.id===c.id);return 'Lectura corregida: '+(m?.concept||'Movimiento')+' · '+money(c.before.amount,c.before.currency)+' → '+money(c.after.amount,c.after.currency);})].filter(Boolean).join('\n');if((s.reconciliation||'').length>1000)throw Error('Hay demasiadas correcciones. Revisá la lectura antes de confirmar.');return {...s,card:stage.cardCreated||s.card,movements:structuredClone(stage.movements),reviewed:true};}
 function useAsRevision(id){
  const existing=state.statements.find(s=>s.id===id);if(!existing||!stage||stage.saved)return;
  const original=state.movements.filter(m=>m.statement===id&&!m.postClose),remaining=original.slice();
@@ -325,6 +336,7 @@ async function analyzePDFTarget(target,bytes,signal){
   const dated=window.SVPrivateFinancePDF?.calendar?window.SVPrivateFinancePDF.calendar(withCycle):withCycle;
   const result=window.SVPrivateFinancePDF?.classifyAutomaticDebits?window.SVPrivateFinancePDF.classifyAutomaticDebits(dated,evidence?.automaticDebits||[]):dated;
   ensureReading(signal);
+  target.informationalMovements=structuredClone(result.informationalMovements||[]);
   target.statement={...review,source:'PDF + revisión manual',extracted:{...result.fields}};delete target.statement.movements;
   for(const [key,field]of Object.entries(result.fields))if(['previous','total','usd','minimum','minimumCurrency','close','due','nextClose','nextDue','period','tem','tna','cft'].includes(key))target.statement[key]=field.value;
   const bank=result.fields.bank?.value,brand=result.fields.brand?.value;
@@ -374,6 +386,11 @@ function helpPage(){return head('Tu espacio privado','Misma sesión de SisVentas
 async function backup(){await refresh(true);if(dead)return;const blob=new Blob([JSON.stringify({format:'sisventas-private-finance',version:1,exportedAt:new Date().toISOString(),state},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob);urls.add(url);const a=document.createElement('a');a.href=url;a.download='gastos-personales-'+today()+'.json';a.click();setTimeout(()=>{URL.revokeObjectURL(url);urls.delete(url);},1000);toast('Datos exportados. Los PDF se descargan por separado.');}
 async function submit(f){
  const v=Object.fromEntries(new FormData(f)),kind=f.dataset.kind;let data,type;
+ if(kind==='readingcorrection'){
+  if(stage!==dialogContext?.readingTarget)throw Error('La lectura cambió. Volvé a abrir el movimiento.');
+  const next=window.SVPrivateFinancePDF.correctPendingMovement(stage,dialogContext.readingMovement,{amount:amount(v.amount,true),currency:v.currency});
+  Object.assign(stage,next);closeModal(false);render();toast('Lectura corregida. El resumen todavía no se guardó.');return;
+ }
  if(kind==='movementcategory'){
   if(v.category==='__new_category__'){dialogContext.newCategoryId ||=crypto.randomUUID();await mutate('category-save',{id:dialogContext.newCategoryId,name:v.newCategory||''});v.category=M.resolveCategory(state,v.newCategory);delete dialogContext.newCategoryId;const selector=f.elements.category;selector.innerHTML=options([...M.categoryNames(state).map(c=>[c,c||'Sin clasificar']),['__new_category__','＋ Nueva categoría…']],v.category);f.elements.newCategory.disabled=true;f.elements.newCategory.required=false;document.getElementById('newCategoryFields').hidden=true;}
   if(dialogContext.fromStage){const m=stage?.movements.find(m=>m.id===dialogContext.movement);if(!M.canClassify(m))throw Error('Categoría no disponible');m.category=M.resolveCategory(state,v.category);closeModal(false);render();toast('Categoría preparada. Se guarda al confirmar el resumen.');return;}
@@ -399,11 +416,12 @@ document.addEventListener('submit',async e=>{
  const previous=buttons.map(b=>[b,b.disabled]);saving=true;
  try{await buttonActivity(submitter,async()=>{buttons.forEach(b=>b.disabled=true);if(f.id==='modalForm')await submit(f);else{const x=scenario();await mutate('strategy-save',x);render();toast('Escenario guardado sin modificar pagos.');}});}
  catch(err){showError(err);}
- finally{saving=false;previous.forEach(([b,disabled])=>b.disabled=disabled);}
+ finally{saving=false;previous.forEach(([b,disabled])=>b.disabled=disabled);if(f.dataset.kind==='readingcorrection'&&!document.getElementById('dialog').open)render();}
 });
 const asyncButtonActions=new Set(['correctcalendar','queue-save','queue-retry','saveresult','analyzepdf','original','resume-document','previeworiginal','backup','confirmvoid']);
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-action]');if(!b||b.disabled||saving)return;const a=b.dataset.action,id=b.dataset.id;const execute=async()=>{try{
  if(a==='correctcalendar'){await correctSavedCalendar();return;}
+ if(a==='readingcorrection'){readingCorrectionModal(id);return;}
  if(a==='movementcategory'){movementCategoryModal(id);return;}if(a==='queue-save'){await saveQueuedResult(id);return;}if(a==='queue-open'){const entry=importQueue.entries.find(e=>e.id===id);if(entry?.status==='ready'){stage=entry.result;previewRender();}return;}if(a==='queue-retry'){const entry=importQueue.entries.find(e=>e.id===id);if(entry)entry.rescan=true;await importQueue.retry(id);return;}if(a==='queue-cancel'){importQueue.cancel(id);return;}if(a==='queue-remove'){const entry=importQueue.entries.find(e=>e.id===id);if(entry?.result===stage)stage=null;importQueue.remove(id);return;}if(a==='resultback'){page='imports';render();window.scrollTo(0,0);return;}if(a==='openresult'){previewRender();return;}if(a==='saveresult'){await saveResult();return;}if(a==='revisionresult'){useAsRevision(id);return;}if(a==='discardreading'){const entry=importQueue.entries.find(e=>e.result===stage);if(entry)importQueue.remove(entry.id);stage=null;render();return;}if(a==='cancelpdfai'){cancelScan();return;}if(a==='analyzepdf'){await analyzeStagePDF();return;}
  if(a==='return'){if(bridge)bridge.close();else location.href='./index.html#/dashboard';return;}if(a==='go')go(b.dataset.page);if(a==='menu')toggleNavigation();if(a==='navclose')setNavigation(false);if(a==='close')closeModal();if(a==='cycledit')cycleEdit(id);if(a==='cardedit')cardEdit(id);if(a==='detail')detail(id);if(a==='detailtab')detail(dialogContext.card,dialogContext.statement,id);if(a==='payment')paymentModal(id);if(a==='editpay')editPay(id);if(a==='insuranceedit'){if(!state.cards.length)throw Error('Agregá primero una tarjeta');insuranceEdit(id);}if(a==='charge')chargeModal(id);if(a==='installmentedit'){if(!state.cards.length)throw Error('Agregá primero una tarjeta');installmentEdit(id);}if(a==='expenseedit')expenseEdit(id);if(a==='review')previewModal(state.statements.find(s=>s.id===id));if(a==='original')await original(id);if(a==='resume-document'){const doc=state.documents.find(d=>d.id===id),blob=await bridge.request('/documentos/'+id,undefined,true);if(!dead)await processFiles([new File([blob],doc.name,{type:'application/pdf'})]);}if(a==='previeworiginal'){if(stage?.newFile)await viewPDF(stage.newFile.bytes,stage.newFile.name);else await original(stage?.statement.file);}if(a==='backup')await backup();if(a==='upload'){document.getElementById('pdfInput').value='';document.getElementById('pdfInput').click();}
  if(a==='voidpay'){dialogContext={payment:id};modal('Anular registro de pago',notice('La anulación conserva el registro y deja de descontarlo del saldo. No revierte una transferencia bancaria.')+notes('','reason'),'<button class="btn danger" type="button" data-action="confirmvoid">Confirmar anulación</button>','void');}
