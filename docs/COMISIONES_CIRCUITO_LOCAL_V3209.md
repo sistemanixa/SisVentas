@@ -1,6 +1,10 @@
 # Comisiones: bloque local v3.20.9
 
-Estado: preparado para revisión local; no publicado. Base: `b4a7e68d` (v3.20.8).
+Estado: Comisiones v3.20.9 publicada el 13/11/2026. Base: `b4a7e68d` (v3.20.8).
+
+Web desde `260ccb13`: Hosting `aa434821f10c6f72`, con nueve activos comprobados byte a byte y marcador oficial actualizado. Servidor `cotizador-comisiones3209-0b67b0a7`, construido desde ese mismo commit sobre la imagen anterior, conserva los 16 accesos. Se aplicaron los seis validadores condicionales y dos índices; se renovaron las tres verificaciones técnicas de OT con las claves y configuración funcional existentes. La guardia temporal se liberó. El despliegue no registró operaciones comerciales.
+
+Validación del paquete de servidor con su guard exacto y flags de producción: 13 casos de emulador aprobados. La revisión web autenticada confirmó listado y detalle de Comisiones en lectura, sin aprobaciones ni pagos de prueba. Estos resultados no equivalen a dar por terminados los circuitos optativos preparados del repositorio: la puerta posterior de esa fuente identificó fallos en propuestas de OT y eliminaciones, separados de esta imagen, que siguen bajo revisión.
 
 ## Un solo circuito
 
