@@ -1,6 +1,6 @@
 'use strict';
 const {digest}=require('./labor-guard'),Model=require('./ot-lifecycle-model'),Policy=require('./ot-lifecycle-policy'),Index=require('./record-list-model'),Assigned=require('./ot-personal-scope'),State=require('./ot-material-state'),Money=require('./commercial-models/commercial-money');
-const Physical=require('./ot-physical-confirmation-model'),Stock=require('./ot-stock-consumption-model'),Rows=require('./ot-material-rows-model'),{normalizeRtdb}=require('./payment-membership-index'),crypto=require('node:crypto');
+const Physical=require('./ot-physical-confirmation-model'),Stock=require('./ot-stock-consumption-model'),Rows=require('./ot-material-rows-model'),{summaryDigest}=require('./ot-summary-digest'),crypto=require('node:crypto');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
 async function batch(values,work){const out=[];for(let i=0;i<values.length;i+=6)out.push(...await Promise.all(values.slice(i,i+6).map((value,j)=>work(value,i+j))));return out;}
@@ -88,7 +88,7 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
      if(related.length>=500)throw fail(503,'Demasiadas custodias para comprobar en una operación.');
      const records=await batch(related,async([id,summary])=>{
       const original=await track('sisventas/ordenes_trabajo/'+id);
-      if(!original||digest(normalizeRtdb(Index.summary('ordenes_trabajo',original)))!==digest(normalizeRtdb(summary)))throw fail(503,'El resumen de una custodia requiere revisión.');
+      if(!original||summaryDigest(Index.summary('ordenes_trabajo',original))!==summaryDigest(summary))throw fail(503,'El resumen de una custodia requiere revisión.');
       return[id,original];
      });for(const[id,original]of records)originals.set(id,original);
      await batch([...new Set(changed.map(c=>'sisventas/inventario_operativo/'+c.productKey))],track);

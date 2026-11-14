@@ -1,5 +1,5 @@
 'use strict';
-const {digest}=require('./labor-guard'),Policy=require('./ot-lifecycle-policy'),Index=require('./record-list-model'),Model=require('./ot-delivery-model'),{normalizeRtdb}=require('./payment-membership-index');
+const {digest}=require('./labor-guard'),Policy=require('./ot-lifecycle-policy'),Index=require('./record-list-model'),Model=require('./ot-delivery-model'),{summaryDigest}=require('./ot-summary-digest');
 const fail=(statusCode,message,code='SV_OT_DELIVERY_NOT_READY')=>Object.assign(Error(message),{statusCode,code});
 function createOTDelivery({store,guard,enabled=false,commercialPages=false,now=Date.now}){
  async function protocol(read){
@@ -36,7 +36,7 @@ function createOTDelivery({store,guard,enabled=false,commercialPages=false,now=D
    for(const sale of destinations){const rows=await query('sisventas/ordenes_trabajo','ventaFbKey',sale);for(const id of Object.keys(rows||{}))if(!summaries[id])throw fail(503,'La cobertura de OT está incompleta.');}
    for(const [id,summary]of Object.entries(summaries)){
     const relevant=destinations.includes(summary.ventaFbKey)||(summary.materiales||[]).some(m=>matchesProduct(m)&&(destinations.includes(Model.allocation(summary,m))||Model.allocation(summary,m)===null));if(!relevant)continue;
-    if(Object.keys(originals).length>=500)throw fail(503,'Demasiadas custodias para validar de forma acotada.');const original=await track('sisventas/ordenes_trabajo/'+id);if(!original||digest(normalizeRtdb(Index.summary('ordenes_trabajo',original)))!==digest(normalizeRtdb(summary)))throw fail(503,'El resumen de una custodia requiere revisión.');originals[id]=structuredClone(original);for(const row of originals[id].materiales||[])if(matchesProduct(row)&&!Model.key(row.productoKey))row.productoKey=await productKey(row);
+    if(Object.keys(originals).length>=500)throw fail(503,'Demasiadas custodias para validar de forma acotada.');const original=await track('sisventas/ordenes_trabajo/'+id);if(!original||summaryDigest(Index.summary('ordenes_trabajo',original))!==summaryDigest(summary))throw fail(503,'El resumen de una custodia requiere revisión.');originals[id]=structuredClone(original);for(const row of originals[id].materiales||[])if(matchesProduct(row)&&!Model.key(row.productoKey))row.productoKey=await productKey(row);
    }
    // Legacy inventory without a revision starts at zero in the atomic guard
    // projection. An explicitly invalid revision is never treated as absent.

@@ -4363,3 +4363,14 @@ Esto no convierte la suite general anterior (10.670 aprobadas, 22 fallidas y 91 
 La evidencia privada está en `C:/SisVentas/tmp/full-publication-20261113/bounded-publication-v5/`: `cut-completed.private.json`, `activation-verification.private.json` y `web-verification.private.json`. No agregar estos artefactos, respaldos ni datos privados a Git o Hosting. El manifiesto y el recibo de Hosting también se conservan localmente.
 
 La confirmación fiscal actual `call_c1dcc8aaf66740db9e68f11c827883f8` permitió el corte. El aviso de versión se actualizó después de comprobar la web. El siguiente trabajo debe partir de este estado publicado y contrastar los metadatos remotos. Conservar las evidencias de los intentos fallidos; no reutilizar sus recetas o firmas.
+
+
+## Corrección OT-186 preparada; revisión local pendiente — 14/11/2026
+
+Se reprodujo el rechazo de resúmenes con los mismos adjuntos en distinto orden. El digest global ya ordenaba objetos; el manifiesto raíz `_svListAttachments` mantenía el orden de recorrido. Un helper compartido normaliza exclusivamente esa colección y se usa en entrega, ciclo de instalación y autoridad de custodias. Conserva duplicados, segmentos, materiales, revisión y contenido documental; las diferencias reales siguen bloqueadas antes de mover stock. No se reescribieron OT ni resúmenes históricos.
+
+Veinte pruebas nuevas, regresiones focales (105 casos), revisión independiente y flujo público Entregar todos → Todo instalado con seis materiales ficticios pasaron. El flujo produce un remito y un commit de entrega, otro de instalación y ningún movimiento adicional por reintento. Los originales de ventas, pagos y comisiones quedan intactos en esas pruebas. La puerta completa con Node 22/Chrome está en curso; no declararla verde sin revisar su resultado.
+
+La auditoría de 22 fallos y el arreglo del empaquetado están en docs/AUDITORIA_22_FALLOS_V32012.md. Dockerfile incorpora seis dependencias omitidas; scanner y payload pasaron 10/10. Eliminaciones de ventas sigue deshabilitada en producción; sus casos habilitados en fixtures no habilitan ni acreditan esa operación real.
+
+El servidor correctivo se preparará como overlay de cuatro archivos sobre la imagen c455 publicada, conservando los otros archivos, contratos, flags, reglas, fiscal e IAM. El Dockerfile general corregido no reemplaza esa base para este parche. Todavía no hay activación, publicación ni operaciones reales de esta corrección. El usuario pide revisión en local antes de publicar y autorizó expresamente entrega e instalación reales de OT-186; no ejecutarlas como ensayo incidental ni ajustar stock manualmente. Antes de cada acción deben comprobarse OT vigente, remito, movimientos e intento activo; no repetir ciegamente. Una interfaz localhost conectada al servidor oficial no incorpora por sí sola el arreglo backend.

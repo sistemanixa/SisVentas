@@ -1,7 +1,7 @@
 'use strict';
 // Commit-time custody proof from certified summaries and their full originals.
 // Never accepts a browser/audit counter as authority for a sibling's material.
-const Index=require('./record-list-model'),Rows=require('./ot-material-rows-model'),Money=require('./commercial-models/commercial-money.v1'),{digest}=require('./labor-guard'),{normalizeRtdb}=require('./payment-membership-index');
+const Index=require('./record-list-model'),Rows=require('./ot-material-rows-model'),Money=require('./commercial-models/commercial-money.v1'),{digest}=require('./labor-guard'),{summaryDigest}=require('./ot-summary-digest');
 const fail=()=>Object.assign(Error('La custodia vinculada requiere revisión.'),{statusCode:409,code:'SV_OT_MATERIAL_REVIEW'});
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
 const allocation=(ot,row)=>{const id=row.destinoVenta==='nueva'?row.ventaDestinoFbKey:ot.ventaFbKey;if(!key(id))throw fail();return id;};
@@ -22,7 +22,7 @@ async function computeOriginal({ot,otKey,productKey,group,read,query}){
   if(id===otKey)continue;
   if(!destinations.has(summary.ventaFbKey)&&!Rows.persisted(Rows.view(summary)).some(row=>matches(row)&&(destinations.has(row.destinoVenta==='nueva'?row.ventaDestinoFbKey:summary.ventaFbKey)||!key(row.destinoVenta==='nueva'?row.ventaDestinoFbKey:summary.ventaFbKey))))continue;
   if(originals.size>=500)throw fail();const original=await read('sisventas/ordenes_trabajo/'+id);
-  if(!original||digest(normalizeRtdb(Index.summary('ordenes_trabajo',original)))!==digest(normalizeRtdb(summary)))throw fail();originals.set(id,original);
+  if(!original||summaryDigest(Index.summary('ordenes_trabajo',original))!==summaryDigest(summary))throw fail();originals.set(id,original);
  }
  const resolved=new Map(),result=new Map();
  for(const [i,entry]of selected){let held=0;const destination=allocation(ot,entry.transition.target);
