@@ -3,10 +3,10 @@ const {digest,parts}=require('./labor-guard');
 const Payments=require('./bonus-payment');
 const Create=require('./admin-expense-create');
 const Money=require('./commercial-models/commercial-money');
-const fields=['fecha','vencimiento','tipo','categoria','descripcion','desc','monto','medio','proveedor','comprobante','empleadoId','empleadoFbKey','empleadoNombre','esFijoBase','recurrenciaActiva','tipoPagable','origen','legacyKey','movimientoCtaKey','gastoFbKey','gastoKey','montoPagado','saldoPagadoLegacy','pagos','estado','reembolsado','montoCompensado','compensaciones','adelantoCompensado','adelantosAplicados','sueldoBase','sueldoBruto','bonificacion','mes','periodoDescuento','fechaPago','requiereAprobacion','aprobadoPor','aprobadoTs','fechaAprobacion','bajaAdministrativa'];
+const fields=['fecha','vencimiento','tipo','categoria','descripcion','desc','monto','medio','proveedor','comprobante','empleadoId','empleadoFbKey','empleadoNombre','esFijoBase','recurrenciaActiva','tipoPagable','origen','legacyKey','movimientoCtaKey','gastoFbKey','gastoKey','montoPagado','saldoPagadoLegacy','pagos','estado','reembolsado','montoCompensado','compensaciones','adelantoCompensado','adelantosAplicados','sueldoBase','sueldoBruto','bonificacion','mes','periodoDescuento','fechaPago','requiereAprobacion','aprobadoPor','aprobadoTs','fechaAprobacion','bajaAdministrativa','indumentaria'];
 const base=row=>Object.fromEntries(fields.filter(k=>row?.[k]!==undefined).map(k=>[k,row[k]]));
 const fail=(message,statusCode=409)=>Object.assign(Error(message),{statusCode,code:'SV_EXPENSE_EDIT_CONFLICT'});
-function createAdminExpenseEdit({authorize,store,guard,enabled=false,now=Date.now}){
+function createAdminExpenseEdit({authorize,store,guard,enabled=false,clothingEnabled=process.env.EMPLOYEE_RESOURCES_ENABLED==='true',now=Date.now}){
  async function access(actor,read){
   if(actor?.claims?.uid!==actor?.uid||!actor?.uid)throw fail('Sesión requerida',403);
   const profile=await read('sv_chat_roles/'+actor.uid),cfg=profile?.rol?await read('sv_permisos/'+profile.rol):null,reset=await read('sv_access_resets/'+actor.uid);
@@ -17,7 +17,8 @@ function createAdminExpenseEdit({authorize,store,guard,enabled=false,now=Date.no
   if(!enabled)throw fail('Recargá para actualizar el guardado de Gastos',503);
   if(!body||Object.keys(body).some(k=>!['id','key','expectedHash','datos','foto'].includes(k))||typeof body.key!=='string'||parts(body.key).length!==1||!/^[a-f0-9]{64}$/.test(body.expectedHash||''))throw fail('Edición de gasto inválida',400);
   const data=Create.requestData({id:body.id,projection:'complete',datos:body.datos,...(body.foto?{foto:body.foto}:{})}),permission=await access(actor,p=>store.read(p));
-  return guard.run({uid:actor.uid,claims:actor.claims,...permission,mode:'command',financialAction:'gastos.administrar',recoverReceipt:true,opId:body.id,transportDigest:digest(body),operation:'admin-expense-edit',input:body},async scope=>{
+  const runner={uid:actor.uid,claims:actor.claims,...permission,mode:data.indumentaria?'user':'command',financialAction:'gastos.administrar',recoverReceipt:true,opId:body.id,transportDigest:digest(body),operation:'admin-expense-edit',input:body};
+  return guard.run(runner,async scope=>{
    const currentPermission=await access(actor,p=>scope.get(p));if(digest(permission)!==digest(currentPermission))throw fail('Los permisos cambiaron. Volvé a abrir el gasto.');
    const path='sisventas/gastos/'+body.key,original=await scope.get(path),visible=await store.readAsUser(path,actor);
    if(!original||digest(original)!==digest(visible)||digest(base(original))!==body.expectedHash)throw fail('El gasto o sus pagos cambiaron. Volvé a abrirlo.');
@@ -33,6 +34,8 @@ function createAdminExpenseEdit({authorize,store,guard,enabled=false,now=Date.no
    if(movement&&(amountChanged||employeeChanged)&&(Number(movement.monto)!==Number(original.monto)||Payments.paymentTotal(movement)!==Payments.paymentTotal(original)))throw fail('El gasto y su movimiento requieren revisión.');
    const actual=structuredClone(original),patch={};
    for(const k of ['fecha','vencimiento','tipo','categoria','descripcion','monto','medio','proveedor','comprobante','empleadoId','empleadoNombre','esFijoBase','recurrenciaActiva'])if(data[k]!==undefined)actual[k]=data[k];
+   if(data.indumentaria)actual.indumentaria=data.indumentaria;
+   if(original.indumentaria&&(data.categoria!==original.categoria||Number(data.monto)!==Number(original.monto)))throw fail('El gasto ya tiene prendas ingresadas. Conservá su categoría e importe.');
    if(actual.fijoGenerado===true)actual.esFijoBase=false;
    if(employeeChanged&&employee){if(parts(employee).length!==1)throw fail('Empleado inválido',400);const person=await scope.get('sisventas/empleados/'+employee);if(!person||person.activo===false)throw fail('El empleado ya no está activo.');actual.empleadoNombre=person.nombre||'';}
    if(employeeChanged&&movement){if(!employee)throw fail('No se puede quitar un vínculo con movimientos.');const newPath='sisventas/ctaemp/'+employee+'/'+linked.path.split('/').at(-1);if(await scope.get(newPath))throw fail('Ya existe un movimiento en la cuenta destino.');patch[linked.path]=null;actual.empleadoFbKey=employee;actual.legacyKey=newPath.slice('sisventas/'.length);linked.path=newPath;}
@@ -43,6 +46,8 @@ function createAdminExpenseEdit({authorize,store,guard,enabled=false,now=Date.no
    patch[path]=actual;
    patch['sisventas/auditoria_pagos/expense_edit_'+body.id]={accion:'editar_gasto',gastoFbKey:body.key,uid:actor.uid,usuario:permission.name,ts:now(),anterior:base(original),posterior:base(actual)};
    scope.beforeCommit(async({readFresh})=>{if(digest(await access(actor,readFresh))!==digest(permission))throw fail('Los permisos cambiaron antes de guardar.');});
+   const clothing=await require('./expense-clothing-link').prepare({scope,identity:actor,runner,expense:actual,original,key:body.key,enabled:clothingEnabled,at:new Date(now()).toISOString()});
+   if(clothing){patch[clothing.path]=clothing.next;clothing.issue(patch);}
    await scope.update(patch);return {ok:true,committed:true,key:body.key};
   });
  }

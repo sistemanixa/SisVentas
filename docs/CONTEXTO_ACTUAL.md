@@ -1,3 +1,9 @@
+# Indumentaria desde Gastos: candidata local · 14/11/2026
+
+Trabajo propio, sin delegar al chat coordinador. Rama `codex/gastos-indumentaria` desde `dc5e009a`; candidata v3.20.13, todavía sin publicar. Categoría Indumentaria muestra prenda, talle, color y cantidad, con varias filas por compra. Gasto y recepción de prendas se confirman juntos con el guard existente; entrega posterior no crea otro gasto. Completar un gasto anterior conserva pagos, detecta recepciones previas y no duplica existencias. No se modificaron registros reales ni infraestructura.
+
+Pruebas finales: 104 focales, 15 Chrome y 3 integraciones nativas con emulador aprobadas; sintaxis, diff y marcadores locales coherentes. Puerta general ejecutada y regresiones introducidas en el adaptador DOM corregidas sin cambiar aserciones; 12 fallos restantes reproducidos con los mismos nombres en la base intacta y la candidata. No dar la suite general por verde. Alcance, composición nativa, límites y siguiente paso en [INDUMENTARIA_DESDE_GASTOS.md](INDUMENTARIA_DESDE_GASTOS.md). Demo loopback aislada abierta con datos ficticios; no confundir con la web publicada. `origin/main` consultado está en v3.12.5 y no representa la fuente externa v3.20.12 de este bloque; no sobrescribir ni retroceder la publicada.
+
 # Indumentaria habilitada · 14/11/2026
 
 Activación puntual solicitada por el titular, realizada sin delegar al chat de coordinación. Cotizador está en `cotizador-ropa32012-20261114a`, misma imagen inmutable `c45566194e491241555f3d8bc31898d886c80a9914a4b4243e159d30ae944e2b`. Único cambio funcional de configuración: `EMPLOYEE_RESOURCES_ENABLED=true`, interruptor compartido de Indumentaria y categorías laborales. Se conservaron las 16 rutas, IAM, recursos, secretos y demás variables mediante comprobación de originales y ETag. Reglas sin cambios (`ea197750dc668aedffc5e182dd6a6e7fd6e939279690cf4a8077ac4cd975f3db`); no se repitió el corte de Accounts ni la preparación fiscal.

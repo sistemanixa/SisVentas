@@ -45,7 +45,7 @@ function create({authorize,store,guard,enabled=false,now=Date.now}){
    if(body.domain==='clothing'){
     if(Object.hasOwn(body.command,'actorId')||Object.hasOwn(body.command,'at')||Object.hasOwn(body.command,'operationId'))throw fail(400,'La autoría se registra en el servidor.');
     const c={...body.command,operationId:body.id,actorId:identity.uid,at};
-    if(c.type==='stock.receive'){if(!key(c.gastoRef))throw fail(400,'Elegí un gasto existente.');const ref='sisventas/gastos/'+c.gastoRef,v=await scope.get(ref);if(!v||v.eliminado===true||v.anulado===true)throw fail(409,'El gasto vinculado ya no está disponible.');references.set(ref,v);}
+    if(c.type==='stock.receive'){if(!key(c.gastoRef))throw fail(400,'Elegí un gasto existente.');const ref='sisventas/gastos/'+c.gastoRef,v=await scope.get(ref);if(!v||v.eliminado===true||v.anulado===true)throw fail(409,'El gasto vinculado ya no está disponible.');if(v.indumentaria)throw fail(409,'Las prendas de este gasto ya ingresaron al guardarlo.');references.set(ref,v);}
     if(['employee.deliver','employee.return'].includes(c.type)){if(!key(c.employeeId))throw fail(400,'Elegí un empleado activo.');const ref='sisventas/empleados/'+c.employeeId,v=await scope.get(ref);if(!v||v.activo===false||v.eliminado===true)throw fail(409,'El empleado ya no está activo.');references.set(ref,v);}
     next=Clothing.apply(state,c);
    }else{

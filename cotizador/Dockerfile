@@ -41,6 +41,7 @@ COPY personal-hours-reader.js ./
 COPY personal-expenses.js ./
 COPY bonus-payment.js bonus-payment-model.js expense-payment-adjustment.js ./
 COPY admin-expense-create.js admin-expense-edit.js payment-membership-matcher.js payment-membership-index.js payment-snapshot.js payment-commands.js ./
+COPY expense-clothing-link.js expense-clothing-model.js employee-resources.js employee-resources-policy.js employee-clothing-model.js expense-categories-model.js ./
 COPY expense-removal-policy.js expense-removal-guard.js ./
 COPY supplier-directory.js ./
 COPY commission-calculations.js commission-operations.js commission-public-response.js ./

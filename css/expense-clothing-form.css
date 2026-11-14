@@ -1,0 +1,9 @@
+.expense-clothing{grid-column:1/-1;margin:4px 0;padding:18px;border:1px solid var(--border);border-radius:12px;background:var(--bg2)}
+.expense-clothing[hidden]{display:none}
+.expense-clothing p{color:var(--text3);font-size:13px;margin:6px 0 16px}
+.expense-clothing-row{display:grid;grid-template-columns:minmax(160px,2fr) minmax(80px,1fr) minmax(100px,1fr) 95px 40px;align-items:end;gap:12px;margin-bottom:12px}
+.expense-clothing-row label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text2);min-width:0}
+.expense-clothing-row input{width:100%;min-height:40px;min-width:0;box-sizing:border-box;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+.expense-clothing-row input:disabled{opacity:.8}
+.expense-clothing-row button{min-height:40px}
+@media(max-width:600px){.expense-clothing{padding:12px}.expense-clothing-row{grid-template-columns:1fr 1fr;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--border)}.expense-clothing-row label:first-child{grid-column:1/-1}.expense-clothing-row button{grid-column:2;justify-self:end;width:44px}}

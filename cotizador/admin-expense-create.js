@@ -9,7 +9,7 @@ const {validate}=require('./labor-write-gateway');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const record=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const roles=['admin','administrativo','vendedor','tecnico_vendedor','tecnico'];
-const fields=new Set(['fecha','vencimiento','tipo','categoria','descripcion','monto','montoPagado','estado','medio','proveedor','comprobante','empleadoId','empleadoNombre','reembolsado','esFijoBase','fotoAdjunta','fotoBase64','usuario','pagos','ts','recurrenciaActiva']);
+const fields=new Set(['fecha','vencimiento','tipo','categoria','descripcion','monto','montoPagado','estado','medio','proveedor','comprobante','empleadoId','empleadoNombre','reembolsado','esFijoBase','fotoAdjunta','fotoBase64','usuario','pagos','ts','recurrenciaActiva','indumentaria']);
 function allowed(role,cfg){
  if(!roles.includes(role))return false;
  if(cfg!=null&&(!record(cfg)||cfg.indiceVersion!==2||cfg.indiceModulos?.gastos!==true||Object.values(cfg.bloqueados||{}).includes('gastos')))return false;
@@ -22,6 +22,7 @@ function requestData(body){
  validate(body.datos);
  if(Object.keys(body.datos).some(k=>!fields.has(k)))throw fail(400,'El alta sólo admite los datos de un gasto nuevo');
  const data=structuredClone(body.datos);
+ if(data.indumentaria!==undefined)data.indumentaria=require('./expense-clothing-model').normalize(data.indumentaria);
  if(typeof data.descripcion!=='string'||!data.descripcion.trim()||typeof data.monto!=='number'||!Number.isFinite(data.monto)||!data.monto)throw fail(400,'Revisá descripción e importe del gasto');
  for(const k of ['fecha','vencimiento','tipo','categoria','estado','medio','proveedor','comprobante','usuario'])if(data[k]!==undefined&&typeof data[k]!=='string')throw fail(400,'Datos inválidos en '+k);
  for(const k of ['categoria','proveedor','medio','comprobante','vencimiento'])if(typeof data[k]==='string'&&data[k].length>500)throw fail(400,'El campo '+k+' admite hasta 500 caracteres');
@@ -32,7 +33,7 @@ function requestData(body){
  if(body.foto!=null&&(typeof body.foto!=='string'||body.projection!=='complete'))throw fail(400,'Foto inválida para este tipo de alta');
  return data;
 }
-function createAdminExpenseCreate({authorize:authorizeGateway,db,guard,enabled=false,now=Date.now}={}){
+function createAdminExpenseCreate({authorize:authorizeGateway,db,guard,enabled=false,clothingEnabled=process.env.EMPLOYEE_RESOURCES_ENABLED==='true',now=Date.now}={}){
  if(typeof authorizeGateway!=='function'||!db||!guard)throw TypeError('Falta el circuito de guardado de gastos');
  function available(){if(!enabled)throw fail(503,'El alta de gastos por índice no está habilitada','SV_ADMIN_EXPENSE_DISABLED');}
  async function access(actor,read){
@@ -49,7 +50,8 @@ function createAdminExpenseCreate({authorize:authorizeGateway,db,guard,enabled=f
  async function create(actor,body){
   available();const data=requestData(body),authorization=await access(actor,read);
   const signature=identity(data),key='gasto_'+crypto.createHash('sha256').update(signature).digest('hex'),gastoPath='sisventas/gastos/'+key;
-  return guard.run({uid:actor.uid,claims:actor.claims,mode:'command',recoverReceipt:true,...authorization,financialAction:'gastos.administrar',opId:body.id,transportDigest:digest(body),operation:'admin-expense-create',input:body},async scope=>{
+  const runner={uid:actor.uid,claims:actor.claims,mode:data.indumentaria?'user':'command',recoverReceipt:true,...authorization,financialAction:'gastos.administrar',opId:body.id,transportDigest:digest(body),operation:'admin-expense-create',input:body};
+  return guard.run(runner,async scope=>{
    const current=await access(actor,path=>scope.get(path));
    if(digest(current)!==digest(authorization))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
    const config=await scope.get('sv_labor_config');
@@ -86,6 +88,8 @@ function createAdminExpenseCreate({authorize:authorizeGateway,db,guard,enabled=f
     const photoPath='sisventas/gastos_adjuntos/'+key+'/fotoBase64';
     if(body.foto!==await scope.get(photoPath))patch[photoPath]=body.foto;
    }
+   const clothing=await require('./expense-clothing-link').prepare({scope,identity:actor,runner,expense:actual,key,enabled:clothingEnabled,at:new Date(now()).toISOString()});
+   if(clothing){patch[clothing.path]=clothing.next;clothing.issue(patch);}
    await scope.update(patch);
    return {ok:true,committed:true,key};
   });
