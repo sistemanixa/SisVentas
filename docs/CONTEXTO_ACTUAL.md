@@ -1,3 +1,9 @@
+# Indumentaria habilitada · 14/11/2026
+
+Activación puntual solicitada por el titular, realizada sin delegar al chat de coordinación. Cotizador está en `cotizador-ropa32012-20261114a`, misma imagen inmutable `c45566194e491241555f3d8bc31898d886c80a9914a4b4243e159d30ae944e2b`. Único cambio funcional de configuración: `EMPLOYEE_RESOURCES_ENABLED=true`, interruptor compartido de Indumentaria y categorías laborales. Se conservaron las 16 rutas, IAM, recursos, secretos y demás variables mediante comprobación de originales y ETag. Reglas sin cambios (`ea197750dc668aedffc5e182dd6a6e7fd6e939279690cf4a8077ac4cd975f3db`); no se repitió el corte de Accounts ni la preparación fiscal.
+
+Verificación: 19 pruebas específicas aprobadas y una integración opt-in omitida; revisión preparada sin tráfico, lista antes de promover y comprobada después. En la web publicada, dentro de Codex, Empleados → Indumentaria de Yanina abrió Stock disponible y Entregas, mostrando que no hay prendas disponibles. No se registraron prendas, recepciones, entregas, gastos, pagos o cambios salariales para probar. Frontend y aviso permanecen en v3.20.12, sin compilación ni Hosting nuevos. Evidencia operativa privada en `.local/indumentaria-enable-20261114/tmp/enable-clothing-result.private.json`; captura privada `C:/SisVentas/tmp/indumentaria-habilitada-20261114.jpg`. No añadirlos a Git.
+
 # Integración v3.20.12: candidata conjunta · 13/11/2026
 
 Integra lo publicado en v3.20.10 y v3.20.11 con Cuenta Corriente por cliente, categorías configurables e Indumentaria laboral, y la corrección atómica de reservas antiguas al entregar o instalar materiales de OT. La candidata no se considera publicada por un commit o por haber construido las imágenes: faltan la activación técnica coordinada y la comprobación HTTP final. No se ejecutan operaciones comerciales reales como prueba.
