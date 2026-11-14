@@ -1,4 +1,6 @@
-# Indumentaria desde Gastos — candidata local
+# Indumentaria desde Gastos — publicada v3.20.13
+
+Actualización del 14/11/2026: publicada por autorización expresa del titular. Web/fuente `a231b6e16b620c438df475b81b245cf27d4b0def`; imagen activa `4b154214c114b9a70d09f52b74d61b9246ca8e2da00feaa6c121e8007a40d510`, revisión `cotizador-ropa3213-a231b6e1`. Se heredó íntegra la imagen OT183 `133a847d4443f3238fb663a033decceaf657140470fe24c8d24cd680a9e5330f` y se cambiaron sólo los seis archivos previstos. Prueba de integración nativa repetida sobre esa composición: 3/3. Hosting y aviso de versión comprobados; formulario real abierto con los campos nuevos, sin guardar el gasto ni tocar pagos/stock. Detalle y evidencia en CONTEXTO_ACTUAL. Lo siguiente conserva el registro de preparación anterior al despliegue.
 
 14/11/2026. Rama `codex/gastos-indumentaria`, desde `dc5e009a` y la fuente publicada v3.20.12. La candidata v3.20.13 no está publicada. El `origin/main` consultado sigue en v3.12.5: no usarlo para sobrescribir la fuente publicada ni incorporar una versión anterior automáticamente.
 
