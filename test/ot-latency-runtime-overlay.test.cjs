@@ -1,0 +1,3 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),O=require('../scripts/lib/ot-latency-runtime-overlay.cjs');
+test('published store overlay changes only the two independent final authorization reads',()=>{const before=Buffer.from('// unchanged runtime\n'+O.BEFORE+'\n// unchanged commit\n'),next=O.applyStore(before,{expectedSha256:O.sha256(before)});assert.equal(next.toString(),'// unchanged runtime\n'+O.AFTER+'\n// unchanged commit\n');assert.throws(()=>O.applyStore(before),/does not match/);assert.throws(()=>O.applyStore(next,{expectedSha256:O.sha256(next)}),/does not match/);const duplicate=Buffer.from(before+'\n'+O.BEFORE);assert.throws(()=>O.applyStore(duplicate,{expectedSha256:O.sha256(duplicate)}),/does not match/);});

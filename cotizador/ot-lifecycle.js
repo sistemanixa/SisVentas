@@ -7,7 +7,7 @@ async function batch(values,work){const out=[];for(let i=0;i<values.length;i+=6)
 function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,now=Date.now}){
  const delivery=require('./ot-delivery').createOTDelivery({store,guard,enabled,commercialPages,now});
  const read=async path=>(await db.ref(path).get()).val();
- async function activation(readCurrent=read){let pages=null;const configs=await Promise.all([readCurrent('sv_labor_config'),readCurrent('sv_operational_read_config'),readCurrent('sv_record_list_config')]);if(!enabled||configs[0]?.otLifecycleVersion!==1||configs.some(c=>c?.schema!==1||c?.ready!==true))throw fail(503,'El nuevo circuito de OT todavía no está habilitado.','SV_OT_LIFECYCLE_DISABLED');if(commercialPages){const [config,coverage]=await Promise.all([readCurrent('sv_commercial_pages_config'),readCurrent('sv_commercial_pages/v1/coverage')]);if(config?.schema!==1||config.ready!==true||typeof config.generation!=='string'||!config.generation||coverage?.schema!==1||coverage.ready!==true||coverage.generation!==config.generation||!Number.isSafeInteger(coverage.revision)||coverage.revision<0)throw fail(503,'El listado comercial todavía no está preparado.','SV_COMMERCIAL_PAGES_NOT_READY');pages={config,coverage};}return{configs,pages};}
+ async function activation(readCurrent=read){let pages=null;const [configs,pageValues]=await Promise.all([Promise.all([readCurrent('sv_labor_config'),readCurrent('sv_operational_read_config'),readCurrent('sv_record_list_config')]),commercialPages?Promise.all([readCurrent('sv_commercial_pages_config'),readCurrent('sv_commercial_pages/v1/coverage')]):null]);if(!enabled||configs[0]?.otLifecycleVersion!==1||configs.some(c=>c?.schema!==1||c?.ready!==true))throw fail(503,'El nuevo circuito de OT todavía no está habilitado.','SV_OT_LIFECYCLE_DISABLED');if(commercialPages){const [config,coverage]=pageValues;if(config?.schema!==1||config.ready!==true||typeof config.generation!=='string'||!config.generation||coverage?.schema!==1||coverage.ready!==true||coverage.generation!==config.generation||!Number.isSafeInteger(coverage.revision)||coverage.revision<0)throw fail(503,'El listado comercial todavía no está preparado.','SV_COMMERCIAL_PAGES_NOT_READY');pages={config,coverage};}return{configs,pages};}
  async function available(identity,{otKey,kind='custody'}={}){
   if(kind==='delivery')return delivery.available(identity,{otKey});
   await activation();
@@ -78,7 +78,8 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
     if(changed.length){
      // Query each destination as a second coverage check: an omitted member
      // must never be interpreted as an empty reservation.
-     for(const sale of new Set(changed.map(c=>c.allocation))){if(!key(sale))throw fail(409,'El destino de instalación requiere revisión.');for(const id of Object.keys(await query('sisventas/ordenes_trabajo','ventaFbKey',sale)||{}))if(!others[id])throw fail(503,'La cobertura de custodia está incompleta.');}
+     const destinationsToCheck=[...new Set(changed.map(c=>c.allocation))];for(const sale of destinationsToCheck)if(!key(sale))throw fail(409,'El destino de instalación requiere revisión.');
+     await batch(destinationsToCheck,async sale=>{for(const id of Object.keys(await query('sisventas/ordenes_trabajo','ventaFbKey',sale)||{}))if(!others[id])throw fail(503,'La cobertura de custodia está incompleta.');});
      const codes=new Set(changed.map(c=>c.t.target.cod||c.t.target.codigo)),productKeys=new Set(changed.map(c=>c.productKey)),destinations=new Set(changed.map(c=>c.allocation));
      const related=[];for(const [id,summary]of Object.entries(others)){
       if(id===body.otKey)continue;
@@ -169,9 +170,8 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
    const plan=Model.plan({before:ot,changes,kind:body.kind,sale,primary,others,products,actor:{uid:identity.uid,name,otKey:body.otKey},at:actionAt,action:body.action});
    scope.beforeCommit(async({readFresh,readFreshAsUser})=>{
     const [freshProfile,freshPermissions]=await Promise.all([readFresh('sv_chat_roles/'+identity.uid),readFresh('sv_permisos/'+context.role)]);Policy.validate(actor,freshProfile,freshPermissions);
-    const [freshActivation,freshReset]=await Promise.all([activation(readFresh),readFresh('sv_access_resets/'+identity.uid)]);
+    const [freshActivation,freshReset,freshOT,freshSale,freshIndex]=await Promise.all([activation(readFresh),readFresh('sv_access_resets/'+identity.uid),readFreshAsUser(otPath),readFresh(salePath),readFresh(Index.index+'/ordenes_trabajo')]);
     if(digest(freshActivation)!==digest(activationState)||digest(freshReset)!==digest(reset))throw fail(409,'La habilitación de guardado o el acceso cambió. Volvé a ingresar.');
-    const [freshOT,freshSale,freshIndex]=await Promise.all([readFreshAsUser(otPath),readFresh(salePath),readFresh(Index.index+'/ordenes_trabajo')]);
     if(digest(freshOT)!==body.expectedOTHash||digest(freshSale)!==digest(sale)||digest(freshIndex)!==digest(index))throw fail(409,'La OT, la venta o sus visitas cambiaron. Volvé a abrirla.');
     // The authenticated fresh inventory read proves both the unchanged value
     // and access. Never replace it with an earlier or service-only snapshot.

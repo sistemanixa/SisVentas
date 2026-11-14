@@ -32,7 +32,7 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
    const checked=await Promise.allSettled([read('sv_chat_roles/'+actor.uid),read('sv_permisos/'+actor.role)]),failed=checked.find(result=>result.status==='rejected');if(failed)throw failed.reason;
    require('./commercial-ownership').validateCommercialActor(actor,checked[0].value,checked[1].value);
   }
-  if(actor?.otLifecycle)require('./ot-lifecycle-policy').validate(actor,await read('sv_chat_roles/'+actor.uid),await read('sv_permisos/'+actor.role));
+  if(actor?.otLifecycle){const [profile,permissions]=await Promise.all([read('sv_chat_roles/'+actor.uid),read('sv_permisos/'+actor.role)]);require('./ot-lifecycle-policy').validate(actor,profile,permissions);}
   if(actor?.otLifecycle?.kind==='delivery'){const proof=await verifyOTDeliveryFence?.({read});if(proof?.schema!==1||proof.verified!==true||proof.canonicalOT!==true||proof.inventory!==true||!/^[a-f0-9]{64}$/.test(proof.rulesDigest||''))throw fail(503,'Fence de entrega no verificado.','SV_OT_DELIVERY_NOT_READY');}
   require('./office-stock-policy').validate(actor,lease,patch);
   const override=service('commit',lease,actor);Object.assign(override.token,require('./commission-write-proof').claims(actor,lease));if(actor?.officeStock||actor.operation==='office-stock-adjustment'||Object.keys(actor?.claims||{}).some(k=>k.startsWith('svOfficeStock'))){const stockToken=require('./office-stock-policy').token(actor,lease);Object.assign(override.token,stockToken,stockToken.svOfficeStockVersion===1?{svLaborWriterSchema:2}:{});}if(actor?.otLifecycle||Object.keys(actor?.claims||{}).some(k=>k.startsWith('svOTLifecycle')))Object.assign(override.token,require('./ot-lifecycle-policy').token(actor,lease));
