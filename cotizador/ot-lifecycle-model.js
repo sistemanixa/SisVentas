@@ -1,6 +1,14 @@
 'use strict';
 const Rows=require('./ot-material-rows-model'),State=require('./ot-material-state'),Money=require('./commercial-models/commercial-money');
 const copy=v=>structuredClone(v),fail=m=>Object.assign(Error(m),{statusCode:409});
+function appendHistory(history,event,label){
+ if(history==null)return[copy(event)];
+ if(Array.isArray(history))return[...copy(history),copy(event)];
+ if(typeof history!=='object'||![Object.prototype,null].includes(Object.getPrototypeOf(history))||Object.entries(history).some(([k,v])=>!k||/[.#$\[\]\/]/.test(k)||['__proto__','constructor','prototype'].includes(k)||!v||typeof v!=='object'||Array.isArray(v)))throw fail('El historial de '+label+' requiere revisión.');
+ const result=copy(history),prefix='ot-lifecycle-'+require('./labor-guard').digest(event);let key=prefix,n=0;
+ while(Object.hasOwn(result,key))key=prefix+'-'+(++n);
+ result[key]=copy(event);return result;
+}
 const normalized=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().replace(/[ -]+/g,'_');
 const closed=o=>['completada','completado','completo','finalizada','finalizado','cerrada','cerrado','terminada','terminado','con_observaciones'].includes(normalized(o?.estado));
 const amount=v=>{const n=Number(v??0);if(!Number.isFinite(n)||n<0)throw fail('Hay cantidades inválidas en los materiales.');return n;};
@@ -60,15 +68,14 @@ function plan({before,changes,kind,sale,primary=null,others={},products={},actor
  if(kind!=='close'&&changes.custodiaRendida===true){next.custodiaRendidaEn=Date.parse(at);next.custodiaRendidaPor=actor.name;}
  let observation=null;if(closed(before)||kind==='close'){try{observation=custody(next,products);}catch(error){if(!allowPending)throw error;observation={pending:true};}}
  if(observation){const badConformity=normalized(next.conformidadCliente)!=='conforme';next.cierreConObservaciones=observation.pending||badConformity;next.estado=next.cierreConObservaciones?'con_observaciones':'completada';}
- if(before.audit!=null&&!Array.isArray(before.audit))throw fail('El historial de la OT requiere revisión.');
- next.audit=[...(before.audit||[]),{fecha:at,usuario:actor.name,actorUid:actor.uid,accion:action||({close:'OT finalizada con estado de venta sincronizado',custody:'Rendición guardada con estado de venta sincronizado',return:'Devolución recibida con estado de venta sincronizado'}[kind]),tipo:'ot_lifecycle',kind}];
+ next.audit=appendHistory(before.audit,{fecha:at,usuario:actor.name,actorUid:actor.uid,accion:action||({close:'OT finalizada con estado de venta sincronizado',custody:'Rendición guardada con estado de venta sincronizado',return:'Devolución recibida con estado de venta sincronizado'}[kind]),tipo:'ot_lifecycle',kind},'la OT');
  let saleStatus=null,saleChanges={};
  if(sale){const saleKey=before.ventaFbKey,id=String(sale.id||sale.numero||'').replace(/^#/,'').trim().toUpperCase(),otId=String(before.ventaId||before.venta||'').replace(/^#/,'').trim().toUpperCase();
   if(!saleKey||!id||id!==otId||!validLink(before,sale,actor.otKey,primary,others)||sale.anulada||['anulada','anulado','cancelada','cancelado'].includes(normalized(sale.estado)))throw fail('El vínculo de la OT con la venta requiere revisión.');
   const linked=Object.entries(others).filter(([k,o])=>k!==actor.otKey&&(o.ventaFbKey===saleKey||String(o.ventaId||'').replace(/^#/,'').trim().toUpperCase()===id));
   const unresolved=linked.some(([,o])=>!closed(o)||normalized(o.estado)==='con_observaciones');
   const state=closed(next)&&!next.cierreConObservaciones&&!unresolved?'instalado':'en_instalacion';saleStatus={saleKey,estadoInst:state};
-  if(sale.estadoInst!==state){if(sale.audit!=null&&!Array.isArray(sale.audit))throw fail('El historial de la venta requiere revisión.');saleChanges={estadoInst:state,audit:[...(sale.audit||[]),{fecha:at,usuario:actor.name,actorUid:actor.uid,accion:'Estado de instalación actualizado por el circuito de OT',otId:before.id,antes:sale.estadoInst??null,despues:state}]};}
+  if(sale.estadoInst!==state)saleChanges={estadoInst:state,audit:appendHistory(sale.audit,{fecha:at,usuario:actor.name,actorUid:actor.uid,accion:'Estado de instalación actualizado por el circuito de OT',otId:before.id,antes:sale.estadoInst??null,despues:state},'la venta')};
  }
  return {ot:next,saleStatus,saleChanges};
 }

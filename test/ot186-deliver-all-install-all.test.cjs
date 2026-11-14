@@ -20,7 +20,7 @@ async function fixture({held=0,role='admin',additional=false,deployed=false}={})
 
 
 const vm=require('node:vm'),fs=require('node:fs');
-test('OT186 public Entregar todos then Todo instalado: six materials, one remito and one stock movement per stage',async()=>{
+for(const history of ['array','keyed'])test('public delivery then installation: six materials, unique stock, '+history+' history',async()=>{
  const f=await fixture({deployed:true});f.state.sisventas.ventas.s.estadoInst='en_instalacion';f.state.sv_permisos.admin.acciones.ot.rendirMateriales=true;
  const ot=f.state.sisventas.ordenes_trabajo.ot,template=structuredClone(ot.materiales[0]);
  for(let i=1;i<6;i++){const key='fiction'+i;ot.materiales.push({...template,cod:'FICTION'+i,productoKey:key,vendida:2});f.state.sisventas.productos[key]={codigo:'FICTION'+i};f.state.sisventas.inventario_operativo[key]={general:2,reservado:0,consumido:0,asignaciones:{},_svReadRevision:1};}
@@ -33,9 +33,20 @@ test('OT186 public Entregar todos then Todo instalado: six materials, one remito
  assert.equal(commands[0].kind,'delivery');assert.equal(commands[0].changes.entregas.length,6);assert.equal(Object.keys(f.get('sisventas/ordenes_trabajo/ot/remitosEntrega')).length,1);
  for(const material of f.get('sisventas/ordenes_trabajo/ot/materiales')){assert.equal(material.entregada,material.vendida);assert.equal(material.instalada,0);}
  await root.otCustodiaEntregar();assert.equal(commands.length,1);await f.api.execute(f.identity,commands[0]);assert.deepEqual(f.state.sisventas,delivered);
+ let oldSaleAudit,oldOTAudit;
+ if(history==='keyed'){
+  oldSaleAudit={'old-cost-reference':{accion:'Referencia histórica',fecha:'2026-09-30'},'old-review':{accion:'Revisión histórica'}};
+  oldOTAudit={'old-visit':{accion:'Visita anterior'},'delivery-original':structuredClone(f.get('sisventas/ordenes_trabajo/ot/audit').at(-1))};
+  f.state.sisventas.ventas.s.audit=structuredClone(oldSaleAudit);f.state.sisventas.ventas.s.estadoInst='pendiente';
+  f.state.sisventas.ordenes_trabajo.ot.audit=structuredClone(oldOTAudit);
+  f.state.sisventas.listados_resumen.ordenes_trabajo.ot=Index.summary('ordenes_trabajo',f.state.sisventas.ordenes_trabajo.ot);
+  Object.assign(root.otData[0],structuredClone(f.state.sisventas.ordenes_trabajo.ot));
+ }
  await root.otCustodiaTodoInstalado();assert.equal(f.commits.length,2,notes.join('|'));assert.equal(commands[1].kind,'custody');const installed=structuredClone(f.state.sisventas);
+ if(history==='keyed'){for(const[k,v]of Object.entries(oldSaleAudit))assert.deepEqual(installed.ventas.s.audit[k],v);for(const[k,v]of Object.entries(oldOTAudit))assert.deepEqual(installed.ordenes_trabajo.ot.audit[k],v);assert.equal(Object.keys(installed.ventas.s.audit).length,3);assert.equal(Object.keys(installed.ordenes_trabajo.ot.audit).length,3);}
  for(const material of f.get('sisventas/ordenes_trabajo/ot/materiales')){assert.equal(material.instalada,material.vendida);const inventory=f.get('sisventas/inventario_operativo/'+material.productoKey);assert.equal(inventory.consumido,material.vendida);assert.equal(inventory.asignaciones.s.reservado,0);}
  assert.equal(Object.keys(f.get('sisventas/ordenes_trabajo/ot/remitosEntrega')).length,1);await f.api.execute(f.identity,commands[1]);assert.deepEqual(f.state.sisventas,installed);
  await root.otCustodiaTodoInstalado();assert.equal(commands.length,2);assert.equal(f.commits.length,2);assert.deepEqual(f.state.sisventas,installed);
- for(const domain of ['ventas','pagos','comisiones'])assert.deepEqual(installed[domain],before[domain]);
+ for(const domain of ['pagos','comisiones'])assert.deepEqual(installed[domain],before[domain]);
+ if(history==='array')assert.deepEqual(installed.ventas,before.ventas);else{const sale=structuredClone(installed.ventas.s),original=structuredClone(before.ventas.s);delete sale.audit;delete original.audit;delete sale.estadoInst;delete original.estadoInst;assert.deepEqual(sale,original);}
 });

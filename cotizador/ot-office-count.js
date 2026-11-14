@@ -59,7 +59,7 @@ function createOTOfficeCount({db,store,guard,now=Date.now,enabled=false}){
     const changes=Object.fromEntries(Object.entries({materiales:plan.ot.materiales,custodiaIniciada:plan.ot.custodiaIniciada,custodiaRendida:plan.ot.custodiaRendida}).filter(([,v])=>v!==undefined));
     lifecycle=Lifecycle.plan({before:ot,changes,kind:'custody',sale,primary,others,products,actor:{uid:identity.uid,name,otKey:body.otKey},at:new Date(ts).toISOString(),action:'Estado de instalación actualizado tras completar stock de la OT',allowPending:true});
     plan.ot.estado=lifecycle.ot.estado;plan.ot.cierreConObservaciones=lifecycle.ot.cierreConObservaciones;
-    if(ot.estado!==plan.ot.estado||ot.cierreConObservaciones!==plan.ot.cierreConObservaciones||Object.keys(lifecycle.saleChanges).length){const event=lifecycle.ot.audit.at(-1);if(Array.isArray(plan.ot.audit))plan.ot.audit.push(event);else plan.ot.audit[body.id+'-state']=event;}
+    if(ot.estado!==plan.ot.estado||ot.cierreConObservaciones!==plan.ot.cierreConObservaciones||Object.keys(lifecycle.saleChanges).length){const event=Object.values(lifecycle.ot.audit).at(-1);if(Array.isArray(plan.ot.audit))plan.ot.audit.push(event);else plan.ot.audit[body.id+'-state']=event;}
    }
    const latest=access(await scope.get('sv_chat_roles/'+identity.uid),await scope.get('sv_permisos/'+context.role));if(digest(latest)!==digest(context))throw fail(409,'Los permisos cambiaron. Volvé a abrir la OT.');
    scope.beforeCommit(async({readFresh,readFreshAsUser})=>{
