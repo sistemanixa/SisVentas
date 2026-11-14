@@ -169,8 +169,8 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
    }
    const plan=Model.plan({before:ot,changes,kind:body.kind,sale,primary,others,products,actor:{uid:identity.uid,name,otKey:body.otKey},at:actionAt,action:body.action});
    scope.beforeCommit(async({readFresh,readFreshAsUser})=>{
-    const [freshProfile,freshPermissions]=await Promise.all([readFresh('sv_chat_roles/'+identity.uid),readFresh('sv_permisos/'+context.role)]);Policy.validate(actor,freshProfile,freshPermissions);
-    const [freshActivation,freshReset,freshOT,freshSale,freshIndex]=await Promise.all([activation(readFresh),readFresh('sv_access_resets/'+identity.uid),readFreshAsUser(otPath),readFresh(salePath),readFresh(Index.index+'/ordenes_trabajo')]);
+    const [freshProfile,freshPermissions,freshOT,freshSale,freshIndex]=await Promise.all([readFresh('sv_chat_roles/'+identity.uid),readFresh('sv_permisos/'+context.role),readFreshAsUser(otPath),readFresh(salePath),readFresh(Index.index+'/ordenes_trabajo')]);Policy.validate(actor,freshProfile,freshPermissions);
+    const [freshActivation,freshReset]=await Promise.all([activation(readFresh),readFresh('sv_access_resets/'+identity.uid)]);
     if(digest(freshActivation)!==digest(activationState)||digest(freshReset)!==digest(reset))throw fail(409,'La habilitación de guardado o el acceso cambió. Volvé a ingresar.');
     if(digest(freshOT)!==body.expectedOTHash||digest(freshSale)!==digest(sale)||digest(freshIndex)!==digest(index))throw fail(409,'La OT, la venta o sus visitas cambiaron. Volvé a abrirla.');
     // The authenticated fresh inventory read proves both the unchanged value
