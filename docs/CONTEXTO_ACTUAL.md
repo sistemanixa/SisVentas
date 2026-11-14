@@ -4343,3 +4343,23 @@ Release aislada sobre cd09d870: módulo de recibo e immutable15 con sólo metada
 Cierre efectivo STOCK_V31919_CIERRE_PUBLICADO.md. Frontend público aislado2ba4be8372668b56480b2dad1bc0516b82b9353b; Hosting4cf6baa9e6d1ae5e/644activos,14Stockbyteexactos/3privados404, avisooficial19. Cotizador-stock31919-ce214d16 al100% con imagen ya probada ce214d16acc17a89acecab937a499c4984ca49c5f6a097fedba2d5aab73fb8a2, sin buildnuevo.15accesos/IAM/recursos conservados. Reglas condicionales/index/capacidad aplicadas y verificadas sin cambiar concesionesread/write; nueva capacidad1 y sólo permisosStock admin/administrativo conCAS/revisión. No inventarios/históricos/finanzas reales escritos como prueba.
 
 Puerta pública9989/9943PASS/0FAIL/46SKIP, SHA2cc433d692b8862e4a62a0f629e1100a0911c7e0df6c6e8540bc7c1327907050. Candidatareal16reglas/emuladorPASS; últimoajuste de retorno3Chrome ficticiosPASS. Sesión webAdministrador verificada efectivamente dentro deCodex, fotos/cantidades y un únicoVolver, dejadaabierta. Administrativoverificado enemulador, no otro loginreal. No guardar ni operacionesreales para probar. No push/main. Este cierre supera preparaciones anteriores sólo deStock; OTatómica/Tecnoprices/eliminaciones no se activan por esta publicación. Costos funcionales sigue pausado.
+
+
+## Publicación completada v3.20.12 — 14/11/2026
+
+La web y `sisventas/config/version` están verificados en `v3.20.12-firebase`. La fuente pública publicada es `312a3b3c8ec85f329f07b8bc8d668587d4e3b146`. Firebase Hosting publicó 685 archivos, con 21 cargas nuevas. Los 685 SHA-256 y los 23.905.155 bytes coinciden con el manifiesto RAW `c0587e35b192dff6dd2241ca48879412b002fce93a192c6f342b0b45277c2f90`. Se comprobaron las cabeceras de seguridad y cinco rutas privadas que responden 404. No se modificó DNS.
+
+Estado externo del servidor:
+
+- `cotizador-bnd232012-c455` atiende las 16 rutas de Cotizador; `emitirfactura-bnd232012-c455`, la fiscal. Se conservaron IAM y recursos, reutilizando las imágenes ya construidas `c4556619…` y `748dee30…`.
+- Reglas activas: `ea197750dc668aedffc5e182dd6a6e7fd6e939279690cf4a8077ac4cd975f3db`.
+- El corte `bounded-final12-r2-20261113` terminó en `SEALED` con nueve bloques. El guard quedó liberado, `sdkAdmissionPaused` está en `false` y Accounts/Pages están listos. History y SFD permanecen desactivados según el alcance.
+- No repetir el bootstrap ni restaurar los respaldos anteriores sobre este estado. La producción ya no está pausada; el usuario puede retomar la facturación.
+
+Se aprobaron el productor completo en emulador (Loader, adaptadores estrictos, `R.execute` con nulos, reintento con tres recibos, contratos C455 y 17 rutas), 42 pruebas focales y 83 casos del planificador. La puerta separada pasó 49/49 sin omisiones y con las 98 fuentes idénticas antes y después. El ensayo REALv8 usó exclusivamente 1.102 ventas, 1.110 pagos y 325 clientes ficticios en la base temporal: verificó permisos, las tres raíces completas, totales y 50 filas hasta `SEALED`. El tramo medido fue de 30.432 ms; la cota quedó en 39.040 ms más 8 segundos de reserva. Después se limpió la base temporal mediante 33 PATCH acotados, borrando el marcador al final y comprobando la denegación anónima.
+
+Esto no convierte la suite general anterior (10.670 aprobadas, 22 fallidas y 91 omitidas) en una suite global verde; sus límites constan en la continuidad previa. No se registraron operaciones comerciales reales como prueba. El despliegue escribió configuración, proyecciones técnicas y el aviso de versión; conservó los registros originales de ventas, cobros, comisiones y stock.
+
+La evidencia privada está en `C:/SisVentas/tmp/full-publication-20261113/bounded-publication-v5/`: `cut-completed.private.json`, `activation-verification.private.json` y `web-verification.private.json`. No agregar estos artefactos, respaldos ni datos privados a Git o Hosting. El manifiesto y el recibo de Hosting también se conservan localmente.
+
+La confirmación fiscal actual `call_c1dcc8aaf66740db9e68f11c827883f8` permitió el corte. El aviso de versión se actualizó después de comprobar la web. El siguiente trabajo debe partir de este estado publicado y contrastar los metadatos remotos. Conservar las evidencias de los intentos fallidos; no reutilizar sus recetas o firmas.
