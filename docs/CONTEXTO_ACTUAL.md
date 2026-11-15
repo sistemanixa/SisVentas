@@ -4389,3 +4389,5 @@ Esto no convierte la suite general anterior (10.670 aprobadas, 22 fallidas y 91 
 La evidencia privada está en `C:/SisVentas/tmp/full-publication-20261113/bounded-publication-v5/`: `cut-completed.private.json`, `activation-verification.private.json` y `web-verification.private.json`. No agregar estos artefactos, respaldos ni datos privados a Git o Hosting. El manifiesto y el recibo de Hosting también se conservan localmente.
 
 La confirmación fiscal actual `call_c1dcc8aaf66740db9e68f11c827883f8` permitió el corte. El aviso de versión se actualizó después de comprobar la web. El siguiente trabajo debe partir de este estado publicado y contrastar los metadatos remotos. Conservar las evidencias de los intentos fallidos; no reutilizar sus recetas o firmas.
+
+Actualización local: incorporadas sólo portero-columna.jpg y su miniatura desde la imagen vehicular v4 aprobada; los otros diez archivos de las cinco escenas conservaron sus hashes. Flechas laterales ocultas hasta 1100 px y en dispositivos táctiles; gesto de deslizamiento y teclado conservados. Repetidas las 20 pruebas de navegador con datos ficticios, correctas. No publicado.
