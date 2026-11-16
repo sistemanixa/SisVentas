@@ -1,3 +1,11 @@
+# Seguimiento de latencia OT · 15/11/2026 · local sin publicar
+
+Sobre cc198f6e/382cee3e se agrupan las comprobaciones finales de índice y OT de entrega con las otras comprobaciones, conservando máximo seis lecturas frescas por lote, rechazo de conflictos y guardado atómico. En instalación se solapan configuración/perfil y OT/permisos; reset fresco sigue comprobándose antes del commit. Sin cambios de stock, reglas, pagos, comisiones ni operaciones reales de prueba.
+
+76 pruebas focales PASS, sintaxis y diff-check PASS. Nueva regresión reproduce en HEAD anterior la falta de concurrencia final y pasa con el cambio, tanto al guardar como al rechazar un índice alterado; replay conserva un solo commit. Medición sintética con adaptador REST en memoria mantiene 43 solicitudes y pico seis en instalación; mejora observada pequeña y variable, no demuestra resolver una espera real de 15 segundos. Entrega elimina dos esperas seriales de la comprobación final, sin eliminar lecturas.
+
+Puerta general intentada: primer intento encuentra dependencia Playwright no resuelta; repetición usa NODE_PATH del paquete ya instalado. Existen fallos adicionales de navegador/fixtures que aún deben clasificarse. No presentar esta puerta como verde ni el despliegue como realizado. Evidencia privada: C:/SisVentas/tmp/ot-latency-followup*, fuera de Git. Pendiente medición del recorrido completo vigente y validación del runtime exacto antes de activar/publicar; la producción no cambió por este bloque.
+
 # Integración v3.20.12: candidata conjunta · 13/11/2026
 
 Integra lo publicado en v3.20.10 y v3.20.11 con Cuenta Corriente por cliente, categorías configurables e Indumentaria laboral, y la corrección atómica de reservas antiguas al entregar o instalar materiales de OT. La candidata no se considera publicada por un commit o por haber construido las imágenes: faltan la activación técnica coordinada y la comprobación HTTP final. No se ejecutan operaciones comerciales reales como prueba.

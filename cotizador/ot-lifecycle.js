@@ -23,12 +23,12 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
   return {ok:true,ready:true,version:1,atomicStock:true};
  }
  async function executeInternal(identity,body,started){
-  const activationState=await activation();
   if(!identity?.uid||identity.claims?.uid!==identity.uid||identity.viewing)throw fail(401,'Sesión requerida.');
   if(!body||typeof body!=='object'||Object.keys(body).some(k=>!['id','otKey','expectedOTHash','kind','changes','action'].includes(k))||!key(body.id)||body.id.length<8||!key(body.otKey)||!/^[a-f0-9]{64}$/.test(body.expectedOTHash)||!['close','custody','return'].includes(body.kind)||typeof body.action!=='string'||body.action.length>240)throw fail(400,'Revisá los datos de la OT.');
   const allowed=body.kind==='close'?['conformidadCliente','nombreConformidad','observacionesCierre']:['materiales','custodiaIniciada','custodiaRendida','custodiaRendidaEn','custodiaRendidaPor'];
   if(!body.changes||typeof body.changes!=='object'||Array.isArray(body.changes)||Object.keys(body.changes).some(k=>!allowed.includes(k)))throw fail(400,'El guardado contiene campos no autorizados.');
-  const otPath='sisventas/ordenes_trabajo/'+body.otKey,[profile,initial]=await Promise.all([read('sv_chat_roles/'+identity.uid),store.readAsUser(otPath,identity)]),cfg=await read('sv_permisos/'+profile?.rol);
+  const [activationState,profile]=await Promise.all([activation(),read('sv_chat_roles/'+identity.uid)]);
+  const otPath='sisventas/ordenes_trabajo/'+body.otKey,[initial,cfg]=await Promise.all([store.readAsUser(otPath,identity),read('sv_permisos/'+profile?.rol)]);
   if(!initial)throw fail(409,'La OT ya no existe.');
   const context=Policy.authority(profile,cfg,body.kind,Model.closed(initial));if(!key(initial?.ventaFbKey))throw fail(409,'La OT necesita una venta vinculada inequívoca.');
   const salePath='sisventas/ventas/'+initial.ventaFbKey,actor={uid:identity.uid,claims:identity.claims,mode:'user',...context,otClosed:Model.closed(initial),opId:body.id,transportDigest:digest(body),operation:'ot-lifecycle',input:body};
@@ -169,8 +169,8 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
    }
    const plan=Model.plan({before:ot,changes,kind:body.kind,sale,primary,others,products,actor:{uid:identity.uid,name,otKey:body.otKey},at:actionAt,action:body.action});
    scope.beforeCommit(async({readFresh,readFreshAsUser})=>{
-    const [freshProfile,freshPermissions,freshOT,freshSale,freshIndex]=await Promise.all([readFresh('sv_chat_roles/'+identity.uid),readFresh('sv_permisos/'+context.role),readFreshAsUser(otPath),readFresh(salePath),readFresh(Index.index+'/ordenes_trabajo')]);Policy.validate(actor,freshProfile,freshPermissions);
-    const [freshActivation,freshReset]=await Promise.all([activation(readFresh),readFresh('sv_access_resets/'+identity.uid)]);
+    const [freshProfile,freshPermissions,freshOT,freshSale,freshIndex,freshReset]=await Promise.all([readFresh('sv_chat_roles/'+identity.uid),readFresh('sv_permisos/'+context.role),readFreshAsUser(otPath),readFresh(salePath),readFresh(Index.index+'/ordenes_trabajo'),readFresh('sv_access_resets/'+identity.uid)]);Policy.validate(actor,freshProfile,freshPermissions);
+    const freshActivation=await activation(readFresh);
     if(digest(freshActivation)!==digest(activationState)||digest(freshReset)!==digest(reset))throw fail(409,'La habilitación de guardado o el acceso cambió. Volvé a ingresar.');
     if(digest(freshOT)!==body.expectedOTHash||digest(freshSale)!==digest(sale)||digest(freshIndex)!==digest(index))throw fail(409,'La OT, la venta o sus visitas cambiaron. Volvé a abrirla.');
     // The authenticated fresh inventory read proves both the unchanged value

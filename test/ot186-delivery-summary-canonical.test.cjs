@@ -26,3 +26,19 @@ test('OT186 six products then individual delivery replay preserve inventory exac
 for(const order of [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]])test('OT186 manifest permutation '+order.join('')+' with RTDB numeric maps',async()=>{const f=await fixture({deployed:true}),summary=attached(f),paths=summary._svListAttachments;summary._svListAttachments=Object.fromEntries(order.map((index,i)=>[i,Object.fromEntries(paths[index].map((segment,j)=>[j,segment]))]));await f.api.execute(f.identity,f.body());assert.equal(f.commits.length,1);});
 
 for(const changed of [false,true])test('OT186 lifecycle installation verifies reordered sibling summary; changed='+changed,async()=>{const f=await fixture({deployed:true});f.state.sv_permisos.admin.acciones.ot.rendirMateriales=true;await f.api.execute(f.identity,f.body());const sibling=f.state.sisventas.ordenes_trabajo.other;Object.assign(sibling,{fotos:{fiction:'a'},firma:'b',adjuntos:{fiction:'c'}});const summary=Index.summary('ordenes_trabajo',sibling);summary._svListAttachments.reverse();if(changed)summary._svListAttachments[0]=['different'];f.state.sisventas.listados_resumen.ordenes_trabajo.other=summary;const current=f.get('sisventas/ordenes_trabajo/ot'),request={id:'fiction-installation-reordered',otKey:'ot',kind:'custody',expectedOTHash:digest(current),changes:{materiales:current.materiales.map(m=>({...m,instalada:1}))},action:'Fiction installation'};if(changed){const before=structuredClone(f.state.sisventas);await assert.rejects(f.api.execute(f.identity,request),e=>e.statusCode===503&&/resumen/.test(e.message));assert.equal(f.commits.length,1);assert.deepEqual(f.state.sisventas,before);}else{await f.api.execute(f.identity,request);assert.equal(f.commits.length,2);assert.equal(f.get('sisventas/ordenes_trabajo/ot/materiales/0/instalada'),1);}});
+
+// The final OT/index checks must overlap without weakening conflict checks.
+for(const conflict of [false,true])test('delivery final reads share a bounded batch; conflict='+conflict,async()=>{
+ const f=await fixture(),run=f.guard.run.bind(f.guard);let overlapped=false,peak=0;
+ f.guard.run=(actor,work)=>run(actor,scope=>work({...scope,beforeCommit:verify=>scope.beforeCommit(async readers=>{
+  let active=0,indexPending=false,otPending=false;
+  const wrap=fn=>async p=>{active++;peak=Math.max(peak,active);if(p===Index.index+'/ordenes_trabajo')indexPending=true;if(p==='sisventas/ordenes_trabajo/ot')otPending=true;
+   if(indexPending&&otPending)overlapped=true;
+   try{await new Promise(setImmediate);const value=await fn(p);if(conflict&&p===Index.index+'/ordenes_trabajo')return {...value,unexpected:{id:'changed'}};return value;}finally{active--;if(p===Index.index+'/ordenes_trabajo')indexPending=false;if(p==='sisventas/ordenes_trabajo/ot')otPending=false;}};
+  await verify({...readers,readFresh:wrap(readers.readFresh),readFreshAsUser:wrap(readers.readFreshAsUser)});
+ })}));
+ const before=structuredClone(f.state.sisventas);
+ if(conflict){await assert.rejects(f.api.execute(f.identity,f.body()),e=>e.code==='SV_OT_DELIVERY_CONFLICT');assert.equal(f.commits.length,0);assert.deepEqual(f.state.sisventas,before);}
+ else{const request=f.body();await f.api.execute(f.identity,request);await f.api.execute(f.identity,request);assert.equal(f.commits.length,1);}
+ assert.ok(overlapped,'OT and summary must be checked concurrently');assert.ok(peak<=6,'final fresh reads stay bounded');
+});
