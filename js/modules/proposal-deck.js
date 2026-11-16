@@ -3,7 +3,7 @@
  const M=()=>root.SVProposalDeckModel;
  const node=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n;};
  const money=n=>'$ '+Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
- const photo=(r,dto,thumb=false)=>{const value=r.presentacionPortadaUrl||r.imagenPortadaUrl||r.imagenUrl||'';try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password?u.href:'';}catch{const visual=M().scene(dto);return visual.asset?'./assets/proposal-scenes/'+visual.asset+(thumb?'-thumb':'')+'.jpg':'';}};
+ const photo=(r,dto,thumb=false)=>{const value=r.presentacionPortadaUrl||r.imagenPortadaUrl||r.imagenUrl||'';try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password?u.href:'';}catch{const visual=M().scene(dto);return visual.asset?'./assets/proposal-scenes/'+visual.asset+(thumb?'-thumb':'')+'.jpg'+(visual.asset==='cerradura-camara'?'?scene=20261115-original':''):'';}};
  function close(){const s=active;if(!s)return;active=null;s.closed=true;releaseBusy(s);s.dialog.close();s.dialog.remove();for(const [n,v,p]of s.lock){if(v)n.style.setProperty('overflow',v,p);else n.style.removeProperty('overflow');}if(s.focus?.isConnected)s.focus.focus({preventScroll:true});}
  function valid(s){if(active!==s||s.closed)return false;const c=s.options.context();if(!c?.allowed||JSON.stringify(c)!==s.context){close();return false;}return true;}
  function button(text,fn){const b=node('button','btn',text);b.type='button';b.onclick=fn;return b;}
