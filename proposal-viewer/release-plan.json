@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "project": "nixa-sisventas",
+  "region": "southamerica-east1",
+  "service": "propuestas-qr",
+  "publicOrigin": "https://propuestas-qr-171899432710.southamerica-east1.run.app",
+  "serviceAccount": "proposal-viewer@nixa-sisventas.iam.gserviceaccount.com",
+  "bucket": {
+    "name": "nixa-sisventas-proposal-shares-private",
+    "location": "SOUTHAMERICA-EAST1",
+    "storageClass": "STANDARD",
+    "uniformBucketLevelAccess": true,
+    "publicAccessPrevention": "enforced",
+    "lifecycleDeleteAgeDays": 2,
+    "serviceAccountRoles": ["roles/storage.objectViewer", "roles/storage.objectCreator"]
+  },
+  "runtime": {
+    "cpu": 1,
+    "memory": "512Mi",
+    "minInstances": 0,
+    "maxInstances": 1,
+    "concurrency": 20,
+    "timeoutSeconds": 120,
+    "cpuIdle": true,
+    "startupCpuBoost": false,
+    "publicInvocation": true,
+    "businessOrigin": "https://ventas.sistemanixa.com",
+    "allowLocalReview": false,
+    "maximumShareHours": 24
+  },
+  "build": {
+    "count": 1,
+    "maximumSeconds": 600,
+    "machineType": "e2-medium",
+    "registry": "southamerica-east1-docker.pkg.dev/nixa-sisventas/cloud-run-source-deploy/propuestas-qr",
+    "estimatedInitialUsdLessThan": 1,
+    "isGuaranteedCostCap": false,
+    "ongoingBilling": "request compute, storage, operations, registry and traffic according to actual use"
+  },
+  "preserved": ["cotizador", "emitirFactura", "existing_service_traffic", "existing_service_IAM", "RTDB_rules", "sales", "budgets", "payments", "commissions", "stock", "reservations"],
+  "automaticPolling": false,
+  "publicationRequiresExtraAuthorization": true
+}

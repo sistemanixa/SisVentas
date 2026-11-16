@@ -1,11 +1,11 @@
-:root{color-scheme:dark;--share-bg:#0c131d;--share-panel:#172435;--share-line:#33445a;--share-text:#f3f5f9;--share-muted:#aebdd0;--share-accent:#d6b777}
+.sv-share-viewer{color-scheme:dark;--share-bg:#0c131d;--share-panel:#172435;--share-line:#33445a;--share-text:#f3f5f9;--share-muted:#aebdd0;--share-accent:#d6b777}
 .sv-share-viewer{margin:0;background:var(--share-bg);color:var(--share-text);font-family:system-ui,-apple-system,Segoe UI,sans-serif;min-height:100dvh;display:flex;flex-direction:column}
 .sv-share-viewer *,.sv-share-dialog *{box-sizing:border-box}
-.sv-share-viewer button,.sv-share-dialog button{font:inherit;color:inherit;border:1px solid var(--share-line);border-radius:10px;background:var(--share-panel);padding:12px 18px;cursor:pointer;min-height:44px}
+.sv-share-viewer button:not(.sv-pd-page-nav),.sv-share-dialog button{font:inherit;color:inherit;border:1px solid var(--share-line);border-radius:10px;background:var(--share-panel);padding:12px 18px;cursor:pointer;min-height:44px}
 .sv-share-viewer button:focus-visible,.sv-share-dialog button:focus-visible,.sv-share-dialog input:focus-visible{outline:3px solid #89b9ff;outline-offset:3px}
 .sv-share-viewer button:disabled,.sv-share-dialog button:disabled{opacity:.45;cursor:default}
 .sv-share-header{display:flex;gap:20px;align-items:center;padding:16px clamp(16px,4vw,64px);border-bottom:1px solid var(--share-line);background:var(--share-bg);flex-shrink:0}
-.sv-share-header strong{letter-spacing:.16em;color:var(--share-accent)}
+.sv-share-header strong{letter-spacing:.16em;color:var(--share-text)}
 .sv-share-header span{flex:1;color:var(--share-muted)}
 .sv-share-viewer main{width:min(1500px,100%);margin:0 auto;padding:clamp(18px,4vw,50px);flex:1;outline:none}
 .sv-share-viewer h1{font-size:clamp(1.7rem,4vw,3.2rem);margin:0 0 12px;line-height:1.1}
@@ -25,10 +25,6 @@
 .sv-share-cover:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,13,23,.95),rgba(6,13,23,.65) 55%,rgba(6,13,23,.15));z-index:-1}
 .sv-share-cover h1{max-width:800px;text-wrap:balance}
 .sv-share-kicker{color:var(--share-accent);letter-spacing:.12em;font-size:.8rem;font-weight:700;margin-bottom:20px}
-.sv-share-viewer table{width:100%;border-collapse:collapse;table-layout:fixed}
-.sv-share-viewer th,.sv-share-viewer td{text-align:left;border-bottom:1px solid var(--share-line);padding:15px 8px;overflow-wrap:anywhere;font-size:clamp(.95rem,1.5vw,1.2rem)}
-.sv-share-viewer th:last-child,.sv-share-viewer td:last-child{text-align:right;width:24%}
-.sv-share-viewer .sv-share-money td:last-child{width:50%}
 .sv-share-total{margin-top:30px;display:flex;justify-content:space-between;gap:15px;font-size:clamp(1.3rem,3vw,2.3rem);font-weight:750;color:var(--share-accent)}
 .sv-share-total strong{overflow-wrap:anywhere;text-align:right}
 .sv-share-controls{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-top:22px;flex-wrap:wrap}
@@ -45,6 +41,21 @@
 .sv-share-qr{margin:20px auto;width:min(300px,100%);background:white;padding:16px;border-radius:8px;aspect-ratio:1}
 .sv-share-qr svg{width:100%;height:100%;display:block}
 .sv-share-dialog [role=status]{display:block;margin-top:16px;color:var(--share-muted);overflow-wrap:anywhere}
-@media(max-width:600px){.sv-share-header{gap:10px;padding:12px}.sv-share-header button{padding:10px}.sv-share-viewer main{padding:18px 12px}.sv-share-slide{padding:24px 16px}.sv-share-viewer td,.sv-share-viewer th{padding:12px 5px}.sv-share-controls button{flex:1}.sv-share-total{flex-wrap:wrap}.sv-share-dialog{padding:20px}.sv-share-footer{padding:16px}}
+@media(max-width:600px){.sv-share-header{gap:10px;padding:12px}.sv-share-header button{padding:10px}.sv-share-viewer main{padding:18px 12px}.sv-share-slide{padding:24px 16px}.sv-share-controls button{flex:1}.sv-share-total{flex-wrap:wrap}.sv-share-dialog{padding:20px}.sv-share-footer{padding:16px}}
 
-.sv-pd-footer .sv-pd-share-action{display:flex;justify-content:center;flex-basis:100%}
+
+
+.sv-pd-footer .sv-pd-share-action{margin-left:auto;min-width:0;max-width:100%}
+.sv-share-inline{--share-panel:var(--bg2,#1a2a40);--share-line:var(--border2,#354761);display:flex;align-items:center;justify-content:flex-end;gap:16px;padding:6px;color:var(--text,#f3f5f9);font:13px system-ui,sans-serif;max-width:420px}
+.sv-share-inline-copy{max-width:210px;min-width:0;text-align:right}
+.sv-share-inline-copy strong{font-size:14px}.sv-share-inline-copy p{font-size:12px;line-height:1.4;color:var(--text2,#aebdd0);margin:6px 0}.sv-share-inline-copy small{display:block;color:var(--text2,#aebdd0);font-size:11px}
+.sv-share-inline-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.sv-share-inline button,.sv-share-inline a{color:var(--text,#f3f5f9);background:var(--bg2,#1a2a40);border:1px solid var(--border2,#354761);padding:8px 10px;border-radius:8px;cursor:pointer;font:inherit;text-decoration:none;min-height:38px;display:inline-flex;align-items:center}
+.sv-share-inline :is(button,a):focus-visible{outline:2px solid var(--blue,#89b9ff);outline-offset:3px}.sv-share-inline .sv-share-qr{width:160px;min-width:160px;margin:0;padding:8px}.sv-share-inline .sv-share-qr svg{width:100%;height:100%;display:block}
+@media(max-width:550px){.sv-pd-footer:has(.sv-share-inline){justify-content:space-between;gap:8px}.sv-share-inline{gap:10px}.sv-share-inline-copy{max-width:160px}.sv-share-inline .sv-share-qr{width:130px;min-width:130px}.sv-share-inline button,.sv-share-inline a{min-height:44px;padding:8px}}
+
+.sv-share-viewer{--bg:#0c131d;--bg2:#172435;--bg3:#1c2e44;--text:#f3f5f9;--text2:#aebdd0;--border2:#33445a;--blue:#89b9ff}
+.sv-share-viewer .sv-share-document{width:100%;height:auto;max-height:none;max-width:none;inset:auto;margin:0;padding:0;background:transparent;border:0;overflow:visible;color:#f5f6f4;font-family:Arial,sans-serif}
+.sv-share-viewer #share-content:has(.sv-share-document){display:flex;flex-direction:column;justify-content:center;padding:18px 8px}
+.sv-share-viewer .sv-share-document .sv-pd-stage{margin:auto}
+.sv-share-viewer .sv-share-controls{justify-content:center;margin-top:18px}
+@media(max-width:1100px),(pointer:coarse){.sv-share-viewer .sv-share-document .sv-pd-page-nav{display:none}.sv-share-viewer .sv-share-document .sv-pd-stage{padding-inline:0}}

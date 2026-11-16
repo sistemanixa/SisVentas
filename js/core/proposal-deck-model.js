@@ -1,4 +1,4 @@
-(function(root,factory){'use strict';if(typeof module==='object'&&module.exports)module.exports=factory();else root.SVProposalDeckModel=factory();})(typeof window==='object'?window:globalThis,function(){
+(function(root,factory){'use strict';if(typeof module==='object'&&module.exports)module.exports=factory(require('./proposal-presentation-context'));else root.SVProposalDeckModel=factory(root.SVProposalPresentationContext);})(typeof window==='object'?window:globalThis,function(Context){
  'use strict';
  const key=value=>typeof value==='string'&&value.length>0&&value.length<=768&&!/[.#$\[\]\/\x00-\x1f\x7f]/.test(value)&&!['__proto__','prototype','constructor'].includes(value);
  function refs(record){return ['clienteFbKey','clienteKey','clienteId','idCliente'].map(k=>record?.[k]).filter(v=>typeof v==='string'&&v.trim()).map(v=>v.trim());}
@@ -32,7 +32,7 @@
   if(!['subtotal','discount','iva','total'].every(k=>numeric(dto.money?.ars?.[k]))||!numeric(dto.money?.usd?.total)||!numeric(dto.money?.discountPct)||dto.money.discountPct>100||!numeric(dto.exchange?.rate)||dto.exchange.rate===0||!dto.exchange.label||dto.items.some(i=>typeof i.description!=='string'||!i.description.trim()||!numeric(i.quantity)||i.quantity===0))throw Error('Faltan importes o cantidades válidos para presentar.');
   const visual=scene(dto),out=[{kind:'cover',title:dto.title||visual.title,subtitle:visual.subtitle,client:dto.client,address:dto.address,number:dto.number},{kind:'intro',title:visual.subtitle,client:dto.client,address:dto.address,number:dto.number}];
   for(let i=0;i<dto.items.length;i+=8)out.push({kind:'items',title:'Equipos y servicios',items:dto.items.slice(i,i+8)});
-  out.push({kind:'money',title:'Tu inversión',money:dto.money,exchange:dto.exchange});return out;
+  out.push({kind:'money',title:'Tu inversión',money:dto.money,exchange:dto.exchange});if(dto.presentationClosing){if(!Context?.isClosing(dto.presentationClosing))throw Error('El cierre de la presentación necesita revisión.');out.push({...dto.presentationClosing,kind:'engineering'});}return out;
  }
  return Object.freeze({validKey:key,sameClient,select,pages,scene,overview});
 });

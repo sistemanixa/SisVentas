@@ -91,3 +91,9 @@
 .sv-pd-dialog .sv-pd-page-nav{background:var(--bg2);border-color:var(--border2);color:var(--text)}
 .sv-pd-dialog .sv-pd-page-nav:hover:not(:disabled){background:var(--bg3);color:var(--text)}
 .sv-pd-dialog .sv-pd-page-nav:focus-visible{outline-color:var(--blue)}
+
+/* Optional project-specific closing; never changes document amounts. */
+.sv-pd-engineering .sv-pd-kicker{position:absolute;left:4.375%;top:22%;font-size:1.15cqw;letter-spacing:.12em;color:#77d1a7}
+.sv-pd-engineering .sv-pd-copy h2{position:absolute;left:4.375%;top:28%;width:88%;margin:0;font-size:3cqw;font-weight:400;line-height:1.2}
+.sv-pd-engineering .sv-pd-engineering-paragraph{position:absolute;left:4.375%;width:86%;margin:0;font-size:1.8cqw;line-height:1.55;color:#b7c7bd}
+.sv-pd-engineering .sv-pd-engineering-paragraph-0{top:43%}.sv-pd-engineering .sv-pd-engineering-paragraph-1{top:61%}

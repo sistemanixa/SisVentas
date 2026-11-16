@@ -5,7 +5,7 @@ const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
 const OFFICIAL_BASE='https://cotizador-171899432710.southamerica-east1.run.app';
 const ROOT=path.resolve(__dirname,'..');
 const SCENES=['cerradura-camara','cerradura-teclado','portero-pantalla','portero-teclado','videovigilancia','portero-columna'];
-const STATIC=new Set(['propuestas-compartidas.html','css/proposal-share.css','js/modules/proposal-share-viewer.js','nixa-icon-192.png',...SCENES.flatMap(n=>['assets/proposal-scenes/'+n+'.jpg','assets/proposal-scenes/'+n+'-thumb.jpg'])]);
+const STATIC=new Set(['propuestas-compartidas.html','css/proposal-share.css','css/proposal-deck.css','assets/proposal-scenes/cover-fade.png','js/modules/proposal-share-viewer.js','js/core/proposal-slide.js','nixa-icon-192.png',...SCENES.flatMap(n=>['assets/proposal-scenes/'+n+'.jpg','assets/proposal-scenes/'+n+'-thumb.jpg'])]);
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.jpg':'image/jpeg','.png':'image/png'};
 const fail=(statusCode,message)=>Object.assign(Error(message),{statusCode});
 const clone=v=>structuredClone(v);
@@ -37,10 +37,10 @@ function createOfficialReaders({fetchImpl=globalThis.fetch}={}){
    if(!p||p.rol!=='admin'||p.activo!==true||typeof p.uid!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(p.uid))throw fail(403,'Sólo Administración puede compartir estas propuestas.');
    // The profile endpoint verifies identity; the commercial endpoint additionally
    // checks the current budget module permission. No decoded JWT is trusted.
-   if(action==='create'){const key=details?.budgetKeys?.[0];if(typeof key!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(key))throw fail(400,'Presupuesto inválido.');await get(identity,'/presupuestos/registro/'+encodeURIComponent(key));}
+   if(action==='create'){const key=details?.budgetKeys?.[0];if(typeof key!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(key))throw fail(400,'Presupuesto inválido.');await get(identity,'/comerciales/presupuestos/registro/'+encodeURIComponent(key));}
    return {uid:p.uid,role:'admin',allowed:true};
   },
-  async readBudget(identity,key){if(typeof key!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(key))throw fail(400,'Presupuesto inválido.');const result=await get(identity,'/presupuestos/registro/'+encodeURIComponent(key));if(!result?.record||typeof result.record!=='object'||Array.isArray(result.record))throw fail(404,'El presupuesto no está disponible.');return result.record;}
+  async readBudget(identity,key){if(typeof key!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(key))throw fail(400,'Presupuesto inválido.');const result=await get(identity,'/comerciales/presupuestos/registro/'+encodeURIComponent(key));if(!result?.record||typeof result.record!=='object'||Array.isArray(result.record))throw fail(404,'El presupuesto no está disponible.');return result.record;}
  };
 }
 function origin(value){let u;try{u=new URL(value);}catch{throw Error('Explicit valid local origin required');}if(u.username||u.password||u.pathname!=='/'||u.search||u.hash||u.protocol!=='http:')throw Error('Local HTTP origin required');const h=u.hostname,parts=h.split('.').map(Number),privateIP=parts.length===4&&parts.every(v=>Number.isInteger(v)&&v>=0&&v<=255)&&(parts[0]===10||parts[0]===192&&parts[1]===168||parts[0]===172&&parts[1]>=16&&parts[1]<=31);if(!['127.0.0.1','localhost','[::1]'].includes(h)&&!privateIP)throw Error('Only loopback or explicitly configured private LAN origin');return u.origin;}
