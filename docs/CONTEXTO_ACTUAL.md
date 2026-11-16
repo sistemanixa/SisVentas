@@ -1,3 +1,7 @@
+# Entrega OT: agrupación adicional de lecturas · 15/11/2026 · local
+
+Sobre 0157315c, el catálogo, índice de custodias y nombre de autor se leen en un único lote de máximo seis, sin serializar respuestas independientes. Inventario sigue leyéndose sólo tras validar cobertura y manifiestos: una primera variante adelantaba esa lectura y fue descartada al fallar siete regresiones; no se modificaron las aserciones. La nueva regresión verifica solapamiento con respuesta demorada, guardado único y replay idéntico. 89 pruebas focales aprobadas antes de un último ajuste de orden; las 27 afectadas se repitieron después, todas PASS. Sin operaciones reales, despliegue, reglas ni cambios de cantidades. No acredita por sí solo resolver la espera web de 15 segundos. Puerta general en curso en tmp/ot-latency-final-gate-20261115.log; aparecen fallos de navegador que requieren clasificación antes de publicar.
+
 # Seguimiento de latencia OT · 15/11/2026 · local sin publicar
 
 Sobre cc198f6e/382cee3e se agrupan las comprobaciones finales de índice y OT de entrega con las otras comprobaciones, conservando máximo seis lecturas frescas por lote, rechazo de conflictos y guardado atómico. En instalación se solapan configuración/perfil y OT/permisos; reset fresco sigue comprobándose antes del commit. Sin cambios de stock, reglas, pagos, comisiones ni operaciones reales de prueba.

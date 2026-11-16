@@ -50,3 +50,9 @@ for(const history of ['array','keyed'])test('public delivery then installation: 
  for(const domain of ['pagos','comisiones'])assert.deepEqual(installed[domain],before[domain]);
  if(history==='array')assert.deepEqual(installed.ventas,before.ventas);else{const sale=structuredClone(installed.ventas.s),original=structuredClone(before.ventas.s);delete sale.audit;delete original.audit;delete sale.estadoInst;delete original.estadoInst;assert.deepEqual(sale,original);}
 });
+
+test('delivery overlaps catalog and index reads without reading stock before coverage validation',async()=>{
+ const f=await fixture({deployed:true}),read=f.store.read.bind(f.store);let indexPending=false,overlap=false;
+ f.store.read=async path=>{if(path===Index.index+'/ordenes_trabajo'){indexPending=true;await new Promise(resolve=>setTimeout(resolve,15));indexPending=false;}if(path==='sisventas/productos/p'&&indexPending)overlap=true;return read(path);};
+ const before=structuredClone(f.state.sisventas),command=f.body();await f.api.execute(f.identity,command);assert.equal(overlap,true,'index read must not wait for catalog response');assert.equal(f.commits.length,1);assert.deepEqual(f.state.sisventas.pagos,before.pagos);assert.deepEqual(f.state.sisventas.comisiones,before.comisiones);const stock=structuredClone(f.state.sisventas.inventario_operativo);await f.api.execute(f.identity,command);assert.equal(f.commits.length,1);assert.deepEqual(f.state.sisventas.inventario_operativo,stock);
+});
