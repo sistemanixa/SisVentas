@@ -42,7 +42,7 @@ async function createBudgetSaveFixture(options={}){
   buscarPptoPorRef:reference=>c.pptoData.find(r=>r.fbKey===reference)||null,
   notify:message=>calls.notices.push({message,state:c.pptoData.find(r=>r.fbKey==='budget-ficticio')?.estado}),
   svConfirm:async()=>true,
-  svDrafts:{complete:()=>calls.complete++,flush:()=>calls.draftFlush++},
+  svDrafts:{complete:()=>calls.complete++,flush:()=>calls.draftFlush++,leave:()=>calls.draftFlush++},
   svCrearProgresoBoton:()=>{const button=nodes['btn-guardar-principal-ppto'];button.disabled=true;button['aria-busy']='true';let closed=false;const close=()=>{if(!closed){closed=true;calls.progressFinished++;}};return {actualizar(){},liberar:close,finalizar(){close();button.disabled=false;delete button['aria-busy'];}};},
   reservarSiguientePptoId:async()=> 'PP-FICTICIO-NUEVO',
   _block:id=>{nodes[id].style.display='block';},_hide:id=>{nodes[id].style.display='none';},

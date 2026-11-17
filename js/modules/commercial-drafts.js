@@ -192,7 +192,15 @@
     });
     return { creadoConIA: kind === 'presupuesto' && window._pptoCreadoConIA === true, fields: fields(scope), rows: rows, edit: kind === 'venta' ? window._ventaEditandoFbKey || '' : window._pptoEditandoFbKey || '', editId: kind === 'presupuesto' ? window._pptoEditandoId || '' : '', iva: kind === 'venta' ? _ventaConIva : _pptoConIva, detail: kind === 'venta' ? _ventaImpConDetalle : _pptoConDetalle, currency: kind === 'venta' ? _ventaMonedaActual : _pptoMonedaActual };
   }
-  function original(kind, data) { return kind === 'venta' ? window._ventaEditandoOriginal || null : data.edit ? buscarPptoPorRef(data.edit) : null; }
+  function original(kind, data) {
+    if (kind === 'venta') return window._ventaEditandoOriginal || null;
+    if (!data.edit) return null;
+    var base = window._pptoEditorBase;
+    // La caché puede recibir una versión posterior mientras el formulario sigue
+    // abierto. El borrador pertenece a la base leída por esta edición concreta.
+    if (base && String(base.fbKey || '') === String(data.edit)) return base;
+    return buscarPptoPorRef(data.edit);
+  }
   function begin(kind) {
     if (restoring || !user()) return;
     var data = capture(kind);

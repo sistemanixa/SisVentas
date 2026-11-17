@@ -66,3 +66,18 @@ test('leer la nube o reconectar sin poder escribir no repite el aviso de sincron
  f.subscriptions[0].error(Error('Escucha ficticia fallida'));f.emit('focus');await settle();f.runTimers();await settle();
  assert.equal(f.messages.length,1);assert.equal(JSON.parse(Object.values(f.storage)[0]).data.fields[0].value,'Conservar último');
 });
+
+test('el borrador conserva la base de su editor aunque llegue una caché más nueva',()=>{
+ const f=fixture(),old={fbKey:'presupuesto-a',id:'PP-A',revision:1,items:[{qty:4}]},latest={...old,revision:2,items:[{qty:8}]};
+ f.c._pptoEditandoFbKey=old.fbKey;f.c._pptoEditandoId=old.id;f.c._pptoEditorBase=structuredClone(old);f.c.buscarPptoPorRef=()=>latest;
+ f.c.svDrafts.begin('presupuesto');f.edit('Edición sobre revisión uno');
+ const saved=Object.values(f.storage).map(JSON.parse).find(d=>!d.deleted);
+ assert.equal(saved.original.revision,1);assert.equal(saved.original.items[0].qty,4);assert.equal(latest.revision,2);
+});
+test('salir conserva el borrador anterior pero una nueva edición usa una sesión y base distintas',async()=>{
+ const f=fixture(),a={fbKey:'presupuesto-a',id:'PP-A',revision:1},b={fbKey:'presupuesto-b',id:'PP-B',revision:3};f.c.buscarPptoPorRef=key=>key===a.fbKey?a:b;
+ f.c._pptoEditandoFbKey=a.fbKey;f.c._pptoEditorBase=a;f.c.svDrafts.begin('presupuesto');f.edit('Pendiente A');
+ const first=Object.values(f.storage).map(JSON.parse).find(d=>!d.deleted);f.c.svDrafts.leave('presupuesto');
+ f.c._pptoEditandoFbKey=b.fbKey;f.c._pptoEditorBase=b;f.fields[0].value='Inicio B';f.c.svDrafts.begin('presupuesto');f.edit('Pendiente B');f.runTimers();await settle();
+ const records=Object.values(f.storage).map(JSON.parse).filter(d=>!d.deleted);assert.equal(records.length,2);const older=records.find(d=>d.id===first.id),newer=records.find(d=>d.id!==first.id);assert.equal(older.data.edit,a.fbKey);assert.equal(older.data.fields[0].value,'Pendiente A');assert.equal(newer.data.edit,b.fbKey);assert.equal(newer.original.revision,3);
+});
