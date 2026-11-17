@@ -1,3 +1,9 @@
+# v3.20.17 publicada y verificada · 17/11/2026
+
+Fuente7a714088cf9f0daecc964f10054973888625085c subida en codex/proposal-qr-local; main conservada. Autorización humana explícita: probar local y publicar una vez verificado. Hosting2481b2877bd7bd4b,699activos/5cargas,24114244bytes: todos porHTTP/sha256 idénticos al contratoRAWd87874186688e22a874ea88c27e3d3dec49a82d4c93dd6bd84e5f27a75503585;4rutas privadas404. Preflight acreditó web16 exacta antes del corte. Script oficial confirmó web/core/SW y avisoFirebase v3.20.17-firebase después de comprobar los activos. Sin builds, backend, reglas, IAM, pagos, comisiones, stock ni operaciones reales de prueba.
+
+Local:58dominioPASS/2opt-inSKIP/0FAIL, incluidos dos recorridos UI390/1280 con datos ficticios: dos borradores previos conservados, nueva edición guarda una sola vez8unidades contra su base4. Defecto de base editor/caché probado con regresión roja en código anterior y verde ahora; no afirmar que se capturó el mensaje original del rechazo real. Evidencia privada drafts17-local-verificado.private.jpg y logs fueraGit. Pestaña web original del usuario conservada, sin recarga ni guardado real adicional. General conserva16fallos previos; el único fallo adicional inicial era el doble sin leave y sus8casos se repitieronPASS tras completarlo, sin alterar expectativas.
+
 # Candidata v3.20.17: aislar edición y borradores · 17/11/2026
 
 Pedido humano: corregir editar→Volver→editar→guardar, probar local y publicar si se verifica. No repetir operaciones reales como prueba. Presupuesto real previamente guardado por pedido puntual permanece intacto durante esta corrección.
