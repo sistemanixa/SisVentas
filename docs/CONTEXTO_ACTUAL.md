@@ -1,3 +1,7 @@
+# v3.21.1 publicada y verificada · 18/11/2026
+
+Fuente5a694b7c195ae2598279f111872ceef144a86b6a en codex/proposal-qr-local; main conservada. Hosting14d7984f4b8a7aba,705activos/7cargas/24145218bytes: todos porHTTP/sha256 coincidentes con contrato RAWbbb6df0265a8411b5c3f17981b7f6ff4cc046eb724f5a3d66a26ad5318543e6a;4rutas privadas404. Preflight confirmó21.0exacta antes del corte. CompartirQR con título/cliente, PNG y alternativa de copia; progreso opaco por páginas en PDF individual/conjunto, Cancelar y foco interno comprobados con datos ficticios. Sin cambios de servidor, permisos ni registros comerciales. Script oficial confirmó web/core/SW y aviso Firebase v3.21.1-firebase después de verificar los705activos.
+
 # Candidata v3.21.1: compartir QR y progreso de PDF · 18/11/2026
 
 Botón Compartir QR en el índice interno: título/texto Propuestas Nixa — cliente, URL vigente y PNG del QR con título/cliente si el navegador admite archivos; alternativa de copia de título/enlace sin Web Share. PNG preparado antes del clic para conservar activación de usuario. No envía mensajes automáticamente. Caducidad/sesión/contexto vigentes obligatorios; QR renovado o cliente cambiado invalida la imagen en memoria, sin nuevas consultas por render.
