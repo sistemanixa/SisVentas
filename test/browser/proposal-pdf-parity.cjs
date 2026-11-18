@@ -8,4 +8,3 @@ assert.equal(r.textAfter,r.text);for(const target of [r.frozen,r.cloned]){assert
 if(width===1280){const data=await page.evaluate(()=>qaPdf.output('datauristring'));fs.writeFileSync(path.join(out,'presentacion-ficticia-verificada.pdf'),Buffer.from(data.split(',')[1],'base64'));}
 const failed=await page.evaluate(async()=>{const n=SVProposalSlide.render({dto:{number:'FICTION'},record:{},photoURL:'data:image/png;base64,AAAA',overview:'Prueba'},{kind:'intro',title:'Prueba',address:'Ficticio'});document.querySelector('.sv-pd-export').replaceChildren(n);try{await SVProposalSlide.prepareCapture(n);return false;}catch{return true;}});assert.equal(failed,true);await page.close();}
 console.log(JSON.stringify({cases:results.length,results,unavailableImageRejected:true,realReads:0,realWrites:0}));fs.writeFileSync(path.join(out,'parity.private.json'),JSON.stringify(results,null,2));}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});
-
