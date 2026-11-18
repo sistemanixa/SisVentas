@@ -1,3 +1,9 @@
+# v3.20.18 publicada y verificada · 17/11/2026
+
+Fuente e63ba07a29d6662eee03c0a00105a28c45b07708 subida a codex/proposal-qr-local; main conservada. Hosting sites/nixa-sisventas-seguro/versions/2d29141aed60ac08,700activos/5cargas,24063356bytes: todos comprobados porHTTP/sha256 contra contrato RAW305483819c34d848d26cae2a37f3860c23f037b0679d389eef84946e8d7a7a12;4rutas privadas404. Preflight acreditó web17 exacta en5activos antes de publicar. Script oficial confirmó índice/core/SW y avisoFirebase v3.20.18-firebase. Sin compilaciones, backend, reglas, permisos ni registros comerciales modificados como prueba.
+
+Puerta vigente con NODE_PATH existente y Chrome:11035total/10928PASS/16FAIL/91SKIP. Los16nombres coinciden con los fallos documentados/reproducidos de la base17, sin nuevos.95focalesPASS tras el ajuste final de reinicio del selector. No presentar suite general verde. Los cambios de esta entrega no resuelven esos16pendientes ajenos. Sintaxis/diff/coherencia localPASS. Publicación comprobada en pestaña original: Moneda recibida ofrece Pesos/Dólares; se restauró porUI la venta seleccionada antes de recargar, monto0, sin guardar cobros. Pestañas originales web/local conservadas; captura y evidencias privadas en C:/SisVentas/tmp/product-help-totals18, nunca Git.
+
 # Candidata v3.20.18: cobros USD, ayuda y totales · 17/11/2026
 
 Pedido humano: implementar y publicar junto con ayuda de dos tildes de Productos y resumen monetario de venta/presupuesto. Selector explícito Pesos/Dólares reutiliza el circuito existente; permite cotización acordada aun sin referencia automática. Guarda los campos USD/cambio ya admitidos por servidor, sin migraciones ni cambios de backend, reglas, permisos o comisiones. Imputación USD siempre refleja monto visible por cotización, sin sustituirla por el objetivo oculto de botones rápidos. ARS conserva su criterio. Inicio de formulario sincroniza selector y estado a ARS. Valida importes positivos finitos antes de enviar.
