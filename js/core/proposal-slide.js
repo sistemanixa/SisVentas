@@ -34,5 +34,11 @@
   if(pseudo.length){const style=document.createElement('style');style.textContent=pseudo.join('\n');section.append(style);}
   return section;
  }
- return Object.freeze({render:slide,fit,prepareCapture});
+ function validateCapture(section){
+  if(!section?.isConnected)throw Error('No se pudo preparar la página del PDF.');
+  const box=section.getBoundingClientRect();if(!(box.width>0&&box.height>0))throw Error('La página del PDF no tiene tamaño válido.');
+  for(const n of section.querySelectorAll('h1,h2,p,strong,small,td,th,.sv-pd-page-note span')){if(!n.getClientRects().length)continue;const r=n.getBoundingClientRect();if(r.left<box.left-1||r.right>box.right+1||r.top<box.top-1||r.bottom>box.bottom+1)throw Error('La página del PDF tiene contenido fuera del encuadre.');}
+  return true;
+ }
+ return Object.freeze({render:slide,fit,prepareCapture,validateCapture});
 });

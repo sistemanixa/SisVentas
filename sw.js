@@ -1,10 +1,10 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.20.19';
+const CACHE = 'sisventas-v3.20.20';
 const SHELL = [
   './css/proposal-share.css?v=3.20.15',
   './js/core/proposal-presentation-context.js?v=3.20.15',
-  './js/core/proposal-slide.js?v=3.20.19',
+  './js/core/proposal-slide.js?v=3.20.20',
   './js/modules/proposal-share.js?v=3.20.15',
   './js/vendor/qrcodegen.js?v=3.20.15',
   './css/expense-clothing-form.css?v=3.20.13',
@@ -105,7 +105,7 @@ const SHELL = [
   './css/budget-presentation.css?v=3.20.11',
   './css/proposal-deck.css?v=3.20.15',
   './js/core/proposal-deck-model.js?v=3.20.15',
-  './js/modules/proposal-deck.js?v=3.20.19',
+  './js/modules/proposal-deck.js?v=3.20.20',
   './js/core/budget-presentation-model.js?v=3.20.11',
   './js/modules/budget-presentation-view.js?v=3.20.11',
   './js/modules/budget-presentation.js?v=3.20.11',
@@ -164,7 +164,7 @@ const SHELL = [
   './js/core/guarded-writes.js?v=3.18.4',
   './js/core/session-assets.js?v=3.20.4',
   './js/core/ot-personal-scope.js?v=3.14.0',
-  './js/app.v3.20.19.js',
+  './js/app.v3.20.20.js',
   './js/core/activity-period.v1.js',
   './js/core/dashboard-account-source.v1.js?v=3.14.19',
   './js/modules/navigation-back.js?v=3.10.20-home',
@@ -174,7 +174,7 @@ const SHELL = [
   './js/modules/provider-verification.js?v=3.9.3',
   './js/modules/paraguay-config.js?v=3.17.7',
   './js/core/version.js',
-  './js/core/version.v3.20.19.js',
+  './js/core/version.v3.20.20.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js?v=2.0.154',
   './js/core/access-control.js?v=3.10.32',
