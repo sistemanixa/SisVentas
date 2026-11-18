@@ -12,5 +12,27 @@
   const foot=node('div','sv-pd-page-note');foot.append(node('span','',p.kind==='engineering'?'Trayectoria y acompañamiento técnico':'Imagen ilustrativa · Alcance según presupuesto'),node('span','',d.dto.number));section.append(foot);return section;
  }
  function fit(section){if(!section?.isConnected)return false;let complete=true;for(const region of section.querySelectorAll('.sv-pd-text-region')){region.style.setProperty('--sv-pd-fit','1');let factor=1;for(let i=0;i<24&&region.scrollHeight>region.clientHeight+1;i++){factor*=.92;region.style.setProperty('--sv-pd-fit',String(factor));}if(region.scrollHeight>region.clientHeight+1)complete=false;}return complete;}
- return Object.freeze({render:slide,fit});
+
+ async function prepareCapture(section){
+  if(!section?.isConnected)throw Error('La presentación se cerró.');
+  const view=section.ownerDocument.defaultView;
+  async function bounded(task,message){let timer;try{return await Promise.race([task,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(message)),15000);})]);}finally{clearTimeout(timer);}}
+  if(document.fonts?.ready)await bounded(document.fonts.ready,'No se pudieron cargar las fuentes.');
+  for(const img of section.querySelectorAll('img')){await bounded(img.decode(),'No se pudo cargar una imagen de la presentación.');if(!img.naturalWidth)throw Error('Falta una imagen de la presentación.');}
+  const backgrounds=new Set();
+  for(const n of [section,...section.querySelectorAll('*')])for(const part of [null,'::before','::after']){const value=view.getComputedStyle(n,part).backgroundImage;for(const match of value.matchAll(/url\((?:"([^"]*)"|'([^']*)'|([^)]*))\)/g))backgrounds.add(match[1]||match[2]||match[3]);}
+  for(const src of backgrounds){const image=new view.Image();if(new URL(src,document.baseURI).origin!==new URL(document.baseURI).origin)image.crossOrigin='anonymous';image.src=src;await bounded(image.decode(),'No se pudo cargar el fondo de la presentación.');}
+  if(!section.isConnected||!fit(section))throw Error('El texto no cabe en la presentación. Revisá su contenido.');
+  // Freeze browser-resolved pixels before html2pdf moves the clone outside its
+  // query container. Otherwise cqw/calc/var are reinterpreted by html2canvas.
+  const nodes=[section,...section.querySelectorAll('*')],pseudo=[];
+  const css=style=>Array.from(style).filter(key=>!key.startsWith('--')).map(key=>[key,style.getPropertyValue(key)]);
+  const snapshots=nodes.map((n,i)=>{for(const part of ['::before','::after']){const st=view.getComputedStyle(n,part);if(st.content&&st.content!=='none'&&st.content!=='normal')pseudo.push('[data-sv-pdf-node="'+i+'"]'+part+'{'+css(st).map(([k,v])=>k+':'+v+'!important').join(';')+'}');}return css(view.getComputedStyle(n));});
+  for(const img of section.querySelectorAll('img')){const st=view.getComputedStyle(img);if(st.objectFit!=='cover')continue;const w=img.clientWidth,h=img.clientHeight;if(!w||!h)continue;const canvas=document.createElement('canvas');canvas.width=Math.ceil(w*2);canvas.height=Math.ceil(h*2);const scale=Math.max(canvas.width/img.naturalWidth,canvas.height/img.naturalHeight),dw=img.naturalWidth*scale,dh=img.naturalHeight*scale;canvas.getContext('2d').drawImage(img,(canvas.width-dw)/2,(canvas.height-dh)/2,dw,dh);try{img.src=canvas.toDataURL('image/png');}catch{throw Error('No se pudo preparar una imagen para el PDF.');}await bounded(img.decode(),'No se pudo preparar una imagen para el PDF.');}
+  nodes.forEach((n,i)=>{n.setAttribute('data-sv-pdf-node',String(i));for(const [key,value]of snapshots[i])n.style.setProperty(key,value,'important');});
+  section.style.setProperty('container-type','normal','important');
+  if(pseudo.length){const style=document.createElement('style');style.textContent=pseudo.join('\n');section.append(style);}
+  return section;
+ }
+ return Object.freeze({render:slide,fit,prepareCapture});
 });
