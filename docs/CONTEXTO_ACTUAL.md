@@ -1,3 +1,7 @@
+# v3.21.0 publicada y verificada · 18/11/2026
+
+Fuente d7a3cbf5728d7fa65b02de2ddd4d0ba7b80bd2a7 en codex/proposal-qr-local; main conservada. Hosting4802887c451643ab:704activos/6cargas,24138739bytes, todos comprobados porHTTP/sha256 contra contrato RAWde9b2d45350e4843a1226086900a2e394e7d926faf7b4ea23e468ec3214649b3;4rutas privadas404. Preflight comprobó20exacta antes del despliegue. Descarga conjunta, nombres dePDF, rueda interna y cotización seleccionada quedan publicados. No cambios de backend ni datos comerciales. Script oficial confirmó web/core/SW y aviso Firebase v3.21.0-firebase después de esa comprobación.
+
 # Candidata v3.21.0: descarga conjunta, rueda y cotización del sistema · 18/11/2026
 
 Índice interno de propuestas agrega Descargar todas en PDF: ZIP con un PDF separado por título y número, generado secuencialmente por el mismo renderizador PNG sin pérdida ya aprobado en20. Exportación individual también toma ese nombre. Si cambia cualquier presupuesto durante la generación se rechaza el lote completo, sin descarga parcial; mantiene controles de sesión/permisos y firma documental. Rueda vertical cambia una página con umbral/cooldown, conserva zoom y controles interactivos. La equivalencia toma la misma selección/fallback de cotización de la cabecera al abrir, congelada durante esa presentación; no fuerza Blue. No reescribe históricos ni enlaces QR ya emitidos. Visor público QR no cambia su navegación en este alcance. Nuevo helper ZIP local sin dependencias ni consultas por reloj.
