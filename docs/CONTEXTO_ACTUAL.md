@@ -1,3 +1,7 @@
+# v3.21.2 publicada y verificada · 18/11/2026
+
+Fuente5e4bb83db6dec44962fd3ff42c48dfe4e10e78dd en codex/proposal-qr-local; main conservada. Hosting773932d6ddf5b06c:706activos/6cargas/24149011bytes, todos porHTTP/sha256 coincidentes con contrato RAWec05a5651e0299c5306f167867ca760e47328d1fcaddb2e1ffa4b1c25ed5cd55;4rutas privadas404. Preflight confirmó21.1exacta. Progreso integrado en pie con miniaturas y QR visibles, render fuera de pantalla, PDF y cancelación comprobados en los flujos ficticios descritos debajo. Sin backend, builds, permisos ni registros comerciales. Script oficial confirmó web/core/SW y aviso Firebase v3.21.2-firebase después de verificar los706activos.
+
 # Candidata v3.21.2: progreso en el pie, miniaturas visibles · 18/11/2026
 
 Pedido humano: mantener el índice de miniaturas mientras se genera PDF y ubicar progreso entre las acciones y QR. Se elimina la capa opaca; barra/Cancelar se integran al pie con tres columnas en escritorio, fila propia en tablet y acomodo vertical en móvil. Sólo los controles cubiertos por el proceso quedan inertes/deshabilitados; QR permanece visible, Cancelar mantiene foco y Tab no sale al fondo. La preparación sigue fuera de pantalla; no cambia el generador aprobado ni los datos del PDF. Al terminar/error se restauran acciones y QR sin recrear el enlace ni registrar operaciones.
