@@ -1,0 +1,21 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
+const {functionSource}=require('./helpers/app-functions.cjs');
+function fixture(){const fields={};for(const id of ['cob-monto','cob-tipo-cambio','cob-saldo','cob-moneda-usd','cob-moneda-select','cob-usd-panel','cob-moneda-label','cob-monto-label'])fields[id]={value:'',dataset:{},style:{}};fields['cob-saldo'].value='200000';fields['cob-monto'].value='100';fields['cob-tipo-cambio'].value='1575';let c={document:{getElementById:id=>fields[id]},_cobMonedaActual:'USD',getMontoRaw:el=>Number(el?.value)||0,normalizarNumeroExcel:x=>x,_cotizacionReferenciaCobranza:()=>({valor:0}),_setMontoInput:(el,n)=>el.value=String(n),calcSaldoTrasCobranza(){},notify:assert.fail};vm.createContext(c);for(const name of ['_cobranzaSaldoPendiente','_cobranzaEstadoMonto','toggleMonedaCobranza'])vm.runInContext(functionSource(name),c);return{fields,c};}
+test('USD aplica una sola conversión y una cotización guardada independiente de la referencia actual',()=>{const {fields,c}=fixture();assert.equal(c._cobranzaEstadoMonto().montoARS,157500);fields['cob-monto'].dataset.objetivoArs='160000';assert.equal(c._cobranzaEstadoMonto().montoARS,157500);fields['cob-tipo-cambio'].value='1500';assert.equal(c._cobranzaEstadoMonto().montoARS,150000);assert.equal(c._cobranzaEstadoMonto().montoOriginal,100);});
+test('ARS conserva importe y centavos sin convertir por la cotización',()=>{const {fields,c}=fixture();c._cobMonedaActual='ARS';fields['cob-monto'].value='106729.56';assert.equal(c._cobranzaEstadoMonto().montoARS,106729.56);});
+test('sin cotización automática puede elegirse USD e ingresar la acordada, sin inventar un cambio',()=>{const {fields,c}=fixture();fields['cob-tipo-cambio'].value='0';c._cobMonedaActual='ARS';c.toggleMonedaCobranza(true);assert.equal(c._cobMonedaActual,'USD');assert.equal(fields['cob-moneda-select'].value,'USD');assert.equal(fields['cob-usd-panel'].style.display,'grid');assert.equal(c._cobranzaEstadoMonto().tipoCambio,0);fields['cob-tipo-cambio'].value='1600';assert.equal(c._cobranzaEstadoMonto().montoARS,160000);});
+const {createBackend,apply,copy}=require('./helpers/labor-ui-flow.cjs');
+const Index=require('../cotizador/payment-membership-index');
+const {createPaymentCommands}=require('../cotizador/payment-commands');
+test('alta USD y reintento conservan originales, histórico ARS y un solo equivalente aplicado',async()=>{
+ const historic={ventaFbKey:'v',venta:'V-FICTICIA',monto:25000,fecha:'2026-10-01'};
+ const f=createBackend({ventas:{v:{id:'V-FICTICIA',total:200000,totalPagado:25000}},pagos:{old:historic}});
+ apply(f.state,Index.buildIndex(f.state.sisventas.pagos,{generation:'synthetic-usd-generation',ready:true}).patch);
+ const commands=createPaymentCommands({authorize:f.gateway.authorize,db:{ref:path=>({get:async()=>({val:()=>f.get(path)})})},guard:f.guard,store:f.store,enabled:true});
+ const actor={uid:'u',claims:{uid:'u',name:'Usuario ficticio'}},body={id:'synthetic-usd-payment-01',kind:'registrar',opciones:{grupoPago:'synthetic-usd-group',montoTotal:157500,solicitudes:[{ventaFbKey:'v',pagoKey:'usd_new',monto:157500,pago:{fecha:'2026-11-17',moneda:'USD',montoOriginal:100,montoUSD:100,tipoCambio:1575,cotizacionEditada:true}}]}};
+ await commands.execute(actor,body);await commands.execute(actor,copy(body));
+ assert.equal(f.commits.length,1);assert.deepEqual(copy(f.get('sisventas/pagos/old')),historic);assert.equal(f.get('sisventas/ventas/v/totalPagado'),182500);
+ const p=f.get('sisventas/pagos/usd_new');assert.equal(p.monto,157500);assert.equal(p.moneda,'USD');assert.equal(p.montoOriginal,100);assert.equal(p.tipoCambio,1575);
+});
+test('nuevo formulario vuelve a pesos y sincroniza el selector después de cobrar en USD',()=>{const {fields,c}=fixture();c.restablecerCotizacionCobranza=()=>{};vm.runInContext(functionSource('iniciarMonedaCobranza'),c);fields['cob-moneda-select'].value='USD';fields['cob-moneda-usd'].checked=true;c.iniciarMonedaCobranza();assert.equal(c._cobMonedaActual,'ARS');assert.equal(fields['cob-moneda-select'].value,'ARS');assert.equal(fields['cob-moneda-usd'].checked,false);assert.equal(fields['cob-usd-panel'].style.display,'none');});

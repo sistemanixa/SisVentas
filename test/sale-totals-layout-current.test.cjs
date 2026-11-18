@@ -1,0 +1,9 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
+const {functionSource}=require('./helpers/app-functions.cjs');
+for(const detail of [false,true])test('venta de millones conserva números y resumen con columnas independientes '+detail,()=>{
+ let html='';const total=10977573.75,v={id:'V-FICTICIA',cliente:'Cliente ficticio',fecha:'2026-11-17',items:[{cod:'DEMO',desc:'Servicio ficticio',qty:1,punit:9072375,sub:9072375}]},before=JSON.stringify(v),money=n=>'$'+n.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+ const w={document:{open(){},write:s=>html=s,close(){}}},c={window:{_ventaDetalleActual:v,open:()=>w},_ventaImpConDetalle:detail,document:{getElementById:()=>null},svValidarSalidaComercial:()=>true,resumenEconomicoComprobanteVenta:()=>({subtotalItems:9072375,subtotalNeto:9072375,descuentoGeneralRealPct:0,descuentoGeneralMonto:0,iva:1905198.75,total}),logoImpresionActualUrl:()=>'',resolverClienteDeVenta:()=>null,obtenerCuitClienteVenta:()=>'',estadoPagoEfectivoVenta:()=> 'pendiente_pago',fotoComprobanteVenta:()=>'',escapeHTML:s=>String(s),importeComprobanteVenta:money,_mostrarFecha:s=>s,ventaTieneNotaCreditoActiva:()=>false,setTimeout(){},notify:assert.fail};
+ vm.createContext(c);vm.runInContext(functionSource('imprimirVentaActual'),c);c.imprimirVentaActual(true);
+ assert.equal(JSON.stringify(v),before);const summary=html.match(/<table class="sale-totals"[^>]*><tbody>([\s\S]*?)<\/tbody><\/table>/);assert.ok(summary);assert.match(html,/class="sale-summary-cell" colspan="5"/);const rows=[...summary[1].matchAll(/<tr[^>]*>(.*?)<\/tr>/g)];assert.equal(rows.length,5);for(const row of rows)assert.equal((row[1].match(/<td /g)||[]).length,2);assert.ok(summary[1].includes('$10.977.573,75'));assert.ok(summary[1].includes('$1.905.198,75'));assert.match(html,/\.sale-totals td:last-child\{[^}]*white-space:nowrap;overflow-wrap:normal;word-break:normal/);
+});

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.20.17-firebase' -->
+<!-- VERSION: 'v3.20.18-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,7 +21,7 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.20.17.js"></script>
+<script src="./js/core/version.v3.20.18.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.18.4"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.18.4"></script>
@@ -1601,14 +1601,11 @@
         <div class="card" id="cob-registro">
           <div class="card-head">
             <span class="card-title">Registrar pago</span>
-            <div class="cob-moneda-selector" aria-label="Moneda del cobro">
-              <span>ARS</span>
-              <label class="toggle-sw" title="Cambiar moneda del cobro">
-                <input type="checkbox" id="cob-moneda-usd" onchange="toggleMonedaCobranza(this.checked)">
-                <span class="toggle-knob"></span>
-              </label>
-              <span>USD</span>
-              <strong id="cob-moneda-label">ARS</strong>
+            <div class="cob-moneda-selector">
+              <label for="cob-moneda-select">Moneda recibida</label>
+              <select id="cob-moneda-select" aria-label="Moneda recibida" onchange="toggleMonedaCobranza(this.value==='USD')" style="width:auto;min-width:170px"><option value="ARS">Pesos (ARS)</option><option value="USD">Dólares (USD)</option></select>
+              <input type="checkbox" id="cob-moneda-usd" hidden aria-hidden="true" tabindex="-1">
+              <strong id="cob-moneda-label" hidden>ARS</strong>
             </div>
           </div>
           <div class="form-grid">
@@ -1647,14 +1644,14 @@
             <div class="fg full cob-usd-panel" id="cob-usd-panel" style="display:none">
               <div class="cob-usd-cotizacion">
                 <div class="cob-usd-cotizacion-head">
-                  <label>Cotización aplicada (ARS por USD)</label>
+                  <label>Cotización acordada · pesos por dólar</label>
                   <button type="button" onclick="restablecerCotizacionCobranza()"><i class="ti ti-refresh"></i> Usar actual</button>
                 </div>
                 <input data-money="1" id="cob-tipo-cambio" placeholder="0" oninput="cobranzaCotizacionEditada()">
                 <div id="cob-tc-fuente" class="cob-usd-ayuda">Cotización configurada</div>
               </div>
               <div class="cob-usd-equivalencia">
-                <span>Se imputará a la venta</span>
+                <span>Importe a cancelar en pesos</span>
                 <strong id="cob-equivalente-ars">$0 ARS</strong>
                 <small id="cob-equivalente-detalle">Ingresá el monto recibido en dólares.</small>
               </div>
@@ -4307,7 +4304,7 @@ Listo para analizar.
 <div class="fg"><label>Garantía</label><select id="pf-garantia-estado"><option value="sin_definir">Sin definir</option><option value="si">Tiene garantía</option><option value="no">Sin garantía</option></select></div>
 <div class="fg"><label>Meses</label><input id="pf-garantia-meses" type="number" min="1" max="120" value="12"></div>
 <div class="fg"><label>Inicio</label><select id="pf-garantia-inicio"><option value="instalacion">Instalación confirmada</option><option value="entrega">Entrega confirmada</option></select></div>
-<div class="fg"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--bg3);padding:12px;border-radius:var(--radius)"><input type="checkbox" id="pf-garantia-equipo" style="width:16px;height:16px;accent-color:var(--blue)"> Registrar como equipo instalado</label></div><div class="fg"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--bg3);padding:12px;border-radius:var(--radius)"><input type="checkbox" id="pf-garantia-serie" style="width:16px;height:16px;accent-color:var(--blue)"> Requiere número de serie</label></div></div></div>
+<div class="fg" style="display:flex;align-items:center;gap:8px;background:var(--bg3);padding:12px;border-radius:var(--radius)"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;flex:1"><input type="checkbox" id="pf-garantia-equipo" style="width:16px;height:16px;accent-color:var(--blue)"> Llevar seguimiento del equipo instalado</label><button type="button" class="btn btn-icon" aria-label="Información sobre seguimiento del equipo" title="Permite llevar la ficha del equipo instalado en el cliente, con su ubicación, garantía e historial. No lo marca como instalado al crear el producto."><i class="ti ti-info-circle" aria-hidden="true"></i></button></div><div class="fg" style="display:flex;align-items:center;gap:8px;background:var(--bg3);padding:12px;border-radius:var(--radius)"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;flex:1"><input type="checkbox" id="pf-garantia-serie" style="width:16px;height:16px;accent-color:var(--blue)"> Requiere número de serie</label><button type="button" class="btn btn-icon" aria-label="Información sobre número de serie" title="Indica que debe identificarse cada equipo por su número de serie para su seguimiento y garantía. No es el código del producto del catálogo."><i class="ti ti-info-circle" aria-hidden="true"></i></button></div></div></div>
           <div class="card">
             <div class="card-head"><span class="card-title">Stock y publicación</span></div>
             <div class="form-grid">
@@ -5890,7 +5887,7 @@ Listo para analizar.
 <script src="./js/core/ot-sale-origin.v1.js?v=3.18.13"></script>
 <script src="./js/core/commercial-report-read.v1.js?v=3.19.0"></script>
 <script src="./js/modules/commercial-report-host.v1.js?v=3.19.0"></script>
-<script src="./js/app.v3.20.17.js"></script>
+<script src="./js/app.v3.20.18.js"></script>
 <script src="./js/core/sales-search-model.v1.js?v=3.18.4"></script>
 <script src="./js/core/collection-search-model.v1.js?v=3.18.13"></script>
 <script src="./js/core/commercial-pages-reader.v1.js?v=3.19.6"></script>
