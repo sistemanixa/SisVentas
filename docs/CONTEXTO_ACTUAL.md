@@ -11,7 +11,7 @@ Producción no cambió: web/localHTTP21.2; sólo se leyeron metadata de revisió
 
 ## Candidata B Stock Link1 local, OFF · 22/11/2026
 
-Ver [informe de reglas](AUDITORIA_B_STOCK_LINK_REGLAS_20261122.md). 7 unitarias y 39 emulador PASS. Base privada intacta, sin activar ni publicar. Pendientes: controles de otras capacidades, pins finales A/D/C/E, cobertura real e integración runtime. Los dos casos UI mencionados en otro contexto no están identificados ni asignados a este frente.
+Ver [informe de reglas](AUDITORIA_B_STOCK_LINK_REGLAS_20261122.md). 7 unitarias y 51 emulador PASS. Base privada intacta, sin activar ni publicar. Conteo Link0 y SDK legacy OFF también PASS. Pendientes: otras capacidades distintas de Stock, pins finales A/D/C/E, cobertura real e integración runtime. Los dos casos UI mencionados en otro contexto no están identificados ni asignados a este frente.
 
 # v3.21.2 publicada y verificada · 18/11/2026
 

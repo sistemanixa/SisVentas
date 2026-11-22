@@ -13,3 +13,13 @@ Evidencia inicial: siete pruebas unitarias PASS; 32/32 casos de emulador PASS co
 Intentos conservados: primera tanda29=26PASS3FAIL por wildcard del recibo bloqueando campos conocidos; segunda29=28PASS1FAIL por simulación ACK cancelando body null de print=silent. Se corrigieron constructor de reglas y fixture respectivamente, sin alterar expectativas ni código E. Fallo previo de regex Java y diagnóstico de coverage colgado son límites de infraestructura registrados en continuidad, no resultados de negocio. No usar el endpoint inspect coverage.
 
 Repetición ampliada con activación inválida y SDK postlease: 39/39 PASS; emulador propio limpiado y detenido. La puerta completa pertenece al principal; no se ejecutó aquí. Chrome continúa reservado por integración central y no se atribuyeron nombres a dos fallos UI no identificados en esta continuidad.
+
+## Ampliación posterior al primer paquete
+
+La tanda completa ampliada de 50 casos pasó: cinco ataques a parent/guard/recibo, cuatro controles de conteo real Link0 (dos roles, activación presente/ausente), dos controles SDK legacy con activación ausente. Primeros controles SDK fallaron por fixture incompleta: catálogo sin codigo/categoria e inventario sin espejo coordinado. Se completó la fixture y actualización atómica de espejo; no se modificaron reglas ni expectativas para admitir datos inválidos. La capacidad anterior de conteo atravesó servicio/guard/store reales.
+
+Se añadió además binding explícito del productKey del par previo a la claim y un ataque concurrente con un par previo ajeno. Matriz final: 51/51 PASS, siete unitarias PASS; emulador limpiado y detenido.
+
+Precisión sobre firma: el caso con firma forjada es rechazo del contrato del servidor antes de PATCH. RTDB sólo comprueba pins y forma, no Ed25519. Una configuración privada escrita por un actor privilegiado con pins correctos y firma falsa podría retirar SDK aunque runtime Link permanezca OFF. Antes de cualquier activación futura debe verificarse firma y reglas exactas antes de escribir esa configuración, con respaldo y corte auditado. No se realizó ese paso.
+
+Pendientes reales: integración E del verificador, pins finales de todos los escritores, demostración de cobertura exhaustiva y revisión de controles de otras capacidades distintas del conteo Stock. No se afirma cobertura universal. Los dos casos UI externos quedaron NO asignados por el principal; Chrome libre no identifica cuáles eran.
