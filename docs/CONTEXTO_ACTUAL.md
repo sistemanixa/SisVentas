@@ -1,3 +1,7 @@
+## Revisión B de cobertura E01347 e índices locales · 22/11/2026
+
+59/59 emulador con queryPage REST real y42/42 focales PASS. Índices propuestos metadata:3rutas9camposfaltantes, previos conservados; sin aplicar remoto. [Informe](AUDITORIA_B_COBERTURA_DIRIGIDA_20261122.md). Observación abierta E: receipt.revision ausente/string/Infinity aceptada al inferir identidad histórica. B no editó núcleo. Central debe repetir con queryPageFresh7f y composición SDKcutA. Todo OFF, sin datos reales.
+
 ## Corrección B de contrato integrado · 22/11/2026
 
 La integración central detectó drift: E actual confirma resultado de siete campos con committed:true; candidata B anterior esperaba seis. Se reprodujeron 3/3 fallos con E f28+96+dd; reglas ahora exigen exactamente siete e igualdad entre recibos. Validación focal 43/43 PASS; emulador final 55/55 PASS. Antecedentes 51/51 correspondían a E55 y no prueban el núcleo actualizado. Ver informe B.

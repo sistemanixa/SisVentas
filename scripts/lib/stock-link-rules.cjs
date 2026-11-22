@@ -37,7 +37,7 @@ function prepare(input,{activationPins}={}){
  const operation={'.write':and(['$operation === '+op,grant]),...shape(['uid','operationId','commandDigest','result']),uid:{'.validate':'newData.isString() && newData.val() === auth.uid'},operationId:{'.validate':key('newData')+' && newData.val().length >= 8'},commandDigest:{'.validate':"newData.isString() && newData.val().matches(/^[a-f0-9]{64}$/)"},result:shape(resultFields)};
  operation.result.committed={'.validate':'newData.isBoolean() && newData.val() === true'};operation.result.ok={'.validate':'newData.isBoolean() && newData.val() === true'};for(const f of ['productKey','inventoryKey','receiptIdentityKey','operationId'])operation.result[f]={'.validate':key('newData')};operation.result.revision={'.validate':safeInt('newData')};
  root.sisventas.stock_vinculos={'.read':false,'.write':false,porProducto:{'$product':record('$product',product)},porInventario:{'$inventory':record('$inventory',inventory)},operaciones:{'$operation':operation},'$other':{'.validate':false}};
- const scope=require('./stock-link-scope-rules.cjs').restrict(out);
- return{rules:out,manifest:{version:1,namespace:ROOT,excluded,retiredSdk,scope,paths:['porProducto/$product','porInventario/$inventory','operaciones/$operation'],catalogComposed:true,activationRequired:true,activated:false,coverageCreated:false}};
+ const scope=require('./stock-link-scope-rules.cjs').restrict(out),indexes=require('./stock-link-index-rules.cjs').add(out);
+ return{rules:out,manifest:{version:1,namespace:ROOT,excluded,retiredSdk,scope,indexes,paths:['porProducto/$product','porInventario/$inventory','operaciones/$operation'],catalogComposed:true,activationRequired:true,activated:false,coverageCreated:false}};
 }
 module.exports={prepare,fields,resultFields};
