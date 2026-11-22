@@ -1,7 +1,7 @@
 'use strict';
 // Explicit synthetic benchmark, never part of the normal test gate.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict'),Fixture=require('./helpers/ot-performance-fixture.cjs');
-const {Port,IO,Explicit,Activation,Reference,queryRows}=require('./helpers/stock-reference-committed-core.cjs').load(path.resolve('tmp/audit-front-d/core02ee'));
+const {Port,IO,Explicit,Activation,Reference,queryRows}=require('./helpers/stock-reference-committed-core.cjs').load(path.resolve('tmp/audit-front-d/corefbc9'));
 const hash=v=>crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex');
 function prepare(mapped,catalogCount=641){return data=>{
  const ot=data.sisventas.ordenes_trabajo.ot;
@@ -23,10 +23,10 @@ async function sample({rowCount,label,latency,catalogCount=641}){
  return{rowCount,label,latency,catalogCount,error,guardWindowExceeded,status:error?'rejected':guardWindowExceeded?'lease-window-exceeded-not-pass':'fixture-committed',elapsedMs,requests:f.requests.length,commits:f.commits.length,maxConcurrency:f.stats().maxConcurrency,phases:Object.fromEntries(Object.entries(phases).map(([name,p])=>[name,{requests:p.requests,ranges:p.ranges,observedIoSpanMs:Math.round(p.end-p.start)}])),trace:f.requests};
 }
 async function main(){
- const latency=Number(process.env.SV_OT_PROFILE_LATENCY??150),rows=(process.env.SV_OT_PROFILE_ROWS||'1,6,12').split(',').map(Number),samples=[],out=path.resolve(process.env.SV_OT_PROFILE_OUT||'tmp/audit-front-d/ot-reference-profile-'+latency+'.json');
+ const latency=Number(process.env.SV_OT_PROFILE_LATENCY??150),rows=(process.env.SV_OT_PROFILE_ROWS||'1,6,12').split(',').map(Number),modes=(process.env.SV_OT_PROFILE_MODES||'OFF,ON-unmapped,ON-mapped').split(','),samples=[],out=path.resolve(process.env.SV_OT_PROFILE_OUT||'tmp/audit-front-d/ot-reference-profile-'+latency+'.json');
  const sourceHashes=Object.fromEntries(['cotizador/ot-material-state.js','cotizador/ot-lifecycle.js','cotizador/ot-delivery-commit-protocol.js','test/helpers/ot-performance-fixture.cjs',__filename].map(file=>[file,crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')]));
- assert(latency>=0&&Number.isFinite(latency));assert(rows.every(n=>Number.isInteger(n)&&n>=1&&n<=12));fs.mkdirSync(path.dirname(out),{recursive:true});
- for(const rowCount of rows)for(const label of ['OFF','ON-unmapped','ON-mapped']){const result=await sample({rowCount,label,latency});samples.push(result);fs.writeFileSync(out,JSON.stringify({scope:'Synthetic per-request latency; 641 fictional catalog products with numeric id; no production operations; one sample per cell',core:'02ee4f6d03acbac48b9c431acb28e25e1b222498',sourceHashes,samples},null,2));console.log(JSON.stringify({...result,trace:undefined}));}
+ assert(latency>=0&&Number.isFinite(latency));assert(rows.every(n=>Number.isInteger(n)&&n>=1&&n<=12));assert(modes.every(mode=>['OFF','ON-unmapped','ON-mapped'].includes(mode)));fs.mkdirSync(path.dirname(out),{recursive:true});
+ for(const rowCount of rows)for(const label of modes){const result=await sample({rowCount,label,latency});samples.push(result);fs.writeFileSync(out,JSON.stringify({scope:'Synthetic per-request latency; 641 fictional catalog products with numeric id; no production operations; one sample per cell',core:'fbc9abeb88ebd86321748ca44c98498cb4841be3',sourceHashes,samples},null,2));console.log(JSON.stringify({...result,trace:undefined}));}
 }
 if(require.main===module)main().catch(error=>{console.error(error.stack);process.exitCode=1;});
 module.exports={prepare,sample};

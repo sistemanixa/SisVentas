@@ -138,18 +138,21 @@ async function resolveStockReference(row,{read,query,source,original,resolveRefe
  if(typeof resolveReference!=='function'||!original||!key(original.otKey)||!original.row||typeof original.row!=='object'||!['materiales','items'].includes(original.source)||!/^(0|[1-9][0-9]*)$/.test(original.rowKey))throw fail('La referencia original del material requiere revisión.');
  const selector=original.source==='materiales'?Number(original.rowKey):'items_'+original.rowKey;
  const input={purpose:'ot',path:'sisventas/ordenes_trabajo/'+original.otKey,selector,record:structuredClone(original.record),expectedOriginalHash:digest(original.record)};
+ let canonicalReference=null;
  const identifyOriginal=async(stored,selected,io)=>{
   if(selected!==selector||digest(stored)!==digest(original.record))throw fail('El original del vínculo cambió.');
   const selectedRow=stored?.[original.source]?.[Number(original.rowKey)];if(!selectedRow||digest(selectedRow)!==digest(original.row))throw fail('La fila no pertenece al original verificado.');
-  const aliases=[...new Set([selectedRow.inventoryKey,selectedRow.productoKey,selectedRow.cod,selectedRow.codigo].filter(key))],seed=aliases[0];if(!seed)throw fail('La identidad original del material requiere revisión.');
+  const located=typeof io?.locateCanonical==='function'?await io.locateCanonical():null;
+  if(located){const ref=located.reference;if(located.sourceHash!==digest(stored)||located.selector!==selected||![ref?.productKey,ref?.inventoryKey,ref?.receiptIdentityKey].every(key)||located.ledgerPath!=='sisventas/inventario_operativo/'+ref.inventoryKey)throw fail('El localizador no acredita esta fila original.');canonicalReference=structuredClone(ref);}
+  const aliases=[...new Set((located?[canonicalReference.productKey,canonicalReference.inventoryKey,canonicalReference.receiptIdentityKey]:[selectedRow.inventoryKey,selectedRow.productoKey,selectedRow.cod,selectedRow.codigo]).filter(key))],seed=located?canonicalReference.inventoryKey:aliases[0];if(!seed)throw fail('La identidad original del material requiere revisión.');
   if(typeof io?.read!=='function')throw fail('Faltan lecturas frescas de la historia física.');
   // Mapping records are locators only here. The core validates forward/inverse,
   // ownership, aliases and coverage; every locator read stays in its readSet.
-  const candidates=new Set(aliases);let located=false;
-  const locate=async names=>{for(const name of names)for(const direction of ['porProducto','porInventario']){const link=await io.read('sisventas/stock_vinculos/'+direction+'/'+name);if(link&&key(link.inventoryKey)){candidates.add(link.inventoryKey);located=true;}}};await locate(aliases);
+  const candidates=new Set(located?[canonicalReference.inventoryKey]:aliases);let linked=!!located;
+  const locate=async names=>{for(const name of names)for(const direction of ['porProducto','porInventario']){const link=await io.read('sisventas/stock_vinculos/'+direction+'/'+name);if(link&&key(link.inventoryKey)){candidates.add(link.inventoryKey);linked=true;}}};if(!located)await locate(aliases);
   // Code-only legacy rows need the same authoritative, unique catalog binding
   // to inspect the actual ledger. A missing old key is never treated as zero.
-  if(!located&&typeof io.query==='function'&&typeof (selectedRow.cod||selectedRow.codigo)==='string'){
+  if(!linked&&typeof io.query==='function'&&typeof (selectedRow.cod||selectedRow.codigo)==='string'){
    const matches={};for(const field of ['codigo','cod'])Object.assign(matches,await io.query('sisventas/productos',field,selectedRow.cod||selectedRow.codigo)||{});const keys=Object.keys(matches);if(keys.length>1)throw fail('El código histórico tiene varios productos.');
    if(keys.length===1&&key(keys[0])&&!aliases.includes(keys[0])){aliases.push(keys[0]);candidates.add(keys[0]);await locate([keys[0]]);}
   }
@@ -168,18 +171,18 @@ async function resolveStockReference(row,{read,query,source,original,resolveRefe
    }
   }
   const physicalAmount=['entregada','instalada','cantidadInstalada','devuelta','devueltaPendiente','enTecnico','danada','faltante'].some(field=>selectedRow[field]!=null&&selectedRow[field]!==0);
-  if(history){if(origins.size!==1)throw fail('No se pudo acreditar la identidad histórica del recibo.');return {productKey:key(selectedRow.productoKey)?selectedRow.productoKey:undefined,inventoryKey:seed,receiptIdentityKey:[...origins][0],aliases,history:{kind:'confirmed',sourceHash:digest(stored),verifiedReads}};}
+  if(history){if(origins.size!==1)throw fail('No se pudo acreditar la identidad histórica del recibo.');return {productKey:canonicalReference?.productKey??(key(selectedRow.productoKey)?selectedRow.productoKey:undefined),inventoryKey:seed,receiptIdentityKey:[...origins][0],aliases,history:{kind:'confirmed',sourceHash:digest(stored),verifiedReads}};}
   // The authorized office-count command may reconcile an explicitly pending
   // extra with zero previously registered units. Amounts in that source are
   // the requested reconciliation, never proof of a pre-existing stock receipt.
   const pendingExtra=pendingOfficeCount===true&&selectedRow.adicionalOT===true&&selectedRow.stockPendiente===true&&selectedRow.stockBaseInstalada===0&&Number.isFinite(selectedRow.instalada)&&selectedRow.instalada>0;
   if(receiptId||rowReceipts.length||selectedRow.stockRevision||!pendingExtra&&(physicalAmount||selectedRow.custodiaActiva))throw fail('La ausencia de historia física no está acreditada.');
-  return {productKey:key(selectedRow.productoKey)?selectedRow.productoKey:undefined,inventoryKey:seed,receiptIdentityKey:null,aliases,history:{kind:'absent',sourceHash:digest(stored),verifiedReads}};
+  return {productKey:canonicalReference?.productKey??(key(selectedRow.productoKey)?selectedRow.productoKey:undefined),inventoryKey:seed,receiptIdentityKey:null,aliases,history:{kind:'absent',sourceHash:digest(stored),verifiedReads}};
  };
  const result=await resolveReference(input,{read,query,track:track||(()=>{}),legacy,identifyOriginal});
  if(!result||![result.productKey,result.inventoryKey,result.receiptIdentityKey].every(key)||!Number.isSafeInteger(result.mappingRevision)||result.mappingRevision<0||typeof result.mapped!=='boolean')throw fail('La referencia física de stock requiere revisión.');
  if(result.mapped&&result.mappingRevision<1)throw fail('El vínculo de stock no tiene revisión verificada.');
- if(!result.mapped){const expected=await legacy();if(result.mappingRevision!==0||['productKey','inventoryKey','receiptIdentityKey'].some(field=>result[field]!==expected[field]))throw fail('El recorrido legado no puede cambiar de inventario.');}
+ if(!result.mapped){const expected=canonicalReference??await legacy();if(result.mappingRevision!==0||['productKey','inventoryKey','receiptIdentityKey'].some(field=>result[field]!==expected[field]))throw fail('El recorrido legado no puede cambiar de inventario.');}
  if(source&&row.productoKey&&row.productoKey!==result.productKey)throw fail('El producto histórico no coincide con su origen.');
  return result;
 }
