@@ -6,6 +6,7 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 COPY index.js ./
+COPY tecnoprices-login.js budget-presentation-trial.js budget-presentation-trial-model.js ot-custody-held-authority.js client-account-operational-state.js ./
 COPY commercial-admission.js ./
 COPY commercial-response.js ./
 COPY commercial-pages-model.js commercial-pages-projections.js commercial-creator-latest.js native-payment-summary.js ot-installation-display-delta.js ./
