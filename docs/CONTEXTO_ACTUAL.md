@@ -1,3 +1,9 @@
+# Tercera integración local en revisión · 22/11/2026
+
+Fuente c011fd8e en rama codex/auditoria-integral-20261122. Cobertura Stock dirigida sin índice provisional y recibos reconstruidos contra OT original, queryPage estricto, manuales de Compras con alta/edición/cancelación/recepción OFF, interfaz/recovery durable y lector global de Stock OFF integrados. Empaquetado sin build3PASS, preservación con hunks revisados11PASS manteniendo hashes nativos; recuperación dirigida real5PASS. Primeras composiciones detectaron y conservaron incompatibilidades de formato de recibo y de fixture de rangos, corregidas sin ampliar permisos ni tocar producto para hacer pasar una simulación.
+
+La puerta completa11220/11129PASS/0FAIL/91SKIP sigue correspondiendo EXCLUSIVAMENTE a5c4ecdfa, no al código posterior. Se prepara repetición completa sobre esta tercera integración. La herramienta de vínculo y el orden global NO están activados. Bloqueos vigentes: exceso de consultas/planner de IDs numéricos (D/E), consumidores completos OT/Stock y Compras vinculadas (A/D/E), mantenimiento/protección de orden global (C/B/root), cohort única y pruebas finales. D reprodujo12mapped2124requests y rechazo de641IDs: no activar por tener sólo casos funcionales verdes. No hubo builds, despliegues, reglas reales, operaciones comerciales ni control de pantalla del usuario.
+
 # Segunda integración local comprobada · 22/11/2026
 
 Fuente central5c4ecdfa en codex/auditoria-integral-20261122:11220tests/11129PASS/0FAIL/91SKIP/0canceladas, script vigente salida0. Núcleo tipado de vínculo Stock y su UI preparadosOFF, confirmación/recovery alineados y guard Stock con composiciónreal; conserva identidad histórica del recibo. Reutilización de originales de catálogo sólo en planificación OT, revalidación fresca conservada. Tandas separadas de27opt-ins financieros retenidos y pruebas reales de navegador sólo ficticias documentadas en AUDITORIA_INTEGRAL_20261122.md.
