@@ -66,7 +66,18 @@ los cálculos de costos, proveedores, índices o formularios de una recepción r
 10 preservación nativa.
 No sumar tandas repetidas como casos distintos. Sintaxis/diff verificados.
 
-Pendiente: composición con SHA confirmado del hook de Stock de E, adapter de
+Composición adicional verificada en copia aislada desde el commit confirmado
+de E `0f2f8730a6f3149b2a411d714df5203a34b7e91b`: se conservaron su entrada y
+restricción Stock y se aplicaron sólo los tres puntos del hook Compras. Pasaron
+64 casos, 0 FAIL/0 SKIP, de purchase-inventory-guard/policy y de
+office-stock-guard-composition, office-stock-store-composition y
+office-stock-link-command. No sumar esta tanda a las 91 como casos disjuntos.
+SHA256 del guard compuesto normalizado a LF:
+`46de749ea9d2d80ed9b173a40246eea7a9434e6c88de8f0a0d49241a1b08294a`.
+Copia de comprobación privada `.local/audit-20261122-purchase-stock-composition`,
+sin cambios en E ni central; log privado tmp/purchase-stock-composition-20261122.log.
+
+Pendiente: adapter de
 callback común estable, comando fuente+inventario completo OFF, validación con
 reglas completas y cierre SDK posterior al lease antes de cualquier activación.
 La nueva dependencia purchase-inventory-policy.js también requiere incorporarse
