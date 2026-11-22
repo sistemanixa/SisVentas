@@ -1,7 +1,7 @@
 'use strict';
 const {digest}=require('./labor-guard'),Policy=require('./ot-lifecycle-policy'),Index=require('./record-list-model'),Model=require('./ot-delivery-model'),State=require('./ot-material-state'),{normalizeRtdb}=require('./payment-membership-index');
 const fail=(statusCode,message,code='SV_OT_DELIVERY_NOT_READY')=>Object.assign(Error(message),{statusCode,code});
-function createOTDelivery({store,guard,enabled=false,commercialPages=false,now=Date.now,resolveReference}){
+function createOTDelivery({store,guard,enabled=false,commercialPages=false,now=Date.now,resolveReference,createReferencePhase}){
  async function protocol(read){
   const [labor,operational,records]=await Promise.all(['sv_labor_config','sv_operational_read_config','sv_record_list_config'].map(read)),proof=await store.verifyOTDeliveryFence?.();
   // Delivery uses the deployed operational writer and its certified OT index.
@@ -17,7 +17,7 @@ function createOTDelivery({store,guard,enabled=false,commercialPages=false,now=D
   if(!body||Object.keys(body).some(k=>!['id','kind','otKey','expectedOTHash','changes','action'].includes(k))||body.kind!=='delivery'||!Model.key(body.id)||body.id.length<8||!Model.key(body.otKey)||!/^[a-f0-9]{64}$/.test(body.expectedOTHash)||!body.changes||Object.keys(body.changes).some(k=>k!=='entregas')||!Array.isArray(body.changes.entregas)||typeof body.action!=='string'||body.action.length>240)throw fail(400,'Solicitud de entrega inválida.','SV_OT_DELIVERY_INPUT');
   const read=p=>store.read(p);await protocol(read);const auth=await authority(identity,read),path='sisventas/ordenes_trabajo/'+body.otKey,initial=await store.readAsUser(path,identity);if(!initial||!Model.key(initial.ventaFbKey))throw fail(409,'La OT requiere una venta canónica.');
   const actor={uid:identity.uid,claims:identity.claims,mode:'user',...auth,opId:body.id,transportDigest:digest(body),operation:'ot-lifecycle',input:body,otClosed:Index.closed?.(initial)||false};actor.otLifecycle=Policy.issue({uid:actor.uid,otKey:body.otKey,saleKey:initial.ventaFbKey,operationId:body.id,kind:'delivery',...auth});
-  const referenceOperation=State.referenceOperation(resolveReference,store),operationResolver=referenceOperation.resolve;
+  const referenceOperation=State.referenceOperation(resolveReference,store,createReferencePhase),operationResolver=referenceOperation.resolve;
   Object.assign(actor,State.withReferencePort(actor,operationResolver));
   started();const result=await guard.run(actor,async scope=>{
    State.bindReferenceLease(actor,scope.lease);

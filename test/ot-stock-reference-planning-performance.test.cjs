@@ -17,3 +17,16 @@ test('fresh directed queries use at most six slots and drain the started batch o
 test('OFF performs its legacy callback on every call without querying or creating range checks',async()=>{
  let calls=0;const op=State.referenceOperation(async(_original,ports)=>ports.legacy(),{queryPage:()=>assert.fail('OFF read')}),ports={legacy:async()=>({mapped:false,value:++calls,readSet:[]})};assert.equal((await op.resolve({},ports)).value,1);assert.equal((await op.resolve({},ports)).value,2);await op.assertFresh(()=>assert.fail('OFF fresh query'));assert.equal(calls,2);
 });
+test('Store commit claims receive a new server phase, distinct from planning and the fresh check',async()=>{
+ const phases=[],reads=[];let next=0;
+ const factory=({queryPage})=>{const id=++next,memo=new Map(),phase={id,queryPage:async(path,options)=>{const key=digest({path,options});if(!memo.has(key)){reads.push(id);memo.set(key,Promise.resolve(queryPage(path,options)));}return structuredClone(await memo.get(key));}};phases.push(phase);return phase;};
+ const callback=async(original,ports)=>{const path='sisventas/productos',options={orderBy:'codigo',equalTo:'F',limitToFirst:65},rows=await ports.referencePhase.queryPage(path,options);await ports.trackQueryPage(path,options,rows);return {mapped:true};},op=State.referenceOperation(callback,{queryPage:async()=>({p:{codigo:'F'}})},factory);
+ const Policy=require('../cotizador/ot-lifecycle-policy'),actor=State.withReferencePort({uid:'u',claims:{uid:'u'},mode:'user',role:'admin',opId:'phase-operation',operation:'ot-lifecycle',otLifecycle:Policy.issue({uid:'u',otKey:'ot',saleKey:'sale',operationId:'phase-operation',kind:'custody',role:'admin'})},op.resolve),lease={actorUid:'u',opId:'phase-operation',fence:'phase-fence'};State.bindReferenceLease(actor,lease);
+ await op.resolve({selector:0,record:{}},{});await op.resolve({selector:1,record:{}},{});await op.assertFresh(async()=>({p:{codigo:'F'}}));
+ const commit=State.getReferencePort(actor,lease,{phase:'commit'});await commit({selector:0,record:{}},{});await commit({selector:1,record:{}},{});
+ assert.equal(phases.length,4);assert.deepEqual(reads,[1,2,4]);assert.notEqual(phases[0],phases[1]);assert.notEqual(phases[1],phases[3]);
+});
+test('domain identity points and parallel core ranges share a six-slot operation window',async()=>{
+ let active=0,max=0;const io=async()=>{active++;max=Math.max(max,active);try{await new Promise(r=>setTimeout(r,10));return{};}finally{active--;}};
+ const callback=async(original,ports)=>{await Promise.all([ports.read('sisventas/ordenes_trabajo/'+original.selector),...Array.from({length:6},(_,i)=>ports.queryPage('sisventas/productos',{orderBy:'codigo',equalTo:'F'+original.selector+'-'+i,limitToFirst:65}))]);return{mapped:true};},op=State.referenceOperation(callback,{queryPage:io});await Promise.all(Array.from({length:6},(_,selector)=>op.resolve({selector,record:{}},{read:io})));assert.equal(active,0);assert.equal(max,6);
+});

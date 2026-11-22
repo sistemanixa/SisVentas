@@ -35,7 +35,7 @@ function apply({ot,inventory,product,body,uid,name,ts,references}){
  if(Array.isArray(nextOT.audit))nextOT.audit.push(audit);else nextOT.audit={...(nextOT.audit||{}),[body.id]:audit};
  return {inventory:nextInventory,ot:nextOT};
 }
-function createOTOfficeCount({db,store,guard,now=Date.now,enabled=false,resolveReference}){
+function createOTOfficeCount({db,store,guard,now=Date.now,enabled=false,resolveReference,createReferencePhase}){
  const read=async path=>(await db.ref(path).get()).val();
  async function execute(identity,body){
   if(!enabled)throw fail(503,'El ajuste desde OT todavía no está habilitado.');
@@ -43,7 +43,7 @@ function createOTOfficeCount({db,store,guard,now=Date.now,enabled=false,resolveR
   if(!identity?.uid||identity.claims?.uid!==identity.uid)throw fail(401,'Sesión requerida');
   if(!body||Object.keys(body).some(k=>!['id','otKey','productKey','count','reason','expectedOTHash','expectedInventoryHash'].includes(k))||!key(body.id)||body.id.length<8||!key(body.otKey)||!key(body.productKey)||!Number.isFinite(body.count)||body.count<0||body.count>1e9||!clean(body.reason)||body.reason.length>240||!['expectedOTHash','expectedInventoryHash'].every(k=>/^[a-f0-9]{64}$/.test(body[k]||'')))throw fail(400,'Revisá el conteo y el motivo del ajuste.');
   const profile=await read('sv_chat_roles/'+identity.uid),cfg=await read('sv_permisos/'+profile?.rol),context=access(profile,cfg),otPath='sisventas/ordenes_trabajo/'+body.otKey;
-  const operation=State.referenceOperation(resolveReference,store),proofs=new Map(),queries=[];
+  const operation=State.referenceOperation(resolveReference,store,createReferencePhase),proofs=new Map(),queries=[];
   async function locate(ot,reader,query,pendingOnly,resolver=operation.resolve,trackSources=true){
    if(!operation.resolve)return {inventoryKey:body.productKey,references:undefined};
    if(!Array.isArray(ot?.materiales)||ot.materiales.length>100)throw fail(409,'La OT requiere revisar sus materiales.');
@@ -96,7 +96,7 @@ function createOTOfficeCount({db,store,guard,now=Date.now,enabled=false,resolveR
   // The receipt contains confirmation only. Read current, authorized records on replay.
   let ot,inventory;
   if(!operation.resolve)[ot,inventory]=await Promise.all([store.readAsUser(otPath,identity),store.readAsUser('sisventas/inventario_operativo/'+body.productKey,identity)]);
-  else{ot=await store.readAsUser(otPath,identity);let authority;const currentRead=async path=>{authority??=(async()=>access(await read('sv_chat_roles/'+identity.uid),await read('sv_permisos/'+context.role)))();await authority;return store.read(path);};const fresh=State.referenceOperation(resolveReference,store),located=await locate(ot,currentRead,store.query,false,fresh.resolve,false);inventory=await store.readAsUser('sisventas/inventario_operativo/'+located.inventoryKey,identity);}
+  else{ot=await store.readAsUser(otPath,identity);let authority;const currentRead=async path=>{authority??=(async()=>access(await read('sv_chat_roles/'+identity.uid),await read('sv_permisos/'+context.role)))();await authority;return store.read(path);};const fresh=State.referenceOperation(resolveReference,store,createReferencePhase),located=await locate(ot,currentRead,store.query,false,fresh.resolve,false);inventory=await store.readAsUser('sisventas/inventario_operativo/'+located.inventoryKey,identity);}
   return {...result,ot,inventory};
  }
  return {execute};

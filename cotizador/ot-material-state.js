@@ -3,16 +3,30 @@
 const Rows=require('./ot-material-rows-model'),{digest}=require('./labor-guard'),Money=require('./commercial-models/commercial-money');
 const own=(o,k)=>Object.hasOwn(o||{},k),same=(a,b)=>digest(a)===digest(b);
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_OT_MATERIAL_REVIEW'});
-// Full snapshots may be shared only inside this invocation's planning phase.
-// The final check discards them before issuing independent fresh range reads.
-function referenceOperation(resolveReference,store){
- if(resolveReference!==undefined&&typeof resolveReference!=='function')throw fail('El puerto de referencias no es válido.');
- const ranges=new Map(),pages=new Map();let planning=true;
- const resolve=resolveReference===undefined?undefined:async(original,ports)=>{
-  const result=await resolveReference(original,{...ports,queryPage:async(path,options)=>{if(typeof store.queryPage!=='function')throw fail('Falta el lector dirigido de stock.');if(!planning)return store.queryPage(path,options);const id=digest({path,options});if(!pages.has(id))pages.set(id,Promise.resolve().then(()=>store.queryPage(path,options)).then(structuredClone));return structuredClone(await pages.get(id));},trackQueryPage:async(path,options,rows)=>{const id=digest({path,options}),entry={path,options:structuredClone(options),hash:digest(rows)};if(ranges.has(id)&&ranges.get(id).hash!==entry.hash)throw fail('La cobertura de stock cambió durante la operación.');ranges.set(id,entry);await ports.trackQueryPage?.(path,options,rows);}});
-  return result;
- };
- return {resolve,async assertFresh(queryPageFresh){planning=false;pages.clear();const checks=[...ranges.values()];for(let i=0;i<checks.length;i+=6){const settled=await Promise.allSettled(checks.slice(i,i+6).map(async entry=>{if(typeof queryPageFresh!=='function'||digest(await queryPageFresh(entry.path,entry.options))!==entry.hash)throw fail('La cobertura de stock cambió antes de confirmar.');}));const rejected=settled.find(result=>result.status==='rejected');if(rejected)throw rejected.reason;}}};
+// A phase belongs to one server operation and one stage, never to the lease
+// across planning, the fresh check and the Store's independent commit claims.
+const referenceCommitFactories=new WeakMap();
+function referenceOperation(resolveReference,store,createReferencePhase){
+ if(resolveReference!==undefined&&typeof resolveReference!=='function'||createReferencePhase!==undefined&&typeof createReferencePhase!=='function')throw fail('El puerto de referencias no es válido.');
+ const ranges=new Map(),pages=new Map(),waiting=[];let planning=true,active=0;
+ // The core's window covers its own parallel reads. Domain identity reads must
+ // share a second, operation-local boundary with raw range IO as well.
+ const drain=()=>{while(active<6&&waiting.length){const task=waiting.shift();active++;Promise.resolve().then(task.work).then(task.resolve,task.reject).finally(()=>{active--;drain();});}};
+ const bounded=work=>new Promise((resolve,reject)=>{waiting.push({work,resolve,reject});drain();});
+ const readPage=async(path,options)=>{if(typeof store.queryPage!=='function')throw fail('Falta el lector dirigido de stock.');return bounded(()=>store.queryPage(path,options));};
+ const planningPage=async(path,options)=>{if(!planning)return readPage(path,options);const id=digest({path,options});if(!pages.has(id))pages.set(id,Promise.resolve().then(()=>readPage(path,options)).then(structuredClone));return structuredClone(await pages.get(id));};
+ const phaseFor=queryPage=>createReferencePhase?.({queryPage});let currentPhase=phaseFor(planningPage);
+ function resolver(phaseProvider,queryPage){return async(original,ports)=>resolveReference(original,{...ports,read:typeof ports.read==='function'?(...args)=>bounded(()=>ports.read(...args)):ports.read,query:typeof ports.query==='function'?(...args)=>bounded(()=>ports.query(...args)):ports.query,queryPage,...(phaseProvider()?{referencePhase:phaseProvider()}:{}),trackQueryPage:async(path,options,rows)=>{const id=digest({path,options}),entry={path,options:structuredClone(options),hash:digest(rows)};if(ranges.has(id)&&ranges.get(id).hash!==entry.hash)throw fail('La cobertura de stock cambió durante la operación.');ranges.set(id,entry);await ports.trackQueryPage?.(path,options,rows);}});}
+ const resolve=resolveReference===undefined?undefined:resolver(()=>currentPhase,planningPage);
+ if(resolve)referenceCommitFactories.set(resolve,()=>{const phase=phaseFor(readPage);return resolver(()=>phase,readPage);});
+ return {resolve,async assertFresh(queryPageFresh){
+  planning=false;pages.clear();currentPhase=undefined;
+  const checks=[...ranges.values()],freshPhase=typeof queryPageFresh==='function'?phaseFor(queryPageFresh):null,freshQuery=freshPhase?.queryPage??queryPageFresh;
+  for(let i=0;i<checks.length;i+=6){const settled=await Promise.allSettled(checks.slice(i,i+6).map(async entry=>{if(typeof freshQuery!=='function'||digest(await freshQuery(entry.path,entry.options))!==entry.hash)throw fail('La cobertura de stock cambió antes de confirmar.');}));const rejected=settled.find(result=>result.status==='rejected');if(rejected)throw rejected.reason;}
+  // Default post-check use also starts fresh; commit claims request their own
+  // phase explicitly even if called at a different point by a future guard.
+  currentPhase=phaseFor(readPage);
+ }};
 }
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
 const quantities=['entregada','devuelta','devueltaPendiente','enTecnico','danada','faltante','cantidadInstalada'];
@@ -117,7 +131,7 @@ function withReferencePort(actor,resolveReference){
  const handle=Object.freeze({});referenceContexts.set(handle,{resolveReference,uid:actor.uid,opId:actor.opId,role:actor.role,lifecycle:actor.otLifecycle,lease:null});return {...actor,[referencePort]:handle};
 }
 function bindReferenceLease(actor,lease){const context=referenceContext(actor);if(!context)return;if(require('./ot-lifecycle-policy').token(actor,lease).svOTLifecycleVersion!==1||!lease.fence||context.lease&&context.lease.fence!==lease.fence)throw fail('La guarda del vínculo cambió.');context.lease={fence:lease.fence,opId:lease.opId,actorUid:lease.actorUid};}
-function getReferencePort(actor,lease){const context=referenceContext(actor);if(!context)return undefined;if(require('./ot-lifecycle-policy').token(actor,lease).svOTLifecycleVersion!==1||!context.lease||lease.fence!==context.lease.fence||lease.opId!==context.lease.opId||lease.actorUid!==context.lease.actorUid)throw fail('La guarda del vínculo cambió.');return context.resolveReference;}
+function getReferencePort(actor,lease,{phase}={}){const context=referenceContext(actor);if(!context)return undefined;if(require('./ot-lifecycle-policy').token(actor,lease).svOTLifecycleVersion!==1||!context.lease||lease.fence!==context.lease.fence||lease.opId!==context.lease.opId||lease.actorUid!==context.lease.actorUid)throw fail('La guarda del vínculo cambió.');return phase==='commit'&&referenceCommitFactories.has(context.resolveReference)?referenceCommitFactories.get(context.resolveReference)():context.resolveReference;}
 async function resolveStockReference(row,{read,query,source,original,resolveReference,track,legacy:legacyResolver,pendingOfficeCount=false,parallelQueries=false}){
  let legacyPromise;const legacy=()=>legacyPromise||(legacyPromise=(async()=>{const productKey=legacyResolver?await legacyResolver():await resolveProduct(row,{read,query,source,parallelQueries});return {productKey,inventoryKey:productKey,receiptIdentityKey:productKey,mappingRevision:0,mapped:false,readSet:[]};})());
  if(!resolveReference)return legacy();
@@ -210,7 +224,7 @@ async function verifyReceipt({ot,otKey,transition,productKey,reference,read,stoc
   // Only a genuine custody command may prove a general-only consumption from
   // the committed original, leaving every reservation and foreign row intact.
   if(!custodyContext||!['admin','administrativo'].includes(token.svOTLifecycleRole)||c.actor.role!==token.svOTLifecycleRole||!transition.row||!c.group.some(entry=>entry.transition===transition))throw fail('Los recibos no tienen consumo o reserva respaldados en el ledger.');
-  try{const held=await require('./ot-custody-held-authority').compute({ot,otKey,productKey,reference,resolveReference:getReferencePort(c.actor,c.lease),group:c.group,read:c.readOriginal,query:c.query});const changes=c.group.map(({transition:t,rowKey})=>{
+  try{const held=await require('./ot-custody-held-authority').compute({ot,otKey,productKey,reference,resolveReference:c.resolveReference??getReferencePort(c.actor,c.lease),group:c.group,read:c.readOriginal,query:c.query});const changes=c.group.map(({transition:t,rowKey})=>{
    const pending=t.row.stockPendiente===true,beforeInstalled=pending?t.row.stockBaseInstalada:t.row.instalada??0;
    // Legacy pending rows may already carry the applied receipt revision. Only
    // an identical committed receipt can then prove adoption without stock edits.

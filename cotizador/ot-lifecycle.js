@@ -3,10 +3,10 @@ const {digest}=require('./labor-guard'),Model=require('./ot-lifecycle-model'),Po
 const Physical=require('./ot-physical-confirmation-model'),Stock=require('./ot-stock-consumption-model'),Rows=require('./ot-material-rows-model'),{normalizeRtdb}=require('./payment-membership-index'),crypto=require('node:crypto');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
-async function batch(values,work){const out=[];for(let i=0;i<values.length;i+=6)out.push(...await Promise.all(values.slice(i,i+6).map((value,j)=>work(value,i+j))));return out;}
+async function batch(values,work){const out=[];for(let i=0;i<values.length;i+=6){const settled=await Promise.allSettled(values.slice(i,i+6).map((value,j)=>work(value,i+j)));const rejected=settled.find(result=>result.status==='rejected');if(rejected)throw rejected.reason;out.push(...settled.map(result=>result.value));}return out;}
 function readWindow(){let active=0;const queued=[];function next(){while(active<6&&queued.length){const {work,resolve,reject}=queued.shift();active++;Promise.resolve().then(work).then(resolve,reject).finally(()=>{active--;next();});}}return work=>new Promise((resolve,reject)=>{queued.push({work,resolve,reject});next();});}
-function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,now=Date.now,resolveReference}){
- const delivery=require('./ot-delivery').createOTDelivery({store,guard,enabled,commercialPages,now,resolveReference});
+function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,now=Date.now,resolveReference,createReferencePhase}){
+ const delivery=require('./ot-delivery').createOTDelivery({store,guard,enabled,commercialPages,now,resolveReference,createReferencePhase});
  const read=async path=>(await db.ref(path).get()).val();
  async function activation(readCurrent=read){let pages=null;const paths=['sv_labor_config','sv_operational_read_config','sv_record_list_config',...(commercialPages?['sv_commercial_pages_config','sv_commercial_pages/v1/coverage']:[])],results=await Promise.allSettled(paths.map(readCurrent)),failed=results.find(result=>result.status==='rejected');if(failed)throw failed.reason;const values=results.map(result=>result.value),configs=values.slice(0,3);if(!enabled||configs[0]?.otLifecycleVersion!==1||configs.some(c=>c?.schema!==1||c?.ready!==true))throw fail(503,'El nuevo circuito de OT todavía no está habilitado.','SV_OT_LIFECYCLE_DISABLED');if(commercialPages){const [config,coverage]=values.slice(3);if(config?.schema!==1||config.ready!==true||typeof config.generation!=='string'||!config.generation||coverage?.schema!==1||coverage.ready!==true||coverage.generation!==config.generation||!Number.isSafeInteger(coverage.revision)||coverage.revision<0)throw fail(503,'El listado comercial todavía no está preparado.','SV_COMMERCIAL_PAGES_NOT_READY');pages={config,coverage};}return{configs,pages};}
  async function available(identity,{otKey,kind='custody'}={}){
@@ -34,7 +34,7 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
   const context=Policy.authority(profile,cfg,body.kind,Model.closed(initial));if(!key(initial?.ventaFbKey))throw fail(409,'La OT necesita una venta vinculada inequívoca.');
   const salePath='sisventas/ventas/'+initial.ventaFbKey,actor={uid:identity.uid,claims:identity.claims,mode:'user',...context,otClosed:Model.closed(initial),opId:body.id,transportDigest:digest(body),operation:'ot-lifecycle',input:body};
   actor.otLifecycle=Policy.issue({uid:identity.uid,otKey:body.otKey,saleKey:initial.ventaFbKey,operationId:body.id,kind:body.kind,...context});
-  const referenceOperation=State.referenceOperation(resolveReference,store),operationResolver=referenceOperation.resolve;
+  const referenceOperation=State.referenceOperation(resolveReference,store,createReferencePhase),operationResolver=referenceOperation.resolve;
   Object.assign(actor,State.withReferencePort(actor,operationResolver));
   started();const result=await guard.run(actor,async scope=>{
    State.bindReferenceLease(actor,scope.lease);
