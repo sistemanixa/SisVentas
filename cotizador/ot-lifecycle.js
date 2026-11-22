@@ -39,7 +39,16 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
    if(digest(await activation(p=>scope.get(p)))!==digest(activationState))throw fail(409,'La habilitación del guardado cambió. Volvé a abrir la OT.');
    const tracked=new Map(),pendingReads=new Map(),queries=[],pendingQueries=new Map();
    const track=async path=>{if(!pendingReads.has(path))pendingReads.set(path,(async()=>{const value=await scope.get(path);tracked.set(path,value);return value;})());return pendingReads.get(path);};
-   const query=async(path,field,value)=>{const id=JSON.stringify([path,field,value]);if(!pendingQueries.has(id))pendingQueries.set(id,(async()=>{const rows=await scope.query(path,field,value);queries.push({path,field,value,rows});return rows;})());return pendingQueries.get(id);};
+   const query=async(path,field,value)=>{const id=JSON.stringify([path,field,value]);if(!pendingQueries.has(id))pendingQueries.set(id,(async()=>{const rows=await scope.query(path,field,value);
+    // Catalog queries return complete originals. Reuse them only within this
+    // operation; the existing final path and query checks still read fresh.
+    if(path==='sisventas/productos'&&['codigo','cod'].includes(field))for(const [productKey,product]of Object.entries(rows||{})){
+     if(!key(productKey)||!product||typeof product!=='object'||Array.isArray(product))continue;
+     const productPath=path+'/'+productKey;
+     if(pendingReads.has(productPath)){if(digest(await pendingReads.get(productPath))!==digest(product))throw fail(409,'El catálogo cambió durante la preparación. Volvé a abrir la OT.');}
+     else{const original=structuredClone(product);tracked.set(productPath,original);pendingReads.set(productPath,Promise.resolve(original));}
+    }
+    queries.push({path,field,value,rows});return rows;})());return pendingQueries.get(id);};
    const [ot,reset]=await Promise.all([scope.getAsUser(otPath),scope.get('sv_access_resets/'+identity.uid)]);if(digest(ot)!==body.expectedOTHash)throw fail(409,'La OT cambió. Volvé a abrirla.');
    if(identity.claims.svPasswordChangeRequired||reset?.required||reset?.version!=null&&reset.version!==identity.claims.svAccessVersion)throw fail(403,'Actualizá tu acceso y volvé a ingresar.');
    if(['tecnico','tecnico_vendedor'].includes(context.role)){
