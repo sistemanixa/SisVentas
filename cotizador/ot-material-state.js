@@ -85,10 +85,10 @@ function transitions(ot,after){
  });
 }
 function allocation(ot,row){if(row.destinoVenta!=null&&!['original','nueva'].includes(row.destinoVenta))throw fail('El destino histórico es ambiguo.');const sale=row.destinoVenta==='nueva'?row.ventaDestinoFbKey:ot.ventaFbKey;if(!key(sale))throw fail('El destino de stock necesita una referencia canónica.');return sale;}
-async function resolveProduct(row,{read,query,source}){
+async function resolveProduct(row,{read,query,source,parallelQueries=false}){
  if(!source&&key(row.productoKey)){const product=await read('sisventas/productos/'+row.productoKey);if(!product||typeof product!=='object')throw fail('El producto de la rendición no existe.');return row.productoKey;}
  const code=(source||row).cod||(source||row).codigo;if(typeof code!=='string'||!code||typeof query!=='function')throw fail('El producto de la rendición requiere resolución autoritativa.');
- const matches={};for(const field of ['codigo','cod'])Object.assign(matches,await query('sisventas/productos',field,code)||{});const ids=Object.keys(matches);if(ids.length!==1||!key(ids[0])||source&&ids[0]!==row.productoKey)throw fail('El producto de la rendición falta o es ambiguo.');return ids[0];
+ const matches={};if(parallelQueries){const results=await Promise.allSettled(['codigo','cod'].map(field=>Promise.resolve().then(()=>query('sisventas/productos',field,code)))),failed=results.find(result=>result.status==='rejected');if(failed)throw failed.reason;for(const result of results)Object.assign(matches,result.value||{});}else for(const field of ['codigo','cod'])Object.assign(matches,await query('sisventas/productos',field,code)||{});const ids=Object.keys(matches);if(ids.length!==1||!key(ids[0])||source&&ids[0]!==row.productoKey)throw fail('El producto de la rendición falta o es ambiguo.');return ids[0];
 }
 async function verifyReceipt({ot,otKey,transition,productKey,read,stockExceptionContext}){
  const m=transition.target;if(!key(productKey)||!/^[a-f0-9]{64}$/.test(m.stockRegistro||'')||!Number.isSafeInteger(m.stockRevision)||m.stockRevision<1||!Number.isFinite(m.instalada)||m.instalada<0||transition.recovery&&m.instalada<=0)throw fail('El movimiento requiere una referencia de stock verificable.');

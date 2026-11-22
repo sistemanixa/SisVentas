@@ -5,15 +5,17 @@ const Policy=require('./ot-lifecycle-policy'),Rows=require('./ot-material-rows-m
 const base='sisventas/ordenes_trabajo';
 const fields=['cod','codigo','sku','productoKey','adicionalOT','origen','destinoVenta','ventaDestinoFbKey','ventaDestinoId','origenMaterialHistorico','entregada','custodiaActiva','entregadoEn','entregadoPor','entregadoA'];
 const fail=()=>Object.assign(Error('El cambio de entrega requiere el protocolo autorizado de OT.'),{statusCode:409,code:'SV_OT_DELIVERY_PROTOCOL'});
-async function batch(values,work){const out=[];for(let i=0;i<values.length;i+=6)out.push(...await Promise.all(values.slice(i,i+6).map((value,j)=>work(value,i+j))));return out;}
+async function batch(values,work){const out=[];for(let i=0;i<values.length;i+=6){const results=await Promise.allSettled(values.slice(i,i+6).map((value,j)=>work(value,i+j))),failed=results.find(result=>result.status==='rejected');if(failed)throw failed.reason;out.push(...results.map(result=>result.value));}return out;}
 function projection(ot){const materiales=Object.entries(ot?.materiales||{}).filter(([,row])=>row&&((row.entregada!=null&&Number(row.entregada)!==0)||row.custodiaActiva===true||['entregadoEn','entregadoPor','entregadoA'].some(k=>row[k]!=null))).map(([index,row])=>[index,Object.fromEntries(fields.filter(k=>row[k]!==undefined).map(k=>[k,row[k]]))]);const remitosEntrega=ot?.remitosEntrega??null;return {ventaFbKey:materiales.length||remitosEntrega?ot?.ventaFbKey??null:null,materiales,remitosEntrega};}
 function apply(record,path,value){if(!path.length)return structuredClone(value);let out=structuredClone(record)||{},at=out;for(const key of path.slice(0,-1)){if(!at[key]||typeof at[key]!=='object')at[key]={};at=at[key];}if(value===null)delete at[path.at(-1)];else at[path.at(-1)]=structuredClone(value);return out;}
 async function claims({patch,lease,actor,read,query}){
  // These promises belong only to this commit check, never another operation,
  // user or planning phase. Missing and ambiguous products remain checked.
- const pendingReads=new Map(),pendingQueries=new Map(),originalRead=read,originalQuery=query;
+ const pendingReads=new Map(),pendingQueries=new Map(),originalRead=read,originalQuery=query,queue=[];let activeQueries=0;
+ function nextQuery(){while(activeQueries<6&&queue.length){const task=queue.shift();activeQueries++;Promise.resolve().then(task.work).then(task.resolve,task.reject).finally(()=>{activeQueries--;nextQuery();});}}
+ const scheduleQuery=work=>new Promise((resolve,reject)=>{queue.push({work,resolve,reject});nextQuery();});
  read=async path=>{if(!pendingReads.has(path))pendingReads.set(path,Promise.resolve().then(()=>originalRead(path)));return structuredClone(await pendingReads.get(path));};
- if(typeof originalQuery==='function')query=async(path,field,value)=>{const id=JSON.stringify([path,field,value]);if(!pendingQueries.has(id))pendingQueries.set(id,Promise.resolve().then(()=>originalQuery(path,field,value)));return structuredClone(await pendingQueries.get(id));};
+ if(typeof originalQuery==='function')query=async(path,field,value)=>{const id=JSON.stringify([path,field,value]);if(!pendingQueries.has(id))pendingQueries.set(id,scheduleQuery(()=>originalQuery(path,field,value)));return structuredClone(await pendingQueries.get(id));};
  const grouped=new Map(),inventoryEdits=new Map(),inventoryBase='sisventas/inventario_operativo';
  for(const [path,value]of Object.entries(patch)){
   const keys=parts(path),normalized=keys.join('/');
@@ -53,7 +55,7 @@ async function claims({patch,lease,actor,read,query}){
    const materialInput=digest(before?.materiales??null)===digest(after?.materiales??null)?Rows.persisted(Rows.view(before)):after?.materiales;
    transitions=require('./ot-lifecycle-model').materialChanges(before,materialInput,'custody');
    const validations=[];
-   const resolved=await batch(transitions,async(transition,rowIndex)=>{if(!transition.needsStockReceipt&&!transition.needsProductBinding)return null;try{const productKey=await State.resolveProduct(transition.target,{read,query,source:transition.needsProductBinding?transition.source:null});return{transition,productKey,rowKey:String(rowIndex)};}catch(error){if(error.code==='SV_OT_MATERIAL_REVIEW')throw fail();throw error;}});validations.push(...resolved.filter(Boolean));
+   const resolved=await batch(transitions,async(transition,rowIndex)=>{if(!transition.needsStockReceipt&&!transition.needsProductBinding)return null;try{const productKey=await State.resolveProduct(transition.target,{read,query,source:transition.needsProductBinding?transition.source:null,parallelQueries:true});return{transition,productKey,rowKey:String(rowIndex)};}catch(error){if(error.code==='SV_OT_MATERIAL_REVIEW')throw fail();throw error;}});validations.push(...resolved.filter(Boolean));
    await batch(validations,async entry=>{try{await State.verifyReceipt({ot:before,otKey:id,transition:entry.transition,productKey:entry.productKey,read:receiptRead,stockExceptionContext:{actor,lease,group:validations.filter(v=>v.productKey===entry.productKey),readOriginal,query}});}catch(error){if(error.code==='SV_OT_MATERIAL_REVIEW')throw fail();throw error;}});
    // Passive persistence retains the authoritative items history; it is not a
    // new delivery merely because Rows.persisted materializes the source row.
