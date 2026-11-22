@@ -1,8 +1,8 @@
 'use strict';
 // Synthetic cohort only. Ephemeral signing keys never leave this process.
 const crypto=require('node:crypto');
-function signedReference({Explicit,Activation,Reference,now=Date.now}){
- const expectedContract={schema:1,stockReferences:Explicit.STOCK_REFERENCES,domains:{stock:'fiction-stock',purchase:'fiction-purchase',ot:'fiction-ot',ui:'fiction-ui'}},expectedPins={schema:1,generation:'fiction-ot-cohort',baselineDigest:Reference.digest('fiction-baseline'),contractDigest:Reference.digest(expectedContract),codePins:Object.fromEntries(['stock','compras','ot','ui'].map(name=>[name,Reference.digest('fiction-code-'+name)])),indexQueryCoverageVersion:1},expectedRulesDigest=Reference.digest('fiction-rules-not-deployed'),{privateKey,publicKey}=crypto.generateKeyPairSync('ed25519'),document={...expectedPins,rulesDigest:expectedRulesDigest,issuedAt:now()-1};
+function signedReference({Explicit,Activation,Reference,now=Date.now,rulesDigest}){
+ const expectedContract={schema:1,stockReferences:Explicit.STOCK_REFERENCES,domains:{stock:'fiction-stock',purchase:'fiction-purchase',ot:'fiction-ot',ui:'fiction-ui'}},expectedPins={schema:1,generation:'fiction-ot-cohort',baselineDigest:Reference.digest('fiction-baseline'),contractDigest:Reference.digest(expectedContract),codePins:Object.fromEntries(['stock','compras','ot','ui'].map(name=>[name,Reference.digest('fiction-code-'+name)])),indexQueryCoverageVersion:1},expectedRulesDigest=rulesDigest??Reference.digest('fiction-rules-not-deployed'),{privateKey,publicKey}=crypto.generateKeyPairSync('ed25519'),document={...expectedPins,rulesDigest:expectedRulesDigest,issuedAt:now()-1};
  document.signature=crypto.sign(null,Buffer.from(Activation.payload(document)),privateKey).toString('base64url');
  const authority=Explicit.createMappedAdmission({enabled:true,expectedPins,expectedContract,expectedRulesDigest,publicKey,now});
  function seed(data){data.sv_stock_reference_config={activation:structuredClone(document)};for(const record of Object.values(data.sisventas.stock_vinculos?.porProducto||{})){
