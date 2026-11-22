@@ -1,3 +1,9 @@
+# Tercera integración local comprobada · 22/11/2026
+
+Fuente congelada 7fe2c12063470e17d8146082fba20919554649f7 (código c011fd8e): puerta vigente completa 11415 pruebas, 11324 PASS, 0 FAIL, 91 SKIP y 0 canceladas; salida 0. Cinco lotes sin cambios durante la ejecución. Las omisiones no se presentan como cobertura; las composiciones y emuladores separados están registrados en AUDITORIA_INTEGRAL_20261122.md.
+
+Esto valida el conjunto integrado indicado, no los commits posteriores de los frentes. Herramienta de vínculo, orden global y cierre SDK siguen OFF. Continúan consumidores y migración de escritores de Compras, mantenimiento del orden global y rendimiento OT con referencias. La medición sintética de doce referencias explícitas aún excede la ventana de operación: no aprobada para activar; se trabaja en verificación puntual de vínculos ya autorizados, conservando descubrimiento completo para crear vínculos. Sin builds, despliegues, reglas remotas, operaciones comerciales o control de la pantalla del usuario.
+
 # Tercera integración local en revisión · 22/11/2026
 
 Fuente c011fd8e en rama codex/auditoria-integral-20261122. Cobertura Stock dirigida sin índice provisional y recibos reconstruidos contra OT original, queryPage estricto, manuales de Compras con alta/edición/cancelación/recepción OFF, interfaz/recovery durable y lector global de Stock OFF integrados. Empaquetado sin build3PASS, preservación con hunks revisados11PASS manteniendo hashes nativos; recuperación dirigida real5PASS. Primeras composiciones detectaron y conservaron incompatibilidades de formato de recibo y de fixture de rangos, corregidas sin ampliar permisos ni tocar producto para hacer pasar una simulación.
