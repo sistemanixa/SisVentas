@@ -4611,3 +4611,7 @@ Visor de propuestas: selector, tarjetas, cabecera, pie, controles e indicadores 
 # Integraciones exactas delete/pagos auditadas ·22/11/2026
 
 Fuente85e1d9e5, ramaaisladacodex/audit-20261122-deletions-emulator. Cuatroentradas fuera de puerta ejecutadas con emuladorespropios9046/9057/9037:0PASS4FAIL0SKIP; tresrechazos de constructor sobrebaseactualea197 y un fallo de import de pagos por selectorliteral de rutas obsoleto. No hubo operacionesnegocio ni reglasremotas. Pin histórico pagos978cea localizado en labor.private.candidate.json; evidencia35PASS22/10es histórica y no validaesta fuente. Informe AUDITORIA_DELETE_PAGOS_EMULADOR_20261122.md incluye nombres, huellas, límites y siguiente integración nueva; no se debilitaron expectativas. Emuladorespropios cerrados. Sinpush/publicación.
+
+# Auditoría C: 20 referencias locales · 22/11/2026
+
+Fuente fija f927f74a505fcc1712e254cf99cb05aec5e2c5f7: 12 verificaciones sólo lectura, 11 PASS y 1 FAIL real de composición Accounts/Clothing (Source adapter shape changed); 7 no ejecutadas por escritura/servidor y 1 sin reglas históricas confirmadas. 125/125 archivos nativos coinciden con manifiesto, inputs usados intactos. Informe docs/AUDITORIA_C_20_PINREFS_20261122.md. Sin red, build, publicación ni datos reales. Pendiente revisar contrato de adaptador en bloque separado; no afirmar 20 PASS.
