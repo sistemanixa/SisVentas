@@ -1,3 +1,11 @@
+# Cierre acotado comprobado · 22/11/2026
+
+Fuente fija 967a84aba97fd6dfb6ebec7cc47178ef943f551e: puerta vigente completa 11849 total / 11758 PASS / 0 FAIL / 91 SKIP / 0 canceladas; salida0, fuenteantes/despuésidéntica. Ejecucióndurable15:34:47–15:40:50UTC. Logs/resultado privados puerta-final-durable.private.log y puerta-final-durable.result.private.json, fueraGit. Las ejecuciones previas interrumpidas no se presentan como puertas aprobadas.
+
+Se cerraron los nueve diagnósticos de integración y el fallo de composición Accounts/Clothing con preservación/adversariales. Fuente final contiene las reparaciones Stock/OT y garantías de permisos/recuperación/operación única, con frentes aislados integrados.42browser opt-in,27runtime histórico,2SDKadmission y20pinrefs acreditados por separado con fuentes/límites en informes;91SKIPdepuertaNOse conviertenenPASSdeesacorrida.3casos completos Command+Guard+Store+Financial/History+Order→RTDB repetidos en central PASS. No se hizo una operación comercial real como prueba.
+
+Límite importante: este es el cierre del bloque de reparaciones, NO toda la migración de inventario ni activación productiva. Revisar vínculo/orden global/cohorte SDK siguenOFF; faltan escritores completos Compras/listas/reservas, numeración autorizada/rutasUI y caso de inventario ausente. WIP ListGeneration y extensión de puerto listas apartados, sin integrar. OT midió24%menos tiempo en el escenario sintético, no se afirma que la demora de producción desapareció. No hubo builds, publicación, reglas remotas, pausas nuevas de producción ni control de pantallas. Conservados pagos, permisos, comisiones y stock reales.
+
 # Fuente final congelada y verificación reiniciada · 22/11/2026
 
 Código92172e01: cierre acotado integrado; no ampliar migración. La quinta ejecución0c4e4bb4 se interrumpió sin resumen/exitcompleto y su proceso no estaba activo al comprobarlo; NO es verde ni se reutilizan sus tandas como puerta terminada. Se reinicia con wrapper local independiente, log y resultadoJSON de inicio/final/SHA/exit para reconocer explícitamente interrupciones.
