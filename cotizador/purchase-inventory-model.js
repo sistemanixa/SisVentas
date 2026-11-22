@@ -5,6 +5,18 @@ const {digest}=require('./labor-guard');
 const fail=message=>Object.assign(Error(message),{code:'SV_PURCHASE_INVENTORY_REVIEW',statusCode:409});
 function key(value){if(typeof value!=='string'||!value||Buffer.byteLength(value)>768||['__proto__','constructor','prototype'].includes(value)||/[.#$\[\]/\x00-\x1f\x7f]/.test(value))throw fail('Referencia inválida.');return value;}
 function qty(value){if(typeof value!=='number'||!Number.isFinite(value)||value<0)throw fail('Cantidad original inválida.');return value;}
+function balance(record,field){
+ if(Object.hasOwn(record,field))return Money.quantitySum([qty(record[field])]);
+ if(field==='enCompra')return 0; // legacy pending accumulator has structural zero
+ if(field==='reservado'){
+  for(const [name,field]of [['asignaciones','reservado'],['rendicionesOT','enReserva']]){
+   if(record[name]!=null&&(typeof record[name]!=='object'||Array.isArray(record[name])))throw fail('El historial de reserva requiere revisión.');
+   for(const row of Object.values(record[name]||{}))if(row&&Object.hasOwn(row,field)&&qty(row[field])>0)throw fail('Falta el saldo de reserva respaldado por el historial.');
+  }
+  return 0;
+ }
+ throw fail('Falta la cantidad general original; requiere un conteo explícito.');
+}
 function sum(...values){const result=Money.quantitySum(values);if(!Number.isFinite(result)||result<0)throw fail('El saldo no alcanza; revisá la operación.');return result;}
 function reference(value){for(const field of ['productKey','inventoryKey','receiptIdentityKey'])key(value?.[field]);return value;}
 function original(order){if(!order||typeof order!=='object'||!Array.isArray(order.items)||order._svListSummary||order._svPagedSummary)throw fail('Hace falta la compra original completa.');return order;}
@@ -30,7 +42,7 @@ function planPendingOrder(input){
  if(kind==='edit'&&[order,previousOrder].some(o=>o.items.some(i=>qty(i.cantidadRecibida??0)>0)))throw fail('No se edita una compra ya recibida.');
  if(kind==='register'&&order.items.some(i=>qty(i.cantidadRecibida??0)>0))throw fail('El alta no puede inventar recepciones.');
  const before=kind==='register'?new Map():pending(previousOrder),after=kind==='cancel'?new Map():pending(order),p=planner(input);
- for(const identity of new Set([...before.keys(),...after.keys()])){const delta=Money.quantitySum([after.get(identity)||0,-(before.get(identity)||0)]);if(!delta)continue;const inv=p.get(identity);inv.enCompra=sum(qty(inv.enCompra),delta);}
+ for(const identity of new Set([...before.keys(),...after.keys()])){const delta=Money.quantitySum([after.get(identity)||0,-(before.get(identity)||0)]);if(!delta)continue;const inv=p.get(identity);inv.enCompra=sum(balance(inv,'enCompra'),delta);}
  return p.finish();
 }
 function planReceiptInventory(input){
@@ -44,14 +56,14 @@ function planReceiptInventory(input){
   const identity=itemIdentity(item),ref=reference(input.references?.[identity]),inventory=p.get(identity),g=groups.get(ref.inventoryKey)||{inventory,quantity:0,cost:0};g.quantity=sum(g.quantity,quantity);g.cost=sum(g.cost,Money.rawProduct(quantity,unit));groups.set(ref.inventoryKey,g);
  }
  for(const {inventory:inv,quantity,cost}of groups.values()){
-  inv.enCompra=sum(qty(inv.enCompra),-quantity);
-  if(order.ventaFbKey){const allocation=key(order.ventaFbKey);inv.reservado=sum(qty(inv.reservado),quantity);inv.asignaciones=structuredClone(inv.asignaciones||{});const owned=inv.asignaciones[allocation]||{reservado:0,consumido:0,liberado:0};owned.reservado=sum(qty(owned.reservado),quantity);owned.ventaId=order.ventaId||'';inv.asignaciones[allocation]=owned;}
-  else {inv.general=sum(qty(inv.general),quantity);inv.costoReferenciaStock={unit:cost/quantity,order:order.fbKey,number:order.numero||'',stamp:input.at,receipt:input.id,basis:'costo_final_con_gastos'};}
+  inv.enCompra=sum(balance(inv,'enCompra'),-quantity);
+  if(order.ventaFbKey){const allocation=key(order.ventaFbKey);inv.reservado=sum(balance(inv,'reservado'),quantity);inv.asignaciones=structuredClone(inv.asignaciones||{});const owned=inv.asignaciones[allocation]||{reservado:0,consumido:0,liberado:0};owned.reservado=sum(balance(owned,'reservado'),quantity);owned.ventaId=order.ventaId||'';inv.asignaciones[allocation]=owned;}
+  else {inv.general=sum(balance(inv,'general'),quantity);inv.costoReferenciaStock={unit:cost/quantity,order:order.fbKey,number:order.numero||'',stamp:input.at,receipt:input.id,basis:'costo_final_con_gastos'};}
  }
  return p.finish();
 }
 function planExistingReservation(input){
  const {allocationKey,quantity,identity,saleNumber=''}=input;key(allocationKey);qty(quantity);if(quantity<=0)throw fail('Reserva inválida.');const p=planner(input),inv=p.get(key(identity));
- inv.general=sum(qty(inv.general),-quantity);inv.reservado=sum(qty(inv.reservado),quantity);inv.asignaciones=structuredClone(inv.asignaciones||{});const owned=inv.asignaciones[allocationKey]||{reservado:0,consumido:0,liberado:0};owned.reservado=sum(qty(owned.reservado),quantity);owned.ventaId=saleNumber;owned.origen='stock_general';inv.asignaciones[allocationKey]=owned;return p.finish();
+ inv.general=sum(balance(inv,'general'),-quantity);inv.reservado=sum(balance(inv,'reservado'),quantity);inv.asignaciones=structuredClone(inv.asignaciones||{});const owned=inv.asignaciones[allocationKey]||{reservado:0,consumido:0,liberado:0};owned.reservado=sum(balance(owned,'reservado'),quantity);owned.ventaId=saleNumber;owned.origen='stock_general';inv.asignaciones[allocationKey]=owned;return p.finish();
 }
 module.exports={planPendingOrder,planReceiptInventory,planExistingReservation,key,reference};
