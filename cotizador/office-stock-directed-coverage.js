@@ -17,10 +17,14 @@ async function loadReceiptIdentity(inventory,inventoryKey,{read,productKey,alias
  for(const [id,entry]of Object.entries(inventory.rendicionesOT||{})){
   if(!/^[a-f0-9]{64}$/.test(id)||!validReceipt(entry))throw fail('SV_STOCK_HISTORY_UNPROVEN','Recibo histórico no verificable.');
   if(!loaded.has(entry.ot)){if(loaded.size>=32)throw fail('SV_STOCK_HISTORY_LIMIT','Demasiadas OT históricas para verificar.');loaded.set(entry.ot,await read('sisventas/ordenes_trabajo/'+entry.ot));}
-  const ot=loaded.get(entry.ot);if(!ot||!Array.isArray(ot.materiales)||ot.materiales.length>256)throw fail('SV_STOCK_HISTORY_UNPROVEN','Falta la OT original del recibo.');
+  const ot=loaded.get(entry.ot);if(!ot||ot.materiales!=null&&!Array.isArray(ot.materiales))throw fail('SV_STOCK_HISTORY_UNPROVEN','Falta la OT original del recibo.');
+  // Never merge/reindex source rows with Rows.view while proving a hash.
+  // items-only history needs its explicit, unchanged source-index marker.
+  const fromItems=!ot.materiales?.length,rows=fromItems?ot.items:ot.materiales;
+  if(!Array.isArray(rows)||rows.length>256)throw fail('SV_STOCK_HISTORY_UNPROVEN','Falta la fila original del recibo.');
   const matches=[];
-  for(const [index,row]of ot.materiales.entries()){
-   if(!row||typeof row!=='object')continue;
+  for(const [index,row]of rows.entries()){
+   if(!row||typeof row!=='object'||fromItems&&row.origenMaterialHistorico!=='items:'+index)continue;
    const allocation=row.destinoVenta==='nueva'?row.ventaDestinoFbKey:ot.ventaFbKey;
    if(allocation!==entry.venta||row.stockRegistro!==id||row.stockRevision!==entry.revision||row.instalada!==entry.instalada||typeof row.instalada!=='number'||!Number.isFinite(row.instalada)||row.instalada<0)continue;
    const candidates=[...new Set([row.productoKey,row.productKey,inventory.productoKey,inventory.productKey,inventoryKey,productKey,...aliases].filter(Reference.key))];
