@@ -2,7 +2,7 @@
 const {test}=require('node:test'),a=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{execFileSync}=require('node:child_process');
 const source=path.resolve(__dirname,'../cotizador');
 test('actual Docker COPY payload resolves entire local closure and boots guard/policy/runtime offline',t=>{
- const target=fs.mkdtempSync(path.join(os.tmpdir(),'sv-purchase-image-'));t.after(()=>fs.rmSync(target,{recursive:true,force:true}));
+ const target=fs.mkdtempSync(path.join(os.tmpdir(),'sv-purchase-image-'));t.after(()=>{a.ok(path.resolve(target).startsWith(path.resolve(os.tmpdir())+path.sep+'sv-purchase-image-'));fs.rmSync(target,{recursive:true,force:true});});
  const copied=[];for(const line of fs.readFileSync(path.join(source,'Dockerfile'),'utf8').split(/\r?\n/)){
   if(!line.startsWith('COPY '))continue;const fields=line.trim().split(/\s+/),dest=fields.at(-1);
   for(const item of fields.slice(1,-1)){if(item.includes('*'))continue;const origin=path.join(source,item);a.ok(fs.existsSync(origin),item);const directory=fs.statSync(origin).isDirectory(),output=path.join(target,directory?dest:path.join(dest,path.basename(item)));a.ok(output.startsWith(target+path.sep));fs.cpSync(origin,output,{recursive:directory});copied.push(item);}
