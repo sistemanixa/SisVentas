@@ -1,7 +1,12 @@
 'use strict';
-const Reference=require('./office-stock-reference'),Directed=require('./office-stock-directed-coverage'),{loadSnapshot}=require('./office-stock-link-command');
+const Reference=require('./office-stock-reference'),Directed=require('./office-stock-directed-coverage'),IO=require('./office-stock-reference-io'),{loadSnapshot}=require('./office-stock-link-command');
 const fail=(code,message)=>Object.assign(Error(message),{statusCode:409,code});
-async function assertFresh(readSet,read,query,queryPage){for(const entry of readSet){if(entry.kind==='query'&&typeof query!=='function'||entry.kind==='range'&&typeof queryPage!=='function')throw fail('SV_STOCK_REFERENCE_CONFLICT','Falta revalidar la consulta de referencias.');const current=entry.kind==='range'?await queryPage(entry.path,entry.options):entry.kind==='query'?await query(entry.path,entry.field,entry.value):await read(entry.path);if(Reference.digest(current)!==entry.hash)throw fail('SV_STOCK_REFERENCE_CONFLICT','La referencia de stock cambió antes de confirmar.');}}
+const ordered=map=>[...map].sort(([a],[b])=>a<b?-1:a>b?1:0);
+async function assertFresh(readSet,read,query,queryPage){
+ if(readSet.some(entry=>entry.kind==='query'&&typeof query!=='function'||entry.kind==='range'&&typeof queryPage!=='function'))throw fail('SV_STOCK_REFERENCE_CONFLICT','Falta revalidar la consulta de referencias.');
+ const phase=typeof queryPage==='function'?IO.createReferencePhase({queryPage}):null;
+ await IO.mapOrdered(readSet,async entry=>{const current=entry.kind==='range'?await phase.queryPage(entry.path,entry.options):entry.kind==='query'?await IO.read(()=>query(entry.path,entry.field,entry.value)):await IO.read(()=>read(entry.path));if(Reference.digest(current)!==entry.hash)throw fail('SV_STOCK_REFERENCE_CONFLICT','La referencia de stock cambió antes de confirmar.');});
+}
 function createReferenceResolver({enabled=false,loadCoverage,queryPage:factoryQuery}={}){
  return async function resolveReference(original,ports){
   if(typeof ports?.legacy!=='function')throw fail('SV_STOCK_REFERENCE_LEGACY','Falta el recorrido original del dominio.');
@@ -15,16 +20,16 @@ function createReferenceResolver({enabled=false,loadCoverage,queryPage:factoryQu
   const history=identity?.history;if(!identity||!Reference.key(identity.inventoryKey)||identity.productKey!=null&&!Reference.key(identity.productKey)||!['confirmed','absent'].includes(history?.kind)||history.sourceHash!==Reference.digest(stored)||!Array.isArray(history.verifiedReads)||!history.verifiedReads.length||history.verifiedReads.some(path=>!identityReads.has(path))||history.kind==='confirmed'&&!Reference.key(identity.receiptIdentityKey)||history.kind==='absent'&&identity.receiptIdentityKey!=null)throw fail('SV_STOCK_REFERENCE_IDENTITY','No se pudo verificar la evidencia histórica del original.');
   const lookupKeys=[...new Set([identity.inventoryKey,identity.productKey,...(identity.aliases||[])].filter(value=>value!==undefined&&value!==null))];if(lookupKeys.length>32||lookupKeys.some(key=>!Reference.key(key)))throw fail('SV_STOCK_REFERENCE_IDENTITY','Referencias históricas ambiguas.');
   const mappings=[];for(const key of lookupKeys){const inverse=await read('sisventas/stock_vinculos/porInventario/'+key);if(inverse)mappings.push(inverse);const forward=await read('sisventas/stock_vinculos/porProducto/'+key);if(forward)mappings.push(forward);}
-  const readSet=()=>[...[...cache].map(([path,value])=>({path,hash:Reference.digest(value)})),...[...queries.values()].map(({result,...entry})=>entry)];
+  const readSet=()=>[...ordered(cache).map(([path,value])=>({path,hash:Reference.digest(value)})),...ordered(queries).map(([,value])=>{const {result,...entry}=value;return entry;})];
   if(!mappings.length){const legacy=await ports.legacy(stored);return{...legacy,mappingRevision:0,mapped:false,readSet:readSet()};}
   if(mappings.some(record=>Reference.digest(record)!==Reference.digest(mappings[0])))throw fail('SV_STOCK_REFERENCE_AMBIGUOUS','Los alias históricos remiten a vínculos distintos.');
   const mapped=mappings[0],ledgerPath='sisventas/inventario_operativo/'+mapped.inventoryKey;if(!Reference.key(mapped.productKey)||!Reference.key(mapped.inventoryKey)||!history.verifiedReads.includes(ledgerPath)||history.kind==='confirmed'&&mapped.receiptIdentityKey!==identity.receiptIdentityKey)throw fail('SV_STOCK_REFERENCE_IDENTITY','El vínculo no conserva la identidad histórica verificada.');
-  const ranges=new Map(),rawQuery=ports.queryPage??factoryQuery;
+  const ranges=new Map(),rawQuery=ports.referencePhase?.queryPage??ports.queryPage??factoryQuery;
   if(typeof rawQuery!=='function')throw fail('SV_STOCK_REFERENCE_COVERAGE','Falta cobertura dirigida del vínculo.');
-  const queryPage=async(path,options)=>{const id=Reference.digest({path,options});if(!ranges.has(id)){const result=await rawQuery(path,options);ranges.set(id,{kind:'range',path,options:structuredClone(options),hash:Reference.digest(result)});await ports.trackQueryPage?.(path,structuredClone(options),structuredClone(result));return result;}const result=await rawQuery(path,options);if(Reference.digest(result)!==ranges.get(id).hash)throw fail('SV_STOCK_REFERENCE_CONFLICT','La consulta cambió durante la lectura.');return result;};
-  const coverage=loadCoverage??Directed.createDirectedCoverage({queryPage});
-  const snapshot=await loadSnapshot({read,loadCoverage:coverage,queryPage,productKey:mapped.productKey,inventoryKey:mapped.inventoryKey,access:ports.access??null}),reference=Reference.resolve(snapshot,mapped.inventoryKey);
-  return{...reference,readSet:[...readSet(),...ranges.values()]};
+  const onQuery=async(path,options,result)=>{const id=Reference.digest({path,options}),hash=Reference.digest(result);if(ranges.has(id)&&ranges.get(id).hash!==hash)throw fail('SV_STOCK_REFERENCE_CONFLICT','La consulta cambió durante la lectura.');ranges.set(id,{kind:'range',path,options:structuredClone(options),hash});await ports.trackQueryPage?.(path,structuredClone(options),structuredClone(result));};
+  const coverage=loadCoverage??Directed.createDirectedCoverage({queryPage:rawQuery});
+  const snapshot=await loadSnapshot({read,loadCoverage:coverage,queryPage:rawQuery,referencePhase:ports.referencePhase,onQuery,productKey:mapped.productKey,inventoryKey:mapped.inventoryKey,access:ports.access??null}),reference=Reference.resolve(snapshot,mapped.inventoryKey);
+  return{...reference,readSet:[...readSet(),...ordered(ranges).map(([,entry])=>entry)]};
  };
 }
 module.exports={createReferenceResolver,assertFresh};
@@ -53,16 +58,16 @@ function createStockReferenceResolver({enabled=false,loadCoverage,queryPage:fact
   await barrier(ports.read,'stock-reference');
   const cache=new Map(),ranges=new Map(),read=async path=>{if(!cache.has(path))cache.set(path,structuredClone(await ports.read(path)));return structuredClone(cache.get(path));};
   const actual=await read('sisventas/productos/'+productKey);if(!actual||Reference.digest(actual)!==Reference.digest(product))throw fail('SV_STOCK_REFERENCE_CONFLICT','El producto cambió antes de resolver Stock.');
-  const forward=await read('sisventas/stock_vinculos/porProducto/'+productKey),readSet=()=>[...[...cache].map(([path,value])=>({path,hash:Reference.digest(value)})),...ranges.values()];
+  const forward=await read('sisventas/stock_vinculos/porProducto/'+productKey),readSet=()=>[...ordered(cache).map(([path,value])=>({path,hash:Reference.digest(value)})),...ordered(ranges).map(([,entry])=>entry)];
   if(!forward){
    const aliases=[...new Set([productKey,actual.id,actual.codigo,actual.cod].filter(value=>value!==null&&value!==undefined&&String(value)!=='').map(value=>String(value).replace(/[.#$\[\]\/]/g,'_').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,120)).filter(Reference.key))];
    for(const key of aliases)if(await read('sisventas/stock_vinculos/porInventario/'+key))throw fail('SV_STOCK_REFERENCE_MAPPING','Existe una asociación inversa sin vínculo canónico.');
    const legacy=await ports.legacy(read);return{...legacy,reference:{productKey,inventoryKey:legacy.inventoryKey,receiptIdentityKey:null,mappingRevision:0,mapped:false},readSet:readSet()};
   }
   if(forward.productKey!==productKey||!Reference.key(forward.inventoryKey))throw fail('SV_STOCK_REFERENCE_MAPPING','La asociación de Stock es inválida.');
-  const rawQuery=ports.queryPage??factoryQuery;if(typeof rawQuery!=='function')throw fail('SV_STOCK_REFERENCE_COVERAGE','Falta cobertura dirigida de Stock.');
-  const queryPage=async(path,options)=>{const id=Reference.digest({path,options}),value=await rawQuery(path,options),hash=Reference.digest(value);if(ranges.has(id)&&ranges.get(id).hash!==hash)throw fail('SV_STOCK_REFERENCE_CONFLICT','La consulta cambió durante la lectura de Stock.');ranges.set(id,{kind:'range',path,options:structuredClone(options),hash});return value;};
-  const snapshot=await loadSnapshot({read,loadCoverage:loadCoverage??Directed.createDirectedCoverage({queryPage}),queryPage,productKey,inventoryKey:forward.inventoryKey}),reference=Reference.resolve(snapshot,forward.inventoryKey);
+  const rawQuery=ports.referencePhase?.queryPage??ports.queryPage??factoryQuery;if(typeof rawQuery!=='function')throw fail('SV_STOCK_REFERENCE_COVERAGE','Falta cobertura dirigida de Stock.');
+  const onQuery=async(path,options,result)=>{const id=Reference.digest({path,options}),hash=Reference.digest(result);if(ranges.has(id)&&ranges.get(id).hash!==hash)throw fail('SV_STOCK_REFERENCE_CONFLICT','La consulta cambió durante la lectura de Stock.');ranges.set(id,{kind:'range',path,options:structuredClone(options),hash});};
+  const snapshot=await loadSnapshot({read,loadCoverage:loadCoverage??Directed.createDirectedCoverage({queryPage:rawQuery}),queryPage:rawQuery,referencePhase:ports.referencePhase,onQuery,productKey,inventoryKey:forward.inventoryKey}),reference=Reference.resolve(snapshot,forward.inventoryKey);
   return{inventoryKey:reference.inventoryKey,inventory:snapshot.inventory[reference.inventoryKey],reference,readSet:readSet()};
  }};
 }

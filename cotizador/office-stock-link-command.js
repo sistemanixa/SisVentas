@@ -1,16 +1,18 @@
 'use strict';
-const Reference=require('./office-stock-reference'),Policy=require('./office-stock-link-policy'),Stock=require('./office-stock'),Directed=require('./office-stock-directed-coverage');
+const Reference=require('./office-stock-reference'),Policy=require('./office-stock-link-policy'),Stock=require('./office-stock'),Directed=require('./office-stock-directed-coverage'),IO=require('./office-stock-reference-io');
 const fail=(statusCode,code,message)=>Object.assign(Error(message),{statusCode,code,svLaborAttempted:false});
 const alias=value=>String(value??'').replace(/[.#$\[\]\/]/g,'_').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,120);
 function aliases(productKey,product){return [...new Set([productKey,product.id,product.codigo,product.cod].filter(value=>value!==undefined&&value!==null&&String(value)!=='').map(alias).filter(Reference.key))];}
-async function loadSnapshot({read,loadCoverage,queryPage,productKey,inventoryKey,access}){
+async function loadSnapshot({read,loadCoverage,queryPage,productKey,inventoryKey,access,referencePhase,onQuery}){
  if(!Reference.key(productKey)||!Reference.key(inventoryKey))throw fail(400,'SV_STOCK_LINK_INPUT','Referencias inválidas.');
+ const point=read,pending=new Map();read=async path=>{if(!pending.has(path))pending.set(path,IO.read(()=>point(path)).then(value=>structuredClone(value)));return structuredClone(await pending.get(path));};
  const product=await read('sisventas/productos/'+productKey);if(!product||typeof product!=='object')throw fail(409,'SV_STOCK_LINK_PRODUCT','El producto ya no existe.');
  if(!Directed.isDirectedCoverage(loadCoverage))throw fail(503,'SV_STOCK_LINK_COVERAGE','Falta un loader dirigido verificado.');
- const evidence={},proof=await loadCoverage({productKey,inventoryKey,queryPage,read:async path=>{const value=await read(path);evidence[path]=structuredClone(value);return value;}});
+ const evidence={},proof=await loadCoverage({productKey,inventoryKey,queryPage,referencePhase,onQuery,read:async path=>{const value=await read(path);evidence[path]=structuredClone(value);return value;}});
  const byProduct={},byInventory={},forward=await read('sisventas/stock_vinculos/porProducto/'+productKey);if(forward)byProduct[productKey]=forward;
  const keys=[...new Set([...aliases(productKey,product),inventoryKey,...proof.inventoryKeys,...(forward?[forward.inventoryKey]:[])])];if(keys.length>80||keys.some(key=>!Reference.key(key)))throw fail(409,'SV_STOCK_LINK_AMBIGUOUS','Demasiadas referencias o asociación inválida.');
- const inventory={};for(const key of keys){inventory[key]=await read('sisventas/inventario_operativo/'+key);const reverse=await read('sisventas/stock_vinculos/porInventario/'+key);if(reverse){byInventory[key]=reverse;if(!Reference.key(reverse.productKey))throw fail(409,'SV_STOCK_LINK_MAPPING','Asociación inversa inválida.');if(!Object.hasOwn(byProduct,reverse.productKey))byProduct[reverse.productKey]=await read('sisventas/stock_vinculos/porProducto/'+reverse.productKey);}}
+ const inventory={},points=await IO.mapOrdered(keys,async key=>{const values=await Promise.allSettled([read('sisventas/inventario_operativo/'+key),read('sisventas/stock_vinculos/porInventario/'+key)]),failed=values.find(result=>result.status==='rejected');if(failed)throw failed.reason;return{key,value:values[0].value,reverse:values[1].value};});
+ for(const {key,value,reverse}of points){inventory[key]=value;if(reverse){byInventory[key]=reverse;if(!Reference.key(reverse.productKey))throw fail(409,'SV_STOCK_LINK_MAPPING','Asociación inversa inválida.');if(!Object.hasOwn(byProduct,reverse.productKey))byProduct[reverse.productKey]=await read('sisventas/stock_vinculos/porProducto/'+reverse.productKey);}}
  const snapshot={productKey,product,inventory,links:{byProduct,byInventory},ownersByInventory:proof.ownersByInventory,aliasOwners:proof.aliasOwners,receiptIdentityKey:proof.receiptIdentityKey,coverage:proof.coverage,access,coverageEvidence:{generation:proof.generation,reads:evidence,queries:proof.queries}};
  Reference.resolve(snapshot,inventoryKey);return snapshot;
 }
