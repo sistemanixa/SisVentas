@@ -11,7 +11,7 @@ function plan(snapshot,command,actor,now,receipt=null){
  if(snapshot.productKey!==command.productKey||Reference.digest(snapshot.access)!==Reference.digest(access)||Reference.digest(snapshot)!==command.expectedHash)throw fail('SV_STOCK_LINK_CONFLICT','Los registros o los permisos cambiaron. Volvé a revisar el vínculo.');
  const reference=Reference.resolve(snapshot,command.inventoryKey);if(reference.status!=='active')throw fail('SV_STOCK_LINK_INACTIVE','El vínculo inactivo existente se conserva sin corregir ni reactivar.');
  const revision=reference.mappingRevision+1;if(!Number.isSafeInteger(revision))throw fail('SV_STOCK_LINK_CONFLICT','La revisión de la asociación requiere revisión.');
- const record={productKey:reference.productKey,inventoryKey:reference.inventoryKey,revision,operationId:command.id,uid:actor.uid,reason,ts:now},result={ok:true,operationId:command.id,productKey:reference.productKey,inventoryKey:reference.inventoryKey,revision};
+ const record={productKey:reference.productKey,inventoryKey:reference.inventoryKey,receiptIdentityKey:reference.receiptIdentityKey,revision,operationId:command.id,uid:actor.uid,reason,ts:now},result={ok:true,operationId:command.id,productKey:reference.productKey,inventoryKey:reference.inventoryKey,receiptIdentityKey:reference.receiptIdentityKey,revision};
  const ownReceipt={uid:actor.uid,operationId:command.id,commandDigest,result:clone(result)};
  return{patch:{['sisventas/stock_vinculos/porProducto/'+reference.productKey]:clone(record),['sisventas/stock_vinculos/porInventario/'+reference.inventoryKey]:clone(record),['sisventas/stock_vinculos/operaciones/'+command.id]:ownReceipt},result,replayed:false};
 }
