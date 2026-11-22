@@ -10,11 +10,22 @@ function context(profile,cfg){
  return{role,permissionRevision:cfg.indiceRevision??null,permissionDigest:digest(cfg)};
 }
 function summary(inv){return inv&&Object.hasOwn(inv,'general')?{general:Model.quantity(inv.general),reservado:inv.reservado==null?null:Model.quantity(inv.reservado),revision:inv._svReadRevision??0}:null;}
-function create({authorize,store,guard,queryPage,enabled=false,now=Date.now}){
+function create({authorize,store,guard,queryPage,enabled=false,now=Date.now,orderedList=false,readOrderingFence}){
  async function access(identity){if(!enabled)throw fail(503,'Stock de oficina todavía no está habilitado.','SV_OFFICE_STOCK_DISABLED');if(!identity?.uid||identity.claims?.uid!==identity.uid)throw fail(401,'Sesión requerida.');const ready=await store.read('sv_operational_read_config');if((await store.read('sv_labor_config/officeStockVersion'))!==1||ready?.schema!==1||ready.ready!==true)throw fail(503,'Stock de oficina está pendiente de preparar.','SV_OFFICE_STOCK_NOT_READY');const profile=await store.read('sv_chat_roles/'+identity.uid);return context(profile,await store.read('sv_permisos/'+profile?.rol));}
  async function verify(identity,expected){const current=await access(identity);if(digest(current)!==digest(expected))throw fail(409,'Los permisos cambiaron. Volvé a abrir el módulo.');}
+  async function productFor(inventoryKey,inventory){
+   const direct=await store.read(productPath(inventoryKey));if(direct)return{productKey:inventoryKey,product:direct};
+   const references=[...new Set([inventory.codigo,inventoryKey].filter(v=>typeof v==='string'||typeof v==='number'))],matches=new Map();
+   for(const field of ['codigo','cod','id'])for(const value of references){const variants=field==='id'&&typeof value==='string'&&/^\d+$/.test(value)?[value,Number(value)]:[value];for(const equalTo of variants){const found=await queryPage('sisventas/productos',{orderBy:field,equalTo,limit:2});for(const[k,p]of Object.entries(found||{}))if(key(k)&&p)matches.set(k,p);}}
+   return matches.size===1?{productKey:[...matches.keys()][0],product:[...matches.values()][0]}:{productKey:null,product:null};
+  }
+ async function positiveRow(inventoryKey,inventory,amount){
+   const {productKey,product}=await productFor(inventoryKey,inventory),review=!product||isService({},product)||product.activo===false||product.estado==='inactivo'||product.eliminado===true;
+   return{key:inventoryKey,productKey:review?null:productKey,code:String(product?.codigo||product?.cod||inventory.codigo||inventoryKey),name:String(product?.nombre||product?.descripcion||inventory.descripcion||'Stock por revisar'),unitLabel:String(product?.unidad||inventory.unidad||'Sin unidad confirmada'),photo:/^(https?:|data:image\/)/i.test(product?.imagenUrl||'')?product.imagenUrl:'',inventory:{general:amount,reservado:inventory.reservado==null?null:Model.quantity(inventory.reservado),revision:inventory._svReadRevision??0},review};
+ }
  async function list(identity,body={}){
-  const actor=await access(identity),cursor=body.cursor;
+  const actor=await access(identity);if(!body||typeof body!=='object'||Array.isArray(body))throw fail(400,'Página de stock inválida.');const cursor=body.cursor;
+  if(orderedList===true){const result=await require('./office-stock-order-reader').create({store,queryPage,readOrderingFence,hydrate:positiveRow}).page(body);await verify(identity,actor);return result;}
   if(Object.keys(body).some(k=>!['cursor','limit'].includes(k))||cursor!=null&&(!cursor||typeof cursor!=='object'||Array.isArray(cursor)||Object.keys(cursor).sort().join(',')!=='key,value'||!key(cursor.key)||!['string','number'].includes(typeof cursor.value)||typeof cursor.value==='string'&&cursor.value.length>128||typeof cursor.value==='number'&&(!Number.isFinite(cursor.value)||cursor.value<=0))||body.limit!==undefined&&body.limit!==50)throw fail(400,'Página de stock inválida.');
   // Numeric positives precede legacy strings in RTDB ordering. Preserve the
   // typed value and key so equal quantities and string zeros cannot skip rows.
@@ -22,19 +33,12 @@ function create({authorize,store,guard,queryPage,enabled=false,now=Date.now}){
   const compareKey=(a,b)=>{const integer=k=>/^(0|[1-9]\d*)$/.test(k)&&Number(k)<=2147483647,ai=integer(a),bi=integer(b);return ai&&bi?Number(a)-Number(b):ai?-1:bi?1:a<b?-1:a>b?1:0;},rank=v=>typeof v==='number'?0:typeof v==='string'?1:2;
   let entries=Object.entries(records||{}).sort(([ak,a],[bk,b])=>rank(a?.general)-rank(b?.general)||(a?.general<b?.general?-1:a?.general>b?.general?1:0)||compareKey(ak,bk));if(cursor)entries=entries.filter(([k,v])=>!(k===cursor.key&&v?.general===cursor.value));
   const hasMore=entries.length>50;entries=entries.slice(0,50);const rows=[];let blocked=false;
-  async function productFor(inventoryKey,inventory){
-   const direct=await store.read(productPath(inventoryKey));if(direct)return{productKey:inventoryKey,product:direct};
-   const references=[...new Set([inventory.codigo,inventoryKey].filter(v=>typeof v==='string'||typeof v==='number'))],matches=new Map();
-   for(const field of ['codigo','cod','id'])for(const value of references){const variants=field==='id'&&typeof value==='string'&&/^\d+$/.test(value)?[value,Number(value)]:[value];for(const equalTo of variants){const found=await queryPage('sisventas/productos',{orderBy:field,equalTo,limit:2});for(const[k,p]of Object.entries(found||{}))if(key(k)&&p)matches.set(k,p);}}
-   return matches.size===1?{productKey:[...matches.keys()][0],product:[...matches.values()][0]}:{productKey:null,product:null};
-  }
   for(let start=0;start<entries.length;start+=6){const values=await Promise.all(entries.slice(start,start+6).map(async([inventoryKey,inventory])=>{
    if(!key(inventoryKey)||!inventory)throw fail(409,'Hay referencias de stock que necesitan revisión.');
    if(!['string','number'].includes(typeof inventory.general)){blocked=true;return null;}
    let amount;try{amount=Model.quantity(inventory.general);}catch(_){return{key:inventoryKey,productKey:null,code:String(inventory.codigo||inventoryKey),name:String(inventory.descripcion||'Stock por revisar'),unitLabel:String(inventory.unidad||''),inventory:null,review:true,invalid:true};}
    if(amount<=0)return null;
-   const {productKey,product}=await productFor(inventoryKey,inventory),review=!product||isService({},product)||product.activo===false||product.estado==='inactivo'||product.eliminado===true;
-   return{key:inventoryKey,productKey:review?null:productKey,code:String(product?.codigo||product?.cod||inventory.codigo||inventoryKey),name:String(product?.nombre||product?.descripcion||inventory.descripcion||'Stock por revisar'),unitLabel:String(product?.unidad||inventory.unidad||'Sin unidad confirmada'),photo:/^(https?:|data:image\/)/i.test(product?.imagenUrl||'')?product.imagenUrl:'',inventory:{general:amount,reservado:inventory.reservado==null?null:Model.quantity(inventory.reservado),revision:inventory._svReadRevision??0},review};
+   return positiveRow(inventoryKey,inventory,amount);
   }));rows.push(...values.filter(Boolean));}
   const last=entries.at(-1),next=hasMore&&last&&['string','number'].includes(typeof last[1]?.general)?{value:last[1].general,key:last[0]}:null;
   await verify(identity,actor);return{rows,cursor:next,ready:true,scanned:entries.length,complete:!hasMore&&!blocked,reviewRequired:blocked||rows.some(row=>row.review),continuation:hasMore};
