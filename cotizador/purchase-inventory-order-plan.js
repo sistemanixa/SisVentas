@@ -2,10 +2,10 @@
 const Inventory=require('./purchase-inventory-model'),Money=require('./commercial-models/commercial-money');
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_PURCHASE_PLAN_REVIEW'});
 const amount=value=>{if(typeof value!=='number'||!Number.isFinite(value)||value<0)throw fail('Falta un importe original válido.');return value;};
-function build({sourceOrder,body,inventories,references,at,actorName}){
+function build({sourceOrder,body,inventories,references,at,actorName,allowLinked=false}){
  const order=structuredClone(sourceOrder),marker=order.inventarioCompra;
  if(!order||!Array.isArray(order.items)||order._svSummary||order._svListSummary||order._svPagedSummary)throw fail('Hace falta la orden original completa.');
- if(order.ventaFbKey||order.ventaId||order.listaMaterialesId||order.listaOrigenId||order.compraVentaReferencia)throw fail('Esta compra requiere un plan conjunto de venta, costos o preparación; no se guardó ningún cambio.');
+ if(!allowLinked&&(order.ventaFbKey||order.ventaId||order.listaMaterialesId||order.listaOrigenId||order.compraVentaReferencia))throw fail('Esta compra requiere un plan conjunto de venta, costos o preparación; no se guardó ningún cambio.');
  if(marker?.schema!==1||!Number.isSafeInteger(marker.revision)||marker.revision<0)throw fail('El estado histórico de inventario requiere conciliación explícita.');
  if(body.kind==='register'?marker.registered!==false:marker.registered!==true)throw fail('La compra ya fue registrada o falta confirmar su registro.');
  if(body.kind==='register'&&(marker.revision!==0||marker.lastOperation||marker.references))throw fail('El registro anterior requiere conciliación, no un alta repetida.');
