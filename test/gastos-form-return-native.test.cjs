@@ -6,9 +6,10 @@ const path=require('node:path');
 const {chromium}=require('playwright');
 const {functionSource}=require('./helpers/app-functions.cjs');
 const root=path.resolve(__dirname,'..');
+const installedChrome=process.platform==='win32'&&fs.existsSync('C:/Program Files/Google/Chrome/Application/chrome.exe')?'C:/Program Files/Google/Chrome/Application/chrome.exe':undefined;
 
 async function fixture(t,width){
-  const browser=await chromium.launch({headless:true,executablePath:process.env.SV_TEST_CHROME||process.env.SV_TEST_CHROMIUM||process.env.CHROME_BIN||undefined});
+  const browser=await chromium.launch({headless:true,executablePath:process.env.SV_TEST_CHROME||process.env.SV_TEST_CHROMIUM||process.env.CHROME_BIN||installedChrome});
   t.after(()=>browser.close());
   const page=await browser.newPage({viewport:{width,height:850}});
   let requests=0;
