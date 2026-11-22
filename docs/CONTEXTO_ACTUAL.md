@@ -1,3 +1,9 @@
+# Fuente final congelada y verificación reiniciada · 22/11/2026
+
+Código92172e01: cierre acotado integrado; no ampliar migración. La quinta ejecución0c4e4bb4 se interrumpió sin resumen/exitcompleto y su proceso no estaba activo al comprobarlo; NO es verde ni se reutilizan sus tandas como puerta terminada. Se reinicia con wrapper local independiente, log y resultadoJSON de inicio/final/SHA/exit para reconocer explícitamente interrupciones.
+
+Última composición real de laboratorio:3PASS Command+Guard+StockOrder+SourceCost+Financial/HistoryTRUE+Store→RTDB, replayunPATCH y2revocacionestardías rechazadas. BaselineEA no tenía los dos opt-ins financieros; se usan constructores previamente preparados sólo en candidato local. Cierre condicional se conserva siempre, incluida base ya preparada/opciónfalse;3full+16control+15focalPASS del frente,14focalcentralPASS. No reglas ni flags remotos. Todos los frentes terminaron el alcance acotado y conservan WIP de migración separado/OFF. Estado externo continúa sin publicación ni datos reales de prueba.
+
 # Cierre acotado: quinta verificación local · 22/11/2026
 
 Fuente de código9c07ee3a (con adaptador8cf2a019) en codex/auditoria-integral-20261122. El titular pidió explicar la demora; se reconoce ampliación excesiva de alcance y se detiene la expansión de migración. Modelo ListGeneration entregado permanece puro/OFF; comando WIPcbc acotado en rama separada NO integrado, extensión de puerto listas detenida. No seguir añadiendo funcionalidades a este cierre.
