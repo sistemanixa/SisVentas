@@ -1,5 +1,7 @@
 # Componente: typed command OFF, sin ruta
 
+Actualización posterior autorizada: STOCK_GUARD_COMPOSICION_20261122.md documenta el hook mínimo ya aplicado y la composición válida con guard/políticas/store reales y transporte ficticio. El bloqueo de tabla de acciones descrito más abajo es histórico; la prueba correspondiente ahora exige confirmación+replay único. El comando sigue OFF/no registrado y las demás barreras pendientes no cambian.
+
 Implementado `cotizador/office-stock-link-command.js`, no registrado/importado por index ni runtime, sin UI, permisos nuevos, reglas aplicadas o writes reales. No edita guard ni su tabla de acciones. El builder de catálogo994341b9 ya comunicado por A no se reproduce ni se considera instalado remotamente.
 
 ## Interfaz
