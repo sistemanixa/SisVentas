@@ -42,3 +42,11 @@ Directorio fuera de Git: `C:/SisVentas/tmp/audit-20261122-C`.
 - `readers-local.log`: 114 PASS; SHA256 c6124edc7c3f50cc5b0e9429d593c25f4b30de5095d7d0fe3bb264f7d754a858.
 
 Para repetir: NODE_PATH al cotizador/node_modules existente; Node --test --test-concurrency=1 sobre los archivos indicados, Chrome explícito para los opt-in. El caso Gastos se repite sin las tres variables de selección. Sintaxis del test y git diff --check correctos. Siguiente paso: coordinador revisa el commit local e integra únicamente el ajuste de prueba/informe; ejecuta su puerta global una vez. Ningún resultado autoriza publicación ni escrituras comerciales.
+
+## Ampliación local: seis opt-in de Nueva garantía fría
+
+Por pedido del coordinador se ejecutaron los seis originales de `test/page-demand-readiness.test.cjs` seleccionando `--test-name-pattern='Nueva garantía fría'`, con `SV_GARANTIA_MANUAL_RUN=1` y `SV_GARANTIA_MANUAL_CHROME` apuntando al Chrome instalado. NODE_PATH y Node son los indicados arriba; concurrencia 1. Resultado: **6 PASS / 0 FAIL / 0 SKIP**, código 0, 10,36 segundos. No se modificaron código ni aserciones; no apareció un defecto que requiriera corrección.
+
+El HTML y aplicación activa se sirvieron en loopback con `postventa-full-app.cjs`, SDK ficticio y conexiones externas bloqueadas. En 390 y 1280, cliente y venta original ausentes de memoria se resuelven con una consulta de ventas y una del registro elegido; los equipos se completan conservando ventasList vacía. Los otros cuatro casos verifican denegación distinguida de cliente sin ventas, cambio de cliente, cierre de modal y fin de sesión. Las respuestas originales tardías no repueblan el formulario; ambos selectores quedan deshabilitados y la lista temporal vacía. Los seis conservan cero escrituras, errores y bloqueos de red registrados por la fixture. Son pruebas de lectura y descarte; no se guardó una garantía ni se probaron operaciones reales.
+
+Evidencia privada `C:/SisVentas/tmp/audit-20261122-C/garantia-cold.log`, SHA256 `80e3a1ba06a756902a0ab41d74c668f7cc134d3f7ecb983b3c41da8fb93c8b13`. No se controló la ventana del usuario, no se preparó infraestructura externa ni se ejecutó otra suite global. Presentaciones, exportación y publicación quedaron fuera de esta ampliación.
