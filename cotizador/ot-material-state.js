@@ -3,12 +3,16 @@
 const Rows=require('./ot-material-rows-model'),{digest}=require('./labor-guard'),Money=require('./commercial-models/commercial-money');
 const own=(o,k)=>Object.hasOwn(o||{},k),same=(a,b)=>digest(a)===digest(b);
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_OT_MATERIAL_REVIEW'});
-// This registry lasts one authenticated invocation; ranges are never a cache.
+// Full snapshots may be shared only inside this invocation's planning phase.
+// The final check discards them before issuing independent fresh range reads.
 function referenceOperation(resolveReference,store){
  if(resolveReference!==undefined&&typeof resolveReference!=='function')throw fail('El puerto de referencias no es válido.');
- const ranges=new Map();
- const resolve=resolveReference===undefined?undefined:async(original,ports)=>resolveReference(original,{...ports,queryPage:async(path,options)=>{if(typeof store.queryPage!=='function')throw fail('Falta el lector dirigido de stock.');return store.queryPage(path,options);},trackQueryPage:async(path,options,rows)=>{const id=digest({path,options}),entry={path,options:structuredClone(options),hash:digest(rows)};if(ranges.has(id)&&ranges.get(id).hash!==entry.hash)throw fail('La cobertura de stock cambió durante la operación.');ranges.set(id,entry);await ports.trackQueryPage?.(path,options,rows);}});
- return {resolve,async assertFresh(queryPageFresh){for(const entry of ranges.values()){if(typeof queryPageFresh!=='function'||digest(await queryPageFresh(entry.path,entry.options))!==entry.hash)throw fail('La cobertura de stock cambió antes de confirmar.');}}};
+ const ranges=new Map(),pages=new Map();let planning=true;
+ const resolve=resolveReference===undefined?undefined:async(original,ports)=>{
+  const result=await resolveReference(original,{...ports,queryPage:async(path,options)=>{if(typeof store.queryPage!=='function')throw fail('Falta el lector dirigido de stock.');if(!planning)return store.queryPage(path,options);const id=digest({path,options});if(!pages.has(id))pages.set(id,Promise.resolve().then(()=>store.queryPage(path,options)).then(structuredClone));return structuredClone(await pages.get(id));},trackQueryPage:async(path,options,rows)=>{const id=digest({path,options}),entry={path,options:structuredClone(options),hash:digest(rows)};if(ranges.has(id)&&ranges.get(id).hash!==entry.hash)throw fail('La cobertura de stock cambió durante la operación.');ranges.set(id,entry);await ports.trackQueryPage?.(path,options,rows);}});
+  return result;
+ };
+ return {resolve,async assertFresh(queryPageFresh){planning=false;pages.clear();const checks=[...ranges.values()];for(let i=0;i<checks.length;i+=6){const settled=await Promise.allSettled(checks.slice(i,i+6).map(async entry=>{if(typeof queryPageFresh!=='function'||digest(await queryPageFresh(entry.path,entry.options))!==entry.hash)throw fail('La cobertura de stock cambió antes de confirmar.');}));const rejected=settled.find(result=>result.status==='rejected');if(rejected)throw rejected.reason;}}};
 }
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
 const quantities=['entregada','devuelta','devueltaPendiente','enTecnico','danada','faltante','cantidadInstalada'];
