@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "sourceCommit": "64b175f3",
+  "beforeCommit": "d59f66a6",
+  "file": "cotizador/office-stock.js",
+  "marker": "resolver=null",
+  "beforeSha256": "6e8ab32180ceb6eb417ca06f8f61d23e68104a169e247373fb08640c131ad229",
+  "afterSha256": "b3963556a1f99e6c54521cde7192c583e218e3b0e8d68c7079f25c403f6f711f",
+  "hunks": [
+    {
+      "oldStart": 13,
+      "newStart": 13,
+      "oldLines": [
+        "function create({authorize,store,guard,queryPage,enabled=false,now=Date.now,orderedList=false,readOrderingFence}){"
+      ],
+      "newLines": [
+        "function create({authorize,store,guard,queryPage,resolver=null,enabled=false,now=Date.now,orderedList=false,readOrderingFence}){",
+        " async function resolveCurrent(productKey,product,read,queryPageFresh=store.queryPage){",
+        "  const legacy=pointRead=>resolve(productKey,product,id=>pointRead(stockPath(id)));",
+        "  if(resolver===null)return legacy(read);",
+        "  if(typeof resolver?.resolve!=='function'||typeof resolver?.assertFresh!=='function')throw fail(503,'Falta el verificador de referencias de Stock.','SV_OFFICE_STOCK_NOT_READY');",
+        "  const ref=await resolver.resolve({productKey,product},{read,queryPage:queryPageFresh,legacy});",
+        "  if(!ref||!key(ref.inventoryKey)||ref.reference&&(ref.reference.productKey!==productKey||ref.reference.inventoryKey!==ref.inventoryKey))throw fail(409,'La referencia de Stock es inválida.','SV_OFFICE_STOCK_CONFLICT');",
+        "  return ref;",
+        " }",
+        " async function freshReference(ref,readFresh=store.read,queryFresh=store.query,queryPageFresh=store.queryPage){if(ref.readSet)await resolver.assertFresh(ref.readSet,readFresh,queryFresh,queryPageFresh);}"
+      ]
+    },
+    {
+      "oldStart": 16,
+      "newStart": 26,
+      "oldLines": [],
+      "newLines": [
+        "   if(resolver){if(typeof resolver.lookupInventory!=='function')throw fail(503,'No está disponible la revisión del vínculo de Stock.');const mapped=await resolver.lookupInventory(inventoryKey,{read:path=>store.read(path)});if(mapped!==null){const ref=mapped?.reference,p=mapped?.product;if(!key(mapped?.productKey)||!p||typeof p!=='object'||Array.isArray(p)||ref?.mapped!==true||ref.productKey!==mapped.productKey||ref.inventoryKey!==inventoryKey||!key(ref.receiptIdentityKey)||!Number.isSafeInteger(ref.mappingRevision)||ref.mappingRevision<1||p.activo===false||p.estado==='inactivo'||p.eliminado===true||isService({},p))throw fail(409,'El vínculo de este Stock necesita revisión.');return{productKey:mapped.productKey,product:p};}}"
+      ]
+    },
+    {
+      "oldStart": 46,
+      "newStart": 56,
+      "oldLines": [
+        " async function detail(identity,{productKey}={}){const actor=await access(identity);if(!key(productKey))throw fail(400,'Producto inválido.');const p=await store.read(productPath(productKey));if(!p||p.eliminado===true||isService({},p))throw fail(404,'El producto ya no está disponible.');const ref=await resolve(productKey,p,id=>store.read(stockPath(id)));await verify(identity,actor);return{inventory:summary(ref.inventory),expectedHash:referenceHash(ref),productKey};}",
+        " async function history(identity,{productKey}={}){const actor=await access(identity);if(!key(productKey))throw fail(400,'Producto inválido.');const p=await store.read(productPath(productKey));if(!p||p.eliminado===true||isService({},p))throw fail(404,'El producto ya no está disponible.');const ref=await resolve(productKey,p,id=>store.read(stockPath(id))),records=await queryPage(stockPath(ref.inventoryKey)+'/ajustesConteo',{orderBy:'fecha',last:true,limit:50});await verify(identity,actor);return{rows:Object.values(records||{}).filter(v=>v.tipo==='conteo_oficina').map(v=>({anterior:v.anteriorDesconocida?null:v.cantidadAnterior,nueva:v.cantidadContada,usuario:v.usuario||'Usuario sin identificar',observacion:v.motivo||'',ts:v.fecha})).sort((a,b)=>b.ts-a.ts).slice(0,50)};}"
+      ],
+      "newLines": [
+        " async function detail(identity,{productKey}={}){const actor=await access(identity);if(!key(productKey))throw fail(400,'Producto inválido.');const p=await store.read(productPath(productKey));if(!p||p.eliminado===true||isService({},p))throw fail(404,'El producto ya no está disponible.');const ref=await resolveCurrent(productKey,p,store.read);await freshReference(ref);await verify(identity,actor);return{inventory:summary(ref.inventory),expectedHash:referenceHash(ref),productKey,...(ref.reference?{reference:ref.reference}:{}),...(ref.reference?.status==='inactive'?{zeroOnly:true}:{})};}",
+        " async function history(identity,{productKey}={}){const actor=await access(identity);if(!key(productKey))throw fail(400,'Producto inválido.');const p=await store.read(productPath(productKey));if(!p||p.eliminado===true||isService({},p))throw fail(404,'El producto ya no está disponible.');const ref=await resolveCurrent(productKey,p,store.read),records=await queryPage(stockPath(ref.inventoryKey)+'/ajustesConteo',{orderBy:'fecha',last:true,limit:50});await freshReference(ref);await verify(identity,actor);return{...(ref.reference?{reference:ref.reference}:{}),rows:Object.values(records||{}).filter(v=>v.tipo==='conteo_oficina').map(v=>({anterior:v.anteriorDesconocida?null:v.cantidadAnterior,nueva:v.cantidadContada,usuario:v.usuario||'Usuario sin identificar',observacion:v.motivo||'',ts:v.fecha})).sort((a,b)=>b.ts-a.ts).slice(0,50)};}"
+      ]
+    },
+    {
+      "oldStart": 51,
+      "newStart": 61,
+      "oldLines": [
+        "  return guard.run(runner,async scope=>{const p=await scope.get(productPath(body.productKey));if(!p||p.eliminado===true||isService({},p))throw fail(409,'El producto requiere revisión.');const ref=await resolve(body.productKey,p,id=>scope.get(stockPath(id))),path=stockPath(ref.inventoryKey),inv=ref.inventory;if(referenceHash(ref)!==body.expectedHash)throw fail(409,'El stock cambió. Actualizá la cantidad antes de guardar.','SV_OFFICE_STOCK_CONFLICT');const person={uid:identity.uid,name:(await scope.get('sv_chat_directorio/'+identity.uid))?.nombre||'Usuario',active:true,allowed:true,role:actor.role},plan=(()=>{try{return Model.plan(inv,{...body,expected:inv},person,now(),p);}catch(e){throw fail(409,e.message);}})();",
+        "   scope.beforeCommit(async({readFresh})=>{await verify(identity,actor);const latest=await readFresh(productPath(body.productKey));if(digest(latest)!==digest(p)||referenceHash(await resolve(body.productKey,latest,id=>readFresh(stockPath(id))))!==body.expectedHash)throw fail(409,'El stock o el producto cambió. Revisá antes de guardar.','SV_OFFICE_STOCK_CONFLICT');});Policy.issue(runner,scope.lease,ref.inventoryKey,plan.inventory);await scope.update({[path]:plan.inventory});return{ok:true,committed:true,operationId:body.id,inventory:summary({...plan.inventory,_svReadRevision:Number(inv?._svReadRevision??0)+1})};});"
+      ],
+      "newLines": [
+        "  return guard.run(runner,async scope=>{const p=await scope.get(productPath(body.productKey));if(!p||p.eliminado===true||isService({},p))throw fail(409,'El producto requiere revisión.');const ref=await resolveCurrent(body.productKey,p,path=>scope.get(path)),path=stockPath(ref.inventoryKey),inv=ref.inventory;if(referenceHash(ref)!==body.expectedHash)throw fail(409,'El stock cambió. Actualizá la cantidad antes de guardar.','SV_OFFICE_STOCK_CONFLICT');const person={uid:identity.uid,name:(await scope.get('sv_chat_directorio/'+identity.uid))?.nombre||'Usuario',active:true,allowed:true,role:actor.role},plan=(()=>{try{if(ref.reference?.status==='inactive'&&Model.quantity(body.quantity)!==0)throw Error('El producto inactivo solo admite conteo manual a cero.');return Model.plan(inv,{...body,expected:inv},person,now(),p);}catch(e){throw fail(409,e.message);}})();",
+        "   scope.beforeCommit(async({readFresh,queryFresh,queryPageFresh})=>{await verify(identity,actor);await freshReference(ref,readFresh,queryFresh,queryPageFresh);const latest=await readFresh(productPath(body.productKey));if(digest(latest)!==digest(p)||referenceHash(await resolveCurrent(body.productKey,latest,readFresh,queryPageFresh??store.queryPage))!==body.expectedHash)throw fail(409,'El stock o el producto cambió. Revisá antes de guardar.','SV_OFFICE_STOCK_CONFLICT');});Policy.issue(runner,scope.lease,ref.inventoryKey,plan.inventory);await scope.update({[path]:plan.inventory});return{ok:true,committed:true,operationId:body.id,inventory:summary({...plan.inventory,_svReadRevision:Number(inv?._svReadRevision??0)+1})};});"
+      ]
+    }
+  ]
+}

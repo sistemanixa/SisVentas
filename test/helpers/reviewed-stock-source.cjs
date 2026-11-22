@@ -1,7 +1,7 @@
 'use strict';
 // Reverse only explicitly reviewed opt-in read changes; native hashes stay pinned.
 const assert=require('node:assert/strict'),crypto=require('node:crypto');
-const profiles=[require('../fixtures/reviewed-stock-order-source.json')];
+const profiles=[require('../fixtures/reviewed-stock-order-source.json'),require('../fixtures/reviewed-stock-mapped-source.json')];
 const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
 function reverseReviewedStock(source){
  for(const profile of profiles.slice().reverse()){

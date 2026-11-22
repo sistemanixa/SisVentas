@@ -62,7 +62,7 @@ test('native Stock and OT prerequisites remain exact outside reviewed Accounts-v
 
 test('Stock derivation rejects a missing, weakened or extra deleted-product guard',()=>{
  const source=fs.readFileSync(path.join(root,'office-stock.js'),'utf8').replace(/\r\n/g,'\n');
- const guards=[...source.matchAll(/p\.eliminado===true\|\|/g)];assert.equal(guards.length,3);
+ const guards=[...source.matchAll(/p\.eliminado===true\|\|/g)];assert.equal(guards.length,4); // three native guards plus the reviewed mapped-list product guard
  for(const {index} of guards)for(const replacement of ['', 'p.eliminado===false||']){
   const changed=source.slice(0,index)+replacement+source.slice(index+'p.eliminado===true||'.length);
   assert.throws(()=>originalStockContract(changed));
@@ -93,3 +93,8 @@ test('Stock model derivation preserves exact bytes outside explicit unchanged-co
 });
 
 test('reviewed Stock order hunks reject altered reader branches without replacing native hashes',()=>{const source=fs.readFileSync(path.join(root,'office-stock.js'),'utf8').replace(/\r\n/g,'\n');assert.throws(()=>originalStockContract(source.replace('if(orderedList===true)','if(orderedList===false)')));});
+
+test('reviewed mapped Stock consumer rejects altered physical resolution and fresh validation',()=>{
+ const source=fs.readFileSync(path.join(root,'office-stock.js'),'utf8').replace(/\r\n/g,'\n');
+ for(const [before,after] of [["if(resolver===null)return legacy(read);","if(true)return legacy(read);"],["await freshReference(ref);","void ref;"],["ref.inventoryKey","productKey"]]){assert.ok(source.includes(before));assert.throws(()=>originalStockContract(source.replace(before,after)));}
+});
