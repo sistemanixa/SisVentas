@@ -1,5 +1,7 @@
 # Barrera común: bloqueo confirmado y camino mínimo
 
+Actualización posterior: ver STOCK_REGLAS_IDENTIDAD_20261122.md. La copia real de reglas confirma un fence de SDK de inventario durante lease vigente. La primera carrera aquí descrita omite reglas en su doble y no prueba permiso real durante el lease. Continúa pendiente el escritor legado después de liberar el guard y la estabilidad del catálogo. No interpretar este documento anterior como afirmación de inexistencia absoluta de barrera en producción.
+
 Complementa85c28d54; no habilita el plan ni modifica consumidores, guard, claims o permisos. La política actual de Stock sólo cubre conteo inventario/resumen. La revisión de hooks de A está pendiente del coordinador.
 
 ## Dos carreras de fuente actual
