@@ -40,7 +40,41 @@ const schema2Edits=[
   }
 ];
 function originalNativeContract(source){for(const edit of schema2Edits){assert.equal(source.split(edit.after).length,2,'Reviewed schema2 block must occur exactly once');source=source.replace(edit.after,edit.before);}return source;}
-test('native Stock and OT prerequisites remain exact outside the reviewed signed Accounts-v2 extension',()=>{for(const [file,expected] of Object.entries(native)){let source=fs.readFileSync(path.join(root,file),'utf8').replace(/\r\n/g,'\n');if(file==='ot-delete-operational-contract.js')source=originalNativeContract(source);const actual=crypto.createHash('sha256').update(source).digest('hex');assert.equal(actual,expected,file);}});
+// d052768a adds exactly two read guards and one save guard for deleted products.
+// Reconstruct the original hash; require every guard, and preserve all other bytes.
+function originalStockContract(source){
+ const edits=[
+  {after:"const p=await store.read(productPath(productKey));if(!p||p.eliminado===true||isService({},p))throw fail(404",count:2},
+  {after:"const p=await scope.get(productPath(body.productKey));if(!p||p.eliminado===true||isService({},p))throw fail(409",count:1}
+ ];
+ for(const {after,count} of edits){assert.equal(source.split(after).length-1,count,'Reviewed deleted-product guard count');source=source.split(after).join(after.replace('p.eliminado===true||',''));}
+ return source;
+}
+// Same reviewed d052768a change: an explicit unchanged count still records its audit.
+function originalStockModel(source){
+ const after=" const before=current===null?null:quantity(current.general);\n const inventory=";
+ assert.equal(source.split(after).length,2,'Reviewed explicit-count block must occur exactly once');
+ return source.replace(after,after.replace(';\n',';if(count===before)throw Error(\'La cantidad no cambió.\');\n'));
+}
+
+test('native Stock and OT prerequisites remain exact outside reviewed Accounts-v2 and deleted-product guards',()=>{for(const [file,expected] of Object.entries(native)){let source=fs.readFileSync(path.join(root,file),'utf8').replace(/\r\n/g,'\n');if(file==='ot-delete-operational-contract.js')source=originalNativeContract(source);if(file==='office-stock.js')source=originalStockContract(source);if(file==='office-stock-model.js')source=originalStockModel(source);const actual=crypto.createHash('sha256').update(source).digest('hex');assert.equal(actual,expected,file);}});
+
+test('Stock derivation rejects a missing, weakened or extra deleted-product guard',()=>{
+ const source=fs.readFileSync(path.join(root,'office-stock.js'),'utf8').replace(/\r\n/g,'\n');
+ const guards=[...source.matchAll(/p\.eliminado===true\|\|/g)];assert.equal(guards.length,3);
+ for(const {index} of guards)for(const replacement of ['', 'p.eliminado===false||']){
+  const changed=source.slice(0,index)+replacement+source.slice(index+'p.eliminado===true||'.length);
+  assert.throws(()=>originalStockContract(changed));
+ }
+ assert.throws(()=>originalStockContract(source.replace('if(!p||p.eliminado===true||','if(!p||p.eliminado===true||p.eliminado===true||')));
+});
+
+test('Stock derivation still detects changes outside the three reviewed guards',()=>{
+ const source=fs.readFileSync(path.join(root,'office-stock.js'),'utf8').replace(/\r\n/g,'\n');
+ for(const changed of [source+'\n// unrelated change\n',source.replace("operation:'office-stock-adjustment'","operation:'unreviewed-operation'")]){
+  assert.notEqual(changed,source);assert.notEqual(crypto.createHash('sha256').update(originalStockContract(changed)).digest('hex'),native['office-stock.js']);
+ }
+});
 test('native Stock and OT-delete prerequisites are copied in standalone image',()=>{const docker=fs.readFileSync(path.join(root,'Dockerfile'),'utf8');for(const file of Object.keys(native))assert.ok(docker.split(/\r?\n/).some(line=>line.startsWith('COPY ')&&line.split(/\s+/).includes(file)),file);});
 test('commission integration preserves native Stock and OT-delete guarded commit hooks',()=>{const store=fs.readFileSync(path.join(root,'labor-rtdb-store.js'),'utf8'),entry=fs.readFileSync(path.join(root,'index.js'),'utf8');for(const marker of ["require('./office-stock-policy').validate(actor,lease,patch)","require('./office-stock-policy').token(actor,lease)","require('./ot-delete-operational-contract').reservedClaims(actor?.claims)",'api.otDeleteOperationalReadiness.commitClaims'])assert.ok(store.includes(marker),marker);for(const marker of ["require('./ot-delete-authority').createOTDeleteAuthority","require('./office-stock').create"] )assert.ok(entry.includes(marker),marker);});
 test('entire standalone local require closure resolves without replacing native hooks',()=>{const pending=['index.js'],seen=new Set();while(pending.length){const file=pending.pop();if(seen.has(file))continue;seen.add(file);const source=fs.readFileSync(path.join(root,file),'utf8');for(const match of source.matchAll(/require\(['"](\.[^'"]+)['"]\)/g)){const absolute=require.resolve(path.resolve(root,path.dirname(file),match[1]));assert.ok(absolute.startsWith(root+path.sep),match[1]);pending.push(path.relative(root,absolute));}}assert.ok(seen.size>140);});
@@ -48,3 +82,11 @@ test('entire standalone local require closure resolves without replacing native 
 test('standalone runtime installs native OT-delete readiness and preserves production flag contract',()=>{const {createLaborRuntime}=require('../cotizador/labor-runtime');const runtime=createLaborRuntime({db:{ref(){throw Error('No test database reads expected');}},databaseURL:'https://fixture.invalid',accessToken:async()=>{throw Error('No credentials permitted');},enabled:true,readOnly:false,operationalSummaries:true,commercialPages:true,deleteEnvironment:{}});assert.equal(typeof runtime.store.otDeleteOperationalReadiness.commitClaims,'function');assert.equal(runtime.store.otDeleteOperationalReadiness.configured,false);});
 test('prepared opt-in writers coexist with native runtime without enabling them by default',()=>{const {createLaborRuntime}=require('../cotizador/labor-runtime');const opts={db:{ref(){throw Error('No database reads expected');}},databaseURL:'https://fixture.invalid',accessToken:async()=>{throw Error('No credentials permitted');},enabled:true,readOnly:false,operationalSummaries:true,commercialPages:true,deleteEnvironment:{},dashboardBudgets:false,dashboardActivity:false,dashboardPolicyRenewal:false,clientAccounts:false,clientHistory:false,saleFinancialDependencies:false};const runtime=createLaborRuntime(opts);assert.equal(runtime.guard.saleFinancialDependencies,false);assert.equal(runtime.guard.clientAccounts,false);assert.equal(runtime.guard.clientHistory,false);assert.equal(runtime.capabilities().coordinated,true);assert.equal(runtime.capabilities().commercialPages,true);assert.equal(runtime.capabilities().clientHistory,false);assert.equal(typeof runtime.store.otDeleteOperationalReadiness.commitClaims,'function');const prepared=createLaborRuntime({...opts,saleFinancialDependencies:true,clientAccounts:true,clientHistory:true});assert.equal(prepared.guard.saleFinancialDependencies,true);assert.equal(prepared.guard.clientAccounts,true);assert.equal(prepared.guard.clientHistory,true);});
 test('optional native OT operational hook preserves prepared guard features',()=>{const {createLaborGuard}=require('../cotizador/labor-guard');const plain=createLaborGuard({store:{}}),native=createLaborGuard({store:{},otDeleteOperational:true,commercialPages:true,clientAccounts:true,clientHistory:true,saleFinancialDependencies:true});assert.equal(plain.affects('sisventas/ordenes_trabajo/fixture'),false);assert.equal(native.affects('sisventas/ordenes_trabajo/fixture'),true);assert.equal(native.clientHistory,true);assert.equal(native.saleFinancialDependencies,true);assert.throws(()=>createLaborGuard({store:{},otDeleteOperational:'true'}));});
+
+test('Stock model derivation preserves exact bytes outside explicit unchanged-count audit',()=>{
+ const source=fs.readFileSync(path.join(root,'office-stock-model.js'),'utf8').replace(/\r\n/g,'\n');
+ assert.equal(crypto.createHash('sha256').update(originalStockModel(source)).digest('hex'),native['office-stock-model.js']);
+ assert.throws(()=>originalStockModel(source.replace('const before=current===null?null:quantity(current.general);','const before=0;')));
+ const changed=source.replace('inventory.general=count','inventory.general=0');assert.notEqual(changed,source);
+ assert.notEqual(crypto.createHash('sha256').update(originalStockModel(changed)).digest('hex'),native['office-stock-model.js']);
+});
