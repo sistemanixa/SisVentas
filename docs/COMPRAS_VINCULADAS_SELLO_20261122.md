@@ -12,12 +12,13 @@ El plan conserva autor, precios públicos, snapshots de presupuesto/proveedor y 
 
 La excepción de costo automático se limita a recepción tipada de su Venta fuente. No permite cambiar precios, cantidad vendida, identidad, autoría, pagos ni comisiones. La corrección humana conserva sus permisos `detalle` y `ventas.corregirCosto`.
 
-`purchase-source-cost-protocol` propone el prefijo reservado `svPurchaseSourceCost`: sanea todo el prefijo entrante, emite versión cero por defecto y versión uno únicamente para recepción de Venta escrita con patch derivado sellado. **En este bloque no está conectado al store, a reglas ni a una ruta.** El grant acotado por Venta y su revisión de B/root siguen pendientes. No concede acceso en el padre `ventas`.
+`purchase-source-cost-protocol` propone el prefijo reservado `svPurchaseSourceCost`: sanea todo el prefijo entrante, emite versión cero por defecto y versión uno únicamente para recepción de Venta escrita con patch derivado sellado. El hook del store se entrega en un commit posterior separado: reserva cero en todo override y calcula autoridad para el PATCH final sin IO. El grant acotado por Venta y su revisión de B/root siguen pendientes. No hay ruta nueva ni acceso concedido en el padre `ventas`.
 
 ## Evidencia local ficticia
 
 - 164/164 PASS: todos `purchase-inventory-*.test.cjs`, `sale-cost-correction.test.cjs` y `commission-generation.test.cjs`, antes de agregar el caso del protocolo reservado.
 - 23/23 PASS adicionales focales: comando vinculado, protocolo reservado y política después de ese caso. Incluyen los casos anteriores relevantes, no son un total acumulable.
+- 22/22 PASS focales posteriores con store REST real y transporte ficticio interceptado: la recepción sellada emite versión uno ligada al hash completo enviado; claims entrantes, campos desconocidos del prefijo y un escritor ordinario quedan en cero. No hubo conexión de red.
 - Generador nativo `systemGenerate` ejecutado tras recepción/cancelación: trabajo completado reutilizado; trabajo pendiente con comisiones previas devuelve existente. Bases, porcentajes, pagos y trabajos se comparan íntegros antes/después y no cambian.
 - Pruebas negativas de fuente concurrente, preparación incompleta, cobertura financiera alterada, permiso revocado, capacidad serializada, hash distinto y metadatos técnicos inyectados.
 - Sintaxis de los archivos del bloque y `git diff --check` comprobados. Suite global a cargo del principal.
