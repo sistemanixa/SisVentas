@@ -28,3 +28,42 @@ function createReferenceResolver({enabled=false,loadCoverage,queryPage:factoryQu
  };
 }
 module.exports={createReferenceResolver,assertFresh};
+
+// Stock starts from the canonical product, not from a historical OT/purchase
+// row. Resolve the forward mapping before touching a physical ledger branch.
+function createStockReferenceResolver({enabled=false,loadCoverage,queryPage:factoryQuery,assertBarrier}={}){
+ const barrier=async(read,phase)=>{if(typeof assertBarrier!=='function')throw fail('SV_STOCK_REFERENCE_COVERAGE','Falta verificar la barrera de referencias de Stock.');await assertBarrier({read,phase});};
+ return{assertFresh:async(readSet,read,query,queryPage)=>{if(enabled===true)await barrier(read,'stock-reference-fresh');return assertFresh(readSet,read,query,queryPage);},lookupInventory:async(inventoryKey,ports)=>{
+  if(enabled!==true)return null;
+  if(!Reference.key(inventoryKey)||typeof ports?.read!=='function')throw fail('SV_STOCK_REFERENCE_INPUT','Registro físico inválido.');
+  await barrier(ports.read,'stock-list-reference');
+  const inversePath='sisventas/stock_vinculos/porInventario/'+inventoryKey,inverse=await ports.read(inversePath);
+  if(inverse===null)return null;
+  if(!inverse||inverse.inventoryKey!==inventoryKey||!Reference.key(inverse.productKey)||!Reference.key(inverse.receiptIdentityKey)||!Number.isSafeInteger(inverse.revision)||inverse.revision<1)throw fail('SV_STOCK_REFERENCE_MAPPING','La asociación inversa es inválida.');
+  const forwardPath='sisventas/stock_vinculos/porProducto/'+inverse.productKey,forward=await ports.read(forwardPath),product=await ports.read('sisventas/productos/'+inverse.productKey);
+  if(Reference.digest(forward)!==Reference.digest(inverse)||Reference.digest(await ports.read(inversePath))!==Reference.digest(inverse)||Reference.digest(await ports.read(forwardPath))!==Reference.digest(forward))throw fail('SV_STOCK_REFERENCE_MAPPING','La asociación y su inversa cambiaron.');
+  // Advisory lookup only: no coverage proof or write readSet is issued.
+  if(Reference.productStatus(product)!=='active')throw fail('SV_STOCK_REFERENCE_PRODUCT','El producto está inactivo.');
+  await barrier(ports.read,'stock-list-reference-fresh');
+  return{productKey:inverse.productKey,product,reference:{productKey:inverse.productKey,inventoryKey,receiptIdentityKey:inverse.receiptIdentityKey,mappingRevision:inverse.revision,mapped:true}};
+ },resolve:async({productKey,product},ports)=>{
+  if(typeof ports?.legacy!=='function')throw fail('SV_STOCK_REFERENCE_LEGACY','Falta el recorrido original de Stock.');
+  if(enabled!==true)return ports.legacy(ports.read);
+  if(!Reference.key(productKey)||typeof ports.read!=='function')throw fail('SV_STOCK_REFERENCE_INPUT','Producto de Stock inválido.');
+  await barrier(ports.read,'stock-reference');
+  const cache=new Map(),ranges=new Map(),read=async path=>{if(!cache.has(path))cache.set(path,structuredClone(await ports.read(path)));return structuredClone(cache.get(path));};
+  const actual=await read('sisventas/productos/'+productKey);if(!actual||Reference.digest(actual)!==Reference.digest(product))throw fail('SV_STOCK_REFERENCE_CONFLICT','El producto cambió antes de resolver Stock.');
+  const forward=await read('sisventas/stock_vinculos/porProducto/'+productKey),readSet=()=>[...[...cache].map(([path,value])=>({path,hash:Reference.digest(value)})),...ranges.values()];
+  if(!forward){
+   const aliases=[...new Set([productKey,actual.id,actual.codigo,actual.cod].filter(value=>value!==null&&value!==undefined&&String(value)!=='').map(value=>String(value).replace(/[.#$\[\]\/]/g,'_').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,120)).filter(Reference.key))];
+   for(const key of aliases)if(await read('sisventas/stock_vinculos/porInventario/'+key))throw fail('SV_STOCK_REFERENCE_MAPPING','Existe una asociación inversa sin vínculo canónico.');
+   const legacy=await ports.legacy(read);return{...legacy,reference:{productKey,inventoryKey:legacy.inventoryKey,receiptIdentityKey:null,mappingRevision:0,mapped:false},readSet:readSet()};
+  }
+  if(forward.productKey!==productKey||!Reference.key(forward.inventoryKey))throw fail('SV_STOCK_REFERENCE_MAPPING','La asociación de Stock es inválida.');
+  const rawQuery=ports.queryPage??factoryQuery;if(typeof rawQuery!=='function')throw fail('SV_STOCK_REFERENCE_COVERAGE','Falta cobertura dirigida de Stock.');
+  const queryPage=async(path,options)=>{const id=Reference.digest({path,options}),value=await rawQuery(path,options),hash=Reference.digest(value);if(ranges.has(id)&&ranges.get(id).hash!==hash)throw fail('SV_STOCK_REFERENCE_CONFLICT','La consulta cambió durante la lectura de Stock.');ranges.set(id,{kind:'range',path,options:structuredClone(options),hash});return value;};
+  const snapshot=await loadSnapshot({read,loadCoverage:loadCoverage??Directed.createDirectedCoverage({queryPage}),queryPage,productKey,inventoryKey:forward.inventoryKey}),reference=Reference.resolve(snapshot,forward.inventoryKey);
+  return{inventoryKey:reference.inventoryKey,inventory:snapshot.inventory[reference.inventoryKey],reference,readSet:readSet()};
+ }};
+}
+module.exports.createStockReferenceResolver=createStockReferenceResolver;

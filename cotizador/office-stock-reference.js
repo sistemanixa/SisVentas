@@ -6,11 +6,12 @@ const fail=(code,message)=>Object.assign(Error(message),{code,statusCode:409});
 const alias=value=>String(value??'').replace(/[.#$\[\]\/]/g,'_').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,120);
 const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(name=>[name,stable(value[name])])):value;
 const digest=value=>crypto.createHash('sha256').update(JSON.stringify(stable(value??null))).digest('hex');
+function productStatus(product){if(!product||typeof product!=='object'||Array.isArray(product)||product.eliminado===true||isService({},product))throw fail('SV_STOCK_REFERENCE_PRODUCT','El producto no admite stock físico.');return product.activo===false||product.estado==='inactivo'?'inactive':'active';}
 function validate(snapshot){
  if(!snapshot||!key(snapshot.productKey)||!snapshot.product||typeof snapshot.product!=='object'||Array.isArray(snapshot.product))throw fail('SV_STOCK_REFERENCE_PRODUCT','No se identificó el producto.');
  if(['catalog','inventory','links','owners','receiptIdentity'].some(name=>snapshot.coverage?.[name]!==true)||!key(snapshot.receiptIdentityKey))throw fail('SV_STOCK_REFERENCE_INCOMPLETE','Falta verificar la cobertura y la identidad histórica del vínculo.');
  for(const map of [snapshot.inventory,snapshot.links?.byProduct,snapshot.links?.byInventory,snapshot.ownersByInventory])if(!map||typeof map!=='object'||Array.isArray(map)||Object.keys(map).some(name=>!key(name)))throw fail('SV_STOCK_REFERENCE_INPUT','Referencias de stock inválidas.');
- if(snapshot.product.eliminado===true||isService({},snapshot.product))throw fail('SV_STOCK_REFERENCE_PRODUCT','El producto no admite stock físico.');
+ productStatus(snapshot.product);
  const competitors=snapshot.aliasOwners;if(!Array.isArray(competitors)||competitors.some(owner=>!key(owner)))throw fail('SV_STOCK_REFERENCE_INCOMPLETE','Falta verificar los alias del producto.');
  if(competitors.some(owner=>owner!==snapshot.productKey))throw fail('SV_STOCK_REFERENCE_AMBIGUOUS','Hay alias compartidos con otro producto.');
  for(const [productKey,record]of Object.entries(snapshot.links.byProduct)){const reverse=snapshot.links.byInventory[record?.inventoryKey];if(!key(record?.inventoryKey)||!key(record.receiptIdentityKey)||record.productKey!==productKey||!Number.isSafeInteger(record.revision)||record.revision<1||digest(reverse)!==digest(record))throw fail('SV_STOCK_REFERENCE_MAPPING','La asociación y su inversa no coinciden.');}
@@ -28,4 +29,4 @@ function resolve(snapshot,selectedInventoryKey){
  return Object.freeze({productKey,inventoryKey,receiptIdentityKey:mapped?.receiptIdentityKey??snapshot.receiptIdentityKey,mappingRevision:mapped?.revision??0,status:inactive?'inactive':'active',mapped:!!mapped});
 }
 function referenceHash(snapshot){validate(snapshot);return digest(snapshot);}
-module.exports={key,digest,resolve,referenceHash};
+module.exports={key,digest,resolve,referenceHash,productStatus};
