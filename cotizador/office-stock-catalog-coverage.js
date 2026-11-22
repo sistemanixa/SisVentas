@@ -6,7 +6,7 @@ function prefixEnd(prefix){return prefix.slice(0,-1)+String.fromCharCode(prefix.
 function queryPlan(targets,limit,fields=['$key','id','codigo','cod']){
  const prefixes=[...new Set(targets.map(value=>value.split('_')[0]))].sort(),minimal=prefixes.filter((value,index)=>!prefixes.slice(0,index).some(prior=>value.startsWith(prior))),queries=[];
  for(const field of fields){
-  for(const prefix of minimal)queries.push({orderBy:field,startAt:prefix,...(prefix?{endAt:prefixEnd(prefix)}:{}),limitToFirst:limit+1});
+  for(const prefix of minimal)queries.push({orderBy:field,...(prefix||field!=='$key'?{startAt:prefix}:{}),...(prefix?{endAt:prefixEnd(prefix)}:{}),limitToFirst:limit+1});
   if(field==='$key')continue;
   if(!minimal.includes(''))queries.push({orderBy:field,startAt:'\uffff',limitToFirst:limit+1});
   if(targets.some(value=>/^[-0-9]/.test(value)))queries.push({orderBy:field,startAt:-Number.MAX_VALUE,endAt:Number.MAX_VALUE,limitToFirst:limit+1});
