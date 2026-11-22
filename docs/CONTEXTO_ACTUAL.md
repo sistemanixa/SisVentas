@@ -4607,3 +4607,7 @@ Actualización local: incorporadas sólo portero-columna.jpg y su miniatura desd
 PP-0175: las variantes de corrección arquitectónica y puerta semiabierta fueron rechazadas por el usuario; se restauraron por bytes desde 06292682 la escena cerradura-camara y su miniatura originales. Las alternativas quedan sólo en output para referencia. No volver a aplicarlas. Referencia de imagen con scene=20261115-original para renovar caché local. No se modificaron otras escenas, presupuestos ni valores; no publicado.
 
 Visor de propuestas: selector, tarjetas, cabecera, pie, controles e indicadores usan las variables del tema activo (bg/bg2/bg3/text/border/blue); se quitan fondos verdes fijos del entorno, sin alterar colores del documento exportable ni fotos. Prueba clara/oscura añadida al recorrido ficticio. Sólo local, sin publicar.
+
+# Integraciones exactas delete/pagos auditadas ·22/11/2026
+
+Fuente85e1d9e5, ramaaisladacodex/audit-20261122-deletions-emulator. Cuatroentradas fuera de puerta ejecutadas con emuladorespropios9046/9057/9037:0PASS4FAIL0SKIP; tresrechazos de constructor sobrebaseactualea197 y un fallo de import de pagos por selectorliteral de rutas obsoleto. No hubo operacionesnegocio ni reglasremotas. Pin histórico pagos978cea localizado en labor.private.candidate.json; evidencia35PASS22/10es histórica y no validaesta fuente. Informe AUDITORIA_DELETE_PAGOS_EMULADOR_20261122.md incluye nombres, huellas, límites y siguiente integración nueva; no se debilitaron expectativas. Emuladorespropios cerrados. Sinpush/publicación.
