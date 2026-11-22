@@ -65,3 +65,16 @@ test('rechazo de adquirir por recibo confirmado en otra instancia devuelve confi
  let executions=0;const result=await f.guard.run(actor,async()=>{executions++;return {ok:true,committed:true};});
  assert.equal(result.committed,true);assert.equal(executions,0);assert.equal(f.calls.commits.length,0);assert.equal(f.calls.aborts.length,0);assert.equal(f.data.sv_labor_guard,undefined);
 });
+
+test('typed page final-check port reads the current store without reusing an earlier page',async()=>{
+ const f=fixture(),path='sisventas/productos',options={orderBy:'codigo',equalTo:'F',limitToFirst:2},queries=[];
+ f.store.queryPage=async(p,o)=>{queries.push({path:p,options:structuredClone(o)});return structuredClone(f.data.sisventas.productos);};
+ const planned=await f.store.queryPage(path,options);f.set('sisventas/productos/new',{codigo:'F',nombre:'Current fictitious product'});
+ await f.guard.run(f.actor(),async scope=>{scope.beforeCommit(async({queryPageFresh})=>{const current=await queryPageFresh(path,options);assert.notDeepEqual(current,planned);assert.equal(current.new.nombre,'Current fictitious product');});return{unchanged:true};});
+ assert.deepEqual(queries,[{path,options},{path,options}]);assert.equal(f.calls.commits.length,1);
+});
+test('typed page final-check rejection aborts the complete operation without committing staged writes',async()=>{
+ const f=fixture(),before=structuredClone(f.data.sisventas);f.store.queryPage=async()=>{throw Object.assign(Error('Fictitious page denied'),{statusCode:403});};
+ await assert.rejects(f.guard.run(f.actor(),async scope=>{await scope.update({'sisventas/gastos/g/monto':999});scope.beforeCommit(async({queryPageFresh})=>queryPageFresh('sisventas/productos',{orderBy:'codigo',equalTo:'F',limitToFirst:2}));return{committed:true};}),{statusCode:403});
+ assert.deepEqual(f.data.sisventas,before);assert.equal(f.calls.commits.length,0);assert.equal(f.calls.aborts.length,1);
+});
