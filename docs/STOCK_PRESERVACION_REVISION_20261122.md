@@ -25,3 +25,9 @@ eliminado por detail/history/save y ajuste de Stock. El primer intento obtuvo
 25 PASS/1 FAIL porque dejó visible el segundo hash del modelo; no se ocultó.
 Sin navegador, producción, reglas, claims ni cambios de producto. La puerta
 general corresponde al coordinador. Logs privados en tmp, fuera de Git.
+
+## Extensión revisada de lectura ordenada, 22/11/2026
+
+El listado opt-in del commit02ba0c58 modifica explícitamente el lector de office-stock.js; por eso la prueba de preservación del bloque anterior rechazó su hash. No se sustituyó el hash nativo ni se retiró la prueba. La fixture pública reviewed-stock-order-source.json contiene únicamente los hunks exactos de ese cambio revisado y hashes anterior/posterior. El helper los revierte en orden inverso, exige coincidencia literal y, para la fuente exacta, acredita el hash del predecesor. Después se reconstruyen los tres guardas de producto eliminado como antes y se compara el hash nativo original.
+
+Alterar el lector dentro de un hunk se rechaza; cambios ajenos, debilitamiento/duplicación de guardas y modificaciones de la operación de ajuste siguen fallando.11casos de preservación PASS sobre la integración local, incluidos los adversariales existentes y uno nuevo del lector. Esta derivación admite sólo ese parche autorizado de lectura; no certifica código futuro, activar orden global ni nuevos consumidores sin revisión.

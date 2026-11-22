@@ -59,3 +59,19 @@ Reproducción central con el servicio real y la fixture de listado ya existente:
 ## Puerta completa de segunda integración
 
 Fuente fija5c4ecdfa, sin cambios de código durante la ejecución:11220tests/11129PASS/0FAIL/91SKIP/0canceladas, salida0 del script vigente. Log privado puerta-segunda-integracion.private.log. Las91omisiones de la puerta no se eliminan del inventario por ejecutar tandas manuales separadas. Los27opt-ins financieros retenidos, las pruebas de navegador y controles de reglas actuales se mantienen como evidencias con bases y límites distintos. La nueva herramienta de vínculo sigueOFF: esta puerta no activa ni certifica consumidores aún en desarrollo.
+
+## Tercera integración: compatibilidad comprobada antes de activar
+
+Se unieron los modelos y el guard tipado de Compras, su COPY mínimo, recuperación durable de Stock en sessionStorage y su composición real, más ventanas acotadas de lecturas OT. Se resolvió un conflicto de tabla de acciones conservando las entradas de ambos frentes. Pruebas centrales Compras/Stock/OT84PASS; UI durable12PASS; composición con comando/guard/store reales5PASS; tercera optimización OT26PASS. Nada de esto activa rutas nuevas.
+
+La repetición central de la candidata B inicial sobre el núcleo E actual dio43PASS/3FAIL: los recibos de E habían pasado de6a7campos al agregar committed:true, y las reglas propuestas aún exigían6. No se atribuyó la tanda previa de B al conjunto. Se alineó la forma exacta de7campos con committed booleantrue y ataques específicos; nueva repetición central63PASS/0FAIL/0SKIP con la base remota copiada íntegra y los módulos ya unidos. Emulador propio cerrado. Se conservan ambos logs privados stock-link-rules-central y stock-link-rules-central-v2.
+
+Continúan OFF y pendientes el cierre de cobertura dirigida E, consumidores OT/Compras completos, orden global C y coordinación del corte bajo una única activación de cohorte. No hay un flag adicional independiente que pueda habilitar una migración parcial. El ahorro OT se midió sólo con IO ficticio150ms (ejemplos1/6/12materiales documentados), no se declara desaparecida la demora de producción. No se construyó ni publicó una imagen ni se cambió stock, pagos, comisiones o permisos reales.
+
+## Compatibilidad de pruebas con lector dirigido y orden global
+
+Después de incorporar el lector ordenado, la preservación nativa rechazó office-stock.js por el cambio de lectura autorizado. Se mantienen todos los hashes nativos: una fixture pública con hunks exactos del commit02ba0c58 reconstruye su predecesor, luego se aplican las derivaciones ya revisadas.11pruebas de preservación PASS, incluidas alteraciones indebidas de guardas/operación y una nueva alteración del lector que debe rechazarse. No se cambió el hash para aceptar cualquier código.
+
+La primera composición de UI con E01347/5ee detectó4timeouts: el transporte ficticio de la prueba no aplicaba filtros/rangos y conservaba el queryPage simulado de una versión anterior. No se modificó el producto ni sus aserciones para ocultarlo. El transporte usa ahora queryRows verificado por el emulador, exige límites de consultas de colecciones y compone explícitamente store.queryPage;5recorridos de recuperación PASS con permisos revocados/usuario cambiado/almacenamiento lleno y un solo efecto. Log stock-durable-directed-v2.private.log. La fuente publicada sigue igual.
+
+Bloqueo de rendimiento explícito antes de habilitar consumidores: con el planner anterior,641IDs numéricos podían exceder la consulta global de números y rechazar una referencia única;12materiales mapeados alcanzaban2124solicitudes. D y E reproducen y corrigen con igualdad/inversión acotada del normalizador, ventanas de6 y reutilización sólo dentro de la misma fase. No se activará un flujo funcional que degrade ese comportamiento. Los perfiles anteriores, rechazos y vencimiento de lease quedan como evidencia, no como celdas exitosas.

@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "sourceCommit": "02ba0c58e0345f78275cf435ff4e91da7bc44828",
+  "file": "cotizador/office-stock.js",
+  "marker": "orderedList=false",
+  "beforeSha256": "ec94803f75ea15249acbe75ff9144fb90526c1e70e028a15023a74ff36cc1429",
+  "afterSha256": "45dad5d1a5caf967b5e69f489e568e2a9f2c7c061e1fe45e228a775c244478a7",
+  "hunks": [
+    {
+      "oldStart": 13,
+      "newStart": 13,
+      "oldLines": [
+        "function create({authorize,store,guard,queryPage,enabled=false,now=Date.now}){"
+      ],
+      "newLines": [
+        "function create({authorize,store,guard,queryPage,enabled=false,now=Date.now,orderedList=false,readOrderingFence}){"
+      ]
+    },
+    {
+      "oldStart": 15,
+      "newStart": 16,
+      "oldLines": [],
+      "newLines": [
+        "  async function productFor(inventoryKey,inventory){",
+        "   const direct=await store.read(productPath(inventoryKey));if(direct)return{productKey:inventoryKey,product:direct};",
+        "   const references=[...new Set([inventory.codigo,inventoryKey].filter(v=>typeof v==='string'||typeof v==='number'))],matches=new Map();",
+        "   for(const field of ['codigo','cod','id'])for(const value of references){const variants=field==='id'&&typeof value==='string'&&/^\\d+$/.test(value)?[value,Number(value)]:[value];for(const equalTo of variants){const found=await queryPage('sisventas/productos',{orderBy:field,equalTo,limit:2});for(const[k,p]of Object.entries(found||{}))if(key(k)&&p)matches.set(k,p);}}",
+        "   return matches.size===1?{productKey:[...matches.keys()][0],product:[...matches.values()][0]}:{productKey:null,product:null};",
+        "  }",
+        " async function positiveRow(inventoryKey,inventory,amount){",
+        "   const {productKey,product}=await productFor(inventoryKey,inventory),review=!product||isService({},product)||product.activo===false||product.estado==='inactivo'||product.eliminado===true;",
+        "   return{key:inventoryKey,productKey:review?null:productKey,code:String(product?.codigo||product?.cod||inventory.codigo||inventoryKey),name:String(product?.nombre||product?.descripcion||inventory.descripcion||'Stock por revisar'),unitLabel:String(product?.unidad||inventory.unidad||'Sin unidad confirmada'),photo:/^(https?:|data:image\\/)/i.test(product?.imagenUrl||'')?product.imagenUrl:'',inventory:{general:amount,reservado:inventory.reservado==null?null:Model.quantity(inventory.reservado),revision:inventory._svReadRevision??0},review};",
+        " }"
+      ]
+    },
+    {
+      "oldStart": 17,
+      "newStart": 27,
+      "oldLines": [
+        "  const actor=await access(identity),cursor=body.cursor;"
+      ],
+      "newLines": [
+        "  const actor=await access(identity);if(!body||typeof body!=='object'||Array.isArray(body))throw fail(400,'Página de stock inválida.');const cursor=body.cursor;",
+        "  if(orderedList===true){const result=await require('./office-stock-order-reader').create({store,queryPage,readOrderingFence,hydrate:positiveRow}).page(body);await verify(identity,actor);return result;}"
+      ]
+    },
+    {
+      "oldStart": 25,
+      "newStart": 35,
+      "oldLines": [
+        "  async function productFor(inventoryKey,inventory){",
+        "   const direct=await store.read(productPath(inventoryKey));if(direct)return{productKey:inventoryKey,product:direct};",
+        "   const references=[...new Set([inventory.codigo,inventoryKey].filter(v=>typeof v==='string'||typeof v==='number'))],matches=new Map();",
+        "   for(const field of ['codigo','cod','id'])for(const value of references){const variants=field==='id'&&typeof value==='string'&&/^\\d+$/.test(value)?[value,Number(value)]:[value];for(const equalTo of variants){const found=await queryPage('sisventas/productos',{orderBy:field,equalTo,limit:2});for(const[k,p]of Object.entries(found||{}))if(key(k)&&p)matches.set(k,p);}}",
+        "   return matches.size===1?{productKey:[...matches.keys()][0],product:[...matches.values()][0]}:{productKey:null,product:null};",
+        "  }"
+      ],
+      "newLines": []
+    },
+    {
+      "oldStart": 36,
+      "newStart": 41,
+      "oldLines": [
+        "   const {productKey,product}=await productFor(inventoryKey,inventory),review=!product||isService({},product)||product.activo===false||product.estado==='inactivo'||product.eliminado===true;",
+        "   return{key:inventoryKey,productKey:review?null:productKey,code:String(product?.codigo||product?.cod||inventory.codigo||inventoryKey),name:String(product?.nombre||product?.descripcion||inventory.descripcion||'Stock por revisar'),unitLabel:String(product?.unidad||inventory.unidad||'Sin unidad confirmada'),photo:/^(https?:|data:image\\/)/i.test(product?.imagenUrl||'')?product.imagenUrl:'',inventory:{general:amount,reservado:inventory.reservado==null?null:Model.quantity(inventory.reservado),revision:inventory._svReadRevision??0},review};"
+      ],
+      "newLines": [
+        "   return positiveRow(inventoryKey,inventory,amount);"
+      ]
+    }
+  ]
+}

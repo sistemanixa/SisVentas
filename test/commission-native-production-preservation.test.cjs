@@ -43,6 +43,7 @@ function originalNativeContract(source){for(const edit of schema2Edits){assert.e
 // d052768a adds exactly two read guards and one save guard for deleted products.
 // Reconstruct the original hash; require every guard, and preserve all other bytes.
 function originalStockContract(source){
+ source=require('./helpers/reviewed-stock-source.cjs').reverseReviewedStock(source);
  const edits=[
   {after:"const p=await store.read(productPath(productKey));if(!p||p.eliminado===true||isService({},p))throw fail(404",count:2},
   {after:"const p=await scope.get(productPath(body.productKey));if(!p||p.eliminado===true||isService({},p))throw fail(409",count:1}
@@ -90,3 +91,5 @@ test('Stock model derivation preserves exact bytes outside explicit unchanged-co
  const changed=source.replace('inventory.general=count','inventory.general=0');assert.notEqual(changed,source);
  assert.notEqual(crypto.createHash('sha256').update(originalStockModel(changed)).digest('hex'),native['office-stock-model.js']);
 });
+
+test('reviewed Stock order hunks reject altered reader branches without replacing native hashes',()=>{const source=fs.readFileSync(path.join(root,'office-stock.js'),'utf8').replace(/\r\n/g,'\n');assert.throws(()=>originalStockContract(source.replace('if(orderedList===true)','if(orderedList===false)')));});
