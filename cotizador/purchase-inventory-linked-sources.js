@@ -12,6 +12,6 @@ async function load({order,orderKey,read,guard}){
  const ids=[...new Set([...(sale?.ordenesCompraIds||[]),...(list?.ordenesIds||[])])];
  if(ids.length>100)throw fail('Hay demasiadas órdenes vinculadas para esta operación.');
  for(const id of ids){key(id);if(id===orderKey)continue;const other=await source('sisventas/ordenes/'+id);if(!(order.ventaFbKey&&other.ventaFbKey===order.ventaFbKey)&&!(order.listaMaterialesId&&other.listaMaterialesId===order.listaMaterialesId))throw fail('Una orden referenciada pertenece a otra compra.');otherOrders[id]=other;}
- return {sale,list,otherOrders,assertFresh:async readFresh=>{for(const [path,value]of Object.entries(dependencies))if(digest(await readFresh(path))!==digest(value))throw fail('Una fuente comercial o su preparación cambió.');}};
+ return {sale,list,otherOrders,dependencyHash:digest(dependencies),assertFresh:async readFresh=>{for(const [path,value]of Object.entries(dependencies))if(digest(await readFresh(path))!==digest(value))throw fail('Una fuente comercial o su preparación cambió.');}};
 }
 module.exports={load};

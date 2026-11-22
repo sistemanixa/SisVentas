@@ -1,12 +1,13 @@
 'use strict';
 const Costs=require('./commercial-models/purchase-receipt-costs.v1.js');
 const Money=require('./commercial-models/commercial-money');
+const Reference=require('./purchase-inventory-model');
 const fail=message=>Object.assign(Error(message),{code:'SV_PURCHASE_DELETE_BLOCKED'});
 const copy=value=>structuredClone(value);
 const inventoryKey=value=>{const result=String(value||'sin_referencia').replace(/[.#$\[\]\/]/g,'_').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,120);if(['__proto__','constructor','prototype'].includes(result))throw fail('Clave de inventario inválida.');return result;};
 const key=value=>{if(typeof value!=='string'||!value||/[.#$\[\]\/\x00-\x1f]/.test(value))throw fail('Referencia inválida.');return value;};
 const number=value=>{if(value==null||value===''||!Number.isFinite(Number(value))||Number(value)<0)throw fail('Falta una cantidad o costo original válido.');return Number(value);};
-function prepareOrderDeletion({order,inventoryByKey,sale,list}){
+function prepareOrderDeletion({order,inventoryByKey,sale,list,references}){
  if(!order||order._svListSummary||order._svPagedSummary)throw fail('Hace falta la orden original completa.');
  const orderKey=key(order.fbKey);if(orderKey.startsWith('plan_')||order.recepcionPendiente||order.cancelacionPendiente||order.generacionPendiente)throw fail('Completá la recepción pendiente o cancelá la orden; conserva su trazabilidad.');
  if(!Array.isArray(order.items))throw fail('Los materiales requieren revisión.');
@@ -20,12 +21,12 @@ function prepareOrderDeletion({order,inventoryByKey,sale,list}){
   const ordered=number(item.cantidadOrdenada??item.cantidad),received=number(item.cantidadRecibida??0);if(received>ordered)throw fail('La recepción supera lo ordenado.');
   if(order.estado==='cancelada')continue;
   const pending=Money.quantitySum([ordered,-received]);if(!pending&&!received)continue;
-  const identity=item.productoKey||item.codigo;if(!identity)throw fail('Falta identificar el producto.');const product=inventoryKey(identity);if(identities.has(product)&&identities.get(product)!==identity)throw fail('Dos productos comparten la misma clave de inventario.');identities.set(product,identity);let inv=inventories.get(product);if(!inv){if(!inventoryByKey?.[product])throw fail('Falta el inventario original.');inv=copy(inventoryByKey[product]);inventories.set(product,inv);}
+  const identity=item.productoKey||item.codigo;if(!identity)throw fail('Falta identificar el producto.');const resolved=references?Reference.reference(references[identity]):null,product=resolved?resolved.inventoryKey:inventoryKey(identity),canonical=resolved?resolved.productKey:identity;if(identities.has(product)&&identities.get(product)!==canonical)throw fail('Dos productos comparten la misma clave de inventario.');identities.set(product,canonical);let inv=inventories.get(product);if(!inv){if(!inventoryByKey?.[product])throw fail('Falta el inventario original.');inv=copy(inventoryByKey[product]);inventories.set(product,inv);}
   const subtract=(record,field,amount)=>{if(!amount)return;const before=number(record[field]);if(before<amount)throw fail('Stock insuficiente para revertir; revisá entregas o devoluciones.');record[field]=Money.quantitySum([before,-amount]);};
   subtract(inv,'enCompra',pending);
   if(received&&nextSale){subtract(inv,'reservado',received);const allocation=inv.asignaciones?.[order.ventaFbKey];if(!allocation)throw fail('Falta la asignación original de stock.');subtract(allocation,'reservado',received);
    if(nextSale.ordenesCompraIds.length)throw fail('Hay otras órdenes: falta atribuir los costos recibidos a esta orden.');
-   if(!Array.isArray(nextSale.items))throw fail('Faltan los renglones originales de venta.');const index=Costs.resolve(nextSale.items,item);if(matched.has(index))throw fail('Varios materiales apuntan al mismo renglón.');matched.add(index);const line=nextSale.items[index];
+   if(!Array.isArray(nextSale.items))throw fail('Faltan los renglones originales de venta.');const index=Costs.resolve(nextSale.items,resolved?{...item,productoKey:resolved.productKey}:item);if(matched.has(index))throw fail('Varios materiales apuntan al mismo renglón.');matched.add(index);const line=nextSale.items[index];
    if(number(line.cantidadCompraReal)!==received)throw fail('La cantidad conciliada no corresponde exclusivamente a esta recepción.');
    const total=number(line.costoTotalPresupuestado),unit=number(line.costoUnitarioPresupuestado),quantity=Costs.quantity(line);
    if(Money.amount(total)!==Money.product(unit,quantity))throw fail('Los snapshots de costo presupuestado son contradictorios.');
@@ -34,7 +35,10 @@ function prepareOrderDeletion({order,inventoryByKey,sale,list}){
   }else if(received)subtract(inv,'general',received);
  }
  if(costsChanged){nextSale.costoTotal=Money.sum(nextSale.items.map(line=>number(line.costoTotalCompra)));const income=number(nextSale.subtotal);if(income<=0)throw fail('Falta una base neta positiva para conservar las métricas.');nextSale.margenPct=Money.quantitySum([income,-nextSale.costoTotal])/income*100;}
- for(const [product,inventory]of inventories)write('sisventas/inventario_operativo/'+product,inventoryByKey[product],inventory);
+ for(const [product,inventory]of inventories){
+  if(references){const held=new Map();for(const receipt of Object.values(inventory.rendicionesOT||{})){const amount=number(receipt.enReserva??0);if(!amount)continue;const allocation=key(receipt.venta);held.set(allocation,Money.quantitySum([held.get(allocation)||0,amount]));}if(held.size){if(Money.quantitySum([...held.values()])>number(inventory.reservado))throw fail('La eliminación dejaría custodia OT sin reserva física.');for(const [allocation,amount]of held)if(amount>number(inventory.asignaciones?.[allocation]?.reservado))throw fail('La eliminación afectaría la custodia de una asignación OT.');}}
+  write('sisventas/inventario_operativo/'+product,inventoryByKey[product],inventory);
+ }
  if(nextSale)write('sisventas/ventas/'+order.ventaFbKey,sale,nextSale);
  const original=copy(order);delete original.fbKey;write('sisventas/ordenes/'+orderKey,original,null);
  return {patch,preconditions};
