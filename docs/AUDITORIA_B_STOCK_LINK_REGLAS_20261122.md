@@ -23,3 +23,15 @@ Se añadió además binding explícito del productKey del par previo a la claim 
 Precisión sobre firma: el caso con firma forjada es rechazo del contrato del servidor antes de PATCH. RTDB sólo comprueba pins y forma, no Ed25519. Una configuración privada escrita por un actor privilegiado con pins correctos y firma falsa podría retirar SDK aunque runtime Link permanezca OFF. Antes de cualquier activación futura debe verificarse firma y reglas exactas antes de escribir esa configuración, con respaldo y corte auditado. No se realizó ese paso.
 
 Pendientes reales: integración E del verificador, pins finales de todos los escritores, demostración de cobertura exhaustiva y revisión de controles de otras capacidades distintas del conteo Stock. No se afirma cobertura universal. Los dos casos UI externos quedaron NO asignados por el principal; Chrome libre no identifica cuáles eran.
+
+## Corrección de composición con núcleo actual (contrato de siete campos)
+
+La integración central reprodujo tres rechazos válidos (dos roles y ACK) porque el núcleo E f28c73e8 añadió committed:true al resultado y esta candidata aún exigía seis campos. Los PASS anteriores corresponden exclusivamente al núcleo E55; no acreditan el contrato actualizado. Se conservan aquí como historial, no como validación final actual.
+
+Reproducción local con f28c73e89ebfa82902ae09f9931f3eab093b9e58, 96f30975f8dc326a142648f328531e0d85571c95 y dd111977a48029c46f5f8b995155ebb180471d87: 0/3 PASS antes de corregir. Dependencias importadas en checkout propio como 5da83f25, 4019e5bc y 99f2be26. El principal ya tiene las originales y sólo necesita el commit correctivo B.
+
+Ahora los resultados de operación y recibo genérico exigen exactamente siete campos (ok, committed, operationId, productKey, inventoryKey, receiptIdentityKey, revision), con committed booleano true, sin propiedades adicionales y con igualdad escalar entre ambos recibos. Los ocho campos del vínculo siguen exactos. No se relajan validaciones de otros escritores. Se agregan cuatro negativos para committed ausente, false, string y discrepancia entre recibos, y aserción positiva de longitud siete/committed true.
+
+Puerta focal sin navegador: 43/43 PASS. El intento incluyendo office-stock-core-ui-composition no llegó a ejecutar ese archivo por ausencia del paquete playwright en este checkout (43 PASS + un fallo de carga). No se instaló nada ni se modificó esa prueba; la composición visual la valida el principal. Matriz emulador actual: 55/55 PASS; proceso propio limpiado y detenido. Sin activación ni datos reales.
+
+El primer intento posterior al fix dio 53/55: dos aserciones nuevas contaban el response enriquecido de execute (diez campos con status/id/digest) como si fuera el resultado persistido. La comprobación exacta se ubicó en ambos recibos persistidos de siete campos, sin modificar las reglas. La tanda final completa dio 55/55 PASS. Logs privados: stock-link-core7-red-20261122.private.log, stock-link-core7-green-20261122.private.log y stock-link-core7-green-final-20261122.private.log. Base EA conservada.

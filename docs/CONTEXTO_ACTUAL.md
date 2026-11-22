@@ -1,3 +1,7 @@
+## Corrección B de contrato integrado · 22/11/2026
+
+La integración central detectó drift: E actual confirma resultado de siete campos con committed:true; candidata B anterior esperaba seis. Se reprodujeron 3/3 fallos con E f28+96+dd; reglas ahora exigen exactamente siete e igualdad entre recibos. Validación focal 43/43 PASS; emulador final 55/55 PASS. Antecedentes 51/51 correspondían a E55 y no prueban el núcleo actualizado. Ver informe B.
+
 ## Candidata B Stock Link1 local, OFF · 22/11/2026
 
 Ver [informe de reglas](AUDITORIA_B_STOCK_LINK_REGLAS_20261122.md). 7 unitarias y 51 emulador PASS. Base privada intacta, sin activar ni publicar. Conteo Link0 y SDK legacy OFF también PASS. Pendientes: otras capacidades distintas de Stock, pins finales A/D/C/E, cobertura real e integración runtime. Chrome reservado por principal; dos casos UI pendientes de identificar.
