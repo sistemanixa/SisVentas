@@ -9,6 +9,10 @@ El titular pidió repartir y resolver los pendientes entre chats. Cinco frentes 
 
 Producción no cambió: web/localHTTP21.2; sólo se leyeron metadata de revisión/digest Cotizador y reglas actuales, sin datos comerciales. No hay builds, activación, reglas remotas, pagos, comisiones ni stock de prueba. La auditoría general ya no está pausada para trabajo local. Revisar vínculo sigue OFF a la espera de consumidores/barrera/SDK; no presentarlo como herramienta ya terminada. Los apartados del18/11 que dicen pausa describen ese cierre histórico, sustituidos para esta investigación por la autorización actual.
 
+## Candidata B Stock Link1 local, OFF · 22/11/2026
+
+Ver [informe de reglas](AUDITORIA_B_STOCK_LINK_REGLAS_20261122.md). 7 unitarias y 39 emulador PASS. Base privada intacta, sin activar ni publicar. Pendientes: controles de otras capacidades, pins finales A/D/C/E, cobertura real e integración runtime. Los dos casos UI mencionados en otro contexto no están identificados ni asignados a este frente.
+
 # v3.21.2 publicada y verificada · 18/11/2026
 
 Fuente5e4bb83db6dec44962fd3ff42c48dfe4e10e78dd en codex/proposal-qr-local; main conservada. Hosting773932d6ddf5b06c:706activos/6cargas/24149011bytes, todos porHTTP/sha256 coincidentes con contrato RAWec05a5651e0299c5306f167867ca760e47328d1fcaddb2e1ffa4b1c25ed5cd55;4rutas privadas404. Preflight confirmó21.1exacta. Progreso integrado en pie con miniaturas y QR visibles, render fuera de pantalla, PDF y cancelación comprobados en los flujos ficticios descritos debajo. Sin backend, builds, permisos ni registros comerciales. Script oficial confirmó web/core/SW y aviso Firebase v3.21.2-firebase después de verificar los706activos.
