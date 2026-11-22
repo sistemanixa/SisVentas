@@ -20,6 +20,9 @@ Cinco chats continúan: Compras, reglas, UI/recovery, OT/latencia, núcleo/cober
 El titular pidió repartir y resolver los pendientes entre chats. Cinco frentes aislados + integración central en C:/SisVentas/.local/auditoria-integral-20261122, codex/auditoria-integral-20261122, desde060c77f8. No se modificó el checkout publicado ni la raíz histórica con cambios ajenos. Código integrado hasta9dec32e6: dependenciasCOPY, esquema canónico sin conceder capacidades, sanitización503deOT, confirmación mismo conteo/producto eliminado en Stock; fixtures corregidas conservando controles. Puerta final de este bloque11089total/10998PASS/0FAIL/91SKIP,0canceladas. Las cinco incompatibilidades de primera integración fueron revisadas explícitamente, no ocultadas por hashes nuevos ni pruebas retiradas. Evidencia y límites en AUDITORIA_INTEGRAL_20261122.md e informes por frente.
 
 Producción no cambió: web/localHTTP21.2; sólo se leyeron metadata de revisión/digest Cotizador y reglas actuales, sin datos comerciales. No hay builds, activación, reglas remotas, pagos, comisiones ni stock de prueba. La auditoría general ya no está pausada para trabajo local. Revisar vínculo sigue OFF a la espera de consumidores/barrera/SDK; no presentarlo como herramienta ya terminada. Los apartados del18/11 que dicen pausa describen ese cierre histórico, sustituidos para esta investigación por la autorización actual.
+## Cierre B de observación histórica sobre E5ee57 · 22/11/2026
+
+Revisión confirmada5ee57ee0: revisión de recibo estricta y originales OT modern/legacy. Observación abierta bajo01347 queda cerrada para5ee.21nuevoscasosmalformados/CAS;126focales y59RESTemulador PASS. No núcleo editado, producción ni datos reales. Guardcentral/SDKcutA ycontratoOrderWriterCsiguientes pendientes. [Evidencia](AUDITORIA_B_COBERTURA_DIRIGIDA_20261122.md).
 
 ## Revisión B de cobertura E01347 e índices locales · 22/11/2026
 
