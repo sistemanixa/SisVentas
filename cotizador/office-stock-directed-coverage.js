@@ -35,7 +35,7 @@ async function loadReceiptIdentity(inventory,inventoryKey,{read,productKey,alias
  }
  return receiptIdentity(inventory,inventoryKey,originals);
 }
-function createDirectedCoverage({queryPage,limit=64}){
+function createDirectedCoverage({queryPage,limit=64,allowAbsent=false}){
  if(typeof queryPage!=='function'||!Number.isInteger(limit)||limit<1||limit>128)throw Error('Falta lector acotado de referencias.');
  const loader=async function loadCoverage({read,productKey,inventoryKey,queryPage:phaseQuery,referencePhase,onQuery}){
   if(!Reference.key(productKey)||!Reference.key(inventoryKey)||typeof read!=='function')throw fail('SV_STOCK_COVERAGE_INPUT','Referencias inválidas.');
@@ -50,8 +50,8 @@ function createDirectedCoverage({queryPage,limit=64}){
   for(const {root,rows}of linkResults)for(const [key,record]of Object.entries(rows||{})){if(!record||!Reference.key(record.inventoryKey)||!Reference.key(record.productKey)||key!==(root==='porProducto'?record.productKey:record.inventoryKey))throw fail('SV_STOCK_REFERENCE_MAPPING','Asociación inválida.');if(record.productKey!==productKey)throw fail('SV_STOCK_REFERENCE_OWNED','El registro está vinculado a otro producto.');const inverse=await read('sisventas/stock_vinculos/'+(root==='porProducto'?'porInventario/'+record.inventoryKey:'porProducto/'+record.productKey));if(Reference.digest(inverse)!==Reference.digest(record))throw fail('SV_STOCK_REFERENCE_MAPPING','La asociación inversa no coincide.');found.add(record.inventoryKey);}
   if(found.size>64)throw fail('SV_STOCK_COVERAGE_LIMIT','Demasiados inventarios candidatos.');
   const ownersByInventory={},existing=[];for(const key of found){const inventory=await read('sisventas/inventario_operativo/'+key);if(inventory===null)continue;if(!inventory||typeof inventory!=='object'||Array.isArray(inventory))throw fail('SV_STOCK_COVERAGE_RESULT','Inventario inválido.');existing.push([key,inventory]);ownersByInventory[key]=[...new Set([inventory.productoKey,inventory.productKey].filter(value=>value!==null&&value!==undefined&&value!==''))];}
-  if(existing.length!==1||existing[0][0]!==inventoryKey)throw fail('SV_STOCK_REFERENCE_AMBIGUOUS','La referencia no identifica un inventario único.');
-  const historical=await loadReceiptIdentity(existing[0][1],inventoryKey,{read,productKey,aliases:catalog.aliases});return{schema:1,generation:'directed-v1',inventoryKeys:[...found],ownersByInventory,aliasOwners:catalog.owners,receiptIdentityKey:historical,coverage:{catalog:true,inventory:true,links:true,owners:true,receiptIdentity:true},queries};
+  if(!(allowAbsent===true&&existing.length===0)&&(existing.length!==1||existing[0][0]!==inventoryKey))throw fail('SV_STOCK_REFERENCE_AMBIGUOUS','La referencia no identifica un inventario único.');
+  const historical=existing.length?await loadReceiptIdentity(existing[0][1],inventoryKey,{read,productKey,aliases:catalog.aliases}):inventoryKey;return{schema:1,generation:'directed-v1',inventoryKeys:[...found],ownersByInventory,aliasOwners:catalog.owners,receiptIdentityKey:historical,coverage:{catalog:true,inventory:true,links:true,owners:true,receiptIdentity:true},queries};
  };loaders.add(loader);return loader;
 }
 module.exports={createDirectedCoverage,isDirectedCoverage:loader=>loaders.has(loader),receiptIdentity};

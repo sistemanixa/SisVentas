@@ -12,7 +12,14 @@ async function mapOrdered(items,work){
  const workers=Array.from({length:Math.min(6,items.length)},async()=>{while(!failed&&next<items.length){const index=next++;try{result[index]=await work(items[index],index);}catch(error){if(!failed){failed=true;firstError=error;}throw error;}}});
  await Promise.allSettled(workers);if(failed)throw firstError;return result;
 }
-const window=createWindow(),phases=new WeakSet(),byQuery=new WeakMap();
+const window=createWindow(),phases=new WeakSet(),byQuery=new WeakMap(),readers=new WeakSet();
+function boundedRead(read){if(readers.has(read))return read;const bounded=path=>window.run(()=>read(path));readers.add(bounded);return bounded;}
+function memoRead(read,{onRead}={}){
+ const point=boundedRead(read),pending=new Map(),values=new Map(),reader=async path=>{
+  if(!pending.has(path))pending.set(path,point(path).then(async value=>{const copy=structuredClone(value);values.set(path,copy);await onRead?.(path,structuredClone(copy));return copy;}));
+  return structuredClone(await pending.get(path));
+ };readers.add(reader);return{read:reader,values};
+}
 function createReferencePhase({queryPage}){
  if(typeof queryPage!=='function')throw Error('Falta lector dirigido de fase.');
  if(byQuery.has(queryPage))return byQuery.get(queryPage);
@@ -22,4 +29,4 @@ function createReferencePhase({queryPage}){
   return structuredClone(await pending.get(id));
  }};phases.add(phase);byQuery.set(phase.queryPage,phase);return Object.freeze(phase);
 }
-module.exports={createWindow,mapOrdered,createReferencePhase,isReferencePhase:phase=>phases.has(phase),read:work=>window.run(work)};
+module.exports={createWindow,mapOrdered,createReferencePhase,isReferencePhase:phase=>phases.has(phase),boundedRead,memoRead,read:work=>window.run(work)};

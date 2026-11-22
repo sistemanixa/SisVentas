@@ -5,7 +5,7 @@ const alias=value=>String(value??'').replace(/[.#$\[\]\/]/g,'_').replace(/[^a-zA
 function aliases(productKey,product){return [...new Set([productKey,product.id,product.codigo,product.cod].filter(value=>value!==undefined&&value!==null&&String(value)!=='').map(alias).filter(Reference.key))];}
 async function loadSnapshot({read,loadCoverage,queryPage,productKey,inventoryKey,access,referencePhase,onQuery}){
  if(!Reference.key(productKey)||!Reference.key(inventoryKey))throw fail(400,'SV_STOCK_LINK_INPUT','Referencias inválidas.');
- const point=read,pending=new Map();read=async path=>{if(!pending.has(path))pending.set(path,IO.read(()=>point(path)).then(value=>structuredClone(value)));return structuredClone(await pending.get(path));};
+ read=IO.memoRead(read).read;
  const product=await read('sisventas/productos/'+productKey);if(!product||typeof product!=='object')throw fail(409,'SV_STOCK_LINK_PRODUCT','El producto ya no existe.');
  if(!Directed.isDirectedCoverage(loadCoverage))throw fail(503,'SV_STOCK_LINK_COVERAGE','Falta un loader dirigido verificado.');
  const evidence={},proof=await loadCoverage({productKey,inventoryKey,queryPage,referencePhase,onQuery,read:async path=>{const value=await read(path);evidence[path]=structuredClone(value);return value;}});
