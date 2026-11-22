@@ -1,3 +1,9 @@
+# Cuarta integración local en verificación · 22/11/2026
+
+Fuente de código9c02d3fb en codex/auditoria-integral-20261122. Integra consumidores físicos de Stock/OT, lectura puntual de vínculos explícitos firmados, proyección y sellos Order+SourceCost, Compras vinculadas OFF y eliminación administrativa con clave física. No cambia roles ni reglas remotas. Transporte rechaza lease ausente/vencida antes de PATCH y conserva ACK aceptado tardío. Composición241PASS;31tests de lease/transporte/comisionesPASS;14browserCount/refreshPASS tras habilitar sólo loopback en Chrome;12preservaciónPASS manteniendo hashes nativos. Primeros seis erroresbrowser fueron redlocal denegada y tres fixtures sin reloj de lease fueron corregidas con relojes explícitos, no relajando el producto.
+
+La puerta completa11415/11324PASS/0FAIL/91SKIP corresponde sólo7fe2c120. Se repetirá sobre esta cuarta integración congelada. Nuevos puertos/índices siguen OFF. Faltan escritores Compras/listas/reservas y cierre SDK completo; composición de reglas y cohorte final; medición OT final (doce referencias rápidas aún12.6s en red ficticia150ms, mejor que44s pero no cierre de latencia). Los otros chats continúan en sus ramas sin modificar esta fuente. No hubo datos reales de prueba, builds, despliegues ni control de ventanas. Envío remoto del informe fue bloqueado por revisión automática; commits posteriores quedan locales.
+
 # Tercera integración local comprobada · 22/11/2026
 
 Fuente congelada 7fe2c12063470e17d8146082fba20919554649f7 (código c011fd8e): puerta vigente completa 11415 pruebas, 11324 PASS, 0 FAIL, 91 SKIP y 0 canceladas; salida 0. Cinco lotes sin cambios durante la ejecución. Las omisiones no se presentan como cobertura; las composiciones y emuladores separados están registrados en AUDITORIA_INTEGRAL_20261122.md.
