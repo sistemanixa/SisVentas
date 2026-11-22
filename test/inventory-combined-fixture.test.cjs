@@ -1,0 +1,3 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),{cohort}=require('./helpers/purchase-signed-admission-fixture.cjs'),{fixture}=require('./helpers/inventory-combined-rules-fixture.cjs');
+test('combined real A/C proofs preserve both claim families and exact base seal without new IO',async()=>{const f=await fixture({signed:cohort()}),t=f.claims();assert.equal(t.svPurchaseSourceCostVersion,1);assert.equal(t.svStockOrderWriterVersion,1);assert.equal(t.svPurchaseSourceCostSaleKey,'s');assert.equal(t.svStockOrderRevisionAfter,8);assert.equal(f.patch.sv_office_stock_order_fence.revision,8);f.patch['sisventas/ventas/s'].total=1;assert.throws(()=>f.claims());});
