@@ -14,7 +14,7 @@ function plan(current,command,actor,now,product){
  const signature={productKey:c.productKey,quantity:count,reason,uid:actor.uid},prior=current?.ajustesConteo?.[c.id];
  if(prior){if(!same(prior.command,signature))throw Error('El ajuste ya tiene otros datos.');return{inventory:clone(current),replayed:true};}
  if(!same(current,c.expected))throw Error('El stock cambió. Actualizá la cantidad antes de guardar.');
- const before=current===null?null:quantity(current.general);if(count===before)throw Error('La cantidad no cambió.');
+ const before=current===null?null:quantity(current.general);
  const inventory=current===null?{}:clone(current);inventory.general=count;inventory.ajustesConteo={...(inventory.ajustesConteo||{}),[c.id]:{tipo:'conteo_oficina',command:signature,cantidadAnterior:before,anteriorDesconocida:before===null,cantidadContada:count,motivo:reason,usuarioUid:actor.uid,usuario:actor.name||actor.uid,fecha:now}};
  return{inventory,replayed:false};
 }
