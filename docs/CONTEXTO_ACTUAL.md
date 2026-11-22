@@ -4615,3 +4615,8 @@ Fuente85e1d9e5, ramaaisladacodex/audit-20261122-deletions-emulator. Cuatroentrad
 # Auditoría C: 20 referencias locales · 22/11/2026
 
 Fuente fija f927f74a505fcc1712e254cf99cb05aec5e2c5f7: 12 verificaciones sólo lectura, 11 PASS y 1 FAIL real de composición Accounts/Clothing (Source adapter shape changed); 7 no ejecutadas por escritura/servidor y 1 sin reglas históricas confirmadas. 125/125 archivos nativos coinciden con manifiesto, inputs usados intactos. Informe docs/AUDITORIA_C_20_PINREFS_20261122.md. Sin red, build, publicación ni datos reales. Pendiente revisar contrato de adaptador en bloque separado; no afirmar 20 PASS.
+
+
+# Auditoría C: cierre de adaptador y 20 pinrefs · 22/11/2026
+
+Con ampliación autorizada: adaptador exacto de Accounts actual/histórico y extracción readQuery reparados sin cambiar pins predecesores; 20/20 casos PASS y 3/3 adversariales PASS. Fuente f927 fija + único adaptador candidato mediante preload local explícito; inputs reales de referencia sin cambios. Los siete casos temporales/loopback ya ejecutados, reglas históricas originales recuperadas, sin Firebase/builds/publicación/datos reales. Detalle docs/AUDITORIA_C_20_PINREFS_CIERRE_20261122.md. Integrar sólo script/test/fixture/docs y repetir focales sobre fuente integrada sin preload. No push por alcance sin red.
