@@ -43,7 +43,7 @@ async function claims({patch,lease,actor,read,query}){
   if(!inventoryAfter.has(id))inventoryAfter.set(id,(async()=>{let value=await readOriginal(inventoryBase+'/'+id);for(const edit of edits)value=apply(value,edit.keys,edit.value);return value;})());
   let value=await inventoryAfter.get(id);for(const key of keys.slice(3))value=value?.[key];return value===undefined?null:structuredClone(value);
  };
- const token=Policy.token(actor,lease);let historical=false,changed=false;
+ const token=Policy.token(actor,lease),resolveReference=State.getReferencePort(actor,lease);let historical=false,changed=false;
  for(const [id,edits]of grouped){
   // Reject overlapping patches; the server must not guess their ordering.
   for(let i=0;i<edits.length;i++)for(let j=0;j<i;j++){const a=edits[i].keys.join('/'),b=edits[j].keys.join('/');if(a===b||!a||!b||a.startsWith(b+'/')||b.startsWith(a+'/'))throw fail();}
@@ -55,8 +55,8 @@ async function claims({patch,lease,actor,read,query}){
    const materialInput=digest(before?.materiales??null)===digest(after?.materiales??null)?Rows.persisted(Rows.view(before)):after?.materiales;
    transitions=require('./ot-lifecycle-model').materialChanges(before,materialInput,'custody');
    const validations=[];
-   const resolved=await batch(transitions,async(transition,rowIndex)=>{if(!transition.needsStockReceipt&&!transition.needsProductBinding)return null;try{const productKey=await State.resolveProduct(transition.target,{read,query,source:transition.needsProductBinding?transition.source:null,parallelQueries:true});return{transition,productKey,rowKey:String(rowIndex)};}catch(error){if(error.code==='SV_OT_MATERIAL_REVIEW')throw fail();throw error;}});validations.push(...resolved.filter(Boolean));
-   await batch(validations,async entry=>{try{await State.verifyReceipt({ot:before,otKey:id,transition:entry.transition,productKey:entry.productKey,read:receiptRead,stockExceptionContext:{actor,lease,group:validations.filter(v=>v.productKey===entry.productKey),readOriginal,query}});}catch(error){if(error.code==='SV_OT_MATERIAL_REVIEW')throw fail();throw error;}});
+   const resolved=await batch(transitions,async(transition,rowIndex)=>{if(!transition.needsStockReceipt&&!transition.needsProductBinding)return null;try{const reference=await State.resolveStockReference(transition.target,{read,query,source:transition.needsProductBinding?transition.source:null,resolveReference,parallelQueries:true,original:resolveReference?State.originalReference(before,id,rowIndex):undefined});return{transition,productKey:reference.productKey,reference,rowKey:String(rowIndex)};}catch(error){if(error.code==='SV_OT_MATERIAL_REVIEW')throw fail();throw error;}});validations.push(...resolved.filter(Boolean));
+   await batch(validations,async entry=>{try{await State.verifyReceipt({ot:before,otKey:id,transition:entry.transition,productKey:entry.productKey,reference:entry.reference,read:receiptRead,stockExceptionContext:{actor,lease,group:validations.filter(v=>v.reference.inventoryKey===entry.reference.inventoryKey),readOriginal,query}});}catch(error){if(error.code==='SV_OT_MATERIAL_REVIEW')throw fail();throw error;}});
    // Passive persistence retains the authoritative items history; it is not a
    // new delivery merely because Rows.persisted materializes the source row.
    if(digest(projection({...before,materiales:Rows.persisted(Rows.view(before))}))===digest(projection(after)))continue;

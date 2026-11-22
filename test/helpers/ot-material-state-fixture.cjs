@@ -2,7 +2,7 @@
 // Real guard, command and REST store. HTTP is an in-memory fixture, not rules QA.
 const assert=require('node:assert/strict'),{createCoordinatedBackend}=require('./coordinated-backend.cjs'),{apply}=require('./labor-ui-flow.cjs'),{createLaborRtdbStore}=require('../../cotizador/labor-rtdb-store'),{createOTLifecycle}=require('../../cotizador/ot-lifecycle'),{digest}=require('../../cotizador/labor-guard'),Index=require('../../cotizador/record-list-model');
 const receipt=require('node:crypto').createHash('sha256').update(JSON.stringify(['ot',0,'p','original','',''])).digest('hex'),legacyReceipt=require('node:crypto').createHash('sha256').update(JSON.stringify(['ot',1,'a','original','',''])).digest('hex');
-async function fixture({legacy=false,estado='pendiente'}={}){
+async function fixture({legacy=false,estado='pendiente',resolveReference}={}){
  const material={cod:'P',desc:'Producto ficticio',vendida:3,instalada:0},ot={id:'OT-FICTION',ventaFbKey:'s',ventaId:'V-FICTION',clienteFbKey:'c',origen:'venta',tecnico:'',estado,materiales:[material],audit:[{accion:'OT creada y asociada desde la venta'}],ts:1790000000000};
  if(legacy){Object.assign(material,{productoKey:'p',vendida:1,entregada:1,custodiaActiva:true});ot.items=[{cod:'A',productoKey:'a',qty:1,adicionalOT:true,descripcion:'Adicional histórico'}];ot.audit=[{accion:'Histórico sin alterar'}];}
  const other=legacy?null:{...structuredClone(ot),id:'OT-OTHER',materiales:[{cod:'P',productoKey:'p',vendida:3,instalada:0,entregada:0,devuelta:0}]};
@@ -16,7 +16,7 @@ async function fixture({legacy=false,estado='pendiente'}={}){
   assert.equal(options.method,'PATCH');const patch=JSON.parse(options.body),override=JSON.parse(u.searchParams.get('auth_variable_override'));assert.equal(override.token.svOTDeliveryCommitVersion,1);proofs.push(override.token);f.commits.push(structuredClone(patch));apply(f.state,patch);if(loseAck){loseAck=false;throw Error('FIXTURE_ACK_LOST');}return new Response('',{status:200});
  }});
  for(const method of ['read','readAsUser','query','commit','verifyOTDeliveryFence'])f.store[method]=wire[method];
- const db={ref:p=>({get:async()=>({val:()=>f.get(p)})})},api=createOTLifecycle({db,store:f.store,guard:f.guard,enabled:true,commercialPages:true,now:()=>1792530000000}),identity={uid:'u',claims:{uid:'u'}};
+ const db={ref:p=>({get:async()=>({val:()=>f.get(p)})})},api=createOTLifecycle({db,store:f.store,guard:f.guard,enabled:true,commercialPages:true,now:()=>1792530000000,resolveReference}),identity={uid:'u',claims:{uid:'u'}};
  const body=(kind='delivery',changes={entregas:[{index:0,cantidad:2}]})=>({id:'material-command-'+f.commits.length,otKey:'ot',kind,expectedOTHash:digest(f.get('sisventas/ordenes_trabajo/ot')),changes,action:'Acción ficticia'});
  function setOT(value){apply(f.state,{'sisventas/ordenes_trabajo/ot':value,[Index.index+'/ordenes_trabajo/ot']:Index.summary('ordenes_trabajo',value)});}
  function consume(product,overrides={}){const path='sisventas/inventario_operativo/'+product,current=f.get(path),next=require('../../cotizador/ot-stock-consumption-model').plan(current,{ot:'ot',allocation:'s',before:0,target:1,revision:0,receipt:product==='p'?receipt:legacyReceipt,additional:product==='a',...overrides});next._svReadRevision=(current._svReadRevision||0)+1;apply(f.state,{[path]:next});return next;}
