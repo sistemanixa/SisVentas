@@ -32,3 +32,7 @@ Repetición explícita: `node --test test/ot-lease-expiry-before-patch.proposal.
 Un control local previo no demuestra que la lease siga vigente al evaluar la escritura en el servidor. Las reglas deben rechazarla si expira en tránsito. La medición final del consumo rápido de E deberá usar el nuevo SHA, fases independientes, ventana global de seis IO, reloj/plazo reales y comprobación de reglas de expiración en emulador. No se prolonga la lease para hacer pasar el benchmark. Las respuestas de una fixture REST permisiva que envíe fuera del plazo continúan marcadas como no aprobadas.
 
 El integrador o el dueño del Store debe revisar el cambio propuesto y su ubicación sobre el código central vigente; aquí no se modifica ese archivo. ON continúa desactivado y no se repite el perfil conocido de 01347/1c18 mientras falta el SHA de consumo rápido.
+
+## Aplicación central revisada
+
+El integrador aplicó los dos controles al Store real después de componer los sellos de Order y SourceCost. Nuevas pruebas del módulo real rechazan lease ausente/vencida y vencimiento durante adquisición del token sin enviar PATCH, conservando ACK aceptado tardío. El laboratorio conserva el antecedente reconstruyendo sólo esas dos inserciones exactas; ya no afirma que la fuente actual está sin corregir. Fixtures de transporte usan reloj explícito coherente con su lease. La expiración durante tránsito sigue dependiendo de las reglas y su prueba separada.

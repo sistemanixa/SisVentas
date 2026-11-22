@@ -44,6 +44,7 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   let response;try{response=await request('PUT','sv_labor_guard',lease,{override:service('acquire',lease,{clientAccountsWriterVersion:writer.clientAccountsWriterVersion===1?1:0,clientHistoryWriterVersion:writer.clientHistoryWriterVersion===1?1:0,saleFinancialWriterVersion:writer.saleFinancialWriterVersion===1?1:0})});}catch(error){if(error.statusCode===403){const current=await read('sv_labor_guard');if(current?.expiresAt>now())throw fail(423,'Hay otro guardado en curso. Reintentá en unos segundos.','SV_LABOR_BUSY');}throw error;}await response.body?.cancel();
  }
  async function commit(patch,lease,actor){
+  const assertLease=()=>{if(!Number.isFinite(lease?.expiresAt)||now()>=lease.expiresAt)throw fail(409,'El plazo del guardado terminó. Revisá el estado antes de reintentar.','SV_LABOR_LEASE_EXPIRED');};assertLease();
   if(actor?.commercialContext===true){
    const checked=await Promise.allSettled([read('sv_chat_roles/'+actor.uid),read('sv_permisos/'+actor.role)]),failed=checked.find(result=>result.status==='rejected');if(failed)throw failed.reason;
    require('./commercial-ownership').validateCommercialActor(actor,checked[0].value,checked[1].value);
@@ -65,12 +66,13 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   StockOrderPolicy.validate(actor,lease,patch,now());
   Object.assign(override.token,StockOrderPolicy.token(actor,lease,now()));
   destination.searchParams.set('auth_variable_override',JSON.stringify(override));destination.searchParams.set('print','silent');
-  const response=await fetchImpl(destination,{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(patch),signal:AbortSignal.timeout(requestMs)});
+  const preparedPatch={method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(patch),signal:AbortSignal.timeout(requestMs)};
+  assertLease();const response=await fetchImpl(destination,preparedPatch);
   if(response.ok){await response.body?.cancel();return;}
   await response.body?.cancel();throw fail(response.status===401||response.status===403?409:503,'No se pudo confirmar la operación. Revisá su estado antes de reintentar.','SV_LABOR_COMMIT_UNCONFIRMED');
  }
  async function abort(lease){const r=await request('DELETE','sv_labor_guard',undefined,{override:service('abort',lease)});await r.body?.cancel();}
- const api={read,readQuery,queryPage,acquire,commit,abort,verifyOTDeliveryFence:async()=>verifyOTDeliveryFence?.({read})??null,exists:async(path)=>{parts(path);const response=await request('GET',path,undefined,{query:{shallow:true}});return await response.json()!==null;},query:async(path,field,value)=>{const r=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return r.json();},queryFrom:async(path,field,value)=>{parts(field);if(typeof value!=='string')throw fail(400,'Límite de consulta inválido');const r=await request('GET',path,undefined,{query:{orderBy:field,startAt:value}});return r.json();},readAsUser:async(path,actor)=>{const r=await request('GET',path,undefined,{override:{uid:actor.uid,token:StockOrderPolicy.sanitizeClaims(StockLinkPolicy.sanitizeClaims(actor.claims))}});return r.json();}};
+ const api={read,readQuery,queryPage,acquire,commit,abort,verifyOTDeliveryFence:async()=>verifyOTDeliveryFence?.({read})??null,exists:async(path)=>{parts(path);const response=await request('GET',path,undefined,{query:{shallow:true}});return await response.json()!==null;},query:async(path,field,value)=>{const r=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return r.json();},queryFrom:async(path,field,value)=>{parts(field);if(typeof value!=='string')throw fail(400,'Límite de consulta inválido');const r=await request('GET',path,undefined,{query:{orderBy:field,startAt:value}});return r.json();},readAsUser:async(path,actor)=>{const r=await request('GET',path,undefined,{override:{uid:actor.uid,token:PurchaseSourceCost.sanitize(StockOrderPolicy.sanitizeClaims(StockLinkPolicy.sanitizeClaims(actor.claims)))}});return r.json();}};
  return api;
 }
 module.exports={createLaborRtdbStore};
