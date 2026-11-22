@@ -1,3 +1,7 @@
+## Cierre B de observación histórica sobre E5ee57 · 22/11/2026
+
+Revisión confirmada5ee57ee0: revisión de recibo estricta y originales OT modern/legacy. Observación abierta bajo01347 queda cerrada para5ee.21nuevoscasosmalformados/CAS;126focales y59RESTemulador PASS. No núcleo editado, producción ni datos reales. Guardcentral/SDKcutA ycontratoOrderWriterCsiguientes pendientes. [Evidencia](AUDITORIA_B_COBERTURA_DIRIGIDA_20261122.md).
+
 ## Revisión B de cobertura E01347 e índices locales · 22/11/2026
 
 59/59 emulador con queryPage REST real y42/42 focales PASS. Índices propuestos metadata:3rutas9camposfaltantes, previos conservados; sin aplicar remoto. [Informe](AUDITORIA_B_COBERTURA_DIRIGIDA_20261122.md). Observación abierta E: receipt.revision ausente/string/Infinity aceptada al inferir identidad histórica. B no editó núcleo. Central debe repetir con queryPageFresh7f y composición SDKcutA. Todo OFF, sin datos reales.

@@ -21,3 +21,11 @@ Emulador propio: override explícito queryPage:store.queryPage, sin mantener que
 Los tres phantoms (catálogo, inventario, mapping) se introducen mediante owner ficticio en el emulador antes del check final; todos rechazan sin PATCH y conservan los datos concurrentes. No se inyectan en el PATCH, después de que la comprobación ya pasó.
 
 Guard del checkout B anterior a 7f1c700c: E usa fallback a store.queryPage directo fresco sin caché. La integración central tiene queryPageFresh tipado; el principal debe repetir allí. No se afirma que este checkout probó cancelación coordinada ni toda readiness real de A/D. Pendientes: observación de recibo, composición con SDK cut A y guard actual, evidencia de cobertura/consumidores de los tres dominios y pins finales. Catálogo/inventario siguen a cargo B; A limita su SDK cut a órdenes/listas/compras_resumen bajo misma activación, sin bandera alternativa.
+
+## Cierre de observación con E5ee57 · 22/11/2026
+
+Se revisó exclusivamente 5ee57ee0da180afa9d75d3cc1e909b91be946aa5, importado como f6a11214. No se modificó núcleo. `validReceipt` ahora exige receipt.revision entero seguro positivo; valida OT/venta/fila, instalada finita no negativa y cantidades auxiliares. La observación reproducida sobre E01347 queda cerrada para este commit. Los PASS de aquel commit y la observación original se conservan como historial.
+
+El recorrido sin auditoría obtiene la OT original mediante puerto de lectura, limita OT/materiales y comprueba venta, stockRegistro, revisión e instalada de la fila. Recalcula identidad moderna o legacy y exige coincidencia única. La evidencia de la OT participa del hash/CAS del comando; cambios antes del commit bloquean. Esto no habilita UI ni sustituye validación de consumidores A/D.
+
+21 comprobaciones independientes nuevas: ocho revisiones inválidas por cada uno de dos recorridos (audited/legacy), cuatro cambios concurrentes de campos de la OT original y ausencia de OT. Todas rechazan sin commit. Compuestas con las pruebas E de cobertura, comando, puerto de consumidores y store, más los módulos B: 126/126 PASS. Matriz59 REST propia con E5ee: 59/59 PASS; emulador limpiado y detenido. No se ejecutó la suite global ni se modificó guard/store. Queda pendiente repetir con guard central queryPageFresh y composición de SDK cut A.
