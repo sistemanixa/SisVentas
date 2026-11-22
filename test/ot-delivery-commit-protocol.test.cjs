@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const Protocol=require('../cotizador/ot-delivery-commit-protocol'),Policy=require('../cotizador/ot-lifecycle-policy');
-const base='sisventas/ordenes_trabajo/O1',lease={actorUid:'u',opId:'operation1'},original={ventaFbKey:'S1',materiales:[{cod:'P',productoKey:'P1',vendida:3,entregada:0}]};
+const base='sisventas/ordenes_trabajo/O1',lease={actorUid:'u',opId:'operation1',expiresAt:2000},original={ventaFbKey:'S1',materiales:[{cod:'P',productoKey:'P1',vendida:3,entregada:0}]};
 function actor(kind){return {uid:'u',opId:lease.opId,mode:'user',operation:kind==='stockrepair'?'ot-office-count':'ot-lifecycle',otLifecycle:Policy.issue({uid:'u',otKey:'O1',saleKey:'S1',operationId:lease.opId,kind,role:'admin',permissionRevision:7})};}
 const run=(patch,who={},before=original,extra={})=>Protocol.claims({patch,actor:who,lease,read:async p=>p===base?structuredClone(before):extra[p]??null});
 for(const shape of ['record','leaf','nested','atomic','delete'])test('untyped delivery denied '+shape,async()=>{
@@ -30,7 +30,7 @@ test('overlapping or prototype patches fail closed',async()=>{
 });
 test('real store overwrites actor attestation flags and emits no PATCH for untyped delivery',async()=>{
  const {createLaborRtdbStore}=require('../cotizador/labor-rtdb-store'),calls=[];
- const store=createLaborRtdbStore({databaseURL:'https://fixture.invalid',accessToken:async()=>'fiction',fetchImpl:async(url,options)=>{calls.push({url:new URL(url),options});return {ok:true,json:async()=>original,body:{cancel:async()=>{}}};}});
+ const store=createLaborRtdbStore({databaseURL:'https://fixture.invalid',now:()=>1000,accessToken:async()=>'fiction',fetchImpl:async(url,options)=>{calls.push({url:new URL(url),options});return {ok:true,json:async()=>original,body:{cancel:async()=>{}}};}});
  const who={uid:'u',mode:'user',claims:{svOTDeliveryUnchanged:true,svOTDeliveryCommitVersion:1,svOTDeliveryHistoricalVerified:true}};
  await assert.rejects(store.commit({[base+'/materiales/0/entregada']:2},lease,who),/protocolo autorizado/);
  assert.equal(calls.some(c=>c.options.method==='PATCH'),false);

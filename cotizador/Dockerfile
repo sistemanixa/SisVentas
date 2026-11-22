@@ -74,7 +74,7 @@ COPY purchase-order-delete.js purchase-order-delete-model.js ./
 COPY ot-delete-command.js ot-delete-policy.js ot-delete-http-adapter.js ./
 COPY office-stock.js office-stock-policy.js office-stock-model.js office-stock-money.js ot-delete-authority.js ot-delete-operational-contract.js ot-delete-linked-plan.js ot-delete-operational-runtime.js ./
 COPY office-stock-reference.js office-stock-link-plan.js office-stock-link-policy.js ./
-COPY office-stock-reference-port.js office-stock-directed-coverage.js office-stock-reference-io.js office-stock-explicit-reference.js stock-link-activation-contract.js ./
+COPY office-stock-reference-port.js office-stock-directed-coverage.js office-stock-reference-io.js office-stock-explicit-reference.js stock-link-activation-contract.js office-stock-link-command.js office-stock-catalog-coverage.js ./
 COPY office-stock-order.js office-stock-order-reader.js office-stock-order-policy.js office-stock-order-projections.js ./
 
 COPY client-history-access.js client-history-query.js client-history-http-adapter.js client-history-complete-page.js client-history-client.js ./
