@@ -3,10 +3,11 @@
 const {digest}=require('./labor-guard'),Operational=require('./operational-read-model');
 const issued=new WeakMap(),kinds=Object.freeze(['register','edit','cancel','receive']);
 const fail=message=>Object.assign(Error(message),{code:'SV_PURCHASE_INVENTORY_CAPABILITY',statusCode:403});
-function typed(actor){return actor?.mode==='user'&&actor.financialAction==='ordenes.editar'&&kinds.includes(actor.input?.kind)&&actor.operation==='purchase-inventory-'+actor.input.kind;}
+function typed(actor){return actor?.mode==='user'&&actor.financialAction==='ordenes.editar'&&kinds.includes(actor.input?.kind)&&(actor.operation==='purchase-inventory-'+actor.input.kind||actor.operation==='purchase-manual-create'&&actor.input.kind==='register');}
 function binding(actor,lease){return {uid:actor.uid,claimsUid:actor.claims?.uid,claimsDigest:digest(actor.claims),opId:actor.opId,digest:actor.transportDigest,operation:actor.operation,kind:actor.input?.kind,role:actor.role,permissionRevision:actor.permissionRevision,permissionDigest:actor.permissionDigest,fence:lease.fence,actorUid:lease.actorUid,leaseOpId:lease.opId,leaseDigest:lease.digest,inputDigest:digest(actor.input)};}
 function bound(actor,lease,proof){return proof&&typed(actor)&&digest(binding(actor,lease))===digest(proof.binding)&&actor.uid===actor.claims?.uid&&actor.uid===lease.actorUid&&actor.opId===lease.opId&&actor.transportDigest===lease.digest&&digest(actor.input)===lease.digest;}
 function issue(actor,lease,{sourceOrder,patch,preconditions,readDependencies={}},now=Date.now()){
+ if(actor?.operation==='purchase-manual-create')throw fail('El alta requiere una capacidad de creación, no una orden inventada.');
  if(!typed(actor)||!sourceOrder||!Array.isArray(sourceOrder.items)||sourceOrder._svSummary||sourceOrder._svListSummary||sourceOrder._svPagedSummary||typeof actor.input.orderKey!=='string'||!actor.input.orderKey||/[.#$\[\]/\x00-\x1f\x7f]/.test(actor.input.orderKey)||['__proto__','constructor','prototype'].includes(actor.input.orderKey)||digest(sourceOrder)!==actor.input.expectedHash||!Number.isSafeInteger(now)||lease.expiresAt<=now)throw fail('Falta la compra original y su operación tipada.');
  const orderPath='sisventas/ordenes/'+actor.input.orderKey;
  if(!patch||!Object.hasOwn(patch,orderPath)||patch[orderPath]===null||digest(preconditions?.[orderPath])!==digest(sourceOrder))throw fail('La operación debe guardar orden e inventario conjuntamente.');
@@ -19,6 +20,15 @@ function issue(actor,lease,{sourceOrder,patch,preconditions,readDependencies={}}
  const proof={binding:binding(actor,lease),patch:structuredClone(patch),preconditions:structuredClone(preconditions),requiresBalance,sourceOrder:structuredClone(sourceOrder),readDependencies:structuredClone(readDependencies),linked:linkedPaths.length>0};
  if(!bound(actor,lease,proof))throw fail('El plan no coincide con actor, lease o solicitud.');
  const capability=Object.freeze({});issued.set(capability,proof);actor.purchaseInventory=capability;
+}
+function issueCreation(actor,lease,input,now=Date.now()){
+ if(!typed(actor)||actor.operation!=='purchase-manual-create'||actor.input.expectedHash!==digest(null)||actor.input.orderKey!==input?.context?.orderKey||actor.opId!==input?.context?.id||actor.uid!==input?.context?.actor?.uid||digest(actor.input.declaration)!==digest(input?.body)||!Number.isSafeInteger(now)||lease.expiresAt<=now)throw fail('El alta no coincide con su declaración y contexto autenticado.');
+ const plan=require('./purchase-manual-create-model').plan(input),path='sisventas/ordenes/'+actor.input.orderKey,readDependencies=Object.create(null);
+ for(const [key,product]of Object.entries(input.products)){if(digest({...input.rawProducts?.[key],fbKey:key})!==digest(product))throw fail('El producto identificado no corresponde al original leído.');readDependencies['sisventas/productos/'+key]=structuredClone(input.rawProducts[key]);}
+ if(digest({...input.rawProvider,fbKey:input.body.providerKey})!==digest(input.provider))throw fail('El proveedor identificado no corresponde al original leído.');readDependencies['sisventas/proveedores/'+input.body.providerKey]=structuredClone(input.rawProvider);
+ const proof={binding:binding(actor,lease),patch:structuredClone(plan.patch),preconditions:structuredClone(plan.preconditions),requiresBalance:false,sourceOrder:structuredClone(plan.patch[path]),readDependencies,linked:false,creation:true};
+ if(!bound(actor,lease,proof))throw fail('El alta no coincide con el lease vigente.');
+ const capability=Object.freeze({});issued.set(capability,proof);actor.purchaseInventory=capability;return plan;
 }
 function isBound(actor){const proof=issued.get(actor?.purchaseInventory);return !!proof&&typed(actor)&&actor.uid===proof.binding.uid&&actor.role===proof.binding.role&&actor.permissionRevision===proof.binding.permissionRevision&&actor.permissionDigest===proof.binding.permissionDigest&&digest(actor.input)===proof.binding.inputDigest;}
 function begin({actor,lease,patch}){const proof=issued.get(actor?.purchaseInventory);if(!bound(actor,lease,proof)||digest(patch)!==digest(proof.patch))throw fail('El plan RAW de Compras no coincide con su capacidad.');proof.rawChecked=digest(patch);}
@@ -46,4 +56,4 @@ async function validate({actor,lease,patch,operationalSummaries=false,readFresh,
  if(proof.linked&&!proof.derivedHash)throw fail('Falta el sellado de proyecciones comerciales.');
  if(patch.sv_labor_guard!==null||patch['sv_labor_receipts/'+actor.opId]?.actorUid!==actor.uid||patch['sv_labor_receipts/'+actor.opId]?.digest!==lease.digest||(proof.derivedHash?digest(patch)!==proof.derivedHash:digest(business)!==digest(expected)))throw fail('El commit no conserva el plan exacto de Compras.');
 }
-module.exports={issue,isBound,begin,sealDerived,getSourceAuthority,validate,typed,kinds};
+module.exports={issue,issueCreation,isBound,begin,sealDerived,getSourceAuthority,validate,typed,kinds};
