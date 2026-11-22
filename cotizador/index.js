@@ -2239,7 +2239,7 @@ const server = http.createServer(async (req, res) => {
   if(pathname==='/operaciones/ot/eliminar'){
     res.setHeader('Cache-Control','private, no-store');
     try{const body=await readBody(req,2048);send(res,200,await otDeleteService.handle(req,body));}
-    catch(error){send(res,error.statusCode||503,{ok:false,code:error.code||'SV_OT_DELETE_COMMAND',mensaje:error.statusCode?error.message:'No se pudo confirmar la eliminación. Consultá el intento antes de repetirlo.'});}return;
+    catch(error){send(res,error.statusCode||503,{ok:false,code:error.code||'SV_OT_DELETE_COMMAND',mensaje:error.statusCode>=400&&error.statusCode<500?error.message:'No se pudo confirmar la eliminación. Consultá la operación antes de repetirla.'});}return;
   }
   if(['/stock-oficina/listar','/stock-oficina/detalle','/stock-oficina/historial','/stock-oficina/ajustar'].includes(pathname)){
     res.setHeader('Cache-Control','private, no-store');
