@@ -1,0 +1,26 @@
+# Adaptador de vínculo y recuperación de pestaña — 22/11/2026
+
+Archivos nuevos: `js/modules/office-stock-link-adapter.v1.js` y `test/office-stock-link-durable-native.test.cjs`. No se modifica recuperación compartida, núcleo, Compras, OT, aplicación activa, índice, rutas ni Service Worker. Adaptador sin activar: `SVOfficeStockLinkAdapter.create` requiere enabled=true explícito, servicio tipado inyectado y contexto actual autorizado. No contiene endpoints. Contrato actualizado a core E `dd111977a48029c46f5f8b995155ebb180471d87`: preview.summary, ACK confirmed con id/digest y recover cancelled definitivo.
+
+## Encaje
+
+Inyectar `{enabled,service,recovery,context,onRecovered}`. recovery es el **SVLaborWriteRecovery real existente**; service provee searchProducts/preview/execute/recover. Los puertos resultantes pueden pasarse al controlador anterior, junto con onSaved para la confirmación de un intento vivo. restore() presenta recuperación pendiente; recoverRestored() permite la consulta explícita del intento restaurado. onRecovered sólo actualiza tras recibo tipado actual comprobado, una vez, con identidad de inventario/producto obtenida del servidor. No se infiere esa identidad desde almacenamiento local.
+
+El envío inicial usa recovery.execute con uid/id/digest antes de emitir el comando exacto. No existe reenvío automático: los callbacks de reconstrucción del diario sólo lanzan incertidumbre para recuperar la presentación nativa; no hacen solicitudes ni llaman execute. Native check consulta la operación mediante el circuito existente. Después se comprueba service.recover con el mismo id/digest y contexto actual. Confirmed exige recibo committed, id/digest exterior e interior exactos, operación y referencias coherentes de dominio y revisión positiva; sólo cancelled con definitiva not-committed y prueba explícita libera un intento no confirmado. Pending, uncertain, not-found, recibo no coincidente o contexto cambiado nunca habilitan un nuevo envío.
+
+La API compartida elimina su entrada al recibir confirmación general, antes de verificar el recibo tipado. Para cerrar también la ventana de **recarga entre esos dos pasos**, se agregó un espejo mínimo aprobado por el coordinador en sessionStorage `sisventas:stock-link-proof-attempts:v1`. Cada entrada contiene exclusivamente uid/id/digest, el mismo esquema mínimo del diario existente; se escribe antes de enviar y sólo se quita tras prueba definitiva. No se guardan cuerpo, claves de producto/inventario, cantidades, resumen, historia ni permisos. Datos malformados, propiedades extra, IDs/digests inválidos o duplicados se rechazan. No se borra un pendiente ajeno al terminar sesión. El diario compartido continúa siendo el propietario del panel, foco y bloqueo de scroll.
+
+Las comprobaciones de contexto abarcan uid, rol, identidad auth/db, revisiones y ruta; exige Stock+Productos actuales, admin/administrativo y ausencia de Ver como. Se relee autorización al restaurar y después de cada respuesta. Los rechazos locales no sustituyen la autorización de servidor. Al recargar con rol revocado no se consulta la operación; se conserva para una sesión autorizada posterior. Un callback de actualización fallido no revierte la confirmación comprobada.
+
+## Evidencia y límites
+
+Tanda conjunta inicial: **22 PASS / 0 FAIL / 0 SKIP**, controlador previo 12 + adaptador 10, usando recuperación compartida real y servicio HTTP de contrato ficticio en loopback. Tras endurecer el cotejo de recibo interior, añadir retorno de foco y caso de rol revocado al recargar: **11 PASS / 0 FAIL / 0 SKIP** del adaptador final (16,18 s). Se conservan intactas las aserciones; el primer ensayo encontró HTML ficticio sin charset UTF-8 y se corrigió la fixture, no la aplicación.
+
+Cobertura: ACK perdido/reload/consulta explícita sin segundo execute, recarga durante confirmación general→tipada, uncertain/not-found/mismatch con bloqueo, usuario nuevo sin acceso al intento anterior, logout sin borrar pendiente, cambio de revisión/base durante consulta, rol revocado y regreso administrativo, fallo de cuota de ambos diarios antes del envío, corrupción/duplicado del espejo, cancelación definitiva, foco dentro del panel y restaurado al salir, filtros conservados, almacenamiento reducido a tres campos. Un solo Chrome headless a la vez, sin sesión ni red comercial real; no se ejecuta otra puerta global.
+
+Logs privados fuera de Git, `C:/SisVentas/tmp/audit-20261122-C`:
+
+- stock-link-durable-final.log, 22 PASS: SHA256 `4620908ad800c2898058988ce80d126fa716b26abf5e261460e87537e0b78f9c`.
+- stock-link-adapter-final.log, 11 PASS finales: SHA256 `9df11ad5b5c9954d701ca1bb241c21619de40c3a58fe54e7dcb462995603f0a2`.
+
+La garantía es **sessionStorage de esta pestaña**, incluyendo recargas y sesiones sucesivas en ella; no es sincronización entre dispositivos, ni recuperación después de perder/borrar el almacenamiento de sesión. No se promete durableza de navegador cerrado ni aislamiento contra manipulación deliberada del mismo origen. El servidor conserva autoridad sobre recibos e identidades. La tanda usa servicio de contrato ficticio, no el core E real: la siguiente prueba solicitada compone adaptador real + core E + guard/store ficticios y se entregará por separado. Mantener OFF hasta ese encaje revisado; no se publica ni se activa ninguna ruta.
