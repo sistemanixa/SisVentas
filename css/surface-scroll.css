@@ -58,3 +58,13 @@ html.sv-v3-preview body.dark-mode .topbar {background:var(--bg2);position:relati
 .pf-editor-header::before {content:'';position:absolute;inset:-26px -1px 0;z-index:-1;background:var(--bg);pointer-events:none}
 @media(max-width:700px){#py-planner .py-sticky-summary::before{inset:-14px -14px 0}}
 @media(max-width:760px){#ot-wizard-301{top:-12px!important}#ot-wizard-301::before,.pf-editor-header::before{top:-14px}}
+
+/* En ventanas estrechas desplaza el documento, no .content. */
+html::-webkit-scrollbar,body::-webkit-scrollbar{width:4px;height:4px}
+html::-webkit-scrollbar-track,body::-webkit-scrollbar-track{background:transparent}
+html::-webkit-scrollbar-thumb,body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+html::-webkit-scrollbar-button,body::-webkit-scrollbar-button{display:none}
+html:has(body.dark-mode){color-scheme:dark}
+html:has(body.dark-mode)::-webkit-scrollbar-thumb,body.dark-mode::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12)}
+html:has(body.dark-mode)::-webkit-scrollbar-thumb:hover,body.dark-mode::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.22)}
+@supports not selector(::-webkit-scrollbar){html{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}html:has(body.dark-mode){scrollbar-color:rgba(255,255,255,.22) transparent}}

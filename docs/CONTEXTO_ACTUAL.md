@@ -1,3 +1,13 @@
+# IVA y scroll · candidata v3.21.5 · 23/11/2026
+
+Incluye el arreglo OT publicado v3.21.4 (fuente06fbe46c, Hosting708/4cargas, dominio bytes exactos y aviso sincronizado). No se modificó la OT real como prueba. Puerta general14 finalizó11047total/10940PASS/16FAIL/91SKIP; no es verde global. Fallos ajenos a este bloque quedan pendientes; no retomar migración Stock/OT/Compras.
+
+Cambio nuevo: saldo IVA positivo usa mismo cálculo existente al21% sobre el IVA a compensar y muestra total final estimado de compras; título Compras para compensar IVA, importe ámbar y referencia21% visible. Saldo a favor conserva la capacidad de facturación; cero indica IVA compensado. No cambian facturas, declaraciones, pagos, registros ni tasas configuradas. El ojo conserva privacidad y actualiza su descripción con el título actual.
+
+Scroll: el documento html/body recibe barra4px y colores oscuros; el estilo previo sólo cubría descendientes de body y .content. No cambia overflow, alturas ni bloqueo modal. Fallback estándar thin para motores sin selector WebKit.
+
+18focales Dashboard/privacidad PASS. Cuatro comprobaciones visuales390/768/868/1280 PASS con componentes/funciones/CSS reales y saldos ficticios, sin Firebase ni red exterior; valores millonarios caben, barra visible y estilo computado4px. No se presenta como arranque completo Dashboard ni operación fiscal. Pendiente publicar esta candidata y verificar activos/aviso.
+
 # Publicado bloque PDF v3.21.3 · 23/11/2026
 
 Por instrucción expresa del titular se detuvo la migración Stock/OT/Compras y se publicó exclusivamente el arreglo PDF de conciliación desde fbb54c396c8f92cc6fcbd0da670bb94285302438. Seis PDF reales PASS (6/75renglones por390/768/1280),75marcadores completos y cero red exterior. Hosting707activos/16cargas; index/app/core/SW/layout coinciden byte por byte en ventas.sistemanixa.com; aviso Firebase sincronizado v3.21.3. No servidor, Rules, fiscal ni datos comerciales modificados. Git rama codex/publicar-pdf-v3213 respaldada.

@@ -25,7 +25,7 @@
  function refresh(){
   observer?.disconnect();
   const uid=String(root.currentUserUid||'');if(identity!==uid){identity=uid;preferences={};try{const saved=JSON.parse(localStorage.getItem('sv-dashboard-privacy:'+uid)||'{}');preferences=saved&&typeof saved==='object'&&!Array.isArray(saved)?saved:{};}catch(_){} }
-  Object.entries(fields).forEach(([id,label])=>{const value=document.getElementById(id),card=value?.closest('.metric');if(!card)return;const hidden=eye(card,id,'importe de '+label);card.classList.toggle('dashboard-private',hidden);
+  Object.entries(fields).forEach(([id,label])=>{const value=document.getElementById(id),card=value?.closest('.metric');if(!card)return;const caption=id==='kpi-iva'?(card.querySelector('.m-label')?.textContent?.trim()||label):label;const hidden=eye(card,id,'importe de '+caption);card.classList.toggle('dashboard-private',hidden);
    maskAttributes(card,hidden);card.querySelectorAll('.m-value,.m-sub').forEach(el=>ariaMask(el,hidden));
   });
   const card=document.getElementById(summary);if(card){const content=summaryContent(card),head=card.querySelector('.card-head');if(content&&head){const hidden=eye(card,summary,'Resumen operativo del mes',head);card.classList.toggle('dashboard-private-section',hidden);ariaMask(content,hidden);content.inert=hidden;maskAttributes(content,hidden);}}
