@@ -1,3 +1,11 @@
+# Publicación conjunta v3.21.5 verificada · 23/11/2026
+
+Fuente c0b6f75b2a09a56b5757f5f297c2a9f861a99ecb, rama codex/dashboard-iva-v3215. Hosting709activos/8cargas. Index, aplicación inmutable, marcador, SW, surface-scroll y dashboard-privacy byteexactos en ventas.sistemanixa.com; script oficial confirmó aviso Firebase v3.21.5. Conserva los arreglos PDF13 y Soporte14. Sin servidor, Rules, compras/facturas reales ni stock modificados.
+
+Verificación propia:18focales Dashboard/privacidad PASS y cuatro renderizados de componente real/CSS/funciones en390/768/868/1280 PASS, cifras ficticias, sin Firebase/red exterior y barra visible4px. Corrección OT precedente:58focales/3recorridos con aplicación y OT ficticias PASS; no se guardó la OT real.
+
+Suite completa fija c0b6 finalizada:11049total/10941PASS/17FAIL/91SKIP, exit1. NOes verde global.16fallos ya figuraban en la puerta14; el adicional es dashboard-capacidad-facturacion-v388.test.js, instantánea que lee js/app.js histórico y exige markup sin atributos: rechaza el nuevo id del título. No se alteró esa expectativa ni se afirma que cubra la aplicación activa. Los casos nuevos ejecutan el cálculo y los cambios reales de signo, privacidad y tamaños. Resto de fallos/migración queda separado por instrucción del titular, sin ampliar este bloque.
+
 # IVA y scroll · candidata v3.21.5 · 23/11/2026
 
 Incluye el arreglo OT publicado v3.21.4 (fuente06fbe46c, Hosting708/4cargas, dominio bytes exactos y aviso sincronizado). No se modificó la OT real como prueba. Puerta general14 finalizó11047total/10940PASS/16FAIL/91SKIP; no es verde global. Fallos ajenos a este bloque quedan pendientes; no retomar migración Stock/OT/Compras.
