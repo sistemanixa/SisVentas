@@ -1,3 +1,9 @@
+# Publicado bloque PDF v3.21.3 · 23/11/2026
+
+Por instrucción expresa del titular se detuvo la migración Stock/OT/Compras y se publicó exclusivamente el arreglo PDF de conciliación desde fbb54c396c8f92cc6fcbd0da670bb94285302438. Seis PDF reales PASS (6/75renglones por390/768/1280),75marcadores completos y cero red exterior. Hosting707activos/16cargas; index/app/core/SW/layout coinciden byte por byte en ventas.sistemanixa.com; aviso Firebase sincronizado v3.21.3. No servidor, Rules, fiscal ni datos comerciales modificados. Git rama codex/publicar-pdf-v3213 respaldada.
+
+Puerta general finalizada sobre fuente fija:11041total/10933PASS/17FAIL/91SKIP, exit1. NOse presenta como verde general. Fallos en búsqueda, protocolo/paquete backend, retorno Gastos y eliminación ventas/OT; no se modificó su código en este parche. Búsqueda y casos de navegador históricos repetidos aislados PASS; no se ampliará este bloque para corregir el resto. Prueba específica PDF y bytes publicados verificados. Aplicación nueva difiere de la publicada anterior sólo en versión y novedad; lógica comercial idéntica. Los pendientes generales y migración quedan separados, sin continuar por saldo.
+
 # v3.21.2 publicada y verificada · 18/11/2026
 
 Fuente5e4bb83db6dec44962fd3ff42c48dfe4e10e78dd en codex/proposal-qr-local; main conservada. Hosting773932d6ddf5b06c:706activos/6cargas/24149011bytes, todos porHTTP/sha256 coincidentes con contrato RAWec05a5651e0299c5306f167867ca760e47328d1fcaddb2e1ffa4b1c25ed5cd55;4rutas privadas404. Preflight confirmó21.1exacta. Progreso integrado en pie con miniaturas y QR visibles, render fuera de pantalla, PDF y cancelación comprobados en los flujos ficticios descritos debajo. Sin backend, builds, permisos ni registros comerciales. Script oficial confirmó web/core/SW y aviso Firebase v3.21.2-firebase después de verificar los706activos.
