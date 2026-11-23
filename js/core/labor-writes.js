@@ -211,7 +211,15 @@
   async function writeOTNote({otKey,otId,noteKey,before,after,id}={}){
    const validKey=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(value);
    if(!installed||!validKey(otKey)||!validKey(noteKey)||!validKey(id)||id.length<8||!['string','number'].includes(typeof otId)||!String(otId).trim()||typeof otId==='number'&&!Number.isFinite(otId))throw fail('SV_OT_NOTE_INPUT','No se pudo identificar la nota y su OT.');
-   if(after!==null&&(before!==null||!after||Array.isArray(after)||typeof after!=='object'||Object.keys(after).some(k=>!['texto','autor','rol','ts','_firebaseKey'].includes(k))||after._firebaseKey!==noteKey||typeof after.texto!=='string'||!after.texto.trim()))throw fail('SV_OT_NOTE_INPUT','El guardado sólo permite agregar una nota nueva.');
+   if(after!==null){
+    if(!after||Array.isArray(after)||typeof after!=='object'||typeof after.texto!=='string'||!after.texto.trim())throw fail('SV_OT_NOTE_INPUT','La nota necesita texto.');
+    if(before===null){if(Object.keys(after).some(k=>!['texto','autor','rol','ts','_firebaseKey'].includes(k))||after._firebaseKey!==noteKey)throw fail('SV_OT_NOTE_INPUT','La nota nueva contiene campos inválidos.');}
+    else {
+     if(!before||typeof before!=='object'||Array.isArray(before)||after.texto===before.texto)throw fail('SV_OT_NOTE_INPUT','No hay un cambio de texto.');
+     const oldFields=copy(before),newFields=copy(after);delete oldFields.texto;delete newFields.texto;
+     if(canonical(oldFields)!==canonical(newFields))throw fail('SV_OT_NOTE_INPUT','Editar sólo permite cambiar el texto de la nota.');
+    }
+   }
    if(after===null&&(!before||typeof before!=='object'||Array.isArray(before)))throw fail('SV_OT_NOTE_INPUT','La nota ya no está disponible.');
    const base=otRoot+'/'+otKey,path=base+'/notasTecnico/'+noteKey,check=capture();check();
    return prepareIdentity([path],async()=>{

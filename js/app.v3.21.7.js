@@ -11530,7 +11530,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Las notas se envían individualmente, sin descargar y reenviar toda la OT.','Se conservan la confirmación, los permisos y la protección contra duplicados.']),
   RELEASE_FEATURE: Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.21.7',date:'23/11/2026',title:'Guardado de notas más liviano',notes:Object.freeze(['Se envía sólo la nota, sin volver a descargar y enviar toda la OT.','Se conservan los controles del servidor y el progreso visible.'])}),
+ Object.freeze({version:'v3.21.7',date:'23/11/2026',title:'Guardado de notas más liviano',notes:Object.freeze(['Se envía sólo la nota, sin volver a descargar y enviar toda la OT.','Se conservan los controles del servidor y el progreso visible.','Las notas de texto tienen un lápiz para editarlas.'])}),
  Object.freeze({version:'v3.21.6',date:'23/11/2026',title:'Notas de OT sin clics duplicados',notes:Object.freeze(['Guardar y eliminar muestran actividad y bloquean los clics repetidos.','Un reintento conserva la identidad de la nota y el borrador.'])}),
  Object.freeze({version:'v3.21.5',date:'23/11/2026',title:'IVA y desplazamiento',notes:Object.freeze(['El Dashboard indica compras para compensar cuando hay IVA a pagar.','La barra de desplazamiento conserva el estilo oscuro y fino en ventanas estrechas.'])}),
  Object.freeze({version:'v3.21.4',date:'23/11/2026',title:'OT de Soporte: fecha y creación',notes:Object.freeze(['La fecha conserva la venta de origen ya verificada.','El alta reúne el vínculo y el estado final en un solo guardado.'])}),
@@ -51792,7 +51792,7 @@ function otRenderNotas(ot) {
     var esAutor = String(n.autor||'').trim().toLocaleLowerCase('es-AR') === String(currentUser||'').trim().toLocaleLowerCase('es-AR');
     var esPropia = esAutor || esGestion;
     var puedeEliminar = !n._fotoLegacy && (esGestion || esAutor);
-    var operacionNota=_otNotasEnCurso[ot.fbKey||ot.id],eliminando=operacionNota&&operacionNota.iniciada&&String(operacionNota.path)===String(n._firebaseKey!=null?n._firebaseKey:n._arrayIndex);
+    var operacionNota=_otNotasEnCurso[ot.fbKey||ot.id],activa=operacionNota&&operacionNota.iniciada&&String(operacionNota.path)===String(n._firebaseKey!=null?n._firebaseKey:n._arrayIndex),eliminando=activa&&operacionNota.kind!=='edit',editando=activa&&operacionNota.kind==='edit';
     var esAdmin  = ['admin','administrativo'].includes((n.rol||n.autor||'').toLowerCase()) || (n.autor||'') !== (currentUser||'');
     return '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px 12px;border-left:3px solid '+(esPropia?'var(--blue)':'var(--border2)')+'">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
@@ -51800,6 +51800,7 @@ function otRenderNotas(ot) {
         '<div style="display:flex;align-items:center;gap:5px;flex-shrink:0">' +
           (esPropia && rolActual !== 'admin' && esAdmin ? '' :
            esPropia ? '' : '<span title="Nota del administrador — solo lectura" style="font-size:11px;color:var(--text3)">🔒</span>') +
+          (puedeEliminar&&!n.fotoUrl ? '<button type="button" class="btn btn-sm btn-icon" onclick="otEditarNota('+idx+',this)" title="Editar nota" aria-label="Editar nota" '+(operacionNota?'disabled ':'')+(editando?'aria-busy="true"':'')+'>'+(editando?'<i class="ti ti-loader-2 ti-spin"></i> Guardando…':'<i class="ti ti-pencil" style="font-size:13px"></i>')+'</button>' : '') +
           (puedeEliminar ? '<button type="button" class="btn btn-sm btn-icon" onclick="otEliminarNota('+idx+',this)" title="Eliminar nota" aria-label="Eliminar nota" '+(operacionNota?'disabled ':'')+(eliminando?'aria-busy="true"':'')+'>'+(eliminando?'<i class="ti ti-loader-2 ti-spin"></i> Eliminando…':'<i class="ti ti-trash" style="font-size:13px;color:var(--red)"></i>')+'</button>' : '') +
         '</div>' +
       '</div>' +
@@ -51836,6 +51837,7 @@ function otRenderNotas(ot) {
 
 var _otNotasEnCurso = Object.create(null);
 var _otNotasReintentos = Object.create(null);
+var _otNotasEdiciones = Object.create(null);
 function otIncorporarNotaConfirmada(ot,nota) {
   var actuales=Object.assign({},ot.notasTecnico||{}),key=String(nota._firebaseKey||'');
   if(!key)throw new Error('La nota no tiene identidad confirmada');
@@ -51849,6 +51851,13 @@ async function otPersistirNota(ot,noteKey,before,after,attempt) {
     if(result&&result.installed===true){if(result.committed!==true)throw new Error('No se confirmó la nota');return;}
     if(!result||result.installed!==false)throw new Error('No se pudo verificar el guardado de notas');
   }
+  if(before!==null&&after!==null){
+    if(typeof window.fbRunTransaction!=='function')throw new Error('No está disponible la edición protegida de notas');
+    var result=await window.fbRunTransaction(window.fbRef(window.fbDB,FB_PATHS.ordenesTrabajo+'/'+(ot.fbKey||otActualId)+'/notasTecnico/'+noteKey),function(current){
+      if(JSON.stringify(current)!==JSON.stringify(before))throw new Error('La nota cambió. Actualizá la OT antes de editar.');return after;
+    });
+    if(!result||result.committed!==true)throw new Error('No se confirmó la edición');return;
+  }
   return otPersistirActualizar(ot.fbKey||otActualId,{['notasTecnico/'+noteKey]:after});
 }
 function otContextoOperacionNota(ot) {
@@ -51856,10 +51865,38 @@ function otContextoOperacionNota(ot) {
   return function(pantalla){return window.currentUserUid===uid&&currentRole===role&&window.fbDB===db&&(!window.fbAuth||window.fbAuth.currentUser===auth)&&(window._svOperacionesSesionEpoch||0)===epoch&&(!pantalla||(!document.hidden&&(!window.location||window.location.hash===route)&&(String(otActualId)===String(ot.fbKey||ot.id)||String(otActualId)===String(ot.id))));};
 }
 function otProgresoOperacionNota(boton,texto) {
-  var controles=Array.from(document.querySelectorAll('#ot-notas-lista button[aria-label="Eliminar nota"],#ot-nota-guardar')).map(function(el){var before=el.disabled;el.disabled=true;return {el:el,before:before};});
+  var controles=Array.from(document.querySelectorAll('#ot-notas-lista button[aria-label="Eliminar nota"],#ot-notas-lista button[aria-label="Editar nota"],#ot-nota-guardar')).map(function(el){var before=el.disabled;el.disabled=true;return {el:el,before:before};});
   var progreso;try{progreso=svCrearProgresoBoton(boton,texto);}catch(error){controles.forEach(function(c){c.el.disabled=c.before;});throw error;}
   return function(){progreso.finalizar();controles.forEach(function(c){if(c.el.isConnected)c.el.disabled=c.before;});};
 }
+async function otEditarNota(indice,boton) {
+  var ot=otData.find(function(o){return o.id===otActualId||o.fbKey===otActualId;});if(!ot||!window.fbDB)return false;
+  var key=ot.fbKey||otActualId;if(_otNotasEnCurso[key])return _otNotasEnCurso[key].promesa;
+  var n=otNotasNormalizadas(ot)[indice],rol=String(currentRole||'').toLowerCase();
+  if(!n||n._fotoLegacy||otFotoUrlDeNota(n)){notify('Sólo se editan notas de texto');return false;}
+  if(!['admin','administrativo'].includes(rol)&&String(n.autor||'').trim().toLocaleLowerCase('es-AR')!==String(currentUser||'').trim().toLocaleLowerCase('es-AR')){notify('Solo podés editar tus propias notas');return false;}
+  var path=Array.isArray(ot.notasTecnico)&&n._arrayIndex!=null?String(n._arrayIndex):String(n._firebaseKey||''),before=ot.notasTecnico&&ot.notasTecnico[path];
+  if(!path||/[.#$\[\]\/]/.test(path)||!before||typeof before!=='object')return false;
+  before=JSON.parse(JSON.stringify(before));var stamp=JSON.stringify(before),uid=window.currentUserUid||'',draftKey=key+'/'+path,vigente=otContextoOperacionNota(ot),op={kind:'edit'};_otNotasEnCurso[key]=op;
+  op.promesa=Promise.resolve().then(async function(){
+    var pending=_otNotasEdiciones[draftKey],same=pending&&pending.uid===uid&&pending.role===currentRole&&pending.stamp===stamp;
+    var text=await svPrompt('Editar nota',same?pending.texto:String(before.texto||''),{titulo:'Editar nota',multilinea:true,textoAceptar:'Guardar',filas:4});
+    if(text===null||text===undefined||!vigente(true))return false;text=String(text).trim();
+    if(!text){notify('La nota no puede quedar vacía');return false;}if(text===String(before.texto||''))return true;
+    if(JSON.stringify(ot.notasTecnico&&ot.notasTecnico[path])!==stamp){notify('La nota cambió. Actualizá la OT antes de editar.');return false;}
+    var attempt=same&&pending.texto===text?pending:{uid:uid,role:currentRole,stamp:stamp,texto:text};_otNotasEdiciones[draftKey]=attempt;
+    op.iniciada=true;op.path=path;var cerrar=otProgresoOperacionNota(boton,'Guardando…');
+    try{
+      window._otGuardandoLocalHasta=Date.now()+2500;var after=Object.assign({},before,{texto:text});
+      await otPersistirNota(ot,path,before,after,attempt);
+      if(vigente(false)&&ot.notasTecnico)ot.notasTecnico[path]=Object.assign({},ot.notasTecnico[path]||after,{texto:text});
+      if(_otNotasEdiciones[draftKey]===attempt)delete _otNotasEdiciones[draftKey];
+      if(vigente(true))notify('✓ Nota editada');return true;
+    }catch(error){if(vigente(true))notify('No se pudo confirmar la edición. El texto se conserva al volver a editar. '+error.message);return false;}
+    finally{cerrar();}
+  }).catch(function(error){if(vigente(true))notify('No se pudo editar la nota: '+error.message);return false;}).finally(function(){if(_otNotasEnCurso[key]===op)delete _otNotasEnCurso[key];if(op.iniciada&&vigente(true))otRenderNotas(ot);});return op.promesa;
+}
+
 async function otEliminarNota(indice,boton) {
   var ot=otData.find(function(o){return o.id===otActualId||o.fbKey===otActualId;});
   if(!ot||!window.fbDB){notify('No se encontró la OT');return;}
