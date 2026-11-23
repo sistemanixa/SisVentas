@@ -163,7 +163,10 @@
       const settings = Object.assign({ scale: 2, useCORS: true, allowTaint: false, backgroundColor: '#ffffff' }, options.html2canvas, { scrollX: 0, scrollY: 0, x: 0, width, windowWidth: width });
       const output = await engine().set({ jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(doc.createElement('div')).toPdf().get('pdf');
       async function capture(top, bottom) {
-        const worker = engine().set({ margin: 0, html2canvas: Object.assign({}, settings, { y: top, height: bottom - top }) }).from(clone).toCanvas();
+        // The measured plan above owns pagination. html2pdf's CSS/legacy
+        // page-break pass would insert spacers into its clone afterwards,
+        // shifting rows away from these crop coordinates.
+        const worker = engine().set({ margin: 0, pagebreak: { mode: [], before: [], after: [], avoid: [] }, html2canvas: Object.assign({}, settings, { y: top, height: bottom - top }) }).from(clone).toCanvas();
         const canvas = await worker.get('canvas');
         if (!canvas || !canvas.width || !canvas.height) throw Error('No se pudo capturar el documento completo.');
         return canvas;
