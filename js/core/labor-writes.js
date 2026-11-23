@@ -206,6 +206,21 @@
     }
    });
   }
+  // Notes are independent children: keep server CAS, authorization and the
+  // atomic summary update without downloading/reposting the entire OT.
+  async function writeOTNote({otKey,otId,noteKey,before,after,id}={}){
+   const validKey=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(value);
+   if(!installed||!validKey(otKey)||!validKey(noteKey)||!validKey(id)||id.length<8||!['string','number'].includes(typeof otId)||!String(otId).trim()||typeof otId==='number'&&!Number.isFinite(otId))throw fail('SV_OT_NOTE_INPUT','No se pudo identificar la nota y su OT.');
+   if(after!==null&&(before!==null||!after||Array.isArray(after)||typeof after!=='object'||Object.keys(after).some(k=>!['texto','autor','rol','ts','_firebaseKey'].includes(k))||after._firebaseKey!==noteKey||typeof after.texto!=='string'||!after.texto.trim()))throw fail('SV_OT_NOTE_INPUT','El guardado sólo permite agregar una nota nueva.');
+   if(after===null&&(!before||typeof before!=='object'||Array.isArray(before)))throw fail('SV_OT_NOTE_INPUT','La nota ya no está disponible.');
+   const base=otRoot+'/'+otKey,path=base+'/notasTecnico/'+noteKey,check=capture();check();
+   return prepareIdentity([path],async()=>{
+    check();if(!coordinatedOT(path))return {installed:false};available();
+    const value=prepareValue(after),expectedHashes={[base+'/id']:await hash(otId),[path]:await hash(before)};check();
+    const result=await send({id,kind:'atomic',path:'',value:{[path]:value},expectedHashes},check);check();
+    return {installed:true,committed:true,operationId:id};
+   });
+  }
   // Delegate concrete OT paths through the installed record-list adapter. Never
   // delegate an ancestor replacement: that would reach an unscoped SDK write.
   const coordinatedOT=path=>root.SVClientAccountHost?.coordinated?.()===true&&(path===otRoot||path.startsWith(otRoot+'/'));
@@ -231,6 +246,6 @@
    wrappers={fbSet:set,fbUpdate:update,fbPush:push,fbRemove:remove,fbRunTransaction:runTransaction};
    Object.assign(root,wrappers);installed=true;return api;
   }
-  const api={install,canonical,hash,pathOf,intersects:ref=>intersectsPath(pathOf(ref)),restTransaction,atomic,prepareOT};return api;
+  const api={install,canonical,hash,pathOf,intersects:ref=>intersectsPath(pathOf(ref)),restTransaction,atomic,prepareOT,writeOTNote};return api;
  };
 });

@@ -1,6 +1,6 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.21.6';
+const CACHE = 'sisventas-v3.21.7';
 const SHELL = [
   './css/proposal-share.css?v=3.20.15',
   './js/core/proposal-presentation-context.js?v=3.20.15',
@@ -165,7 +165,7 @@ const SHELL = [
   './js/core/guarded-writes.js?v=3.18.4',
   './js/core/session-assets.js?v=3.20.4',
   './js/core/ot-personal-scope.js?v=3.14.0',
-  './js/app.v3.21.6.js',
+  './js/app.v3.21.7.js',
   './js/core/activity-period.v1.js',
   './js/core/dashboard-account-source.v1.js?v=3.14.19',
   './js/modules/navigation-back.js?v=3.10.20-home',
@@ -175,12 +175,12 @@ const SHELL = [
   './js/modules/provider-verification.js?v=3.9.3',
   './js/modules/paraguay-config.js?v=3.17.7',
   './js/core/version.js',
-  './js/core/version.v3.21.6.js',
+  './js/core/version.v3.21.7.js',
   './js/core/loading-indicator.js?v=3.9.0-wake1',
   './js/core/login.js?v=2.0.154',
   './js/core/access-control.js?v=3.10.32',
   './js/core/labor-write-recovery.js?v=3.20.9',
-  './js/core/labor-writes.js?v=3.19.3',
+  './js/core/labor-writes.js?v=3.21.7',
   './js/core/bonus-payment-model.v1.js?v=3.18.4',
   './js/core/bonus-payment.v1.js?v=3.18.4',
   './js/core/financial-commands.js?v=3.20.1',

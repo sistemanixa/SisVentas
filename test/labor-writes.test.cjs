@@ -235,3 +235,22 @@ test('return-to-budget server denial never falls back to direct writes',async()=
  await assert.rejects(f.root.SVLaborWrites.atomic({paths:['sisventas/ventas/v','sisventas/presupuestos/desde_venta_v'],purpose:'sale-return-to-budget',build:()=>({'sisventas/ventas/v':null,'sisventas/presupuestos/desde_venta_v':{total:100}})}));
  assert.deepEqual(f.state,before);assert.equal(f.direct.length,0);assert.equal(f.commands.length,1);
 });
+
+test('OT note uses one preparation, zero client record reads and a narrow atomic body',async()=>{
+ const f=fixture();let preparations=0;f.root.SVClientAccountHost={prepareWrite:async()=>{preparations++},start:async()=>{},coordinated:()=>true};f.setHandler(()=>response({ok:true,committed:true}));
+ const after={texto:'Ficticia',autor:'Autor',rol:'admin',ts:1,_firebaseKey:'n'};
+ const r=await f.root.SVLaborWrites.writeOTNote({otKey:'o',otId:'OT-FIC',noteKey:'n',before:null,after,id:'note-fixture-1'});
+ assert.equal(r.installed,true);assert.equal(preparations,1);assert.equal(f.reads.length,0);assert.equal(f.direct.length,0);assert.equal(f.commands.length,1);
+ const c=f.commands[0];assert.deepEqual(Object.keys(c.value),['sisventas/ordenes_trabajo/o/notasTecnico/n']);assert.deepEqual(Object.keys(c.expectedHashes),['sisventas/ordenes_trabajo/o/id','sisventas/ordenes_trabajo/o/notasTecnico/n']);assert.equal(c.expectedHashes['sisventas/ordenes_trabajo/o/notasTecnico/n'],await f.root.SVLaborWrites.hash(null));
+ assert.ok(JSON.stringify(c).length<700);
+});
+test('OT note cannot overwrite, escape path or silently fallback after a failed request',async()=>{
+ const f=fixture();f.root.SVClientAccountHost={start:async()=>{},coordinated:()=>true};const note={texto:'Ficticia',_firebaseKey:'n'};
+ for(const change of[{otKey:'../x'},{noteKey:'n/x'},{before:note},{after:{...note,materiales:[]}}])await assert.rejects(f.root.SVLaborWrites.writeOTNote({otKey:'o',otId:1,noteKey:'n',before:null,after:note,id:'note-invalid-1',...change}));
+ assert.equal(f.commands.length,0);f.setHandler(()=>response({ok:false,mensaje:'denied'},403));await assert.rejects(f.root.SVLaborWrites.writeOTNote({otKey:'o',otId:1,noteKey:'n',before:null,after:note,id:'note-denied-1'}));assert.equal(f.direct.length,0);
+});
+test('OT note returns uninstalled only after explicit mode check and preserves session binding',async()=>{
+ const f=fixture();f.root.SVClientAccountHost={start:async()=>{},coordinated:()=>false};const args={otKey:'o',otId:1,noteKey:'n',before:null,after:{texto:'Ficticia',_firebaseKey:'n'},id:'note-mode-1'};
+ assert.equal((await f.root.SVLaborWrites.writeOTNote(args)).installed,false);assert.equal(f.commands.length,0);
+ f.root.SVClientAccountHost={start:async()=>{f.root.currentRole='tecnico'},coordinated:()=>true};await assert.rejects(f.root.SVLaborWrites.writeOTNote(args),{code:'SV_LABOR_SESSION'});assert.equal(f.commands.length,0);
+});
