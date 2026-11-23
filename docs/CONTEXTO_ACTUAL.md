@@ -4587,3 +4587,13 @@ Actualización local: incorporadas sólo portero-columna.jpg y su miniatura desd
 PP-0175: las variantes de corrección arquitectónica y puerta semiabierta fueron rechazadas por el usuario; se restauraron por bytes desde 06292682 la escena cerradura-camara y su miniatura originales. Las alternativas quedan sólo en output para referencia. No volver a aplicarlas. Referencia de imagen con scene=20261115-original para renovar caché local. No se modificaron otras escenas, presupuestos ni valores; no publicado.
 
 Visor de propuestas: selector, tarjetas, cabecera, pie, controles e indicadores usan las variables del tema activo (bg/bg2/bg3/text/border/blue); se quitan fondos verdes fijos del entorno, sin alterar colores del documento exportable ni fotos. Prueba clara/oscura añadida al recorrido ficticio. Sólo local, sin publicar.
+
+## Notas OT publicadas v3.21.6 — 23/11/2026
+
+Fuente pública `35642352497cafdc0323c0e0399670f5462ea340`, rama `codex/ot-notas-v3216`. Hosting existente: 710 activos, 4 cargas; index/app/versiones/SW comprobados byte a byte y aviso oficial sincronizado. Sin despliegue de backend, reglas ni migración Stock/OT/Compras.
+
+Guardar y Eliminar muestran actividad y bloquean clics repetidos por OT. Un guardado fallido conserva texto e identidad para reintentar sin duplicar por ACK perdido. Se conserva la identidad de notas por clave y de arrays antiguos sin desplazar índices; las inserciones de fotos preservan las claves. El borrado se refleja sólo tras confirmación. Contexto de sesión y navegación impide limpiar borradores o redibujar pantallas ajenas al terminar.
+
+Verificación: 10/10 nuevas pruebas diferidas (repetición, reintento, sesión/navegación, identidad, cancelación/error y arrays), Chrome ficticio 390/768/1280 con CSS y progreso reales, sintaxis/diff/coherencia de versión correctos. Puerta vigente congelada: 11.059 casos, 10.951 PASS, 17 FAIL, 91 SKIP, cero canceladas; los 17 fallos coinciden exactamente con v3.21.5. No declarar suite global verde ni ampliar este bloque para repararlos. Evidencia privada `tmp/auditoria-integral-20261122/gate-notes3216.*` y `tmp/ot-notes3216-*`; no publicar esos artefactos.
+
+El usuario autorizó conservar una de dos notas repetidas de OT-144 y borrar la otra al probar. Aún NO se borró ninguna: pendiente confirmación puntual de eliminación definitiva exigida por el navegador. No se guardaron operaciones reales como prueba.
