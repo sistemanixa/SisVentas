@@ -51781,6 +51781,7 @@ function otNotasNormalizadas(ot) {
 }
 
 function otRenderNotas(ot) {
+  ot=otNotasRegistroActual(ot);
   var lista = document.getElementById('ot-notas-lista');
   var fotosCont = document.getElementById('ot-fotos-preview');
   var fotosEstado = document.getElementById('ot-fotos-estado');
@@ -51800,7 +51801,7 @@ function otRenderNotas(ot) {
         '<div style="display:flex;align-items:center;gap:5px;flex-shrink:0">' +
           (esPropia && rolActual !== 'admin' && esAdmin ? '' :
            esPropia ? '' : '<span title="Nota del administrador — solo lectura" style="font-size:11px;color:var(--text3)">🔒</span>') +
-          (puedeEliminar&&!n.fotoUrl ? '<button type="button" class="btn btn-sm btn-icon" onclick="otEditarNota('+idx+',this)" title="Editar nota" aria-label="Editar nota" '+(operacionNota?'disabled ':'')+(editando?'aria-busy="true"':'')+'>'+(editando?'<i class="ti ti-loader-2 ti-spin"></i> Guardando…':'<i class="ti ti-pencil" style="font-size:13px"></i>')+'</button>' : '') +
+          (puedeEliminar&&!n.fotoUrl ? '<button type="button" class="btn btn-sm btn-icon" onclick="otEditarNota('+idx+',this)" title="Editar nota" aria-label="Editar nota" '+(operacionNota&&operacionNota.iniciada?'disabled ':'')+(editando?'aria-busy="true"':'')+'>'+(editando?'<i class="ti ti-loader-2 ti-spin"></i> Guardando…':'<i class="ti ti-pencil" style="font-size:13px"></i>')+'</button>' : '') +
           (puedeEliminar ? '<button type="button" class="btn btn-sm btn-icon" onclick="otEliminarNota('+idx+',this)" title="Eliminar nota" aria-label="Eliminar nota" '+(operacionNota?'disabled ':'')+(eliminando?'aria-busy="true"':'')+'>'+(eliminando?'<i class="ti ti-loader-2 ti-spin"></i> Eliminando…':'<i class="ti ti-trash" style="font-size:13px;color:var(--red)"></i>')+'</button>' : '') +
         '</div>' +
       '</div>' +
@@ -51838,7 +51839,12 @@ function otRenderNotas(ot) {
 var _otNotasEnCurso = Object.create(null);
 var _otNotasReintentos = Object.create(null);
 var _otNotasEdiciones = Object.create(null);
+function otNotasRegistroActual(ot) {
+  if(!ot)return ot;var key=String(ot.fbKey||ot.id);
+  return (otData||[]).find(function(o){return o&&String(o.fbKey||o.id)===key;})||ot;
+}
 function otIncorporarNotaConfirmada(ot,nota) {
+  ot=otNotasRegistroActual(ot);
   var actuales=Object.assign({},ot.notasTecnico||{}),key=String(nota._firebaseKey||'');
   if(!key)throw new Error('La nota no tiene identidad confirmada');
   actuales[key]=Object.assign({},nota,actuales[key]||{});ot.notasTecnico=actuales;
@@ -51883,13 +51889,13 @@ async function otEditarNota(indice,boton) {
     var text=await svPrompt('Editar nota',same?pending.texto:String(before.texto||''),{titulo:'Editar nota',multilinea:true,textoAceptar:'Guardar',filas:4});
     if(text===null||text===undefined||!vigente(true))return false;text=String(text).trim();
     if(!text){notify('La nota no puede quedar vacía');return false;}if(text===String(before.texto||''))return true;
-    if(JSON.stringify(ot.notasTecnico&&ot.notasTecnico[path])!==stamp){notify('La nota cambió. Actualizá la OT antes de editar.');return false;}
+    if(JSON.stringify(otNotasRegistroActual(ot).notasTecnico&&otNotasRegistroActual(ot).notasTecnico[path])!==stamp){notify('La nota cambió. Actualizá la OT antes de editar.');return false;}
     var attempt=same&&pending.texto===text?pending:{uid:uid,role:currentRole,stamp:stamp,texto:text};_otNotasEdiciones[draftKey]=attempt;
     op.iniciada=true;op.path=path;var cerrar=otProgresoOperacionNota(boton,'Guardando…');
     try{
       window._otGuardandoLocalHasta=Date.now()+2500;var after=Object.assign({},before,{texto:text});
       await otPersistirNota(ot,path,before,after,attempt);
-      if(vigente(false)&&ot.notasTecnico)ot.notasTecnico[path]=Object.assign({},ot.notasTecnico[path]||after,{texto:text});
+      if(vigente(false)){var actual=otNotasRegistroActual(ot);if(actual.notasTecnico&&JSON.stringify(actual.notasTecnico[path])===stamp)actual.notasTecnico[path]=Object.assign({},actual.notasTecnico[path],{texto:text});}
       if(_otNotasEdiciones[draftKey]===attempt)delete _otNotasEdiciones[draftKey];
       if(vigente(true))notify('✓ Nota editada');return true;
     }catch(error){if(vigente(true))notify('No se pudo confirmar la edición. El texto se conserva al volver a editar. '+error.message);return false;}
@@ -51910,15 +51916,15 @@ async function otEliminarNota(indice,boton) {
   operacion.promesa=Promise.resolve().then(async function(){
     if(!await svConfirm('¿Eliminar esta nota de la OT?\n\n'+String(nota.texto||'Foto adjunta')))return false;
     if(!vigente(true))return false;
-    if(!original||identidad(ot.notasTecnico&&ot.notasTecnico[path])!==original){notify('La nota cambió. Revisala antes de eliminar.');return false;}
+    if(!original||identidad(otNotasRegistroActual(ot).notasTecnico&&otNotasRegistroActual(ot).notasTecnico[path])!==original){notify('La nota cambió. Revisala antes de eliminar.');return false;}
     operacion.iniciada=true;operacion.path=path;var cerrar=otProgresoOperacionNota(boton,'Eliminando…');
     try{
       if(!path||/[.#$\[\]\/]/.test(path))throw new Error('La identidad de la nota requiere revisión');
       window._otGuardandoLocalHasta=Date.now()+2500;
       await otPersistirNota(ot,path,ot.notasTecnico[path],null,operacion);
       if(vigente(false)){
-        if(ot.notasTecnico)delete ot.notasTecnico[path];
-        window._otDetalleHuella=otHuellaDetalle(ot);
+        var actual=otNotasRegistroActual(ot);if(actual.notasTecnico&&identidad(actual.notasTecnico[path])===original)delete actual.notasTecnico[path];
+        window._otDetalleHuella=otHuellaDetalle(otNotasRegistroActual(ot));
       }
       if(vigente(false)&&nota.fotoStoragePath&&window.fbDeleteObject&&window.fbStorageRef&&window.fbStorage)window.fbDeleteObject(window.fbStorageRef(window.fbStorage,nota.fotoStoragePath)).catch(function(error){console.warn('No se pudo limpiar el archivo de la nota eliminada:',error);});
       if(vigente(true))notify('✓ Nota eliminada');return true;
@@ -51987,7 +51993,7 @@ function otAgregarNota(boton) {
     await otPersistirNota(ot,nota._firebaseKey,null,nota,intento);
     if(vigente(false)){
       otIncorporarNotaConfirmada(ot,nota);
-      window._otDetalleHuella=otHuellaDetalle(ot);
+      window._otDetalleHuella=otHuellaDetalle(otNotasRegistroActual(ot));
     }
     if(_otNotasReintentos[key]===intento)delete _otNotasReintentos[key];
     if(vigente(true)){if(inp&&inp.value.trim()===texto)inp.value='';notify('✓ Nota agregada');}return true;
