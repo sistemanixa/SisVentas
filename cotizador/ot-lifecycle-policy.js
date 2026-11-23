@@ -14,7 +14,7 @@ function authority(profile,cfg,kind,closed=false){
  const role=profile?.rol;if(profile?.activo!==true||!['admin','administrativo','tecnico','tecnico_vendedor','vendedor'].includes(role))throw Object.assign(Error('Usuario sin acceso a la OT.'),{statusCode:403});
  if(!cfg||typeof cfg!=='object'||cfg.indiceVersion!==2||cfg.indiceModulos?.ordentrabajo!==true||Object.values(cfg.bloqueados||{}).includes('ordentrabajo'))throw Object.assign(Error('No tenés permiso para operar la OT.'),{statusCode:403});
  if(kind==='delivery'&&!['admin','administrativo'].includes(role))throw Object.assign(Error('Sólo administración puede entregar materiales.'),{statusCode:403});
- const action=kind==='delivery'||kind==='return'?'entregarMateriales':kind==='custody'?'rendirMateriales':kind==='stockrepair'?'ajustarStockOficina':null;
+ const action=kind==='delivery'||kind==='return'?'entregarMateriales':kind==='custody'?'rendirMateriales':kind==='stockrepair'?'ajustarStockOficina':kind==='close'?'editar':null;
  const allowed=a=>typeof cfg?.acciones?.ot?.[a]==='boolean'?cfg.acciones.ot[a]:(a==='entregarMateriales'?['admin','administrativo']:['corregirMateriales','ajustarStockOficina'].includes(a)?['admin']:['admin','administrativo','tecnico','tecnico_vendedor']).includes(role);
  if(action&&!allowed(action)||kind==='custody'&&closed&&(role!=='admin'||!allowed('corregirMateriales')))throw Object.assign(Error('La acción de materiales no está autorizada.'),{statusCode:403});
  return {role,permissionRevision:cfg?.indiceRevision??null,permissionDigest:digest(cfg||{})};
