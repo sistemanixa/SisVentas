@@ -66,7 +66,7 @@ COPY sale-return-to-budget.js ./
 
 COPY sale-delete-http-adapter.js sale-delete-command.js sale-delete-relations.js sale-delete-fence.js sale-delete-activity.js ./
 
-COPY purchase-order-delete.js purchase-order-delete-model.js ./
+COPY purchase-order-delete.js purchase-order-delete-model.js purchase-order-delete-review.js ./
 
 COPY ot-delete-command.js ot-delete-policy.js ot-delete-http-adapter.js ./
 COPY office-stock.js office-stock-policy.js office-stock-model.js office-stock-money.js ot-delete-authority.js ot-delete-operational-contract.js ot-delete-linked-plan.js ot-delete-operational-runtime.js ./

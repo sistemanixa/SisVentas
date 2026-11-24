@@ -2,8 +2,8 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{digest}=require('../cotizador/labor-guard'),{createPurchaseOrderDelete}=require('../cotizador/purchase-order-delete'),{createCoordinatedBackend}=require('./helpers/coordinated-backend.cjs'),{apply}=require('./helpers/labor-ui-flow.cjs');
 async function fixture(state='pendiente'){
  const order={estado:state,items:[{productoKey:'p',cantidadOrdenada:2,cantidadRecibida:0}]},backend=await createCoordinatedBackend({ordenes:{O1:order},inventario_operativo:{p:{enCompra:5}}});
- apply(backend.state,{'sv_permisos/admin':{indiceVersion:2,indiceModulos:{ordenes:true},acciones:{ordenes:{eliminar:true}}}});backend.store.operationalFenceReady=true;
- let authorized=true;const command=createPurchaseOrderDelete({enabled:true,store:backend.store,guard:backend.guard,authorize:async()=>{if(!authorized)throw Error('Auth revocado');return {uid:'u',claims:{uid:'u'}};}}),body={id:'purchase-delete-fiction',orderKey:'O1',expectedHash:digest(order)},req={method:'POST',url:'/compras/eliminar'};
+ apply(backend.state,{'sv_permisos/admin':{indiceVersion:2,indiceModulos:{ordenes:true},acciones:{ordenes:{eliminar:true}}}});
+ let authorized=true;const command=createPurchaseOrderDelete({enabled:true,store:backend.store,guard:backend.guard,review:require('./helpers/purchase-delete-command-review.cjs'),authorize:async()=>{if(!authorized)throw Error('Auth revocado');return {uid:'u',claims:{uid:'u'}};}}),body={id:'purchase-delete-fiction',orderKey:'O1',expectedHash:digest(order)},req={method:'POST',url:'/compras/eliminar'};
  return {backend,body,req,command,revoke:()=>{authorized=false;},run:()=>command.handle(req,body)};
 }
 for(const state of ['pendiente','cancelada'])test('guard real elimina orden '+state+' conjuntamente',async()=>{const f=await fixture(state);await f.run();assert.equal(f.backend.commits.length,1);assert.equal(f.backend.get('sisventas/ordenes/O1'),null);assert.equal(f.backend.get('sisventas/inventario_operativo/p/enCompra'),state==='cancelada'?5:3);assert.ok(f.backend.commits[0]['sv_labor_receipts/'+f.body.id]);});
