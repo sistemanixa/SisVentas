@@ -20,8 +20,8 @@ async function run(loseAck){
  apply(backend.state,(await Financial.prepare({ventas:{s:sale},gastos:{},ctaemp:{},comisiones_generacion:{},sv_commission_generation:{}},{generation:'purchase-receipt-financial-fixture'})).patch);
  backend.store.saleDeleteFinancialEvidence=FinancialProvider.create();
  apply(backend.state,{'sv_permisos/admin':{indiceVersion:2,indiceModulos:{venta:true,ordenes:true},acciones:{ventas:{eliminar:true},ordenes:{eliminar:true}}}});
- Object.assign(backend.store,{saleDeleteFenceReady:true,saleDeleteActivityFenceReady:true,operationalFenceReady:true});
- const actor={uid:'u',claims:{uid:'u'}},saleDelete=createSaleDeleteCommand({store:backend.store,guard:backend.guard,enabled:true,verifyActor:async()=>{}}),orderDelete=createPurchaseOrderDelete({store:backend.store,guard:backend.guard,enabled:true,authorize:async()=>actor});
+ Object.assign(backend.store,{saleDeleteFenceReady:true,saleDeleteActivityFenceReady:true});
+ const actor={uid:'u',claims:{uid:'u'}},saleDelete=createSaleDeleteCommand({store:backend.store,guard:backend.guard,enabled:true,verifyActor:async()=>{}}),orderDelete=createPurchaseOrderDelete({store:backend.store,guard:backend.guard,review:require('./helpers/purchase-delete-command-review.cjs'),enabled:true,authorize:async()=>actor});
  assert.equal(backend.guard.clientAccounts,true);assert.equal(backend.guard.clientHistory,true);assert.equal(backend.guard.saleFinancialDependencies,true);assert.equal(saleDelete.capability(),true);
  let release,reached;const barrier=new Promise(resolve=>{release=resolve;}),paused=new Promise(resolve=>{reached=resolve;});let first=true;
  const context={state:{orders:[{...order,fbKey:'o'}]},PATH_ORDERS:'sisventas/ordenes',PATH_LISTS:'sisventas/listas_materiales',today:()=> '2026-11-04',safeKey:value=>value,orderProviderSummary:()=>'',document:{getElementById:()=>({style:{}})},

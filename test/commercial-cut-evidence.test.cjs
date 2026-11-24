@@ -1,15 +1,7 @@
 'use strict';
-const {test}=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+const {test}=require('node:test'),assert=require('node:assert/strict');
 const Evidence=require('../scripts/lib/commercial-cut-evidence.cjs');
-const sha=label=>crypto.createHash('sha256').update(label).digest('hex');
-function fixture(){
- const observed={sourceSha256:sha('observed-source'),rulesSha256:sha('observed-rules'),artifactSha256:sha('observation')},candidate={sourceSha256:sha('candidate-source'),rulesSha256:sha('candidate-rules'),artifactSha256:sha('candidate-artifact')};
- const writers=[...new Set(Object.values(Evidence.REQUIRED).flat())].map(domain=>({id:domain+'-writer',domain,entrypoint:'fixture/'+domain,transport:'sdk',fence:'sdk-idle',proofSha256:sha('proof/'+domain)}));
- const operations=Object.keys(Evidence.REQUIRED).map(name=>{
-  const projections=Evidence.PROJECTIONS.map(projection=>({name:projection,schema:1,generation:'fixture-'+projection,revision:1,sourceSha256:candidate.sourceSha256,proofSha256:sha(projection)}));
-  return {name,writerIds:writers.filter(row=>Evidence.REQUIRED[name].includes(row.domain)).map(row=>row.id),fences:Evidence.REQUIRED[name].map(domain=>({domain,rulesSha256:candidate.rulesSha256,proofSha256:sha('fence/'+domain)})),projections,tests:Evidence.CIRCUITS.map(circuit=>({circuit,result:'passed',runner:'node --test fixture',artifactSha256:sha(name+'/'+circuit),sourceSha256:candidate.sourceSha256,rulesSha256:candidate.rulesSha256,projectionSha256:sha(Evidence.canonical(projections))}))};
- });return {schema:1,observed,candidate,writers,operations};
-}
+const {fixture,sha}=require('./helpers/commercial-cut-manifest.cjs');
 test('offline manifest consistency never certifies remote state or activation',()=>{const manifest=fixture(),before=structuredClone(manifest),result=Evidence.validate(manifest);assert.equal(result.remoteVerified,false);assert.equal(result.activationAuthorized,false);assert.match(result.manifestSha256,/^[a-f0-9]{64}$/);assert.deepEqual(manifest,before);});
 for(const mutation of ['flag','missingHash','duplicateWriter','omittedWriter','missingFence','wrongRules','missingGeneration','staleSource','missingCircuit','failedTest','wrongProjection'])test('rejects '+mutation,()=>{
  const manifest=fixture(),operation=manifest.operations[0];

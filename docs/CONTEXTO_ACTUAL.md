@@ -1,3 +1,13 @@
+# Borrado protegido de órdenes de compra · preparación local · 24/11/2026
+
+La rama `codex/borrado-protegido-compras` parte del commit publicado de v3.21.10, `84136c60074d8fbac0f28d30c44956fc833a37db`. El endpoint existente usa una revisión acotada a un borrador sin recepciones ni vínculos. El servidor revalida la configuración coordinada, los originales de ambas órdenes y el inventario antes de confirmar el parche. La revisión solo admite restar cantidades atribuidas de **En compra** y conserva el stock físico, las reservas y la orden recibida.
+
+`scripts/lib/purchase-delete-preparation.cjs` valida el manifiesto de corte y prepara, sin red, los valores de `PURCHASE_ORDER_DELETE_REVIEW_JSON` y `PURCHASE_ORDER_DELETE_REVIEW_SHA256`. La capacidad queda desactivada sin esa revisión, `PURCHASE_ORDER_DELETE_READY=true` y la configuración emparejada de guardado coordinado, Pages, Cuenta Corriente, Historial y resúmenes operativos. La comprobación local del manifiesto no acredita el cierre de escritores en producción.
+
+Pasaron 96 pruebas focales, incluidas las del comando, el arranque y la pausa del servidor en el entorno de prueba, la conservación del inventario y la orden recibida, la revalidación concurrente y la recuperación del recibo. Para repetir la prueba nueva desde la raíz, ejecutar `node --test test/purchase-order-delete-review.test.cjs`. No se ejecutó la suite completa ni se desplegó el servidor.
+
+Para continuar, revisar [el procedimiento de corte comercial](CORTE_INTEGRACION_COMERCIAL.md) y acreditar la atribución de las unidades pendientes con evidencia independiente. El alta manual incrementa el contador agregado en una escritura separada y no registra una marca individual, por lo que la coincidencia del contador con la cantidad del borrador es insuficiente. Con la evidencia y el corte autorizados, preparar los valores de revisión desde los registros originales y verificar la imagen, las reglas y los escritores compatibles antes de habilitar. Los registros reales, las credenciales y los servidores de demostración no forman parte de esta rama.
+
 # Publicación conjunta v3.21.5 verificada · 23/11/2026
 
 Fuente c0b6f75b2a09a56b5757f5f297c2a9f861a99ecb, rama codex/dashboard-iva-v3215. Hosting709activos/8cargas. Index, aplicación inmutable, marcador, SW, surface-scroll y dashboard-privacy byteexactos en ventas.sistemanixa.com; script oficial confirmó aviso Firebase v3.21.5. Conserva los arreglos PDF13 y Soporte14. Sin servidor, Rules, compras/facturas reales ni stock modificados.

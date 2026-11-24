@@ -3,8 +3,8 @@ const vm=require('node:vm'),fs=require('node:fs'),{webcrypto}=require('node:cryp
 async function fixture({lost=false,reject=false,concurrent=false}={}){
  const order={estado:'pendiente',ventaFbKey:'s',listaMaterialesId:'L1',items:[{productoKey:'p',cantidadOrdenada:2,cantidadRecibida:0}]};
  const backend=await createCoordinatedBackend({ventas:{s:{id:'V-FIC',responsableUid:'u',clienteFbKey:'c',total:100,subtotal:100,ordenesCompraIds:['O1','O2']}},ordenes:{O1:order},listas_materiales:{L1:{ordenesIds:['O1','O2']}},inventario_operativo:{p:{enCompra:5}}});
- apply(backend.state,{'sv_permisos/admin':{indiceVersion:2,indiceModulos:{ordenes:true},acciones:{ordenes:{eliminar:true}}}});backend.store.operationalFenceReady=true;
- const handler=require('../../cotizador/purchase-order-delete').createPurchaseOrderDelete({guard:backend.guard,store:backend.store,enabled:true,authorize:async()=>({uid:'u',claims:{uid:'u'}})}),notices=[],button={innerHTML:'Eliminar'},modal={style:{},querySelector:()=>button};
+ apply(backend.state,{'sv_permisos/admin':{indiceVersion:2,indiceModulos:{ordenes:true},acciones:{ordenes:{eliminar:true}}}});
+ const handler=require('../../cotizador/purchase-order-delete').createPurchaseOrderDelete({guard:backend.guard,store:backend.store,review:require('./purchase-delete-command-review.cjs'),enabled:true,authorize:async()=>({uid:'u',claims:{uid:'u'}})}),notices=[],button={innerHTML:'Eliminar'},modal={style:{},querySelector:()=>button};
  const root={currentUserUid:'u',currentRole:'admin',fbAuth:{currentUser:{uid:'u'}},crypto:webcrypto,SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://fixture.invalid'},SVServiceAuth:{headers:async()=>({})},svConfirm:async()=>true,tienePermiso:()=>true,notify:value=>notices.push(value),svCapturarContextoOperacion:()=>()=>true,fetch:async(url,init)=>{
  if(url.endsWith('/laboral/capacidades'))return {ok:true,status:200,json:async()=>({ok:true,payments:{enabled:false,version:1},adminExpense:{enabled:false,version:1},orderDelete:{enabled:true,version:1}})};
  if(url.endsWith('/laboral/operacion'))return {ok:true,status:200,json:async()=>({ok:true,status:backend.commits.length?'confirmed':'rejected'})};
