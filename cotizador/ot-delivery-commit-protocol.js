@@ -63,6 +63,12 @@ async function claims({patch,lease,actor,read,query}){
   }
   if(digest(projection(before))===digest(projection(after)))continue;
   changed=true;
+  const inventoryPolicy=require('./ot-inventory-policy'),inventoryToken=inventoryPolicy.token(actor,lease);
+  if(inventoryToken.svOTInventoryVersion===1&&inventoryToken.svOTInventoryKind==='delivery'&&inventoryToken.svOTInventoryOTKey===id){
+   inventoryPolicy.standalone(before);inventoryPolicy.standalone(after);
+   await require('./ot-stock-source-authority').validate({actor,lease,patch,readFresh:originalRead,operationalSummaries:true});
+   continue;
+  }
   if(token.svOTLifecycleVersion!==1||token.svOTLifecycleOTKey!==id)throw fail();
   if(token.svOTLifecycleKind==='delivery')continue;
   // Only the existing recovery model may initialize a previously recovered row.

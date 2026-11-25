@@ -485,7 +485,8 @@
     var closed = typeof window.otEstaCerrada === 'function' ? window.otEstaCerrada(ot) : ['completada','con_observaciones'].includes(String(ot.estado || '').toLowerCase());
     var eligible = pendingDelivery(ot).filter(function(m){return (!closed || m.adicionalOT === true) && (itemIndex === undefined || m._indice === itemIndex);});
     if (!eligible.length) { window.notify('No hay materiales pendientes de entregar.'); return; }
-    if (!ot.fbKey || /[.#$\[\]\/]/.test(ot.fbKey) || !(ot.ventaFbKey || ot.ventaId || ot.venta) || !window.SVOTLifecycle) {
+    var standalone = ['ventaFbKey','ventaId','venta'].every(function(field){return ot[field] === undefined || ot[field] === null || ot[field] === '';});
+    if (!ot.fbKey || /[.#$\[\]\/]/.test(ot.fbKey) || (standalone ? !window.SVOTInventory?.deliver : !window.SVOTLifecycle)) {
       window.notify('No está disponible el guardado seguro de la entrega. Actualizá SisVentas.');return;
     }
     var confirmed=confirmedView(ot,'ot.entregarMateriales');
@@ -501,10 +502,16 @@
       if (!await window.svConfirm('Se entregarán ' + deliveryText + ' a ' + ot.tecnico + ' y se generará su remito. ¿Confirmar entrega' + (itemIndex === undefined ? ' completa' : '') + '?')) return;
       if (!valid()) throw Error('La sesión o los permisos cambiaron. Volvé a abrir la OT.');
       finish = window.SisVentas?.carga?.mostrar?.('Registrando entrega y remito…',{persistirAlNavegar:true});
+      var result;
+      if (standalone) {
+        result = await window.SVOTInventory.deliver(ot,selections);
+        if (result?.installed !== true || result.confirmed !== true) throw Error('La entrega segura sin venta está pendiente de habilitar.');
+      } else {
       var capability = await window.SVOTLifecycle.prepare(ot,{kind:'delivery'});
       if (!valid()) throw Error('La sesión o los permisos cambiaron. Volvé a abrir la OT.');
       if (capability?.atomicStock !== true) throw Error('La entrega segura está pendiente de habilitar. No se movió stock.');
-      var result = await window.SVOTLifecycle.save(ot,{entregas:selections},{kind:'delivery',action:'Entrega de materiales al técnico',prepared:capability});
+      result = await window.SVOTLifecycle.save(ot,{entregas:selections},{kind:'delivery',action:'Entrega de materiales al técnico',prepared:capability});
+      }
       if (!confirmed.session()) return;
       reconcileConfirmed(result.ot,confirmed);
       window._otGuardandoLocalHasta = Date.now() + 3000;
