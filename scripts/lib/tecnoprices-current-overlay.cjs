@@ -33,7 +33,16 @@ function productionIndex(index){
  let restored=body;for(const[before,after]of edits.slice().reverse())restored=restored.replace(after,before);if(restored!==initial.slice(start,end))throw Error('Cambio inesperado de contexto.');
  return Buffer.from(initial.slice(0,start)+body+initial.slice(end));
 }
-function productionPool(pool){if(!Buffer.isBuffer(pool))throw Error('Falta la fuente del pool.');const text=pool.toString('utf8').replaceAll('\r\n','\n');if(sha(Buffer.from(text))!==BASE_POOL_NORMALIZED_SHA256)throw Error('El pool no coincide con la base revisada.');const before='    return {\n      async newContext(opciones) {';if(text.split(before).length!==2)throw Error('Ancla de pool incompatible.');return Buffer.from(text.replace(before,'    return {\n      version:()=>browser.version(),\n      async newContext(opciones) {'));}
+function productionPool(pool){
+ if(!Buffer.isBuffer(pool))throw Error('Falta la fuente del pool.');
+ const text=pool.toString('utf8').replaceAll('\r\n','\n'),accessor='      version:()=>browser.version(),\n',before='    return {\n      async newContext(opciones) {',after='    return {\n'+accessor+'      async newContext(opciones) {';
+ const alreadyPatched=text.split(accessor).length===2,base=alreadyPatched?text.replace(accessor,''):text;
+ if(sha(Buffer.from(base))!==BASE_POOL_NORMALIZED_SHA256)throw Error('El pool no coincide con la base revisada.');
+ if(base.split(before).length!==2)throw Error('Ancla de pool incompatible.');
+ const result=base.replace(before,after);
+ if(alreadyPatched&&text!==result)throw Error('Ancla de pool incompatible.');
+ return Buffer.from(result);
+}
 function planProduction({index,helper,pool}){const result=plan({index,helper});result.files['server/index.js']=productionIndex(index);result.files['server/navegador-compartido.js']=productionPool(pool);result.manifest.kind='tecnoprices-login-current-production-overlay';result.manifest.basePoolNormalizedSha256=BASE_POOL_NORMALIZED_SHA256;delete result.manifest.preservation.outsideSupplierReader;result.manifest.preservation.indexOutsideSupplierReader=true;result.manifest.preservation.poolVersionAccessorOnly=true;result.manifest.files=Object.fromEntries(Object.entries(result.files).map(([p,b])=>[p,sha(b)]));return result;}
 function prepareProduction({index,helper,pool,outputDir}){
  if(fs.existsSync(outputDir))throw Error('La salida debe ser nueva.');const result=planProduction({index,helper,pool});for(const[p,b]of Object.entries(result.files)){const dest=path.join(outputDir,p);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.writeFileSync(dest,b,{flag:'wx'});}
