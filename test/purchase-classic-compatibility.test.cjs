@@ -1,5 +1,5 @@
 'use strict';
-// Characterization of source 02f7693b. Synthetic orders and intercepted REST only.
+// Characterization from 02f7693b plus the explicitly approved header-only fix.
 // These tests deliberately expose an unmet migration requirement, not permission
 // to install a cohort or manufacture inventoryCompra on a historical order.
 const {test}=require('node:test'),a=require('node:assert/strict');
@@ -8,19 +8,24 @@ const History=require('../cotizador/purchase-inventory-history'),Edit=require('.
 const ORDER='sisventas/ordenes/oldOrder',LEDGER='sisventas/inventario_operativo/legacy';
 function oldOrder(){return {numero:'OC-FICTICIA',origen:'manual',estado:'borrador',proveedorKey:'provider',proveedor:'Proveedor ficticio',moneda:'ARS',fecha:'2026-11-01',items:[{productoKey:'product',codigo:'LEGACY-FICTICIO',descripcion:'Material ficticio',cantidadOrdenada:2,cantidadRecibida:0,costoUnitario:1.2345,precioPublico:9.8765,subtotal:2.469}],total:2.469,monto:2.469,unknown:{preserve:true}};}
 const operations={header:{kind:'edit',header:{date:'2026-11-02'}},quantity:{kind:'edit',quantities:[{index:0,quantity:3}]},receipt:{kind:'receive',movements:[{index:0,quantity:1,realUnitCost:1.1111}]},delete:null};
-for(const [name,change]of Object.entries(operations))for(const trace of ['no-order-trace','existing-order-trace'])test('classic '+name+' rejects before commit with '+trace+' and no invented registration',async()=>{
+for(const [name,change]of Object.entries(operations))for(const trace of ['no-order-trace','existing-order-trace'])test('classic '+name+' '+(name==='header'?'updates only header':'rejects before commit')+' with '+trace+' and no invented registration',async()=>{
  const f=await fixture({coordinated:true,stockOrder:true,pending:2}),original=oldOrder();f.set(ORDER,original);f.set('sv_permisos/admin/acciones/ordenes/eliminar',true);
  if(trace==='existing-order-trace')f.set(LEDGER+'/operaciones/compra_oldOrder',f.now-1000);
  const before=structuredClone(f.get('sisventas')),counter=structuredClone(f.get('sv_purchase_numbering/state')),id='fiction-classic-'+name+'-'+trace;
  const options={enabled:true,authorize:async()=>f.identity,store:f.store,guard:f.guard,resolveReference:at('cotizador/office-stock-reference-port').createReferenceResolver({enabled:true,mappedAdmission:f.authority}),queryPage:f.store.queryPage,now:()=>f.now,assertAdmission:async({read})=>f.authority.admit({read})};
  const body={id,orderKey:'oldOrder',expectedHash:digest(original),...(change?{expectedRevision:0,...change}:{})};
  const command=at(name==='delete'?'cotizador/purchase-typed-delete-command':'cotizador/purchase-inventory-command').create(options);
+ if(name==='header'){
+  const result=await command.execute({},body),next=structuredClone(f.get(ORDER));a.equal(result.operationId,id);a.equal(f.patches.length,1);a.equal(next.fecha,body.header.date);a.equal(next._svReadRevision,1);a.equal(next._svReadOperation,id);
+  for(const field of ['fecha','edicionesCabecera','actualizadoEn','actualizadoPor','_svReadRevision','_svReadOperation'])delete next[field];const unchanged=structuredClone(original);delete unchanged.fecha;a.deepEqual(next,unchanged);
+  a.deepEqual(f.get('sisventas/inventario_operativo'),before.inventario_operativo);a.deepEqual(f.get('sisventas/ventas'),before.ventas??null);a.deepEqual(f.get('sisventas/listas_materiales'),before.listas_materiales??null);a.deepEqual(f.get('sv_purchase_numbering/state'),counter);a.equal(Object.hasOwn(f.get(ORDER),'inventarioCompra'),false);a.ok(f.get('sv_labor_receipts/'+id));return;
+ }
  await a.rejects(command.execute({},body),{statusCode:409,code:'SV_PURCHASE_HISTORY_REVIEW'});
  a.equal(f.patches.length,0);a.deepEqual(f.get('sisventas'),before);a.deepEqual(f.get('sv_purchase_numbering/state'),counter);a.equal(f.get('sv_labor_receipts/'+id),null);a.equal(Object.hasOwn(f.get(ORDER),'inventarioCompra'),false);
  a.ok(f.calls.some(call=>decodeURIComponent(call.target.pathname).includes('inventario_operativo/legacy')));
 });
 
-test('pure header plan needs no physical delta, but this is not executable compatibility of the current command',()=>{
+test('pure header plan needs no physical delta and preserves all captured original fields',()=>{
  const order=oldOrder(),before=structuredClone(order),body={id:'fiction-classic-header-model',kind:'edit',orderKey:'oldOrder',header:{date:'2026-11-02'}};
  const plan=Edit.build({sourceOrder:order,body,at:1730000000000,actorUid:'fictionUser',actorName:'Autor ficticio'});
  a.deepEqual(Object.keys(plan.patch),[ORDER]);a.deepEqual(Object.keys(plan.preconditions),[ORDER]);a.deepEqual(plan.patch[ORDER].items,order.items);a.deepEqual(plan.patch[ORDER].unknown,order.unknown);a.equal(Object.hasOwn(plan.patch[ORDER],'inventarioCompra'),false);a.deepEqual(order,before);

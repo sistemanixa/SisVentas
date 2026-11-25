@@ -1,5 +1,5 @@
 'use strict';
-const Linked=require('./purchase-inventory-linked-plan'),Sources=require('./purchase-inventory-linked-sources');
+const Linked=require('./purchase-inventory-linked-plan'),Sources=require('./purchase-inventory-linked-sources'),Edit=require('./purchase-order-edit-plan');
 const {digest}=require('./labor-guard'),Policy=require('./purchase-inventory-policy'),Plan=require('./purchase-inventory-order-plan'),{key}=require('./purchase-inventory-model'),{createReferencePort}=require('./purchase-inventory-reference-port');
 const fail=(statusCode,code,message)=>Object.assign(Error(message),{statusCode,code});
 function create({authorize,store,guard,resolveReference,editReferencePort,assertAdmission,queryPage,linkedEnabled=false,enabled=false,now=Date.now}={}){
@@ -23,6 +23,14 @@ function create({authorize,store,guard,resolveReference,editReferencePort,assert
    const live=await access(req,p=>scope.get(p),checked);if(digest(live)!==digest(checked))throw fail(409,'SV_PURCHASE_AUTH_CHANGED','La sesión o los permisos cambiaron.');
    await assertAdmission({read:p=>scope.get(p),phase:'execute',identity:live,lease:scope.lease});
    const path='sisventas/ordenes/'+body.orderKey,order=await scope.getAsUser(path);if(!order||digest(order)!==body.expectedHash||(order._svReadRevision??0)!==body.expectedRevision)throw fail(409,'SV_PURCHASE_CONFLICT','La compra cambió. Volvé a abrirla.');
+   // A classic header changes no physical or economic source. Its pure model
+   // validates the narrow shape again inside the genuine edited-order policy.
+   if(Edit.classicHeader(order,body)){
+    const providerKey=body.header.providerKey,rawProvider=providerKey===undefined?undefined:await scope.get('sisventas/proveedores/'+providerKey),provider=rawProvider&&{...rawProvider,fbKey:providerKey};
+    const plan=Policy.issueEditedOrder(runner,scope.lease,{sourceOrder:order,body,at:now(),actorUid:live.uid,actorName:live.name,provider,rawProviders:providerKey===undefined?{}:{[providerKey]:rawProvider}},now());
+    scope.beforeCommit(async({readFresh})=>{const fresh=await access(req,readFresh,checked);if(digest(fresh)!==digest(checked))throw fail(409,'SV_PURCHASE_AUTH_CHANGED','La sesión o los permisos cambiaron.');await assertAdmission({read:readFresh,phase:'commit',identity:fresh,lease:scope.lease});const finalIdentity=await access(req,readFresh,checked);if(digest(finalIdentity)!==digest(checked))throw fail(409,'SV_PURCHASE_AUTH_CHANGED','La sesión cambió antes de confirmar.');});
+    await scope.update(plan.patch);return{ok:true,committed:true,operationId:body.id,orderKey:body.orderKey};
+   }
    const isLinked=!!(order.ventaFbKey||order.ventaId||order.listaMaterialesId||order.listaOrigenId||order.compraVentaReferencia);if(isLinked&&linkedEnabled!==true)throw fail(409,'SV_PURCHASE_LINKED_REVIEW','Esta compra requiere un plan conjunto de venta, costos o preparación; no se guardó ningún cambio.');
    const sources=isLinked?await Sources.load({order,orderKey:body.orderKey,read:p=>scope.get(p),guard}):null;
    const referencePort=createReferencePort({resolveReference}),originals=(order.items||[]).map((row,index)=>({...structuredClone(row),source:path,rowKey:String(index)})),resolved=await referencePort.resolve(originals,{read:p=>scope.get(p),query:(...args)=>scope.query(...args),sourceOrder:order,access:{uid:live.uid,role:live.role},queryPage}),inventories=Object.create(null);
