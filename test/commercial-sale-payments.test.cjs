@@ -63,4 +63,3 @@ test('final coverage and final sale checks still reject changes after source rer
  f.api.visibleRecordsByIds=async(...args)=>{if(target==='coverage')f.put(Index.COVERAGE_PATH,Index.buildIndex(f.root.sisventas.pagos,{generation:'changed-late',ready:true}).coverage);else f.root.sisventas.ventas.one.totalPagado=41;return original(...args);};
  await a.rejects(f.load(),/cambi/);}
 });
-

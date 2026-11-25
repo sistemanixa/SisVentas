@@ -1,3 +1,15 @@
+# Publicada optimización del historial de pagos · 25/11/2026
+
+Fuente funcional bfadf1b0e18afce9eec15ccc55b8f2293d434b9d; sólo cambia commercial-sale-payments.js en el servidor. Web y activos siguen en v3.21.18, sin nuevo despliegue Hosting ni aviso de versión. Puerta completa congelada: 11337 casos, 11246 PASS, 0 FAIL/cancelados y 91 exclusiones condicionales, exit0/SHA estable. Veinticuatro pruebas de módulo/ruta también pasan en el runtime nativo ensamblado. Comparación de 150 archivos: sólo el lector difiere, resto byteidéntico. Sin cambios de datos, cobros/anulaciones, Rules, configuración funcional, capacidad o procesos periódicos.
+
+Revisión cotizador-payfast-32118, imagen sha256:582a7f5227b5992010be0582bbcceabf9b5c68be3ca420f4b0523a02be67b64a, 100% tráfico confirmado por lectura posterior. Conserva configuración/126 capas y revisión payhist-32118 para reversión; arranque sin sesión401/private-no-store/CORS correcto. Se precargan puntos independientes juntos, relecturas paralelas limitadas a6, se elimina la cobertura intermedia duplicada y una autenticación intermedia idéntica. Permanecen autenticación inicial y final fresca, permisos/revisión/reset/propiedad, comparación de cada fuente/bucket y cobertura final. Sin caché entre solicitudes ni fallback de lectura autorizada a lectura de servicio.
+
+Prueba controlada un pago/20ms por GET: aproximadamente219→156ms (29% menos espera), 13→12 GET de Store y1585→1228 bytesJSON. No incluye las lecturas del contexto de autorización ni demuestra esa reducción porcentual en producción. Segunda medición bajo Chrome concurrente mostró variación de tiempos; presupuesto de GET/bytes se mantiene. En producción se reabrió la venta del titular y se confirmó su pago existente/saldo cancelado; sin operaciones financieras de prueba. Dos lecturas nuevas registraron5.158s y3.862s de latencia de servidor, muestras pequeñas sin prometer tiempo instantáneo ni comparar ventas diferentes. Un segundo recorrido de UI terminó con otra venta seleccionada, por lo que no se atribuye al cobro original. Ventana preservada. Evidencia privada payment-fast-*; no subirla a Git.
+
+Preferencia permanente del titular incorporada en AGENTS.md: revisar el recorrido de red, medir consultas/esperas antes y después, reutilizar lecturas dentro de la misma operación y evitar trabajo repetido sin reducir controles. Cierre posterior sólo añade documentación y retira una línea vacía final de test; no cambia producto probado/publicado. Migración general Compras/Stock/OT sigue fuera de este bloque.
+
+---
+
 # Publicada v3.21.18 · 25/11/2026
 
 Bloque acotado de historial de pagos de Detalle de venta y lectura puntual de comprobantes. Fuente funcional d6b38b7e065959c5ea72b7162ea58821845b8fb0. Puerta vigente: 11334 casos, 11243 PASS, 0 FAIL, 0 cancelados, 91 exclusiones condicionales; SHA estable. Aplicación completa 390/1280 y preservación del índice nativo verificadas. Hosting: 726/726 activos HTTPS idénticos por SHA256, cabeceras conservadas. Script oficial confirmó web, marcador, SW y aviso Firebase v3.21.18-firebase.
