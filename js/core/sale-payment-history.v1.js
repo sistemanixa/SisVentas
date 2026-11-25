@@ -1,0 +1,49 @@
+(function(root){
+ 'use strict';
+ function create(env){
+  let entries=new WeakMap(),generation=0,disposed=false;
+  const liveEntries=new Set(),events=['sisventas:page-changed','sisventas:session-ended','sisventas:session-ready','sisventas:role-changed'];
+  const validKey=k=>typeof k==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(k)&&!['constructor','prototype','__proto__'].includes(k);
+  const idle=()=>({status:'idle',payments:null,complete:false});
+  function context(){const role=env.currentRole,detail=env.document?.getElementById?.('venta-detalle-view');return {uid:env.currentUserUid,user:env.fbAuth?.currentUser,auth:env.fbAuth,db:env.fbDB,role,permissionRevision:env.PERMISOS_ROLES?.[role]?.indiceRevision,epoch:env._svOperacionesSesionEpoch||0,route:env.location?.hash,viewAs:env._impersonacionOriginal,selected:env._ventaDetalleActual,visible:!env.document?.hidden&&!!detail&&!detail.hidden&&detail.style.display!=='none',allowed:env.permisoModulo?.('venta')===true};}
+  function current(e){const c=context(),s=e.context;return !disposed&&e.generation===generation&&c.visible&&c.allowed&&!c.viewAs&&c.uid&&c.user?.uid===c.uid&&['uid','user','auth','db','role','permissionRevision','epoch','route','viewAs'].every(k=>c[k]===s[k])&&(c.selected===s.selected||c.selected===e.fresh)&&c.selected?.fbKey===e.key;}
+  function cancel(e){e.loading?.cancel();e.loading=null;liveEntries.delete(e);}
+  function reset(record){generation++;for(const e of liveEntries)cancel(e);entries=new WeakMap();}
+  function blockedCurrent(e){const c=context(),s=e.context;return !disposed&&e.generation===generation&&['uid','user','auth','db','role','permissionRevision','epoch','route','viewAs','selected'].every(k=>c[k]===s[k]);}
+  function state(record){const e=record&&entries.get(record);return e&&(current(e)||e.blocked&&blockedCurrent(e))?structuredClone(e.state):idle();}
+  function validate(data,key){
+   const h=data?.paymentHistory,r=data?.record;
+   if(data?.ok!==true||!r||typeof r!=='object'||Array.isArray(r)||data.fbKey!==undefined&&data.fbKey!==key||r.fbKey!==undefined&&r.fbKey!==key||h?.schema!==1||!['global','embedded','legacy'].includes(h.source)||h.complete!==true||!Array.isArray(h.payments)||typeof h.paidAmount!=='number'||!Number.isFinite(h.paidAmount)||h.paidAmount<0)throw Error('No se pudo verificar el historial de pagos.');
+   const seen=new Set(),payments=h.payments.map(p=>{
+    const id=p?.fbKey||p?.id;
+    if(!p||typeof p!=='object'||Array.isArray(p)||!validKey(id)||seen.has(id)||typeof p.monto!=='number'||!Number.isFinite(p.monto)||p.monto<0||typeof p.hasReceipt!=='boolean'||!['string','number'].includes(typeof p.fecha)||typeof p.fecha==='number'&&!Number.isFinite(p.fecha)||['medio','nota','estado'].some(k=>p[k]!==undefined&&typeof p[k]!=='string')||p.anulado!==undefined&&typeof p.anulado!=='boolean')throw Error('El historial de pagos está incompleto.');
+    seen.add(id);return Object.fromEntries(['fbKey','id','monto','fecha','medio','nota','anulado','estado','hasReceipt'].filter(k=>Object.hasOwn(p,k)).map(k=>[k,p[k]]));
+   });
+   return {record:{...structuredClone(r),fbKey:key},state:{status:'ready',source:h.source,payments,paidAmount:h.paidAmount,complete:true}};
+  }
+  function ensure(record,onReady,{retry=false}={}){
+   if(!record||typeof record!=='object'||disposed)return Promise.resolve(idle());
+   const old=entries.get(record);if(old?.blocked&&blockedCurrent(old)&&!retry)return old.promise;if(old&&current(old)&&(!retry||old.state.status==='pending'||old.state.status==='ready'))return old.promise;
+   if(old&&current(old)&&old.state.status==='error'&&!retry)return old.promise;
+   if(old)cancel(old);
+   const e={key:record.fbKey,context:context(),generation,state:{status:'pending',payments:null,complete:false},fresh:null,loading:null};entries.set(record,e);
+   if(!validKey(e.key)||!current(e)){e.blocked=true;e.state={status:'error',payments:null,complete:false,message:'No se pudo identificar la venta o verificar el acceso a sus pagos.'};e.promise=Promise.resolve().then(()=>{if(blockedCurrent(e)&&typeof onReady==='function')onReady(null,structuredClone(e.state));return structuredClone(e.state);});return e.promise;}
+   liveEntries.add(e);e.loading=env.SVDataReadiness?.beginSource('salePaymentHistory','sale-payment-history:'+e.key);
+   e.promise=(async()=>{let fresh=null;try{
+    const data=await env.SVCommercialOwnership.request('ventas','registro/'+encodeURIComponent(e.key)+'?para=pagos');if(!current(e))return idle();
+    const answer=validate(data,e.key);fresh=e.fresh=answer.record;e.state=answer.state;entries.set(fresh,e);e.loading?.ready();
+   }catch(error){if(!current(e))return idle();e.state={status:'error',payments:null,complete:false,message:'No se pudieron cargar los pagos. Volvé a intentar.'};e.loading?.error(e.state.message);
+   }finally{if(!current(e))cancel(e);}
+   if(current(e)&&typeof onReady==='function')onReady(fresh,structuredClone(e.state));return structuredClone(e.state);
+   })();return e.promise;
+  }
+  const changed=()=>reset(),visibility=()=>{if(env.document?.hidden)reset();};
+  for(const name of events)env.document?.addEventListener(name,changed);
+  env.document?.addEventListener('visibilitychange',visibility);
+  const detail=env.document?.getElementById?.('venta-detalle-view');
+  const observer=detail&&env.MutationObserver?new env.MutationObserver(()=>{if(detail.hidden||detail.style.display==='none')reset();}):null;observer?.observe(detail,{attributes:true,attributeFilter:['style','hidden','class']});
+  return Object.freeze({state,ensure,reset,dispose(){if(disposed)return;reset();disposed=true;observer?.disconnect();for(const name of events)env.document?.removeEventListener(name,changed);env.document?.removeEventListener('visibilitychange',visibility);}});
+ }
+ root.SVSalePaymentHistory=Object.freeze({create});
+ if(typeof module==='object'&&module.exports)module.exports={create};
+})(typeof window==='object'?window:globalThis);
