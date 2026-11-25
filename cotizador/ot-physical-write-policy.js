@@ -28,17 +28,22 @@ function projection(ot){
  return result;
 }
 function apply(record,path,value){if(!path.length)return structuredClone(value);const result=structuredClone(record)||{};let at=result;for(const field of path.slice(0,-1)){if(!at[field]||typeof at[field]!=='object')at[field]={};at=at[field];}if(value===null)delete at[path.at(-1)];else at[path.at(-1)]=structuredClone(value);return result;}
-async function claims({patch,actor,lease,read}){
+async function claims({patch,actor,lease,read,operationalSummaries=false,now=Date.now()}){
  const grouped=new Map();for(const [path,value]of Object.entries(patch)){
   const keys=parts(path),normalized=keys.join('/');if(normalized===base||base.startsWith(normalized+'/'))throw fail();if(!normalized.startsWith(base+'/'))continue;
   if(keys.some(key=>['__proto__','prototype','constructor'].includes(key)))throw fail();const id=keys[2];if(!grouped.has(id))grouped.set(id,[]);grouped.get(id).push({path:keys.slice(3),value});
  }
- let changed=false;const token=Policy.token(actor,lease),inventoryToken=require('./ot-inventory-policy').token(actor,lease);
+ let changed=false;const token=Policy.token(actor,lease),inventoryToken=require('./ot-inventory-policy').token(actor,lease),Count=require('./ot-office-count-policy'),countToken=Count.token(actor,lease);let countValidated=false;
  for(const [id,edits]of grouped){
   for(let i=0;i<edits.length;i++)for(let j=0;j<i;j++){const a=edits[i].path.join('/'),b=edits[j].path.join('/');if(!a||!b||a===b||a.startsWith(b+'/')||b.startsWith(a+'/'))throw fail();}
   const before=await read(base+'/'+id);let after=before;for(const edit of edits)after=apply(after,edit.path,edit.value);
   if(digest(projection(before))===digest(projection(after)))continue;
-  if(!(token.svOTLifecycleVersion===1&&token.svOTLifecycleOTKey===id)&&!(inventoryToken.svOTInventoryVersion===1&&inventoryToken.svOTInventoryOTKey===id))throw fail();changed=true;
+  if(!(token.svOTLifecycleVersion===1&&token.svOTLifecycleOTKey===id)&&!(inventoryToken.svOTInventoryVersion===1&&inventoryToken.svOTInventoryOTKey===id)){
+   if(countToken.svOTCountVersion!==1||countToken.svOTCountOTKey!==id||!Count.isBound(actor))throw fail();
+   // A token alone never authorizes physical Count changes: revalidate the sealed
+   // entire source patch and fresh originals before returning physical claims.
+   if(!countValidated){await Count.validate({actor,lease,patch,readFresh:read,operationalSummaries,now});countValidated=true;}
+  }changed=true;
  }
  return{svOTPhysicalCommitVersion:1,svOTPhysicalUnchanged:!changed};
 }

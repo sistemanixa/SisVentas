@@ -25,4 +25,22 @@ test('only server issued capability bound to operation, lease and OT delegates p
 test('overlapping patches never rely on insertion order',async()=>{
  await assert.rejects(check({[base+'/materiales']:original.materiales,[base+'/materiales/0/instalada']:2}));
 });
+test('Count physical claims require genuine sealed whole patch and fresh sources',async()=>{
+ const Count=require('../cotizador/ot-office-count-policy'),{digest}=require('../cotizador/labor-guard');
+ const cfg={indiceVersion:2,indiceRevision:7,indiceModulos:{ordentrabajo:true},acciones:{ot:{ajustarStockOficina:true}}},profile={rol:'admin',activo:true};
+ const context=require('../cotizador/ot-office-count').access(profile,cfg),inventoryPath='sisventas/inventario_operativo/J',inventory={general:2};
+ const ot={estado:'pendiente',materiales:[{cod:'X',entregada:1,instalada:0}]},input={id:'count-op',otKey:'ot',productKey:'P',expectedOTHash:digest(ot),expectedInventoryHash:digest(inventory)};
+ const actor={uid:'u',claims:{uid:'u'},mode:'user',operation:'ot-office-count',opId:input.id,input,transportDigest:digest(input),...context};
+ const now=Date.now(),lease={actorUid:'u',opId:input.id,digest:actor.transportDigest,mode:'user',fence:'f',expiresAt:now+60000};actor.otCount=Count.issue({actor,original:ot,context});
+ const business={[base]:{...ot,materiales:[{cod:'X',entregada:1,instalada:1}]},[inventoryPath]:{general:1}};
+ Count.seal({actor,lease,patch:business,sources:{[base]:ot,[inventoryPath]:inventory},generation:'g',now});
+ const patch={...business,sv_labor_guard:null,['sv_labor_receipts/'+input.id]:{actorUid:'u',digest:lease.digest,fence:lease.fence}};
+ const sources={[base]:ot,[inventoryPath]:inventory,'sv_chat_roles/u':profile,'sv_permisos/admin':cfg,'sv_labor_config/otOfficeCountVersion':1};
+ const run=(candidate=actor,updates=patch)=>Policy.claims({patch:updates,actor:candidate,lease,now,read:async path=>structuredClone(sources[path]??null)});
+ assert.equal((await run()).svOTPhysicalUnchanged,false);
+ await assert.rejects(run({...actor,otCount:{...actor.otCount}}));
+ await assert.rejects(run(actor,{...patch,[inventoryPath]:{general:900}}),{code:'SV_OT_COUNT_SOURCE_AUTHORITY'});
+ await assert.rejects(run(actor,{...patch,['sisventas/ordenes_trabajo/other']:business[base]}));
+ sources['sv_permisos/admin']={...cfg,acciones:{ot:{ajustarStockOficina:false}}};await assert.rejects(run());
+});
 test('pristine deletion accepted by existing deletion policy keeps neutral physical fingerprint',async()=>{const original={estado:'pendiente',custodiaIniciada:false,remitosEntrega:{},materiales:[{cod:'X',vendida:2,instalada:0,entregada:0,stockRevision:0,stockPendiente:false,stockRegistro:''}]};require('../cotizador/ot-delete-policy').assertNoActivity(original);assert.equal((await check({[base]:null},{},{},original)).svOTPhysicalUnchanged,true);assert.throws(()=>require('../cotizador/ot-delete-policy').assertNoActivity({...original,materiales:[{cod:'X',instalada:1}]}));});
