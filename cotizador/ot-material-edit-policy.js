@@ -1,6 +1,6 @@
 'use strict';
 // Typed OT authority composed with (never replacing) the native Sale writer.
-const {digest}=require('./labor-guard'),Adapters=require('../js/modules/ot-related-adapters');
+const {digest}=require('./labor-guard'),Adapters=require('./ot-related-adapters');
 const issued=new WeakMap(),port=Symbol('ot-material-edit'),PURPOSE='ot-materials';
 const key=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(value)&&!['constructor','prototype','__proto__'].includes(value);
 const fail=()=>Object.assign(Error('La corrección de materiales requiere su plan original autorizado.'),{statusCode:403,code:'SV_OT_MATERIAL_EDIT_AUTHORITY'});
