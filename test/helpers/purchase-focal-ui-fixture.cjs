@@ -12,7 +12,7 @@ function legacyModule(){
  }
  return source;
 }
-function createFixture({records={},source,persist=clone,beforeTransaction=()=>{},onRead=()=>{},onCommit=()=>{}}={}){
+function createFixture({records={},source,rootOverrides={},persist=clone,beforeTransaction=()=>{},onRead=()=>{},onCommit=()=>{}}={}){
  records=clone(records);const notes=[],capabilities=[],writes=[],commits=[],reads=[];
  let before=beforeTransaction;
  const modal={style:{},querySelectorAll:()=>[],setAttribute(){},removeAttribute(){}},document={addEventListener(){},getElementById:id=>id==='oc-order-modal'?modal:null,querySelector:()=>null,querySelectorAll:()=>[]};
@@ -33,9 +33,10 @@ function createFixture({records={},source,persist=clone,beforeTransaction=()=>{}
   obtenerCostoItemVenta:item=>Number(item.costoTotalCompra??Number(item.qty||item.cantidad||1)*Number(item.costoUnitarioCompra||0))
  };
  w.SVGuardedWrites={equal:require('../../js/core/guarded-writes').equal,restTransaction:(p,fn)=>transact('rest',p,fn)};
+ Object.assign(w,rootOverrides);
  const text=source??fs.readFileSync(path.join(rootDir,'js/modules/purchase-orders.js'),'utf8'),anchor='  window.SisVentasCompras = {';
  assert.equal(text.split(anchor).length,2,'Full-controller test exposure must be unique');
- const hooked=text.replace(anchor,'  window.__purchaseFocal={savePreparationAndSaleCosts,buildPlannedOrders,finishPlannedPurchase,finishReceipt};\n'+anchor);
+ const hooked=text.replace(anchor,'  window.__purchaseFocal={savePreparationAndSaleCosts,buildPlannedOrders,finishPlannedPurchase,finishReceipt,deleteActiveOrder,orderDeleteAction:typeof orderDeleteAction==="function"?orderDeleteAction:null};\n'+anchor);
  vm.runInNewContext(hooked,{window:w,document,console,TextEncoder,AbortSignal,URL,setTimeout,clearTimeout});
  return {w,records,notes,capabilities,writes,commits,reads,api:w.__purchaseFocal,state:w.SisVentasCompras.state,before:fn=>before=fn};
 }
