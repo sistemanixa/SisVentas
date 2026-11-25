@@ -1,0 +1,21 @@
+/* One operation indicator, without changing the size of buttons or pages. */
+.sv-operation-status{display:inline-flex;align-items:center;justify-content:center;gap:8px;max-width:100%;line-height:1.4}
+.sv-operation-spinner{display:inline-block;box-sizing:border-box;width:14px;height:14px;flex:0 0 14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sv-operation-spin .8s linear infinite}
+.sv-operation-busy{cursor:wait!important}
+.sv-operation-original{display:contents;visibility:hidden;pointer-events:none}
+.sv-operation-button-status{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 6px;overflow:hidden;pointer-events:none}
+.sv-operation-text{min-width:0;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.sv-operation-compact .sv-operation-text{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%)}
+/* A route transition must not make an unverified retained view visible again. */
+.page.sv-page-transitioning.sv-data-pending>:not(.sv-page-transition-loader):not([data-sv-data-status]){visibility:hidden!important;pointer-events:none}
+/* The legacy shared loader remains a status, rather than a full-screen veil. */
+#sv-cargando.sv-cargando{inset:auto 16px 16px auto;display:block;max-width:calc(100vw - 32px);background:transparent;pointer-events:none}
+#sv-cargando .sv-cargando-cartel{gap:8px;max-width:100%;padding:10px 14px;font-size:13px;line-height:1.5}
+#sv-cargando .sv-cargando-cartel i{font-size:18px}
+body:has(>#sv-cargando:not([hidden]))>.sv-load-status-layer{visibility:visible}
+#sv-cargando .sv-cargando-cartel>i,.sv-page-transition-spin>i{display:inline-block;box-sizing:border-box;width:14px;height:14px;flex:0 0 14px;font-size:0;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sv-operation-spin .8s linear infinite}
+#sv-cargando .sv-cargando-cartel>i::before,.sv-page-transition-spin>i::before{content:none}
+.sv-data-status strong::before{animation-duration:.8s}
+@keyframes sv-operation-spin{to{transform:rotate(360deg)}}
+@media(max-width:600px){#sv-cargando.sv-cargando{left:12px;right:12px;bottom:12px;max-width:none}}
+@media(prefers-reduced-motion:reduce){.sv-operation-spinner,#sv-cargando .sv-cargando-cartel>i,.sv-page-transition-spin>i{animation:none}}
