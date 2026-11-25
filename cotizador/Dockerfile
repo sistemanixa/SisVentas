@@ -76,3 +76,19 @@ COPY office-stock.js office-stock-policy.js office-stock-model.js office-stock-m
 COPY client-history-access.js client-history-query.js client-history-http-adapter.js client-history-complete-page.js client-history-client.js ./
 
 COPY sale-economics-validation.js sale-financial-dependencies-model.js sale-financial-dependencies-delta.js sale-financial-dependencies-projections.js sale-financial-dependencies-provider.js sale-financial-dependencies-protocol.js client-account-writer-protocol.js ./
+
+# Closed local dependencies of the typed inventory and purchase entrypoints.
+COPY employee-resources-http.js initial-inventory-model.js initial-inventory-reference.js inventory-absence-evidence.js inventory-bootstrap-model.js ./
+COPY inventory-code-pins.js inventory-cohort-contract.js inventory-cohort-runtime.js inventory-command-http.js inventory-installation-contract.js ./
+COPY inventory-reference-runtime.js office-stock-canonical-locator.js office-stock-catalog-coverage.js office-stock-directed-coverage.js office-stock-explicit-reference.js ./
+COPY office-stock-link-command.js office-stock-link-plan.js office-stock-link-policy.js office-stock-order-policy.js office-stock-order-projections.js ./
+COPY office-stock-order.js office-stock-reference-io.js office-stock-reference-port.js office-stock-reference.js purchase-action-models.js ./
+COPY purchase-actions.js purchase-command-host.js purchase-create-reference-port.js purchase-document-model.js purchase-generation-dispatch.js ./
+COPY purchase-initial-inventories.js purchase-inventory-command.js purchase-inventory-history.js purchase-inventory-linked-plan.js purchase-inventory-linked-sources.js ./
+COPY purchase-inventory-model.js purchase-inventory-order-plan.js purchase-inventory-policy.js purchase-inventory-reference-port.js purchase-joint-generation-model.js ./
+COPY purchase-joint-order-plan.js purchase-joint-reserve-model.js purchase-legacy-import-model.js purchase-linked-edit-model.js purchase-list-edit-model.js ./
+COPY purchase-list-generation-command.js purchase-list-generation-model.js purchase-list-lifecycle-model.js purchase-list-reserve-model.js purchase-manual-create-command.js ./
+COPY purchase-manual-create-model.js purchase-manual-edit-model.js purchase-numbering-protocol.js purchase-numbering.js purchase-order-actions-model.js ./
+COPY purchase-order-edit-plan.js purchase-preparation-availability.js purchase-preparation-cancel-model.js purchase-preparation-model.js purchase-receipt-fx.js ./
+COPY purchase-receipt-reconcile-model.js purchase-route-contract.js purchase-source-cost-protocol.js purchase-source-cost-validator.js purchase-stock-generation-model.js ./
+COPY purchase-typed-delete-command.js purchase-typed-delete-model.js purchase-wire-envelope.js stock-link-activation-contract.js ./

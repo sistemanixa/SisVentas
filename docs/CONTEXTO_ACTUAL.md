@@ -1,3 +1,7 @@
+# Cierre de dependencias del contenedor · 25/11/2026
+
+Dockerfile incluye explícitamente los 69 módulos locales nuevos alcanzados por sus entrypoints, sin COPY global ni archivos privados. Prueba de cierre y arranque desde exclusivamente COPY: 10 PASS; rutas Dashboard preservadas y sin lecturas/escrituras al iniciar OFF. Esto no verifica cohorte ON, artefacto UI/pins ni una imagen publicada: faltan dominio OT final y paquete firmado conjunto. No hubo build/despliegue remoto.
+
 # Pausa de guardados y rutas restauradas · 25/11/2026
 
 El adaptador de Recursos de empleados restaurado desde runtime nativo se despacha ahora después de la pausa global. Indumentaria/categorías POST no autentican, parsean ni escriben durante la pausa; con flag ausente/false conservan despacho. GET y dominio privado mantienen tratamiento existente. 25 pruebas PASS de pausa, proyectos, historial y borrado mediante handler real; fixtures incorporan adaptadores nuevos sin cambiar sus expectativas financieras. Sin publicación ni cambio remoto.
