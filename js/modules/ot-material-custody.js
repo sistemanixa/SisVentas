@@ -53,7 +53,7 @@
       // Installation and its inventory effects must commit together on the server.
       // Older servers are read-only for this action; never move stock first.
       if (installationChanged && capability?.atomicStock !== true) throw Error('La instalación segura está pendiente de habilitar. No se movió stock.');
-      var saved = await save(draft, action);
+      var saved = await save(draft, action, {prepared:capability});
       if (confirmed.visible() && typeof window.actualizarPanelIntegridadOT === 'function') window.actualizarPanelIntegridadOT();
       return saved;
     } finally { renditionBusy = false; if (typeof finish === 'function') finish(); }
@@ -266,7 +266,7 @@
     var linked = !!(ot.ventaFbKey || ot.ventaId || ot.venta);
     var promise = linked
       ? (window.SVOTLifecycle
-        ? window.SVOTLifecycle.save(currentOT() || ot, ot, {kind:options && options.kind || 'custody',action:action || ''}).then(function(result){Object.assign(ot,result.ot);return result;})
+        ? window.SVOTLifecycle.save(currentOT() || ot, ot, {kind:options && options.kind || 'custody',action:action || '',...(options?.prepared?{prepared:options.prepared}:{})}).then(function(result){Object.assign(ot,result.ot);return result;})
         : Promise.reject(new Error('Recargá la aplicación para guardar la rendición de forma segura.')))
       : (typeof window.fbGuardarOT === 'function' ? window.fbGuardarOT(ot) : Promise.reject(new Error('Firebase no está disponible')));
     var materialCard = document.getElementById('ot-materiales-card');
@@ -495,7 +495,7 @@
       var capability = await window.SVOTLifecycle.prepare(ot,{kind:'delivery'});
       if (!valid()) throw Error('La sesión o los permisos cambiaron. Volvé a abrir la OT.');
       if (capability?.atomicStock !== true) throw Error('La entrega segura está pendiente de habilitar. No se movió stock.');
-      var result = await window.SVOTLifecycle.save(ot,{entregas:selections},{kind:'delivery',action:'Entrega de materiales al técnico'});
+      var result = await window.SVOTLifecycle.save(ot,{entregas:selections},{kind:'delivery',action:'Entrega de materiales al técnico',prepared:capability});
       if (!confirmed.session()) return;
       reconcileConfirmed(result.ot,confirmed);
       window._otGuardandoLocalHasta = Date.now() + 3000;
@@ -761,7 +761,7 @@
       var auditRows = (draft.audit || []).concat([{fecha:new Date().toLocaleString('es-AR'),usuario:window.currentUser||'Sistema',accion:'Stock de adicionales instalados registrado sin duplicar consumos'}]);
       if (ot.ventaFbKey || ot.ventaId || ot.venta) {
         if (!window.SVOTLifecycle) throw Error('Recargá la aplicación para guardar la rendición de forma segura.');
-        var result = await window.SVOTLifecycle.save(ot, draft, {kind:'custody',action:'Stock de adicionales instalados registrado sin duplicar consumos'});
+        var result = await window.SVOTLifecycle.save(ot, draft, {kind:'custody',action:'Stock de adicionales instalados registrado sin duplicar consumos',prepared:capability});
         Object.assign(draft,result.ot);
       } else await window.otPersistirActualizar(ot.fbKey, {materiales:draft.materiales,custodiaIniciada:true,custodiaRendida:draft.custodiaRendida,audit:auditRows});
       if (ot.ventaFbKey || ot.ventaId || ot.venta) Object.assign(ot,draft);
