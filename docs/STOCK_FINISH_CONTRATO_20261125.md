@@ -38,3 +38,15 @@ Root verificó después la imagen real 6b6276dd de sólo lectura: su Guard sí a
 ## Cotización explícita acordada con Compras
 
 Manual-create y manual-edit admiten declaration.exchangeRate opcional únicamente cuando currency es USD: número finito mayor que cero y hasta 1e9. Se conserva literalmente en wire y binding, sin redondear ni sustituir una cotización ausente. El modelo A determina cuándo la exige (cambio de costo USD/SKU nuevo con PVP ARS); E no inventa una cotización para superar esa condición. ARS con exchangeRate, strings o números inválidos se rechazan. Las filas de ítems conservan sus restricciones anteriores. Veinte pruebas nuevas de esta propiedad y 73 focales wire/edit pasan.
+
+## Revisión visual de vínculo
+
+Se portan sólo los tres leafs C revisados de 32a: office-stock-link-review.v1.js, office-stock-link-adapter.v1.js y su CSS. No se recupera su aplicación ni un snapshot completo. El hook opcional mount(...,{linkReview}) agrega Revisar vínculo sólo a filas ambiguas cuando Root inyecta explícitamente un controlador; importar los archivos por sí solo no activa botón ni escritor. El controlador muestra registro actual, código disponible, cantidad conservada y producto elegido antes de confirmar metadatos. No mueve, copia o fusiona saldos/historia. SessionChanged cierra la revisión y destroy elimina su controlador propio; Root debe destruir también el adaptador de recuperación que componga por montaje.
+
+Provenance usa history.reference.inventoryKey J confirmado por servidor y exige productKey P coincidente. No sigue una referencia ajena o mal formada ni modifica receiptIdentityKey R. Se conservan las comprobaciones y límites previos de permisos de Compras.
+
+37 pruebas visuales/recuperación/provenance pasan y cinco del hook real de listado pasan (390/768/1280, cierre, sesión revocada y no activación implícita). La primera ejecución de servidores locales fue bloqueada por loopback; se repitió con acceso local autorizado sin cambiar expectativas. Capturas ficticias privadas en .local/stock-link-review-20261125 con CSS dark-mode real. Se revisaron visualmente 390 y1280. Los tests de composición Core/Store importan ahora el checkout actual: no hay fallback a un commit congelado antiguo. Siguen pendientes los hooks compartidos genuinos para ejecutarlos completos.
+
+Límite comunicado antes de publicar: el catálogo local + summary compacto no descubren por sí solos un mapping P/J después de cambiar el código y recargar. Un onSaved que refresca una fixture no acredita esa persistencia real. Root debe acordar la consulta advisory inverse/lookupInventory sólo para las filas que necesiten identificación; no introducir lecturas remotas por cada fila normal ni dar la UI por terminada sin esa composición. También faltan rutas, assets/version de Root y la aceptación con Rules reales.
+
+Baseline actual para la siguiente prueba, informada por Root: rules-current-20261125.private.json SHA256 5a5f7b34de6cbba2ae54517029de956b6be605e21143fe4a86c131255052e48f. La anterior ea197... no acredita equivalencia con las reglas efectivas actuales. No se incluye ningún contenido de reglas privadas o datos reales en Git.
