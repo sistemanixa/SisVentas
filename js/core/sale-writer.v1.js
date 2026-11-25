@@ -41,7 +41,7 @@
   function session(){const uid=root.currentUserUid,role=root.currentRole,auth=root.fbAuth,user=auth?.currentUser,db=root.fbDB,revision=root.PERMISOS_ROLES?.[role]?.indiceRevision,epoch=root._svOperacionesSesionEpoch;const check=()=>{if(!uid||!role||root._impersonacionOriginal||auth&&(!user||user.uid!==uid)||uid!==root.currentUserUid||role!==root.currentRole||auth!==root.fbAuth||user!==root.fbAuth?.currentUser||db!==root.fbDB||revision!==root.PERMISOS_ROLES?.[role]?.indiceRevision||epoch!==root._svOperacionesSesionEpoch)throw Error('La sesión cambió o se modificó el contexto. Volvé a abrir la venta.');};check();return check;}
   // Todos los documentos comerciales terminan aquí. Los vínculos se confirman
   // en la misma escritura existente; no se separan venta, OT y presupuesto.
-  async function commit({record,baseline,key,related={},basePath='',partial=false,transaction,confirmLocal=false}={}){
+  async function commit({record,baseline,key,related={},relatedBaselines={},basePath='',partial=false,transaction,confirmLocal=false}={}){
    const check=session(),stockContext=await root.SVStockPurchaseCosts?.load(root,record,baseline);check();const next=prepare(record,baseline,stockContext);check();
    const localContext=confirmLocal?root.SVCommercialOwnership?.captureWriteContext?.('ventas'):null;
    if(transaction){
@@ -60,12 +60,18 @@
    const salePath=collection+'/'+key,paths=[salePath];
    // Los vínculos no financieros conservan la escritura autorizada del origen;
    // no se exige leer notificaciones privadas para poder crear una venta.
-   for(const p of Object.keys(absolute))if(root.SVLaborWrites.intersects?.(p)){const scoped=p.split('/').slice(0,3).join('/');if(!paths.includes(scoped))paths.push(scoped);}
+   for(const p of Object.keys(absolute))if(root.SVLaborWrites.intersects?.(p)||/^sisventas\/reclamos\/[^/]+(?:\/|$)/.test(p)){const scoped=p.split('/').slice(0,3).join('/');if(!paths.includes(scoped))paths.push(scoped);}
+   if(!relatedBaselines||typeof relatedBaselines!=='object'||Array.isArray(relatedBaselines))throw Error('Falta verificar los registros vinculados.');
+   for(const p of Object.keys(relatedBaselines)){
+    if(!/^sisventas\/(?:reclamos|ordenes_trabajo)\/[^/.#$\[\]\x00-\x1f\x7f]+$/.test(p)||!relatedBaselines[p]||typeof relatedBaselines[p]!=='object'||Array.isArray(relatedBaselines[p]))throw Error('La referencia vinculada no es válida.');
+    if(!paths.includes(p))paths.push(p);
+   }
    const equal=root.SVGuardedWrites?.equal||((a,b)=>JSON.stringify(a)===JSON.stringify(b));
    const clean=value=>{const out=clone(value);if(out)delete out.fbKey;return out;};
    let reused=false;
    check();const result=await root.SVLaborWrites.atomic({paths,build:values=>{
     check();const current=values[salePath];
+    for(const p of Object.keys(relatedBaselines))if(!equal(clean(values[p]),clean(relatedBaselines[p])))throw Error('El reclamo o la OT cambió. Volvé a abrir la resolución para revisarlos.');
     if(baseline){if(!equal(clean(current),clean(baseline)))throw Error('La venta cambió. Volvé a abrirla antes de guardar.');}
     else if(current){if(equal(clean(current),data)){reused=true;return undefined;}throw Error('La venta ya existe; no se sobrescribió.');}
     return absolute;
