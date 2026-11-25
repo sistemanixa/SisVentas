@@ -6827,7 +6827,7 @@ function fbCargarProductos() {
         };
       });
     }
-    document.dispatchEvent(new Event("sisventas:stock-catalog-changed"));
+    document.dispatchEvent?.(new Event("sisventas:stock-catalog-changed"));
     invalidarMetricasListaProductos();
     renderResumenPreciosProveedores();
     var paginaProductosActiva = _svEsPaginaActiva('productos');
