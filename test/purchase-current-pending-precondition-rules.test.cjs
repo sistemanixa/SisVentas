@@ -1,7 +1,7 @@
 'use strict';
 // Predicate-only synthetic matrix, NOT a genuine command/native commit proof.
 const {test}=require('node:test'),a=require('node:assert/strict'),Rule=require('../scripts/lib/purchase-current-pending-precondition-rules.cjs');
-function fixture(){return{now:100,auth:{uid:'fiction',token:{svPurchaseSourceCostVersion:0,svPurchaseSourceCostKind:Rule.kind,svPurchaseSourceCostOrderKey:'order',svLaborService:true,mode:'commit',actorUid:'fiction',fence:'fence',opId:'op',digest:'digest',svFinancialActorRole:'admin',svFinancialPermissionRevision:7,svAccessVersion:'qa'}},data:{sv_labor_guard:{mode:'user',actorUid:'fiction',fence:'fence',opId:'op',digest:'digest',expiresAt:200},sv_chat_roles:{fiction:{activo:true,rol:'admin'}},sv_permisos:{admin:{indiceVersion:2,indiceRevision:7,indiceModulos:{ordenes:true,configuracion:true},acciones:{ordenes:{editar:true},mantenimiento:{migrar:true}}}},sv_access_resets:{fiction:{required:false,version:'qa'}},sisventas:{ordenes:{order:{original:true}}}}};}
+function fixture(){return{now:100,auth:{uid:'fiction',token:{svPurchaseSourceCostVersion:0,svPurchaseSourceCostKind:Rule.kind,svPurchaseSourceCostOrderKey:'order',svLaborService:true,mode:'commit',svFinancialAction:'ordenes.editar',actorUid:'fiction',fence:'fence',opId:'op',digest:'digest',svFinancialActorRole:'admin',svFinancialPermissionRevision:7,svAccessVersion:'qa'}},data:{sv_labor_guard:{mode:'user',actorUid:'fiction',fence:'fence',opId:'op',digest:'digest',expiresAt:200},sv_chat_roles:{fiction:{activo:true,rol:'admin'}},sv_permisos:{admin:{indiceVersion:2,indiceRevision:7,indiceModulos:{ordenes:true,configuracion:true},acciones:{ordenes:{editar:true},mantenimiento:{migrar:true}}}},sv_access_resets:{fiction:{required:false,version:'qa'}},sisventas:{ordenes:{order:{original:true}}}}};}
 function root(value){return{child(path){let v=value;for(const k of String(path).split('/'))v=v?.[k];return root(v??null);},val(){return value??null;},exists(){return value!==undefined&&value!==null;},isNumber(){return typeof value==='number';},isString(){return typeof value==='string';}};}
 function evaluate(expression,f){return Function('auth','root','now','return ('+expression+');')(f.auth,root(f.data),f.now);}
 const input={rules:{'.read':false,'.write':true,sisventas:{'.write':'auth != null || auth.token.other === true',ordenes:{'.write':true,$record:{'.write':true,'.validate':'newData.exists()'}},$other:{'.write':true}},sv_labor_guard:{'.write':true},sv_labor_receipts:{$op:{'.write':true}},closed:{'.write':false}}};
@@ -12,6 +12,7 @@ test('all grants including true root, parents, wildcard, guard and receipt are o
 });
 const failures={
  version:f=>f.auth.token.svPurchaseSourceCostVersion=1,
+ wrongAction:f=>f.auth.token.svFinancialAction='ordenes.eliminar',
  mode:f=>f.auth.token.mode='abort',service:f=>f.auth.token.svLaborService=false,
  actor:f=>f.auth.token.actorUid='other',guardActor:f=>f.data.sv_labor_guard.actorUid='other',
  guardMode:f=>f.data.sv_labor_guard.mode='server',fence:f=>f.data.sv_labor_guard.fence='other',

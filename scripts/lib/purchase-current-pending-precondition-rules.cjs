@@ -6,6 +6,7 @@ const kind='current-pending-reconcile';
 const conditions=[
  "auth.token.svPurchaseSourceCostVersion === 0",
  "auth.token.svLaborService === true", "auth.token.mode === 'commit'",
+ "auth.token.svFinancialAction === 'ordenes.editar'",
  "auth.uid === auth.token.actorUid",
  "root.child('sv_labor_guard/mode').val() === 'user'",
  "root.child('sv_labor_guard/actorUid').val() === auth.uid",
