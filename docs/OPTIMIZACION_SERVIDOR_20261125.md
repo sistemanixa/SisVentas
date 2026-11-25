@@ -1,3 +1,5 @@
+> Estado final: selector de imágenes integrado y publicado en v3.21.15, fuente pública4ef9f97c y722activos verificados. Las decisiones de mantener los controles servidor se conservan; no se habilitaron nuevas lecturas/escrituras SDK de negocio.
+
 # Optimización de intervenciones del servidor · 25/11/2026
 
 ## Alcance comprobado

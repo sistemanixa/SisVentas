@@ -1,3 +1,5 @@
+> Estado final: integrado y publicado en v3.21.15. Los adjuntos se cerraron con b6ab8c5f y forman parte de la suite completa verde; la asignación pendiente que describe el inventario original quedó resuelta.
+
 # Cierre de los 50 candidatos de acciones — 25/11/2026
 
 Inventario estático completo de los 50 candidatos del análisis previo. No significa cobertura universal de los 1171 atributos ni de todos los callbacks: quedan alias dinámicos y eventos que el principal está adaptando. Las tres funciones de imágenes están asignadas al agente3, NO acreditadas por este bloque.

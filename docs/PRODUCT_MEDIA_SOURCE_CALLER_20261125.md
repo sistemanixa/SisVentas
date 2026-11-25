@@ -1,3 +1,5 @@
+> Integración final aplicada y publicada en v3.21.15: módulo en índice/SHELL y selector en impresión del monolito. Verificación HTTPS de bytes de producción completa; CORS funcional probado con recursos ficticios, no se modificaron archivos ni permisos Storage reales.
+
 # Integración de medios en la aplicación nueva
 
 Base inspeccionada: `9cbe59dd`, aplicación activa `v3.21.12`. El coordinador aplica el cambio a su nueva aplicación inmutable; no se edita ni publica la versión histórica.

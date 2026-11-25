@@ -1,3 +1,7 @@
+# Publicada y verificada v3.21.15 · 25/11/2026
+
+Fuente pública 4ef9f97ceaf204fb553ade300d9ce92d441d844f, Hosting68242c457e9b91f3:722/722activos comprobados por HTTPS/SHA256, cero diferencias; cabeceras de seguridad conservadas. Script oficial confirmó web, marcador, SW y aviso Firebase v3.21.15-firebase. Ventana del titular realmente recargada15 y dejada en Cuenta corriente sin filtro de texto; búsquedas Yago→Gerardo comprobadas en Ventas y CC sin filas antiguas. Sólo lectura, sin movimientos de negocio de prueba. Puerta completa ecfd4abf:11.161PASS/0FAIL/0canceladas/91SKIPcondicionales; catálogo separado PASS. Commit de cierre posterior sólo documental: no cambia activos ya verificados.
+
 # v3.21.15 verificada para publicación · 25/11/2026
 
 Fuente funcional congelada ecfd4abf85625f02e251b469da00d6643a4a3206, rama codex/system-actions-20261125. Puerta vigente completa final: 11.252 casos, 11.161 PASS, cero FAIL/canceladas y 91 SKIP condicionales, exit0; fuente idéntica antes/después. Catálogo separado PASS. El primer pase detectó interacciones de progreso nativo/formularios y fixtures parciales; se corrigieron y se repitió la puerta íntegra, sin omitir archivos ni relajar comprobaciones financieras. Evidencia privada tmp/system15-gate-release-result.private.json y su log.
