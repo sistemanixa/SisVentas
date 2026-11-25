@@ -95,6 +95,8 @@ const adminExpenseCreate=require('./admin-expense-create').createAdminExpenseCre
 const adminExpenseEdit=require('./admin-expense-edit').createAdminExpenseEdit({authorize:laborWriteGateway.authorize,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.ADMIN_EXPENSE_SCOPED_ENABLED==='true'});
 const laborOperations = require('./labor-operations').createLaborOperations({auth:businessAuth,db,transaction:laborTransaction});
 const laborSubmissions = require('./labor-submissions').createLaborSubmissions({auth:businessAuth,db,transaction:laborTransaction});
+const employeeResources=require('./employee-resources').create({authorize:laborWriteGateway.authorize,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.EMPLOYEE_RESOURCES_ENABLED==='true'});
+const employeeResourcesHTTP=require('./employee-resources-http').create({service:employeeResources,readBody,send});
 const employeeAvailability = require('./employee-availability').createEmployeeAvailability({auth:businessAuth,db,queryFrom:laborRuntime.store.queryFrom});
 const employeeDirectory = require('./employee-directory').createEmployeeDirectory({auth:businessAuth,db,queryReader:laborRuntime.store.query});
 const personalHoursReader = require('./personal-hours-reader').createPersonalHoursReader({auth:businessAuth,db});
@@ -2039,6 +2041,7 @@ const server = http.createServer(async (req, res) => {
   cors(req, res);
   const requestUrl = new URL(req.url, 'http://localhost');
   const pathname = requestUrl.pathname;
+  if(req.method!=='OPTIONS'&&await employeeResourcesHTTP(req,res))return;
   if(pathname==='/presupuestos/presentacion-proyecto'&&req.method!=='OPTIONS'){res.setHeader('Cache-Control','private, no-store');try{const body=await readBody(req,2048);const result=await budgetPresentationTrial.handle(req,body);send(res,200,result);}catch(error){send(res,error.statusCode||503,{ok:false,code:error.code||'PRESENTATION_UNAVAILABLE',mensaje:error.statusCode?error.message:'No se pudo preparar la presentación.'});}return;}
 
 
