@@ -43,6 +43,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
   const Stock=require('./office-stock-policy'),Purchase=require('./purchase-inventory-policy');
   if(Stock.token(actor,lease).svOfficeStockVersion===1){Stock.validate(actor,lease,patch);return;}
   if(Purchase.isBound(actor)){await Purchase.validate({actor,lease,patch,operationalSummaries,readFresh:path=>store.read(path),now:now()});return;}
+  if(await require('./ot-native-write-protocol').validateSource({actor,lease,patch,readFresh:path=>store.read(path),operationalSummaries,now:now()}))return;
   throw failure(403,'Falta autoridad tipada para los originales de Stock.','SV_STOCK_ORDER_SOURCE_UNSUPPORTED');
  }}):null;
  const context=new AsyncLocalStorage();let tail=Promise.resolve();
@@ -207,7 +208,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     if(revalidateAdvancePeriod)await revalidateAdvancePeriod();
     for(const check of finalChecks){live();await check({readFresh:path=>store.read(path),readFreshAsUser:path=>store.readAsUser(path,{uid:actor.uid,claims:actor.claims}),queryFresh:(...args)=>store.query(...args),queryPageFresh:queryPageLive});live();}
     if(purchase)await require('./purchase-inventory-policy').validate({actor,lease,patch:stockOrderMaintenance.maintained?stockOrderPolicy.sourcePatch(actor,lease,patch,now()):patch,operationalSummaries,readFresh:path=>store.read(path),now:now()});
-    live();await store.commit(patch,lease,{...actor,clientAccountsWriterVersion:clientAccounts&&commercialPages?1:0,clientHistoryWriterVersion:clientHistory?1:0,saleFinancialWriterVersion:financialMaintenance.maintained?1:0});completed=true;return result;
+    live();await store.commit(patch,lease,{...actor,clientAccountsWriterVersion:clientAccounts&&commercialPages?1:0,clientHistoryWriterVersion:clientHistory?1:0,saleFinancialWriterVersion:financialMaintenance.maintained?1:0,operationalSummariesWriterVersion:operationalSummaries?1:0});completed=true;return result;
    });
   }finally{phase='closed';if(!completed)await store.abort(lease).catch(()=>{});}
  }

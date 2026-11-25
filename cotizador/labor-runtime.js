@@ -6,7 +6,7 @@ function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=f
  if((dashboardBudgets||dashboardActivity)&&(!enabled||!commercialPages))throw Error('Dashboard requiere guardado coordinado y Pages habilitados.');
  if(dashboardPolicyRenewal&&!dashboardBudgets)throw Error('La renovación de política requiere el escritor de Presupuestos.');
  const verifyOTDeliveryFence=require('./ot-delivery-attestation').createVerifier({env:deleteEnvironment});
- const store=require('./labor-rtdb-store').createLaborRtdbStore({databaseURL,accessToken,fetchImpl,verifyOTDeliveryFence});
+ const store=require('./labor-rtdb-store').createLaborRtdbStore({databaseURL,accessToken,fetchImpl,verifyOTDeliveryFence,otPhysicalWrites:inventoryCohortEnabled});
  if(typeof inventoryCohortEnabled!=='boolean'||inventoryCohortEnabled&&(!enabled||!operationalSummaries||stockOrderProjections!==false))throw Error('La cohorte requiere coordinación y un único proyector ligado a su autoridad.');
  const inventoryCohort=require('./inventory-cohort-runtime').create({enabled:inventoryCohortEnabled,readOnly,read:path=>store.read(path),serverRoot:__dirname,uiRoot:inventoryUiRoot,env:inventoryEnvironment});
  const orderProjection=inventoryCohortEnabled?require('./office-stock-order-projections').create({enabled:true,verifyCohort:inventoryCohort.verifyCohort}):stockOrderProjections;

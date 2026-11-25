@@ -1,3 +1,7 @@
+# Integración de familias OT y validación nativa · 25/11/2026
+
+D curado importado hasta887194de: Metadata, Count, Inventory, Structure y WarehouseV2; sólo6módulos Metadata iniciales551a97bc excluyeron CONTEXTO ajeno y conservaron helpers de runtime nativo. Life/Delivery mantienen paralelismo y summaryDigest del runtime16 según revisión D. Root enlaza validadores privados completos para proyección StockOrder y Store; namespaces de cliente se limpian y defaults Version0/bitsfalse/keysnull. Protección física adicional sólo con cohorte ON real; OFF conserva circuito previo. 59 focales Root PASS (comandos/Store, no Rules), más prueba namespace/7Warehouse en corrida16PASS solapada. No certificar por sumar corridas. Faltan callers Soporte/carrito, CountPhysical, endpoint/montaje final y reglas conjuntas. Nada activado ni publicado.
+
 # Montaje Stock en aplicación completa · 25/11/2026
 
 Importados E6bed/783 como1a94/d844: listado arranca sin esperar capacidad; revisión se agrega sin remontar ni perder filtro, sólo ante instalación lista. Identidad P/J/R se solicita para filas sin identificar; sesión/permiso/ruta/Abort vinculados, sin replay. Endurecimiento Root exige installed true y generación válida además de ready, 15 tests servicio PASS; 31 referencias+2readiness+9servicio previos=42PASS en corrida Root. Falta registrar activos y comprobar app completa. UI E informó 10 casos nativos390/1280, no repetidos aún aquí. No habilitado ni publicado.
