@@ -2,6 +2,10 @@
 // Revision-local admission switch. Only absent or exact "false" means open.
 function isPaused(value){return value!==undefined&&value!=='false';}
 function allowsPausedRead(pathname){return ['/laboral/capacidades','/clientes/historial','/clientes/historial/cliente'].includes(pathname);}
+function inventoryCapabilities(state,paused){
+ if(!state||state.version!==1||typeof state.installed!=='boolean'||typeof state.ready!=='boolean'||state.ready&&!state.installed||!state.commands||typeof state.commands!=='object'||Array.isArray(state.commands)||Object.values(state.commands).some(value=>typeof value!=='boolean'))throw Object.assign(Error('No se pudo verificar el circuito de inventario.'),{statusCode:503});
+ return paused?{...state,ready:false,commands:Object.fromEntries(Object.keys(state.commands).map(key=>[key,false]))}:state;
+}
 const fail=(statusCode,message)=>Object.assign(Error(message),{statusCode});
 async function resolveReadOnly({gateway,read,req,body}){
  const actor=await gateway.authorize(req);
@@ -15,4 +19,4 @@ async function resolveReadOnly({gateway,read,req,body}){
  if(receipt.result?.ok===false&&receipt.result?.committed===false)return {ok:true,status:'rejected'};
  return {ok:true,status:'pending'};
 }
-module.exports={isPaused,allowsPausedRead,resolveReadOnly};
+module.exports={isPaused,allowsPausedRead,inventoryCapabilities,resolveReadOnly};

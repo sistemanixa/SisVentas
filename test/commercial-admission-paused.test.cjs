@@ -3,7 +3,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const Admission=require('../cotizador/commercial-admission'),{createLaborWriteGateway}=require('../cotizador/labor-write-gateway'),{createPrivateFinance}=require('../cotizador/private-finance');
 const path=require('node:path'),{createRequire}=require('node:module');
 const source=fs.readFileSync(require.resolve('../cotizador/index.js'),'utf8'),start=source.indexOf('http.createServer(')+'http.createServer('.length,end=source.indexOf('\n});',start)+2;
-function fixture(flag,{receipt=null,enabled=true,active=true}={}){
+function fixture(flag,{receipt=null,enabled=true,active=true,inventory}={}){
  const calls={body:0,events:0,commits:0,privateSave:0,reads:[],business:0,auth:0};
  const auth={verifyIdToken:async(token,checkRevoked)=>{calls.auth++;assert.equal(checkRevoked,true);if(['expired','revoked'].includes(token))throw Error('invalid session');return {uid:token};}};
  const read=async path=>{calls.reads.push(path);if(path.startsWith('sv_chat_roles/'))return {activo:active,rol:'admin'};if(path.startsWith('sv_labor_receipts/'))return receipt;return null;};
@@ -14,7 +14,7 @@ function fixture(flag,{receipt=null,enabled=true,active=true}={}){
  const privateFinance=createPrivateFinance({auth,db,enabled:true,ownerUid:'owner'});
  privateFinance.save=async()=>{calls.privateSave++;return {saved:true};};
  const service={handle:async()=>{calls.business++;return {statusCode:200,body:{ok:true}};}};
- const context={URL,otCommandHttp:async()=>false,employeeResourcesHTTP:async(req,res)=>{if(!req.url.startsWith("/recursos-empleados/"))return false;calls.business++;res.status=200;res.body={ok:true};return true;},inventoryCommandHttp:async()=>false,commercialAdmission:Admission,commercialAdmissionPaused:Admission.isPaused(flag),laborWriteGateway:gateway,laborRuntime:{store:{read}},privateFinance,
+ const context={URL,otCommandHttp:async()=>false,employeeResourcesHTTP:async(req,res)=>{if(!req.url.startsWith("/recursos-empleados/"))return false;calls.business++;res.status=200;res.body={ok:true};return true;},inventoryCommandHttp:inventory||(async()=>false),commercialAdmission:Admission,commercialAdmissionPaused:Admission.isPaused(flag),laborWriteGateway:gateway,laborRuntime:{store:{read}},privateFinance,
   cors(req,res){res.setHeader('Access-Control-Allow-Origin','https://fixture.invalid');},send(res,status,body){res.status=status;res.body=body;},readBody:async req=>{calls.body++;return req.body;},
   commissionEvent:{handle:async()=>{calls.events++;return {status:'completed'};},probe:async()=>{calls.events++;return {status:'probe_received'};}},
   saleDeleteService:service,otDeleteService:service,purchaseDeleteService:service,
@@ -24,6 +24,19 @@ function fixture(flag,{receipt=null,enabled=true,active=true}={}){
  return {calls,request};
 }
 const lookup={id:'fixture-command',digest:'a'.repeat(64)};
+
+test('paused complete router admits only actual admin baseline command and preserves all stock',async()=>{
+ const Core=require('./helpers/purchase-manual-core-fixture.cjs'),Command=require('../cotizador/purchase-current-pending-command'),HTTP=require('../cotizador/inventory-command-http'),Host=require('../cotizador/purchase-command-host'),{digest}=require('../cotizador/labor-guard'),f=await Core.fixture({coordinated:true,stockOrder:true,pending:2});
+ f.set('sv_permisos/admin/indiceModulos/configuracion',true);f.set('sv_permisos/admin/acciones/mantenimiento/migrar',true);
+ const order={estado:'borrador',origen:'manual',moneda:'ARS',items:[{productoKey:'product',cantidadOrdenada:2,cantidadRecibida:0,costoUnitario:3.125}]},p='sisventas/ordenes/maintenanceFixture';f.set(p,order);const body={id:'maintenance-baseline-fixture',orderKey:'maintenanceFixture',expectedHash:digest(order)},before=structuredClone(f.get('sisventas/inventario_operativo'));
+ let verified=0;const auth={verifyIdToken:async(token,revoked)=>{assert.equal(token,'fixture-admin-token');assert.equal(revoked,true);verified++;return structuredClone(f.identity.claims);}},db={ref:path=>({get:async()=>({val:()=>f.get(path)})})},gateway=createLaborWriteGateway({auth,db,guard:f.guard,store:f.store,enabled:true});
+ const command=Command.create({enabled:true,authorize:req=>gateway.authorize(req),store:f.store,guard:f.guard,mappedAdmission:f.authority,now:()=>f.now,assertAdmission:({read})=>f.authority.admit({read})});
+ let routed=0;const inventory=HTTP.create({purchase:{routes:Host.routes,handle:()=>assert.fail('No ordinary command during pause')},link:{},stock:{},currentPending:command,readBody:async(req,max)=>{assert.equal(max,2048);routed++;return req.body;},send:(res,status,body)=>{res.status=status;res.body=body;}}),web=fixture('true',{inventory});
+ assert.equal((await web.request('/compras/ordenes/crear',{token:'fixture-admin-token',body})).status,503);assert.equal(routed,0);assert.equal(verified,0);
+ const result=await web.request('/compras/ordenes/reconciliar-pendiente',{token:'fixture-admin-token',body});assert.equal(result.status,200);assert.equal(result.body.reconciliation,'current-pending');assert.equal(f.patches.length,1);assert.deepEqual(f.get('sisventas/inventario_operativo'),before);assert.ok(verified>0);
+ assert.equal((await web.request('/compras/ordenes/reconciliar-pendiente?extra=1',{token:'fixture-admin-token',body})).status,400);assert.equal(routed,1);
+ f.set('sv_chat_roles/'+f.identity.uid+'/rol','administrativo');assert.equal((await web.request('/compras/ordenes/reconciliar-pendiente',{token:'fixture-admin-token',body})).status,403);assert.equal(f.patches.length,1);assert.deepEqual(f.get('sisventas/inventario_operativo'),before);
+});
 test('absent and exact false preserve existing command and event dispatch',async()=>{for(const flag of [undefined,'false']){const f=fixture(flag);assert.equal((await f.request('/comerciales/ventas/eliminar')).status,200);assert.equal((await f.request('/internal/commission-event')).status,200);assert.equal(f.calls.business,1);assert.equal(f.calls.events,1);assert.equal((await f.request('/recursos-empleados/indumentaria')).status,200);assert.equal(f.calls.business,2);}});
 test('invalid flag values fail closed instead of opening admission',async()=>{for(const flag of ['true','','FALSE','0',' true ',null,false]){const f=fixture(flag);assert.equal((await f.request('/comerciales/ventas/eliminar')).status,503);assert.equal(f.calls.business,0);assert.equal(f.calls.body,0);}});
 test('common paused gate blocks mutations and POST reads before handlers or body parsing',async()=>{for(const url of ['/recursos-empleados/indumentaria','/recursos-empleados/categorias','/roles/guardar','/usuarios/guardar','/usuarios/acceso/temporal','/usuarios/acceso/correo','/usuarios/acceso/completar','/comerciales/ventas/eliminar','/comerciales/ventas/reasignar','/compras/ordenes/eliminar','/clientes/guardar','/laboral/escritura','/laboral/solicitar-gasto','/comisiones/redistribuir','/cuentas/preparar','/clientes/historial/','/chat/mensaje','/internal/commission-event','/internal/commission-event-probe','/unknown']){const f=fixture('true'),r=await f.request(url,{body:{SV_COMMERCIAL_ADMISSION_PAUSED:false,paused:false}});assert.equal(r.status,503,url);assert.equal(r.body.retryable,true);assert.equal(r.body.code,'SV_COMMERCIAL_ADMISSION_PAUSED');assert.equal(r.headers['Retry-After'],'5');assert.equal(f.calls.body+f.calls.events+f.calls.commits+f.calls.business+f.calls.auth,0);}});
