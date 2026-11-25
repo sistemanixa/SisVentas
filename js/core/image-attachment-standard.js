@@ -266,9 +266,23 @@
     });
   };
 
+  var tareasAdjuntos = new Map();
+  function contextoAdjunto() { return { uid:window.currentUserUid, usuario:window.fbAuth?.currentUser, rol:window.currentRole, epoch:window._svOperacionesSesionEpoch||0, equipo:window.equipoActual }; }
+  function contextoAdjuntoVigente(c) { return c.uid===window.currentUserUid&&c.usuario===window.fbAuth?.currentUser&&c.rol===window.currentRole&&c.epoch===(window._svOperacionesSesionEpoch||0)&&c.equipo===window.equipoActual; }
+  function ejecutarAdjunto(clave, texto, tarea) {
+    var anterior=tareasAdjuntos.get(clave);if(anterior)return anterior;
+    var ejecutar=window.SisVentas?.carga?.ejecutarAccion;
+    var resultado=typeof ejecutar==='function'?ejecutar({clave:clave,texto:texto,tipo:'guardar'},tarea):Promise.resolve().then(tarea);
+    var pendiente=Promise.resolve(resultado).finally(function(){if(tareasAdjuntos.get(clave)===pendiente)tareasAdjuntos.delete(clave);});
+    tareasAdjuntos.set(clave,pendiente);return pendiente;
+  }
+
   window.agregarFotosEquipo = function(input) {
     var files = Array.from((input && input.files) || []);
-    Promise.all(files.map(function(file) { return prepararAdjuntoImagen(file); })).then(function(adjuntos) {
+    if (!files.length) return Promise.resolve();
+    var contexto=contextoAdjunto();
+    var pendiente=ejecutarAdjunto(input, 'Preparando imágenes…', function() { return Promise.all(files.map(function(file) { return prepararAdjuntoImagen(file); })).then(function(adjuntos) {
+      if(!contextoAdjuntoVigente(contexto)||input?.isConnected===false)return;
       window.eqFotosTemp = (window.eqFotosTemp || []).concat(adjuntos);
       var grid = document.getElementById('eq-fotos-grid');
       if (!grid) return;
@@ -281,28 +295,34 @@
         img.style.opacity = '.75';
         grid.appendChild(img);
       });
-    }).catch(function(error) { informarError(input, error); });
+    }).catch(function(error) { if(contextoAdjuntoVigente(contexto))informarError(input, error); }); });
     if (input) input.value = '';
+    return pendiente;
   };
 
   window.subirFotosEquipo = function() {
     if (!window.equipoActual || !window.eqFotosTemp || !window.eqFotosTemp.length || !window.fbDB) return;
     var adjuntos = window.eqFotosTemp.slice();
     var ruta = 'sisventas/equipos/' + window.equipoActual + '/fotos';
-    Promise.all(adjuntos.map(function(adjunto) {
+    var contexto=contextoAdjunto();
+    return ejecutarAdjunto('subirFotosEquipo/'+window.equipoActual, 'Guardando…', function() { return Promise.all(adjuntos.map(function(adjunto) {
       return window.fbPush(window.fbRef(window.fbDB, ruta), {
         url:adjunto.data, adjunto:adjunto, metodo:'adjunto_base64', fecha:new Date().toLocaleDateString('es-AR'), tecnico:window.currentUser || ''
       });
     })).then(function() {
+      if(!contextoAdjuntoVigente(contexto))return;
       window.eqFotosTemp = [];
       window.notify('Equipo y fotos guardados');
       if (typeof window.volverListaEquipos === 'function') window.volverListaEquipos();
-    }).catch(function(error) { window.notify('El equipo se guardó, pero una foto falló: ' + error.message); });
+    }).catch(function(error) { if(contextoAdjuntoVigente(contexto))window.notify('El equipo se guardó, pero una foto falló: ' + error.message); }); });
   };
 
   window.agregarFotosRel = function(input) {
     var files = Array.from((input && input.files) || []);
-    Promise.all(files.map(function(file) { return prepararAdjuntoImagen(file); })).then(function(adjuntos) {
+    if (!files.length) return Promise.resolve();
+    var contexto=contextoAdjunto();
+    var pendiente=ejecutarAdjunto(input, 'Preparando imágenes…', function() { return Promise.all(files.map(function(file) { return prepararAdjuntoImagen(file); })).then(function(adjuntos) {
+      if(!contextoAdjuntoVigente(contexto)||input?.isConnected===false)return;
       window.relFotosTemp = (window.relFotosTemp || []).concat(adjuntos);
       var grid = document.getElementById('rel-fotos-grid');
       if (!grid) return;
@@ -313,8 +333,9 @@
         img.style.opacity = '.75';
         grid.appendChild(img);
       });
-    }).catch(function(error) { informarError(input, error); });
+    }).catch(function(error) { if(contextoAdjuntoVigente(contexto))informarError(input, error); }); });
     if (input) input.value = '';
+    return pendiente;
   };
 
   window.guardarRelevamiento = function() {
@@ -336,14 +357,16 @@
       estado:window.relEstadoSel, proxVisita:(document.getElementById('rel-prox-visita') || {}).value || '', checks:checks, fotos:fotos
     };
     var path = 'sisventas/equipos/' + window.equipoActual + '/intervenciones';
-    Promise.all([
+    var contexto=contextoAdjunto();
+    return ejecutarAdjunto('guardarRelevamiento/'+window.equipoActual, 'Guardando…', function() { return Promise.all([
       window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/equipos/' + window.equipoActual), { estado:window.relEstadoSel }),
       window.fbPush(window.fbRef(window.fbDB, path), intervencion)
     ]).then(function() {
+      if(!contextoAdjuntoVigente(contexto))return;
       window.relFotosTemp = [];
       window.notify('Relevamiento guardado');
       if (typeof window.cerrarRelevamiento === 'function') window.cerrarRelevamiento();
-      setTimeout(function() { if (typeof window.abrirFichaEquipo === 'function') window.abrirFichaEquipo(window.equipoActual); }, 300);
-    }).catch(function(error) { window.notify('Error: ' + error.message); });
+      setTimeout(function() { if (contextoAdjuntoVigente(contexto)&&typeof window.abrirFichaEquipo === 'function') window.abrirFichaEquipo(window.equipoActual); }, 300);
+    }).catch(function(error) { if(contextoAdjuntoVigente(contexto))window.notify('Error: ' + error.message); }); });
   };
 })();
