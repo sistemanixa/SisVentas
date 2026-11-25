@@ -84,3 +84,41 @@ test('preparación nueva usa perfil validado en servidor sin lectura SDK ni fall
  assert.deepEqual(reads,[]);assert.equal(prepared.identitySnapshot.val().rol,'tecnico');assert.equal(prepared.usuariosSnapshot.val().w.uid,'worker');assert.equal(root.svRutaUsuarios(),'sv_usuarios');
  root.SVUserDirectory.profile=async()=>{throw Error('offline');};await assert.rejects(root.svPrepararRutasSeguridad({uid:'worker'}),/offline/);assert.equal(reads.includes('sv_usuarios'),false);
 });
+
+test('lecturas concurrentes comparten transporte sin cachear ni compartir objetos',async()=>{
+ const f=client();let release;const urls=[];
+ f.ctx.fetch=url=>{urls.push(url);return new Promise(resolve=>{release=()=>resolve({ok:true,json:async()=>({ok:true,users:[{fbKey:'w',uid:'worker',nombre:'Fixture'}]})});});};
+ const first=f.root.SVUserDirectory.read(),second=f.root.SVUserDirectory.read();
+ while(!release)await Promise.resolve();assert.equal(urls.length,1);release();
+ const [a,b]=await Promise.all([first,second]);a.val().w.nombre='Cambio local';assert.equal(b.val().w.nombre,'Fixture');
+ release=null;const next=f.root.SVUserDirectory.read();while(!release)await Promise.resolve();assert.equal(urls.length,2);release();await next;
+});
+
+test('refresco y lectura puntual comparten directorio; administración queda separada',async()=>{
+ const f=client(),waiting=[];f.ctx.fetch=url=>new Promise(resolve=>waiting.push({url,resolve}));
+ let received;f.root.SVUserDirectory.onValue(s=>{received=s.val();});const read=f.root.SVUserDirectory.read(),admin=f.root.SVUserDirectory.adminProfile('w');
+ while(waiting.length<2)await Promise.resolve();assert.equal(waiting.length,2);
+ assert.deepEqual(waiting.map(p=>p.url.split('/').at(-1)).sort(),['administracion','directorio']);
+ for(const p of waiting)p.resolve({ok:true,json:async()=>({ok:true,users:[{fbKey:'w',uid:'worker',nombre:'Fixture'}]})});
+ await Promise.all([read,admin]);while(!received)await Promise.resolve();assert.equal(received.w.nombre,'Fixture');
+ assert.equal(waiting.length,2);
+});
+
+test('logout durante lectura compartida rechaza todos; un error permite nueva consulta',async()=>{
+ const f=client();let release;let calls=0;
+ f.ctx.fetch=()=>{calls++;return new Promise(resolve=>{release=resolve;});};
+ const first=f.root.SVUserDirectory.read(),second=f.root.SVUserDirectory.read();
+ const settled=Promise.allSettled([first,second]);while(!release)await Promise.resolve();f.events.dispatchEvent(new Event('sisventas:session-ended'));
+ release({ok:true,json:async()=>({ok:true,users:[]})});assert.ok((await settled).every(p=>p.status==='rejected'));assert.equal(calls,1);
+ f.ctx.fetch=async()=>{calls++;throw Error('offline');};await assert.rejects(f.root.SVUserDirectory.read(),/offline/);
+ f.ctx.fetch=async()=>{calls++;return {ok:true,json:async()=>({ok:true,users:[]})};};await f.root.SVUserDirectory.read();assert.equal(calls,3);
+});
+
+test('cambio de rol no comparte ni acepta la respuesta del contexto anterior',async()=>{
+ const f=client(),waiting=[];f.ctx.fetch=()=>new Promise(resolve=>waiting.push(resolve));
+ const old=f.root.SVUserDirectory.read(),rejected=assert.rejects(old,/sesión cambió/);
+ while(waiting.length<1)await Promise.resolve();f.root.currentRole='admin';
+ const current=f.root.SVUserDirectory.read();while(waiting.length<2)await Promise.resolve();
+ waiting[0]({ok:true,json:async()=>({ok:true,users:[{fbKey:'old'}]})});await rejected;
+ waiting[1]({ok:true,json:async()=>({ok:true,users:[{fbKey:'new'}]})});assert.equal((await current).val().old,undefined);
+});

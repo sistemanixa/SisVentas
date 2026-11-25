@@ -2,6 +2,7 @@
  'use strict';
  let generation=0,own=null,watching=false,signalStop=null,roleStop=null,pending=null,contextKey='',again=false;
  const subscriptions=new Set(),enabled=root.SV_USER_DIRECTORY_V2===true;
+ const reads=new Map();
  const session=()=>({user:root.fbAuth?.currentUser,view:root.currentUserUid||'',role:root.currentRole||'',epoch:generation});
  const valid=c=>c.epoch===generation&&c.user===root.fbAuth?.currentUser&&c.view===(root.currentUserUid||'')&&c.role===(root.currentRole||'');
  function abortable(task,signal){
@@ -10,7 +11,23 @@
   let abort;const cancelled=new Promise((_,reject)=>{abort=()=>reject(Object.assign(Error('La preparación fue cancelada'),{name:'AbortError'}));signal.addEventListener('abort',abort,{once:true});});
   return Promise.race([Promise.resolve(task),cancelled]).finally(()=>signal.removeEventListener('abort',abort));
  }
- async function request(path,user,check,{signal}={}){
+ async function request(path,user,check,options={}){
+  // Compartir sólo proyecciones en vuelo. El perfil conserva su cancelación
+  // individual y cada consumidor vuelve a validar su propio contexto.
+  if(options.signal||!['directorio','administracion'].includes(path))return requestFresh(path,user,check,options);
+  if(!check())throw Error('La sesión cambió');
+  const c=session(),previous=reads.get(path);
+  let entry=previous;
+  if(!entry||entry.user!==user||!valid(entry.context)){
+   entry={user,context:c};
+   entry.promise=requestFresh(path,user,()=>valid(c)&&user===root.fbAuth?.currentUser).finally(()=>{if(reads.get(path)===entry)reads.delete(path);});
+   reads.set(path,entry);
+  }
+  const data=await entry.promise;
+  if(!check()||!valid(c))throw Error('La sesión cambió');
+  return JSON.parse(JSON.stringify(data));
+ }
+ async function requestFresh(path,user,check,{signal}={}){
   if(!user)throw Error('No hay sesión de acceso');if(!check())throw Error('La sesión cambió');
   if(signal?.aborted)throw Object.assign(Error('La preparación fue cancelada'),{name:'AbortError'});
   if(root.SVForegroundSession){await root.SVForegroundSession.waitVisible({signal});if(!check())throw Error('La sesión cambió');}
@@ -32,7 +49,7 @@
  const snapshot=users=>({exists:()=>users.length>0,val:()=>Object.fromEntries(users.map(p=>[p.fbKey,p]))});
  async function read(){const c=session(),data=await request('directorio',c.user,()=>valid(c));return snapshot(data.users);}
  async function adminProfile(key){const c=session(),data=await request('administracion',c.user,()=>valid(c));const found=data.users.find(p=>p.fbKey===key);if(!found)throw Error('Usuario no encontrado');return found;}
- function stop(){generation++;own=null;pending=null;again=false;watching=false;signalStop?.();roleStop?.();signalStop=roleStop=null;subscriptions.clear();}
+ function stop(){generation++;reads.clear();own=null;pending=null;again=false;watching=false;signalStop?.();roleStop?.();signalStop=roleStop=null;subscriptions.clear();}
  function ensureContext(){const next=[root.fbAuth?.currentUser?.uid,root.currentUserUid,root.currentRole].join('|');if(next!==contextKey){const previous=own;stop();own=previous?.uid===root.fbAuth?.currentUser?.uid?previous:null;contextKey=next;root.usuariosData=own&&own.uid===root.currentUserUid?[own]:[];}}
  function watchRole(user){
   if(roleStop||!root.fbOnValue||!root.fbDB)return;const epoch=generation;
