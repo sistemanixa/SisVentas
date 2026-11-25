@@ -1,7 +1,7 @@
 'use strict';
 // Allocation only. Bootstrap/schema/rules are owned by B; no legacy scan here.
 const {digest}=require('./labor-guard'),Explicit=require('./office-stock-explicit-reference'),Activation=require('./stock-link-activation-contract'),IO=require('./office-stock-reference-io'),{key}=require('./purchase-inventory-model');
-const PATH='sv_purchase_numbering/state',issued=new WeakMap(),fields=['schema','generation','revision','lastNumber','bootstrapOrderCount','bootstrapHash','cohortDigest','lastOperation'];
+const PATH='sv_purchase_numbering/state',issued=new WeakMap(),authorities=new WeakMap(),fields=['schema','generation','revision','lastNumber','bootstrapOrderCount','bootstrapHash','cohortDigest','lastOperation'];
 const fail=(message,code='SV_PURCHASE_NUMBERING')=>Object.assign(Error(message),{statusCode:409,code}),copy=value=>structuredClone(value);
 const stamp=(actor,lease)=>digest({uid:actor?.uid,claims:actor?.claims,role:actor?.role,permissionRevision:actor?.permissionRevision,permissionDigest:actor?.permissionDigest,operation:actor?.operation,input:actor?.input,transportDigest:actor?.transportDigest,lease});
 function bound(actor,lease,now){if(actor?.mode!=='user'||actor.financialAction!=='ordenes.editar'||!(actor.operation==='purchase-manual-create'&&actor.input?.kind==='register'||actor.operation==='purchase-list-generate'&&actor.input?.kind==='generate'||actor.operation==='purchase-legacy-import'&&actor.input?.kind==='import')||actor.uid!==actor.claims?.uid||actor.uid!==lease?.actorUid||actor.opId!==lease.opId||actor.input?.id!==actor.opId||actor.transportDigest!==lease.digest||lease.mode!=='user'||!Number.isSafeInteger(lease.expiresAt)||lease.expiresAt<=now)throw fail('La numeración no corresponde al guardado vigente.');require('./purchase-wire-envelope').assertBound(actor,lease);return stamp(actor,lease);}
@@ -15,6 +15,7 @@ function create({enabled=false,mappedAdmission,now=Date.now}={}){
   const numbers=Object.fromEntries([...groups].sort().map((group,index)=>[group,'OC-'+String(before.lastNumber+index+1).padStart(4,'0')])),after=before?{...copy(before),lastNumber:before.lastNumber+groups.length,revision:before.revision+groups.length,lastOperation:actor.opId}:null,reservation={patch:after?{[PATH]:after}:{},preconditions:before?{[PATH]:copy(before)}:{},numbers},evidence=Object.freeze({});issued.set(evidence,{owner,binding,reservation:copy(reservation),cohort});return {...copy(reservation),evidence};
  }
  async function assertFresh(evidence,{actor,lease,readFresh}={}){const proof=issued.get(evidence);if(proof?.owner!==owner||proof.binding!==bound(actor,lease,now()))throw fail('La reserva de números pertenece a otra operación.');const cohort=await admission(actor,lease,readFresh);if(digest(cohort)!==digest(proof.cohort))throw fail('La cohorte cambió antes de confirmar la numeración.');if(Object.hasOwn(proof.reservation.preconditions,PATH)&&digest(await readFresh(PATH))!==digest(proof.reservation.preconditions[PATH]))throw fail('Otro guardado cambió el contador de Compras.');}
- return Object.freeze({reserve,assertFresh});
+ const api=Object.freeze({reserve,assertFresh});authorities.set(api,{enabled,mappedAdmission});return api;
 }
-module.exports={PATH,create,snapshot,state};
+function isAuthority(value,{mappedAdmission}={}){const config=authorities.get(value);return !!config&&config.enabled===true&&Explicit.isMappedAdmission(config.mappedAdmission)&&(mappedAdmission===undefined||config.mappedAdmission===mappedAdmission);}
+module.exports={PATH,create,snapshot,state,isAuthority};
