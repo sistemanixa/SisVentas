@@ -2,11 +2,12 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const {readActiveApp}=require('./helpers/active-app');
 const overlay=require('../scripts/lib/active-action-feedback-overlay.cjs');
-const original=readActiveApp().source,patched=overlay.apply(original);
+const changes=require('../scripts/lib/active-action-feedback-patch.json');
+const original=readActiveApp().source,already=changes.every(change=>overlay.extract(original,change.name).text===change.after),patched=already?original:overlay.apply(original);
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 for(const name of overlay.names)test(name+' patch is scoped and compiles',()=>{
  const before=overlay.extract(original,name).text,after=overlay.extract(patched,name).text;
- new vm.Script(after);assert.notEqual(after,before);
+ new vm.Script(after);const expected=require('../scripts/lib/active-action-feedback-patch.json').find(c=>c.name===name);assert.equal(after,expected.after);if(before===after)return;
  if(!['spAgregarNota','guardarDatosEmpresa'].includes(name))assert.equal(after.replace(/return (window\.fb(?:Get|Set|Push|Update)\(|operacion\.then|op\.then)/g,'$1'),before);
 });
 test('unknown source fails closed',()=>assert.throws(()=>overlay.apply(original.replace('function guardarKit() {','function guardarKit() {\n// changed')),/review required/));

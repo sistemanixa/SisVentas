@@ -1,0 +1,766 @@
+{
+  "source": "v3.21.12 / 9cbe59dd76a1d1e5aa0caaeb0ccab3427832d4a2",
+  "count": 50,
+  "rows": [
+    {
+      "handler": "volverAtrasSisVentas",
+      "file": "js/app.v3.21.12.js",
+      "line": 24688,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "minimizarActualizadorMasivoPrecios",
+        "_svGuardarHistorialPaginas"
+      ],
+      "status": "Navegación síncrona",
+      "detail": "Cierra/retorna vistas y estado local; no esperar presencia ni toda la vida de la pantalla."
+    },
+    {
+      "handler": "actualizarValoresPpto",
+      "file": "js/app.v3.21.12.js",
+      "line": 49174,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "_actualizarFilasConCatalogo",
+        "_informarActualizacionCatalogo",
+        "_actualizarPresupuestoGuardadoDesdeCatalogo"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "imprimirPresupuestoActual",
+      "file": "js/app.v3.21.12.js",
+      "line": 35188,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "_pptoRegistroFormularioImpresion"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "otCredencialBasicaGuardar",
+      "file": "js/app.v3.21.12.js",
+      "line": 51596,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        ".catch",
+        ".then",
+        "window.fbPush",
+        "window.fbRef"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "toggleChecklistFase",
+      "file": "js/app.v3.21.12.js",
+      "line": 52519,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        "actualizarProgreso",
+        ".catch",
+        "fbGuardarOT",
+        "actualizarProgreso"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "firmaLimpiar",
+      "file": "js/app.v3.21.12.js",
+      "line": 51149,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        ".catch",
+        ".then",
+        "otPersistirActualizar"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "firmaTecnicoLimpiar",
+      "file": "js/app.v3.21.12.js",
+      "line": 51439,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        ".catch",
+        ".then",
+        "otPersistirActualizar"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "guardarLogoEmpresa",
+      "file": "js/app.v3.21.12.js",
+      "line": 31987,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        ".catch",
+        ".then",
+        "window.fbSet",
+        "window.fbRef"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "cambiarUsoLogoImpresion",
+      "file": "js/app.v3.21.12.js",
+      "line": 31503,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "actualizarPanelLogoImpresion",
+        "window.fbSet",
+        "window.fbRef"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "guardarDatosEmpresa",
+      "file": "js/app.v3.21.12.js",
+      "line": 32101,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        ".then",
+        "window.fbSet",
+        "window.fbRef"
+      ],
+      "status": "Parche 63e0b9de",
+      "detail": "Retorna cadena existente; impuestos incluyen SET interno. DatosEmpresa elimina Guardado anterior a ACK."
+    },
+    {
+      "handler": "guardarTipoCambio",
+      "file": "js/app.v3.21.12.js",
+      "line": 31154,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        "actualizarDolarDashboard",
+        ".then",
+        "window.fbSet",
+        "window.fbRef"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve SET; elimina marca visual de éxito disparada antes de ACK. Payload y autorización intactos."
+    },
+    {
+      "handler": "guardarPreferenciasSistema",
+      "file": "js/app.v3.21.12.js",
+      "line": 31282,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        ".catch",
+        ".then",
+        "window.fbUpdate",
+        "window.fbRef"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "cargosGuardar",
+      "file": "js/app.v3.21.12.js",
+      "line": 26605,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "_cargoNumeroEstricto",
+        "_cargoNumeroEstricto",
+        "_cargoNumeroEstricto",
+        "_cargoGuardarSeguro",
+        ".catch",
+        "promesaGuardar.then"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "guardarMaxComisionPct",
+      "file": "js/app.v3.21.12.js",
+      "line": 57217,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".catch",
+        ".then",
+        "window.fbSet",
+        "window.fbRef"
+      ],
+      "status": "Parche 63e0b9de",
+      "detail": "Retorna cadena existente; impuestos incluyen SET interno. DatosEmpresa elimina Guardado anterior a ACK."
+    },
+    {
+      "handler": "guardarAlicuotaIVA",
+      "file": "js/app.v3.21.12.js",
+      "line": 31339,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".then",
+        "window.fbGet",
+        "window.fbRef"
+      ],
+      "status": "Parche 63e0b9de",
+      "detail": "Retorna cadena existente; impuestos incluyen SET interno. DatosEmpresa elimina Guardado anterior a ACK."
+    },
+    {
+      "handler": "guardarImpuestosGenerales",
+      "file": "js/app.v3.21.12.js",
+      "line": 31351,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".then",
+        "window.fbGet",
+        "window.fbRef"
+      ],
+      "status": "Parche 63e0b9de",
+      "detail": "Retorna cadena existente; impuestos incluyen SET interno. DatosEmpresa elimina Guardado anterior a ACK."
+    },
+    {
+      "handler": "guardarConfigTFApp",
+      "file": "js/app.v3.21.12.js",
+      "line": 10588,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "window.fbUpdate",
+        "window.fbRef"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "abrirModalComunicado",
+      "file": "js/app.v3.21.12.js",
+      "line": 55992,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "_comunicadoCargarDestinatarios",
+        "actualizarContadorComunicado"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "spAgregarNota",
+      "file": "js/app.v3.21.12.js",
+      "line": 37913,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".catch",
+        ".then",
+        "window.fbUpdate",
+        "window.fbRef"
+      ],
+      "status": "Parche 63e0b9de",
+      "detail": "Promise deduplicada por input/clave, captura reclamo, preserva borrador nuevo e historial previo."
+    },
+    {
+      "handler": "abrirScannerSerie",
+      "file": "js/app.v3.21.12.js",
+      "line": 32837,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".catch",
+        ".then"
+      ],
+      "status": "Permiso/cámara nativa",
+      "detail": "getUserMedia abre permiso y transmite cámara; no bloquear todo el uso de la cámara. Rechazo conserva cerrarScanner/capturarManual."
+    },
+    {
+      "handler": "agregarFotosEquipo",
+      "file": "js/core/image-attachment-standard.js",
+      "line": 269,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".catch",
+        ".then"
+      ],
+      "status": "Asignado agente3; entrega pendiente",
+      "detail": "image-attachment-standard: Promise.all no retornada. No modificado aquí; requiere entrega e integración del propietario antes de afirmar cobertura."
+    },
+    {
+      "handler": "agregarFotosRel",
+      "file": "js/core/image-attachment-standard.js",
+      "line": 303,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".catch",
+        ".then"
+      ],
+      "status": "Asignado agente3; entrega pendiente",
+      "detail": "image-attachment-standard: Promise.all no retornada. No modificado aquí; requiere entrega e integración del propietario antes de afirmar cobertura."
+    },
+    {
+      "handler": "guardarRelevamiento",
+      "file": "js/core/image-attachment-standard.js",
+      "line": 320,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".catch",
+        ".then",
+        "window.fbUpdate",
+        "window.fbRef",
+        "window.fbPush",
+        "window.fbRef"
+      ],
+      "status": "Asignado agente3; entrega pendiente",
+      "detail": "image-attachment-standard: Promise.all no retornada. No modificado aquí; requiere entrega e integración del propietario antes de afirmar cobertura."
+    },
+    {
+      "handler": "eliminarClienteDesdeHistorial",
+      "file": "js/app.v3.21.12.js",
+      "line": 43359,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "credGuardar",
+      "file": "js/app.v3.21.12.js",
+      "line": 54968,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "window.fbUpdate",
+        "window.fbRef",
+        "window.fbPush",
+        "window.fbRef",
+        ".catch",
+        "op.then"
+      ],
+      "status": "Parche 63e0b9de",
+      "detail": "Retorna cadena existente; impuestos incluyen SET interno. DatosEmpresa elimina Guardado anterior a ACK."
+    },
+    {
+      "handler": "cerrarDetalleProducto",
+      "file": "js/app.v3.21.12.js",
+      "line": 24581,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "actualizarStatProductos"
+      ],
+      "status": "Navegación y retorno",
+      "detail": "Restaura vista/origen; consultas de los destinos conservan sus indicadores propios."
+    },
+    {
+      "handler": "eliminarProductoDesdeDetalle",
+      "file": "js/app.v3.21.12.js",
+      "line": 24677,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "guardarKit",
+      "file": "js/app.v3.21.12.js",
+      "line": 1388,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".then",
+        "window.fbUpdate",
+        "window.fbRef",
+        ".then",
+        "window.fbPush",
+        "window.fbRef"
+      ],
+      "status": "Parche 63e0b9de",
+      "detail": "Retorna cadena existente; impuestos incluyen SET interno. DatosEmpresa elimina Guardado anterior a ACK."
+    },
+    {
+      "handler": "abrirModalHsExtra",
+      "file": "js/app.v3.21.12.js",
+      "line": 4698,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "abrirFormCargaHsExtra"
+      ],
+      "status": "Selector de vista",
+      "detail": "Sólo delega navegación por permiso a panel/formulario; no escribe."
+    },
+    {
+      "handler": "abrirFormGasto",
+      "file": "js/app.v3.21.12.js",
+      "line": 45228,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        ".catch",
+        ".then",
+        "window.fbGet",
+        "window.fbRef"
+      ],
+      "status": "Carga propia de adjunto",
+      "detail": "Formulario se presenta inmediatamente; rama fotoAdjunta ya dice Cargando comprobante y valida gastoActualFbKey antes de pintar. No guardar/reembolsar."
+    },
+    {
+      "handler": "confirmarPagoGasto",
+      "file": "js/app.v3.21.12.js",
+      "line": 46374,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "_pagoGastoBotonGuardar",
+        ".catch",
+        ".then",
+        "_registrarPagosGastosAtomico"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "asistGenerarPresupuesto",
+      "file": "js/app.v3.21.12.js",
+      "line": 42166,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".catch",
+        ".then",
+        ".then"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "guardarMovEmp",
+      "file": "js/app.v3.21.12.js",
+      "line": 34484,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        "window.fbPush",
+        "window.fbRef",
+        "_movEmpBotonGuardar",
+        ".catch",
+        "_guardarMovimientoEmpleado"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "registrarMovCaja",
+      "file": "js/app.v3.21.12.js",
+      "line": 32957,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        ".catch",
+        ".then",
+        "_registrarMovimientoCajaAtomico"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "guardarGastoRapido",
+      "file": "js/app.v3.21.12.js",
+      "line": 33063,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".catch",
+        ".then"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "guardarNuevoGenerico",
+      "file": "js/app.v3.21.12.js",
+      "line": 30787,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "guardarClienteDesdeModal",
+        "fbGuardarProducto",
+        "registrarActividad",
+        ".catch",
+        ".then",
+        "window.fbUpdate",
+        "window.fbRef",
+        ".catch",
+        ".then",
+        "window.fbPush",
+        "window.fbRef",
+        "window.fbUpdate",
+        "window.fbRef",
+        ".catch",
+        "promesa.then"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Captura Promise de ramas producto/empleado/gasto/proveedor/usuario/garantía sin saltar acciones posteriores; dependencia guardarGarantia también retorna escritura."
+    },
+    {
+      "handler": "chatCerrar",
+      "file": "js/app.v3.21.12.js",
+      "line": 2989,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".catch",
+        "window.fbRemove",
+        "window.fbRef"
+      ],
+      "status": "Presencia best-effort",
+      "detail": "Cierra ahora y elimina typing best-effort con catch; esperar esa limpieza bloquearía el cierre por presencia."
+    },
+    {
+      "handler": "chatAbrirDirectos",
+      "file": "js/app.v3.21.12.js",
+      "line": 3506,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        ".catch",
+        ".then"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "chatInputCambio",
+      "file": "js/app.v3.21.12.js",
+      "line": 2810,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "window.fbRef",
+        ".catch",
+        "window.fbRemove",
+        ".catch",
+        "window.fbSet",
+        "window.fbOnDisconnect"
+      ],
+      "status": "Presencia best-effort",
+      "detail": "Actualiza botones y typing; timer2200ms elimina presencia, no es guardado del mensaje ni debe bloquear edición."
+    },
+    {
+      "handler": "chatEnviar",
+      "file": "js/app.v3.21.12.js",
+      "line": 3479,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".catch"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "iaSugerencia",
+      "file": "js/app.v3.21.12.js",
+      "line": 2529,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "chatAudioReproducir",
+      "file": "js/app.v3.21.12.js",
+      "line": 3253,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".catch"
+      ],
+      "status": "Reproducción local",
+      "detail": "play/pause con catch visible; no guardado ni espera por duración de audio."
+    },
+    {
+      "handler": "abrirVisorComprobanteSistema",
+      "file": "js/app.v3.21.12.js",
+      "line": 46695,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        ".catch",
+        ".then"
+      ],
+      "status": "Visor con indicador propio",
+      "detail": "PDF muestra Cargando PDF antes de import/mount; imagen y archivo ya presentes. Error del visor visible. No escritura."
+    },
+    {
+      "handler": "spPasarAVisitaYGenerarOT",
+      "file": "js/app.v3.21.12.js",
+      "line": 38161,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        ".then"
+      ],
+      "status": "Ya devuelve Promise + dedupe + progreso",
+      "detail": "Retorna _spOTGeneracionPorReclamo[rKey], progresoVisita hasta finally y recupera tarea previa; falso positivo de heurística."
+    },
+    {
+      "handler": "guardarPeriodoVac",
+      "file": "js/app.v3.21.12.js",
+      "line": 42632,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "window.fbUpdate",
+        "window.fbRef",
+        "window.fbPush",
+        "window.fbRef",
+        "operacion.then"
+      ],
+      "status": "Parche 63e0b9de",
+      "detail": "Retorna cadena existente; impuestos incluyen SET interno. DatosEmpresa elimina Guardado anterior a ACK."
+    },
+    {
+      "handler": "otCargarCredenciales",
+      "file": "js/app.v3.21.12.js",
+      "line": 51628,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        "_svResolverClienteRegistro",
+        ".catch",
+        ".then",
+        ".then",
+        "window.fbGet",
+        "window.fbRef"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "imprimirComprobanteVentaActual",
+      "file": "js/app.v3.21.12.js",
+      "line": 30097,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "guardarFilaConfig",
+      "file": "js/app.v3.21.12.js",
+      "line": 56995,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": false,
+      "calls": [
+        "guardarConfigComisionCargo",
+        ".catch",
+        ".then",
+        "window.fbSet",
+        "window.fbRef"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve SET; elimina marca visual de éxito disparada antes de ACK. Payload y autorización intactos."
+    },
+    {
+      "handler": "guardarConfigComisionEmpleado",
+      "file": "js/app.v3.21.12.js",
+      "line": 57017,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        "window.fbRef",
+        "window.fbSet",
+        "window.fbSet",
+        ".catch",
+        "promesa.then"
+      ],
+      "status": "Tercer parche: retorno pendiente",
+      "detail": "Devuelve operación existente, conserva validaciones, argumentos, catches, finally y rollback."
+    },
+    {
+      "handler": "otWizardIniciar",
+      "file": "js/modules/ot-workflow.js",
+      "line": 251,
+      "async": false,
+      "returnsPromise": false,
+      "loadMarkers": true,
+      "calls": [
+        "fbGuardarOT",
+        ".catch",
+        "prom.then"
+      ],
+      "status": "Tercer parche: módulo",
+      "detail": "applyModule sobre ot-workflow añade return a prom.then; conserva estado/audit anterior y rollback."
+    }
+  ]
+}

@@ -10,7 +10,7 @@ function extract(source,name){
 }
 function apply(source){
  source=source.replace(/\r\n/g,'\n');
- for(const change of changes){const original=extract(source,change.name);
+ for(const change of changes){const original=extract(source,change.name);if(original.text===change.after)continue;
   if(crypto.createHash('sha256').update(original.text).digest('hex')!==change.beforeHash)throw new Error('Action changed; review required: '+change.name);
   source=source.slice(0,original.start)+change.after+source.slice(original.start+original.text.length);
  }
