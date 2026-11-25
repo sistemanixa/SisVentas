@@ -45,7 +45,8 @@ test('frozen package: genuine current-pending command and complete native atomic
  const summary=f.get('sisventas/compras_resumen/ordenes/classic');assert(summary);assert.equal(summary.inventarioCompra,undefined);
  assert(Object.keys(c.patch).every(k=>k.startsWith('sisventas/ordenes/classic')||k.startsWith('sisventas/compras_resumen/ordenes/classic')||k.startsWith('sv_labor_receipts/')||k==='sv_labor_guard'&&c.patch[k]===null),'Only order, curated summary, real receipt and guard release');
  await put('',c.state);const nativeBefore=Object.fromEntries(await Promise.all(Object.keys(preserved).map(async k=>[k,await read(k)])));const result=await nativeMerge(c.patch,c.override.uid,c.override.token);assert.equal(result.status,200,JSON.stringify(result));
- const expected=f.get('sisventas/ordenes/classic');for(const p of [expected.inventarioCompra.baseline,expected.inventarioCompra]){const k=p===expected.inventarioCompra?'references':'rows';assert.deepEqual(Object.keys(p[k]),['0']);p[k]=[p[k]['0']];}assert.deepEqual(await read('sisventas/ordenes/classic'),expected);
+ const expected=f.get('sisventas/ordenes/classic');for(const p of [expected.inventarioCompra.baseline,expected.inventarioCompra]){const k=p===expected.inventarioCompra?'references':'rows';assert.deepEqual(Object.keys(p[k]),['0']);p[k]=[p[k]['0']];}const nativeOrder=await read('sisventas/ordenes/classic');assert.deepEqual(nativeOrder,expected);
+ const nativeReceipt=await read('sv_labor_receipts/'+body.id);assert.equal(load('cotizador/purchase-current-pending-baseline').validateReceipt(nativeOrder,nativeReceipt),true);
  for(const[k,v]of Object.entries(nativeBefore))assert.deepEqual(await read(k),v);
  assert.deepEqual(await command.execute({},body),ack);assert.equal(commits.length,1);
 },{timeout:120000});
