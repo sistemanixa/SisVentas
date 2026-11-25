@@ -1,0 +1,9 @@
+# Count genuino y ledger físico
+
+Familia nueva exclusiva Count, emitida por ot-office-count-policy.token(actor,lease): svOTCountVersion=1; OTKey, ProductKey(P), InventoryKey(J), Role, PermissionRevision, Generation y Fence. Capacidad privada WeakSet antes de resolver, ligada UID/op/originalHash/permisos; sello posterior privado inmutable exige patch exacto/originales/lease. JSON/clones/op strings no emiten familia. Sin sello InventoryKey/Generation null: no usar ese estado para grants de negocio. Gen sólo se asigna tras resolución mapped E genuina y snapshot de activation; legacy no certifica mapped. Native Rules deben exigir generación verificada no nula, fence vivo, UID/op, versión/config y revisión/acción actuales, OT exacta y J exacto; ningún grant padre general.
+
+Count de base15 recupera puertos de referencia estables0a y contexto Count propio para OT con3refsSale exactasvacías, sin fingir Life/Inventory. P/J/R distintos conserva sóloJ. Recibo de operación guarda inventoryKey de servidor para leer replay autorizado sin volver a resolver con una guarda finalizada. Role cfg ausente ahora deniega, reset y asignación técnica se comprueban/trakean frescos. Closed linked conserva Life stockrepair genuino y venta real obligatoria.
+
+Integración RootStore: defaults/sanitize de prefijo svOTCount*, Object.assign token después del saneamiento. Source hook sigue isBound+validate({actor,lease,patch,readFresh,operationalSummaries,now}); familia añade token, no reemplaza chequeo exacto. B puede construir whitelist desde estos nombres literales.
+
+15PASS Count/source+núcleo firmado actual: linked y standalone conP/J/R distintos, replay1commit, clone/otroop/permissionmissing/tamper negativos. No prueba Order ON remoto ni rules emulator completo; montaje/cohorte/config son del coordinador. No activa nada ni cambia la semántica histórica de cantidades.
