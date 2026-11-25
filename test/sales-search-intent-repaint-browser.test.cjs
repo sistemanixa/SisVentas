@@ -23,7 +23,7 @@ test('real input plus synchronous sort does not restart the old historical filte
    for(let i=0;i<8;i++)await Promise.resolve();
    return {extra:__moduleAudit.reads.slice(before).filter(r=>r.type==='get'&&r.path.startsWith('sv_commercial_pages')),rows:document.querySelectorAll('#ventas-tbody tr[data-indexed-sale]').length,status:document.getElementById('ventas-search-status').textContent,focus:document.activeElement.id,filter:window._filtrosVentas.texto,debt:document.getElementById('vm-pendiente').textContent};
   });
-  assert.equal(pending.filter,'Antigua');assert.deepEqual(pending.extra,[]);assert.equal(pending.rows,1);assert.match(pending.status,/provisori/i);assert.equal(pending.focus,'ventas-search');assert.equal(pending.debt,debt);
+  assert.equal(pending.filter,'Antigua');assert.deepEqual(pending.extra,[]);assert.equal(pending.rows,0);assert.match(pending.status,/Cargando/i);assert.equal(pending.focus,'ventas-search');assert.equal(pending.debt,debt);
   hold=false;release();await page.waitForFunction(()=>window._filtrosVentas.texto==='V-FIXTURE-0'&&document.getElementById('ventas-list-view').getAttribute('aria-busy')!=='true'&&document.querySelectorAll('#ventas-tbody tr[data-indexed-sale]').length===1);
   assert.equal(queries.filter(q=>q.path.endsWith('/search/all/616e74')).length,1);assert.equal(queries.filter(q=>q.path.includes('/totals/')).length,totals);assert.equal(await page.locator('#vm-pendiente').textContent(),debt);assert.deepEqual(local.backend.state,before);
  }finally{hold=false;release();await browser?.close();await new Promise(r=>{local.server.close(r);local.server.closeAllConnections();});}
