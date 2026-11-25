@@ -20,6 +20,7 @@ function validate(value,depth=0){
 }
 function specific(path){
  parts(path);if(['sisventas','sisventas/config'].includes(path)||forbidden(path))throw fail(400,'Esta operación requiere guardar registros individuales');
+ if(/^sisventas\/(inventario_operativo|stock_vinculos|compras_resumen|ordenes|ordenes_compra|listas_materiales|contadores)(\/|$)/.test(path)||/^sv_(stock|inventory|purchase|office_stock|ot)[^/]*(\/|$)/.test(path))throw fail(400,'Esta operación requiere su comando de Stock, Compras u OT.','SV_TYPED_INVENTORY_REQUIRED');
 }
 function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
  const affectedPath=typeof guard?.affects==='function'?path=>guard.affects(path):affected;

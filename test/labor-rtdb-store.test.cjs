@@ -28,15 +28,15 @@ test('fallo de acceso no se presenta como contención ni habilita un commit Admi
 });
 
 test('claims de vínculo y costos del cliente nunca emiten autoridad de servidor',async()=>{
- const f=setup(),actor={uid:'user',mode:'user',claims:{uid:'user',svPurchaseNumberingVersion:1,svPurchaseNumberingCount:999,svStockOrderWriterVersion:1,svStockOrderGeneration:'forged',svStockLinkVersion:1,svStockLinkProductKey:'forged',svPurchaseSourceCostVersion:2,svPurchaseSourceCostSaleLists:{forged:{listKey:'fake'}}}};
+ const f=setup(),actor={uid:'user',mode:'user',claims:{uid:'user',svOfficeStockVersion:1,svOfficeStockPreconditionVersion:1,svOfficeStockSourcePresent:false,svPurchaseNumberingVersion:1,svPurchaseNumberingCount:999,svStockOrderWriterVersion:1,svStockOrderGeneration:'forged',svStockLinkVersion:1,svStockLinkProductKey:'forged',svPurchaseSourceCostVersion:2,svPurchaseSourceCostSaleLists:{forged:{listKey:'fake'}}}};
  await f.store.commit({},lease,actor);
  const token=JSON.parse(f.calls[0].url.searchParams.get('auth_variable_override')).token;
- assert.equal(token.svStockLinkVersion,0);assert.equal(token.svStockLinkProductKey,'');
+ assert.equal(token.svOfficeStockVersion,0);assert.notEqual(token.svOfficeStockPreconditionVersion,1);assert.equal(token.svStockLinkVersion,0);assert.equal(token.svStockLinkProductKey,'');
  assert.equal(token.svPurchaseSourceCostVersion,0);assert.equal(token.svPurchaseSourceCostSaleLists,undefined);
  assert.equal(token.svPurchaseNumberingVersion,0);assert.equal(token.svPurchaseNumberingCount,0);assert.equal(token.svStockOrderWriterVersion,0);assert.equal(token.svStockOrderGeneration,'');
  await f.store.readAsUser('sisventas/gastos/g',actor);
  const read=JSON.parse(f.calls[1].url.searchParams.get('auth_variable_override')).token;
- assert.equal(read.svStockLinkVersion,undefined);assert.equal(read.svPurchaseSourceCostVersion,undefined);
+ assert.equal(read.svOfficeStockVersion,undefined);assert.equal(read.svOfficeStockPreconditionVersion,undefined);assert.equal(read.svOfficeStockSourcePresent,undefined);assert.equal(read.svStockLinkVersion,undefined);assert.equal(read.svPurchaseSourceCostVersion,undefined);
  assert.equal(read.svPurchaseNumberingVersion,undefined);assert.equal(read.svStockOrderWriterVersion,undefined);
 });
 

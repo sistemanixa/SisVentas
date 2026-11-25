@@ -11,6 +11,14 @@ function fixture(){
  const gateway=createLaborWriteGateway({auth:{verifyIdToken:async()=>({uid:'user'})},db,guard,store,enabled:true}),actor={uid:'user',claims:{uid:'user'}};
  return {gateway,actor,calls,store,set,read,get data(){return data;},command:(extra={})=>({id:'command-'+(++i),kind:'set',path:'sisventas/gastos/g/monto',value:110,...extra})};
 }
+
+test('un acompañante laboral no autoriza inventario, compras ni metadata privada en el gateway genérico',async()=>{
+ for(const path of ['sisventas/inventario_operativo/P','sisventas/inventario_operativo','sisventas/stock_vinculos/porProducto/P','sisventas/compras_resumen/inventario_operativo/P','sisventas/ordenes/O','sisventas/ordenes_compra/O','sisventas/listas_materiales/L','sisventas/contadores/ordenTrabajo','sv_purchase_numbering/state','sv_office_stock_order_fence','sv_stock_reference_config/installed','sv_ot_inventory_config']){
+  const f=fixture(),command=f.command({kind:'patch',path:'',value:{'sisventas/gastos/g/monto':150,[path]:null}});
+  await assert.rejects(f.gateway.write(f.actor,command),{code:'SV_TYPED_INVENTORY_REQUIRED'});
+  assert.equal(f.calls.commits.length,0);assert.equal(f.read('sisventas/gastos/g/monto'),100);assert.equal(f.calls.reads.length,0);
+ }
+});
 test('gateway conserva UID, permisos de lectura compare y recibo pequeño sin duplicar datos',async()=>{
  const f=fixture(),command=f.command({kind:'compare',path:'sisventas/gastos/g',value:{monto:120,empleadoId:'e'},expectedHash:digest(f.read('sisventas/gastos/g'))});
  const actor=await f.gateway.authorize({method:'POST',url:'/laboral/escritura',headers:{authorization:'Bearer signed'}});assert.deepEqual(actor,f.actor);
