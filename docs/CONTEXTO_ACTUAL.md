@@ -1,3 +1,7 @@
+# Montaje Stock en aplicación completa · 25/11/2026
+
+Importados E6bed/783 como1a94/d844: listado arranca sin esperar capacidad; revisión se agrega sin remontar ni perder filtro, sólo ante instalación lista. Identidad P/J/R se solicita para filas sin identificar; sesión/permiso/ruta/Abort vinculados, sin replay. Endurecimiento Root exige installed true y generación válida además de ready, 15 tests servicio PASS; 31 referencias+2readiness+9servicio previos=42PASS en corrida Root. Falta registrar activos y comprobar app completa. UI E informó 10 casos nativos390/1280, no repetidos aún aquí. No habilitado ni publicado.
+
 # Conservación de base nativa y referencias explícitas · 25/11/2026
 
 La prueba de preservación reconstruye los mismos hashes nativos anteriores revirtiendo bloques EXACTOS de la extensión revisada Stock/Policy; no se sustituyen hashes históricos ni se aceptan cambios desconocidos. El manifiesto contiene sólo diferencias públicas desde37e1, sin datos. El hook Stock valida la fuente previa a proyecciones exclusivamente extraída por StockOrderPolicy privado; se comprueba el hook real, no una firma antigua ya reemplazada. Pruebas adversariales de alteraciones desconocidas conservadas y nueva alteración de claim rechazada. Esto complementa las pruebas funcionales/emu de la extensión, no las reemplaza.
