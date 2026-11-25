@@ -12,7 +12,7 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
   if(kind==='delivery')return delivery.available(identity,{otKey});
   await activation();
   if(!identity?.uid||identity.claims?.uid!==identity.uid||!key(otKey)||!['close','custody','return'].includes(kind))throw fail(400,'Solicitud de OT inválida.');
-  const profile=await read('sv_chat_roles/'+identity.uid),cfg=await read('sv_permisos/'+profile?.rol),ot=await store.readAsUser('sisventas/ordenes_trabajo/'+otKey,identity);
+  const snapshots=await Promise.allSettled([read('sv_chat_roles/'+identity.uid),store.readAsUser('sisventas/ordenes_trabajo/'+otKey,identity)]),failed=snapshots.find(result=>result.status==='rejected');if(failed)throw failed.reason;const [profile,ot]=snapshots.map(result=>result.value),cfg=await read('sv_permisos/'+profile?.rol);
   if(!ot)throw fail(409,'La OT ya no existe.');const context=Policy.authority(profile,cfg,kind,Model.closed(ot));
   if(['tecnico','tecnico_vendedor'].includes(context.role)){
    const binding=await read('sv_empleado_uid/'+identity.uid),account=key(binding?.perfilFbKey)?await read('sv_usuarios/'+binding.perfilFbKey):null;
@@ -20,7 +20,7 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
    const employee=await read('sisventas/empleados/'+account.empleadoFbKey),hasKey=['tecnicoFbKey','empleadoFbKey','tecnicoKey'].some(k=>ot[k]!=null&&String(ot[k]).trim()),directory=!hasKey&&employee?.nombre?await store.query('sisventas/empleados','nombre',employee.nombre):{};
    if(!employee||employee.activo===false||!Assigned.assigned(ot,{...employee,fbKey:account.empleadoFbKey},Object.fromEntries(Object.entries(directory).map(([k,v])=>[k,{...v,fbKey:k}]))))throw fail(403,'La OT no está asignada a tu cuenta.');
   }
-  return {ok:true,ready:true,version:1,atomicStock:true};
+  return {ok:true,ready:true,version:1,atomicStock:true,otKey,otRevision:ot._svListRevision??0,expectedOTHash:digest(ot)};
  }
  async function executeInternal(identity,body,started){
   const activationState=await activation();
