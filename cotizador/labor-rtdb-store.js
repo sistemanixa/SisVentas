@@ -34,10 +34,14 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   const fields={
    'sisventas/productos':['$key','codigo','cod','id'],
    'sisventas/inventario_operativo':['$key','codigo','cod','id','productoKey','productKey'],
+   'sisventas/ordenes':['$key'],
+   'sisventas/ordenes_compra':['$key'],
    'sisventas/stock_vinculos/porProducto':['productKey','inventoryKey'],
    'sisventas/stock_vinculos/porInventario':['productKey','inventoryKey']
   };
   const own=(name)=>Object.hasOwn(query,name),scalar=value=>typeof value==='string'&&value.length<=512||typeof value==='number'&&Number.isFinite(value)||typeof value==='boolean';
+  const purchaseRoot=path==='sisventas/ordenes'||path==='sisventas/ordenes_compra';
+  if(purchaseRoot&&(!query||typeof query!=='object'||Array.isArray(query)||query.orderBy!=='$key'||Object.keys(query).some(name=>!['orderBy','limitToFirst','startAt'].includes(name))||Object.hasOwn(query,'startAt')&&(typeof query.startAt!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(query.startAt))))throw fail(400,'Consulta de compras inválida','SV_STOCK_QUERY_INPUT');
   if(!Object.hasOwn(fields,path)||!query||typeof query!=='object'||Array.isArray(query)||!fields[path].includes(query.orderBy)||!Number.isInteger(query.limitToFirst)||query.limitToFirst<2||query.limitToFirst>129||Object.keys(query).some(name=>!['orderBy','limitToFirst','equalTo','startAt','endAt'].includes(name))||own('equalTo')&&(own('startAt')||own('endAt'))||!own('equalTo')&&!own('startAt')&&query.orderBy!=='$key'||['equalTo','startAt','endAt'].some(name=>own(name)&&(!scalar(query[name])||query.orderBy==='$key'&&typeof query[name]!=='string'))||path.includes('/stock_vinculos/')&&(!own('equalTo')||typeof query.equalTo!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(query.equalTo)))throw fail(400,'Consulta dirigida de stock inválida','SV_STOCK_QUERY_INPUT');
   const r=await request('GET',path,undefined,{query});return r.json();
  }

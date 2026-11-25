@@ -1,3 +1,9 @@
+# Continuación autorizada y compatibilidad pendiente · 25/11/2026
+
+El titular respondió «autorizado continuá» a la consulta acotada pendiente. Se ejecutó sólo el script privado de formas activas: 74 GET, 2.106 bytes, sin importes/adjuntos ni escrituras. Evidencia con identificadores exclusivamente en tmp privado, no compartida entre chats ni Git. Confirma necesidad de compatibilidad; no autoriza fabricar registered/operaciones antiguas ni sumar pendientes otra vez. Bloqueo de esa consulta resuelto, no mantenerlo como impedimento actual.
+
+A retoma current-pending-reconcile metadata-only con modelo/Policy/comando/History y recibo genuino nuevo; E revisa interfaz y B grants existentes, todos con código y ficticios. Root amplía queryPage únicamente para sisventas/ordenes y sisventas/ordenes_compra: $key, limit2..129, startAt opcional clave segura, sin filtros/campos/hijos arbitrarios. Scope/fresh usan el puerto existente. Tres tests de transporte/límites nuevos +9Store PASS;12preservación nativa/closure PASS. No nuevo writer/Guardgrant/SourceCost ni operación fingida; integración final aún pendiente. No otra puerta global hasta un nuevo bloque completo. Producción16 intacta y candidata17 sin activar.
+
 # Cierre probado 883ba379 · candidata17 sin publicar · 25/11/2026
 
 Puerta vigente completa sobre 883ba3793b07e923e5e6f2f6b9729d163df4dea7: 13.367 casos, 13.270 PASS, 0 FAIL, 0 cancelados, 97 SKIP condicionales, exit0 y mismo SHA antes/después. Catálogo separado: 1 PASS. Header clásico/caracterización/wire: 64 PASS; coherencia oficial v3.21.17 -ValidarLocal, sintaxis y diffcheck PASS. No sumar corridas solapadas como casos únicos. Evidencia privada: tmp/system17-gate-883-final-result.private.json y log correspondiente, fuera de Git.
