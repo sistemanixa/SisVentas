@@ -35,5 +35,20 @@
   if(JSON.stringify(stable(actual.items))!==JSON.stringify(stable(expected.items)))throw Error('La conversión cambió ítems, identidad o costos originales.');
   return actual;
  }
- return Object.freeze({toBudget,validateEconomicTransition});
+ function reopenOriginal(sale,original,saleKey,uid,at){
+  const numbers=[sale.id,sale.numero].filter(Boolean).map(String);
+  const budgetNumbers=[original?.id,original?.numero].filter(Boolean).map(String);
+  const links=[original?.ventaFbKey,original?.ventaGeneradaFbKey].filter(Boolean);
+  const visibleLinks=[original?.ventaId,original?.ventaGeneradaId].filter(Boolean).map(String);
+  if(!original||original.estado!=='convertido'||!links.length||links.some(key=>key!==saleKey)
+   ||visibleLinks.some(id=>!numbers.includes(id))||![sale.pptoOrigen,sale.presupuestoId].filter(Boolean).every(id=>budgetNumbers.includes(String(id)))
+   ||original.conversionEnCurso||!Number.isSafeInteger(at)||at<=0)throw Error('El vínculo con el presupuesto original cambió o requiere revisión.');
+  const reopened={...original,estado:'enviado',ventaOrigenFbKey:saleKey,ventaOrigenId:sale.id||sale.numero};
+  for(const key of ['ventaFbKey','ventaGeneradaFbKey','ventaId','ventaGeneradaId'])delete reopened[key];
+  const prior=original.audit||[];
+  const event={fecha:new Date(at).toISOString(),usuario:uid,accion:'Reabierto desde venta '+reopened.ventaOrigenId,ts:at};
+  reopened.audit=Array.isArray(prior)?prior.concat(event):{...prior,['retorno_'+at]:event};
+  return reopened;
+ }
+ return Object.freeze({toBudget,validateEconomicTransition,reopenOriginal});
 });

@@ -4696,3 +4696,7 @@ Servidor de revisión pedido, sólo loopback y datos ficticios: http://127.0.0.1
 ### Verificación del parche de Stock v3.21.12
 
 La prueba integrada ejecutó el listado real del servidor contra datos ficticios y montó la interfaz y el adaptador en navegador. Verificó orden global, una consulta compacta, cambios de nombre y foto, inactivación y baja a revisión con el saldo intacto. Las 44 pruebas focalizadas de Stock y suscripciones pasaron. La compilación del servidor corresponde al mismo office-stock.js; la revisión quedó sin tráfico. El chequeo general anterior registró fallos ajenos en la base y verificaciones fijadas a la versión histórica. La activación y la publicación de los activos siguen pendientes de aprobación.
+
+## Reapertura del presupuesto original · candidata v3.21.13
+
+A presupuesto vuelve a la ficha original cuando la venta conserva el vínculo técnico y el presupuesto confirma el vínculo inverso. La operación coordinada conserva importes, número, fecha de alta y entradas de auditoría; registra la reapertura y retira los vínculos activos de conversión. Sin doble numeración, con comprobación de concurrencia y las protecciones de cobros, facturas, OT, compras y reservas existentes. Las pruebas focalizadas (52) y la matriz RTDB en emulador pasaron con datos ficticios. La matriz usó una copia verificada de las reglas vigentes. El candidato de reglas modifica sólo la autorización por registro de Ventas. La conversión real queda a cargo del usuario.

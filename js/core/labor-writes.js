@@ -175,7 +175,7 @@
     }
    });
   }
-  function atomic({paths,build,purpose}={}){
+  function atomic({paths,build,purpose,originalBudgetPath}={}){
    return held(async()=>{
     const check=capture();check();available();
     if(!Array.isArray(paths)||!paths.length||paths.length>128||typeof build!=='function'||purpose!==undefined&&!['relationship-normalization','expense-removal','employee-bonus-batch','employee-sac-batch','employee-sac-migration','sale-cost-correction','sale-return-to-budget','commission-participant','sale-commission-assignment'].includes(purpose))throw fail('SV_LABOR_ATOMIC','El guardado requiere hasta 128 registros y una transformación.');
@@ -189,7 +189,7 @@
      check();const values=Object.create(null),expectedHashes=Object.create(null);let cursor=0,failure;
      await Promise.all(Array.from({length:Math.min(6,selected.length)},async()=>{
       while(!failure&&cursor<selected.length){const path=selected[cursor++];try{
-       const value=purpose==='sale-return-to-budget'&&/^sisventas\/presupuestos\/desde_venta_[^/]+$/.test(path)?null:(await read(sdk.ref(root.fbDB,path),check)).val();check();values[path]=copy(value);expectedHashes[path]=await hash(value);check();
+       const value=purpose==='sale-return-to-budget'&&path!==originalBudgetPath&&/^sisventas\/presupuestos\/desde_venta_[^/]+$/.test(path)?null:(await read(sdk.ref(root.fbDB,path),check)).val();check();values[path]=copy(value);expectedHashes[path]=await hash(value);check();
       }catch(error){if(purpose==='sale-return-to-budget')root.console?.warn?.('[Retorno presupuesto] leer_registro',path.split('/')[1]);failure||=error;}}
      }));
      if(failure)throw failure;check();const changes=build(copy(values));

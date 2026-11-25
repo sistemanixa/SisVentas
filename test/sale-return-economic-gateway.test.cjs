@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const {createLaborGuard,child,parts,put,digest}=require('../cotizador/labor-guard');
 const {createLaborWriteGateway}=require('../cotizador/labor-write-gateway');
 const Transition=require('../js/core/sale-budget-transition.v1.js'),Payments=require('../cotizador/payment-membership-index');
-function fixture(conIva){
+function fixture(conIva,reopen=false){
  const sale={id:'VENTA-FICTICIA',items:[{cod:'P',qty:2,punit:100,disc:10,sub:180,costoUnitarioCompra:25,costoTotalCompra:50,costoOrigen:'stock_ultimo_ingreso_final'},{desc:'Cero',qty:1,punit:0,sub:0,costoUnitarioCompra:0,costoVersion:1}],subtotal:162,descuento:38,descuentoGeneral:10,iva:conIva?34.02:0,total:conIva?196.02:162,conIva};
  let data={sv_labor_config:{schema:1,ready:true},sv_chat_roles:{u:{activo:true,rol:'admin'}},sv_permisos:{admin:{acciones:{ventas:{moverPresupuesto:true}}}},sisventas:{ventas:{s:sale}}},sequence=0,commits=0;
  const read=path=>child(data,parts(path)),set=(path,value)=>{data=put(data,parts(path),value);};
@@ -10,9 +10,11 @@ function fixture(conIva){
  for(const [path,value]of Object.entries(Payments.buildIndex({},{generation:'ficticia',ready:true}).patch))set(path,value);
  const store={read:async path=>read(path),readAsUser:async path=>read(path),query:async()=>({}),acquire:async lease=>set('sv_labor_guard',lease),abort:async()=>set('sv_labor_guard',null),commit:async patch=>{commits++;for(const [path,value]of Object.entries(patch))set(path,value);}};
  const guard=createLaborGuard({store,uuid:()=> 'fixture-'+(++sequence),delay:async()=>{}}),gateway=createLaborWriteGateway({auth:{verifyIdToken:async()=>({uid:'u'})},db:{ref:path=>({get:async()=>({val:()=>read(path)})})},guard,store,enabled:true});
- const budget={...Transition.toBudget(sale,{sourceFormat:'sale'}),id:'PP-FICTICIO',ventaOrigenFbKey:'s',ts:1},path='sisventas/presupuestos/desde_venta_s';
- const command={id:'economic-fixture',kind:'atomic',purpose:'sale-return-to-budget',path:'',value:{'sisventas/ventas/s':null,[path]:budget},expectedHashes:{'sisventas/ventas/s':digest(sale),[path]:digest(null)}};
- return {gateway,command,budget,sale,read,get commits(){return commits;}};
+ const original={id:'PP-ORIGINAL',estado:'convertido',ventaFbKey:'s',ventaId:sale.id,total:199,items:[{cod:'ORIGINAL'}],audit:[{accion:'Creado'}],ts:42};
+ if(reopen){Object.assign(sale,{presupuestoFbKey:'original',pptoOrigen:original.id});set('sisventas/ventas/s',sale);set('sisventas/presupuestos/original',original);}
+ const budget=reopen?Transition.reopenOriginal(sale,original,'s','u',100):{...Transition.toBudget(sale,{sourceFormat:'sale'}),id:'PP-FICTICIO',ventaOrigenFbKey:'s',ts:1},path=reopen?'sisventas/presupuestos/original':'sisventas/presupuestos/desde_venta_s';
+ const command={id:'economic-fixture',kind:'atomic',purpose:'sale-return-to-budget',path:'',value:{'sisventas/ventas/s':null,[path]:budget},expectedHashes:{'sisventas/ventas/s':digest(sale),[path]:digest(reopen?original:null)}};
+ return {gateway,command,budget,sale,read,original,get commits(){return commits;}};
 }
 for(const iva of [false,true])test('real gateway commits normalized discount and VAT with ACK '+iva,async()=>{const f=fixture(iva),result=await f.gateway.write({uid:'u',claims:{uid:'u'}},f.command);assert.equal(result.committed,true);assert.equal(f.commits,1);const saved=f.read('sisventas/presupuestos/desde_venta_s');assert.equal(saved.descuento,10);assert.equal(saved.descuentoAmt,18);assert.equal(saved.subtotal,180);assert.equal(saved.total,f.sale.total);assert.deepEqual(saved.items,f.sale.items);assert.equal(f.read('sisventas/ventas/s'),null);});
 test('real gateway rejects altered discount or cost without commit',async()=>{for(const change of ['discount','cost']){const f=fixture(false);if(change==='discount')f.budget.descuentoGeneral=38;else f.budget.items[0].costoUnitarioCompra=0;await assert.rejects(f.gateway.write({uid:'u',claims:{uid:'u'}},f.command));assert.equal(f.commits,0);assert.equal(f.read('sisventas/ventas/s').total,162);}});
@@ -24,4 +26,18 @@ test('real gateway rejects forged canonical transition metadata before commit',a
   await assert.rejects(f.gateway.write({uid:'u',claims:{uid:'u'}},f.command),/metadatos económicos/);
   assert.equal(f.commits,0);assert.equal(f.read('sisventas/ventas/s').total,162);assert.equal(f.read('sisventas/presupuestos/desde_venta_s'),null);
  }
+});
+
+test('real gateway reopens the original record with its original amounts exactly once',async()=>{
+ const f=fixture(true,true),actor={uid:'u',claims:{uid:'u'}};
+ await f.gateway.write(actor,f.command);
+ await f.gateway.write(actor,f.command);
+ const saved=f.read('sisventas/presupuestos/original');
+ assert.equal(f.commits,1);
+ assert.equal(f.read('sisventas/ventas/s'),null);
+ assert.equal(f.read('sisventas/presupuestos/desde_venta_s'),null);
+ assert.equal(saved.total,f.original.total);
+ assert.deepEqual(saved.items,f.original.items);
+ assert.equal(saved.id,f.original.id);
+ assert.deepEqual(saved.audit.slice(0,-1),f.original.audit);
 });

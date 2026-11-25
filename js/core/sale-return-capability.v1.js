@@ -4,7 +4,7 @@
  function validate(payload){
   const capability=payload?.saleReturn;
   if(payload?.ok!==true||typeof payload.revision!=='string'||!payload.revision||payload.revision==='local'||capability?.version!==1||capability.enabled!==true||capability.purpose!==PURPOSE||capability.coordinated!==true||capability.rules?.version!==1||capability.rules.verified!==true||typeof capability.rules.digest!=='string'||!/^[a-f0-9]{64}$/.test(capability.rules.digest))throw fail('Volver a presupuesto requiere completar la actualización del servidor y sus reglas. La venta se conserva.');
-  return Object.freeze({purpose:PURPOSE,revision:payload.revision,rulesDigest:capability.rules.digest});
+  return Object.freeze({purpose:PURPOSE,revision:payload.revision,rulesDigest:capability.rules.digest,originalBudget:capability.originalBudget===true});
  }
  async function check({request,capture,isCurrent}){
   if(typeof request!=='function'||typeof capture!=='function'||typeof isCurrent!=='function')throw fail('No está disponible la comprobación de compatibilidad.');

@@ -81,8 +81,8 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
    for(const [path,hash]of Object.entries(expected)){
     // La lectura conserva el permiso del usuario, además del control de escritura
     // evaluado por Firebase para el PATCH final, nunca un resultado Admin público.
-    const current=saleReturnPlan?.budgetPath===path?await scope.get(path):scope.getAsUser?await scope.getAsUser(path):await store.readAsUser(path,actor);
-    if(saleReturnPlan?.budgetPath===path&&current!==null)throw fail(409,'Esta venta ya tiene un presupuesto recuperado. No se duplicó.','SV_CAS_CONFLICT');
+    const current=saleReturnPlan?.budgetPath===path&&!saleReturnPlan.reopen?await scope.get(path):scope.getAsUser?await scope.getAsUser(path):await store.readAsUser(path,actor);
+    if(saleReturnPlan?.budgetPath===path&&!saleReturnPlan.reopen&&current!==null)throw fail(409,'Esta venta ya tiene un presupuesto recuperado. No se duplicó.','SV_CAS_CONFLICT');
     if(digest(current)!==hash)throw fail(409,'El registro cambió. Se volverá a comprobar.','SV_CAS_CONFLICT');
    }
    if(normalization)for(const [path,value]of Object.entries(patch)){

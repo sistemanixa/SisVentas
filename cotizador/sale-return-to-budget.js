@@ -5,17 +5,19 @@ const technical=['ventaFbKey','ventaKey','ventaGeneradaFbKey','ventaOrigenFbKey'
 const Payments=require('./payment-membership-index');
 const Transition=require('./commercial-models/sale-budget-transition.v1.js');
 const PURPOSE='sale-return-to-budget';
-function capability({enabled=false,coordinated=false,rulesDigest}={}){
+function capability({enabled=false,coordinated=false,rulesDigest,originalBudget=false}={}){
  const verified=typeof rulesDigest==='string'&&/^[a-f0-9]{64}$/.test(rulesDigest);
- return {version:1,enabled:enabled===true&&coordinated===true&&verified,purpose:PURPOSE,coordinated:coordinated===true,rules:{version:1,verified,digest:verified?rulesDigest:null}};
+ return {version:1,enabled:enabled===true&&coordinated===true&&verified,purpose:PURPOSE,...(originalBudget===true?{originalBudget:true}:{}),coordinated:coordinated===true,rules:{version:1,verified,digest:verified?rulesDigest:null}};
 }
 function describe(body){
  const patch=body?.value,budgets=Object.entries(patch||{}).filter(([p,v])=>/^sisventas\/presupuestos\/[^/]+$/.test(p)&&v&&typeof v==='object'&&!Array.isArray(v));
  if(body?.kind!=='atomic'||body.purpose!==PURPOSE||budgets.length!==1)throw fail('La devolución requiere una venta y un presupuesto nuevos.');
  const [budgetPath,budget]=budgets[0],key=budget.ventaOrigenFbKey;
- if(typeof key!=='string'||!key||/[.#$\[\]\/\x00-\x1f]/.test(key)||budgetPath!=='sisventas/presupuestos/desde_venta_'+key||patch['sisventas/ventas/'+key]!==null||body.expectedHashes?.[budgetPath]!==require('./labor-guard').digest(null))throw fail('La devolución no coincide con la venta y el destino esperados.');
+ if(typeof key!=='string'||!key||/[.#$\[\]\/\x00-\x1f]/.test(key)||patch['sisventas/ventas/'+key]!==null||!Object.hasOwn(body.expectedHashes||{},budgetPath))throw fail('La devolución no coincide con la venta y el destino esperados.');
  if(Object.keys(patch).some(p=>p!=='sisventas/ventas/'+key&&p!==budgetPath&&!/^sisventas\/listas_materiales\/[^/]+$/.test(p)))throw fail('La devolución no puede cambiar otros registros.');
- return {salePath:'sisventas/ventas/'+key,budgetPath};
+ const reopen=body.expectedHashes[budgetPath]!==require('./labor-guard').digest(null);
+ if(reopen? !body.expectedHashes?.['sisventas/ventas/'+key] : budgetPath!=='sisventas/presupuestos/desde_venta_'+key)throw fail('La devolución no coincide con el destino esperado.');
+ return {...(reopen?{reopen:true}:{}),salePath:'sisventas/ventas/'+key,budgetPath};
 }
 const roots=['ordenes_trabajo','ordenesTrabajo','agenda','ordenes','comisiones_generacion'];
 function hasFlow(sale){const embedded=sale.pagos,history=embedded&&typeof embedded==='object'?Object.keys(embedded).length>0:!!embedded;return ['totalPagado','pagado','montoPagado'].some(k=>sale[k]!=null&&(!Number.isFinite(Number(sale[k]))||Number(sale[k])>0))||history||['instalado','en_instalacion','con_garantia'].includes(String(sale.estadoInst||''))||sale.facturada===true||sale.factura||sale.facturacion||sale.facturaNumero||sale.numeroFactura||sale.facturas&&Object.keys(sale.facturas).length||sale.facturasAdicionales&&Object.keys(sale.facturasAdicionales).length||sale.otId||sale.otFbKey||sale.ordenTrabajoId||sale.instalado===true;}
@@ -27,14 +29,24 @@ async function assertNoPayments(read,sale,key){Payments.validateCoverage(await r
 async function validate({actor,patch,raw,query,beforeCommit,digest}){
  const budgets=Object.entries(patch).filter(([p,v])=>/^sisventas\/presupuestos\/[^/]+$/.test(p)&&v?.ventaOrigenFbKey&&patch['sisventas/ventas/'+v.ventaOrigenFbKey]===null);
  if(!budgets.length)return;if(budgets.length!==1)throw fail('Mové una venta por vez.');
- const [budgetPath,budget]=budgets[0],key=budget.ventaOrigenFbKey,salePath='sisventas/ventas/'+key,sale=await raw(salePath);
- if(!sale||await raw(budgetPath))throw fail('La venta o el presupuesto cambió. Volvé a abrir el detalle.');if(await raw('sv_commission_generation/'+key)||hasFlow(sale))throw fail('La venta ya tiene actividad. Revisá sus cobros, factura u OT antes de volver a presupuesto.');
- try{Transition.validateEconomicTransition(sale,budget);}catch(error){throw fail('El presupuesto debe conservar la economía original: '+error.message);}
+ const [budgetPath,budget]=budgets[0],key=budget.ventaOrigenFbKey,salePath='sisventas/ventas/'+key,sale=await raw(salePath),original=await raw(budgetPath);
+ if(!sale)throw fail('La venta o el presupuesto cambió. Volvé a abrir el detalle.');if(await raw('sv_commission_generation/'+key)||hasFlow(sale))throw fail('La venta ya tiene actividad. Revisá sus cobros, factura u OT antes de volver a presupuesto.');
+ let stamp=budget.ts;
+ try{
+  if(sale.presupuestoFbKey||sale.pptoOrigen||sale.presupuestoId){
+   if(!sale.presupuestoFbKey||budgetPath!=='sisventas/presupuestos/'+sale.presupuestoFbKey)throw Error('No se pudo identificar el presupuesto original.');
+   stamp=Array.isArray(budget.audit)?budget.audit.at(-1)?.ts:Math.max(...Object.keys(budget.audit||{}).filter(k=>/^retorno_[0-9]+$/.test(k)).map(k=>Number(k.slice(8))));
+   if(digest(budget)!==digest(Transition.reopenOriginal(sale,original,key,actor.uid,stamp)))throw Error('El presupuesto original debe conservar sus datos e historial.');
+  }else{
+   if(original)throw Error('El destino del presupuesto no es válido.');
+   Transition.validateEconomicTransition(sale,budget);
+  }
+ }catch(error){throw fail(error.message);}
  const profile=await raw('sv_chat_roles/'+actor.uid),cfg=await raw('sv_permisos/'+profile?.rol);if(profile?.activo!==true||cfg?.acciones?.ventas?.moverPresupuesto===false||profile.rol!=='admin'&&cfg?.acciones?.ventas?.moverPresupuesto!==true)throw fail('No tenés permiso para volver la venta a presupuesto.');
  await assertNoPayments(raw,sale,key);
  const permissionHash=digest({profile,cfg}),listRoot='sisventas/listas_materiales',lists=await related(query,'listas_materiales',key,sale),allowed=new Set([salePath,budgetPath]);
  for(const domain of roots)if(Object.keys(await related(query,domain,key,sale)).length)throw fail('La venta tiene cobros, agenda, OT o compras vinculadas. No se eliminó ningún registro.');
- for(const [id,list]of Object.entries(lists)){if(!draftOnly(list))throw fail('La preparación ya tiene compras o stock reservado. Revisala antes de volver a presupuesto.');const path=listRoot+'/'+id,next=patch[path];allowed.add(path);if(!next||!same(next,{...list,estado:'cancelada',exteriorCanceladoEn:budget.ts,ventaConvertidaPresupuesto:budget.id,canceladaPorUid:actor.uid}))throw fail('La preparación debe cancelarse conservando su historial.');}
+ for(const [id,list]of Object.entries(lists)){if(!draftOnly(list))throw fail('La preparación ya tiene compras o stock reservado. Revisala antes de volver a presupuesto.');const path=listRoot+'/'+id,next=patch[path];allowed.add(path);if(!next||!same(next,{...list,estado:'cancelada',exteriorCanceladoEn:stamp,ventaConvertidaPresupuesto:budget.id,canceladaPorUid:actor.uid}))throw fail('La preparación debe cancelarse conservando su historial.');}
  if(Object.keys(patch).some(p=>!allowed.has(p)))throw fail('Volver a presupuesto no elimina cobros, OT ni movimientos de stock.');
  beforeCommit(async({readFresh,queryFresh})=>{if(await readFresh('sv_commission_generation/'+key))throw fail('Se generaron comisiones: no se modificó la venta.');await assertNoPayments(readFresh,sale,key);if(digest({profile:await readFresh('sv_chat_roles/'+actor.uid),cfg:await readFresh('sv_permisos/'+profile.rol)})!==permissionHash)throw fail('Los permisos cambiaron.');for(const domain of roots)if(Object.keys(await related(queryFresh,domain,key,sale)).length)throw fail('Se agregó actividad a la venta; no se guardaron cambios.');if(digest(await related(queryFresh,'listas_materiales',key,sale))!==digest(lists))throw fail('La preparación cambió.');});
 }

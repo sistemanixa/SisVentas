@@ -10,7 +10,14 @@ function build(input){
  const normalizedEconomics=destination+".child('transicionEconomica/schema').val() === 1 && "+destination+".child('transicionEconomica/sourceFormat').val() === 'sale' && "+destination+".child('transicionEconomica/neto').val() === data.child('subtotal').val() && "+destination+".child('transicionEconomica/subtotalItems').val() === "+destination+".child('subtotal').val() && "+destination+".child('transicionEconomica/descuentoGeneralMonto').val() === "+destination+".child('descuentoAmt').val() && "+destination+".child('transicionEconomica/descuentoGeneralPorcentaje').val() === "+destination+".child('descuento').val() && "+destination+".child('conIva').val() === data.child('conIva').val()";
  const pair="data.exists() && !newData.exists() && data.child('responsableUid').val() === auth.uid && !root.child('sisventas/presupuestos').child('desde_venta_' + $venta).exists() && "+destination+".exists() && "+destination+".child('ventaOrigenFbKey').val() === $venta && "+destination+".child('responsableUid').val() === auth.uid && "+destination+".child('total').val() === data.child('total').val() && (("+legacyEconomics+") || ("+normalizedEconomics+")) && "+destination+".child('iva').val() === data.child('iva').val()";
  const addition='('+fence(3,userActor)+' && '+access+' && '+pair+')';
- if(!node['.write'].endsWith(' || '+addition))node['.write']='('+node['.write']+') || '+addition;
+ if(!node['.write'].includes(addition))node['.write']='('+node['.write']+') || '+addition;
+ const key="data.child('presupuestoFbKey').val()";
+ const prior="root.child('sisventas/presupuestos').child("+key+")";
+ const next="newData.parent().parent().child('presupuestos').child("+key+")";
+ const sameEconomics=['subtotal','descuento','descuentoAmt','descuentoGeneral','iva','total'].map(field=>next+".child('"+field+"').val() === "+prior+".child('"+field+"').val()").join(' && ');
+ const originalPair="data.exists() && !newData.exists() && data.child('responsableUid').val() === auth.uid && data.child('presupuestoFbKey').isString() && "+prior+".child('estado').val() === 'convertido' && "+prior+".child('ventaFbKey').val() === $venta && "+prior+".child('responsableUid').val() === auth.uid && "+next+".child('estado').val() === 'enviado' && "+next+".child('ventaOrigenFbKey').val() === $venta && "+next+".child('id').val() === "+prior+".child('id').val() && "+next+".child('responsableUid').val() === auth.uid && !"+next+".child('ventaFbKey').exists() && !"+next+".child('ventaId').exists() && "+sameEconomics;
+ const originalAddition='('+fence(3,userActor)+' && '+access+' && '+originalPair+')';
+ if(!node['.write'].includes(originalAddition))node['.write']='('+node['.write']+') || '+originalAddition;
  return out;
 }
 module.exports={build};

@@ -17,3 +17,25 @@ test('explicit return purpose cannot be used as a general absent-record read or 
  assert.deepEqual(R.describe(body),{salePath:'sisventas/ventas/s',budgetPath});
  for(const change of ['destination','hash','source','extra']){const forged=structuredClone(body);if(change==='destination'){forged.value['sisventas/presupuestos/another']=forged.value[budgetPath];delete forged.value[budgetPath];}if(change==='hash')forged.expectedHashes[budgetPath]=digest({});if(change==='source')forged.value['sisventas/ventas/s']={total:100};if(change==='extra')forged.value['sisventas/ctaemp/private']=null;assert.throws(()=>R.describe(forged));}
 });
+
+test('reopens the linked original, preserves its figures and rejects a duplicate or edited history',async()=>{
+ const f=fixture(),salePath='sisventas/ventas/s',budgetPath='sisventas/presupuestos/original';
+ Object.assign(f.sale,{presupuestoFbKey:'original',pptoOrigen:'PP-DEMO'});
+ const original={id:'PP-DEMO',numero:'PP-DEMO',estado:'convertido',ventaFbKey:'s',ventaGeneradaId:f.sale.id,items:[{codigo:'P',qty:1,punit:100}],total:121,iva:21,descuento:0,audit:[{accion:'Creado'},{accion:'Convertido'}],ts:50};
+ f.db[budgetPath]=original;
+ delete f.patch['sisventas/presupuestos/b'];
+ f.patch[budgetPath]=Transition.reopenOriginal(f.sale,original,'s','u',100);
+ f.patch['sisventas/listas_materiales/l'].ventaConvertidaPresupuesto='PP-DEMO';
+ const request={kind:'atomic',purpose:R.PURPOSE,value:f.patch,expectedHashes:{[salePath]:digest(f.sale),[budgetPath]:digest(original)}};
+ assert.equal(R.describe(request).reopen,true);
+ await R.validate(f.args);
+ assert.equal(f.patch[budgetPath].id,'PP-DEMO');
+ assert.equal(f.patch[budgetPath].ts,50);
+ assert.deepEqual(f.patch[budgetPath].items,original.items);
+ assert.deepEqual(f.patch[budgetPath].audit.slice(0,-1),original.audit);
+ for(const tampering of [{total:100},{id:'PP-DUPLICADO'},{audit:[]}]){
+  await assert.rejects(R.validate({...f.args,patch:{...f.patch,[budgetPath]:{...f.patch[budgetPath],...tampering}}}));
+ }
+ f.db[budgetPath]=f.patch[budgetPath];
+ await assert.rejects(R.validate(f.args),/vínculo/);
+});
