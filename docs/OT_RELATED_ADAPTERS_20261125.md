@@ -28,4 +28,4 @@ Structure sólo modifica Reclamos en `create` y `claim`. El grant de proyección
 
 La ruta optimizada `SVLaborWrites.writeOTNote` del activo16 se conserva: no se cambia aquí por una lectura SDK de OT ni por un guardado completo Metadata. El gateway raíz debe mantener su escritor de nota tipado estricto y CAS/actor servidor; no hay cambios a ese archivo compartido desde este frente.
 
-Evidencia local ficticia: 6 pruebas del adaptador (incluido uso browser sin SDK), 19 de Physical con Count genuino, clonación, adulteración y revocación. Sin prueba Chrome adicional, flags remotos, datos reales ni publicación individual.
+Evidencia local ficticia: 7 pruebas del adaptador (incluido uso browser sin SDK y todos los estados cerrados de Lifecycle), 19 de Physical con Count genuino, clonación, adulteración y revocación. Sin prueba Chrome adicional, flags remotos, datos reales ni publicación individual.

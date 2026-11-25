@@ -11,6 +11,9 @@ test('additional sale appends pending delivery snapshots without touching histor
 test('additional sale rejects contradictory identities, replay, closed OT and malformed items',()=>{
  for(const mutate of [x=>x.sale.otId='other',x=>x.sale.clienteFbKey='other',x=>x.ot.estado='completada',x=>x.ot.ventasAdicionales.sale={},x=>x.sale.items[0].origenOTKey='other',x=>x.sale.items[0].qty=-1,x=>x.sale.items[0].punit=NaN,x=>x.saleKey='bad/path']){const x=fixture();mutate(x);assert.throws(()=>Adapters.additionalSale(x),{code:'SV_OT_RELATED_INVALID'});}
 });
+test('additional sale recognizes every closed state from the lifecycle contract',()=>{
+ for(const estado of ['cerrada','cerrado','completada','completado','completo','finalizada','finalizado','terminada','terminado','con_observaciones']){const x=fixture();x.ot.estado=estado;assert.throws(()=>Adapters.additionalSale(x));}
+});
 function support(){return {claimKey:'claim',claim:{id:'R-1',clienteFbKey:'c',historial:[{texto:'Original',ts:1}]},reclamoCambios:{estado:'cerrado',resolucion:'remota',resuelto:true,cerradoEn:9,historial:[{texto:'Historia falsa',autor:'otro'}]},actor:{uid:'u',name:'Servidor'},at:1800000000000};}
 test('support rebuilds server history and timestamp; no fabricated OT for remote resolution',()=>{
  const input=support(),before=structuredClone(input),result=Adapters.supportChanges(input);assert.deepEqual(input,before);assert.equal(result.structure,null);assert.equal(result.changes.cerradoEn,input.at);assert.deepEqual(result.changes.historial[0],input.claim.historial[0]);assert.deepEqual(result.changes.historial[1],{texto:'Reclamo resuelto de forma remota',autor:'Servidor',actorUid:'u',ts:input.at});

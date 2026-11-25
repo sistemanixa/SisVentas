@@ -1,3 +1,7 @@
+# Validación física OT sin lecturas duplicadas · 25/11/2026
+
+Count admite claims físicos únicamente tras su Source privado completo; clones se rechazan antes de PATCH. Root comparte lecturas sólo dentro de fase final Store entre Source/Physical/Delivery (nunca plan, sesión o commit siguiente). Fixture actual Guard + segundo Store REST nativo con physicalEnabled:true: 3PASS, entrega/replay1efecto y Count emiten familias genuinas, OT se lee una vez en fase final en vez de3/2; copia de cap Count0PATCH y negocio intacto. Config/cohorte de fixture ficticios, no acredita instalación remota ni Rules. Corrida conjunta19PASS (9Store+3nativa+7Warehouse), sin latencia producción atribuida. Adaptador adicional reconoce estados cerrados canónicos; cambios3archivos210f excluyeron CONTEXTO ajeno.
+
 # Endpoints OT montados localmente · 25/11/2026
 
 Index conecta Metadata/Structure/Inventory a la misma instancia Lifecycle, con referencias y admisión nativas. Configuración OFF sólo se acredita por ausencia remota explícita; estados dudosos no son fallback. GET disponible autentica y rechaza selecciones duplicadas; POST conserva límites, tipos y recibos. Avisos de faltante se serializan sólo desde Warehouse privado; JSON de error ajeno no se expone. 23 pruebas HTTP/admisión PASS y10 de cierreDocker/arranque desdeCOPY PASS, solapadas con corridas anteriores. Nuevos20 módulos OT listados explícitamente en Docker. Falta montaje frontend final/callers y emulador con Rules completas; NO activarWholeOT ni afirmarpublicado.

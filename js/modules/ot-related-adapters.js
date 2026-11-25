@@ -13,7 +13,7 @@
  function references(record,names,expected){for(const name of names)if(!absent(record[name])&&record[name]!==expected)throw fail('El vínculo contradice el original.');}
  function additionalSale({ot,otKey,sale,saleKey,actor,at}){
   identity(ot,otKey);identity(sale,saleKey);actorTime(actor,at);
-  if(['cerrada','cerrado','completada','completado','finalizada','finalizado'].includes(String(ot.estado||'').toLowerCase())||ot.cerrada===true||ot.finalizada===true)throw fail('La OT está cerrada.');
+  if(['cerrada','cerrado','completada','completado','completo','finalizada','finalizado','terminada','terminado','con_observaciones'].includes(String(ot.estado||'').trim().toLowerCase())||ot.cerrada===true||ot.finalizada===true)throw fail('La OT está cerrada.');
   if(!key(ot.clienteFbKey)||sale.clienteFbKey!==ot.clienteFbKey||sale.tipoVenta!=='adicional_ot'||sale.otId!==otKey||sale.otNumero!==ot.id||typeof sale.id!=='string'||!sale.id||!finite(sale.total)||!Number.isSafeInteger(sale.ts)||!Array.isArray(sale.items)||!sale.items.length||sale.items.length>500)throw fail('La venta adicional no corresponde a esta OT.');
   if(!Array.isArray(ot.materiales)||ot.audit!=null&&!Array.isArray(ot.audit)||ot.ventasAdicionales!=null&&(typeof ot.ventasAdicionales!=='object'||Array.isArray(ot.ventasAdicionales))||Object.hasOwn(ot.ventasAdicionales||{},saleKey))throw fail('El historial de la OT requiere revisión.');
   const rows=sale.items.map(item=>{

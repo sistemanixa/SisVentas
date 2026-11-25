@@ -46,21 +46,22 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   let response;try{response=await request('PUT','sv_labor_guard',lease,{override:service('acquire',lease,{clientAccountsWriterVersion:writer.clientAccountsWriterVersion===1?1:0,clientHistoryWriterVersion:writer.clientHistoryWriterVersion===1?1:0,saleFinancialWriterVersion:writer.saleFinancialWriterVersion===1?1:0})});}catch(error){if(error.statusCode===403){const current=await read('sv_labor_guard');if(current?.expiresAt>now())throw fail(423,'Hay otro guardado en curso. Reintentá en unos segundos.','SV_LABOR_BUSY');}throw error;}await response.body?.cancel();
  }
  async function commit(patch,lease,actor){
+  // Share only this final commit phase; no planning or session cache.
+  const readCommit=require('./office-stock-reference-io').memoRead(read).read;
   if(actor?.commercialContext===true){
-   const checked=await Promise.allSettled([read('sv_chat_roles/'+actor.uid),read('sv_permisos/'+actor.role)]),failed=checked.find(result=>result.status==='rejected');if(failed)throw failed.reason;
+   const checked=await Promise.allSettled([readCommit('sv_chat_roles/'+actor.uid),readCommit('sv_permisos/'+actor.role)]),failed=checked.find(result=>result.status==='rejected');if(failed)throw failed.reason;
    require('./commercial-ownership').validateCommercialActor(actor,checked[0].value,checked[1].value);
   }
-  if(actor?.otLifecycle)require('./ot-lifecycle-policy').validate(actor,await read('sv_chat_roles/'+actor.uid),await read('sv_permisos/'+actor.role));
   if(actor?.otLifecycle?.kind==='delivery'){const proof=await verifyOTDeliveryFence?.({read});if(proof?.schema!==1||proof.verified!==true||proof.canonicalOT!==true||proof.inventory!==true||!/^[a-f0-9]{64}$/.test(proof.rulesDigest||''))throw fail(503,'Fence de entrega no verificado.','SV_OT_DELIVERY_NOT_READY');}
   StockOrderPolicy.validate(actor,lease,patch,now());
   const sourcePatch=actor?.officeStockOrder?StockOrderPolicy.sourcePatch(actor,lease,patch,now()):patch;
   require('./office-stock-policy').validate(actor,lease,sourcePatch);
-  await StockLinkPolicy.validate(actor,lease,patch,read,now());
-  const otClaims=await OTNative.claims({actor,lease,patch:sourcePatch,readFresh:read,operationalSummaries:actor.operationalSummariesWriterVersion===1,physicalEnabled:otPhysicalWrites,now:now()});
+  await StockLinkPolicy.validate(actor,lease,patch,readCommit,now());
+  const otClaims=await OTNative.claims({actor,lease,patch:sourcePatch,readFresh:readCommit,operationalSummaries:actor.operationalSummariesWriterVersion===1,physicalEnabled:otPhysicalWrites,now:now()});
   const override=service('commit',lease,actor);Object.assign(override.token,EmployeeResourcesPolicy.reserved(actor?.claims));if(actor?.employeeResources||actor.operation?.startsWith('employee-resources-'))Object.assign(override.token,EmployeeResourcesPolicy.validate(actor,lease,patch));Object.assign(override.token,require('./commission-write-proof').claims(actor,lease));if(actor?.officeStock||actor.operation==='office-stock-adjustment'||Object.keys(actor?.claims||{}).some(k=>k.startsWith('svOfficeStock'))){const stockToken=require('./office-stock-policy').token(actor,lease);Object.assign(override.token,stockToken,stockToken.svOfficeStockVersion===1?{svLaborWriterSchema:2}:{});}if(actor?.otLifecycle||Object.keys(actor?.claims||{}).some(k=>k.startsWith('svOTLifecycle')))Object.assign(override.token,require('./ot-lifecycle-policy').token(actor,lease));
   Object.assign(override.token,require('./ot-delete-operational-contract').reservedClaims(actor?.claims));
-  if(actor?.otDeleteOperationalProof){if(!api.otDeleteOperationalReadiness?.configured)throw fail(503,'La eliminación OT no está preparada.');Object.assign(override.token,await api.otDeleteOperationalReadiness.commitClaims({patch,lease,actor,readFresh:read}),{svLaborWriterSchema:2});}
-  Object.assign(override.token,await require('./ot-delivery-commit-protocol').claims({patch,lease,actor,read,query:async(path,field,value)=>{const response=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return response.json();}}));
+  if(actor?.otDeleteOperationalProof){if(!api.otDeleteOperationalReadiness?.configured)throw fail(503,'La eliminación OT no está preparada.');Object.assign(override.token,await api.otDeleteOperationalReadiness.commitClaims({patch,lease,actor,readFresh:readCommit}),{svLaborWriterSchema:2});}
+  Object.assign(override.token,await require('./ot-delivery-commit-protocol').claims({patch,lease,actor,read:readCommit,query:async(path,field,value)=>{const response=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return response.json();}}));
   Object.assign(override.token,otClaims);
   const linkClaims=StockLinkPolicy.token(actor,lease);
   Object.assign(override.token,linkClaims,StockOrderPolicy.token(actor,lease,now()),PurchaseSourceProtocol.claims(actor,lease,sourcePatch));
