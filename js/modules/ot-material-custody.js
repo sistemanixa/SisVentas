@@ -503,9 +503,20 @@
       if (!valid()) throw Error('La sesión o los permisos cambiaron. Volvé a abrir la OT.');
       finish = window.SisVentas?.carga?.mostrar?.('Registrando entrega y remito…',{persistirAlNavegar:true});
       var result;
-      if (standalone) {
-        result = await window.SVOTInventory.deliver(ot,selections);
-        if (result?.installed !== true || result.confirmed !== true) throw Error('La entrega segura sin venta está pendiente de habilitar.');
+      if (standalone || typeof window.SVOTLifecycle?.deliver==='function') {
+        var stockConfirmation,deliveryAPI=standalone?window.SVOTInventory:window.SVOTLifecycle;
+        for(var confirmationAttempt=0;confirmationAttempt<3;confirmationAttempt++){
+          result = await deliveryAPI.deliver(ot,selections,stockConfirmation);
+          if(!result?.needsShortageConfirmation)break;
+          if(!valid())throw Error('La sesión o los materiales cambiaron.');
+          if(typeof finish==='function'){finish();finish=null;}
+          var quote=result.deliveryQuote,details=quote.rows.map(function(row){var material=ot.materiales[row.index]||{},unit=material.unidad||productFor(material)?.unidad||'unidades';return (material.cod||material.desc||'Material')+': '+row.cantidad+' '+unit+'; descuento General '+row.descontadoGeneral+', reserva verificada '+row.descontadoReserva+', faltante '+row.faltante;}).join('\n');
+          if(!await window.svConfirm(details+'\nEl faltante autorizado no se repondrá al devolver. ¿Confirmás expresamente esta entrega?'))return;
+          if(!valid())throw Error('La sesión o los permisos cambiaron.');
+          stockConfirmation=quote;finish=window.SisVentas?.carga?.mostrar?.('Registrando entrega y remito…',{persistirAlNavegar:true});
+        }
+        if(result?.needsShortageConfirmation)throw Error('El stock volvió a cambiar. Revisá la entrega antes de reintentar.');
+        if (result?.installed !== true || result.confirmed !== true) throw Error('La entrega segura está pendiente de habilitar.');
       } else {
       var capability = await window.SVOTLifecycle.prepare(ot,{kind:'delivery'});
       if (!valid()) throw Error('La sesión o los permisos cambiaron. Volvé a abrir la OT.');
@@ -522,7 +533,7 @@
   function receiptHTML(receipt) {
     return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(receipt.numero) + '</title><style>' +
       '*{box-sizing:border-box}body{margin:0;background:#edf1f7;color:#172238;font:14px Arial,sans-serif}main{max-width:800px;margin:24px auto;padding:32px;background:white}h1{font-size:22px}header{border-bottom:2px solid #172238;padding-bottom:16px}table{width:100%;border-collapse:collapse;margin:24px 0}td,th{text-align:left;padding:10px 6px;border-bottom:1px solid #dce2eb;overflow-wrap:anywhere}.qty{text-align:right;white-space:nowrap}footer{margin-top:48px;display:flex;justify-content:space-between;gap:24px}button{display:block;margin:20px auto;padding:12px 24px}tr,header,footer{break-inside:avoid}@media(max-width:600px){main{padding:16px;margin:0}table{font-size:12px}}@media print{@page{size:A4;margin:12mm}body{background:white}main{max-width:none;margin:0;padding:0}button{display:none}thead{display:table-header-group}}</style></head><body><main><header><h1>Remito de entrega al técnico</h1><strong>' + esc(receipt.numero) + '</strong><p>OT: ' + esc(receipt.otId) + ' · ' + esc(new Date(receipt.fecha).toLocaleString('es-AR')) + '</p><p>Técnico: <strong>' + esc(receipt.tecnico) + '</strong></p><p>Cliente: ' + esc(receipt.cliente) + '</p></header><table><thead><tr><th>Código</th><th>Material</th><th class="qty">Cantidad</th></tr></thead><tbody>' +
-      receipt.items.map(function(r){return '<tr><td>' + esc(r.codigo) + '</td><td>' + esc(r.descripcion) + (r.adicional ? ' · Adicional' : '') + '</td><td class="qty">' + esc(r.cantidad) + ' ' + esc(r.unidad) + '</td></tr>';}).join('') +
+      receipt.items.map(function(r){return '<tr><td>' + esc(r.codigo) + '</td><td>' + esc(r.descripcion) + (r.adicional ? ' · Adicional' : '') + '</td><td class="qty">' + esc(r.cantidad) + ' ' + esc(r.unidad) + (Object.prototype.hasOwnProperty.call(r,'faltanteAutorizado')?'<br><small>Descuento real: '+esc(quantitySum([r.descontadoGeneral,r.descontadoReserva]))+' · Faltante autorizado: '+esc(r.faltanteAutorizado)+'</small>':'') + '</td></tr>';}).join('') +
       '</tbody></table><p>Materiales entregados bajo custodia. Este remito no acredita su instalación.</p><footer><span>Entregó: ' + esc(receipt.entregadoPor) + '</span><span>Recibió: ____________________</span></footer></main><button onclick="window.print()">Imprimir / guardar PDF</button></body></html>';
   }
   function openDeliveryReceipt(id) {

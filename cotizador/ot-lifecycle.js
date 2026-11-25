@@ -1,6 +1,6 @@
 'use strict';
 const {digest}=require('./labor-guard'),Model=require('./ot-lifecycle-model'),Policy=require('./ot-lifecycle-policy'),Index=require('./record-list-model'),Assigned=require('./ot-personal-scope'),State=require('./ot-material-state'),Money=require('./commercial-models/commercial-money');
-const Physical=require('./ot-physical-confirmation-model'),Stock=require('./ot-stock-consumption-model'),Rows=require('./ot-material-rows-model'),{normalizeRtdb}=require('./payment-membership-index'),crypto=require('node:crypto');
+const Physical=require('./ot-physical-confirmation-model'),Stock=require('./ot-warehouse-stock'),Rows=require('./ot-material-rows-model'),{summaryDigest}=require('./ot-summary-digest'),crypto=require('node:crypto');
 const WirePolicy=require('./ot-inventory-wire-policy');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
@@ -9,7 +9,7 @@ function readWindow(){let active=0;const queued=[];function next(){while(active<
 function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,now=Date.now,resolveReference,createReferencePhase}){
  const delivery=require('./ot-delivery').createOTDelivery({store,guard,enabled,commercialPages,now,resolveReference,createReferencePhase});
  const read=async path=>(await db.ref(path).get()).val();
- async function activation(readCurrent=read){let pages=null;const paths=['sv_labor_config','sv_operational_read_config','sv_record_list_config',...(commercialPages?['sv_commercial_pages_config','sv_commercial_pages/v1/coverage']:[])],results=await Promise.allSettled(paths.map(readCurrent)),failed=results.find(result=>result.status==='rejected');if(failed)throw failed.reason;const values=results.map(result=>result.value),configs=values.slice(0,3);if(!enabled||configs[0]?.otLifecycleVersion!==1||configs.some(c=>c?.schema!==1||c?.ready!==true))throw fail(503,'El nuevo circuito de OT todavía no está habilitado.','SV_OT_LIFECYCLE_DISABLED');if(commercialPages){const [config,coverage]=values.slice(3);if(config?.schema!==1||config.ready!==true||typeof config.generation!=='string'||!config.generation||coverage?.schema!==1||coverage.ready!==true||coverage.generation!==config.generation||!Number.isSafeInteger(coverage.revision)||coverage.revision<0)throw fail(503,'El listado comercial todavía no está preparado.','SV_COMMERCIAL_PAGES_NOT_READY');pages={config,coverage};}return{configs,pages};}
+ async function activation(readCurrent=read){let pages=null;const [configs,pageValues]=await Promise.all([Promise.all([readCurrent('sv_labor_config'),readCurrent('sv_operational_read_config'),readCurrent('sv_record_list_config')]),commercialPages?Promise.all([readCurrent('sv_commercial_pages_config'),readCurrent('sv_commercial_pages/v1/coverage')]):null]);if(!enabled||configs[0]?.otLifecycleVersion!==1||configs.some(c=>c?.schema!==1||c?.ready!==true))throw fail(503,'El nuevo circuito de OT todavía no está habilitado.','SV_OT_LIFECYCLE_DISABLED');if(commercialPages){const [config,coverage]=pageValues;if(config?.schema!==1||config.ready!==true||typeof config.generation!=='string'||!config.generation||coverage?.schema!==1||coverage.ready!==true||coverage.generation!==config.generation||!Number.isSafeInteger(coverage.revision)||coverage.revision<0)throw fail(503,'El listado comercial todavía no está preparado.','SV_COMMERCIAL_PAGES_NOT_READY');pages={config,coverage};}return{configs,pages};}
  async function available(identity,{otKey,kind='custody'}={}){
   if(kind==='delivery')return delivery.available(identity,{otKey});
   await activation();
@@ -97,7 +97,7 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
     if(changed.length){
      // Query each destination as a second coverage check: an omitted member
      // must never be interpreted as an empty reservation.
-     for(const sale of new Set(changed.map(c=>c.allocation))){if(!key(sale))throw fail(409,'El destino de instalación requiere revisión.');for(const id of Object.keys(await query('sisventas/ordenes_trabajo','ventaFbKey',sale)||{}))if(!others[id])throw fail(503,'La cobertura de custodia está incompleta.');}
+     const destinationsToCheck=[...new Set(changed.map(c=>c.allocation))];for(const sale of destinationsToCheck)if(!key(sale))throw fail(409,'El destino de instalación requiere revisión.');await batch(destinationsToCheck,async sale=>{for(const id of Object.keys(await query('sisventas/ordenes_trabajo','ventaFbKey',sale)||{}))if(!others[id])throw fail(503,'La cobertura de custodia está incompleta.');});
      const codes=new Set(changed.map(c=>c.t.target.cod||c.t.target.codigo)),productKeys=new Set(changed.map(c=>c.productKey)),destinations=new Set(changed.map(c=>c.allocation));
      const related=[];for(const [id,summary]of Object.entries(others)){
       if(id===body.otKey)continue;
@@ -107,7 +107,7 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
      if(related.length>=500)throw fail(503,'Demasiadas custodias para comprobar en una operación.');
      const records=await batch(related,async([id,summary])=>{
       const original=await track('sisventas/ordenes_trabajo/'+id);
-      if(!original||digest(normalizeRtdb(Index.summary('ordenes_trabajo',original)))!==digest(normalizeRtdb(summary)))throw fail(503,'El resumen de una custodia requiere revisión.');
+      if(!original||summaryDigest(Index.summary('ordenes_trabajo',original))!==summaryDigest(summary))throw fail(503,'El resumen de una custodia requiere revisión.');
       return[id,original];
      });for(const[id,original]of records)originals.set(id,original);
      await batch([...new Set(changed.map(c=>'sisventas/inventario_operativo/'+c.reference.inventoryKey))],track);
@@ -170,8 +170,9 @@ function createOTLifecycle({db,store,guard,enabled=false,commercialPages=false,n
      const inv=inventoryChanges.get(path),source=m.destinoVenta==='nueva'?m.ventaDestinoFbKey:ot.ventaFbKey||ot.ventaId||ot.id||body.otKey;
      const allocation=String(source||'').replace(/[.#$\[\]\/]/g,'_').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,120),owned=inv.asignaciones?.[allocation];
      if(!owned||!Number.isFinite(Number(inv.general||0))||Number(inv.general||0)<0||Number(owned.reservado||0)<qty||Number(inv.reservado||0)<qty)throw fail(409,'La reserva de la devolución requiere revisión.');
-     if(m.stockRegistro){const receipt=inv.rendicionesOT?.[m.stockRegistro];if(!receipt||receipt.ot!==body.otKey||receipt.venta!==allocation||Number(receipt.revision)!==Number(m.stockRevision)||Number(receipt.instalada)!==Number(m.instalada||0)||Number(receipt.enReserva||0)<qty||Number(receipt.recibidas||0)!==Number(m.devuelta||0))throw fail(409,'El registro de devolución cambió. Volvé a abrir la OT.');receipt.enReserva=Money.quantitySum([Number(receipt.enReserva),-qty]);receipt.recibidas=Money.quantitySum([Number(receipt.recibidas||0),qty]);}
-     inv.reservado=Money.quantitySum([Number(inv.reservado||0),-qty]);owned.reservado=Money.quantitySum([Number(owned.reservado||0),-qty]);inv.general=Money.quantitySum([Number(inv.general||0),qty]);owned.liberado=Money.quantitySum([Number(owned.liberado||0),qty]);owned.ultimaDevolucionEn=Date.parse(actionAt);owned.ventaId=ot.ventaId||owned.ventaId||'';
+     let warehouseCredit=qty;
+     if(m.stockRegistro){const receipt=inv.rendicionesOT?.[m.stockRegistro];if(!receipt||receipt.ot!==body.otKey||receipt.venta!==allocation||Number(receipt.revision)!==Number(m.stockRevision)||Number(receipt.instalada)!==Number(m.instalada||0)||Number(receipt.enReserva||0)<qty||Number(receipt.recibidas||0)!==Number(m.devuelta||0))throw fail(409,'El registro de devolución cambió. Volvé a abrir la OT.');if(require('./ot-warehouse-receipt').modern(receipt))warehouseCredit=require('./ot-warehouse-receipt').receive(receipt,qty);else{receipt.enReserva=Money.quantitySum([Number(receipt.enReserva),-qty]);receipt.recibidas=Money.quantitySum([Number(receipt.recibidas||0),qty]);}}
+     inv.reservado=Money.quantitySum([Number(inv.reservado||0),-qty]);owned.reservado=Money.quantitySum([Number(owned.reservado||0),-qty]);inv.general=Money.quantitySum([Number(inv.general||0),warehouseCredit]);owned.liberado=Money.quantitySum([Number(owned.liberado||0),qty]);owned.ultimaDevolucionEn=Date.parse(actionAt);owned.ventaId=ot.ventaId||owned.ventaId||'';
      m.devuelta=Money.quantitySum([Number(m.devuelta||0),qty]);m.devueltaPendiente=0;m.recibidoEn=Date.parse(actionAt);m.recibidoPor=name;m.estadoCustodia=Number(m.enTecnico||0)>0?'en_tecnico':Money.quantitySum([Number(m.danada||0),Number(m.faltante||0)])>0?'incidencia':Number(m.instalada||0)>0?'rendido':'devuelto';count=Money.quantitySum([count,qty]);
     }
     if(!count)throw fail(409,'No hay devoluciones pendientes en esta OT.');

@@ -204,6 +204,7 @@ async function verifyReceipt({ot,otKey,transition,productKey,reference,read,stoc
  const inventory=await read('sisventas/inventario_operativo/'+inventoryKey),receipt=inventory?.rendicionesOT?.[m.stockRegistro];
  if(!receipt||receipt.ot!==otKey||receipt.venta!==sale||receipt.revision!==m.stockRevision||receipt.instalada!==m.instalada)throw fail('El consumo de stock no coincide con la OT, destino o revisión.');
  if(units(m.devueltaPendiente??0)>units(receipt.enReserva??0)||units(m.devuelta??0)>units(receipt.recibidas??0))throw fail('La devolución no tiene respaldo en el recibo de stock.');
+ await require('./ot-warehouse-receipt').verify({receipt,read,context:standaloneContext??stockExceptionContext,inventoryKey,receiptKey:m.stockRegistro});
  if(!inventory.asignaciones||typeof inventory.asignaciones!=='object'||Array.isArray(inventory.asignaciones)||!inventory.rendicionesOT||typeof inventory.rendicionesOT!=='object'||Array.isArray(inventory.rendicionesOT))throw fail('El ledger de stock requiere revisión.');
  units(inventory.general);const reserved=units(inventory.reservado),consumed=units(inventory.consumido),perSale=new Map();let reservedAllocations=0,consumedAllocations=0,receiptConsumed=0,receiptHeld=0;
  for(const [id,assigned]of Object.entries(inventory.asignaciones)){if(!key(id)||!assigned||typeof assigned!=='object')throw fail('La asignación del ledger es inválida.');reservedAllocations=sum([reservedAllocations,units(assigned.reservado)]);consumedAllocations=sum([consumedAllocations,units(assigned.consumido)]);}

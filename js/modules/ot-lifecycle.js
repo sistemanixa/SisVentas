@@ -1,7 +1,7 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports={create:api};else root.SVOTLifecycle=api(root);})(typeof window==='object'?window:null,function(){
 'use strict';
 const clone=v=>JSON.parse(JSON.stringify(v));
-const fields={close:['conformidadCliente','nombreConformidad','observacionesCierre'],custody:['materiales','custodiaIniciada','custodiaRendida','custodiaRendidaEn','custodiaRendidaPor'],return:['materiales'],delivery:['entregas']};
+const fields={close:['conformidadCliente','nombreConformidad','observacionesCierre'],custody:['materiales','custodiaIniciada','custodiaRendida','custodiaRendidaEn','custodiaRendidaPor'],return:['materiales'],delivery:['entregas','confirmacionStock']};
 return function create(root){
  const busy=new Set(),preparations=new WeakMap();
  async function prepare(context,{kind='custody'}={}){
@@ -39,7 +39,7 @@ return function create(root){
     const headers=await root.SVServiceAuth.headers({'Content-Type':'application/json'});check();
     const response=await root.fetch(base+'/ot/ciclo',{method:'POST',headers,body:JSON.stringify(command),cache:'no-store',signal:AbortSignal.timeout(90000)});
     const data=await response.json();check();
-    if(!response.ok||data.ok!==true||data.committed!==true||data.operationId!==command.id)throw Object.assign(Error(data.mensaje||data.message||'No se pudo confirmar el cierre. Consultá la operación antes de reintentar.'),{statusCode:response.status,code:data.code,...(data.svLaborAttempted===false?{svLaborAttempted:false}:{})});
+    if(!response.ok||data.ok!==true||data.committed!==true||data.operationId!==command.id)throw Object.assign(Error(data.mensaje||data.message||'No se pudo confirmar el cierre. Consultá la operación antes de reintentar.'),{statusCode:response.status,code:data.code,...(['SV_OT_SHORTAGE_CONFIRMATION_REQUIRED','SV_OT_DELIVERY_QUOTE_CHANGED'].includes(data.code)?{deliveryQuote:data.deliveryQuote}:{}),...(data.svLaborAttempted===false?{svLaborAttempted:false}:{})});
     return data;
    };
    root._otGuardandoLocalHasta=Date.now()+15000;
@@ -55,6 +55,7 @@ return function create(root){
    return {confirmed:true,ot,saleStatus};
   }finally{busy.delete(context.fbKey);root._otGuardandoLocalHasta=Date.now()+500;}
  }
- return Object.freeze({save,prepare});
+ async function deliver(ot,selections,confirmacionStock){if(confirmacionStock!==undefined&&(!confirmacionStock||typeof confirmacionStock!=='object'||Array.isArray(confirmacionStock)))throw Error('Confirmá las cantidades del faltante indicado.');if(!Array.isArray(selections)||!selections.length||selections.some(row=>!row||!Number.isSafeInteger(row.index)||row.index<0||typeof row.cantidad!=='number'||!Number.isFinite(row.cantidad)||row.cantidad<=0)||new Set(selections.map(row=>row.index)).size!==selections.length)throw Error('La selección de entrega no es válida.');const prepared=await prepare(ot,{kind:'delivery'});if(prepared.atomicStock!==true)throw Error('La entrega segura está pendiente de habilitar.');try{return{...await save(ot,{entregas:clone(selections),...(confirmacionStock!==undefined?{confirmacionStock:clone(confirmacionStock)}:{})},{kind:'delivery',action:'Entrega de materiales al técnico',prepared}),installed:true};}catch(error){const quote=error.deliveryQuote;if(!['SV_OT_SHORTAGE_CONFIRMATION_REQUIRED','SV_OT_DELIVERY_QUOTE_CHANGED'].includes(error.code)||error.svLaborAttempted!==false||!quote||!/^[a-f0-9]{64}$/.test(quote.sourceHash||'')||!Array.isArray(quote.rows)||quote.rows.length!==selections.length)throw error;const seen=new Set();for(const row of quote.rows){const selection=selections.find(value=>value.index===row.index);if(!selection||seen.has(row.index)||row.cantidad!==selection.cantidad||['cantidad','descontadoGeneral','descontadoReserva','faltante'].some(field=>typeof row[field]!=='number'||!Number.isFinite(row[field])||row[field]<0)||Math.abs(row.descontadoGeneral+row.descontadoReserva+row.faltante-row.cantidad)>1e-9)throw Error('El faltante informado no corresponde a la entrega.');seen.add(row.index);}return{installed:true,confirmed:false,needsShortageConfirmation:true,deliveryQuote:clone(quote)};}}
+ return Object.freeze({save,prepare,deliver});
 };
 });

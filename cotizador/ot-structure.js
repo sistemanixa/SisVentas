@@ -24,6 +24,7 @@ function createOTStructure({db,store,guard,enabled=false,isInstalled,now=Date.no
    if(changes.tecnicoFbKey)records.employee=await record('empleados',changes.tecnicoFbKey);
    if(changes.ventaFbKey)records.sale=await record('ventas',changes.ventaFbKey);
    if(body.kind==='client'&&original.ventaFbKey)records.sale=await record('ventas',original.ventaFbKey);
+   if(body.kind==='client'&&(original.reclamoFbKey||original.reclamoKey))records.claim=await record('reclamos',original.reclamoFbKey||original.reclamoKey);
    if(body.kind==='claim'&&!changes.ventaFbKey&&original.ventaFbKey)records.sale=await record('ventas',original.ventaFbKey);
    if(body.kind==='additionalSales')records.sales=Object.fromEntries(await batch(changes.saleKeys,async key=>[key,await record('ventas',key)]));
    if(changes.reclamoFbKey)records.claim=await record('reclamos',changes.reclamoFbKey);
@@ -50,7 +51,7 @@ function createOTStructure({db,store,guard,enabled=false,isInstalled,now=Date.no
    patch[path]=next;
    const saleKey=changes.ventaFbKey||original?.ventaFbKey;
    if(records.sale&&['create','sale','claim'].includes(body.kind)){if(records.sale.otId&&records.sale.otId!==otKey)throw fail('La venta ya pertenece a otra OT.');patch['sisventas/ventas/'+saleKey+'/otId']=otKey;patch['sisventas/ventas/'+saleKey+'/otNumero']=next.id;patch['sisventas/ventas/'+saleKey+'/otGenerada']=true;}
-   if(records.claim){const claim='sisventas/reclamos/'+changes.reclamoFbKey;patch[claim+'/otKey']=otKey;patch[claim+'/otFbKey']=otKey;patch[claim+'/otId']=next.id;patch[claim+'/otNumero']=next.id;if(records.sale){patch[claim+'/ventaKey']=saleKey;patch[claim+'/ventaFbKey']=saleKey;patch[claim+'/ventaId']=String(records.sale.id||records.sale.numero||'');for(const field of ['reclamoKey','reclamoFbKey'])patch['sisventas/ventas/'+saleKey+'/'+field]=changes.reclamoFbKey;patch['sisventas/ventas/'+saleKey+'/reclamoId']=next.reclamoId;}}
+   if(records.claim&&['create','claim'].includes(body.kind)){const claim='sisventas/reclamos/'+changes.reclamoFbKey;patch[claim+'/otKey']=otKey;patch[claim+'/otFbKey']=otKey;patch[claim+'/otId']=next.id;patch[claim+'/otNumero']=next.id;if(records.sale){patch[claim+'/ventaKey']=saleKey;patch[claim+'/ventaFbKey']=saleKey;patch[claim+'/ventaId']=String(records.sale.id||records.sale.numero||'');for(const field of ['reclamoKey','reclamoFbKey'])patch['sisventas/ventas/'+saleKey+'/'+field]=changes.reclamoFbKey;patch['sisventas/ventas/'+saleKey+'/reclamoId']=next.reclamoId;}}
    scope.beforeCommit(async({readFresh,readFreshAsUser})=>{
     Policy.validate(actor,await readFresh('sv_chat_roles/'+identity.uid),await readFresh('sv_permisos/'+context.role));if(digest(await activation(readFresh))!==digest(config))throw fail('La habilitación cambió.');
     await batch([...tracked].map(([path,value])=>async()=>{if(digest(await(userPaths.has(path)?readFreshAsUser(path):readFresh(path)))!==digest(value))throw fail('Una fuente cambió antes de confirmar.');}).concat(queries.map(entry=>async()=>{if(digest(await store.query(...entry.args))!==digest(entry.value))throw fail('La cobertura del catálogo o la asignación cambió.');})),check=>check());
