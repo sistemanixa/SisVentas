@@ -1,6 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const {load}=require('./helpers/app-functions.cjs');
+const {source:activeSource}=require('./helpers/active-app').readActiveApp();
 const Presentation=require('../js/core/commission-presentation.v1.js');
 const Model=require('../js/core/dashboard-personal-notices.v1.js');
 const privateText='Comisión venta #V-1001 · 17,25% sobre ganancia $932.198,77 · COSTO_PRIVADO_888777 · NOTA_PRIVADA <img src=x onerror=alert(1)>';
@@ -11,6 +12,9 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const copy=v=>JSON.parse(JSON.stringify(v));
 function commission(changes={}){return {fbKey:'commission-fixture',tipo:'comision',tipoPagable:'comision',origen:'comision',ventaId:'#V-1001',cliente:'Cliente ficticio',empleadoFbKey:'e',empleadoId:'e',fecha:'2026-10-12',estado:'aprobado',aprobadoPor:'Actor ficticio',aprobadoTs:Clock.now(),ts:Clock.now(),monto:123.45,montoPagado:0,pct:17.25,gananciaBase:932198.77,costo:888777,descripcion:privateText,...changes};}
 const names=['svEsComisionMovimiento','svDescripcionMovimientoVisible','_fechaCalendarioLocal','_fechaMes','_fechaEnMes','_adelantoEsEntregaLegacy','_adelantoMontoEntregado','_adelantoMesSiguiente','_adelantoPeriodoDescuento','_adelantoDescontableEnMes','_ctaEmpNormalizarTxt','_ctaEmpMesDeMov','_ctaEmpFechaLocalDesdeTs','_ctaEmpFechaMovimiento','_ctaEmpEsCargo','_ctaEmpEsGastoPersonalEmpleado','_ctaEmpEsSueldoMovimiento','_ctaEmpTipoDesdeGasto','_ctaEmpEstadoDesdeGasto','_ctaEmpMovimientoLegacyDuplicadoPorGasto','_movEmpPagosArray','_movEmpTotalPagado','_movEmpSaldoPendiente','_buscarGastoRelacionadoMovEmp','_movEmpFechaVisual','_movEmpEnPeriodo','_movEmpEstadoCalculado','_movEmpEstaPagado','_movEmpEsCobrable','_ctaEmpMontoAdelantoACompensar','_ctaEmpMovVisibleParaRol','_ctaEmpMovHastaPeriodo','_ctaEmpTotalAdelantosRegistradosEnMes','totalPagadoGasto','normalizarEstadoGasto','_gastoPagosArray','pagoGastoEstaAnulado','_bonificacionMesValido','_bonificacionPeriodoComputo','svProyectarCTA','_ctaEmpPeriodoMes','ctaEmpPesos','_ctaEmpPagosRealizadosEnMes','_renderPagosRealizadosEmp','_ctaEmpAdelantosPendientes','_ctaEmpAdelantosAplicadosEnMes','_ctaEmpDescripcionHaberConDescuento','renderMovsEmp','_ctaEmpMostrarComisionAnterior','verDetalleMovEmp','svPintarCuentaDashboard','svAvisosReferenciaCuenta','svAvisosCuentaRegistro','svGastoCoincideCategoria','renderTablaGastos','generarNotificaciones','gastoVisibleEnModuloGastos'];
+// Gastos now finishes its loading region through the real shared view helper.
+// Older active applications do not declare it; never replace it with a no-op.
+if(activeSource.includes('function _svBusquedaListaTerminar('))names.push('_svBusquedaListaTerminar');
 function fixture({manager=false,helper=true}={}){
  const elements=new Map(),messages=[],alerts=[],io=[],events=[];
  function node(id){if(!elements.has(id)){const cls=new Set();elements.set(id,{id,style:{},dataset:{},value:'',textContent:'',innerHTML:'',className:'',classList:{contains:x=>cls.has(x),add:x=>cls.add(x),remove:x=>cls.delete(x),toggle(x,v){if(v===undefined)v=!cls.has(x);v?cls.add(x):cls.delete(x);return v;}},setAttribute(){},removeAttribute(){},querySelector(){return null;},querySelectorAll(){return[];}});}return elements.get(id);}
