@@ -1,4 +1,16 @@
-# PUBLICACIÓN AUTORIZADA NUEVAMENTE · v3.21.11 · 24/11/2026
+# PUBLICADO Y VERIFICADO · v3.21.11 · 24/11/2026
+
+Web publicada desde b624bf4cd4063a0c19fae5ee22df47eb3b137d61: Hosting61d5f707dafcbd17,715activos/7cargas,715hashes RAW exactos y cuatro rutas privadas404. Contrato RAW5f5e08fd8df66cb57e401d92f4fa434f41b3da4d41d78577056b618f74dedb33. Script oficial confirmó web/marcadores/SW y aviso Firebase v3.21.11-firebase. Pestaña de producción recargada realmente; popup de actualización cerrado y OC-0049 abierta en el sistema completo, botón Eliminar visible. NO se pulsó ese botón ni se eliminó una compra real. Captura privada tmp/oc49-release/published-oc49.jpg.
+
+Suite final congelada b624:11.119casos,11.011PASS,17FAIL,91SKIP,0canceladas. Los17nombres son exactamente los del baseline9ac5c467, sin nuevos. Primera pasada3c8 añadió un fallo propio de URL de precarga; corregido exclusivamente en sw.js,35focales PASS y puerta completa repetida. No afirmar verde global. Pruebas del arreglo y de Soporte descritas debajo PASS con datos ficticios.
+
+Servicio dedicado compras-nixa-00001-zrp desplegado, imagenf190a7639f0dff126021625faeeeb3d6e2be1e89eaf2ff152999978262376690, buildd739c551-011b-4197-8556-d4c3a306d805. Sin instancias mínimas, máximo1, autenticación Firebase obligatoria para las tres rutas tipadas; sin escritura genérica ni exposición del checkout. Se conservó el despliegue concurrente del servidor principal cotizador-stockcero-1124 (ed234dac…), no se restauró su imagen anterior ni se cambiaron sus flags/tráfico.
+
+El control automático inicialmente rechazó Rules por falta de autorización específica. El usuario confirmó después «Autorizo aplicar ese ajuste de reglas de Firebase». Aplicadas y releídas exactas, hash canónicoe5cd5643c3dbd13b6484af2f5e570913a85f4806ef527dce469c36c57ef97cee (original canónicod40c245105bfa6eb02575a73ce7d9493949c7b98fc6b40e3ca214edc89240679; respaldo RAW original62bd7e…). Settings API no devolvió ETag: se comparó el original inmediatamente antes del PUT y la candidata exacta después. Sólo cinco concesiones existentes reciben la extensión de interlock; sin cambiar lecturas, validadores ni roles. La verificación final de sólo lectura confirmó las50órdenes e inventario idénticos al original, OC-0049 existente y OC-0048 conservada. La eliminación real queda a cargo del titular.
+
+Revisión privada vigente24h desde su preparación, ligada a los originales completos/configuración. Otros borradores, cambios posteriores o vencimiento requieren revisión propia; no se habilitó borrado general ni migración Stock/OT/Compras. Fuentes, snapshots, reglas completas y entorno sólo en tmp/oc49-release privado. Publicación cerrada; no seguir la auditoría general por inferencia.
+
+# Preparación del bloque publicado
 
 El titular revocó la espera de prueba local con «no publicá y ya». Alcance: carga estable de Cuenta corriente, CAS de resolución de Soporte y borrado revisado exclusivamente del borrador manual OC-0049. La eliminación la realiza el usuario; no se borra una orden real como prueba. No se retoma la migración general de Stock/OT/Compras.
 
