@@ -8,7 +8,7 @@ const fail=()=>Object.assign(Error('El cambio de entrega requiere el protocolo a
 async function batch(values,work){const out=[];for(let i=0;i<values.length;i+=6){const settled=await Promise.allSettled(values.slice(i,i+6).map((value,j)=>work(value,i+j)));const rejected=settled.find(result=>result.status==='rejected');if(rejected)throw rejected.reason;out.push(...settled.map(result=>result.value));}return out;}
 function projection(ot){const materiales=Object.entries(ot?.materiales||{}).filter(([,row])=>row&&((row.entregada!=null&&Number(row.entregada)!==0)||row.custodiaActiva===true||['entregadoEn','entregadoPor','entregadoA'].some(k=>row[k]!=null))).map(([index,row])=>[index,Object.fromEntries(fields.filter(k=>row[k]!==undefined).map(k=>[k,row[k]]))]);const remitosEntrega=ot?.remitosEntrega??null;return {ventaFbKey:materiales.length||remitosEntrega?ot?.ventaFbKey??null:null,materiales,remitosEntrega};}
 function apply(record,path,value){if(!path.length)return structuredClone(value);let out=structuredClone(record)||{},at=out;for(const key of path.slice(0,-1)){if(!at[key]||typeof at[key]!=='object')at[key]={};at=at[key];}if(value===null)delete at[path.at(-1)];else at[path.at(-1)]=structuredClone(value);return out;}
-async function claims({patch,lease,actor,read,query}){
+async function claims({patch,lease,actor,read,query,operationalSummaries=true,now=Date.now()}){
  // These promises belong only to this commit check, never another operation,
  // user or planning phase. Missing and ambiguous products remain checked.
  const pendingReads=new Map(),pendingQueries=new Map(),originalRead=read,originalQuery=query,queue=[];let activeQueries=0;
@@ -66,7 +66,7 @@ async function claims({patch,lease,actor,read,query}){
   const inventoryPolicy=require('./ot-inventory-policy'),inventoryToken=inventoryPolicy.token(actor,lease);
   if(inventoryToken.svOTInventoryVersion===1&&inventoryToken.svOTInventoryKind==='delivery'&&inventoryToken.svOTInventoryOTKey===id){
    inventoryPolicy.standalone(before);inventoryPolicy.standalone(after);
-   await require('./ot-stock-source-authority').validate({actor,lease,patch,readFresh:originalRead,operationalSummaries:true});
+   await require('./ot-stock-source-authority').validate({actor,lease,patch,readFresh:originalRead,operationalSummaries,now});
    continue;
   }
   if(token.svOTLifecycleVersion!==1||token.svOTLifecycleOTKey!==id)throw fail();
