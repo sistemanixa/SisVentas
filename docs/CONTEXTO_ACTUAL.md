@@ -1,3 +1,7 @@
+# Endpoints OT montados localmente · 25/11/2026
+
+Index conecta Metadata/Structure/Inventory a la misma instancia Lifecycle, con referencias y admisión nativas. Configuración OFF sólo se acredita por ausencia remota explícita; estados dudosos no son fallback. GET disponible autentica y rechaza selecciones duplicadas; POST conserva límites, tipos y recibos. Avisos de faltante se serializan sólo desde Warehouse privado; JSON de error ajeno no se expone. 23 pruebas HTTP/admisión PASS y10 de cierreDocker/arranque desdeCOPY PASS, solapadas con corridas anteriores. Nuevos20 módulos OT listados explícitamente en Docker. Falta montaje frontend final/callers y emulador con Rules completas; NO activarWholeOT ni afirmarpublicado.
+
 # Integración de familias OT y validación nativa · 25/11/2026
 
 D curado importado hasta887194de: Metadata, Count, Inventory, Structure y WarehouseV2; sólo6módulos Metadata iniciales551a97bc excluyeron CONTEXTO ajeno y conservaron helpers de runtime nativo. Life/Delivery mantienen paralelismo y summaryDigest del runtime16 según revisión D. Root enlaza validadores privados completos para proyección StockOrder y Store; namespaces de cliente se limpian y defaults Version0/bitsfalse/keysnull. Protección física adicional sólo con cohorte ON real; OFF conserva circuito previo. 59 focales Root PASS (comandos/Store, no Rules), más prueba namespace/7Warehouse en corrida16PASS solapada. No certificar por sumar corridas. Faltan callers Soporte/carrito, CountPhysical, endpoint/montaje final y reglas conjuntas. Nada activado ni publicado.

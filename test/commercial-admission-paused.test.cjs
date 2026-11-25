@@ -14,7 +14,7 @@ function fixture(flag,{receipt=null,enabled=true,active=true}={}){
  const privateFinance=createPrivateFinance({auth,db,enabled:true,ownerUid:'owner'});
  privateFinance.save=async()=>{calls.privateSave++;return {saved:true};};
  const service={handle:async()=>{calls.business++;return {statusCode:200,body:{ok:true}};}};
- const context={URL,employeeResourcesHTTP:async(req,res)=>{if(!req.url.startsWith("/recursos-empleados/"))return false;calls.business++;res.status=200;res.body={ok:true};return true;},inventoryCommandHttp:async()=>false,commercialAdmission:Admission,commercialAdmissionPaused:Admission.isPaused(flag),laborWriteGateway:gateway,laborRuntime:{store:{read}},privateFinance,
+ const context={URL,otCommandHttp:async()=>false,employeeResourcesHTTP:async(req,res)=>{if(!req.url.startsWith("/recursos-empleados/"))return false;calls.business++;res.status=200;res.body={ok:true};return true;},inventoryCommandHttp:async()=>false,commercialAdmission:Admission,commercialAdmissionPaused:Admission.isPaused(flag),laborWriteGateway:gateway,laborRuntime:{store:{read}},privateFinance,
   cors(req,res){res.setHeader('Access-Control-Allow-Origin','https://fixture.invalid');},send(res,status,body){res.status=status;res.body=body;},readBody:async req=>{calls.body++;return req.body;},
   commissionEvent:{handle:async()=>{calls.events++;return {status:'completed'};},probe:async()=>{calls.events++;return {status:'probe_received'};}},
   saleDeleteService:service,otDeleteService:service,purchaseDeleteService:service,

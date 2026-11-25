@@ -92,3 +92,8 @@ COPY purchase-manual-create-model.js purchase-manual-edit-model.js purchase-numb
 COPY purchase-order-edit-plan.js purchase-preparation-availability.js purchase-preparation-cancel-model.js purchase-preparation-model.js purchase-receipt-fx.js ./
 COPY purchase-receipt-reconcile-model.js purchase-route-contract.js purchase-source-cost-protocol.js purchase-source-cost-validator.js purchase-stock-generation-model.js ./
 COPY purchase-typed-delete-command.js purchase-typed-delete-model.js purchase-wire-envelope.js stock-link-activation-contract.js ./
+
+COPY ot-command-http.js ot-inventory-model.js ot-inventory-policy.js ot-inventory-wire-policy.js ot-inventory.js ./
+COPY ot-metadata-model.js ot-metadata-policy.js ot-metadata.js ot-native-write-protocol.js ot-office-count-policy.js ./
+COPY ot-physical-write-policy.js ot-standalone-close-model.js ot-standalone-delivery-model.js ot-stock-source-authority.js ot-structure-model.js ./
+COPY ot-structure-policy.js ot-structure.js ot-summary-digest.js ot-warehouse-receipt.js ot-warehouse-stock.js ./

@@ -88,8 +88,13 @@ const purchaseHost=require('./purchase-command-host').create({authorize:laborWri
 const officeStockLink=require('./office-stock-link-command').create({authorize:laborWriteGateway.authorize,store:laborRuntime.store,guard:laborRuntime.guard,assertBarrier:options=>laborRuntime.inventoryCohort.assertAdmission(options),resolveOperation:(identity,body)=>laborWriteGateway.resolve(identity,body),enabled:laborRuntime.inventoryCohort.mappedAdmission!==null});
 const officeStock=require('./office-stock').create({authorize:async req=>{const identity=await laborWriteGateway.authorize(req);await inventoryReferences.assertCompatible();return identity;},store:laborRuntime.store,guard:laborRuntime.guard,resolver:inventoryReferences.stockResolver,initialInventoryReference:inventoryReferences.initialInventoryReference,enabled:laborScopedEnabled&&process.env.OFFICE_STOCK_ENABLED==='true'&&process.env.OPERATIONAL_SUMMARIES_ENABLED==='true',queryPage:async(path,o)=>{let ref=db.ref(path);ref=o.orderBy?ref.orderByChild(o.orderBy):ref.orderByKey();if(Object.hasOwn(o,'equalTo'))ref=ref.equalTo(o.equalTo);else if(Object.hasOwn(o,'startAt'))ref=o.after?ref.startAt(o.startAt,o.after):ref.startAt(o.startAt);else if(o.after)ref=ref.startAt(o.after+'\u0000');return (await (o.last?ref.limitToLast(o.limit):ref.limitToFirst(o.limit)).get()).val();}});
 const inventoryCommandHttp=require('./inventory-command-http').create({purchase:purchaseHost,link:officeStockLink,stock:officeStock,readBody,send});
-const otOfficeCount=require('./ot-office-count').createOTOfficeCount({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_OFFICE_COUNT_ENABLED==='true'});
-const otLifecycle=require('./ot-lifecycle').createOTLifecycle({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_LIFECYCLE_ENABLED==='true',commercialPages:process.env.COMMERCIAL_PAGES_ENABLED==='true'});
+const otOfficeCount=require('./ot-office-count').createOTOfficeCount({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_OFFICE_COUNT_ENABLED==='true',resolveReference:inventoryReferences.resolveReference,createReferencePhase:inventoryReferences.createReferencePhase});
+const otLifecycle=require('./ot-lifecycle').createOTLifecycle({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_LIFECYCLE_ENABLED==='true',commercialPages:process.env.COMMERCIAL_PAGES_ENABLED==='true',resolveReference:inventoryReferences.resolveReference,createReferencePhase:inventoryReferences.createReferencePhase});
+const inventoryInstalled=async({read}={})=>{const state=await laborRuntime.inventoryCohort.capabilities({read});if(!state.installed)return false;await laborRuntime.inventoryCohort.assertAdmission({read});return true;};
+const otMetadata=require('./ot-metadata').createOTMetadata({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborRuntime.inventoryCohort.mappedAdmission!==null,isInstalled:inventoryInstalled});
+const otStructure=require('./ot-structure').createOTStructure({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborRuntime.inventoryCohort.mappedAdmission!==null,isInstalled:inventoryInstalled});
+const otInventory=require('./ot-inventory').createOTInventory({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborRuntime.inventoryCohort.mappedAdmission!==null,isInstalled:inventoryInstalled,resolveReference:inventoryReferences.resolveReference,createReferencePhase:inventoryReferences.createReferencePhase,lifecycle:otLifecycle});
+const otCommandHttp=require('./ot-command-http').create({authorize:laborWriteGateway.authorize,metadata:otMetadata,structure:otStructure,inventory:otInventory,readBody,send});
 const expenseReimbursement=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled,reimbursement:true});
 const expensePaymentAdjustment=require('./expense-payment-adjustment').createExpensePaymentAdjustment({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 const expensePayment=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled,expense:true});
@@ -2098,6 +2103,7 @@ const server = http.createServer(async (req, res) => {
 
   if(req.method!=='OPTIONS'&&await employeeResourcesHTTP(req,res))return;
   if(await inventoryCommandHttp(pathname,req,res))return;
+  if(await otCommandHttp(pathname,req,res))return;
   if(pathname==='/comerciales/ventas/eliminar'){
     res.setHeader('Cache-Control','private, no-store');
     try{const body=await readBody(req,2048),result=await saleDeleteService.handle(req,body);send(res,result.statusCode,result.body);}
@@ -2262,7 +2268,7 @@ const server = http.createServer(async (req, res) => {
   if(pathname==='/ot/ciclo'){
     res.setHeader('Cache-Control','private, no-store');
     try{if(req.method!=='POST')throw Object.assign(Error('Método no permitido'),{statusCode:405});const actor=await laborWriteGateway.authorize(req),body=await readBody(req,2*1024*1024);send(res,200,await otLifecycle.execute(actor,body));}
-    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el circuito de OT. Revisá su estado antes de reintentar.',...(error.code?{code:error.code}:{}),...(error.svLaborAttempted===false||error.code==='SV_OT_LIFECYCLE_DISABLED'?{svLaborAttempted:false}:{})});}return;
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el circuito de OT. Revisá su estado antes de reintentar.',...(error.code?{code:error.code}:{}),...(error.svLaborAttempted===false||error.code==='SV_OT_LIFECYCLE_DISABLED'?{svLaborAttempted:false}:{}),...require('./ot-warehouse-receipt').errorDetails(error)});}return;
   }
   if(pathname==='/inventario/contar-desde-ot'){
     res.setHeader('Cache-Control','private, no-store');

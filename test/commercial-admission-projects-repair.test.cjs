@@ -18,7 +18,7 @@ function fixture(flag,{active=true,blocked=false,enabled=true,listReady=true}={}
  };
  const auth=createBusinessAuth({verifyIdToken:async(token,revoked)=>{authCalls++;assert.equal(revoked,true);if(token!=='valid')throw Error('Revoked fictitious session');return {uid:'owner'};}},db);
  const projects=createProjects({auth,db,enabled,listStore:createProjectListStore(db)}),list=projects.list;projects.list=async(...args)=>{listCalls++;return list(...args);};
- const context={URL,employeeResourcesHTTP:async()=>false,inventoryCommandHttp:async()=>false,commercialAdmission:Admission,commercialAdmissionPaused:Admission.isPaused(flag),projects,cors(){},send(res,status,body){res.status=status;res.body=body;}};
+ const context={URL,otCommandHttp:async()=>false,employeeResourcesHTTP:async()=>false,inventoryCommandHttp:async()=>false,commercialAdmission:Admission,commercialAdmissionPaused:Admission.isPaused(flag),projects,cors(){},send(res,status,body){res.status=status;res.body=body;}};
  vm.createContext(context);const handler=vm.runInContext('('+source.slice(start,end)+')',context);
  async function request(url='/proyectos?resumen=1',{method='GET',token='valid'}={}){const response={headers:{},setHeader(k,v){this.headers[k]=v;},writeHead(code){this.status=code;},end(){}};await handler({method,url,headers:token?{authorization:'Bearer '+token}:{},resume(){}},response);return response;}
  return {db,writes,reads,request,listCalls:()=>listCalls,authCalls:()=>authCalls};
