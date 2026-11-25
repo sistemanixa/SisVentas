@@ -1,0 +1,2824 @@
+{
+  "schema": 1,
+  "sourceCommit": "9cbe59dd76a1d1e5aa0caaeb0ccab3427832d4a2",
+  "sourceApp": "app.v3.21.12.js",
+  "scope": "static source inventory, not an assertion of current deployed flags or grants",
+  "mainRouteCount": 90,
+  "mainMethodActionCount": 91,
+  "groups": {
+    "media": {
+      "modules": [
+        "cotizador/index.js"
+      ],
+      "callers": [
+        "js/app.v3.21.12.js"
+      ],
+      "auth": "Clave frontend; URL HTTPS y destino final restringidos, MIME y tamaño",
+      "reads": "HTTP proveedor/imagen (sin RTDB en el proxy)",
+      "writes": "ninguna",
+      "atomicity": "No financiera; captura mantiene CORS y MIME",
+      "decision": "direct-firebase-media-only"
+    },
+    "quoting": {
+      "modules": [
+        "cotizador/proveedor-automatico.js",
+        "cotizador/catalog-request.js",
+        "cotizador/index.js"
+      ],
+      "callers": [
+        "js/app.v3.21.12.js",
+        "catalogo.html",
+        "js/modules/public-catalog-requests.js"
+      ],
+      "auth": "Usuario/rol o cuota anónima según ruta; tokens de proveedor sólo servidor",
+      "reads": "Catálogo/proveedores/FX/secretos y HTTP de proveedores",
+      "writes": "Caché/cotización y solicitudes/identidad/rate-limit según ruta",
+      "atomicity": "Cuotas e identidad de solicitud en servidor",
+      "decision": "keep-server"
+    },
+    "oauth": {
+      "modules": [
+        "cotizador/index.js",
+        "cotizador/oauth-authorization.js"
+      ],
+      "callers": [
+        "js/app.v3.21.12.js"
+      ],
+      "auth": "Usuario autorizado para conexión; estado OAuth y secretos",
+      "reads": "Secret Manager/API OAuth/estado privado",
+      "writes": "Tokens privados/estado OAuth",
+      "atomicity": "Credenciales jamás al navegador",
+      "decision": "keep-server"
+    },
+    "directory": {
+      "modules": [
+        "cotizador/user-directory.js",
+        "cotizador/user-access.js",
+        "cotizador/employee-directory.js",
+        "cotizador/supplier-directory.js",
+        "cotizador/employee-availability.js",
+        "cotizador/personal-hours-reader.js"
+      ],
+      "callers": [
+        "js/core/user-directory.js",
+        "js/app.v3.21.12.js",
+        "js/modules/security-storage.js"
+      ],
+      "auth": "Firebase token revocado/reset, rol actual, vínculo propio y proyección mínima",
+      "reads": "sv_chat_roles/sv_permisos/sv_access_resets, usuarios/empleados/cargos/vacaciones/proveedores",
+      "writes": "Sólo vinculo-propio crea binding; resto lectura",
+      "atomicity": "No publicar colecciones privadas para ahorrar un salto; contexto propio/Ver como",
+      "decision": "keep-server-projection"
+    },
+    "access": {
+      "modules": [
+        "cotizador/user-access.js",
+        "cotizador/password-policy.js",
+        "cotizador/password-email.js"
+      ],
+      "callers": [
+        "js/app.v3.21.12.js",
+        "js/core/user-directory.js"
+      ],
+      "auth": "Administración autorizada y Firebase Auth/estado de acceso",
+      "reads": "Auth/roles/reset/perfil",
+      "writes": "Auth/claims/reset/contraseña temporal/correo",
+      "atomicity": "Identidad y secretos no expresables como CRUD público",
+      "decision": "keep-server"
+    },
+    "commercial": {
+      "modules": [
+        "cotizador/commercial-ownership.js",
+        "cotizador/sale-delete-http-adapter.js",
+        "cotizador/commercial-collection-reader.js"
+      ],
+      "callers": [
+        "js/core/commercial-ownership.js",
+        "js/core/financial-commands.js",
+        "js/core/sale-writer.v1.js",
+        "js/app.v3.21.12.js"
+      ],
+      "auth": "Responsable/asignado, rol y acciones; administrador exclusivo para reasignar",
+      "reads": "Ventas/presupuestos/proyecciones/permisos",
+      "writes": "Reasignar/preparar/eliminar: origen, dependencias e índices según comando",
+      "atomicity": "Guard, CAS, autoría/comisiones/recibos y páginas coordinadas",
+      "decision": "keep-server-coordinated"
+    },
+    "dashboard": {
+      "modules": [
+        "cotizador/dashboard-budget-reader-proposal.js",
+        "cotizador/dashboard-budget-activity-reader-proposal.js",
+        "cotizador/dashboard-budget-notice-candidates-proposal.js",
+        "cotizador/dashboard-commercial-activity-reader-proposal.js"
+      ],
+      "callers": [
+        "js/modules/dashboard-budget-read.v1.js",
+        "js/app.v3.21.12.js"
+      ],
+      "auth": "Cobertura, alcance del usuario y política de lectura actual",
+      "reads": "Proyecciones de actividad y cobertura",
+      "writes": "ninguna en estas lecturas",
+      "atomicity": "Totales completos o error; no usar colección parcial",
+      "decision": "keep-server-verify"
+    },
+    "accounts": {
+      "modules": [
+        "cotizador/client-account-scope.js",
+        "cotizador/client-account-documents.js",
+        "cotizador/client-history-http-adapter.js",
+        "cotizador/client-history-access.js"
+      ],
+      "callers": [
+        "js/modules/client-account-host.v1.js",
+        "js/core/client-account-service-reader.v1.js",
+        "js/core/client-history-service-reader.v1.js",
+        "js/modules/client-history-host.v1.js"
+      ],
+      "auth": "Scope de propietario y cobertura/generación; token de documento/hash de pago",
+      "reads": "Cuentas/historial/orígenes y adjuntos enlazados",
+      "writes": "preparar verifica/reconcilia metadata de alcance; documentos son lectura",
+      "atomicity": "El documento debe pertenecer al movimiento, no a una clave proporcionada libremente",
+      "decision": "keep-server-verify"
+    },
+    "projects": {
+      "modules": [
+        "cotizador/projects.js",
+        "cotizador/projects-model.js",
+        "cotizador/projects-list-store.js"
+      ],
+      "callers": [
+        "js/app.v3.21.12.js",
+        "js/modules/projects-*"
+      ],
+      "auth": "Miembros/rol y proyección por tipo; bucket privado",
+      "reads": "Proyectos, directorio mínimo, presupuestos visibles, fotos privadas",
+      "writes": "Comandos de proyecto, revisión, historial, listas y archivo privado",
+      "atomicity": "Idempotencia por requestId, revisiones/guard y vínculo de presupuesto/foto",
+      "decision": "keep-server-private"
+    },
+    "distributor": {
+      "modules": [
+        "cotizador/distributor-documents.js"
+      ],
+      "callers": [
+        "js/modules/distributor-documents.js",
+        "js/app.v3.21.12.js"
+      ],
+      "auth": "Usuario/rol de Distribuidora y acciones actuales",
+      "reads": "Ventas/configuración/documentos y contadores",
+      "writes": "Emisión/anulación, documentos y referencias",
+      "atomicity": "Numeración/autoría y comprobante coherentes",
+      "decision": "keep-server-coordinated"
+    },
+    "commissions": {
+      "modules": [
+        "cotizador/commission-generation.js",
+        "cotizador/commission-operations.js",
+        "cotizador/commission-event.js"
+      ],
+      "callers": [
+        "js/core/commission-generation.js",
+        "js/app.v3.21.12.js",
+        "cloud-functions/commission-events/forwarder.js"
+      ],
+      "auth": "Permiso de administrar o generación por venta autorizada + evento OIDC",
+      "reads": "Ventas/cobros/configuración/participantes",
+      "writes": "Comisión pendiente/redistribución/índices/recibo",
+      "atomicity": "Costos originales, cobro completo, no duplicación; no reemplazar comisionado",
+      "decision": "keep-server-coordinated"
+    },
+    "financial": {
+      "modules": [
+        "cotizador/payment-commands.js",
+        "cotizador/admin-expense-create.js",
+        "cotizador/admin-expense-edit.js",
+        "cotizador/bonus-payment.js",
+        "cotizador/expense-payment-adjustment.js"
+      ],
+      "callers": [
+        "js/core/financial-commands.js",
+        "js/app.v3.21.12.js"
+      ],
+      "auth": "Acción financiera actual, revisión de rol/reset y acceso al origen",
+      "reads": "Ventas/cobros/gastos/historial de pagos/membresías",
+      "writes": "Origen/saldos/índices/recibo/adjuntos/recursos según comando",
+      "atomicity": "Una confirmación atómica; ACK incierto se consulta, no se duplica",
+      "decision": "keep-server-coordinated"
+    },
+    "labor": {
+      "modules": [
+        "cotizador/labor-submissions.js",
+        "cotizador/labor-operations.js",
+        "cotizador/personal-expenses.js"
+      ],
+      "callers": [
+        "js/app.v3.21.12.js"
+      ],
+      "auth": "Empleado propio/verificado o aprobador autorizado",
+      "reads": "Vínculos/solicitudes/mes/roles",
+      "writes": "Horas/gastos/aprobaciones/índices",
+      "atomicity": "Identidad del solicitante y aprobación preservadas",
+      "decision": "keep-server-coordinated"
+    },
+    "gateway": {
+      "modules": [
+        "cotizador/labor-write-gateway.js",
+        "cotizador/labor-guard.js",
+        "cotizador/labor-rtdb-store.js"
+      ],
+      "callers": [
+        "js/core/labor-writes.js",
+        "js/core/guarded-writes.js",
+        "js/core/labor-write-recovery.js",
+        "js/app.v3.21.12.js"
+      ],
+      "auth": "Usuario vigente, acción/propósito, CAS y guard real",
+      "reads": "Originales declarados/permisos/configuración/dependencias",
+      "writes": "Parche tipado + proyecciones/índices/recibo o tombstone de intento",
+      "atomicity": "La ruta genérica también atiende notas/Soporte y no equivale a un set simple",
+      "decision": "keep-server-coordinated"
+    },
+    "stockot": {
+      "modules": [
+        "cotizador/office-stock.js",
+        "cotizador/ot-lifecycle.js",
+        "cotizador/ot-office-count.js",
+        "cotizador/ot-delete-http-adapter.js",
+        "cotizador/purchase-order-delete.js"
+      ],
+      "callers": [
+        "js/modules/office-stock-adapter.js",
+        "js/modules/ot-lifecycle-adapter.js",
+        "js/modules/purchase-orders.js",
+        "js/core/financial-commands.js",
+        "js/app.v3.21.12.js"
+      ],
+      "auth": "OT/venta/stock y permisos del rol; técnico asignado; revisión de borrado",
+      "reads": "OT/venta/ledger/historial/catálogo/listas/configuración",
+      "writes": "Inventario + OT/venta/custodia/reservas/recibo/proyecciones",
+      "atomicity": "P/J/R, reversión y exactamente una vez; nunca invertir históricos por omitir backend",
+      "decision": "keep-server-coordinated"
+    },
+    "private": {
+      "modules": [
+        "cotizador/private-finance.js",
+        "cotizador/private-finance-model.js",
+        "cotizador/private-finance-storage.js"
+      ],
+      "callers": [
+        "js/modules/private-finance-portal.js",
+        "personal-finance.html"
+      ],
+      "auth": "UID del titular configurado en servidor; cerrado durante Ver como",
+      "reads": "Finanzas personales propias y almacenamiento privado",
+      "writes": "Comando financiero privado, revisión/historial/documentos",
+      "atomicity": "Dominio separado de gastos laborales/ARS/USD; sin privilegio por rol admin",
+      "decision": "keep-server-private"
+    },
+    "presentation": {
+      "modules": [
+        "cotizador/budget-presentation-trial.js",
+        "cotizador/budget-presentation-trial-model.js"
+      ],
+      "callers": [
+        "js/modules/project-presentation-trial.js"
+      ],
+      "auth": "Administrador + originales/hash/manifest + bucket privado",
+      "reads": "Proyecto/presupuesto/manifiesto/fotos privadas",
+      "writes": "ninguna de negocio en esta ruta",
+      "atomicity": "No exponer almacenamiento privado ni snapshots completos por SDK",
+      "decision": "keep-server-private"
+    },
+    "chat": {
+      "modules": [
+        "cotizador/chat-operations.js",
+        "cotizador/chat-header-store.js"
+      ],
+      "callers": [
+        "js/app.v3.21.12.js"
+      ],
+      "auth": "Canal/autor UID o autoría legacy inequívoca; permisos actuales",
+      "reads": "Mensaje, directorio mínimo/roles/cabeceras",
+      "writes": "Editar/eliminar/reacción de mensaje y cabecera",
+      "atomicity": "Texto esperado/propiedad histórica; no permite editar mensaje ajeno",
+      "decision": "keep-server-verify"
+    }
+  },
+  "routes": [
+    {
+      "service": "cotizador",
+      "route": "/",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "quoting",
+      "sourceLine": 2040,
+      "callers": [
+        {
+          "file": "js/core/dashboard-activity-model.v2.js",
+          "line": 8,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/dashboard-budget-fresh-rtdb-proposal.js",
+          "line": 7,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/dashboard-budget-month-port-proposal.js",
+          "line": 13,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/dashboard-http-ports-proposal.js",
+          "line": 10,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/dashboard-budget-notice-adapter-proposal.js",
+          "line": 32,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/labor-writes.js",
+          "line": 20,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/record-list-model.js",
+          "line": 182,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/record-lists.js",
+          "line": 12,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/operational-read-model.js",
+          "line": 15,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/operational-writes.js",
+          "line": 8,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/chat-read-model.js",
+          "line": 9,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/chat-history.js",
+          "line": 14,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/offline-core.js",
+          "line": 86,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/expense-filter-labels.v1.js",
+          "line": 2,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/provider-writes.js",
+          "line": 19,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/guarded-writes.js",
+          "line": 71,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/commercial-ownership.js",
+          "line": 17,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/dashboard-personal-notices.js",
+          "line": 31,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/purchase-order-links.v1.js",
+          "line": 9,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/ot-sale-origin.v1.js",
+          "line": 11,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/commercial-report-read.v1.js",
+          "line": 15,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "line": 468,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/commercial-pages-reader.v1.js",
+          "line": 16,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/client-account-reader.v1.js",
+          "line": 19,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/bonus-concepts.js",
+          "line": 38,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/bonus-grant.js",
+          "line": 35,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/projects.js",
+          "line": 112,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/chat-access.js",
+          "line": 101,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/chat-presence.v2.js",
+          "line": 130,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/product-url-import.js",
+          "line": 140,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/image-attachment-standard.js",
+          "line": 162,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/survey-summaries.v1.js",
+          "line": 16,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/surveys.js",
+          "line": 157,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/treasury.js",
+          "line": 122,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/notifications.js",
+          "line": 287,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/finance-details.js",
+          "line": 22,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/ot-workflow.js",
+          "line": 236,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/sales-metrics.js",
+          "line": 19,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/activity-history.js",
+          "line": 29,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/payroll-source-snapshot.js",
+          "line": 20,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/payroll-legacy-sac-model.js",
+          "line": 22,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/executive-charts.js",
+          "line": 23,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/payroll-legacy-migration.js",
+          "line": 106,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/payroll.js",
+          "line": 121,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/payroll-pending-review.js",
+          "line": 99,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/maintenance.js",
+          "line": 151,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/refactor-health.js",
+          "line": 115,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/resizable-tables.js",
+          "line": 241,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/commissions.js",
+          "line": 395,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/dolar-month-chart.js",
+          "line": 60,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/dolar-historico.js",
+          "line": 106,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/v2-readiness.js",
+          "line": 187,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/v2-audit.js",
+          "line": 163,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/v3/firebase-record-adapter.js",
+          "line": 43,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/exterior-user-lists.js",
+          "line": 94,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/public-catalog-requests.js",
+          "line": 75,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/employee-cash-receipt.js",
+          "line": 11,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/budget-presentation-model.js",
+          "line": 44,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/proposal-share.js",
+          "line": 7,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/project-presentation-trial.js",
+          "line": 20,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/salary-coverage-read.v1.js",
+          "line": 28,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/salary-coverage.v1.js",
+          "line": 27,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/core/client-history-credentials-context.v1.js",
+          "line": 24,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/client-history-original-actions.v1.js",
+          "line": 11,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/employee-resources-host.js",
+          "line": 14,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/biosegur",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "quoting",
+      "sourceLine": 2360,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "catalogo.html",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/public-catalog-requests.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/catalogo/cotizar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "quoting",
+      "sourceLine": 2306,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "catalogo.html",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/public-catalog-requests.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/catalogo/solicitar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "quoting",
+      "sourceLine": 2306,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "catalogo.html",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/public-catalog-requests.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/chat/mensaje",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "chat",
+      "sourceLine": 2126,
+      "callers": [
+        {
+          "file": "js/core/chat-security.js",
+          "line": 6,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-verify",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/clientes/historial",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "accounts",
+      "sourceLine": 2144,
+      "callers": [
+        {
+          "file": "js/modules/client-history-bootstrap.v1.js",
+          "line": 17,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-verify",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/clientes/historial/cliente",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "accounts",
+      "sourceLine": 2144,
+      "callers": [
+        {
+          "file": "js/modules/client-history-bootstrap.v1.js",
+          "line": 31,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-verify",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/cobranzas/operacion",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "financial",
+      "sourceLine": 2228,
+      "callers": [
+        {
+          "file": "js/core/financial-commands.js",
+          "line": 114,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comerciales/presupuestos",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "GET",
+      "group": "commercial",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/core/commercial-ownership.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/sale-writer.v1.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comerciales/presupuestos/opciones",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "GET",
+      "group": "commercial",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/core/commercial-ownership.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/sale-writer.v1.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comerciales/presupuestos/preparar",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "POST",
+      "group": "commercial",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/core/commercial-ownership.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/sale-writer.v1.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comerciales/presupuestos/reasignar",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "POST",
+      "group": "commercial",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/core/commercial-ownership.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/sale-writer.v1.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comerciales/presupuestos/registro/:id",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "GET",
+      "group": "commercial",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/core/commercial-ownership.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/sale-writer.v1.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comerciales/ventas",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "GET",
+      "group": "commercial",
+      "sourceLine": 2098,
+      "callers": [
+        {
+          "file": "js/core/commercial-ownership.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/sale-writer.v1.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comerciales/ventas/eliminar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "commercial",
+      "sourceLine": 2098,
+      "callers": [
+        {
+          "file": "js/core/financial-commands.js",
+          "line": 122,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comerciales/ventas/opciones",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "GET",
+      "group": "commercial",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/core/commercial-ownership.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/sale-writer.v1.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comerciales/ventas/preparar",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "POST",
+      "group": "commercial",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/core/commercial-ownership.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/sale-writer.v1.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comerciales/ventas/reasignar",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "POST",
+      "group": "commercial",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/core/commercial-ownership.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/sale-writer.v1.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comerciales/ventas/registro/:id",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "GET",
+      "group": "commercial",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/core/commercial-ownership.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/sale-writer.v1.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comisiones/generacion/generar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "commissions",
+      "sourceLine": 2210,
+      "callers": [
+        {
+          "file": "js/core/commission-generation.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "cloud-functions/commission-events/forwarder.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comisiones/generacion/revisar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "commissions",
+      "sourceLine": 2210,
+      "callers": [
+        {
+          "file": "js/core/commission-generation.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "cloud-functions/commission-events/forwarder.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comisiones/redistribuir",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "commissions",
+      "sourceLine": 2274,
+      "callers": [
+        {
+          "file": "js/modules/commissions.js",
+          "line": 548,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/commercial/dashboard/ordenes_trabajo/actividad-v2",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "GET",
+      "group": "dashboard",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/core/dashboard-http-ports-proposal.js",
+          "line": 3,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-verify",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/commercial/dashboard/pagos/actividad-v2",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "GET",
+      "group": "dashboard",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/core/dashboard-http-ports-proposal.js",
+          "line": 3,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-verify",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/commercial/dashboard/presupuestos/actividad-v2",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "dashboard",
+      "sourceLine": 2055,
+      "callers": [
+        {
+          "file": "js/core/dashboard-http-ports-proposal.js",
+          "line": 3,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-verify",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/commercial/dashboard/presupuestos/avisos",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "dashboard",
+      "sourceLine": 2055,
+      "callers": [
+        {
+          "file": "js/core/dashboard-http-ports-proposal.js",
+          "line": 3,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-verify",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/commercial/dashboard/ventas/actividad-v2",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "GET",
+      "group": "dashboard",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/core/dashboard-http-ports-proposal.js",
+          "line": 3,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-verify",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/compras/ordenes/eliminar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "stockot",
+      "sourceLine": 2093,
+      "callers": [
+        {
+          "file": "js/core/financial-commands.js",
+          "line": 29,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/compras/proveedores",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "directory",
+      "sourceLine": 2299,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "line": 47084,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-projection",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/cotizacion-guarani",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "quoting",
+      "sourceLine": 2360,
+      "callers": [
+        {
+          "file": "js/modules/paraguay-config.js",
+          "line": 56,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/cotizar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "quoting",
+      "sourceLine": 2306,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "line": 20723,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/modules/product-url-import.js",
+          "line": 260,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/cotizar-lote",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "quoting",
+      "sourceLine": 2360,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "line": 8691,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/cuentas/comprobante",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "accounts",
+      "sourceLine": 2157,
+      "callers": [
+        {
+          "file": "js/modules/client-account-host.v1.js",
+          "line": 65,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-verify",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/cuentas/comprobante-embebido",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "accounts",
+      "sourceLine": 2157,
+      "callers": [
+        {
+          "file": "js/modules/client-account-host.v1.js",
+          "line": 65,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-verify",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/cuentas/preparar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "accounts",
+      "sourceLine": 2150,
+      "callers": [
+        {
+          "file": "js/modules/client-account-host.v1.js",
+          "line": 49,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-verify",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/distribuidora/comprobantes",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "distributor",
+      "sourceLine": 2181,
+      "callers": [
+        {
+          "file": "js/modules/distributor-documents.js",
+          "line": 69,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/distribuidora/comprobantes/anular",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "distributor",
+      "sourceLine": 2181,
+      "callers": [
+        {
+          "file": "js/modules/distributor-documents.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/distribuidora/comprobantes/emitir",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "distributor",
+      "sourceLine": 2181,
+      "callers": [
+        {
+          "file": "js/modules/distributor-documents.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/distribuidora/comprobantes/opciones",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "distributor",
+      "sourceLine": 2181,
+      "callers": [
+        {
+          "file": "js/modules/distributor-documents.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/imagen-producto",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "media",
+      "sourceLine": 2331,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "line": 17159,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "direct-firebase-media-only",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/internal/commission-event",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "commissions",
+      "sourceLine": 2085,
+      "callers": [
+        {
+          "file": "js/core/commission-generation.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "cloud-functions/commission-events/forwarder.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/internal/commission-event-probe",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "commissions",
+      "sourceLine": 2085,
+      "callers": [
+        {
+          "file": "js/core/commission-generation.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "cloud-functions/commission-events/forwarder.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/inventario/contar-desde-ot",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "stockot",
+      "sourceLine": 2264,
+      "callers": [
+        {
+          "file": "js/modules/ot-office-count.js",
+          "line": 82,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/aprobar-horas",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "labor",
+      "sourceLine": 2302,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "line": 5338,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/bonificaciones/pagar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "financial",
+      "sourceLine": 2222,
+      "callers": [
+        {
+          "file": "js/core/bonus-payment.v1.js",
+          "line": 28,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/capacidades",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "gateway",
+      "sourceLine": 2228,
+      "callers": [
+        {
+          "file": "js/core/financial-commands.js",
+          "line": 45,
+          "evidence": "literal"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "line": 54369,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/directorio",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "directory",
+      "sourceLine": 2293,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "line": 4030,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-projection",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/disponibilidad",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "directory",
+      "sourceLine": 2286,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "line": 42701,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-projection",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/escritura",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "gateway",
+      "sourceLine": 2269,
+      "callers": [
+        {
+          "file": "js/core/labor-writes.js",
+          "line": 105,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/gastos/corregir-pago",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "financial",
+      "sourceLine": 2222,
+      "callers": [
+        {
+          "file": "js/core/bonus-payment.v1.js",
+          "line": 53,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/gastos/crear-administrativo",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "financial",
+      "sourceLine": 2228,
+      "callers": [
+        {
+          "file": "js/core/financial-commands.js",
+          "line": 118,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/gastos/editar-administrativo",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "financial",
+      "sourceLine": 2228,
+      "callers": [
+        {
+          "file": "js/core/financial-commands.js",
+          "line": 121,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/gastos/pagar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "financial",
+      "sourceLine": 2222,
+      "callers": [
+        {
+          "file": "js/core/bonus-payment.v1.js",
+          "line": 28,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/gastos/reembolsar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "financial",
+      "sourceLine": 2222,
+      "callers": [
+        {
+          "file": "js/core/bonus-payment.v1.js",
+          "line": 28,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/horas-propias",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "directory",
+      "sourceLine": 2280,
+      "callers": [
+        {
+          "file": "js/core/dashboard-personal-hours.v1.js",
+          "line": 98,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-projection",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/operacion",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "gateway",
+      "sourceLine": 2077,
+      "callers": [
+        {
+          "file": "js/core/labor-write-recovery.js",
+          "line": 107,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/solicitar-gasto",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "labor",
+      "sourceLine": 2296,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "line": 33032,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/solicitar-horas",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "labor",
+      "sourceLine": 2277,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "line": 4798,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/laboral/vinculo-propio",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "directory",
+      "sourceLine": 2289,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "line": 6430,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-projection",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/mercadolibre/oauth/callback",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "oauth",
+      "sourceLine": 2320,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/mercadolibre/oauth/start",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "oauth",
+      "sourceLine": 2120,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/mercadolibre/oauth/status",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "oauth",
+      "sourceLine": 2326,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/operaciones/ot/disponible",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "stockot",
+      "sourceLine": 2239,
+      "callers": [
+        {
+          "file": "js/core/financial-commands.js",
+          "line": 125,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/operaciones/ot/eliminar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "stockot",
+      "sourceLine": 2244,
+      "callers": [
+        {
+          "file": "js/core/financial-commands.js",
+          "line": 124,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/ot/ciclo",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "stockot",
+      "sourceLine": 2254,
+      "callers": [
+        {
+          "file": "js/modules/ot-lifecycle.js",
+          "line": 37,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/ot/ciclo/disponible",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "stockot",
+      "sourceLine": 2254,
+      "callers": [
+        {
+          "file": "js/modules/ot-lifecycle.js",
+          "line": 13,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/presupuestos/presentacion-proyecto",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "presentation",
+      "sourceLine": 2042,
+      "callers": [
+        {
+          "file": "js/modules/project-presentation-trial.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-private",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/privado/finanzas",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "private",
+      "sourceLine": 2060,
+      "callers": [
+        {
+          "file": "js/modules/private-finance-portal.js",
+          "line": 53,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-private",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/privado/finanzas/acceso",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "private",
+      "sourceLine": 2064,
+      "callers": [
+        {
+          "file": "js/modules/private-finance-portal.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "personal-finance.html",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-private",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/privado/finanzas/documentos",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "private",
+      "sourceLine": 2067,
+      "callers": [
+        {
+          "file": "js/modules/private-finance-portal.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "personal-finance.html",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-private",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/privado/finanzas/documentos/:hash",
+      "source": "cotizador/index.js",
+      "kind": "expanded-pattern",
+      "method": "GET",
+      "group": "private",
+      "sourceLine": null,
+      "callers": [
+        {
+          "file": "js/modules/private-finance-portal.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "personal-finance.html",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-private",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/privado/finanzas/guardar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "private",
+      "sourceLine": 2066,
+      "callers": [
+        {
+          "file": "js/modules/private-finance-portal.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "personal-finance.html",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-private",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/proyectos",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "projects",
+      "sourceLine": 2075,
+      "callers": [
+        {
+          "file": "js/modules/projects.js",
+          "line": 55,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-private",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/proyectos/detalle",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "projects",
+      "sourceLine": 2164,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/projects-*",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-private",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/proyectos/fotos",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET|POST",
+      "group": "projects",
+      "sourceLine": 2164,
+      "callers": [
+        {
+          "file": "js/modules/projects.js",
+          "line": 142,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-private",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/proyectos/fotos/recuperar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "projects",
+      "sourceLine": 2164,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/projects-*",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-private",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/proyectos/guardar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "projects",
+      "sourceLine": 2164,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/projects-*",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-private",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/proyectos/opciones",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "projects",
+      "sourceLine": 2164,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/projects-*",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-private",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/stock-oficina/ajustar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "stockot",
+      "sourceLine": 2249,
+      "callers": [
+        {
+          "file": "js/modules/office-stock-adapter.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/ot-lifecycle-adapter.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/purchase-orders.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/stock-oficina/detalle",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "stockot",
+      "sourceLine": 2249,
+      "callers": [
+        {
+          "file": "js/modules/office-stock-adapter.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/ot-lifecycle-adapter.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/purchase-orders.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/stock-oficina/historial",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "stockot",
+      "sourceLine": 2249,
+      "callers": [
+        {
+          "file": "js/modules/office-stock-adapter.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/ot-lifecycle-adapter.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/purchase-orders.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/stock-oficina/listar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "stockot",
+      "sourceLine": 2249,
+      "callers": [
+        {
+          "file": "js/modules/office-stock-adapter.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/ot-lifecycle-adapter.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/purchase-orders.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/financial-commands.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/usuarios/acceso/completar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "access",
+      "sourceLine": 2200,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/user-directory.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/usuarios/acceso/correo",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "access",
+      "sourceLine": 2200,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/user-directory.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/usuarios/acceso/estado",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "access",
+      "sourceLine": 2194,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/user-directory.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/usuarios/acceso/temporal",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "access",
+      "sourceLine": 2200,
+      "callers": [
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/core/user-directory.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/usuarios/administracion",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "directory",
+      "sourceLine": 2133,
+      "callers": [
+        {
+          "file": "js/core/user-directory.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/security-storage.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-projection",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/usuarios/directorio",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "directory",
+      "sourceLine": 2133,
+      "callers": [
+        {
+          "file": "js/core/user-directory.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/security-storage.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-projection",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/usuarios/perfil",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "GET",
+      "group": "directory",
+      "sourceLine": 2133,
+      "callers": [
+        {
+          "file": "js/core/user-directory.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/app.v3.21.12.js",
+          "evidence": "family-caller; dynamic URL"
+        },
+        {
+          "file": "js/modules/security-storage.js",
+          "evidence": "family-caller; dynamic URL"
+        }
+      ],
+      "decision": "keep-server-projection",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/verificar-proveedor",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "quoting",
+      "sourceLine": 2360,
+      "callers": [
+        {
+          "file": "js/modules/provider-verification.js",
+          "line": 32,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server",
+      "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    }
+  ],
+  "otherServices": [
+    {
+      "service": "asistente",
+      "method": "POST",
+      "route": "/",
+      "source": "cloud-functions/asistente/index.js",
+      "decision": "keep-server-secret-and-quota"
+    },
+    {
+      "service": "asistente",
+      "method": "POST",
+      "route": "/learn",
+      "source": "cloud-functions/asistente/index.js",
+      "decision": "keep-server-secret-and-quota"
+    },
+    {
+      "service": "asistente",
+      "method": "POST",
+      "route": "/purchase-import",
+      "source": "cloud-functions/asistente/index.js",
+      "decision": "keep-server-secret-and-quota"
+    },
+    {
+      "service": "asistente",
+      "method": "POST",
+      "route": "/statement-import",
+      "source": "cloud-functions/asistente/index.js",
+      "decision": "keep-server-secret-and-quota"
+    },
+    {
+      "service": "asistente",
+      "method": "POST",
+      "route": "/transcribe",
+      "source": "cloud-functions/asistente/index.js",
+      "decision": "keep-server-secret-and-quota"
+    },
+    {
+      "service": "emitirFactura",
+      "method": "POST",
+      "route": "emitirFactura",
+      "action": "emitir-factura",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-fiscal"
+    },
+    {
+      "service": "emitirFactura",
+      "method": "POST",
+      "route": "emitirFactura",
+      "action": "nota-credito",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-fiscal"
+    },
+    {
+      "service": "emitirFactura",
+      "method": "POST",
+      "route": "emitirFactura",
+      "action": "vincular_emision",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-fiscal"
+    },
+    {
+      "service": "emitirFactura",
+      "method": "POST",
+      "route": "emitirFactura",
+      "action": "consultar_cuit",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-fiscal"
+    },
+    {
+      "service": "emitirFactura",
+      "method": "POST",
+      "route": "emitirFactura",
+      "action": "consultar_comprobante",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-fiscal"
+    },
+    {
+      "service": "emitirFactura",
+      "method": "POST",
+      "route": "emitirFactura",
+      "action": "recuperar_identidad_fiscal",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-fiscal"
+    },
+    {
+      "service": "emitirFactura",
+      "method": "POST",
+      "route": "emitirFactura",
+      "action": "regenerar_pdf",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-fiscal"
+    },
+    {
+      "service": "testTFApp",
+      "method": "POST",
+      "route": "testTFApp",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-secret"
+    },
+    {
+      "service": "solicitudes-correo",
+      "method": "CloudEvent",
+      "action": "correoSolicitudConfirmada",
+      "source": "cloud-functions/solicitudes-correo/index.js",
+      "decision": "keep-server-secret"
+    },
+    {
+      "service": "solicitudes-correo",
+      "method": "CloudEvent",
+      "action": "correoSolicitudDeclinada",
+      "source": "cloud-functions/solicitudes-correo/index.js",
+      "decision": "keep-server-secret"
+    },
+    {
+      "service": "commission-events",
+      "method": "onValueWritten",
+      "action": "sisventasCommissionEventForward",
+      "source": "cloud-functions/commission-events/index.js",
+      "decision": "keep-server-event"
+    },
+    {
+      "service": "cost-guard",
+      "method": "CloudEvent",
+      "action": "sisventasCostGuard",
+      "source": "cloud-functions/cost-guard/index.js",
+      "decision": "keep-server-infrastructure"
+    },
+    {
+      "service": "push-experiment",
+      "method": "conditional export",
+      "action": "configuracionPush",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-if-enabled",
+      "runtimeStatus": "conditional SISVENTAS_ENABLE_PUSH_EXPERIMENT; not assumed active"
+    },
+    {
+      "service": "push-experiment",
+      "method": "conditional export",
+      "action": "registrarDispositivoPush",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-if-enabled",
+      "runtimeStatus": "conditional SISVENTAS_ENABLE_PUSH_EXPERIMENT; not assumed active"
+    },
+    {
+      "service": "push-experiment",
+      "method": "conditional export",
+      "action": "desregistrarDispositivoPush",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-if-enabled",
+      "runtimeStatus": "conditional SISVENTAS_ENABLE_PUSH_EXPERIMENT; not assumed active"
+    },
+    {
+      "service": "push-experiment",
+      "method": "conditional export",
+      "action": "despacharEventoNotificacion",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-if-enabled",
+      "runtimeStatus": "conditional SISVENTAS_ENABLE_PUSH_EXPERIMENT; not assumed active"
+    },
+    {
+      "service": "push-experiment",
+      "method": "conditional export",
+      "action": "notificarOtAsignada",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-if-enabled",
+      "runtimeStatus": "conditional SISVENTAS_ENABLE_PUSH_EXPERIMENT; not assumed active"
+    },
+    {
+      "service": "push-experiment",
+      "method": "conditional export",
+      "action": "notificarReclamoAsignado",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-if-enabled",
+      "runtimeStatus": "conditional SISVENTAS_ENABLE_PUSH_EXPERIMENT; not assumed active"
+    },
+    {
+      "service": "push-experiment",
+      "method": "conditional export",
+      "action": "notificarPresupuestoPendiente",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-if-enabled",
+      "runtimeStatus": "conditional SISVENTAS_ENABLE_PUSH_EXPERIMENT; not assumed active"
+    },
+    {
+      "service": "push-experiment",
+      "method": "conditional export",
+      "action": "recordatoriosAgendaPush",
+      "source": "cloud-functions/emitir-factura/index.js",
+      "decision": "keep-server-if-enabled",
+      "runtimeStatus": "conditional SISVENTAS_ENABLE_PUSH_EXPERIMENT; not assumed active"
+    },
+    {
+      "service": "compras-nixa",
+      "method": "POST",
+      "route": "/laboral/capacidades",
+      "source": "cotizador/purchase-delete-server.js",
+      "decision": "keep-server-reviewed-command",
+      "runtimeStatus": "separate bounded review, parent reported prior successful user deletion; no new activation"
+    },
+    {
+      "service": "compras-nixa",
+      "method": "POST",
+      "route": "/compras/ordenes/eliminar",
+      "source": "cotizador/purchase-delete-server.js",
+      "decision": "keep-server-reviewed-command",
+      "runtimeStatus": "separate bounded review, parent reported prior successful user deletion; no new activation"
+    },
+    {
+      "service": "compras-nixa",
+      "method": "POST",
+      "route": "/laboral/operacion",
+      "source": "cotizador/purchase-delete-server.js",
+      "decision": "keep-server-reviewed-command",
+      "runtimeStatus": "separate bounded review, parent reported prior successful user deletion; no new activation"
+    }
+  ],
+  "commands": {
+    "projects": [
+      "create",
+      "finish",
+      "reopen",
+      "update",
+      "members",
+      "need-save",
+      "need-execution",
+      "need-photo",
+      "photo-remove",
+      "need-restore",
+      "materials-import",
+      "material-use",
+      "need-remove",
+      "budget-brief",
+      "budget-link",
+      "budget-remove"
+    ],
+    "privateFinance": [
+      "card-save",
+      "statement-save",
+      "statement-cycle-save",
+      "payment-save",
+      "payment-edit",
+      "payment-void",
+      "category-save",
+      "movement-classify",
+      "insurance-save",
+      "charge-save",
+      "installment-save",
+      "expense-save",
+      "strategy-save"
+    ],
+    "payment": [
+      "registrar",
+      "anular"
+    ],
+    "chat": [
+      "editar",
+      "eliminar",
+      "reaccion"
+    ],
+    "laborGatewayKinds": [
+      "set",
+      "patch",
+      "compare",
+      "atomic"
+    ],
+    "laborGatewayPurposes": [
+      "relationship-normalization",
+      "expense-removal",
+      "employee-bonus-batch",
+      "employee-sac-batch",
+      "sale-cost-correction",
+      "sale-return-to-budget",
+      "commission-participant",
+      "sale-commission-assignment",
+      "employee-sac-migration"
+    ],
+    "otLifecycle": [
+      "delivery",
+      "custody",
+      "return",
+      "close",
+      "stockrepair (internal count correction)"
+    ]
+  }
+}
