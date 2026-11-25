@@ -68,6 +68,19 @@ recibo persistente. Un replay lee la versión actual autorizada, incluso si fue
 corregida después del primer commit. Esos 194 se superponen a las corridas
 anteriores; no se suman como pruebas distintas.
 
-Pruebas adicionales del cliente se registran al cerrar este bloque. Datos
-ficticios y Store REST interceptado; no acredita Rules remotas, emulador,
-publicación ni instalación de la cohorte.
+Corrida final conjunta: 235 PASS, cero fallos, cancelaciones ni omisiones.
+Incluye los 194 anteriores y 41 pruebas nuevas de cliente/canónica/Recovery y
+la excepción de notificaciones. Registro local no versionado:
+`C:/SisVentas/tmp/ot-note-gateway-complete-20261125.log`.
+
+Cliente acredita cero GET normal, un GET exacto al recuperar, sesión cambiada
+sin proyectar la nota, canónica ausente/incompatible sin éxito aparente, y
+notificaciones sin extender la excepción a otros paths/purposes.
+
+La prueba de cambio de sesión después del POST respeta el contrato existente
+de Recovery: primero retiene la confirmación incierta y después consulta el
+recibo; no se cambia ese protocolo para forzar un rechazo inmediato.
+
+Las cuatro pruebas de Chrome se validaron por separado y no forman parte de
+esas 235. Syntax y diff-check PASS. Datos ficticios y Store REST interceptado;
+no acredita Rules remotas, emulador, publicación ni instalación de la cohorte.
