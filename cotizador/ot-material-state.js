@@ -3,6 +3,31 @@
 const Rows=require('./ot-material-rows-model'),{digest}=require('./labor-guard'),Money=require('./commercial-models/commercial-money');
 const own=(o,k)=>Object.hasOwn(o||{},k),same=(a,b)=>digest(a)===digest(b);
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_OT_MATERIAL_REVIEW'});
+// A phase belongs to one server operation and one stage, never to the lease
+// across planning, the fresh check and the Store's independent commit claims.
+const referenceCommitFactories=new WeakMap();
+function referenceOperation(resolveReference,store,createReferencePhase){
+ if(resolveReference!==undefined&&typeof resolveReference!=='function'||createReferencePhase!==undefined&&typeof createReferencePhase!=='function')throw fail('El puerto de referencias no es válido.');
+ const ranges=new Map(),pages=new Map(),waiting=[];let planning=true,active=0;
+ // The core's window covers its own parallel reads. Domain identity reads must
+ // share a second, operation-local boundary with raw range IO as well.
+ const drain=()=>{while(active<6&&waiting.length){const task=waiting.shift();active++;Promise.resolve().then(task.work).then(task.resolve,task.reject).finally(()=>{active--;drain();});}};
+ const bounded=work=>new Promise((resolve,reject)=>{waiting.push({work,resolve,reject});drain();});
+ const readPage=async(path,options)=>{if(typeof store.queryPage!=='function')throw fail('Falta el lector dirigido de stock.');return bounded(()=>store.queryPage(path,options));};
+ const planningPage=async(path,options)=>{if(!planning)return readPage(path,options);const id=digest({path,options});if(!pages.has(id))pages.set(id,Promise.resolve().then(()=>readPage(path,options)).then(structuredClone));return structuredClone(await pages.get(id));};
+ const phaseFor=queryPage=>createReferencePhase?.({queryPage});let currentPhase=phaseFor(planningPage);
+ function resolver(phaseProvider,queryPage){return async(original,ports)=>resolveReference(original,{...ports,read:typeof ports.read==='function'?(...args)=>bounded(()=>ports.read(...args)):ports.read,query:typeof ports.query==='function'?(...args)=>bounded(()=>ports.query(...args)):ports.query,queryPage,...(phaseProvider()?{referencePhase:phaseProvider()}:{}),trackQueryPage:async(path,options,rows)=>{const id=digest({path,options}),entry={path,options:structuredClone(options),hash:digest(rows)};if(ranges.has(id)&&ranges.get(id).hash!==entry.hash)throw fail('La cobertura de stock cambió durante la operación.');ranges.set(id,entry);await ports.trackQueryPage?.(path,options,rows);}});}
+ const resolve=resolveReference===undefined?undefined:resolver(()=>currentPhase,planningPage);
+ if(resolve)referenceCommitFactories.set(resolve,()=>{const phase=phaseFor(readPage);return resolver(()=>phase,readPage);});
+ return {resolve,async assertFresh(queryPageFresh){
+  planning=false;pages.clear();currentPhase=undefined;
+  const checks=[...ranges.values()],freshPhase=typeof queryPageFresh==='function'?phaseFor(queryPageFresh):null,freshQuery=freshPhase?.queryPage??queryPageFresh;
+  for(let i=0;i<checks.length;i+=6){const settled=await Promise.allSettled(checks.slice(i,i+6).map(async entry=>{if(typeof freshQuery!=='function'||digest(await freshQuery(entry.path,entry.options))!==entry.hash)throw fail('La cobertura de stock cambió antes de confirmar.');}));const rejected=settled.find(result=>result.status==='rejected');if(rejected)throw rejected.reason;}
+  // Default post-check use also starts fresh; commit claims request their own
+  // phase explicitly even if called at a different point by a future guard.
+  currentPhase=phaseFor(readPage);
+ }};
+}
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
 const quantities=['entregada','devuelta','devueltaPendiente','enTecnico','danada','faltante','cantidadInstalada'];
 const stockFields=['stockRegistro','stockRevision','stockPendiente','stockBaseInstalada'];
@@ -85,15 +110,98 @@ function transitions(ot,after){
  });
 }
 function allocation(ot,row){if(row.destinoVenta!=null&&!['original','nueva'].includes(row.destinoVenta))throw fail('El destino histórico es ambiguo.');const sale=row.destinoVenta==='nueva'?row.ventaDestinoFbKey:ot.ventaFbKey;if(!key(sale))throw fail('El destino de stock necesita una referencia canónica.');return sale;}
-async function resolveProduct(row,{read,query,source}){
+async function resolveProduct(row,{read,query,source,parallelQueries=false}){
  if(!source&&key(row.productoKey)){const product=await read('sisventas/productos/'+row.productoKey);if(!product||typeof product!=='object')throw fail('El producto de la rendición no existe.');return row.productoKey;}
  const code=(source||row).cod||(source||row).codigo;if(typeof code!=='string'||!code||typeof query!=='function')throw fail('El producto de la rendición requiere resolución autoritativa.');
- const matches={};for(const field of ['codigo','cod'])Object.assign(matches,await query('sisventas/productos',field,code)||{});const ids=Object.keys(matches);if(ids.length!==1||!key(ids[0])||source&&ids[0]!==row.productoKey)throw fail('El producto de la rendición falta o es ambiguo.');return ids[0];
+ const matches={};if(parallelQueries){const results=await Promise.allSettled(['codigo','cod'].map(field=>Promise.resolve().then(()=>query('sisventas/productos',field,code)))),failed=results.find(result=>result.status==='rejected');if(failed)throw failed.reason;for(const result of results)Object.assign(matches,result.value||{});}else for(const field of ['codigo','cod'])Object.assign(matches,await query('sisventas/productos',field,code)||{});const ids=Object.keys(matches);if(ids.length!==1||!key(ids[0])||source&&ids[0]!==row.productoKey)throw fail('El producto de la rendición falta o es ambiguo.');return ids[0];
 }
-async function verifyReceipt({ot,otKey,transition,productKey,read,stockExceptionContext}){
+// Internal server injection only. Symbols survive the guard's object spreads,
+// but cannot arrive in JSON, enter transport digests or become token claims.
+const referencePort=Symbol('ot-reference-port'),referenceContexts=new WeakMap();
+function referenceContext(actor){
+ if(!Object.hasOwn(actor||{},referencePort))return null;
+ const context=referenceContexts.get(actor[referencePort]);
+ if(!context||actor.uid!==context.uid||actor.opId!==context.opId||actor.role!==context.role||actor.claims?.uid!==context.uid||actor.otLifecycle!==context.lifecycle||actor.otInventory!==context.inventory)throw fail('El contexto interno de stock cambió.');
+ return context;
+}
+function withReferencePort(actor,resolveReference){
+ if(resolveReference===undefined)return actor;
+ const token=require('./ot-lifecycle-policy').token(actor,{actorUid:actor.uid,opId:actor.opId});
+ if(typeof resolveReference!=='function'||token.svOTLifecycleVersion!==1&&!require('./ot-inventory-policy').owns(actor))throw fail('El resolver de stock requiere una operación autorizada.');
+ const handle=Object.freeze({});referenceContexts.set(handle,{resolveReference,uid:actor.uid,opId:actor.opId,role:actor.role,lifecycle:actor.otLifecycle,inventory:actor.otInventory,lease:null});return {...actor,[referencePort]:handle};
+}
+function referenceAuthorized(actor,lease){return require('./ot-lifecycle-policy').token(actor,lease).svOTLifecycleVersion===1||require('./ot-inventory-policy').token(actor,lease).svOTInventoryVersion===1;}
+function bindReferenceLease(actor,lease){const context=referenceContext(actor);if(!context)return;if(!referenceAuthorized(actor,lease)||!lease.fence||context.lease&&context.lease.fence!==lease.fence)throw fail('La guarda del vínculo cambió.');context.lease={fence:lease.fence,opId:lease.opId,actorUid:lease.actorUid};}
+function getReferencePort(actor,lease,{phase}={}){const context=referenceContext(actor);if(!context)return undefined;if(!referenceAuthorized(actor,lease)||!context.lease||lease.fence!==context.lease.fence||lease.opId!==context.lease.opId||lease.actorUid!==context.lease.actorUid)throw fail('La guarda del vínculo cambió.');return phase==='commit'&&referenceCommitFactories.has(context.resolveReference)?referenceCommitFactories.get(context.resolveReference)():context.resolveReference;}
+function referenceAllocation(ot,otKey,row,context){if(!context)return allocation(ot,row);const {actor,lease}=context;if(require('./ot-inventory-policy').token(actor,lease).svOTInventoryVersion!==1)throw fail('Falta la capacidad interna para leer el origen sin venta.');require('./ot-inventory-policy').standalone(ot);return require('./ot-inventory-model').allocation(ot,otKey,row);}
+async function resolveStockReference(row,{read,query,source,original,resolveReference,track,legacy:legacyResolver,pendingOfficeCount=false,parallelQueries=false,standaloneContext}){
+ let legacyPromise;const legacy=()=>legacyPromise||(legacyPromise=(async()=>{const productKey=legacyResolver?await legacyResolver():await resolveProduct(row,{read,query,source,parallelQueries});return {productKey,inventoryKey:productKey,receiptIdentityKey:productKey,mappingRevision:0,mapped:false,readSet:[]};})());
+ if(!resolveReference)return legacy();
+ if(typeof resolveReference!=='function'||!original||!key(original.otKey)||!original.row||typeof original.row!=='object'||!['materiales','items'].includes(original.source)||!/^(0|[1-9][0-9]*)$/.test(original.rowKey))throw fail('La referencia original del material requiere revisión.');
+ const selector=original.source==='materiales'?Number(original.rowKey):'items_'+original.rowKey;
+ const input={purpose:'ot',path:'sisventas/ordenes_trabajo/'+original.otKey,selector,record:structuredClone(original.record),expectedOriginalHash:digest(original.record)};
+ let canonicalReference=null;
+ const identifyOriginal=async(stored,selected,io)=>{
+  if(selected!==selector||digest(stored)!==digest(original.record))throw fail('El original del vínculo cambió.');
+  const selectedRow=stored?.[original.source]?.[Number(original.rowKey)];if(!selectedRow||digest(selectedRow)!==digest(original.row))throw fail('La fila no pertenece al original verificado.');
+  const located=typeof io?.locateCanonical==='function'?await io.locateCanonical():null;
+  if(located){const ref=located.reference;if(located.sourceHash!==digest(stored)||located.selector!==selected||![ref?.productKey,ref?.inventoryKey,ref?.receiptIdentityKey].every(key)||located.ledgerPath!=='sisventas/inventario_operativo/'+ref.inventoryKey)throw fail('El localizador no acredita esta fila original.');canonicalReference=structuredClone(ref);}
+  const aliases=[...new Set((located?[canonicalReference.productKey,canonicalReference.inventoryKey,canonicalReference.receiptIdentityKey]:[selectedRow.inventoryKey,selectedRow.productoKey,selectedRow.cod,selectedRow.codigo]).filter(key))],seed=located?canonicalReference.inventoryKey:aliases[0];if(!seed)throw fail('La identidad original del material requiere revisión.');
+  if(typeof io?.read!=='function')throw fail('Faltan lecturas frescas de la historia física.');
+  // Mapping records are locators only here. The core validates forward/inverse,
+  // ownership, aliases and coverage; every locator read stays in its readSet.
+  const candidates=new Set(located?[canonicalReference.inventoryKey]:aliases);let linked=!!located;
+  const locate=async names=>{for(const name of names)for(const direction of ['porProducto','porInventario']){const link=await io.read('sisventas/stock_vinculos/'+direction+'/'+name);if(link&&key(link.inventoryKey)){candidates.add(link.inventoryKey);linked=true;}}};if(!located)await locate(aliases);
+  // Code-only legacy rows need the same authoritative, unique catalog binding
+  // to inspect the actual ledger. A missing old key is never treated as zero.
+  if(!linked&&typeof io.query==='function'&&typeof (selectedRow.cod||selectedRow.codigo)==='string'){
+   const matches={};for(const field of ['codigo','cod'])Object.assign(matches,await io.query('sisventas/productos',field,selectedRow.cod||selectedRow.codigo)||{});const keys=Object.keys(matches);if(keys.length>1)throw fail('El código histórico tiene varios productos.');
+   if(keys.length===1&&key(keys[0])&&!aliases.includes(keys[0])){aliases.push(keys[0]);candidates.add(keys[0]);await locate([keys[0]]);}
+  }
+  if(candidates.size>64)throw fail('Demasiadas referencias históricas de inventario.');
+  const verifiedReads=[],origins=new Set(),rowKey=original.materialRowKey,sale=referenceAllocation(stored,original.otKey,selectedRow,standaloneContext),receiptId=selectedRow.stockRegistro;let history=false;
+  const rowReceipts=Object.values(stored.remitosEntrega||{}).flatMap(receipt=>(receipt.items||[]).filter(item=>String(item.index)===rowKey));
+  for(const inventoryKey of candidates){const path='sisventas/inventario_operativo/'+inventoryKey,inventory=await io.read(path);verifiedReads.push(path);if(!inventory)continue;
+   for(const [id,entry]of Object.entries(inventory.rendicionesOT||{})){
+    if(entry?.ot!==original.otKey)continue;
+    if(entry.fila!==undefined&&entry.fila!==rowKey)continue;
+    if(receiptId&&id!==receiptId){if(entry.fila===rowKey)throw fail('La fila tiene recibos físicos contradictorios.');continue;}
+    if(!receiptId&&entry.fila===undefined)throw fail('La historia física no identifica una fila inequívoca.');
+    if(entry.venta!==sale||entry.fila!==undefined&&entry.fila!==rowKey)throw fail('El destino histórico del recibo cambió.');history=true;
+    for(const productKey of aliases)if(legacyReceiptIdentity({otKey:original.otKey,rowKey,productKey,row:selectedRow})===id||require('node:crypto').createHash('sha256').update(JSON.stringify([original.otKey,rowKey,productKey,sale])).digest('hex')===id)origins.add(productKey);
+    for(const name of ['confirmacionesOT','regularizacionesOT'])for(const rows of Object.values(inventory[name]||{}))for(const audit of Object.values(rows||{}))if(audit?.receipt===id&&audit.ot===original.otKey&&audit.fila===rowKey&&audit.venta===sale&&key(audit.producto))origins.add(audit.producto);
+   }
+  }
+  const physicalAmount=['entregada','instalada','cantidadInstalada','devuelta','devueltaPendiente','enTecnico','danada','faltante'].some(field=>selectedRow[field]!=null&&selectedRow[field]!==0);
+  if(history){if(origins.size!==1)throw fail('No se pudo acreditar la identidad histórica del recibo.');return {productKey:canonicalReference?.productKey??(key(selectedRow.productoKey)?selectedRow.productoKey:undefined),inventoryKey:seed,receiptIdentityKey:[...origins][0],aliases,history:{kind:'confirmed',sourceHash:digest(stored),verifiedReads}};}
+  // The authorized office-count command may reconcile an explicitly pending
+  // extra with zero previously registered units. Amounts in that source are
+  // the requested reconciliation, never proof of a pre-existing stock receipt.
+  const pendingExtra=pendingOfficeCount===true&&selectedRow.adicionalOT===true&&selectedRow.stockPendiente===true&&selectedRow.stockBaseInstalada===0&&Number.isFinite(selectedRow.instalada)&&selectedRow.instalada>0;
+  if(receiptId||rowReceipts.length||selectedRow.stockRevision||!pendingExtra&&(physicalAmount||selectedRow.custodiaActiva))throw fail('La ausencia de historia física no está acreditada.');
+  return {productKey:canonicalReference?.productKey??(key(selectedRow.productoKey)?selectedRow.productoKey:undefined),inventoryKey:seed,receiptIdentityKey:null,aliases,history:{kind:'absent',sourceHash:digest(stored),verifiedReads}};
+ };
+ const result=await resolveReference(input,{read,query,track:track||(()=>{}),legacy,identifyOriginal});
+ if(!result||![result.productKey,result.inventoryKey,result.receiptIdentityKey].every(key)||!Number.isSafeInteger(result.mappingRevision)||result.mappingRevision<0||typeof result.mapped!=='boolean')throw fail('La referencia física de stock requiere revisión.');
+ if(result.mapped&&result.mappingRevision<1)throw fail('El vínculo de stock no tiene revisión verificada.');
+ if(!result.mapped){const expected=canonicalReference??await legacy();if(result.mappingRevision!==0||['productKey','inventoryKey','receiptIdentityKey'].some(field=>result[field]!==expected[field]))throw fail('El recorrido legado no puede cambiar de inventario.');}
+ if(source&&row.productoKey&&row.productoKey!==result.productKey)throw fail('El producto histórico no coincide con su origen.');
+ return result;
+}
+function originalReference(ot,otKey,rowIndex){
+ const rows=require('./ot-material-rows-model').view(ot),row=rows[rowIndex];if(!row)throw fail('No se identificó la fila original.');
+ if(Array.isArray(ot.materiales)&&ot.materiales[rowIndex])return {otKey,source:'materiales',rowKey:String(rowIndex),materialRowKey:String(rowIndex),row:ot.materiales[rowIndex],record:ot};
+ const match=/^items:(0|[1-9][0-9]*)$/.exec(row.origenMaterialHistorico||'');if(!match||!ot.items?.[Number(match[1])])throw fail('La fila histórica requiere un origen inequívoco.');
+ return {otKey,source:'items',rowKey:match[1],materialRowKey:String(rowIndex),row:ot.items[Number(match[1])],record:ot};
+}
+async function verifyReceipt({ot,otKey,transition,productKey,reference,read,stockExceptionContext,standaloneContext}){
  const m=transition.target;if(!key(productKey)||!/^[a-f0-9]{64}$/.test(m.stockRegistro||'')||!Number.isSafeInteger(m.stockRevision)||m.stockRevision<1||!Number.isFinite(m.instalada)||m.instalada<0||transition.recovery&&m.instalada<=0)throw fail('El movimiento requiere una referencia de stock verificable.');
  if(m.stockPendiente===true)throw fail('El movimiento todavía está pendiente de confirmar.');
- const inventory=await read('sisventas/inventario_operativo/'+productKey),sale=allocation(ot,m),receipt=inventory?.rendicionesOT?.[m.stockRegistro];
+ const inventoryKey=reference?.inventoryKey??productKey,identityKey=reference?.receiptIdentityKey??productKey;
+ if(!key(inventoryKey)||!key(identityKey))throw fail('El inventario del recibo requiere revisión.');
+ let sale;
+ if(standaloneContext){const {actor,lease}=standaloneContext,Policy=require('./ot-inventory-policy'),token=Policy.token(actor,lease);if(token.svOTInventoryVersion!==1||token.svOTInventoryOTKey!==otKey||actor.otInventory.originalHash!==digest(ot))throw fail('Falta la capacidad original de inventario sin venta.');Policy.standalone(ot);sale=require('./ot-inventory-model').allocation(ot,otKey,m);}else sale=allocation(ot,m);
+ const inventory=await read('sisventas/inventario_operativo/'+inventoryKey),receipt=inventory?.rendicionesOT?.[m.stockRegistro];
  if(!receipt||receipt.ot!==otKey||receipt.venta!==sale||receipt.revision!==m.stockRevision||receipt.instalada!==m.instalada)throw fail('El consumo de stock no coincide con la OT, destino o revisión.');
  if(units(m.devueltaPendiente??0)>units(receipt.enReserva??0)||units(m.devuelta??0)>units(receipt.recibidas??0))throw fail('La devolución no tiene respaldo en el recibo de stock.');
  if(!inventory.asignaciones||typeof inventory.asignaciones!=='object'||Array.isArray(inventory.asignaciones)||!inventory.rendicionesOT||typeof inventory.rendicionesOT!=='object'||Array.isArray(inventory.rendicionesOT))throw fail('El ledger de stock requiere revisión.');
@@ -108,9 +216,9 @@ async function verifyReceipt({ot,otKey,transition,productKey,read,stockException
  if(consumedAllocations>consumed||receiptConsumed>consumed||receiptHeld>reserved)throw fail('Los recibos no tienen consumo o reserva respaldados en el ledger.');
  for(const [id,totals]of perSale){const assigned=inventory.asignaciones[id];if(!assigned||totals.installed>units(assigned.consumido)||totals.held>units(assigned.reservado)||totals.received>units(assigned.liberado??0))throw fail('El consumo o devolución excede la asignación del ledger.');}
  const c=stockExceptionContext,token=c&&require('./ot-lifecycle-policy').token(c.actor,c.lease),custodyContext=token?.svOTLifecycleVersion===1&&token.svOTLifecycleKind==='custody'&&token.svOTLifecycleOTKey===otKey&&typeof c.readOriginal==='function'&&Array.isArray(c.group);
- const originalInventory=custodyContext?await c.readOriginal('sisventas/inventario_operativo/'+productKey):null;
+ const originalInventory=custodyContext?await c.readOriginal('sisventas/inventario_operativo/'+inventoryKey):null;
  const groupRow=custodyContext&&c.group.find(entry=>entry.transition===transition),originalReceipt=originalInventory?.rendicionesOT?.[m.stockRegistro];
- if(custodyContext&&originalReceipt&&(!groupRow||!transition.row||!receiptBoundToRow({otKey,rowKey:groupRow.rowKey,productKey,allocation:sale,row:transition.row,receipt:m.stockRegistro,entry:originalReceipt})))throw fail('El recibo histórico no identifica esta fila del material.');
+ if(custodyContext&&originalReceipt&&(!groupRow||!transition.row||!receiptBoundToRow({otKey,rowKey:groupRow.rowKey,productKey:identityKey,allocation:sale,row:transition.row,receipt:m.stockRegistro,entry:originalReceipt})))throw fail('El recibo histórico no identifica esta fila del material.');
  let originalDrift=false;
  if(originalInventory!=null){
   const originalAssigned=originalInventory.asignaciones??{};
@@ -123,14 +231,14 @@ async function verifyReceipt({ot,otKey,transition,productKey,read,stockException
   // Only a genuine custody command may prove a general-only consumption from
   // the committed original, leaving every reservation and foreign row intact.
   if(!custodyContext||!['admin','administrativo'].includes(token.svOTLifecycleRole)||c.actor.role!==token.svOTLifecycleRole||!transition.row||!c.group.some(entry=>entry.transition===transition))throw fail('Los recibos no tienen consumo o reserva respaldados en el ledger.');
-  try{const held=await require('./ot-custody-held-authority').compute({ot,otKey,productKey,group:c.group,read:c.readOriginal,query:c.query});const changes=c.group.map(({transition:t,rowKey})=>{
+  try{const held=await require('./ot-custody-held-authority').compute({ot,otKey,productKey,reference,resolveReference:c.resolveReference??getReferencePort(c.actor,c.lease),group:c.group,read:c.readOriginal,query:c.query});const changes=c.group.map(({transition:t,rowKey})=>{
    const pending=t.row.stockPendiente===true,beforeInstalled=pending?t.row.stockBaseInstalada:t.row.instalada??0;
    // Legacy pending rows may already carry the applied receipt revision. Only
    // an identical committed receipt can then prove adoption without stock edits.
    const adoptedRevision=pending&&beforeInstalled<t.row.instalada&&t.target.stockRegistro===t.row.stockRegistro&&t.target.stockRevision===t.row.stockRevision;
-   return{allocation:allocation(ot,t.target),receipt:t.target.stockRegistro,beforeInstalled,targetInstalled:t.target.instalada,revision:(t.row.stockRevision??0)-(adoptedRevision?1:0),rowKey,heldByOthers:held.get(rowKey),sourceReceipt:t.row.stockRegistro??null,legacyReceipt:legacyReceiptIdentity({otKey,rowKey,productKey,row:t.row})};
-  });require('./ot-general-consumption-exception').validate({before:originalInventory,after:inventory,otKey,productKey,actor:{uid:c.actor.uid,role:token.svOTLifecycleRole,allowed:true},operationId:c.actor.opId,changes});}catch(error){throw fail('No se acredita el consumo de General sin alterar las reservas existentes.');}
+   return{allocation:allocation(ot,t.target),receipt:t.target.stockRegistro,beforeInstalled,targetInstalled:t.target.instalada,revision:(t.row.stockRevision??0)-(adoptedRevision?1:0),rowKey,heldByOthers:held.get(rowKey),sourceReceipt:t.row.stockRegistro??null,legacyReceipt:legacyReceiptIdentity({otKey,rowKey,productKey:identityKey,row:t.row})};
+  });require('./ot-general-consumption-exception').validate({before:originalInventory,after:inventory,otKey,productKey:identityKey,actor:{uid:c.actor.uid,role:token.svOTLifecycleRole,allowed:true},operationId:c.actor.opId,changes});}catch(error){throw fail('No se acredita el consumo de General sin alterar las reservas existentes.');}
  }
  return receipt;
 }
-module.exports={normalizePristine,transitions,resolveProduct,verifyReceipt,provenance,bounds,legacyReceiptIdentity,receiptBoundToRow};
+module.exports={referenceOperation,normalizePristine,transitions,resolveProduct,resolveStockReference,originalReference,withReferencePort,bindReferenceLease,getReferencePort,verifyReceipt,provenance,bounds,legacyReceiptIdentity,receiptBoundToRow};

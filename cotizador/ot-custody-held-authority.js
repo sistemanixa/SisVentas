@@ -9,15 +9,15 @@ const q=v=>{if(typeof v!=='number'||!Number.isFinite(v)||v<0)throw fail();return
 const scoped=new WeakMap();
 async function compute(input){
  if(typeof input?.read!=='function')throw fail();let cache=scoped.get(input.read);if(!cache){cache=new Map();scoped.set(input.read,cache);}
- const id=digest({otKey:input.otKey,productKey:input.productKey,ot:input.ot,group:input.group});if(!cache.has(id))cache.set(id,computeOriginal(input));return new Map(await cache.get(id));
+ const id=digest({otKey:input.otKey,productKey:input.productKey,reference:input.reference?{inventoryKey:input.reference.inventoryKey,receiptIdentityKey:input.reference.receiptIdentityKey,mappingRevision:input.reference.mappingRevision}:null,ot:input.ot,group:input.group});if(!cache.has(id))cache.set(id,computeOriginal(input));return new Map(await cache.get(id));
 }
-async function computeOriginal({ot,otKey,productKey,group,read,query}){
+async function computeOriginal({ot,otKey,productKey,reference,resolveReference,group,read,query}){
  if(!key(otKey)||!key(productKey)||!Array.isArray(group)||!group.length||typeof read!=='function'||typeof query!=='function')throw fail();
  const State=require('./ot-material-state'),targets=Rows.persisted(Rows.view(ot)),selected=new Map(),destinations=new Set(),codes=new Set();
  for(const entry of group){const i=Number(entry.rowKey);if(!Number.isInteger(i)||String(i)!==entry.rowKey||!targets[i]||selected.has(i)||!entry.transition?.target)throw fail();selected.set(i,entry);targets[i]=structuredClone(entry.transition.target);destinations.add(allocation(ot,targets[i]));for(const row of [entry.transition.row,entry.transition.target])for(const c of [row?.cod,row?.codigo])if(typeof c==='string'&&c)codes.add(c);}
  const index=Index.parseIndex('ordenes_trabajo',await read(Index.index+'/ordenes_trabajo'));
  for(const sale of destinations)for(const id of Object.keys(await query('sisventas/ordenes_trabajo','ventaFbKey',sale)||{}))if(!index[id])throw fail();
- const originals=new Map([[otKey,ot]]),matches=row=>row.productoKey===productKey||!key(row.productoKey)&&codes.has(row.cod||row.codigo);
+ const originals=new Map([[otKey,ot]]),mapped=reference?.mapped===true,matches=row=>mapped||row.productoKey===productKey||!key(row.productoKey)&&codes.has(row.cod||row.codigo);
  for(const [id,summary]of Object.entries(index)){
   if(id===otKey)continue;
   if(!destinations.has(summary.ventaFbKey)&&!Rows.persisted(Rows.view(summary)).some(row=>matches(row)&&(destinations.has(row.destinoVenta==='nueva'?row.ventaDestinoFbKey:summary.ventaFbKey)||!key(row.destinoVenta==='nueva'?row.ventaDestinoFbKey:summary.ventaFbKey))))continue;
@@ -28,10 +28,10 @@ async function computeOriginal({ot,otKey,productKey,group,read,query}){
  for(const [i,entry]of selected){let held=0;const destination=allocation(ot,entry.transition.target);
   for(const [id,record]of originals){const rows=id===otKey?targets:Rows.persisted(Rows.view(record));for(let j=0;j<rows.length;j++){
    const row=rows[j];if(id===otKey&&j===i||!matches(row))continue;
-   const ref=JSON.stringify([row.productoKey||null,row.cod||row.codigo||null]);if(!resolved.has(ref))resolved.set(ref,await State.resolveProduct(row,{read,query}));if(resolved.get(ref)!==productKey)continue;if(allocation(record,row)!==destination)continue;
+   const ref=JSON.stringify([mapped?id:null,mapped?j:null,row.productoKey||null,row.cod||row.codigo||null]);if(!resolved.has(ref))resolved.set(ref,await State.resolveStockReference(row,{read,query,resolveReference:mapped?resolveReference:undefined,original:mapped?State.originalReference(record,id,j):undefined}));const physical=resolved.get(ref);if(physical.inventoryKey!==(reference?.inventoryKey??productKey))continue;if(allocation(record,row)!==destination)continue;
    State.bounds(row,{unchanged:true});const delivered=q(row.entregada??0),installed=q(row.instalada??0),returned=q(row.devuelta??0);if(Money.quantitySum([installed,returned])>delivered||delivered>0&&row.custodiaActiva!==true)throw fail();
    // Changed current rows are projected targets, not already committed receipts.
-   if(installed>0&&!(id===otKey&&selected.has(j)))await State.verifyReceipt({ot:record,otKey:id,transition:{target:row},productKey,read});
+   if(installed>0&&!(id===otKey&&selected.has(j)))await State.verifyReceipt({ot:record,otKey:id,transition:{target:row},productKey:physical.productKey,reference:physical,read});
    held=Money.quantitySum([held,delivered,-installed,-returned]);
   }}result.set(entry.rowKey,held);
  }

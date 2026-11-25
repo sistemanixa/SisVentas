@@ -48,6 +48,15 @@
       if (draft.ventaFbKey || draft.ventaId || draft.venta) {
         if (!window.SVOTLifecycle) throw Error('Recargá la aplicación para guardar la rendición de forma segura.');
         capability = await window.SVOTLifecycle.prepare(original,{kind:'custody'});
+      } else if (window.SVOTInventory?.rendition) {
+        if (!valid()) throw Error('La sesión, los permisos o los materiales cambiaron. Volvé a abrir la OT.');
+        var result = await window.SVOTInventory.rendition(original,draft);
+        if (result?.installed === true) {
+          if (result.confirmed !== true || !result.ot) throw Error('No se confirmó la rendición. Consultá la operación.');
+          reconcileConfirmed(result.ot,confirmed);
+          return result.ot;
+        }
+        if (result?.installed !== false) throw Error('No se pudo comprobar el circuito seguro de rendición.');
       }
       if (!valid()) throw Error('La sesión, los permisos o los materiales cambiaron. Volvé a abrir la OT.');
       // Installation and its inventory effects must commit together on the server.
@@ -712,8 +721,14 @@
     if (!linked && (!window.SisVentasCompras || typeof window.SisVentasCompras.receiveOTReturns !== 'function')) throw Error('No está listo el registro de la devolución. Recargá la aplicación.');
     // Para OT con venta, depósito, rendición y estados forman un único PATCH.
     // No liberar primero una reserva desde el navegador y guardar la OT después.
+    var returnView = confirmedView(ot,'ot.entregarMateriales');
     var inventoryJob = linked ? Promise.resolve() : window.SisVentasCompras.receiveOTReturns(ot, receptions);
-    await Promise.resolve(inventoryJob).then(function () {
+    await Promise.resolve(inventoryJob).then(function (result) {
+      if (!linked && result?.installed === true) {
+        if (result.confirmed !== true || !result.ot) throw Error('No se confirmó la devolución segura. Consultá la operación.');
+        reconcileConfirmed(result.ot,returnView);
+        return;
+      }
       ot.materiales = (ot.materiales || []).map(function (raw) {
         var material = normalizeMaterial(raw);
         if (!material.devueltaPendiente) return material;

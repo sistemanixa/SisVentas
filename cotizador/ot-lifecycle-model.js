@@ -39,6 +39,7 @@ function validLink(ot,sale,otKey,primary,others){
  if(sale.otId==null&&!['otFbKey','otKey','ordenTrabajoId','ordenTrabajoFbKey','ot','otNumero'].some(k=>sale[k]!=null)&&Object.hasOwn(others,otKey)&&row&&typeof ot.id==='string'&&ot.id.length>0&&row.id===ot.id&&Number.isSafeInteger(row._svListRevision)&&row._svListRevision>0&&row._svListRevision===ot._svListRevision&&row.ventaFbKey===ot.ventaFbKey&&row.ventaId===sale.id&&ot.ventaId===sale.id)return true;
  return !!(primary&&row&&main&&primary.ventaFbKey===ot.ventaFbKey&&norm(primary.ventaId)===norm(sale.id)&&row.ventaFbKey===ot.ventaFbKey&&norm(row.ventaId)===norm(sale.id)&&main.ventaFbKey===ot.ventaFbKey&&norm(main.ventaId)===norm(sale.id)&&main._svListRevision===(primary._svListRevision||0));
 }
+function assertSaleLink(before,sale,otKey,primary=null,others={}){const saleKey=before.ventaFbKey,id=String(sale?.id||sale?.numero||'').replace(/^#/,'').trim().toUpperCase(),otId=String(before.ventaId||before.venta||'').replace(/^#/,'').trim().toUpperCase();if(!saleKey||!id||id!==otId||!validLink(before,sale,otKey,primary,others)||sale.anulada||['anulada','anulado','cancelada','cancelado'].includes(normalized(sale.estado)))throw fail('El vínculo de la OT con la venta requiere revisión.');return{saleKey,id};}
 function plan({before,changes,kind,sale,primary=null,others={},products={},actor,at,action,allowPending=false}){
  if(!before||!['close','custody','return'].includes(kind)||!changes||typeof changes!=='object'||Array.isArray(changes))throw fail('Solicitud de OT inválida.');
  const closeFields=['conformidadCliente','nombreConformidad','observacionesCierre'],custodyFields=['materiales','custodiaIniciada','custodiaRendida','custodiaRendidaEn','custodiaRendidaPor'];
@@ -63,8 +64,7 @@ function plan({before,changes,kind,sale,primary=null,others={},products={},actor
  if(before.audit!=null&&!Array.isArray(before.audit))throw fail('El historial de la OT requiere revisión.');
  next.audit=[...(before.audit||[]),{fecha:at,usuario:actor.name,actorUid:actor.uid,accion:action||({close:'OT finalizada con estado de venta sincronizado',custody:'Rendición guardada con estado de venta sincronizado',return:'Devolución recibida con estado de venta sincronizado'}[kind]),tipo:'ot_lifecycle',kind}];
  let saleStatus=null,saleChanges={};
- if(sale){const saleKey=before.ventaFbKey,id=String(sale.id||sale.numero||'').replace(/^#/,'').trim().toUpperCase(),otId=String(before.ventaId||before.venta||'').replace(/^#/,'').trim().toUpperCase();
-  if(!saleKey||!id||id!==otId||!validLink(before,sale,actor.otKey,primary,others)||sale.anulada||['anulada','anulado','cancelada','cancelado'].includes(normalized(sale.estado)))throw fail('El vínculo de la OT con la venta requiere revisión.');
+ if(sale){const {saleKey,id}=assertSaleLink(before,sale,actor.otKey,primary,others);
   const linked=Object.entries(others).filter(([k,o])=>k!==actor.otKey&&(o.ventaFbKey===saleKey||String(o.ventaId||'').replace(/^#/,'').trim().toUpperCase()===id));
   const unresolved=linked.some(([,o])=>!closed(o)||normalized(o.estado)==='con_observaciones');
   const state=closed(next)&&!next.cierreConObservaciones&&!unresolved?'instalado':'en_instalacion';saleStatus={saleKey,estadoInst:state};
@@ -72,4 +72,4 @@ function plan({before,changes,kind,sale,primary=null,others={},products={},actor
  }
  return {ot:next,saleStatus,saleChanges};
 }
-module.exports={closed,custody,plan,service,CHECK_COUNTS,checksComplete,materialChanges};
+module.exports={closed,custody,plan,service,CHECK_COUNTS,checksComplete,materialChanges,assertSaleLink};
