@@ -76,12 +76,13 @@ async function runCriticalPath(page,{freezeSHA,scenario,read,counts,armPostCommi
  await modal.locator('.ot-ex-return').fill(String(scenario.returnQuantity));for(const name of ['.ot-ex-tech','.ot-ex-damaged','.ot-ex-missing'])await modal.locator(name).fill('0');
  await modal.getByRole('button',{name:'Guardar rendición',exact:true}).click();await waitCommitted('custody');progress('consume');
  const consumed=await read(scenario.inventoryPath);assert.equal(consumed.general,delivered.general,'Instalar no puede descontar General otra vez');
- await page.locator('#ot-btn-recibir-devolucion').click();await confirmVisible(page,/devoluci/);await waitCommitted('return');
+ await page.locator('#ot-btn-recibir-devolucion').click();await confirmVisible(page,/depósito recibió 12 unidad/);await waitCommitted('return');
  const returned=await read(scenario.inventoryPath),finalOT=await read(scenario.otPath),row=quote.deliveryQuote.rows[0],installed=row.cantidad-scenario.returnQuantity;
  assert.ok(installed>0&&scenario.returnQuantity>0);assert.equal(finalOT.materiales[0].instalada,installed);assert.equal(finalOT.materiales[0].devuelta,scenario.returnQuantity);
  const receipt=returned.rendicionesOT?.[finalOT.materiales[0].stockRegistro];assert.equal(receipt?.warehouse?.schema,2,'La evidencia debe ser recibo genuino v2');
  const backed=row.descontadoGeneral+row.descontadoReserva,credit=Math.min(scenario.returnQuantity,Math.max(0,backed-installed));assert.equal(receipt.warehouse.returnedCredited,credit);assert.equal(receipt.warehouse.returnedUncredited,scenario.returnQuantity-credit);assert.equal(returned.general,consumed.general+credit);
  for(const [key,value]of Object.entries(initial.rendicionesOT||{}))assert.deepEqual(returned.rendicionesOT[key],value,'Recibo histórico intacto: '+key);assert.equal((await counts()).sdkWrites,0);progress('return genuine credited/uncredited');
+ await page.getByText('Devuelto: '+scenario.returnQuantity,{exact:true}).waitFor();
  return {creation,quote:quote.deliveryQuote,initial,received,delivered,consumed,returned,finalOT};
 }
 async function runFrozen(){
