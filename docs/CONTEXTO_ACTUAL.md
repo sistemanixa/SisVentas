@@ -1,3 +1,7 @@
+# Conservación de base nativa y referencias explícitas · 25/11/2026
+
+La prueba de preservación reconstruye los mismos hashes nativos anteriores revirtiendo bloques EXACTOS de la extensión revisada Stock/Policy; no se sustituyen hashes históricos ni se aceptan cambios desconocidos. El manifiesto contiene sólo diferencias públicas desde37e1, sin datos. El hook Stock valida la fuente previa a proyecciones exclusivamente extraída por StockOrderPolicy privado; se comprueba el hook real, no una firma antigua ya reemplazada. Pruebas adversariales de alteraciones desconocidas conservadas y nueva alteración de claim rechazada. Esto complementa las pruebas funcionales/emu de la extensión, no las reemplaza.
+
 # Cierre de dependencias del contenedor · 25/11/2026
 
 Dockerfile incluye explícitamente los 69 módulos locales nuevos alcanzados por sus entrypoints, sin COPY global ni archivos privados. Prueba de cierre y arranque desde exclusivamente COPY: 10 PASS; rutas Dashboard preservadas y sin lecturas/escrituras al iniciar OFF. Esto no verifica cohorte ON, artefacto UI/pins ni una imagen publicada: faltan dominio OT final y paquete firmado conjunto. No hubo build/despliegue remoto.
