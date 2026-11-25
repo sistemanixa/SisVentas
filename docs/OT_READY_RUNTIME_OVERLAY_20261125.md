@@ -1,3 +1,9 @@
+# Composición ampliada con dependencia capturada
+
+Root recuperó ot-summary-digest.js de la misma imagen y actualizó manifestOT a11 archivos. Retirado el guard de dependencia faltante; loader verifica los11 hashes. Último pase5PASS: custodia relacionada ejecuta summaryDigest real, preserva su reserva y original; cliente sin SDK extra y Delivery.available conservan verificaciones. Overlay puro SIN cambios desde a99f86cb.
+
+Par único ficticio con Runtime/Guard/Store/Life/Delivery/Policy capturados, restantes dependencias del checkout:641P/1100otrasOT/12filas/150ms. Antes6461ms, después6345ms;119backendambos,max6,1commit,leaseviva. Ahorro observado116ms y una lectura cliente menos, no latencia de producción ni optimización general resuelta. Evidencia tmp/ot-active-writers/runtime-overlay.json, sólo local.
+
 # Overlay mínimo runtime6b6276dd
 
 API pura require(ot-ready-overlay).apply(filename, Buffer|string) devuelve mismo tipo. Soporta sólo ot-lifecycle.js y ot-delivery.js: agrega otKey/otRevision/expectedOTHash a available, y en Delivery asigna a variable la lectura autorizada ya existente. No paralelismo nuevo ni restauración de consumidores del repositorio sobre imagen. No modifica disco. Exactamente una coincidencia dentro de available, idempotencia estricta, aborta ante forma inesperada y verifica reversión textual exacta del cambio. Todo lo anterior/posterior a available permanece byte idéntico, incluidos summaryDigest, batches, activation, execute y fresh checks.
