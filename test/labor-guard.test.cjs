@@ -1,4 +1,13 @@
 'use strict';
+const GuardFactoryForReadiness=require('../cotizador/labor-guard');
+require('node:test')('readiness de Stock refleja sólo el proyector real del constructor y no admite reasignación',()=>{
+ const assert=require('node:assert/strict'),off=GuardFactoryForReadiness.createLaborGuard({store:{}});
+ assert.equal(off.stockOrderProjections,false);assert.equal(off.operationalSummaries,false);
+ assert.throws(()=>{off.stockOrderProjections=true;},TypeError);
+ assert.throws(()=>GuardFactoryForReadiness.createLaborGuard({store:{},stockOrderProjections:{augment:async()=>{}},operationalSummaries:false}));
+ const on=GuardFactoryForReadiness.createLaborGuard({store:{},stockOrderProjections:{augment:async()=>{}},operationalSummaries:true});
+ assert.equal(on.stockOrderProjections,true);assert.equal(on.operationalSummaries,true);
+});
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {createLaborGuard,child,put,parts,digest,affected}=require('../cotizador/labor-guard'),Index=require('../cotizador/labor-index');
 function fixture(){let clock=1000,sequence=0;const data={sv_labor_config:{schema:1,ready:true},sisventas:{gastos:{g:{empleadoId:' e ',fecha:'2026-10-01',descripcion:'Ficticio',monto:100}},productos:{huge:'x'.repeat(10000)}}};const calls={reads:[],commits:[],aborts:[],acquires:[]};
