@@ -201,3 +201,6 @@ No hubo consulta remota desde este frente. La revisión nueva anunciada por root
 Generar con `node scripts/build-server-final-matrix.cjs [checkout-fuente] [snapshot-opcional]`; JSON y Markdown se escriben únicamente en docs del checkout de esta herramienta. No modifica el checkout fuente ni shared. El diagnóstico invalida slashgenérico como prueba de llamada y marca inferencias dinámicas/carga no demostrada.
 
 No se adjudican métricas a rutas no ejecutadas. Financiera/privada/fiscal/secretos permanecen en servidor por la función indicada; no se migran por nombre del botón. Ni inventario ni tests locales acreditan despliegue, reglas remotas o SDK autorizado. La autorización/readiness/sesión/CAS actuales se conservan.
+# Extensión de mantenimiento preparada
+
+El inventario fuente incorpora una ruta adicional: POST `/compras/ordenes/reconciliar-pendiente`, confirmada en531ac358. Es mantenimiento explícito de administrador con cohorte, permisos vigentes y CAS; conserva stock e importes. No tiene llamador de interfaz ni ejecución productiva acreditados. El inventario actualizado suma91rutas/92métodos; la matriz generada precedente conserva su snapshot original y sus límites de medición.

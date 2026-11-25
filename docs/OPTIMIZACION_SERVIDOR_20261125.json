@@ -3,8 +3,8 @@
   "sourceCommit": "9cbe59dd76a1d1e5aa0caaeb0ccab3427832d4a2",
   "sourceApp": "app.v3.21.12.js",
   "scope": "static source inventory, not an assertion of current deployed flags or grants",
-  "mainRouteCount": 90,
-  "mainMethodActionCount": 91,
+  "mainRouteCount": 91,
+  "mainMethodActionCount": 92,
   "groups": {
     "media": {
       "modules": [
@@ -244,7 +244,9 @@
         "cotizador/ot-lifecycle.js",
         "cotizador/ot-office-count.js",
         "cotizador/ot-delete-http-adapter.js",
-        "cotizador/purchase-order-delete.js"
+        "cotizador/purchase-order-delete.js",
+        "cotizador/purchase-current-pending-command.js",
+        "cotizador/purchase-current-pending-sources.js"
       ],
       "callers": [
         "js/modules/office-stock-adapter.js",
@@ -2535,6 +2537,26 @@
       ],
       "decision": "keep-server",
       "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/compras/ordenes/reconciliar-pendiente",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "stockot",
+      "sourceLine": 2087,
+      "callers": [
+        {
+          "file": "cotizador/inventory-command-http.js",
+          "line": 15,
+          "evidence": "typed-server-maintenance-dispatch; no frontend caller or production execution asserted"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; prepared admin maintenance, not deployed",
+      "authority": "Active administrator, Orders edit and maintenance migration, genuine signed cohort, current permissions and exact original CAS",
+      "purpose": "Current pending metadata admission; no stock, monetary or historical movement write"
     }
   ],
   "otherServices": [
@@ -2820,5 +2842,12 @@
       "close",
       "stockrepair (internal count correction)"
     ]
-  }
+  },
+  "extensions": [
+    {
+      "sourceCommit": "531ac358bfa88b5d53598092f45ce7c48fe9f95b",
+      "route": "/compras/ordenes/reconciliar-pendiente",
+      "scope": "One prepared maintenance route; original snapshot routes and references retained. Not a runtime or production measurement."
+    }
+  ]
 }
