@@ -116,3 +116,31 @@ un recibo/efecto. Recibos ausentes, genéricos, digest o selector falsificados,
 permisos/CAS/PJR/EOF cambiados abortan sin segundo PATCH. Los resultados
 solapados no se suman como pruebas distintas. Log local:
 `C:/SisVentas/tmp/purchase-current-pending-focused-20261125.log`.
+
+## Medición acotada posterior al baseline
+
+`purchase-current-pending-capabilities.test.cjs` crea el par P/J/R con mapper
+real y ejecuta la conciliación con Guard/Store REST nativos y cohorte firmada
+ficticia. Luego llama dos veces al Host INTACTO, sin añadir escaneo ni caché:
+
+| Llamada | Ready | GET puntuales | Queries paginadas | Bytes JSON UTF-8 recibidos |
+|---|---|---:|---:|---:|
+| 1 | true | 10 | 0 | 2832 |
+| 2 | true | 10 | 0 | 2832 |
+
+Los GET corresponden a marker/activation, configuración operativa, Pages,
+Accounts, History, cobertura financiera, contador y config/fence de orden Stock.
+Se leen nuevamente en ambas llamadas. No hay escrituras ni modificaciones del
+baseline, recibo o ledger. Autenticación HTTP, headers, TLS y latencia real no
+están medidos; los bytes son sólo respuestas JSON de la fixture.
+
+Esto mide el readiness actual de dependencias, NO prueba que se haya añadido una
+validación global de compatibilidad ni acredita retiro de SDK. No se implementa
+la caché positiva hipotética ligada a numeración; antes exige acreditar todos
+los escritores monótonos y el reporte explícito de cierre que decidirá Root.
+
+Follow-up: 27 PASS (26 nativos, incluido el nuevo caso de baseline de fuente
+conjunta con SourceCostVersion0 y Sale/List/ledger intactos, más esta medición).
+Se superponen a los 392 anteriores; no sumarlos como casos únicos. Ningún cambio
+de producto en este follow-up. Log:
+`C:/SisVentas/tmp/purchase-current-pending-measurement-20261125.log`.
