@@ -11,7 +11,7 @@ function dto(payment){
  const out={};for(const key of ['fbKey','id','monto','fecha','medio','nota','anulado','estado']){const v=payment[key];if(v===null||['string','boolean'].includes(typeof v)||typeof v==='number'&&Number.isFinite(v))out[key]=v;}
  if(out.nota===undefined){const note=payment.obs??payment.referencia??payment.ref;if(typeof note==='string')out.nota=note;}
  out.monto=amount(payment.monto);
- out.hasReceipt=!!(payment.comprobanteRef||payment.comprobanteAdjunto||payment.comprobante);return out;
+ out.hasReceipt=!!(payment.comprobanteRef||payment.comprobanteAdjunto||payment.comprobante||(payment.comprobanteCuenta&&(payment.grupoPago||payment.pagoCuentaGrupo)));return out;
 }
 function create({ownership,store}){
  if(!ownership?.authorize||!ownership.visibleRecordsByIds||!store?.read||!store.readAsUser)throw TypeError('Faltan puertos autorizados de historial de cobros.');

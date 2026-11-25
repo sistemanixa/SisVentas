@@ -34,3 +34,10 @@ test('payment user-read denial remains fail closed without a service-read fallba
 test('alias candidate of another sale is not disclosed and indexed collision denial is retained',async()=>{const f=await setup({p:{ventaId:'V-FICTICIA-999',monto:70}});const r=await f.load();a.equal(r.paymentHistory.source,'legacy');a.deepEqual(r.paymentHistory.payments,[]);const other=await f.auth('b');await a.rejects(f.service.load({req:{headers:{authorization:'Bearer b'}},actor:other,saleKey:'one',record:f.root.sisventas.ventas.one}));});
 test('a numeric-alias collision never bypasses the payment source user-read denial',async()=>{const f=await setup({p:{ventaId:'OT-001',monto:70}});f.root.sisventas.ventas.one.id='V-001';f.control.deny='sisventas/pagos/p';await a.rejects(f.load());a(f.calls.some(c=>c.path==='sisventas/pagos/p'&&c.override));});
 test('malformed or negative payment amounts fail instead of becoming zero',async()=>{for(const monto of [false,' ', '40invalid',-1]){const f=await setup({p:{ventaFbKey:'one',monto}});await a.rejects(f.load());}});
+test('shared account receipt requires its original group and exposes only a boolean, including annulled globals',async()=>{
+ for(const [extra,expected]of [[{comprobanteCuenta:true,grupoPago:'group-fixture'},true],[{comprobanteCuenta:true,pagoCuentaGrupo:'account-fixture'},true],[{comprobanteCuenta:true},false],[{comprobanteCuenta:true,grupoPago:null,pagoCuentaGrupo:null},false],[{comprobanteCuenta:null,grupoPago:'group-fixture'},false]]){
+  const f=await setup({p:{ventaFbKey:'one',monto:40,anulado:true,...extra}});f.root.sisventas.ventas.one.pagos=[{monto:40}];const before=structuredClone(f.root),h=(await f.load()).paymentHistory;
+  a.equal(h.source,'global');a.equal(h.paidAmount,0);a.equal(h.payments.length,1);a.equal(h.payments[0].hasReceipt,expected);a.equal(h.payments[0].anulado,true);
+  for(const key of ['comprobanteCuenta','grupoPago','pagoCuentaGrupo'])a.equal(Object.hasOwn(h.payments[0],key),false);a.deepEqual(f.root,before);
+ }
+});
