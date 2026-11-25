@@ -57,5 +57,25 @@
   result.historial=[...copy(claim.historial||[]),{texto:text,autor:actor.name,actorUid:actor.uid,ts:at}];
   return {changes:result,requires:{support:'resolver',otRelation:!!ot},structure:ot?{otKey,kind:'claim',changes:{reclamoFbKey:claimKey,...(sale?{ventaFbKey:saleKey}:{})}}:null};
  }
- return Object.freeze({additionalSale,supportChanges});
+ function existingSale({ot,otKey,originalSale,sale,saleKey,actor,at}){
+  identity(ot,otKey);identity(originalSale,saleKey);identity(sale,saleKey);actorTime(actor,at);
+  if(['completada','completado','completo','finalizada','finalizado','cerrada','cerrado','terminada','terminado','con_observaciones'].includes(String(ot.estado||'').trim().toLowerCase()))throw fail('La OT está cerrada.');
+  if(ot.ventaFbKey!==saleKey||originalSale.otId!==otKey||sale.otId!==otKey||originalSale.id!==sale.id||!key(ot.clienteFbKey)||originalSale.clienteFbKey!==ot.clienteFbKey||sale.clienteFbKey!==ot.clienteFbKey||!Array.isArray(ot.materiales)||ot.audit!=null&&!Array.isArray(ot.audit))throw fail('La venta original requiere su vínculo canónico.');
+  function quantities(record){if(!Array.isArray(record.items))throw fail('La venta requiere ítems originales.');const totals=new Map();for(const item of record.items){if(!item||typeof item.cod!=='string'||!item.cod.trim()||!finite(item.qty)||!finite(item.punit)||!finite(item.sub))throw fail('El ítem de venta requiere revisión.');totals.set(item.cod,(totals.get(item.cod)||0)+item.qty);}return totals;}
+  const before=quantities(originalSale),after=quantities(sale),materials=copy(ot.materiales);
+  const quantity=row=>{const value=row.vendida??row.qty??row.cantidad;if(!finite(value))throw fail('La cantidad original requiere revisión.');return value;};
+  const physical=row=>['entregada','instalada','cantidadInstalada','devuelta','devueltaPendiente','enTecnico','danada','faltante','stockRevision'].some(field=>row[field]!=null&&row[field]!==0)||['stockRegistro','entregadoEn','recibidoEn','stockBaseInstalada','origenMaterialHistorico','_recuperado','movimientosStock'].some(field=>row[field]!=null&&row[field]!==''&&row[field]!==0)||row.custodiaActiva===true||row.custodiaClasificada===true||row.stockPendiente===true;
+  for(const code of new Set([...before.keys(),...after.keys()])){
+   const delta=(after.get(code)||0)-(before.get(code)||0);if(!delta)continue;
+   if(delta<0){let remove=-delta;const available=materials.filter(row=>row.destinoVenta!=='nueva'&&(row.cod||row.codigo)===code&&!physical(row)).reduce((total,row)=>total+quantity(row),0);if(available+1e-9<remove)throw fail('El material tiene entrega, instalación o recibo registrado. Corregí su rendición y registrá la devolución antes de reducirlo; su historia no se borra.');
+    for(let index=materials.length-1;index>=0&&remove>1e-9;index--){const row=materials[index];if(row.destinoVenta==='nueva'||(row.cod||row.codigo)!==code||physical(row))continue;const original=quantity(row),take=Math.min(original,remove),left=original-take;remove-=take;if(left<=1e-9&&!materials.slice(index+1).some(physical)){materials.splice(index,1);continue;}for(const field of ['vendida','qty','cantidad'])if(Object.hasOwn(row,field))row[field]=Math.max(0,left);if(Object.hasOwn(row,'sub')){if(!finite(row.sub))throw fail('El subtotal original requiere revisión.');row.sub=original?row.sub*(Math.max(0,left)/original):0;}}
+   }else{
+    let pending=delta;for(const item of sale.items.filter(item=>item.cod===code).slice().reverse()){const amount=Math.min(item.qty,pending);if(amount<=0)continue;pending-=amount;const row={cod:item.cod,desc:item.desc||'',vendida:amount,qty:amount,cantidad:amount,punit:item.punit,sub:item.qty?item.sub*(amount/item.qty):0,entregada:0,instalada:0,custodiaActiva:false,custodiaClasificada:false,adicionalOT:true,origen:'adicional_ot',destinoVenta:'original',ventaDestinoFbKey:saleKey,ventaDestinoId:sale.id,agregadoEn:new Date(at).toISOString(),agregadoPor:actor.name};for(const name of ['productoKey','costoUnitarioCompra','costoProveedor','costo','esManoDeObra'])if(Object.hasOwn(item,name))row[name]=copy(item[name]);materials.push(row);if(pending<=1e-9)break;}
+    if(pending>1e-9)throw fail('La venta no respalda la cantidad adicional.');
+   }
+  }
+  const audit=[...copy(ot.audit||[]),{fecha:new Date(at).toISOString(),usuario:actor.name,actorUid:actor.uid,accion:'Materiales corregidos desde venta original '+sale.id,tipo:'ot_related',kind:'materials'}],base='sisventas/ordenes_trabajo/'+otKey;
+  return {related:{[base+'/materiales']:materials,[base+'/audit']:audit},materiales:materials,audit,requires:{ot:'corregirMateriales',sale:'existingFinancialWriter'},physicalDelivery:false};
+ }
+ return Object.freeze({additionalSale,existingSale,supportChanges});
 });

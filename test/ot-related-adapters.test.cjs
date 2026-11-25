@@ -29,3 +29,14 @@ test('support typed OT recovery binds real identities, client and existing sale 
 test('same pure adapter is usable by the browser without SDK or network',()=>{
  const window={},context={window,structuredClone};vm.runInNewContext(fs.readFileSync(require.resolve('../js/modules/ot-related-adapters'),'utf8'),context);assert.equal(typeof window.SVOTRelatedAdapters.additionalSale,'function');const plan=window.SVOTRelatedAdapters.additionalSale(fixture());assert.equal(plan.materiales[1].entregada,0);
 });
+function existing(){const f=fixture();f.ot.ventaFbKey='sale';f.ot.ventaId='V-2';f.ot.materiales=[{cod:'X',vendida:1,qty:1,punit:3.12,sub:3.12,instalada:1,entregada:1,stockRegistro:'original',stockRevision:1}];f.originalSale=structuredClone(f.sale);f.originalSale.items=[{cod:'X',desc:'Original',qty:1,punit:3.12,sub:3.12}];f.sale.items=[{cod:'X',desc:'Original',qty:2,punit:3.12,sub:6.24}];return f;}
+test('original sale increases append pending rows preserving physical receipt and price snapshots',()=>{
+ const f=existing(),before=structuredClone(f),result=Adapters.existingSale(f);assert.deepEqual(f,before);assert.deepEqual(result.materiales[0],f.ot.materiales[0]);assert.equal(result.materiales[1].vendida,1);assert.equal(result.materiales[1].instalada,0);assert.equal(result.materiales[1].entregada,0);assert.equal(result.materiales[1].punit,3.12);assert.equal(result.materiales[1].destinoVenta,'original');
+});
+test('original sale removal of pending row retains later physical row index and receipt',()=>{
+ const f=existing();f.ot.materiales.unshift({cod:'Y',vendida:1,qty:1,punit:1.234,sub:1.234,entregada:0,instalada:0});f.originalSale.items.push({cod:'Y',qty:1,punit:1.234,sub:1.234});f.sale.items=f.originalSale.items.filter(row=>row.cod!=='Y');const result=Adapters.existingSale(f);assert.equal(result.materiales[0].vendida,0);assert.equal(result.materiales[0].punit,1.234);assert.deepEqual(result.materiales[1],f.ot.materiales[1]);
+});
+test('original sale cannot reduce physical history; ordinary pending removal remains editable',()=>{
+ const f=existing();f.sale.items=[];assert.throws(()=>Adapters.existingSale(f),/rendición.*devolución/);
+ f.ot.materiales=[{cod:'X',vendida:1,qty:1,punit:3.12,sub:3.12,entregada:0,instalada:0}];assert.deepEqual(Adapters.existingSale(f).materiales,[]);
+});
