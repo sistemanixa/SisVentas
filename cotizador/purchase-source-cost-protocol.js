@@ -1,0 +1,31 @@
+'use strict';
+// Reserved server output only. No persisted field or caller claim issues authority.
+const Policy=require('./purchase-inventory-policy');
+const {digest}=require('./labor-guard');
+const PREFIX='svPurchaseSourceCost';
+const MAX_SOURCE_BYTES=8192;
+const fail=message=>Object.assign(Error(message),{code:'SV_PURCHASE_SOURCE_COST_V2',statusCode:409});
+const key=v=>typeof v==='string'&&v.length>0&&Buffer.byteLength(v)<=768&&!/[.#$\[\]/\x00-\x1f\x7f]/.test(v)&&!['constructor','prototype','__proto__'].includes(v),hex=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
+const sourceFields=new Set(['schema','uid','opId','fence','inputDigest','basePatchHash','sealed','role','permissionRevision','permissionDigest','kind','purpose','orderKey','orderKeys','numbering','saleKey','saleKeys','saleSources','sourceStates','listKey','listKeys','saleWritten','sourceHash','sourceTopology']);
+const stateFields=['saleKey','listKey','saleBeforeRevision','saleAfterRevision','listBeforeRevision','listAfterRevision','saleBeforeHash','saleAfterHash','listBeforeHash','listAfterHash'];
+const reserved=Object.freeze({svPurchaseSourceCostVersion:0,svPurchaseSourceCostSaleKey:'',svPurchaseSourceCostOrderKey:'',svPurchaseSourceCostKind:'',svPurchaseSourceCostBasePatchHash:'',svPurchaseSourceCostSourceHash:'',svPurchaseSourceCostPermissionDigest:''});
+function sanitize(claims){return Object.fromEntries(Object.entries(claims||{}).filter(([key])=>!key.startsWith(PREFIX)));}
+function claims(actor,lease,basePatch){
+ const source=Policy.getSourceAuthority(actor,lease,basePatch);
+ if(source&&(source.sourceTopology==='joint'||['prepare','reconcile'].includes(source.purpose)))return v2(source,actor,lease,basePatch);
+ if(!source?.sealed||source.kind!=='receive'||!source.saleWritten||!source.saleKey)return {...reserved};
+ return {svPurchaseSourceCostVersion:1,svPurchaseSourceCostSaleKey:source.saleKey,svPurchaseSourceCostOrderKey:source.orderKey,svPurchaseSourceCostKind:'receive',svPurchaseSourceCostBasePatchHash:source.basePatchHash,svPurchaseSourceCostSourceHash:source.sourceHash,svPurchaseSourceCostPermissionDigest:source.permissionDigest};
+}
+function v2(source,actor,lease,basePatch){
+ const joint=source.sourceTopology==='joint',expectedStates=joint?[...stateFields,'jointSourceKey']:stateFields;
+ if(!['prepare','reconcile',...(joint?['receive']:[])].includes(source.purpose)||source.sourceTopology!=null&&!['single','joint'].includes(source.sourceTopology)||joint&&(!key(source.orderKey)||!key(source.listKey)))throw fail('La topología conjunta exige propósito, orden y lista originales sin fallback.');
+ if(Object.keys(source).some(k=>!sourceFields.has(k))||source.schema!==1||source.sealed!==true||source.uid!==actor.uid||actor.claims?.uid!==actor.uid||source.uid!==lease.actorUid||source.opId!==actor.opId||source.opId!==lease.opId||source.fence!==lease.fence||source.inputDigest!==lease.digest||actor.transportDigest!==lease.digest||source.basePatchHash!==digest(basePatch)||source.role!==actor.role||source.permissionRevision!==(actor.permissionRevision??null)||source.permissionDigest!==actor.permissionDigest||![source.basePatchHash,source.sourceHash,source.permissionDigest].every(hex)||!Array.isArray(source.saleSources)||!Array.isArray(source.sourceStates)||source.saleSources.length!==source.sourceStates.length)throw fail('La autoridad de costos no conserva su operación y fuentes selladas.');
+ if(!source.saleSources.length){if(source.saleWritten)throw fail('Faltan las fuentes de las ventas escritas.');return {...reserved};}
+ if(source.saleWritten!==true||source.purpose==='reconcile'&&!key(source.orderKey)||source.orderKey!=null&&!key(source.orderKey)||source.listKey!=null&&!key(source.listKey))throw fail('La fuente de costos no tiene su orden o lista real.');
+ const saleLists=Object.create(null),listSales=Object.create(null),states=new Map();
+ for(const state of source.sourceStates){if(!state||Object.keys(state).sort().join(',')!==expectedStates.slice().sort().join(',')||!key(state.saleKey)||!key(state.listKey)||joint&&(typeof state.jointSourceKey!=='string'||!/^(0|[1-9][0-9]*)$/.test(state.jointSourceKey)||state.jointSourceKey.length>3||state.listKey===source.listKey)||states.has(state.saleKey)||!stateFields.filter(k=>k.endsWith('Revision')).every(k=>Number.isSafeInteger(state[k])&&state[k]>=0)||!stateFields.filter(k=>k.endsWith('Hash')).every(k=>hex(state[k]))||state.saleAfterRevision<state.saleBeforeRevision||state.listAfterRevision<state.listBeforeRevision)throw fail('Estados canónicos de costos inválidos o repetidos.');states.set(state.saleKey,state);}
+ for(const pair of source.saleSources){if(!pair||Object.keys(pair).sort().join(',')!=='listKey,saleKey'||!key(pair.saleKey)||!key(pair.listKey)||Object.hasOwn(saleLists,pair.saleKey)||Object.hasOwn(listSales,pair.listKey))throw fail('Fuentes de costo contradictorias o repetidas.');const state=states.get(pair.saleKey),sale=basePatch['sisventas/ventas/'+pair.saleKey],list=basePatch['sisventas/listas_materiales/'+pair.listKey];if(!state||state.listKey!==pair.listKey||!sale||sale.listaMaterialesId!==pair.listKey||digest(sale)!==state.saleAfterHash||list!=null&&(list.ventaFbKey!==pair.saleKey||digest(list)!==state.listAfterHash)||list==null&&(state.listBeforeHash!==state.listAfterHash||state.listBeforeRevision!==state.listAfterRevision))throw fail('La venta/lista no corresponde al plan final sellado.');const {saleKey,...wire}=state;saleLists[pair.saleKey]=wire;listSales[pair.listKey]=pair.saleKey;}
+ const result={...reserved,svPurchaseSourceCostVersion:2,svPurchaseSourceCostKind:source.purpose,svPurchaseSourceCostTopology:joint?'joint':'single',svPurchaseSourceCostSaleLists:saleLists,svPurchaseSourceCostListSales:listSales,svPurchaseSourceCostOrderKey:source.orderKey||'',svPurchaseSourceCostContextListKey:source.listKey||'',svPurchaseSourceCostBasePatchHash:source.basePatchHash,svPurchaseSourceCostSourceHash:source.sourceHash,svPurchaseSourceCostPermissionDigest:source.permissionDigest};
+ if(Buffer.byteLength(JSON.stringify(result))>MAX_SOURCE_BYTES)throw fail('La operación excede 8KiB de autoridad de costos; dividí las fuentes.');return result;
+}
+module.exports={PREFIX,reserved,sanitize,claims,MAX_SOURCE_BYTES};
