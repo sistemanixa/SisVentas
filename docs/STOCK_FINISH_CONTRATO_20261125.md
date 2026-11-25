@@ -1,0 +1,26 @@
+# Stock: portación acotada sobre v3.21.15
+
+Base: 37e1cbab93eb73b429f1997a28544a22436e4a95. Rama propia codex/stock-finish-20261125. No se copiaron Guard, Store, runtime, Docker, index, reglas ni una rama anterior completa. El listado server de v3.21.12/v15 se conserva sin diferencias de implementación: compact, 100 filas, orden previo a paginación y conservación del catálogo vivo. La prueba de compatibilidad lo compara con su bloque revisado.
+
+Se recuperan exclusivamente los módulos E de referencia P/J/R, cobertura dirigida, IO acotado, localizador, Link plan/policy/command, inicializador y puertos prospectivos/wire. No se activan por importarlos. office-stock recibe resolver e initialInventoryReference opcionales; detalle/historial/guardado consumen la identidad física verificada, con null original real y cantidad anterior desconocida en un primer conteo probado. Los productos inactivos conservan únicamente el conteo directo a cero permitido en la base publicada.
+
+## Contratos para integración
+
+- Root: Store.queryPage de cuatro raíces y beforeCommit.queryPageFresh con lease viva. El puerto fue entregado por Root en 4c1f27cc72718b9f517713a92cfa0cc47ca704ec. La tabla financiera actual 37e1 no admite stock.ajustar: debe agregarse junto a las capacidades genuinas, nunca sólo por texto de operación.
+- Stock runner: uid/claims, role, permissionRevision, permissionDigest, mode user, financialAction stock.ajustar, operation office-stock-adjustment, opId, transportDigest digest(body), input body. StockPolicy.issue emite actor.officeStock privado; validate/token conservan el inventario físico exacto. Stock.context exige módulos Stock y Productos y permiso vigente.
+- Link runner: misma acción, operation office-stock-link. Policy.issue emite **actor.officeStockLink** privado, no actor.stockLink. Hooks exportados: issue/token/validate async/reservedClaims/sanitizeClaims. Patch sólo forward, inverso, recibo del vínculo, recibo coordinado y liberación del guard; no cantidades ni historia comercial. Se liga también a inputDigest, claimsDigest, expiry y mode para rechazar mutación posterior de la capacidad.
+- B: stock-link-activation-contract, inventory-absence-evidence con marca isAuthority y owner privado por factory (contrato B592f), pins/cohort/installation/bootstrap y office-stock-order.classify. B debe seleccionar sus correcciones posteriores, fuentes completas y Rules finales; una copia histórica no acredita cierre de escritores ni activación actual.
+- Compras: purchase-route-contract.byOperation puro de servidor. Puertos purpose manual, manual-edit, list-generation, list-reserve y preparation conservan sus operaciones/kind/wire cerrados. Reservas y preparación jamás inicializan inventario. Los modelos/políticas de Compras verifican origen, cantidades y costos; el puerto no reemplaza esos contratos.
+- UI/root: provenance debe usar history.reference.inventoryKey cuando la asociación P/J/R está activa. El adaptador público todavía lee row.key; no se cambió desde este checkpoint. Activar Revisar vínculo exige estos hooks completos, capacidad de sesión y barrera genuina; no mostrar un éxito simulado.
+
+## Evidencia actual y límites
+
+105 pruebas de referencia/compatibilidad/modelo inicial pasan. Otras 29 pruebas de Stock publicado, conservación y UI390/1280 pasan, incluidas edición y baja de catálogo con la interfaz real aislada. La primera ejecución sin NODE_PATH no encontró Playwright; se repitió usando la dependencia ya instalada, sin instalar paquetes.
+
+Se observó un fallo legítimo al ejecutar Link con el Guard 37e1 real: acción financiera no autorizada. No se relajó ni omitió la expectativa: falta la integración Root de capacidades/tabla financiera. Las demás pruebas portadas requieren las dependencias B/A y esa composición antes de presentar un resultado conjunto.
+
+El test opt-in initial-stock-composed-emulator.integration.cjs ya no depende del snapshot privado32a ni de una ruta fija a una baseline. Usa el checkout/paquete elegido mediante SV_STOCK_COMPOSED_ROOT, SV_STOCK_RULES_BUILDER, SV_STOCK_RULES_BASELINE y su SHA256 revisado; Java/JAR pueden configurarse. No se ha ejecutado aún sobre el paquete completo del25: faltan los módulos curados B y los hooks Root. No contar como evidencia actual la ejecución interrumpida del23.
+
+La prueba pendiente usa preparador, firma, runtime, evidencia de ausencia, comando, Guard/Store y Rules reales con datos ficticios. Cubre conteo0/positivo, ACK perdido con un efecto y recuperación genérica, ledger concurrente, permisos/rol revocados y lease vencida, también tras las lecturas finales. Owner se limita a preparar el emulador y simular concurrencia; los commits de negocio deben pasar por JWT y reglas. Sin callbacks que aprueben siempre, ni producción, ni datos reales.
+
+Ejemplo de parámetros (la baseline privada y su hash los proporciona B, no se versionan): SV_INITIAL_STOCK_EMULATOR=1; SV_STOCK_COMPOSED_ROOT apunta a un paquete coherente con todos los módulos; SV_STOCK_RULES_BASELINE apunta al archivo privado revisado; SV_STOCK_RULES_BASELINE_SHA256 contiene el hash aprobado. Ejecutar con node --test --test-concurrency=1 test/initial-stock-composed-emulator.integration.cjs. La prueba debe detener y limpiar únicamente su emulador propio.
