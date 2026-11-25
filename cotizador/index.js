@@ -83,7 +83,11 @@ const purchaseDeleteService=require('./purchase-order-delete').createPurchaseOrd
 });
 const otDeleteAuthority=require('./ot-delete-authority').createOTDeleteAuthority({auth:firebaseAuth,readServer:async path=>(await admin.database().ref(path).get()).val(),guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 const otDeleteService=require('./ot-delete-http-adapter').createOTDeleteHttpAdapter({authorize:otDeleteAuthority.authorize,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_DELETE_OPERATIONAL_READY==='true'});
-const officeStock=require('./office-stock').create({authorize:laborWriteGateway.authorize,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OFFICE_STOCK_ENABLED==='true'&&process.env.OPERATIONAL_SUMMARIES_ENABLED==='true',queryPage:async(path,o)=>{let ref=db.ref(path);ref=o.orderBy?ref.orderByChild(o.orderBy):ref.orderByKey();if(Object.hasOwn(o,'equalTo'))ref=ref.equalTo(o.equalTo);else if(Object.hasOwn(o,'startAt'))ref=o.after?ref.startAt(o.startAt,o.after):ref.startAt(o.startAt);else if(o.after)ref=ref.startAt(o.after+'\u0000');return (await (o.last?ref.limitToLast(o.limit):ref.limitToFirst(o.limit)).get()).val();}});
+const inventoryReferences=require('./inventory-reference-runtime').create({enabled:laborRuntime.inventoryCohort.mappedAdmission!==null,cohort:laborRuntime.inventoryCohort,store:laborRuntime.store});
+const purchaseHost=require('./purchase-command-host').create({authorize:laborWriteGateway.authorize,store:laborRuntime.store,guard:laborRuntime.guard,cohort:laborRuntime.inventoryCohort,initialInventoryReference:inventoryReferences.initialInventoryReference,orderDelete:purchaseDeleteService,enabled:laborRuntime.inventoryCohort.mappedAdmission!==null});
+const officeStockLink=require('./office-stock-link-command').create({authorize:laborWriteGateway.authorize,store:laborRuntime.store,guard:laborRuntime.guard,assertBarrier:options=>laborRuntime.inventoryCohort.assertAdmission(options),resolveOperation:(identity,body)=>laborWriteGateway.resolve(identity,body),enabled:laborRuntime.inventoryCohort.mappedAdmission!==null});
+const officeStock=require('./office-stock').create({authorize:async req=>{const identity=await laborWriteGateway.authorize(req);await inventoryReferences.assertCompatible();return identity;},store:laborRuntime.store,guard:laborRuntime.guard,resolver:inventoryReferences.stockResolver,initialInventoryReference:inventoryReferences.initialInventoryReference,enabled:laborScopedEnabled&&process.env.OFFICE_STOCK_ENABLED==='true'&&process.env.OPERATIONAL_SUMMARIES_ENABLED==='true',queryPage:async(path,o)=>{let ref=db.ref(path);ref=o.orderBy?ref.orderByChild(o.orderBy):ref.orderByKey();if(Object.hasOwn(o,'equalTo'))ref=ref.equalTo(o.equalTo);else if(Object.hasOwn(o,'startAt'))ref=o.after?ref.startAt(o.startAt,o.after):ref.startAt(o.startAt);else if(o.after)ref=ref.startAt(o.after+'\u0000');return (await (o.last?ref.limitToLast(o.limit):ref.limitToFirst(o.limit)).get()).val();}});
+const inventoryCommandHttp=require('./inventory-command-http').create({purchase:purchaseHost,link:officeStockLink,stock:officeStock,readBody,send});
 const otOfficeCount=require('./ot-office-count').createOTOfficeCount({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_OFFICE_COUNT_ENABLED==='true'});
 const otLifecycle=require('./ot-lifecycle').createOTLifecycle({db,store:laborRuntime.store,guard:laborRuntime.guard,enabled:laborScopedEnabled&&process.env.OT_LIFECYCLE_ENABLED==='true',commercialPages:process.env.COMMERCIAL_PAGES_ENABLED==='true'});
 const expenseReimbursement=require('./bonus-payment').createBonusPayment({authorize:laborWriteGateway.authorize,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled,reimbursement:true});
@@ -2093,11 +2097,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if(pathname==='/compras/ordenes/eliminar'){
-    res.setHeader('Cache-Control','private, no-store');
-    try{const body=await readBody(req,2048);send(res,200,await purchaseDeleteService.handle(req,body));}
-    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar la compra. Consultá la operación antes de repetirla.',...(error.code?{code:error.code}:{})});}return;
-  }
+  if(await inventoryCommandHttp(pathname,req,res))return;
   if(pathname==='/comerciales/ventas/eliminar'){
     res.setHeader('Cache-Control','private, no-store');
     try{const body=await readBody(req,2048),result=await saleDeleteService.handle(req,body);send(res,result.statusCode,result.body);}
@@ -2235,7 +2235,7 @@ const server = http.createServer(async (req, res) => {
       const actor=await service.authorize(req),body=await readBody(req,pathname==='/laboral/capacidades'?128:16*1024*1024);
       if(pathname==='/laboral/capacidades'){
         if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).length)throw Object.assign(Error('Solicitud inválida'),{statusCode:400});
-        send(res,200,{ok:true,payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability(),saleDelete:{version:1,enabled:saleDeleteService.capability()},orderDelete:{version:1,enabled:await purchaseDeleteService.capability()},otDelete:{version:1,enabled:otDeleteService.capability()},coordination:laborRuntime.capabilities(),saleReturn:require('./sale-return-to-budget').capability({enabled:process.env.SALE_RETURN_ECONOMICS_READY==='true',coordinated:laborRuntime.capabilities().coordinated&&!laborRuntime.capabilities().readOnly,rulesDigest:process.env.SALE_RETURN_RULES_DIGEST||'',originalBudget:true}),revision:process.env.K_REVISION||'local'});
+        send(res,200,{ok:true,inventory:await purchaseHost.capabilities(),payments:{enabled:paymentCommands.capability(),version:1},adminExpense:adminExpenseCreate.capability(),saleDelete:{version:1,enabled:saleDeleteService.capability()},orderDelete:{version:1,enabled:await purchaseDeleteService.capability()},otDelete:{version:1,enabled:otDeleteService.capability()},coordination:laborRuntime.capabilities(),saleReturn:require('./sale-return-to-budget').capability({enabled:process.env.SALE_RETURN_ECONOMICS_READY==='true',coordinated:laborRuntime.capabilities().coordinated&&!laborRuntime.capabilities().readOnly,rulesDigest:process.env.SALE_RETURN_RULES_DIGEST||'',originalBudget:true}),revision:process.env.K_REVISION||'local'});
       }else send(res,200,await service[['/cobranzas/operacion','/laboral/gastos/editar-administrativo'].includes(pathname)?'execute':'create'](actor,body));
     }catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar el guardado. Comprobá el intento antes de repetirlo.',...(error.code?{code:error.code}:{})});}return;
   }

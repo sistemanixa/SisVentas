@@ -1,3 +1,7 @@
+# Montaje HTTP local Compras y vínculos · 25/11/2026
+
+Index compone host de 17 rutas, referencias Stock y reparación de vínculo desde la autoridad del runtime; OFF delega el borrado revisado preexistente. Identidad conserva null explícito; POST y límites por ruta, sin reenvío ante ACK incierto. Capacidades informan instalación real, nunca convierten error en OFF. 19 focales host/runtime/router y 7 rutas/servicio loopback PASS (subconjuntos, no sumar como distintos). Sin activación, cambio remoto ni publicación. Reparado fixture del handler real para inyectar adaptadores nativos en lugar de referencias ausentes; expectativas de permisos, límite y respuesta incierta conservadas.
+
 # Integración local del bloque Compras V2 · 25/11/2026
 
 Integrados 27782415, 3a5cf89a, cca87161 y bfeab533 como 3ca096a8/9ffa3e50/2efba0ac/41987e42. El frente A verificó 56 casos core sobre copia congelada equivalente: Guard/Store y autoridades genuinas, transporte ficticio, NO emulador. Incluye vínculo sin movimiento físico, recepción a General, borrador independiente y conservación de identidad al agrupar/desagrupar. No es una publicación ni una habilitación de la cohorte.
