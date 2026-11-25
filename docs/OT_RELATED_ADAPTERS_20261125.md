@@ -10,7 +10,7 @@ Wrapper mínimo del carrito: construir la venta con SVSaleWriter.prepare; pasarl
 
 Las filas nuevas se agregan sin mezclar con las históricas: entregada/instalada cero, custodia falsa, sin stockPendiente ni recibo inventado. Conservar precios y subtotales acordados sin redondeo/reprecio. No llamar otCustodiaCompletarStock como efecto de este plan: no existe entrega física aún. Repetición con el mismo saleKey se rechaza como nuevo plan; la recuperación idempotente corresponde al recibo del escritor.
 
-**Límite pendiente:** Inventory standalone todavía rechaza destinoVenta nueva; requiere resolución real por fila y separación de asignaciones en el ledger para entregar esos adicionales. Este adaptador no finge una venta principal. La corrección de cantidades/precios de una venta original no es este contrato: mantiene su autorización financiera y revisión física propia. No habilitar WholeOT por montar sólo este helper.
+Inventory standalone ahora resuelve destinoVenta nueva mediante `ot-standalone-destinations` privado: índice ventasAdicionales del original completo + destino de fila + Sale RAW leído como usuario + FK otId/otNumero + cliente y displayId exactos. Conserva los tres campos principales de venta ausentes; no genera venta ficticia. La corrección de cantidades/precios de una venta original no es este contrato: mantiene su autorización financiera y revisión física propia. No habilitar WholeOT por montar sólo este helper.
 
 ## Soporte con reclamoCambios
 
@@ -27,5 +27,15 @@ El wrapper raíz debe proporcionar originales autorizados, construir ambos plane
 Structure sólo modifica Reclamos en `create` y `claim`. El grant de proyección completa debe quedar limitado al ClaimKey sellado, Kind exacto, fence/revisión/generación y permisos vigentes, después de validar el parche íntegro con validateStructureSource. Otros tipos Metadata/Structure no reciben ese grant.
 
 La ruta optimizada `SVLaborWrites.writeOTNote` del activo16 se conserva: no se cambia aquí por una lectura SDK de OT ni por un guardado completo Metadata. El gateway raíz debe mantener su escritor de nota tipado estricto y CAS/actor servidor; no hay cambios a ese archivo compartido desde este frente.
+
+## Entrega standalone de adicionales
+
+No cambia endpoints, DTO ni familias/claims. El controlador carga cada venta destino del original con getAsUser y la vuelve a comprobar con readFreshAsUser antes del commit. `ot-standalone-destinations.bind` requiere Inventory genuino + lease/op/digest + hash completo original. Su prueba privada liga copias de ventas al actor/lease; allocation sólo puede resolver identidades originales de fila. No se aceptan JWT flags, capacidad clonada, destino retargeteado, venta ajena, ausente o resumen. Los snapshots comerciales permanecen iguales.
+
+El mapa heldByOthers usa `[inventoryKey,allocation]`, incluso cuando varias filas comparten producto/J: la reserva de OT base no se confunde con custodia de la venta extra. Recibo físico conserva `venta=extraSaleKey` y el hash de recibo por OT/fila/R/destino. State verifica el mismo destino en historia y rendición; consume/return/release/close transportan el contexto servidor original. P/J/R siguen separados y sólo se escribe J.
+
+SourceAuthority admite las ventas originales **sólo como evidencia de lectura** sellada y las verifica frescas. Su whitelist de patch continúa negando cualquier escritura financiera/estado/audit de esa venta en familia Inventory. No requiere broadgrant sobre Venta ni claims nuevos. Empaquetar el nuevo `cotizador/ot-standalone-destinations.js` junto con los módulos consumidores: falta de módulo no equivale a OFF.
+
+Pruebas nuevas: seis de recorrido standalone adicional (shortage explícito, cancelación de preview sin efectos, instalación sin segundo débito, retorno limitado, replay, fuente/capacidad adulterada, cambio durante fase fresca y separación de reservas base/extra) y una composición adicional con núcleo E firmado P/J/R distintos. Las nueve composiciones E existentes pasan; 60 regresiones focales Inventory/close/Source/Physical verdes, siete Warehouse v2 verdes. No Chrome ni puerta global nueva.
 
 Evidencia local ficticia: 7 pruebas del adaptador (incluido uso browser sin SDK y todos los estados cerrados de Lifecycle), 19 de Physical con Count genuino, clonación, adulteración y revocación. Sin prueba Chrome adicional, flags remotos, datos reales ni publicación individual.
