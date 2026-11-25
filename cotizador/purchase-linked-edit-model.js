@@ -1,0 +1,83 @@
+'use strict';
+// Pure edit of an unreceived linked order. No catalogue repricing or Sale items.
+const Inventory=require('./purchase-inventory-model'),Money=require('./commercial-models/commercial-money'),Costs=require('./commercial-models/purchase-receipt-costs.v1'),FX=require('./purchase-receipt-fx');
+const copy=value=>structuredClone(value),own=(value,key)=>Object.hasOwn(value||{},key),fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_PURCHASE_LINKED_EDIT_REVIEW'});
+function demand(ok,message){if(!ok)throw fail(message);}
+function number(value,positive=false){demand(typeof value==='number'&&Number.isFinite(value)&&value>=0&&value<=Number.MAX_SAFE_INTEGER&&(!positive||value>0),'Cantidad o importe no verificable.');Money.decimal(value);return value;}
+function object(value,fields){demand(value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).every(key=>fields.includes(key)),'La declaración contiene campos no autorizados.');}
+function full(value){demand(value&&typeof value==='object'&&!Array.isArray(value)&&Array.isArray(value.items)&&!value._svSummary&&!value._svListSummary&&!value._svPagedSummary,'Falta un documento original completo.');}
+function ids(value){demand(Array.isArray(value)&&new Set(value).size===value.length,'Faltan vínculos originales completos.');value.forEach(Inventory.key);return value;}
+function destination(row){demand(row.destination===undefined||['sale','stock'].includes(row.destination),'Destino histórico inválido.');return row.destination==='stock'?'stock':'sale';}
+function plan({order,orderKey,sale,list,otherOrders={},body,provider,products={},inventories,references,at,id,actor}={}){
+ Inventory.key(orderKey);Inventory.key(id);Inventory.key(actor?.uid);demand(id.length>=8&&Number.isSafeInteger(at)&&at>0&&typeof actor.name==='string'&&actor.name.trim(),'Falta contexto del servidor.');
+ full(order);
+ if(!order.ventaFbKey&&!order.ventaId&&['extra_stock','stock_paraguay'].includes(order.origen))return require('./purchase-manual-edit-model').plan({order,orderKey,body,provider,products,inventories,references,at,id,actor,sourceStockList:list,sourceStockListKey:order.listaMaterialesId});
+ full(sale);full(list);object(body,['providerKey','currency','date','items','exchangeRate']);
+ demand(['borrador','enviada'].includes(order.estado)&&order.items.length>0&&!order.listaOrigenId&&!order.sources&&list.origen!=='conjunta'&&!list.sources?.length,'La compra conjunta o recibida requiere un plan completo de sus fuentes.');
+ const saleKey=Inventory.key(order.ventaFbKey),listKey=Inventory.key(order.listaMaterialesId);
+ demand(list.ventaFbKey===saleKey&&sale.listaMaterialesId===listKey&&!sale.anulada&&!sale.anulado&&!sale.eliminado,'Los vínculos comerciales cambiaron.');
+ demand(Money.amount(number(sale.costoTotal))===Money.sum(sale.items.map(line=>number(line.costoTotalCompra))),'El costo total original no coincide con sus líneas; requiere revisión.');
+ const saleOrders=ids(sale.ordenesCompraIds),listOrders=ids(list.ordenesIds);demand(saleOrders.includes(orderKey)&&listOrders.includes(orderKey),'La orden no conserva su vínculo original.');
+ demand(!Object.keys(order).some(key=>/pendiente$/i.test(key)&&order[key])&&!Object.keys(list).some(key=>/(Pendiente|Bloqueo)$/.test(key)&&list[key]),'Hay una operación pendiente por resolver.');
+ demand(order.recepciones==null||Array.isArray(order.recepciones)&&order.recepciones.length===0,'La compra ya tiene recepciones.');
+ for(const field of ['recibidoEn','totalRealRecibido','totalPresupuestadoRecibido','diferenciaCompra'])demand(order[field]==null||order[field]===0,'La compra conserva historia de recepción.');
+ const marker=order.inventarioCompra;demand(marker?.schema===1&&marker.registered===true&&Number.isSafeInteger(marker.revision)&&marker.revision>=1&&marker.revision<Number.MAX_SAFE_INTEGER,'Falta respaldo original de inventario.');
+ demand((order.moneda??'ARS')===body.currency&&['ARS','USD'].includes(body.currency),'Conservá la moneda capturada; no se infiere una conversión.');
+ demand(typeof body.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(body.date)&&Number.isFinite(Date.parse(body.date+'T00:00:00Z'))&&new Date(body.date+'T00:00:00Z').toISOString().slice(0,10)===body.date,'Fecha inválida.');
+ Inventory.key(body.providerKey);demand(provider?.fbKey===body.providerKey&&provider.activo===true&&typeof provider.nombre==='string'&&provider.nombre.trim(),'Falta proveedor activo.');
+ demand(Array.isArray(body.items)&&body.items.length>0&&body.items.length<=100,'Faltan materiales de la declaración.');
+ const resolved=Object.create(null),dependencies=Object.create(null),physical=new Map(),receiptOwners=new Map(),oldTotals=new Map(),sourceRows=new Map(),usedLines=new Set(),sharedLines=new Set(),sharedQuantities=new Map();
+ function resolve(productKey){Inventory.key(productKey);if(resolved[productKey])return resolved[productKey];const ref=Inventory.reference(references?.[productKey]);demand(ref.productKey===productKey,'El vínculo pertenece a otro producto.');
+  demand(!physical.has(ref.inventoryKey)||physical.get(ref.inventoryKey)===productKey,'Dos productos comparten la misma rama física.');demand(!receiptOwners.has(ref.receiptIdentityKey)||receiptOwners.get(ref.receiptIdentityKey)===productKey,'Identidad de recibo ambigua.');
+  const inventory=inventories?.[ref.inventoryKey];demand(inventory&&typeof inventory==='object'&&!Array.isArray(inventory)&&own(inventory,'enCompra'),'Falta el saldo en compra original; no se supone cero.');number(inventory.enCompra);
+  demand(!own(inventory.operaciones,id),'Consultá el recibo de la operación anterior.');physical.set(ref.inventoryKey,productKey);receiptOwners.set(ref.receiptIdentityKey,productKey);resolved[productKey]=copy(ref);dependencies['sisventas/inventario_operativo/'+ref.inventoryKey]=copy(inventory);return ref;
+ }
+ for(const [index,row]of order.items.entries()){
+  const productKey=Inventory.key(row.productoKey),ref=resolve(productKey),evidence=marker.references?.[index];demand(evidence&&['productKey','inventoryKey','receiptIdentityKey'].every(field=>evidence[field]===ref[field])&&typeof evidence.operationId==='string'&&own(inventories[ref.inventoryKey].operaciones,evidence.operationId),'El registro original no respalda su identidad física.');
+  number(row.cantidadOrdenada,true);demand(row.cantidad==null||row.cantidad===row.cantidadOrdenada,'Cantidades históricas contradictorias.');for(const field of ['cantidadRecibida','cantidadCostoReal','costoRealAcumulado'])demand(row[field]==null||number(row[field])===0,'El material ya tiene recepción.');
+  demand(['costoUnitarioReal','ultimoCostoReal','proveedorFinal','proveedorFinalKey'].every(field=>row[field]==null),'El material conserva costos reales.');number(row.costoUnitario);number(row.precioPublico);demand(row.subtotal===Money.rawProduct(row.cantidadOrdenada,row.costoUnitario),'Subtotal original no verificable.');
+  oldTotals.set(productKey,Money.quantitySum([oldTotals.get(productKey)||0,row.cantidadOrdenada]));
+  if(destination(row)==='stock')continue;
+  const lineIndex=Costs.resolve(sale.items,row);demand(!usedLines.has(lineIndex),'Varias filas comparten el mismo presupuesto de venta.');usedLines.add(lineIndex);
+  const line=sale.items[lineIndex],capture=line.preparacionCompra;demand(capture&&line.costoUnitarioAntesPreparacion!=null&&row.sourceLine!=null&&row.sourceSaleQty!=null&&row.sourceOriginalUnit!=null,'Faltan capturas de la preparación original.');
+  demand(Money.quantitySum([number(capture.cantidadStock),number(capture.cantidadComprar)])===Costs.quantity(line),'Cambió la cantidad de venta.');number(capture.costoStockUnitario);number(capture.costoCompraUnitario);number(line.costoUnitarioAntesPreparacion);
+  demand(FX.budgetARS(order,row,line)===capture.costoCompraUnitario,'La cotización original no coincide con la preparación.');
+  demand(number(line.cantidadCompraReal??0)===0&&number(line.costoRealCompraAcumulado??0)===0,'La línea tiene recepciones y requiere su conciliación.');
+  sourceRows.set(index,{lineIndex,line,capture});
+ }
+ for(const [productKey,total]of oldTotals)demand(inventories[resolved[productKey].inventoryKey].enCompra>=total,'El saldo no respalda todo lo pendiente de esta orden.');
+ const originalTotal=Money.quantitySum(order.items.map(row=>row.subtotal));for(const field of ['total','monto'])demand(order[field]===originalTotal,'Los gastos adicionales requieren un plan de importes completo.');
+ for(const key of new Set([...saleOrders,...listOrders])){if(key===orderKey)continue;const other=otherOrders[key];full(other);demand(other.ventaFbKey===saleKey||other.listaMaterialesId===listKey,'Una orden referenciada pertenece a otra compra.');dependencies['sisventas/ordenes/'+key]=copy(other);
+  if(other.estado==='cancelada'||other.ventaFbKey!==saleKey)continue;
+  for(const row of other.items){if(destination(row)==='stock')continue;const lineIndex=Costs.resolve(sale.items,row);if(usedLines.has(lineIndex)&&number(row.cantidadOrdenada??row.cantidad)>0){sharedLines.add(lineIndex);sharedQuantities.set(lineIndex,Money.quantitySum([sharedQuantities.get(lineIndex)||0,row.cantidadOrdenada??row.cantidad]));}}
+ }
+ const quoteFor=require('./purchase-manual-edit-model').editFX(order,body,fail),quotes=[];
+ const nextSale=copy(sale),nextList=copy(list),seen=new Set(),items=[],salesChanged=new Set();
+ function append(prior,row,quantity,target){const value=copy(prior),quote=quoteFor(own(prior,'costoUnitario')?prior:null,row);if(quote){value.costoUnitarioPresupuestadoARS=quote.costoUnitarioARS;value.presupuestoCompraEdicion={...quote,operationId:id,ts:at,uid:actor.uid,usuario:actor.name};quotes.push(quote);}Object.assign(value,{productoKey:row.productKey,cantidadOrdenada:quantity,cantidadRecibida:0,costoUnitario:row.unitCost,costoUnitarioPresupuestado:row.unitCost,precioPublico:row.publicPrice,subtotal:Money.rawProduct(quantity,row.unitCost)});if(own(value,'cantidad'))value.cantidad=quantity;
+  if(target==='stock'){value.destination='stock';for(const field of ['sourceLine','sourceSaleQty','sourceOriginalUnit','sourceListId','sourceSaleKey'])delete value[field];}else if(own(value,'destination'))value.destination='sale';
+  if(/^(unidad|unidades|u|un|uni|ud|uds)$/i.test(value.unidad||''))demand(Number.isInteger(quantity),'El producto requiere unidades enteras.');items.push(value);return value;
+ }
+ for(const row of body.items){object(row,['sourceIndex','productKey','quantity','unitCost','publicPrice','destination']);Inventory.key(row.productKey);number(row.quantity,true);number(row.unitCost);number(row.publicPrice);demand(row.destination===undefined||['sale','stock'].includes(row.destination),'Destino inválido.');resolve(row.productKey);
+  if(row.sourceIndex===undefined){demand(row.destination==='stock'&&!seen.has('new:'+row.productKey),'Los materiales nuevos deben destinarse explícitamente a stock.');seen.add('new:'+row.productKey);const product=products[row.productKey];demand(product?.fbKey===row.productKey&&product.activo===true&&!require('./ot-lifecycle-model').service({},product)&&typeof product.codigo==='string'&&typeof product.nombre==='string'&&typeof product.unidad==='string','Falta el producto nuevo activo.');dependencies['sisventas/productos/'+row.productKey]=copy(product);append({codigo:product.codigo,descripcion:product.nombre,unidad:product.unidad,...(typeof product.imagenUrl==='string'?{imagenUrl:product.imagenUrl}:{})},row,row.quantity,'stock');continue;}
+  demand(Number.isSafeInteger(row.sourceIndex)&&row.sourceIndex>=0&&row.sourceIndex<order.items.length&&!seen.has('old:'+row.sourceIndex),'Fila original inválida o repetida.');seen.add('old:'+row.sourceIndex);const prior=order.items[row.sourceIndex];demand(prior.productoKey===row.productKey,'No se sustituye un producto de venta por otro.');
+  if(destination(prior)==='stock'){demand(row.destination===undefined||row.destination==='stock','El destino original debe conservarse.');append(prior,row,row.quantity,'stock');continue;}
+  const {lineIndex,line,capture}=sourceRows.get(row.sourceIndex),maximum=number(capture.cantidadComprar),saleQuantity=Math.min(row.destination==='stock'?number(prior.cantidadOrdenada):maximum,row.quantity),extra=Money.quantitySum([row.quantity,-saleQuantity]);
+  demand(saleQuantity<=prior.cantidadOrdenada||Money.quantitySum([saleQuantity,sharedQuantities.get(lineIndex)||0])<=maximum,'Otra orden cubre parte de la necesidad; revisá el aumento destinado a venta.');
+  demand(extra>0?row.destination==='stock':row.destination!== 'stock','Indicá stock para el excedente sin cambiar el destino original.');demand(saleQuantity>0,'La venta no tiene cantidad de compra disponible.');
+  demand(!sharedLines.has(lineIndex)||row.unitCost===prior.costoUnitario,'Otra orden cubre la misma línea; revisá la distribución completa antes de cambiar su costo.');
+  const newQuote=quoteFor(prior,row);
+  append(prior,row,saleQuantity,'sale');if(extra)append(prior,row,extra,'stock');
+  if(row.unitCost!==prior.costoUnitario||body.providerKey!==order.proveedorKey&&!sharedLines.has(lineIndex)){const target=nextSale.items[lineIndex],budgetUnit=(order.moneda??'ARS')==='USD'?(newQuote?newQuote.costoUnitarioARS:FX.budgetARS(order,prior,line)):row.unitCost,parts=[Money.rawProduct(capture.cantidadStock,capture.costoStockUnitario),Money.rawProduct(capture.cantidadComprar,budgetUnit)];target.preparacionCompra={...copy(capture),costoCompraUnitario:budgetUnit};target.costoTotalPresupuestado=Money.quantitySum(parts);target.costoUnitarioPresupuestado=target.costoTotalPresupuestado/Costs.quantity(line);target.costoTotalCompra=Money.sum(parts);target.costoUnitarioCompra=target.costoTotalCompra/Costs.quantity(line);target.proveedorCompra=provider.nombre;target.proveedorCompraKey=body.providerKey;salesChanged.add(lineIndex);
+   const listRows=nextList.items.filter(item=>Costs.resolve(sale.items,{...item,sourceLine:item.sourceLine??item.linea})===lineIndex);demand(listRows.length===1,'La preparación tiene una línea ausente o repetida.');listRows[0].costoUnitario=budgetUnit;listRows[0].proveedorKey=body.providerKey;listRows[0].proveedor=provider.nombre;
+  }
+ }
+ const next=copy(order);Object.assign(next,{proveedorKey:body.providerKey,proveedor:provider.nombre,fecha:body.date,items,total:Money.quantitySum(items.map(row=>row.subtotal)),descripcion:items.length+' materiales',actualizadoEn:at,actualizadoPor:actor.name});next.monto=next.total;
+ demand(!own(order.edicionesCompra,id),'La edición ya tiene un registro histórico.');next.edicionesCompra={...copy(order.edicionesCompra||{}),[id]:{uid:actor.uid,usuario:actor.name,ts:at,...(quotes.length?{cotizacionEdicion:{moneda:'USD',cotizacion:body.exchangeRate}}:{}),anterior:Object.fromEntries(['proveedorKey','proveedor','fecha','moneda','items','total','monto'].filter(field=>own(order,field)).map(field=>[field,copy(order[field])]))}};
+ const changed=Inventory.planPendingOrder({kind:'edit',order:{...next,fbKey:orderKey},previousOrder:{...order,fbKey:orderKey},id,at,inventories,references:resolved});
+ next.inventarioCompra={...copy(marker),revision:marker.revision+1,lastOperation:id,references:Object.fromEntries(items.map((item,index)=>{const ref=resolved[item.productoKey],delta=changed.patch['sisventas/inventario_operativo/'+ref.inventoryKey],priorIndex=order.items.findIndex(row=>row.productoKey===item.productoKey),operationId=delta?id:marker.references[priorIndex]?.operationId;demand(operationId,'Falta respaldo de inventario del producto nuevo.');return[index,{...copy(ref),operationId}];}))};
+ const path='sisventas/ordenes/'+orderKey;changed.patch[path]=next;changed.preconditions={...changed.preconditions,[path]:copy(order)};
+ const readDependencies={...dependencies,['sisventas/ventas/'+saleKey]:copy(sale),['sisventas/listas_materiales/'+listKey]:copy(list),['sisventas/proveedores/'+body.providerKey]:copy(provider)};
+ if(salesChanged.size){nextSale.costoTotal=Money.sum(nextSale.items.map(line=>number(line.costoTotalCompra)));demand(number(sale.subtotal)>0,'Falta la base neta de venta.');nextSale.margenPct=(sale.subtotal-nextSale.costoTotal)/sale.subtotal*100;changed.patch['sisventas/ventas/'+saleKey]=nextSale;changed.preconditions['sisventas/ventas/'+saleKey]=copy(sale);changed.patch['sisventas/listas_materiales/'+listKey]=nextList;changed.preconditions['sisventas/listas_materiales/'+listKey]=copy(list);}
+ return{patch:changed.patch,preconditions:changed.preconditions,readDependencies,result:{ok:true,orderKey,operationId:id,stockExtraRows:items.map((row,index)=>({row,index})).filter(({row})=>row.destination==='stock').map(({index})=>index),saleWritten:salesChanged.size>0}};
+}
+module.exports={plan};
