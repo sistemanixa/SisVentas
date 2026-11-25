@@ -54,17 +54,24 @@ function planReceiptInventory(input){
  const p=planner(input),seen=new Set(),groups=new Map(),fx=FX.terms(order,input.exchangeRate);
  for(const movement of movements){const index=movement.index;if(!Number.isSafeInteger(index)||index<0||index>=order.items.length||seen.has(index))throw fail('Renglón de recepción inválido o repetido.');seen.add(index);
   const item=order.items[index],quantity=qty(movement.quantity),unit=qty(movement.realUnitCost);if(quantity<=0||quantity>sum(qty(item.cantidadOrdenada??item.cantidad),-qty(item.cantidadRecibida??0)))throw fail('La recepción supera lo pendiente.');
-  const identity=itemIdentity(item),ref=reference(input.references?.[identity]),inventory=p.get(identity),g=groups.get(ref.inventoryKey)||{inventory,quantity:0,saleQuantity:0,stockQuantity:0,stockCost:0,stockOriginalCost:0};g.quantity=sum(g.quantity,quantity);if(FX.destination(order,item)==='sale')g.saleQuantity=sum(g.saleQuantity,quantity);else{g.stockQuantity=sum(g.stockQuantity,quantity);g.stockCost=sum(g.stockCost,Money.rawProduct(quantity,FX.convert(unit,fx)));g.stockOriginalCost=sum(g.stockOriginalCost,Money.rawProduct(quantity,unit));}groups.set(ref.inventoryKey,g);
+  const identity=itemIdentity(item),ref=reference(input.references?.[identity]),inventory=p.get(identity),g=groups.get(ref.inventoryKey)||{inventory,quantity:0,saleQuantity:0,stockQuantity:0,stockCost:0,stockOriginalCost:0};g.quantity=sum(g.quantity,quantity);if(FX.destination(order,item)==='sale')g.saleQuantity=sum(g.saleQuantity,quantity);else g.stockQuantity=sum(g.stockQuantity,quantity);g.stockCost=sum(g.stockCost,Money.rawProduct(quantity,FX.convert(unit,fx)));g.stockOriginalCost=sum(g.stockOriginalCost,Money.rawProduct(quantity,unit));groups.set(ref.inventoryKey,g);
  }
  for(const {inventory:inv,quantity,saleQuantity,stockQuantity,stockCost,stockOriginalCost}of groups.values()){
   inv.enCompra=sum(balance(inv,'enCompra'),-quantity);
-  if(saleQuantity){const allocation=key(order.ventaFbKey);inv.reservado=sum(balance(inv,'reservado'),saleQuantity);inv.asignaciones=structuredClone(inv.asignaciones||{});const owned=inv.asignaciones[allocation]||{reservado:0,consumido:0,liberado:0};owned.reservado=sum(balance(owned,'reservado'),saleQuantity);owned.ventaId=order.ventaId||'';inv.asignaciones[allocation]=owned;}
-  if(stockQuantity){inv.general=sum(balance(inv,'general'),stockQuantity);inv.costoReferenciaStock={unit:stockCost/stockQuantity,order:order.fbKey,number:order.numero||'',stamp:input.at,receipt:input.id,basis:'costo_final_con_gastos',...(fx.currency==='USD'?{currency:'ARS',originalCurrency:'USD',exchangeRate:fx.rate,originalUnit:stockOriginalCost/stockQuantity}:{})};}
+  inv.general=sum(balance(inv,'general'),quantity);
+  if(saleQuantity){const allocation=key(order.ventaFbKey);inv.asignaciones=structuredClone(inv.asignaciones||{});const owned=inv.asignaciones[allocation]||{};
+   if(owned.recepcionesCompra!=null&&(typeof owned.recepcionesCompra!=='object'||Array.isArray(owned.recepcionesCompra))||Object.hasOwn(owned.recepcionesCompra||{},input.id))throw fail('La traza de recepción requiere revisión.');
+   owned.recepcionesCompra={...(owned.recepcionesCompra||{}),[input.id]:{schema:2,orderKey:order.fbKey,cantidad:saleQuantity,ts:input.at}};inv.asignaciones[allocation]=owned;
+  }
+  inv.costoReferenciaStock={unit:stockCost/quantity,order:order.fbKey,number:order.numero||'',stamp:input.at,receipt:input.id,basis:'costo_final_con_gastos',...(fx.currency==='USD'?{currency:'ARS',originalCurrency:'USD',exchangeRate:fx.rate,originalUnit:stockOriginalCost/quantity}:{})};
  }
  return p.finish();
 }
 function planExistingReservation(input){
- const {allocationKey,quantity,identity,saleNumber=''}=input;key(allocationKey);qty(quantity);if(quantity<=0)throw fail('Reserva inválida.');const p=planner(input),inv=p.get(key(identity));
- inv.general=sum(balance(inv,'general'),-quantity);inv.reservado=sum(balance(inv,'reservado'),quantity);inv.asignaciones=structuredClone(inv.asignaciones||{});const owned=inv.asignaciones[allocationKey]||{reservado:0,consumido:0,liberado:0};owned.reservado=sum(balance(owned,'reservado'),quantity);owned.ventaId=saleNumber;owned.origen='stock_general';inv.asignaciones[allocationKey]=owned;return p.finish();
+ const {allocationKey,quantity,identity,listKey}=input;key(allocationKey);key(listKey);qty(quantity);if(quantity<=0)throw fail('Vínculo inválido.');const p=planner(input),inv=p.get(key(identity));
+ if(balance(inv,'general')<quantity)throw fail('El saldo no alcanza; revisá la operación.');
+ inv.asignaciones=structuredClone(inv.asignaciones||{});const owned=inv.asignaciones[allocationKey]||{};
+ if(owned.planesCompra!=null&&(typeof owned.planesCompra!=='object'||Array.isArray(owned.planesCompra))||Object.hasOwn(owned.planesCompra||{},listKey))throw fail('El vínculo previo requiere revisión.');
+ owned.planesCompra={...(owned.planesCompra||{}),[listKey]:{schema:2,cantidad:quantity,operationId:input.id,ts:input.at}};inv.asignaciones[allocationKey]=owned;return p.finish();
 }
 module.exports={planPendingOrder,planReceiptInventory,planExistingReservation,key,reference};
