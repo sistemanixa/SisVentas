@@ -1,3 +1,7 @@
+# Publicada y verificada v3.21.17 · 25/11/2026
+
+Fuente pública d4b14f791c2aa0bc36766b388ae91374ccc926c4, rama codex/release-account-loading-20261125, sobreproductiva16. Puerta11275total/11184PASS/0FAIL/0cancel/91skip,SHAestable/exit0. Hosting724/724activosHTTPS+SHA256,8cargas/cabecerasconservadas; scriptoficialweb/marcador/SW/Firebase17PASS. Ventana existente recargada efectivamente, DOMscriptapp.v3.21.17+etiqueta17confirmados, sesión/contextoComisionesconservados. No businesswrite de prueba. SinCloudRun/Rules/flags/datosCompras. InterfazloadingCC única3leafs yversión: overlaycompartidocondimoptin,inertsección,frameantescálculolegacy,cancelaciónfresca; paginacióninline sinmovimiento. Capturasdark390/1280revisadas. Candidategrande de finish-pending NOpublicada: debe pasara18 antesdespliegue, no confundir los dospayloads.
+
 Puerta98bf completa:11275total/11183PASS/1FAIL/91skip, SHAestable; NOverde. Único fallo harnessclient-open-intent extraíaopen sinnuevo wrapper/showDetailOpening. Se apunta alnúcleorealrenombradoopenDetail conservandoTODASaserciones de cancelación/retirarprevio/lateA-versusB;3Chrome verificanwrappercompleto+aviso/legacy/session.10focalesPASS0FAIL. Ningún producto cambiado después98bf. Repeticiónfinalsuitependienteantespublicar.
 
 # Publicación acotada de carga de cuenta corriente ·25/11/2026
