@@ -50,3 +50,61 @@ test('adapter keeps the open list synchronized with catalogue edits and removals
  assert.equal(updated.review,true);assert.equal(updated.productKey,null);assert.equal(updated.inventory.general,1);
  assert.equal(requests.length,1);off();
 });
+
+test('published UI and stock server agree after a catalog edit and removal',{timeout:30000},async()=>{
+ const {chromium}=require('playwright');
+ const browser=await chromium.launch({headless:true,executablePath:process.env.SV_TEST_CHROMIUM||'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+ const records={a:{general:17,reservado:0,codigo:'DEMO-A'},b:{general:4,reservado:2,codigo:'DEMO-B'}};
+ const calls=[];
+ const server=create({enabled:true,store:{async read(route){
+   if(route==='sisventas/compras_resumen/inventario_operativo')return structuredClone(records);
+   if(route.startsWith('sisventas/productos/'))assert.fail('El listado compacto no debe releer fichas');
+   return profile[route]??null;
+ }},queryPage:async()=>assert.fail('Consulta no esperada')});
+ try{
+  const page=await browser.newPage({viewport:{width:1280,height:900}});
+  await page.route('**/*',async route=>{
+   const url=route.request().url();
+   if(url==='http://127.0.0.1/stock-check')return route.fulfill({contentType:'text/html',body:'<!doctype html><main id="stock"></main>'});
+   if(url==='http://127.0.0.1/stock-oficina/listar'){
+    const body=route.request().postDataJSON();calls.push(body);
+    return route.fulfill({json:{ok:true,...await server.list(identity,body)}});
+   }
+   if(url.endsWith('/demo.png')||url.endsWith('/edited.png'))return route.fulfill({contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aW8sAAAAASUVORK5CYII=','base64')});
+   return route.abort();
+  });
+  await page.goto('http://127.0.0.1/stock-check');
+  await page.addScriptTag({content:adapterCode});
+  await page.addScriptTag({path:path.join(__dirname,'../js/modules/office-stock.js')});
+  await page.evaluate(()=>{
+   const uid='demo';
+   Object.assign(window,{currentUserUid:uid,currentRole:'admin',fbAuth:{currentUser:{uid}},
+    SISVENTAS_FUNCTIONS:{cotizadorProveedor:location.origin},
+    SVServiceAuth:{headers:async()=>({'Content-Type':'application/json'})},
+    permisoModulo:()=>true,tienePermiso:()=>true,SVDataReadiness:{status:()=>({ready:true})},
+    esProductoManoDeObra:()=>false,prodData:{
+      a:{fbKey:'a',codigo:'DEMO-A',nombre:'Producto inicial',unidad:'Unidad',imagenUrl:location.origin+'/demo.png'},
+      b:{fbKey:'b',codigo:'DEMO-B',nombre:'Otro producto',unidad:'Unidad'}
+    }
+   });
+   const adapter=SVOfficeStockAdapter.create();
+   SVOfficeStock.mount(document.querySelector('#stock'),{adapter,session:adapter.session});
+  });
+  const first=page.locator('article').first();
+  await first.getByText('Producto inicial',{exact:true}).waitFor();
+  assert.equal(await first.locator('strong').innerText(),'17 Unidad');
+  assert.equal(await first.locator('img').getAttribute('src'),'http://127.0.0.1/demo.png');
+  await page.evaluate(()=>{
+   Object.assign(prodData.a,{nombre:'Producto editado',imagenUrl:location.origin+'/edited.png',activo:false});
+   document.dispatchEvent(new Event('sisventas:stock-catalog-changed'));
+  });
+  await first.getByText('Producto editado',{exact:true}).waitFor();
+  assert.equal(await first.locator('img').getAttribute('src'),'http://127.0.0.1/edited.png');
+  assert(await first.getByRole('button',{name:'Editar cantidad de Producto editado'}).isEnabled());
+  await page.evaluate(()=>{delete prodData.a;document.dispatchEvent(new Event('sisventas:stock-catalog-changed'));});
+  await first.getByText('Stock por revisar',{exact:true}).waitFor();
+  assert.match(await first.locator('strong').innerText(),/^17 /);
+  assert(!(await first.getByRole('button',{name:'Editar cantidad de Stock por revisar'}).isEnabled()));
+  assert.equal(calls.length,1);assert.equal(calls[0].compact,true);assert.equal(records.a.general,17);
+ }finally{await browser.close();}
+});
