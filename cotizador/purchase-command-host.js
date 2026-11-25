@@ -1,6 +1,6 @@
 'use strict';
 // Server-owned composition only; no HTTP input selects factories or authority.
-const Manual=require('./purchase-manual-create-command'),Inventory=require('./purchase-inventory-command'),Generation=require('./purchase-list-generation-command'),Actions=require('./purchase-actions'),Contract=require('./purchase-route-contract'),Numbering=require('./purchase-numbering'),Prospective=require('./purchase-create-reference-port'),Historical=require('./office-stock-reference-port'),Explicit=require('./office-stock-explicit-reference'),Initial=require('./initial-inventory-reference'),Absence=require('./inventory-absence-evidence'),Sources=require('./purchase-inventory-linked-sources'),Order=require('./office-stock-order'),Activation=require('./stock-link-activation-contract'),{digest}=require('./labor-guard');
+const TypedDelete=require('./purchase-typed-delete-command'),Manual=require('./purchase-manual-create-command'),Inventory=require('./purchase-inventory-command'),Generation=require('./purchase-list-generation-command'),Actions=require('./purchase-actions'),Contract=require('./purchase-route-contract'),Numbering=require('./purchase-numbering'),Prospective=require('./purchase-create-reference-port'),Historical=require('./office-stock-reference-port'),Explicit=require('./office-stock-explicit-reference'),Initial=require('./initial-inventory-reference'),Absence=require('./inventory-absence-evidence'),Sources=require('./purchase-inventory-linked-sources'),Order=require('./office-stock-order'),Activation=require('./stock-link-activation-contract'),{digest}=require('./labor-guard');
 const descriptors=Object.freeze([
  Object.freeze({name:'manualCreate',path:'/compras/ordenes/crear',maxBytes:65536}),
  Object.freeze({name:'orderInventory',path:'/compras/ordenes/inventario',maxBytes:65536}),
@@ -21,6 +21,7 @@ function create({authorize,store,guard,cohort,numbering,initialInventoryReferenc
  const common={authorize,store,guard,assertAdmission:options=>{if(typeof cohort?.assertAdmission!=='function')throw fail();return cohort.assertAdmission(options);},numbering:allocation,queryPage,enabled,now};
  const handlers=Object.create(null);
  handlers.manualCreate=Manual.create({...common,creationReferencePort:references.manual}).execute;
+ handlers.orderDelete=TypedDelete.create({...common,resolveReference}).execute;
  handlers.orderInventory=Inventory.create({...common,resolveReference,editReferencePort:references.edit,linkedEnabled:enabled}).execute;
  handlers.listGenerate=Generation.create({...common,listReferencePort:references.generation}).execute;
  for(const spec of descriptors)if(spec.action)handlers[spec.name]=Actions.create({...common,action:spec.action,referencePort:spec.action==='listPreparation'?references.preparation:references.reserve}).execute;
@@ -42,8 +43,7 @@ function create({authorize,store,guard,cohort,numbering,initialInventoryReferenc
    const raw=await read(Numbering.PATH);try{const counter=Numbering.state(raw),document=values.get('sv_stock_reference_config/activation')??await read('sv_stock_reference_config/activation'),pins=Activation.pins(Object.fromEntries(['schema','generation','baselineDigest','contractDigest','codePins','indexQueryCoverageVersion'].map(field=>[field,document?.[field]])));if(counter.generation!==state.generation||counter.cohortDigest!==digest(pins))missing.push('numbering-cohort');}catch(error){if(!['SV_PURCHASE_NUMBERING','SV_PURCHASE_NUMBERING_BOOTSTRAP_REQUIRED','SV_STOCK_ACTIVATION'].includes(error.code))throw error;missing.push('numbering-state');}
    const [config,fence]=await Promise.all([read(Order.CONFIG),read(Order.FENCE)]);try{Order.validateFence(fence);if(config?.schema!==1||config.ready!==true||config.writersClosed!==true||config.writerVersion!==1||config.generation!==state.generation||fence.generation!==state.generation||fence.invalidCount!==0)missing.push('order-metadata');}catch(error){if(error.code!=='SV_STOCK_ORDER_UNREADY')throw error;missing.push('order-metadata');}
   }
-  const ready=state.installed&&state.ready&&missing.length===0,commands=Object.fromEntries(descriptors.map(spec=>[spec.name,ready&&spec.name!=='orderDelete']));
-  if(ready&&typeof orderDelete?.capability==='function'&&typeof orderDelete?.handle==='function')commands.orderDelete=(await orderDelete.capability())===true;
+  const ready=state.installed&&state.ready&&missing.length===0,commands=Object.fromEntries(descriptors.map(spec=>[spec.name,ready]));
   return{version:1,installed:state.installed,ready,generation:state.generation||'',commands,missing};
  }
  async function capabilities(){const {missing,...result}=await readiness();return result;}
@@ -52,7 +52,7 @@ function create({authorize,store,guard,cohort,numbering,initialInventoryReferenc
   const spec=byPath[path];
   // Preserve the independently reviewed native delete endpoint while migration
   // is OFF. Its own authorization/review/guard remain authoritative.
-  if(spec.name==='orderDelete'){if(typeof orderDelete?.handle!=='function')throw fail();const result=await orderDelete.handle(req,body);if(result?.ok!==true||result.committed!==true)throw fail();return{...result,operationId:body.id};}
+  if(spec.name==='orderDelete'&&!enabled){if(typeof orderDelete?.handle!=='function')throw fail();const result=await orderDelete.handle(req,body);if(result?.ok!==true||result.committed!==true)throw fail();return{...result,operationId:body.id};}
   // Children revalidate cohort/config/CAS inside the real lease. Repeating the
   // capability preflight here would double remote reads without adding authority.
   if(dependencies().length)throw fail();
