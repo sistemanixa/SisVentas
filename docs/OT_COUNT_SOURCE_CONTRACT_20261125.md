@@ -1,0 +1,7 @@
+# Autoridad de fuente del conteo OT
+
+Módulo ot-office-count-policy exporta seal/isBound/validate. El comando existente sella su patch después de aplicar modelos y comprobaciones, antes de scope.update. Proof privado WeakMap+Symbol, copias profundas congeladas: originalOT/hash, inventory/hash, eventual venta, patch exacto, actor/input/claims/permisos y lease completos. No nueva bandera cliente ni familia de JWT; no se inventa Life para una OT abierta o sin venta. Count cerrado conserva su capacidad Lifecycle genuina y validaciones existentes.
+
+Integración coordinador: en authorizeSourcePatch, si CountSource.isBound(actor), await CountSource.validate({actor,lease,patch,readFresh,operationalSummaries,now}); devolver aceptación sólo al resolver. El patch es fuente completa con los proyectores nativos y recibo final. Conserva guard/fence/digest/expiry y rechaza cualquier business path extra; resuelve proyecciones Operational/RecordList desde originales frescos y configuración actual. Los demás proyectores conservan validación de su dominio. NO reemplazar Guard/Store/runtime de imagen por los de este checkout.
+
+12 pruebas Count PASS con datos ficticios, incluida ejecución real de Guard+recibo, replay único y patch adulterado OT/inventario/venta extra. El hook se ejercita en puerto de commit del fixture; no demuestra stockOrder ON ni composición de imagen remota, todavía pendientes del coordinador. No nuevo permiso RTDB, no activación/config remota.

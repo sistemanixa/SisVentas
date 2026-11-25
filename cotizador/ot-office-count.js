@@ -70,6 +70,7 @@ function createOTOfficeCount({db,store,guard,now=Date.now,enabled=false}){
     for(const p of productQueries)if(digest(await store.query('sisventas/productos','codigo',p.value))!==digest(p.records))throw fail(409,'El catálogo cambió. Volvé a abrir la OT.');
    });
    const patch={[inventoryPath]:plan.inventory,[otPath]:plan.ot};if(lifecycle)for(const [k,v]of Object.entries(lifecycle.saleChanges))patch[salePath+'/'+k]=v;
+   require('./ot-office-count-policy').seal({actor,lease:scope.lease,patch,sources:{[otPath]:ot,[inventoryPath]:inventory,...(lifecycle&&Object.keys(lifecycle.saleChanges).length?{[salePath]:sale}:{})},now:now()});
    await scope.update(patch);
    return {ok:true,committed:true,operationId:body.id,otKey:body.otKey,productKey:body.productKey};
   });
