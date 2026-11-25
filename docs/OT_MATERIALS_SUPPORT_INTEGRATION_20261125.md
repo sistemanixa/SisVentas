@@ -17,6 +17,25 @@ El gateway raíz registra `PURPOSE='ot-materials'`, **kind atomic**, conserva su
 
 En SourceProtocol/Store registrar `materials.isBound(actor)` → `await materials.validateSource({actor,lease,patch,readFresh,operationalSummaries,now})` **antes** de emitir claims. No usar purpose/operation/claims como prueba. Se valida todo el patch sellado, OT/Sale/config originales frescos, perfil/permiso vigente, lease/fence/recibo y proyección RecordList OT exacta. Validar por separado los projectores/finanzas existentes; este permiso sólo autoriza OT. Metadata.token/validate ya reconocen la prueba privada, también con host operation legacy-atomic.
 
+Puente listo: `await MetadataPolicy.materials.prepare({actor,lease:scope.lease,body,patch,scope,now})` → `{patch,plan,otKey,saleKey,mode}`. Invocar **después** de validar/derivar el patch financiero nativo, antes de scope.update/proyectores. `scope` necesita getAsUser/get/beforeCommit. Lee RAW OT/Sale y configuración/roles con el scope, deriva modo existing/additional desde existencia de Sale, reconstruye el modelo con directorio/fecha servidor, sustituye sólo hojas OT conocidas, llama attach e instala beforeCommit de permisos/RAW/config frescos. No monta rutas ni certifica por sí mismo el corte de cohorte: raíz conserva su admisión autoritativa. Mantener rama SourceProtocol isBound+validateSource al validar el patch final proyectado.
+
+Wire literal del cliente (variables ficticias, hashes sobre RAW completo de snapshots sin decoraciones de UI):
+
+```js
+const otBase = 'sisventas/ordenes_trabajo/' + otKey;
+const saleBase = 'sisventas/ventas/' + saleKey;
+const body = {
+  id: operationId, kind: 'atomic', path: '', purpose: 'ot-materials',
+  value: { [saleBase]: saleAfterNative, ...plan.related },
+  expectedHashes: {
+    [otBase]: await SVLaborWrites.hash(rawOT),
+    [saleBase]: await SVLaborWrites.hash(rawSaleOrNull)
+  }
+};
+```
+
+Para actualizaciones parciales Sale se admiten sus hojas nativas en value en lugar de full record, sin superposición root/hojas. El resultado íntegro debe ser el Sale aprobado por el escritor financiero. expectedHashes sigue usando raíces completas. SVSaleWriter debe propagar purpose sin alterar su preparación/precios/costos/autoridad. Los callsites usan existingSale/additionalSale antes de SVSaleWriter.commit para no construir cantidades instaladas; el gateway vuelve a derivar las hojas OT y auditoría servidor. No deben ejecutar CompletarStock por guardar la venta comercial.
+
 Descriptor para B dentro de Metadata:
 
 `svOTMetadataVersion:1, Kind:'materials', OTKey, Role, PermissionRevision, Generation, Fence`, con `Creating:false, Administrative:false, Editing:false`. **No se emite cuarto bit MaterialEditing.** Kind materials es excepción cerrada al requisito de alguno de los tres bits: exige current `ot.corregirMateriales` y módulo ordentrabajo activo, configuración/revisión/fence/generación exactas y PhysicalUnchanged true. Defaults de corregirMateriales coinciden con action-permissions: admin/administrativo/vendedor; false explícito deniega. Otros Kind no obtienen esta excepción. No emitir grant nuevo sobre dinero de Sale. No está expuesto en POST /ot/metadata: es composición privada del gateway financiero actual.
@@ -28,6 +47,21 @@ POST /ot/metadata existente, kind claim. `changes={reclamoFbKey,ventaFbKey?,expe
 Structure lee Claim/Sale RAW como usuario, verifica hash, deriva FK recíprocos y reconstruye un único historial con actor y fecha servidor sobre historia original. Rechaza campos financieros/ajenos, resolución inconsistente, identidad/cliente contradictorios y CAS obsoleto. El historial enviado no sirve como evidencia. Cap supportResolving es privado/inmutable, derivado del comando claim tipado; no es claim JWT ni booleano de autorización cliente. Antes de emitirlo y en fase fresca exige `soporte.resolver` además del permiso estructural existente; módulo soporte activo y false explícito deniega, defaults admin/administrativo/vendedor/tecnico_vendedor. Todos los campos se escriben junto a los FK/OT en **un solo scope.update**, no dos commits.
 
 Respuesta añade `{claimKey,claim}` además de OT/operationId/linksCommitted. Helper SVOTStructure.relate conserva esos campos para que el wrapper Soporte use el historial realmente confirmado. Las rutas sin OT (resolución remota o Claim↔Sale) siguen en su escritor Soporte existente: no emitir una capacidad OT falsa.
+
+Llamada literal del wrapper app con OT:
+
+```js
+const result = await SVOTStructure.relate(ot, 'claim', {
+  reclamoFbKey: claimKey,
+  ...(saleKey ? {ventaFbKey: saleKey} : {}),
+  expectedClaimHash: await SVLaborWrites.hash(rawClaim),
+  supportState: {estado:'ot_activa', generacionOTPendiente:false,
+    generacionOTError:null, generacionOTCompletadaEn:Date.now()}
+});
+// result.claim contiene el historial estampado por servidor.
+```
+
+También se admite el reclamoCambios anterior como supportState: sólo su allowlist tipada, el historial cliente se ignora y las fechas se rederivan. No enviar expectedClaimHash sin supportState. Una reparación sin cambio de estado usa relate(ot,'claim',{reclamoFbKey,ventaFbKey?}) como antes.
 
 Para B: mismo namespace Metadata Kind claim/ClaimKey exactos. Si cambia estado/historial del Claim proyectado, exigir también current permiso soporte.resolver AND permiso OT estructural; no OR de bypass y no nuevo flag. Toda resolución tipada agrega historial, por lo que esa comparación detecta la rama. Conservar validación privada FULLPATCH anterior al grant, también tras proyección completa RecordList del Claim. Sólo create/claim pueden escribir Claim, y sólo claim con capacidad supportResolving admite esas hojas de Soporte.
 

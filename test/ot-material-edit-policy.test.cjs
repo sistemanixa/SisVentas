@@ -21,3 +21,10 @@ test('materials source includes full OT, Sale and cohort originals freshly',asyn
 test('materials exact source validator accepts native RecordList OT projection',async()=>{
  const f=fixture();Policy.attach(f);const Records=require('../cotizador/record-list-model'),patch=full(f),next={...f.ot,materiales:f.patch['sisventas/ordenes_trabajo/ot/materiales'],audit:f.patch['sisventas/ordenes_trabajo/ot/audit']};delete patch['sisventas/ordenes_trabajo/ot/materiales'];delete patch['sisventas/ordenes_trabajo/ot/audit'];Object.assign(patch,Records.plan('sisventas/ordenes_trabajo/ot',f.ot,next,f.actor.opId));f.sources.sv_record_list_config={schema:1,ready:true};assert.equal(await Policy.validateSource({actor:f.actor,lease:f.lease,patch,operationalSummaries:true,readFresh:async p=>f.sources[p]??null}),true);
 });
+test('gateway prepare replaces automatic installation with server pending rows and installs fresh checks',async()=>{
+ const f=fixture(),callbacks=[];f.patch=structuredClone(f.patch);f.patch['sisventas/ordenes_trabajo/ot/materiales'][1].instalada=1;f.patch['sisventas/ordenes_trabajo/ot/materiales'][1].entregada=1;f.actor.input.value=f.patch;f.actor.transportDigest=digest(f.actor.input);f.lease.digest=f.actor.transportDigest;
+ const scope={getAsUser:async path=>structuredClone(f.sources[path]??null),get:async path=>structuredClone(f.sources[path]??null),beforeCommit:callback=>callbacks.push(callback)},prepared=await Policy.prepare({actor:f.actor,lease:f.lease,body:f.actor.input,patch:f.patch,scope,now:()=>f.at});
+ assert.equal(prepared.plan.materiales[1].instalada,0);assert.equal(prepared.plan.materiales[1].entregada,0);assert.deepEqual(prepared.patch['sisventas/ventas/sale'],f.sale);assert.equal(callbacks.length,1);
+ await callbacks[0]({readFresh:async p=>f.sources[p]??null,readFreshAsUser:async p=>f.sources[p]??null});
+ f.sources['sisventas/ventas/sale']={...f.originalSale,total:99};await assert.rejects(callbacks[0]({readFresh:async p=>f.sources[p]??null,readFreshAsUser:async p=>f.sources[p]??null}));
+});

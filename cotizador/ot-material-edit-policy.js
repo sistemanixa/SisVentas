@@ -33,4 +33,22 @@ async function validateSource({actor,lease,patch,readFresh,operationalSummaries=
  for(const [path,value]of Object.entries(expected))if(!Object.hasOwn(patch,path)||digest(patch[path])!==digest(value))throw fail();for(const path of Object.keys(patch))if(!Object.hasOwn(expected,path)&&path!=='sv_labor_guard'&&path!=='sv_labor_receipts/'+actor.opId&&!technical.some(prefix=>path.startsWith(prefix)))throw fail();
  const receipt=patch['sv_labor_receipts/'+actor.opId];if(patch.sv_labor_guard!==null||receipt?.actorUid!==actor.uid||receipt.digest!==lease.digest||receipt.fence!==lease.fence)throw fail();return true;
 }
-module.exports={PURPOSE,authority,attach,owns,isBound:owns,token,validate,validateSource};
+async function prepare({actor,lease,body,patch,scope,now=Date.now}){
+ live(actor,lease,now());if(digest(body)!==digest(actor.input)||!scope?.getAsUser||!scope?.get||!scope?.beforeCommit||!patch||typeof patch!=='object'||Array.isArray(patch))throw fail();
+ const paths=Object.keys(patch),otKeys=new Set(),saleKeys=new Set();
+ for(const path of paths){const ot=/^sisventas\/ordenes_trabajo\/([^/]+)\/(materiales|audit|ventasAdicionales\/[^/]+)$/.exec(path),sale=/^sisventas\/ventas\/([^/]+)(?:\/.*)?$/.exec(path);if(ot&&key(ot[1]))otKeys.add(ot[1]);else if(sale&&key(sale[1]))saleKeys.add(sale[1]);else if(!/^sisventas\/notificaciones_admin\/[A-Za-z0-9_-]+$/.test(path))throw fail();}
+ if(otKeys.size!==1||saleKeys.size!==1)throw fail();const otKey=[...otKeys][0],saleKey=[...saleKeys][0],otBase='sisventas/ordenes_trabajo/'+otKey,saleBase='sisventas/ventas/'+saleKey;
+ const [ot,originalSale,profile,config,directory]=await Promise.all([scope.getAsUser(otBase),scope.getAsUser(saleBase),scope.get('sv_chat_roles/'+actor.uid),scope.get('sv_ot_metadata_config'),scope.get('sv_chat_directorio/'+actor.uid)]),cfg=await scope.get('sv_permisos/'+profile?.rol);authority(profile,cfg);
+ let sale=structuredClone(originalSale);for(const path of paths)if(path===saleBase)sale=structuredClone(patch[path]);else if(path.startsWith(saleBase+'/'))sale=require('./labor-guard').put(sale,path.slice(saleBase.length+1).split('/'),patch[path]);
+ const mode=originalSale===null?'additional':'existing',at=now(),name=directory?.nombre||actor.uid,plan=Adapters[mode==='existing'?'existingSale':'additionalSale']({ot,otKey,originalSale,sale,saleKey,actor:{uid:actor.uid,name},at}),normalized={};
+ // Only this command's known OT leaves are replaced by the server-derived plan.
+ // Financial values remain exactly the already validated native Sale patch.
+ for(const [path,value]of Object.entries(patch))if(!path.startsWith(otBase+'/'))normalized[path]=structuredClone(value);else if(!Object.hasOwn(plan.related,path))throw fail();
+ Object.assign(normalized,plan.related);attach({actor,lease,profile,cfg,config,ot,otKey,originalSale,sale,saleKey,patch:normalized,at,name,mode});
+ scope.beforeCommit(async({readFresh,readFreshAsUser})=>{
+  validate(actor,await readFresh('sv_chat_roles/'+actor.uid),await readFresh('sv_permisos/'+profile.rol));
+  for(const [path,value]of [[otBase,ot],[saleBase,originalSale]])if(digest(await readFreshAsUser(path))!==digest(value))throw fail();
+  if(digest(await readFresh('sv_ot_metadata_config'))!==digest(config))throw fail();
+ });return {patch:normalized,plan,otKey,saleKey,mode};
+}
+module.exports={PURPOSE,authority,attach,prepare,owns,isBound:owns,token,validate,validateSource};
