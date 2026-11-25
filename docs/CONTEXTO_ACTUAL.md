@@ -1,3 +1,5 @@
+Puerta98bf completa:11275total/11183PASS/1FAIL/91skip, SHAestable; NOverde. Único fallo harnessclient-open-intent extraíaopen sinnuevo wrapper/showDetailOpening. Se apunta alnúcleorealrenombradoopenDetail conservandoTODASaserciones de cancelación/retirarprevio/lateA-versusB;3Chrome verificanwrappercompleto+aviso/legacy/session.10focalesPASS0FAIL. Ningún producto cambiado después98bf. Repeticiónfinalsuitependienteantespublicar.
+
 # Publicación acotada de carga de cuenta corriente ·25/11/2026
 
 Candidata pública17 basadaEXCLUSIVAMENTE en08c5860b/productiva16. Tresleafs idénticos a123e0d61 (hostCC,Readiness,CSS), test3browser ycoherenciaversión/Novedades. SIN módulos/datos/Rules/flags del corteStock/OT/Compras de finish-pending. Fondoatenuado,inertsección,dobleframelegacy; paginacióninlineconservada.25focales y273ampliadosPASSenfuentesidénticas, falta puerta deESTAfuente. NOpublicada aún. Candidategrande17deotra ramaNOdebeconfundirseconestepayload: habráquerenumerarla18 antesdepublicarmigración.
