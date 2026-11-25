@@ -1,11 +1,12 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
-const {source,index}=require('./helpers/active-app').readActiveApp();
+const active=require('./helpers/active-app').readActiveApp(),index=active.index,source=process.env.SV_PRODUCT_KPI_APP_SOURCE?require('node:fs').readFileSync(process.env.SV_PRODUCT_KPI_APP_SOURCE,'utf8').replace(/\r\n/g,'\n'):active.source;
 function setup(){
- const els={},el=id=>els[id]??={value:'',textContent:'',innerHTML:'',style:{},attributes:{},setAttribute(k,v){this.attributes[k]=v;}};
+ const els={},el=id=>els[id]??={value:'',textContent:'',innerHTML:'',style:{},attributes:{},setAttribute(k,v){this.attributes[k]=v;},removeAttribute(k){delete this.attributes[k];}};
  const products=Object.fromEntries(Array.from({length:36},(_,i)=>['p'+i,{fbKey:'p'+i,codigo:'P-'+i,nombre:'Producto '+i,categoria:'Grupo',margenDeseado:i<4?0:20,stock:999}]));
  const context={window:{SisVentasCompras:{state:{inventory:Object.fromEntries(Array.from({length:36},(_,i)=>['p'+i,{general:i<32?2:0,reservado:99,enCompra:88}]))}}},document:{getElementById:el},prodData:products,ventasList:[],_filtroProductosSinPrecio:true,_filtroProductosSobrantes:false,_filtroProductosMasVendidos:false,_filtroProductosSinValorAgregado:false,_filtroUsoProductos:'inactivos',_prodCatsAbiertas:{Grupo:false},_sortState:{},_ordenPrecioProductos:'',_prodCategoriasFirma:'fixture',_prodLimiteBusqueda:80,stockData:{},productoSinPrecioCatalogo:p=>p.sinPrecio===true,escapeHTML:s=>String(s),_renderFilaProd:p=>'<tr data-product="'+p.fbKey+'"></tr>',prepararAccionesGrilla(){},_estadoBusquedaProductos(){},poblarSelectCategorias(){},actualizarVistaFiltroProductosSinPrecio(){}};
  vm.createContext(context);
+ if(source.includes('function _svBusquedaListaEsperar('))vm.runInContext(source.slice(source.indexOf('function _svBusquedaListaEsperar('),source.indexOf('function programarRenderTablaClientes(')),context);
  vm.runInContext(source.slice(source.indexOf('function productoConSobranteReal('),source.indexOf('function cambiarFiltroUsoProductos(')),context);
  vm.runInContext(source.slice(source.indexOf('function _claveInventarioProducto('),source.indexOf('function productoCoincideItemVenta(')),context);
  vm.runInContext(source.slice(source.indexOf('function renderTablaProductos('),source.indexOf('var _todasColapsadas',source.indexOf('function renderTablaProductos('))),context);
