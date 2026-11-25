@@ -1,7 +1,7 @@
 'use strict';
 const prefixes=['svOTMetadata','svOTInventory','svOTCount','svOTPhysical','svOTLifecycle'];
 const sanitize=incoming=>Object.fromEntries(Object.entries(incoming||{}).filter(([name])=>!prefixes.some(prefix=>name.startsWith(prefix))));
-function reserved(){const out={svOTPhysicalCommitVersion:0,svOTPhysicalUnchanged:false};for(const family of ['Metadata','Inventory','Count','Lifecycle']){const prefix='svOT'+family;out[prefix+'Version']=0;for(const field of ['OTKey','Kind','Role','PermissionRevision','Generation','Fence'])out[prefix+field]=null;}for(const field of ['Administrative','Editing','Creating'])out['svOTMetadata'+field]=false;for(const field of ['SaleKey','ClaimKey','PreviousSaleKey','PreviousClaimKey'])out['svOTMetadata'+field]=null;out.svOTLifecycleSaleKey=null;out.svOTCountProductKey=null;out.svOTCountInventoryKey=null;return out;}
+function reserved(){const out={svOTPhysicalCommitVersion:0,svOTPhysicalUnchanged:false};for(const family of ['Metadata','Inventory','Count','Lifecycle']){const prefix='svOT'+family;out[prefix+'Version']=0;for(const field of ['OTKey','Kind','Role','PermissionRevision','Generation','Fence'])out[prefix+field]=null;}for(const field of ['Administrative','Editing','Creating','Resolving'])out['svOTMetadata'+field]=false;for(const field of ['SaleKey','ClaimKey','PreviousSaleKey','PreviousClaimKey'])out['svOTMetadata'+field]=null;out.svOTLifecycleSaleKey=null;out.svOTCountProductKey=null;out.svOTCountInventoryKey=null;return out;}
 async function validateSource(options){
  const Source=require('./ot-stock-source-authority'),Count=require('./ot-office-count-policy'),Metadata=require('./ot-metadata-policy');
  if(Source.isBound(options.actor)){await Source.validate(options);return true;}

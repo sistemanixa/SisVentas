@@ -4,6 +4,7 @@
     "beforeHash": "b9595487bb0478a1fc3126a7779ad1b53f3890a46a859966e9220eb9253ae697",
     "before": "    prom.then(function(){ if(typeof notify==='function') notify('✓ OT iniciada');",
     "after": "    return prom.then(function(){ if(typeof notify==='function') notify('✓ OT iniciada');",
-    "afterHash": "fcdba4e2f57a1f91c18aefc83f32168b8ae68d9bb355fb75f80ca2ef63786810"
+    "afterHash": "fcdba4e2f57a1f91c18aefc83f32168b8ae68d9bb355fb75f80ca2ef63786810",
+    "reviewedTypedHash": "6e60a54e597c4946590700140ee8c967268c23adb7c16d26fc8eb377735f9287"
   }
 ]

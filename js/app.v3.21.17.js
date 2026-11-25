@@ -50929,6 +50929,7 @@ async function otGuardarCorreccionProductos(ot, materiales, accion, eliminado) {
 async function _svCargaOperacion_otGuardarCorreccionProductos(ot, materiales, accion, eliminado) {
   if (otEstaCerrada(ot)) throw new Error('La OT está cerrada. Creá una nueva OT para agregar o cambiar productos.');
   if (!otPuedeCorregirProductos(ot)) throw new Error('No tenés permiso para corregir productos de la OT.');
+  var contextoMateriales=otContextoOperacionNota(ot);
   var actualSnap = await window.fbGet(window.fbRef(window.fbDB, FB_PATHS.ordenesTrabajo + '/' + ot.fbKey));
   var actual = actualSnap.val();
   function estable(valor) { if(Array.isArray(valor))return valor.map(estable);if(valor && typeof valor==='object'){var ordenado={};Object.keys(valor).sort().forEach(function(k){ordenado[k]=estable(valor[k]);});return ordenado;}return valor; }
@@ -50972,6 +50973,7 @@ async function _svCargaOperacion_otGuardarCorreccionProductos(ot, materiales, ac
   if(!window.SVOTRelatedAdapters)throw new Error('Recargá la aplicación para corregir materiales.');
   var planMateriales=window.SVOTRelatedAdapters.existingSale({ot:actual,otKey:ot.fbKey,originalSale:venta,sale:Object.assign({},venta,ventaUpdate),saleKey:ventaLocal.fbKey,actor:{uid:window.currentUserUid,name:currentUser||'Sistema'},at:Date.now()});
   updates=planMateriales.related;
+  if(!contextoMateriales(false))throw new Error('La sesión cambió. Volvé a abrir la OT.');
   await window.SVSaleWriter.commit({record:ventaUpdate,baseline:venta,key:ventaLocal.fbKey,related:updates,relatedBaselines:{[baseOT]:actual},partial:true,purpose:'ot-materials'});
   var confirmada=(await window.fbGet(window.fbRef(window.fbDB,baseOT))).val();
   if(!confirmada)throw new Error('Los materiales se guardaron. Volvé a abrir la OT para verlos.');
@@ -51040,6 +51042,7 @@ async function _svCargaOperacion_otConfirmarVentaAdicional() {
   if (!ot || !ot.fbKey || !window.fbDB) { notify('No se pudo identificar la OT'); return; }
   if (otEstaCerrada(ot)) { notify('La OT está cerrada. Creá una nueva OT para agregar o cambiar productos.'); return; }
   if (!otPuedeCorregirProductos()) { notify('No tenés permiso para agregar productos a la OT.'); return; }
+  var contextoAdicional=otContextoOperacionNota(ot);
 
   var items = _otCarritoAdicional.map(function(c) {
     return { cod:c.codigo, desc:c.nombre, qty:Number(c.cantidad || 1), punit:Number(c.precio || 0), sub:_redondearPrecioActual(Number(c.precio || 0) * Number(c.cantidad || 1)), adicionalOT:true, origenOTKey:ot.fbKey };
@@ -51054,6 +51057,7 @@ async function _svCargaOperacion_otConfirmarVentaAdicional() {
   try {
     await otLeerSiMaterialesNoCambiaron(ot);
     idVentaAdicional = await reservarSiguienteVentaId();
+    if(!contextoAdicional(false))throw new Error('La sesión cambió. Volvé a abrir la OT.');
   } catch (e) {
     var errorPreparacion = e && e.message ? e.message : 'error desconocido';
     notify(/La OT cambió/.test(errorPreparacion) ? errorPreparacion : 'No se pudo reservar el número de venta: ' + errorPreparacion);
@@ -51135,6 +51139,7 @@ async function _svCargaOperacion_otConfirmarVentaAdicional() {
     var planAdicional=window.SVOTRelatedAdapters.additionalSale({ot:originalOT,otKey:ot.fbKey,sale:venta,saleKey:ventaKey,actor:{uid:window.currentUserUid,name:currentUser||'Sistema'},at:Date.now()});
     Object.keys(updates).forEach(function(path){if(path.indexOf(baseOT+'/')===0)delete updates[path];});
     Object.assign(updates,planAdicional.related);
+    if(!contextoAdicional(false))throw new Error('La sesión cambió. Volvé a abrir la OT.');
     venta = await window.SVSaleWriter.commit({record:venta,key:ventaKey,related:updates,relatedBaselines:{[baseOT]:originalOT},purpose:'ot-materials'});
     var confirmada=(await window.fbGet(window.fbRef(window.fbDB,baseOT))).val();
     if(!confirmada)throw new Error('La venta y los materiales se guardaron. Volvé a abrir la OT.');

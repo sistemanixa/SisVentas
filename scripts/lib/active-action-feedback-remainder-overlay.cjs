@@ -15,6 +15,9 @@ function apply(source){
 function applyModule(file,source){
  source=source.replace(/\r\n/g,'\n');const change=modules.find(entry=>entry.file===file);
  if(change&&hash(source)===change.afterHash)return source;
+ // The typed workflow already returns the same start promise and rollback.
+ // Accept only its complete reviewed source; unknown edits still require review.
+ if(change&&change.reviewedTypedHash&&hash(source)===change.reviewedTypedHash)return source;
  if(!change||hash(source)!==change.beforeHash||source.split(change.before).length!==2)throw Error('Module changed; review required: '+file);
  return source.replace(change.before,change.after);
 }

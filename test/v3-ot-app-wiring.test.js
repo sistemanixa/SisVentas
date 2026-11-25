@@ -14,7 +14,10 @@ test('OT usa el puente reversible para modelo y persistencia', () => {
   assert.match(app, /function otPersistirActualizar\(/);
   assert.match(app, /function otPersistirEliminar\(/);
   assert.match(app, /prom = otPersistirGuardar\(cambiosOT\)/);
-  assert.match(workflow, /window\.otPersistirGuardar\(nuevaOT\)/);
+  assert.match(workflow, /window\.SVOTStructure\.create\(nuevaOT\)/);
+  assert.match(workflow, /window\.otPersistirGuardarLegacy\|\|window\.otPersistirGuardar/);
+  assert.match(workflow, /return guardarLegacy\(nuevaOT\)\.then/);
+  assert.match(workflow, /result\.installed!==false/);
   assert.match(workflow, /delete copia\[campo\]/);
 });
 
