@@ -1,3 +1,7 @@
+# Pausa de guardados y rutas restauradas · 25/11/2026
+
+El adaptador de Recursos de empleados restaurado desde runtime nativo se despacha ahora después de la pausa global. Indumentaria/categorías POST no autentican, parsean ni escriben durante la pausa; con flag ausente/false conservan despacho. GET y dominio privado mantienen tratamiento existente. 25 pruebas PASS de pausa, proyectos, historial y borrado mediante handler real; fixtures incorporan adaptadores nuevos sin cambiar sus expectativas financieras. Sin publicación ni cambio remoto.
+
 # Montaje HTTP local Compras y vínculos · 25/11/2026
 
 Index compone host de 17 rutas, referencias Stock y reparación de vínculo desde la autoridad del runtime; OFF delega el borrado revisado preexistente. Identidad conserva null explícito; POST y límites por ruta, sin reenvío ante ACK incierto. Capacidades informan instalación real, nunca convierten error en OFF. 19 focales host/runtime/router y 7 rutas/servicio loopback PASS (subconjuntos, no sumar como distintos). Sin activación, cambio remoto ni publicación. Reparado fixture del handler real para inyectar adaptadores nativos en lugar de referencias ausentes; expectativas de permisos, límite y respuesta incierta conservadas.

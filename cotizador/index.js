@@ -2045,7 +2045,6 @@ const server = http.createServer(async (req, res) => {
   cors(req, res);
   const requestUrl = new URL(req.url, 'http://localhost');
   const pathname = requestUrl.pathname;
-  if(req.method!=='OPTIONS'&&await employeeResourcesHTTP(req,res))return;
   if(pathname==='/presupuestos/presentacion-proyecto'&&req.method!=='OPTIONS'){res.setHeader('Cache-Control','private, no-store');try{const body=await readBody(req,2048);const result=await budgetPresentationTrial.handle(req,body);send(res,200,result);}catch(error){send(res,error.statusCode||503,{ok:false,code:error.code||'PRESENTATION_UNAVAILABLE',mensaje:error.statusCode?error.message:'No se pudo preparar la presentación.'});}return;}
 
 
@@ -2097,6 +2096,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if(req.method!=='OPTIONS'&&await employeeResourcesHTTP(req,res))return;
   if(await inventoryCommandHttp(pathname,req,res))return;
   if(pathname==='/comerciales/ventas/eliminar'){
     res.setHeader('Cache-Control','private, no-store');
