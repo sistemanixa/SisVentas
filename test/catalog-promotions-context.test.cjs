@@ -6,7 +6,7 @@ const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function deferred(){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};}
 function setup({holdIndex=false}={}){
  const reads=[],pending=[],listeners=[],writes=[],index=deferred(),write=deferred();let stopped=0,active=0,maxActive=0;
- function form(){const options=[],status={textContent:''};return {isConnected:true,status,elements:{codigo:{value:'DEMO'},porcentaje:{value:'10'},inicio:{value:'2026-10-01T00:00'},fin:{value:'2026-10-31T23:59'},alcance:{value:'pedido'},activa:{checked:true},productos:{selectedOptions:[],options,append(option){options.push(option);}}},querySelector:()=>status};}
+ function form(){const options=[],status={textContent:''},button={textContent:'Guardar oferta',disabled:false};return {isConnected:true,status,elements:{codigo:{value:'DEMO'},porcentaje:{value:'10'},inicio:{value:'2026-10-01T00:00'},fin:{value:'2026-10-31T23:59'},alcance:{value:'pedido'},activa:{checked:true},productos:{selectedOptions:[],options,append(option){options.push(option);}}},querySelector:q=>q==='button[type=submit]'?button:status};}
  const host={isConnected:true,hidden:false,classList:{add(){}},form:null,offers:{innerHTML:''},products:{hidden:true},querySelector(q){return q==='form[data-offer]'?this.form:q==='[data-offers]'?this.offers:q==='[data-products]'?this.products:q==='[role=status]'?this.form.status:{};},querySelectorAll(){return [];},set innerHTML(_value){this.form=form();}};
  const c={console,Date,Promise,document:{createElement:()=>({})},currentUserUid:'a',currentRole:'admin',fbAuth:{currentUser:{uid:'a'}},fbDB:{},fbRef:(_db,path)=>path,
   SVCatalogOrderPeriodsConfig:{mount(){},reset(){}},
