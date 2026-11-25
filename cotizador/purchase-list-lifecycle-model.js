@@ -1,0 +1,66 @@
+'use strict';
+// Pure proposals only: callers must authorize, read originals and enforce every CAS.
+const {digest}=require('./labor-guard');
+const clone=x=>structuredClone(x), own=(o,k)=>Object.hasOwn(o||{},k);
+const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_PURCHASE_LIST_LIFECYCLE_REVIEW'});
+function demand(ok,message){if(!ok)throw fail(message);}
+function key(k){demand(typeof k==='string'&&k.length>0&&k.length<=180&&!/[.#$\[\]/\x00-\x1f\x7f]/.test(k)&&!['__proto__','constructor','prototype'].includes(k),'Clave inválida.');return k;}
+function record(x){demand(x&&typeof x==='object'&&!Array.isArray(x)&&!x._svSummary&&!x._svListSummary&&!x._svPagedSummary,'Falta el original completo.');return x;}
+function ctx(c){demand(c&&Number.isSafeInteger(c.at)&&c.at>0&&typeof c.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(c.date)&&c.actor&&typeof c.actor.name==='string'&&c.actor.name,'Falta contexto del servidor.');key(c.id);key(c.actor.uid);return c;}
+function ids(x,field){const a=x[field]??[];demand(Array.isArray(a)&&new Set(a).size===a.length,'Vínculos ambiguos.');a.forEach(key);return a;}
+function pending(x){return ['cancelacionExteriorPendiente','cancelacionExteriorBloqueo','recepcionPendiente','cancelacionPendiente','aplicacionExteriorPendiente','generacionPendiente'].some(k=>!!x[k])||!!x.simuladorParaguay?.pending?.length;}
+function editable(x,child=false){record(x);demand(!pending(x)&&!x.desagrupada&&!x.compraConfirmacion&&!x.stockExistenteReservado&&!Object.keys(x.reservasInventario||{}).length&&!ids(x,'ordenesIds').length&&(!x.compraConjuntaId||child)&&['preparacion','borrador'].includes(x.estado),'Lista bloqueada o finalizada.');}
+function saleFor(list,listKey,sales){const sk=key(list.ventaFbKey),sale=record(sales?.[sk]);demand(sale.listaMaterialesId===listKey&&!pending(sale)&&!sale.anulada&&!sale.anulado&&Array.isArray(sale.items),'Venta o vínculo de origen incoherente.');return [sk,sale];}
+const listPath=k=>'sisventas/listas_materiales/'+key(k),salePath=k=>'sisventas/ventas/'+key(k);
+function planBase(context){ctx(context);const patch=Object.create(null),preconditions=Object.create(null),readDependencies=Object.create(null);return {patch,preconditions,readDependencies,result:{ok:true,operationId:context.id}};}
+function write(p,path,original,next){demand(original!==undefined,'Falta leer el destino, incluso si es nulo.');p.preconditions[path]=clone(original);p.patch[path]=clone(next);}
+function read(p,path,value){record(value);p.readDependencies[path]=clone(value);}
+function fingerprint(s){return JSON.stringify({items:s.items||[],total:s.total||0,descuento:s.descuento||0});}
+function amount(v){demand(typeof v==='number'&&Number.isFinite(v)&&v>=0,'Falta el importe capturado de la simulación.');return v;}
+function rowKey(item){demand(item.linea!==undefined,'Falta línea de origen.');return [item.productoKey||item.codigo,item.linea,item.proveedorKey||item.proveedor].join('|');}
+function sourceItems(list,sale){const seen=new Set();for(const item of list.items){demand(Number.isSafeInteger(item.linea)&&item.linea>=0&&!seen.has(item.linea),'Línea de venta ambigua.');seen.add(item.linea);const line=sale.items[item.linea];demand(line,'Falta el renglón de venta.');const product=item.productoKey||item.codigo,source=line.productoKey||line.pid||line.codigo||line.cod;demand(product&&source&&product===source&&item.cantidadNecesaria===(line.qty??line.cantidad??line.cant),'Material o cantidad de la venta cambió; requiere preparación.');}}
+function simulation(list){const s=list.simuladorParaguay||{rows:[],extras:[]};demand(Array.isArray(s.rows)&&Array.isArray(s.extras??[])&&!(s.pending?.length),'Simulación ambigua o pendiente.');demand(new Set(s.rows.map(r=>r.key)).size===s.rows.length,'Filas guardadas duplicadas.');return s;}
+function sourcesOf(joint){demand(joint.origen==='conjunta'&&Array.isArray(joint.sources)&&joint.sources.length>=2,'Faltan fuentes conjuntas.');const ls=new Set(),ss=new Set();for(const s of joint.sources){key(s.listId);key(s.ventaFbKey);demand(!ls.has(s.listId)&&!ss.has(s.ventaFbKey),'Fuentes repetidas.');ls.add(s.listId);ss.add(s.ventaFbKey);}return joint.sources;}
+function planGroup({lists,sales,body,context,originalJoint}={}){
+ const p=planBase(context),jk=key(context.jointKey);demand(originalJoint===null,'El destino conjunto debe haberse leído ausente.');
+ demand(body&&Object.keys(body).every(k=>k==='sources')&&Array.isArray(body.sources)&&body.sources.length>=2&&body.sources.length<=100,'Selección inválida.');
+ const selected=new Set(),saleKeys=new Set(),sources=[],items=[],rows=[],extras=[],documents=Object.create(null);let revenue=0,baseline=0;
+ for(const input of body.sources){demand(input&&Object.keys(input).every(k=>['listKey','expectedHash'].includes(k)),'La selección sólo admite claves y CAS.');const lk=key(input.listKey);demand(lk!==jk&&!selected.has(lk),'Fuente repetida o destino superpuesto.');selected.add(lk);const list=record(lists?.[lk]);editable(list);demand(list.origen!=='conjunta'&&!list.sources?.length&&input.expectedHash===digest(list),'La fuente cambió o ya es conjunta.');const [sk,sale]=saleFor(list,lk,sales);demand(!saleKeys.has(sk),'Venta repetida.');saleKeys.add(sk);
+  demand(!ids(sale,'ordenesCompraIds').length,'La venta conserva otras órdenes: requiere revisión antes de agrupar.');
+  demand(Array.isArray(list.items),'Faltan materiales originales.');sourceItems(list,sale);const sim=simulation(list);demand(sim.parameters,'Faltan bases capturadas; requiere preparación.');const rev=amount(sim.parameters.revenue),base=amount(sim.parameters.baseline);revenue+=rev;baseline+=base;demand(Number.isFinite(revenue)&&Number.isFinite(baseline),'Importes fuera de rango.');
+  const source={listId:lk,ventaId:list.ventaId||'',ventaFbKey:sk,cliente:list.cliente||'',revenue:rev,baseline:base,saleFingerprint:fingerprint(sale)};sources.push(source);const mapped=new Map();
+  for(const item of list.items){demand(!item.sourceListId,'Material ya agrupado.');const old=rowKey(item);demand(!mapped.has(old),'Material ambiguo.');const copy=clone(item);copy.linea=lk+':'+item.linea;copy.sourceListId=lk;copy.saleLabel=source.ventaId+' · '+source.cliente;items.push(copy);mapped.set(old,copy);}
+  for(const row of sim.rows){demand(!row.sourceListId&&mapped.has(row.key),'Fila guardada sin material único.');const item=mapped.get(row.key);rows.push({...clone(row),key:rowKey(item),sourceListId:lk,saleLabel:item.saleLabel});}
+  extras.push(...clone(sim.extras||[]));for(const [dk,doc]of Object.entries(list.comprobantesCompra||{})){key(dk);demand(!own(documents,dk)||digest(documents[dk])===digest(doc),'Comprobantes con la misma clave y contenido diferente.');documents[dk]=clone(doc);}
+  write(p,listPath(lk),list,{...clone(list),compraConjuntaId:jk});read(p,salePath(sk),sale);
+ }
+ const joint={numero:jk,origen:'conjunta',cliente:sources.length+' ventas',estado:'preparacion',sources,items,ordenesIds:[],fecha:context.date,ts:context.at,usuario:context.actor.name,comprobantesCompra:documents,simuladorParaguay:{version:5,rows,extras,parameters:{revenue,baseline,retained:''},complete:false}};
+ write(p,listPath(jk),originalJoint,joint);p.result.jointKey=jk;return p;
+}
+function planUngroup({joint,jointKey,lists,sales,originalStockList,context}={}){
+ const p=planBase(context),jk=key(jointKey);editable(joint);const sources=sourcesOf(joint),sim=simulation(joint),stockKey=key(jk+'_stock');demand(originalStockList===null,'El destino stock existe o no fue leído.');
+ const sourceKeys=new Set(sources.map(s=>s.listId));demand((joint.items||[]).every(i=>sourceKeys.has(i.sourceListId))&&sim.rows.every(r=>sourceKeys.has(r.sourceListId)),'Filas sin destino inequívoco.');
+ for(const source of sources){const lk=source.listId;demand(lk!==jk&&lk!==stockKey,'Fuente superpuesta con destino.');const list=record(lists?.[lk]);editable(list,true);demand(list.compraConjuntaId===jk&&list.ventaFbKey===source.ventaFbKey,'Fuente desvinculada.');const [sk,sale]=saleFor(list,lk,sales);demand(source.saleFingerprint===fingerprint(sale)&&!ids(sale,'ordenesCompraIds').length,'La venta cambió o conserva órdenes desde la agrupación.');const next=clone(list),original=simulation(list);delete next.compraConjuntaId;
+  const originals=new Map((list.items||[]).map(i=>[rowKey(i),i]));const childRows=sim.rows.filter(r=>r.sourceListId===lk).map(r=>{const copy=clone(r),prefix='|'+lk+':';demand(copy.key.includes(prefix),'Clave de fila conjunta incoherente.');copy.key=copy.key.replace(prefix,'|');demand(originals.has(copy.key),'La fila ya no corresponde a su fuente.');delete copy.sourceListId;delete copy.saleLabel;delete copy.expenseExcluded;return copy;});
+  next.simuladorParaguay={...clone(original),rows:childRows,complete:false,extras:[]};delete next.simuladorParaguay.result;write(p,listPath(lk),list,next);read(p,salePath(sk),sale);
+ }
+ // Extras move to a preparation, never to physical inventory; joint remains audit history.
+ if((sim.extras||[]).length)write(p,listPath(stockKey),originalStockList,{numero:joint.numero+'-ST',origen:'stock_paraguay',cliente:'Stock general',estado:'preparacion',items:[],ordenesIds:[],fecha:context.date,ts:context.at,simuladorParaguay:{extras:clone(sim.extras),rows:[],complete:false}});
+ else p.readDependencies[listPath(stockKey)]=null;
+ write(p,listPath(jk),joint,{...clone(joint),estado:'cancelada',desagrupada:true});p.result={...p.result,jointKey:jk,stockListKey:sim.extras?.length?stockKey:null};return p;
+}
+function planClose({list,listKey,sourceLists={},sales={},orders,context}={}){
+ const p=planBase(context),lk=key(listKey);record(list);demand(!pending(list)&&!list.desagrupada&&!list.compraConjuntaId&&['ordenada','recibida'].includes(list.estado)&&list.compraConfirmacion?.estado==='completa','Compra no confirmada o pendiente.');
+ const refs=ids(list,'ordenesIds');demand(refs.length>0,'Sin órdenes: el cierre por reserva requiere prueba original de inventario en otro modelo.');
+ const sources=list.origen==='conjunta'?sourcesOf(list):[];const saleKeys=new Set(sources.map(s=>s.ventaFbKey));if(list.ventaFbKey)saleKeys.add(list.ventaFbKey);
+ for(const id of refs){const order=record(orders?.[id]);demand(order.listaMaterialesId===lk&&!pending(order)&&['recibida','cancelada'].includes(order.estado),'Orden ajena o recepción/cancelación pendiente.');if(order.ventaFbKey)demand(saleKeys.has(order.ventaFbKey),'Orden de otra venta.');read(p,'sisventas/ordenes/'+id,order);}
+ const confirmed=ids(list.compraConfirmacion,'ordenesIds');demand(confirmed.every(id=>refs.includes(id)),'La confirmación referencia órdenes ausentes.');
+ const affected=[];
+ for(const source of sources){demand(source.listId!==lk,'La conjunta no puede ser su propia fuente.');const child=record(sourceLists[source.listId]);demand(child.compraConjuntaId===lk&&child.ventaFbKey===source.ventaFbKey&&!pending(child)&&!child.desagrupada&&['preparacion','borrador','ordenada','recibida','cerrada'].includes(child.estado),'Fuente conjunta incoherente o pendiente.');affected.push([source.listId,child]);}
+ if(list.ventaFbKey)affected.push([lk,list]);
+ for(const [sourceKey,child]of affected){const [sk,sale]=saleFor(child,sourceKey,sales);for(const id of new Set([...ids(child,'ordenesIds'),...ids(sale,'ordenesCompraIds')])){if(refs.includes(id))continue;const other=record(orders?.[id]);demand(other.ventaFbKey===sk&&other.listaMaterialesId===sourceKey&&!pending(other)&&['recibida','cancelada'].includes(other.estado),'Otra orden de la fuente continúa pendiente.');read(p,'sisventas/ordenes/'+id,other);}
+  write(p,salePath(sk),sale,{...clone(sale),compraEstado:'cerrada'});if(sourceKey!==lk)write(p,listPath(sourceKey),child,{...clone(child),estado:'cerrada'});
+ }
+ write(p,listPath(lk),list,{...clone(list),estado:'cerrada',cerradaEn:context.at,cerradaPor:context.actor.name});p.result.listKey=lk;return p;
+}
+module.exports={planGroup,planUngroup,planClose};

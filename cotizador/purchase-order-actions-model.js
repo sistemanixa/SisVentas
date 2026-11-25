@@ -1,0 +1,8 @@
+'use strict';
+const {key}=require('./purchase-inventory-model');
+const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_PURCHASE_ACTION_REVIEW'}),copy=value=>structuredClone(value);
+function original(value){if(!value||typeof value!=='object'||Array.isArray(value)||value._svSummary||value._svListSummary||value._svPagedSummary)throw fail('Hace falta el original completo.');}
+function context(ctx){if(!ctx?.actor?.uid||!ctx.actor.name||!Number.isSafeInteger(ctx.at)||ctx.at<=0)throw fail('Falta el contexto de la operación.');key(ctx.id);key(ctx.actor.uid);}
+function planStatus({order,orderKey,body,context:ctx}={}){original(order);context(ctx);key(orderKey);if(!body||Object.keys(body).some(k=>k!=='state')||body.state!=='enviada'||!['borrador','enviada'].includes(order.estado)||!Array.isArray(order.items)||order.items.length===0||order.recepcionPendiente||order.cancelacionPendiente||order.generacionPendiente)throw fail('La orden no está disponible para marcarla enviada.');const path='sisventas/ordenes/'+orderKey;return {patch:{[path]:{...copy(order),estado:'enviada'}},preconditions:{[path]:copy(order)},readDependencies:{},result:{orderKey}};}
+function planRename({list,listKey,body,context:ctx}={}){original(list);context(ctx);key(listKey);if(!body||Object.keys(body).some(k=>k!=='name')||typeof body.name!=='string'||!body.name.trim()||body.name.trim().length>160||/[\x00-\x1f\x7f]/.test(body.name))throw fail('El nombre de la lista no es válido.');const path='sisventas/listas_materiales/'+listKey;return {patch:{[path]:{...copy(list),nombreLista:body.name.trim()}},preconditions:{[path]:copy(list)},readDependencies:{},result:{listKey}};}
+module.exports={planStatus,planRename};
