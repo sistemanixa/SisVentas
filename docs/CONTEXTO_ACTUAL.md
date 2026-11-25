@@ -1,6 +1,18 @@
+# Estado de integración y publicación · 25/11/2026
+
+Producción verificada v3.21.16: fuenteweb2bd2b92c y cierre08c5860b,723/723activosHTTPS/SHA,cabecerasconservadas,puerta11181PASS/0FAIL/91SKIPcondicionales. Servidor cotizador-otready-32116 al100%,imageneea17ac8 derivada de6b con sólo3módulos OT;configigual. Autorización específica humana de corte aplicada, revisión anterior conservada. Script oficial confirmó aviso16 y ventana real recargada enCC,sesiónsincronizada. Rama limpia release-verified-batch-20261125. Esta copia finish-pending NO es el runtime publicado ni acredita migración activada.
+
+Trabajo local: Stockinitial 8/8emuladorPASS sobrefreeze1b99044a ybaseline5a, incluyeledgerquenacedespuésdelecturas,rolypermisorevocados,vencimiento yACKperdido1efecto. Elprimer7/8detectócarreraREAL; se corrigióconquintoargRAWprivadoStockPolicy yANDdeexistenciaatómicaalFINALdetodosgrants, no conbypassAdmin. NoimplantadoenRulesremotas. Emulador detenido;fuentes,firmasybootstrap de prueba,nodatosreales.
+
+Compras nuevo criterio aprobado: recibir sumaGeneral y conserva vínculoVenta; preparar/vincular no mueve stock; entrega descuentauna vez,instalarnorepiteGeneral,devolverreponeúnicamentedescuentoreal. Faltanteseconfirmaexpresamenteyseaudita,sinnegativos. Aporta schema2 por NUEVOSrecibos/trazas,noretaga historial/asignacioneslegacy. Modelos recepción37PASS;caller/reserve/generate148PASSinformadosA, cadenascore yUIenrepetición. Borradotypedacotadoanuevosborradoresindependientes; linkedcancelacióntrazable, nocomprasrecibidasniOC49yaeliminada.
+
+Hallazgocompatibilidadpreactivación: elStorepublicado incorporabaEmployeeResourcesque faltabaenbase37; se portaronexactamenterutas/hook/capcommit,nosecopióStoreviejo. ConHistory/FinancialTRUE laaltaindumentariafallabaporíndicesderivados: Guardreconstruyeysellalosderivadosfinancierosexactosdelgasto;Policyrechazatamper/quitarmetadata/ExtraSale/PVP/input/lease/claims/capclonada.10corePASSconGuard/RESTStoreinterceptado,sinRulesnioperaciónreal. Nodarporequivalenciaimagencompleta.
+
+Pendientes: montajeindex/runtime/activosdehost17rutasCompras yOTfinal,StockLink/lookup;escritoresOTcrear/relaciones/Count/V2yconfirmaciónfaltantes;proyecciónOrderconsourcegenuinodecadafamilia;compilaciónRulesglobalactual ypaqueteverificado,puertaintegral,pruebasfullappconbackendrealficticio. NoactivarcohorteparcialniusarflagsH7/Financialparapasarpruebassinpreparación. Evidenciaprivadaentmp/.local,nuncaGit.
+
 # Retomados pendientes OT/Stock/Compras y optimización · 25/11/2026
 
-El titular aclaró que también deben terminarse los circuitos anteriores no integrados y pidió usar sus cinco chats existentes. Coordinación en codex/finish-pending-20261125 desde37e1cbab; producción sigue15. Primer cambio local: puerto de consulta dirigida Store/Guard,24PASS sin habilitar escritores. Ver CIERRE_PENDIENTES_20261125.md. NO dar por resuelta la migración por la suite pública15 ni copiar árboles WIP antiguos. Cada frente prepara código y pruebas aisladas, publicación conjunta tras verificación.
+El titular aclaró que también deben terminarse los circuitos anteriores no integrados y pidió usar sus cinco chats existentes. Coordinación en codex/finish-pending-20261125 desde37e1cbab; producción ya está en16. Primer cambio local: puerto de consulta dirigida Store/Guard,24PASS sin habilitar escritores. Ver CIERRE_PENDIENTES_20261125.md. NO dar por resuelta la migración por la suite pública15 ni copiar árboles WIP antiguos. Cada frente prepara código y pruebas aisladas, publicación conjunta tras verificación.
 
 # Publicada y verificada v3.21.15 · 25/11/2026
 
