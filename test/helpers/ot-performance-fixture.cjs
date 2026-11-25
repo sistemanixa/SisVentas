@@ -1,7 +1,7 @@
 'use strict';
 const path=require('node:path');
-async function create({role='admin',latency=0,root=path.resolve(__dirname,'../../cotizador'),rowCount=4,otherCount=138,tracePhases=false,lifecycleModule,resolveReference,prepare,queryRows,createReferencePhase}={}){
- const Guard=require(root+'/labor-guard'),Index=require(root+'/record-list-model'),Pages=require(root+'/commercial-pages-projections'),Runtime=require(root+'/labor-runtime'),Life=lifecycleModule||require(root+'/ot-lifecycle');
+async function create({role='admin',latency=0,root=path.resolve(__dirname,'../../cotizador'),rowCount=4,otherCount=138,tracePhases=false,runtimeModule,lifecycleModule,resolveReference,prepare,queryRows,createReferencePhase}={}){
+ const Guard=require(root+'/labor-guard'),Index=require(root+'/record-list-model'),Pages=require(root+'/commercial-pages-projections'),Runtime=runtimeModule||require(root+'/labor-runtime'),Life=lifecycleModule||require(root+'/ot-lifecycle');
  const materials=Array.from({length:rowCount},(_,i)=>({cod:'PF'+i,vendida:2,entregada:2,instalada:0,custodiaActiva:true,devuelta:0,devueltaPendiente:0,enTecnico:0,danada:0,faltante:0}));
  const ot={id:'OT-FICTION',ventaFbKey:'sale',ventaId:'V-FICTION',estado:'en_curso',custodiaIniciada:true,custodiaRendida:false,materiales:materials,_svListRevision:1};
  const sale={id:'V-FICTION',responsableUid:'u',otId:'ot',cliente:'Fiction',clienteFbKey:'client',fecha:'2026-11-01',estadoInst:'instalando',items:materials.map(m=>({cod:m.cod,qty:2,punit:50,sub:100,costoUnitarioCompra:20})),total:rowCount*100,subtotal:rowCount*100,iva:0,descuento:0,conIva:false,audit:[]};

@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),{webcrypto}=require('node:crypto'),Fixture=require('./ot-performance-fixture.cjs'),Physical=require('../../cotizador/ot-physical-confirmation-model'),Index=require('../../cotizador/record-list-model');
-async function create({latency=0,productCount=641,otherCount=1100,rowCount=12,lifecycleModule,clientLifecycle}={}){
- const f=await Fixture.create({latency,rowCount,otherCount,lifecycleModule,tracePhases:true,prepare:data=>{
+async function create({latency=0,productCount=641,otherCount=1100,rowCount=12,runtimeModule,lifecycleModule,clientLifecycle}={}){
+ const f=await Fixture.create({latency,rowCount,otherCount,runtimeModule,lifecycleModule,tracePhases:true,prepare:data=>{
   const ot=data.sisventas.ordenes_trabajo.ot;for(const [i,row]of ot.materiales.entries()){const key='product'+i,result=Physical.confirm({actor:{uid:'u',role:'admin',allowed:true},otKey:'ot',rowKey:String(i),productKey:key,allocation:'sale',operationId:'fixture-prior-delivery',at:1792530000000,kind:'delivery',beforeDelivered:0,targetDelivered:2,beforeInstalled:0,targetInstalled:0,heldByOthers:0,revision:0,inventory:{general:10,reservado:0,consumido:0,asignaciones:{sale:{reservado:0,consumido:0}}}});Object.assign(row,{productoKey:key,stockRegistro:result.receipt,stockRevision:result.revision});data.sisventas.inventario_operativo[key]=result.inventory;data.sisventas.productos[key].id=1000+i;}
   for(let i=rowCount;i<productCount;i++)data.sisventas.productos['extra'+i]={id:2000+i,codigo:'EXTRA'+i,unidad:'unidades'};data.sisventas.listados_resumen.ordenes_trabajo.ot=Index.summary('ordenes_trabajo',ot);
  }});
