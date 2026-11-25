@@ -15,7 +15,9 @@ test('full local frontend preserves assets and real command stays closed until e
  const local=await start({store:backend.store,guard,review,authorize,expectedRulesHash,readRules:async()=>rules});
  const request=(route,body={},headers={Authorization:'Bearer synthetic-test'})=>fetch(local.url+'/__purchase_delete_local/'+route,{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(body)});
  try{
-  const index=await (await fetch(local.url+'/')).text();assert.match(index,/js\/app\.v3\.21\.11\.js/);assert.match(index,/__purchase_delete_local\/bridge\.js/);assert.match(index,/page-ordenes/);
+  const active=require('./helpers/active-app').readActiveApp();
+  const index=await (await fetch(local.url+'/')).text();assert.ok(index.includes('js/'+active.filename),'Serves the actual immutable application declared by the source index');
+  const servedApp=await (await fetch(local.url+'/js/'+active.filename)).text();assert.equal(digest(servedApp.replace(/\r\n/g,'\n')),digest(active.source),'Application asset is preserved byte for byte after newline normalization');assert.match(index,/__purchase_delete_local\/bridge\.js/);assert.match(index,/page-ordenes/);
   assert.equal((await fetch(local.url+'/cotizador/purchase-order-delete.js')).status,404);
   assert.equal((await fetch(local.url+'/docs/CONTEXTO_ACTUAL.md')).status,404);
   assert.equal((await request('capability',{},{})).status,401);

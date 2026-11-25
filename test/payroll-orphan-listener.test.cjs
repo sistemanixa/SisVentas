@@ -66,7 +66,7 @@ function page(role = 'admin', options = {}) {
   let selected = new Set(['e1', 'e2']);
   let salariesNow = copy(salaries);
   const element = (value = '') => ({ value, dataset: {}, style: {}, textContent: '', innerHTML: '',
-    selectedOptions: [{ textContent: 'Ana' }], remove() { this.removed = true; } });
+    selectedOptions: [{ textContent: 'Ana' }], removeAttribute() {}, remove() { this.removed = true; } });
   const nodes = {};
   for (const id of ['gastos-tbody', 'gastos-paginacion', 'gas-f-tipo', 'gas-f-estado', 'gas-f-mes', 'gas-f-empleado', 'gas-buscar', 'gas-total', 'gas-total-sub', 'gas-pendiente', 'gas-pend-cant', 'gas-vencen', 'gas-vencen-cant', 'gas-reembolso', 'gas-reembolso-cant']) nodes[id] = element();
   Object.assign(nodes, { 'agu-sem-sel': element('2026-2'), 'agu-fecha': element('2026-12-01'), 'agu-maximo': element('700'), 'modal-aguinaldo': element() });
