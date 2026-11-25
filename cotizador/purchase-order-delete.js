@@ -4,7 +4,7 @@ const fail=(message,statusCode=409)=>Object.assign(Error(message),{code:'SV_PURC
 const key=value=>{if(typeof value!=='string'||!value||['__proto__','prototype','constructor'].includes(value)||value.length>768||/[.#$\[\]\/\x00-\x1f\x7f]/.test(value))throw fail('Referencia de compra inválida.',400);return value;};
 const baseOrder=value=>{const copy=structuredClone(value);if(copy)delete copy.fbKey;return copy;};
 function createPurchaseOrderDelete({authorize,store,guard,review,enabled=false}){
- const configured=()=>enabled===true&&guard?.clientAccounts===true&&guard?.clientHistory===true&&review?.configured()===true;
+ const configured=()=>enabled===true&&guard?.clientAccounts===true&&(guard?.clientHistory===true||require('./purchase-manual-delete-review').isReview(review))&&review?.configured()===true;
  async function capability(){
   if(!configured())return false;
   try{await review.assertCurrent(store.read);return true;}catch{return false;}
@@ -20,7 +20,7 @@ function createPurchaseOrderDelete({authorize,store,guard,review,enabled=false})
   const checked=await access(req,path=>store.read(path)),actor=checked.actor;
   review.assertTarget(body.orderKey);
   await review.assertCurrent(store.read);
-  const result=await guard.run({uid:actor.uid,claims:actor.claims,role:checked.role,permissionRevision:checked.permissionRevision,permissionDigest:checked.permissionDigest,mode:'command',financialAction:'ordenes.eliminar',recoverReceipt:true,opId:body.id,transportDigest:digest(body),operation:'purchase-order-delete',input:body},async scope=>{
+  const result=await guard.run({uid:actor.uid,claims:actor.claims,role:checked.role,permissionRevision:checked.permissionRevision,permissionDigest:checked.permissionDigest,mode:require('./purchase-manual-delete-review').isReview(review)?'user':'command',financialAction:'ordenes.eliminar',recoverReceipt:true,opId:body.id,transportDigest:digest(body),operation:'purchase-order-delete',input:body},async scope=>{
    const current=await access(req,scope.get,actor);if(digest({profile:current.profile,cfg:current.cfg})!==digest({profile:checked.profile,cfg:checked.cfg}))throw fail('Los permisos cambiaron.');
    const visible=await store.readAsUser('sisventas/ordenes/'+body.orderKey,actor);if(!visible||digest(baseOrder(visible))!==body.expectedHash)throw fail('No se pudo confirmar el acceso a la orden.');const initial=await plan(scope.get,body);
    scope.beforeCommit(async({readFresh})=>{const fresh=await access(req,readFresh,actor);if(digest({profile:fresh.profile,cfg:fresh.cfg})!==digest({profile:checked.profile,cfg:checked.cfg}))throw fail('Los permisos cambiaron.');if(digest(await plan(readFresh,body))!==digest(initial))throw fail('La compra o el stock cambió. No se guardaron cambios.');});

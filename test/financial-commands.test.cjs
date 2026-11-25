@@ -51,6 +51,12 @@ function fixture(options={}){
  return {root,calls,commits,receipts,storage,slots,listeners,get holds(){return holds;},setMode:value=>mode=value,setCapMode:value=>capMode=value};
 }
 const options=()=>({grupoPago:'grupo-fixture',origen:'cobranzas',solicitudes:[{ventaFbKey:'venta-fixture',monto:40,pago:{fbKey:'pago-fixture',monto:40,ts:123,moneda:'ARS',fecha:'2026-10-22',medio:'Efectivo'}}],cabecera:{ts:123},comprobante:{nombre:'ficticio.pdf',tipo:'application/pdf',ts:123,data:'data:application/pdf;base64,AA=='}});
+test('sólo el borrado de Compras usa su servicio acotado; pagos mantienen el servidor vigente',async()=>{
+ const f=fixture(),base=f.root.fetch,purchase=[];f.root.SISVENTAS_FUNCTIONS.comprasRevisadas='https://purchase-fixture.invalid';
+ f.root.fetch=async(url,opts)=>{if(!url.startsWith('https://purchase-fixture.invalid/'))return base(url,opts);purchase.push(url);assert.equal(opts.headers.Authorization,'Bearer fixture');if(url.endsWith('/laboral/capacidades'))return response({ok:true,orderDelete:{enabled:true,version:1}});assert.equal(url,'https://purchase-fixture.invalid/compras/ordenes/eliminar');return response({ok:true,committed:true,orderKey:'draft'});};
+ assert.deepEqual(await f.root.SVFinancialCommands.deleteOrder({fbKey:'draft',estado:'borrador',items:[]}),{orderKey:'draft'});assert.equal(purchase.length,2);assert.equal(f.calls.length,0);
+ await f.root.SVFinancialCommands.register(options());assert.equal(purchase.length,2);assert.equal(f.commits.length,1);assert(f.calls.every(c=>c.url.startsWith('https://fixture.invalid/')));
+});
 
 test('los comandos no consultan capacidades ni crean tareas al inicializarse',async()=>{const f=fixture();await flush();assert.equal(f.calls.length,0);assert.equal(f.storage.size,0);assert.equal(f.holds,0);});
 

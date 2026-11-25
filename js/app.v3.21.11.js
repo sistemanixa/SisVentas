@@ -8626,6 +8626,7 @@ var SISVENTAS_FUNCTIONS = {
   emitirFactura: 'https://southamerica-east1-nixa-sisventas.cloudfunctions.net/emitirFactura',
   testTFApp:     'https://southamerica-east1-nixa-sisventas.cloudfunctions.net/testTFApp',
   cotizadorProveedor: 'https://cotizador-171899432710.southamerica-east1.run.app',
+  comprasRevisadas: 'https://compras-nixa-171899432710.southamerica-east1.run.app',
   frontendKey:   '9551f2780845e7773b784c6d9b505dd6041d8052f0fe8e1f51959015767ffa5a'
 };
 
@@ -11530,7 +11531,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Cuenta corriente abre con los movimientos más recientes.','Contador y navegación arriba del historial, con aviso de carga al cambiar de página.']),
   RELEASE_FEATURE: Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.21.11',date:'24/11/2026',title:'Carga estable y resolución de soporte',notes:Object.freeze(['La paginación muestra Cargando en el lugar de Página, sin mover los controles.','La resolución de visitas verifica la venta, el reclamo y la OT antes de confirmar.'])}),
+ Object.freeze({version:'v3.21.11',date:'24/11/2026',title:'Carga estable, soporte y compras',notes:Object.freeze(['La paginación muestra Cargando en el lugar de Página, sin mover los controles.','La resolución de visitas verifica la venta, el reclamo y la OT antes de confirmar.','El borrado revisado de un borrador conserva las compras recibidas y el stock físico.'])}),
  Object.freeze({version:'v3.21.10',date:'23/11/2026',title:'Navegación al pie del historial',notes:Object.freeze(['Anterior, Siguiente y el contador de movimientos vuelven al pie del historial.','Se mantienen los más recientes primero y el indicador de carga.'])}),
  Object.freeze({version:'v3.21.9',date:'23/11/2026',title:'Lo más reciente primero',notes:Object.freeze(['El historial de Cuenta corriente comienza con los últimos movimientos.','Arriba se ve el rango del total y el aviso Cargando movimientos al navegar.'])}),
  Object.freeze({version:'v3.21.8',date:'23/11/2026',title:'Historial completo de Cuenta corriente',notes:Object.freeze(['Corregido el botón Siguiente para ver los movimientos restantes.','La pantalla indica cuántos movimientos muestra de su total.'])}),

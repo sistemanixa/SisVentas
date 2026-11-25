@@ -1,4 +1,14 @@
-# PUBLICACIÓN RETENIDA POR EL USUARIO · local v3.21.11 · 24/11/2026
+# PUBLICACIÓN AUTORIZADA NUEVAMENTE · v3.21.11 · 24/11/2026
+
+El titular revocó la espera de prueba local con «no publicá y ya». Alcance: carga estable de Cuenta corriente, CAS de resolución de Soporte y borrado revisado exclusivamente del borrador manual OC-0049. La eliminación la realiza el usuario; no se borra una orden real como prueba. No se retoma la migración general de Stock/OT/Compras.
+
+Revisión de sólo lectura de las 50 órdenes y el inventario identificado: OC-0048 recibida se conserva. Tres cabeceras históricas sin ítems tienen productos distintos, clasificadas individualmente con descripción y hash del original en una revisión privada; cualquier modificación invalida la captura. No se inventa atribución histórica del alta manual: se concilia En compra contra las órdenes vigentes, preservando todos los demás campos del inventario. La revisión está ligada a originales completos, configuración y vencimiento; planificación y precommit repiten la comprobación.
+
+Servicio dedicado propuesto compras-nixa, sin instancias mínimas, para evitar reemplazar el runtime principal cotizador. Composición desde imagen exacta publicada 55e5d728…: 149 archivos intactos, sólo se agrega la acción ordenes.eliminar al guard nativo y cinco módulos nuevos. No se instalan dependencias ni se activan H7, escrituras generales o pruebas con datos reales. Se conserva autenticación Firebase con revocación, permiso actual, lectura del usuario, guard, recibo y proyecciones nativas. Rules: se preservan autorizaciones originales y sólo se amplía el interlock de reposo para el commit nativo autenticado, con fence vivo y acción/revisión actuales. Reglas y configuración remotas aún no aplicadas en este commit.
+
+34 pruebas del cliente y la integración RTDB con el runtime exacto pasaron, incluida exclusión de escrituras SDK intercaladas, replay de un solo efecto y H7 ausente. 24 focales adicionales de revisión, servidor local completo y estructura de Rules pasaron. Falta cerrar suite vigente congelada, publicar servicio/Rules/Hosting y verificar web/aviso. La puerta anterior conserva 17 fallos conocidos; no afirmar verde general ni publicado por el solo commit. Evidencia y registros de revisión reales sólo en tmp privado, nunca en Git.
+
+# Estado anterior, sustituido por la autorización de arriba
 
 Instrucción vigente: «antes de publicar quiero que actualices en local y voy a probar yo de poder eliminarla; si te digo que está lista recién ahí publicamos». NO Hosting, NO aviso oficial, NO backend, NO reglas ni activación de borrado hasta nueva indicación del titular. Producción permanece v3.21.10. No interpretar las autorizaciones anteriores como aprobación del paquete pendiente.
 

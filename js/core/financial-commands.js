@@ -23,10 +23,10 @@
    if(root.navigator?.onLine===false)throw fail('SV_FINANCIAL_OFFLINE','Sin conexión. Reintentá cuando vuelva Internet.',503);
    let release;try{release=root.SVForegroundSession?.holdDatabase?.();return await task();}finally{try{release?.();}catch(_){/* No cambia un acuse confirmado. */}}
   }
-  async function request(path,body,session,{capability=false}={}){
+  async function request(path,body,session,{capability=false,orderDelete=false}={}){
    let attempted=false;
    try{
-    session.check();const base=String(root.SISVENTAS_FUNCTIONS?.cotizadorProveedor||'').replace(/\/$/,'');
+    session.check();const purchase=orderDelete||path==='/compras/ordenes/eliminar',base=String((purchase?root.SISVENTAS_FUNCTIONS?.comprasRevisadas:null)||root.SISVENTAS_FUNCTIONS?.cotizadorProveedor||'').replace(/\/$/,'');
     if(!base||typeof root.fetch!=='function'||typeof root.SVServiceAuth?.headers!=='function')throw fail('SV_FINANCIAL_SERVICE','No se pudo conectar con el guardado seguro.',503);
     const serialized=JSON.stringify(body);if(new TextEncoder().encode(serialized).byteLength>16*1024*1024)throw fail('SV_LABOR_SIZE','El guardado supera el tamaño permitido.',400);
     const headers=await root.SVServiceAuth.headers({'Content-Type':'application/json'});session.check();
@@ -41,7 +41,8 @@
     return data;
    }catch(error){if(error&&typeof error==='object')error.svLaborAttempted=attempted;throw error;}
   }
-  async function flags(session){
+  async function flags(session,feature){
+   if(feature==='orderDelete'&&root.SISVENTAS_FUNCTIONS?.comprasRevisadas){const data=await request('/laboral/capacidades',{},session,{capability:true,orderDelete:true});if(data?.orderDelete?.version!==1||typeof data.orderDelete.enabled!=='boolean')throw fail('SV_FINANCIAL_CAPABILITIES','No se pudo comprobar la eliminación protegida.',503);session.check();return {orderDelete:data.orderDelete};}
    if(capabilities&&same(capabilities.session,session))return capabilities.promise;
    const state={session,promise:null};
    state.promise=request('/laboral/capacidades',{},session,{capability:true}).then(data=>{
@@ -71,7 +72,7 @@
     if(!same(attempt.session,session)||attempt.signature!==signature)throw fail('SV_PAYMENT_ATTEMPT_CHANGED','Hay un intento anterior de guardado. Confirmalo antes de cambiar sus datos.',409);
     if(attempt.promise)return attempt.promise;
    }
-   const available=await flags(session);session.check();
+   const available=await flags(session,feature);session.check();
    if(!available[feature].enabled){if(['saleDelete','orderDelete','otDelete'].includes(feature)&&capabilities&&same(capabilities.session,session))capabilities=null;return null;}
    // Otro clic pudo completar la consulta de capacidades mientras esperábamos.
    attempt=attempt||(reference&&typeof reference==='object'?rememberedAttempt(reference):null)||pending.get(key);
