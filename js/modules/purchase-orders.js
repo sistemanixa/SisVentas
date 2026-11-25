@@ -1101,6 +1101,35 @@
     });
   }
 
+  function transactionInventoryV2(productKey,mutate){
+    guardLegacyPurchaseWrite();
+    if(!productKey||['__proto__','constructor','prototype'].includes(productKey)||safeKey(productKey)!==productKey||!window.fbDB||typeof window.fbRunTransaction!=='function')throw Error('La identidad de inventario requiere revisión.');
+    return window.fbRunTransaction(window.fbRef(window.fbDB,PATH_INVENTORY+'/'+productKey),function(current){
+      if(!current||typeof current!=='object'||Array.isArray(current))throw Error('Falta el inventario original; no se supone stock cero.');
+      return mutate(JSON.parse(JSON.stringify(current)));
+    });
+  }
+  async function linkExistingPurchaseV2(list,rows){
+    if(list.stockExistenteReservado||Object.keys(list.reservasInventario||{}).length)throw Error('La reserva física histórica requiere revisión; se conserva intacta.');
+    var listKey=list.listId||list.fbKey,saleKey=list.ventaFbKey,links=list.vinculosInventario||[],groups={};
+    if(!Array.isArray(links))throw Error('Los vínculos originales requieren revisión.');
+    rows.forEach(function(row){var key=row.productoKey||row.productKey,qty=Number(row.usarExistente??row.existing??0);if(!qty)return;if(!key||['__proto__','constructor','prototype'].includes(key)||safeKey(key)!==key||!saleKey||safeKey(saleKey)!==saleKey||!Number.isFinite(qty)||qty<0)throw Error('Falta la identidad o cantidad canónica del vínculo.');var group=groups[key]||(groups[key]={quantity:0,code:row.codigo||row.code});if(group.code!==(row.codigo||row.code))throw Error('El producto conserva códigos ambiguos.');group.quantity+=qty;});
+    if(links.some(function(entry){return !entry||entry.schema!==2||!groups[entry.productKey]||entry.listKey!==listKey||entry.saleKey!==saleKey;}))throw Error('Los vínculos no coinciden con la preparación actual.');
+    for(var key of Object.keys(groups)){
+      var group=groups[key],prior=links.find(function(entry){return entry.productKey===key;}),id=prior?.operationId||'vinculo_'+safeKey(listKey)+'_'+key,at=prior?.ts||Date.now();
+      if(list.stockExistenteVinculado&&!prior)throw Error('El vínculo v2 está incompleto; requiere revisión.');
+      var saved=await transactionInventoryV2(key,function(inv){
+        if(!group.code||inv.codigo!==group.code||safeKey(group.code)!==group.code||inv.productKey&&inv.productKey!==key)throw Error('La identidad física requiere revisión; no se inventan alias.');
+        if(prior&&(prior.schema!==2||prior.listKey!==listKey||prior.saleKey!==saleKey||prior.inventoryKey!==key||prior.receiptIdentityKey!==group.code||prior.cantidad!==group.quantity))throw Error('El vínculo original cambió.');
+        return window.SVPurchaseCommandAdapter.linkPurchasePlanV2(inv,{saleKey:saleKey,listKey:listKey,quantity:group.quantity,id:id,at:prior?at:(inv.asignaciones?.[saleKey]?.planesCompra?.[listKey]?.ts||at)});
+      });
+      if(!saved.committed)throw Error('El inventario cambió; revisá el vínculo antes de continuar.');
+      var event=saved.snapshot.val().asignaciones[saleKey].planesCompra[listKey],proof={schema:2,productKey:key,inventoryKey:key,receiptIdentityKey:group.code,listKey:listKey,saleKey:saleKey,cantidad:group.quantity,operationId:event.operationId,ts:event.ts};
+      if(!prior)links=links.concat([proof]);
+    }
+    var changes={stockExistenteVinculado:true,vinculosInventario:links};await update(PATH_LISTS+'/'+listKey,changes);Object.assign(list,changes);return links;
+  }
+
   function nextOrderNumber(offset) {
     var max = state.orders.reduce(function (value, order) {
       var match = String(order.numero || '').match(/(\d+)$/);
@@ -1110,27 +1139,9 @@
   }
 
   async function reserveDeclaredExisting(list) {
-    if (!list || list.stockExistenteReservado) return Promise.resolve();
+    if (!list) return Promise.resolve();
     if(await commands().mode('listReserve')==='command')return runPurchaseCommand('listReserve',await sourceCommand(PATH_LISTS,list.fbKey,'listKey'),'list:'+list.fbKey,'oc-material-list-modal',async function(){Object.assign(list,await detail(PATH_LISTS,list.fbKey));});
-    var allocationKey = safeKey(list.ventaFbKey || list.ventaId || list.fbKey);
-    var declared = (list.items || []).filter(function (item) { return isPurchasableMaterialItem(item) && item.incluir && (parseFloat(item.usarExistente) || 0) > 0; });
-    return Promise.all(declared.map(function (item) {
-      var qty = parseFloat(item.usarExistente) || 0;
-      return transactionInventory(item.productoKey || item.codigo, function (inv) {
-        var fromGeneral = Math.min(qty, parseFloat(inv.general) || 0);
-        inv.general = (parseFloat(inv.general) || 0) - fromGeneral;
-        inv.reservado = (parseFloat(inv.reservado) || 0) + qty;
-        inv.codigo = item.codigo; inv.descripcion = item.descripcion;
-        inv.asignaciones = inv.asignaciones || {};
-        inv.asignaciones[allocationKey] = inv.asignaciones[allocationKey] || { reservado: 0, consumido: 0, liberado: 0 };
-        inv.asignaciones[allocationKey].reservado = (parseFloat(inv.asignaciones[allocationKey].reservado) || 0) + qty;
-        inv.asignaciones[allocationKey].ventaId = list.ventaId || '';
-        inv.asignaciones[allocationKey].origen = fromGeneral >= qty ? 'stock_general' : 'declarado_manualmente';
-      });
-    })).then(function () {
-      list.stockExistenteReservado = true;
-      return update(PATH_LISTS + '/' + list.fbKey, { stockExistenteReservado: true, stockExistenteReservadoEn: Date.now() });
-    });
+    return linkExistingPurchaseV2(list,(list.items||[]).filter(function(item){return isPurchasableMaterialItem(item)&&item.incluir;}));
   }
 
   function buildPlannedOrders(list,sim) {
@@ -1151,7 +1162,7 @@
     var extras=sim.extras||[],goods=extras.reduce(function(a,x){return a+Number(x.qty)*Number(x.usd);},0),extraCost=Number(p.extraLogisticsUSD||0)*Number(p.usd);
     extras.forEach(function(row){add(row,'stock',(sim.version>=6?Number(row.unitCostARS):Number(row.usd)*Number(sim.chosen==='remote'?p.usdt:p.usd))+(goods?extraCost*Number(row.usd)/goods:0));});
     if(!Object.keys(groups).length&&!(sim.version>=6&&(sim.rows||[]).some(function(r){return Number(r.existing)>0;})))throw new Error('No hay productos pendientes de compra.');
-    return Object.keys(groups).sort().map(function(key,index){var g=groups[key],total=g.items.reduce(function(a,x){return a+x.subtotal;},0);return {fbKey:'plan_'+safeKey(list.fbKey)+'_'+key,generacionPendiente:true,numero:'OC-'+safeKey(list.numero||list.fbKey)+'-'+(index+1),origen:g.destination==='stock'?'extra_stock':'venta',listaMaterialesId:list.fbKey,ventaId:g.destination==='venta'?list.ventaId||'':'',ventaFbKey:g.destination==='venta'?list.ventaFbKey||'':'',cliente:g.destination==='venta'?list.cliente||'':'',compraVentaReferencia:list.ventaId||'',proveedor:g.provider,proveedorKey:g.providerKey,fecha:today(),estado:'borrador',items:g.items,total:total,monto:total,moneda:'ARS',recepciones:[],ts:Date.now(),usuario:window.currentUser||'Sistema'};});
+    return Object.keys(groups).sort().map(function(key,index){var g=groups[key],total=g.items.reduce(function(a,x){return a+x.subtotal;},0);return {fbKey:'plan_'+safeKey(list.fbKey)+'_'+key,generacionPendiente:true,numero:'OC-'+safeKey(list.numero||list.fbKey)+'-'+(index+1),origen:g.destination==='stock'?'extra_stock':'venta',listaMaterialesId:list.fbKey,ventaId:g.destination==='venta'?list.ventaId||'':'',ventaFbKey:g.destination==='venta'?list.ventaFbKey||'':'',cliente:g.destination==='venta'?list.cliente||'':'',compraVentaReferencia:list.ventaId||'',proveedor:g.provider,proveedorKey:g.providerKey,fecha:today(),estado:'borrador',items:g.items,total:total,monto:total,moneda:'ARS',recepciones:[],inventoryFlowVersion:2,ts:Date.now(),usuario:window.currentUser||'Sistema'};});
   }
 
   async function confirmPlannedPurchase(list,sim) {
@@ -1188,22 +1199,22 @@
   async function finishPlannedPurchase(list,confirmation){
     if(await commands().mode('listGenerate')==='command')return runPurchaseCommand('listGenerate',await sourceCommand(PATH_LISTS,list.fbKey,'listKey'),'list:'+list.fbKey,'oc-material-list-modal',function(){window.notify('Compra confirmada');renderBalanceCompra();});
     if(confirmation.estado==='completa'){if(typeof window.notify==='function')window.notify('Esta compra ya tiene órdenes generadas.');return;}
-    var planned=confirmation.ordenes||[];
+    var planned=confirmation.ordenes||[];if(planned.some(function(order){return order.inventoryFlowVersion!==2;}))throw Error('La confirmación histórica requiere revisión; no se reinterpretan reservas.');
     if(list.origen==='conjunta'){
       for(var source of list.sources||[]){var sourceRows=(list.simuladorParaguay&&list.simuladorParaguay.rows||[]).filter(function(r){return r.sourceListId===source.listId;});
-        await finishPlannedPurchase(Object.assign({},source,{fbKey:list.fbKey+'_'+safeKey(source.listId),stockExistenteReservado:false,simuladorParaguay:{version:list.simuladorParaguay.version,rows:sourceRows}}),{estado:'pendiente',ordenes:planned.filter(function(o){return o.listaOrigenId===source.listId;})});
+        var sourceOriginal=await detail(PATH_LISTS,source.listId);await finishPlannedPurchase(Object.assign({},sourceOriginal,{fbKey:source.listId,listId:source.listId,simuladorParaguay:{version:list.simuladorParaguay.version,rows:sourceRows}}),{estado:'pendiente',ordenes:planned.filter(function(o){return o.listaOrigenId===source.listId;})});
       }
     }
-    var existingRows=(list.origen==='conjunta'||list.stockExistenteReservado?[]:list.simuladorParaguay&&list.simuladorParaguay.rows||[]).filter(function(row){return Number(row.existing)>0;}),existingByProduct={};existingRows.forEach(function(row){var key=row.productKey||row.code;existingByProduct[key]=(existingByProduct[key]||0)+Number(row.existing);});
-    for(var productKey of Object.keys(existingByProduct)){var quantity=existingByProduct[productKey];await transactionInventory(productKey,function(inv){inv.operaciones=inv.operaciones||{};var operation='existente_plan_'+safeKey(list.fbKey);if(inv.operaciones[operation])return;if(list.simuladorParaguay&&list.simuladorParaguay.version>=6&&Number(inv.general||0)<quantity)throw new Error('Stock insuficiente. Actualizá la preparación antes de continuar.');var available=Math.min(quantity,Number(inv.general)||0);inv.general=(Number(inv.general)||0)-available;inv.reservado=(Number(inv.reservado)||0)+quantity;inv.asignaciones=inv.asignaciones||{};var allocation=safeKey(list.ventaFbKey||list.ventaId||list.fbKey);var assignment=inv.asignaciones[allocation]||(inv.asignaciones[allocation]={reservado:0,consumido:0,liberado:0});assignment.reservado=(Number(assignment.reservado)||0)+quantity;assignment.ventaId=list.ventaId||'';assignment.origen=available===quantity?'stock_general':'declarado_manualmente';inv.operaciones[operation]=Date.now();});}
+    if(list.origen!=='conjunta')await linkExistingPurchaseV2(list,list.simuladorParaguay?.rows||[]);
+    else {var jointLinks=[];for(var childSource of list.sources||[]){var childList=state.lists.find(function(row){return row.fbKey===childSource.listId;});if(!childList)childList=await detail(PATH_LISTS,childSource.listId);jointLinks=jointLinks.concat(childList.vinculosInventario||[]);}await update(PATH_LISTS+'/'+list.fbKey,{stockExistenteVinculado:true,vinculosInventario:jointLinks});list.vinculosInventario=jointLinks;list.stockExistenteVinculado=true;}
 
     for(var order of planned){await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_ORDERS+'/'+order.fbKey),function(current){return current||order;});
       var byProduct={};order.items.forEach(function(item){var key=item.productoKey||item.codigo;if(!byProduct[key])byProduct[key]={qty:0,item:item};byProduct[key].qty+=Number(item.cantidadOrdenada);});
-      for(var key of Object.keys(byProduct)){var entry=byProduct[key];await transactionInventory(key,function(inv){inv.operaciones=inv.operaciones||{};var op='compra_'+order.fbKey;if(inv.operaciones[op])return;inv.enCompra=(Number(inv.enCompra)||0)+entry.qty;inv.codigo=entry.item.codigo;inv.descripcion=entry.item.descripcion;inv.operaciones[op]=Date.now();});}
+      for(var key of Object.keys(byProduct)){var entry=byProduct[key];await transactionInventoryV2(key,function(inv){inv.operaciones=inv.operaciones||{};var op='compra_'+order.fbKey;if(inv.operaciones[op])return inv;if(typeof inv.enCompra!=='number'||!Number.isFinite(inv.enCompra)||inv.enCompra<0)throw Error('Falta saldo en compra original.');inv.enCompra+=entry.qty;inv.codigo=entry.item.codigo;inv.descripcion=entry.item.descripcion;inv.operaciones[op]=Date.now();return inv;});}
     }
     for(var readyOrder of planned)await update(PATH_ORDERS+'/'+readyOrder.fbKey,{generacionPendiente:false});
     var keys=planned.map(function(o){return o.fbKey;});await update(PATH_LISTS+'/'+(list.listId||list.fbKey),{estado:keys.length?'ordenada':'cerrada',ordenesIds:keys,ordenadaEn:Date.now()});list.estado=keys.length?'ordenada':'cerrada';list.ordenesIds=keys;list.compraConfirmacion=confirmation;
-    if(list.ventaFbKey)await update('sisventas/ventas/'+list.ventaFbKey,{ordenesCompraIds:keys.filter(function(k){return planned.find(function(o){return o.fbKey===k;}).origen==='venta';}),compraEstado:keys.length?'ordenada':'stock_reservado'});
+    if(list.ventaFbKey)await update('sisventas/ventas/'+list.ventaFbKey,{ordenesCompraIds:keys.filter(function(k){return planned.find(function(o){return o.fbKey===k;}).origen==='venta';}),compraEstado:keys.length?'ordenada':'stock_vinculado'});
     if(!list.listId)await update(PATH_LISTS+'/'+list.fbKey,{'compraConfirmacion/estado':'completa'});confirmation.estado='completa';
     if(typeof window.notify==='function')window.notify('Compra confirmada. Órdenes creadas; el stock se registra al recibir.');renderBalanceCompra();
   }
@@ -1229,8 +1240,8 @@
     }).then(function (purchase) {
       if (!purchase) return null;
       if (!purchase.length) {
-        return update(PATH_LISTS + '/' + list.fbKey, { estado: 'reservada', ordenadaEn: Date.now() }).then(function () {
-          if (list.ventaFbKey) update('sisventas/ventas/' + list.ventaFbKey, { compraEstado: 'material_reservado_sin_compra' });
+        return update(PATH_LISTS + '/' + list.fbKey, { estado: 'cerrada', ordenadaEn: Date.now() }).then(function () {
+          if (list.ventaFbKey) update('sisventas/ventas/' + list.ventaFbKey, { compraEstado: 'material_vinculado_sin_compra' });
           if (typeof window.notify === 'function') window.notify('Lista cerrada: todos los materiales fueron marcados como disponibles.');
           document.getElementById('oc-material-list-modal').style.display = 'none';
           showOrdersTab('lists');
@@ -1261,14 +1272,14 @@
           proveedor: group.proveedor, proveedorKey: group.proveedorKey || '', fecha: today(), estado: 'borrador',
           items: orderItems, monto: total, total: total, moneda: 'ARS',
           descripcion: orderItems.length + ' materiales para ' + (list.ventaId || list.cliente || 'venta'),
-          recepciones: [], ts: Date.now(), usuario: window.currentUser || 'Sistema'
+          recepciones: [], inventoryFlowVersion:2, ts: Date.now(), usuario: window.currentUser || 'Sistema'
         };
         return push(PATH_ORDERS, order).then(function (ref) {
           order.fbKey = ref.key;
           return Promise.all(orderItems.map(function (item) {
-            return transactionInventory(item.productoKey || item.codigo, function (inv) {
-              inv.enCompra = (parseFloat(inv.enCompra) || 0) + item.cantidadOrdenada;
-              inv.codigo = item.codigo; inv.descripcion = item.descripcion;
+            return transactionInventoryV2(item.productoKey, function (inv) {
+              if(typeof inv.enCompra!=='number'||!Number.isFinite(inv.enCompra)||inv.enCompra<0)throw Error('Falta el saldo en compra original.');inv.enCompra+=item.cantidadOrdenada;
+              inv.codigo = item.codigo; inv.descripcion = item.descripcion;return inv;
             });
           })).then(function () { return ref.key; });
         });
@@ -1291,7 +1302,7 @@
   function statusBadge(status) {
     var map = {
       borrador: ['b-blue', 'Borrador'], enviada: ['b-amber', 'Enviada'], recepcion_parcial: ['b-amber', 'Recepción parcial'],
-      recibida: ['b-green', 'Recibida'], cancelada: ['b-red', 'Cancelada'], preparacion: ['b-blue', 'Preparación'], ordenada: ['b-amber', 'Ordenada'], reservada: ['b-green', 'Reservada sin compra'], cerrada: ['b-green', 'Cerrada']
+      recibida: ['b-green', 'Recibida'], cancelada: ['b-red', 'Cancelada'], preparacion: ['b-blue', 'Preparación'], ordenada: ['b-amber', 'Ordenada'], reservada: ['b-green', 'Reserva histórica sin compra'], cerrada: ['b-green', 'Cerrada']
     };
     var data = map[status] || ['b-blue', status || '—'];
     return '<span class="badge ' + data[0] + '">' + esc(data[1]) + '</span>';
@@ -1308,7 +1319,7 @@
     if (!page || page.dataset.purchaseV2 === '1') return;
     page.dataset.purchaseV2 = '1';
     page.innerHTML =
-      '<div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));margin-bottom:12px"><button type="button" class="metric" data-order-metric="month" onclick="ocVerTarjetaCompra(\'month\')" style="text-align:left;color:inherit;cursor:pointer;min-width:0;font:inherit"><div class="m-label">Compras del mes</div><div class="m-value" id="oc2-total">$0</div><div class="m-sub">órdenes no canceladas</div></button><button type="button" class="metric" data-order-metric="enCompra" onclick="ocVerTarjetaCompra(\'enCompra\')" style="text-align:left;color:inherit;cursor:pointer;min-width:0;font:inherit"><div class="m-label">En compra</div><div class="m-value" id="oc2-buy" style="color:var(--amber)">0</div><div class="m-sub">unidades pendientes</div></button><button type="button" class="metric" data-order-metric="reservado" onclick="ocVerTarjetaCompra(\'reservado\')" style="text-align:left;color:inherit;cursor:pointer;min-width:0;font:inherit"><div class="m-label">Reservado para obras</div><div class="m-value" id="oc2-reserved" style="color:var(--blue)">0</div><div class="m-sub">recibido con destino</div></button><button type="button" class="metric" data-order-metric="general" onclick="ocVerTarjetaCompra(\'general\')" style="text-align:left;color:inherit;cursor:pointer;min-width:0;font:inherit"><div class="m-label">Stock general operativo</div><div class="m-value" id="oc2-general" style="color:var(--green)">0</div><div class="m-sub">controlado desde ahora</div></button></div>' +
+      '<div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));margin-bottom:12px"><button type="button" class="metric" data-order-metric="month" onclick="ocVerTarjetaCompra(\'month\')" style="text-align:left;color:inherit;cursor:pointer;min-width:0;font:inherit"><div class="m-label">Compras del mes</div><div class="m-value" id="oc2-total">$0</div><div class="m-sub">órdenes no canceladas</div></button><button type="button" class="metric" data-order-metric="enCompra" onclick="ocVerTarjetaCompra(\'enCompra\')" style="text-align:left;color:inherit;cursor:pointer;min-width:0;font:inherit"><div class="m-label">En compra</div><div class="m-value" id="oc2-buy" style="color:var(--amber)">0</div><div class="m-sub">unidades pendientes</div></button><button type="button" class="metric" data-order-metric="reservado" onclick="ocVerTarjetaCompra(\'reservado\')" style="text-align:left;color:inherit;cursor:pointer;min-width:0;font:inherit"><div class="m-label">Reservas históricas</div><div class="m-value" id="oc2-reserved" style="color:var(--blue)">0</div><div class="m-sub">reservas históricas</div></button><button type="button" class="metric" data-order-metric="general" onclick="ocVerTarjetaCompra(\'general\')" style="text-align:left;color:inherit;cursor:pointer;min-width:0;font:inherit"><div class="m-label">Stock general operativo</div><div class="m-value" id="oc2-general" style="color:var(--green)">0</div><div class="m-sub">controlado desde ahora</div></button></div>' +
       '<div class="card"><div class="card-head"><div style="display:flex;gap:7px"><button class="btn btn-sm oc2-tab active" data-tab="orders" onclick="ocShowTab(\'orders\')"><i class="ti ti-shopping-cart"></i> Órdenes por proveedor</button><button class="btn btn-sm oc2-tab" data-tab="lists" onclick="ocShowTab(\'lists\')"><i class="ti ti-list-check"></i> Listas de materiales</button></div><div style="display:flex;gap:7px;flex-wrap:wrap"><select id="oc2-filter" class="search-input btn-sm" onchange="renderOrdenesFiltradas()"><option value="">Todos los estados</option><option value="borrador">Borrador</option><option value="enviada">Enviada</option><option value="recepcion_parcial">Recepción parcial</option><option value="recibida">Recibida</option><option value="cancelada">Cancelada</option></select><button class="btn btn-sm" onclick="iniciarRecorridoNovedad(\'compras\')" title="Conocer el circuito de compras"><i class="ti ti-route"></i> Recorrido</button><button class="btn btn-sm btn-primary" data-tour="orden-manual" onclick="abrirNuevaOrden()"><i class="ti ti-plus"></i> Orden manual</button></div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 16px 12px" id="oc2-product-searchbar"><input class="search-input" id="oc2-product-search" type="search" aria-label="Buscar producto comprado" placeholder="Buscar producto o código comprado…" oninput="renderOrdenesFiltradas()" style="flex:1;min-width:0;width:100%"></div><div id="oc2-orders"></div><div id="oc2-lists" style="display:none"></div></div>';
   }
 
@@ -1369,7 +1380,7 @@
   }
 
   function metricBanner() {
-    var labels = {month:'Compras de ' + today().slice(0,7),enCompra:'Productos en compra',reservado:'Reservado para obras',general:'Stock general operativo'};
+    var labels = {month:'Compras de ' + today().slice(0,7),enCompra:'Productos en compra',reservado:'Reservas históricas',general:'Stock general operativo'};
     return state.metricView ? '<div role="status" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 16px 12px;padding:10px;border:1px solid var(--amber);border-radius:8px"><strong>' + labels[state.metricView] + '</strong><button class="btn btn-sm" type="button" onclick="ocQuitarFiltroTarjeta()">Ver todas las órdenes</button></div>' : '';
   }
   function renderInventoryMetric(target, field, query) {
@@ -1510,6 +1521,7 @@
       await detail(PATH_LISTS,id);
       return runPurchaseCommand('listPreparationCancel',await sourceCommand(PATH_LISTS,id,'listKey'),'list:'+id,'page-balancecompra',async function(){var current=await detail(PATH_LISTS,id),list=state.lists.find(function(row){return row.fbKey===id;});if(list)Object.assign(list,current);await refreshPurchaseSources(current);});
     }
+    if(state.lists.find(function(row){return row.fbKey===id;})?.stockExistenteVinculado)throw Error('La preparación tiene vínculos de inventario v2. Revisá su cancelación por el circuito coordinado.');
     const equal=window.SVGuardedWrites.equal,copy=v=>JSON.parse(JSON.stringify(v));
     const check=()=>{if(uid!==window.currentUserUid||!window.permisoModulo?.('balancecompra'))throw Error('La sesión cambió.');};
     const read=async path=>{check();return (await window.fbGet(window.fbRef(window.fbDB,path))).val();};
@@ -1756,6 +1768,7 @@
     if(await commands().mode('listUngroup')==='command'){
       return runPurchaseCommand('listUngroup',await sourceCommand(PATH_LISTS,list.fbKey,'listKey'),'list:'+list.fbKey,'oc-material-list-modal',function(){var modal=document.getElementById('oc-material-list-modal');if(modal)modal.style.display='none';state.activeList=null;var visible=state.lists.find(function(row){return row.fbKey===list.fbKey;});if(visible){visible.desagrupada=true;visible.estado='cancelada';}renderBalanceCompra();window.notify('Compras separadas. Actualizá las listas para ver sus decisiones.');});
     }
+    if(list.stockExistenteVinculado)throw Error('Separar vínculos v2 requiere el circuito coordinado. No se modificaron existencias.');
     var claim=await window.SVOperationalWrites.multi('listas_materiales',[list.fbKey,list.fbKey+'_stock'].concat((list.sources||[]).map(function(source){return source.listId;})),function(all){var joint=all&&all[list.fbKey];if(!joint||materialListLocked(joint)||joint.desagrupada)return;(joint.sources||[]).forEach(function(source){var child=all[source.listId];if(child&&child.compraConjuntaId===list.fbKey){delete child.compraConjuntaId;var rows=joint.simuladorParaguay&&joint.simuladorParaguay.rows||[];child.simuladorParaguay=child.simuladorParaguay||{};child.simuladorParaguay.rows=rows.filter(function(r){return r.sourceListId===source.listId;}).map(function(r){var copy=Object.assign({},r);copy.key=copy.key.replace('|'+source.listId+':','|');delete copy.sourceListId;delete copy.saleLabel;delete copy.expenseExcluded;return copy;});delete child.simuladorParaguay.result;child.simuladorParaguay.complete=false;child.simuladorParaguay.extras=[];}});var extras=joint.simuladorParaguay&&joint.simuladorParaguay.extras||[];if(extras.length)all[list.fbKey+'_stock']={numero:joint.numero+'-ST',origen:'stock_paraguay',cliente:'Stock general',estado:'preparacion',items:[],ordenesIds:[],fecha:today(),ts:Date.now(),simuladorParaguay:{extras:extras,rows:[],complete:false}};joint.estado='cancelada';joint.desagrupada=true;return all;});
     if(!claim.committed)throw Error('Ya tiene órdenes: no se puede separar.');var all=claim.snapshot.val();if(all[list.fbKey+'_stock']&&!state.lists.some(function(l){return l.fbKey===list.fbKey+'_stock';}))state.lists.push(Object.assign({fbKey:list.fbKey+'_stock'},all[list.fbKey+'_stock']));state.lists.forEach(function(l){if(all[l.fbKey])Object.assign(l,all[l.fbKey]);if((list.sources||[]).some(function(x){return x.listId===l.fbKey;}))delete l.compraConjuntaId;});renderBalanceCompra();
   }
@@ -1881,7 +1894,7 @@
         var purchaseUrl = safeProviderUrl(item.proveedorUrl);
         return '<tr data-order-index="' + index + '" data-budget-unit="' + budgetUnit + '"><td><div style="display:flex;align-items:center;gap:10px;min-width:0">' + thumbnail + '<div style="min-width:0"><strong>' + esc(item.codigo || '') + '</strong><div style="font-size:12px">' + esc(item.descripcion || '') + '</div>' + (purchaseUrl ? '<a href="' + attr(purchaseUrl) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:4px;font-size:11px;color:var(--blue)"><i class="ti ti-external-link"></i> Abrir link de compra</a>' : '') + '</div></div></td><td class="tr">' + ordered + '</td><td class="tr" style="color:var(--green)">' + received + '</td><td class="tr" style="color:var(--amber)">' + pending + '</td><td>' + providerCell + '</td><td class="tr">' + costText(budgetUnit) + '<small style="display:block;color:var(--text3)">por unidad</small></td><td class="tr">' + ((editableReceipt || editableReconciliation) ? '<input class="search-input oc-real-cost" aria-label="Costo real '+attr(currency)+'" type="number" min="0" step="0.01" value="' + (actualUnit || budgetUnit) + '" oninput="ocActualizarResultadoCompra(this)" style="width:110px;text-align:right">' : (actualUnit ? costText(actualUnit) : '—')) + '</td><td class="tr oc-purchase-difference">' + purchaseDifferenceLabel(budgetUnit, actualUnit) + '</td>' + (editableReceipt ? '<td class="tr"><input class="search-input oc-receive-now" type="number" min="0" max="' + pending + '" value="0" style="width:82px;text-align:right"></td>' : '') + '</tr>';
       }).join('') + '</tbody></table></div>' +
-      '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:14px;flex-wrap:wrap"><div><strong>Total: ' + costText(order.total || order.monto) + '</strong><div style="font-size:11px;color:var(--text3)">Los materiales recibidos para una venta quedan reservados; los manuales ingresan al stock general operativo.</div></div><div style="display:flex;gap:7px;flex-wrap:wrap">' +
+      '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:14px;flex-wrap:wrap"><div><strong>Total: ' + costText(order.total || order.monto) + '</strong><div style="font-size:11px;color:var(--text3)">Toda recepción ingresa al stock general. La venta conserva su referencia; el stock se descuenta al entregar al técnico, no al instalar.</div></div><div style="display:flex;gap:7px;flex-wrap:wrap">' +
         (hasReceipts ? '<button class="btn" onclick="ocImprimirOrdenActual()"><i class="ti ti-file-description"></i> Ver comprobante</button>' : '') +
         (editableReconciliation ? '<button class="btn btn-primary" onclick="ocGuardarConciliacionActual()"><i class="ti ti-device-floppy"></i> Guardar cambios</button>' : '') +
         (editableOrder ? '<button class="btn" onclick="ocEditarOrdenActual()"><i class="ti ti-edit"></i> Editar</button>' : '') +
@@ -1889,7 +1902,7 @@
         (order.estado === 'borrador' ? '<button class="btn" onclick="ocCambiarEstadoOrden(\'enviada\')"><i class="ti ti-send"></i> Marcar enviada</button>' : '') +
         (editableReceipt ? '<button class="btn btn-primary" onclick="ocRegistrarRecepcion()"><i class="ti ti-package-import"></i> Registrar recepción</button>' : '') +
         (order.estado !== 'cancelada' && order.estado !== 'recibida' ? '<button class="btn" style="color:var(--red)" onclick="ocCambiarEstadoOrden(\'cancelada\')">Cancelar</button>' : '') +
-        '<button class="btn" style="color:var(--red)" onclick="ocEliminarOrdenActual()"><i class="ti ti-trash"></i> Eliminar</button>' +
+        (orderDeleteAction(order).action==='delete'?'<button class="btn" style="color:var(--red)" onclick="ocEliminarOrdenActual()"><i class="ti ti-trash"></i> Eliminar</button>':'<small data-order-delete-review style="flex-basis:100%;color:var(--text3)">'+esc(orderDeleteAction(order).reason)+'</small>') +
       '</div></div>';
     modal.style.display = 'flex';
     close.focus({preventScroll:true});
@@ -1907,7 +1920,7 @@
     }
     var claim=await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_ORDERS+'/'+order.fbKey),function(current){if(!current||current.generacionPendiente||current.recepcionPendiente)return;if(current.estado==='recibida')return;if(current.estado==='cancelada'&&status!=='cancelada')return;current.estado=status;if(status==='cancelada')current.cancelacionPendiente=true;current.actualizadoEn=Date.now();return current;});
     if(!claim.committed){window.notify('La orden cambió o tiene una recepción pendiente. Reabrila para continuar.');return;}
-    var current=claim.snapshot.val();if(status==='cancelada'){var grouped={};(current.items||[]).forEach(function(item){var key=item.productoKey||item.codigo;grouped[key]=(grouped[key]||0)+Math.max(0,Number(item.cantidadOrdenada||item.cantidad)-Number(item.cantidadRecibida||0));});for(var key of Object.keys(grouped)){await transactionInventory(key,function(inv){inv.operaciones=inv.operaciones||{};var op='cancel_'+order.fbKey;if(inv.operaciones[op])return;inv.enCompra=Math.max(0,Number(inv.enCompra||0)-grouped[key]);inv.operaciones[op]=Date.now();});}}
+    var current=claim.snapshot.val();if(status==='cancelada'){var grouped={};(current.items||[]).forEach(function(item){var key=item.productoKey||item.codigo;grouped[key]=(grouped[key]||0)+Math.max(0,Number(item.cantidadOrdenada||item.cantidad)-Number(item.cantidadRecibida||0));});for(var key of Object.keys(grouped)){await transactionInventoryV2(key,function(inv){inv.operaciones=inv.operaciones||{};var op='cancel_'+order.fbKey;if(inv.operaciones[op])return inv;if(typeof inv.enCompra!=='number'||!Number.isFinite(inv.enCompra)||inv.enCompra<grouped[key])throw Error('El saldo en compra necesita revisión.');inv.enCompra-=grouped[key];inv.operaciones[op]=Date.now();return inv;});}}
     if(status==='cancelada')await update(PATH_ORDERS+'/'+order.fbKey,{cancelacionPendiente:null});
     document.getElementById('oc-order-modal').style.display='none';window.notify('Orden actualizada');
   }
@@ -2077,28 +2090,31 @@
         return await runPurchaseCommand('orderInventory',body,'order:'+order.fbKey,'oc-order-modal',function(){closeOrderDetail();window.notify('Recepción registrada');});
       }
       if(purchaseCurrency(order)!=='ARS')throw Error('Recibir esta moneda requiere el guardado seguro actualizado. La orden se conserva.');
+      if(order.inventoryFlowVersion!==undefined&&order.inventoryFlowVersion!==2)throw Error('La versión histórica del flujo de inventario requiere revisión.');
+      if(order.recepcionPendiente&&order.recepcionPendiente.inventoryFlowVersion!==2)throw Error('La recepción pendiente histórica requiere revisión; no se cambia su destino.');
+      movements.forEach(function(m){if(!m.item.productoKey||safeKey(m.item.productoKey)!==m.item.productoKey)throw Error('La identidad del producto requiere revisión.');window.SVPurchaseCommandAdapter.purchaseDestinationV2(order,m.item);});
       function canonical(v){if(v==null||typeof v!=='object')return JSON.stringify(v);if(Array.isArray(v))return '['+v.map(canonical).join(',')+']';return '{'+Object.keys(v).sort().map(function(k){return JSON.stringify(k)+':'+canonical(v[k]);}).join(',')+'}';}
       var token='r_'+Date.now()+'_'+Math.random().toString(36).slice(2),expected=(order.recepciones||[]).length;
       var claim=await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_ORDERS+'/'+order.fbKey),function(current){
         if(!current||current.generacionPendiente||current.estado==='cancelada')return;
-        if(current.recepcionPendiente)return current;
+        if(current.recepcionPendiente){if(current.recepcionPendiente.inventoryFlowVersion!==2)throw Error('La recepción pendiente histórica requiere revisión.');return current;}
         if(current.estado==='recibida'||(current.recepciones||[]).length!==expected||!movements.length)return;
         if(movements.some(function(m){var item=current.items[m.index];return !item||canonical(item)!==canonical(m.item)||!Number.isFinite(m.qty)||m.qty<=0||!Number.isFinite(m.costoUnitarioReal)||m.costoUnitarioReal<=0||m.qty>Number(item.cantidadOrdenada||item.cantidad)-Number(item.cantidadRecibida||0);}))return;
-        current.recepcionPendiente={id:token,fecha:today(),ts:Date.now(),usuario:window.currentUser||'Sistema',movements:movements};return current;
+        current.recepcionPendiente={inventoryFlowVersion:2,id:token,fecha:today(),ts:Date.now(),usuario:window.currentUser||'Sistema',movements:movements};return current;
       });
       if(!claim.committed)throw new Error('La orden cambió o su confirmación está pendiente; actualizá el detalle');
       var current=claim.snapshot.val(),pending=current.recepcionPendiente;if(!pending)throw new Error('No hay recepción pendiente');
       var batch=pending.movements,op=pending.id,items=JSON.parse(JSON.stringify(current.items));
       batch.forEach(function(m){var item=items[m.index],prior=Number(item.cantidadCostoReal||item.cantidadRecibida)||0;item.costoUnitarioPresupuestado=Number(item.costoUnitarioPresupuestado||item.costoUnitario)||0;item.cantidadRecibida=Number(item.cantidadRecibida||0)+m.qty;item.cantidadCostoReal=prior+m.qty;item.costoRealAcumulado=Number(item.costoRealAcumulado||0)+m.qty*m.costoUnitarioReal;item.ultimoCostoReal=m.costoUnitarioReal;item.costoUnitarioReal=item.costoRealAcumulado/item.cantidadCostoReal;item.proveedorFinal=m.proveedor;item.proveedorFinalKey=m.proveedorKey;});
-      var grouped={};batch.forEach(function(m){var key=m.item.productoKey||m.item.codigo;if(!grouped[key])grouped[key]={qty:0,total:0,item:m.item};grouped[key].qty+=m.qty;grouped[key].total+=m.qty*m.costoUnitarioReal;});
-      for(var key of Object.keys(grouped)){var group=grouped[key];await transactionInventory(key,function(inv){inv.operaciones=inv.operaciones||{};if(inv.operaciones[op])return;inv.enCompra=Math.max(0,Number(inv.enCompra||0)-group.qty);inv.codigo=group.item.codigo;inv.descripcion=group.item.descripcion;if(current.ventaId||current.ventaFbKey){inv.reservado=Number(inv.reservado||0)+group.qty;inv.asignaciones=inv.asignaciones||{};var destination=safeKey(current.ventaFbKey||current.ventaId);inv.asignaciones[destination]=inv.asignaciones[destination]||{reservado:0,consumido:0,liberado:0};inv.asignaciones[destination].reservado+=group.qty;inv.asignaciones[destination].ventaId=current.ventaId||'';}else {inv.general=Number(inv.general||0)+group.qty;inv.costoReferenciaStock={unit:group.total/group.qty,order:order.fbKey,number:current.numero||'',stamp:pending.ts,receipt:op,basis:'costo_final_con_gastos'};}inv.operaciones[op]=pending.ts;});}
+      var grouped={};batch.forEach(function(m){var key=m.item.productoKey;if(!key||safeKey(key)!==key)throw Error('La identidad del producto requiere revisión.');if(!grouped[key])grouped[key]={qty:0,saleQty:0,total:0,item:m.item};grouped[key].qty+=m.qty;grouped[key].total+=m.qty*m.costoUnitarioReal;if(window.SVPurchaseCommandAdapter.purchaseDestinationV2(current,m.item)==='sale')grouped[key].saleQty+=m.qty;});
+      for(var key of Object.keys(grouped)){var group=grouped[key];var received=await transactionInventoryV2(key,function(inv){if(inv.codigo!==group.item.codigo||inv.productKey&&inv.productKey!==key)throw Error('La identidad física requiere revisión.');return window.SVPurchaseCommandAdapter.receivePurchaseV2(inv,{orderKey:order.fbKey,quantity:group.qty,saleQuantity:group.saleQty,saleKey:current.ventaFbKey,id:op,at:pending.ts,unitCost:group.total/group.qty,code:group.item.codigo,description:group.item.descripcion});});if(!received.committed)throw Error('No se confirmó el ingreso general. Conservá el recibo pendiente.');}
       var complete=items.every(function(item){return Number(item.cantidadRecibida)>=Number(item.cantidadOrdenada||item.cantidad);});
-      if(current.ventaFbKey)await syncSalePurchaseCosts(Object.assign({},current,{fbKey:order.fbKey,receiptOperation:op}),batch,complete);
+      var saleBatch=batch.filter(function(m){return window.SVPurchaseCommandAdapter.purchaseDestinationV2(current,m.item)==='sale';});if(saleBatch.length)await syncSalePurchaseCosts(Object.assign({},current,{fbKey:order.fbKey,receiptOperation:op}),saleBatch,complete);
       var totalReal=items.reduce(function(a,x){return a+Number(x.costoRealAcumulado||0);},0),budget=items.reduce(function(a,x){return a+Number(x.cantidadCostoReal||0)*Number(x.costoUnitarioPresupuestado||x.costoUnitario||0);},0);
-      var finalized=await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_ORDERS+'/'+order.fbKey),function(latest){if(!latest)return;if((latest.recepciones||[]).some(function(r){return r.id===op;}))return latest;if(!latest.recepcionPendiente||latest.recepcionPendiente.id!==op||canonical(latest.items)!==canonical(current.items))return;latest.items=items;latest.proveedorFinalResumen=orderProviderSummary(latest);latest.recepciones=(latest.recepciones||[]).concat([{id:op,fecha:pending.fecha,ts:pending.ts,usuario:pending.usuario,items:batch.map(function(m){return {codigo:m.item.codigo,cantidad:m.qty,proveedor:m.proveedor,proveedorKey:m.proveedorKey,costoUnitarioReal:m.costoUnitarioReal,costoUnitarioPresupuestado:Number(m.item.costoUnitarioPresupuestado||m.item.costoUnitario)||0};})}]);latest.totalRealRecibido=totalReal;latest.totalPresupuestadoRecibido=budget;latest.diferenciaCompra=budget-totalReal;latest.estado=complete?'recibida':'recepcion_parcial';latest.recibidoEn=Date.now();latest.recepcionPendiente=null;return latest;});
+      var finalized=await window.fbRunTransaction(window.fbRef(window.fbDB,PATH_ORDERS+'/'+order.fbKey),function(latest){if(!latest)return;if((latest.recepciones||[]).some(function(r){return r.id===op;}))return latest;if(!latest.recepcionPendiente||latest.recepcionPendiente.id!==op||canonical(latest.items)!==canonical(current.items))return;latest.items=items;latest.proveedorFinalResumen=orderProviderSummary(latest);latest.recepciones=(latest.recepciones||[]).concat([{inventoryFlowVersion:2,id:op,fecha:pending.fecha,ts:pending.ts,usuario:pending.usuario,items:batch.map(function(m){return {codigo:m.item.codigo,cantidad:m.qty,proveedor:m.proveedor,proveedorKey:m.proveedorKey,costoUnitarioReal:m.costoUnitarioReal,costoUnitarioPresupuestado:Number(m.item.costoUnitarioPresupuestado||m.item.costoUnitario)||0};})}]);latest.totalRealRecibido=totalReal;latest.totalPresupuestadoRecibido=budget;latest.diferenciaCompra=budget-totalReal;latest.estado=complete?'recibida':'recepcion_parcial';latest.recibidoEn=Date.now();latest.recepcionPendiente=null;return latest;});
       if(!finalized.committed)throw new Error('La orden cambió antes de confirmar. La recepción conserva su identificador; reabrila para revisar y reintentar.');
       if(complete&&current.listaMaterialesId){var related=state.orders.filter(function(o){return o.listaMaterialesId===current.listaMaterialesId&&o.estado!=='cancelada';});if(related.length&&related.every(function(o){return o.fbKey===order.fbKey||o.estado==='recibida';})){await update(PATH_LISTS+'/'+current.listaMaterialesId,{estado:'recibida',recibidaEn:Date.now()});}}
-      document.getElementById('oc-order-modal').style.display='none';if(typeof window.notify==='function')window.notify('Recepción registrada. '+(current.ventaId?'Material reservado para la venta.':'Productos ingresados al stock general.'));
+      document.getElementById('oc-order-modal').style.display='none';if(typeof window.notify==='function')window.notify('Recepción registrada en stock general. La referencia de venta se conserva sin reservar unidades.');
     }finally{state.receiptBusy=false;}
   }
 
@@ -2147,9 +2163,9 @@
       });
       return runPurchaseCommand('manualCreate',{providerKey:providerSelect.value,currency:'ARS',date:(document.getElementById('oc-manual-date')||{}).value||today(),items:items},'manual:create','oc-manual-modal',function(){closeManualOrder();window.notify('Orden manual creada como borrador');});
     }
-    var order = { numero: nextOrderNumber(), origen: 'manual', proveedor: selected.dataset.name || selected.textContent, proveedorKey: providerSelect.value, fecha: (document.getElementById('oc-manual-date') || {}).value || today(), estado: 'borrador', items: state.manualItems, monto: total, total: total, moneda: 'ARS', descripcion: state.manualItems.length + ' materiales', recepciones: [], ts: Date.now(), usuario: window.currentUser || 'Sistema' };
+    var order = { numero: nextOrderNumber(), origen: 'manual', inventoryFlowVersion:2, proveedor: selected.dataset.name || selected.textContent, proveedorKey: providerSelect.value, fecha: (document.getElementById('oc-manual-date') || {}).value || today(), estado: 'borrador', items: state.manualItems, monto: total, total: total, moneda: 'ARS', descripcion: state.manualItems.length + ' materiales', recepciones: [], ts: Date.now(), usuario: window.currentUser || 'Sistema' };
     return push(PATH_ORDERS, order).then(function (ref) {
-      return Promise.all(order.items.map(function (item) { return transactionInventory(item.productoKey || item.codigo, function (inv) { inv.enCompra = (parseFloat(inv.enCompra) || 0) + item.cantidadOrdenada; inv.codigo = item.codigo; inv.descripcion = item.descripcion; }); }));
+      return Promise.all(order.items.map(function (item) { return transactionInventoryV2(item.productoKey, function (inv) { if(typeof inv.enCompra!=='number'||!Number.isFinite(inv.enCompra)||inv.enCompra<0)throw Error('Falta el saldo en compra original.');inv.enCompra+=item.cantidadOrdenada;inv.codigo=item.codigo;inv.descripcion=item.descripcion;return inv; }); }));
     }).then(function () { document.getElementById('oc-manual-modal').style.display = 'none'; if (typeof window.notify === 'function') window.notify('Orden manual creada como borrador'); });
   }
 
@@ -2335,7 +2351,7 @@
     Promise.all(inventoryKeys.map(function (key) {
       var delta = (newPending[key] || 0) - (oldPending[key] || 0);
       if (!delta || original.estado === 'cancelada') return Promise.resolve();
-      return transactionInventory(key, function (inv) { inv.enCompra = Math.max(0, (parseFloat(inv.enCompra) || 0) + delta); });
+      return transactionInventoryV2(key, function (inv) { if(typeof inv.enCompra!=='number'||!Number.isFinite(inv.enCompra)||inv.enCompra+delta<0)throw Error('El saldo en compra necesita revisión.');inv.enCompra+=delta;return inv; });
     })).then(function () {
       return update(PATH_ORDERS + '/' + original.fbKey, {
         proveedor: selected.dataset.name || selected.textContent,
@@ -2400,13 +2416,22 @@
     return window.SVPurchaseOrderLinks.remove(window,order);
   }
 
+  function orderDeleteAction(order){
+    var linked=!!(order&&(order.ventaFbKey||order.ventaId||order.listaMaterialesId||order.listaOrigenId||order.compraVentaReferencia||order.sources?.length));
+    if(linked)return {action:'cancel',reason:'Conserva vínculos de venta/lista'};
+    var history=order&&((order.recepciones||[]).length||(order.items||[]).some(function(item){return Number(item.cantidadRecibida||0)>0||Number(item.cantidadCostoReal||0)>0;})||order.recepcionPendiente||order.cancelacionPendiente||order.generacionPendiente||order.recibidoEn||Number(order.totalRealRecibido||0)>0||Object.keys(order.edicionesCompra||{}).length||Object.keys(order.conciliacionesCompra||{}).length);
+    if(order&&['manual','extra_stock'].includes(order.origen)&&order.estado==='borrador'&&!history)return {action:'delete',reason:'Borrador independiente sin recepción'};
+    return {action:'review',reason:'La orden conserva historia o un origen que requiere revisión'};
+  }
+
   async function deleteActiveOrder() {
     var order = state.activeOrder;
     if (!order || !order.fbKey || state.orderDeletePending) return;
+    var deletion=orderDeleteAction(order);if(deletion.action!=='delete'){window.notify(deletion.reason+(deletion.action==='cancel'?'. Usá Cancelar para conservar su trazabilidad.':'. La orden se conserva.'));return;}
     if (window.tienePermiso && !window.tienePermiso('ordenes.eliminar')) { window.notify('No tenés permiso para eliminar órdenes.'); return; }
     if (order.recepcionPendiente || order.cancelacionPendiente || order.generacionPendiente || String(order.fbKey).startsWith('plan_')) { window.notify('Completá la recepción pendiente o cancelá la orden; conserva su trazabilidad.'); return; }
     var valid = window.svCapturarContextoOperacion ? window.svCapturarContextoOperacion() : function(){ return true; };
-    if (!await window.svConfirm('¿Eliminar definitivamente '+(order.numero || 'esta orden')+' y sus vínculos? Se comprobarán juntos el stock y los costos antes de guardar.')) return;
+    if (!await window.svConfirm('¿Eliminar '+(order.numero || 'este borrador independiente')+'? Se verificarán sus pendientes de compra; el stock físico y las recepciones anteriores se conservan.')) return;
     if (!valid() || state.activeOrder !== order) { window.notify('La pantalla o la sesión cambió. Volvé a abrir la orden.'); return; }
     var modal = document.getElementById('oc-order-modal'), button = modal && modal.querySelector && modal.querySelector('[onclick="ocEliminarOrdenActual()"]');
     var label = button && button.innerHTML;
@@ -2415,7 +2440,7 @@
     var confirmed = false;
     try {
       if(window.SVPurchaseCommandAdapter&&window.SVPurchaseCommandForm&&await commands().mode('orderDelete')==='command'){
-        var deleted=await runPurchaseCommand('orderDelete',await sourceCommand(PATH_ORDERS,order.fbKey,'orderKey'),'order:'+order.fbKey,'oc-order-modal',function(){confirmed=true;state.activeOrder=null;closeOrderDetail();window.notify('Orden eliminada. Stock, costos y vínculos actualizados juntos.');});
+        var deleted=await runPurchaseCommand('orderDelete',await sourceCommand(PATH_ORDERS,order.fbKey,'orderKey'),'order:'+order.fbKey,'oc-order-modal',function(){confirmed=true;state.activeOrder=null;closeOrderDetail();window.notify('Borrador independiente eliminado; stock físico e historia conservados.');});
         confirmed=true;return deleted;
       }
       if (!window.SVFinancialCommands?.deleteOrder) throw Error('Actualizá SisVentas para eliminar la compra con protección.');
@@ -2484,8 +2509,7 @@
     if(typeof window.SVOTInventory?.consume!=='function')throw Error('Actualizá SisVentas para registrar el inventario de la OT con protección.');
     var result=await window.SVOTInventory.consume(ot,oldMaterial,newMaterial);
     if(result?.installed!==false){if(result?.installed!==true||result.confirmed!==true)throw Error('No se confirmó el inventario de la OT. Consultá la operación antes de repetir.');return result;}
-    if (!window.SVOTStock) return Promise.reject(new Error('Actualizá SisVentas para registrar el stock.'));
-    return window.SVOTStock.sync(window, ot, oldMaterial, newMaterial);
+    throw Error('La instalación requiere entrega y custodia coordinadas con recibo verificable. No se confirmó la operación ni se movió stock.');
   }
 
   async function releaseOTLeftovers(ot) {
@@ -2625,6 +2649,7 @@
     syncOTConsumption: syncOTConsumption,
     releaseOTLeftovers: releaseOTLeftovers,
     receiveOTReturns: receiveOTReturns,
+    orderDeleteAction:orderDeleteAction,
     state: state
   };
   if (typeof window.addEventListener === 'function') window.addEventListener('popstate',function(){if(orderDetailHistory){closeOrderDetail(true);orderDetailHistory=false;}});

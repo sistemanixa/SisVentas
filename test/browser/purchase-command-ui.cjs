@@ -32,7 +32,7 @@ async function main(){
    for(const action of ['edit','edit-quantity','edit-linked-extra','edit-linked-new','edit-linked-remove','edit-linked-price','receive','receive-usd','reconcile-usd','edit-usd-qty','edit-usd-header','edit-usd-cost','state','reconcile','cancel','delete']){
     await page.evaluate(action=>{
      const key='fixture-'+action,item={productoKey:'p1',codigo:'FIX-1',descripcion:'Material ficticio',cantidadOrdenada:3,cantidadRecibida:action.startsWith('reconcile')?1:0,costoUnitario:10,precioPublico:25};
-     const order={numero:'OC-'+action,estado:'borrador',proveedorKey:'supplier',proveedor:'Proveedor ficticio',fecha:'2026-11-22',moneda:'ARS',items:[item],total:30,recepciones:[],inventarioCompra:{schema:1,registered:true,revision:1}};
+     const order={numero:'OC-'+action,origen:'manual',estado:'borrador',proveedorKey:'supplier',proveedor:'Proveedor ficticio',fecha:'2026-11-22',moneda:'ARS',items:[item],total:30,recepciones:[],inventarioCompra:{schema:1,registered:true,revision:1}};
      if(action==='edit-quantity'){delete item.precioPublico;order.ventaFbKey='sale-fixture';order.ventaId='V-FIX';order.listaMaterialesId='list-fixture';}
      if(action.includes('-usd')){order.moneda='USD';item.costoUnitario=2.1234567;window.obtenerDolarReferenciaProducto=()=>({valor:1250.5,tipo:'mep'});}
      if(action==='edit-usd-header'){delete item.precioPublico;if(!proveedoresData.some(p=>p.fbKey==='other'))proveedoresData.push({fbKey:'other',nombre:'Proveedor alternativo ficticio'});}
@@ -40,6 +40,7 @@ async function main(){
      window.__originals=window.__originals||{};__originals['sisventas/ordenes/'+key]=order;window.fbGet=async ref=>({val:()=>structuredClone(__originals[ref]||null)});window.__confirmTexts=[];window.svConfirm=async text=>{__confirmTexts.push(text);return true;};window.svCapturarContextoOperacion=()=>()=>true;window.tienePermiso=()=>true;SisVentasCompras.state.orders.push({...order,fbKey:key});
     },action);
     await page.evaluate(action=>SisVentasCompras.openOrder('fixture-'+action),action);
+    if(action.startsWith('edit-linked')){assert.equal(await page.getByRole('button',{name:'Eliminar',exact:true}).count(),0);assert.match(await page.locator('[data-order-delete-review]').innerText(),/Conserva vínculos de venta\/lista/);assert.equal(await page.getByRole('button',{name:'Cancelar',exact:true}).count(),1);}
     if(action==='receive-usd'||action==='reconcile-usd'){assert.equal(await page.getByRole('spinbutton',{name:'Cotización ARS por USD',exact:true}).inputValue(),'1250.5');assert.match(await page.locator('#oc-order-modal-body').innerText(),/mep/);await page.getByRole('spinbutton',{name:'Cotización ARS por USD',exact:true}).fill('1300.25');await page.screenshot({path:path.join(output,'usd-exchange-'+width+'-'+action+'.private.png')});}
 
     if(action.startsWith('edit')){

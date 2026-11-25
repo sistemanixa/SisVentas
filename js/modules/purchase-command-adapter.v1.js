@@ -9,6 +9,35 @@
   throw fail('SV_PURCHASE_INPUT','Revisá el importe o la cantidad: usá un número decimal válido.');
  }
  function exchangeRate(value){const rate=decisionNumber(value);if(typeof rate!=='number'||rate<=0||rate>1e9)throw fail('SV_PURCHASE_EXCHANGE_RATE','Indicá una cotización ARS por USD mayor que cero y hasta 1.000.000.000.');return rate;}
+ function flowReview(message){throw fail('SV_PURCHASE_FLOW_REVIEW',message+' Revisá el historial; no se modificaron las reservas anteriores.');}
+ function flowKey(value){if(typeof value!=='string'||!value||value.length>180||['__proto__','constructor','prototype'].includes(value)||/[.#$\[\]/\x00-\x1f\x7f]/.test(value))flowReview('Falta una referencia canónica.');return value;}
+ function flowNumber(value){if(typeof value!=='number'||!Number.isFinite(value)||value<0)flowReview('Falta un saldo o una cantidad verificable.');return value;}
+ function flowInventory(original){if(!original||typeof original!=='object'||Array.isArray(original))flowReview('Falta el inventario original.');flowNumber(original.general);flowNumber(original.enCompra);return clone(original);}
+ function purchaseDestinationV2(order,item){
+  if(item.destination!==undefined&&!['sale','stock'].includes(item.destination)||item.destino!==undefined&&!['venta','stock'].includes(item.destino))flowReview('El destino del renglón es ambiguo.');
+  if(item.destination!==undefined&&item.destino!==undefined&&(item.destination==='stock')!==(item.destino==='stock'))flowReview('El renglón conserva destinos contradictorios.');
+  const explicitSale=item.destination==='sale'||item.destino==='venta',stock=item.destination==='stock'||item.destino==='stock'||!explicitSale&&!order.ventaFbKey&&!order.ventaId;
+  if(!stock)flowKey(order.ventaFbKey);
+  return stock?'stock':'sale';
+ }
+ function linkPurchasePlanV2(original,{saleKey,listKey,quantity,id,at}){
+  const next=flowInventory(original);flowKey(saleKey);flowKey(listKey);flowKey(id);flowNumber(quantity);if(!quantity||next.general<quantity||!Number.isSafeInteger(at)||at<=0)flowReview('Falta disponible general verificable para vincular.');
+  next.asignaciones=next.asignaciones||{};const assignment=next.asignaciones[saleKey]||(next.asignaciones[saleKey]={});assignment.planesCompra=assignment.planesCompra||{};const prior=assignment.planesCompra[listKey];
+  if(prior){if(prior.schema!==2||prior.cantidad!==quantity||prior.operationId!==id||prior.ts!==at||!Number.isSafeInteger(prior.ts)||next.operaciones?.[id]!==prior.ts)flowReview('El vínculo de compra ya cambió.');return next;}
+  if(Number(assignment.reservado||0)>0||Number(assignment.consumido||0)>0||next.operaciones?.[id]!==undefined)flowReview('Hay historia previa sin atribución para este vínculo.');
+  assignment.planesCompra[listKey]={schema:2,cantidad:quantity,operationId:id,ts:at};next.operaciones=next.operaciones||{};next.operaciones[id]=at;return next;
+ }
+ function receivePurchaseV2(original,{orderKey,quantity,saleQuantity=0,saleKey,id,at,unitCost,code,description}){
+  const next=flowInventory(original);flowKey(orderKey);flowKey(id);flowNumber(quantity);flowNumber(saleQuantity);flowNumber(unitCost);if(!quantity||saleQuantity>quantity||!Number.isSafeInteger(at)||at<=0)flowReview('La recepción no es verificable.');
+  if(saleQuantity)flowKey(saleKey);
+  const event={schema:2,orderKey,cantidad:saleQuantity,ts:at},prior=saleQuantity?next.asignaciones?.[saleKey]?.recepcionesCompra?.[id]:undefined;
+  if(next.operaciones?.[id]!==undefined){if(next.operaciones[id]!==at||saleQuantity&&(!prior||Object.keys(prior).length!==4||prior.schema!==2||prior.orderKey!==orderKey||prior.cantidad!==saleQuantity||prior.ts!==at))flowReview('El recibo tiene otra atribución.');return next;}
+  if(prior)flowReview('El recibo quedó incompleto.');if(next.enCompra<quantity)flowReview('El saldo en compra no cubre la recepción.');
+  next.enCompra-=quantity;next.general+=quantity;next.codigo=code;next.descripcion=description;
+  next.costoReferenciaStock={unit:unitCost,order:orderKey,stamp:at,receipt:id,basis:'costo_final_con_gastos'};
+  if(saleQuantity){next.asignaciones=next.asignaciones||{};const assignment=next.asignaciones[saleKey]||(next.asignaciones[saleKey]={});assignment.recepcionesCompra=assignment.recepcionesCompra||{};assignment.recepcionesCompra[id]=event;}
+  next.operaciones=next.operaciones||{};next.operaciones[id]=at;return next;
+ }
  function editExchangeRequired(original,rows,sources){
   if(String(original?.moneda||'ARS').toUpperCase()!=='USD')return false;
   return rows.some((row,index)=>{const sourceIndex=sources?.[index]??null,prior=sourceIndex===null?null:original.items?.[sourceIndex];return !prior||Number(row.costoUnitario)!==Number(prior.costoUnitario);});
@@ -110,5 +139,5 @@
   }
   return Object.freeze({mode,execute,remember,original,clearOriginals:()=>originals.clear(),installed:()=>installedUsers.has(root.currentUserUid)});
  }
- return Object.freeze({create,decisionNumber,exchangeRate,editExchangeRequired,inventoryRevision,editDestination,linkedEditRows});
+ return Object.freeze({create,linkPurchasePlanV2,receivePurchaseV2,purchaseDestinationV2,decisionNumber,exchangeRate,editExchangeRequired,inventoryRevision,editDestination,linkedEditRows});
 });
