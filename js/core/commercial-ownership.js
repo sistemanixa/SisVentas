@@ -7,9 +7,10 @@
  const clean=r=>{const value=Object.fromEntries(Object.entries(r||{}).filter(([k])=>k!=='fbKey'&&!k.startsWith('_sv')));if(r?._svDerivedFechaOrden)delete value.fechaOrden;return value;};
  async function request(domain,path='',body,validator){
   const c=context();if(!c.user)throw Error('Sesión requerida');
-  if(!body&&root.SVForegroundSession){await root.SVForegroundSession.waitVisible();if(!valid(c))throw Error('La sesión cambió');}
+  const needsForeground=!body&&!(validator?.presentation===true&&domain==='presupuestos'&&/^registro\/[^/]+$/.test(path));
+  if(needsForeground&&root.SVForegroundSession){await root.SVForegroundSession.waitVisible();if(!valid(c))throw Error('La sesión cambió');}
   const tokenTask=c.user.getIdToken(),token=await(root.SVSessionRecovery?.deadline?root.SVSessionRecovery.deadline(tokenTask):tokenTask);if(!valid(c))throw Error('La sesión cambió');
-  if(!body&&root.SVForegroundSession){await root.SVForegroundSession.waitVisible();if(!valid(c))throw Error('La sesión cambió');}
+  if(needsForeground&&root.SVForegroundSession){await root.SVForegroundSession.waitVisible();if(!valid(c))throw Error('La sesión cambió');}
   const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servicio comercial no disponible');
   const view=c.user.uid!==c.uid?'?verComo='+encodeURIComponent(c.uid):'';
   const controller=!body&&typeof AbortController==='function'&&typeof AbortSignal.any==='function'?new AbortController():null;if(controller)readControllers.add(controller);
