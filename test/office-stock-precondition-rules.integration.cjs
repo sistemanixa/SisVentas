@@ -45,3 +45,47 @@ for(const level of ['root','collection','wildcard','record'])test('atomic source
   // Version0 belongs to existing other writers and keeps their old authority.
   assert.equal(await commit({svOfficeStockVersion:0,other:true}),200);
 },{timeout:120000});
+
+function familyRules(){const Fence=require('../cotizador/labor-fence-policy');return{rules:{'.read':false,'.write':false,...Fence.metadataRules(),sisventas:{'.write':false,$domain:{'.write':'auth != null'},ordenes_trabajo:{'.write':false,$record:{'.write':'auth != null'}},inventario_operativo:{'.write':false,$record:{'.write':'auth != null'}},ventas:{'.write':'auth != null',$venta:{'.write':'auth != null'}},reclamos:{'.write':false,$record:{'.write':'auth != null'}},contadores:{'.write':'auth != null'}}}};}
+async function setupFamily(family,kind){const f=require('./helpers/ot-final-family-genuine.cjs').fixture(family,kind),OT=require('../scripts/lib/ot-final-family-rules.cjs');const candidate=Rule.prepare(OT.prepare(familyRules(),{activationPins:f.activationPins}).rules),r=await request('.settings/rules','PUT',candidate.rules);assert.equal(r.status,200,'Final OT families compile');await r.body?.cancel();await put('',f.state);return f;}
+async function commitFamily(f){const r=await request('','PATCH',f.patch,f.token);await r.body?.cancel();return r.status;}
+for(const[family,kind]of [['Count','count'],['Inventory','consume'],['Lifecycle','release'],['Metadata','details'],['Metadata','batch'],['Metadata','create'],['Metadata','claim']])test('actual D private '+family+' token: '+kind+' commits under final family rules',async()=>{
+ const f=await setupFamily(family,kind);
+ if(kind==='claim')await f.policy.validateStructureSource({actor:f.actor,lease:f.lease,patch:f.patch,readFresh:f.read,operationalSummaries:true});
+ assert.equal(await commitFamily(f),200);assert.equal((await read('sisventas/ordenes_trabajo/OT'))._svListRevision,1);
+ if(kind==='claim')assert.deepEqual((await read('sisventas/reclamos/C')).preserved,{cost:9.876543});
+ assert.equal((await read('sisventas/ventas/S')).total,19.876543);
+},{timeout:120000});
+for(const fault of ['foreign claim key','ordinary metadata','permission false','generation','activation removed','flags','revision'])test('projected Claim typed authority rejects '+fault+' without partial writes',async()=>{
+ const f=await setupFamily('Metadata','claim');
+ if(fault==='foreign claim key')f.token.svOTMetadataClaimKey='foreign';
+ if(fault==='ordinary metadata')f.token.svOTMetadataKind='details';
+ if(fault==='permission false')await put('sv_permisos/admin/acciones/ot/editarDatosAdministrativos',false);
+ if(fault==='generation')f.token.svOTMetadataGeneration='foreign';
+ if(fault==='activation removed')await put('sv_stock_reference_config/activation',null);
+ if(fault==='flags')f.token.svOTMetadataAdministrative=false;
+ if(fault==='revision')f.patch['sisventas/reclamos/C']._svListRevision=8;
+ assert.equal(await commitFamily(f),401);assert.equal((await read('sisventas/reclamos/C')).otKey,undefined);assert.equal((await read('sisventas/ordenes_trabajo/OT')).reclamoFbKey,undefined);
+},{timeout:120000});
+for(const[family,kind,fault]of [['Count','count','inventory key'],['Count','count','permission'],['Inventory','consume','late sale'],['Lifecycle','release','OT key'],['Metadata','create','coverage'],['Metadata','details','role'],['Metadata','details','expired fence']])test('final family ancestor OR cannot bypass '+family+' '+fault,async()=>{
+ const f=await setupFamily(family,kind);
+ if(fault==='inventory key')f.token.svOTCountInventoryKey='P';
+ if(fault==='permission')await put('sv_permisos/admin/acciones/ot/ajustarStockOficina',false);
+ if(fault==='late sale')await put('sisventas/ordenes_trabajo/OT/ventaFbKey','S');
+ if(fault==='OT key')f.token.svOTLifecycleOTKey='foreign';
+ if(fault==='coverage')await put('sisventas/listados_resumen/ordenes_trabajo/_svCoverage',null);
+ if(fault==='role')await put('sv_chat_roles/fictional/rol','vendedor');
+ if(fault==='expired fence')await put('sv_labor_guard/expiresAt',Date.now()-1);
+ assert.equal(await commitFamily(f),401);assert.equal((await read('sisventas/inventario_operativo/J')).general,7);assert.equal(await read('sisventas/contadores/ordenTrabajo'),7);
+},{timeout:120000});
+test('genuine Struct full-patch source validator rejects a projected Claim non-FK edit',async()=>{
+ const f=await setupFamily('Metadata','claim');f.patch['sisventas/reclamos/C'].preserved.cost=0;
+ await assert.rejects(f.policy.validateStructureSource({actor:f.actor,lease:f.lease,patch:f.patch,readFresh:f.read,operationalSummaries:true}),/modificado/);
+ assert.equal((await read('sisventas/reclamos/C')).preserved.cost,9.876543);
+},{timeout:120000});
+test('mixed metadata batch requires both current permissions with no administrative OR bypass',async()=>{
+ const f=await setupFamily('Metadata','batch');assert.equal(f.token.svOTMetadataAdministrative,true);assert.equal(f.token.svOTMetadataEditing,true);await put('sv_permisos/admin/acciones/ot/editar',false);assert.equal(await commitFamily(f),401);
+},{timeout:120000});
+for(const[family,kind]of [['Count','count'],['Inventory','consume'],['Lifecycle','release']])test('reserved '+family+' capability cannot ride a Sales ancestor to alter money',async()=>{
+ const f=await setupFamily(family,kind);f.patch['sisventas/ventas/S/total']=1;assert.equal(await commitFamily(f),401);assert.equal((await read('sisventas/ventas/S')).total,19.876543);
+},{timeout:120000});
