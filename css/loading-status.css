@@ -12,6 +12,7 @@
   pointer-events: none;
 }
 .sv-load-status-layer[hidden] { display: none !important; }
+.sv-load-status-layer-dim { background: rgba(4, 10, 20, .64); }
 /* Un proceso general tiene prioridad y ya comunica su propio estado. */
 body:has(> #sv-cargando:not([hidden])) > .sv-load-status-layer { visibility: hidden; }
 .sv-data-pending { position: relative; min-height: 260px; }

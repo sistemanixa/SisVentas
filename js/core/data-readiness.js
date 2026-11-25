@@ -39,7 +39,7 @@
       if(!visible(host)||!visible(container)||typeof container.appendChild!=='function'||typeof document.createElement!=='function')return function(){};
       owners.get(host)?.close();
       var layer=document.createElement('div'),card=document.createElement('div'),heading=document.createElement('strong');
-      layer.id='sv-screen-loading-'+(++sequence);layer.className='sv-load-status-layer';card.className='sv-data-status';
+      layer.id='sv-screen-loading-'+(++sequence);layer.className='sv-load-status-layer'+(options.dim===true?' sv-load-status-layer-dim':'');card.className='sv-data-status';
       card.setAttribute('role','status');card.setAttribute('aria-live','polite');card.setAttribute('aria-atomic','true');heading.textContent=String(title||'Cargando…');
       card.appendChild(heading);layer.appendChild(card);container.appendChild(layer);
       var entry={host:host,container:container,layer:layer,closed:false,close:null};

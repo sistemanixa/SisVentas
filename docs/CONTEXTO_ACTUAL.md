@@ -1,3 +1,7 @@
+# Publicación acotada de carga de cuenta corriente ·25/11/2026
+
+Candidata pública17 basadaEXCLUSIVAMENTE en08c5860b/productiva16. Tresleafs idénticos a123e0d61 (hostCC,Readiness,CSS), test3browser ycoherenciaversión/Novedades. SIN módulos/datos/Rules/flags del corteStock/OT/Compras de finish-pending. Fondoatenuado,inertsección,dobleframelegacy; paginacióninlineconservada.25focales y273ampliadosPASSenfuentesidénticas, falta puerta deESTAfuente. NOpublicada aún. Candidategrande17deotra ramaNOdebeconfundirseconestepayload: habráquerenumerarla18 antesdepublicarmigración.
+
 # Publicada y verificada v3.21.16 · 25/11/2026
 
 Fuente web 2bd2b92c462bb8e1215dc10569336576890fc17c, rama codex/release-verified-batch-20261125. Puerta congelada:11272total/11181PASS/0FAIL/0canceladas/91SKIPcondicionales; HEAD idéntico antes/después. Hosting723/723 activos por HTTPS y SHA256, cabeceras conservadas, script oficial confirmó web/SW/aviso Firebase16. Ventana real recargada y dejada en Cuenta corriente, sincronizada y sesión conservada. No hubo operaciones financieras ni de inventario reales de prueba.
