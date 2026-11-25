@@ -15,3 +15,15 @@ test('inventory cannot be shared between different canonical or receipt identiti
 test('a new material uses its resolved physical branch and does not overwrite old branch',()=>{const f=fixture(),previousOrder=structuredClone(f.order);f.order.items=[{productoKey:'new',cantidadOrdenada:2,cantidadRecibida:0}];f.references.new={productKey:'new',inventoryKey:'other',receiptIdentityKey:'OTHER'};f.inventories.other={general:0,reservado:0,enCompra:0,consumido:0};const out=Model.planPendingOrder({...f,previousOrder,kind:'edit'});a.equal(out.patch['sisventas/inventario_operativo/physical'].enCompra,3);a.equal(out.patch['sisventas/inventario_operativo/other'].enCompra,2);});
 test('insufficient general stock is rejected rather than manufacturing a declared reservation',()=>{const f=fixture();a.throws(()=>Model.planExistingReservation({...f,allocationKey:'sale',identity:'product',quantity:11}),/saldo/);});
 test('a cancelled order cannot register, edit or cancel its pending units again under another ID',()=>{for(const kind of ['register','edit','cancel']){const f=fixture();f.order.estado='cancelada';a.throws(()=>Model.planPendingOrder({...f,kind,previousOrder:structuredClone(f.order)}),/cancelada/);}});
+
+test('stock-at-delivery receives linked units into available stock and preserves historical reserves',()=>{
+ const f=fixture();
+ Object.assign(f.order,{ventaFbKey:'sale',ventaId:'V-FICTICIA'});
+ const before=structuredClone(f);
+ const received=value(Model.planReceiptInventory({...f,stockAtDelivery:true,movements:[{index:0,quantity:2,realUnitCost:1.25}]}));
+ a.deepEqual(f,before);
+ a.equal(received.general,12);
+ a.equal(received.enCompra,6);
+ a.equal(received.costoReferenciaStock.unit,1.25);
+ preserves(inventory,received,['general','enCompra','costoReferenciaStock','operaciones']);
+});
