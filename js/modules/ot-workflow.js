@@ -99,7 +99,16 @@
       }
       return {key:key,fbKey:key,id:record.id,record:record};
     }
-    var promesa=reservarSiguienteOTId().then(function(id){
+    var promesa=Promise.resolve().then(function(){
+      if(!window.SVOTStructure || typeof window.SVOTStructure.create!=='function')throw new Error('El guardado seguro de nuevas OT no está disponible. Actualizá SisVentas.');
+      return window.SVOTStructure.create(nuevaOT);
+    }).then(function(result){
+      if(result && result.installed===true){
+        if(result.confirmed!==true || !result.otKey || !result.ot || result.linksCommitted!==true)throw new Error('La nueva OT no quedó confirmada completamente. Verificá la operación.');
+        return Object.assign(confirmarCreacion(result.otKey,result.ot),{linksCommitted:true,operationId:result.operationId});
+      }
+      if(!result || result.installed!==false)throw new Error('No se verificó la habilitación para crear la OT.');
+      return reservarSiguienteOTId().then(function(id){
       nuevaOT.id=id;
       nuevaOT.ts=nuevaOT.ts||Date.now();
       if(typeof window.otPersistirGuardar==='function'){
@@ -112,6 +121,7 @@
         var key=ref&&ref.key||'';
         return confirmarCreacion(key);
       });
+    });
     });
     if(evitarDoble){
       window._otCreacionEnCurso=promesa.finally(function(){ window._otCreacionEnCurso=null; });

@@ -163,7 +163,7 @@ test('crear una visita descarta el fbKey anterior y clona los datos anidados', a
   };
   context.window = context;
   vm.createContext(context);
-  vm.runInContext(workflow, context);
+  context.SVOTStructure={create:async()=>({installed:false})};vm.runInContext(workflow, context);
 
   const anterior = {
     fbKey:'visita-anterior', id:'OT-100', tecnico:'Mauro Bechir',
@@ -200,7 +200,7 @@ test('dos visitas del mismo cliente se recargan como registros independientes', 
   };
   context.window = context;
   vm.createContext(context);
-  vm.runInContext(workflow, context);
+  context.SVOTStructure={create:async()=>({installed:false})};vm.runInContext(workflow, context);
 
   await context.crearRegistroOTSeguro({ cliente:'Cliente A', dir:'Domicilio 1', tecnico:'Mauro Bechir', checks:{preparacion:[true]}, audit:[{accion:'Primera'}] });
   await context.crearRegistroOTSeguro({ cliente:'Cliente A', dir:'Domicilio 1', tecnico:'Osmar Tello', checks:{preparacion:[false]}, audit:[{accion:'Segunda'}] });
