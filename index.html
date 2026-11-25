@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.21.16-firebase' -->
+<!-- VERSION: 'v3.21.17-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -22,7 +22,7 @@
 </script>
 <link rel="stylesheet" href="./css/operation-feedback.css?v=3.21.15">
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.21.16.js"></script>
+<script src="./js/core/version.v3.21.17.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.18.4"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.18.4"></script>
@@ -92,6 +92,7 @@
 <link rel="stylesheet" href="./css/chat-directs.v1.css?v=3.15.13">
 <link rel="stylesheet" href="./css/ot-search.v1.css?v=3.15.13">
 <link rel="stylesheet" href="./css/office-stock.css?v=3.20.4">
+<link rel="stylesheet" href="./css/office-stock-link-review.css?v=3.21.17">
 <link rel="stylesheet" href="./css/expense-clothing-form.css?v=3.20.13">
 <link rel="stylesheet" href="./css/employee-clothing.css?v=3.20.12">
 </head>
@@ -4309,7 +4310,7 @@ Listo para analizar.
           <div class="card">
             <div class="card-head"><span class="card-title">Stock y publicación</span></div>
             <div class="form-grid">
-              <div class="fg"><label>Stock actual</label><input type="number" id="pf-stock" placeholder="0" min="0"></div>
+              <div class="fg"><label>Stock registrado en catálogo</label><input type="number" id="pf-stock" placeholder="0" readonly aria-describedby="pf-stock-help"><small id="pf-stock-help">El disponible se ajusta en Stock de oficina.</small><button type="button" class="btn btn-xs" onclick="productoAbrirStockOficina()">Abrir Stock de oficina</button></div>
               <div class="fg"><label>Stock mínimo (alerta)</label><input type="number" id="pf-stock-min" placeholder="5" min="0"></div>
               <div class="fg"><label>Estado</label>
                 <select id="pf-estado">
@@ -5849,7 +5850,7 @@ Listo para analizar.
 <script src="./js/core/guarded-writes.js?v=3.18.4"></script>
 <script src="./js/core/public-catalog-entry.js?v=3.11.8-catalog-entry"></script>
 <script src="./js/core/session-recovery.js?v=3.12.8-local-server"></script>
-<script src="./js/core/session-assets.js?v=3.20.4"></script>
+<script src="./js/core/session-assets.js?v=3.21.17"></script>
 <link rel="stylesheet" href="./css/user-access.css?v=3.11.9">
 <script src="./js/core/user-access.js?v=3.12.3"></script>
 <script src="./js/core/service-auth.js?v=3.12.20"></script>
@@ -5882,7 +5883,11 @@ Listo para analizar.
 <script src="./js/core/purchase-order-export.v1.js?v=3.17.7"></script>
 <script src="./js/core/activity-period.v1.js"></script>
 <script src="./js/core/dashboard-account-source.v1.js?v=3.14.19"></script>
-<script src="./js/modules/ot-lifecycle.js?v=3.19.3"></script>
+<script src="./js/modules/ot-lifecycle.js?v=3.21.17"></script>
+<script src="./js/modules/ot-metadata.js?v=3.21.17"></script>
+<script src="./js/modules/ot-structure.js?v=3.21.17"></script>
+<script src="./js/modules/ot-inventory.js?v=3.21.17"></script>
+<script src="./js/modules/ot-related-adapters.js?v=3.21.17"></script>
 <script src="./js/modules/ot-delivery-selection.v1.js?v=3.19.3"></script>
 <script src="./js/modules/ot-acta-correction.js?v=3.17.13"></script>
 <script src="./js/core/chat-text.v1.js?v=3.18.4"></script>
@@ -5890,7 +5895,7 @@ Listo para analizar.
 <script src="./js/core/ot-sale-origin.v1.js?v=3.18.13"></script>
 <script src="./js/core/commercial-report-read.v1.js?v=3.19.0"></script>
 <script src="./js/modules/commercial-report-host.v1.js?v=3.19.0"></script>
-<script src="./js/app.v3.21.16.js"></script>
+<script src="./js/app.v3.21.17.js"></script>
 <script src="./js/core/sales-search-model.v1.js?v=3.18.4"></script>
 <script src="./js/core/collection-search-model.v1.js?v=3.18.13"></script>
 <script src="./js/core/commercial-pages-reader.v1.js?v=3.19.6"></script>
@@ -6293,7 +6298,7 @@ Listo para analizar.
 <script src="./js/modules/push-notifications.js?v=1.0.0"></script>
 <script src="./js/modules/finance-details.js?v=3.14.20"></script>
 
-<script src="./js/modules/ot-workflow.js?v=3.21.15"></script>
+<script src="./js/modules/ot-workflow.js?v=3.21.17"></script>
 
 
 <script src="./js/modules/dashboard-permissions.js?v=perf-31010"></script>
@@ -6453,7 +6458,7 @@ Listo para analizar.
 <script src="./js/modules/ot-material-rows.v1.js"></script>
 <script src="./js/modules/ot-stock-consumption.v1.js?v=3.19.3"></script>
 <script src="./js/modules/ot-office-count.js?v=3.16.17"></script>
-<script src="./js/modules/ot-material-custody.js?v=3.20.5"></script>
+<script src="./js/modules/ot-material-custody.js?v=3.21.17"></script>
 <script src="./js/core/inventory-count-model.v1.js?v=3.16.11"></script>
 <script src="./js/modules/inventory-count.js?v=3.16.11"></script>
 <script src="./js/modules/release-tour.js?v=2.0.161"></script>
@@ -6522,9 +6527,12 @@ Listo para analizar.
 <script src="./js/modules/client-history-original-actions.v1.js"></script>
 <script src="./js/modules/client-history-bootstrap.v1.js?v=3.19.1"></script>
 <script src="./js/core/office-stock-adjustment.js?v=3.19.19"></script>
-<script src="./js/modules/office-stock.js?v=3.21.14"></script>
-<script src="./js/modules/office-stock-adapter.js?v=3.21.14"></script>
-<script src="./js/modules/office-stock-host.js?v=3.19.19"></script>
+<script src="./js/modules/office-stock.js?v=3.21.17"></script>
+<script src="./js/modules/office-stock-adapter.js?v=3.21.17"></script>
+<script src="./js/modules/office-stock-reference-service.v1.js?v=3.21.17"></script>
+<script src="./js/modules/office-stock-link-adapter.v1.js?v=3.21.17"></script>
+<script src="./js/modules/office-stock-link-review.v1.js?v=3.21.17"></script>
+<script src="./js/modules/office-stock-host.js?v=3.21.17"></script>
 <script src="./js/core/employee-clothing-model.js?v=3.20.12"></script>
 <script src="./js/core/expense-categories-model.js?v=3.20.12"></script>
 <script src="./js/core/expense-clothing-model.js?v=3.20.13"></script>

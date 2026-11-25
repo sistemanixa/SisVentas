@@ -111,8 +111,9 @@
       return reservarSiguienteOTId().then(function(id){
       nuevaOT.id=id;
       nuevaOT.ts=nuevaOT.ts||Date.now();
-      if(typeof window.otPersistirGuardar==='function'){
-        return window.otPersistirGuardar(nuevaOT).then(function(guardada){
+      var guardarLegacy=window.otPersistirGuardarLegacy||window.otPersistirGuardar;
+      if(typeof guardarLegacy==='function'){
+        return guardarLegacy(nuevaOT).then(function(guardada){
           var key=guardada&&guardada.fbKey||'';
           return confirmarCreacion(key,guardada);
         });
