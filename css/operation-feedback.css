@@ -19,3 +19,4 @@ body:has(>#sv-cargando:not([hidden]))>.sv-load-status-layer{visibility:visible}
 @keyframes sv-operation-spin{to{transform:rotate(360deg)}}
 @media(max-width:600px){#sv-cargando.sv-cargando{left:12px;right:12px;bottom:12px;max-width:none}}
 @media(prefers-reduced-motion:reduce){.sv-operation-spinner,#sv-cargando .sv-cargando-cartel>i,.sv-page-transition-spin>i{animation:none}}
+#sv-cargando.sv-cargando[hidden]{display:none}
