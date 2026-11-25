@@ -1,6 +1,7 @@
 'use strict';
 // Current-state admission, never a reconstruction of historical stock movements.
 const {digest}=require('./labor-guard'),Money=require('./commercial-models/commercial-money'),FX=require('./purchase-receipt-fx'),Costs=require('./commercial-models/purchase-receipt-costs.v1');
+const Baseline=require('./purchase-current-pending-baseline');
 const ROOTS=Object.freeze({orders:'sisventas/ordenes',legacyOrders:'sisventas/ordenes_compra'});
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_PURCHASE_CURRENT_PENDING_REVIEW'}),own=(v,k)=>Object.hasOwn(v||{},k),copy=v=>structuredClone(v);
 function demand(ok,message){if(!ok)throw fail(message);}
@@ -79,7 +80,7 @@ function plan({body,sourceOrder,sources,coverage,referencesBySource,inventories,
  const next={...copy(sourceOrder),inventarioCompra:{schema:1,registered:true,revision:1,lastOperation:body.id,baseline,references}},readDependencies=copy(dependencies);
  for(const entry of Object.values(ROOTS))for(const [id,order]of Object.entries(entry===ROOTS.orders?sources.orders:sources.legacyOrders))if(entry+'/'+id!==path)readDependencies[entry+'/'+id]=copy(order);
  for(const [id,ledger]of Object.entries(inventories))readDependencies['sisventas/inventario_operativo/'+id]=copy(ledger);
- const result={ok:true,committed:true,operationId:body.id,orderKey:body.orderKey,reconciliation:'current-pending',baselineVersion:1,actorUid,originalOrderHash:body.expectedHash,rowsHash:digest(baseline.rows),baselineDigest:digest(baseline)};
+ const result={ok:true,committed:true,operationId:body.id,orderKey:body.orderKey,reconciliation:'current-pending',baselineVersion:1,actorUid,originalOrderHash:body.expectedHash,rowsHash:Baseline.rowsDigest(baseline.rows),baselineDigest:Baseline.baselineDigest(baseline)};
  return{patch:{[path]:next},preconditions:{[path]:copy(sourceOrder)},readDependencies,result};
 }
 module.exports={plan,rows,sourceOrders,ROOTS};

@@ -6,7 +6,17 @@ const own=(v,k)=>Object.hasOwn(v||{},k),copy=v=>structuredClone(v),hash=v=>typeo
 const fail=m=>Object.assign(Error(m),{statusCode:409,code:'SV_PURCHASE_CURRENT_PENDING_BASELINE_REVIEW'});
 function need(ok,m){if(!ok)throw fail(m);}
 function object(v){return v!==null&&typeof v==='object'&&!Array.isArray(v);}
-function exact(v,keys){return object(v)&&Object.keys(v).length===keys.length&&keys.every(k=>own(v,k));}
+function exact(v,keys){return object(v)&&Reflect.ownKeys(v).length===keys.length&&keys.every(k=>own(v,k));}
+// RTDB returns dense numeric-key objects as arrays. Normalize ONLY these two
+// metadata bags, retaining the original map digest used before serialization.
+function indexed(value,expectedLength){
+ const array=Array.isArray(value);need(array||object(value)&&[Object.prototype,null].includes(Object.getPrototypeOf(value)),'Falta una colección indexada de metadata.');
+ const keys=Reflect.ownKeys(value).filter(key=>!array||key!=='length'),length=array?value.length:keys.length;
+ need(Number.isSafeInteger(length)&&length>0&&length<=100&&keys.length===length&&(expectedLength===undefined||length===expectedLength)&&keys.every(key=>typeof key==='string'),'La metadata indexada tiene huecos o campos extra.');
+ const result={};for(let index=0;index<length;index++){const key=String(index);need(own(value,key)&&object(value[key]),'La metadata indexada no es densa y canónica.');result[key]=value[key];}return result;
+}
+function rowsDigest(rows){return digest(indexed(rows));}
+function baselineDigest(baseline){need(object(baseline),'Falta el baseline original.');return digest({...baseline,rows:indexed(baseline.rows)});}
 function quantity(v){need(typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=Number.MAX_SAFE_INTEGER,'Cantidad baseline inválida.');Money.decimal(v);return v;}
 function identity(ref){Inventory.reference(ref);return{productKey:ref.productKey,inventoryKey:ref.inventoryKey,receiptIdentityKey:ref.receiptIdentityKey};}
 function validateBaseline(order){
@@ -15,8 +25,8 @@ function validateBaseline(order){
  need(exact(baseline,['schema','kind','operationId','actorUid','orderKey','ts','originalOrderHash','coverageDigest','rows','fence'])&&baseline.schema===1&&baseline.kind==='current-pending'&&Number.isSafeInteger(baseline.ts)&&baseline.ts>0&&hash(baseline.originalOrderHash)&&hash(baseline.coverageDigest),'Baseline current-pending incompleto.');
  for(const field of ['operationId','actorUid','orderKey','fence'])Inventory.key(baseline[field]);need(baseline.operationId.length>=8,'Operación baseline inválida.');
  need(!own(order,'fbKey')||order.fbKey===baseline.orderKey,'Baseline de otra orden.');
- need(object(baseline.rows)&&Object.keys(baseline.rows).length>0&&Object.keys(baseline.rows).every((key,index)=>key===String(index)),'Filas baseline incompletas.');
- for(const row of Object.values(baseline.rows)){need(exact(row,['productKey','inventoryKey','receiptIdentityKey','ordered','received','pending','sourceRowHash'])&&hash(row.sourceRowHash),'Falta captura original de fila baseline.');identity(row);quantity(row.ordered);quantity(row.received);quantity(row.pending);need(row.ordered>0&&row.received<=row.ordered&&Money.quantitySum([row.ordered,-row.received])===row.pending,'Cantidades baseline contradictorias.');}
+ const rows=indexed(baseline.rows);indexed(marker.references,order.items.length);
+ for(const row of Object.values(rows)){need(exact(row,['productKey','inventoryKey','receiptIdentityKey','ordered','received','pending','sourceRowHash'])&&hash(row.sourceRowHash),'Falta captura original de fila baseline.');identity(row);quantity(row.ordered);quantity(row.received);quantity(row.pending);need(row.ordered>0&&row.received<=row.ordered&&Money.quantitySum([row.ordered,-row.received])===row.pending,'Cantidades baseline contradictorias.');}
  return baseline;
 }
 function baselineReference(order,index,ref){
@@ -37,7 +47,7 @@ function assertReference(order,index,reference,ledger){
  need(!!evidence.operationId&&own(ledger.operaciones||{},evidence.operationId),'Falta la operación real del ledger.');return copy(evidence);
 }
 function validateReceipt(order,receipt){
- const baseline=validateBaseline(order),expected={ok:true,committed:true,operationId:baseline.operationId,orderKey:baseline.orderKey,reconciliation:'current-pending',baselineVersion:1,actorUid:baseline.actorUid,originalOrderHash:baseline.originalOrderHash,rowsHash:digest(baseline.rows),baselineDigest:digest(baseline)};
+ const baseline=validateBaseline(order),expected={ok:true,committed:true,operationId:baseline.operationId,orderKey:baseline.orderKey,reconciliation:'current-pending',baselineVersion:1,actorUid:baseline.actorUid,originalOrderHash:baseline.originalOrderHash,rowsHash:rowsDigest(baseline.rows),baselineDigest:baselineDigest(baseline)};
  need(exact(receipt,['fence','digest','actorUid','result','confirmedAt'])&&receipt.fence===baseline.fence&&receipt.actorUid===baseline.actorUid&&hash(receipt.digest)&&Number.isSafeInteger(receipt.confirmedAt)&&receipt.confirmedAt>=baseline.ts&&receipt.digest===digest({id:baseline.operationId,orderKey:baseline.orderKey,expectedHash:baseline.originalOrderHash})&&digest(receipt.result)===digest(expected),'El baseline no tiene su recibo Guard original válido.');
  return true;
 }
@@ -48,4 +58,4 @@ function nextReference({order,index,reference,operationId,changed}){
  if(own(evidence,'baselineOperationId')||own(evidence,'baselineRow'))return copy(baselineReference(order,index,ref));
  Inventory.key(evidence.operationId);return copy(evidence);
 }
-module.exports={assertReference,validateReceipt,nextReference,validateBaseline};
+module.exports={assertReference,validateReceipt,nextReference,validateBaseline,rowsDigest,baselineDigest};
