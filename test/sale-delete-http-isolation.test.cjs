@@ -7,7 +7,7 @@ const {createLaborWriteGateway}=require('../cotizador/labor-write-gateway');
 const {createSaleDeleteHttpAdapter,PATH}=require('../cotizador/sale-delete-http-adapter');
 const {child,put,parts}=require('../cotizador/labor-guard');
 const Payments=require('../cotizador/payment-membership-index');
-async function fixture(){
+async function fixture({saleFinancialDependencies=true}={}){
  let state={sv_labor_config:{schema:1,ready:true},sv_chat_roles:{u:{activo:true,rol:'admin'},other:{activo:true,rol:'admin'}},sv_permisos:{admin:{indiceVersion:2,indiceModulos:{venta:true},acciones:{ventas:{eliminar:true}}}},sisventas:{ventas:{s:{id:'V-0001'},other:{id:'V-0002'}},pagos:{p:{venta:'PREFIX / 0001',monto:1}},ordenes_trabajo:{},presupuestos:{},reclamos:{}}};
  for(const [path,value]of Object.entries(Payments.buildIndex(state.sisventas.pagos,{generation:'isolation-fixture',ready:true}).patch))state=put(state,parts(path),value);
  const prepared=await createCoordinatedBackend({...state.sisventas,ventas:Object.fromEntries(Object.entries(state.sisventas.ventas).map(([id,sale])=>[id,{...sale,total:100,fecha:'2026-11-01',clienteFbKey:'c',responsableUid:'u'}])),pagos:Object.fromEntries(Object.entries(state.sisventas.pagos).map(([id,payment])=>[id,{...payment,fecha:'2026-11-01'}]))});
@@ -26,13 +26,14 @@ async function fixture(){
   return new Response('null');
  };
  const db={ref:path=>({toString:()=> 'https://fixture.invalid/'+path,get:async()=>({val:()=>structuredClone(child(state,parts(path)))})})};
- const runtime=createLaborRuntime({db,databaseURL:'https://fixture.invalid',accessToken:async()=> 'fixture-service',fetchImpl,enabled:true,commercialPages:true,clientAccounts:true,clientHistory:true,operationalSummaries:true});
+ const runtime=createLaborRuntime({db,databaseURL:'https://fixture.invalid',accessToken:async()=> 'fixture-service',fetchImpl,enabled:true,commercialPages:true,clientAccounts:true,clientHistory:true,operationalSummaries:true,saleFinancialDependencies});
  require('./helpers/sale-delete-financial-evidence.cjs').install({store:runtime.store,get:path=>child(state,parts(path))});runtime.store.saleDeleteFenceReady=true;runtime.store.saleDeleteActivityFenceReady=true;
  const auth={verifyIdToken:async(token,checkRevoked)=>{assert.equal(checkRevoked,true);if(authState.revoked||!['u','other'].includes(token))throw Error('revoked fixture');return {uid:authState.uid||token,svPasswordChangeRequired:authState.passwordRequired};}};
  const gateway=createLaborWriteGateway({auth,db,guard:runtime.guard,store:runtime.store,enabled:true});
  const adapter=createSaleDeleteHttpAdapter({authorize:gateway.authorize,guard:runtime.guard,store:runtime.store,enabled:true});
  return {adapter,authState,calls,commits:()=>commits,get:path=>child(state,parts(path)),set:(path,value)=>{state=put(state,parts(path),value);},req:{method:'POST',url:PATH,headers:{authorization:'Bearer u'}},body:{id:'isolation-operation',ventaKey:'s',expectedHash:saleHash(child(state,parts('sisventas/ventas/s')))}};
 }
+test('financial maintenance disabled keeps the deletion fence closed before mutation',async()=>{const f=await fixture({saleFinancialDependencies:false});assert.equal(f.adapter.capability(),false);await assert.rejects(f.adapter.handle(f.req,f.body),error=>error.code==='SV_SALE_DELETE_FENCE_REQUIRED');assert.equal(f.commits(),0);});
 for(const change of ['uid','role','password','revocation'])test('persisted receipt is inaccessible after '+change,async()=>{
  const f=await fixture();await f.adapter.handle(f.req,f.body);f.calls.length=0;
  if(change==='uid')f.authState.uid='other';if(change==='role')f.set('sv_chat_roles/u/rol','administrativo');if(change==='password')f.authState.passwordRequired=true;if(change==='revocation')f.authState.revoked=true;

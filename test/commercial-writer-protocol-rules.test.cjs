@@ -8,7 +8,9 @@ test('store overwrites incoming reserved protocol claims instead of elevating th
  const {createLaborRtdbStore}=require('../cotizador/labor-rtdb-store');let token;
  const store=createLaborRtdbStore({databaseURL:'https://fixture.invalid',accessToken:async()=> 'fixture',fetchImpl:async(url)=>{token=JSON.parse(new URL(url).searchParams.get('auth_variable_override')).token;return new Response('null');}});
  await store.commit({}, {fence:'fixture-fence',opId:'fixture-operation',digest:'a'.repeat(64),actorUid:'u'}, {mode:'user',uid:'u',claims:{uid:'u',svLaborWriterSchema:999,svClientHistoryWriterVersion:1,svSaleFinancialWriterVersion:1}});
- assert.equal(token.svLaborWriterSchema,2);assert.equal(token.svClientHistoryWriterVersion,0);assert.equal(token.svSaleFinancialWriterVersion,0);
+ assert.equal(Object.hasOwn(token,'svLaborWriterSchema'),false,'Un cliente no instala el protocolo con sus claims');assert.equal(token.svClientHistoryWriterVersion,0);assert.equal(token.svSaleFinancialWriterVersion,0);
+ await store.commit({}, {fence:'fixture-fence',opId:'fixture-operation',digest:'a'.repeat(64),actorUid:'u'}, {mode:'user',uid:'u',clientAccountsWriterVersion:1,claims:{uid:'u',svLaborWriterSchema:999,svClientHistoryWriterVersion:1,svSaleFinancialWriterVersion:1}});
+ assert.equal(token.svLaborWriterSchema,2,'Sólo la familia activada por el guard servidor emite schema2');assert.equal(token.svClientAccountsWriterVersion,1);assert.equal(token.svClientHistoryWriterVersion,0);assert.equal(token.svSaleFinancialWriterVersion,0);
 });
 test('historical confirmed receipt recovers only after fresh authorization without mutation',async()=>{
  const {createCoordinatedBackend}=require('./helpers/coordinated-backend.cjs'),{apply}=require('./helpers/labor-ui-flow.cjs'),{digest}=require('../cotizador/labor-guard'),{createSaleDeleteCommand}=require('../cotizador/sale-delete-command');

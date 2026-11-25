@@ -5,10 +5,11 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {chromium}=require('playwright');
 const {functionSource}=require('./helpers/app-functions.cjs');
+const {executablePath}=require('./helpers/chromium-executable.cjs');
 const root=path.resolve(__dirname,'..');
 
 async function fixture(t,width){
-  const browser=await chromium.launch({headless:true,executablePath:process.env.SV_TEST_CHROME||process.env.SV_TEST_CHROMIUM||process.env.CHROME_BIN||undefined});
+  const browser=await chromium.launch({headless:true,executablePath:executablePath(chromium)});
   t.after(()=>browser.close());
   const page=await browser.newPage({viewport:{width,height:850}});
   let requests=0;
