@@ -10,6 +10,7 @@ function crearPool(chromium,{idleMs=30000,contextMs=55000}={}) {
     } catch(e){usuarios--;throw e;}
     const browser=navegador,contextos=new Set();let cerrado=false;
     return {
+      version:()=>browser.version(),
       async newContext(opciones) {
         if(cerrado)throw new Error('Consulta finalizada');
         const ctx=await browser.newContext(opciones);contextos.add(ctx);
