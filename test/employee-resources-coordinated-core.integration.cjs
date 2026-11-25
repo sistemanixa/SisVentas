@@ -6,12 +6,12 @@ assert.ok(process.env.SV_EMPLOYEE_RESOURCES_CORE_SOURCE,'Indicar checkout revisa
 const source=path.resolve(process.env.SV_EMPLOYEE_RESOURCES_CORE_SOURCE),at=file=>require(path.join(source,file));
 const who={uid:'office',claims:{uid:'office'}},now=Date.parse('2026-11-25T15:00:00Z');
 const expense={fecha:'2026-11-25',tipo:'Variable',categoria:'Indumentaria',descripcion:'Compra ficticia core coordinada',monto:3456.78,montoPagado:0,estado:'pendiente',medio:'Efectivo',indumentaria:{schema:1,items:[{name:'Remera ficticia',size:'M',color:'Azul',quantity:3}]}};
-async function fixture(t,{seedClothing=false}={}){
+async function fixture(t,{seedClothing=false,seedSale=false,beforeRealCommit}={}){
  const files=['cotizador/labor-guard.js','cotizador/labor-rtdb-store.js','cotizador/employee-resources-policy.js','cotizador/admin-expense-create.js','cotizador/sale-financial-dependencies-model.js'];
  const hash=file=>crypto.createHash('sha256').update(fs.readFileSync(path.join(source,file))).digest('hex'),pins=Object.fromEntries(files.map(file=>[file,hash(file)]));
  t.diagnostic('SOURCE_SHA256 '+JSON.stringify(pins));t.after(()=>{for(const file of files)assert.equal(hash(file),pins[file],'Fuente cambió durante prueba: '+file);});
  const {apply}=at('test/helpers/labor-ui-flow.cjs'),{memoryDB}=at('test/helpers/private-finance-fixtures.cjs');
- const input={ventas:{},pagos:{},gastos:seedClothing?{seed:expense}:{},ctaemp:{},comisiones_generacion:{},empleados:{person:{nombre:'Persona ficticia',activo:true}}};
+ const input={ventas:seedSale?{existing:{id:'V-FICTICIA',responsableUid:'office',items:[{cod:'P-FIC',qty:1,punit:100,sub:100}],subtotal:100,total:100,totalPagado:0,estado:'pendiente'}}:{},pagos:{},gastos:seedClothing?{seed:expense}:{},ctaemp:{},comisiones_generacion:{},empleados:{person:{nombre:'Persona ficticia',activo:true}}};
  const coordinated=await at('test/helpers/coordinated-backend.cjs').createCoordinatedBackend(input),db=memoryDB(coordinated.state);
  apply(db.root,{sv_chat_roles:{office:{activo:true,rol:'administrativo'}},sv_permisos:{administrativo:{indiceVersion:2,indiceRevision:5,indiceModulos:{empleados:true,gastos:true},acciones:{}}},sv_labor_config:{schema:1,ready:true},sv_record_list_config:{schema:1,ready:true},sv_operational_read_config:{schema:1,ready:true}});
  const Financial=at('cotizador/sale-financial-dependencies-model'),prepared=await Financial.prepare({ventas:db.root.sisventas.ventas,gastos:db.root.sisventas.gastos,ctaemp:db.root.sisventas.ctaemp,comisiones_generacion:db.root.sisventas.comisiones_generacion,sv_commission_generation:db.root.sv_commission_generation??null},{generation:'fiction-clothing-core'});
@@ -31,11 +31,12 @@ async function fixture(t,{seedClothing=false}={}){
  assert.equal(store.employeeResourcesCommitVersion,1);
  const guard=createLaborGuard({store,now:()=>now,operationalSummaries:true,clientAccounts:true,clientHistory:true,commercialPages:true,saleFinancialDependencies:true,delay:async()=>{}});
  for(const key of ['clientAccounts','clientHistory','saleFinancialDependencies'])assert.equal(guard[key],true,key);
- const commit=store.commit.bind(store);store.commit=async(p,l,a)=>{commitPlans.push(structuredClone(p));try{return await commit(p,l,a);}catch(error){t.diagnostic('REAL_COMMIT_REJECTED '+JSON.stringify({operation:a.operation,code:error.code,message:error.message,paths:Object.keys(p),financialPaths:Object.keys(p).filter(key=>key.startsWith('sv_sale_financial_dependencies/'))}));throw error;}};
+ const commitTelemetry={calls:0,rejections:0};
+ const commit=store.commit.bind(store);store.commit=async(p,l,a)=>{commitPlans.push(structuredClone(p));const altered=beforeRealCommit?.({patch:p,lease:l,actor:a})||{};p=altered.patch||p;l=altered.lease||l;a=altered.actor||a;commitTelemetry.calls++;try{return await commit(p,l,a);}catch(error){commitTelemetry.rejections++;t.diagnostic('REAL_COMMIT_REJECTED '+JSON.stringify({operation:a.operation,code:error.code,message:error.message,paths:Object.keys(p),financialPaths:Object.keys(p).filter(key=>key.startsWith('sv_sale_financial_dependencies/'))}));throw error;}};
  const gateway=at('cotizador/labor-write-gateway').createLaborWriteGateway({auth:{verifyIdToken:async(token,revoked)=>{assert.equal(token,'FIXTURE_ONLY');assert.equal(revoked,true);return who.claims;}},db,store,guard,enabled:true});
  const create=at('cotizador/admin-expense-create').createAdminExpenseCreate({authorize:gateway.authorize,db,guard,enabled:true,clothingEnabled:true,now:()=>now});
  const resources=at('cotizador/employee-resources').create({authorize:gateway.authorize,store,guard,enabled:true,now:()=>now});
- return{db,store,guard,create,resources,requests,patches,commitPlans,req:{method:'POST',headers:{authorization:'Bearer FIXTURE_ONLY'}}};
+ return{db,store,guard,create,resources,requests,patches,commitPlans,commitTelemetry,req:{method:'POST',headers:{authorization:'Bearer FIXTURE_ONLY'}}};
 }
 test('alta indumentaria con cobertura G/H/Financial preparada confirma gasto y prendas en un commit real',async t=>{
  const f=await fixture(t),body={id:'fiction-clothing-coordinated-create',projection:'complete',datos:expense},actor=await f.create.authorize(f.req);
@@ -49,4 +50,22 @@ test('EmployeeResources real entrega prendas preparadas sin crear otro gasto con
  const f=await fixture(t,{seedClothing:true}),stock=f.db.root.sv_employee_clothing,garment=Object.values(stock.garments)[0],before=structuredClone(f.db.root.sisventas.gastos);
  const actor=await f.create.authorize(f.req),body={id:'fiction-clothing-coordinated-deliver',domain:'clothing',expectedRevision:stock.revision,permissionRevision:5,command:{type:'employee.deliver',garmentId:garment.id,variantId:garment.variants[0].id,employeeId:'person',quantity:1}};
  const result=await f.resources.execute(actor,body);assert.equal(result.committed,true);assert.equal(f.patches.length,1);assert.deepEqual(f.db.root.sisventas.gastos,before);assert.equal(f.db.root.sv_employee_clothing.events.at(-1).quantity,1);
+});
+
+const attacks={
+ 'metadata financiera válida pero adulterada':({patch})=>{const key='sv_sale_financial_dependencies/v1/coverage';assert.ok(patch[key]);patch[key]={...patch[key],revision:patch[key].revision+1};},
+ 'quitar un derivado financiero':({patch})=>{const key=Object.keys(patch).find(p=>p.startsWith('sv_sale_financial_dependencies/v1/records/'));assert.ok(key);delete patch[key];},
+ 'agregar venta ajena con capacidad real':({patch})=>{patch['sisventas/ventas/unauthorized']={id:'V-EXTRA-FIC',total:99,items:[{cod:'P-FIC',qty:1,punit:99,sub:99}]};},
+ 'cambiar PVP de venta original con capacidad real':({patch})=>{patch['sisventas/ventas/existing']={id:'V-FICTICIA',responsableUid:'office',items:[{cod:'P-FIC',qty:1,punit:101,sub:101}],subtotal:101,total:101,totalPagado:0,estado:'pendiente'};},
+ 'cambiar input tras sellado':({actor})=>{actor.input={...actor.input,datos:{...actor.input.datos,monto:actor.input.datos.monto+1}};},
+ 'cambiar lease aún vigente':({lease})=>({lease:{...lease,expiresAt:lease.expiresAt+1}}),
+ 'clonar capacidad serializable':({actor})=>{assert.ok(actor.employeeResources);actor.employeeResources=structuredClone(actor.employeeResources);},
+ 'cambiar claims tras sellado':({actor})=>{actor.claims={...actor.claims,fictionalAlteredClaim:'changed'};}
+};
+for(const [name,attack]of Object.entries(attacks))test('commit real rechaza '+name+' sin PATCH ni cambios de originales',async t=>{
+ let attacked=0;const f=await fixture(t,{seedSale:true,beforeRealCommit:ports=>{attacked++;return attack(ports);}});
+ const snapshot=()=>{const {sv_labor_guard,...business}=f.db.root;return structuredClone(business);},before=snapshot();
+ const body={id:'fiction-clothing-adversarial-operation',projection:'complete',datos:structuredClone(expense)},actor=await f.create.authorize(f.req);
+ await assert.rejects(f.create.create(actor,body),/La proyección financiera cambió después del sellado|Falta el plan interno de indumentaria/);assert.equal(attacked,1,'Adulteración debe alcanzar commit real después del sellado');assert.equal(f.commitPlans.length,1);assert.deepEqual(f.commitTelemetry,{calls:1,rejections:1},'Rechazo debe proceder de implementación real, no del ataque/harness');
+ assert.equal(f.patches.length,0);assert.equal(f.requests.filter(r=>r.method==='PATCH').length,0);assert.deepEqual(snapshot(),before,'Preservar originales y todas las proyecciones');
 });
