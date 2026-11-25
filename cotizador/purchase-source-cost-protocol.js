@@ -12,6 +12,13 @@ const reserved=Object.freeze({svPurchaseSourceCostVersion:0,svPurchaseSourceCost
 function sanitize(claims){return Object.fromEntries(Object.entries(claims||{}).filter(([key])=>!key.startsWith(PREFIX)));}
 function claims(actor,lease,basePatch){
  const source=Policy.getSourceAuthority(actor,lease,basePatch);
+ if((actor?.purchaseInventory||actor?.operation==='purchase-current-pending-reconcile')&&source?.sealed!==true)throw fail('Falta el plan de Compras sellado para este commit.');
+ if(source?.kind==='current-pending-reconcile'){
+  // Version zero grants no financial write. The sealed kind only activates an
+  // additional fresh-actor precondition over every existing native grant.
+  if(Object.keys(source).some(k=>!sourceFields.has(k))||source.schema!==1||source.sealed!==true||source.purpose!==null||source.saleWritten!==false||source.uid!==actor.uid||actor.claims?.uid!==actor.uid||source.uid!==lease.actorUid||source.opId!==actor.opId||source.opId!==lease.opId||source.fence!==lease.fence||source.inputDigest!==lease.digest||actor.transportDigest!==lease.digest||source.basePatchHash!==digest(basePatch)||source.role!=='admin'||source.role!==actor.role||source.permissionRevision!==(actor.permissionRevision??null)||source.permissionDigest!==actor.permissionDigest||!key(source.orderKey)||![source.basePatchHash,source.sourceHash,source.permissionDigest].every(hex))throw fail('La conciliación no conserva su autoridad privada y plan sellado.');
+  return {...reserved,svPurchaseSourceCostKind:'current-pending-reconcile',svPurchaseSourceCostOrderKey:source.orderKey,svPurchaseSourceCostBasePatchHash:source.basePatchHash,svPurchaseSourceCostSourceHash:source.sourceHash,svPurchaseSourceCostPermissionDigest:source.permissionDigest};
+ }
  if(source&&(source.sourceTopology==='joint'&&source.purpose==='receive'||['prepare','reconcile'].includes(source.purpose)))return v2(source,actor,lease,basePatch);
  if(!source?.sealed||source.kind!=='receive'||!source.saleWritten||!source.saleKey)return {...reserved};
  return {svPurchaseSourceCostVersion:1,svPurchaseSourceCostSaleKey:source.saleKey,svPurchaseSourceCostOrderKey:source.orderKey,svPurchaseSourceCostKind:'receive',svPurchaseSourceCostBasePatchHash:source.basePatchHash,svPurchaseSourceCostSourceHash:source.sourceHash,svPurchaseSourceCostPermissionDigest:source.permissionDigest};
