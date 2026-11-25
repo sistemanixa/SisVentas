@@ -77,6 +77,7 @@
     opciones=opciones||{};var c=contexto(),activo=true,boton=opciones.boton,region=opciones.region;
     var texto=String(opciones.texto||textos[opciones.tipo]||textos.cargar),aviso=null,original=null,etiqueta=null,contenido=null,estilos=null,inputValue=null,htmlOriginal=null,htmlPropio=null,marca=null;
     var disabled=opciones.deshabilitadoInicial??boton?.disabled,aria=boton?.getAttribute?.('aria-busy'),label=boton?.getAttribute?.('aria-label');
+    var restaurarDisabled=boton?.disabled===disabled;
     if(region?.setAttribute){var r=regiones.get(region);if(!r){r={anterior:region.getAttribute('aria-busy'),operaciones:new Set()};regiones.set(region,r);}r.operaciones.add(cerrar);region.setAttribute('aria-busy','true');}
     if(boton?.appendChild&&opciones.conservarIndicador!==true){
       var rect=boton.getBoundingClientRect?.();estilos={};
@@ -104,9 +105,9 @@
           contenidoActual=Array.from(boton.children).find(function(n){return n.classList.contains('sv-operation-original')&&n.getAttribute('data-sv-operation-owner')===marca;});
           etiquetaActual=Array.from(boton.children).find(function(n){return n.classList.contains('sv-operation-button-status')&&n.getAttribute('data-sv-operation-owner')===marca;});
         }
-        if(contenidoActual?.parentNode===boton&&etiquetaActual?.parentNode===boton){etiquetaActual.remove();for(var n of original)boton.insertBefore(n,contenidoActual);contenidoActual.remove();if(mismoContexto(c))boton.disabled=!!disabled;}
+        if(contenidoActual?.parentNode===boton&&etiquetaActual?.parentNode===boton){etiquetaActual.remove();for(var n of original)boton.insertBefore(n,contenidoActual);contenidoActual.remove();if(restaurarDisabled&&mismoContexto(c))boton.disabled=!!disabled;}
         if(htmlPropio!==null)for(var campo of ['textoOriginal','textoOriginalProceso'])if(boton.dataset[campo]===htmlPropio)boton.dataset[campo]=htmlOriginal;
-        if(inputValue!==null&&boton.value===texto){boton.value=inputValue;if(mismoContexto(c))boton.disabled=!!disabled;}
+        if(inputValue!==null&&boton.value===texto){boton.value=inputValue;if(restaurarDisabled&&mismoContexto(c))boton.disabled=!!disabled;}
         for(var [k,v]of Object.entries(estilos||{}))if(boton.style[k]===v.durante)boton.style[k]=v.antes;
         boton.classList.remove('sv-operation-busy','sv-operation-compact');
         if(boton.getAttribute('aria-busy')==='true'){if(aria===null)boton.removeAttribute('aria-busy');else boton.setAttribute('aria-busy',aria);}
