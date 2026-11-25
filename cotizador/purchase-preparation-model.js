@@ -34,7 +34,7 @@ function protectLinkedSources({list,listKey,sources,rows,rowSources,covered}){
   const positive=m=>[...m].filter(([,q])=>q>0).sort(([a],[b])=>a.localeCompare(b));
   demand(digest(positive(expected))===digest(entries.map(e=>[e.productKey,e.cantidad]).sort(([a],[b])=>a.localeCompare(b)))&&digest(positive(actual))===digest(positive(expected)),'Las cantidades de la preparación no coinciden con sus vínculos v2.');
   const prior=list.simuladorParaguay?.rows;
-  if(Array.isArray(prior))for(const row of rows.filter(r=>covered.get(r.key)?.listKey===source.listKey)){const old=prior.filter(r=>r.productKey===row.productKey&&r.sourceLine===row.sourceLine&&r.sourceListId===row.sourceListId);demand(old.length===1&&old[0].productKey===row.productKey&&old[0].sourceLine===row.sourceLine&&old[0].sourceListId===row.sourceListId&&old[0].existing===row.existing,'La captura previa contradice el vínculo de stock.');}
+  if(Array.isArray(prior))for(const row of rows.filter(r=>covered.get(r.key)?.listKey===source.listKey)){const old=prior.filter(r=>r.productKey===row.productKey&&r.sourceLine===row.sourceLine&&(r.sourceListId||'')===(row.sourceListId||''));demand(old.length===1&&old[0].productKey===row.productKey&&old[0].sourceLine===row.sourceLine&&(old[0].sourceListId||'')===(row.sourceListId||'')&&old[0].existing===row.existing,'La captura previa contradice el vínculo de stock.');}
  }
  if(list.origen==='conjunta'){
   const active=list.stockExistenteVinculado===true||own(list,'vinculosInventario')||linked.length>0;
