@@ -8,7 +8,7 @@ const close=server=>new Promise(resolve=>{server.close(resolve);server.closeIdle
 test('la impresión real integra imagen Firebase con CORS, evita el proxy y no escribe ni consulta RTDB',{skip:!chromium,timeout:30000},async()=>{
  let mediaCors=true,mediaReads=0,proxyReads=0,foreign=0;const source=readActiveApp().source,start=source.indexOf('  function urlImagenCapturablePresupuesto(src)'),end=source.indexOf('\n  var items = (await Promise.all(',start);assert(start>0&&end>start);
  const original=source.slice(start,end),anchor='if (parsed.origin === location.origin) return parsed.href;';assert(original.includes(anchor));
- const patched=original.replace(anchor,anchor+'\n      var imagenFirebase = window.SVProductMediaSource?.direct(parsed.href);\n      if (imagenFirebase) return imagenFirebase;');
+ const patched=original.includes('window.SVProductMediaSource?.direct')?original:original.replace(anchor,anchor+'\n      var imagenFirebase = window.SVProductMediaSource?.direct(parsed.href);\n      if (imagenFirebase) return imagenFirebase;');
  const app=http.createServer((req,res)=>{if(req.url.startsWith('/imagen-producto')){proxyReads++;return res.writeHead(400,{'Content-Type':'application/json'}).end('{"error":"Firebase is not an allowed provider proxy host"}');}res.writeHead(200,{'Content-Type':'text/html'}).end('<!doctype html><meta charset=utf-8><div id="result"></div>');});
  const origin=await listen(app),media=http.createServer((req,res)=>{mediaReads++;res.writeHead(200,{'Content-Type':'image/png',...(mediaCors?{'Access-Control-Allow-Origin':'*'}:{})});res.end(image);}),mediaOrigin=await listen(media);
  let browser;const diagnostics=[];try{
