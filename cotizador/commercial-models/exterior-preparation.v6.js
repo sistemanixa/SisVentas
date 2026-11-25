@@ -59,6 +59,40 @@
       row.method='exterior';row.include=true;count++;
     });return count;
   }
+  function reviewLegacyPreparation(saved,sources=[]){
+    const fail=message=>{throw Object.assign(Error('Preparación v5: '+message+' No se guardaron cambios.'),{code:'SV_PURCHASE_LEGACY_REVIEW'});};
+    if(saved?.version!==5||!saved.parameters||!Array.isArray(saved.rows)||!Array.isArray(saved.extras))fail('faltan decisiones originales completas.');
+    const p=copy(saved.parameters),chosen=saved.previewChoice||saved.chosen;
+    if(!['remote','onsite'].includes(chosen)||saved.previewChoice&&saved.chosen&&saved.previewChoice!==saved.chosen)fail('revisá la modalidad de entrega original.');
+    if(p.allocation!=='value'||[...saved.rows,...saved.extras].some(r=>r.expenseExcluded===true))fail('el reparto manual, por cantidad o con exclusiones requiere revisión individual.');
+    if(!['insured','uninsured'].includes(p.shippingMode))fail('falta identificar el envío elegido.');
+    for(const field of ['shipping','shippingPct','insurance'])if(p[field]!==undefined&&(!valid(p[field])||num(p[field])!==0))fail('el envío antiguo '+field+' no tiene equivalencia inequívoca.');
+    // These are the exact v5 form aliases: remote paid USDT, onsite paid USD.
+    if(p.payment===undefined)p.payment=chosen==='remote'?'USDT':'USD';
+    if(!['USD','USDT'].includes(p.payment))fail('revisá la moneda de pago original.');
+    // Unknown quotes remain blank decisions, never live rates or invented 1:1.
+    for(const field of ['usd','usdt','usdtPerUsd'])if(p[field]===undefined)p[field]='';
+    p.usdMode='manual';p.usdtExchange='manual';p.expensesInitialized=true;
+    const number=value=>value===''?'':typeof value==='number'&&Number.isFinite(value)&&value>=0?value:typeof value==='string'&&/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(value)&&Number.isFinite(Number(value))?Number(value):fail('hay cantidades o importes que necesitan revisión.');
+    const keys=new Set(),sourceKeys=new Set(sources.map(r=>r.key));
+    function row(r,extra){
+      if(!r||typeof r!=='object'||(!extra&&(!sourceKeys.has(r.key)||keys.has(r.key))))fail('un renglón no coincide con su captura original.');
+      if(!extra)keys.add(r.key);
+      if(r.expenseExcluded===true)fail('hay exclusiones de gastos.');
+      const method=r.method||(typeof r.include==='boolean'?(r.include?'exterior':'local'):null);
+      if(!['local','exterior','stock'].includes(method)||extra&&method==='stock')fail('falta resolver el destino de un material.');
+      if(typeof r.include==='boolean'&&method!=='stock'&&r.include!==(method==='exterior'))fail('el destino y la selección del material se contradicen.');
+      const agreed=r.agreed??(method==='exterior'?r.usd:r.localUnitARS)??'',quantity=r.requestedQty??r.qty;
+      if(quantity===undefined||r.existing===undefined&&!extra)fail('faltan cantidades originales.');
+      if(method!=='stock'&&(typeof r.providerKey!=='string'||!r.providerKey))fail('falta identificar el proveedor original.');
+      if(extra&&(typeof r.productKey!=='string'||!r.productKey))fail('falta identificar el producto extra.');
+      return {...copy(r),method,include:method==='exterior',agreed:number(agreed),...(extra?{qty:number(quantity)}:{requestedQty:number(quantity),existing:number(r.existing)}),manualPrice:true,reference:{...(r.reference||{}),amount:number(agreed),currency:method==='exterior'?'USD':'ARS',providerKey:r.providerKey||'',provider:r.provider||''}};
+    }
+    const rows=saved.rows.map(r=>row(r,false)),extras=saved.extras.map(r=>row(r,true));
+    if(keys.size!==sourceKeys.size)fail('faltan renglones capturados; no se completan con catálogo.');
+    // Carry decisions only; no result, historical author or cost application stamp.
+    return {version:6,parameters:p,rows,extras,chosen,previewChoice:chosen};
+  }
   function initialize(ctx,defaults={}){
     const saved=copy(ctx.saved||{}), own=hasExpenses(saved.parameters), prior=!own?ctx.previousExpenses:null, p=Object.assign({usd:defaults.usd||'',usdt:defaults.usdt||'',payment:'USD',usdtPerUsd:1,shippingInsuredUSD:defaults.shippingUSD??'',shippingMode:'insured',fee:0,remoteOther:0,balance:0,valuation:'current',allocation:'value',retained:'',extraLogisticsUSD:0},prior?.parameters||{},ctx.initial||{},saved.parameters||{});
     if(!ctx.closed){p.expensesInitialized=true;if(!own&&!prior)p.remoteTotalARS='';if(prior)p.expensesCopiedFrom=prior.listId;}
@@ -72,9 +106,9 @@
       r.baselinePart=r.qty*r.baselineUnit;r.sourceQty=source.sourceQty??source.qty;
       r.method=r.method||(r.qty===0&&r.existing?'stock':r.include?'exterior':'local');
       r.reference=r.reference||source.reference||{amount:r.originalUsd??source.usd,currency:source.include?'USD':'ARS',provider:source.provider,providerKey:source.providerKey,date:source.referenceDate||''};
-      if(!source.include&&!r.reference.amount)r.reference.amount=source.localUnitARS||r.baselineUnit;
+      if(!ctx.reviewLegacy&&!source.include&&!r.reference.amount)r.reference.amount=source.localUnitARS||r.baselineUnit;
       r.agreed=r.agreed??(prior?(r.include?r.usd:r.localUnitARS??r.baselineUnit):'');
-      if(ctx.catalog){
+      if(ctx.catalog&&!ctx.reviewLegacy){
         const linked=productProviders(r,ctx.catalog);
         const pv=linked.find(p=>p.proveedorKey===r.providerKey)||linked.find(p=>p.proveedorKey===source.providerKey)||linked[0];
         if(pv&&r.method!=='stock'){
@@ -260,6 +294,6 @@
     }).filter(r=>r.quantity>0);
     return {title,usdDecimals:2,rows};
   }
-  const api={currentLocalReference,previousExpenses,remoteTotal,tripTotal,hasExpenses,priceDifference,priceDifferenceTotals,orderForExport,pdfRows,revisePDF,purchaseGroups,equivalentAmount,initialize,calculateDraft,providerLink,agreedSummary,applySaleCosts,productProviders,selectProvider,selectExterior};
+  const api={reviewLegacyPreparation,currentLocalReference,previousExpenses,remoteTotal,tripTotal,hasExpenses,priceDifference,priceDifferenceTotals,orderForExport,pdfRows,revisePDF,purchaseGroups,equivalentAmount,initialize,calculateDraft,providerLink,agreedSummary,applySaleCosts,productProviders,selectProvider,selectExterior};
   if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

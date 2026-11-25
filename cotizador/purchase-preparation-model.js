@@ -10,6 +10,40 @@ function text(v){demand(typeof v==='string'&&v.trim().length>0,'Falta descripci�
 function shape(v,allowed){demand(v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).every(k=>allowed.includes(k)),'La declaración contiene campos no autorizados.');}
 function full(v){demand(v&&typeof v==='object'&&!Array.isArray(v)&&!v._svSummary&&!v._svListSummary&&!v._svPagedSummary&&Array.isArray(v.items),'Falta original completo.');return v;}
 function editable(l,child=false){full(l);demand(['borrador','preparacion'].includes(l.estado)&&!l.desagrupada&&!l.compraConfirmacion&&(!l.compraConjuntaId||child)&&!l.stockExistenteReservado&&!Object.keys(l.reservasInventario||{}).length&&!(l.ordenesIds?.length)&&!Object.keys(l).some(k=>/(Pendiente|Bloqueo)$/.test(k)&&l[k]),'La lista está confirmada, vinculada o tiene operaciones pendientes.');}
+// Preparation may reprice a linked plan, never silently change its stock identity.
+function linkEntries(l,lk,sk){
+ const present=own(l,'vinculosInventario'),entries=present?l.vinculosInventario:[];
+ demand(Array.isArray(entries),'Los vínculos v2 requieren un array original.');
+ demand(l.stockExistenteVinculado===undefined||l.stockExistenteVinculado===false||l.stockExistenteVinculado===true,'Flag de vínculo ambiguo.');
+ demand(!entries.length||l.stockExistenteVinculado===true,'La traza v2 no tiene su marca de vínculo.');
+ demand(l.stockExistenteVinculado!==true||present,'Falta la traza original del vínculo v2.');
+ const used=new Set(),physical=new Map(),receipts=new Map();
+ for(const entry of entries){demand(entry&&typeof entry==='object'&&!Array.isArray(entry)&&Object.keys(entry).length===9&&['schema','productKey','inventoryKey','receiptIdentityKey','listKey','saleKey','cantidad','operationId','ts'].every(k=>own(entry,k)),'Traza v2 incompleta.');
+  demand(entry.schema===2&&entry.listKey===lk&&entry.saleKey===sk&&!used.has(entry.productKey)&&n(entry.cantidad)>0&&Number.isSafeInteger(entry.ts)&&entry.ts>0,'Identidad o cantidad de vínculo v2 contradictoria.');
+  for(const k of ['productKey','inventoryKey','receiptIdentityKey','listKey','saleKey','operationId'])key(entry[k]);
+  demand(!physical.has(entry.inventoryKey)&&!receipts.has(entry.receiptIdentityKey),'Identidad física de vínculo ambigua.');used.add(entry.productKey);physical.set(entry.inventoryKey,entry.productKey);receipts.set(entry.receiptIdentityKey,entry.productKey);
+ }
+ return entries;
+}
+function protectLinkedSources({list,listKey,sources,rows,rowSources,covered}){
+ const linked=sources.filter(s=>s.list.stockExistenteVinculado===true||own(s.list,'vinculosInventario'));
+ for(const source of sources){const entries=linkEntries(source.list,source.listKey,source.saleKey);if(source.list.stockExistenteVinculado!==true&&!entries.length)continue;
+  const expected=new Map(),actual=new Map();
+  for(const row of rows.filter(r=>covered.get(r.key)?.listKey===source.listKey)){const original=rowSources.get(row.key);demand(row.productKey===original.productKey&&row.sourceLine===original.sourceLine&&row.sourceListId===original.sourceListId&&typeof row.existing==='number'&&row.existing===original.existing,'No se puede cambiar stock o identidad de un plan ya vinculado.');const requested=own(row,'requestedQty')?row.requestedQty:row.needed-row.existing;demand(typeof requested==='number'&&requested===original.sourceQty,'No se puede cambiar la cantidad solicitada de un plan ya vinculado.');actual.set(row.productKey,Money.quantitySum([actual.get(row.productKey)||0,row.existing]));}
+  for(const item of source.list.items){if(item.esManoDeObra===true||item.incluir!==true)continue;expected.set(item.productoKey,Money.quantitySum([expected.get(item.productoKey)||0,n(item.usarExistente)]));}
+  const positive=m=>[...m].filter(([,q])=>q>0).sort(([a],[b])=>a.localeCompare(b));
+  demand(digest(positive(expected))===digest(entries.map(e=>[e.productKey,e.cantidad]).sort(([a],[b])=>a.localeCompare(b)))&&digest(positive(actual))===digest(positive(expected)),'Las cantidades de la preparación no coinciden con sus vínculos v2.');
+  const prior=list.simuladorParaguay?.rows;
+  if(Array.isArray(prior))for(const row of rows.filter(r=>covered.get(r.key)?.listKey===source.listKey)){const old=prior.filter(r=>r.key===row.key);demand(old.length===1&&old[0].productKey===row.productKey&&old[0].sourceLine===row.sourceLine&&old[0].sourceListId===row.sourceListId&&old[0].existing===row.existing,'La captura previa contradice el vínculo de stock.');}
+ }
+ if(list.origen==='conjunta'){
+  const active=list.stockExistenteVinculado===true||own(list,'vinculosInventario')||linked.length>0;
+  if(active){demand(list.stockExistenteVinculado===true&&Array.isArray(list.vinculosInventario),'El padre y sus fuentes no conservan el mismo vínculo v2.');
+   const entries=sources.flatMap(s=>linkEntries(s.list,s.listKey,s.saleKey)),sorted=xs=>xs.map(e=>digest(e)).sort();
+   demand(digest(sorted(list.vinculosInventario))===digest(sorted(entries)),'Los vínculos del padre conjunto contradicen sus fuentes.');
+  }
+ }else if(!sources.length){demand(list.stockExistenteVinculado!==true&&!own(list,'vinculosInventario'),'El stock independiente no admite vínculos de venta.');}
+}
 function qty(i){const values=['qty','cantidad','cant'].filter(k=>i[k]!=null).map(k=>n(i[k]));demand(values.length&&values[0]>0&&values.every(v=>v===values[0]),'Cantidad de venta ambigua.');return values[0];}
 function cost(i){demand(i.comisionCostoHistoricoPendiente!==true,'Costo histórico pendiente de revisión.');const q=qty(i);for(const k of ['costoTotalCompra','costoTotal','costo'])if(i[k]!=null)return n(i[k]);for(const k of ['costoUnitarioCompra','costoUnitario','costoCompra','compra','precioCompra','precio_compra','costoUnitarioAntesPreparacion','costoUnitarioPresupuestado'])if(i[k]!=null)return Money.rawProduct(n(i[k]),q);throw fail('Falta costo capturado; no se usa catálogo ni cero.');}
 function originalUnit(i){for(const k of ['costoUnitarioAntesPreparacion','costoCompraAnterior','costoUnitarioPresupuestado'])if(i[k]!=null)return n(i[k]);return cost(i)/qty(i);}
@@ -70,6 +104,7 @@ function plan({list,listKey,sales={},sourceLists={},products={},providers={},dec
   return result;
  }
  const rows=decisions.rows.map(d=>{demand(d&&rowSources.has(d.key)&&!seen.has(d.key),'Fila desconocida o duplicada.');seen.add(d.key);return selection(rowSources.get(d.key),d);});
+ protectLinkedSources({list,listKey,sources,rows,rowSources,covered});
  const extras=decisions.extras.map((d,index)=>{key(d.productKey);const p=products[d.productKey];demand(p&&p.fbKey===d.productKey&&p.activo!==false&&p.esManoDeObra!==true,'Falta producto extra canónico.');dependencies('sisventas/productos/'+d.productKey,p);const row={key:'extra:'+index+':'+d.productKey,productKey:d.productKey,code:text(p.codigo),description:text(p.nombre),unit:text(p.unidad),destination:'stock',reference:null};return selection(row,d,true);});
  const declaredParameters=parameters(decisions.parameters),previousParameters=list.simuladorParaguay?.parameters||{};
  // Omission is not an instruction to reset a saved amount/preference to zero.
