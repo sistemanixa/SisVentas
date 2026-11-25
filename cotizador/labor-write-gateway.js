@@ -2,6 +2,7 @@
 const {affected,parts,digest}=require('./labor-guard');
 const {flatten}=require('./labor-db');
 const OTNote=require('./ot-note-native-policy');
+const OTMaterials=require('./ot-material-native-policy');
 const ExpenseRemoval=require('./expense-removal-policy');
 const BonusBatch=require('./labor-bonus-batch');
 const SACBatch=require('./labor-sac-batch');
@@ -40,9 +41,10 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false,inventoryCoh
   if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['id','kind','path','value','expectedHash','expectedHashes','purpose'].includes(k))||!/^[A-Za-z0-9_-]{8,160}$/.test(body.id)||!['set','patch','compare','atomic'].includes(body.kind)||typeof body.path!=='string')throw fail(400,'Solicitud de guardado inválida');
   if(!actor?.uid||!actor.claims||actor.claims.uid!==actor.uid)throw fail(403,'Sesión requerida');
   if(Buffer.byteLength(JSON.stringify(body))>16*1024*1024)throw fail(413,'El guardado supera el tamaño permitido');
-  const costCorrection=body.purpose===CostCorrection.PURPOSE,saleReturn=body.purpose===SaleReturn.PURPOSE,commissionParticipant=body.purpose===CommissionParticipant.PURPOSE,commissionAssignment=body.purpose===CommissionAssignment.PURPOSE;
+  const otMaterials=body.purpose===OTMaterials.PURPOSE,costCorrection=body.purpose===CostCorrection.PURPOSE,saleReturn=body.purpose===SaleReturn.PURPOSE,commissionParticipant=body.purpose===CommissionParticipant.PURPOSE,commissionAssignment=body.purpose===CommissionAssignment.PURPOSE;
   const normalization=body.purpose==='relationship-normalization',removal=body.purpose==='expense-removal',bonus=body.purpose===BonusBatch.PURPOSE,sac=body.purpose===SACBatch.PURPOSE,sacMigration=body.purpose===SACBatch.MIGRATION_PURPOSE;
-  if(body.purpose!==undefined&&(!(normalization||removal||bonus||sac||sacMigration||costCorrection||saleReturn||commissionParticipant||commissionAssignment)||body.kind!=='atomic'))throw fail(400,'Propósito de guardado inválido');
+  if(body.purpose!==undefined&&(!(otMaterials||normalization||removal||bonus||sac||sacMigration||costCorrection||saleReturn||commissionParticipant||commissionAssignment)||body.kind!=='atomic'))throw fail(400,'Propósito de guardado inválido');
+  if(otMaterials)OTMaterials.describe(body);
   let patch;
   if(['patch','atomic'].includes(body.kind)){
    if(body.expectedHash!==undefined)throw fail(400,'Comparación inválida');
@@ -77,13 +79,16 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false,inventoryCoh
   const commissionWriteProof=commissionParticipant||commissionAssignment?await CommissionWriteProof.issue({body,actor,read:initialRead}):null;
   const runner={uid:actor.uid,claims:actor.claims,mode:'user',...(commissionWriteProof?{commissionWriteProof}:{}),...(saleReturn?{...saleReturnContext,financialAction:'ventas.moverPresupuesto'}:{}),...(normalization?{...normalizationContext,financialAction:'mantenimiento.normalizar'}:{}),...(removal?{...removalContext,financialAction:'gastos.eliminar'}:{}),...(bonus?{...bonusContext,financialAction:'empleados.bonificar'}:{}),...(sac||sacMigration?{...sacContext,financialAction:sacMigration?'mantenimiento.migrar':'empleados.registrarHaberes'}:{}),opId:body.id,transportDigest:digest(body),operation:'legacy-'+body.kind,input:body};
   const result=await guard.run(runner,async scope=>{
-   const touchesOT=Object.keys(patch).some(path=>path==='sisventas/ordenes_trabajo'||path.startsWith('sisventas/ordenes_trabajo/'));
+   const touchesOT=Object.keys(patch).some(path=>/^sisventas\/(ordenes_trabajo|ordenesTrabajo)(\/|$)/.test(path));
    if(touchesOT&&inventoryCohort!==null){
     const inspect=async read=>{const state=await inventoryCohort.capabilities({read});if(state?.version!==1||typeof state.installed!=='boolean'||typeof state.ready!=='boolean'||state.ready&&!state.installed)throw fail(503,'No se pudo verificar el circuito OT.','SV_INVENTORY_COHORT_NOT_READY');return state;};
     const initial=await inspect(path=>scope.get(path));
     if(initial.installed)await inventoryCohort.assertAdmission({read:path=>scope.get(path),lease:scope.lease,phase:'ot-note-execute'});
     scope.beforeCommit(async({readFresh})=>{const fresh=await inspect(readFresh);if(fresh.installed!==initial.installed)throw fail(409,'La instalación del circuito OT cambió.','SV_INVENTORY_COHORT_NOT_READY');if(fresh.installed)await inventoryCohort.assertAdmission({read:readFresh,lease:scope.lease,phase:'ot-note-commit'});});
-    if(initial.installed){const plan=await OTNote.prepare({actor:runner,lease:scope.lease,body,patch,scope});await scope.update(plan.patch);return{ok:true,committed:true,operationId:body.id,noteCanonical:true};}
+    if(initial.installed){
+     if(otMaterials){const plan=await OTMaterials.prepare({actor:runner,lease:scope.lease,body,patch,scope});await scope.update(plan.patch);return{ok:true,committed:true,operationId:body.id};}
+     const plan=await OTNote.prepare({actor:runner,lease:scope.lease,body,patch,scope});await scope.update(plan.patch);return{ok:true,committed:true,operationId:body.id,noteCanonical:true};
+    }
    }
    if(saleReturn&&digest(await saleReturnAccess(path=>scope.get(path)))!==digest(saleReturnContext))throw fail(409,'Los permisos cambiaron. Volvé a abrir la venta.','SV_LABOR_AUTH_CHANGED');
    if(normalization&&digest(await normalizationAccess(path=>scope.get(path)))!==digest(normalizationContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');

@@ -72,7 +72,7 @@ const privateFinance=require('./private-finance').createPrivateFinance({auth:bus
 const userAccess = require('./user-access').createUserAccess({auth:firebaseAuth,db,enabled:process.env.USER_ACCESS_ENABLED==='true',emailConfigured:!!process.env.FIREBASE_WEB_API_KEY,sendResetEmail:require('./password-email').createPasswordEmail({apiKey:process.env.FIREBASE_WEB_API_KEY})});
 const oauthAuthorization = require('./oauth-authorization').createOAuthAuthorization({auth:businessAuth, db});
 const laborTransaction = laborRuntime.transaction;
-const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
+const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled,inventoryCohort:laborRuntime.inventoryCohort});
 laborRuntime.store.saleDeleteFenceReady=process.env.SALE_DELETE_FENCE_READY==='true';
 const saleDeleteService=require('./sale-delete-http-adapter').createSaleDeleteHttpAdapter({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.SALE_DELETE_READY==='true'});
 const purchaseDeleteReview=require('./purchase-order-delete-review').create({env:process.env,runtime:()=>({

@@ -38030,8 +38030,8 @@ function spCambiarEstado(nuevoEstado, extraDatos, reclamoKey, vinculo) {
   var update = Object.assign({ estado: nuevoEstado, historial: hist }, extraDatos||{});
   var guardado = vinculo ? _guardarVinculoReclamoExistente(r, vinculo.ot, vinculo.venta, { silencioso:true, reclamoCambios:update, omitirCoincidentes:vinculo.omitirCoincidentes===true }) : window.fbUpdate(window.fbRef(window.fbDB, 'sisventas/reclamos/' + rKey), update);
   return guardado
-    .then(function(){
-      SP_DATA[rKey] = Object.assign({}, r, update, { fbKey:rKey });
+    .then(function(confirmation){
+      SP_DATA[rKey] = Object.assign({}, r, confirmation?.claim||update, { fbKey:rKey });
       notify('✓ ' + (est?est.label:'Estado actualizado'));
       spRenderLista();
       spActualizarMetricas();
@@ -38169,8 +38169,29 @@ function _elegirCandidataVinculo(titulo, candidatas, etiqueta) {
   });
 }
 
-function _guardarVinculoReclamoExistente(reclamo, ot, venta, opciones) {
+async function _guardarVinculoReclamoExistente(reclamo, ot, venta, opciones) {
   if (!reclamo || !reclamo.fbKey || !window.fbDB) return Promise.reject(new Error('Reclamo no disponible'));
+  if(ot){
+    if(typeof window.SVOTStructure?.relate!=='function')throw new Error('Recargá la aplicación para guardar el vínculo de OT.');
+    var cambiosVinculo={reclamoFbKey:reclamo.fbKey};
+    if(venta?.fbKey)cambiosVinculo.ventaFbKey=venta.fbKey;
+    if(opciones?.reclamoCambios){
+      if(typeof window.SVLaborWrites?.hash!=='function')throw new Error('No se pudo verificar el reclamo.');
+      var originalReclamo=JSON.parse(JSON.stringify(reclamo));delete originalReclamo.fbKey;
+      cambiosVinculo.expectedClaimHash=await window.SVLaborWrites.hash(originalReclamo);
+      cambiosVinculo.supportState=opciones.reclamoCambios;
+    }
+    var confirmado=await window.SVOTStructure.relate(ot,'claim',cambiosVinculo);
+    if(confirmado?.installed===true){
+      if(confirmado.confirmed!==true||confirmado.linksCommitted!==true||!confirmado.ot)throw new Error('No se confirmó el vínculo. Consultá la operación antes de reintentar.');
+      Object.assign(ot,confirmado.ot);
+      if(opciones?.reclamoCambios&&!confirmado.claim)throw new Error('El vínculo se guardó. Volvé a abrir el reclamo para ver su estado.');
+      if(confirmado.claim)Object.assign(reclamo,confirmado.claim);
+      if(!(opciones&&opciones.silencioso))notify('Vínculo reparado ✓');
+      return {claim:confirmado.claim||null};
+    }
+    if(confirmado?.installed!==false)throw new Error('No se pudo verificar el guardado del vínculo.');
+  }
   var updates = {};
   var base = 'sisventas/reclamos/' + reclamo.fbKey;
   if (ot) {
@@ -50948,8 +50969,13 @@ async function _svCargaOperacion_otGuardarCorreccionProductos(ot, materiales, ac
   var tasa = Number(venta.subtotal)>0 ? Number(venta.iva || 0)/Number(venta.subtotal) : (venta.conIva?0.21:0);
   var iva = _redondearPrecioActual(subtotal*tasa);
   var ventaUpdate = {items:items,subtotal:subtotal,iva:iva,total:_redondearPrecioActual(subtotal+iva),descuento:_redondearPrecioActual(bruto-subtotal),audit:(venta.audit || []).concat([{fecha:svFechaLocalISO(),usuario:currentUser||'Sistema',accion:accion+' desde '+ot.id}])};
-  await window.SVSaleWriter.commit({record:ventaUpdate,baseline:venta,key:ventaLocal.fbKey,related:updates,partial:true});
-  Object.assign(ot,{materiales:materiales,audit:audit});
+  if(!window.SVOTRelatedAdapters)throw new Error('Recargá la aplicación para corregir materiales.');
+  var planMateriales=window.SVOTRelatedAdapters.existingSale({ot:actual,otKey:ot.fbKey,originalSale:venta,sale:Object.assign({},venta,ventaUpdate),saleKey:ventaLocal.fbKey,actor:{uid:window.currentUserUid,name:currentUser||'Sistema'},at:Date.now()});
+  updates=planMateriales.related;
+  await window.SVSaleWriter.commit({record:ventaUpdate,baseline:venta,key:ventaLocal.fbKey,related:updates,relatedBaselines:{[baseOT]:actual},partial:true,purpose:'ot-materials'});
+  var confirmada=(await window.fbGet(window.fbRef(window.fbDB,baseOT))).val();
+  if(!confirmada)throw new Error('Los materiales se guardaron. Volvé a abrir la OT para verlos.');
+  Object.assign(ot,confirmada);
   Object.assign(ventaLocal,ventaUpdate);
 }
 
@@ -50989,10 +51015,7 @@ async function _svCargaOperacion_otConfirmarProductosAdicionales() {
   otActualizarAccionesDestinoAdicional();
   try {
     await otGuardarCorreccionProductos(ot, materiales, 'Adicionales agregados a la venta original: ' + detalleAgregados);
-    ot.materiales = materiales;
     _otCarritoAdicional = [];
-    try { await window.otCustodiaCompletarStock(ot); }
-    catch (errorStock) { otFinalizarCargaAdicional(ot, 'Adicional instalado guardado. Falta completar stock: ' + errorStock.message); return; }
     if (typeof registrarActividad === 'function') registrarActividad('Materiales OT a venta original', (ot.id || ot.fbKey) + ' · ' + detalleAgregados);
     otFinalizarCargaAdicional(ot, '✓ Productos agregados a la OT y a la venta original');
   } catch (error) {
@@ -51105,14 +51128,18 @@ async function _svCargaOperacion_otConfirmarVentaAdicional() {
       ts:      Date.now(),
       leida:   false
     };
-    venta = await window.SVSaleWriter.commit({record:venta,key:ventaKey,related:updates});
-    ot.materiales = materiales;
-    ot.audit = audit;
-    ot.ventasAdicionales = Object.assign({}, ot.ventasAdicionales || {});
-    ot.ventasAdicionales[ventaKey] = updates[FB_PATHS.ordenesTrabajo + '/' + ot.fbKey + '/ventasAdicionales/' + ventaKey];
+    if(!window.SVOTRelatedAdapters)throw new Error('Recargá la aplicación para agregar materiales.');
+    var baseOT=FB_PATHS.ordenesTrabajo+'/'+ot.fbKey;
+    var originalOT=(await window.fbGet(window.fbRef(window.fbDB,baseOT))).val();
+    if(!originalOT)throw new Error('La OT ya no está disponible.');
+    var planAdicional=window.SVOTRelatedAdapters.additionalSale({ot:originalOT,otKey:ot.fbKey,sale:venta,saleKey:ventaKey,actor:{uid:window.currentUserUid,name:currentUser||'Sistema'},at:Date.now()});
+    Object.keys(updates).forEach(function(path){if(path.indexOf(baseOT+'/')===0)delete updates[path];});
+    Object.assign(updates,planAdicional.related);
+    venta = await window.SVSaleWriter.commit({record:venta,key:ventaKey,related:updates,relatedBaselines:{[baseOT]:originalOT},purpose:'ot-materials'});
+    var confirmada=(await window.fbGet(window.fbRef(window.fbDB,baseOT))).val();
+    if(!confirmada)throw new Error('La venta y los materiales se guardaron. Volvé a abrir la OT.');
+    Object.assign(ot,confirmada);
     _otCarritoAdicional = [];
-    try { await window.otCustodiaCompletarStock(ot); }
-    catch (errorStock) { otFinalizarCargaAdicional(ot, 'Venta adicional e instalación guardadas. Falta completar stock: ' + errorStock.message); return; }
     if (typeof registrarActividad === 'function') registrarActividad('Materiales OT a venta nueva', (ot.id || ot.fbKey) + ' → ' + venta.id + ' · ' + detalleAgregados);
     otFinalizarCargaAdicional(ot, '✓ Venta ' + venta.id + ' creada por $' + Math.round(total).toLocaleString('es-AR'));
   } catch (e) {

@@ -37,6 +37,7 @@ function create({enabled=false,readOnly=false,read,serverRoot,uiRoot,env=process
   await mappedAdmission.admit({read:async path=>path===ACTIVATION?state.document:(options?.read||read)(path)});
   return Object.freeze({schema:1,verified:true,writerVersion:1,generation:config.expectedPins.generation,activationDigest:digest(state.document),rulesDigest:config.expectedRulesDigest,contractDigest:config.expectedPins.contractDigest});
  }
- return Object.freeze({mappedAdmission,absenceAuthority,assertAdmission,verifyCohort:assertAdmission,capabilities});
+ const otDeleteAuthority=enabled?require('./ot-delete-inventory-cohort').createInventoryCohortAuthority({mappedAdmission,verifier}):null;
+ return Object.freeze({mappedAdmission,absenceAuthority,otDeleteAuthority,assertAdmission,verifyCohort:assertAdmission,capabilities});
 }
 module.exports={create,ACTIVATION,INSTALLED};

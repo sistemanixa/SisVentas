@@ -39,6 +39,7 @@ test('all admissions read current state and readOnly is an explicit boolean',asy
 test('genuine startup verifier and Explicit authority compose with fresh signed installation',async()=>{
  const f=signedFixture();try{
   const runtime=Runtime.create({enabled:true,...f});assert.equal(f.reads.length,0);assert.equal(require('../cotizador/office-stock-explicit-reference').isMappedAdmission(runtime.mappedAdmission),true);
+  const DeleteCohort=require('../cotizador/ot-delete-inventory-cohort');assert.equal(DeleteCohort.isAuthority(runtime.otDeleteAuthority),true);assert.equal(DeleteCohort.isAuthority({...runtime.otDeleteAuthority}),false);
   assert.deepEqual(await runtime.capabilities(),{version:1,installed:true,ready:true,generation:'runtime-fixture'});
   const proof=await runtime.verifyCohort({read:f.read});assert.equal(proof.verified,true);assert.equal(proof.writerVersion,1);assert.equal(proof.generation,'runtime-fixture');assert.equal(f.reads.length,4);
   f.set(Runtime.ACTIVATION,{...f.document,signature:'A'.repeat(86)});assert.equal((await runtime.capabilities()).ready,false);await assert.rejects(runtime.assertAdmission());

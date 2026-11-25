@@ -7,6 +7,7 @@ async function validateSource(options){
  if(Source.isBound(options.actor)){await Source.validate(options);return true;}
  if(Count.isBound(options.actor)){await Count.validate(options);return true;}
  if(Metadata.structureIsBound(options.actor)){await Metadata.validateStructureSource(options);return true;}
+ if(Metadata.materials.isBound(options.actor)){await Metadata.materials.validateSource(options);return true;}
  return false;
 }
 async function claims({actor,lease,patch,readFresh,operationalSummaries=false,physicalEnabled=false,now=Date.now()}){
@@ -15,9 +16,9 @@ async function claims({actor,lease,patch,readFresh,operationalSummaries=false,ph
  const tokens={...Life.token(actor,lease),...Inventory.token(actor,lease),...Count.token(actor,lease),...Metadata.token(actor,lease)};
  for(const [field,version]of [['otLifecycle','svOTLifecycleVersion'],['otInventory','svOTInventoryVersion'],['otCount','svOTCountVersion'],['otMetadata','svOTMetadataVersion'],['otStructure','svOTMetadataVersion']])if(actor?.[field]&&tokens[version]!==1)throw Object.assign(Error('La capacidad de OT no es válida.'),{statusCode:403,code:'SV_OT_CAPABILITY_REQUIRED'});
  const physical=tokens.svOTLifecycleVersion===1||tokens.svOTInventoryVersion===1||tokens.svOTCountVersion===1;
- const structured=Metadata.structureIsBound(actor);
+ const structured=Metadata.structureIsBound(actor)||Metadata.materials.isBound(actor);
  if((physical||structured)&&!await validateSource({actor,lease,patch,readFresh,operationalSummaries,now}))throw Object.assign(Error('Falta verificar el plan completo de OT.'),{statusCode:403,code:'SV_OT_SOURCE_REQUIRED'});
- if(tokens.svOTMetadataVersion===1){const [profile,cfg]=await Promise.all([readFresh('sv_chat_roles/'+actor.uid),readFresh('sv_permisos/'+actor.role)]);Metadata.validate(actor,profile,cfg);}
+ if(tokens.svOTMetadataVersion===1){const [profile,cfg]=await Promise.all([readFresh('sv_chat_roles/'+actor.uid),readFresh('sv_permisos/'+tokens.svOTMetadataRole)]);Metadata.validate(actor,profile,cfg);}
  return {...reserved(),...tokens,...(physicalEnabled?await require('./ot-physical-write-policy').claims({patch,actor,lease,read:readFresh,operationalSummaries,now}):{})};
 }
 module.exports={sanitize,reserved,validateSource,claims};

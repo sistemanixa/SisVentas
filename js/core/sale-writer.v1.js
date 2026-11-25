@@ -41,7 +41,8 @@
   function session(){const uid=root.currentUserUid,role=root.currentRole,auth=root.fbAuth,user=auth?.currentUser,db=root.fbDB,revision=root.PERMISOS_ROLES?.[role]?.indiceRevision,epoch=root._svOperacionesSesionEpoch;const check=()=>{if(!uid||!role||root._impersonacionOriginal||auth&&(!user||user.uid!==uid)||uid!==root.currentUserUid||role!==root.currentRole||auth!==root.fbAuth||user!==root.fbAuth?.currentUser||db!==root.fbDB||revision!==root.PERMISOS_ROLES?.[role]?.indiceRevision||epoch!==root._svOperacionesSesionEpoch)throw Error('La sesión cambió o se modificó el contexto. Volvé a abrir la venta.');};check();return check;}
   // Todos los documentos comerciales terminan aquí. Los vínculos se confirman
   // en la misma escritura existente; no se separan venta, OT y presupuesto.
-  async function commit({record,baseline,key,related={},relatedBaselines={},basePath='',partial=false,transaction,confirmLocal=false}={}){
+  async function commit({record,baseline,key,related={},relatedBaselines={},basePath='',partial=false,transaction,confirmLocal=false,purpose}={}){
+   if(purpose!==undefined&&purpose!=='ot-materials')throw Error('El propósito de la venta no es válido.');
    const check=session(),stockContext=await root.SVStockPurchaseCosts?.load(root,record,baseline);check();const next=prepare(record,baseline,stockContext);check();
    const localContext=confirmLocal?root.SVCommercialOwnership?.captureWriteContext?.('ventas'):null;
    if(transaction){
@@ -69,7 +70,7 @@
    const equal=root.SVGuardedWrites?.equal||((a,b)=>JSON.stringify(a)===JSON.stringify(b));
    const clean=value=>{const out=clone(value);if(out)delete out.fbKey;return out;};
    let reused=false;
-   check();const result=await root.SVLaborWrites.atomic({paths,build:values=>{
+   check();const result=await root.SVLaborWrites.atomic({paths,...(purpose?{purpose}:{}),build:values=>{
     check();const current=values[salePath];
     for(const p of Object.keys(relatedBaselines))if(!equal(clean(values[p]),clean(relatedBaselines[p])))throw Error('El reclamo o la OT cambió. Volvé a abrir la resolución para revisarlos.');
     if(baseline){if(!equal(clean(current),clean(baseline)))throw Error('La venta cambió. Volvé a abrirla antes de guardar.');}

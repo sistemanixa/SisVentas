@@ -49,6 +49,7 @@ test('mounted readers enforce current Dashboard grants on all five routes withou
  const state=await data(),f=boot({env:flags,state:state.data()});state.set('sv_permisos/vendedor/indiceModulos/dashboard',false);for(const route of routes)assert.notEqual((await f.request(route)).status,200);assert.equal(f.transport,0);
 });
 test('packaged canonical helpers are byte-identical, including sibling dependencies',()=>{
+ assert.deepEqual(fs.readFileSync(path.join(root,'ot-related-adapters.js')),fs.readFileSync(path.join(root,'../js/modules/ot-related-adapters.js')),'OT related model must stay identical in browser and server');
  for(const name of ['dashboard-activity-model.v2.js','dashboard-activity-instant.v1.js','dashboard-budget-notice-model-proposal.js','dashboard-budget-notice-legacy-proposal.js','permission-index.js'])assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(root,'commercial-models',name))).digest('hex'),crypto.createHash('sha256').update(fs.readFileSync(path.join(root,'../js/core',name))).digest('hex'),name);
 });
 test('Docker COPY payload alone boots actual index false/true without ../js dependencies',async()=>{

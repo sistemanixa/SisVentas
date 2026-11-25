@@ -20,6 +20,22 @@ async function fixture(tamper){
  const run=()=>f.runtime.guard.run(actor,async scope=>{const prepared=await Native.prepare({actor,lease:scope.lease,body,patch,scope});await scope.update(prepared.patch);return{ok:true,committed:true,operationId:body.id,otKey:prepared.otKey};});return {...f,run,body,actor,sale};
 }
 test('backend bundled adapter is byte-identical to canonical UI pure model',()=>{assert.deepEqual(fs.readFileSync(require.resolve('../cotizador/ot-related-adapters')),fs.readFileSync(require.resolve('../js/modules/ot-related-adapters')));});
+
+test('actual Gateway routes typed Materials under genuine cohort, native physical Store and Financial/History, replay is one effect',async t=>{
+ const f=await fixture(),seal=require('./helpers/ot-gateway-signed-cohort.cjs').create(t),Runtime=require('../cotizador/inventory-cohort-runtime');
+ f.set(Runtime.ACTIVATION,seal.document);f.set(Runtime.INSTALLED,seal.marker);
+ const cohort=Runtime.create({enabled:true,read:f.runtime.store.read,...seal}),tokens=[];
+ const native=require('../cotizador/labor-rtdb-store').createLaborRtdbStore({databaseURL:'https://fixture.invalid',accessToken:async()=>'FICTION',otPhysicalWrites:true,fetchImpl:async(url,options)=>{
+  const u=new URL(url),p=decodeURIComponent(u.pathname).slice(1,-5);assert.equal(u.hostname,'fixture.invalid');let value=null;
+  if(options.method==='GET')value=f.get(p);else{assert.equal(options.method,'PATCH');tokens.push(JSON.parse(u.searchParams.get('auth_variable_override')).token);const patch=JSON.parse(options.body);f.commits.push(patch);for(const [path,value]of Object.entries(patch))f.set(path,value);}
+  return{ok:true,status:200,json:async()=>structuredClone(value),body:{cancel:async()=>{}}};
+ }});
+ f.runtime.store.commit=native.commit;
+ const gateway=require('../cotizador/labor-write-gateway').createLaborWriteGateway({...f.runtime,enabled:true,inventoryCohort:cohort});
+ const out=await gateway.write(f.identity,f.body);assert.equal(out.committed,true);assert.equal(tokens[0].svOTMetadataKind,'materials');assert.equal(tokens[0].svOTPhysicalCommitVersion,1);assert.equal(tokens[0].svOTPhysicalUnchanged,true);assert.equal(tokens[0].svSaleFinancialWriterVersion,1);
+ assert.equal(f.get('sisventas/ordenes_trabajo/ot/materiales/1/entregada'),0);assert.equal(f.get('sisventas/ordenes_trabajo/ot/materiales/1/instalada'),0);assert.equal(f.get('sisventas/comisiones/preserved/monto'),7);
+ await gateway.write(f.identity,f.body);assert.equal(f.commits.length,1);assert.equal(tokens.length,1);
+});
 test('native Materials prepare with real Guard/REST Store maintains Financial and History ON',async()=>{
  const f=await fixture();assert.equal(f.runtime.guard.clientHistory,true);assert.equal(f.runtime.guard.saleFinancialDependencies,true);await f.run();assert.equal(f.commits.length,1);assert.equal(f.get('sisventas/ordenes_trabajo/ot/materiales/1/entregada'),0);assert.equal(f.get('sisventas/ordenes_trabajo/ot/materiales/1/instalada'),0);assert.equal(f.get('sisventas/ventas/sale/total'),150);
  assert(Object.keys(f.commits[0]).some(path=>path.startsWith('sv_sale_financial_dependencies/')));assert(Object.keys(f.commits[0]).some(path=>path.startsWith('sv_client_history/')));assert.equal(f.get('sisventas/comisiones/preserved/monto'),7);await f.run();assert.equal(f.commits.length,1);
