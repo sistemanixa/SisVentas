@@ -1,3 +1,34 @@
+(function(root,factory){
+  const api=factory();
+  if(typeof module==='object'&&module.exports)module.exports=api;
+  else root.SVStockCatalogJoin=api;
+})(typeof window==='object'?window:globalThis,function(){
+  'use strict';
+  function join(rows, catalog, isService){
+    if(typeof isService!=='function')throw Error('Falta el criterio de productos y servicios.');
+    const byKey=new Map();
+    for(const product of Object.values(catalog??{})){
+      if(!product?.fbKey)continue;
+      byKey.set(product.fbKey,byKey.has(product.fbKey)?null:product);
+    }
+    return rows.map(row=>{
+      if(row.invalid)return row;
+      const product=byKey.get(row.key);
+      if(!product||product.eliminado===true||isService(product))return row;
+      const code=product.codigo||product.cod||row.code;
+      if(row.code!==row.key&&String(row.code)!==String(code))return row;
+      const inactive=product.activo===false||product.estado==='inactivo';
+      return {...row,productKey:row.key,code:String(code),
+        name:String(product.nombre||product.descripcion||row.name),
+        unitLabel:String(product.unidad||row.unitLabel||'Sin unidad confirmada'),
+        photo:typeof product.imagenUrl==='string'&&/^(?:https?:\/\/|data:image\/(?:png|jpeg|webp|gif);base64,)/i.test(product.imagenUrl)?product.imagenUrl:'',
+        review:false,canZero:inactive};
+    });
+  }
+  return {join};
+});
+
+
 (function(root){'use strict';
 function create(){
  const uid=root.currentUserUid,user=root.fbAuth?.currentUser,role=root.currentRole,epoch=root._svOperacionesSesionEpoch||0;
@@ -19,7 +50,32 @@ function create(){
  else result.purchaseNotice='La referencia guardada no coincide con los productos de esa compra.';
  }catch(error){check();result.purchaseNotice='No se pudo consultar la compra vinculada. '+(error.code==='PERMISSION_DENIED'?'Tu rol no autoriza esa lectura.':'Volvé a intentar.');}check();return result;
  }
- return{session,provenance,openPurchase:async key=>{check();if(!/^[A-Za-z0-9_-]{1,128}$/.test(key)||root.permisoModulo?.('ordenes')!==true||root.permisoModulo?.('balancecompra')!==true)throw Error('No tenés permiso para abrir esta compra.');if(!root.SisVentasCompras?.openOrder)throw Error('No está disponible el detalle de Compras.');await root.SisVentasCompras.openOrder(key);check();},products:async({signal}={})=>{check();if(!root.SVDataReadiness?.waitForPage||typeof root.fbCargarProductos!=='function')throw Error('No está disponible el catálogo.');root.fbCargarProductos();const state=await root.SVDataReadiness.waitForPage('productos',{signal,isCurrent:()=>session().active&&session().allowed&&!session().viewAs});check();if(!state.ready)throw Error(state.cancelled?'La consulta se canceló.':'No se pudo cargar el catálogo. Volvé a intentar.');const catalog=root.prodData;if(!catalog||!Object.keys(catalog).length)throw Error('El catálogo todavía no está listo. Volvé a intentar en unos instantes.');return Object.values(catalog).filter(p=>p&&p.fbKey&&p.activo!==false&&p.estado!=='inactivo'&&!p.eliminado&&typeof root.esProductoManoDeObra==='function'&&!root.esProductoManoDeObra(p)).map(p=>({key:p.fbKey,code:String(p.codigo||p.cod||p.fbKey),name:String(p.nombre||p.descripcion||'Producto'),unitLabel:String(p.unidad||'Sin unidad confirmada'),photo:p.imagenUrl||'',inventory:null}));},list:async({cursor,limit})=>request('listar',{cursor,limit}),detail:productKey=>request('detalle',{productKey}),history:async productKey=>(await request('historial',{productKey})).rows,save:async body=>{check();if(!root.SVLaborWriteRecovery?.execute||!root.SVLaborWrites?.hash)throw Object.assign(Error('El guardado seguro no está listo.'),{svLaborAttempted:false});root.SVLaborWriteRecovery.assertAvailable();const command={id:body.id,productKey:body.productKey,quantity:body.quantity,reason:body.reason,expectedHash:body.expectedHash},digest=await root.SVLaborWrites.hash(command);check();return root.SVLaborWriteRecovery.execute({uid,id:command.id,digest},()=>request('ajustar',command),check);}};
+ const rawRows=new Map();
+ function loadedCatalog(){
+   const catalog=root.prodData;
+   return root.SVDataReadiness?.status(['productos']).ready&&catalog&&Object.keys(catalog).length&&typeof root.esProductoManoDeObra==='function'?catalog:null;
+ }
+ function redecorate(rows){
+   const catalog=loadedCatalog();
+   if(!catalog)return rows;
+   const pending=rows.filter(row=>rawRows.has(row.key)).map(row=>({...rawRows.get(row.key),inventory:row.inventory}));
+   const enriched=new Map(root.SVStockCatalogJoin.join(pending,catalog,root.esProductoManoDeObra).map(row=>[row.key,row]));
+   return rows.map(row=>enriched.get(row.key)||row);
+ }
+ async function list({cursor,limit}){
+   const compact=!!loadedCatalog();
+   const data=await request('listar',compact?{cursor,limit,compact:true}:{cursor,limit});
+   if(!cursor)rawRows.clear();
+   for(const row of data.rows)if(compact||row.productKey===row.key){
+     rawRows.set(row.key,{...row,productKey:null,photo:'',review:true,canZero:false});
+   }
+   return {...data,rows:redecorate(data.rows)};
+ }
+ function onCatalogChange(callback){
+   document.addEventListener('sisventas:stock-catalog-changed',callback);
+   return ()=>document.removeEventListener('sisventas:stock-catalog-changed',callback);
+ }
+ return{session,provenance,redecorate,onCatalogChange,openPurchase:async key=>{check();if(!/^[A-Za-z0-9_-]{1,128}$/.test(key)||root.permisoModulo?.('ordenes')!==true||root.permisoModulo?.('balancecompra')!==true)throw Error('No tenés permiso para abrir esta compra.');if(!root.SisVentasCompras?.openOrder)throw Error('No está disponible el detalle de Compras.');await root.SisVentasCompras.openOrder(key);check();},products:async({signal}={})=>{check();if(!root.SVDataReadiness?.waitForPage||typeof root.fbCargarProductos!=='function')throw Error('No está disponible el catálogo.');root.fbCargarProductos();const state=await root.SVDataReadiness.waitForPage('productos',{signal,isCurrent:()=>session().active&&session().allowed&&!session().viewAs});check();if(!state.ready)throw Error(state.cancelled?'La consulta se canceló.':'No se pudo cargar el catálogo. Volvé a intentar.');const catalog=root.prodData;if(!catalog||!Object.keys(catalog).length)throw Error('El catálogo todavía no está listo. Volvé a intentar en unos instantes.');return Object.values(catalog).filter(p=>p&&p.fbKey&&p.activo!==false&&p.estado!=='inactivo'&&!p.eliminado&&typeof root.esProductoManoDeObra==='function'&&!root.esProductoManoDeObra(p)).map(p=>({key:p.fbKey,code:String(p.codigo||p.cod||p.fbKey),name:String(p.nombre||p.descripcion||'Producto'),unitLabel:String(p.unidad||'Sin unidad confirmada'),photo:p.imagenUrl||'',inventory:null}));},list,detail:productKey=>request('detalle',{productKey}),history:async productKey=>(await request('historial',{productKey})).rows,save:async body=>{check();if(!root.SVLaborWriteRecovery?.execute||!root.SVLaborWrites?.hash)throw Object.assign(Error('El guardado seguro no está listo.'),{svLaborAttempted:false});root.SVLaborWriteRecovery.assertAvailable();const command={id:body.id,productKey:body.productKey,quantity:body.quantity,reason:body.reason,expectedHash:body.expectedHash},digest=await root.SVLaborWrites.hash(command);check();return root.SVLaborWriteRecovery.execute({uid,id:command.id,digest},()=>request('ajustar',command),check);}};
 }
 root.SVOfficeStockAdapter=Object.freeze({create});
 })(window);

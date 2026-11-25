@@ -1,3 +1,7 @@
+# Stock de oficina · candidata v3.21.12 · 24/11/2026
+
+Base pública b624bf4c. Stock ordena el resumen vivo por cantidad antes de paginar hasta 100 filas. Si el catálogo de la sesión está disponible, completa nombre, foto y estado en memoria evitando lecturas puntuales al abrir Stock. Si el catálogo todavía no llegó, el listado conserva la resolución del servidor. La sincronización de Productos actualiza las filas abiertas; los vínculos dudosos quedan en revisión. Se conservan los permisos, historial y comandos existentes. 36 pruebas focales con datos ficticios, incluida UI de escritorio/tablet/celular, contador de consultas, edición, baja y reservas. Pendiente verificación de despliegue en web. Ninguna ficha, cantidad ni historial real modificado por esta candidata.
+
 # PUBLICACIÓN AUTORIZADA NUEVAMENTE · v3.21.11 · 24/11/2026
 
 El titular revocó la espera de prueba local con «no publicá y ya». Alcance: carga estable de Cuenta corriente, CAS de resolución de Soporte y borrado revisado exclusivamente del borrador manual OC-0049. La eliminación la realiza el usuario; no se borra una orden real como prueba. No se retoma la migración general de Stock/OT/Compras.
