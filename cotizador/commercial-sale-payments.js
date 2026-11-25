@@ -21,6 +21,9 @@ function create({ownership,store}){
   const observed=new Map(),authorized=new Map();
   const capture=(cache,path,read)=>{if(!cache.has(path))cache.set(path,Promise.resolve().then(read));return cache.get(path);};
   const scope={get:path=>capture(observed,path,()=>store.read(path)),getAsUser:path=>capture(authorized,path,()=>store.readAsUser(path,actor))};
+  // Independent point reads share only this request's image. Start together;
+  // the snapshot still validates coverage, membership and user visibility.
+  await Promise.allSettled([scope.get(Index.COVERAGE_PATH),scope.getAsUser('sisventas/ventas/'+saleKey)]).then(results=>{const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;});
   const image=await snapshot(scope,actor,[saleKey]),sale=image.sales[saleKey],original={...sale};
   if(!Object.hasOwn(record,'fbKey'))delete original.fbKey;
   if(digest(original)!==digest(record))throw fail('La venta cambió durante la consulta.');
@@ -34,14 +37,19 @@ function create({ownership,store}){
   const paidAmount=source==='legacy'?amount(record.totalPagado||record.pagado||record.montoPagado||0):Money.sum(payments.filter(active).map(p=>amount(p.monto)));
   // Reauthenticate, reread ownership and every observed source/bucket. No lease,
   // write capability, cross-request cache or service read substitutes a user read.
-  const freshActor=await ownership.authorize(req,'ventas');assertActor(freshActor);
-  if(binding(actor)!==binding(freshActor))throw fail('La sesión o los permisos cambiaron.');
-  await pool([...observed],async([path,value])=>{if(digest(await value)!==digest(await store.read(path)))throw fail('La cobertura o las referencias de cobros cambiaron.');});
-  await pool([...authorized],async([path,value])=>{if(digest(await value)!==digest(await store.readAsUser(path,freshActor)))throw fail('La fuente del cobro cambió.');});
+  // The route has authenticated before reading. Reauthenticate after all source
+  // checks below, rather than duplicating that same check midway through a GET.
+  // User reads still use the captured actor; no response precedes final access.
+  const checks=[
+   ...[...observed].filter(([path])=>path!==Index.COVERAGE_PATH).map(([path,value])=>async()=>{if(digest(await value)!==digest(await store.read(path)))throw fail('La cobertura o las referencias de cobros cambiaron.');}),
+   ...[...authorized].map(([path,value])=>async()=>{if(digest(await value)!==digest(await store.readAsUser(path,actor)))throw fail('La fuente del cobro cambió.');})
+  ];
+  // pool bounds concurrency and waits for its workers before propagating errors.
+  await pool(checks,work=>work());
   const finalActor=await ownership.authorize(req,'ventas');assertActor(finalActor);if(binding(actor)!==binding(finalActor))throw fail('La sesión o los permisos cambiaron.');
   const fresh=(await ownership.visibleRecordsByIds(finalActor,'ventas',[saleKey]))[saleKey];
   if(!fresh||digest(fresh)!==digest(record))throw fail('La propiedad o la venta cambió.');
-  if(digest(Index.validateCoverage(await store.read(Index.COVERAGE_PATH)))!==digest(image.coverage))throw fail('La cobertura de cobros cambió.');
+  if(digest(Index.validateCoverage(await store.read(Index.COVERAGE_PATH)))!==digest(image.coverage))throw fail('La cobertura o las referencias de cobros cambiaron.');
   if(!Number.isFinite(paidAmount)||paidAmount<0)throw fail('El saldo histórico requiere revisión.',503);
   return {record:fresh,paymentHistory:{schema:1,source,payments:payments.map(dto),paidAmount,complete:true}};
  }};

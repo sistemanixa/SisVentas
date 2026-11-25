@@ -41,3 +41,26 @@ test('shared account receipt requires its original group and exposes only a bool
   for(const key of ['comprobanteCuenta','grupoPago','pagoCuentaGrupo'])a.equal(Object.hasOwn(h.payments[0],key),false);a.deepEqual(f.root,before);
  }
 });
+
+
+test('one-payment history has bounded reads, concurrent independent checks and one final reauthentication',async()=>{
+ const f=await setup(),before=structuredClone(f.root);let authorized=0,finished=false;const original=f.api.authorize;
+ f.api.authorize=async(...args)=>{if(args[0]===f.req)authorized++;return original(...args);};
+ const stages=new Map();let active=0,maxConcurrent=0;
+ f.control.hook=async({path,override})=>{const key=(override?'user:':'service:')+path;stages.set(key,(stages.get(key)||0)+1);active++;maxConcurrent=Math.max(maxConcurrent,active);await new Promise(resolve=>setImmediate(resolve));active--;};
+ const result=await f.load();finished=true;a.equal(result.paymentHistory.paidAmount,40);a.equal(authorized,1,'initial route authorization is supplied; final authorization must be fresh exactly once');
+ a.equal(f.calls.length,12);a.equal(stages.get('service:'+Index.COVERAGE_PATH),2,'initial and final coverage, no redundant middle read');a(maxConcurrent>=2);a(maxConcurrent<=6);a.equal(active,0);a.deepEqual(f.root,before);
+ const count=f.calls.length;await new Promise(resolve=>setImmediate(resolve));a.equal(f.calls.length,count,'no idle polling');a.equal(finished,true);
+});
+
+test('role revoked during the last user-source check is rejected by final authorization',async()=>{
+ const f=await setup();let n=0;f.control.hook=({path,override})=>{if(override&&path==='sisventas/pagos/p'&&++n===2)f.root.sv_chat_roles.a.activo=false;};
+ await a.rejects(f.load(),e=>e.statusCode===403);a.equal(n,2);
+});
+
+test('final coverage and final sale checks still reject changes after source rereads',async()=>{
+ for(const target of ['coverage','sale']){const f=await setup(),original=f.api.visibleRecordsByIds;
+ f.api.visibleRecordsByIds=async(...args)=>{if(target==='coverage')f.put(Index.COVERAGE_PATH,Index.buildIndex(f.root.sisventas.pagos,{generation:'changed-late',ready:true}).coverage);else f.root.sisventas.ventas.one.totalPagado=41;return original(...args);};
+ await a.rejects(f.load(),/cambi/);}
+});
+

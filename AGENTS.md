@@ -77,3 +77,5 @@ Cuando el usuario pida **acomodar nombres**, seguir el criterio de [docs/acomoda
 - No introducir sondeos de datos por reloj sin autorización expresa y estimación de costo. Preferir acciones del usuario y eventos reales; reintentar sólo operaciones concretas fallidas con límites.
 - Medir lecturas/transferencia y ejecución en reposo, además de las pruebas funcionales. Un304 al navegador no prueba ahorro de lecturas RTDB.
 - Explicar costo estimado antes de cambiar infraestructura. No prometer límites exactos basándose en alertas con demora. No desactivar facturación, borrar datos ni cortar una comisión como arreglo de consumo.
+
+- Antes de agregar recorridos de red, revisar el camino completo de la acción: reutilizar la lectura autorizada dentro de la misma operación, paralelizar consultas independientes y evitar validaciones idénticas repetidas. Medir lecturas y espera antes/después; conservar controles de sesión, permisos, pertenencia y cambios concurrentes. Un indicador de carga no sustituye corregir una demora innecesaria.
