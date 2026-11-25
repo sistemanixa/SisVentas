@@ -1,3 +1,7 @@
+# Retomados pendientes OT/Stock/Compras y optimización · 25/11/2026
+
+El titular aclaró que también deben terminarse los circuitos anteriores no integrados y pidió usar sus cinco chats existentes. Coordinación en codex/finish-pending-20261125 desde37e1cbab; producción sigue15. Primer cambio local: puerto de consulta dirigida Store/Guard,24PASS sin habilitar escritores. Ver CIERRE_PENDIENTES_20261125.md. NO dar por resuelta la migración por la suite pública15 ni copiar árboles WIP antiguos. Cada frente prepara código y pruebas aisladas, publicación conjunta tras verificación.
+
 # Publicada y verificada v3.21.15 · 25/11/2026
 
 Fuente pública 4ef9f97ceaf204fb553ade300d9ce92d441d844f, Hosting68242c457e9b91f3:722/722activos comprobados por HTTPS/SHA256, cero diferencias; cabeceras de seguridad conservadas. Script oficial confirmó web, marcador, SW y aviso Firebase v3.21.15-firebase. Ventana del titular realmente recargada15 y dejada en Cuenta corriente sin filtro de texto; búsquedas Yago→Gerardo comprobadas en Ventas y CC sin filas antiguas. Sólo lectura, sin movimientos de negocio de prueba. Puerta completa ecfd4abf:11.161PASS/0FAIL/0canceladas/91SKIPcondicionales; catálogo separado PASS. Commit de cierre posterior sólo documental: no cambia activos ya verificados.

@@ -119,6 +119,8 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
    for(const [p,v]of staged){if(p===path){for(const k of Object.keys(candidate))delete candidate[k];Object.assign(candidate,copy(v)||{});}else if(p.startsWith(path+'/')){const relative=parts(p.slice(path.length+1)),id=relative.shift();const before=Object.hasOwn(candidate,id)?candidate[id]:await raw(path+'/'+id);const next=put(before,relative,v);if(next==null)delete candidate[id];else candidate[id]=next;}}
    working();return Object.fromEntries(Object.entries(candidate).filter(([,r])=>canonical(child(r,parts(field)))===canonical(value)));
   }};
+  async function queryPageLive(path,query){live();if(typeof store.queryPage!=='function')throw failure(503,'Falta la consulta dirigida de inventario.','SV_STOCK_QUERY_NOT_READY');const rows=await store.queryPage(path,query);live();return copy(rows);}
+  scope.queryPage=async(path,query)=>{working();const rows=await queryPageLive(path,query);working();return rows;};
   try{
    return await context.run(scope,async()=>{
     if(actor.mode==='command'||actor.mode==='user'&&actor.financialAction){
@@ -190,7 +192,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
      if(failed)throw failed.reason;validateFinancialContext(actor,checked[0].value,checked[1].value);
     }
     if(revalidateAdvancePeriod)await revalidateAdvancePeriod();
-    for(const check of finalChecks){live();await check({readFresh:path=>store.read(path),readFreshAsUser:path=>store.readAsUser(path,{uid:actor.uid,claims:actor.claims}),queryFresh:(...args)=>store.query(...args)});live();}
+    for(const check of finalChecks){live();await check({readFresh:path=>store.read(path),readFreshAsUser:path=>store.readAsUser(path,{uid:actor.uid,claims:actor.claims}),queryFresh:(...args)=>store.query(...args),queryPageFresh:queryPageLive});live();}
     live();await store.commit(patch,lease,{...actor,clientAccountsWriterVersion:clientAccounts&&commercialPages?1:0,clientHistoryWriterVersion:clientHistory?1:0,saleFinancialWriterVersion:financialMaintenance.maintained?1:0});completed=true;return result;
    });
   }finally{phase='closed';if(!completed)await store.abort(lease).catch(()=>{});}

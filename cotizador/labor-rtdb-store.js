@@ -23,6 +23,17 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   if(query.orderBy==='uid'&&(query.limitToFirst>2||typeof query.equalTo!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(query.equalTo)||Object.hasOwn(query,'startAt'))||query.orderBy==='$key'&&(Object.hasOwn(query,'equalTo')||Object.hasOwn(query,'startAt')&&(typeof query.startAt!=='string'||query.startAt.length>769)))throw fail(400,'Límite de lectura inválido');
   const r=await request('GET',path,undefined,{query});return r.json();
  }
+ async function queryPage(path,query){
+  const fields={
+   'sisventas/productos':['$key','codigo','cod','id'],
+   'sisventas/inventario_operativo':['$key','codigo','cod','id','productoKey','productKey'],
+   'sisventas/stock_vinculos/porProducto':['productKey','inventoryKey'],
+   'sisventas/stock_vinculos/porInventario':['productKey','inventoryKey']
+  };
+  const own=(name)=>Object.hasOwn(query,name),scalar=value=>typeof value==='string'&&value.length<=512||typeof value==='number'&&Number.isFinite(value)||typeof value==='boolean';
+  if(!Object.hasOwn(fields,path)||!query||typeof query!=='object'||Array.isArray(query)||!fields[path].includes(query.orderBy)||!Number.isInteger(query.limitToFirst)||query.limitToFirst<2||query.limitToFirst>129||Object.keys(query).some(name=>!['orderBy','limitToFirst','equalTo','startAt','endAt'].includes(name))||own('equalTo')&&(own('startAt')||own('endAt'))||!own('equalTo')&&!own('startAt')&&query.orderBy!=='$key'||['equalTo','startAt','endAt'].some(name=>own(name)&&(!scalar(query[name])||query.orderBy==='$key'&&typeof query[name]!=='string'))||path.includes('/stock_vinculos/')&&(!own('equalTo')||typeof query.equalTo!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(query.equalTo)))throw fail(400,'Consulta dirigida de stock inválida','SV_STOCK_QUERY_INPUT');
+  const r=await request('GET',path,undefined,{query});return r.json();
+ }
  async function acquire(lease,writer={}){
   // La exclusión la aplican las reglas en un PUT pequeño; no hay lectura raíz.
   let response;try{response=await request('PUT','sv_labor_guard',lease,{override:service('acquire',lease,{clientAccountsWriterVersion:writer.clientAccountsWriterVersion===1?1:0,clientHistoryWriterVersion:writer.clientHistoryWriterVersion===1?1:0,saleFinancialWriterVersion:writer.saleFinancialWriterVersion===1?1:0})});}catch(error){if(error.statusCode===403){const current=await read('sv_labor_guard');if(current?.expiresAt>now())throw fail(423,'Hay otro guardado en curso. Reintentá en unos segundos.','SV_LABOR_BUSY');}throw error;}await response.body?.cancel();
@@ -45,7 +56,7 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   await response.body?.cancel();throw fail(response.status===401||response.status===403?409:503,'No se pudo confirmar la operación. Revisá su estado antes de reintentar.','SV_LABOR_COMMIT_UNCONFIRMED');
  }
  async function abort(lease){const r=await request('DELETE','sv_labor_guard',undefined,{override:service('abort',lease)});await r.body?.cancel();}
- const api={read,readQuery,acquire,commit,abort,verifyOTDeliveryFence:async()=>verifyOTDeliveryFence?.({read})??null,exists:async(path)=>{parts(path);const response=await request('GET',path,undefined,{query:{shallow:true}});return await response.json()!==null;},query:async(path,field,value)=>{const r=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return r.json();},queryFrom:async(path,field,value)=>{parts(field);if(typeof value!=='string')throw fail(400,'Límite de consulta inválido');const r=await request('GET',path,undefined,{query:{orderBy:field,startAt:value}});return r.json();},readAsUser:async(path,actor)=>{const r=await request('GET',path,undefined,{override:{uid:actor.uid,token:actor.claims||{}}});return r.json();}};
+ const api={read,readQuery,queryPage,acquire,commit,abort,verifyOTDeliveryFence:async()=>verifyOTDeliveryFence?.({read})??null,exists:async(path)=>{parts(path);const response=await request('GET',path,undefined,{query:{shallow:true}});return await response.json()!==null;},query:async(path,field,value)=>{const r=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return r.json();},queryFrom:async(path,field,value)=>{parts(field);if(typeof value!=='string')throw fail(400,'Límite de consulta inválido');const r=await request('GET',path,undefined,{query:{orderBy:field,startAt:value}});return r.json();},readAsUser:async(path,actor)=>{const r=await request('GET',path,undefined,{override:{uid:actor.uid,token:actor.claims||{}}});return r.json();}};
  return api;
 }
 module.exports={createLaborRtdbStore};
