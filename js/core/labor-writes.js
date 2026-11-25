@@ -178,7 +178,7 @@
   function atomic({paths,build,purpose,originalBudgetPath}={}){
    return held(async()=>{
     const check=capture();check();available();
-    if(!Array.isArray(paths)||!paths.length||paths.length>128||typeof build!=='function'||purpose!==undefined&&!['relationship-normalization','expense-removal','employee-bonus-batch','employee-sac-batch','employee-sac-migration','sale-cost-correction','sale-return-to-budget','commission-participant','sale-commission-assignment'].includes(purpose))throw fail('SV_LABOR_ATOMIC','El guardado requiere hasta 128 registros y una transformación.');
+    if(!Array.isArray(paths)||!paths.length||paths.length>128||typeof build!=='function'||purpose!==undefined&&!['relationship-normalization','expense-removal','employee-bonus-batch','employee-sac-batch','employee-sac-migration','sale-cost-correction','sale-return-to-budget','commission-participant','sale-commission-assignment','ot-materials'].includes(purpose))throw fail('SV_LABOR_ATOMIC','El guardado requiere hasta 128 registros y una transformación.');
     const selected=paths.map(pathOf);if(new Set(selected).size!==selected.length)throw fail('SV_LABOR_ATOMIC','Hay registros repetidos en el guardado.');
     // Este comando siempre va al guardado coordinado; no decide entre escritura
     // directa y servidor consultando una configuración privada de Cta. corriente.
@@ -198,7 +198,7 @@
      const flat=flattenPatch('',changes),prepared=Object.create(null);
      if(!Object.keys(flat).length)throw fail('SV_LABOR_ATOMIC','El guardado no tiene cambios.');
      for(const [path,value]of Object.entries(flat)){
-      if(purpose||intersectsPath(path)){requireScoped(path);if(!selected.some(before=>path===before||path.startsWith(before+'/')))throw fail('SV_LABOR_ATOMIC','Falta verificar un registro del guardado.');}
+      if(purpose||intersectsPath(path)){requireScoped(path);const newNotification=purpose==='ot-materials'&&/^sisventas\/notificaciones_admin\/[A-Za-z0-9_-]{1,160}$/.test(path)&&!['__proto__','prototype','constructor'].includes(path.split('/')[2]);if(!newNotification&&!selected.some(before=>path===before||path.startsWith(before+'/')))throw fail('SV_LABOR_ATOMIC','Falta verificar un registro del guardado.');}
       prepared[path]=prepareValue(value);
      }
      check();try{const id=uuid();await send({id,kind:'atomic',path:'',value:prepared,expectedHashes,...(purpose?{purpose}:{})},check);return {committed:true,value:copy(prepared),operationId:id};}
@@ -226,7 +226,14 @@
     check();if(!coordinatedOT(path))return {installed:false};available();
     const value=prepareValue(after),expectedHashes={[base+'/id']:await hash(otId),[path]:await hash(before)};check();
     const result=await send({id,kind:'atomic',path:'',value:{[path]:value},expectedHashes},check);check();
-    return {installed:true,committed:true,operationId:id};
+    let canonicalNote,hasCanonical=false;
+    if(result.noteCanonical===true){if(!Object.hasOwn(result,'note'))throw fail('SV_OT_NOTE_CANONICAL','Se confirmó la operación, pero falta actualizar la nota.');canonicalNote=result.note;hasCanonical=true;}
+    else if(result.recovered===true){const current=await read(sdk.ref(root.fbDB,path),check);check();canonicalNote=current.val();hasCanonical=true;}
+    if(hasCanonical){
+     validateJSON(canonicalNote);if(after===null?canonicalNote!==null:!canonicalNote||typeof canonicalNote!=='object'||Array.isArray(canonicalNote)||typeof canonicalNote.texto!=='string')throw fail('SV_OT_NOTE_CANONICAL_CHANGED','La operación se confirmó, pero la nota cambió. Actualizá la OT.');
+     check();if(after!==null){for(const field of Object.keys(after))delete after[field];Object.assign(after,copy(canonicalNote));}check();
+    }
+    return {installed:true,committed:true,operationId:id,...(hasCanonical?{noteCanonical:true,note:copy(canonicalNote)}:{})};
    });
   }
   // Delegate concrete OT paths through the installed record-list adapter. Never

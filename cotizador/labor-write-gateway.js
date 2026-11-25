@@ -1,6 +1,7 @@
 'use strict';
 const {affected,parts,digest}=require('./labor-guard');
 const {flatten}=require('./labor-db');
+const OTNote=require('./ot-note-native-policy');
 const ExpenseRemoval=require('./expense-removal-policy');
 const BonusBatch=require('./labor-bonus-batch');
 const SACBatch=require('./labor-sac-batch');
@@ -22,7 +23,8 @@ function specific(path){
  parts(path);if(['sisventas','sisventas/config'].includes(path)||forbidden(path))throw fail(400,'Esta operación requiere guardar registros individuales');
  if(/^sisventas\/(inventario_operativo|stock_vinculos|compras_resumen|ordenes|ordenes_compra|listas_materiales|contadores)(\/|$)/.test(path)||/^sv_(stock|inventory|purchase|office_stock|ot)[^/]*(\/|$)/.test(path))throw fail(400,'Esta operación requiere su comando de Stock, Compras u OT.','SV_TYPED_INVENTORY_REQUIRED');
 }
-function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
+function createLaborWriteGateway({auth,db,guard,store,enabled=false,inventoryCohort=null}){
+ if(inventoryCohort!==null&&(typeof inventoryCohort?.capabilities!=='function'||typeof inventoryCohort?.assertAdmission!=='function'))throw fail(503,'Falta la autoridad de inventario.','SV_INVENTORY_COHORT_NOT_READY');
  const affectedPath=typeof guard?.affects==='function'?path=>guard.affects(path):affected;
  async function authorize(req){
   if(!enabled)throw fail(503,'El nuevo circuito todavía no está habilitado');
@@ -73,7 +75,16 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
   const initialRead=async path=>(await db.ref(path).get()).val(),normalizationContext=normalization?await normalizationAccess(initialRead):null,removalContext=removal?await removalAccess(initialRead):null,bonusContext=bonus?await bonusAccess(initialRead):null,sacContext=sac||sacMigration?await sacAccess(initialRead):null;
   const saleReturnContext=saleReturn?await saleReturnAccess(initialRead):null;
   const commissionWriteProof=commissionParticipant||commissionAssignment?await CommissionWriteProof.issue({body,actor,read:initialRead}):null;
-  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',...(commissionWriteProof?{commissionWriteProof}:{}),...(saleReturn?{...saleReturnContext,financialAction:'ventas.moverPresupuesto'}:{}),...(normalization?{...normalizationContext,financialAction:'mantenimiento.normalizar'}:{}),...(removal?{...removalContext,financialAction:'gastos.eliminar'}:{}),...(bonus?{...bonusContext,financialAction:'empleados.bonificar'}:{}),...(sac||sacMigration?{...sacContext,financialAction:sacMigration?'mantenimiento.migrar':'empleados.registrarHaberes'}:{}),opId:body.id,transportDigest:digest(body),operation:'legacy-'+body.kind,input:body},async scope=>{
+  const runner={uid:actor.uid,claims:actor.claims,mode:'user',...(commissionWriteProof?{commissionWriteProof}:{}),...(saleReturn?{...saleReturnContext,financialAction:'ventas.moverPresupuesto'}:{}),...(normalization?{...normalizationContext,financialAction:'mantenimiento.normalizar'}:{}),...(removal?{...removalContext,financialAction:'gastos.eliminar'}:{}),...(bonus?{...bonusContext,financialAction:'empleados.bonificar'}:{}),...(sac||sacMigration?{...sacContext,financialAction:sacMigration?'mantenimiento.migrar':'empleados.registrarHaberes'}:{}),opId:body.id,transportDigest:digest(body),operation:'legacy-'+body.kind,input:body};
+  const result=await guard.run(runner,async scope=>{
+   const touchesOT=Object.keys(patch).some(path=>path==='sisventas/ordenes_trabajo'||path.startsWith('sisventas/ordenes_trabajo/'));
+   if(touchesOT&&inventoryCohort!==null){
+    const inspect=async read=>{const state=await inventoryCohort.capabilities({read});if(state?.version!==1||typeof state.installed!=='boolean'||typeof state.ready!=='boolean'||state.ready&&!state.installed)throw fail(503,'No se pudo verificar el circuito OT.','SV_INVENTORY_COHORT_NOT_READY');return state;};
+    const initial=await inspect(path=>scope.get(path));
+    if(initial.installed)await inventoryCohort.assertAdmission({read:path=>scope.get(path),lease:scope.lease,phase:'ot-note-execute'});
+    scope.beforeCommit(async({readFresh})=>{const fresh=await inspect(readFresh);if(fresh.installed!==initial.installed)throw fail(409,'La instalación del circuito OT cambió.','SV_INVENTORY_COHORT_NOT_READY');if(fresh.installed)await inventoryCohort.assertAdmission({read:readFresh,lease:scope.lease,phase:'ot-note-commit'});});
+    if(initial.installed){const plan=await OTNote.prepare({actor:runner,lease:scope.lease,body,patch,scope});await scope.update(plan.patch);return{ok:true,committed:true,operationId:body.id,noteCanonical:true};}
+   }
    if(saleReturn&&digest(await saleReturnAccess(path=>scope.get(path)))!==digest(saleReturnContext))throw fail(409,'Los permisos cambiaron. Volvé a abrir la venta.','SV_LABOR_AUTH_CHANGED');
    if(normalization&&digest(await normalizationAccess(path=>scope.get(path)))!==digest(normalizationContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
    if(removal&&digest(await removalAccess(path=>scope.get(path)))!==digest(removalContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
@@ -99,6 +110,10 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
   });
   // El recibo guarda sólo la confirmación. No duplica ventas ni adjuntos; el
   // digest ya verifica que un replay corresponde al mismo valor solicitado.
+  if(result.noteCanonical===true){
+   const paths=Object.keys(patch),notePath=paths[0];if(paths.length!==1||!/^sisventas\/ordenes_trabajo\/[^/]+\/notasTecnico\/[^/]+$/.test(notePath))throw fail(503,'No se pudo confirmar la nota.','SV_LABOR_COMMIT_UNCONFIRMED');
+   try{return{...result,note:await store.readAsUser(notePath,actor)};}catch(_){const error=fail(503,'La operación necesita consultar su confirmación.','SV_LABOR_COMMIT_UNCONFIRMED');error.operationId=body.id;error.svLaborAttempted=true;throw error;}
+  }
   return {...result,...(body.kind==='compare'?{value:result.operationalRevision!=null?{...body.value,_svReadRevision:result.operationalRevision,_svReadOperation:result.operationalOperation}:body.value}:{})};
  }
  async function resolve(actor,body){
