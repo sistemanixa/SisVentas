@@ -2,13 +2,13 @@
 // Preparación, NO evidencia de ejecución. Espera SHA host/domains y montaje root.
 // No simula respuestas de /compras, /ot o /laboral/operacion ni carga una pantalla aislada.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),crypto=require('node:crypto');
-const plan={status:'PREPARED_NOT_RUN',viewports:[390,1280],base:'e42ab8b3',flows:[
+const plan={status:'PREPARED_NOT_RUN',viewports:[390,1280],base:'e42ab8b3',availablePorts:{host:'Root b32476e3 / A e3d0c972: cotizador/purchase-command-host.create; handle(path,req,body), capabilities(), readiness()',composition:'test/helpers/purchase-full-app-real-host-fixture.cjs: Guard/RESTStore/GH reales; requiere fixture E/B y authorize/delete del montaje'},flows:[
  {id:'manual-create',steps:['Abrir Compras desde app completa','Crear OC por formulario nativo','Verificar orden y NumberingB en el commit real']},
  {id:'receive-stock',steps:['Abrir OC confirmada','Registrar recepción por formulario','Ver Stock disponible desde app y contrastar ledger original']},
  {id:'ot-roundtrip',steps:['Entrega OT','Instalación','Devolución','Contrastar ledger e historial del dominio entregado, sin fijar reservas históricas']},
  {id:'uncertain-doubleclick',steps:['Perder ACK después del commit real','Doble clic nativo','Consultar operación con Recovery real','Comprobar un único efecto/contador y ningún replay al recuperar']}
 ],missingPorts:[
- 'SHA y API literal del purchase-command-host real deA; constructor y handler HTTP, no respuesta fake.',
+ 'Checkout final con SHA host/domains compatibles que incluya host b32476e3, sin mezclar instancias WeakMap entre checkouts.',
  'SHAs dominios A/D/E compatibles, Guard/Store reales y fixture de DB/emulador con fuentes originales genuinas.',
  'Fixture de activación firmada, admisión mapped, referenciasP/J/R, NumberingB y rol/permisos/revisión/sesión auténticos del fixture.',
  'Servidor loopback root que monte index/app/activos completos y host real; bootstrap de Auth/lecturas contra fixture, sin Firebase real.',
