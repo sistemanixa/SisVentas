@@ -2,7 +2,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {fixture}=require('./helpers/sale-commission-assignment-native-fixture.cjs');
 
-for(const retired of ['closed','removed','layer-removed'])test('native manual recovery restores a '+retired+' presentation without sending any financial command',async t=>{
+for(const retired of ['closed','removed','layer-removed','navigation'])test('native manual recovery restores a '+retired+' presentation without sending any financial command',async t=>{
  const f=await fixture(t,{width:390});await f.ready();
  await f.page.evaluate(()=>{
   SVSaleCommissionAssignment.close();document.body.style.overflow='auto';document.documentElement.style.overflow='scroll';
@@ -13,7 +13,7 @@ for(const retired of ['closed','removed','layer-removed'])test('native manual re
  await f.page.getByRole('button',{name:'Consultar operación'}).waitFor();
  await f.page.evaluate(retired=>{
   window.recoveryLayer=document.getElementById('sv-labor-write-recovery');
-  if(retired==='closed')recoveryParent.close();else if(retired==='removed')recoveryParent.remove();else recoveryLayer.remove();
+  if(retired==='closed')recoveryParent.close();else if(retired==='removed')recoveryParent.remove();else if(retired==='navigation'){recoveryParent.close();recoveryLayer.classList.remove('open');recoveryLayer.style.display='none';}else recoveryLayer.remove();
   SVLaborWriteRecovery.restore();SVLaborWriteRecovery.restore();
  },retired);
  const button=f.page.getByRole('button',{name:'Consultar operación'});assert.equal(await button.isVisible(),true);assert.equal(await button.isEnabled(),true);

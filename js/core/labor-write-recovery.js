@@ -50,11 +50,13 @@
    const native=Array.from(document.querySelectorAll?.('dialog[open]')||[]).filter(node=>node.matches?.(':modal')).pop(),host=native||document.body;
    const moved=layer.parentNode!==host||!layer.isConnected;
    if(moved)host.append(layer);
+   const hidden=layer.style.display==='none';
+   if(hidden){layer.classList.add('open');layer.style.display='grid';}
    if(document.body.style.overflow!=='hidden')document.body.style.overflow='hidden';
    if(document.documentElement&&document.documentElement.style.overflow!=='hidden')document.documentElement.style.overflow='hidden';
    layer._message.textContent=checking?'Comprobando guardado…':'No se pudo confirmar el guardado. Consultá la operación antes de volver a guardar.';
    layer._button.disabled=checking;
-   if(moved){root.svSincronizarPilaModales?.();(checking?layer._card:layer._button).focus?.({preventScroll:true});}
+   if(moved||hidden){root.svSincronizarPilaModales?.();(checking?layer._card:layer._button).focus?.({preventScroll:true});}
   }
   function emit(){
    try{render();}catch(_){/* La presentación no cambia la confirmación financiera. */}
