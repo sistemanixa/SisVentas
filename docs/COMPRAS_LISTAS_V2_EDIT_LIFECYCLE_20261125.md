@@ -1,0 +1,15 @@
+# Listas v2: guardar, agrupar/desagrupar y cancelar · 25/11/2026
+
+Alcance inicial del agente: sólo cotizador/purchase-list-edit-model.js, purchase-list-lifecycle-model.js, purchase-preparation-cancel-model.js y sus tres tests .test.cjs. Main añade ajuste de identidad de fila de preparación, prueba de cambio de proveedor y revisión de borrador conjunto nuevo; Policy, host y shared no cambian.
+
+Guardar valida el ARRAY v2 exacto por fuente, identidad list/sale/product y suma de cantidad existente. Una fuente vinculada conserva inclusión, usarExistente y cantidadComprar por fila; cambiar costo/proveedor continúa permitido. Se conservan PVP y capturas originales. Las decisiones de una fuente sin vínculo siguen su circuito normal. En conjunta se valida unión padre/hijas y coherencia de sus filas originales, sin exigir que todas las hijas tengan flag de vínculo.
+
+Agrupar reúne entries exactas de nueve campos de las hijas; parent.stockExistenteVinculado=true si hay entries. Hijas sin vínculos permanecen sin esos campos. Desagrupar conserva las trazas de cada hija y el padre como historia; extras van a su preparación stock sin inventar traza de venta. Ninguna operación escribe inventario/planes físicos. Se revisa snapshot o cantidad de fila que contradiga una fuente vinculada.
+
+Cancelar conserva las trazas padre/hijas sin escribirlas de nuevo. Revisa distribución de cantidades en materiales, preparación actual de Sale y unión conjunta antes de restaurar costos capturados. Mantiene el circuito de cancelación previo y no libera ni transforma planesCompra; no hay reinterpretación de cantidades de stock.
+
+Límites: los tres modelos son puros; validar estructura no acredita frescura de ledger/recibos ni sustituye Guard/Policy. Los grupos NUEVOS usan borrador v6 incompleto, con revenue/baseline derivados y sin FX compartido inventado. Deben prepararse antes de generar. Las fuentes v5, reparto manual o exclusiones de gastos requieren revisión previa; no se etiqueta un histórico como v6 ni se descartan sus decisiones. Stock legacy físicamente reservado conserva sus bloqueos previos. Guardar proveedor nuevo no altera la referencia monetaria original: el pendiente referenciaProveedor conserva la revisión existente.
+
+Verificación final: 172 PASS/0 FAIL en los tres tests propios. Regresión conjunta agregando purchase-joint-generation-model.test.cjs y purchase-list-generation-model.test.cjs: 269 PASS/0 FAIL/0 SKIP. Incluye vinculada simple, conjunta mixta, unión exact9, roundtrip group/ungroup, cantidades/capturas corruptas, restauración sin borrar trazas, precios/proveedor normales y cero escrituras físicas. Sintaxis de tres modelos y git diff --check correctos. Sin Gateway/emulador/producción en esta entrega.
+
+Verificación final main:315 PASS combinando los tres modelos y preparación. La fila de preparación conserva identidad por producto/línea/fuente aunque cambie su clave comercial por proveedor; la prueba verifica ese roundtrip sin alterar vínculos. No se modifica ninguna expectativa histórica para conseguir el resultado.

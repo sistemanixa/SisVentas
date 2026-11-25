@@ -1,7 +1,7 @@
 'use strict';
 // Pure, scoped reversal. Server wrappers own authorization, journal and cohort checks.
 const {digest}=require('./labor-guard');
-const Money=require('./commercial-models/commercial-money');
+const Money=require('./commercial-models/commercial-money'),Links=require('./purchase-list-reserve-model');
 const clone=value=>structuredClone(value),own=(object,field)=>Object.hasOwn(object||{},field);
 const costFields=['costoTotalCompra','costoUnitarioCompra','preparacionCompra','costoUnitarioUSD','proveedorCompra','proveedorCompraKey','origenCompra','compraExteriorAplicada','precioAcordadoCompra','monedaCompra','cotizacionCompra'];
 function plan({list,listKey,sourceLists={},sales={},context}={}) {
@@ -61,6 +61,14 @@ function plan({list,listKey,sourceLists={},sales={},context}={}) {
  }else {
   if(list.sources?.length)fail(listKey,'sources','Fuentes ambiguas.');addSource(listKey,list,list.ventaFbKey,false);
  }
+ const union=[];for(const {lk,child,sk,sale}of sources){let entries;try{entries=Links.links(child,lk,sk);}catch(e){fail(lk,'vinculosInventario',e.message);}if(entries.length&&child.stockExistenteVinculado!==true||child.stockExistenteVinculado===true&&!own(child,'vinculosInventario'))fail(lk,'vinculosInventario','La traza v2 y su marca son contradictorias.');union.push(...entries);if(child.stockExistenteVinculado!==true&&!entries.length)continue;
+  const amounts=new Map();for(const material of child.items){if(material.esManoDeObra===true||material.incluir===false)continue;const existing=number(material.usarExistente,lk,'usarExistente'),buy=number(material.cantidadComprar,lk,'cantidadComprar'),line=sale.items[material.linea];if(Money.quantitySum([existing,buy])!==number(material.cantidadNecesaria,lk,'cantidadNecesaria'))fail(lk,'vinculosInventario','La distribución vinculada no coincide con su necesidad.');if(!line?.preparacionCompra||line.preparacionCompra.cantidadStock!==existing||line.preparacionCompra.cantidadComprar!==buy)fail(lk,'vinculosInventario','La preparación intenta reinterpretar las cantidades vinculadas.');amounts.set(material.productoKey,Money.quantitySum([amounts.get(material.productoKey)||0,existing]));
+   if(list.origen==='conjunta'){const joined=list.items.filter(r=>r.sourceListId===lk&&r.linea===lk+':'+material.linea);if(joined.length!==1||joined[0].usarExistente!==existing||joined[0].cantidadComprar!==buy||joined[0].productoKey!==material.productoKey)fail(lk,'vinculosInventario','El padre cambia las cantidades vinculadas de su fuente.');}
+  }
+  if(digest([...amounts].filter(([,q])=>q>0).sort())!==digest(entries.map(e=>[e.productKey,e.cantidad]).sort()))fail(lk,'vinculosInventario','Las cantidades originales contradicen el vínculo v2.');
+ }
+ if(list.origen==='conjunta'){try{Links.jointLinks(list,union);}catch(e){fail(listKey,'vinculosInventario',e.message);}if(union.length&&(!Array.isArray(list.vinculosInventario)||list.stockExistenteVinculado!==true))fail(listKey,'vinculosInventario','Falta la unión de trazas originales.');}
+ else if(!sources.length&&(list.stockExistenteVinculado===true||list.vinculosInventario?.length))fail(listKey,'vinculosInventario','El stock independiente conserva un vínculo de venta ambiguo.');
  const usedJoint=new Set();
  for(const {lk,child,sk,sale}of sources) {
   const nextSale=clone(sale),used=new Set(),replacements=[];
