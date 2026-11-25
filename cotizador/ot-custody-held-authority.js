@@ -1,12 +1,13 @@
 'use strict';
 // Commit-time custody proof from certified summaries and their full originals.
 // Never accepts a browser/audit counter as authority for a sibling's material.
-const Index=require('./record-list-model'),Rows=require('./ot-material-rows-model'),Money=require('./commercial-models/commercial-money.v1'),{digest}=require('./labor-guard'),{normalizeRtdb}=require('./payment-membership-index');
+const Index=require('./record-list-model'),Rows=require('./ot-material-rows-model'),Money=require('./commercial-models/commercial-money.v1'),{digest}=require('./labor-guard'),{summaryDigest}=require('./ot-summary-digest');
 const fail=()=>Object.assign(Error('La custodia vinculada requiere revisión.'),{statusCode:409,code:'SV_OT_MATERIAL_REVIEW'});
 const key=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
 const allocation=(ot,row)=>{const id=row.destinoVenta==='nueva'?row.ventaDestinoFbKey:ot.ventaFbKey;if(!key(id))throw fail();return id;};
 const q=v=>{if(typeof v!=='number'||!Number.isFinite(v)||v<0)throw fail();return v;};
 const scoped=new WeakMap();
+async function batch(values,work){const out=[];for(let i=0;i<values.length;i+=6){const settled=await Promise.allSettled(values.slice(i,i+6).map(work)),failed=settled.find(value=>value.status==='rejected');if(failed)throw failed.reason;out.push(...settled.map(value=>value.value));}return out;}
 async function compute(input){
  if(typeof input?.read!=='function')throw fail();let cache=scoped.get(input.read);if(!cache){cache=new Map();scoped.set(input.read,cache);}
  const id=digest({otKey:input.otKey,productKey:input.productKey,reference:input.reference?{inventoryKey:input.reference.inventoryKey,receiptIdentityKey:input.reference.receiptIdentityKey,mappingRevision:input.reference.mappingRevision}:null,ot:input.ot,group:input.group});if(!cache.has(id))cache.set(id,computeOriginal(input));return new Map(await cache.get(id));
@@ -16,14 +17,15 @@ async function computeOriginal({ot,otKey,productKey,reference,resolveReference,g
  const State=require('./ot-material-state'),targets=Rows.persisted(Rows.view(ot)),selected=new Map(),destinations=new Set(),codes=new Set();
  for(const entry of group){const i=Number(entry.rowKey);if(!Number.isInteger(i)||String(i)!==entry.rowKey||!targets[i]||selected.has(i)||!entry.transition?.target)throw fail();selected.set(i,entry);targets[i]=structuredClone(entry.transition.target);destinations.add(allocation(ot,targets[i]));for(const row of [entry.transition.row,entry.transition.target])for(const c of [row?.cod,row?.codigo])if(typeof c==='string'&&c)codes.add(c);}
  const index=Index.parseIndex('ordenes_trabajo',await read(Index.index+'/ordenes_trabajo'));
- for(const sale of destinations)for(const id of Object.keys(await query('sisventas/ordenes_trabajo','ventaFbKey',sale)||{}))if(!index[id])throw fail();
+ await batch([...destinations],async sale=>{for(const id of Object.keys(await query('sisventas/ordenes_trabajo','ventaFbKey',sale)||{}))if(!index[id])throw fail();});
  const originals=new Map([[otKey,ot]]),mapped=reference?.mapped===true,matches=row=>mapped||row.productoKey===productKey||!key(row.productoKey)&&codes.has(row.cod||row.codigo);
- for(const [id,summary]of Object.entries(index)){
+ const related=[];for(const [id,summary]of Object.entries(index)){
   if(id===otKey)continue;
   if(!destinations.has(summary.ventaFbKey)&&!Rows.persisted(Rows.view(summary)).some(row=>matches(row)&&(destinations.has(row.destinoVenta==='nueva'?row.ventaDestinoFbKey:summary.ventaFbKey)||!key(row.destinoVenta==='nueva'?row.ventaDestinoFbKey:summary.ventaFbKey))))continue;
-  if(originals.size>=500)throw fail();const original=await read('sisventas/ordenes_trabajo/'+id);
-  if(!original||digest(normalizeRtdb(Index.summary('ordenes_trabajo',original)))!==digest(normalizeRtdb(summary)))throw fail();originals.set(id,original);
+  related.push([id,summary]);
  }
+ if(related.length>=500)throw fail();
+ for(const [id,original]of await batch(related,async([id,summary])=>{const original=await read('sisventas/ordenes_trabajo/'+id);if(!original||summaryDigest(Index.summary('ordenes_trabajo',original))!==summaryDigest(summary))throw fail();return[id,original];}))originals.set(id,original);
  const resolved=new Map(),result=new Map();
  for(const [i,entry]of selected){let held=0;const destination=allocation(ot,entry.transition.target);
   for(const [id,record]of originals){const rows=id===otKey?targets:Rows.persisted(Rows.view(record));for(let j=0;j<rows.length;j++){
