@@ -5,6 +5,7 @@ const AccountsProtocol=require('./client-account-writer-protocol');
 const StockLinkPolicy=require('./office-stock-link-policy');
 const PurchaseSourceProtocol=require('./purchase-source-cost-protocol');
 const StockOrderPolicy=require('./office-stock-order-policy');
+const PurchaseNumberingProtocol=require('./purchase-numbering-protocol');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.now,requestMs=20000,verifyOTDeliveryFence}){
  const base=new URL(databaseURL);if(base.protocol!=='https:'&&!(base.protocol==='http:'&&['127.0.0.1','localhost'].includes(base.hostname)))throw Error('Destino de datos inválido');
@@ -18,7 +19,7 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   if(!response.ok){await response.body?.cancel();throw fail(response.status===401||response.status===403?403:response.status===412?409:503,'No se pudo confirmar el acceso o el guardado',response.status===412?'SV_CAS_CONFLICT':undefined);}
   return response;
  }
- const sanitizedClaims=claims=>{const clean=StockOrderPolicy.sanitizeClaims(PurchaseSourceProtocol.sanitize(StockLinkPolicy.sanitizeClaims(claims)));delete clean.svLaborWriterSchema;return clean;};
+ const sanitizedClaims=claims=>{const clean=PurchaseNumberingProtocol.sanitize(StockOrderPolicy.sanitizeClaims(PurchaseSourceProtocol.sanitize(StockLinkPolicy.sanitizeClaims(claims))));delete clean.svLaborWriterSchema;return clean;};
  const service=(mode,lease,actor)=>({uid:actor?.mode==='user'?actor.uid:'sv-labor-service',token:{...(actor?.mode==='user'?sanitizedClaims(actor.claims):{}),svLaborService:true,...(actor?.saleFinancialWriterVersion===1||actor?.clientAccountsWriterVersion===1||actor?.clientHistoryWriterVersion===1?{svLaborWriterSchema:2}:{}),...FinancialProtocol.reservedClaims(actor?.saleFinancialWriterVersion),...AccountsProtocol.reservedClaims(actor?.clientAccountsWriterVersion),svClientHistoryWriterVersion:actor?.clientHistoryWriterVersion===1?1:0,svPaymentIndexVersion:1,svFinancialAction:actor?.mode==='user'?actor.financialAction||'':'',svFinancialActorRole:actor?.mode==='user'&&actor.financialAction?actor.role||'':'',svFinancialPermissionRevision:actor?.mode==='user'&&actor.financialAction?actor.permissionRevision??null:null,mode,fence:lease.fence,opId:lease.opId,digest:lease.digest,actorUid:lease.actorUid,...(actor?.mode==='command'?{actorAccessVersion:actor.claims?.svAccessVersion||'',actorPasswordChangeRequired:actor.claims?.svPasswordChangeRequired===true,actorRole:actor.role||'',actorPermissionRevision:actor.permissionRevision??null}:{})}});
  async function read(path){const r=await request('GET',path);return r.json();}
  async function readQuery(path,query){
@@ -58,6 +59,8 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   Object.assign(override.token,await require('./ot-delivery-commit-protocol').claims({patch,lease,actor,read,query:async(path,field,value)=>{const response=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return response.json();}}));
   const linkClaims=StockLinkPolicy.token(actor,lease);
   Object.assign(override.token,linkClaims,StockOrderPolicy.token(actor,lease,now()),PurchaseSourceProtocol.claims(actor,lease,sourcePatch));
+  Object.assign(override.token,PurchaseNumberingProtocol.claims(actor,lease,sourcePatch));
+  if(override.token.svPurchaseNumberingVersion===1)override.token.svLaborWriterSchema=2;
   if(override.token.svStockOrderWriterVersion===1)override.token.svLaborWriterSchema=2;
   if(linkClaims.svStockLinkVersion===1||override.token.svPurchaseSourceCostVersion>0)override.token.svLaborWriterSchema=2;
   if(Buffer.byteLength(JSON.stringify(override))>16384)throw fail(413,'La operación excede el límite de autorización. Dividí los cambios.','SV_LABOR_AUTH_SIZE');
