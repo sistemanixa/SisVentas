@@ -264,7 +264,7 @@
     var prom=(typeof fbGuardarOT==='function')
       ? fbGuardarOT(ot)
       : Promise.reject(new Error('Firebase no está disponible'));
-    prom.then(function(){ if(typeof notify==='function') notify('✓ OT iniciada'); show('checklist'); }).catch(function(e){
+    return prom.then(function(){ if(typeof notify==='function') notify('✓ OT iniciada'); show('checklist'); }).catch(function(e){
       ot.estado=estadoAnterior;
       ot.fechaInicio=fechaInicioAnterior;
       if(Array.isArray(ot.audit)) ot.audit.length=auditLengthAnterior;
