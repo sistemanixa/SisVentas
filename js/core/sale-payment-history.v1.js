@@ -14,10 +14,13 @@
   function validate(data,key){
    const h=data?.paymentHistory,r=data?.record;
    if(data?.ok!==true||!r||typeof r!=='object'||Array.isArray(r)||data.fbKey!==undefined&&data.fbKey!==key||r.fbKey!==undefined&&r.fbKey!==key||h?.schema!==1||!['global','embedded','legacy'].includes(h.source)||h.complete!==true||!Array.isArray(h.payments)||typeof h.paidAmount!=='number'||!Number.isFinite(h.paidAmount)||h.paidAmount<0)throw Error('No se pudo verificar el historial de pagos.');
-   const seen=new Set(),payments=h.payments.map(p=>{
-    const id=p?.fbKey||p?.id;
-    if(!p||typeof p!=='object'||Array.isArray(p)||!validKey(id)||seen.has(id)||typeof p.monto!=='number'||!Number.isFinite(p.monto)||p.monto<0||typeof p.hasReceipt!=='boolean'||!['string','number'].includes(typeof p.fecha)||typeof p.fecha==='number'&&!Number.isFinite(p.fecha)||['medio','nota','estado'].some(k=>p[k]!==undefined&&typeof p[k]!=='string')||p.anulado!==undefined&&typeof p.anulado!=='boolean')throw Error('El historial de pagos está incompleto.');
-    seen.add(id);return Object.fromEntries(['fbKey','id','monto','fecha','medio','nota','anulado','estado','hasReceipt'].filter(k=>Object.hasOwn(p,k)).map(k=>[k,p[k]]));
+   if(h.source==='legacy'&&h.payments.length)throw Error('La fuente histórica no contiene un detalle de pagos verificado.');
+   const seen=new Set(),metadataId=v=>typeof v==='string'||typeof v==='number'&&Number.isFinite(v),payments=h.payments.map(p=>{
+    if(!p||typeof p!=='object'||Array.isArray(p)||typeof p.monto!=='number'||!Number.isFinite(p.monto)||p.monto<0||typeof p.hasReceipt!=='boolean'||p.fecha!=null&&!['string','number'].includes(typeof p.fecha)||typeof p.fecha==='number'&&!Number.isFinite(p.fecha)||['medio','nota','estado'].some(k=>p[k]!==undefined&&typeof p[k]!=='string')||p.anulado!==undefined&&typeof p.anulado!=='boolean'||['id','fbKey'].some(k=>p[k]!==undefined&&!metadataId(p[k])))throw Error('El historial de pagos está incompleto.');
+    if(h.source==='global'){if(!validKey(p.fbKey)||seen.has(p.fbKey))throw Error('Falta la identidad original del pago global.');seen.add(p.fbKey);}
+    // Embedded identities are presentation metadata only. Array order preserves
+    // distinct old entries even when their optional IDs are absent or repeated.
+    return Object.fromEntries(['fbKey','id','monto','fecha','medio','nota','anulado','estado','hasReceipt'].filter(k=>Object.hasOwn(p,k)).map(k=>[k,p[k]]));
    });
    return {record:{...structuredClone(r),fbKey:key},state:{status:'ready',source:h.source,payments,paidAmount:h.paidAmount,complete:true}};
   }
