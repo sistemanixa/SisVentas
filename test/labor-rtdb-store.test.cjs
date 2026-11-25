@@ -26,3 +26,24 @@ test('fallo de acceso no se presenta como contención ni habilita un commit Admi
  const f=setup([{ok:false,status:403},{ok:true,value:null}]);await assert.rejects(f.store.acquire(lease),{statusCode:403});assert.equal(f.calls.length,2);
  assert.throws(()=>createLaborRtdbStore({databaseURL:'http://remote.invalid',accessToken:async()=>''}));
 });
+
+test('claims de vínculo y costos del cliente nunca emiten autoridad de servidor',async()=>{
+ const f=setup(),actor={uid:'user',mode:'user',claims:{uid:'user',svStockLinkVersion:1,svStockLinkProductKey:'forged',svPurchaseSourceCostVersion:2,svPurchaseSourceCostSaleLists:{forged:{listKey:'fake'}}}};
+ await f.store.commit({},lease,actor);
+ const token=JSON.parse(f.calls[0].url.searchParams.get('auth_variable_override')).token;
+ assert.equal(token.svStockLinkVersion,0);assert.equal(token.svStockLinkProductKey,'');
+ assert.equal(token.svPurchaseSourceCostVersion,0);assert.equal(token.svPurchaseSourceCostSaleLists,undefined);
+ await f.store.readAsUser('sisventas/gastos/g',actor);
+ const read=JSON.parse(f.calls[1].url.searchParams.get('auth_variable_override')).token;
+ assert.equal(read.svStockLinkVersion,undefined);assert.equal(read.svPurchaseSourceCostVersion,undefined);
+});
+
+test('una autorización mayor a 16KiB se rechaza antes de enviar el PATCH',async()=>{
+ const f=setup();await assert.rejects(f.store.commit({},lease,{uid:'user',mode:'user',claims:{uid:'user',oversized:'x'.repeat(16384)}}),{code:'SV_LABOR_AUTH_SIZE'});
+ assert.equal(f.calls.length,0);
+});
+
+test('una escritura de vínculos sin capacidad genuina no alcanza el transporte',async()=>{
+ const f=setup();await assert.rejects(f.store.commit({'sisventas/stock_vinculos/porProducto/P':{inventoryKey:'J'}},lease,{uid:'user',mode:'user',claims:{uid:'user'}}),{code:'SV_STOCK_LINK_CAPABILITY'});
+ assert.equal(f.calls.length,0);
+});
