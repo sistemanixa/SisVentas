@@ -12,7 +12,7 @@ const reserved=Object.freeze({svPurchaseSourceCostVersion:0,svPurchaseSourceCost
 function sanitize(claims){return Object.fromEntries(Object.entries(claims||{}).filter(([key])=>!key.startsWith(PREFIX)));}
 function claims(actor,lease,basePatch){
  const source=Policy.getSourceAuthority(actor,lease,basePatch);
- if(source&&(source.sourceTopology==='joint'||['prepare','reconcile'].includes(source.purpose)))return v2(source,actor,lease,basePatch);
+ if(source&&(source.sourceTopology==='joint'&&source.purpose==='receive'||['prepare','reconcile'].includes(source.purpose)))return v2(source,actor,lease,basePatch);
  if(!source?.sealed||source.kind!=='receive'||!source.saleWritten||!source.saleKey)return {...reserved};
  return {svPurchaseSourceCostVersion:1,svPurchaseSourceCostSaleKey:source.saleKey,svPurchaseSourceCostOrderKey:source.orderKey,svPurchaseSourceCostKind:'receive',svPurchaseSourceCostBasePatchHash:source.basePatchHash,svPurchaseSourceCostSourceHash:source.sourceHash,svPurchaseSourceCostPermissionDigest:source.permissionDigest};
 }
