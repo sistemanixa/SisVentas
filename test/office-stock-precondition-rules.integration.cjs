@@ -11,6 +11,21 @@ async function install(input){const candidate=Rule.prepare(input),r=await reques
 const claims={svOfficeStockVersion:1,svOfficeStockPreconditionVersion:1,svOfficeStockSourcePresent:false,svOfficeStockInventoryKey:'J'};
 async function commit(token=claims,general=3){const r=await request('','PATCH',{'sisventas/inventario_operativo/J':{general},'sisventas/receipts/fictitious':{done:true}},token);await r.body?.cancel();return r.status;}
 test('current effective baseline compiles with all existing grants narrowed, exact source stays intact',async()=>{const raw=fs.readFileSync(BASELINE);assert.equal(crypto.createHash('sha256').update(raw).digest('hex'),SHA);const input=JSON.parse(raw),candidate=await install(input);assert(candidate.manifest.changed.length>0);assert.equal(crypto.createHash('sha256').update(fs.readFileSync(BASELINE)).digest('hex'),SHA);},{timeout:120000});
+test('fixed current builder composes Stock/Link/Order/SourceV2/Numbering and compiles with presence last',async()=>{
+  const Builder=require('../scripts/lib/inventory-current-rules.cjs'),raw=fs.readFileSync(BASELINE),input=JSON.parse(raw),pins={schema:1,generation:'fictional-combined',baselineDigest:SHA,contractDigest:'b'.repeat(64),codePins:{stock:'c'.repeat(64),compras:'d'.repeat(64),ot:'e'.repeat(64),ui:'f'.repeat(64)},indexQueryCoverageVersion:1};
+  const result=Builder.prepare(raw,{activationPins:pins}),r=await request('.settings/rules','PUT',result.rules);assert.equal(r.status,200,'Entire fixed checkpoint compiles on current baseline');await r.body?.cancel();
+  assert.deepEqual(result.manifest.stages.map(s=>s.name),Builder.STAGES);assert.equal(result.manifest.presenceAppliedLast,true);assert.equal(result.manifest.readyForActivation,false);assert.equal(result.manifest.preparedFinancial,false);
+  // Existing physical/raw validators are not replaced by numeric coercion.
+  for(const path of [['sisventas','inventario_operativo'],['sisventas','compras_resumen','inventario_operativo']]){
+    let a=input.rules,b=result.rules.rules;for(const k of path){a=a[k];b=b[k];}const wildcard=Object.keys(a).find(k=>k.startsWith('$'));assert(wildcard);assert.deepEqual(b[wildcard].general,a[wildcard].general);
+  }
+  for(const root of Object.keys(result.rules.rules).filter(k=>/^sv_(client_history|sale_financial)/.test(k)))assert.deepEqual(result.rules.rules[root],input.rules[root]);
+  assert(result.rules.rules.sv_purchase_numbering.state['.write'].startsWith('('+Rule.predicate+') && ('));
+  assert.match(result.rules.rules.sisventas.ventas[Object.keys(input.rules.sisventas.ventas).find(k=>k.startsWith('$'))]['.write'],/svPurchaseSourceCostVersion === 2/);
+  assert.throws(()=>Builder.prepare(raw,{activationPins:pins,preparedFinancial:true}),/Sólo se admiten pins/);
+  assert.throws(()=>Builder.prepare(raw,{activationPins:{...pins,baselineDigest:'0'.repeat(64)}}),/Pins no ligados/);
+  assert.equal(crypto.createHash('sha256').update(fs.readFileSync(BASELINE)).digest('hex'),SHA);
+},{timeout:120000});
 for(const level of ['root','collection','wildcard','record'])test('atomic source-presence CAS blocks ancestor/OR bypass: '+level,async()=>{
   const grant='auth != null && (auth.token.svOfficeStockVersion === 1 || auth.token.other === true)',rules={'.read':false,'.write':false,sisventas:{'.write':false,inventario_operativo:{'.write':false,$key:{'.write':grant}},receipts:{'.write':grant}}};
   if(level==='root')rules['.write']=grant;
