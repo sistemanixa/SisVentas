@@ -33,11 +33,18 @@ function validateFinancialContext(actor,profile,permissions){
  if(Object.values(cfg.bloqueados||{}).includes(module)||permissions&&(cfg.indiceVersion!==2||cfg.indiceModulos?.[module]!==true)||(typeof override==='boolean'?!override:!defaults.includes(profile.rol)))throw failure(403,'El permiso de la operación ya no está habilitado');
  if((cfg.indiceRevision??null)!==(actor.permissionRevision??null)||digest(cfg)!==actor.permissionDigest)throw failure(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
 }
-function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=30000,readOnly=false,operationalSummaries=false,commercialPages=false,dashboardBudgets=false,dashboardActivity=false,clientAccounts=false,clientHistory=false,saleFinancialDependencies=false,otDeleteOperational=false,delay=ms=>new Promise(resolve=>setTimeout(resolve,ms))}){
+function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=30000,readOnly=false,operationalSummaries=false,stockOrderProjections=false,commercialPages=false,dashboardBudgets=false,dashboardActivity=false,clientAccounts=false,clientHistory=false,saleFinancialDependencies=false,otDeleteOperational=false,delay=ms=>new Promise(resolve=>setTimeout(resolve,ms))}){
  if(!store||!Number.isFinite(leaseMs)||leaseMs<1000||leaseMs>60000)throw Error('Configuración de coordinación inválida');
  if(dashboardBudgets&&(dashboardBudgets.enabled!==true||typeof dashboardBudgets.augment!=='function'||typeof dashboardBudgets.affects!=='function'))throw Error('El proyector de Presupuestos debe habilitarse explícitamente.');
  if(dashboardActivity&&(!commercialPages||typeof dashboardActivity.augment!=='function'))throw Error('La actividad requiere Pages coordinado y un proyector explícito.');
  if(typeof otDeleteOperational!=='boolean')throw Error('La coordinación OT debe habilitarse explícitamente.');
+ if(stockOrderProjections&&(!operationalSummaries||typeof stockOrderProjections.augment!=='function'))throw Error('El orden de Stock requiere Operational y un proyector de servidor.');
+ const stockOrderPolicy=stockOrderProjections?require('./office-stock-order-policy').create({verifySource:async({actor,lease,patch})=>{
+  const Stock=require('./office-stock-policy'),Purchase=require('./purchase-inventory-policy');
+  if(Stock.token(actor,lease).svOfficeStockVersion===1){Stock.validate(actor,lease,patch);return;}
+  if(Purchase.isBound(actor)){await Purchase.validate({actor,lease,patch,operationalSummaries,readFresh:path=>store.read(path),now:now()});return;}
+  throw failure(403,'Falta autoridad tipada para los originales de Stock.','SV_STOCK_ORDER_SOURCE_UNSUPPORTED');
+ }}):null;
  const context=new AsyncLocalStorage();let tail=Promise.resolve();
  function operation(actor){
   if(!actor||typeof actor.uid!=='string'||!actor.uid||!['command','user','server','bootstrap'].includes(actor.mode))throw failure(403,'Operación no autorizada');
@@ -176,6 +183,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     // Los comandos vuelven a validar su estado al repetirlos y no recuperan
     // payloads desde el recibo. No duplicar una venta/factura comercial completa.
     await require('./operational-projections').augment({patch,raw,get,enabled:operationalSummaries,actor,result,operationId:opId});
+    const stockOrderMaintenance=stockOrderProjections?await stockOrderProjections.augment({patch,raw,get,actor,lease,operationId:opId,beforeCommit:fn=>finalChecks.push(fn)}):{maintained:false};
     await require('./record-list-projections').augment({patch,raw,get,enabled:operationalSummaries,actor,result,operationId:opId});
     if(clientAccounts&&!commercialPages)throw failure(503,'Las cuentas requieren el listado comercial coordinado.','SV_CLIENT_ACCOUNTS_INCOMPLETE');
     const pageSnapshots=new Map(),pageRaw=async path=>{const value=await raw(path);pageSnapshots.set(path,digest(value));return value;},pageGet=async path=>{await pageRaw(path);return get(path);};
@@ -188,14 +196,16 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     const financialMaintenance=saleFinancialDependencies?await require('./sale-financial-dependencies-projections').augment({patch,raw,get,exists:async()=>financialInstalled}):{maintained:false};
     const receiptResult=['admin-expense-create','admin-expense-edit'].includes(actor.operation)?{ok:true,committed:true,key:result.key}:['user','bootstrap'].includes(actor.mode)?copy(result):{ok:true,committed:true};
     patch['sv_labor_receipts/'+opId]={fence:lease.fence,digest:requestDigest,actorUid:actor.uid,result:receiptResult,confirmedAt:now()};patch.sv_labor_guard=null;
-    if(purchase)await require('./purchase-inventory-policy').sealDerived({actor,lease,patch,operationalSummaries,dashboardActivity:!!dashboardActivity,dashboardBudgets:!!dashboardBudgets,read:raw});
+    const orderSource=()=>stockOrderMaintenance.maintained?stockOrderPolicy.strip({actor,lease,proof:stockOrderMaintenance.proof,patch,now:now()}):patch;
+    if(purchase)await require('./purchase-inventory-policy').sealDerived({actor,lease,patch:orderSource(),operationalSummaries,dashboardActivity:!!dashboardActivity,dashboardBudgets:!!dashboardBudgets,read:raw});
+    if(stockOrderMaintenance.maintained)await stockOrderPolicy.issue(actor,lease,{proof:stockOrderMaintenance.proof,patch,now:now()});
     if((actor.mode==='user'||actor.mode==='command')&&actor.financialAction){
      const checked=await Promise.allSettled([store.read('sv_chat_roles/'+actor.uid),store.read('sv_permisos/'+actor.role)]),failed=checked.find(value=>value.status==='rejected');live();
      if(failed)throw failed.reason;validateFinancialContext(actor,checked[0].value,checked[1].value);
     }
     if(revalidateAdvancePeriod)await revalidateAdvancePeriod();
     for(const check of finalChecks){live();await check({readFresh:path=>store.read(path),readFreshAsUser:path=>store.readAsUser(path,{uid:actor.uid,claims:actor.claims}),queryFresh:(...args)=>store.query(...args),queryPageFresh:queryPageLive});live();}
-    if(purchase)await require('./purchase-inventory-policy').validate({actor,lease,patch,operationalSummaries,readFresh:path=>store.read(path),now:now()});
+    if(purchase)await require('./purchase-inventory-policy').validate({actor,lease,patch:stockOrderMaintenance.maintained?stockOrderPolicy.sourcePatch(actor,lease,patch,now()):patch,operationalSummaries,readFresh:path=>store.read(path),now:now()});
     live();await store.commit(patch,lease,{...actor,clientAccountsWriterVersion:clientAccounts&&commercialPages?1:0,clientHistoryWriterVersion:clientHistory?1:0,saleFinancialWriterVersion:financialMaintenance.maintained?1:0});completed=true;return result;
    });
   }finally{phase='closed';if(!completed)await store.abort(lease).catch(()=>{});}

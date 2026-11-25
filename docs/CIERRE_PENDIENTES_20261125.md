@@ -19,4 +19,12 @@ Store.queryPage conserva la allowlist exacta revisada de fed81584 para productos
 
 ## Composición remota observada, sólo lectura
 
+## Integración local de autoridades y UI
+
+Guard incorpora begin/sealDerived/validate de Compras y el puente genuino de corrección de costos; Store emite SourceCost V2 y vínculo sólo desde capacidades privadas, sanea claims entrantes y rechaza override mayor a16KiB antes del PATCH. Pruebas de falsificación, transporte y Guard27PASS; Link y validador de campos27PASS. La cadena conjunta recibir→conciliar→cancelar pasó4casos con Guard real y almacenamiento ficticio, sin afirmar RTDB por ese ensayo.
+
+OrderProjection opcional postOperational conserva la fuente sellada sin sus derivados, verifica StockPolicy/PurchasePolicy y emite capacidad propia; ninguna bandera de cliente acredita el original. Runtime sólo lo acepta como puerto explícito, apagado por defecto.32pruebas de dominio/Store y43Guard/Link/Joint PASS. La composición de cohorte usa firmas y paquete reales:8casosPASS, incluidos OFF sinIO, presencia inválida sticky, cambio de paquete y lectura fresca de autorización. No está montada ni habilitada en producción.
+
+UI Compras congelada dc605844 se integra separada de la publicación16;49casos focales de contrato/formulario/preparaciónPASS y5recorridos de montaje Stock390/768/1280PASS con datos ficticios. El primer intento del último grupo carecía NODE_PATH; se repitió con dependencias existentes sin instalar ni alterar expectativas. Falta composición completa de rutas, escritores OT, empaquetado y Rules finales. La candidata16 es otra rama limpia con presentación/directorio/OT acotados: no incluye esta migración.
+
 Cotizador: revisión cotizador-returncfg-32113, imagen6b6276dd6b53f3ea745be726e0b277eaabf7d571a44e1948932756303045a01a. Lifecycle/Delivery/OTOfficeCount/OfficeStock/ClientAccounts/CommercialPages/OperationalSummaries habilitados; ClientHistory/ClientHistoryRead/SaleFinancialDependencies deshabilitados. No se infiere por eso una cohorte mapped instalada. No cambiar esos controles para hacer pasar una prueba.

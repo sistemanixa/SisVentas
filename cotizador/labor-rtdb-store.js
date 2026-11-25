@@ -4,6 +4,7 @@ const FinancialProtocol=require('./sale-financial-dependencies-protocol');
 const AccountsProtocol=require('./client-account-writer-protocol');
 const StockLinkPolicy=require('./office-stock-link-policy');
 const PurchaseSourceProtocol=require('./purchase-source-cost-protocol');
+const StockOrderPolicy=require('./office-stock-order-policy');
 const fail=(statusCode,message,code)=>Object.assign(Error(message),{statusCode,code});
 function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.now,requestMs=20000,verifyOTDeliveryFence}){
  const base=new URL(databaseURL);if(base.protocol!=='https:'&&!(base.protocol==='http:'&&['127.0.0.1','localhost'].includes(base.hostname)))throw Error('Destino de datos inválido');
@@ -17,7 +18,7 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   if(!response.ok){await response.body?.cancel();throw fail(response.status===401||response.status===403?403:response.status===412?409:503,'No se pudo confirmar el acceso o el guardado',response.status===412?'SV_CAS_CONFLICT':undefined);}
   return response;
  }
- const sanitizedClaims=claims=>{const clean=PurchaseSourceProtocol.sanitize(StockLinkPolicy.sanitizeClaims(claims));delete clean.svLaborWriterSchema;return clean;};
+ const sanitizedClaims=claims=>{const clean=StockOrderPolicy.sanitizeClaims(PurchaseSourceProtocol.sanitize(StockLinkPolicy.sanitizeClaims(claims)));delete clean.svLaborWriterSchema;return clean;};
  const service=(mode,lease,actor)=>({uid:actor?.mode==='user'?actor.uid:'sv-labor-service',token:{...(actor?.mode==='user'?sanitizedClaims(actor.claims):{}),svLaborService:true,...(actor?.saleFinancialWriterVersion===1||actor?.clientAccountsWriterVersion===1||actor?.clientHistoryWriterVersion===1?{svLaborWriterSchema:2}:{}),...FinancialProtocol.reservedClaims(actor?.saleFinancialWriterVersion),...AccountsProtocol.reservedClaims(actor?.clientAccountsWriterVersion),svClientHistoryWriterVersion:actor?.clientHistoryWriterVersion===1?1:0,svPaymentIndexVersion:1,svFinancialAction:actor?.mode==='user'?actor.financialAction||'':'',svFinancialActorRole:actor?.mode==='user'&&actor.financialAction?actor.role||'':'',svFinancialPermissionRevision:actor?.mode==='user'&&actor.financialAction?actor.permissionRevision??null:null,mode,fence:lease.fence,opId:lease.opId,digest:lease.digest,actorUid:lease.actorUid,...(actor?.mode==='command'?{actorAccessVersion:actor.claims?.svAccessVersion||'',actorPasswordChangeRequired:actor.claims?.svPasswordChangeRequired===true,actorRole:actor.role||'',actorPermissionRevision:actor.permissionRevision??null}:{})}});
  async function read(path){const r=await request('GET',path);return r.json();}
  async function readQuery(path,query){
@@ -47,14 +48,17 @@ function createLaborRtdbStore({databaseURL,accessToken,fetchImpl=fetch,now=Date.
   }
   if(actor?.otLifecycle)require('./ot-lifecycle-policy').validate(actor,await read('sv_chat_roles/'+actor.uid),await read('sv_permisos/'+actor.role));
   if(actor?.otLifecycle?.kind==='delivery'){const proof=await verifyOTDeliveryFence?.({read});if(proof?.schema!==1||proof.verified!==true||proof.canonicalOT!==true||proof.inventory!==true||!/^[a-f0-9]{64}$/.test(proof.rulesDigest||''))throw fail(503,'Fence de entrega no verificado.','SV_OT_DELIVERY_NOT_READY');}
-  require('./office-stock-policy').validate(actor,lease,patch);
+  StockOrderPolicy.validate(actor,lease,patch,now());
+  const sourcePatch=actor?.officeStockOrder?StockOrderPolicy.sourcePatch(actor,lease,patch,now()):patch;
+  require('./office-stock-policy').validate(actor,lease,sourcePatch);
   await StockLinkPolicy.validate(actor,lease,patch,read,now());
   const override=service('commit',lease,actor);Object.assign(override.token,require('./commission-write-proof').claims(actor,lease));if(actor?.officeStock||actor.operation==='office-stock-adjustment'||Object.keys(actor?.claims||{}).some(k=>k.startsWith('svOfficeStock'))){const stockToken=require('./office-stock-policy').token(actor,lease);Object.assign(override.token,stockToken,stockToken.svOfficeStockVersion===1?{svLaborWriterSchema:2}:{});}if(actor?.otLifecycle||Object.keys(actor?.claims||{}).some(k=>k.startsWith('svOTLifecycle')))Object.assign(override.token,require('./ot-lifecycle-policy').token(actor,lease));
   Object.assign(override.token,require('./ot-delete-operational-contract').reservedClaims(actor?.claims));
   if(actor?.otDeleteOperationalProof){if(!api.otDeleteOperationalReadiness?.configured)throw fail(503,'La eliminación OT no está preparada.');Object.assign(override.token,await api.otDeleteOperationalReadiness.commitClaims({patch,lease,actor,readFresh:read}),{svLaborWriterSchema:2});}
   Object.assign(override.token,await require('./ot-delivery-commit-protocol').claims({patch,lease,actor,read,query:async(path,field,value)=>{const response=await request('GET',path,undefined,{query:{orderBy:field,equalTo:value}});return response.json();}}));
   const linkClaims=StockLinkPolicy.token(actor,lease);
-  Object.assign(override.token,linkClaims,PurchaseSourceProtocol.claims(actor,lease,patch));
+  Object.assign(override.token,linkClaims,StockOrderPolicy.token(actor,lease,now()),PurchaseSourceProtocol.claims(actor,lease,sourcePatch));
+  if(override.token.svStockOrderWriterVersion===1)override.token.svLaborWriterSchema=2;
   if(linkClaims.svStockLinkVersion===1||override.token.svPurchaseSourceCostVersion>0)override.token.svLaborWriterSchema=2;
   if(Buffer.byteLength(JSON.stringify(override))>16384)throw fail(413,'La operación excede el límite de autorización. Dividí los cambios.','SV_LABOR_AUTH_SIZE');
   const token=await accessToken(),destination=target('.json');destination.searchParams.set('auth_variable_override',JSON.stringify(override));destination.searchParams.set('print','silent');
