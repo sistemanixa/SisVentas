@@ -1,4 +1,14 @@
-# Current-pending: checkpoint local, no habilitable
+# Current-pending: verificación local, sin activación remota
+
+## Repetición final congelada
+
+Fuente `94826dcf4be4dd999087d0bb55245a1d7090bc50`, exportada con `git archive` a carpeta privada aislada. Los mismos siete casos terminaron **7 PASS / 0 FAIL / 0 SKIP, exit0**. El cambio en la prueba fue únicamente la referencia de fuente congelada; no se aflojaron los dos rechazos previos ni se sustituyeron claims. SourceProtocol emite el Kind reservado desde autoridad genuina sellada con Version0. El candidato completo del paquete se calcula y firma antes de emitir la admisión real; no hay flags H/Fin/CC inventados.
+
+Los dos casos antes fallidos (rol y revisión después de las lecturas finales) ahora rechazan el PATCH completo con las reglas nativas del candidato. El positivo conserva baseline, resumen curado, recibo y liberación del guard en un PATCH, replay sin duplicación y namespaces físicos/ventas/listas/numeración sin cambios. Se mantienen los cuatro rechazos backend: Editar, Migrar, rol y nueva orden después del EOF. Emulador ficticio propio limpiado y detenido; ningún dato ni regla remota modificados.
+
+Esta repetición acredita sólo el circuito acotado y commit nativo capturado. No acredita cierre de Admin externo, despliegue ni preparación de producción. Evidencia privada: `tmp/finish-rules-20261125/current-pending-948-run.log`. Las secciones siguientes conservan el diagnóstico anterior y su alcance.
+
+## Diagnóstico anterior sobre 531ac358
 
 Fuente exportada con `git archive` del commit congelado `531ac358bfa88b5d53598092f45ce7c48fe9f95b`. Reglas efectivas privadas de referencia SHA256 `5a5f7b34de6cbba2ae54517029de956b6be605e21143fe4a86c131255052e48f`. No reglas ni registros privados incorporados a Git.
 
