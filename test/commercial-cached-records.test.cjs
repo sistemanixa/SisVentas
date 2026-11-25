@@ -70,3 +70,22 @@ test('cambiar la revisión durante la lectura no certifica la respuesta con perm
  let finish;const s=setup(()=>new Promise(resolve=>finish=resolve));s.api.onValue('ventas',()=>{});await turn();s.c.PERMISOS_ROLES.administrativo.indiceRevision++;
  finish(response({visible:{responsableUid:'owner-a'}}));await turn();assert.equal(s.api.cachedRecords('ventas'),null);
 });
+
+test('presentation continues reading individual budgets with the tab hidden while ordinary reads wait',async()=>{
+ const s=setup();
+ s.c.document.hidden=true;
+ let resume,waits=0;
+ s.c.SVForegroundSession={waitVisible(){waits++;return s.c.document.hidden?new Promise(resolve=>{resume=resolve;}):Promise.resolve();}};
+ const options={presentation:true};
+ const ordinary=s.api.request('presupuestos','',undefined,options);
+ await turn();
+ assert.equal(s.calls.length,0);
+ for(const id of ['first','second','third'])await s.api.request('presupuestos','registro/'+id,undefined,options);
+ assert.deepEqual(s.calls.map(call=>call.url.split('/').at(-1)),['first','second','third']);
+ assert.ok(s.calls.every(call=>call.options.method==='GET'&&call.options.headers.Authorization==='Bearer fictitious-token'));
+ assert.equal(waits,1);
+ s.c.document.hidden=false;
+ resume();
+ await ordinary;
+ assert.equal(s.calls.length,4);
+});

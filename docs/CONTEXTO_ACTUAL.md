@@ -4713,3 +4713,7 @@ La prueba integrada ejecutó el listado real del servidor contra datos ficticios
 
 A presupuesto vuelve a la ficha original cuando la venta conserva el vínculo técnico y el presupuesto confirma el vínculo inverso. La operación coordinada conserva importes, número, fecha de alta y entradas de auditoría; registra la reapertura y retira los vínculos activos de conversión. Sin doble numeración, con comprobación de concurrencia y las protecciones de cobros, facturas, OT, compras y reservas existentes. Las pruebas focalizadas (52) y la matriz RTDB en emulador pasaron con datos ficticios. La matriz usó una copia verificada de las reglas vigentes. El candidato de reglas modifica sólo la autorización por registro de Ventas. La conversión real queda a cargo del usuario.
 v3.21.14. Consultar operación permanece visible durante la navegación y se restaura si un cierre previo lo ocultó. 27 pruebas focalizadas con intentos ficticios. La verificación del intento real se hará por su recibo sin reenviarlo.
+
+## Preparación de presupuestos con la ventana en segundo plano
+
+La presentación consultaba cada registro bajo la espera de visibilidad de las lecturas comerciales comunes. La candidata v3.21.16 exceptúa únicamente las lecturas puntuales autenticadas del visor iniciadas al presentar propuestas. Las colecciones y demás lecturas mantienen su pausa habitual. Pasaron 17 pruebas focalizadas, incluida una sesión ficticia con la pestaña oculta que completó tres lecturas seguidas. No se midió suspensión de Windows ni se publicó.
