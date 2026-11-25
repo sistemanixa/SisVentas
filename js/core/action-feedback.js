@@ -7,7 +7,8 @@
  function trigger(event){
   var node=event?.target;if(!node?.closest)return null;
   if(event.type==='keydown'&&!['Enter',' '].includes(event.key))return null;
-  var result=event.type==='submit'&&(event.submitter||node.querySelector?.('button[type="submit"],input[type="submit"]'))||node.closest('button,input[type="button"],input[type="submit"],input[type="checkbox"],[role="button"],[onclick],form');
+  if(event.type!=='submit'&&node.closest('input:not([type="button"]):not([type="submit"]):not([type="checkbox"]),textarea,select'))return null;
+  var result=event.type==='submit'&&(event.submitter||node.querySelector?.('button[type="submit"],input[type="submit"]')||node)||node.closest('button,input[type="button"],input[type="submit"],input[type="checkbox"],[role="button"],[onclick]');
   // Typing remains free: the query owner renders its own loading region.
   if(result?.matches?.('input:not([type="button"]):not([type="submit"]):not([type="checkbox"]),textarea,select'))return null;
   return result;
@@ -19,7 +20,7 @@
  function ownsIndicator(button){return button.getAttribute?.('aria-busy')==='true'||!!button.querySelector?.('.sv-operation-spinner,.ti-loader-2,.ti-spin,.spin');}
  function show(c){
   if(c.stopped||c.close||!c.pending||waitingDialogs||!valid(c.context))return;
-  c.close=api.iniciar({tipo:c.kind,boton:c.button.isConnected?c.button:null,deshabilitadoInicial:c.disabled,conservarIndicador:ownsIndicator(c.button),persistirAlNavegar:c.kind==='guardar'||c.kind==='eliminar'});
+  c.close=api.iniciar({tipo:c.kind,boton:c.button.isConnected&&c.button.tagName!=='FORM'?c.button:null,deshabilitadoInicial:c.disabled,conservarIndicador:ownsIndicator(c.button),persistirAlNavegar:c.kind==='guardar'||c.kind==='eliminar'});
  }
  function stop(c){c.stopped=true;c.close?.();c.close=null;if(flights.get(c.button)===c)flights.delete(c.button);}
  function track(result,c,name){
