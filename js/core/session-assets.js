@@ -8,13 +8,19 @@
     diagnostics: {src:'./js/v3/admin-diagnostics.js?v=3.3.17', ready:function(){return !!(window.SisVentas && window.SisVentas.V3Diagnostics);}},
     distribuidora: {src:'./js/modules/distribuidora-access.js?v=3.17.2', ready:function(){return !!window.SVDistribuidora;}},
     paraguay: {src:'./js/modules/paraguay-shopping-access.js?v=3.15.8-order-format', ready:function(){return !!window.SVParaguayPortal;}},
-    compras: {src:'./js/modules/purchase-orders.js?v=3.20.3', ready:function(){return !!window.SisVentasCompras;}},
+    purchaseCommands: {src:'./js/modules/purchase-command-adapter.v1.js?v=3.21.17', ready:function(){return !!window.SVPurchaseCommandAdapter;}},
+    purchaseCommandForm: {src:'./js/modules/purchase-command-form.v1.js?v=3.21.17', ready:function(){return !!window.SVPurchaseCommandForm;}},
+    compras: {src:'./js/modules/purchase-orders.js?v=3.21.17', ready:function(){return !!window.SisVentasCompras;}},
     planner: {src:'./js/modules/paraguay-planner.js?v=3.17.3', ready:function(){return !!window.SVParaguayPlanner;}},
-    preparation: {src:'./js/modules/exterior-preparation.js?v=3.17.3', ready:function(){return !!window.SVExteriorPreparation;}},
+    preparation: {src:'./js/modules/exterior-preparation.js?v=3.21.17', ready:function(){return !!window.SVExteriorPreparation;}},
     purchasePDF: {src:'./js/modules/purchase-pdf-import.js?v=3.12.3', ready:function(){return !!window.SVPurchasePDF;}}
   };
   var pending = Object.create(null);
-  function load(name) {
+  function load(name,isCurrent) {
+    if(name==='compras')return Promise.all([loadAsset('purchaseCommands'),loadAsset('purchaseCommandForm')]).then(function(){if(isCurrent&&!isCurrent())return;return loadAsset(name);});
+    return loadAsset(name);
+  }
+  function loadAsset(name) {
     var asset = assets[name];
     if (!asset) return Promise.reject(new Error('Módulo desconocido'));
     if (asset.ready()) return Promise.resolve();
@@ -46,7 +52,7 @@
     if (isCurrent && !isCurrent()) return false;
     // async=false conserva el orden de ejecución al insertar los scripts;
     // iniciar las descargas juntas evita sumar tres esperas de red.
-    await Promise.all(modules.map(load));
+    await Promise.all(modules.map(function(name){return load(name,isCurrent);}));
     return !isCurrent || isCurrent();
   }
   var maintenanceCurrent = null, maintenanceRevision = 0, maintenanceSessionActive = true, maintenanceObserver = null;

@@ -1,3 +1,8 @@
+# Integración local del bloque Compras V2 · 25/11/2026
+
+Integrados 27782415, 3a5cf89a, cca87161 y bfeab533 como 3ca096a8/9ffa3e50/2efba0ac/41987e42. El frente A verificó 56 casos core sobre copia congelada equivalente: Guard/Store y autoridades genuinas, transporte ficticio, NO emulador. Incluye vínculo sin movimiento físico, recepción a General, borrador independiente y conservación de identidad al agrupar/desagrupar. No es una publicación ni una habilitación de la cohorte.
+
+Composición de runtime/referencias por defecto OFF, protección Ver como del gateway y carga ordenada/cancelable de helpers Compras: 36 pruebas focales PASS en este checkout; sin cambios externos. OT final y Rules conjuntas siguen pendientes. La puerta completa de A fue abortada por red local restringida; sus errores de navegador no acreditan fallos de producto ni una puerta verde.
 # Estado de integración y publicación · 25/11/2026
 
 Producción verificada v3.21.16: fuenteweb2bd2b92c y cierre08c5860b,723/723activosHTTPS/SHA,cabecerasconservadas,puerta11181PASS/0FAIL/91SKIPcondicionales. Servidor cotizador-otready-32116 al100%,imageneea17ac8 derivada de6b con sólo3módulos OT;configigual. Autorización específica humana de corte aplicada, revisión anterior conservada. Script oficial confirmó aviso16 y ventana real recargada enCC,sesiónsincronizada. Rama limpia release-verified-batch-20261125. Esta copia finish-pending NO es el runtime publicado ni acredita migración activada.

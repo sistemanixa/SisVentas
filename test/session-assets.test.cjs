@@ -13,6 +13,7 @@ function setup(){
  function complete(index){const script=scripts[index];const globals={
   'distribuidora-access':'SVDistribuidora','paraguay-shopping-access':'SVParaguayPortal',
   'purchase-orders':'SisVentasCompras','paraguay-planner':'SVParaguayPlanner',
+  'purchase-command-adapter.v1':'SVPurchaseCommandAdapter','purchase-command-form.v1':'SVPurchaseCommandForm',
   'exterior-preparation':'SVExteriorPreparation','purchase-pdf-import':'SVPurchasePDF'};
   const name=Object.keys(globals).find(n=>script.src.includes(n+'.js'));
   window[globals[name]]={};script.onload();
@@ -22,10 +23,10 @@ function setup(){
 test('el login inicial no descarga módulos opcionales',()=>{assert.equal(setup().scripts.length,0);});
 test('grupo interno espera todos los scripts y conserva el simulador sin descargar',async()=>{
  const x=setup();let ready=false;const pending=x.forRole('admin',()=>true).then(()=>ready=true);
- assert.equal(x.scripts.length,3);assert.ok(x.scripts.every(s=>s.async===false));
- assert.deepEqual(x.scripts.map(s=>s.src.split('/').pop().split('?')[0]),['distribuidora-access.js','paraguay-shopping-access.js','purchase-orders.js']);
+ assert.equal(x.scripts.length,4);assert.ok(x.scripts.every(s=>s.async===false));
+ assert.deepEqual(x.scripts.map(s=>s.src.split('/').pop().split('?')[0]),['distribuidora-access.js','paraguay-shopping-access.js','purchase-command-adapter.v1.js','purchase-command-form.v1.js']);
  x.complete(0);x.complete(1);await Promise.resolve();assert.equal(ready,false);
- x.complete(2);await pending;assert.equal(ready,true);assert.equal(x.timers.size,0);
+ x.complete(2);x.complete(3);for(let i=0;i<8&&x.scripts.length<5;i++)await Promise.resolve();assert.equal(x.scripts.length,5);assert.match(x.scripts[4].src,/purchase-orders\.js/);assert.equal(ready,false);x.complete(4);await pending;assert.equal(ready,true);assert.equal(x.timers.size,0);
  assert.ok(!x.scripts.some(s=>s.src.includes('paraguay-planner')));
 });
 for(const role of ['distribuidora','compras_paraguay'])test('portal '+role+' no descarga Órdenes de compra',async()=>{
@@ -52,7 +53,7 @@ test('timeout se informa y permite otra descarga',async()=>{
 test('una sesión cancelada no comienza nuevas descargas ni se declara lista',async()=>{
  const x=setup();assert.equal(await x.forRole('admin',()=>false),false);assert.equal(x.scripts.length,0);
  let current=true;const pending=x.forRole('admin',()=>current);current=false;
- x.complete(0);x.complete(1);x.complete(2);assert.equal(await pending,false);
+ x.complete(0);x.complete(1);x.complete(2);x.complete(3);assert.equal(await pending,false);assert.equal(x.scripts.length,4);assert.ok(!x.scripts.some(s=>s.src.includes('purchase-orders.js')));
 });
 test('manifiestos no vuelven a precargar los módulos separados',()=>{
  const index=fs.readFileSync('index.html','utf8'),worker=fs.readFileSync('sw.js','utf8');

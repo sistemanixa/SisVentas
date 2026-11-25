@@ -27,7 +27,7 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
  async function authorize(req){
   if(!enabled)throw fail(503,'El nuevo circuito todavía no está habilitado');
   if(req.method!=='POST')throw fail(405,'Método no permitido');
-  if(new URL(req.url,'http://localhost').searchParams.has('verComo'))throw fail(403,'Volvé a tu cuenta para guardar');
+  if(new URL(req.url,'http://localhost').searchParams.has('verComo')||req.headers?.['x-sv-view-as']||req.headers?.['x-sisventas-view-as'])throw fail(403,'Volvé a tu cuenta para guardar');
   const match=String(req.headers?.authorization||'').match(/^Bearer\s+(\S+)$/i);if(!match)throw fail(401,'Sesión requerida');
   let identity;try{identity=await auth.verifyIdToken(match[1],true);}catch(_){throw fail(401,'La sesión venció; volvé a ingresar');}
   const role=(await db.ref('sv_chat_roles/'+identity.uid).get()).val();

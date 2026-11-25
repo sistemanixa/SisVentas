@@ -26,6 +26,9 @@ test('gateway conserva UID, permisos de lectura compare y recibo pequeño sin du
  assert.deepEqual(f.read('sv_labor_receipts/'+command.id).result,{ok:true,committed:true});assert.equal(f.read('sisventas/productos/preserved').length,10000);
  assert.equal(f.calls.reads.includes('sisventas'),false);
 });
+test('las cabeceras Ver como bloquean también la autorización del host de comandos',async()=>{
+ for(const header of ['x-sv-view-as','x-sisventas-view-as']){const f=fixture();await assert.rejects(f.gateway.authorize({method:'POST',url:'/compras/ordenes/crear',headers:{authorization:'Bearer signed',[header]:'other'}}),{statusCode:403});assert.equal(f.calls.commits.length,0);assert.equal(f.calls.reads.length,0);}
+});
 test('CAS concurrente falla sin business PATCH ni recibo de éxito y no cae a Admin directo',async()=>{
  const f=fixture(),command=f.command({kind:'compare',expectedHash:digest(100)});f.set('sisventas/gastos/g/monto',125);
  await assert.rejects(f.gateway.write(f.actor,command),e=>e.code==='SV_CAS_CONFLICT');assert.equal(f.calls.commits.length,0);assert.equal(f.read('sisventas/gastos/g/monto'),125);

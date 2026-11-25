@@ -1,5 +1,5 @@
 'use strict';
-function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=false,fetchImpl,operationalSummaries=false,stockOrderProjections=false,commercialPages=process.env.COMMERCIAL_PAGES_ENABLED==='true',dashboardBudgets=process.env.DASHBOARD_BUDGETS_ENABLED==='true',dashboardActivity=process.env.DASHBOARD_COMMERCIAL_ACTIVITY_ENABLED==='true',dashboardPolicyRenewal=process.env.DASHBOARD_BUDGET_POLICY_RENEWAL_ENABLED==='true',clientAccounts=process.env.CLIENT_ACCOUNTS_ENABLED==='true',clientHistory=process.env.CLIENT_HISTORY_ENABLED==='true',deliveryEnvironment=process.env,deleteEnvironment=deliveryEnvironment,saleFinancialDependencies=process.env.SALE_FINANCIAL_DEPENDENCIES_ENABLED==='true'}){
+function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=false,fetchImpl,operationalSummaries=false,stockOrderProjections=false,commercialPages=process.env.COMMERCIAL_PAGES_ENABLED==='true',dashboardBudgets=process.env.DASHBOARD_BUDGETS_ENABLED==='true',dashboardActivity=process.env.DASHBOARD_COMMERCIAL_ACTIVITY_ENABLED==='true',dashboardPolicyRenewal=process.env.DASHBOARD_BUDGET_POLICY_RENEWAL_ENABLED==='true',clientAccounts=process.env.CLIENT_ACCOUNTS_ENABLED==='true',clientHistory=process.env.CLIENT_HISTORY_ENABLED==='true',deliveryEnvironment=process.env,deleteEnvironment=deliveryEnvironment,saleFinancialDependencies=process.env.SALE_FINANCIAL_DEPENDENCIES_ENABLED==='true',inventoryEnvironment=process.env,inventoryCohortEnabled=inventoryEnvironment.INVENTORY_COHORT_ENABLED==='true',inventoryUiRoot=require('node:path').join(__dirname,'inventory-ui-proof')}){
  if(readOnly&&!enabled)throw Error('El modo de revisión requiere conservar el circuito acotado');
  if((clientAccounts||clientHistory)&&!enabled)throw Error('Las cuentas y el historial requieren el guardado coordinado habilitado.');
  if(![dashboardBudgets,dashboardActivity,dashboardPolicyRenewal].every(v=>typeof v==='boolean'))throw Error('Los flags de Dashboard deben ser booleanos explícitos.');
@@ -7,10 +7,13 @@ function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=f
  if(dashboardPolicyRenewal&&!dashboardBudgets)throw Error('La renovación de política requiere el escritor de Presupuestos.');
  const verifyOTDeliveryFence=require('./ot-delivery-attestation').createVerifier({env:deleteEnvironment});
  const store=require('./labor-rtdb-store').createLaborRtdbStore({databaseURL,accessToken,fetchImpl,verifyOTDeliveryFence});
+ if(typeof inventoryCohortEnabled!=='boolean'||inventoryCohortEnabled&&(!enabled||!operationalSummaries||stockOrderProjections!==false))throw Error('La cohorte requiere coordinación y un único proyector ligado a su autoridad.');
+ const inventoryCohort=require('./inventory-cohort-runtime').create({enabled:inventoryCohortEnabled,readOnly,read:path=>store.read(path),serverRoot:__dirname,uiRoot:inventoryUiRoot,env:inventoryEnvironment});
+ const orderProjection=inventoryCohortEnabled?require('./office-stock-order-projections').create({enabled:true,verifyCohort:inventoryCohort.verifyCohort}):stockOrderProjections;
  store.otDeleteOperationalReadiness=require('./ot-delete-operational-runtime').create({env:deleteEnvironment,read:path=>store.read(path),exists:path=>store.exists(path),runtime:()=>({coordinated:enabled===true,readOnly:readOnly===true,commercialPages:commercialPages===true,operationalSummaries:operationalSummaries===true,dashboardActivity:dashboardActivity===true,clientAccounts:clientAccounts===true,clientHistory:clientHistory===true})});
  const budgetWriter=dashboardBudgets?require('./dashboard-budget-writer-proposal').create({enabled:true,allowPolicyRenewal:dashboardPolicyRenewal}):false;
  const activityWriter=dashboardActivity?require('./dashboard-commercial-activity-proposal'):false;
- const guard=require('./labor-guard').createLaborGuard({store,readOnly,operationalSummaries,stockOrderProjections,commercialPages,dashboardBudgets:budgetWriter,dashboardActivity:activityWriter,clientAccounts,clientHistory,saleFinancialDependencies,otDeleteOperational:enabled===true&&store.otDeleteOperationalReadiness.configured===true});
+ const guard=require('./labor-guard').createLaborGuard({store,readOnly,operationalSummaries,stockOrderProjections:orderProjection,commercialPages,dashboardBudgets:budgetWriter,dashboardActivity:activityWriter,clientAccounts,clientHistory,saleFinancialDependencies,otDeleteOperational:enabled===true&&store.otDeleteOperationalReadiness.configured===true});
  store.saleDeleteFinancialEvidence=require('./sale-financial-dependencies-provider').create();
  const scopedDb=enabled?require('./labor-db').createLaborDb({db,guard}):db;
  const transaction=enabled?require('./labor-scoped-transaction').createScopedTransaction({guard}):require('./labor-transaction').createRootTransaction({databaseURL,accessToken,fetchImpl});
@@ -31,6 +34,6 @@ function createLaborRuntime({db,databaseURL,accessToken,enabled=false,readOnly=f
   return actor.domain==='ventas'||clientAccounts||dashboardBudgets?run(actor,'commercial-'+method,input,work):work();
  }
  const capabilities=()=>Object.freeze({schema:1,coordinated:enabled===true,readOnly:readOnly===true,commercialPages:commercialPages===true,clientAccounts:enabled===true&&commercialPages===true&&clientAccounts===true,clientHistory:enabled===true&&commercialPages===true&&clientAccounts===true&&clientHistory===true,writerMode:require('./commercial-models/client-account-mode.v1').WRITER});
- return {db:scopedDb,store,guard,transaction,run,commercialMutation,capabilities};
+ return {db:scopedDb,store,guard,transaction,run,commercialMutation,capabilities,inventoryCohort};
 }
 module.exports={createLaborRuntime};
