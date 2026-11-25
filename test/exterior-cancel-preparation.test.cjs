@@ -13,6 +13,14 @@ function scoped(db,failAt,id='A'){
  const set=(p,v)=>{const parts=p.split('/').slice(1),k=parts.pop();let parent=db;for(const part of parts)parent=parent[part]||(parent[part]={});parent[k]=JSON.parse(JSON.stringify(v));};
  Object.assign(c,{PATH_LISTS:'sisventas/listas_materiales',state:{orders:[]},findProduct:()=>null});
  Object.assign(c.window,{currentUserUid:'u',permisoModulo:()=>true,fbRef:(_,p)=>p,fbGet:async p=>{paths.push(p);assert.notEqual(p,'sisventas');return {val:()=>structuredClone(get(p))};},SVGuardedWrites:{...require('../js/core/guarded-writes'),restTransaction:async(p,fn)=>{paths.push(p);assert.notEqual(p,'sisventas');if(++writes===failAt)throw Error('disconnect');const next=fn(structuredClone(get(p)));set(p,next);return {committed:true};}}});
+ // Adapt historical fixture fields to the actual registered-provider schema.
+ for(const product of Object.values(db.productos||{}))product.proveedores=(product.providers||[]).map(p=>({...p,costoRealArs:p.costo}));
+ const document={addEventListener(){},getElementById:()=>null,querySelector:()=>null,querySelectorAll:()=>[]};
+ Object.assign(c.window,{document,currentRole:'administrativo',fbAuth:{currentUser:{uid:'u'}},PERMISOS_ROLES:{administrativo:{indiceRevision:1}},proveedoresData:[{fbKey:'L',nombre:'Local',activo:true}],SISVENTAS_FUNCTIONS:{cotizadorProveedor:'https://fixture.invalid'},SVServiceAuth:{headers:async()=>({})},SVPurchaseCommandAdapter:require('../js/modules/purchase-command-adapter.v1'),SVPurchaseCommandForm:require('../js/modules/purchase-command-form.v1'),fetch:async url=>{assert.equal(url,'https://fixture.invalid/laboral/capacidades');return{ok:true,status:200,json:async()=>({ok:true,inventory:{version:1,installed:false,ready:false,generation:''}})};}});
+ c.window.SVLaborWrites=require('../js/core/labor-writes').create(c.window);c.window.SVLaborWriteRecovery=require('../js/core/labor-write-recovery').create(c.window);
+ Object.assign(c,{document,console,TextEncoder,AbortSignal,URL,setTimeout,clearTimeout});
+ const anchor='  window.SisVentasCompras = {';assert.equal(src.split(anchor).length,2);
+ vm.runInContext(src.replace(anchor,'  window.__exteriorFixture={cancelExteriorPreparationScoped};\n'+anchor),c);c.cancelExteriorPreparationScoped=c.window.__exteriorFixture.cancelExteriorPreparationScoped;
  return {run:()=>c.cancelExteriorPreparationScoped(id,'u','Admin',123,()=>{}),paths};
 }
 test('stock general sólo lee y escribe su lista, conserva extras e historial',async()=>{
