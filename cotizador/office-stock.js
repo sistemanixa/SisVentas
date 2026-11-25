@@ -27,6 +27,14 @@ function create({authorize,store,guard,queryPage,resolver=null,initialInventoryR
  }
  async function access(identity){if(!enabled)throw fail(503,'Stock de oficina todavía no está habilitado.','SV_OFFICE_STOCK_DISABLED');if(!identity?.uid||identity.claims?.uid!==identity.uid)throw fail(401,'Sesión requerida.');const ready=await store.read('sv_operational_read_config');if((await store.read('sv_labor_config/officeStockVersion'))!==1||ready?.schema!==1||ready.ready!==true)throw fail(503,'Stock de oficina está pendiente de preparar.','SV_OFFICE_STOCK_NOT_READY');const profile=await store.read('sv_chat_roles/'+identity.uid);return context(profile,await store.read('sv_permisos/'+profile?.rol));}
  async function verify(identity,expected){const current=await access(identity);if(digest(current)!==digest(expected))throw fail(409,'Los permisos cambiaron. Volvé a abrir el módulo.');}
+ async function lookupInventory(identity,body){
+  const actor=await access(identity);if(!body||Object.keys(body).some(field=>field!=='inventoryKey')||!key(body.inventoryKey))throw fail(400,'Registro de stock inválido.');
+  if(typeof resolver?.lookupInventory!=='function')throw fail(503,'La identificación del vínculo todavía no está disponible.','SV_OFFICE_STOCK_NOT_READY');
+  const result=await resolver.lookupInventory(body.inventoryKey,{read:store.read});await verify(identity,actor);if(result===null)return null;
+  if(!result||result.productKey!==result.reference?.productKey||result.reference.inventoryKey!==body.inventoryKey||!key(result.productKey)||!result.product||Array.isArray(result.product))throw fail(409,'El vínculo del registro requiere revisión.','SV_OFFICE_STOCK_CONFLICT');
+  const fields=['codigo','cod','nombre','descripcion','unidad','imagenUrl','activo','estado','esManoDeObra','tipo','tipoProducto'],product={fbKey:result.productKey};for(const field of fields)if(Object.hasOwn(result.product,field))product[field]=result.product[field];
+  return{productKey:result.productKey,product,reference:{...result.reference}};
+ }
  async function list(identity,body={}){
   const actor=await access(identity),cursor=body.cursor;
   if(Object.keys(body).some(k=>!['cursor','limit','compact'].includes(k))||cursor!=null&&(!cursor||typeof cursor!=='object'||Array.isArray(cursor)||Object.keys(cursor).sort().join(',')!=='key,value'||!key(cursor.key)||!['string','number'].includes(typeof cursor.value)||typeof cursor.value==='string'||typeof cursor.value==='number'&&(!Number.isFinite(cursor.value)||cursor.value< -1))||body.limit!==undefined&&![50,100].includes(body.limit))throw fail(400,'Página de stock inválida.');
@@ -74,6 +82,6 @@ function create({authorize,store,guard,queryPage,resolver=null,initialInventoryR
    scope.beforeCommit(async({readFresh,queryFresh,queryPageFresh})=>{await verify(identity,actor);const io=ref.reference&&Array.isArray(ref.readSet)?require('./office-stock-reference-io'):null,read=io?io.memoRead(readFresh).read:readFresh,freshQuery=io&&typeof queryPageFresh==='function'?io.createReferencePhase({queryPage:queryPageFresh}).queryPage:queryPageFresh;if(initialProof)await initialInventoryReference.assertFresh(initialProof,{actor:runner,lease:scope.lease,readFresh:read,queryFresh,queryPageFresh:freshQuery});await freshReference(ref,read,queryFresh,freshQuery);const latest=await read(productPath(body.productKey));if(digest(latest)!==digest(p)||(!io&&referenceHash(await resolveCurrent(body.productKey,latest,read,freshQuery??store.queryPage))!==body.expectedHash))throw fail(409,'El stock o el producto cambió. Revisá antes de guardar.','SV_OFFICE_STOCK_CONFLICT');});Policy.issue(runner,scope.lease,ref.inventoryKey,plan.inventory);await scope.update({[path]:plan.inventory});return{ok:true,committed:true,operationId:body.id,inventory:summary({...plan.inventory,_svReadRevision:Number(inv?._svReadRevision??0)+1})};});
  }
  async function authorizeRequest(req){if(req.headers?.['x-sv-view-as']||req.headers?.['x-sisventas-view-as'])throw fail(403,'Volvé a tu cuenta para modificar stock.');return authorize(req);}
- return{authorize:authorizeRequest,list,detail,history,save};
+ return{authorize:authorizeRequest,list,detail,history,save,lookupInventory};
 }
 module.exports={create,context,summary};
