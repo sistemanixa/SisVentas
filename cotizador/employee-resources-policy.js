@@ -19,7 +19,7 @@ function token(actor,lease){
  if(!c||!issued.has(c)||actor.mode!=='user'||actor.operation!==(c.expenseOperation||'employee-resources-'+c.domain)||c.uid!==actor.uid||c.uid!==lease.actorUid||c.opId!==actor.opId||c.opId!==lease.opId||c.fence!==lease.fence)return{svEmployeeResourcesVersion:0,svEmployeeResourcesDomain:'',svEmployeeResourcesRole:'',svEmployeeResourcesPermissionRevision:null};
  return {svEmployeeResourcesVersion:1,svEmployeeResourcesDomain:c.domain,svEmployeeResourcesRole:c.role,svEmployeeResourcesPermissionRevision:c.permissionRevision,svEmployeeResourcesEmployee:c.employeeId,svEmployeeResourcesExpense:c.expenseId};
 }
-function validate(actor,lease,patch){
+function validateBase(actor,lease,patch){
  const claims=token(actor,lease);if(claims.svEmployeeResourcesVersion!==1)fail();
  const cap=actor.employeeResources,plan=issued.get(cap);
  if(cap.expenseOperation){
@@ -34,5 +34,25 @@ function validate(actor,lease,patch){
  if(Object.keys(patch).some(p=>!allowed.has(p))||!Object.hasOwn(patch,path)||digest(patch[path])!==digest(issued.get(actor.employeeResources)))throw Error('La operación salió de su registro autorizado.');
  return claims;
 }
+const financialPath=path=>path==='sv_sale_financial_dependencies'||path.startsWith('sv_sale_financial_dependencies/');
+const derivedBinding=(actor,lease)=>digest({uid:actor.uid,claims:actor.claims,role:actor.role,permissionRevision:actor.permissionRevision,permissionDigest:actor.permissionDigest,input:actor.input,operation:actor.operation,opId:actor.opId,transportDigest:actor.transportDigest,lease});
+async function sealFinancialDerived({actor,lease,patch,raw,get,exists}){
+ const plan=issued.get(actor?.employeeResources);if(!plan?.expensePatch)return;
+ if(plan.financialDerivedHash)throw Error('La proyección financiera ya está sellada.');
+ const source=Object.fromEntries(Object.entries(patch).filter(([path])=>!financialPath(path)));
+ validateBase(actor,lease,source);
+ const expected=structuredClone(source);
+ await require('./sale-financial-dependencies-projections').augment({patch:expected,raw,get,exists});
+ if(digest(expected)!==digest(patch))throw Error('Los derivados financieros no corresponden al gasto autorizado.');
+ plan.financialDerivedHash=digest(patch);plan.financialBinding=derivedBinding(actor,lease);
+}
+function validate(actor,lease,patch){
+ const plan=issued.get(actor?.employeeResources);
+ if(plan?.financialDerivedHash){
+  if(plan.financialDerivedHash!==digest(patch)||plan.financialBinding!==derivedBinding(actor,lease))throw Error('La proyección financiera cambió después del sellado.');
+  return validateBase(actor,lease,Object.fromEntries(Object.entries(patch).filter(([path])=>!financialPath(path))));
+ }
+ return validateBase(actor,lease,patch);
+}
 const reserved=claims=>Object.fromEntries(Object.keys(claims||{}).filter(k=>k.startsWith('svEmployeeResources')).map(k=>[k,k.endsWith('Version')?0:k.endsWith('Revision')?null:'']));
-module.exports={ROOTS,issue,issueExpense,token,validate,reserved};
+module.exports={ROOTS,issue,issueExpense,token,validate,reserved,sealFinancialDerived};

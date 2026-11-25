@@ -196,6 +196,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     const financialMaintenance=saleFinancialDependencies?await require('./sale-financial-dependencies-projections').augment({patch,raw,get,exists:async()=>financialInstalled}):{maintained:false};
     const receiptResult=['admin-expense-create','admin-expense-edit'].includes(actor.operation)?{ok:true,committed:true,key:result.key}:['user','bootstrap'].includes(actor.mode)?copy(result):{ok:true,committed:true};
     patch['sv_labor_receipts/'+opId]={fence:lease.fence,digest:requestDigest,actorUid:actor.uid,result:receiptResult,confirmedAt:now()};patch.sv_labor_guard=null;
+    if(actor.employeeResources&&financialMaintenance.maintained)await require('./employee-resources-policy').sealFinancialDerived({actor,lease,patch,raw,get,exists:async()=>financialInstalled});
     const orderSource=()=>stockOrderMaintenance.maintained?stockOrderPolicy.strip({actor,lease,proof:stockOrderMaintenance.proof,patch,now:now()}):patch;
     if(purchase)await require('./purchase-inventory-policy').sealDerived({actor,lease,patch:orderSource(),operationalSummaries,dashboardActivity:!!dashboardActivity,dashboardBudgets:!!dashboardBudgets,read:raw});
     if(stockOrderMaintenance.maintained)await stockOrderPolicy.issue(actor,lease,{proof:stockOrderMaintenance.proof,patch,now:now()});
