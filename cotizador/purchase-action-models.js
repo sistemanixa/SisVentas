@@ -15,7 +15,7 @@ function build(actor,input){const spec=specFor(actor);if(!spec||actor.input.id!=
   case 'listCreate':plan=require('./purchase-list-edit-model').planCreate({...input,body:{id:b.id,expectedHash:b.expectedHash}});break;
   case 'listStock':plan=require('./purchase-list-edit-model').planStock(input);break;
   case 'listSave':plan=require('./purchase-list-edit-model').planSave({...input,body:{items:b.items,expectedHash:b.expectedHash}});break;
-  case 'listReserve':plan=require(input.list.origen==='conjunta'?'./purchase-joint-reserve-model':'./purchase-list-reserve-model').plan({...input,body:{id:b.id,expectedHash:b.expectedHash}});break;
+  case 'listReserve':plan=(input.list.origen==='conjunta'?require('./purchase-joint-reserve-model'):require('./purchase-list-reserve-model')).plan({...input,body:{id:b.id,expectedHash:b.expectedHash}});break;
   case 'listGroup':plan=require('./purchase-list-lifecycle-model').planGroup({...input,body:{sources:b.sources}});break;
   case 'listUngroup':plan=require('./purchase-list-lifecycle-model').planUngroup({...input,joint:input.list,jointKey:input.listKey,lists:input.sourceLists});break;
   case 'listClose':plan=require('./purchase-list-lifecycle-model').planClose(input);break;
