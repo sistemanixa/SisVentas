@@ -1,6 +1,7 @@
 'use strict';
 // Pure proposal: context and source documents must be resolved by the server.
 const Inventory=require('./purchase-inventory-model'),Money=require('./commercial-models/commercial-money');
+const Baseline=require('./purchase-current-pending-baseline');
 const fail=message=>Object.assign(Error(message),{code:'SV_PURCHASE_MANUAL_EDIT_REVIEW',statusCode:409});
 function object(v,fields){if(!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).some(k=>!fields.includes(k)))throw fail('Declaración inválida.');}
 function number(v,positive=false){if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>Number.MAX_SAFE_INTEGER||positive&&v===0)throw fail('Cantidad o importe inválido.');Money.decimal(v);return v;}
@@ -35,7 +36,7 @@ function plan({order,orderKey,body,provider,products,inventories,references,at,i
  for(const [index,item]of order.items.entries()){
   if(!item||!item.productoKey||old.has(item.productoKey))throw fail('Renglones históricos ambiguos.');
   const key=Inventory.key(item.productoKey),ref=resolve(key),evidence=marker.references?.[index];
-  if(!evidence||!evidence.operationId||!Object.hasOwn(inventories[ref.inventoryKey].operaciones||{},evidence.operationId)||['productKey','inventoryKey','receiptIdentityKey'].some(k=>evidence[k]!==ref[k]))throw fail('El vínculo histórico requiere revisión.');
+  try{Baseline.assertReference(order,index,ref,inventories[ref.inventoryKey]);}catch(e){throw fail(e.message);}
   number(item.cantidadOrdenada,true);if(inventories[ref.inventoryKey].enCompra<item.cantidadOrdenada)throw fail('El saldo histórico no respalda la orden.');if(item.cantidad!=null&&item.cantidad!==item.cantidadOrdenada)throw fail('Cantidades históricas contradictorias.');
   for(const k of ['cantidadRecibida','cantidadCostoReal','costoRealAcumulado'])if(item[k]!=null&&number(item[k])!==0)throw fail('La compra tiene recepciones.');
   if(['costoUnitarioReal','ultimoCostoReal','proveedorFinal','proveedorFinalKey'].some(k=>item[k]!=null))throw fail('La historia real requiere revisión.');
@@ -62,7 +63,7 @@ function plan({order,orderKey,body,provider,products,inventories,references,at,i
  const next={...structuredClone(order),proveedorKey:body.providerKey,proveedor:provider.nombre,fecha:body.date,moneda:body.currency,items,total:number(Money.quantitySum(items.map(i=>i.subtotal))),descripcion:items.length+' materiales',actualizadoEn:at,actualizadoPor:actor.name};next.monto=next.total;
  const result=Inventory.planPendingOrder({kind:'edit',order:{...next,fbKey:orderKey},previousOrder:{...order,fbKey:orderKey},id,at,inventories,references:resolved});
  for(const value of Object.values(result.patch))number(value.enCompra);
- next.inventarioCompra={...structuredClone(marker),revision:marker.revision+1,lastOperation:id,references:Object.fromEntries(items.map((item,index)=>{const ref=resolved[item.productoKey],changed=result.patch['sisventas/inventario_operativo/'+ref.inventoryKey],previousIndex=order.items.findIndex(i=>i.productoKey===item.productoKey);return [index,{...ref,operationId:changed?id:marker.references[previousIndex].operationId}];}))};
+ next.inventarioCompra={...structuredClone(marker),revision:marker.revision+1,lastOperation:id,references:Object.fromEntries(items.map((item,index)=>{const ref=resolved[item.productoKey],changed=result.patch['sisventas/inventario_operativo/'+ref.inventoryKey],previousIndex=order.items.findIndex(i=>i.productoKey===item.productoKey);return [index,Baseline.nextReference({order,index:previousIndex<0?undefined:previousIndex,reference:ref,operationId:id,changed:!!changed&&(previousIndex<0||item.cantidadOrdenada!==order.items[previousIndex].cantidadOrdenada)})];}))};
  if(Object.hasOwn(order.edicionesCompra||{},id))throw fail('La edición ya tiene historia.');
  next.edicionesCompra={...structuredClone(order.edicionesCompra||{}),[id]:{uid:actor.uid,usuario:actor.name,ts:at,...(quotes.length?{cotizacionEdicion:{moneda:'USD',cotizacion:body.exchangeRate}}:{}),anterior:Object.fromEntries(['proveedorKey','proveedor','fecha','moneda','items','total','monto'].filter(k=>Object.hasOwn(order,k)).map(k=>[k,structuredClone(order[k])]))}};
  const path='sisventas/ordenes/'+orderKey;result.patch[path]=next;result.preconditions={...dependencies,...result.preconditions,[path]:structuredClone(order)};

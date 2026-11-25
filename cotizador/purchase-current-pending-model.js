@@ -28,17 +28,22 @@ function sourceOrders(sources){
  for(const [id,order]of Object.entries(sources.legacyOrders))if(!order.migradaA)result.push({path:ROOTS.legacyOrders+'/'+id,order,legacy:true});
  return result;
 }
-function rows(order,legacy=false){
- demand(object(order)&&!order._svSummary&&!order._svListSummary&&!order._svPagedSummary&&Array.isArray(order.items)&&order.items.length>0&&order.items.length<=100,'Hace falta la orden completa, sin filtros ni resúmenes.');
+function rows(order,legacy=false,{closed=false}={}){
+ demand(object(order)&&!order._svSummary&&!order._svListSummary&&!order._svPagedSummary,'Hace falta la orden completa, sin filtros ni resúmenes.');
  demand(['borrador','enviada','pendiente','recepcion_parcial','recibida','cancelada'].includes(order.estado),'El estado histórico requiere revisión.');
  for(const [field,value]of Object.entries(order))if(/(pendiente|bloqueo)$/i.test(field))demand(value==null||value===false||value===0,'Hay una operación original pendiente.');
+ // A known closed original contributes no CURRENT pending. Its prior movements
+ // and unrelated economic history are neither reconstructed nor normalized.
+ if(!closed&&['recibida','cancelada'].includes(order.estado))return [];
+ demand(Array.isArray(order.items)&&order.items.length<=100,'Faltan las filas explícitas del original activo.');
  if(order.recepciones!=null)demand(Array.isArray(order.recepciones),'La historia de recepciones no es canónica.');
+ if(order.items.length===0){demand(!order.recepciones?.length&&['recibidoEn','totalRealRecibido','totalRealRecibidoARS','totalPresupuestadoRecibido'].every(field=>order[field]==null||order[field]===0),'La orden vacía conserva historia de recepción ambigua.');return [];}
  return order.items.map((row,index)=>{const quantitiesNow=quantities(row,legacy);for(const [field,value]of Object.entries(row))if(/(pendiente|bloqueo)$/i.test(field))demand(value==null||value===false||value===0,'El renglón conserva un paso pendiente.');if(order.estado==='recibida')demand(quantitiesNow.pending===0,'La orden recibida conserva unidades pendientes.');return{index,row,...quantitiesNow,pending:order.estado==='cancelada'?0:quantitiesNow.pending};});
 }
 function economic(order,targetRows,linked,checkTotals=true){
  demand(['ARS','USD'].includes(order.moneda??'ARS'),'La moneda original requiere revisión.');
  for(const entry of targetRows){const {row,received}=entry;number(row.costoUnitario);if(row.precioPublico!=null)number(row.precioPublico);
-  if(received>0){demand(number(row.cantidadCostoReal)===received,'La recepción no tiene su cantidad económica original completa.');number(row.costoRealAcumulado);if(order.moneda==='USD')number(row.costoRealAcumuladoARS);number(row.costoUnitarioPresupuestado??row.costoUnitario);}
+  if(received>0){demand(number(row.cantidadCostoReal)===received,'La recepción no tiene su cantidad económica original completa.');demand(row.monedaCostoReal==null||row.monedaCostoReal===(order.moneda??'ARS'),'La moneda de los costos recibidos es contradictoria.');number(row.costoRealAcumulado);if(order.moneda==='USD')number(row.costoRealAcumuladoARS);number(row.costoUnitarioPresupuestado??row.costoUnitario);}
   else{for(const field of ['cantidadCostoReal','costoRealAcumulado','costoRealAcumuladoARS'])if(own(row,field))demand(number(row[field])===0,'Hay costos reales sin cantidad recibida conocida.');}
   if(order.ventaFbKey&&FX.destination(order,row)==='sale'){
    demand(linked?.sale&&linked.list&&row.sourceLine!=null&&row.sourceSaleQty!=null&&row.sourceOriginalUnit!=null,'Faltan las capturas originales de la venta vinculada.');
@@ -52,6 +57,7 @@ function economic(order,targetRows,linked,checkTotals=true){
 function plan({body,sourceOrder,sources,coverage,referencesBySource,inventories,dependencies={},linked,actorUid,fence,at}={}){
  demand(object(body)&&Object.keys(body).length===3&&['id','orderKey','expectedHash'].every(k=>own(body,k)),'Controles de conciliación inválidos.');key(body.id);key(body.orderKey);key(actorUid);key(fence);demand(body.id.length>=8&&Number.isSafeInteger(at)&&at>0,'Falta contexto nativo de conciliación.');
  const path=ROOTS.orders+'/'+body.orderKey;demand(object(sourceOrder)&&digest(sourceOrder)===body.expectedHash&&digest(sources?.orders?.[body.orderKey])===body.expectedHash,'La orden original cambió.');
+ demand(!own(sourceOrder,'fbKey')||sourceOrder.fbKey===body.orderKey,'La orden original conserva otra identidad.');
  demand(!own(sourceOrder,'inventarioCompra')&&!['cancelada','recibida'].includes(sourceOrder.estado),'La orden no admite una nueva base de pendientes.');
  demand(coverage?.eof===true&&Array.isArray(coverage.pages)&&coverage.pages.length>=2&&Object.values(ROOTS).every(root=>coverage.pages.some(page=>page.path===root)),'Falta acreditar EOF de ambos conjuntos.');
  const entries=sourceOrders(sources),totals=new Map(),owners=new Map(),targetRows=rows(sourceOrder),baselineRows={};
@@ -67,7 +73,7 @@ function plan({body,sourceOrder,sources,coverage,referencesBySource,inventories,
  if(sourceOrder.compraVentaReferencia&&!sourceOrder.ventaFbKey&&!sourceOrder.listaMaterialesId)throw fail('La referencia comercial no está resuelta.');
  if(sourceOrder.listaMaterialesId)demand(linked?.list&&Array.isArray(linked.list.ordenesIds)&&linked.list.ordenesIds.includes(body.orderKey),'La preparación no conserva su vínculo original.');
  if(sourceOrder.ventaFbKey)demand(linked?.sale&&Array.isArray(linked.sale.ordenesCompraIds)&&linked.sale.ordenesCompraIds.includes(body.orderKey),'La venta no conserva su vínculo original.');
- if(sourceOrder.ventaFbKey){demand(linked?.sale&&linked.list,'Faltan las fuentes completas vinculadas.');for(const target of targetRows){if(FX.destination(sourceOrder,target.row)!=='sale')continue;const lineIndex=Costs.resolve(linked.sale.items,target.row);let quantity=0,cost=0;for(const entry of entries)if(entry.order.ventaFbKey===sourceOrder.ventaFbKey)for(const other of rows(entry.order,entry.legacy)){if(FX.destination(entry.order,other.row)!=='sale')continue;if(Costs.resolve(linked.sale.items,other.row)!==lineIndex)continue;quantity=sum([quantity,other.received]);if(other.received){economic(entry.order,[other],{sale:linked.sale,list:linked.list},false);cost=sum([cost,entry.order.moneda==='USD'?other.row.costoRealAcumuladoARS:other.row.costoRealAcumulado]);}}const line=linked.sale.items[lineIndex];demand((line.cantidadCompraReal??0)===quantity&&(line.costoRealCompraAcumulado??0)===cost,'La venta no conserva el mismo baseline económico de todas sus órdenes.');}}
+ if(sourceOrder.ventaFbKey){demand(linked?.sale&&linked.list,'Faltan las fuentes completas vinculadas.');for(const target of targetRows){if(FX.destination(sourceOrder,target.row)!=='sale')continue;const lineIndex=Costs.resolve(linked.sale.items,target.row);let quantity=0,cost=0;for(const entry of entries)if(entry.order.ventaFbKey===sourceOrder.ventaFbKey)for(const other of rows(entry.order,entry.legacy,{closed:true})){if(FX.destination(entry.order,other.row)!=='sale')continue;if(Costs.resolve(linked.sale.items,other.row)!==lineIndex)continue;quantity=sum([quantity,other.received]);if(other.received){economic(entry.order,[other],{sale:linked.sale,list:linked.list},false);cost=sum([cost,entry.order.moneda==='USD'?other.row.costoRealAcumuladoARS:other.row.costoRealAcumulado]);}}const line=linked.sale.items[lineIndex];demand((line.cantidadCompraReal??0)===quantity&&(line.costoRealCompraAcumulado??0)===cost,'La venta no conserva el mismo baseline económico de todas sus órdenes.');}}
  const coverageDigest=digest({sources,coverage,referencesBySource,inventories,dependencies}),baseline={schema:1,kind:'current-pending',operationId:body.id,actorUid,orderKey:body.orderKey,fence,ts:at,originalOrderHash:body.expectedHash,coverageDigest,rows:baselineRows};
  const references=Object.fromEntries(Object.entries(baselineRows).map(([index,row])=>[index,{productKey:row.productKey,inventoryKey:row.inventoryKey,receiptIdentityKey:row.receiptIdentityKey,baselineOperationId:body.id,baselineRow:index}]));
  const next={...copy(sourceOrder),inventarioCompra:{schema:1,registered:true,revision:1,lastOperation:body.id,baseline,references}},readDependencies=copy(dependencies);

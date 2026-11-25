@@ -12,10 +12,16 @@ El comando no acepta esas fuentes desde HTTP: las obtiene de su puerto privado.
 
 Se suman pendientes conocidos de TODAS las fuentes, deduplicando únicamente
 vínculos recíprocos `legacy.migradaA` / `canonical.legacyKey` inequívocos. Los
-estados desconocidos, cantidades recibidas ausentes, aliases contradictorios o
-pasos pendientes son REVIEW. Canceladas contribuyen cero explícito por su estado,
-sin modificar las cantidades históricas. Cada J exige enCompra numérico presente
-e igualdad exacta con el total actual calculado; no hay fallback a cero.
+estados desconocidos, cantidades recibidas ausentes en activas, aliases
+contradictorios o pasos pendientes son REVIEW. Recibidas/canceladas conocidas sin
+pasos pendientes contribuyen cero por su estado: no requieren cantidades/PJR/
+costos históricos de esas fuentes cerradas NO relacionadas. Sus originales
+permanecen en EOF/hash/dedup. Activa con items:[] explícito, sin recepciones ni
+flags ambiguos, puede contribuir cero; items ausente/null no puede hacerlo.
+Cada J referenciada por fuentes activas (incluye todas las J del objetivo) exige
+enCompra numérico presente e igualdad exacta con TODAS las contribuciones de
+ambas raíces. No se afirma cobertura de un ledger huérfano fuera de ese conjunto;
+no hay escaneo de todos los ledgers ni fallback a cero.
 
 El único patch de negocio es la orden original con `inventarioCompra` nuevo.
 Baseline inmutable conserva actor/operación/fence actuales, timestamp, hash de
@@ -62,10 +68,51 @@ comando: primero se cierra y verifica el circuito, luego se concilian únicament
 órdenes con evidencia suficiente y se repite la cobertura bajo admisión real.
 Installed nunca se rebaja a false para obtener fallback.
 
-## Checkpoint puro
+## Composición privada y operaciones futuras
+
+`purchase-current-pending-sources` sólo emite evidencia privada después de usar
+el scanner acotado y `Explicit.resolveMapped` genuino sobre pares y recibos de
+asociación originales. Un recibo Link acredita P/J/R, nunca el baseline. La
+evidencia de conciliación está en WeakMap, ligada a actor/lease/body/permisos;
+Policy la consume, recompone el modelo y sella RAW/derivadas/recibo exactos.
+No hay autoridad por JSON, callbacks booleanos ni un modo bootstrap ficticio.
+
+History distingue referencias baseline y comprueba su recibo Guard específico
+versionado y fence/UID/digest de controles originales. El baseline y sus filas
+permanecen inmutables. No compara hash del ledger ACTUAL con un hash histórico:
+las operaciones posteriores hacen CAS de su ledger actual. Tampoco compara la
+fila actual con sourceRowHash para siempre: precio/descripcion/header pueden
+cambiar legítimamente. Se verifica selector y P/J/R actuales; identidad de
+producto explícita contradictoria es REVIEW.
+
+Los modelos Base/manual/linked conservan baselineOperationId/baselineRow en
+filas sin movimiento físico. Sólo filas realmente afectadas pasan a un nuevo
+operationId existente en el ledger; un PATCH del mismo J por otra fila no basta.
+Borrado clásico sigue en Review; no se convierte en typed eliminable por baseline.
+
+No se añade el comando a Host.routes ni a sus 17 capabilities. Host.ready
+continúa siendo disponibilidad de dependencias/cohorte, NO un certificado global
+de cierre histórico. El endpoint de mantenimiento y el reporte explícito de corte
+pertenecen a Root. No se añadió un escaneo completo por cada capabilities, caché,
+namespace de cobertura ni flag constructor que afirme ready sin prueba. Una fase
+de mantenimiento debe usar admisión de negocio realmente pausada, manteniendo
+Guard user habilitado para esta operación explícita; no saltarse readonly.
+
+## Evidencia incremental
 
 27 tests de modelo PASS: patch sólo metadata, fuentes RAW intactas, cantidades
 desconocidas y saldo ausente rechazados, deduplicación recíproca, aliases y moneda,
 capturas USD/ARS preservadas. Este checkpoint no acredita comando, montaje HTTP,
 Rules ni activación. La composición privada y modelos futuros se verifican en
 el bloque siguiente sin cambiar este criterio de preservación.
+
+Composición posterior: 392 focales PASS, cero fallos/cancelaciones/omisiones,
+incluidos scanner, helper/History, nuevos modelos, 25 casos de Guard/REST nativos
+y regresiones de edición/header. Fuentes, Auth y transporte ficticios; no
+acredita Rules remotas ni activación. Incluye baseline→header→cost-only sin
+ledger→recepción, recepción parcial de filas del mismo J sin alterar referencias
+ajenas, cantidades/cancelación con sólo deltas futuros y ACK perdido resuelto con
+un recibo/efecto. Recibos ausentes, genéricos, digest o selector falsificados,
+permisos/CAS/PJR/EOF cambiados abortan sin segundo PATCH. Los resultados
+solapados no se suman como pruebas distintas. Log local:
+`C:/SisVentas/tmp/purchase-current-pending-focused-20261125.log`.

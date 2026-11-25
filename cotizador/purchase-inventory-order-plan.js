@@ -1,6 +1,6 @@
 'use strict';
 const Inventory=require('./purchase-inventory-model'),Money=require('./commercial-models/commercial-money');
-const FX=require('./purchase-receipt-fx');
+const FX=require('./purchase-receipt-fx'),Baseline=require('./purchase-current-pending-baseline');
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_PURCHASE_PLAN_REVIEW'});
 const amount=value=>{if(typeof value!=='number'||!Number.isFinite(value)||value<0)throw fail('Falta un importe original válido.');return value;};
 function build({sourceOrder,body,inventories,references,at,actorName,providers,allowLinked=false}){
@@ -14,7 +14,7 @@ function build({sourceOrder,body,inventories,references,at,actorName,providers,a
  if(!order.items.length||order.items.some(item=>!item||typeof item!=='object'))throw fail('Faltan los materiales originales.');
  if(body.kind!=='register')for(const [index,item]of order.items.entries()){
   const evidence=marker.references?.[String(index)],resolved=references[item.productoKey||item.codigo],ledger=evidence&&inventories[evidence.inventoryKey];
-  if(!evidence||!evidence.operationId||!ledger||!Object.hasOwn(ledger.operaciones||{},evidence.operationId)||['productKey','inventoryKey','receiptIdentityKey'].some(field=>evidence[field]!==resolved?.[field]))throw fail('La identidad histórica de la compra requiere conciliación explícita.');
+  try{Baseline.assertReference(order,index,resolved,ledger);}catch(e){throw fail(e.message);}
  }
  const next=structuredClone(order),common={id:body.id,at,inventories,references},orderKey=body.orderKey;
  // fbKey is metadata for planning, not an invented field in the stored document.
@@ -39,7 +39,8 @@ function build({sourceOrder,body,inventories,references,at,actorName,providers,a
   if(fx.currency==='USD')next.totalRealRecibidoARS=Money.quantitySum(next.items.map(i=>FX.priorARS(order,i,amount(i.cantidadRecibida??0))));
   next.totalRealRecibido=Money.quantitySum(next.items.map(i=>amount(i.costoRealAcumulado??0)));next.totalPresupuestadoRecibido=Money.quantitySum(next.items.map(i=>Money.rawProduct(amount(i.cantidadCostoReal??0),amount(i.costoUnitarioPresupuestado??i.costoUnitario))));next.diferenciaCompra=Money.quantitySum([next.totalPresupuestadoRecibido,-next.totalRealRecibido]);next.estado=next.items.every(i=>amount(i.cantidadRecibida??0)>=amount(i.cantidadOrdenada??i.cantidad))?'recibida':'recepcion_parcial';next.recibidoEn=at;
  }else {plan=Inventory.planPendingOrder({...common,kind:body.kind,order:identified,previousOrder:identified});if(body.kind==='cancel'){next.estado='cancelada';next.canceladaEn=at;}}
- const identityByRow=Object.fromEntries(order.items.map((item,index)=>{const ref=Inventory.reference(references[item.productoKey||item.codigo]),changed=plan.patch['sisventas/inventario_operativo/'+ref.inventoryKey],operationId=Object.hasOwn(changed?.operaciones||{},body.id)?body.id:marker.references?.[String(index)]?.operationId||marker.lastOperation;if(!operationId)throw fail('Falta respaldo de inventario para un material.');return [String(index),{productKey:ref.productKey,inventoryKey:ref.inventoryKey,receiptIdentityKey:ref.receiptIdentityKey,operationId}];}));
+ const moved=new Set(body.kind==='receive'?body.movements.map(m=>m.index):body.kind==='edit'?(body.quantities||[]).filter(m=>m.quantity!==(order.items[m.index].cantidadOrdenada??order.items[m.index].cantidad)).map(m=>m.index):order.items.map((row,index)=>(Number(row.cantidadOrdenada??row.cantidad)-Number(row.cantidadRecibida??0)>0)?index:null).filter(index=>index!==null));
+ const identityByRow=Object.fromEntries(order.items.map((item,index)=>{const ref=Inventory.reference(references[item.productoKey||item.codigo]),changed=Object.hasOwn(plan.patch['sisventas/inventario_operativo/'+ref.inventoryKey]?.operaciones||{},body.id)&&moved.has(index);return[String(index),Baseline.nextReference({order,index,reference:ref,operationId:body.id,changed})];}));
  next.inventarioCompra={...marker,schema:1,registered:true,revision:marker.revision+1,lastOperation:body.id,references:identityByRow};next.actualizadoEn=at;
  const orderPath='sisventas/ordenes/'+orderKey;plan.patch[orderPath]=next;plan.preconditions[orderPath]=structuredClone(order);return {...plan,sourceOrder:order};
 }

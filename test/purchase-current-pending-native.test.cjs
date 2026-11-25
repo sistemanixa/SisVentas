@@ -1,0 +1,59 @@
+'use strict';
+// Genuine signed associations + native Guard/REST; all IO is intercepted fiction.
+const {test}=require('node:test'),a=require('node:assert/strict');
+const Core=require('./helpers/purchase-manual-core-fixture.cjs'),Command=require('../cotizador/purchase-current-pending-command'),Inventory=require('../cotizador/purchase-inventory-command'),References=require('../cotizador/office-stock-reference-port'),{digest}=require('../cotizador/labor-guard');
+const P='sisventas/ordenes/classic',J='sisventas/inventario_operativo/legacy',copy=v=>structuredClone(v);
+async function fixture({late}={}){
+ const f=await Core.fixture({coordinated:true,stockOrder:true,pending:2});f.set('sv_permisos/admin/indiceModulos/configuracion',true);f.set('sv_permisos/admin/acciones/mantenimiento/migrar',true);
+ const order={estado:'recepcion_parcial',origen:'manual',numero:'FICTION',proveedorKey:'provider',proveedor:'Proveedor ficticio',moneda:'ARS',items:[{productoKey:'product',cantidadOrdenada:3,cantidadRecibida:1,cantidadCostoReal:1,costoRealAcumulado:3.125,costoUnitario:4.125,precioPublico:9.987654}],total:12.375,monto:12.375,pagos:{historical:{keep:true}},audit:[{historical:true}],unknown:{preserve:true}};
+ f.set(P,order);const body={id:'fiction-current-reconcile',orderKey:'classic',expectedHash:digest(order)};let lateDone=false;
+ const options={enabled:true,authorize:async()=>f.identity,store:f.store,guard:f.guard,mappedAdmission:f.authority,queryPage:f.store.queryPage,now:()=>f.now,assertAdmission:async({read,phase})=>{await f.authority.admit({read});if(phase==='commit'&&late&&!lateDone){lateDone=true;late(f);}}};
+ const command=Command.create(options);return{...f,order,body,options,run:()=>command.execute({},body)};
+}
+test('admin current reconciliation is metadata-only through actual Guard/Store and new exact receipt',async()=>{
+ const f=await fixture(),before=copy(f.get('sisventas')),stock=copy(f.get(J)),counter=copy(f.get('sv_purchase_numbering/state')),ack=await f.run();
+ a.equal(ack.reconciliation,'current-pending');a.equal(ack.baselineVersion,1);a.equal(f.patches.length,1);a.deepEqual(f.get(J),stock);a.deepEqual(f.get('sv_purchase_numbering/state'),counter);
+ const next=copy(f.get(P)),baseline=next.inventarioCompra.baseline;a.equal(ack.baselineDigest,digest(baseline));a.equal(baseline.rows['0'].received,1);a.equal(baseline.rows['0'].pending,2);a.equal(baseline.rows['0'].receiptIdentityKey,f.get('sisventas/stock_vinculos/porProducto/product/receiptIdentityKey'));a.equal(Object.hasOwn(next.inventarioCompra.references['0'],'operationId'),false);
+ for(const field of ['inventarioCompra','_svReadRevision','_svReadOperation'])delete next[field];a.deepEqual(next,f.order);a.deepEqual(f.get('sisventas/ventas'),before.ventas??null);a.deepEqual(f.get('sisventas/listas_materiales'),before.listas_materiales??null);
+ const receipt=f.get('sv_labor_receipts/'+f.body.id);a.equal(receipt.digest,digest(f.body));a.deepEqual(receipt.result,ack);a.equal(receipt.fence,baseline.fence);a.equal(receipt.actorUid,f.identity.uid);a.equal(JSON.stringify(receipt).includes('historical'),false);
+ const token=JSON.parse(f.calls.filter(call=>call.options.method==='PATCH').at(-1).target.searchParams.get('auth_variable_override')).token;for(const field of ['svPurchaseSourceCostVersion','svStockOrderWriterVersion','svOfficeStockVersion','svStockLinkVersion','svPurchaseNumberingVersion'])if(Object.hasOwn(token,field))a.equal(token[field],0);
+ a.deepEqual(await f.run(),ack);a.equal(f.patches.length,1);
+});
+test('baseline receipt admits only future quantities to current General without crediting old received quantity',async()=>{
+ const f=await fixture(),before=copy(f.get(J));await f.run();const reconciled=f.get(P),body={id:'fiction-after-baseline-receipt',kind:'receive',orderKey:'classic',expectedHash:digest(reconciled),expectedRevision:reconciled._svReadRevision,movements:[{index:0,quantity:1,realUnitCost:5.12345}]};
+ const command=Inventory.create({...f.options,resolveReference:References.createReferenceResolver({enabled:true,mappedAdmission:f.authority})});await command.execute({},body);
+ a.equal(f.get(J+'/general'),before.general+1);a.equal(f.get(J+'/enCompra'),before.enCompra-1);for(const field of ['reservado','consumido','rendicionesOT'])a.deepEqual(f.get(J+'/'+field),before[field]??null);a.deepEqual(f.get(P+'/inventarioCompra/baseline'),reconciled.inventarioCompra.baseline);a.equal(f.get(P+'/items/0/cantidadRecibida'),2);a.equal(f.get(P+'/inventarioCompra/references/0/operationId'),body.id);a.equal(f.get(P+'/items/0/costoRealAcumulado'),8.24845);
+});
+for(const [name,change]of Object.entries({sum:f=>f.set(J+'/enCompra',3),missingBalance:f=>f.set(J+'/enCompra',null),role:f=>f.set('sv_chat_roles/'+f.identity.uid+'/rol','administrativo'),inactive:f=>f.set('sv_chat_roles/'+f.identity.uid+'/activo',false),migration:f=>f.set('sv_permisos/admin/acciones/mantenimiento/migrar',false),edit:f=>f.set('sv_permisos/admin/acciones/ordenes/editar',false),config:f=>f.set('sv_permisos/admin/indiceModulos/configuracion',false),receivedCost:f=>{f.set(P+'/items/0/costoRealAcumulado',null);f.body.expectedHash=digest(f.get(P));},pair:f=>f.set('sisventas/stock_vinculos/porInventario/legacy',null)}))test('reconciliation denies '+name+' without any business PATCH or receipt',async()=>{
+ const f=await fixture();change(f);const before=copy(f.get('sisventas'));await a.rejects(f.run());a.equal(f.patches.length,0);a.deepEqual(f.get('sisventas'),before);a.equal(f.get('sv_labor_receipts/'+f.body.id),null);
+});
+for(const [name,change]of Object.entries({phantom:f=>f.set('sisventas/ordenes/late',{estado:'borrador',items:[{productoKey:'product',cantidadOrdenada:1,cantidadRecibida:0,costoUnitario:1}]}),ledger:f=>f.set(J+'/general',999),permissions:f=>f.set('sv_permisos/admin/indiceRevision',99),pair:f=>f.set('sisventas/stock_vinculos/porInventario/legacy',null),target:f=>f.set(P+'/unknown/concurrent','keep')}))test('fresh '+name+' revocation aborts metadata admission under genuine lease',async()=>{
+ const f=await fixture({late:change});await a.rejects(f.run());a.equal(f.patches.length,0);a.equal(Object.hasOwn(f.get(P),'inventarioCompra'),false);a.equal(f.get('sv_labor_receipts/'+f.body.id),null);
+});
+test('lost acknowledgement resolves the actual baseline receipt and does not manufacture a second baseline',async()=>{
+ const f=await fixture();f.lose();await a.rejects(f.run(),/dropped ACK/);const baseline=copy(f.get(P+'/inventarioCompra/baseline')),stock=copy(f.get(J));const gateway=require('../cotizador/labor-write-gateway').createLaborWriteGateway({guard:f.guard,store:f.store,enabled:true});a.deepEqual(await gateway.resolve(f.identity,{id:f.body.id,digest:digest(f.body)}),{ok:true,status:'confirmed'});const result=await f.run();a.equal(result.baselineDigest,digest(baseline));a.equal(f.patches.length,1);a.deepEqual(f.get(J),stock);a.deepEqual(f.get(P+'/inventarioCompra/baseline'),baseline);
+});
+test('strict body and default OFF reject without authorizing an incidental user migration',async()=>{
+ const f=await fixture();await a.rejects(Command.create({...f.options,enabled:false}).execute({},f.body),{statusCode:503});for(const extra of [{kind:'register'},{sources:{}},{baseline:true},{inventories:{}}])await a.rejects(Command.create(f.options).execute({},{...f.body,...extra}),{statusCode:400});a.equal(f.patches.length,0);
+});
+async function inventoryCommand(f,kind,changes,id){const order=f.get(P);return Inventory.create({...f.options,resolveReference:References.createReferenceResolver({enabled:true,mappedAdmission:f.authority})}).execute({},{id,kind,orderKey:'classic',expectedHash:digest(order),expectedRevision:order._svReadRevision,...changes});}
+test('same-J untouched row keeps its baseline reference after two genuine future partial receipts',async()=>{
+ const f=await fixture(),row=copy(f.get(P+'/items/0'));Object.assign(row,{cantidadOrdenada:2,cantidadRecibida:0,cantidadCostoReal:0,costoRealAcumulado:0});f.set(P+'/items/1',row);f.set(J+'/enCompra',4);f.body.expectedHash=digest(f.get(P));await f.run();const baseline=copy(f.get(P+'/inventarioCompra/baseline')),untouched=copy(f.get(P+'/inventarioCompra/references/1')),stock=copy(f.get(J));
+ for(const id of ['future-part-one','future-part-two'])await inventoryCommand(f,'receive',{movements:[{index:0,quantity:1,realUnitCost:4.75}]},id);
+ a.deepEqual(f.get(P+'/inventarioCompra/references/1'),untouched);a.equal(f.get(P+'/inventarioCompra/references/0/operationId'),'future-part-two');a.deepEqual(f.get(P+'/inventarioCompra/baseline'),baseline);a.equal(f.get(J+'/general'),stock.general+2);a.equal(f.get(J+'/enCompra'),stock.enCompra-2);
+});
+test('header and authorized cost-only edit preserve immutable baseline and permit a later genuine receipt',async()=>{
+ const f=await fixture(),row=copy(f.get(P+'/items/0'));Object.assign(row,{codigo:'CAPTURED-CODE',descripcion:'Descripción capturada',unidad:'metro',subtotal:12.375,cantidadRecibida:0,cantidadCostoReal:0,costoRealAcumulado:0});f.set(P+'/items/0',row);f.set(P+'/estado','borrador');f.set(P+'/fecha','2026-11-01');f.set(J+'/enCompra',3);f.body.expectedHash=digest(f.get(P));await f.run();const baseline=copy(f.get(P+'/inventarioCompra/baseline')),reference=copy(f.get(P+'/inventarioCompra/references/0')),stock=copy(f.get(J));
+ await inventoryCommand(f,'edit',{header:{date:'2026-11-02'}},'future-header-only');
+ await inventoryCommand(f,'edit',{declaration:{providerKey:'provider',currency:'ARS',date:'2026-11-02',items:[{productKey:'product',quantity:3,unitCost:4.5,publicPrice:9.987654}]}},'future-cost-only');
+ a.deepEqual(f.get(P+'/inventarioCompra/baseline'),baseline);a.deepEqual(f.get(P+'/inventarioCompra/references/0'),reference);a.deepEqual(f.get(J),stock);a.notEqual(digest(f.get(P+'/items/0')),baseline.rows['0'].sourceRowHash);
+ await inventoryCommand(f,'receive',{movements:[{index:0,quantity:1,realUnitCost:4.75}]},'future-after-cost-receipt');a.equal(f.get(J+'/general'),stock.general+1);a.equal(f.get(J+'/enCompra'),stock.enCompra-1);a.deepEqual(f.get(P+'/inventarioCompra/baseline'),baseline);
+});
+test('current pending quantity edit and cancellation apply only real pending deltas, without changing physical General',async()=>{
+ const f=await fixture(),row=copy(f.get(P+'/items/0'));Object.assign(row,{cantidadRecibida:0,cantidadCostoReal:0,costoRealAcumulado:0});f.set(P+'/items/0',row);f.set(P+'/estado','borrador');f.set(J+'/enCompra',3);f.body.expectedHash=digest(f.get(P));await f.run();const stock=copy(f.get(J)),baseline=copy(f.get(P+'/inventarioCompra/baseline'));
+ await inventoryCommand(f,'edit',{quantities:[{index:0,quantity:4}]},'future-quantity-edit');a.equal(f.get(J+'/enCompra'),4);a.equal(f.get(J+'/general'),stock.general);a.equal(f.get(P+'/inventarioCompra/references/0/operationId'),'future-quantity-edit');
+ await inventoryCommand(f,'cancel',{},'future-current-cancel');a.equal(f.get(J+'/enCompra'),0);a.equal(f.get(J+'/general'),stock.general);a.deepEqual(f.get(P+'/inventarioCompra/baseline'),baseline);for(const field of ['reservado','consumido','rendicionesOT'])a.deepEqual(f.get(J+'/'+field),stock[field]??null);
+});
+for(const change of ['receipt','rowSelector','digest','genericReceipt'])test('future movement rejects forged baseline '+change+' without a second PATCH',async()=>{
+ const f=await fixture();await f.run();if(change==='receipt')f.set('sv_labor_receipts/'+f.body.id,null);if(change==='rowSelector')f.set(P+'/inventarioCompra/references/0/baselineRow','1');if(change==='digest')f.set('sv_labor_receipts/'+f.body.id+'/digest','f'.repeat(64));if(change==='genericReceipt')f.set('sv_labor_receipts/'+f.body.id+'/result',{ok:true,committed:true});const before=copy(f.get('sisventas'));await a.rejects(inventoryCommand(f,'receive',{movements:[{index:0,quantity:1,realUnitCost:4.75}]},'future-forged-baseline'));a.equal(f.patches.length,1);a.deepEqual(f.get('sisventas'),before);
+});

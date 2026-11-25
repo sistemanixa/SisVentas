@@ -1,10 +1,13 @@
 'use strict';
 const {digest}=require('./labor-guard'),{key,reference}=require('./purchase-inventory-model'),{inventoryKey:legacyKey}=require('./purchase-order-delete-model');
+const Baseline=require('./purchase-current-pending-baseline');
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_PURCHASE_HISTORY_REVIEW'});
 async function identifyOriginal(stored,selector,{read,sourcePath}={}){
  if(!stored||!Array.isArray(stored.items)||!Number.isInteger(selector)||selector<0||selector>=stored.items.length||typeof read!=='function')throw fail('Falta el renglón original de Compras.');
  const row=stored.items[selector],evidence=stored.inventarioCompra?.references?.[String(selector)],verifiedReads=[],readLedger=async inventoryKey=>{const path='sisventas/inventario_operativo/'+key(inventoryKey),ledger=await read(path);verifiedReads.push(path);if(!ledger||typeof ledger!=='object'||Array.isArray(ledger))throw fail('Falta verificar el inventario histórico completo.');return ledger;};
- if(evidence){reference(evidence);const ledger=await readLedger(evidence.inventoryKey),operation=evidence.operationId||stored.inventarioCompra?.lastOperation;
+ if(evidence){reference(evidence);const ledger=await readLedger(evidence.inventoryKey);
+  if(Object.hasOwn(evidence,'baselineOperationId')||Object.hasOwn(evidence,'baselineRow')){const baseline=Baseline.validateBaseline(stored);if(!sourcePath||sourcePath!=='sisventas/ordenes/'+baseline.orderKey)throw fail('El baseline pertenece a otra fuente.');const receiptPath='sv_labor_receipts/'+baseline.operationId,receipt=await read(receiptPath);verifiedReads.push(receiptPath);Baseline.validateReceipt(stored,receipt);Baseline.assertReference(stored,selector,evidence,ledger);return{...structuredClone(evidence),aliases:[legacyKey(row.productoKey||row.codigo)],history:{kind:'confirmed',sourceHash:digest(stored),verifiedReads}};}
+  const operation=evidence.operationId||stored.inventarioCompra?.lastOperation;
   if(!operation||!Object.hasOwn(ledger.operaciones||{},operation))throw fail('La identidad del inventario no tiene respaldo en su operación.');
   return {...structuredClone(evidence),aliases:[legacyKey(row.productoKey||row.codigo)],history:{kind:'confirmed',sourceHash:digest(stored),verifiedReads}};
  }

@@ -24,4 +24,12 @@ test('known prior USD/ARS costs are captured unchanged without applying a curren
  const f=fixture();f.sourceOrder.moneda='USD';f.sourceOrder.items[0].costoRealAcumuladoARS=3125.25;f.body.expectedHash=digest(f.sourceOrder);const before=structuredClone(f),plan=Model.plan(f);a.deepEqual(f,before);a.deepEqual(plan.patch[P].items,before.sourceOrder.items);a.deepEqual(plan.readDependencies['sisventas/inventario_operativo/'+J],before.inventories[J]);
 });
 test('prior received USD with unknown ARS cannot be filled using present catalog or quote',()=>{const f=fixture();f.sourceOrder.moneda='USD';f.body.expectedHash=digest(f.sourceOrder);a.throws(()=>Model.plan(f),{code:'SV_PURCHASE_CURRENT_PENDING_REVIEW'});});
+for(const estado of ['recibida','cancelada'])test('unrelated known '+estado+' contributes zero current pending without reconstructing old quantities or costs',()=>{
+ const f=fixture();f.sources.orders.closedHistory={estado,moneda:'UNKNOWN',oldHistory:{keep:true}};const before=structuredClone(f),plan=Model.plan(f);a.deepEqual(f,before);a.deepEqual(plan.readDependencies['sisventas/ordenes/closedHistory'],f.sources.orders.closedHistory);a.equal(Object.keys(plan.patch).length,1);
+});
+test('explicit empty active array without receipts contributes zero; absent rows remain REVIEW',()=>{
+ const f=fixture();f.sources.orders.empty={estado:'borrador',items:[]};a.doesNotThrow(()=>Model.plan(f));delete f.sources.orders.empty.items;a.throws(()=>Model.plan(f),{code:'SV_PURCHASE_CURRENT_PENDING_REVIEW'});f.sources.orders.empty.items=null;a.throws(()=>Model.plan(f),{code:'SV_PURCHASE_CURRENT_PENDING_REVIEW'});
+});
+test('closed unrelated original with in-flight flag is not an authoritative zero',()=>{const f=fixture();f.sources.orders.closedHistory={estado:'recibida',recepcionPendiente:true};a.throws(()=>Model.plan(f),{code:'SV_PURCHASE_CURRENT_PENDING_REVIEW'});});
+test('empty active array with received history is not an authoritative zero',()=>{const f=fixture();f.sources.orders.empty={estado:'borrador',items:[],recepciones:[{id:'old'}]};a.throws(()=>Model.plan(f),{code:'SV_PURCHASE_CURRENT_PENDING_REVIEW'});});
 module.exports={fixture};
