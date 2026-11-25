@@ -34,16 +34,22 @@ return function create(root){
  function session(){const uid=root.currentUserUid,user=root.fbAuth?.currentUser,role=root.currentRole,epoch=root._svOperacionesSesionEpoch||0,revision=root.PERMISOS_ROLES?.[role]?.indiceRevision;const check=()=>{if(!uid||user?.uid!==uid||root.currentUserUid!==uid||root.fbAuth?.currentUser!==user||root.currentRole!==role||(root._svOperacionesSesionEpoch||0)!==epoch||root.PERMISOS_ROLES?.[role]?.indiceRevision!==revision||root._impersonacionOriginal)throw Error('La sesión cambió.');};check();return{uid,check};}
  async function run(otKey,changes,context,full){
   if(!key(otKey)||busy.has(otKey))throw fail();const {uid,check}=session(),base=(root.SISVENTAS_FUNCTIONS?.cotizadorProveedor||'').replace(/\/$/,'');
-  if(!base||!root.SVServiceAuth?.headers||!root.SVLaborWrites?.hash||!root.SVLaborWriteRecovery?.execute||!root.fbGet||!root.fbRef)throw Error('El guardado seguro de OT no está disponible.');
+  if(!base||!root.SVServiceAuth?.headers||!root.SVLaborWrites?.hash||!root.SVLaborWriteRecovery?.execute)throw Error('El guardado seguro de OT no está disponible.');
+  // Capture once per action, before any await. A full-save edited draft is never
+  // considered an original; only the separate RAW list snapshot may qualify.
+  const rows=full&&root.otData,candidates=full?(Array.isArray(rows)?rows.filter(row=>row?.fbKey===otKey):rows&&typeof rows==='object'&&rows[otKey]?[rows[otKey]]:[]):[context];
+  const captured=candidates.length===1&&candidates[0]!==changes?copy(candidates[0]):!full?copy(context):null;
   busy.add(otKey);try{
    root.SVLaborWriteRecovery.assertAvailable();
    const headers=await root.SVServiceAuth.headers();check();const response=await root.fetch(base+'/ot/metadata/disponible?otKey='+encodeURIComponent(otKey)+'&kind=batch',{method:'GET',headers,cache:'no-store',signal:AbortSignal.timeout(20000)}),available=await response.json();check();
    if(!response.ok||available.ok!==true||available.version!==1)throw fail();if(available.installed===false)return Object.freeze({installed:false});
    if(available.installed!==true||available.ready!==true||available.otKey!==otKey||!Number.isSafeInteger(available.otRevision)||available.otRevision<0||!/^[a-f0-9]{64}$/.test(available.expectedOTHash||''))throw fail();
-   const read=async()=>{const value=(await root.fbGet(root.fbRef(root.fbDB,'sisventas/ordenes_trabajo/'+otKey))).val();check();if(!value||typeof value!=='object'||Array.isArray(value))throw fail();return value;};
-   const original=await read();if(original._svListSummary||original._svPagedSummary||(original._svListRevision??0)!==available.otRevision||await root.SVLaborWrites.hash(original)!==available.expectedOTHash)throw fail();check();
+   const read=async()=>{if(typeof root.fbGet!=='function'||typeof root.fbRef!=='function')throw fail();const value=(await root.fbGet(root.fbRef(root.fbDB,'sisventas/ordenes_trabajo/'+otKey))).val();check();if(!value||typeof value!=='object'||Array.isArray(value))throw fail();return value;};
+   const valid=value=>value&&typeof value==='object'&&!Array.isArray(value)&&!value._svListSummary&&!value._svPagedSummary&&(value.fbKey==null||value.fbKey===otKey)&&(value._svListRevision??0)===available.otRevision;
+   let original=null;
+   if(valid(captured))for(const mask of [0,1,2,3]){const clean=copy(captured);if(mask&1)delete clean.fbKey;if(mask&2)delete clean._svReadRevision;const hash=await root.SVLaborWrites.hash(clean);check();if(hash===available.expectedOTHash){original=clean;break;}}
+   if(!original){if(!full)throw fail();original=await read();if(!valid(original)||await root.SVLaborWrites.hash(original)!==available.expectedOTHash)throw fail();check();}
    if(!context||context._svListSummary||context._svPagedSummary||context.fbKey!==otKey||(context._svListRevision??0)!==available.otRevision)throw fail();
-   if(!full){const clean=copy(context);if(!Object.hasOwn(original,'fbKey'))delete clean.fbKey;if(!Object.hasOwn(original,'_svReadRevision'))delete clean._svReadRevision;if(await root.SVLaborWrites.hash(clean)!==available.expectedOTHash)throw fail();check();}
    const draft=copy(original);
    for(const [field,value]of Object.entries(changes||{})){
     if(field.includes('/')){const parts=field.split('/');if(parts.length!==2||parts[0]!=='notasTecnico'||!key(parts[1]))throw fail();if(Object.hasOwn(changes,'notasTecnico'))throw fail();draft.notasTecnico=copy(draft.notasTecnico||{});if(value===null)delete draft.notasTecnico[parts[1]];else draft.notasTecnico[parts[1]]=copy(value);}

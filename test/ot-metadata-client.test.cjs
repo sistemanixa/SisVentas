@@ -13,3 +13,29 @@ test('full save combines checklist/start/signature without sending client progre
 test('actual partial save omissions preserve notes and photos rather than delete evidence',async()=>{const f=fixture(),raw={...f.original,notasTecnico:{n:{texto:'Preserved',autor:'Original'}},fotos:{p:'preserved-url'}};delete raw.fbKey;f.root.fbGet=async()=>({val:()=>structuredClone(raw)});f.available.expectedOTHash=digest(raw);await f.api.save({fbKey:'ot',_svListRevision:1,obs:'Changed'});assert.deepEqual(f.posts[0].changes.operations,[{kind:'details',changes:{obs:'Changed'}}]);});
 test('actual note push-key path strips client display author fields and stamps author in server',async()=>{const f=fixture();await f.api.update('ot',{'notasTecnico/new-note':{texto:'Fiction',autor:'UI display',rol:'admin',ts:123,_firebaseKey:'new-note'}},f.original);assert.deepEqual(f.posts[0].changes.operations,[{kind:'note',changes:{key:'new-note',note:{texto:'Fiction'}}}]);});
 test('real raw fbKey and derived read revision are handled without changing source hash',async()=>{const f=fixture(),raw={...f.original};f.root.fbGet=async()=>({val:()=>structuredClone(raw)});f.available.expectedOTHash=digest(raw);await f.api.update('ot',{obs:'Changed'},{...f.original,_svReadRevision:7});assert.equal(f.posts.length,1);});
+
+test('matching captured RAW update performs zero original SDK reads, including decorated variants',async()=>{
+ for(const rawHasFbKey of [false,true]){const f=fixture(),raw=structuredClone(f.original);if(!rawHasFbKey)delete raw.fbKey;f.available.expectedOTHash=digest(raw);await f.api.update('ot',{obs:'Changed'},{...f.original,_svReadRevision:77});assert.equal(f.gets,0);assert.equal(f.posts.length,1);assert.equal(f.posts[0].expectedOTHash,digest(raw));}
+});
+test('stale update rejects with zero SDK refresh and zero POST',async()=>{
+ for(const changed of [{obs:'Stale'},{_svListRevision:0},{_svListSummary:true}]){const f=fixture();await assert.rejects(f.api.update('ot',{obs:'Changed'},{...f.original,...changed}));assert.equal(f.gets,0);assert.equal(f.posts.length,0);}
+});
+test('full save uses separate RAW list only on server hash match; edited draft is never its original',async()=>{
+ for(const array of [false,true]){const f=fixture();f.root.otData=array?[structuredClone(f.original)]:{ot:structuredClone(f.original)};await f.api.save({...f.original,obs:'Changed'});assert.equal(f.gets,0);assert.equal(f.posts.length,1);}
+ for(const type of ['sameDraft','stale','summary','duplicate']){const f=fixture(),draft={...f.original,obs:'Changed'},raw=type==='sameDraft'?draft:type==='stale'?{...f.original,obs:'Stale'}:type==='summary'?{...f.original,_svPagedSummary:true}:f.original;f.root.otData=type==='duplicate'?[raw,structuredClone(raw)]:[raw];await f.api.save(draft);assert.equal(f.gets,1);assert.equal(f.posts.length,1);}
+});
+test('captured original remains per-action immutable and role/epoch changes reject before POST',async()=>{
+ const f=fixture(),captured=structuredClone(f.original);f.root.SVServiceAuth.headers=async()=>{captured.obs='Modified after capture';return{};};await f.api.update('ot',{obs:'Changed'},captured);assert.equal(f.gets,0);assert.equal(f.posts.length,1);
+ for(const change of [root=>root.currentRole='tecnico',root=>root._svOperacionesSesionEpoch=1]){const g=fixture(),hash=g.root.SVLaborWrites.hash;g.root.SVLaborWrites.hash=async value=>{const result=await hash(value);change(g.root);return result;};await assert.rejects(g.api.update('ot',{obs:'Changed'},g.original),/sesión cambió/);assert.equal(g.gets,0);assert.equal(g.posts.length,0);}
+});
+test('matching fast original still reaches genuine backend CAS when source changes after available',async()=>{
+ const Fixture=require('./helpers/ot-performance-fixture.cjs'),Index=require('../cotizador/record-list-model'),{createOTMetadata}=require('../cotizador/ot-metadata');
+ const f=await Fixture.create({rowCount:1,otherCount:0,prepare:data=>{data.sv_ot_metadata_config={schema:1,ready:true,generation:'fiction-generation'};data.sv_ot_metadata_installed=true;}}),server=createOTMetadata({...f.runtime,enabled:true,isInstalled:async()=>true});
+ const client=fixture(),original=structuredClone(f.get('sisventas/ordenes_trabajo/ot'));client.root.otData=[{...original,fbKey:'ot'}];let posts=0;
+ client.root.fetch=async(url,options)=>{
+  try{if(options.method==='GET'){const ready=await server.available(f.identity,{otKey:'ot',kind:'batch'}),changed={...original,obs:'Concurrent edit'};f.set('sisventas/ordenes_trabajo/ot',changed);f.set('sisventas/listados_resumen/ordenes_trabajo/ot',Index.summary('ordenes_trabajo',changed));return{ok:true,json:async()=>ready};}
+   posts++;const result=await server.execute(f.identity,JSON.parse(options.body));return{ok:true,json:async()=>result};
+  }catch(error){return{ok:false,status:error.statusCode||500,json:async()=>({ok:false,code:error.code,mensaje:error.message,svLaborAttempted:false})};}
+ };
+ await assert.rejects(client.api.save({...original,fbKey:'ot',obs:'Client edit'}),{code:'SV_CAS_CONFLICT'});assert.equal(client.gets,0);assert.equal(posts,1);assert.equal(f.commits.length,0);assert.equal(f.get('sisventas/ordenes_trabajo/ot/obs'),'Concurrent edit');
+});
