@@ -21,4 +21,3 @@ La función fiscal tiene su propio bundle: `cloud-functions/emitir-factura/labor
 ## Evidencia y límites
 
 19 pruebas offline iniciales pasaron: fuentes/ancestros/comodines, SDK sin mantenimiento, versiones falsas/ausentes, metadatos parciales, cambios de generación/revisión, lease/recibo/actor, preparación y conservación de raíces existentes. Son evaluaciones de predicados y composición, no una certificación de RTDB ni de la autoridad del emisor real. Falta el comando/emisor congelado para probar JWT genuino + PATCH completo en emulador; no se inventan tokens positivos ni se afirman cierres productivos.
-
