@@ -68,7 +68,7 @@ test('network, permission and paused readiness failures never fall back to SDK o
 });
 test('legacy OT uses unchanged SDK path until coordination; unrelated domains keep SDK',async()=>{
  for(const options of [{coordinated:false},{host:false}]){const f=fixture(options);await f.root.fbSet(f.ref(ot+'/hora'),'08:00');await f.root.SVRecordListWrites.records([ot],rows=>{rows[ot].tecnico='T';return rows;});assert.equal(f.commands.length,0);assert.equal(f.direct.length,2);assert.equal(f.read(ot)._svListRevision,2);}
- const f=fixture();let prepared=0;f.setPrepare(async()=>{prepared++;});await f.root.fbSet(f.ref('sisventas/agenda/a'),{titulo:'Ficticio'});await f.root.fbSet(f.ref('sisventas/inventario_operativo/p/general'),4);assert.equal(f.commands.length,0);assert.equal(f.direct.length,2);assert.equal(prepared,0);
+ const f=fixture();let prepared=0;f.setPrepare(async()=>{prepared++;});await f.root.fbSet(f.ref('sisventas/proveedores/a'),{titulo:'Ficticio'});await f.root.fbSet(f.ref('sisventas/inventario_operativo/p/general'),4);assert.equal(f.commands.length,0);assert.equal(f.direct.length,2);assert.equal(prepared,0);
 });
 test('readiness is awaited before selecting writer and session changes abort',async()=>{
  const f=fixture({coordinated:false});let resume;f.setPrepare(()=>new Promise(resolve=>{resume=()=>{f.setMode(true);resolve();};}));const saving=f.root.fbSet(f.ref(ot+'/hora'),'11:00');await Promise.resolve();assert.equal(f.direct.length,0);assert.equal(f.commands.length,0);f.setPrepare(async()=>{});resume();await saving;assert.equal(f.commands.length,1);assert.equal(f.direct.length,0);
