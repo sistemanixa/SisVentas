@@ -7,10 +7,15 @@ const live=options=>create({sourceRoot,mode:'live-originals',...options});
 test('lab mode accepts only the two closed literals',async()=>{for(const mode of ['live',true,null,'LIVE-ORIGINALS'])await a.rejects(create({sourceRoot,mode}),/Unknown sale-delete lab mode/);});
 test('live originals cascade uses genuine RAM financial semantics with H/Fin absent and no H/Fin writes or claims',async()=>{
  const f=await live();try{for(const p of absent)a.equal(f.get(p),null);a.equal(f.runtime.guard.clientHistory,false);a.equal(f.runtime.guard.saleFinancialDependencies,false);
+  const idle=f.metrics();await new Promise(resolve=>setImmediate(resolve));a.deepEqual(f.metrics(),idle);let active=0,maximum=0;f.control.beforeRead=async p=>{if(/^sisventas\/[^/]+$/.test(p)||p==='sv_commission_generation'){maximum=Math.max(maximum,++active);await new Promise(resolve=>setImmediate(resolve));active--;}};
   const before={stock:f.get('sisventas/stock'),commission:f.get('sisventas/comisiones'),fiscal:f.get('sisventas/comprobantesVenta'),budget:f.get('sisventas/presupuestos/budget')};
   const r=await f.request(f.body());a.equal(r.status,200,JSON.stringify(r));a.equal(f.commits.length,1);const captured=f.commits[0];a.equal(captured.override.token.svClientHistoryWriterVersion,0);a.equal(captured.override.token.svSaleFinancialWriterVersion,0);
   a(Object.keys(captured.patch).every(p=>!absent.some(parent=>p===parent||p.startsWith(parent+'/'))));for(const p of absent)a.equal(f.get(p),null);
-  for(const p of ['sisventas/ventas/sale','sisventas/pagos/payment','sisventas/ordenes_trabajo/ot'])a.equal(f.get(p),null);a.equal(f.get('sisventas/presupuestos/budget/estado'),'anulado');a.deepEqual(f.get('sisventas/presupuestos/budget/items'),before.budget.items);a.deepEqual(f.get('sisventas/stock'),before.stock);a.deepEqual(f.get('sisventas/comisiones'),before.commission);a.deepEqual(f.get('sisventas/comprobantesVenta'),before.fiscal);a.equal(f.get('sv_client_accounts/v1/totals/all/balanceCents'),0);
+  for(const p of ['sisventas/ventas/sale','sisventas/pagos/payment','sisventas/ordenes_trabajo/ot'])a.equal(f.get(p),null);a.equal(f.get('sisventas/presupuestos/budget/estado'),'anulado');a.deepEqual(f.get('sisventas/presupuestos/budget/items'),before.budget.items);a.deepEqual(f.get('sisventas/stock'),before.stock);a.deepEqual(f.get('sisventas/comisiones'),before.commission);a.deepEqual(f.get('sisventas/comprobantesVenta'),before.fiscal);a.equal(f.get('sv_client_accounts/v1/totals/all/balanceCents'),0);a.equal(maximum,6);a.equal(active,0);
+  // The generic helper classifies only sisventas/* roots as collections. Count
+  // this fifth financial original root explicitly, without changing the helper.
+  const metrics=f.metrics(),externalOriginalRoots=f.calls.filter(c=>c.method==='GET'&&c.path==='sv_commission_generation').length;
+  console.log('SALE_DELETE_LIVE_METRICS '+JSON.stringify({...metrics,externalOriginalRootReads:externalOriginalRoots,allOriginalRootReads:metrics.collectionReads+externalOriginalRoots,pointGetsExcludingOriginalRoots:metrics.pointGets-externalOriginalRoots,maximumCollectionConcurrency:maximum,idleReadDelta:0}));
  }finally{await f.close();}
 });
 test('live financial commission and unresolved source remain blocking without creating indexes',async()=>{
