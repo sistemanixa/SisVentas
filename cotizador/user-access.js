@@ -14,10 +14,20 @@ async function assertAccessReady(db, token) {
   }
 }
 function createBusinessAuth(auth, db) {
-  return {async verifyIdToken(token) {
+  async function verifyIdTokenWithContext(token, afterVerified) {
     const identity = await auth.verifyIdToken(token, true);
-    await assertAccessReady(db, identity);
-    return identity;
+    // Only a verified identity can start the request-local context. Drain both
+    // reads on failure; neither reset nor context is reused in another request.
+    const results = await Promise.allSettled([
+      assertAccessReady(db, identity),
+      Promise.resolve().then(() => afterVerified(identity))
+    ]);
+    if (results[0].status === 'rejected') throw results[0].reason;
+    if (results[1].status === 'rejected') throw results[1].reason;
+    return {identity, context: results[1].value};
+  }
+  return {verifyIdTokenWithContext, async verifyIdToken(token) {
+    return (await verifyIdTokenWithContext(token, () => undefined)).identity;
   }};
 }
 
