@@ -5,7 +5,7 @@ const {pool}=require('./payment-snapshot');
 const providers=new WeakSet();
 const roots=Object.freeze(['sisventas/ventas','sisventas/gastos','sisventas/ctaemp','sisventas/comisiones_generacion','sv_commission_generation']);
 const parents=Object.freeze(['sv_client_history','sv_client_history_config','sv_sale_financial_dependencies']);
-const maxRootBytes=8*1024*1024,maxTotalBytes=64*1024*1024;
+const maxRootBytes=8*1024*1024,maxExpenseRootBytes=16*1024*1024,maxTotalBytes=64*1024*1024;
 const plain=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)&&[Object.prototype,null].includes(Object.getPrototypeOf(value));
 const absenceFailure=()=>Object.assign(Error('La lectura financiera en originales requiere ausencia verificada de History y del índice financiero.'),{statusCode:503,code:'SV_SALE_DELETE_LIVE_ABSENCE_REQUIRED'});
 async function assertAbsent({read,exists}={}){
@@ -40,7 +40,8 @@ function create({store}={}){
    if(value!==null&&!plain(value))throw M.fail('Fuente financiera completa inválida: '+path+'.');
    let encoded;try{encoded=JSON.stringify(value);}catch(_){throw M.fail('Fuente financiera completa no serializable.');}
    const bytes=Buffer.byteLength(encoded);totalBytes+=bytes;
-   if(bytes>maxRootBytes||totalBytes>maxTotalBytes)throw Object.assign(Error('Las fuentes financieras superan el alcance permitido para esta operación.'),{statusCode:413,code:'SV_SALE_DELETE_LIVE_SCOPE_SIZE'});
+   const rootBudget=path==='sisventas/gastos'?maxExpenseRootBytes:maxRootBytes;
+   if(bytes>rootBudget||totalBytes>maxTotalBytes)throw Object.assign(Error('Las fuentes financieras superan el alcance permitido para esta operación.'),{statusCode:413,code:'SV_SALE_DELETE_LIVE_SCOPE_SIZE'});
    // Employee accounts are collections of individual original movements; do
    // not let Model.prepare's empty-container iteration mask false/0/arrays.
    if(path==='sisventas/ctaemp'&&value!==null&&Object.values(value).some(account=>!plain(account)))throw M.fail('La cuenta financiera requiere originales completos.');

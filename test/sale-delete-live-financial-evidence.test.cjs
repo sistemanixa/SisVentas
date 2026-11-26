@@ -49,5 +49,5 @@ test('source I/O failures drain all five readers; no pending work after rejectio
  const f=fixture();let active=0,peak=0,finished=0;f.control.hook=async path=>{if(!roots.includes(path))return;active++;peak=Math.max(peak,active);try{await wait(path==='sisventas/gastos'?1:5);if(path==='sisventas/gastos')throw Error('source failure');}finally{active--;finished++;}};
  await a.rejects(f.run(),/source failure/);a.equal(active,0);a.equal(peak,5);a.equal(finished,5);await wait(8);a.equal(finished,5);
 });
-test('oversize root is rejected without truncation or writes',async()=>{const f=fixture();f.values['sisventas/gastos']={entry:{nota:'x'.repeat(8*1024*1024)}};await a.rejects(f.run(),{code:'SV_SALE_DELETE_LIVE_SCOPE_SIZE',statusCode:413});});
+test('oversize root is rejected without truncation or writes',async()=>{const f=fixture();f.values['sisventas/gastos']={entry:{nota:'x'.repeat(16*1024*1024)}};await a.rejects(f.run(),{code:'SV_SALE_DELETE_LIVE_SCOPE_SIZE',statusCode:413});});
 test('missing operation identity and missing target original fail closed',async()=>{const f=fixture();await a.rejects(f.provider({...f.args,operationId:undefined}),{code:'SV_SALE_FINANCIAL_INCOMPLETE'});f.values['sisventas/ventas']={};await a.rejects(f.run(),{code:'SV_SALE_FINANCIAL_INCOMPLETE'});});
