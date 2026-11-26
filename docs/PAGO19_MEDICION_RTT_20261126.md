@@ -60,3 +60,37 @@ Para diez buckets: Auth inicial 4 rondas → original inicial 1 → cobertura in
 3. **Conservar barreras:** no quitar Auth final, lectura final de propietario, comparación de originales ni cobertura final. No solapar fases de forma que la autorización final empiece antes de terminar las comprobaciones de fuentes. No cachear Auth/reset/perfil/rol/permisos entre solicitudes. Repetir un original bajo usuario valida cambios concurrentes y no es automáticamente una lectura redundante.
 
 La prueba focal verifica éxito genuino y conservación de fuentes, presencia de claims de usuario en REST, dos comprobaciones separadas de cada componente de acceso y rechazo ante reset o revisión de permisos cambiados antes de la autorización final. Es prueba de composición local, no de Firebase Auth ni Rules reales. No se ejecutó suite global, navegador ni negocio real.
+
+## Comparación con candidata A, 26/11/2026
+
+Candidata A `349a888bf9fea7239b4ea5802f6035cbcfd377ae`, integrada en Root `908a08c4`. Se midió directamente `C:/SisVentas/.local/payment-final-20261126/cotizador`, sin copiar otro core ni alterar sus archivos. El antes usa el snapshot runtime150 ya descrito. Las dos fuentes ejecutan la misma rama literal comercial y producen el mismo DTO ficticio. En ambos se mantienen 37 operaciones, fuentes intactas, un pago visible y cero escrituras. Mismo fixture de diez buckets, ejecuciones secuenciales, una por combinación:
+
+| RTT ficticio | Fuente | Total local | Lector | Auth final | Snapshot | Validación | Original final | Pico concurrente |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| 175 ms | Antes | 3195 ms | 2267 ms | 754 ms | 567 ms | 382 ms | 188 ms | 6 |
+| 175 ms | Candidata | 2450 ms | 1694 ms | 569 ms | 374 ms | 186 ms | 189 ms | 12 |
+| 80 ms | Antes | 1594 ms | 1128 ms | 374 ms | 285 ms | 188 ms | 95 ms | 6 |
+| 80 ms | Candidata | 1220 ms | 846 ms | 282 ms | 191 ms | 94 ms | 94 ms | 12 |
+
+Ahorro local observado: 745 ms a RTT175 y 374 ms a RTT80, aproximadamente 23% en esta ejecución sintética. No es una estimación certificada de ahorro en producción. Los temporizadores reales del host superan el RTT configurado; por eso no se obtienen rondas dividiendo estas duraciones por 175/80.
+
+La traza de Auth final a RTT175 confirma el cambio de orden: antes, Auth 0–189 ms, reset 189–379, rol/perfil 379–566 y permisos 566–753. Después: Auth 0–190, reset/rol/perfil 190–379 y permisos 378–568. El contexto empieza sólo con identidad verificada; reset y contexto se esperan antes de emitir el actor. Se conserva la nueva autorización después de validar fuentes.
+
+La inspección de las dependencias, respaldada por inicio/fin de eventos y tiempos de fase, da Auth 4→3 rondas por autorización; Snapshot de diez buckets 3→2 (una ola de buckets y luego el pago); validación de doce fuentes 2→1. La cadena completa baja de 17 a 13 rondas, ideales 2975→2275 ms a RTT175, o 1360→1040 ms a RTT80. **Los campos JSON `baselineCriticalRoundsModel=17` siguen siendo sólo la referencia19**, incluso al medir la candidata. Las trece rondas se explican aquí mediante las nuevas dependencias; no se presentan como salida de aquel cálculo fijo.
+
+La prueba focal conserva todos los conteos de acceso y fuentes, y exige para el GET un pico mayor que seis y menor o igual a 16. Su expectativa por defecto ahora es 16, propia de la candidata integrada; para repetir el baseline anterior se fija `PAYMENT_MEASURE_EXPECTED_READ_CONCURRENCY=6`. Este parámetro pertenece exclusivamente al test, no configura el negocio. El pool compartido real, ejecutado con veinte trabajos y sin opción de concurrencia, mantiene máximo seis. También se comprueba la firma nativa del Snapshot financiero con default seis y el rechazo de límites GET 0/17. Esto comprueba el default/pool, no ejecuta una operación financiera nueva.
+
+Focales: cuatro PASS sobre runtime150 con expectativa seis; cuatro PASS sobre candidata con expectativa16; reset y revisión de permisos cambiados siguen rechazándose. No se amplió la puerta a otras suites ni se probaron datos, red o permisos remotos. Los reportes locales son `tmp/payment-compare-{before,after}-{175,80}-20261126.private.json`; no se incluyen artefactos privados en Git.
+
+### Caso mínimo: cuatro buckets, RTT175
+
+Root confirmó posteriormente, mediante metadatos privados preexistentes, que la venta señalada tiene **cuatro buckets**, no diez. No se importaron sus valores ni claves al reproductor. Por tanto, el ahorro del fixture rico anterior **no representa esa venta**. Se repitió únicamente el fixture mínimo ficticio:
+
+| Fuente | Total local | Lector | Auth final | Snapshot | Validación | Original final | Llamadas | Pico |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Runtime150 anterior | 2828 ms | 1888 ms | 755 ms | 377 ms | 190 ms | 189 ms | 25 | 6 |
+| Candidata Root | 2427 ms | 1674 ms | 565 ms | 362 ms | 185 ms | 190 ms | 25 | 6 |
+
+Son 401 ms menos (~14%) en esta ejecución local; fuentes intactas y cero escrituras. La cadena pasa de 15 a 13 rondas, ideales 2625→2275 ms a RTT175. Cuatro buckets ya cabían en una ola y sus seis validaciones también: **el pool16 no elimina rondas en este caso**. La mejora estructural corresponde a dos rondas menos de autorización. Persisten aproximadamente 2,4 s locales bajo este modelo, no una predicción exacta de producción.
+
+Los tamaños reales aportados por Root (~7 KB de venta, ~258 B de pago) tampoco se convirtieron en datos de fixture ni en una descarga real. No respaldan por sí mismos una hipótesis de transferencia masiva. La distancia entre regiones de servidor/base es una hipótesis adicional aportada por Root: este reproductor no mide red geográfica ni acredita la ubicación efectiva o su contribución a la latencia. No se investigó ni cambió infraestructura. Reportes mínimos: `tmp/payment-compare-minimal-{before,after}-175-20261126.private.json`.
