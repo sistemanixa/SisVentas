@@ -58,8 +58,9 @@ test('cambiar sólo información operativa no recalcula importes históricos',()
  const next=f.api.prepare({...base,estadoInst:'instalado'},base);assert.equal(next.total,242.01);assert.equal(base.total,242.01);
 });
 test('transporte real usa un comando atómico y sólo lee la venta, sin exigir leer avisos privados',async()=>{
- const source=fs.readFileSync('test/labor-writes.test.cjs','utf8');
- const f=vm.runInNewContext(source.slice(0,source.indexOf('\ntest('))+';fixture();',{require,URL,TextEncoder,Uint8Array,AbortSignal,Promise,structuredClone});
+ const source=fs.readFileSync('test/labor-writes.test.cjs','utf8'),fixtureStart=source.indexOf('\nfunction fixture(){'),fixtureEnd=source.indexOf('\n}',fixtureStart)+2;
+ if(fixtureStart<0||fixtureEnd<=fixtureStart)throw Error('Explicit labor fixture boundary missing');
+ const f=vm.runInNewContext(source.slice(0,fixtureEnd)+';fixture();',{require,URL,TextEncoder,Uint8Array,AbortSignal,Promise,structuredClone});
  f.root.SVSaleCosts=Costs.create({obtenerProductoPorCodigoVenta:()=>({compraARS:55}),obtenerCostoUnitarioVenta:()=>55});
  f.root.SVCommercialOwnership={stamp:r=>r,refresh(){}};
  f.setHandler(command=>{assert.equal(command.kind,'atomic');for(const [p,value]of Object.entries(command.value))f.put(p,value);return {ok:true,status:200,json:async()=>({ok:true,committed:true})};});
