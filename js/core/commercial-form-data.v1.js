@@ -1,7 +1,7 @@
 (function(root,factory){'use strict';const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.SVCommercialFormData=api;})(typeof window==='object'?window:globalThis,function(){
  'use strict';
  const pages=Object.freeze({
-  venta:Object.freeze(['clientes','productos','ventas','empleados']),
+  venta:Object.freeze(['clientes','productos','empleados']),
   presupuesto:Object.freeze(['clientes','productos','presupuestos','empleados'])
  });
  function requirements(page){return pages[page]?pages[page].slice():null;}

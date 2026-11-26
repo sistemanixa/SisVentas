@@ -8,7 +8,7 @@ for(const width of [390,1280])test('complete active app shows the existing globa
   local.backend.state.sv_chat_directorio={u:{nombre:'Persona ficticia'}};
   local.backend.state.sisventas.ventas.fixture0.totalPagado=1600;
   local.backend.state.sisventas.pagos.payment0.nota='<img src=x> Nota ficticia';
-  const db={ref:path=>({get:async()=>({val:()=>local.backend.get(path)})})},ownership=createCommercialOwnership({db,auth:{verifyIdToken:async(token,revoked)=>{assert.equal(token,'FICTICIO-SIN-VALIDEZ');assert.equal(revoked,true);return{uid:'u'};}},enabled:true}),service=create({ownership,store:local.backend.store});
+  const db={ref:path=>({get:async()=>({val:()=>local.backend.get(path)})})},ownership=createCommercialOwnership({db,auth:{verifyIdToken:async(token,revoked)=>{assert.equal(token,'FICTICIO-SIN-VALIDEZ');assert.equal(revoked,true);return{uid:'u'};}},enabled:true,readAsUser:(path,actor)=>local.backend.store.readAsUser(path,actor)}),service=create({ownership,store:local.backend.store});
   // Notes do not affect membership; all original references remain indexed.
   const before=structuredClone(local.backend.state),requests=[];let began;const started=new Promise(r=>began=r),held=new Promise(r=>release=r);let failOnce=width===390;
   browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});const page=await browser.newPage({viewport:{width,height:900},serviceWorkers:'block'});page.setDefaultTimeout(8000);
@@ -16,7 +16,7 @@ for(const width of [390,1280])test('complete active app shows the existing globa
    if(url.pathname==='/comerciales/ventas/registro/fixture0'&&url.searchParams.get('para')==='pagos'){
     requests.push(req.method());assert.equal(req.method(),'GET');began();await held;
     if(failOnce){failOnce=false;return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({ok:false,mensaje:'Fallo ficticio de lectura'})});}
-    const request={method:'GET',url:url.pathname+url.search,headers:{authorization:req.headers().authorization}},actor=await ownership.authorize(request,'ventas'),record=(await ownership.visibleRecordsByIds(actor,'ventas',['fixture0'])).fixture0,result=await service.load({req:request,actor,saleKey:'fixture0',record});
+    const request={method:'GET',url:url.pathname+url.search,headers:{authorization:req.headers().authorization}},actor=await ownership.authorize(request,'ventas'),record=(await ownership.readAuthorizedRecordsByIds(actor,'ventas',['fixture0'])).fixture0,result=await service.load({req:request,actor,saleKey:'fixture0',record});
     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,...result,record:{...result.record,fbKey:'fixture0'}})});
    }return route.continue();});
   await page.goto(local.url);await page.locator('#ventas-tbody tr').nth(1).waitFor();

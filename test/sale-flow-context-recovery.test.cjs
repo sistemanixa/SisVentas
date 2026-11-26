@@ -31,5 +31,5 @@ test('role changes while capability response is pending prevent reservation and 
 });
 for(const failing of ['productos','empleados'])test('real form requirement fan-in never reports ready after '+failing+' failure',async()=>{
  const gate=deferred(),entered=[],ready=[];const loaders=Object.fromEntries(Forms.requirements('venta').map(name=>[name,async()=>{entered.push(name);if(name===failing){await gate.promise;throw Error('fixture missing '+name);}}]));
- const pending=Promise.all(Forms.loaders('venta',loaders).map(load=>load())).then(()=>ready.push(true));await Promise.resolve();assert.equal(entered.length,4);assert.equal(ready.length,0);gate.resolve();await assert.rejects(pending,/fixture missing/);assert.equal(ready.length,0);
+ const pending=Promise.all(Forms.loaders('venta',loaders).map(load=>load())).then(()=>ready.push(true));await Promise.resolve();assert.equal(entered.length,3);assert.equal(entered.includes('ventas'),false);assert.equal(ready.length,0);gate.resolve();await assert.rejects(pending,/fixture missing/);assert.equal(ready.length,0);
 });

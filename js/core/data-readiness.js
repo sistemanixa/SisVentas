@@ -63,7 +63,7 @@
     stockoficina:['officeStock'],
     dashboard:['clientes','productos','ventas','pagos'],
     productos:['productos'],catalogo:['productos'],actualizadorprecios:['productos','proveedores'],
-    clientes:['clientes'],venta:['clientes','productos','ventas','empleados'],presupuesto:['clientes','productos','presupuestos','empleados'],
+    clientes:['clientes'],venta:['clientes','productos','empleados'],presupuesto:['clientes','productos','presupuestos','empleados'],
     detalle:['ventas','clientes','pagos'],cobranzas:['ventas','clientes','pagos'],cuentacorriente:['ventas','clientes','pagos'],
     gastos:['gastos','empleados'],comisiones:['gastos','empleados','ventas'],
     ordentrabajo:['ordenes_trabajo','clientes','productos'],
@@ -251,6 +251,7 @@
     statusBox.classList.toggle('sv-data-error',!!state.errors.length);
     statusBox.classList.toggle('sv-data-refresh',refreshing===true);
     var text=refreshing?{title:'Actualizando…',detail:'Verificando ventas y cobros.'}:presentation(state);
+    if(name==='venta'&&!refreshing&&!state.errors.length&&!state.ready&&global.navigator.onLine!==false)text.title='Abriendo nueva venta…';
     statusRetry.hidden=refreshing===true;
     if(statusTitle.textContent!==text.title)statusTitle.textContent=text.title;
     if(statusDetail.textContent!==text.detail)statusDetail.textContent=text.detail;

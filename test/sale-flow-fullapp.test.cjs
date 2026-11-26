@@ -13,7 +13,7 @@ async function flow({ackError=false,changeRole=false,revoke=false,lostAck=false,
  const before=backend.get('sisventas'),copy=duplicateFixture(items[0]);copy.original.items=items;
  let directoryReady=false,releaseDirectory;const directory=new Promise(resolve=>{releaseDirectory=()=>{directoryReady=true;resolve();};});
  const loaded=new Set();const loading=Promise.all(Forms.loaders('venta',Object.fromEntries(Forms.requirements('venta').map(name=>[name,async()=>{if(name==='empleados')await directory;loaded.add(name);}]))).map(load=>load()));
- await Promise.resolve();assert.equal(directoryReady,false);assert.equal(loaded.has('empleados'),false);releaseDirectory();await loading;assert.equal(loaded.size,4);
+ await Promise.resolve();assert.equal(directoryReady,false);assert.equal(loaded.has('empleados'),false);releaseDirectory();await loading;assert.equal(loaded.size,3);assert.equal(loaded.has('ventas'),false,'new sale must not load historical sales');
  copy.ctx.prodData=Object.fromEntries(items.map((item,index)=>['p'+index,{fbKey:'p'+index,codigo:item.cod,nombre:item.desc,imagenUrl:'fixture-'+index+'.png',compraARS:20+index}]));copy.ctx.precioVentaCanonicoProducto=product=>({precioARS:200+Number(product.fbKey.slice(1))});copy.ctx.obtenerCostoUnitarioVenta=code=>copy.ctx.prodData['p'+code.slice(2)].compraARS;
  const prepared=copy.ctx._svPrepararDuplicadoVenta(copy.original);copy.ctx.duplicarVenta('original');assert.equal(copy.rows.length,16);
  for(const [index,row]of copy.rows.entries()){assert.match(row.innerHTML,new RegExp('fixture-'+index+'\\.png'));assert.equal(JSON.parse(row.dataset.itemComercial).costoUnitarioCompra,20+index);}

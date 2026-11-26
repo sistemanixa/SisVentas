@@ -19,6 +19,7 @@ async function fixture(){
   if(identity){a.equal(identity.uid,identity.token.uid);a.deepEqual(Object.keys(identity.token),['uid']);const actor=await f.auth(identity.uid);if(p.startsWith('sisventas/ventas/')){const id=p.split('/').at(-1);if(!(await f.api.visibleRecordsByIds(actor,'ventas',[id]))[id])return {ok:false,status:403,json:async()=>({})};}}
   const value=structuredClone(get(p));if(identity&&p==='sisventas/pagos/p')control.change?.();return {ok:true,status:200,json:async()=>value};
  }});
+ f.api=nativeRequire('./commercial-ownership').createCommercialOwnership({db:f.db,auth:{verifyIdToken:async uid=>({uid})},enabled:true,readAsUser:(path,actor)=>store.readAsUser(path,actor)});f.auth=(uid,domain='ventas',view)=>f.api.authorize({headers:{authorization:'Bearer '+uid}},domain,view);
  const handler=vm.runInNewContext(sender+'\n(async function(req,res){const pathname=new URL(req.url,"http://localhost").pathname;\n'+branch+'\n})',{URL,require:nativeRequire,commercialOwnership:f.api,laborRuntime:{store}});
  async function request(url,uid='a'){
   const headers={},res={statusCode:null,text:null,setHeader(k,v){headers[k.toLowerCase()]=v;},writeHead(status,fields){this.statusCode=status;for(const [k,v]of Object.entries(fields))headers[k.toLowerCase()]=v;},end(text){a.equal(this.text,null,'Exactly one response');this.text=text;}};
@@ -33,7 +34,7 @@ test('literal purpose denies budgets and administrator view-as without successfu
  const f=await fixture();for(const [url,uid]of [['/comerciales/presupuestos/registro/budget?para=pagos','a'],['/comerciales/ventas/registro/one?para=pagos&verComo=a','admin']]){const r=await f.request(url,uid);a.equal(r.status,403);a.equal(r.body.ok,false);a.equal(Object.hasOwn(r.body,'paymentHistory'),false);}a.equal(f.calls.length,0);
 });
 test('literal GET rejects missing session, inactive role and another owner',async()=>{
- const f=await fixture();for(const uid of [null,'tech','b']){const r=await f.request('/comerciales/ventas/registro/one?para=pagos',uid);a([401,403,404].includes(r.status));a.equal(r.body.ok,false);a.equal(Object.hasOwn(r.body,'paymentHistory'),false);}a.equal(f.calls.length,0);
+ const f=await fixture();for(const uid of [null,'tech','b']){const r=await f.request('/comerciales/ventas/registro/one?para=pagos',uid);a([401,403,404].includes(r.status));a.equal(r.body.ok,false);a.equal(Object.hasOwn(r.body,'paymentHistory'),false);}a.deepEqual(f.calls.map(c=>c.path),['sisventas/ventas/one']);a.equal(f.calls[0].identity.uid,'b');
 });
 test('role change after payment source read aborts HTTP response instead of empty success',async()=>{
  const f=await fixture();f.control.change=()=>{f.root.sv_chat_roles.a.activo=false;};const r=await f.request('/comerciales/ventas/registro/one?para=pagos');a.equal(r.status,403);a.equal(r.body.ok,false);a.equal(Object.hasOwn(r.body,'paymentHistory'),false);

@@ -14,8 +14,11 @@ async function setup(payments={p:{ventaFbKey:'one',monto:40,fecha:'2026-11-25',m
   }
   const value=structuredClone(get(path));await control.hook?.({path,override,calls});return {ok:true,status:200,json:async()=>value};
  }});
+ f.api=require('../cotizador/commercial-ownership').createCommercialOwnership({db:f.db,auth:{verifyIdToken:async uid=>({uid})},enabled:true,readAsUser:(path,actor)=>store.readAsUser(path,actor)});
+ f.auth=(uid,domain='ventas',view)=>f.api.authorize({headers:{authorization:'Bearer '+uid}},domain,view);
  const actor=await f.auth('a'),req={headers:{authorization:'Bearer a'}},service=create({ownership:f.api,store});
- return {...f,root,calls,control,put,actor,req,store,load:()=>service.load({req,actor,saleKey:'one',record:structuredClone(root.sisventas.ventas.one)}),service};
+ const prepare=async()=>{const actor=await f.api.authorize(req,'ventas'),record=(await f.api.readAuthorizedRecordsByIds(actor,'ventas',['one'])).one;return {actor,record};};
+ return {...f,root,calls,control,put,actor,req,store,prepare,load:async()=>service.load({req,saleKey:'one',...await prepare()}),service};
 }
 test('global source restores history despite empty embedded data, strips attachments, preserves non-enumerable claims and writes nothing',async()=>{
  const f=await setup({p:{id:'P-1',ventaFbKey:'one',monto:40,fecha:123,medio:'Efectivo',obs:'Nota',comprobante:{data:'PRIVATE_BINARY'},otraVentaPrecio:999}}),before=structuredClone(f.root);
@@ -48,8 +51,8 @@ test('one-payment history has bounded reads, concurrent independent checks and o
  f.api.authorize=async(...args)=>{if(args[0]===f.req)authorized++;return original(...args);};
  const stages=new Map();let active=0,maxConcurrent=0;
  f.control.hook=async({path,override})=>{const key=(override?'user:':'service:')+path;stages.set(key,(stages.get(key)||0)+1);active++;maxConcurrent=Math.max(maxConcurrent,active);await new Promise(resolve=>setImmediate(resolve));active--;};
- const result=await f.load();finished=true;a.equal(result.paymentHistory.paidAmount,40);a.equal(authorized,1,'initial route authorization is supplied; final authorization must be fresh exactly once');
- a.equal(f.calls.length,12);a.equal(stages.get('service:'+Index.COVERAGE_PATH),2,'initial and final coverage, no redundant middle read');a(maxConcurrent>=2);a(maxConcurrent<=6);a.equal(active,0);a.deepEqual(f.root,before);
+ const result=await f.load();finished=true;a.equal(result.paymentHistory.paidAmount,40);a.equal(authorized,2,'one initial route authorization and one fresh final authorization');
+ a.equal(f.calls.length,13);a.equal(stages.get('service:'+Index.COVERAGE_PATH),2,'initial and final coverage, no redundant middle read');a(maxConcurrent>=2);a(maxConcurrent<=6);a.equal(active,0);a.deepEqual(f.root,before);
  const count=f.calls.length;await new Promise(resolve=>setImmediate(resolve));a.equal(f.calls.length,count,'no idle polling');a.equal(finished,true);
 });
 
@@ -59,9 +62,9 @@ test('role revoked during the last user-source check is rejected by final author
 });
 
 test('final coverage and final sale checks still reject changes after source rereads',async()=>{
- for(const target of ['coverage','sale']){const f=await setup(),original=f.api.visibleRecordsByIds;
- f.api.visibleRecordsByIds=async(...args)=>{if(target==='coverage')f.put(Index.COVERAGE_PATH,Index.buildIndex(f.root.sisventas.pagos,{generation:'changed-late',ready:true}).coverage);else f.root.sisventas.ventas.one.totalPagado=41;return original(...args);};
+ for(const target of ['coverage','sale']){const f=await setup(),original=f.api.readAuthorizedRecordsByIds;let reads=0;
+ f.api.readAuthorizedRecordsByIds=async(...args)=>{if(++reads===1)return original(...args);if(target==='coverage')f.put(Index.COVERAGE_PATH,Index.buildIndex(f.root.sisventas.pagos,{generation:'changed-late',ready:true}).coverage);else f.root.sisventas.ventas.one.totalPagado=41;return original(...args);};
  await a.rejects(f.load(),/cambi/);}
 });
 
-test('performance report contains only bounded numeric timings and cannot change a read result',async()=>{const f=await setup(),before=structuredClone(f.root),reports=[];const service=create({ownership:f.api,store:f.store,observe:r=>{reports.push(r);throw Error('observer failure');}});const result=await service.load({req:f.req,actor:f.actor,saleKey:'one',record:structuredClone(f.root.sisventas.ventas.one)});a.equal(result.paymentHistory.paidAmount,40);a.equal(reports.length,1);const report=reports[0];a.equal(report.event,'sale_payment_history_performance');for(const [key,value]of Object.entries(report))if(key!=='event'){a(key.endsWith('Ms'));a(Number.isFinite(value)&&value>=0);}a.deepEqual(f.root,before);a.equal(f.calls.length,12);});
+test('performance report contains only bounded numeric timings and cannot change a read result',async()=>{const f=await setup(),before=structuredClone(f.root),reports=[];const service=create({ownership:f.api,store:f.store,observe:r=>{reports.push(r);throw Error('observer failure');}});const result=await service.load({req:f.req,saleKey:'one',...await f.prepare()});a.equal(result.paymentHistory.paidAmount,40);a.equal(reports.length,1);const report=reports[0];a.equal(report.event,'sale_payment_history_performance');for(const [key,value]of Object.entries(report))if(key!=='event'){a(key.endsWith('Ms'));a(Number.isFinite(value)&&value>=0);}a.deepEqual(f.root,before);a.equal(f.calls.length,13);});

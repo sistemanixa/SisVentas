@@ -56,12 +56,13 @@ function historicalConversionAudit(record,budgets){
  const event=events[0],author=originalAuthor(record,'ventas',budgets);
  return {tipo:'conversion_presupuesto_venta',fecha:event.fecha,usuario:event.usuario,accion:'Conversión histórica de '+(source.id||'presupuesto de origen')+' a '+(record.id||'venta')+' · Creador original: '+author.name+' · Según auditoría del presupuesto',referenciaHistorica:true};
 }
-function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectionReader,scopedReads=false,queryReader,listReadConcurrency=6}){
+function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectionReader,scopedReads=false,queryReader,listReadConcurrency=6,readAsUser}){
  if(!Number.isInteger(listReadConcurrency)||listReadConcurrency<1||listReadConcurrency>16)throw Error('La concurrencia de lectura debe estar entre 1 y 16.');
  if(scopedReads&&typeof queryReader!=='function')throw Error('La lectura acotada requiere consultas indexadas');
  // Instantánea privada, de un solo uso dentro de la petición que autorizó al actor.
  // No es una caché entre consultas: cada authorize vuelve a verificar Auth y roles.
- const requestContexts=new WeakMap();
+ const requestContexts=new WeakMap(),requestBindings=new WeakMap(),authorizedOriginals=new WeakMap();
+ const actorBinding=actor=>require('./labor-guard').digest({uid:actor.uid,realUid:actor.realUid,role:actor.role,domain:actor.domain,viewing:actor.viewing,claims:actor.claims,permissionRevision:actor.permissionRevision,permissionDigest:actor.permissionDigest});
  const read=async p=>(await db.ref(p).get()).val();
  async function readCollection(p,conditional,actor){
   if(scopedReads&&actor&&actor.role!=='admin'){
@@ -133,7 +134,7 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   Object.defineProperty(actor,'claims',{value:u});
   Object.defineProperty(actor,'permissionRevision',{value:c.permissions[identity.rol]?.indiceRevision??null});
   Object.defineProperty(actor,'permissionDigest',{value:require('./labor-guard').digest(c.permissions[identity.rol]||{})});
-  requestContexts.set(actor,c);return actor;
+  requestContexts.set(actor,c);requestBindings.set(actor,actorBinding(actor));return actor;
  }
  async function linkedBudgets(records,concurrency=6){
   const ids=[...new Set(Object.values(records||{}).map(record=>linkedBudgetKey(record?.presupuestoFbKey)).filter(Boolean))],budgets=Object.create(null);
@@ -242,22 +243,42 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
   assertReadContext(actor,domain,c);
   return authorizedRecord(actor,domain,record,c);
  }
- async function visibleRecordsByIds(actor,domain,ids){
+ async function selectedRecords(actor,domain,ids,c,asUser=false){
   if(!['ventas','presupuestos'].includes(domain)||!Array.isArray(ids))throw fail(404,'Registros no disponibles');
   const selected=[...new Set(ids.filter(recordKey))],result=Object.create(null);
   if(!selected.length)return result;
   // Un contexto fresco para este conjunto exacto, nunca para otra operación.
-  const c=await context(scopedReads?actor.uid:undefined);assertReadContext(actor,domain,c);let cursor=0,error;
+  assertReadContext(actor,domain,c);let cursor=0,error;
   await Promise.all(Array.from({length:Math.min(6,selected.length)},async()=>{
    while(!error&&cursor<selected.length){
     const id=selected[cursor++];
-    try{result[id]=await authorizedRecord(actor,domain,await read('sisventas/'+domain+'/'+id),c);}
+    try{const path='sisventas/'+domain+'/'+id,original=asUser?await readAsUser(path,actor):await read(path);result[id]=await authorizedRecord(actor,domain,original,c);if(asUser)authorizedOriginals.set(result[id],{actor,domain,id,binding:actorBinding(actor),hash:require('./labor-guard').digest(result[id])});}
     catch(e){if(e.statusCode!==404)error=e;}
    }
   }));
   if(error)throw error;
   return result;
  }
- return {authorize,list,options,assign:(a,b)=>mutate(a,b,true),prepare:(a,b)=>mutate(a,b,false),visibleRecords,assertRecord,visibleRecordsByIds};
+ async function visibleRecordsByIds(actor,domain,ids){
+  if(!['ventas','presupuestos'].includes(domain)||!Array.isArray(ids))throw fail(404,'Registros no disponibles');
+  if(!ids.some(recordKey))return Object.create(null);
+  return selectedRecords(actor,domain,ids,await context(scopedReads?actor.uid:undefined));
+ }
+ // Only an actor just issued by this exact authorizer can consume its private
+ // context once. No client flag, serialized actor or cross-request cache.
+ async function readAuthorizedRecordsByIds(actor,domain,ids){
+  const c=requestContexts.get(actor),seal=requestBindings.get(actor);
+  requestContexts.delete(actor);requestBindings.delete(actor);
+  if(!c||!seal||domain!==actor.domain||actorBinding(actor)!==seal||typeof readAsUser!=='function')throw fail(403,'La autorización de esta consulta ya no está disponible');
+  return selectedRecords(actor,domain,ids,c,true);
+ }
+
+ function consumeAuthorizedRecordRead(actor,domain,id,record){
+  const proof=authorizedOriginals.get(record);authorizedOriginals.delete(record);
+  if(!proof||proof.actor!==actor||proof.domain!==domain||proof.id!==id||proof.binding!==actorBinding(actor)||proof.hash!==require('./labor-guard').digest(record))throw fail(403,'Falta la lectura autorizada original de esta consulta');
+  return {path:'sisventas/'+domain+'/'+id,record:structuredClone(record)};
+ }
+
+ return {authorize,list,options,assign:(a,b)=>mutate(a,b,true),prepare:(a,b)=>mutate(a,b,false),visibleRecords,assertRecord,visibleRecordsByIds,readAuthorizedRecordsByIds,consumeAuthorizedRecordRead};
 }
 module.exports={createCommercialOwnership,moduleAllowed,eligible,profiles,owner,ownerSource,recordOwner,linkedBudgetKey,originalAuthor,validateCommercialActor};

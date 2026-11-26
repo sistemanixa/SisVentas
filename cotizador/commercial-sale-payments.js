@@ -14,7 +14,7 @@ function dto(payment){
  out.hasReceipt=!!(payment.comprobanteRef||payment.comprobanteAdjunto||payment.comprobante||(payment.comprobanteCuenta&&(payment.grupoPago||payment.pagoCuentaGrupo)));return out;
 }
 function create({ownership,store,observe}){
- if(!ownership?.authorize||!ownership.visibleRecordsByIds||!store?.read||!store.readAsUser)throw TypeError('Faltan puertos autorizados de historial de cobros.');
+ if(!ownership?.authorize||!ownership.consumeAuthorizedRecordRead||!ownership.readAuthorizedRecordsByIds||!store?.read||!store.readAsUser)throw TypeError('Faltan puertos autorizados de historial de cobros.');
  const snapshot=createPaymentSnapshot({store,maxCandidates:1000});
  return {async load({req,actor,saleKey,record}){
   const started=performance.now(),timings=Object.create(null);
@@ -22,7 +22,8 @@ function create({ownership,store,observe}){
   const timedStore={...store,read:path=>measure('serviceReadMs',()=>store.read(path)),readAsUser:(path,user)=>measure('userReadMs',()=>store.readAsUser(path,user))};
   try {
   assertActor(actor);Index.recordKey(saleKey);if(!record||typeof record!=='object'||Array.isArray(record))throw fail('La venta ya no está disponible.',404);
-  const observed=new Map(),authorized=new Map();
+  const originalRead=ownership.consumeAuthorizedRecordRead(actor,'ventas',saleKey,record);
+  const observed=new Map(),authorized=new Map([[originalRead.path,Promise.resolve(originalRead.record)]]);
   const capture=(cache,path,read)=>{if(!cache.has(path))cache.set(path,Promise.resolve().then(read));return cache.get(path);};
   const scope={get:path=>capture(observed,path,()=>store.read(path)),getAsUser:path=>capture(authorized,path,()=>timedStore.readAsUser(path,actor))};
   // Independent point reads share only this request's image. Start together;
@@ -51,7 +52,7 @@ function create({ownership,store,observe}){
   // pool bounds concurrency and waits for its workers before propagating errors.
   await measure('sourceValidationMs',()=>pool(checks,work=>work()));
   const finalActor=await measure('finalAuthorizationMs',()=>ownership.authorize(req,'ventas'));assertActor(finalActor);if(binding(actor)!==binding(finalActor))throw fail('La sesión o los permisos cambiaron.');
-  const fresh=(await measure('finalOwnershipMs',()=>ownership.visibleRecordsByIds(finalActor,'ventas',[saleKey])))[saleKey];
+  const fresh=(await measure('finalOwnershipMs',()=>ownership.readAuthorizedRecordsByIds(finalActor,'ventas',[saleKey])))[saleKey];
   if(!fresh||digest(fresh)!==digest(record))throw fail('La propiedad o la venta cambió.');
   if(digest(Index.validateCoverage(await timedStore.read(Index.COVERAGE_PATH)))!==digest(image.coverage))throw fail('La cobertura o las referencias de cobros cambiaron.');
   if(!Number.isFinite(paidAmount)||paidAmount<0)throw fail('El saldo histórico requiere revisión.',503);
