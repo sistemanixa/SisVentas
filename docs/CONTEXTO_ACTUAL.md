@@ -4800,3 +4800,6 @@ Checkout payment-regional-reader desde abb16d86: entry sale-payment-read-server.
 ## 26/11/2026 · v3.22.0 publicada, lector regional de pagos
 
 Fuente funcional66b5e9a8; alcance y evidencia en docs/PAGO_REGIONAL_PUBLICACION_20261126.md. Suite11.389PASS/0FAIL/92condicionales; Hosting729/729HTTPS+avisooficialsincronizado. LectorGETIowa con misma autorización fresca, min0/max4 y corte de gasto5servicios activo con fuentes remotas verificadas; servidor principal20 intacto. Sin cambios de pagos, reglas ni migraciones. Pendiente sólo medición de apertura real en sesión: CUA WindowsAccesodenegado, se solicitó desbloqueo; no afirmar latencia final de usuario hasta comprobarla.
+
+
+Comprobación real final22 completada tras desbloqueo: tres aperturas del mismo pago1.434/1.265/1.282 ms (media1.327ms, relojautomatizaciónincluidotransporte); servidor0.545/0.457/0.383s. Historial1pago/saldo cancelado correctos, ninguna operación financiera. Se restauró Empleados y cerró pestaña temporal. Detalle y límites en PAGO_REGIONAL_PUBLICACION_20261126.md. Ya no queda pendiente la verificación visual; no se acredita arranque en frío prolongado.
