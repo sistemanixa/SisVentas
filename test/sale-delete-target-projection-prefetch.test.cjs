@@ -46,3 +46,33 @@ test('financial source mismatch remains rejected and installed operations never 
  tree=G.put(tree,G.parts(M.financialPath('sv_sale_financial_dependencies/v1/records/'+G.digest('sisventas/ventas/sale'))+'/sourceHash'),'0'.repeat(64));
  const before=await run(Before,tree,wire),after=await run(Current,tree,wire);a.equal(after.error.code,before.error.code);a.equal(after.error.message,before.error.message);a.deepEqual(after.patch,wire);a.equal(after.active,0);
 });
+
+const TargetDelta=require('../cotizador/sale-delete-target-index-delta'),FinancialModel=require('../cotizador/sale-financial-dependencies-model'),FinancialProvider=require('../cotizador/sale-financial-dependencies-provider'),PaymentIndex=require('../cotizador/payment-membership-index');
+function applyPatch(tree,patch){for(const[p,v]of Object.entries(patch))tree=G.put(tree,G.parts(p),v);return tree;}
+function normalizedGraph(tree){const graph=structuredClone(G.child(tree,G.parts('sv_sale_delete_relations')));delete graph.v1.coverage.revision;delete graph.v1.financial.v1.coverage.revision;return PaymentIndex.normalizeRtdb(graph);}
+for(const [label,wire]of [
+ ['agenda',{'sisventas/agenda/new':{ventaFbKey:'sale',titulo:'Ficticio'}}],
+ ['payment-only',{'sisventas/pagos/pay/monto':11}],
+ ['OT',{'sisventas/ordenes_trabajo/new':{ventaFbKey:'sale',id:'OT-FICTICIA',materiales:[]}}]
+])test('non-financial '+label+' maintains Graph with zero financial I/O and exact financial bytes',async()=>{
+ const tree=await seed(),beforeFinancial=JSON.stringify(G.child(tree,G.parts(M.FINANCIAL_ROOT))),beforeCoverage=G.child(tree,G.parts(M.ROOT+'/coverage'));
+ const result=await run(Current,tree,wire);a.equal(result.error,undefined);a.equal(result.events.filter(e=>e.path===M.FINANCIAL_ROOT||e.path.startsWith(M.FINANCIAL_ROOT+'/')).length,0);a(Object.keys(result.patch).every(p=>!p.startsWith(M.FINANCIAL_ROOT+'/')));
+ const next=applyPatch(structuredClone(tree),result.patch);a.equal(JSON.stringify(G.child(next,G.parts(M.FINANCIAL_ROOT))),beforeFinancial);a.equal(G.child(next,G.parts(M.ROOT+'/coverage')).revision,beforeCoverage.revision+1);
+ const prepared=await M.prepare(Object.fromEntries(M.roots.map(p=>[p,G.child(next,G.parts(p))])),{generation:beforeCoverage.generation});const rebuilt=applyPatch(structuredClone(next),prepared.patch);a.deepEqual(normalizedGraph(next),normalizedGraph(rebuilt));
+ const provider=FinancialProvider.create(),evidence=await provider({saleKey:'sale',read:async p=>G.child(next,G.parts(p===FinancialModel.ROOT||p.startsWith(FinancialModel.ROOT+'/')?M.financialPath(p):p))});a.equal(evidence.dependencies.length,2);
+});
+test('no-op financial original does not prefetch or advance financial metadata',async()=>{const tree=await seed(),wire={'sisventas/ventas/sale':G.child(tree,G.parts('sisventas/ventas/sale'))},r=await run(Current,tree,wire);a.equal(r.error,undefined);a.equal(r.events.filter(e=>e.path.startsWith(M.FINANCIAL_ROOT+'/')).length,0);a(Object.keys(r.patch).every(p=>!p.startsWith(M.FINANCIAL_ROOT+'/')));a.equal(r.patch[M.ROOT+'/coverage'].revision,G.child(tree,G.parts(M.ROOT+'/coverage')).revision+1);});
+test('empty direct Graph delta still advances Graph revision without financial I/O',async()=>{const tree=await seed(),reads=[],patch=await TargetDelta.delta({changes:[],read:async p=>{reads.push(p);return structuredClone(G.child(tree,G.parts(p)));}});a.deepEqual(reads,[M.ROOT+'/coverage']);a.deepEqual(Object.keys(patch),[M.ROOT+'/coverage']);});
+test('every real financial delta remains patch-identical to reviewed 09cb delta',async()=>{
+ const filename=path.resolve(__dirname,'../cotizador/sale-delete-target-index-delta.js'),oldModule=new Module(filename,module);oldModule.filename=filename;oldModule.paths=Module._nodeModulePaths(path.dirname(filename));oldModule._compile(cp.execFileSync('git',['show','09cb79c3:cotizador/sale-delete-target-index-delta.js'],{encoding:'utf8'}),filename);
+ const tree=await seed(),sale=G.child(tree,G.parts('sisventas/ventas/sale'));
+ for(const changes of [
+  [{path:'sisventas/ventas/sale',before:sale,after:{...sale,observaciones:'Ficticio'}}],
+  [{path:'sisventas/ventas/sale',before:sale,after:{...sale,id:'V-0999'}}],
+  [{path:'sisventas/ventas/sale',before:sale,after:null}],
+  [{path:'sisventas/gastos/expense',before:G.child(tree,G.parts('sisventas/gastos/expense')),after:null}],
+  [{path:'sisventas/ctaemp/employee/movement',before:G.child(tree,G.parts('sisventas/ctaemp/employee/movement')),after:{ventaFbKey:'other',monto:3}}],
+  [{path:'sv_commission_generation/other',before:null,after:{monto:1}}],
+  [{path:'sisventas/comisiones_generacion/new',before:null,after:{ventaFbKey:'sale',monto:1}}]
+ ]){const read=async p=>structuredClone(G.child(tree,G.parts(p))),before=await oldModule.exports.delta({changes,read}),after=await TargetDelta.delta({changes,read});a.deepEqual(after,before);}
+});
