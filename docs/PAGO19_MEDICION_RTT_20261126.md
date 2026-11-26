@@ -21,6 +21,8 @@ node --test test/sale-payment-rtt-measure.test.cjs
 
 Con `RICH_ALIASES=false` se usa una venta con cuatro buckets. Con `true` se agregan tres referencias históricas ficticias: diez buckets. Ambos tienen un solo pago global por 40 y `venta.pagos=[]`. No se afirma que la venta real tenga esos alias. El módulo determina los buckets con el Matcher/Index original; no inventa ni elimina pertenencias.
 
+En el JSON, `baselineCriticalRoundsModel` y `baselineIdealCriticalMs` son exclusivamente el modelo publicado19 (Auth de cuatro rondas, pool de seis). No son una cuenta medida de rondas de una candidata. Para comparar versiones se usan `elapsedMs`, eventos con inicio/fin y los tiempos de fase nativos; no se atribuye automáticamente el modelo anterior a código nuevo.
+
 ## Resultados del reproductor
 
 Una ejecución secuencial por caso, RTT configurado 175 ms. Windows despertó los temporizadores aproximadamente a los 185 ms; los tiempos de pared incluyen esa demora y CPU. Las rondas críticas se derivan de dependencias, **no** de dividir el tiempo de pared por 175.
