@@ -4795,3 +4795,8 @@ Desde 7714ce9b: autorización de lector de pagos solapa reset/contexto después 
 ## 2026-11-26 — Servidor de lectura aislado, pendiente de integración
 
 Checkout payment-regional-reader desde abb16d86: entry sale-payment-read-server.js con composición readonly genuina y única ruta de historial. Contrato/evidencia en SALE_PAYMENT_READ_SERVER_20261126.md. 65 focales ficticios y HTTP loopback; sin emulador, datos reales ni despliegue. No modifica app20 ni fuentes existentes. Root evalúa probe regional y decide publicación.
+
+
+## 26/11/2026 · v3.22.0 publicada, lector regional de pagos
+
+Fuente funcional66b5e9a8; alcance y evidencia en docs/PAGO_REGIONAL_PUBLICACION_20261126.md. Suite11.389PASS/0FAIL/92condicionales; Hosting729/729HTTPS+avisooficialsincronizado. LectorGETIowa con misma autorización fresca, min0/max4 y corte de gasto5servicios activo con fuentes remotas verificadas; servidor principal20 intacto. Sin cambios de pagos, reglas ni migraciones. Pendiente sólo medición de apertura real en sesión: CUA WindowsAccesodenegado, se solicitó desbloqueo; no afirmar latencia final de usuario hasta comprobarla.
