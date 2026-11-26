@@ -58,12 +58,12 @@ for(const [label,wire]of [
  const tree=await seed(),beforeFinancial=JSON.stringify(G.child(tree,G.parts(M.FINANCIAL_ROOT))),beforeCoverage=G.child(tree,G.parts(M.ROOT+'/coverage'));
  const result=await run(Current,tree,wire);a.equal(result.error,undefined);a.equal(result.events.filter(e=>e.path===M.FINANCIAL_ROOT||e.path.startsWith(M.FINANCIAL_ROOT+'/')).length,0);a(Object.keys(result.patch).every(p=>!p.startsWith(M.FINANCIAL_ROOT+'/')));
  const next=applyPatch(structuredClone(tree),result.patch);a.equal(JSON.stringify(G.child(next,G.parts(M.FINANCIAL_ROOT))),beforeFinancial);a.equal(G.child(next,G.parts(M.ROOT+'/coverage')).revision,beforeCoverage.revision+1);
- const prepared=await M.prepare(Object.fromEntries(M.roots.map(p=>[p,G.child(next,G.parts(p))])),{generation:beforeCoverage.generation});const rebuilt=applyPatch(structuredClone(next),prepared.patch);a.deepEqual(normalizedGraph(next),normalizedGraph(rebuilt));
+ const prepared=await M.prepare(Object.fromEntries(M.roots.map(p=>[p,G.child(next,G.parts(p))])),{generation:beforeCoverage.generation});const rebuilt=applyPatch(G.put(structuredClone(next),G.parts('sv_sale_delete_relations'),null),prepared.patch);a.deepEqual(normalizedGraph(next),normalizedGraph(rebuilt));
  const provider=FinancialProvider.create(),evidence=await provider({saleKey:'sale',read:async p=>G.child(next,G.parts(p===FinancialModel.ROOT||p.startsWith(FinancialModel.ROOT+'/')?M.financialPath(p):p))});a.equal(evidence.dependencies.length,2);
 });
 test('no-op financial original does not prefetch or advance financial metadata',async()=>{const tree=await seed(),wire={'sisventas/ventas/sale':G.child(tree,G.parts('sisventas/ventas/sale'))},r=await run(Current,tree,wire);a.equal(r.error,undefined);a.equal(r.events.filter(e=>e.path.startsWith(M.FINANCIAL_ROOT+'/')).length,0);a(Object.keys(r.patch).every(p=>!p.startsWith(M.FINANCIAL_ROOT+'/')));a.equal(r.patch[M.ROOT+'/coverage'].revision,G.child(tree,G.parts(M.ROOT+'/coverage')).revision+1);});
 test('empty direct Graph delta still advances Graph revision without financial I/O',async()=>{const tree=await seed(),reads=[],patch=await TargetDelta.delta({changes:[],read:async p=>{reads.push(p);return structuredClone(G.child(tree,G.parts(p)));}});a.deepEqual(reads,[M.ROOT+'/coverage']);a.deepEqual(Object.keys(patch),[M.ROOT+'/coverage']);});
-test('every real financial delta remains patch-identical to reviewed 09cb delta',async()=>{
+test('existing financial delta fields remain patch-identical, with candidates added separately',async()=>{
  const filename=path.resolve(__dirname,'../cotizador/sale-delete-target-index-delta.js'),oldModule=new Module(filename,module);oldModule.filename=filename;oldModule.paths=Module._nodeModulePaths(path.dirname(filename));oldModule._compile(cp.execFileSync('git',['show','09cb79c3:cotizador/sale-delete-target-index-delta.js'],{encoding:'utf8'}),filename);
  const tree=await seed(),sale=G.child(tree,G.parts('sisventas/ventas/sale'));
  for(const changes of [
@@ -74,5 +74,32 @@ test('every real financial delta remains patch-identical to reviewed 09cb delta'
   [{path:'sisventas/ctaemp/employee/movement',before:G.child(tree,G.parts('sisventas/ctaemp/employee/movement')),after:{ventaFbKey:'other',monto:3}}],
   [{path:'sv_commission_generation/other',before:null,after:{monto:1}}],
   [{path:'sisventas/comisiones_generacion/new',before:null,after:{ventaFbKey:'sale',monto:1}}]
- ]){const read=async p=>structuredClone(G.child(tree,G.parts(p))),before=await oldModule.exports.delta({changes,read}),after=await TargetDelta.delta({changes,read});a.deepEqual(after,before);}
+ ]){const read=async p=>structuredClone(G.child(tree,G.parts(p))),before=await oldModule.exports.delta({changes,read}),after=await TargetDelta.delta({changes,read});a.deepEqual(Object.fromEntries(Object.entries(after).filter(([p])=>!p.startsWith(M.FINANCIAL_ROOT+'/candidatesBySale/'))),before);}
+});
+
+const candidates=(tree,sale)=>G.child(tree,G.parts(M.FINANCIAL_ROOT+'/candidatesBySale/'+sale));
+const financialEntry=(tree,id)=>G.child(tree,G.parts(M.FINANCIAL_ROOT+'/records/'+id));
+async function candidateSeed({ambiguous=false,technical=false,orphan=false}={}){
+ const sources=Object.fromEntries(M.roots.map(root=>[root,null]));Object.assign(sources,{'sisventas/ventas':{a:{id:'V-0001',total:10},b:{id:ambiguous?'V-0001':'V-0002',total:20}},'sisventas/gastos':{g:{tipo:'Comisión',monto:1,...(orphan?{}:{ventaId:'V-0001'}),...(technical?{ventaFbKey:'a',ventaId:'V-0002'}:{})}}});
+ let tree={};for(const[p,v]of Object.entries(sources))tree=G.put(tree,G.parts(p),v);return applyPatch(tree,(await M.prepare(sources,{generation:'candidate-inverse-fixture'})).patch);
+}
+async function assertRebuilt(tree){const sources=Object.fromEntries(M.roots.map(root=>[root,G.child(tree,G.parts(root))])),generation=G.child(tree,G.parts(M.ROOT+'/coverage')).generation,fresh=await M.prepare(sources,{generation}),rebuilt=applyPatch(G.put(structuredClone(tree),G.parts('sv_sale_delete_relations'),null),fresh.patch);a.deepEqual(normalizedGraph(tree),normalizedGraph(rebuilt));}
+test('bootstrap candidate inverse includes every ambiguous target without falsifying unresolved coverage',async()=>{
+ const tree=await candidateSeed({ambiguous:true}),id=G.digest('sisventas/gastos/g');a.deepEqual(candidates(tree,'a'),{[id]:true});a.deepEqual(candidates(tree,'b'),{[id]:true});a.equal(financialEntry(tree,id).unresolved,true);a.equal(G.child(tree,G.parts(M.FINANCIAL_ROOT+'/coverage')).unresolved,1);a.equal(G.child(tree,G.parts(M.FINANCIAL_ROOT+'/bySale/a')),null);a.equal(G.child(tree,G.parts('sv_sale_financial_dependencies')),null);await assertRebuilt(tree);
+});
+test('alias collision, resolution, source move and removal keep complete inverse equal to fresh rebuild',async()=>{
+ let tree=await candidateSeed();const id=G.digest('sisventas/gastos/g');a.deepEqual(candidates(tree,'a'),{[id]:true});a.equal(candidates(tree,'b'),null);
+ for(const [wire,expectedTargets,unresolved]of [
+  [{'sisventas/ventas/b/id':'V-0001'},['a','b'],1],
+  [{'sisventas/ventas/b/id':'V-0002'},['a'],0],
+  [{'sisventas/gastos/g/ventaId':'V-0002'},['b'],0],
+  [{'sisventas/gastos/g':null},[],0]
+ ]){const result=await run(Current,tree,wire);a.equal(result.error,undefined);tree=applyPatch(tree,result.patch);for(const sale of ['a','b'])a.equal(candidates(tree,sale)?.[id]===true,expectedTargets.includes(sale));a.equal(G.child(tree,G.parts(M.FINANCIAL_ROOT+'/coverage')).unresolved,unresolved);await assertRebuilt(tree);}
+});
+test('candidate inverse preserves technical priority and does not invent targets for orphan sources',async()=>{
+ const technical=await candidateSeed({technical:true}),id=G.digest('sisventas/gastos/g');a.deepEqual(candidates(technical,'a'),{[id]:true});a.equal(candidates(technical,'b'),null);a.equal(financialEntry(technical,id).unresolved,false);
+ const orphan=await candidateSeed({orphan:true});a.equal(candidates(orphan,'a'),null);a.equal(candidates(orphan,'b'),null);a.equal(financialEntry(orphan,id).unresolved,true);a.equal(G.child(orphan,G.parts(M.FINANCIAL_ROOT+'/coverage')).unresolved,1);
+});
+test('malformed old candidate targets veto the patch instead of fabricating an empty inverse',async()=>{
+ let tree=await candidateSeed();const id=G.digest('sisventas/gastos/g');tree=G.put(tree,G.parts(M.FINANCIAL_ROOT+'/records/'+id+'/targets'),'a');const wire={'sisventas/gastos/g/monto':2},result=await run(Current,tree,wire);a.equal(result.error.code,'SV_SALE_DELETE_TARGET_INDEX');a.equal(result.error.message,'Candidatos financieros inválidos.');a.deepEqual(result.patch,wire);a.equal(result.active,0);
 });

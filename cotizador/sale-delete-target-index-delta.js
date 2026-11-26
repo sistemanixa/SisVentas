@@ -13,7 +13,20 @@ async function delta({changes,read}){
   if(after){coverage.records++;coverage.sourceAccumulator=accumulate(coverage.sourceAccumulator,after,1);for(const token of after.tokens||[])patch[M.ROOT+'/refs/'+token+'/'+F.digest(change.path)]=true;for(const token of after.aliases||[])patch[M.ROOT+'/saleAliases/'+token+'/'+kind.key]=true;}
   if(M.financialRoots.has(kind.root))financial.push(change);
  }
- if(financial.length){const derived=await D.delta({changes:financial,read:path=>read(M.financialPath(path))});for(const[path,value]of Object.entries(derived))patch[M.financialPath(path)]=value;}
+ if(financial.length){
+  const derived=await D.delta({changes:financial,read:path=>read(M.financialPath(path))});
+  for(const[path,value]of Object.entries(derived)){
+   patch[M.financialPath(path)]=value;
+   const prefix=F.ROOT+'/records/';if(!path.startsWith(prefix))continue;
+   const id=path.slice(prefix.length),before=await read(M.financialPath(path));
+   if(value?.domain==='ventas'||before?.domain==='ventas')continue;
+   for(const [entry,present]of [[before,null],[value,true]]){
+    if(entry===null)continue;
+    if(!entry||F.digest(entry.path)!==id||!Array.isArray(entry.targets??[])||(entry.targets||[]).some(target=>!F.key(target)))throw M.fail('Candidatos financieros inválidos.');
+    for(const target of entry.targets||[])patch[M.FINANCIAL_ROOT+'/candidatesBySale/'+target+'/'+id]=present;
+   }
+  }
+ }
  coverage.revision++;if(!Number.isSafeInteger(coverage.revision)||!Number.isSafeInteger(coverage.records)||coverage.records<0)throw M.fail('Revisión de vínculos inválida.');patch[M.ROOT+'/coverage']=coverage;return patch;
 }
 module.exports={delta};
