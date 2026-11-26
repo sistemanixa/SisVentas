@@ -28,3 +28,14 @@ test('late live financial dependency is re-read without installing financial met
  }finally{await f.close();}
 });
 test('live ACK recovery returns one persisted effect while H/Fin remain absent',async()=>{const f=await live();try{const body=f.body();f.control.loseAck=true;a.equal((await f.request(body)).status,503);a.equal(f.commits.length,1);const r=await f.request(body);a.equal(r.status,200);a.equal(r.body.operationId,body.id);a.equal(f.commits.length,1);for(const p of absent)a.equal(f.get(p),null);}finally{await f.close();}});
+for(const change of ['sale-action','ot-action','sale-module','blocked-value'])test('same-revision permission change at the last Activity root of the fresh plan vetoes '+change,async()=>{
+ const f=await live();try{const before=f.get('sisventas'),revision=f.get('sv_permisos/admin/indiceRevision');let passes=0,changed=false;
+  f.control.beforeRead=async p=>{if(p==='sisventas/ordenesTrabajo'&&++passes===2){changed=true;
+   if(change==='sale-action')f.set('sv_permisos/admin/acciones/ventas/eliminar',false);
+   if(change==='ot-action')f.set('sv_permisos/admin/acciones/ot/eliminar',false);
+   if(change==='sale-module')f.set('sv_permisos/admin/indiceModulos/venta',false);
+   if(change==='blocked-value')f.set('sv_permisos/admin/bloqueados',{arbitraryFixtureKey:'venta'});
+  }};
+  const r=await f.request(f.body());a.equal(changed,true,'The fault must occur during the second complete plan');a.equal(passes,2);a.equal(f.get('sv_permisos/admin/indiceRevision'),revision);a.equal(r.status,409,JSON.stringify(r));a.equal(r.body.ok,false);a.equal(f.commits.length,0);a.deepEqual(f.get('sisventas'),before);a.equal(f.get('sv_labor_guard'),null);for(const p of absent)a.equal(f.get(p),null);
+ }finally{await f.close();}
+});
