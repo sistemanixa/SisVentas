@@ -16,7 +16,7 @@ async function create({sourceRoot=path.resolve(__dirname,'../..'),input={},mode=
  else await prepareFinancial();
  let TargetIndex;
  async function prepareTargetIndex(){
-  TargetIndex||=at('./sale-delete-target-index');const result=await TargetIndex.prepare(Object.fromEntries(TargetIndex.roots.map(p=>[p,get(p)])),{generation:'delete-http-lab-targeted'});for(const[p,v]of Object.entries(result.patch))set(p,v);return result;
+  TargetIndex||=at('./sale-delete-target-index');const result=await TargetIndex.prepare(Object.fromEntries(TargetIndex.roots.map(p=>[p,get(p)])),{generation:'delete-http-lab-targeted'});at('../test/helpers/labor-ui-flow.cjs').apply(state,result.patch);return result;
  }
  if(targeted){
   const RecordList=at('./record-list-model');set('sv_record_list_config',{schema:1,ready:true});for(const domain of RecordList.domains)for(const[id,row]of Object.entries(get('sisventas/'+domain)||{}))set(RecordList.index+'/'+domain+'/'+id,RecordList.summary(domain,row));
