@@ -4791,3 +4791,7 @@ v3.21.14. Consultar operación permanece visible durante la navegación y se res
 ## 2026-11-26 — Checkout payment-latency, pendiente de integración
 
 Desde 7714ce9b: autorización de lector de pagos solapa reset/contexto después del token real; permisos scoped dependen del rol sin esperar perfil; GET historial usa concurrencia explícita16, pool financiero sigue6. 116/116 focales, sin emulador/global/browser/producción. Fixture RTT175ms anterior3733→2439ms con39lecturas idénticas. Detalle y límites en docs/PAYMENT_READER_LATENCY_20261126.md. Siguiente paso: Root revisa e integra, mide servidor y decide publicación; esta rama no cambia estado externo.
+
+## 2026-11-26 — Servidor de lectura aislado, pendiente de integración
+
+Checkout payment-regional-reader desde abb16d86: entry sale-payment-read-server.js con composición readonly genuina y única ruta de historial. Contrato/evidencia en SALE_PAYMENT_READ_SERVER_20261126.md. 65 focales ficticios y HTTP loopback; sin emulador, datos reales ni despliegue. No modifica app20 ni fuentes existentes. Root evalúa probe regional y decide publicación.
