@@ -191,7 +191,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
      if(failed)throw failed.reason;validateFinancialContext(actor,checked[0].value,checked[1].value);
     }
     if(revalidateAdvancePeriod)await revalidateAdvancePeriod();
-    for(const check of finalChecks){live();await check({readFresh:path=>store.read(path),readFreshAsUser:path=>store.readAsUser(path,{uid:actor.uid,claims:actor.claims}),queryFresh:(...args)=>store.query(...args)});live();}
+    for(const check of finalChecks){live();await check({assertActive:live,readFresh:path=>store.read(path),readFreshAsUser:path=>store.readAsUser(path,{uid:actor.uid,claims:actor.claims}),queryFresh:(...args)=>store.query(...args)});live();}
     if((actor.mode==='user'||actor.mode==='command')&&actor.financialAction==='ventas.eliminar'){
      const checked=await Promise.allSettled([store.read('sv_chat_roles/'+actor.uid),store.read('sv_permisos/'+actor.role)]),failed=checked.find(value=>value.status==='rejected');live();
      if(failed)throw failed.reason;validateFinancialContext(actor,checked[0].value,checked[1].value);

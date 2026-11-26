@@ -5,6 +5,7 @@ const Relations=require('./sale-delete-relations');
 const Activity=require('./sale-delete-activity');
 const {pool}=require('./payment-snapshot');
 const Live=require('./sale-delete-live-financial-evidence');
+const sourceRoots=new Set(['sisventas/ventas','sisventas/gastos','sisventas/ctaemp','sisventas/comisiones_generacion','sv_commission_generation']);
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_SALE_DELETE_BLOCKED'});
 const key=value=>{if(typeof value!=='string'||!value||/[.#$\[\]/\x00-\x1f]/.test(value))throw fail('Referencia inválida.');return value;};
 function appendBudgetAudit(original,event,entryKey){
@@ -87,17 +88,24 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   if(!/^[a-f0-9]{64}$/.test(body.expectedHash||''))throw fail('Falta verificar la revisión original de la venta.');
   const captured=await access(path=>store.read(path),actor),timestamp=now(),person={...actor,name:captured.profile.nombre||captured.profile.login||''};
   if(Live.isProvider(store.saleDeleteFinancialEvidence))await Live.assertAbsent({read:path=>store.read(path),exists:path=>store.exists(path)});
-  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',role:'admin',permissionRevision:captured.permissions.indiceRevision,permissionDigest:digest(captured.permissions),opId:body.id,transportDigest:digest(body),operation:'sale-delete',financialAction:'ventas.eliminar',input:body},async scope=>{
+  let reader,result;
+  try{result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',role:'admin',permissionRevision:captured.permissions.indiceRevision,permissionDigest:digest(captured.permissions),opId:body.id,transportDigest:digest(body),operation:'sale-delete',financialAction:'ventas.eliminar',input:body},async scope=>{
+   if(Live.isProvider(store.saleDeleteFinancialEvidence)&&typeof store.createSaleDeleteSourceReader==='function')reader=store.createSaleDeleteSourceReader();
+   const phaseRead=(raw,memo,assertActive)=>!reader?raw:async path=>{assertActive();if(!sourceRoots.has(path)){const value=await raw(path);assertActive();return value;}
+    if(!memo.has(path))memo.set(path,(async()=>{assertActive();const value=await reader.read(path);assertActive();return value;})());
+    const value=await memo.get(path);assertActive();return structuredClone(value);
+   };
+   const initialMemo=new Map(),freshMemo=new Map(),initialRead=phaseRead(scope.get,initialMemo,scope.assertActive);
    if(digest(await access(scope.get,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
-   const initial=await plan(scope.get,scope.query,body.ventaKey,person,timestamp,body.expectedHash,body.id,captured.permissions);
-   scope.beforeCommit(async({readFresh,queryFresh})=>{
+   const initial=await plan(initialRead,scope.query,body.ventaKey,person,timestamp,body.expectedHash,body.id,captured.permissions);
+   scope.beforeCommit(async({readFresh,queryFresh,assertActive})=>{
     if(digest(await access(readFresh,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
-    const fresh=await plan(readFresh,queryFresh,body.ventaKey,person,timestamp,body.expectedHash,body.id,captured.permissions);
+    const fresh=await plan(phaseRead(readFresh,freshMemo,assertActive),queryFresh,body.ventaKey,person,timestamp,body.expectedHash,body.id,captured.permissions);
     if(digest(fresh.snapshot)!==digest(initial.snapshot))throw fail('Los vínculos cambiaron; no se eliminó ningún registro.');
    });
    await scope.update(initial.patch);
    return {ok:true,committed:true,ventaKey:body.ventaKey};
-  });
+  });}finally{reader?.dispose();}
   if(digest(await access(path=>store.read(path),actor))!==digest(captured))throw fail('Los permisos cambiaron. Consultá la operación antes de repetirla.');
   return result;
  }
