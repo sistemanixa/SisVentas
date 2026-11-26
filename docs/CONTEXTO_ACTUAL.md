@@ -1,3 +1,11 @@
+# Borrado administrativo: recorte live-originals en laboratorio · 26/11/2026
+
+Producción permanece v3.22.0, sin borrado real ni cambios de Rules, índices o flags. La preparación H/Fin persistente anterior queda como propuesta offline: instalar History deshabilitaría el contrato OT V2 publicado. Se adopta modo servidor cerrado live-originals: ausencia real H/Hconfig/Fin, modelo y proveedor financieros existentes sobre cinco originales completos en memoria, comparación de hashes RAW en dos planes, CC/Pages/Payment y recibo coordinados. No exporta fuentes productivas ni crea índices. Las reglas candidatas exigen ausencia PRE/POST atómica; pendiente su prueba nativa y regresión OT V2. La lectura/exportación privada masiva fue rechazada automáticamente y no se ejecutó.
+
+Primer focal integrado:61 pruebas,58 PASS y3 FAIL exclusivamente por status esperado409 frente403 en revocaciones de acción/módulo/bloqueados. Revocación OT por digest devuelve409 y pasa. No se considera puerta verde; corrección test-only en revisión. Proveedor32 y cascada/ACK/ausencias/fuentes tardías pasan con datos ficticios. Primer intento sandbox no pudo conectar loopback; repetición fuera de sandbox produjo el resultado anterior. Guard mantiene mismos dos GET finales de rol/permisos, movidos después de los controles de fuentes sólo para ventas.eliminar. Otras acciones conservan orden. H3 no se migra: SDK vigente se conserva al no instalar History. Artefacto nativo definitivo, suite vigente, Rules y publicación todavía pendientes.
+
+---
+
 # Publicada v3.21.20 · 26/11/2026
 
 Fuente funcional abb16d86855ac0094171c08b9ea7de991b65eeb2, rama codex/payment-final-20261126. Suite vigente COMPLETA sobre SHA limpio estable:11423casos/11331PASS/0FAIL/0cancelados/92exclusionescondicionales. Runtime nativo ensamblado88PASS/0FAIL. Primer intento c411 fue INTERRUMPIDO: los fixtures no servían el nuevo GET combinado y una prueba esperaba el SDK retirado; quedó rojo, no se acredita como puerta superada. Se reparó la frontera HTTP ficticia con Ownership/Reader reales y se mantuvieron assertions económicas, permisos, retorno y ACK; la segunda suite completa es la verde indicada.

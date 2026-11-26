@@ -27,13 +27,10 @@ function fixture(){
  return {root,sdk,state,commands,direct,reads,headers,ref:path=>ref(null,path),get,put,commit,setHandler(fn){handler=fn;},setBeforeGet(fn){beforeGet=fn;},setHeaders(fn){headerTask=fn;},get holds(){return holds;},get releases(){return releases;}};
 }
 
-for(const domain of ['reclamos','equipos','tickets'])test('history source '+domain+' joins coordinated writes and never falls back after a denial',async()=>{
- const f=fixture();let coordinated=false;f.root.SVClientAccountHost={start:async()=>{coordinated=true;},coordinated:()=>coordinated};
+for(const domain of ['reclamos','equipos','tickets'])test('without History migration '+domain+' preserves its existing SDK transport without extra capability reads',async()=>{
+ const f=fixture();let starts=0;f.root.SVClientAccountHost={start:async()=>{starts++;},coordinated:()=>true};
  await f.root.fbSet(f.ref('sisventas/'+domain+'/r'),{descripcion:'Ficticio'});
- assert.equal(f.commands.length,1);assert.equal(f.direct.length,0);
- f.setHandler(()=>response({ok:false,mensaje:'Denegado'},403));
- await assert.rejects(f.root.fbUpdate(f.ref('sisventas/'+domain+'/r'),{descripcion:'Cambiar'}));
- assert.equal(f.direct.length,0);assert.equal(f.commands.length,2);
+ assert.equal(f.commands.length,0);assert.equal(f.direct.length,1);assert.equal(starts,0);assert.equal(f.reads.length,0);
 });
 
 test('first customer set, update, remove, transaction and push wait for coordinated readiness before choosing the writer',async()=>{

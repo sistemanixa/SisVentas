@@ -7,7 +7,7 @@ test('sale activity routing is an explicit complete runtime opt-in and its readi
  const ordinary=createLaborGuard(flags),active=createLaborGuard({...flags,saleDeleteActivity:true});
  for(const domain of ['agenda','ordenes','listas_materiales','remitos','equipos','tickets','ordenesTrabajo'])assert.equal(active.affects('sisventas/'+domain+'/r'),true);
  assert.equal(ordinary.affects('sisventas/agenda/r'),false);assert.equal(active.affects('sisventas/productos/r'),false);
- assert.throws(()=>createLaborGuard({...flags,clientHistory:false,saleDeleteActivity:true}),/proyecciones coordinadas/);
+ assert.throws(()=>createLaborGuard({...flags,clientAccounts:false,saleDeleteActivity:true}),/proyecciones coordinadas/);
  const runtime=createLaborRuntime({db:{},databaseURL:'http://127.0.0.1:1',accessToken:async()=>'',enabled:true,...Object.fromEntries(Object.entries(flags).filter(([name])=>name!=='store')),saleDeleteActivity:true});
  assert.equal(runtime.guard.saleDeleteActivity,true);assert.equal(runtime.store.saleDeleteActivityFenceReady,true);
  assert.throws(()=>{runtime.store.saleDeleteActivityFenceReady=false;},TypeError);

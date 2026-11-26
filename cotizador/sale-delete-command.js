@@ -4,6 +4,7 @@ const Fence=require('./sale-delete-fence');
 const Relations=require('./sale-delete-relations');
 const Activity=require('./sale-delete-activity');
 const {pool}=require('./payment-snapshot');
+const Live=require('./sale-delete-live-financial-evidence');
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_SALE_DELETE_BLOCKED'});
 const key=value=>{if(typeof value!=='string'||!value||/[.#$\[\]/\x00-\x1f]/.test(value))throw fail('Referencia inválida.');return value;};
 function appendBudgetAudit(original,event,entryKey){
@@ -28,7 +29,7 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   if(!sale)throw fail('La venta ya no existe. Consultá el resultado de la operación.');
   const original=structuredClone(sale);delete original.fbKey;
   if(sale.fbKey!=null&&sale.fbKey!==saleKey||digest(original)!==expectedHash)throw fail('La venta cambió. Volvé a abrir el original antes de eliminar.');
-  const financial=await store.saleDeleteFinancialEvidence({saleKey,read,query});
+  const financial=await store.saleDeleteFinancialEvidence({saleKey,read,query,operationId});
   if(financial?.schema!==1||financial.saleKey!==saleKey||financial.scope!=='complete-financial-dependencies'||typeof financial.generation!=='string'||!financial.generation||!Number.isSafeInteger(financial.revision)||financial.revision<1||!['gastos','ctaemp','comisiones_generacion','sv_commission_generation'].every(domain=>/^[a-f0-9]{64}$/.test(financial.sources?.[domain]||''))||!Array.isArray(financial.dependencies))throw fail('Falta cobertura financiera completa de esta venta; no se eliminó ningún registro.');
   if(financial.dependencies.length)throw Object.assign(Error('La venta conserva comisiones o movimientos financieros. Resolvé esas dependencias antes de eliminar; no se modificó ningún registro.'),{statusCode:409,code:'SV_SALE_DELETE_FINANCIAL_DEPENDENCY'});
   if(sale.factura?.cae&&!sale.notaCredito?.cae)throw fail('Primero debe tener su nota de crédito.');
@@ -85,6 +86,7 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   key(body?.id);key(body?.ventaKey);
   if(!/^[a-f0-9]{64}$/.test(body.expectedHash||''))throw fail('Falta verificar la revisión original de la venta.');
   const captured=await access(path=>store.read(path),actor),timestamp=now(),person={...actor,name:captured.profile.nombre||captured.profile.login||''};
+  if(Live.isProvider(store.saleDeleteFinancialEvidence))await Live.assertAbsent({read:path=>store.read(path),exists:path=>store.exists(path)});
   const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',role:'admin',permissionRevision:captured.permissions.indiceRevision,permissionDigest:digest(captured.permissions),opId:body.id,transportDigest:digest(body),operation:'sale-delete',financialAction:'ventas.eliminar',input:body},async scope=>{
    if(digest(await access(scope.get,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
    const initial=await plan(scope.get,scope.query,body.ventaKey,person,timestamp,body.expectedHash,body.id,captured.permissions);

@@ -21,7 +21,7 @@ function derive(input){
  function put(text){let reverse=text;for(const h of [...hunks[name]].reverse()){if(reverse.split(h.after).length!==2)fail('Reverse anchor changed: '+name);reverse=reverse.replace(h.after,h.before);}if(reverse!==LF(initial.files[name]))fail('Unrelated native body changed: '+name);files[name]=Buffer.from(text);}
  name='labor-guard.js';let text=LF(files[name]);
  text=once(text,'saleFinancialDependencies=false,otDeleteOperational=false','saleFinancialDependencies=false,saleDeleteActivity=false,otDeleteOperational=false');
- const validation=" if(typeof saleDeleteActivity!=='boolean'||saleDeleteActivity&&(!clientAccounts||!commercialPages||!clientHistory||!saleFinancialDependencies))throw Error('El cierre de actividad requiere proyecciones coordinadas completas.');";
+ const validation=" if(typeof saleDeleteActivity!=='boolean'||saleDeleteActivity&&(!clientAccounts||!commercialPages))throw Error('El cierre de actividad requiere proyecciones coordinadas completas.');";
  if(!LF(input.sources[name]).includes(validation))fail('Reviewed activity validation missing.');
  text=once(text,' const context=new AsyncLocalStorage();',validation+'\n const context=new AsyncLocalStorage();');
  text=once(text,' const affects=path=>',' const affects=path=>saleDeleteActivity&&/^sisventas\\/(agenda|ordenes|listas_materiales|remitos|equipos|tickets|ordenesTrabajo)(\\/|$)/.test(path)||');

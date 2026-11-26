@@ -36,7 +36,7 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
  if(!store||!Number.isFinite(leaseMs)||leaseMs<1000||leaseMs>60000)throw Error('Configuración de coordinación inválida');
  if(dashboardBudgets&&(dashboardBudgets.enabled!==true||typeof dashboardBudgets.augment!=='function'||typeof dashboardBudgets.affects!=='function'))throw Error('El proyector de Presupuestos debe habilitarse explícitamente.');
  if(dashboardActivity&&(!commercialPages||typeof dashboardActivity.augment!=='function'))throw Error('La actividad requiere Pages coordinado y un proyector explícito.');
- if(typeof saleDeleteActivity!=='boolean'||saleDeleteActivity&&(!clientAccounts||!commercialPages||!clientHistory||!saleFinancialDependencies))throw Error('El cierre de actividad requiere proyecciones coordinadas completas.');
+ if(typeof saleDeleteActivity!=='boolean'||saleDeleteActivity&&(!clientAccounts||!commercialPages))throw Error('El cierre de actividad requiere proyecciones coordinadas completas.');
  if(typeof otDeleteOperational!=='boolean')throw Error('La coordinación OT debe habilitarse explícitamente.');
  const context=new AsyncLocalStorage();let tail=Promise.resolve();
  function operation(actor){
@@ -186,12 +186,16 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
     const financialMaintenance=saleFinancialDependencies?await require('./sale-financial-dependencies-projections').augment({patch,raw,get,exists:async()=>financialInstalled}):{maintained:false};
     const receiptResult=['admin-expense-create','admin-expense-edit'].includes(actor.operation)?{ok:true,committed:true,key:result.key}:['user','bootstrap'].includes(actor.mode)?copy(result):{ok:true,committed:true};
     patch['sv_labor_receipts/'+opId]={fence:lease.fence,digest:requestDigest,actorUid:actor.uid,result:receiptResult,confirmedAt:now()};patch.sv_labor_guard=null;
-    if((actor.mode==='user'||actor.mode==='command')&&actor.financialAction){
+    if((actor.mode==='user'||actor.mode==='command')&&actor.financialAction&&actor.financialAction!=='ventas.eliminar'){
      const checked=await Promise.allSettled([store.read('sv_chat_roles/'+actor.uid),store.read('sv_permisos/'+actor.role)]),failed=checked.find(value=>value.status==='rejected');live();
      if(failed)throw failed.reason;validateFinancialContext(actor,checked[0].value,checked[1].value);
     }
     if(revalidateAdvancePeriod)await revalidateAdvancePeriod();
     for(const check of finalChecks){live();await check({readFresh:path=>store.read(path),readFreshAsUser:path=>store.readAsUser(path,{uid:actor.uid,claims:actor.claims}),queryFresh:(...args)=>store.query(...args)});live();}
+    if((actor.mode==='user'||actor.mode==='command')&&actor.financialAction==='ventas.eliminar'){
+     const checked=await Promise.allSettled([store.read('sv_chat_roles/'+actor.uid),store.read('sv_permisos/'+actor.role)]),failed=checked.find(value=>value.status==='rejected');live();
+     if(failed)throw failed.reason;validateFinancialContext(actor,checked[0].value,checked[1].value);
+    }
     live();await store.commit(patch,lease,{...actor,clientAccountsWriterVersion:clientAccounts&&commercialPages?1:0,clientHistoryWriterVersion:clientHistory?1:0,saleFinancialWriterVersion:financialMaintenance.maintained?1:0});completed=true;return result;
    });
   }finally{phase='closed';if(!completed)await store.abort(lease).catch(()=>{});}
@@ -205,6 +209,6 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
   const previous=tail;let release;tail=new Promise(resolve=>{release=resolve;});await previous;
   try{return await execute(actor,work,op);}finally{release();}
  }
- return {run,clientAccounts,clientHistory,saleFinancialDependencies,get saleDeleteActivity(){return saleDeleteActivity;},affects:path=>affected(path)||saleDeleteActivity&&/^sisventas\/(agenda|ordenes|listas_materiales|remitos|equipos|tickets|ordenesTrabajo)(\/|$)/.test(path)||otDeleteOperational&&/^sisventas\/(ordenes_trabajo|reclamos|ventas|pagos|equipos|tickets|remitos)(\/|$)/.test(path)||dashboardActivity&&/^sisventas\/(ventas|pagos|ordenes_trabajo)(\/|$)/.test(path)||dashboardBudgets&&dashboardBudgets.affects(path)||clientHistory&&/^sisventas\/(ventas|pagos|presupuestos|ordenes_trabajo|reclamos|tickets|equipos)(\/|$)/.test(path)||clientAccounts&&/^sisventas\/(clientes|clientes_unificados|clientes_unificados_indice|presupuestos|reclamos|equipos|tickets)(\/|$)/.test(path),current:()=>{const active=context.getStore();active?.assertActive();return active;}};
+ return {run,clientAccounts,clientHistory,saleFinancialDependencies,get saleDeleteActivity(){return saleDeleteActivity;},affects:path=>affected(path)||saleDeleteActivity&&/^sisventas\/(agenda|ordenes|listas_materiales|remitos|equipos|tickets|ordenesTrabajo)(\/|$)/.test(path)||otDeleteOperational&&/^sisventas\/(ordenes_trabajo|reclamos|ventas|pagos|equipos|tickets|remitos)(\/|$)/.test(path)||dashboardActivity&&/^sisventas\/(ventas|pagos|ordenes_trabajo)(\/|$)/.test(path)||dashboardBudgets&&dashboardBudgets.affects(path)||clientHistory&&/^sisventas\/(ventas|pagos|presupuestos|ordenes_trabajo|reclamos|tickets|equipos)(\/|$)/.test(path)||clientAccounts&&/^sisventas\/(clientes|clientes_unificados|clientes_unificados_indice|presupuestos)(\/|$)/.test(path),current:()=>{const active=context.getStore();active?.assertActive();return active;}};
 }
 module.exports={createLaborGuard,canonical,digest,affected,parts,child,put,domains,config};
