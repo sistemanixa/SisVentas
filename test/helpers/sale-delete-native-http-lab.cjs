@@ -2,7 +2,9 @@
 // Full HTTP / native BusinessAuth / gateway / Guard / RESTStore. Memory is only
 // the RTDB/Auth transport boundary; this is not a Rules or writer-closure proof.
 const http=require('node:http'),path=require('node:path'),{createRequire}=require('node:module'),a=require('node:assert/strict');
-async function create({sourceRoot=path.resolve(__dirname,'../..'),input={}}={}){
+async function create({sourceRoot=path.resolve(__dirname,'../..'),input={},mode='indexed'}={}){
+ if(!['indexed','live-originals'].includes(mode))throw TypeError('Unknown sale-delete lab mode');
+ const live=mode==='live-originals';
  const at=createRequire(path.join(sourceRoot,'cotizador/index.js')),Guard=at('./labor-guard'),Financial=at('./sale-financial-dependencies-model');
  const originals={ventas:{sale:{id:'V-LAB-0001',fecha:'2026-11-26',clienteFbKey:'client',responsableUid:'u',presupuestoFbKey:'budget',subtotal:100,total:100,items:[{cod:'LAB',qty:1,punit:100,costoUnitarioCompra:20}]}},pagos:{payment:{ventaFbKey:'sale',monto:20,fecha:'2026-11-26'}},ordenes_trabajo:{ot:{id:'OT-LAB-1',ventaFbKey:'sale',clienteFbKey:'client',responsableUid:'u'}},presupuestos:{budget:{id:'P-LAB-1',ventaGeneradaId:'V-LAB-0001',clienteFbKey:'client',responsableUid:'u',items:[{qty:1,costo:20}],audit:[]}},clientes:{client:{id:'C-LAB',nombre:'Ficticio'}},gastos:{},ctaemp:{},comisiones_generacion:{},comisiones:{unrelated:{monto:7,estado:'aprobada'}},stock:{unrelated:{cantidad:9}},comprobantesVenta:{unrelated:{cae:'FAKE-FISCAL',ventaConciliadaFbKey:'other'}},...input};
  const prepared=await at('../test/helpers/coordinated-backend.cjs').createCoordinatedBackend(originals);let state=prepared.state;
@@ -10,7 +12,8 @@ async function create({sourceRoot=path.resolve(__dirname,'../..'),input={}}={}){
  set('sv_usuarios',{profile:{uid:'u',nombre:'Admin ficticio',rol:'admin',activo:true}});set('sv_chat_roles',{u:{activo:true,rol:'admin',nombre:'Admin ficticio'}});set('sv_access_resets/u',{required:false,version:'lab-v1'});
  set('sv_permisos/admin',{indiceVersion:2,indiceRevision:1,indiceModulos:{venta:true,detalle:true,presupuesto:true,cobranzas:true,ordentrabajo:true,cuentacorriente:true},acciones:{ventas:{eliminar:true},ot:{eliminar:true}}});set('sv_labor_config',{schema:1,ready:true,writerSchema:2});
  async function prepareFinancial(){const sources={ventas:get('sisventas/ventas'),gastos:get('sisventas/gastos'),ctaemp:get('sisventas/ctaemp'),comisiones_generacion:get('sisventas/comisiones_generacion'),sv_commission_generation:get('sv_commission_generation')||{}};const result=await Financial.prepare(sources,{generation:'delete-http-lab-financial'});for(const [p,v]of Object.entries(result.patch))set(p,v);return result;}
- await prepareFinancial();
+ if(live){set('sv_client_history',null);set('sv_client_history_config',null);set('sv_sale_financial_dependencies',null);}
+ else await prepareFinancial();
  const calls=[],commits=[],httpCalls=[],authCalls=[],adminReads=[],control={revoked:false,loseAck:false,beforeRead:null};
  const fetchImpl=async(target,options)=>{
   const url=new URL(target);a.equal(url.origin,'http://127.0.0.1:1');a.equal(url.searchParams.get('ns'),'demo-sale-delete-native-http-lab');const p=decodeURIComponent(url.pathname).slice(1,-5),override=JSON.parse(url.searchParams.get('auth_variable_override')||'null'),body=options.body===undefined?undefined:JSON.parse(options.body),call={method:options.method,path:p,override:structuredClone(override),query:url.searchParams.has('orderBy'),requestBytes:Buffer.byteLength(url.pathname+url.search)+Buffer.byteLength(options.body||''),responseBytes:4};calls.push(call);
@@ -24,7 +27,7 @@ async function create({sourceRoot=path.resolve(__dirname,'../..'),input={}}={}){
  const db={ref:p=>({toString:()=> 'http://127.0.0.1:1/'+p,get:async()=>{const value=get(p);adminReads.push({path:p,responseBytes:Buffer.byteLength(JSON.stringify(value))});return{val:()=>value};}})};
  const firebaseAuth={verifyIdToken:async(token,checkRevoked)=>{authCalls.push({checkRevoked});a.equal(checkRevoked,true);if(token!=='FICTITIOUS_DELETE_LAB'||control.revoked)throw Error('Fixture Auth rejected');return{uid:'u',svAccessVersion:'lab-v1'};}};
  const businessAuth=at('./user-access').createBusinessAuth(firebaseAuth,db);
- const runtime=at('./labor-runtime').createLaborRuntime({db,databaseURL:'http://127.0.0.1:1/?ns=demo-sale-delete-native-http-lab',accessToken:async()=>'FIXTURE_ONLY',fetchImpl,enabled:true,commercialPages:true,clientAccounts:true,clientHistory:true,operationalSummaries:true,saleFinancialDependencies:true,saleDeleteActivity:true});
+ const runtime=at('./labor-runtime').createLaborRuntime({db,databaseURL:'http://127.0.0.1:1/?ns=demo-sale-delete-native-http-lab',accessToken:async()=>'FIXTURE_ONLY',fetchImpl,enabled:true,commercialPages:true,clientAccounts:true,clientHistory:!live,operationalSummaries:true,saleFinancialDependencies:!live,saleDeleteActivity:true,...(live?{saleDeleteEvidenceMode:'live-originals'}:{})});
  a.equal(typeof runtime.store.saleDeleteFinancialEvidence,'function');
  // Explicit lab preparation declarations; not evidence of deployed Rules/closure.
  runtime.store.saleDeleteFenceReady=true;
