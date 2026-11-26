@@ -1,3 +1,17 @@
+# Publicada v3.21.19 · 26/11/2026
+
+Fuente funcional f2c4c870ff06f82f2fd4e2945da1b42a2cfa8d76, rama codex/payment-flow-20261126. Servidor cotizador-r19-f2c4c87 con 100% de tráfico leído posteriormente; imagen sha256:6213063cd036f685736bb91f8156ca1e6a85ea4c43e0884fd042a3f8b29f8671. Conserva configuración y tres módulos OT16. Cinco archivos cambian respecto a paytrace18: index, commercial-sale-payments, commercial-ownership y dos módulos laborales. Hosting727/727 activos HTTPS idénticos por SHA256; script oficial confirmó web/marcador/SW/aviso Firebase19. Sin cambios de Rules, pagos, aprobaciones, stock, capacidad ni sondeos.
+
+Bloque: contexto autorizado privado de un uso y original leído bajo usuario reutilizados dentro de la consulta de cobros, sin caché entre solicitudes; nueva venta espera clientes/productos/empleados pero no carga ventas anteriores; numeración transaccional al guardar intacta. Tarifa de horas extra por mes trabajado y reutilización de snapshot vigente de Gastos en cuenta de empleado integrados desde22f346a3. No se aprobaron horas ni realizaron movimientos financieros reales de prueba.
+
+Puerta congelada f2c:11353 casos,11257PASS/5FAIL/91 exclusiones condicionales. Los cinco fallos pertenecían exclusivamente a dos fixtures que todavía esperaban la tarifa única anterior y la carga histórica al abrir Nueva venta. d0e8e866 modifica SÓLO esos dos tests; sus archivos completos43/43PASS, producto byteidéntico. Resultado efectivo documentado11262PASS/0FAIL/91 exclusiones; NO se afirma que la primera ejecución completa fuera verde ni se repitió toda la suite tras la corrección sólo de fixtures. Runtime nativo ensamblado60/60PASS; app completa390/1280 para formulario e historial con datos ficticios y cero escrituras de negocio. Autorización/propiedad/permisos/revisión/reset y fuentes frescas permanecen.
+
+Verificación real sólo lectura: el cobro existente aparece con saldo cancelado y un pago; no fue anulado ni recreado. La última muestra nueva del servidor es3.3966s, frente a3.862s/5.158s previos; una muestra NO acredita una distribución ni un tiempo objetivo. El lector interno tarda2249ms, autorización final739ms, snapshot507ms, validación de fuentes339ms y propiedad final167ms. La latencia sigue siendo excesiva: NO declarar terminada esa optimización. Nueva venta19 fue probada completa en fixture; no se atribuye esa prueba a una creación real. Cuenta del usuario y pestaña original preservadas. Artefactos privados payment-flow19-* en tmp, no subirlos a Git.
+
+Pendientes separados: continuar diagnóstico de latencia real sin reducir controles; inventario estático de funciones que leen Ventas solicitado por el titular. Migración general Compras/Stock/OT permanece fuera de esta publicación y sin activar.
+
+---
+
 # Publicada optimización del historial de pagos · 25/11/2026
 
 Fuente funcional bfadf1b0e18afce9eec15ccc55b8f2293d434b9d; sólo cambia commercial-sale-payments.js en el servidor. Web y activos siguen en v3.21.18, sin nuevo despliegue Hosting ni aviso de versión. Puerta completa congelada: 11337 casos, 11246 PASS, 0 FAIL/cancelados y 91 exclusiones condicionales, exit0/SHA estable. Veinticuatro pruebas de módulo/ruta también pasan en el runtime nativo ensamblado. Comparación de 150 archivos: sólo el lector difiere, resto byteidéntico. Sin cambios de datos, cobros/anulaciones, Rules, configuración funcional, capacidad o procesos periódicos.
