@@ -13,18 +13,22 @@ function dto(payment){
  out.monto=amount(payment.monto);
  out.hasReceipt=!!(payment.comprobanteRef||payment.comprobanteAdjunto||payment.comprobante||(payment.comprobanteCuenta&&(payment.grupoPago||payment.pagoCuentaGrupo)));return out;
 }
-function create({ownership,store}){
+function create({ownership,store,observe}){
  if(!ownership?.authorize||!ownership.visibleRecordsByIds||!store?.read||!store.readAsUser)throw TypeError('Faltan puertos autorizados de historial de cobros.');
  const snapshot=createPaymentSnapshot({store,maxCandidates:1000});
  return {async load({req,actor,saleKey,record}){
+  const started=performance.now(),timings=Object.create(null);
+  const measure=async(name,work)=>{const began=performance.now();try{return await work();}finally{timings[name]=(timings[name]||0)+performance.now()-began;}};
+  const timedStore={...store,read:path=>measure('serviceReadMs',()=>store.read(path)),readAsUser:(path,user)=>measure('userReadMs',()=>store.readAsUser(path,user))};
+  try {
   assertActor(actor);Index.recordKey(saleKey);if(!record||typeof record!=='object'||Array.isArray(record))throw fail('La venta ya no está disponible.',404);
   const observed=new Map(),authorized=new Map();
   const capture=(cache,path,read)=>{if(!cache.has(path))cache.set(path,Promise.resolve().then(read));return cache.get(path);};
-  const scope={get:path=>capture(observed,path,()=>store.read(path)),getAsUser:path=>capture(authorized,path,()=>store.readAsUser(path,actor))};
+  const scope={get:path=>capture(observed,path,()=>store.read(path)),getAsUser:path=>capture(authorized,path,()=>timedStore.readAsUser(path,actor))};
   // Independent point reads share only this request's image. Start together;
   // the snapshot still validates coverage, membership and user visibility.
   await Promise.allSettled([scope.get(Index.COVERAGE_PATH),scope.getAsUser('sisventas/ventas/'+saleKey)]).then(results=>{const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;});
-  const image=await snapshot(scope,actor,[saleKey]),sale=image.sales[saleKey],original={...sale};
+  const image=await measure('snapshotMs',()=>snapshot(scope,actor,[saleKey])),sale=image.sales[saleKey],original={...sale};
   if(!Object.hasOwn(record,'fbKey'))delete original.fbKey;
   if(digest(original)!==digest(record))throw fail('La venta cambió durante la consulta.');
   const global=image.bySale[saleKey];if(global.some(p=>!Matcher.belongsToSale(p,sale)))throw fail('La pertenencia del cobro requiere revisión.',503);
@@ -41,17 +45,21 @@ function create({ownership,store}){
   // checks below, rather than duplicating that same check midway through a GET.
   // User reads still use the captured actor; no response precedes final access.
   const checks=[
-   ...[...observed].filter(([path])=>path!==Index.COVERAGE_PATH).map(([path,value])=>async()=>{if(digest(await value)!==digest(await store.read(path)))throw fail('La cobertura o las referencias de cobros cambiaron.');}),
-   ...[...authorized].map(([path,value])=>async()=>{if(digest(await value)!==digest(await store.readAsUser(path,actor)))throw fail('La fuente del cobro cambió.');})
+   ...[...observed].filter(([path])=>path!==Index.COVERAGE_PATH).map(([path,value])=>async()=>{if(digest(await value)!==digest(await timedStore.read(path)))throw fail('La cobertura o las referencias de cobros cambiaron.');}),
+   ...[...authorized].map(([path,value])=>async()=>{if(digest(await value)!==digest(await timedStore.readAsUser(path,actor)))throw fail('La fuente del cobro cambió.');})
   ];
   // pool bounds concurrency and waits for its workers before propagating errors.
-  await pool(checks,work=>work());
-  const finalActor=await ownership.authorize(req,'ventas');assertActor(finalActor);if(binding(actor)!==binding(finalActor))throw fail('La sesión o los permisos cambiaron.');
-  const fresh=(await ownership.visibleRecordsByIds(finalActor,'ventas',[saleKey]))[saleKey];
+  await measure('sourceValidationMs',()=>pool(checks,work=>work()));
+  const finalActor=await measure('finalAuthorizationMs',()=>ownership.authorize(req,'ventas'));assertActor(finalActor);if(binding(actor)!==binding(finalActor))throw fail('La sesión o los permisos cambiaron.');
+  const fresh=(await measure('finalOwnershipMs',()=>ownership.visibleRecordsByIds(finalActor,'ventas',[saleKey])))[saleKey];
   if(!fresh||digest(fresh)!==digest(record))throw fail('La propiedad o la venta cambió.');
-  if(digest(Index.validateCoverage(await store.read(Index.COVERAGE_PATH)))!==digest(image.coverage))throw fail('La cobertura o las referencias de cobros cambiaron.');
+  if(digest(Index.validateCoverage(await timedStore.read(Index.COVERAGE_PATH)))!==digest(image.coverage))throw fail('La cobertura o las referencias de cobros cambiaron.');
   if(!Number.isFinite(paidAmount)||paidAmount<0)throw fail('El saldo histórico requiere revisión.',503);
   return {record:fresh,paymentHistory:{schema:1,source,payments:payments.map(dto),paidAmount,complete:true}};
+  } finally {
+   const totalMs=Math.round(performance.now()-started),report={event:"sale_payment_history_performance",totalMs,...Object.fromEntries(Object.entries(timings).map(([k,v])=>[k,Math.round(v)]))};
+   try{if(observe)observe(report);else if(totalMs>=1000)console.info(JSON.stringify(report));}catch(_){}
+  }
  }};
 }
 module.exports={create};

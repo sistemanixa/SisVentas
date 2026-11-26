@@ -15,7 +15,7 @@ async function setup(payments={p:{ventaFbKey:'one',monto:40,fecha:'2026-11-25',m
   const value=structuredClone(get(path));await control.hook?.({path,override,calls});return {ok:true,status:200,json:async()=>value};
  }});
  const actor=await f.auth('a'),req={headers:{authorization:'Bearer a'}},service=create({ownership:f.api,store});
- return {...f,root,calls,control,put,actor,req,load:()=>service.load({req,actor,saleKey:'one',record:structuredClone(root.sisventas.ventas.one)}),service};
+ return {...f,root,calls,control,put,actor,req,store,load:()=>service.load({req,actor,saleKey:'one',record:structuredClone(root.sisventas.ventas.one)}),service};
 }
 test('global source restores history despite empty embedded data, strips attachments, preserves non-enumerable claims and writes nothing',async()=>{
  const f=await setup({p:{id:'P-1',ventaFbKey:'one',monto:40,fecha:123,medio:'Efectivo',obs:'Nota',comprobante:{data:'PRIVATE_BINARY'},otraVentaPrecio:999}}),before=structuredClone(f.root);
@@ -63,3 +63,5 @@ test('final coverage and final sale checks still reject changes after source rer
  f.api.visibleRecordsByIds=async(...args)=>{if(target==='coverage')f.put(Index.COVERAGE_PATH,Index.buildIndex(f.root.sisventas.pagos,{generation:'changed-late',ready:true}).coverage);else f.root.sisventas.ventas.one.totalPagado=41;return original(...args);};
  await a.rejects(f.load(),/cambi/);}
 });
+
+test('performance report contains only bounded numeric timings and cannot change a read result',async()=>{const f=await setup(),before=structuredClone(f.root),reports=[];const service=create({ownership:f.api,store:f.store,observe:r=>{reports.push(r);throw Error('observer failure');}});const result=await service.load({req:f.req,actor:f.actor,saleKey:'one',record:structuredClone(f.root.sisventas.ventas.one)});a.equal(result.paymentHistory.paidAmount,40);a.equal(reports.length,1);const report=reports[0];a.equal(report.event,'sale_payment_history_performance');for(const [key,value]of Object.entries(report))if(key!=='event'){a(key.endsWith('Ms'));a(Number.isFinite(value)&&value>=0);}a.deepEqual(f.root,before);a.equal(f.calls.length,12);});
