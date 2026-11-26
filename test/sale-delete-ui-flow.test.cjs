@@ -9,7 +9,7 @@ const start=source.indexOf('async function eliminarVenta('),end=source.indexOf('
 async function fixture({enabled=true,loseAck=false,changeSession=false}={}){
  const sale={fbKey:'s',id:'V-FIXTURE',total:100,fecha:'2026-11-01',clienteFbKey:'c',cliente:'Persona ficticia',responsableUid:'u',items:[{costoUnitarioCompra:12}],factura:{cae:'fixture'},notaCredito:{cae:'credit-fixture'}};
  const backend=await createCoordinatedBackend({ventas:{s:sale},pagos:{p:{ventaFbKey:'s',monto:20,fecha:'2026-11-01'}},ordenes_trabajo:{ot:{ventaFbKey:'s',clienteFbKey:'c',responsableUid:'u',fecha:'2026-11-01'}},comprobantesVenta:{f:{cae:'credit-fixture'}},stock:{p:{cantidad:7}},comisiones:{c:{monto:9}}}),calls=[],messages=[],ui=[],storage=new Map();let lost=false;
- apply(backend.state,{'sv_permisos/admin':{indiceVersion:2,indiceModulos:{venta:true},acciones:{ventas:{eliminar:true}}}});
+ apply(backend.state,{'sv_permisos/admin':{indiceVersion:2,indiceModulos:{venta:true,ordentrabajo:true},acciones:{ventas:{eliminar:true},ot:{eliminar:true}}}});
  require('./helpers/sale-delete-financial-evidence.cjs').install(backend);backend.store.saleDeleteFenceReady=true;
  backend.store.saleDeleteActivityFenceReady=true;
  const adapter=createSaleDeleteHttpAdapter({authorize:async()=>({uid:'u',claims:{uid:'u'}}),guard:backend.guard,store:backend.store,enabled});
