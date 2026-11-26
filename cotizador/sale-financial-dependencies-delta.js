@@ -3,9 +3,9 @@ const M=require('./sale-financial-dependencies-model');
 const modulus=1n<<256n;
 const accumulator=(before,hash,sign)=>((BigInt('0x'+before)+BigInt(sign)*BigInt('0x'+hash)+modulus)%modulus).toString(16).padStart(64,'0');
 async function delta({changes,read}){
- const coverage=M.validateCoverage(await read(M.ROOT+'/coverage')),patch={},affected=new Set(),seen=new Set();
+ const coverage=M.validateCoverage(await read(M.ROOT+'/coverage')),children=new Map(),patch=new Proxy({},{set(target,path,value){target[path]=value;const slash=path.lastIndexOf('/'),parent=path.slice(0,slash),id=path.slice(slash+1);if(!children.has(parent))children.set(parent,new Map());children.get(parent).set(id,value);return true;}}),affected=new Set(),seen=new Set();
  const get=async path=>Object.hasOwn(patch,path)?structuredClone(patch[path]):await read(path);
- const bucket=async path=>{const base={...await read(path)};for(const [entry,value]of Object.entries(patch))if(entry.startsWith(path+'/')&&!entry.slice(path.length+1).includes('/')){const id=entry.slice(path.length+1);if(value===null)delete base[id];else base[id]=value;}return base;};
+ const bucket=async path=>{const base={...await read(path)};for(const [id,value]of children.get(path)||[]){if(value===null)delete base[id];else base[id]=value;}return base;};
  for(const change of changes){
   if(seen.has(change.path))throw M.fail('Original repetido.');seen.add(change.path);const kind=M.classify(change.path),id=M.digest(change.path),path=M.ROOT+'/records/'+id,old=await read(path),before=M.image(change.path,change.before),after=M.image(change.path,change.after);
   if((old?.sourceHash??null)!==(before?.sourceHash??null))throw M.fail('El original y su cobertura financiera cambiaron.');
@@ -30,6 +30,6 @@ async function delta({changes,read}){
   const domain=next?.domain||old?.domain;if(!seen.has(next?.path||old?.path)&&old)coverage.sources[domain]=accumulator(coverage.sources[domain],M.digest(old),-1);
   if(next)coverage.sources[domain]=accumulator(coverage.sources[domain],M.digest(M.normalizeRtdb(next)),1);
  }
- coverage.revision++;if(!Number.isSafeInteger(coverage.revision)||coverage.unresolved<0)throw M.fail('Revisión financiera inválida.');patch[M.ROOT+'/coverage']=coverage;return patch;
+ coverage.revision++;if(!Number.isSafeInteger(coverage.revision)||coverage.unresolved<0)throw M.fail('Revisión financiera inválida.');patch[M.ROOT+'/coverage']=coverage;return {...patch};
 }
 module.exports={delta};

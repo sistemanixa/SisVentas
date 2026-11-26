@@ -4860,3 +4860,7 @@ Ampliación acotada solicitada por Root: positivo canónico explícito de plan d
 ## 26/11/2026 · Borrado administrativo en preparación aislada
 
 Rama codex/sale-delete-completion-20261126 desde3b592d9d, producción22 sin cambios. Metadatos reales acotados confirman Cuentas/Pagesready/protocolo2; H/Financial/RelationsCoverage ausentes. Preparación offline nueva propone sóloHFin ycontrasta contraCuentas existentes, sinoriginales. Integradosfixes auditoríaRAWpresupuesto yvetoactividadfísicaOT/checklistprístino. Rootenruta3fuentesH yopt-inActivity7derivadodelGuard;41routing/policy y52HTTPadyacentesverdes(solapan). PendientesRulesNative/composiciónsobreimagen20/closure/preparaciónreal/publicación; noeliminaciónreal ni flags/Rules/índicesremotos aplicados. Detalle docs/SALE_DELETE_COMPLETION_20261126.md.
+
+## 26/11/2026 · Corrección puntual del vencimiento al borrar
+Delta financiero mantiene un mapa privado de hijos directos en lugar de enumerar todo el patch por cada bucket. Resultado completo idéntico en comparación de 981 rutas con implementación previa; 76 focales PASS. Preparación ficticia 1200 ventas+1200 gastos: 27624ms anterior,138ms nueva. No cambia fuentes, controles, reglas ni plazo. Publicación y eliminación AFIANZA4 pendientes de verificación real.
+
