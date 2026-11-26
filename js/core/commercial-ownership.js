@@ -7,15 +7,25 @@
  const clean=r=>{const value=Object.fromEntries(Object.entries(r||{}).filter(([k])=>k!=='fbKey'&&!k.startsWith('_sv')));if(r?._svDerivedFechaOrden)delete value.fechaOrden;return value;};
  async function request(domain,path='',body,validator){
   const c=context();if(!c.user)throw Error('Sesión requerida');
+  const paymentKey=typeof path==='string'?/^registro\/([A-Za-z0-9_-]{1,128})\?para=pagos$/.exec(path)?.[1]:null;
+  const paymentRead=!body&&domain==='ventas'&&!!paymentKey&&!['constructor','prototype','__proto__'].includes(paymentKey);
+  let paymentReader=null;
+  if(paymentRead&&Object.hasOwn(root.SISVENTAS_FUNCTIONS||{},'salePaymentHistoryReader')){
+   const allowed='https://sv-sale-payment-read-171899432710.us-central1.run.app';
+   if(root.SISVENTAS_FUNCTIONS.salePaymentHistoryReader!==allowed)throw Error('Lector de historial de pagos no reconocido');
+   paymentReader=allowed;
+  }
   const needsForeground=!body&&!(validator?.presentation===true&&domain==='presupuestos'&&/^registro\/[^/]+$/.test(path));
   if(needsForeground&&root.SVForegroundSession){await root.SVForegroundSession.waitVisible();if(!valid(c))throw Error('La sesión cambió');}
+  if(paymentReader&&root.SISVENTAS_FUNCTIONS?.salePaymentHistoryReader!==paymentReader)throw Error('El lector de pagos cambió');
   const tokenTask=c.user.getIdToken(),token=await(root.SVSessionRecovery?.deadline?root.SVSessionRecovery.deadline(tokenTask):tokenTask);if(!valid(c))throw Error('La sesión cambió');
   if(needsForeground&&root.SVForegroundSession){await root.SVForegroundSession.waitVisible();if(!valid(c))throw Error('La sesión cambió');}
-  const base=root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servicio comercial no disponible');
+  if(paymentReader&&root.SISVENTAS_FUNCTIONS?.salePaymentHistoryReader!==paymentReader)throw Error('El lector de pagos cambió');
+  const base=paymentReader||root.SISVENTAS_FUNCTIONS?.cotizadorProveedor;if(!base)throw Error('Servicio comercial no disponible');
   const view=c.user.uid!==c.uid?'?verComo='+encodeURIComponent(c.uid):'';
   const controller=!body&&typeof AbortController==='function'&&typeof AbortSignal.any==='function'?new AbortController():null;if(controller)readControllers.add(controller);
   const signal=controller?AbortSignal.any([controller.signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000);
-  const res=await fetch(base+'/comerciales/'+domain+(path?'/'+path:'')+view,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{}),...(validator?.etag&&!body&&!path?{'If-None-Match':validator.etag}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store',signal}).catch(error=>{console.warn('[SisVentas] fallo de lectura comercial',{resource:domain,method:body?'POST':'GET',error:error.name,online:root.navigator?.onLine,time:new Date().toISOString()});throw error;}).finally(()=>{if(controller)readControllers.delete(controller);});
+  const res=await fetch(base+'/comerciales/'+domain+(path?'/'+path:'')+view,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{}),...(validator?.etag&&!body&&!path?{'If-None-Match':validator.etag}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store',...(paymentReader?{redirect:'error'}:{}),signal}).catch(error=>{console.warn('[SisVentas] fallo de lectura comercial',{resource:domain,method:body?'POST':'GET',error:error.name,online:root.navigator?.onLine,time:new Date().toISOString()});throw error;}).finally(()=>{if(controller)readControllers.delete(controller);});
   if(!valid(c))throw Error('La sesión cambió');
   if(res.status===304){root.SVConnectionMonitor?.success(domain);if(!validator?.etag||body||path)throw Error('Validación comercial inesperada');return {_svNotModified:true};}
   const data=await res.json();if(!valid(c))throw Error('La sesión cambió');if(!res.ok||!data.ok){const error=Object.assign(Error(data.mensaje||'No se pudo confirmar la operación'),{status:res.status});if([401,403].includes(res.status)){invalidateAccess(domain);error._svAccessRevoked=true;}throw error;}root.SVConnectionMonitor?.success(domain);return {...data,_svEtag:res.headers?.get?.('etag')||''};
