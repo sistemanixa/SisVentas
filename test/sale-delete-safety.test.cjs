@@ -9,7 +9,7 @@ const {createSaleDeleteHttpAdapter,PATH}=require('../cotizador/sale-delete-http-
 async function fixture({audit,ot={id:'OT-FICTICIA',ventaFbKey:'s'}}={}){
  const budget={id:'P-FICTICIO',ventaGeneradaFbKey:'s',responsableUid:'u',clienteFbKey:'c',items:[{costo:17,precio:29}],...(audit===undefined?{}:{audit})};
  const backend=await createCoordinatedBackend({ventas:{s:{id:'V-FICTICIA',clienteFbKey:'c',responsableUid:'u',total:100,fecha:'2026-11-01'}},pagos:{p:{ventaFbKey:'s',monto:20,fecha:'2026-11-01'}},presupuestos:{b:budget},ordenes_trabajo:{ot},stock:{p:{general:8,reservado:2,consumido:3}},inventario:{p:{general:8}},comisiones:{historic:{monto:7}},comprobantesVenta:{fiscal:{cae:'FICTICIO'}}});
- apply(backend.state,{'sv_permisos/admin':{indiceVersion:2,indiceModulos:{venta:true},acciones:{ventas:{eliminar:true}}}});
+ apply(backend.state,{'sv_permisos/admin':{indiceVersion:2,indiceModulos:{venta:true,ordentrabajo:true},acciones:{ventas:{eliminar:true},ot:{eliminar:true}}}});
  const prepared=await Financial.prepare({ventas:backend.get('sisventas/ventas'),gastos:{},ctaemp:{},comisiones_generacion:{},sv_commission_generation:{}},{generation:'sale-safety-real-provider'});apply(backend.state,prepared.patch);
  backend.store.saleDeleteFinancialEvidence=Provider.create();backend.store.saleDeleteFenceReady=true;backend.store.saleDeleteActivityFenceReady=true;
  const adapter=createSaleDeleteHttpAdapter({authorize:backend.gateway.authorize,guard:backend.guard,store:backend.store,enabled:true,now:()=>Date.parse('2026-11-26T12:00:00Z')});

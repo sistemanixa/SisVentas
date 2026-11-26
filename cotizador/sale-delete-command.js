@@ -23,7 +23,7 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   if(profile?.activo!==true||profile.rol!=='admin'||permissions?.indiceVersion!==2||permissions.indiceModulos?.venta!==true||permissions.acciones?.ventas?.eliminar===false||Object.values(permissions.bloqueados||{}).includes('venta'))throw fail('Se requiere administrador con permiso ventas.eliminar.');
   return {profile,permissions};
  }
- async function plan(read,query,saleKey,actor,timestamp,expectedHash,operationId){
+ async function plan(read,query,saleKey,actor,timestamp,expectedHash,operationId,permissions){
   const salePath='sisventas/ventas/'+saleKey,sale=await read(salePath);
   if(!sale)throw fail('La venta ya no existe. Consultá el resultado de la operación.');
   const original=structuredClone(sale);delete original.fbKey;
@@ -38,6 +38,10 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   const collections=Object.fromEntries(collectionDomains.map((domain,index)=>[domain,collectionRows[index]||{}]));
   snapshot.collections=collections;
   const complete=Relations.resolve(collections,saleKey);
+  if(Object.keys(complete.ordenes_trabajo).length){
+   if(permissions?.indiceModulos?.ordentrabajo!==true||permissions.acciones?.ot?.eliminar===false||Object.values(permissions.bloqueados||{}).includes('ordentrabajo'))throw Object.assign(Error('La cascada requiere permiso para eliminar la OT vinculada.'),{statusCode:403,code:'SV_SALE_DELETE_OT_PERMISSION'});
+   for(const ot of Object.values(complete.ordenes_trabajo))if(ot.ventaFbKey!==saleKey||['ventaKey','ventaGeneradaFbKey','ventaOrigenFbKey'].some(field=>Object.hasOwn(ot,field)&&ot[field]!==saleKey))throw Object.assign(Error('El vínculo técnico de la OT requiere revisión antes de eliminar la venta.'),{statusCode:409,code:'SV_SALE_DELETE_RELATION_REVIEW'});
+  }
   snapshot.activity=await Activity.validate(read,{...sale,fbKey:saleKey},complete.ordenes_trabajo);
   query=async(path,field,value)=>Object.fromEntries(Object.entries(collections[path.replace('sisventas/','')]||{}).filter(([,row])=>row?.[field]===value));
   for(const domain of ['pagos','ordenes_trabajo','reclamos']){
@@ -83,10 +87,10 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   const captured=await access(path=>store.read(path),actor),timestamp=now(),person={...actor,name:captured.profile.nombre||captured.profile.login||''};
   const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',role:'admin',permissionRevision:captured.permissions.indiceRevision,permissionDigest:digest(captured.permissions),opId:body.id,transportDigest:digest(body),operation:'sale-delete',financialAction:'ventas.eliminar',input:body},async scope=>{
    if(digest(await access(scope.get,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
-   const initial=await plan(scope.get,scope.query,body.ventaKey,person,timestamp,body.expectedHash,body.id);
+   const initial=await plan(scope.get,scope.query,body.ventaKey,person,timestamp,body.expectedHash,body.id,captured.permissions);
    scope.beforeCommit(async({readFresh,queryFresh})=>{
     if(digest(await access(readFresh,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
-    const fresh=await plan(readFresh,queryFresh,body.ventaKey,person,timestamp,body.expectedHash,body.id);
+    const fresh=await plan(readFresh,queryFresh,body.ventaKey,person,timestamp,body.expectedHash,body.id,captured.permissions);
     if(digest(fresh.snapshot)!==digest(initial.snapshot))throw fail('Los vínculos cambiaron; no se eliminó ningún registro.');
    });
    await scope.update(initial.patch);
