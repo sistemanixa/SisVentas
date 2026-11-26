@@ -27,7 +27,6 @@ function derive({baselines,sources,expectedBaseHashes,expectedSourceHashes,baseI
  g=once(g,'clientAccounts=false,otDeleteOperational=false','clientAccounts=false,saleDeleteActivity=false,otDeleteOperational=false');
  g=once(g,' const context=new AsyncLocalStorage();',sourceLine(current," if(typeof saleDeleteActivity!=='boolean'")+'\n const context=new AsyncLocalStorage();');
  g=once(g,' const affects=path=>',' const affects=path=>saleDeleteActivity&&/^sisventas\\/(agenda|ordenes|listas_materiales|remitos|equipos|tickets|ordenesTrabajo)(\\/|$)/.test(path)||');
- g=once(g,'clientes_unificados_indice|presupuestos)(\\/|$)/.test(path)||affected(path)','clientes_unificados_indice|presupuestos|reclamos|equipos|tickets)(\\/|$)/.test(path)||affected(path)');
  g=once(g,'const actions={',"const actions={'ventas.eliminar':['venta','ventas','eliminar',['admin']],");
  g=once(g,"if((actor.mode==='user'||actor.mode==='command')&&actor.financialAction){", "if((actor.mode==='user'||actor.mode==='command')&&actor.financialAction&&actor.financialAction!=='ventas.eliminar'){");
  const sourceGuard=LF(source[current].toString()),start=sourceGuard.indexOf("    if((actor.mode==='user'||actor.mode==='command')&&actor.financialAction==='ventas.eliminar'){");
