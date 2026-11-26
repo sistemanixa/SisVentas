@@ -33,7 +33,8 @@ test('la pantalla directa carga sus dependencias sin esperar el lote general', (
   context.window=context;vm.runInNewContext(source,context);context.svCargarDatosDePaginaActual('gastos');
   assert.deepEqual(calls,['fbCargarGastos','fbCargarEmpleados']);
   calls.length=0;context.svCargarDatosDePaginaActual('venta');
-  assert.deepEqual(calls,['fbCargarClientes','fbCargarProductos','fbCargarVentas','fbCargarEmpleados','fbCargarClientesUnificados']);
+  assert.deepEqual(calls,['fbCargarClientes','fbCargarProductos','fbCargarEmpleados','fbCargarClientesUnificados']);
+  assert.equal(calls.includes('fbCargarVentas'),false,'Nueva venta no depende del historial');
   calls.length=0;context.svCargarDatosDePaginaActual('garantias');
   assert.deepEqual(calls,['fbCargarGarantias','fbCargarEquipos','fbCargarClientes','fbCargarProductos','fbCargarClientesUnificados']);
   assert.match(app, /ordenes:\s*\[fbCargarOrdenes, fbCargarProductos, fbCargarProveedores\]/);
