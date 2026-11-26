@@ -52,6 +52,20 @@ test('SDK activity phantom is denied during the native delete lease with real ca
  assert(capture);await put('',capture.before);const userRead=f.calls.find(c=>c.method==='GET'&&c.override?.uid==='u'&&!c.override.token.svLaborService);assert(userRead,'Actual native Store readAsUser claims required');
  const result=await nativeMerge({'sisventas/agenda/late':{ventaFbKey:'sale',descripcion:'Ficticio'}},userRead.override.uid,userRead.override.token);assert.equal(result.status,401);assert.equal(await read('sisventas/agenda/late'),null);
 });
+test('OT cascade leaf rejects foreign/missing technical FK, altered receipt, retained sale, revoked OT action and adulterated writer claims',async()=>{
+ assert(capture);
+ const cases=[
+  ['foreign FK',c=>c.before.sisventas.ordenes_trabajo.ot.ventaFbKey='foreign'],
+  ['legacy missing FK',c=>delete c.before.sisventas.ordenes_trabajo.ot.ventaFbKey],
+  ['receipt foreign sale',c=>c.patch['sv_labor_receipts/'+commandBody.id].result.ventaKey='foreign'],
+  ['sale retained',c=>delete c.patch['sisventas/ventas/sale']],
+  ['OT action false',c=>c.before.sv_permisos.admin.acciones.ot.eliminar=false],
+  ['OT module false',c=>c.before.sv_permisos.admin.indiceModulos.ordentrabajo=false],
+  ...['ClientHistory','SaleFinancial','ClientAccounts'].map(family=>['forged missing '+family,c=>c.override.token['sv'+family+'WriterVersion']=0]),
+  ['different action',c=>c.override.token.svFinancialAction='cobranzas.registrar']
+ ];
+ for(const[name,change]of cases){const c=structuredClone(capture);change(c);await put('',c.before);const r=await nativeMerge(c.patch,c.override.uid,c.override.token);assert.equal(r.status,401,name);assert.deepEqual(await read('sisventas/ordenes_trabajo/ot'),c.before.sisventas.ordenes_trabajo.ot,name+' leaves original intact');}
+},{timeout:60000});
 test('standalone H3 original-authorized user gateway write commits native coordinated history without granting generic server authority',async()=>{
  const g=await load('test/helpers/sale-delete-native-http-lab.cjs').create({sourceRoot:ROOT});try{
   const Lists=load('cotizador/record-list-model');for(const domain of Lists.domains)for(const[key,row]of Object.entries(g.get('sisventas/'+domain)||{}))g.set('sisventas/listados_resumen/'+domain+'/'+key,Lists.summary(domain,row));g.set('sv_record_list_config',{schema:1,ready:true});

@@ -4,7 +4,7 @@ const crypto=require('node:crypto'),History=require('./client-history-write-rule
 const BASELINE_SHA256='5a5f7b34de6cbba2ae54517029de956b6be605e21143fe4a86c131255052e48f';
 const ACTIVITY=Object.freeze(['agenda','ordenes','listas_materiales','remitos','equipos','tickets','ordenesTrabajo']);
 const H3=Object.freeze(['reclamos','equipos','tickets']),TARGETS=Object.freeze([...new Set([...ACTIVITY,...H3])]);
-const STAGES=Object.freeze(['history-write-side','financial-write-side','activity-and-h3-existing-authority','sale-delete-current-actor-all-grants']);
+const STAGES=Object.freeze(['history-write-side','financial-write-side','activity-and-h3-existing-authority','sale-delete-pristine-ot-cascade','sale-delete-current-actor-all-grants']);
 const sha=v=>crypto.createHash('sha256').update(v).digest('hex'),closed=v=>[undefined,false,'false'].includes(v);
 function activity(input){
  const out=structuredClone(input),data=out.rules.sisventas,changed=[];
@@ -33,8 +33,9 @@ function prepare(bytes,options){
  const original=JSON.parse(bytes.toString()),before=JSON.stringify(original),stages=[];let candidate=original;
  for(const[name,build]of [[STAGES[0],History.prepare],[STAGES[1],Financial.prepare]]){candidate=build(candidate);stages.push({name,sha256:sha(JSON.stringify(candidate))});}
  const restricted=activity(candidate);candidate=restricted.rules;stages.push({name:STAGES[2],sha256:sha(JSON.stringify(candidate))});
- const pinned=require('./sale-delete-actor-precondition-rules.cjs').prepare(candidate);candidate=pinned.rules;stages.push({name:STAGES[3],sha256:sha(JSON.stringify(candidate))});
+ const cascade=require('./sale-delete-ot-cascade-rules.cjs').prepare(candidate);candidate=cascade.rules;stages.push({name:STAGES[3],sha256:sha(JSON.stringify(candidate)),manifest:cascade.manifest});
+ const pinned=require('./sale-delete-actor-precondition-rules.cjs').prepare(candidate);candidate=pinned.rules;stages.push({name:STAGES[4],sha256:sha(JSON.stringify(candidate))});
  if(JSON.stringify(original)!==before)throw Error('Baseline modificado.');
- return{rules:candidate,manifest:{schema:1,baselineSha256:BASELINE_SHA256,candidateSha256:sha(JSON.stringify(candidate)),stages,activity:ACTIVITY,h3:H3,activityChanged:restricted.changed,sourceGrantsAdded:false,addsTechnicalRootsOnly:['sv_client_history','sv_client_history_config','sv_sale_financial_dependencies'],activated:false,activationReady:false,includesOrderDelete:false,includesOTDelete:false,includesSaleReturn:false,preservesExistingAccountsPagesPayment:true,pending:['genuine-full-command-native-emulator','all-scoped-writers-closure','remote-baseline-recheck','metadata-preparation-and-verification']}};
+ return{rules:candidate,manifest:{schema:1,baselineSha256:BASELINE_SHA256,candidateSha256:sha(JSON.stringify(candidate)),stages,activity:ACTIVITY,h3:H3,activityChanged:restricted.changed,sourceGrantsAdded:true,parentGrantsAdded:false,sourceGrantExtension:cascade.manifest,addsTechnicalRootsOnly:['sv_client_history','sv_client_history_config','sv_sale_financial_dependencies'],activated:false,activationReady:false,includesOrderDelete:false,includesOTDelete:false,includesSaleReturn:false,preservesExistingAccountsPagesPayment:true,pending:['genuine-full-command-native-emulator','all-scoped-writers-closure','remote-baseline-recheck','metadata-preparation-and-verification']}};
 }
 module.exports={prepare,BASELINE_SHA256,ACTIVITY,H3,TARGETS,STAGES};
