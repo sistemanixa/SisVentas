@@ -1,6 +1,7 @@
 'use strict';
 const {test}=require('node:test'),a=require('node:assert/strict');
 const {setup,wait}=require('./helpers/payment-reader-latency-fixture.cjs');
+const Index=require('../cotizador/payment-membership-index');
 test('verified token barrier, reset/context parallelism and permissions start without waiting for profile',async()=>{
  const f=setup({rtt:8});await f.authorize();const e=f.events;
  const index=(p,phase)=>e.findIndex(x=>x.path===p&&x.phase===phase);
@@ -35,12 +36,14 @@ for(const mutation of ['reset','role','permission','owner','source','coverage','
   if(mutation==='token')f.control.invalid=true;
  }};
  if(mutation==='coverage'){
-  f.control.hook=(path,kind)=>{if(path==='sisventas/pagos/p'&&kind==='user'&&++reads===2){const keys=Index.COVERAGE_PATH.split('/');let n=f.root;for(const k of keys.slice(0,-1))n=n[k];n[keys.at(-1)].generation='changed';}};
+  f.control.hook=(path,kind)=>{if(path==='sisventas/pagos/p'&&kind==='user'&&++reads===2){const keys=Index.COVERAGE_PATH.split('/');let n=f.root;for(const k of keys.slice(0,-1))n=n[k];n[keys.at(-1)].generation='changed-generation';}};
  }
  // Mutation after the captured payment value is checked is caught by final auth/
  // owner/coverage. Source itself is covered earlier by existing reader tests.
  if(mutation==='source')f.control.hook=(path,kind)=>{if(path==='sisventas/pagos/p'&&kind==='user'&&++reads===1)f.root.sisventas.pagos.p.monto=99;};
- await a.rejects(f.load());a.equal(reads,2);
+ if(mutation==='coverage')await a.rejects(f.load(),{code:'SV_COMMERCIAL_PAYMENT_HISTORY_CHANGED',message:'La cobertura o las referencias de cobros cambiaron.'});
+ else await a.rejects(f.load());
+ a.equal(reads,2);
 });
 test('real reader with real ownership and REST user override remains read-only and uncached',async()=>{
  const f=setup(),before=structuredClone(f.root);a.equal((await f.load()).paymentHistory.paidAmount,40);a.equal((await f.load()).paymentHistory.paidAmount,40);a.deepEqual(f.root,before);
