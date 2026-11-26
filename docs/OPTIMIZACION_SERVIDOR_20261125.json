@@ -2535,6 +2535,24 @@
       ],
       "decision": "keep-server",
       "runtimeStatus": "source-inspected; deployed composition/config not read in this audit"
+    },
+    {
+      "service": "cotizador",
+      "route": "/comerciales/ventas/eliminacion/preparar",
+      "source": "cotizador/index.js",
+      "kind": "literal",
+      "method": "POST",
+      "group": "commercial",
+      "sourceLine": 2099,
+      "callers": [
+        {
+          "file": "js/core/financial-commands.js",
+          "line": 126,
+          "evidence": "literal"
+        }
+      ],
+      "decision": "keep-server-coordinated",
+      "runtimeStatus": "source-inspected; one-time metadata-only preparation; deployment pending"
     }
   ],
   "otherServices": [
