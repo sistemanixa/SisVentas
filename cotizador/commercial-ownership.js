@@ -85,14 +85,17 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
  async function context(uid){
   if(scopedReads&&uid){
    if(!key(uid))throw fail(403,'Identidad inválida');
-   const values=await Promise.allSettled([read('sv_chat_roles/'+uid),(async()=>{
+   const values=await Promise.allSettled([(async()=>{
+    const identity=await read('sv_chat_roles/'+uid);
+    if(identity?.activo!==true||!roles.includes(identity.rol))throw fail(403,'Acceso inactivo');
+    return {identity,cfg:await read('sv_permisos/'+identity.rol)};
+   })(),(async()=>{
     try{return await queryReader('sv_usuarios','uid',uid);}
     catch(_){throw fail(503,'No se pudo verificar tu acceso. Reintentá más tarde');}
    })()]);
    const error=values.find(r=>r.status==='rejected');if(error)throw error.reason;
-   const [identity,users]=values.map(r=>r.value);
-   if(identity?.activo!==true||!roles.includes(identity.rol))throw fail(403,'Acceso inactivo');
-   const cfg=await read('sv_permisos/'+identity.rol),identities={[uid]:identity},people=profiles(users,identities);
+   const [{identity,cfg},users]=values.map(r=>r.value);
+   const identities={[uid]:identity},people=profiles(users,identities);
    if(people.length!==1)throw fail(403,'La cuenta requiere revisión de identidad');
    return {people,identities,permissions:cfg?{[identity.rol]:cfg}:{},scoped:true};
   }
@@ -119,9 +122,19 @@ function createCommercialOwnership({auth,db,enabled=false,now=Date.now,collectio
  async function authorize(req,domain,viewUid){
   if(!['ventas','presupuestos'].includes(domain))throw fail(404,'Módulo no disponible');
   const token=String(req.headers.authorization||'').match(/^Bearer\s+(\S+)$/i);if(!token)throw fail(401,'Sesión requerida');
-  let u;try{u=await auth.verifyIdToken(token[1],true);}catch(_){throw fail(401,'Sesión inválida');}
+  let u,c;
+  if(enabled&&typeof auth.verifyIdTokenWithContext==='function'){
+   // The trusted auth wrapper invokes this only after real token verification.
+   // Keep context errors distinct from authentication failures.
+   const result=await auth.verifyIdTokenWithContext(token[1],async identity=>{
+    try{return {value:await context(identity.uid)};}catch(error){return {error};}
+   }).catch(()=>{throw fail(401,'Sesión inválida');});
+   u=result.identity;if(result.context.error)throw result.context.error;c=result.context.value;
+  }else{
+   try{u=await auth.verifyIdToken(token[1],true);}catch(_){throw fail(401,'Sesión inválida');}
+  }
   if(!enabled)throw fail(503,'La privacidad comercial todavía no está habilitada');
-  let c=await context(u.uid);const own=c.identities[u.uid];if(!key(u.uid)||own?.activo!==true||!roles.includes(own.rol))throw fail(403,'Acceso inactivo');
+  c=c||await context(u.uid);const own=c.identities[u.uid];if(!key(u.uid)||own?.activo!==true||!roles.includes(own.rol))throw fail(403,'Acceso inactivo');
   if(viewUid&&viewUid!==u.uid){if(own.rol!=='admin'||!key(viewUid))throw fail(403,'Contexto no autorizado');}
   const uid=viewUid||u.uid;if(scopedReads&&uid!==u.uid)c=await context(uid);
   const identity=c.identities[uid],person=c.people.find(p=>p.uid===uid);

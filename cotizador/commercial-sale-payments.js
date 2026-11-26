@@ -13,9 +13,10 @@ function dto(payment){
  out.monto=amount(payment.monto);
  out.hasReceipt=!!(payment.comprobanteRef||payment.comprobanteAdjunto||payment.comprobante||(payment.comprobanteCuenta&&(payment.grupoPago||payment.pagoCuentaGrupo)));return out;
 }
-function create({ownership,store,observe}){
+function create({ownership,store,observe,readConcurrency=16}){
  if(!ownership?.authorize||!ownership.consumeAuthorizedRecordRead||!ownership.readAuthorizedRecordsByIds||!store?.read||!store.readAsUser)throw TypeError('Faltan puertos autorizados de historial de cobros.');
- const snapshot=createPaymentSnapshot({store,maxCandidates:1000});
+ // GET history only. Financial snapshots retain their six-reader default.
+ const snapshot=createPaymentSnapshot({store,maxCandidates:1000,readConcurrency});
  return {async load({req,actor,saleKey,record}){
   const started=performance.now(),timings=Object.create(null);
   const measure=async(name,work)=>{const began=performance.now();try{return await work();}finally{timings[name]=(timings[name]||0)+performance.now()-began;}};
@@ -50,7 +51,7 @@ function create({ownership,store,observe}){
    ...[...authorized].map(([path,value])=>async()=>{if(digest(await value)!==digest(await timedStore.readAsUser(path,actor)))throw fail('La fuente del cobro cambió.');})
   ];
   // pool bounds concurrency and waits for its workers before propagating errors.
-  await measure('sourceValidationMs',()=>pool(checks,work=>work()));
+  await measure('sourceValidationMs',()=>pool(checks,work=>work(),readConcurrency));
   const finalActor=await measure('finalAuthorizationMs',()=>ownership.authorize(req,'ventas'));assertActor(finalActor);if(binding(actor)!==binding(finalActor))throw fail('La sesión o los permisos cambiaron.');
   const fresh=(await measure('finalOwnershipMs',()=>ownership.readAuthorizedRecordsByIds(finalActor,'ventas',[saleKey])))[saleKey];
   if(!fresh||digest(fresh)!==digest(record))throw fail('La propiedad o la venta cambió.');
