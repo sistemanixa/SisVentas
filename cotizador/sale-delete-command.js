@@ -3,6 +3,7 @@ const {digest}=require('./labor-guard');
 const Fence=require('./sale-delete-fence');
 const Relations=require('./sale-delete-relations');
 const Activity=require('./sale-delete-activity');
+const {pool}=require('./payment-snapshot');
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_SALE_DELETE_BLOCKED'});
 const key=value=>{if(typeof value!=='string'||!value||/[.#$\[\]/\x00-\x1f]/.test(value))throw fail('Referencia inválida.');return value;};
 function appendBudgetAudit(original,event,entryKey){
@@ -32,7 +33,9 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   if(financial.dependencies.length)throw Object.assign(Error('La venta conserva comisiones o movimientos financieros. Resolvé esas dependencias antes de eliminar; no se modificó ningún registro.'),{statusCode:409,code:'SV_SALE_DELETE_FINANCIAL_DEPENDENCY'});
   if(sale.factura?.cae&&!sale.notaCredito?.cae)throw fail('Primero debe tener su nota de crédito.');
   const patch={[salePath]:null},snapshot={sale,financial};
-  const collections={};for(const domain of ['ventas','pagos','ordenes_trabajo','presupuestos','reclamos'])collections[domain]=await read('sisventas/'+domain)||{};
+  const collectionDomains=['ventas','pagos','ordenes_trabajo','presupuestos','reclamos'];
+  const collectionRows=await pool(collectionDomains,domain=>read('sisventas/'+domain));
+  const collections=Object.fromEntries(collectionDomains.map((domain,index)=>[domain,collectionRows[index]||{}]));
   snapshot.collections=collections;
   const complete=Relations.resolve(collections,saleKey);
   snapshot.activity=await Activity.validate(read,{...sale,fbKey:saleKey},complete.ordenes_trabajo);
@@ -78,7 +81,7 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   key(body?.id);key(body?.ventaKey);
   if(!/^[a-f0-9]{64}$/.test(body.expectedHash||''))throw fail('Falta verificar la revisión original de la venta.');
   const captured=await access(path=>store.read(path),actor),timestamp=now(),person={...actor,name:captured.profile.nombre||captured.profile.login||''};
-  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',role:'admin',permissionRevision:captured.permissions.indiceRevision,permissionDigest:digest(captured.permissions),opId:body.id,transportDigest:digest(body),operation:'sale-delete',input:body},async scope=>{
+  const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',role:'admin',permissionRevision:captured.permissions.indiceRevision,permissionDigest:digest(captured.permissions),opId:body.id,transportDigest:digest(body),operation:'sale-delete',financialAction:'ventas.eliminar',input:body},async scope=>{
    if(digest(await access(scope.get,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
    const initial=await plan(scope.get,scope.query,body.ventaKey,person,timestamp,body.expectedHash,body.id);
    scope.beforeCommit(async({readFresh,queryFresh})=>{

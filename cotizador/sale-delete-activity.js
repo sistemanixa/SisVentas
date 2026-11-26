@@ -1,6 +1,7 @@
 'use strict';
 const Matcher=require('./payment-membership-matcher');
 const OTDelete=require('./ot-delete-policy');
+const {pool}=require('./payment-snapshot');
 const domains=Object.freeze(['agenda','ordenes','listas_materiales','remitos','equipos','tickets','ordenesTrabajo']);
 const fail=domain=>Object.assign(Error('La venta tiene actividad en '+domain+'. Resolvé sus vínculos antes de eliminar; no se modificó ningún registro.'),{statusCode:409,code:'SV_SALE_DELETE_ACTIVITY'});
 const physicalField=name=>/material|custodia|stock|rendicion|remito|inventar|entreg|instal|devol|devuelt|consum|reserv|recibid|recepci|danad|faltante|enTecnico|enCompra|delivery|physical|fisic|receipt|return|ledger|movement/i.test(name.normalize('NFD').replace(/[\u0300-\u036f]/g,''));
@@ -44,9 +45,10 @@ function assertNoPhysicalOT(value){
 }
 async function validate(read,sale,otRecords){
  for(const record of Object.values(otRecords))assertNoPhysicalOT(record);
+ const values=await pool(domains,domain=>read('sisventas/'+domain));
  const snapshot={};
- for(const domain of domains){
-  const rows=await read('sisventas/'+domain)||{};snapshot[domain]=rows;
+ for(const [index,domain]of domains.entries()){
+  const rows=values[index]||{};snapshot[domain]=rows;
   for(const row of Object.values(rows)){
    if(Matcher.belongsToSale(row,sale))throw fail(domain);
    const otRefs=[row.otKey,row.otId,row.otNumero,row.ordenTrabajoId,row.ordenTrabajoFbKey].filter(Boolean).map(String);
