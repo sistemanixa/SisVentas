@@ -27,10 +27,32 @@ function fixture(){
  return {root,sdk,state,commands,direct,reads,headers,ref:path=>ref(null,path),get,put,commit,setHandler(fn){handler=fn;},setBeforeGet(fn){beforeGet=fn;},setHeaders(fn){headerTask=fn;},get holds(){return holds;},get releases(){return releases;}};
 }
 
-for(const domain of ['reclamos','equipos','tickets'])test('without History migration '+domain+' preserves its existing SDK transport without extra capability reads',async()=>{
+for(const domain of ['reclamos','equipos','tickets','agenda','remitos','ordenesTrabajo','ordenes','listas_materiales'])test('target relation writer '+domain+' is coordinated without History or extra capability reads',async()=>{
  const f=fixture();let starts=0;f.root.SVClientAccountHost={start:async()=>{starts++;},coordinated:()=>true};
  await f.root.fbSet(f.ref('sisventas/'+domain+'/r'),{descripcion:'Ficticio'});
- assert.equal(f.commands.length,0);assert.equal(f.direct.length,1);assert.equal(starts,0);assert.equal(f.reads.length,0);
+ assert.equal(f.commands.length,1);assert.equal(f.direct.length,0);assert.equal(starts,0);assert.equal(f.reads.length,0);assert.deepEqual(f.get('sisventas/'+domain+'/r'),{descripcion:'Ficticio'});
+});
+
+for(const domain of ['reclamos','equipos','tickets','agenda','remitos','ordenesTrabajo','ordenes','listas_materiales'])test('target relation '+domain+' preserves set/update/compare/push/remove payloads and point CAS',async()=>{
+ const f=fixture(),path='sisventas/'+domain+'/r',original={descripcion:'Ficticio',ventaFbKey:'sale-a',importe:12.345,detalle:{conservar:true}};
+ f.put('sisventas/'+domain+'/ajeno',{intacto:true});await f.root.fbSet(f.ref(path),original);await f.root.fbUpdate(f.ref(path),{ventaFbKey:'sale-b'});
+ const before=f.get(path),expectedHash=crypto.createHash('sha256').update(f.root.SVLaborWrites.canonical(before)).digest('hex');
+ const changed=await f.root.fbRunTransaction(f.ref(path),row=>({...row,ventaFbKey:'sale-c'}));assert.equal(changed.committed,true);assert.equal(f.commands[2].expectedHash,expectedHash);
+ const child=await f.root.fbPush(f.ref('sisventas/'+domain),{ventaFbKey:'sale-c',descripcion:'Nuevo ficticio'});assert.equal(f.get('sisventas/'+domain+'/'+child.key).ventaFbKey,'sale-c');await f.root.fbRemove(f.ref(path));
+ assert.deepEqual(f.commands.map(c=>c.kind),['set','patch','compare','set','set']);assert.deepEqual(f.commands[0].value,original);assert.equal(f.commands[4].value,null);assert.deepEqual(f.get('sisventas/'+domain+'/ajeno'),{intacto:true});assert.deepEqual(f.reads,[path]);assert.equal(f.direct.length,0);assert.equal(f.holds,0);
+});
+
+test('target relation server denial or revoked session never falls back to SDK',async()=>{
+ for(const domain of ['reclamos','equipos','tickets','agenda','remitos','ordenesTrabajo','ordenes','listas_materiales']){
+  const denied=fixture();denied.setHandler(()=>response({ok:false,code:'SV_LABOR_FORBIDDEN',mensaje:'Sin permiso'},403));await assert.rejects(denied.root.fbSet(denied.ref('sisventas/'+domain+'/r'),{ventaFbKey:'sale'}),{code:'SV_LABOR_FORBIDDEN'});assert.equal(denied.direct.length,0);assert.equal(denied.commands.length,1);assert.equal(denied.get('sisventas/'+domain+'/r'),null);
+  const revoked=fixture();revoked.setHeaders(async()=>{revoked.root.PERMISOS_ROLES.admin.indiceRevision++;});await assert.rejects(revoked.root.fbSet(revoked.ref('sisventas/'+domain+'/r'),{ventaFbKey:'sale'}),{code:'SV_LABOR_SESSION'});assert.equal(revoked.commands.length,0);assert.equal(revoked.direct.length,0);
+ }
+});
+
+test('target relation metadata is server-only for every SDK mutation shape',async()=>{
+ const f=fixture(),ref=f.ref('sv_sale_delete_relations/v1/coverage');
+ await assert.rejects(f.root.fbSet(ref,{ready:true}),{code:'SV_LABOR_SERVICE_ONLY'});await assert.rejects(f.root.fbUpdate(ref,{ready:true}),{code:'SV_LABOR_SERVICE_ONLY'});await assert.rejects(f.root.fbRemove(ref),{code:'SV_LABOR_SERVICE_ONLY'});await assert.rejects(f.root.fbRunTransaction(ref,()=>({ready:true})),{code:'SV_LABOR_SERVICE_ONLY'});assert.throws(()=>f.root.fbPush(ref,{ready:true}),{code:'SV_LABOR_SERVICE_ONLY'});
+ assert.equal(f.direct.length,0);assert.equal(f.commands.length,0);assert.equal(f.reads.length,0);
 });
 
 test('first customer set, update, remove, transaction and push wait for coordinated readiness before choosing the writer',async()=>{
