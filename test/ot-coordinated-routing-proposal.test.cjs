@@ -101,11 +101,11 @@ test('real H7/Accounts prepared coverage and record summaries update in the same
  // invent a history revision when its row and dependencies are unchanged.
  assert.equal(f.read('sv_client_history/v1/coverage/all/ordenes_trabajo/originalRecords'),2);assert.equal(f.read('sv_client_history/v1/state/revision'),old+2);assert.equal(f.read(createdPath+'/notasTecnico/n/texto'),'Nota ficticia con H7');assert.equal(f.direct.length,0);assert.equal(f.commands.length,3);assert.equal(f.commits.length,3);
 });
-test('lost response resolves the same receipt using real recovery without reapplying a note or changing its returned operation',async()=>{
- const f=fixture(),storage=new Map();f.root.sessionStorage={getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)};f.root.SVLaborWriteRecovery=require('../js/core/labor-write-recovery').create(f.root);
+test('lost response resolves the same receipt using real recovery without reapplying a note or changing its returned operation',{timeout:10000},async()=>{
+ const f=fixture(),storage=new Map();let unknownReady,unknownFailed;const unknown=new Promise((yes,no)=>{unknownReady=yes;unknownFailed=no;});f.root.CustomEvent=class{constructor(type,init){this.type=type;this.detail=init.detail;}};f.root.document={addEventListener(){},dispatchEvent(event){if(event.type==='sisventas:labor-write-recovery'&&event.detail?.status==='unknown')unknownReady();}};f.root.sessionStorage={getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)};f.root.SVLaborWriteRecovery=require('../js/core/labor-write-recovery').create(f.root);
  const send=f.root.fetch;let lost=true;f.root.fetch=async(url,options)=>{if(url.endsWith('/laboral/operacion')){const data=await f.gateway.resolve({uid:'u',claims:{uid:'u'}},JSON.parse(options.body));return {ok:true,status:200,json:async()=>data};}const response=await send(url,options);if(lost){lost=false;assert.equal(response.ok,true);throw Error('ACK perdido después del commit real');}return response;};
  const saving=f.root.SVRecordListWrites.records([ot],rows=>{rows[ot].notasTecnico.n={texto:'Guardar una sola vez'};return rows;});
- for(let i=0;i<100&&!f.root.SVLaborWriteRecovery.state();i++)await new Promise(resolve=>setImmediate(resolve));
+ saving.catch(unknownFailed);await unknown;
  assert.equal(f.root.SVLaborWriteRecovery.state()?.status,'unknown');assert.equal(f.commits.length,1);assert.throws(()=>f.root.SVLaborWriteRecovery.assertAvailable(),{code:'SV_LABOR_PENDING_OPERATION'});
  assert.deepEqual(await f.root.SVLaborWriteRecovery.check(),{status:'confirmed'});const result=await saving;assert.equal(f.commands.length,1);assert.equal(f.commits.length,1);assert.deepEqual(result.values[ot],f.read(ot));assert.equal(f.read(ot)._svListOperation,f.commands[0].id);assert.equal(f.direct.length,0);assert.equal(f.root.SVLaborWriteRecovery.state(),null);
 });
