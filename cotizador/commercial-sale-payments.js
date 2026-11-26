@@ -27,9 +27,11 @@ function create({ownership,store,observe,readConcurrency=16}){
   const observed=new Map(),authorized=new Map([[originalRead.path,Promise.resolve(originalRead.record)]]);
   const capture=(cache,path,read)=>{if(!cache.has(path))cache.set(path,Promise.resolve().then(read));return cache.get(path);};
   const scope={get:path=>capture(observed,path,()=>store.read(path)),getAsUser:path=>capture(authorized,path,()=>timedStore.readAsUser(path,actor))};
-  // Independent point reads share only this request's image. Start together;
-  // the snapshot still validates coverage, membership and user visibility.
-  await Promise.allSettled([scope.get(Index.COVERAGE_PATH),scope.getAsUser('sisventas/ventas/'+saleKey)]).then(results=>{const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;});
+  // Prefetch only metadata paths derived from the private authorized original.
+  // One bounded pool drains before snapshot validates coverage/memberships;
+  // the memo and every final source/coverage check remain unchanged.
+  const metadataPaths=[Index.COVERAGE_PATH,...Index.queryPaths({...originalRead.record,fbKey:saleKey})];
+  await pool(metadataPaths,path=>scope.get(path),readConcurrency);
   const image=await measure('snapshotMs',()=>snapshot(scope,actor,[saleKey])),sale=image.sales[saleKey],original={...sale};
   if(!Object.hasOwn(record,'fbKey'))delete original.fbKey;
   if(digest(original)!==digest(record))throw fail('La venta cambió durante la consulta.');
