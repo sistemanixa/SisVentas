@@ -13,8 +13,11 @@ function createSaleDeleteHttpAdapter({authorize,guard,store,enabled=false,now}={
   if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(field=>!['id','ventaKey','expectedHash'].includes(field))||!/^[a-f0-9]{64}$/.test(body.expectedHash||'')||!/^[A-Za-z0-9_-]{8,160}$/.test(body.id||'')||typeof body.ventaKey!=='string'||!body.ventaKey||Buffer.byteLength(body.ventaKey)>768||/[.#$\[\]/\x00-\x1f\x7f]/.test(body.ventaKey))throw fail(400,'Solicitud de eliminación inválida','SV_SALE_DELETE_INPUT');
   Fence.assertReady(guard,store);
   const actor=await authorize(req);
+  let initialVerification=require('./sale-delete-targeted-evidence').isProvider(store.saleDeleteTargetedEvidence);
   const verifyActor=async expected=>{
-   const fresh=await authorize(req);
+   // The first command check immediately consumes this request's verified
+   // actor. Queue admission and final source validation still reauthenticate.
+   const fresh=initialVerification?actor:await authorize(req);initialVerification=false;
    if(!fresh?.uid||fresh.uid!==expected.uid||fresh.claims?.uid!==expected.uid||fresh.viewing||fresh.realUid&&fresh.realUid!==fresh.uid||fresh.claims.svPasswordChangeRequired)throw fail(403,'La sesión cambió. Consultá la operación antes de repetirla.','SV_SALE_DELETE_AUTH');
   };
   const command=createSaleDeleteCommand({guard,store,enabled,now,verifyActor});

@@ -4864,3 +4864,7 @@ Rama codex/sale-delete-completion-20261126 desde3b592d9d, producción22 sin camb
 ## 26/11/2026 · Corrección puntual del vencimiento al borrar
 Delta financiero mantiene un mapa privado de hijos directos en lugar de enumerar todo el patch por cada bucket. Resultado completo idéntico en comparación de 981 rutas con implementación previa; 76 focales PASS. Preparación ficticia 1200 ventas+1200 gastos: 27624ms anterior,138ms nueva. No cambia fuentes, controles, reglas ni plazo. Publicación y eliminación AFIANZA4 pendientes de verificación real.
 
+
+## 26/11/2026 · Nuevo circuito puntual de eliminación, todavía sin publicar
+Índice específico incremental en namespace sv_sale_delete_relations, sin History/Financialglobal ni reconstruir PaymentIndex. Preparación inicial adminbranded sólo metadatos16fuentes con comparación fresca dentroGuard; borrado porventa+referencias+originales y proveedor financiero canónico remapeado. Guard mantiene índice enmismoPATCH finalincluyendorevisiones;0GEToriginalroots porborrado.90focalesPASS incl20lector+9preparación+19Rulesoffline;6HTTPtargetedPASS luego correcciónfinalPATCH. No emuladorNative/activación/backfill nuevos todavía; no eliminaciónreal. Continúa pendiente AFIANZA4. Fuentes preparadas para validación independiente y comparaciónruntimeNative.
+

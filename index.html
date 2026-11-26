@@ -80,6 +80,7 @@
   <script src="./js/core/bonus-payment-model.v1.js?v=3.18.4"></script>
   <script src="./js/core/bonus-payment.v1.js?v=3.18.4"></script>
   <script src="./js/core/financial-commands.js?v=3.21.11"></script>
+  <script src="./js/core/sale-delete-maintenance.js?v=3.22.1"></script>
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=3.17.12"></script>
 <link rel="stylesheet" href="./css/dashboard-privacy.css?v=3.14.5">
 <link rel="stylesheet" href="./css/bonus-grant.css?v=3.14.6">
@@ -2632,6 +2633,12 @@
             <div id="mnt-dup-fijos-lista" style="display:flex;flex-direction:column;gap:8px">
               <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Ejecutá “Buscar duplicados fijos” para detectar copias generadas por error.</div>
             </div>
+          </div>
+          <div class="card mnt-advanced-card">
+            <div class="card-head"><span class="card-title">Vínculos de ventas</span></div>
+            <p style="color:var(--text3);font-size:13px">Preparación inicial del circuito de eliminación. Conserva las ventas, pagos y demás registros.</p>
+            <button class="btn btn-sm" onclick="prepararVinculosDeVentas(this)">Preparar vínculos</button>
+            <p id="mnt-vinculos-ventas-status" role="status" style="color:var(--text3);font-size:13px"></p>
           </div>
           <div class="card mnt-advanced-card">
             <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>

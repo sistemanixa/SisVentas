@@ -5,6 +5,7 @@ const Relations=require('./sale-delete-relations');
 const Activity=require('./sale-delete-activity');
 const {pool}=require('./payment-snapshot');
 const Live=require('./sale-delete-live-financial-evidence');
+const Targeted=require('./sale-delete-targeted-evidence');
 const sourceRoots=new Set(['sisventas/ventas','sisventas/gastos','sisventas/ctaemp','sisventas/comisiones_generacion','sv_commission_generation']);
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_SALE_DELETE_BLOCKED'});
 const key=value=>{if(typeof value!=='string'||!value||/[.#$\[\]/\x00-\x1f]/.test(value))throw fail('Referencia inválida.');return value;};
@@ -30,13 +31,14 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   if(!sale)throw fail('La venta ya no existe. Consultá el resultado de la operación.');
   const original=structuredClone(sale);delete original.fbKey;
   if(sale.fbKey!=null&&sale.fbKey!==saleKey||digest(original)!==expectedHash)throw fail('La venta cambió. Volvé a abrir el original antes de eliminar.');
-  const financial=await store.saleDeleteFinancialEvidence({saleKey,read,query,operationId});
+  const targeted=Targeted.isProvider(store.saleDeleteTargetedEvidence)?await store.saleDeleteTargetedEvidence({saleKey,read}):null;
+  const financial=targeted?targeted.financial:await store.saleDeleteFinancialEvidence({saleKey,read,query,operationId});
   if(financial?.schema!==1||financial.saleKey!==saleKey||financial.scope!=='complete-financial-dependencies'||typeof financial.generation!=='string'||!financial.generation||!Number.isSafeInteger(financial.revision)||financial.revision<1||!['gastos','ctaemp','comisiones_generacion','sv_commission_generation'].every(domain=>/^[a-f0-9]{64}$/.test(financial.sources?.[domain]||''))||!Array.isArray(financial.dependencies))throw fail('Falta cobertura financiera completa de esta venta; no se eliminó ningún registro.');
   if(financial.dependencies.length)throw Object.assign(Error('La venta conserva comisiones o movimientos financieros. Resolvé esas dependencias antes de eliminar; no se modificó ningún registro.'),{statusCode:409,code:'SV_SALE_DELETE_FINANCIAL_DEPENDENCY'});
   if(sale.factura?.cae&&!sale.notaCredito?.cae)throw fail('Primero debe tener su nota de crédito.');
-  const patch={[salePath]:null},snapshot={sale,financial};
+  const patch={[salePath]:null},snapshot={sale,financial,...(targeted?{targeted:targeted.snapshot}:{})};
   const collectionDomains=['ventas','pagos','ordenes_trabajo','presupuestos','reclamos'];
-  const collectionRows=await pool(collectionDomains,domain=>read('sisventas/'+domain));
+  const collectionRows=targeted?collectionDomains.map(domain=>targeted.collections[domain]):await pool(collectionDomains,domain=>read('sisventas/'+domain));
   const collections=Object.fromEntries(collectionDomains.map((domain,index)=>[domain,collectionRows[index]||{}]));
   snapshot.collections=collections;
   const complete=Relations.resolve(collections,saleKey);
@@ -44,7 +46,7 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
    if(permissions?.indiceModulos?.ordentrabajo!==true||permissions.acciones?.ot?.eliminar===false||Object.values(permissions.bloqueados||{}).includes('ordentrabajo'))throw Object.assign(Error('La cascada requiere permiso para eliminar la OT vinculada.'),{statusCode:403,code:'SV_SALE_DELETE_OT_PERMISSION'});
    for(const ot of Object.values(complete.ordenes_trabajo))if(ot.ventaFbKey!==saleKey||['ventaKey','ventaGeneradaFbKey','ventaOrigenFbKey'].some(field=>Object.hasOwn(ot,field)&&ot[field]!==saleKey))throw Object.assign(Error('El vínculo técnico de la OT requiere revisión antes de eliminar la venta.'),{statusCode:409,code:'SV_SALE_DELETE_RELATION_REVIEW'});
   }
-  snapshot.activity=await Activity.validate(read,{...sale,fbKey:saleKey},complete.ordenes_trabajo);
+  snapshot.activity=await Activity.validate(targeted?async path=>targeted.collections[path.replace('sisventas/','')]??null:read,{...sale,fbKey:saleKey},complete.ordenes_trabajo);
   query=async(path,field,value)=>Object.fromEntries(Object.entries(collections[path.replace('sisventas/','')]||{}).filter(([,row])=>row?.[field]===value));
   for(const domain of ['pagos','ordenes_trabajo','reclamos']){
    const rows=complete[domain];snapshot[domain]=rows;
@@ -99,14 +101,16 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
    if(digest(await access(scope.get,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
    const initial=await plan(initialRead,scope.query,body.ventaKey,person,timestamp,body.expectedHash,body.id,captured.permissions);
    scope.beforeCommit(async({readFresh,queryFresh,assertActive})=>{
-    if(digest(await access(readFresh,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
+    const targeted=Targeted.isProvider(store.saleDeleteTargetedEvidence);
+    if(!targeted&&digest(await access(readFresh,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
     const fresh=await plan(phaseRead(readFresh,freshMemo,assertActive),queryFresh,body.ventaKey,person,timestamp,body.expectedHash,body.id,captured.permissions);
     if(digest(fresh.snapshot)!==digest(initial.snapshot))throw fail('Los vínculos cambiaron; no se eliminó ningún registro.');
+    if(targeted&&digest(await access(readFresh,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
    });
    await scope.update(initial.patch);
    return {ok:true,committed:true,ventaKey:body.ventaKey};
   });}finally{reader?.dispose();}
-  if(digest(await access(path=>store.read(path),actor))!==digest(captured))throw fail('Los permisos cambiaron. Consultá la operación antes de repetirla.');
+  if(!Targeted.isProvider(store.saleDeleteTargetedEvidence)&&digest(await access(path=>store.read(path),actor))!==digest(captured))throw fail('Los permisos cambiaron. Consultá la operación antes de repetirla.');
   return result;
  }
  return {execute,capability:()=>enabled===true&&Fence.ready(guard,store)};

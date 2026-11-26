@@ -75,6 +75,7 @@ const laborTransaction = laborRuntime.transaction;
 const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 laborRuntime.store.saleDeleteFenceReady=process.env.SALE_DELETE_FENCE_READY==='true';
 const saleDeleteService=require('./sale-delete-http-adapter').createSaleDeleteHttpAdapter({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.SALE_DELETE_READY==='true'});
+const saleDeletePreparation=require('./sale-delete-target-preparation-http').create({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.SALE_DELETE_RELATIONS_ENABLED==='true'});
 const purchaseDeleteReview=require('./purchase-order-delete-review').create({env:process.env,runtime:()=>({
  ...laborRuntime.capabilities(),operationalSummaries:process.env.OPERATIONAL_SUMMARIES_ENABLED==='true'
 })});
@@ -2094,6 +2095,11 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Cache-Control','private, no-store');
     try{const body=await readBody(req,2048);send(res,200,await purchaseDeleteService.handle(req,body));}
     catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar la compra. Consultá la operación antes de repetirla.',...(error.code?{code:error.code}:{})});}return;
+  }
+  if(pathname==='/comerciales/ventas/eliminacion/preparar'){
+    res.setHeader('Cache-Control','private, no-store');
+    try{const result=await saleDeletePreparation.handle(req,await readBody(req,2048));send(res,result.statusCode,result.body);}
+    catch(error){send(res,error.statusCode||503,{ok:false,mensaje:error.statusCode?error.message:'No se pudo confirmar la preparación. Consultá la operación antes de repetirla.',...(error.code?{code:error.code}:{})});}return;
   }
   if(pathname==='/comerciales/ventas/eliminar'){
     res.setHeader('Cache-Control','private, no-store');
