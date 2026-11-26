@@ -5,8 +5,9 @@ const source=require('node:path').resolve(__dirname,'../..').replaceAll('\\','/'
 const {restrictedFetch,base,ns}=require(source+'test/helpers/demo-rtdb-rules.cjs');
 const Host=require(source+'js/modules/client-account-host.v1.js');
 function writer({beforeMetadataReturn,beforeSDKWrite}={}){
- const filename=source+'test/labor-writes.test.cjs',text=fs.readFileSync(filename,'utf8'),context={require:createRequire(filename),module:{exports:{}},structuredClone,URL,TextEncoder,Uint8Array,AbortSignal};
- vm.runInNewContext(text.slice(0,text.indexOf("\ntest('"))+'\nmodule.exports=fixture;',context);
+ const filename=source+'test/labor-writes.test.cjs',text=fs.readFileSync(filename,'utf8'),fixtureStart=text.indexOf('\nfunction fixture(){'),fixtureEnd=text.indexOf('\n}',fixtureStart)+2,context={require:createRequire(filename),module:{exports:{}},structuredClone,URL,TextEncoder,Uint8Array,AbortSignal};
+ if(fixtureStart<0||fixtureEnd<=fixtureStart)throw Error('Explicit labor fixture boundary missing');
+ vm.runInNewContext(text.slice(0,fixtureEnd)+'\nmodule.exports=fixture;',context);
  const f=context.module.exports(),stats={reads:[],direct:0,commands:f.commands,draft:'Título ficticio conservado'};
  const pathOf=ref=>new URL(ref.toString()).pathname.replace(/^\//,'');
  async function request(method,path,value){const u=new URL(base+'/'+path+'.json?ns='+ns);u.searchParams.set('auth_variable_override',JSON.stringify({uid:'u',token:{uid:'u'}}));const r=await restrictedFetch(u,{method,headers:{'Content-Type':'application/json'},...(value===undefined?{}:{body:JSON.stringify(value)})});const body=await r.json();if(!r.ok)throw Object.assign(Error('Permission denied by exact emulator rules'),{code:'PERMISSION_DENIED'});return body;}
