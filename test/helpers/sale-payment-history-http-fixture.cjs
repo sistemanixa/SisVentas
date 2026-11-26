@@ -1,0 +1,8 @@
+'use strict';
+const assert=require('node:assert/strict'),{createCommercialOwnership}=require('../../cotizador/commercial-ownership'),{create}=require('../../cotizador/commercial-sale-payments');
+async function install(page,local){
+ local.backend.state.sv_usuarios={...(local.backend.state.sv_usuarios||{}),u:{uid:'u',nombre:'Persona ficticia',rol:'admin',activo:true}};local.backend.state.sv_chat_directorio={...(local.backend.state.sv_chat_directorio||{}),u:{nombre:'Persona ficticia'}};
+ const db={ref:p=>({get:async()=>({val:()=>local.backend.get(p)})})},ownership=createCommercialOwnership({db,auth:{verifyIdToken:async(token,revoked)=>{assert.equal(token,'FICTICIO-SIN-VALIDEZ');assert.equal(revoked,true);return{uid:'u'};}},enabled:true,readAsUser:(p,a)=>local.backend.store.readAsUser(p,a)}),service=create({ownership,store:local.backend.store});
+ await page.route('**/comerciales/ventas/registro/*?para=pagos',async route=>{const req=route.request(),url=new URL(req.url()),key=url.pathname.split('/').at(-1);assert.equal(url.origin,new URL(local.url).origin);assert.equal(req.method(),'GET');try{const request={method:'GET',url:url.pathname+url.search,headers:{authorization:req.headers().authorization}},actor=await ownership.authorize(request,'ventas'),record=(await ownership.readAuthorizedRecordsByIds(actor,'ventas',[key]))[key],result=await service.load({req:request,actor,saleKey:key,record});return route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,...result,record:{...result.record,fbKey:key}})});}catch(error){return route.fulfill({status:error.statusCode||503,contentType:'application/json',body:JSON.stringify({ok:false,mensaje:'Error de fixture de lectura'})});}});
+}
+module.exports={install};

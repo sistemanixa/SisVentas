@@ -1,14 +1,14 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),{chromium}=require('playwright');
-const {start}=require('./fixtures/commercial-full-app.cjs');
+const {start}=require('./fixtures/commercial-full-app.cjs'),{install}=require('./helpers/sale-payment-history-http-fixture.cjs');
 async function fixture(width,work){const local=await start();let browser;try{
  browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});const page=await browser.newPage({viewport:{width,height:900}});page.setDefaultTimeout(5000);
- await page.route('**/*',route=>route.request().url().startsWith(local.url)?route.continue():route.abort());await page.goto(local.url);await page.waitForFunction(()=>document.querySelectorAll('#ventas-tbody tr').length===50);
+ await page.route('**/*',route=>route.request().url().startsWith(local.url)?route.continue():route.abort());await install(page,local);await page.goto(local.url);await page.waitForFunction(()=>document.querySelectorAll('#ventas-tbody tr').length===50);
  await page.locator('#ventas-tbody tr').first().click();await page.waitForFunction(()=>window._ventaDetalleActual?.fbKey==='fixture0'&&document.querySelectorAll('#venta-detalle-view tr[data-venta-item-index]').length===16);
  const original=structuredClone(local.backend.state.sisventas);await work(page,local);assert.equal(local.backend.commands.length,0);assert.equal(local.backend.commits.length,0);assert.deepEqual(local.backend.state.sisventas,original);
  }finally{await browser?.close();await new Promise(resolve=>local.server.close(resolve));}}
 async function hold(page,id){let release,reached;const paused=new Promise(resolve=>{reached=resolve;}),barrier=new Promise(resolve=>{release=resolve;});let count=0;
- await page.route('**/fixture-read?*',async route=>{const spec=JSON.parse(new URL(route.request().url()).searchParams.get('spec'));if(spec.path!=='sisventas/ventas/'+id)return route.fallback();count++;reached();await barrier;await route.continue();});
+ await page.route('**/comerciales/ventas/registro/*?para=pagos',async route=>{if(new URL(route.request().url()).pathname!=='/comerciales/ventas/registro/'+id)return route.fallback();count++;reached();await barrier;await route.fallback();});
  return {paused,release,count:()=>count};}
 const opening=(page,id,slot)=>page.evaluate(({id,slot})=>{window[slot]=SVCommercialPagesHost.openSale(id);},{id,slot});
 for(const width of [390,1280]){
@@ -30,7 +30,7 @@ for(const width of [390,1280]){
  }));
 }
 test('failed opening never restores old sale actions',{timeout:20000},()=>fixture(390,async page=>{
- await page.route('**/fixture-read?*',route=>{const spec=JSON.parse(new URL(route.request().url()).searchParams.get('spec'));return spec.path==='sisventas/ventas/fixture1'?route.fulfill({status:403,body:'null'}):route.continue();});
+ await page.route('**/comerciales/ventas/registro/*?para=pagos',route=>new URL(route.request().url()).pathname==='/comerciales/ventas/registro/fixture1'?route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({ok:false})}):route.fallback());
  await page.evaluate(()=>SVCommercialPagesHost.openSale('fixture1'));assert.equal(await page.evaluate(()=>_ventaDetalleActual),null);assert.match(await page.locator('#venta-detalle-view').innerText(),/No se pudo abrir/);assert.equal(await page.locator('#venta-detalle-view').getByRole('button',{name:'A presupuesto',exact:true}).count(),0);
 }));
 for(const change of ['database','permissions','session','back'])test(change+' change discards pending original and leaves no previous actions',{timeout:20000},()=>fixture(390,async page=>{

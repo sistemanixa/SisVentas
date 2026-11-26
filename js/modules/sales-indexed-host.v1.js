@@ -66,17 +66,19 @@ function clearSaleDetail(message,busy=false){
  const back=document.createElement('button');back.type='button';back.className='btn btn-sm';back.textContent='Volver';
  back.onclick=()=>{cancelSaleOpening();root.volverListaVentas?.();};panel.append(back,status);
 }
-function cancelSaleOpening(){if(!detailIntent)return;detailIntent.reader?.reset();detailSequence++;detailIntent=null;clearSaleDetail('La apertura se canceló.');}
+function cancelSaleOpening(){if(!detailIntent)return;detailIntent.paymentOpening?.cancel();detailIntent.reader?.reset();detailSequence++;detailIntent=null;clearSaleDetail('La apertura se canceló.');}
 function currentSaleOpening(intent){return detailIntent===intent&&intent.sequence===detailSequence&&same(intent.context,capture());}
 async function openSale(reference){
- detailIntent?.reader?.reset();
+ detailIntent?.paymentOpening?.cancel();detailIntent?.reader?.reset();
  const intent={sequence:++detailSequence,context:capture()};detailIntent=intent;
  // A separate reader scopes its own cache to this exact opening. Its checks
  // reject a superseded response before it can populate even its detail cache.
- intent.reader=root.SVCommercialPagesReader.create({sdk:{ref:root.fbRef,get:root.fbGet,query:root.fbQuery,orderByKey:root.fbOrderByKey,startAt:root.fbStartAt,limitToFirst:root.fbLimitToFirst},capture:()=>currentSaleOpening(intent)?capture():null,readiness:root.SVDataReadiness,detailRead:async(kind,id,c)=>{if(c.role==='admin')return(await root.fbGet(root.fbRef(c.db,'sisventas/ventas/'+id))).val();return(await root.SVCommercialOwnership.request('ventas','registro/'+encodeURIComponent(id))).record;}});
+ intent.reader=root.SVCommercialPagesReader.create({sdk:{ref:root.fbRef,get:root.fbGet,query:root.fbQuery,orderByKey:root.fbOrderByKey,startAt:root.fbStartAt,limitToFirst:root.fbLimitToFirst},capture:()=>currentSaleOpening(intent)?capture():null,readiness:root.SVDataReadiness,detailRead:async(kind,id)=>intent.paymentOpening.read(id)});
  clearSaleDetail('Abriendo venta…',true);
  const panel=document.getElementById('venta-detalle-view');if(panel){panel.style.display='block';const list=document.getElementById('ventas-list-view');if(list)list.style.display='none';}
  try{
+  const history=root._svVentaPaymentHistoryReader||(root._svVentaPaymentHistoryReader=root.SVSalePaymentHistory.create(root));
+  intent.paymentOpening=history.opening(()=>currentSaleOpening(intent));
   let id=state?.rows.find(r=>[r.key,r.number].includes(reference))?.key;
   if(!id){const bytes=new TextEncoder().encode(String(reference)),digest=await root.crypto.subtle.digest('SHA-256',bytes);
    if(!currentSaleOpening(intent))return;
@@ -84,9 +86,9 @@ async function openSale(reference){
   }
   if(!currentSaleOpening(intent))return;
   const record=await hydrate(id,intent);
-  if(record&&currentSaleOpening(intent)){root._svPagedOpening=true;try{root.verDetalleVenta?.(record.id||record.fbKey);}finally{root._svPagedOpening=false;}panel?.removeAttribute('aria-busy');detailIntent=null;}
+  if(record&&currentSaleOpening(intent)){intent.paymentOpening.commit(record);root._svPagedOpening=true;try{root.verDetalleVenta?.(record.id||record.fbKey);}finally{root._svPagedOpening=false;}panel?.removeAttribute('aria-busy');detailIntent=null;}
  }catch(e){if(detailIntent===intent&&same(intent.context,capture())){clearSaleDetail('No se pudo abrir la venta. Volvé a intentarlo.');if(e.name!=='AbortError')root.notify?.(e.message);}}
- finally{if(detailIntent===intent){detailIntent=null;clearSaleDetail('No se pudo abrir la venta. Volvé a intentarlo.');}}
+ finally{if(detailIntent===intent){intent.paymentOpening?.cancel();detailIntent=null;clearSaleDetail('No se pudo abrir la venta. Volvé a intentarlo.');}}
 }
 const actions=new Map();
 function installActions(){for(const name of ['imprimirVentaDesdeListado','duplicarVenta','anularVenta','eliminarVenta','abrirResumenFactura','abrirEditorVenta','abrirReasignacionComercial']){const original=root[name];if(typeof original!=='function')continue;root[name]=function(...args){if(!activeRoute()||name==='abrirReasignacionComercial'&&!['venta','ventas'].includes(args[0]))return original.apply(this,args);const ref=args[name==='abrirReasignacionComercial'?1:0],row=state?.rows.find(r=>[r.key,r.number].includes(ref));if(!row)return original.apply(this,args);const c=capture(),key=c.uid+'|'+name+'|'+row.key;if(actions.has(key))return actions.get(key);const button=document.activeElement?.tagName==='BUTTON'?document.activeElement:null,html=button?.innerHTML;if(button){button.disabled=true;button.setAttribute('aria-busy','true');button.innerHTML='<i class="ti ti-loader-2 ti-spin"></i>';}const task=hydrate(row.key).then(record=>{if(record&&same(c,capture()))return original.apply(root,args);}).catch(e=>root.notify?.(e.message)).finally(()=>{actions.delete(key);if(button?.isConnected){button.disabled=false;button.removeAttribute('aria-busy');button.innerHTML=html;}});actions.set(key,task);return task;};}

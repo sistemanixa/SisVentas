@@ -40,12 +40,24 @@
    if(current(e)&&typeof onReady==='function')onReady(fresh,structuredClone(e.state));return structuredClone(e.state);
    })();return e.promise;
   }
+  // A single opening owns the request and its response. No caller-supplied
+  // response/ready flag can populate the ordinary history cache.
+  function opening(isCurrent){
+   if(typeof isCurrent!=='function')throw TypeError('Falta el contexto de apertura.');
+   reset();const captured=context(),turn=generation,owner={loading:null};let used=false,consumed=false,cancelled=false,answer=null,key=null,loading=null;
+   function check(){const c=context();if(disposed||cancelled||turn!==generation||!isCurrent()||!c.visible||!c.allowed||c.viewAs||!c.uid||c.user?.uid!==c.uid||captured.selected!=null||c.selected!==captured.selected||!['uid','user','auth','db','role','permissionRevision','epoch','route','viewAs'].every(k=>c[k]===captured[k]))throw Object.assign(Error('La apertura de la venta cambió.'),{name:'AbortError'});}
+   return Object.freeze({
+    async read(id){check();if(used||!validKey(id))throw Error('La lectura de apertura no se puede reutilizar.');used=true;key=id;loading=owner.loading=env.SVDataReadiness?.beginSource('salePaymentHistory','sale-payment-opening:'+key);liveEntries.add(owner);try{const data=await env.SVCommercialOwnership.request('ventas','registro/'+encodeURIComponent(key)+'?para=pagos');check();answer=validate(data,key);return structuredClone(answer.record);}catch(error){if(error.name==='AbortError')cancel(owner);else loading?.error('No se pudieron cargar la venta y sus pagos.');throw error;}},
+    commit(record){check();if(consumed||!answer||!record||record.fbKey!==key||JSON.stringify(Object.fromEntries(Object.keys(answer.record).map(k=>[k,record[k]])))!==JSON.stringify(answer.record))throw Error('El original no corresponde a la consulta de apertura.');consumed=true;const e={key,context:captured,generation:turn,state:answer.state,fresh:record,loading,promise:Promise.resolve(structuredClone(answer.state))};entries.set(record,e);liveEntries.delete(owner);liveEntries.add(e);loading?.ready();answer=null;},
+    cancel(){cancelled=true;answer=null;cancel(owner);loading=null;}
+   });
+  }
   const changed=()=>reset(),visibility=()=>{if(env.document?.hidden)reset();};
   for(const name of events)env.document?.addEventListener(name,changed);
   env.document?.addEventListener('visibilitychange',visibility);
   const detail=env.document?.getElementById?.('venta-detalle-view');
   const observer=detail&&env.MutationObserver?new env.MutationObserver(()=>{if(detail.hidden||detail.style.display==='none')reset();}):null;observer?.observe(detail,{attributes:true,attributeFilter:['style','hidden','class']});
-  return Object.freeze({state,ensure,reset,dispose(){if(disposed)return;reset();disposed=true;observer?.disconnect();for(const name of events)env.document?.removeEventListener(name,changed);env.document?.removeEventListener('visibilitychange',visibility);}});
+  return Object.freeze({state,ensure,opening,reset,dispose(){if(disposed)return;reset();disposed=true;observer?.disconnect();for(const name of events)env.document?.removeEventListener(name,changed);env.document?.removeEventListener('visibilitychange',visibility);}});
  }
  root.SVSalePaymentHistory=Object.freeze({create});
  if(typeof module==='object'&&module.exports)module.exports={create};
