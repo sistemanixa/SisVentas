@@ -27,7 +27,7 @@ El manifiesto identifica hashes de entrada/salida y de cada hunk.
 | Core | Hunks | Alcance |
 | --- | ---: | --- |
 | index.js | 4 | Opciones cerradas servidor, servicio/fence, POST y capacidad SaleDelete |
-| labor-guard.js | 8 | Acción administrativa, Activity7, alcance CC3, getter y permisos finales |
+| labor-guard.js | 7 | Acción administrativa, Activity7, getter y permisos finales; alcance CC original conservado |
 | labor-runtime.js | 3 | Opciones, provider genuino y getter de Activity |
 | labor-rtdb-store.js | 0 | Byteidéntico, incluyendo EmployeeResources y contrato OT |
 

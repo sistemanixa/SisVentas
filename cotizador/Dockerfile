@@ -68,7 +68,7 @@ COPY ot-closed-products.js ot-lifecycle.js ot-delivery.js ot-delivery-model.js o
 
 COPY sale-return-to-budget.js ./
 
-COPY sale-delete-http-adapter.js sale-delete-command.js sale-delete-relations.js sale-delete-fence.js sale-delete-activity.js ./
+COPY sale-delete-http-adapter.js sale-delete-command.js sale-delete-relations.js sale-delete-fence.js sale-delete-activity.js sale-delete-live-financial-evidence.js ./
 
 COPY purchase-order-delete.js purchase-order-delete-model.js purchase-order-delete-review.js purchase-manual-delete-review.js ./
 
