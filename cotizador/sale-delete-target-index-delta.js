@@ -13,7 +13,7 @@ async function delta({changes,read}){
   if(after){coverage.records++;coverage.sourceAccumulator=accumulate(coverage.sourceAccumulator,after,1);for(const token of after.tokens||[])patch[M.ROOT+'/refs/'+token+'/'+F.digest(change.path)]=true;for(const token of after.aliases||[])patch[M.ROOT+'/saleAliases/'+token+'/'+kind.key]=true;}
   if(M.financialRoots.has(kind.root))financial.push(change);
  }
- const derived=await D.delta({changes:financial,read:path=>read(M.financialPath(path))});for(const[path,value]of Object.entries(derived))patch[M.financialPath(path)]=value;
+ if(financial.length){const derived=await D.delta({changes:financial,read:path=>read(M.financialPath(path))});for(const[path,value]of Object.entries(derived))patch[M.financialPath(path)]=value;}
  coverage.revision++;if(!Number.isSafeInteger(coverage.revision)||!Number.isSafeInteger(coverage.records)||coverage.records<0)throw M.fail('Revisión de vínculos inválida.');patch[M.ROOT+'/coverage']=coverage;return patch;
 }
 module.exports={delta};

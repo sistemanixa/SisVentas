@@ -17,9 +17,7 @@ async function augment({patch,raw,get,exists}){
  const metadata=new Map(),originals=new Map();
  const read=async path=>{if(!metadata.has(path))metadata.set(path,Promise.resolve().then(()=>raw(path)));return structuredClone(await metadata.get(path));};
  const financialRecord=path=>M.financialPath(F.ROOT+'/records/'+F.digest(path));
- const initial=[M.ROOT+'/coverage',M.FINANCIAL_ROOT+'/coverage',...Array.from(paths,M.recordPath),...Array.from(paths).filter(path=>M.financialRoots.has(M.classify(path).root)).map(financialRecord),...paths];
- await pool([...new Set(initial)],async path=>{if(paths.has(path))originals.set(path,await raw(path));else await read(path);});
- const coverage=M.validateCoverage(await read(M.ROOT+'/coverage'));M.validateConfig(config,coverage);
+ await pool([...paths],async path=>originals.set(path,await raw(path)));
  const changes=[];
  for(const path of paths){
   const before=originals.get(path);let after=before;
@@ -28,6 +26,10 @@ async function augment({patch,raw,get,exists}){
   for(const [entry,value]of Object.entries(patch))if(entry===path)after=structuredClone(value);else if(entry.startsWith(path+'/'))after=put(after,parts(entry.slice(path.length+1)),value);
   if(F.digest(before)!==F.digest(after))changes.push({path,before,after});
  }
+ const financial=changes.filter(change=>M.financialRoots.has(M.classify(change.path).root));
+ const initial=[M.ROOT+'/coverage',...Array.from(paths,M.recordPath),...(financial.length?[M.FINANCIAL_ROOT+'/coverage',...financial.map(change=>financialRecord(change.path))]:[])];
+ await pool([...new Set(initial)],path=>read(path));
+ const coverage=M.validateCoverage(await read(M.ROOT+'/coverage'));M.validateConfig(config,coverage);
  const buckets=new Set(),references=new Set();
  for(const change of changes){
   if(!M.financialRoots.has(M.classify(change.path).root))continue;
@@ -39,8 +41,8 @@ async function augment({patch,raw,get,exists}){
  const affected=new Set();
  for(const path of references)for(const id of Object.keys(await read(path)||{}))if(/^[a-f0-9]{64}$/.test(id))affected.add(M.financialPath(F.ROOT+'/records/'+id));
  await pool([...affected],path=>read(path));
- // The unchanged delta validates every real image and produces the exact same
- // patch. No empty bucket or financial authority is inferred from equal aliases.
+ // The delta validates every affected image. Non-financial changes leave the
+ // financial tree untouched; equal aliases never substitute for real buckets.
  const derived=await D.delta({changes,read});Object.assign(patch,derived);
  return {maintained:true,generation:coverage.generation,revision:derived[M.ROOT+'/coverage'].revision};
 }
