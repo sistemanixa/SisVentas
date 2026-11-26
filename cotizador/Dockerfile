@@ -48,6 +48,7 @@ COPY expense-removal-policy.js expense-removal-guard.js ./
 COPY supplier-directory.js ./
 COPY commission-calculations.js commission-operations.js commission-public-response.js ./
 COPY commercial-sale-payments.js ./
+COPY sale-payment-read-server.js ./
 COPY commission-generation.js commission-generation-model.js commission-collection-proof.js commercial-ownership.js domain-read-policy.js ./
 COPY commercial-models/ ./commercial-models/
 COPY private-finance.js private-finance-model.js private-finance-storage.js ./

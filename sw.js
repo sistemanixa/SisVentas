@@ -1,6 +1,6 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.21.20';
+const CACHE = 'sisventas-v3.22.0';
 const SHELL = [
   './css/operation-feedback.css?v=3.21.15',
   './js/core/action-feedback.js?v=3.21.15',
@@ -55,14 +55,14 @@ const SHELL = [
   './js/core/collection-search-model.v1.js?v=3.18.13',
   './js/modules/collections-indexed-host.v1.js?v=3.21.15',
   './js/core/client-account-mode.v1.js?v=3.18.20',
-  './js/core/client-account-reader.v1.js?v=3.21.20',
+  './js/core/client-account-reader.v1.js?v=3.22.0',
   './js/core/client-account-writer-proof.v1.js?v=3.20.12',
   './js/modules/client-account-host.v1.js?v=3.21.17',
   './js/modules/client-account-legacy-reconcile.v1.js?v=3.19.11',
   './js/core/commercial-pages-reader.v1.js?v=3.19.6',
   './js/core/payment-actor-names.v1.js?v=3.18.4',
   './js/modules/payment-actor-labels.v1.js?v=3.18.4',
-  './js/modules/sales-indexed-host.v1.js?v=3.21.20',
+  './js/modules/sales-indexed-host.v1.js?v=3.22.0',
   './js/modules/ot-lifecycle.js?v=3.19.3',
   './js/modules/ot-delivery-selection.v1.js?v=3.19.3',
   './js/modules/ot-acta-correction.js?v=3.17.13',
@@ -168,8 +168,8 @@ const SHELL = [
   './js/core/guarded-writes.js?v=3.18.4',
   './js/core/session-assets.js?v=3.20.4',
   './js/core/ot-personal-scope.js?v=3.14.0',
-  './js/core/sale-payment-history.v1.js?v=3.21.20',
-  './js/app.v3.21.20.js',
+  './js/core/sale-payment-history.v1.js?v=3.22.0',
+  './js/app.v3.22.0.js',
   './js/core/activity-period.v1.js',
   './js/core/dashboard-account-source.v1.js?v=3.14.19',
   './js/modules/navigation-back.js?v=3.10.20-home',
@@ -179,7 +179,7 @@ const SHELL = [
   './js/modules/provider-verification.js?v=3.9.3',
   './js/modules/paraguay-config.js?v=3.17.7',
   './js/core/version.js',
-  './js/core/version.v3.21.20.js',
+  './js/core/version.v3.22.0.js',
   './js/core/loading-indicator.js?v=3.21.15',
   './js/core/login.js?v=2.0.154',
   './js/core/access-control.js?v=3.10.32',
@@ -216,7 +216,7 @@ const SHELL = [
   './css/product-ranking.css?v=3.12.17',
   './js/modules/product-ranking-dialog.js?v=3.12.17',
   './js/core/connection-monitor.js?v=3.17.0',
-  './js/core/commercial-ownership.js?v=3.21.20',
+  './js/core/commercial-ownership.js?v=3.22.0',
   './js/core/postventa-demand-proposal.js?v=3.19.18',
   './js/modules/commercial-document-controls.js?v=3.12.15',
   './js/core/commission-generation.js?v=3.16.11',
