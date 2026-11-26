@@ -17,10 +17,21 @@ function plannedRow(row){
   (!Object.hasOwn(row,'adicionalOT')||row.adicionalOT===false)&&(!Object.hasOwn(row,'destinoVenta')||row.destinoVenta==='original');
 }
 function plannedRows(value){return Array.isArray(value)&&Object.keys(value).length===value.length&&Object.keys(value).every((key,index)=>key===String(index))&&value.every(plannedRow);}
+function plannedChecks(value){
+ const phases=['preparacion','instalacion','verificacion'];
+ return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length===phases.length&&phases.every(phase=>{
+  if(!Object.hasOwn(value,phase)||!Array.isArray(value[phase]))return false;
+  const rows=value[phase];return Object.keys(rows).length===rows.length&&Object.keys(rows).every((key,index)=>key===String(index)&&rows[index]===false);
+ });
+}
 function assertNoPhysicalOT(value){
  if(!value||typeof value!=='object'||Array.isArray(value))throw fail('OT con custodia desconocida');
  function visit(record,top=false){
   for(const [field,entry]of Object.entries(record)){
+   if(top&&field==='checks'){
+    if(plannedChecks(entry))continue;
+    throw Object.assign(Error('El checklist de la OT no acredita un plan sin actividad. Revisalo antes de eliminar.'),{statusCode:409,code:'SV_SALE_DELETE_OT_PHYSICAL'});
+   }
    // Inspect both RAW sources independently, never a merged presentation view.
    if(top&&['materiales','items'].includes(field)&&plannedRows(entry))continue;
    if(top&&['custodiaIniciada','custodiaRendida'].includes(field)&&entry===false&&['materiales','items'].some(source=>value[source]?.length>0&&plannedRows(value[source])))continue;
