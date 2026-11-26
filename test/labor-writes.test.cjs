@@ -27,6 +27,15 @@ function fixture(){
  return {root,sdk,state,commands,direct,reads,headers,ref:path=>ref(null,path),get,put,commit,setHandler(fn){handler=fn;},setBeforeGet(fn){beforeGet=fn;},setHeaders(fn){headerTask=fn;},get holds(){return holds;},get releases(){return releases;}};
 }
 
+for(const domain of ['reclamos','equipos','tickets'])test('history source '+domain+' joins coordinated writes and never falls back after a denial',async()=>{
+ const f=fixture();let coordinated=false;f.root.SVClientAccountHost={start:async()=>{coordinated=true;},coordinated:()=>coordinated};
+ await f.root.fbSet(f.ref('sisventas/'+domain+'/r'),{descripcion:'Ficticio'});
+ assert.equal(f.commands.length,1);assert.equal(f.direct.length,0);
+ f.setHandler(()=>response({ok:false,mensaje:'Denegado'},403));
+ await assert.rejects(f.root.fbUpdate(f.ref('sisventas/'+domain+'/r'),{descripcion:'Cambiar'}));
+ assert.equal(f.direct.length,0);assert.equal(f.commands.length,2);
+});
+
 test('first customer set, update, remove, transaction and push wait for coordinated readiness before choosing the writer',async()=>{
  const f=fixture(),ready=deferred();let enabled=false;f.root.SVClientAccountHost={start:async()=>{await ready.promise;enabled=true;},coordinated:()=>enabled};f.put('sisventas/clientes/compare',{nombre:'Antes'});
  const set=f.root.fbSet(f.ref('sisventas/clientes/set'),{nombre:'Alta'}),update=f.root.fbUpdate(f.ref('sisventas'),{'clientes/update/nombre':'Actualizado'}),remove=f.root.fbRemove(f.ref('sisventas/clientes/remove')),transaction=f.root.fbRunTransaction(f.ref('sisventas/clientes/compare'),v=>({...v,nombre:'Después'})),push=f.root.fbPush(f.ref('sisventas/clientes'),{nombre:'Nueva clave'});

@@ -26,8 +26,8 @@ async function fixture({saleFinancialDependencies=true}={}){
   return new Response('null');
  };
  const db={ref:path=>({toString:()=> 'https://fixture.invalid/'+path,get:async()=>({val:()=>structuredClone(child(state,parts(path)))})})};
- const runtime=createLaborRuntime({db,databaseURL:'https://fixture.invalid',accessToken:async()=> 'fixture-service',fetchImpl,enabled:true,commercialPages:true,clientAccounts:true,clientHistory:true,operationalSummaries:true,saleFinancialDependencies});
- require('./helpers/sale-delete-financial-evidence.cjs').install({store:runtime.store,get:path=>child(state,parts(path))});runtime.store.saleDeleteFenceReady=true;runtime.store.saleDeleteActivityFenceReady=true;
+ const runtime=createLaborRuntime({db,databaseURL:'https://fixture.invalid',accessToken:async()=> 'fixture-service',fetchImpl,enabled:true,commercialPages:true,clientAccounts:true,clientHistory:true,operationalSummaries:true,saleFinancialDependencies,saleDeleteActivity:saleFinancialDependencies});
+ require('./helpers/sale-delete-financial-evidence.cjs').install({store:runtime.store,get:path=>child(state,parts(path))});runtime.store.saleDeleteFenceReady=true;
  const auth={verifyIdToken:async(token,checkRevoked)=>{assert.equal(checkRevoked,true);if(authState.revoked||!['u','other'].includes(token))throw Error('revoked fixture');return {uid:authState.uid||token,svPasswordChangeRequired:authState.passwordRequired};}};
  const gateway=createLaborWriteGateway({auth,db,guard:runtime.guard,store:runtime.store,enabled:true});
  const adapter=createSaleDeleteHttpAdapter({authorize:gateway.authorize,guard:runtime.guard,store:runtime.store,enabled:true});

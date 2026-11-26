@@ -4809,3 +4809,8 @@ Comprobación real final22 completada tras desbloqueo: tres aperturas del mismo 
 Checkout sale-delete-safety desde3b592d9d: presupuestos auditRAW array/map preservados, evento append seguro; OT con materiales/trazas físicas o actividad protegida se veta sin revertir stock.72focalesPASS, syntax/diffPASS; fixtures financieras con Provider genuino. Sin emulador/global/remoto ni flaghabilitado. Detalles/límites en SALE_DELETE_SAFETY_20261126.md. Root conserva montaje/cobertura/cierreRules como pendiente.
 
 Ampliación acotada solicitada por Root: positivo canónico explícito de plan de materiales sin movimiento (cantidades físicas number0, custodiafalse, sin registros ni campos desconocidos); materiales/items RAW separados, sin normalizar defaults.82focalesPASS. Preserva veto de custodia/stock ambiguos y no acredita ausencia de recibos externos; montaje/coverage siguependiente.
+
+
+## 26/11/2026 · Borrado administrativo en preparación aislada
+
+Rama codex/sale-delete-completion-20261126 desde3b592d9d, producción22 sin cambios. Metadatos reales acotados confirman Cuentas/Pagesready/protocolo2; H/Financial/RelationsCoverage ausentes. Preparación offline nueva propone sóloHFin ycontrasta contraCuentas existentes, sinoriginales. Integradosfixes auditoríaRAWpresupuesto yvetoactividadfísicaOT/checklistprístino. Rootenruta3fuentesH yopt-inActivity7derivadodelGuard;41routing/policy y52HTTPadyacentesverdes(solapan). PendientesRulesNative/composiciónsobreimagen20/closure/preparaciónreal/publicación; noeliminaciónreal ni flags/Rules/índicesremotos aplicados. Detalle docs/SALE_DELETE_COMPLETION_20261126.md.

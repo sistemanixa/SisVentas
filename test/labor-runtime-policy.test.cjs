@@ -1,6 +1,17 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const {createLaborGuard,digest}=require('../cotizador/labor-guard'),{createLaborRuntime}=require('../cotizador/labor-runtime');
+
+test('sale activity routing is an explicit complete runtime opt-in and its readiness cannot be overwritten',()=>{
+ const store={read:async()=>null,acquire:async()=>{},commit:async()=>{},abort:async()=>{}},flags={store,clientAccounts:true,commercialPages:true,clientHistory:true,saleFinancialDependencies:true};
+ const ordinary=createLaborGuard(flags),active=createLaborGuard({...flags,saleDeleteActivity:true});
+ for(const domain of ['agenda','ordenes','listas_materiales','remitos','equipos','tickets','ordenesTrabajo'])assert.equal(active.affects('sisventas/'+domain+'/r'),true);
+ assert.equal(ordinary.affects('sisventas/agenda/r'),false);assert.equal(active.affects('sisventas/productos/r'),false);
+ assert.throws(()=>createLaborGuard({...flags,clientHistory:false,saleDeleteActivity:true}),/proyecciones coordinadas/);
+ const runtime=createLaborRuntime({db:{},databaseURL:'http://127.0.0.1:1',accessToken:async()=>'',enabled:true,...Object.fromEntries(Object.entries(flags).filter(([name])=>name!=='store')),saleDeleteActivity:true});
+ assert.equal(runtime.guard.saleDeleteActivity,true);assert.equal(runtime.store.saleDeleteActivityFenceReady,true);
+ assert.throws(()=>{runtime.store.saleDeleteActivityFenceReady=false;},TypeError);
+});
 test('circuito acotado no puede arrancar con el observador periódico habilitado',()=>{
  const source=fs.readFileSync(require.resolve('../cotizador/index.js'),'utf8'),start=source.indexOf('const laborScopedEnabled='),end=source.indexOf('const laborRuntime=',start),policy=source.slice(start,end);assert.ok(start>=0&&end>start);
  assert.throws(()=>vm.runInNewContext(policy,{process:{env:{LABOR_SCOPED_ENABLED:'true',COMMISSION_OBSERVER_ENABLED:'true'}}}),/observador periódico apagado/);
