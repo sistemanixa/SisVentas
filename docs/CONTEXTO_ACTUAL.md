@@ -4803,3 +4803,7 @@ Fuente funcional66b5e9a8; alcance y evidencia en docs/PAGO_REGIONAL_PUBLICACION_
 
 
 Comprobación real final22 completada tras desbloqueo: tres aperturas del mismo pago1.434/1.265/1.282 ms (media1.327ms, relojautomatizaciónincluidotransporte); servidor0.545/0.457/0.383s. Historial1pago/saldo cancelado correctos, ninguna operación financiera. Se restauró Empleados y cerró pestaña temporal. Detalle y límites en PAGO_REGIONAL_PUBLICACION_20261126.md. Ya no queda pendiente la verificación visual; no se acredita arranque en frío prolongado.
+
+## 2026-11-26 — Cascada de venta, seguridad local sin habilitación
+
+Checkout sale-delete-safety desde3b592d9d: presupuestos auditRAW array/map preservados, evento append seguro; OT con materiales/trazas físicas o actividad protegida se veta sin revertir stock.72focalesPASS, syntax/diffPASS; fixtures financieras con Provider genuino. Sin emulador/global/remoto ni flaghabilitado. Detalles/límites en SALE_DELETE_SAFETY_20261126.md. Root conserva montaje/cobertura/cierreRules como pendiente.

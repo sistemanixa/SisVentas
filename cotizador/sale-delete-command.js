@@ -5,6 +5,14 @@ const Relations=require('./sale-delete-relations');
 const Activity=require('./sale-delete-activity');
 const fail=message=>Object.assign(Error(message),{statusCode:409,code:'SV_SALE_DELETE_BLOCKED'});
 const key=value=>{if(typeof value!=='string'||!value||/[.#$\[\]/\x00-\x1f]/.test(value))throw fail('Referencia inválida.');return value;};
+function appendBudgetAudit(original,event,entryKey){
+ if(original==null)return [event];
+ if(typeof original!=='object')throw fail('La auditoría del presupuesto requiere revisión.');
+ const audit=structuredClone(original);
+ if(Array.isArray(audit)){audit.push(event);return audit;}
+ if(Object.hasOwn(audit,entryKey))throw fail('La auditoría del presupuesto cambió.');
+ Object.defineProperty(audit,entryKey,{value:event,enumerable:true,writable:true,configurable:true});return audit;
+}
 function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyActor}){
  if(enabled&&typeof verifyActor!=='function')throw fail('La eliminación requiere verificación fresca de Auth y acceso.');
  async function access(read,actor){
@@ -14,7 +22,7 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   if(profile?.activo!==true||profile.rol!=='admin'||permissions?.indiceVersion!==2||permissions.indiceModulos?.venta!==true||permissions.acciones?.ventas?.eliminar===false||Object.values(permissions.bloqueados||{}).includes('venta'))throw fail('Se requiere administrador con permiso ventas.eliminar.');
   return {profile,permissions};
  }
- async function plan(read,query,saleKey,actor,timestamp,expectedHash){
+ async function plan(read,query,saleKey,actor,timestamp,expectedHash,operationId){
   const salePath='sisventas/ventas/'+saleKey,sale=await read(salePath);
   if(!sale)throw fail('La venta ya no existe. Consultá el resultado de la operación.');
   const original=structuredClone(sale);delete original.fbKey;
@@ -51,7 +59,8 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   for(const [budgetKey,budget]of Object.entries(budgets)){
    const path='sisventas/presupuestos/'+key(budgetKey);
    if(!budget)throw fail('No se encontró el presupuesto de origen.');
-   patch[path]={...budget,estado:'anulado',anulado:true,motivoAnulacion:'La venta generada '+(sale.id||sale.numero||'')+' fue eliminada.',ventaRetiradaId:sale.id||sale.numero||'',ventaRetiradaFbKey:saleKey,ventaRetiradaTipo:'eliminada',ventaRetiradaTs:timestamp,ventaRetiradaPor:actor.name,audit:[...(Array.isArray(budget.audit)?budget.audit:[]),{fecha:new Date(timestamp).toLocaleDateString('es-AR'),usuario:actor.name,accion:'Presupuesto anulado porque la venta generada fue eliminada',motivo:'Venta '+(sale.id||sale.numero||saleKey)+' eliminada'}]};
+   const audit=appendBudgetAudit(budget.audit,{fecha:new Date(timestamp).toLocaleDateString('es-AR'),usuario:actor.name,accion:'Presupuesto anulado porque la venta generada fue eliminada',motivo:'Venta '+(sale.id||sale.numero||saleKey)+' eliminada'},'sale-delete-'+digest({operationId,saleKey,budgetKey}).slice(0,32));
+   patch[path]={...budget,estado:'anulado',anulado:true,motivoAnulacion:'La venta generada '+(sale.id||sale.numero||'')+' fue eliminada.',ventaRetiradaId:sale.id||sale.numero||'',ventaRetiradaFbKey:saleKey,ventaRetiradaTipo:'eliminada',ventaRetiradaTs:timestamp,ventaRetiradaPor:actor.name,audit};
   }
   if(sale.notaCredito?.origen==='conciliacion_externa'){
    const fiscalKey=sale.notaCredito.comprobanteEmitidoFbKey;
@@ -71,10 +80,10 @@ function createSaleDeleteCommand({guard,store,enabled=false,now=Date.now,verifyA
   const captured=await access(path=>store.read(path),actor),timestamp=now(),person={...actor,name:captured.profile.nombre||captured.profile.login||''};
   const result=await guard.run({uid:actor.uid,claims:actor.claims,mode:'user',role:'admin',permissionRevision:captured.permissions.indiceRevision,permissionDigest:digest(captured.permissions),opId:body.id,transportDigest:digest(body),operation:'sale-delete',input:body},async scope=>{
    if(digest(await access(scope.get,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
-   const initial=await plan(scope.get,scope.query,body.ventaKey,person,timestamp,body.expectedHash);
+   const initial=await plan(scope.get,scope.query,body.ventaKey,person,timestamp,body.expectedHash,body.id);
    scope.beforeCommit(async({readFresh,queryFresh})=>{
     if(digest(await access(readFresh,actor))!==digest(captured))throw fail('Los permisos cambiaron.');
-    const fresh=await plan(readFresh,queryFresh,body.ventaKey,person,timestamp,body.expectedHash);
+    const fresh=await plan(readFresh,queryFresh,body.ventaKey,person,timestamp,body.expectedHash,body.id);
     if(digest(fresh.snapshot)!==digest(initial.snapshot))throw fail('Los vínculos cambiaron; no se eliminó ningún registro.');
    });
    await scope.update(initial.patch);
