@@ -83,4 +83,25 @@ function _pagableGastoBase(payload) {
     ts: payload.ts || Date.now()
   };
 }
-module.exports={_claveOperacionConcurrente,_hsexAgruparPendientes,_hsexDescripcionDetalle,_hsexConsolidarDetalle,_pagableGastoBase};
+function _hsexValorHoraParaMes(cargo, mes) {
+  var tarifa = Number(cargo && cargo.valorHoraExtra) || 0;
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes || '')) return tarifa;
+  var calendario = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit'
+  });
+  var cambios = Object.values(cargo && cargo.historialCambios || {})
+    .filter(function(c) {
+      return c && c.campo === 'valorHoraExtra' && c.anterior != null
+        && Number.isFinite(Number(c.ts)) && Number(c.ts) > 0
+        && Number.isFinite(Number(c.anterior)) && Number.isFinite(Number(c.nuevo));
+    })
+    .sort(function(a, b) { return Number(b.ts) - Number(a.ts); });
+  cambios.forEach(function(c) {
+    if (calendario.format(new Date(Number(c.ts))) >= mes && Number(c.nuevo) === tarifa) {
+      tarifa = Number(c.anterior);
+    }
+  });
+  return tarifa;
+}
+
+module.exports={_hsexValorHoraParaMes,_claveOperacionConcurrente,_hsexAgruparPendientes,_hsexDescripcionDetalle,_hsexConsolidarDetalle,_pagableGastoBase};

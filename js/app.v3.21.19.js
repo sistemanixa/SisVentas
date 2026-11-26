@@ -4188,6 +4188,27 @@ function _habMesActualLocal() {
   return ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0');
 }
 
+function _hsexValorHoraParaMes(cargo, mes) {
+  var tarifa = Number(cargo && cargo.valorHoraExtra) || 0;
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes || '')) return tarifa;
+  var calendario = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit'
+  });
+  var cambios = Object.values(cargo && cargo.historialCambios || {})
+    .filter(function(c) {
+      return c && c.campo === 'valorHoraExtra' && c.anterior != null
+        && Number.isFinite(Number(c.ts)) && Number(c.ts) > 0
+        && Number.isFinite(Number(c.anterior)) && Number.isFinite(Number(c.nuevo));
+    })
+    .sort(function(a, b) { return Number(b.ts) - Number(a.ts); });
+  cambios.forEach(function(c) {
+    if (calendario.format(new Date(Number(c.ts))) >= mes && Number(c.nuevo) === tarifa) {
+      tarifa = Number(c.anterior);
+    }
+  });
+  return tarifa;
+}
+
 function _cargoValorHoraParaMes(cargo, mesISO) {
   if (!cargo) return 0;
   var historial = _cargoHistorialValorHora(cargo).slice().sort(function(a, b) {
@@ -5145,7 +5166,7 @@ async function _abrirPanelAprobacionHsExtraLegacy() {
   var filas = pendientes.length ? pendientes.map(function(s) {
     var emp = Object.values(empData||{}).find(function(e){ return e.fbKey === s.empFbKey; });
     var cargoInfo = emp && emp.cargoId ? CARGOS_DATA[emp.cargoId] : null;
-    var monto = window.SVCommercialMoney.product((s.horas||0),(cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0));
+    var monto = window.SVCommercialMoney.product((s.horas||0),_hsexValorHoraParaMes(cargoInfo, s.mes || String(s.fecha || '').slice(0,7)));
     return '<tr style="border-bottom:0.5px solid var(--border)">' +
       '<td style="padding:10px 8px"><div style="font-weight:600;font-size:13px">' + escapeHTML(s.empNombre||'') + '</div><div style="font-size:11px;color:var(--text3)">' + escapeHTML(s.fecha||'') + '</div></td>' +
       '<td style="padding:10px 8px;text-align:center;font-weight:600;color:var(--amber)">' + s.horas + ' hs</td>' +
@@ -5322,7 +5343,7 @@ async function abrirPanelAprobacionHsExtra() {
     var cargoInfo = emp && emp.cargoId ? CARGOS_DATA[emp.cargoId] : null;
     g.cargoId = (emp && emp.cargoId) || '';
     g.cargoNombre = cargoInfo ? (cargoInfo.nombre || g.cargoId) : '';
-    g.valorHora = cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0;
+    g.valorHora = _hsexValorHoraParaMes(cargoInfo, g.mes);
     g.monto = window.SVCommercialMoney.product((g.horas||0),g.valorHora);
     totalHoras += g.horas || 0;
     totalMonto += g.monto || 0;
@@ -5414,7 +5435,7 @@ async function aprobarHsExtra(solFbKey) {
   if (!s) { notify('Solicitud no encontrada'); return; }
   var emp = Object.values(empData||{}).find(function(e){ return e.fbKey === s.empFbKey; });
   var cargoInfo = emp && emp.cargoId ? CARGOS_DATA[emp.cargoId] : null;
-  var monto = window.SVCommercialMoney.product((s.horas||0),(cargoInfo ? (parseFloat(cargoInfo.valorHoraExtra)||0) : 0));
+  var monto = window.SVCommercialMoney.product((s.horas||0),_hsexValorHoraParaMes(cargoInfo, s.mes || String(s.fecha || '').slice(0,7)));
   window._hsExtraAprobando[solFbKey] = true;
   try {
     await _aprobarHsExtraAtomico(solFbKey, monto);
@@ -11566,7 +11587,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Cuenta corriente abre con los movimientos más recientes.','Contador y navegación arriba del historial, con aviso de carga al cambiar de página.']),
   RELEASE_FEATURE: Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.21.19',date:'26/11/2026',title:'Nueva venta sin cargar el historial',notes:Object.freeze(['El formulario nuevo abre sin descargar ventas anteriores.','El número definitivo se asigna al guardar.']),feature:Object.freeze({page:'venta',actionLabel:'Nueva venta'})}),
+ Object.freeze({version:'v3.21.19',date:'26/11/2026',title:'Aperturas y horas extra',notes:Object.freeze(['Nueva venta abre sin descargar el historial y asigna su número al guardar.','Se agiliza la consulta del historial de pagos.','Las horas extra usan la tarifa del mes trabajado.','Las cuentas de empleados reutilizan los gastos disponibles al abrir.']),feature:Object.freeze({page:'venta',actionLabel:'Nueva venta'})}),
  Object.freeze({version:'v3.21.18',date:'25/11/2026',title:'Historial de pagos de la venta',notes:Object.freeze(['El detalle consulta los cobros de la venta aunque no se haya abierto Cobranzas.','El historial muestra su carga y permite reintentar una lectura fallida sin repetir el pago.']),feature:Object.freeze({page:'detalle',actionLabel:'Ver ventas'})}),
  Object.freeze({version:'v3.21.17',date:'25/11/2026',title:'Carga visible en cuenta corriente',notes:Object.freeze(['Al abrir una cuenta se muestra un aviso de carga sobre el fondo atenuado.','Las acciones esperan los datos verificados y la paginación mantiene su indicador en el mismo lugar.']),feature:Object.freeze({page:'cuentacorriente',actionLabel:'Ver cuentas'})}),
  Object.freeze({version:'v3.21.16',date:'25/11/2026',title:'Menos esperas al preparar y consultar',notes:Object.freeze(['La preparación de presentaciones continúa al cambiar de pestaña.','Las consultas simultáneas de usuarios y perfiles comparten la carga.','La OT evita una lectura repetida al preparar materiales y conserva la verificación antes de guardar.'])}),
@@ -33483,6 +33504,14 @@ function svRepintarCtaEmpDesdeFuentes() {
   if(state.status==='error'){svMostrarEstadoLecturaCtaEmp('No se pudo cargar la cuenta. Volvé a intentar.',true);return false;}
   if(state.status!=='ready'){svMostrarEstadoLecturaCtaEmp('Cargando la cuenta…',false);return false;}
   var gastos=window._ctaEmpGastosSnapshot;
+  var origen=window._ctaEmpGastosOrigen;
+  if (gastos && !gastos.valid() && gastos.origin===origen && gastos.data===gastosData &&
+      _gastosDataReady && !_gastosCargaError && typeof _gastosUnsubscribe==='function' &&
+      !window._impersonacionOriginal && svOrigenGastosCompatible(origen) &&
+      (origen.employeeId===null || origen.employeeId===String(state.employeeId))) {
+    svMarcarSnapshotGastosCuenta(origen,false);
+    gastos=window._ctaEmpGastosSnapshot;
+  }
   if(!_gastosDataReady || _gastosCargaError || !gastos || !gastos.valid() || gastos.data!==gastosData || gastos.origin.employeeId!==null && gastos.origin.employeeId!==String(state.employeeId)){
     var origin=window._ctaEmpGastosOrigen,pending=!_gastosDataReady && !_gastosCargaError && origin && origin.valid() && (origin.employeeId===null || origin.employeeId===String(state.employeeId)) && typeof _gastosUnsubscribe==='function';
     svMostrarEstadoLecturaCtaEmp(pending?'Cargando los gastos de esta cuenta…':_gastosCargaError || gastos?.error?'No se pudieron comprobar los gastos de esta cuenta.':'La información de gastos está incompleta. Actualizá los gastos de esta cuenta.',pending?false:'gastos');return false;

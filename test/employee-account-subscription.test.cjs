@@ -180,3 +180,13 @@ test('reemplazar los contenedores o terminar sesión retira sólo la lectura CTA
 test('mismo dato evita reattach; el repintado HTML idéntico sigue siendo un límite explícito',()=>{
  const f=fixture(),input=data();f.c.cargarCtaEmp('e');f.deliverCTA(input.cta);f.deliverGastos(input.gastos);const body=f.el('ctaemp-tbody'),before=body.htmlWrites,html=body.innerHTML;f.deliverGastos(input.gastos);assert.equal(body.innerHTML,html);assert.ok(body.htmlWrites>before);assert.equal(f.cta().length,1);
 });
+
+test('Gastos vigente reaparece en la cuenta al renovar su contexto sin volver a leer ni escribir',()=>{
+ const f=fixture(active,{manager:true,broad:true});
+ f.deliverGastos({overtime:{empleadoFbKey:'e',tipoPagable:'hextra',categoria:'Personal',monto:453900,estado:'pagado',fecha:'2026-10-23'}});
+ f.c._ctaEmpGastosSnapshot.valid=()=>false;
+ f.c.cargarCtaEmp('e');f.deliverCTA({});
+ assert.ok(f.c.movsEmpData.some(row=>row.monto===453900));
+ assert.equal(f.subs.filter(row=>row.path==='sisventas/gastos').length,1);
+ assert.deepEqual(f.writes,[]);
+});
