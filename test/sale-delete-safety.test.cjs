@@ -44,3 +44,14 @@ test('deterministic append key never overwrites a preexisting audit map entry',a
 test('array audit retains null slots and nested historical properties',async()=>{
  const audit=[{accion:'Primero',raw:{x:1}},null,{accion:'Tercero',autor:'Original'}],f=await fixture({audit});await f.run();const after=f.get('sisventas/presupuestos/b/audit');a.deepEqual(after.slice(0,3),audit);a.equal(after.length,4);
 });
+
+function plannedMaterial(){return {productoKey:'P_FICTICIO',cod:'P-FICTICIO',desc:'Planificado',vendida:2,unidad:'un',entregada:0,instalada:0,devueltaPendiente:0,devuelta:0,enTecnico:0,danada:0,faltante:0,custodiaActiva:false,custodiaClasificada:false,adicionalOT:false,destinoVenta:'original'};}
+test('explicit canonical zero-motion planned material is eligible without touching any inventory',async()=>{
+ const row=plannedMaterial(),f=await fixture({ot:{id:'OT-FICTICIA',ventaFbKey:'s',estado:'pendiente',materiales:[row],items:[structuredClone(row)],custodiaIniciada:false,custodiaRendida:false}}),inventory={stock:f.get('sisventas/stock'),inventario:f.get('sisventas/inventario')};
+ await f.run();a.equal(f.commits.length,1);a.equal(f.get('sisventas/ordenes_trabajo/ot'),null);a.deepEqual({stock:f.get('sisventas/stock'),inventario:f.get('sisventas/inventario')},inventory);
+});
+for(const change of ['missing','numericString','positive','trueCustody','unknownPhysical','unknownField','stockRegistro','stockRevision','historicalItems'])test('planned row rejects '+change+' rather than normalizing a zero',async()=>{
+ const row=plannedMaterial(),ot={id:'OT-FICTICIA',ventaFbKey:'s',materiales:[row]};
+ if(change==='missing')delete row.devuelta;if(change==='numericString')row.entregada='0';if(change==='positive')row.instalada=1;if(change==='trueCustody')row.custodiaActiva=true;if(change==='unknownPhysical')row.stockUnknown=0;if(change==='unknownField')row.legacyUnknown='';if(change==='stockRegistro')row.stockRegistro='';if(change==='stockRevision')row.stockRevision=0;if(change==='historicalItems')ot.items=[{...plannedMaterial(),devuelta:'0'}];
+ const f=await fixture({ot}),before=structuredClone(f.state.sisventas);await a.rejects(f.run(),{code:'SV_SALE_DELETE_OT_PHYSICAL'});a.equal(f.commits.length,0);a.deepEqual(f.state.sisventas,before);
+});

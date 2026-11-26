@@ -4807,3 +4807,5 @@ Comprobación real final22 completada tras desbloqueo: tres aperturas del mismo 
 ## 2026-11-26 — Cascada de venta, seguridad local sin habilitación
 
 Checkout sale-delete-safety desde3b592d9d: presupuestos auditRAW array/map preservados, evento append seguro; OT con materiales/trazas físicas o actividad protegida se veta sin revertir stock.72focalesPASS, syntax/diffPASS; fixtures financieras con Provider genuino. Sin emulador/global/remoto ni flaghabilitado. Detalles/límites en SALE_DELETE_SAFETY_20261126.md. Root conserva montaje/cobertura/cierreRules como pendiente.
+
+Ampliación acotada solicitada por Root: positivo canónico explícito de plan de materiales sin movimiento (cantidades físicas number0, custodiafalse, sin registros ni campos desconocidos); materiales/items RAW separados, sin normalizar defaults.82focalesPASS. Preserva veto de custodia/stock ambiguos y no acredita ausencia de recibos externos; montaje/coverage siguependiente.
