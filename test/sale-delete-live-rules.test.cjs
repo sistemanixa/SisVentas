@@ -1,0 +1,28 @@
+'use strict';
+// Offline composition/predicate tests only, not LIVE provider or OT V2 proof.
+const {test}=require('node:test'),a=require('node:assert/strict'),fs=require('node:fs'),B=require('../scripts/lib/sale-delete-live-rules.cjs'),N=require('../scripts/lib/sale-delete-namespace-precondition-rules.cjs'),A=require('../scripts/lib/sale-delete-actor-precondition-rules.cjs');
+const BASELINE='C:/SisVentas/tmp/runtime-6b6276dd/rules-current-20261125.private.json';
+function strip(node,depth=0){if(!node)return node;const out=structuredClone(node);if(typeof out['.write']==='string'){const p=N.prefix(depth);if(out['.write'].startsWith(p))out['.write']=out['.write'].slice(p.length,-1);if(out['.write'].startsWith(A.prefix))out['.write']=out['.write'].slice(A.prefix.length,-1);}for(const[k,v]of Object.entries(out))if(!k.startsWith('.'))out[k]=strip(v,depth+1);return out;}
+test('LIVE exact baseline adds no H/Financial root or gate; preserves CC/Pages/Payment/OT native bodies',()=>{
+ const bytes=fs.readFileSync(BASELINE),old=JSON.parse(bytes),r=B.prepare(bytes,{expectedBaselineSha256:B.BASELINE_SHA256}),unwrapped=strip(r.rules.rules);
+ a.equal(r.manifest.mode,'live-originals');a.equal(r.manifest.activationReady,false);a.equal(r.manifest.installsHistoryFinancial,false);a.deepEqual(r.manifest.stages.map(s=>s.name),B.STAGES);
+ a.deepEqual(Object.keys(r.rules.rules).sort(),Object.keys(old.rules).sort());for(const p of N.ROOTS)a.deepEqual(r.rules.rules[p],old.rules[p]);
+ for(const p of ['sv_client_accounts','sv_client_accounts_config','sv_commercial_pages','sv_commercial_pages_config','sv_labor_indexes','sv_labor_guard','sv_labor_receipts','sv_labor_config'])a.deepEqual(unwrapped[p],old.rules[p],p);
+ const ot=unwrapped.sisventas.ordenes_trabajo.$record,original=old.rules.sisventas.ordenes_trabajo.$record;a(ot['.write'].startsWith('('+original['.write']+') || ('));for(const[k,v]of Object.entries(original))if(k!=='.write')a.deepEqual(ot[k],v);
+ a.deepEqual(fs.readFileSync(BASELINE),bytes);
+});
+test('LIVE rejects wrong bytes, permission options or unreviewed modes',()=>{const raw=fs.readFileSync(BASELINE);for(const opts of [{},{expectedBaselineSha256:'0'.repeat(64)},{expectedBaselineSha256:B.BASELINE_SHA256,history:false}])a.throws(()=>B.prepare(raw,opts));a.throws(()=>B.prepare('{}',{expectedBaselineSha256:B.BASELINE_SHA256}));});
+function snapshot(tree,path=[]){let v=tree;for(const k of path)v=v?.[k];return{child:p=>snapshot(tree,[...path,...p.split('/')]),parent:()=>snapshot(tree,path.slice(0,-1)),exists:()=>v!==undefined&&v!==null,val:()=>v??null,isString:()=>typeof v==='string',isNumber:()=>typeof v==='number'};}
+function evaluate(s,auth,before,after,path=[]){return Function('auth','root','newData','return ('+s+');')(auth,snapshot(before),snapshot(after,path));}
+const original={rules:{'.write':true,sisventas:{'.write':'auth != null || auth.token.other === true',$domain:{'.write':true,$record:{'.write':true}}},sv_labor_guard:{'.write':true},sv_labor_receipts:{$op:{'.write':true}},closed:{'.write':false}}};
+function grants(node,path=[],out=[]){if(node['.write']!==undefined&&node['.write']!==false)out.push({expression:node['.write'],path});for(const[k,v]of Object.entries(node))if(!k.startsWith('.'))grants(v,[...path,k],out);return out;}
+const live=()=>({uid:'u',token:{svFinancialAction:'ventas.eliminar',svClientHistoryWriterVersion:0,svSaleFinancialWriterVersion:0}});
+function allAllowed(auth,before,after,expected){for(const{expression,path}of grants(N.prepare(original).rules.rules))a.equal(evaluate(expression,auth,before,after,path),expected,path.join('/'));}
+test('synthetic LIVE absence control reaches every root, parent, wildcard and receipt grant',()=>{allAllowed(live(),{}, {},true);a.equal(N.prepare(original).rules.rules.closed['.write'],false);});
+for(const p of N.ROOTS)for(const phase of ['before','after'])test('LIVE namespace '+p+' appearing '+phase+' denies every ancestor and OR',()=>{const before={},after={};(phase==='before'?before:after)[p]={partial:{corrupt:true}};allAllowed(live(),before,after,false);});
+test('mixed, missing and malformed writer versions never imply absence',()=>{for(const[h,f]of [[0,1],[1,0],[undefined,0],[0,undefined],['0',0],[false,0],[2,2],[1,1]]){const auth=live();auth.token.svClientHistoryWriterVersion=h;auth.token.svSaleFinancialWriterVersion=f;allAllowed(auth,{}, {},false);}});
+test('already prepared indexed control requires both real writer claims and ready namespaces; partial/corrupt does not downgrade',()=>{
+ const prepared={sv_client_history_config:{schema:1,ready:true,writerSchema:1,generation:'g'},sv_client_history:{v1:{state:{schema:1,ready:true,generation:'g'}}},sv_sale_financial_dependencies:{v1:{coverage:{schema:1,ready:true,generation:'f',revision:2,unresolved:0}}}},auth=live();auth.token.svClientHistoryWriterVersion=1;auth.token.svSaleFinancialWriterVersion=1;
+ allAllowed(auth,prepared,prepared,true);for(const p of N.ROOTS){const corrupt=structuredClone(prepared);corrupt[p]={};allAllowed(auth,corrupt,corrupt,false);}const partial=structuredClone(prepared);partial.sv_sale_financial_dependencies.v1.coverage.unresolved=1;allAllowed(auth,partial,partial,false);
+});
+test('all other actions preserve old semantic authority even with namespaces present',()=>{for(const action of ['',undefined,'ot.eliminar','cobranzas.registrar']){const auth=live();auth.token.svFinancialAction=action;const g1=grants(original.rules),g2=grants(N.prepare(original).rules.rules);for(let i=0;i<g1.length;i++)a.equal(evaluate(g2[i].expression,auth,{sv_client_history:true},{},g2[i].path),evaluate(String(g1[i].expression),auth,{}, {},g1[i].path));}});

@@ -38,4 +38,4 @@ function prepare(bytes,options){
  if(JSON.stringify(original)!==before)throw Error('Baseline modificado.');
  return{rules:candidate,manifest:{schema:1,baselineSha256:BASELINE_SHA256,candidateSha256:sha(JSON.stringify(candidate)),stages,activity:ACTIVITY,h3:H3,activityChanged:restricted.changed,sourceGrantsAdded:true,parentGrantsAdded:false,sourceGrantExtension:cascade.manifest,addsTechnicalRootsOnly:['sv_client_history','sv_client_history_config','sv_sale_financial_dependencies'],activated:false,activationReady:false,includesOrderDelete:false,includesOTDelete:false,includesSaleReturn:false,preservesExistingAccountsPagesPayment:true,pending:['genuine-full-command-native-emulator','all-scoped-writers-closure','remote-baseline-recheck','metadata-preparation-and-verification']}};
 }
-module.exports={prepare,BASELINE_SHA256,ACTIVITY,H3,TARGETS,STAGES};
+module.exports={prepare,BASELINE_SHA256,ACTIVITY,H3,TARGETS,STAGES,activity};
