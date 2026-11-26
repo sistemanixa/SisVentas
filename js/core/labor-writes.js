@@ -5,7 +5,7 @@
  if(root&&!root.SVLaborWrites)root.SVLaborWrites=create(root);
 })(typeof window==='object'?window:null,function(){
  'use strict';
- const watched=['empleados','hsextra_solicitudes','gastos','ctaemp','haberes','aguinaldos','gastos_periodicos_emp','pagos_realizados','auditoria_pagos','comisiones_generacion','gastos_adjuntos','ventas','pagos'].map(key=>'sisventas/'+key).concat(['cargos','maxComisionPct','comisiones','comisionesEmpleados'].map(key=>'sisventas/config/'+key));
+ const watched=['empleados','hsextra_solicitudes','gastos','ctaemp','haberes','aguinaldos','gastos_periodicos_emp','pagos_realizados','auditoria_pagos','comisiones_generacion','gastos_adjuntos','ventas','pagos','reclamos','equipos','tickets','agenda','remitos','ordenesTrabajo','ordenes','listas_materiales'].map(key=>'sisventas/'+key).concat(['cargos','maxComisionPct','comisiones','comisionesEmpleados'].map(key=>'sisventas/config/'+key));
  const fail=(code,message)=>Object.assign(Error(message),{code});
  function canonical(value){
   if(value==null)return 'null';
@@ -20,7 +20,7 @@
   if(path&&path.split('/').some(key=>!key||/[.#$\[\]\x00-\x1f\x7f]/.test(key)))throw fail('SV_LABOR_PATH','Ruta de escritura inválida.');
   return path;
  }
- const serviceOnly=path=>/^(?:sv_labor_|sv_commission_|sv_client_accounts(?:_|$))/.test(path.split('/')[0]||'');
+ const serviceOnly=path=>/^(?:sv_labor_|sv_commission_|sv_client_accounts(?:_|$)|sv_sale_delete_relations$)/.test(path.split('/')[0]||'');
  const identityRoots=['clientes','clientes_unificados','clientes_unificados_indice','presupuestos'].map(key=>'sisventas/'+key);
  const otRoot='sisventas/ordenes_trabajo';
  const otIntersects=path=>path===otRoot||path.startsWith(otRoot+'/')||!path||otRoot.startsWith(path+'/');
