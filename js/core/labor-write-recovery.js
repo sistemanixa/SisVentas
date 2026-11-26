@@ -93,8 +93,9 @@
    let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
    const attempt={uid:meta.uid,id:meta.id,digest:meta.digest,status:'sending',resolve,reject,validate};attempts.set(meta.id,attempt);
    try{persist(true);}catch(error){attempts.delete(meta.id);throw error;}
-   // Keep an OT rejection cause only in memory; it is definitive only after an explicit rejected receipt.
-   Promise.resolve().then(send).then(result=>finish(attempt,result),error=>{if(attempts.get(attempt.id)===attempt){if(uncertain(error)){if(error?.statusCode===409&&/^SV_OT_[A-Z0-9_]+$/.test(error?.code||''))attempt.rejectionError=error;attempt.status='unknown';emit();}else finish(attempt,null,error);}});
+   // The response can fail after a commit. Preserve its cause only in memory,
+   // and report it only after the receipt explicitly confirms rejection.
+   Promise.resolve().then(send).then(result=>finish(attempt,result),error=>{if(attempts.get(attempt.id)===attempt){if(uncertain(error)){attempt.rejectionError=error?.statusCode===409&&/^SV_OT_[A-Z0-9_]+$/.test(error?.code||'')?error:Object.assign(fail('SV_LABOR_REJECTED',error?.message||'El intento no se guardó. Podés volver a intentarlo.'),{cause:error});attempt.status='unknown';emit();}else finish(attempt,null,error);}});
    return promise;
   }
   async function check(id){
