@@ -9,3 +9,13 @@ La evidencia LIVE del servidor, ajena a este builder, debe venir de Financial.pr
 Fase 1: **12 pruebas LIVE + 5 de preservación/composición previa aprobadas**, cero fallos. Incluyen padres/OR/recibo, aparición PRE/POST de los tres namespaces, mezclas y estados parciales. Son controles de predicado/composición, no positivos de negocio con tokens manuales. Sin nuevo emulador en esta fase.
 
 Pendiente del SHA LIVE congelado de Root: HTTP real ficticio → capture PATCH/claims completos → WebSocket RTDB; ausencia que aparece después de finalReads; legado/source inválido/ambiguo/dependencia financiera; cascada/replay y preservación de originales; regresión OTDelete V2 con fuentes/pins actuales intactos. No producción, Rules remotas, backfill ni venta real modificados.
+
+## Evidencia LIVE nativa sobre 1f654e67
+
+Export Git literal de `1f654e674271506a2cde855ae7a3b096931b34f0`, fixture HTTP de C en modo LIVE y proveedor genuino de A. `test/sale-delete-live-native.integration.cjs`: **11 PASS / 0 FAIL / 0 SKIP, exit0**, en 29,69 s. Claims H0/Fin0, CC1, ningún PATCH de H/Fin; no tokens positivos manuales, Bearer administrativo de negocio, campos recortados ni tiempos retocados. Propio emulador aislado limpiado y detenido.
+
+El positivo confirma baja Sale/pago/OT y anulación del presupuesto con recibo/replay de un efecto, CC/Pages coherentes y stock/comisiones/fiscal ajenos intactos. Los negativos cubren rol/revisión/permiso/reset, Activity durante lease, FK/recibo/OT permiso y claims adulterados, aparición PRE/POST de cada namespace y dependencia financiera/fuente inválida. SDK directo rechazado durante lease en las cinco fuentes: ventas, gastos, ctaemp, comisiones_generacion, sv_commission_generation, con claims reales de lectura capturados; el constructor LIVE no añade grants a esas fuentes y conserva sus fences nativos. No implica cierre de Admin externo fuera de Guard.
+
+H3 usa el SDK idle original, con RecordList.plan y claims de lectura genuinos. La primera ejecución había dejado 9 PASS / 1 FAIL porque el test heredado intentaba routing server de Reclamos del modo indexado, innecesario en LIVE; se corrigió el camino del test sin modificar producto ni Rules. Se retuvieron las expectativas de autorización. La lectura HTTP-modelo sigue sobre transporte de memoria ficticia; el PATCH completo capturado sí se valida por WebSocket RTDB.
+
+Esta entrega acredita sólo LIVE desde fuente Root congelada, no su imagen desplegada ni el overlay nativo final. Regresión OTDeleteStandalone V2 todavía pendiente de composición con su paquete/contrato vigente, sin alterar pins, y no acreditada por estos once casos. Log privado `tmp/finish-rules-20261125/sale-delete-live-1f654-native-final.log`. No acciones reales ni Rules remotas.
