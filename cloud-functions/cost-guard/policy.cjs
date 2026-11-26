@@ -1,7 +1,7 @@
 'use strict';
 const project='nixa-sisventas',projectNumber='171899432710',region='southamerica-east1';
 const database=`projects/${projectNumber}/locations/us-central1/instances/nixa-sisventas-default-rtdb`;
-const services=['cotizador','asistente','emitirfactura','testtfapp'].map(name=>`projects/${project}/locations/${region}/services/${name}`);
+const services=['cotizador','asistente','emitirfactura','testtfapp'].map(name=>`projects/${project}/locations/${region}/services/${name}`).concat('projects/nixa-sisventas/locations/us-central1/services/sv-sale-payment-read');
 function monthAt(time){const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit'}).formatToParts(time);return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value;}
 function decide(message,{billingAccountId,budgetId,now=new Date()}={}){
  if(!billingAccountId||!budgetId)throw Error('Configurar la cuenta y el presupuesto exactos antes de habilitar el corte');
@@ -41,7 +41,7 @@ async function suspend({request,logger=()=>{},sleep=ms=>new Promise(resolve=>set
    if(response.data?.error)throw Error('Cambio de servicio rechazado');
    let operation=response.data;
    if(operation?.name){
-    const prefix=`projects/${project}/locations/${region}/operations/`;
+    const prefix=name.slice(0,name.indexOf('/services/'))+'/operations/';
     if(!operation.name.startsWith(prefix))throw Error('Operación inesperada');
     for(let attempt=0;!operation.done&&attempt<10;attempt++){await sleep(1000);operation=(await request({url:`https://run.googleapis.com/v2/${operation.name}`,method:'GET'})).data;}
     if(!operation.done||operation.error)throw Error('No se confirmó el cambio de servicio');

@@ -1,3 +1,7 @@
+## Lector regional y corte mensual · preparación local · 26/11/2026
+
+La lista fija del controlador conserva Cotizador, Asistente, Emitirfactura y Testtfapp en `southamerica-east1` y añade únicamente `projects/nixa-sisventas/locations/us-central1/services/sv-sale-payment-read`. Cada operación de Run se valida contra la región de ese servicio fijo. Permanecen la identidad exacta del presupuesto/cuenta, el umbral mensual USD60, deshabilitar RTDB sin borrar, retirar etiquetas, confirmar escala manual cero y el límite de diez consultas por operación. Pruebas ficticias incluyen ambas regiones, operaciones de región ajena y reintento del quinto servicio. Esto es preparación de código: Root debe verificar el controlador publicado y asociar su mismo rol limitado get/update sólo al nuevo servicio; no se ejecutó un aviso elegible real, no se desplegó ni se modificó IAM desde este bloque.
+
 ## Dólar cada tres horas · 30/10/2026
 
 Actualización expresamente autorizada por el titular. Sólo se programa en una sesión visible con permiso configuracion.editar; se pausa al ocultarse, no se ejecuta con navegadores cerrados y coordina un único pedido mediante lease compartido. Cadencia normal máxima: ocho actualizaciones diarias compartidas, más acciones manuales; fallos retroceden tres horas. No agrega servicios ni gasto fijo. Cada actualización implica lectura/escritura de configuración y un pedido al proveedor; no es un límite exacto de facturación.

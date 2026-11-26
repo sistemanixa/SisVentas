@@ -23,19 +23,59 @@ test('suspensión usa únicamente deshabilitar base y escalar servicios a cero, 
 });
 test('repetir un corte confirmado no vuelve a modificar recursos; un fallo de un servidor no omite los demás',async()=>{
  let changes=0;await suspend({request:async options=>{if(options.method!=='GET')changes++;return {data:options.url.includes('firebasedatabase')?{state:'DISABLED'}:{scaling:{scalingMode:'MANUAL',manualInstanceCount:0},traffic:[]}};}});assert.equal(changes,0);
- const visited=[];await assert.rejects(suspend({request:async options=>{if(options.method==='GET'){visited.push(options.url);if(options.url.includes('/cotizador'))throw Error('Fallo ficticio');}return {data:options.url.includes('firebasedatabase')?{state:'DISABLED'}:{traffic:[{percent:100,revision:'r'}]}};}}),/cotizador/);assert.equal(new Set(visited.filter(url=>url.includes('run.googleapis.com'))).size,4);
+ const visited=[];await assert.rejects(suspend({request:async options=>{if(options.method==='GET'){visited.push(options.url);if(options.url.includes('/cotizador'))throw Error('Fallo ficticio');}return {data:options.url.includes('firebasedatabase')?{state:'DISABLED'}:{traffic:[{percent:100,revision:'r'}]}};}}),/cotizador/);assert.equal(new Set(visited.filter(url=>url.includes('run.googleapis.com'))).size,5);
 });
 test('espera operaciones remotas y comprueba la escala antes de anunciar la suspensión',async()=>{
  const paused=new Set(),operations=new Map();let waits=0;
  await suspend({sleep:async()=>{waits++;},request:async options=>{
   const url=options.url.split('?')[0];if(url.includes('firebasedatabase'))return {data:{state:'DISABLED'}};
   if(url.includes('/operations/')){const count=(operations.get(url)||0)+1;operations.set(url,count);return {data:{name:url.replace('https://run.googleapis.com/v2/',''),done:count===2}};}
-  if(options.method==='PATCH'){paused.add(url);return {data:{name:'projects/nixa-sisventas/locations/southamerica-east1/operations/'+url.split('/').at(-1),done:false}};}
+  if(options.method==='PATCH'){paused.add(url);return {data:{name:url.replace('https://run.googleapis.com/v2/','').replace('/services/','/operations/'),done:false}};}
   return {data:paused.has(url)?{scaling:{scalingMode:'MANUAL',manualInstanceCount:0},traffic:[{percent:100,revision:'r'}]}:{traffic:[{percent:100,revision:'r'}]}};
- }});assert.equal(waits,8);assert.equal(operations.size,4);
+ }});assert.equal(waits,10);assert.equal(operations.size,5);
 });
 test('no confirma corte si la base no confirma su estado; fecha inicial de noviembre usa mes de facturación',async()=>{
  await assert.rejects(suspend({request:async()=>({data:{state:'ACTIVE'}})}),/No se confirmó la suspensión de la base/);
  assert.equal(decide(message({}),{...config,now:new Date('2026-11-01T06:59:00Z')}).pause,false);
  assert.equal(decide(message({}),{...config,now:new Date('2026-11-01T07:01:00Z')}).pause,true);
+});
+
+test('fixed targets retain four Brazil services and add only the Iowa payment reader',()=>{
+ assert.deepEqual(services,['cotizador','asistente','emitirfactura','testtfapp'].map(name=>'projects/nixa-sisventas/locations/southamerica-east1/services/'+name).concat('projects/nixa-sisventas/locations/us-central1/services/sv-sale-payment-read'));
+});
+
+test('operation from another region is rejected in both directions without polling that operation',async()=>{
+ for(const target of [services[0],services[4]]){
+  const calls=[],paused=new Set(),wrongRegion=target.includes('/us-central1/')?'southamerica-east1':'us-central1',foreign='projects/nixa-sisventas/locations/'+wrongRegion+'/operations/foreign';
+  await assert.rejects(suspend({sleep:async()=>assert.fail('A foreign operation must not be polled'),request:async options=>{
+   calls.push(options);if(options.url.includes('firebasedatabase'))return{data:{state:'DISABLED'}};
+   const name=options.url.split('?')[0].replace('https://run.googleapis.com/v2/','');
+   if(options.method==='PATCH'){paused.add(name);return{data:name===target?{name:foreign,done:false}:{}};}
+   return{data:paused.has(name)?{scaling:{scalingMode:'MANUAL',manualInstanceCount:0},traffic:[]}:{traffic:[{percent:100,revision:'r'}]}};
+  }}),error=>error.message.includes(target));
+  assert.equal(calls.some(call=>call.url.includes('/operations/')),false);assert.equal(calls.filter(call=>call.method==='PATCH').length,5);
+ }
+});
+
+test('fifth-service failure retries only that remaining service and removes tags before confirmation',async()=>{
+ const calls=[],paused=new Set();let failReader=true;
+ const request=async options=>{calls.push(options);if(options.url.includes('firebasedatabase'))return{data:{state:'DISABLED'}};const name=options.url.split('?')[0].replace('https://run.googleapis.com/v2/','');
+  if(options.method==='PATCH'){if(name===services[4]&&failReader)throw Error('Fictional fifth-service failure');paused.add(name);return{data:{}};}
+  return{data:paused.has(name)?{scaling:{scalingMode:'MANUAL',manualInstanceCount:0},traffic:[{percent:100,revision:'r'}]}:{traffic:[{percent:100,revision:'r'},{percent:0,revision:'old',tag:'preview'}]}};
+ };
+ await assert.rejects(suspend({request}),/sv-sale-payment-read/);assert.equal(paused.size,4);const before=calls.length;failReader=false;await suspend({request});
+ const retry=calls.slice(before),patches=retry.filter(c=>c.method==='PATCH');assert.equal(patches.length,1);assert(patches[0].url.includes('/us-central1/services/sv-sale-payment-read?'));assert.equal(paused.size,5);assert(patches[0].data.traffic.every(t=>!Object.hasOwn(t,'tag')));assert.equal(retry.at(-1).method,'GET');assert(retry.at(-1).url.endsWith(services[4]));
+});
+
+test('foreign budget or billing account never starts suspension IO',async()=>{
+ for(const field of ['budgetId','billingAccountId']){const notification=message({});notification.attributes[field]='FOREIGN';let calls=0;const result=decide(notification,config);if(result.pause)await suspend({request:async()=>{calls++;throw Error('Unexpected IO');}});assert.equal(result.pause,false);assert.equal(calls,0);}
+});
+
+test('reader pause is not announced until manual zero and absence of tagged traffic are all confirmed',async()=>{
+ for(const invalid of [{scaling:{scalingMode:'AUTOMATIC',manualInstanceCount:0},traffic:[]},{scaling:{scalingMode:'MANUAL',manualInstanceCount:1},traffic:[]},{scaling:{scalingMode:'MANUAL',manualInstanceCount:0},traffic:[{percent:0,tag:'still-live'}]}]){
+  const patched=new Set(),logs=[];await assert.rejects(suspend({logger:value=>logs.push(value),request:async options=>{
+   if(options.url.includes('firebasedatabase'))return{data:{state:'DISABLED'}};const name=options.url.split('?')[0].replace('https://run.googleapis.com/v2/','');if(options.method==='PATCH'){patched.add(name);return{data:{}};}
+   return{data:patched.has(name)?name===services[4]?invalid:{scaling:{scalingMode:'MANUAL',manualInstanceCount:0},traffic:[]}:{traffic:[{percent:100,revision:'r'}]}};
+  }}),/sv-sale-payment-read/);assert.equal(logs.some(value=>value.event==='cost_guard_configuration_paused'),false);
+ }
 });
