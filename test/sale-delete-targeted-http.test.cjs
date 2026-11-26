@@ -19,13 +19,14 @@ test('targeted cascade reads only the sale and indexed links and maintains index
  const f=await target();try{const before={stock:f.get('sisventas/stock'),commissions:f.get('sisventas/comisiones'),fiscal:f.get('sisventas/comprobantesVenta'),budget:f.get('sisventas/presupuestos/budget')},coverage=f.get(f.TargetIndex.ROOT+'/coverage');
   const idle=f.metrics();await new Promise(setImmediate);a.deepEqual(f.metrics(),idle);const result=await f.request(f.body());a.equal(result.status,200,JSON.stringify(result));a.equal(f.commits.length,1);assertPointBounded(f);
   const commit=f.commits[0];a.equal(commit.override.token.svClientHistoryWriterVersion,0);a.equal(commit.override.token.svSaleFinancialWriterVersion,0);a(Object.keys(commit.patch).some(p=>p.startsWith(f.TargetIndex.ROOT+'/')));a(f.get(f.TargetIndex.ROOT+'/coverage/revision')>coverage.revision);
+  console.log('SALE_DELETE_TARGETED_METRICS '+JSON.stringify({...f.metrics(),originalRootReads:0}));
   for(const p of ['sisventas/ventas/sale','sisventas/pagos/payment','sisventas/ordenes_trabajo/ot']){a.equal(f.get(p),null);a.equal(f.get(f.TargetIndex.recordPath(p)),null);}
   a.equal(f.get('sisventas/presupuestos/budget/estado'),'anulado');a.deepEqual(f.get('sisventas/presupuestos/budget/items'),before.budget.items);a.deepEqual(f.get('sisventas/stock'),before.stock);a.deepEqual(f.get('sisventas/comisiones'),before.commissions);a.deepEqual(f.get('sisventas/comprobantesVenta'),before.fiscal);a.equal(f.get('sv_client_accounts/v1/totals/all/balanceCents'),0);for(const p of absent)a.equal(f.get(p),null);
  }finally{await f.close();}
 });
 
 test('unrelated original records and attachments do not change delete read paths or transferred JSON',async()=>{
- const runs=[];for(const extra of [false,true]){const f=await target();try{if(extra){for(let i=0;i<300;i++){f.set('sisventas/ventas/other-'+i,{id:'V-OTHER-'+i,total:11,responsableUid:'u',adjunto:'ficticio'.repeat(500)});f.set('sisventas/gastos/other-'+i,{descripcion:'Gasto operativo ficticio',monto:3,adjunto:'ficticio'.repeat(500)});}await f.prepareTargetIndex();}
+ const runs=[];for(const extra of [false,true]){const f=await target();try{if(extra){const sales={...f.get('sisventas/ventas')},expenses={...f.get('sisventas/gastos')};for(let i=0;i<300;i++){sales['other-'+i]={id:'V-OTHER-'+i,total:11,responsableUid:'u',adjunto:'ficticio'.repeat(500)};expenses['other-'+i]={descripcion:'Gasto operativo ficticio',monto:3,adjunto:'ficticio'.repeat(500)};}f.set('sisventas/ventas',sales);f.set('sisventas/gastos',expenses);await f.prepareTargetIndex();}
    const result=await f.request(f.body());a.equal(result.status,200,JSON.stringify(result));assertPointBounded(f);runs.push({paths:pointReads(f).map(c=>c.path).sort(),bytes:pointReads(f).reduce((sum,c)=>sum+c.responseBytes,0)});
   }finally{await f.close();}}
  a.deepEqual(runs[1].paths,runs[0].paths,'The number and identity of reads depend on the target links, not all sales/expenses');
