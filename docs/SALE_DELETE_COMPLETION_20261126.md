@@ -47,3 +47,8 @@ la interfaz. Ningún resultado de esta preparación permite borrar por sí solo.
 Guard incorpora un opt-in de actividad que exige Cuentas, Pages, Historial y dependencias financieras. Su getter de cierre alimenta una propiedad de Store no sobreescribible; no hay valor verdadero incondicional en el montaje. Se vigilan los siete dominios de actividad sólo con ese opt-in. Reclamos, Equipos y Tickets se unen al circuito de identidad coordinada en cliente/servidor, sin fallback al SDK tras una denegación. La configuración OFF preserva los dominios de actividad ajenos.
 
 41 pruebas del enrutamiento/política y52 adyacentes HTTP aprobadas (conjuntos solapados, no sumar). Los fixtures Runtime pasan el opt-in al constructor en lugar de falsificar la propiedad de Store. Esto demuestra construcción y flujo; no certifica por sí solo el cierre de escritores ni reglas remotas. No activar hasta prueba nativa y comparación remota exacta.
+
+
+## Composición nativa local
+
+OverlayHFin f7c8d6 integrado y extensiónRoot sale-delete-runtime-overlay: cambia4núcleos mediante anclasúnicas y reversión contra los bytes publicados20; añade13módulos faltantes, sin sustituirlos150archivos nativos porGit. Índice conserva servicios originales y agrega sólo ruta/capacidad de SaleDelete y parámetrosHFin. Mantiene acción stock.ajustar, hooksEmployeeResources yOT, y optimizaciones nativas deCuentas.17pruebas de los derivadores aprobadas sinSKIP con el baseline privado exacto.56 pruebas HTTP/seguridad/checklist sobre el paquete nativo derivado aprobadas; primer intento carecía deindex/app estáticos del arnés, resuelto copiando sus bytes exactos sin cambio de producto. Aún sinemulador/activación/imagen publicada.
