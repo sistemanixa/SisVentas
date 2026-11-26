@@ -1,0 +1,12 @@
+# Lector ETag de SaleDelete: revisión y prueba puntual
+
+Fuente congelada `08bba18c66c971fe9beaf03132b613c0d50bfeea`, export Git literal aislado. Revisión limitada al lector nuevo y delta Command/Store/Guard: una instancia por operación/lease, memos initial/fresh separados, GET condicional real en fresh, cinco raíces cerradas, stream UTF-8 acotado a 16 MiB Gastos y 8 MiB las otras, Model.prepare/Provider y cinco hashes RAW en ambas fases conservados. No se cambia el lector comercial general.
+
+El bloqueo descubierto en WIP se corrigió: `scope.assertActive` continúa siendo `working` y no autoriza staging durante commit; el contexto de `beforeCommit` recibe `assertActive:live` readonly y el lector fresh usa ese puerto. Los errores no sirven una copia vieja; ETag/valor pertenecen al previous capturado por cada petición. `dispose` limpia slots y aborta controladores. `Promise.race` aporta deadline/abort y checks que impiden IO posterior o servir valores tardíos; no acredita drenar una promesa ADC o un transporte que ignore la cancelación.
+
+`test/sale-delete-source-reader-native.integration.cjs`: **2 PASS / 0 FAIL / 0 SKIP, exit0**, 27,95 s, emulador propio limpiado y detenido. Sin repetir la matriz LIVE de once casos ni una suite global.
+
+1. Protocolo RTDB real con fuente ficticia: GET inicial 200 con ETag; GET condicional sin cambio 304; tras modificar la fuente, 200 con ETag nuevo y valor cambiado. La mutación de la copia devuelta al consumidor no altera el slot. Se usa identidad administrativa del emulador exclusivamente para probar el protocolo, NO como prueba de autoridad de negocio.
+2. HTTP LIVE genuino con Reader/Command/Guard/Store finales y transporte modelo de memoria; captura PATCH/claims completos, commit WebSocket bajo Rules LIVE reales del baseline 5a y replay de un único efecto. Sale/pago/OT eliminados, presupuesto anulado, stock/comisiones/fiscal ajenos preservados, recibo original igual, claims H0/Fin0/CC1 y sin writes a H/Fin. Ningún token positivo manual, campos recortados o fechas retocadas. Este segundo caso preserva la frontera memoria→capture→native WS; no se afirma que sus lecturas HTTP-modelo fueran RTDB real ni que la fixture sin ETag produjera 304 en esa misma cascada.
+
+La revisión no halló otro bloqueante en este delta. No certifica despliegue, IAM/Admin externo, datos productivos ni la puerta de publicación de Root. Log privado: `tmp/finish-rules-20261125/delete-reader-08bba-native.log`. Sin Rules remotas ni venta real modificadas.
