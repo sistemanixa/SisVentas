@@ -86,7 +86,11 @@
   // projection and defer reconciliation until navigation needs it again.
   const page=document.querySelector?.('.page.active')?.id;
   const unrelated=['page-productos','page-proveedores','page-configuracion','page-novedades','page-gastospersonales'].includes(page);
-  for(const [domain,s]of subscriptions){if(unrelated||page==='page-venta'&&domain==='ventas'){s.foregroundDeferred=true;continue;}s.foregroundDeferred=false;refresh(domain,{joinPending:true});}
+  // Complete sales history belongs to these page consumers, not every screen
+  // reached after one of them. Point reads and explicit write refreshes remain
+  // independent. Products keeps its existing foreground deferral above.
+  const salesConsumers=['page-dashboard','page-historialcliente','page-productos','page-comisiones','page-facturas','page-detalle','page-cuentacorriente','page-cobranzas','page-balancecompra'];
+  for(const [domain,s]of subscriptions){if(unrelated||domain==='ventas'&&page&&!salesConsumers.includes(page)){s.foregroundDeferred=true;continue;}s.foregroundDeferred=false;refresh(domain,{joinPending:true});}
  }
  function refreshDeferred(){if([...subscriptions.values()].some(s=>s.foregroundDeferred))refreshVisible();}
  function onValue(domain,callback,error){contextChanged();const previous=subscriptions.get(domain);if(previous)retain(domain,previous);previous?.loading?.cancel();const s={...takeRetained(domain),callback,error,loading:root.SVDataReadiness?.beginSource(domain)};subscriptions.set(domain,s);refresh(domain);return ()=>{if(subscriptions.get(domain)===s){retain(domain,s);s.loading?.cancel();subscriptions.delete(domain);}};}
