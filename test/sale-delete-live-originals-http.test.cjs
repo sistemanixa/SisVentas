@@ -36,6 +36,8 @@ for(const change of ['sale-action','ot-action','sale-module','blocked-value'])te
    if(change==='sale-module')f.set('sv_permisos/admin/indiceModulos/venta',false);
    if(change==='blocked-value')f.set('sv_permisos/admin/bloqueados',{arbitraryFixtureKey:'venta'});
   }};
-  const r=await f.request(f.body());a.equal(changed,true,'The fault must occur during the second complete plan');a.equal(passes,2);a.equal(f.get('sv_permisos/admin/indiceRevision'),revision);a.equal(r.status,409,JSON.stringify(r));a.equal(r.body.ok,false);a.equal(f.commits.length,0);a.deepEqual(f.get('sisventas'),before);a.equal(f.get('sv_labor_guard'),null);for(const p of absent)a.equal(f.get(p),null);
+  // Native Guard checks an explicitly disabled sale permission before comparing
+  // the complete permission digest. OT-only changes reach that digest check.
+  const r=await f.request(f.body());a.equal(changed,true,'The fault must occur during the second complete plan');a.equal(passes,2);a.equal(f.get('sv_permisos/admin/indiceRevision'),revision);a.equal(r.status,change==='ot-action'?409:403,JSON.stringify(r));a.equal(r.body.code,change==='ot-action'?'SV_LABOR_AUTH_CHANGED':'LAB_FAILURE');a.equal(r.body.ok,false);a.equal(f.commits.length,0);a.deepEqual(f.get('sisventas'),before);a.equal(f.get('sv_labor_guard'),null);for(const p of absent)a.equal(f.get(p),null);
  }finally{await f.close();}
 });
