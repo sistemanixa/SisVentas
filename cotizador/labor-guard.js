@@ -126,13 +126,14 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
   }};
   Object.defineProperty(scope,'installSaleDeleteRelations',{value:async plan=>{
    working();if(!saleDeleteRelations||relationsPrepared||staged.size)throw failure(409,'La preparación debe confirmar únicamente sus vínculos.');
-   const {patch,hashes}=require('./sale-delete-target-preparation').consume(plan,actor,lease,scope);
+   const preparation=require('./sale-delete-target-preparation'),{patch,hashes,streamedToken}=preparation.consume(plan,actor,lease,scope);
    for(const [path,value]of Object.entries(patch)){if(!path.startsWith('sv_sale_delete_relations/'))throw failure(400,'Preparación fuera de alcance');staged.set(path,copy(value));}
    relationsPrepared=true;
    finalChecks.push(async({readFresh,assertActive})=>{
     const model=require('./sale-delete-target-index');assertActive();
     if(await store.exists('sv_sale_delete_relations')!==false||await readFresh(model.CONFIG)!==null)throw model.fail('La preparación cambió antes de confirmar.');
-    await require('./payment-snapshot').pool(model.roots,async root=>{const row=await readFresh(root);assertActive();if(digest(row)!==hashes[root])throw model.fail('Un original cambió durante la preparación.');});
+    await require('./payment-snapshot').pool(model.roots.filter(root=>!['sisventas/ordenes_trabajo','sisventas/reclamos'].includes(root)),async root=>{const row=await readFresh(root);assertActive();if(digest(row)!==hashes[root])throw model.fail('Un original cambió durante la preparación.');});
+    await preparation.assertStreamedFresh(streamedToken,{assertActive});
     if(await store.exists('sv_sale_delete_relations')!==false||await readFresh(model.CONFIG)!==null)throw model.fail('La preparación cambió antes de confirmar.');assertActive();
    });
   }});

@@ -73,6 +73,7 @@ COPY sale-delete-target-index.js sale-delete-target-index-delta.js sale-delete-t
 COPY sale-delete-target-commit.js ./
 COPY sale-delete-target-financial.js ./
 COPY sale-delete-authorization.js ./
+COPY sale-delete-preparation-reader.js ./
 
 COPY purchase-order-delete.js purchase-order-delete-model.js purchase-order-delete-review.js purchase-manual-delete-review.js ./
 

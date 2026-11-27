@@ -17,10 +17,13 @@ function create({authorize,guard,store,enabled=false}){
   if(!body||Object.keys(body).join(',')!=='id'||!/^[A-Za-z0-9_-]{8,160}$/.test(body.id))throw fail(400,'Solicitud de mantenimiento inválida.');
   const initial=await access(req,path=>store.read(path)),uid=initial.actor.uid;
   const verify=async read=>{const fresh=await access(req,read);if(fresh.actor.uid!==uid||digest({profile:fresh.profile,permissions:fresh.permissions})!==digest({profile:initial.profile,permissions:initial.permissions}))throw fail(409,'Los permisos cambiaron durante la preparación.');};
-  const result=await guard.run({uid,claims:initial.actor.claims,mode:'user',role:'admin',permissionRevision:initial.permissions.indiceRevision,permissionDigest:digest(initial.permissions),financialAction:'ventas.eliminar.preparar',operation:'sale-delete-target-preparation',opId:body.id,transportDigest:digest(body),input:body},async scope=>{
-   await verify(scope.get);const prepared=await Preparation.prepare({scope,store});
+  let reader,result;
+  try{result=await guard.run({uid,claims:initial.actor.claims,mode:'user',role:'admin',permissionRevision:initial.permissions.indiceRevision,permissionDigest:digest(initial.permissions),financialAction:'ventas.eliminar.preparar',operation:'sale-delete-target-preparation',opId:body.id,transportDigest:digest(body),input:body},async scope=>{
+   await verify(scope.get);
+   if(typeof store.createSaleDeletePreparationReader!=='function')throw fail(503,'La preparación por registro no está disponible.');
+   reader=store.createSaleDeletePreparationReader();const prepared=await Preparation.prepare({scope,store,reader});
    scope.beforeCommit(async({readFresh})=>verify(readFresh));return prepared;
-  });
+  });}finally{reader?.dispose();}
   return {statusCode:200,body:{ok:true,committed:result.committed===true,operationId:body.id,prepared:true}};
  }
  return {handle,path:PATH};
