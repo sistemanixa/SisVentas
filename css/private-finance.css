@@ -68,3 +68,7 @@ body.nav-open{overflow:hidden}.sidebar{overflow-y:auto}
 .monthly-metrics .metric{min-width:0}
 .monthly-metrics .value{white-space:normal;overflow-wrap:anywhere}
 @media(max-width:600px){.metrics.monthly-metrics{grid-template-columns:minmax(0,1fr)}}
+.monthly-metric-button{font:inherit;color:inherit;text-align:left;cursor:pointer}
+.monthly-metric-button .value{display:block}
+.monthly-metric-button:hover,.monthly-metric-button[aria-pressed="true"]{border-color:var(--accent,#7cafff)}
+.monthly-metric-button:focus-visible{outline:2px solid var(--accent,#7cafff);outline-offset:2px}
