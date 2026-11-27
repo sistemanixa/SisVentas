@@ -1,17 +1,18 @@
 'use strict';
-// Validates the extra Graph projection before the unchanged OT verifier sees
+// Validates the extra Graph projection before an unchanged native verifier sees
 // its original business plan. Never changes the real wire patch or issues claims.
 const Graph=require('./sale-delete-target-projections'),Model=require('./sale-delete-target-index');
 const {digest,parts,child,put}=require('./labor-guard'),{pool}=require('./payment-snapshot');
 const ROOT='sv_sale_delete_relations';
 const graphPath=p=>p===ROOT||p.startsWith(ROOT+'/');
-const fail=()=>Object.assign(Error('La proyección de vínculos de la OT cambió; no se confirmó la operación.'),{statusCode:409,code:'SV_SALE_DELETE_TARGET_COMMIT'});
+const fail=()=>Object.assign(Error('La proyección de vínculos cambió; no se confirmó la operación.'),{statusCode:409,code:'SV_SALE_DELETE_TARGET_COMMIT'});
 const plain=v=>v!==null&&typeof v==='object'&&!Array.isArray(v)&&[Object.prototype,null].includes(Object.getPrototypeOf(v));
-async function prepareOTPatch({patch,actor,lease,readFresh,existsFresh,now=Date.now}={}){
+async function preparePatch({patch,actor,lease,readFresh,existsFresh,now=Date.now}={},family){
  if(!plain(patch))throw fail();for(const path of Object.keys(patch))parts(path);
  const wire=structuredClone(patch),actualGraph=Object.fromEntries(Object.entries(wire).filter(([p])=>graphPath(p)));
  if(!Object.keys(actualGraph).length&&actor?.saleDeleteRelationsWriterVersion!==1)return wire;
- if(Object.hasOwn(wire,ROOT)||actor?.operation!=='ot-delete'||actor.saleDeleteRelationsWriterVersion!==1||!['user','command'].includes(actor.mode)||actor.claims?.uid!==actor.uid||actor.uid!==lease?.actorUid||actor.opId!==lease?.opId||actor.mode!==lease.mode||typeof readFresh!=='function'||typeof existsFresh!=='function'||typeof now!=='function')throw fail();
+ const scoped=family==='ot'?actor?.operation==='ot-delete'&&['user','command'].includes(actor.mode):actor?.mode==='user'&&['admin-expense-create','admin-expense-edit'].includes(actor.operation)&&actor.employeeResources?.expenseOperation===actor.operation;
+ if(Object.hasOwn(wire,ROOT)||!scoped||actor.saleDeleteRelationsWriterVersion!==1||actor.claims?.uid!==actor.uid||actor.uid!==lease?.actorUid||actor.opId!==lease?.opId||actor.mode!==lease.mode||typeof readFresh!=='function'||typeof existsFresh!=='function'||typeof now!=='function')throw fail();
  const binding=digest({actor,lease}),wireHash=digest(patch),inputHash=actor.transportDigest||digest(actor.input);
  function live(){if(!Number.isSafeInteger(lease.expiresAt)||lease.expiresAt<=now()||typeof lease.fence!=='string'||!lease.fence||lease.digest!==inputHash||digest({actor,lease})!==binding||digest(patch)!==wireHash)throw fail();}
  const observed=new Map();
@@ -34,4 +35,11 @@ async function prepareOTPatch({patch,actor,lease,readFresh,existsFresh,now=Date.
  live();if(digest(await readFresh('sv_labor_guard'))!==digest(lease))throw fail();live();
  return filtered;
 }
-module.exports={prepareOTPatch};
+const prepareOTPatch=args=>preparePatch(args,'ot');
+async function prepareEmployeePatch(args={}){
+ // Clothing/category-only plans do not affect any Graph source. Preserve their
+ // existing native comparison with no IO, including a pre-existing writer bit.
+ if(plain(args.patch)&&!Object.keys(args.patch).some(p=>graphPath(p)||Graph.affects(p)))return structuredClone(args.patch);
+ return preparePatch(args,'employee');
+}
+module.exports={prepareOTPatch,prepareEmployeePatch};
