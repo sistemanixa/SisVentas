@@ -28,7 +28,7 @@ async function scan({ports,assertActive,retainedBytes,expected}){
     assertActive();const row=await ports.read(root,key);assertActive();
     if(!M.plain(row))throw fail('Un original de preparación cambió o no está completo.');
     const bytes=Buffer.byteLength(JSON.stringify(row));rootBytes+=bytes;streamedBytes+=bytes;
-    if(bytes>8*MiB||rootBytes>streamBudget[root]||streamedBytes>112*MiB||retainedBytes+streamedBytes>128*MiB)throw fail('La preparación excede el alcance permitido.');
+    if(bytes>streamBudget[root]||rootBytes>streamBudget[root]||streamedBytes>112*MiB||retainedBytes+streamedBytes>128*MiB)throw fail('La preparación excede el alcance permitido.');
     const raw=canonical(row),hash=createHash('sha256').update(raw).digest('hex');
     if(previous&&previous.rawHashes[key]!==hash)throw fail('Un original cambió durante la preparación.');
     return {key,raw,hash,image:expected?null:M.image(root+'/'+key,row)};

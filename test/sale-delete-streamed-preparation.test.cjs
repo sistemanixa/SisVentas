@@ -31,7 +31,15 @@ test('EOF key phantom during initial scan is denied and no plan is installed',as
 test('JSON or cloned token cannot manufacture freshness authority',async()=>{const f=fixture(),plan=await f.initial();for(const token of [{},structuredClone(plan.streamedToken)])await a.rejects(P.assertStreamedFresh(token,{assertActive:f.assertActive}),{code:'SV_SALE_DELETE_TARGET_INDEX'});await f.fresh();});
 test('missing closed reader is 503 with no full-root fallback',async()=>{const f=fixture();await a.rejects(P.prepare({scope:f.scope,store:f.store}),{statusCode:503,code:'SV_SALE_DELETE_PREPARATION_READER_REQUIRED'});a.equal(f.calls.length,0);});
 test('lease expiration drains the current batch and does not read the remaining domain',async()=>{const f=fixture();f.control.hook=({kind})=>{if(kind==='record')f.control.active=false;};await a.rejects(f.initial(),{code:'FIXTURE_LEASE_EXPIRED'});a.equal(f.active(),0);a.equal(f.calls.filter(c=>c.kind==='keys'&&c.root==='sisventas/reclamos').length,0);});
-test('each streamed RAW record remains capped at8MiB',async()=>{const f=fixture();f.state['sisventas/ordenes_trabajo']['10'].foto='a'.repeat(8*1024*1024);await a.rejects(f.initial(),{code:'SV_SALE_DELETE_TARGET_INDEX',message:'La preparación excede el alcance permitido.'});a.equal(f.active(),0);});
+for(const [root,budgetMiB]of [['sisventas/ordenes_trabajo',80],['sisventas/reclamos',32]])test('record above unchanged domain budget is rejected: '+root,async()=>{const f=fixture();f.state[root]={large:{id:'FICTICIO',adjunto:'a'.repeat(budgetMiB*1024*1024)}};await a.rejects(f.initial(),{code:'SV_SALE_DELETE_TARGET_INDEX',message:'La preparación excede el alcance permitido.'});a.equal(f.active(),0);});
 for(const bad of ['duplicate','wrongDomain','missingRoot','rawRootLeak'])test('model rejects invalid image contract '+bad,async()=>{
  const sources=sourceFixture(),partial=Object.fromEntries(retained.map(root=>[root,sources[root]])),image=M.image('sisventas/ordenes_trabajo/10',sources['sisventas/ordenes_trabajo']['10']);let images=[image];if(bad==='duplicate')images.push(image);if(bad==='wrongDomain')images=[M.image('sisventas/ventas/sale',sources['sisventas/ventas'].sale)];if(bad==='missingRoot')delete partial['sisventas/gastos'];if(bad==='rawRootLeak')partial['sisventas/ordenes_trabajo']=sources['sisventas/ordenes_trabajo'];await a.rejects(M.prepareWithImages(partial,{generation:'invalid-image-fixture',images}),{code:'SV_SALE_DELETE_TARGET_INDEX'});
+});
+
+test('9MiB records in both streamed domains preserve genuine model and RAW hashes across both passes',async()=>{
+ const f=fixture();for(const root of streamRoots)f.state[root]={large:{id:'DOCUMENTO-FICTICIO',ventaFbKey:'sale',adjunto:'x'.repeat(9*1024*1024)}};
+ const plan=await f.initial(),generation='links-'+G.digest({uid:'u',opId:f.scope.lease.opId}).slice(0,48);
+ for(const root of streamRoots)a.equal(plan.hashes[root],G.digest(f.state[root]));
+ a.deepEqual(plan.patch,(await M.prepare(f.state,{generation})).patch);await f.fresh();a.equal(f.active(),0);a(f.peak()<=6);
+ for(const root of streamRoots)a.equal(f.calls.filter(c=>c.kind==='record'&&c.root===root).length,2);
 });
