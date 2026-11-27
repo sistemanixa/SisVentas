@@ -34,7 +34,7 @@ test('missing saleKey uses only unambiguous original technical FK, never rematch
 test('exact global membership is mandatory, including a payment marked cancelled',async()=>{const f=fixture({histories:{s:{ok:true,record:{fbKey:'s'},paymentHistory:{schema:1,source:'global',complete:true,paidAmount:0,payments:[]}}}}),r=await f.model.run();assert.equal(r.results.find(x=>x.key==='p').status,'review');});
 test('coverage revision, count mismatch or repeated page identity prevents complete result',async()=>{
  const cases=[{pageOverride:()=>({revision:2,generation:'fiction',rows:[{key:'s'}],hasMore:false})},{totalsOverride:n=>({revision:n===1?1:2,generation:'fiction',totals:{sales:1,payments:0}})},{pageOverride:()=>({revision:1,generation:'fiction',rows:[],hasMore:false})},{pageOverride:()=>({revision:1,generation:'fiction',rows:[{key:'s'},{key:'s'}],hasMore:false})}];
- for(const options of cases){const f=fixture({...options,payments:[]}),r=await f.model.run();assert.equal(r.complete,false);assert.ok(!r.results.some(x=>x.status==='ok'));}
+ for(const options of cases){const f=fixture({...options,payments:[]}),r=await f.model.run();assert.equal(r.complete,false);if(r.checked>0){assert.equal(r.partial,true);assert.equal(r.interrupted,true);}else assert.equal(r.results.length,0);}
 });
 test('cancellation drains in-flight workers, schedules no new work and emits no stale progress',async()=>{
  const f=fixture({sales:Array.from({length:10},(_,i)=>({key:'s'+i})),payments:[]});const pending=f.model.run();await new Promise(r=>setImmediate(r));f.stop();const last=f.progress.length,r=await pending;assert.equal(r.complete,false);assert.equal(f.active(),0);assert.ok(f.calls.filter(x=>typeof x==='string'&&x.startsWith('history:')).length<=6);assert.equal(f.progress.length,last);assert.ok(!f.calls.some(x=>x?.kind==='payments'));
@@ -66,4 +66,8 @@ test('snapshot copies only completed rows and remains explicitly partial when ca
  let alive=true,release;const rows=Array.from({length:7},(_,i)=>({key:'s'+i})),f=fixture({sales:rows,payments:[]});
  const model=create({reader:f.reader,valid:()=>alive,read:f.read,history:async id=>{if(id!=='s0')await new Promise(r=>{const previous=release;release=()=>{previous?.();r();};});return {ok:true,record:{fbKey:id},paymentHistory:{schema:1,source:'global',complete:true,paidAmount:0,payments:[]}};}});
  const run=model.run();await new Promise(r=>setImmediate(r));const first=model.snapshot();assert.equal(first.checked,1);assert.equal(first.results.length,1);assert.equal(first.complete,false);assert.equal(first.partial,true);first.results[0].label='mutated';assert.notEqual(model.snapshot().results[0].label,'mutated');alive=false;release();const result=await run;assert.equal(result.complete,false);assert.equal(model.snapshot().checked,1);
+});
+
+test('changed final coverage interrupts the run without inventing a problem in each completed row',async()=>{
+ const f=fixture({payments:[],totalsOverride:n=>({revision:n===1?1:2,generation:'fiction',totals:{sales:1,payments:0}})});const result=await f.model.run();assert.equal(result.complete,false);assert.equal(result.partial,true);assert.equal(result.interrupted,true);assert.equal(result.checked,1);assert.equal(result.results[0].status,'ok');assert.deepEqual(result.results[0].issues,[]);
 });

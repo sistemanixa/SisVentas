@@ -62,8 +62,8 @@
      }if(count!==expected[kind])throw Error('Faltan registros del listado.');
     }
     const after=counts(await io(()=>reader.totals()));if(after.sales!==expected.sales||after.payments!==expected.payments)throw Error('La cobertura cambió.');check();
-   }catch(error){failed=true;for(const r of results)if(r.status==='ok')issue(r,'La revisión no confirmó una cobertura estable completa.',true);}
-   return{kind:'sales',complete:!failed&&checked===total&&!results.some(r=>r.status==='unavailable'),checked,total,results,reads};
+   }catch(error){failed=true;}
+   return{kind:'sales',...(failed&&checked>0?{partial:true,interrupted:true}:{}),complete:!failed&&checked===total&&!results.some(r=>r.status==='unavailable'),checked,total,results,reads};
   }
   return Object.freeze({snapshot(){return snapshot?snapshot():null;},run(){if(running)return running;running=execute().finally(()=>{running=null;});return running;}});
  }
