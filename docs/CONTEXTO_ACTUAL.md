@@ -1,3 +1,7 @@
+# Compras en cuotas por mes del resumen
+
+El selector usa la observación exacta cuando existe y muestra como estimados los meses sin resumen a partir de la última cuota conocida. Conserva importe histórico, separa moneda y no genera cargos ni modifica fichas. La proyección de liberación existente se conserva. 195 pruebas focales aprobadas; sintaxis y diff verificados. Publicación pendiente.
+
 # Seguros por mes del débito
 
 La vista de Seguros consulta los movimientos ya cargados por fecha de débito. Separa confirmados y candidatos por moneda, conserva las fichas y sus alertas, y evita sumar dos fichas sobre el mismo movimiento. El Resumen usa los cargos confirmados del mes. Sin migración ni escrituras de datos. 194 pruebas focales verdes, node --check y diff --check. Publicación pendiente.
