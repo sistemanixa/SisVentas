@@ -12,4 +12,4 @@ Pruebas locales: 138 casos focales, incluidos Chrome390/1280 con formulario y co
 
 No se afirma validación contra Rules remotas ni un despliegue de servidor. Al publicar habrá que integrar los dos módulos de servidor con el runtime desplegado preservando sus diferencias nativas, comprobar la autoridad RTDB efectiva y publicar web/servidor coordinadamente. El puerto8766 sirve sólo el frontend local; no sustituye el backend real. La ejecución completa nueva se probó en el servidor HTTP ficticio aislado. Ninguna comisión real fue creada, habilitada, aprobada o pagada.
 
-Pendiente al congelar: puerta vigente completa y revisión visual en la ventana local.
+Cierre: puerta vigente completa sobre 04ba0c68, exit0: 12066 casos, 11922PASS, 0FAIL y144skip en cinco lotes. Ventana local8766 recargada efectivamente en Comisiones; se abrió el formulario vacío y se comprobó el texto de habilitación conjunta. No se confirmó ningún registro real. El backend productivo sigue sin actualizar.
