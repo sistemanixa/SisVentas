@@ -1,14 +1,14 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),Host=require('../js/modules/client-history-host.v1'),Service=require('../js/core/client-history-service-reader.v1');
 function fixture(enabled=true,options={}){
- const elements=new Map(),listeners={},calls=[];let deny=false,release=null,legacy=0;
+ const elements=new Map(),listeners={},calls=[];let deny=false,release=null,legacy=0,label='Registro <ficticio>',revision=1;
  class Element{constructor(tag='div'){this.tagName=tag;this.children=[];this.style={};this.attrs={};this.classList={toggle(){}};this.parentElement=null;this.value='';}appendChild(child){child.parentElement=this;this.children.push(child);return child;}replaceChildren(...children){this.children=[];this.value='';children.forEach(child=>this.appendChild(child));}set textContent(value){this.value=String(value);this.children=[];}get textContent(){return this.value+this.children.map(child=>child.textContent).join('');}setAttribute(name,value){this.attrs[name]=value;}getAttribute(name){return this.attrs[name];}closest(){return {parentElement:controls};}remove(){if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(child=>child!==this);}}
  const controls=new Element(),document={hidden:false,getElementById:id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},createElement:tag=>new Element(tag),querySelectorAll:selector=>selector.includes('data-sv-history-controls')?controls.children.filter(child=>!selector.includes('="')||selector.includes('="'+child.attrs['data-sv-history-controls']+'"')):[],addEventListener:(name,callback)=>{listeners[name]=callback;},removeEventListener(){}};
  const events=new EventTarget(),add=document.addEventListener;document.addEventListener=(name,handler)=>{add(name,handler);events.addEventListener(name,handler);};document.removeEventListener=(name,handler)=>events.removeEventListener(name,handler);document.dispatchEvent=event=>events.dispatchEvent(event);
  const notifications=[],root={document,notifications,notify:value=>notifications.push(value),location:{hash:'#clientes'},SV_CLIENT_HISTORY_ROLLOUT:{schema:1,enabled},currentUserUid:'u',currentRole:'administrativo',fbAuth:{currentUser:{uid:'u'}},fbDB:{},verHistorialCliente:()=>legacy++,showPage(name){root.location.hash='#'+name;const event=new Event('sisventas:page-changed');Object.defineProperty(event,'detail',{value:{page:name}});document.dispatchEvent(event);}};
- const accountId='a'.repeat(64),reader=Service.create({capture:()=>({uid:root.currentUserUid,auth:root.fbAuth.currentUser,db:root.fbDB,role:root.currentRole,route:'historialcliente',permissionRevision:1,hidden:document.hidden,canReadClients:true,allowedDomains:['ventas','pagos','presupuestos','tickets','equipos']}),endpoint:'https://fixture.invalid/history',headers:async()=>({}),fetch:async(_,options)=>{const body=JSON.parse(options.body);calls.push(body);if(release)await release;if(deny)return {ok:false,json:async()=>({ok:false,mensaje:'Permiso revocado'})};const start=body.cursor?50:0,count=body.address?1:51,rows=Array.from({length:Math.min(50,count-start)},(_,offset)=>({schema:1,key:'r'+(start+offset),sort:'99999999_'+String(start+offset).padStart(64,'0'),domain:body.domain,accountId,generation:'fiction',revision:1,number:'Registro <ficticio>',date:'2026-11-04',addressKey:body.address||'A',amountKnown:true,totalCents:100,paidCents:0,balanceCents:100})),totals={rows:count,totalCents:count*100,paidCents:0,balanceCents:count*100,receivedCents:0,unknownAmounts:0};return {ok:true,json:async()=>({ok:true,domain:body.domain,accountId,generation:'fiction',revision:1,rows,totals,domainTotals:{...totals,rows:51},totalRows:count,completeAmounts:true,unlinkedRecords:0,hasMore:start===0&&count>50,cursor:start===0&&count>50?rows.at(-1).sort:null})};}});
+ const accountId='a'.repeat(64),reader=Service.create({capture:()=>({uid:root.currentUserUid,auth:root.fbAuth.currentUser,db:root.fbDB,role:root.currentRole,route:'historialcliente',permissionRevision:1,hidden:document.hidden,canReadClients:true,allowedDomains:['ventas','pagos','presupuestos','tickets','equipos']}),endpoint:'https://fixture.invalid/history',headers:async()=>({}),fetch:async(_,options)=>{const body=JSON.parse(options.body);calls.push(body);if(release)await release;if(deny)return {ok:false,json:async()=>({ok:false,mensaje:'Permiso revocado'})};const start=body.cursor?50:0,count=body.address?1:51,rows=Array.from({length:Math.min(50,count-start)},(_,offset)=>({schema:1,key:'r'+(start+offset),sort:'99999999_'+String(start+offset).padStart(64,'0'),domain:body.domain,accountId,generation:'fiction',revision:1,number:label,date:'2026-11-04',addressKey:body.address||'A',amountKnown:true,totalCents:100,paidCents:0,balanceCents:100})),totals={rows:count,totalCents:count*100,paidCents:0,balanceCents:count*100,receivedCents:0,unknownAmounts:0};return {ok:true,json:async()=>({ok:true,domain:body.domain,accountId,generation:'fiction',revision,rows,totals,domainTotals:{...totals,rows:51},totalRows:count,completeAmounts:true,unlinkedRecords:0,hasMore:start===0&&count>50,cursor:start===0&&count>50?rows.at(-1).sort:null})};}});
  const host=Host.install(root,{reader,getAllowedDomains:()=>['ventas','pagos','presupuestos','tickets','equipos'],resolveClient:async()=>({accountId,identity:{label:'Cliente ficticio'},contact:{telefono:'<tel ficticio>',email:'ficticio@example.invalid',direccion:'<Domicilio ficticio>'},addresses:[{key:'A',label:'Domicilio A'}]}),...options});
- return {root,host,calls,controls,elements,listeners,legacy:()=>legacy,deny:()=>{deny=true;},allow:()=>{deny=false;},hold:()=>{let resolve;release=new Promise(done=>{resolve=done;});return resolve;}};
+ return {root,host,calls,controls,elements,listeners,legacy:()=>legacy,changeSource:()=>{label='Registro actualizado';revision++;},deny:()=>{deny=true;},allow:()=>{deny=false;},hold:()=>{let resolve;release=new Promise(done=>{resolve=done;});return resolve;}};
 }
 test('rollout apagado no reclama hook ni consulta',async()=>{const f=fixture(false);assert.equal(f.host.claimed,false);f.root.verHistorialCliente();assert.equal(f.legacy(),1);assert.equal(f.calls.length,0);});
 test('DOM y lector real muestran 50 filas con total completo y página siguiente',async()=>{const f=fixture();await f.host.open('c');assert.equal(f.calls.length,1);assert.equal(f.elements.get('hc-ventas-body').children.length,50);assert.match(f.elements.get('hc-total').textContent,/51/);await f.host.load('ventas',1);assert.equal(f.calls[1].expectedRevision,1);assert.equal(f.calls[1].expectedGeneration,'fiction');assert.equal(f.elements.get('hc-ventas-body').children.length,1);assert.equal(f.legacy(),0);});
@@ -29,3 +29,41 @@ test('Readiness real publica error H7 inmediato y retry no completa raíces fina
 test('credentials callbacks bind only verified client and current domicile and reset on leave',async()=>{let bound=null,secret=false;const events=[],f=fixture(true,{canReadCredentials:()=>true,onReset:()=>{bound=null;secret=false;events.push('reset');},onResolved:(client,address)=>{bound={client,address};events.push('bound');},openCredentials:async()=>{assert.ok(bound);secret=true;events.push('credentials');return {ok:true};}});await f.host.open('c');assert.ok(bound);await f.root.switchHistTab('credenciales');assert.equal(secret,true);assert.equal(events.at(-1),'credentials');await f.root.seleccionarDomicilioHistorial('A');assert.equal(bound.address,'A');assert.equal(secret,true);f.root.showPage('detalle');assert.equal(bound,null);assert.equal(secret,false);});
 test('Tickets conserves distinct ticket and claim rows with the same physical key and no dead actions',async()=>{const calls=[],reader={reset(){},page:async(account,options)=>{calls.push(options);return {rows:[{key:'same',sourceDomain:'tickets',number:'T1',description:'Ticket ficticio',amountKnown:true,totalCents:0},{key:'same',sourceDomain:'reclamos',number:'R1',description:'Reclamo ficticio',amountKnown:true,totalCents:0}],totalRows:2,hasMore:false};}},f=fixture(true,{ticketReader:reader});await f.host.open('c');await f.root.switchHistTab('tickets');assert.equal(f.elements.get('hc-tickets-body').children.length,2);assert.match(f.elements.get('hc-tickets-body').textContent,/Ticket · T1.*Reclamo · R1/);assert(!f.elements.get('hc-tickets-body').textContent.includes('Ver'));assert.equal(calls.length,1);});
 test('address controls are actually visible after verified resolution and hidden during reset',async()=>{const f=fixture();await f.host.open('c');assert.equal(f.elements.get('hc-sedes').style.display,'');f.host.reset();assert.equal(f.elements.get('hc-sedes').style.display,'none');assert.equal(f.elements.get('hc-saldo-sub').textContent,'Pendiente de verificar');});
+
+test('retained history blocks old actions until fresh authorization and clears late same-revision permission changes',async()=>{
+ let actions=0;const f=fixture(true,{navigateOriginal:()=>actions++});await f.host.open('c');
+ const row=f.elements.get('hc-ventas-body').children[0],button=row.children.at(-1).children[0];
+ assert.equal(f.host.canRetainView('historialcliente'),true);
+ f.root.document.hidden=true;f.listeners.visibilitychange();button.onclick();assert.equal(actions,0);
+ const release=f.hold();f.root.document.hidden=false;const pending=f.listeners.visibilitychange();await new Promise(setImmediate);
+ button.onclick();assert.equal(actions,0,'old view is not an authorization capability');
+ f.root.PERMISOS_ROLES={[f.root.currentRole]:{indiceRevision:1,indiceModulos:{clientes:false}}};release();await pending;
+ assert.equal(f.host.canRetainView('historialcliente'),false);assert.equal(f.elements.get('hc-total').textContent,'—');assert.equal(actions,0);
+});
+
+test('credential tab is retired on hide and not reopened automatically on resume',async()=>{
+ let secret=false,opens=0;const f=fixture(true,{canReadCredentials:()=>true,onReset:()=>{secret=false;},onResolved(){},openCredentials:async()=>{secret=true;opens++;return true;}});
+ await f.host.open('c');await f.root.switchHistTab('credenciales');assert.equal(secret,true);
+ f.root.document.hidden=true;f.listeners.visibilitychange();assert.equal(secret,false);assert.equal(f.host.canRetainView('historialcliente'),false);
+ f.root.document.hidden=false;await f.listeners.visibilitychange();assert.equal(secret,false);assert.equal(opens,1);assert.equal(f.calls.at(-1).domain,'ventas');
+});
+
+test('unchanged page retains rows but replacement database invalidates its authority',async()=>{
+ const f=fixture();await f.host.open('c');const body=f.elements.get('hc-ventas-body'),original=body.children[0];
+ f.root.document.hidden=true;f.listeners.visibilitychange();
+ f.root.document.hidden=false;await f.listeners.visibilitychange();assert.equal(body.children[0],original);
+ assert.equal(f.calls.at(-1).cursor,null);assert.equal(f.host.canRetainView('historialcliente'),true);
+ f.root.fbDB={};assert.equal(f.host.canRetainView('historialcliente'),false);
+ await f.host.load('ventas');assert.equal(f.elements.get('hc-total').textContent,'—');
+});
+
+test('fresh authorized revision updates retained page instead of keeping stale rows or old revision authority',async()=>{
+ const f=fixture();await f.host.open('c');await f.host.load('ventas',1);
+ const body=f.elements.get('hc-ventas-body'),old=body.children[0];
+ f.root.document.hidden=true;f.listeners.visibilitychange();f.changeSource();
+ f.root.document.hidden=false;await f.listeners.visibilitychange();
+ assert.notEqual(body.children[0],old);assert.match(body.textContent,/Registro actualizado/);
+ assert.equal(f.calls.at(-1).expectedRevision,undefined,'fresh server response is the revision authority');
+ assert.ok(f.calls.at(-1).cursor,'selected second page remains selected');
+ assert.equal(f.host.canRetainView('historialcliente'),true);
+});
