@@ -9,8 +9,8 @@ async function lab(input={}){
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const url='http://127.0.0.1:'+server.address().port+Adapter.PATH;
  return {...f,prepare:async()=>{const r=await fetch(url,{method:'POST',headers:{authorization:'Bearer FICTITIOUS_DELETE_LAB','Content-Type':'application/json'},body:JSON.stringify({id:'streamed-preparation-operation'})});return {status:r.status,body:await r.json()};},close:async()=>{server.closeAllConnections();await new Promise(r=>server.close(r));await f.close();}};
 }
-test('streamed preparation handles collection payloads over eight MiB without a full original root GET',async()=>{
- const payload='x'.repeat(4300000),f=await lab({ordenes_trabajo:{a:{id:'OT-A',ventaFbKey:'sale',image:payload},b:{id:'OT-B',ventaFbKey:'other',image:payload}},reclamos:{a:{id:'R-A',ventaKey:'sale',image:payload},b:{id:'R-B',ventaKey:'other',image:payload}}});
+test('streamed preparation handles individual payloads over eight MiB without a full original root GET',async()=>{
+ const payload='x'.repeat(9*1024*1024),f=await lab({ordenes_trabajo:{a:{id:'OT-A',ventaFbKey:'sale',image:payload},b:{id:'OT-B',ventaFbKey:'other',image:payload}},reclamos:{a:{id:'R-A',ventaKey:'sale',image:payload},b:{id:'R-B',ventaKey:'other',image:payload}}});
  try{const before=f.get('sisventas'),r=await f.prepare();a.equal(r.status,200,JSON.stringify(r));a.equal(f.commits.length,1);a.deepEqual(f.get('sisventas'),before);
   for(const root of ['sisventas/ordenes_trabajo','sisventas/reclamos']){const rootReads=f.calls.filter(c=>c.method==='GET'&&c.path===root);a.equal(rootReads.length,4);a(rootReads.every(c=>c.shallow===true));for(const key of ['a','b'])a.equal(f.calls.filter(c=>c.method==='GET'&&c.path===root+'/'+key).length,2);}
   a(Object.keys(f.commits[0].patch).every(p=>p.startsWith('sv_sale_delete_relations/')||p.startsWith('sv_labor_receipts/')||p==='sv_labor_guard'));
