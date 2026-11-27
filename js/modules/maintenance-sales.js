@@ -4,9 +4,10 @@
  const abort=()=>Object.assign(Error('La revisión cambió.'),{name:'AbortError'}),copy=v=>JSON.parse(JSON.stringify(v));
  function create({reader,read,history,valid,onProgress=()=>{}}={}){
   if(typeof reader?.page!=='function'||typeof reader?.totals!=='function'||typeof read!=='function'||typeof history!=='function'||typeof valid!=='function'||typeof onProgress!=='function')throw TypeError('Faltan lectores de revisión autorizados.');
-  let running=null;
+  let running=null,snapshot=null;
   async function execute(){
    let reads=0,total=0,checked=0,pin=null,failed=false;const results=[],historyMemo=new Map(),pointMemo=new Map();
+   snapshot=()=>copy({kind:'sales',complete:false,partial:true,checked,total,results,reads});
    const check=()=>{if(valid()!==true)throw abort();};
    let activeIO=0;const waitingIO=[];
    async function io(work){check();if(activeIO>=6)await new Promise(resolve=>waitingIO.push(resolve));else activeIO++;try{check();reads++;const answer=await work();check();return answer;}finally{const next=waitingIO.shift();if(next)next();else activeIO--;}}
@@ -64,7 +65,7 @@
    }catch(error){failed=true;for(const r of results)if(r.status==='ok')issue(r,'La revisión no confirmó una cobertura estable completa.',true);}
    return{kind:'sales',complete:!failed&&checked===total&&!results.some(r=>r.status==='unavailable'),checked,total,results,reads};
   }
-  return Object.freeze({run(){if(running)return running;running=execute().finally(()=>{running=null;});return running;}});
+  return Object.freeze({snapshot(){return snapshot?snapshot():null;},run(){if(running)return running;running=execute().finally(()=>{running=null;});return running;}});
  }
  return Object.freeze({create});
 });

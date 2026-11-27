@@ -116,3 +116,15 @@ for(const gate of ['module','action'])test('payroll point denies missing '+gate+
  f.root.SVMaintenanceExpenses.create=ports=>({run:async()=>{await assert.rejects(ports.read('sisventas/ctaemp/employee/record'),e=>e.code==='permission-denied');return {kind:'expenses',complete:false,checked:0,total:0,results:[]};}});
  assert.equal(await f.api.openExpenses(),true);assert.equal(f.calls.reads,0);
 });
+
+test('explicit cancellation keeps completed findings in a downloadable partial report',async()=>{
+ const f=fixture();let finish;const partial={kind:'sales',complete:false,partial:true,checked:12,total:100,results:[{key:'fixture',label:'Venta ficticia',status:'review',issues:['Referencia faltante.'],checks:['Historial comprobado']}],reads:15};
+ f.root.SVMaintenanceSales.create=()=>({run:()=>new Promise(resolve=>{finish=resolve;}),snapshot:()=>JSON.parse(JSON.stringify(partial))});
+ const task=f.api.openSales();f.api.cancelReview();assert.equal(f.api.download(),true);const text=await f.calls.blob.text();assert.match(text,/INFORME PARCIAL · REVISIÓN CANCELADA/);assert.match(text,/12 de 100 registros revisados/);assert.match(text,/Referencia faltante/);assert.doesNotMatch(text,/Recorrido terminado/);assert.match(f.node('mnt-review-progress').textContent,/12 de 100/);
+ finish({...partial,checked:99});assert.equal(await task,false);assert.match(f.node('mnt-diagnostic-output').textContent,/12 de 100/);assert.equal(f.calls.reads,0);
+});
+
+test('session revocation discards partial results and prevents cancellation export',async()=>{
+ const f=fixture();let finish;f.root.SVMaintenanceSales.create=()=>({run:()=>new Promise(resolve=>{finish=resolve;}),snapshot:()=>({kind:'sales',complete:false,partial:true,checked:1,total:10,results:[],reads:1})});
+ const task=f.api.openSales();f.event('sisventas:session-ended');f.api.cancelReview();finish({kind:'sales',complete:false,checked:1,total:10,results:[]});assert.equal(await task,false);assert.equal(f.api.download(),false);assert.equal(f.node('mnt-diagnostic-output').textContent,'');
+});

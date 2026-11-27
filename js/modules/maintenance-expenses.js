@@ -28,8 +28,10 @@
   const canonical=v=>JSON.stringify(v&&typeof v==='object'?(Array.isArray(v)?v.map(v=>JSON.parse(canonical(v))):Object.fromEntries(Object.keys(v).sort().map(k=>[k,JSON.parse(canonical(v[k]))]))):v);
   function create({read,valid,onProgress}={}){
     if(typeof read!=='function'||typeof valid!=='function')throw TypeError('Se requieren lector y contexto autorizado.');
+    let snapshot=null;
     async function run(){
       let reads=0,checked=0,total=0;const memo=new Map(),results=[];
+      snapshot=()=>JSON.parse(JSON.stringify({kind:'expenses',complete:false,partial:true,checked,total,results:results.filter(Boolean),reads}));
       function active(){if(valid()!==true)throw Object.assign(Error('La sesión o la revisión cambió.'),{name:'AbortError'});}
       async function get(path,fresh=false){
         active();if(!fresh&&memo.has(path))return memo.get(path);
@@ -92,7 +94,7 @@
       if(!unchanged)for(const row of results){if(row.status==='ok')row.status='review';row.issues.push('La cobertura cambió o no pudo verificarse al finalizar.');}
       return {kind:'expenses',complete:unchanged&&results.every(r=>r.status!=='unavailable'),checked,total,results,reads};
     }
-    return Object.freeze({run});
+    return Object.freeze({run,snapshot(){return snapshot?snapshot():null;}});
   }
   return Object.freeze({create});
 });

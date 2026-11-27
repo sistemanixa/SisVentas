@@ -61,3 +61,9 @@ test('cancellation with queued link reads drains six slots and never starts queu
  const model=create({reader:f.reader,valid:()=>alive,history:async id=>({ok:true,record:{fbKey:id,clienteFbKey:'c'+id,otKey:'o'+id,presupuestoFbKey:'b'+id},paymentHistory:{schema:1,source:'global',complete:true,paidAmount:0,payments:[]}}),read:async()=>{started++;active++;try{await new Promise(r=>releases.push(r));return {};}finally{active--;}}});
  const pending=model.run();await new Promise(r=>setImmediate(r));assert.equal(started,6);alive=false;releases.forEach(r=>r());const result=await pending;assert.equal(result.complete,false);assert.equal(started,6);assert.equal(active,0);
 });
+
+test('snapshot copies only completed rows and remains explicitly partial when cancelled',async()=>{
+ let alive=true,release;const rows=Array.from({length:7},(_,i)=>({key:'s'+i})),f=fixture({sales:rows,payments:[]});
+ const model=create({reader:f.reader,valid:()=>alive,read:f.read,history:async id=>{if(id!=='s0')await new Promise(r=>{const previous=release;release=()=>{previous?.();r();};});return {ok:true,record:{fbKey:id},paymentHistory:{schema:1,source:'global',complete:true,paidAmount:0,payments:[]}};}});
+ const run=model.run();await new Promise(r=>setImmediate(r));const first=model.snapshot();assert.equal(first.checked,1);assert.equal(first.results.length,1);assert.equal(first.complete,false);assert.equal(first.partial,true);first.results[0].label='mutated';assert.notEqual(model.snapshot().results[0].label,'mutated');alive=false;release();const result=await run;assert.equal(result.complete,false);assert.equal(model.snapshot().checked,1);
+});
