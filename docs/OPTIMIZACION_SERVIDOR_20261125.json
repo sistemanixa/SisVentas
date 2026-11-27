@@ -2792,6 +2792,7 @@
     ],
     "privateFinance": [
       "card-save",
+      "statement-reassign-card",
       "statement-save",
       "statement-cycle-save",
       "payment-save",
