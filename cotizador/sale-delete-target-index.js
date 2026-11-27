@@ -72,4 +72,17 @@ async function prepare(sources,{generation}={}){
  const patch={...initial,...await require('./sale-delete-target-index-delta').delta({changes,read})};
  patch[CONFIG]={schema:2,writerSchema:1,generation,ready:true};return {patch,coverage:patch[ROOT+'/coverage']};
 }
-module.exports={ROOT,CONFIG,FINANCIAL_ROOT,domains,roots,financialRoots,fail,plain,classify,originalPath,recordPath,image,validateImage,validateRecord,bucketPathsForSale,bucketPathsForOTs,saleOwnerBucketPaths,validateCoverage,validateConfig,financialPath,prepare};
+async function prepareWithImages(sources,{generation,images}={}){
+ const streamed=['sisventas/ordenes_trabajo','sisventas/reclamos'],retained=roots.filter(root=>!streamed.includes(root));
+ if(!plain(sources)||Object.keys(sources).length!==retained.length||retained.some(root=>!Object.hasOwn(sources,root))||!Array.isArray(images))throw fail('Se requieren las fuentes retenidas y las imágenes verificadas.');
+ // These roots are explicitly supplied as complete images, never inferred empty.
+ const prepared=await prepare({...sources,...Object.fromEntries(streamed.map(root=>[root,null]))},{generation}),seen=new Set(),coverage=validateCoverage(prepared.coverage),modulus=1n<<256n;
+ for(const entry of images){
+  validateImage(entry);if(!streamed.includes(classify(entry.path).root)||seen.has(entry.path))throw fail('Imagen de preparación repetida o ajena.');seen.add(entry.path);
+  prepared.patch[recordPath(entry.path)]=structuredClone(entry);
+  for(const token of entry.tokens||[])prepared.patch[ROOT+'/refs/'+token+'/'+F.digest(entry.path)]=true;
+  coverage.records++;coverage.sourceAccumulator=((BigInt('0x'+coverage.sourceAccumulator)+BigInt('0x'+F.digest(entry)))%modulus).toString(16).padStart(64,'0');
+ }
+ validateCoverage(coverage);prepared.patch[ROOT+'/coverage']=coverage;return {patch:prepared.patch,coverage};
+}
+module.exports={ROOT,CONFIG,FINANCIAL_ROOT,domains,roots,financialRoots,fail,plain,classify,originalPath,recordPath,image,validateImage,validateRecord,bucketPathsForSale,bucketPathsForOTs,saleOwnerBucketPaths,validateCoverage,validateConfig,financialPath,prepare,prepareWithImages};
