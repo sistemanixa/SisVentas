@@ -9,6 +9,11 @@ async function setup(kind){const local=await(kind==='collections'?collections:sa
 }
 async function visibility(page,hidden){await page.evaluate(value=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>value});document.dispatchEvent(new Event('visibilitychange'));},hidden);}
 const payload=measures=>measures.filter(x=>/\/pages\/|\/search\/|\/totals\/|\/collectionTotals$|^sisventas\//.test(x.path)).length;
+test('Dashboard retention requires the actual complete render marker, not only loaded finance',async()=>{const f=await setup('sales');try{
+ await f.page.evaluate(()=>{fixtureRoute='dashboard';document.dispatchEvent(new Event('sisventas:page-changed'));});await f.page.waitForFunction(()=>!!SVCommercialPagesHost.financialState());
+ assert.equal(await f.page.evaluate(()=>SVCommercialPagesHost.canRetainView('dashboard')),false);
+ await f.page.evaluate(()=>SVCommercialPagesHost.dashboardPainted());assert.equal(await f.page.evaluate(()=>SVCommercialPagesHost.canRetainView('dashboard')),true);
+ }finally{await f.close();}});
 for(const kind of ['sales','collections','fallback'])test(kind+': warm foreground keeps exact DOM/page/scroll and reads only metadata',async()=>{const f=await setup(kind);try{
  if(kind==='sales')await f.page.locator('#ventas-search').fill('Cliente');
  if(kind==='collections')await f.page.evaluate(()=>{_cobFiltroActual='mes';SVCommercialPagesHost.renderList();});
