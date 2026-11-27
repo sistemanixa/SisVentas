@@ -50,6 +50,7 @@
     return !isCurrent || isCurrent();
   }
   var maintenanceCurrent = null, maintenanceRevision = 0, maintenanceSessionActive = true, maintenanceObserver = null;
+  function maintenanceThreeBlocks(panel) { return panel?.getAttribute?.('data-maintenance-layout') === 'three-blocks'; }
   function maintenanceAuthenticated() { return typeof isAuthenticated === 'undefined' ? undefined : isAuthenticated; }
   function maintenanceVisible(panel) {
     if (!panel || panel.isConnected === false) return false;
@@ -71,7 +72,7 @@
   }
   function maintenanceCurrentRequest(state) {
     return maintenanceCurrent === state && state.revision === maintenanceRevision && maintenanceContextCurrent(state.context) &&
-      state.status.isConnected !== false && document.getElementById('cfg-mantenimiento') === state.panel && maintenanceVisible(state.panel);
+      state.status.isConnected !== false && document.getElementById('cfg-mantenimiento') === state.panel && maintenanceVisible(state.panel) && !maintenanceThreeBlocks(state.panel);
   }
   function clearMaintenance() {
     maintenanceRevision++;
@@ -85,7 +86,7 @@
     maintenanceObserver = new window.MutationObserver(function() {
       if (maintenanceCurrent && !maintenanceCurrentRequest(maintenanceCurrent)) clearMaintenance();
     });
-    maintenanceObserver.observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['hidden','class','style']});
+    maintenanceObserver.observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['hidden','class','style','data-maintenance-layout']});
   }
   function renderMaintenanceStatus(state, error) {
     var status = state.status, message = error ? String(error.message || 'No se pudo completar la carga. Reintentá.').replace(/\s+\[diagnostics\]$/, '') : 'Cargando auditoría de mantenimiento…';
@@ -113,6 +114,7 @@
   function maintenance() {
     var panel = document.getElementById('cfg-mantenimiento'), context = maintenanceContext();
     if (!maintenanceVisible(panel) || !maintenanceContextCurrent(context)) { clearMaintenance(); return Promise.resolve(false); }
+    if (maintenanceThreeBlocks(panel)) { clearMaintenance(); return Promise.resolve(true); }
     if (maintenanceCurrent && maintenanceCurrent.phase === 'loading' && maintenanceCurrentRequest(maintenanceCurrent)) return maintenanceCurrent.task;
     clearMaintenance();
     var status = document.createElement('div'), layer = null;

@@ -86,3 +86,24 @@ test('core anterior sin estilo de portal mantiene aviso y reintento dentro del p
  assert.equal(f.scripts.length,1);assert.equal(f.document.head.children.length,0,'El fallo retiró el script; no se insertó una hoja adicional');
  f.panel.style.display='none';f.mutate();assert.equal(f.status(),null);assert.equal(f.observers.filter(observer=>observer.active).length,0);assert.equal(f.timers.size,0);
 });
+
+test('panel de tres bloques no descarga V3, no monta diagnóstico ni crea capas de carga',async()=>{
+ const f=fixture();f.panel.setAttribute('data-maintenance-layout','three-blocks');
+ for(let i=0;i<2;i++)assert.equal(await f.run(),true);
+ assert.equal(f.scripts.length,0);assert.equal(f.mounts(),0);assert.equal(f.status(),null);assert.equal(f.layer(),null);assert.equal(f.timers.size,0);assert.equal(f.observers.length,0);
+ f.window.SisVentas={V3Diagnostics:{mount(){throw Error('No debe montar aunque ya esté descargado');}}};assert.equal(await f.run(),true);
+});
+
+test('nuevo panel conserva veto de sesión cerrada y sólo permite reentrada tras session-ready',async()=>{
+ const f=fixture();f.panel.setAttribute('data-maintenance-layout','three-blocks');f.dispatch('sisventas:session-ended');assert.equal(await f.run(),false);
+ f.dispatch('sisventas:session-ready');assert.equal(await f.run(),true);f.c.isAuthenticated=false;assert.equal(await f.run(),false);
+ assert.equal(f.scripts.length,0);assert.equal(f.mounts(),0);assert.equal(f.layer(),null);
+});
+
+test('cambiar panel antiguo a tres bloques invalida carga y reintento pendientes sin mount tardío',async()=>{
+ for(const outcome of ['complete','fail']){const f=fixture(),pending=f.run();assert.equal(f.scripts.length,1);
+  f.panel.setAttribute('data-maintenance-layout','three-blocks');f.mutate();assert.equal(f.status(),null);assert.equal(f.layer(),null);assert.equal(f.observers.filter(o=>o.active).length,0);
+  f[outcome]();assert.equal(await pending,false);assert.equal(f.mounts(),0);assert.equal(await f.run(),true);assert.equal(f.scripts.length,1);assert.equal(f.timers.size,0);
+ }
+ const f=fixture(),pending=f.run();f.fail();await pending;const retry=f.status().children.at(-1);f.panel.setAttribute('data-maintenance-layout','three-blocks');f.mutate();assert.equal(await retry.onclick(),false);assert.equal(f.scripts.length,1);assert.equal(f.status(),null);
+});
