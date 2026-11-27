@@ -298,7 +298,8 @@
       if(sessionActive&&page.classList.contains('active'))keys.forEach(ensure);
       var state=status(keys);
       var show=!state.ready||state.errors.length>0;
-      var refreshing=name==='dashboard'&&!state.ready&&!state.errors.length&&state.missing.every(function(key){return key==='ventas'||key==='pagos';})&&global.SVCommercialPagesHost?.canRetainDashboard?.()===true;
+      var retained=sessionActive&&allowed&&!held&&(global.SVClientAccountHost?.canRetainView?.(name)===true||global.SVCommercialPagesHost?.canRetainView?.(name)===true||global.SVCommercialReportHost?.canRetainView?.(name)===true||global.SVClientHistoryRuntime?.canRetainView?.(name)===true);
+      var refreshing=!held&&!state.ready&&!state.errors.length&&(retained||name==='dashboard'&&state.missing.every(function(key){return key==='ventas'||key==='pagos';})&&global.SVCommercialPagesHost?.canRetainDashboard?.()===true);
       page.classList.toggle('sv-data-pending',!state.ready&&!refreshing);
       page.setAttribute('aria-busy',String(!state.ready&&!state.errors.length));
       if(show&&sessionActive&&allowed&&page.classList.contains('active'))visible={page:page,name:name,state:state,refreshing:refreshing};

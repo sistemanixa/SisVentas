@@ -1,0 +1,10 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),{load}=require('./helpers/app-functions.cjs');
+test('employee account foreground events retain unchanged presentation but source changes still render',()=>{
+ let paints=0,stops=0,valid=true;const gastos=[],emps={},raw={m:{monto:7}},origin={employeeId:null,valid:()=>true};
+ const c={window:null,gastosData:gastos,empData:emps,_gastosDataReady:true,_gastosCargaError:'',svCtaEmpVisible:()=>true,svMostrarEstadoLecturaCtaEmp:()=>assert.fail('No loading clear for warm account'),svAplicarCtaEmpDesdeSnapshot:()=>paints++,svPuedeLeerDominio:()=>true};c.window=c;c._ctaEmpLectura={raw,employeeId:'e',status:'ready',valid:()=>valid,stop:()=>stops++};c._ctaEmpGastosSnapshot={origin,data:gastos,valid:()=>true};load(c,['svRepintarCtaEmpDesdeFuentes']);
+ c.svRepintarCtaEmpDesdeFuentes();assert.equal(paints,1);for(const type of ['visibilitychange','sisventas:foreground-restored'])c.svRepintarCtaEmpDesdeFuentes({type});assert.equal(paints,1);c._ctaEmpLectura.raw={m:{monto:8}};c.svRepintarCtaEmpDesdeFuentes({type:'visibilitychange'});assert.equal(paints,2);valid=false;c.svRepintarCtaEmpDesdeFuentes({type:'visibilitychange'});assert.equal(stops,1);
+});
+test('vacation foreground events do not repaint unchanged rows; changed sources and normal actions still render',()=>{
+ let paints=0;const state={active:true,status:'ready',rows:[],context:{valid:()=>true,completa:true}};const c={window:null,empData:{},document:{getElementById:()=>({classList:{contains:()=>true}})},svVacacionesEnPrimerPlano:()=>true,renderAvisoProximasVacaciones:()=>paints++,renderTablaVacaciones:()=>paints++,renderPeriodosVacaciones:()=>paints++,svPintarEstadoVacaciones:()=>assert.fail('No loading clear')};c.window=c;c._vacLectura=state;load(c,['svRepintarVacaciones']);c.svRepintarVacaciones();assert.equal(paints,3);c.svRepintarVacaciones({type:'visibilitychange'});c.svRepintarVacaciones({type:'sisventas:foreground-restored'});assert.equal(paints,3);state.rows=[{key:'changed'}];c.svRepintarVacaciones({type:'visibilitychange'});assert.equal(paints,6);c.svRepintarVacaciones();assert.equal(paints,9);
+});

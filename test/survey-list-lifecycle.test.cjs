@@ -56,16 +56,15 @@ for(const name of ['UID','Auth','rol','revisión','época','permiso','página','
   await f.list();changes[name](f);f.deliver();assert.equal(f.watches[0].stops,1);return;
  }else changes[name](f);await f.list();assert.equal(f.watches.length,0);assert.equal(f.closes.length,0);
 });
-test('ocultar retira la fuente lista y volver visible no la reactiva',async()=>{
- const f=fixture();await f.list();f.deliver(0,sample);f.document.hidden=true;f.document.visibilityState='hidden';f.emit('visibilitychange');assert.equal(f.watches[0].stops,1);assert.doesNotMatch(f.page.innerHTML,/Cliente ficticio/);assert.match(f.page.innerHTML,/pausada/);
- f.document.hidden=false;f.document.visibilityState='visible';f.emit('visibilitychange');assert.equal(f.watches.length,1);assert.equal(f.deliver(0,sample).decoded,0);
- await f.list();assert.equal(f.watches.length,2);f.deliver(1,{});assert.match(f.page.innerHTML,/Todavía no hay relevamientos/);assert.doesNotMatch(f.page.innerHTML,/pausada|No se pudo/);
+test('ocultar conserva la lista y retoma la escucha sin reconstruir un resultado idéntico',async()=>{
+ const f=fixture();await f.list();f.deliver(0,sample);const html=f.page.innerHTML;f.document.hidden=true;f.document.visibilityState='hidden';f.emit('visibilitychange');assert.equal(f.watches[0].stops,1);assert.equal(f.page.innerHTML,html);assert.equal(f.deliver(0,{}).decoded,0);
+ f.document.hidden=false;f.document.visibilityState='visible';f.emit('visibilitychange');assert.equal(f.watches.length,2);assert.equal(f.page.innerHTML,html);assert.equal(f.deliver(0,sample).decoded,0);f.deliver(1,sample);assert.equal(f.page.innerHTML,html);f.deliver(1,{});assert.match(f.page.innerHTML,/Todavía no hay relevamientos/);assert.deepEqual(f.writes,[]);
 });
 for(const event of ['sisventas:foreground-paused','sisventas:role-changed','sisventas:page-changed','pagehide','hashchange'])test('el evento '+event+' retira una sola vez y no abre otro transporte',async()=>{
  const f=fixture();await f.list();f.deliver(0,sample);
  if(event==='sisventas:foreground-paused')f.foreground(false);
  if(event==='hashchange')f.window.location.hash='#/dashboard';
- const emit=event==='pagehide'||event==='hashchange'?()=>f.emitWindow(event):()=>f.emit(event,{page:'dashboard'});emit();emit();assert.equal(f.watches[0].stops,1);assert.equal(f.watches.length,1);assert.equal(f.closes[0].calls,1);assert.equal(f.deliver(0,sample).decoded,0);assert.doesNotMatch(f.page.innerHTML,/Cliente ficticio/);
+ const emit=event==='pagehide'||event==='hashchange'?()=>f.emitWindow(event):()=>f.emit(event,{page:'dashboard'});emit();emit();assert.equal(f.watches[0].stops,1);assert.equal(f.watches.length,1);assert.equal(f.closes[0].calls,1);assert.equal(f.deliver(0,sample).decoded,0);if(event==='sisventas:foreground-paused')assert.match(f.page.innerHTML,/Cliente ficticio/);else assert.doesNotMatch(f.page.innerHTML,/Cliente ficticio/);
 });
 test('cerrar sesión vacía el listado y los callbacks antiguos no lo restauran',async()=>{
  const f=fixture();await f.list();f.deliver(0,sample);f.window.isAuthenticated=false;f.emit('sisventas:session-ended');assert.equal(f.page.innerHTML,'');assert.equal(f.watches[0].stops,1);assert.equal(f.deliver(0,sample).decoded,0);assert.equal(f.page.innerHTML,'');
