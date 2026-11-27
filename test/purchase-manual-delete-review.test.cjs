@@ -22,3 +22,12 @@ test('una cabecera histórica sólo se excluye con revisión individual exacta, 
  f.input.orders.legacy.cantidad=39;assert.throws(()=>Review.analyze(f.input),/histórica/);
  f.input.legacyExclusions={draft:{sourceHash:digest(f.input.orders.draft),description:'No puede excluirse'}};assert.throws(()=>Review.analyze(f.input),/individual/);
 });
+
+test('duplicate display number does not confuse draft identity with the protected received order',async()=>{
+ const f=await fixture();f.input.orders.received.numero=f.input.orders.draft.numero;f.b.state.sisventas.ordenes.received.numero=f.input.orders.draft.numero;const received=structuredClone(f.b.state.sisventas.ordenes.received),before=structuredClone(f.input.inventoryByKey.p);
+ const prepared=Review.prepare(f.input),review=Review.create({env:{PURCHASE_MANUAL_DELETE_READY:'true',PURCHASE_MANUAL_DELETE_REVIEW_JSON:prepared.reviewJson,PURCHASE_MANUAL_DELETE_REVIEW_SHA256:prepared.reviewSha256},runtime:f.runtime});
+ const service=createPurchaseOrderDelete({store:f.b.store,guard:f.guard,review,enabled:true,authorize:async()=>({uid:'u',claims:{uid:'u'}})});
+ await service.handle({method:'POST',url:'/compras/ordenes/eliminar'},{id:'duplicate-number-fictitious',orderKey:'draft',expectedHash:digest(f.input.orders.draft)});
+ assert.equal(f.b.get('sisventas/ordenes/draft'),null);assert.deepEqual(f.b.get('sisventas/ordenes/received'),received);assert.deepEqual(f.b.get('sisventas/inventario_operativo/p'),{...before,enCompra:0,_svReadRevision:1,_svReadOperation:'duplicate-number-fictitious'});assert.equal(f.b.commits.length,1);
+ assert.throws(()=>Review.analyze({...f.input,protectedOrderKey:'draft'}));
+});

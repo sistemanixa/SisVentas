@@ -1963,6 +1963,7 @@
 
 
   function saveManualOrder() {
+    if (state.manualSavePending || state.manualSaveCompleted) return state.manualSavePending;
     var providerSelect = document.getElementById('oc-manual-provider');
     var selected = providerSelect && providerSelect.options[providerSelect.selectedIndex];
     if (!providerSelect || !providerSelect.value) { if (typeof window.notify === 'function') window.notify('Seleccioná un proveedor cargado'); return; }
@@ -1971,10 +1972,16 @@
     document.querySelectorAll('.oc-manual-cost').forEach(function (input) { state.manualItems[parseInt(input.dataset.index, 10)].costoUnitario = Math.max(0, parseFloat(input.value) || 0); });
     state.manualItems.forEach(function (item) { item.subtotal = item.cantidadOrdenada * item.costoUnitario; });
     var total = state.manualItems.reduce(function (sum, item) { return sum + item.subtotal; }, 0);
-    var order = { numero: nextOrderNumber(), origen: 'manual', proveedor: selected.dataset.name || selected.textContent, proveedorKey: providerSelect.value, fecha: (document.getElementById('oc-manual-date') || {}).value || today(), estado: 'borrador', items: state.manualItems, monto: total, total: total, moneda: 'ARS', descripcion: state.manualItems.length + ' materiales', recepciones: [], ts: Date.now(), usuario: window.currentUser || 'Sistema' };
-    push(PATH_ORDERS, order).then(function (ref) {
+    var order = { numero: nextOrderNumber(), origen: 'manual', proveedor: selected.dataset.name || selected.textContent, proveedorKey: providerSelect.value, fecha: (document.getElementById('oc-manual-date') || {}).value || today(), estado: 'borrador', items: JSON.parse(JSON.stringify(state.manualItems)), monto: total, total: total, moneda: 'ARS', descripcion: state.manualItems.length + ' materiales', recepciones: [], ts: Date.now(), usuario: window.currentUser || 'Sistema' };
+    var button = document.getElementById('oc-manual-save'), label = button && button.innerHTML;
+    if (button) { button.disabled = true; button.textContent = 'Guardando…'; }
+    state.manualSavePending = Promise.resolve().then(function () { return push(PATH_ORDERS, order); }).then(function (ref) {
+      state.manualSaveCompleted = true;
       return Promise.all(order.items.map(function (item) { return transactionInventory(item.productoKey || item.codigo, function (inv) { inv.enCompra = (parseFloat(inv.enCompra) || 0) + item.cantidadOrdenada; inv.codigo = item.codigo; inv.descripcion = item.descripcion; }); }));
-    }).then(function () { document.getElementById('oc-manual-modal').style.display = 'none'; if (typeof window.notify === 'function') window.notify('Orden manual creada como borrador'); });
+    }).then(function () { document.getElementById('oc-manual-modal').style.display = 'none'; if (typeof window.notify === 'function') window.notify('Orden manual creada como borrador'); })
+      .catch(function (error) { if (typeof window.notify === 'function') window.notify(state.manualSaveCompleted ? 'La orden se creó, pero falta comprobar las cantidades En compra. No la vuelvas a crear.' : 'No se pudo confirmar el guardado. Revisá el listado antes de volver a intentarlo.'); })
+      .finally(function () { state.manualSavePending = null; if (button) { button.disabled = !!state.manualSaveCompleted; button.innerHTML = label; } });
+    return state.manualSavePending;
   }
 
   function manualSearchText(value) {
@@ -2070,6 +2077,8 @@
   }
 
   function openManualOrderV2() {
+    if (state.manualSavePending) { window.notify('Esperá a que termine el guardado de la orden.'); return; }
+    state.manualSaveCompleted = false;
     state.editingOrderKey = null;
     state.manualItems = [];
     var modal = ensureModal('oc-manual-modal', '900px');
