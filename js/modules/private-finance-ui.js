@@ -89,7 +89,7 @@ let insuranceMonth='';
 function insuranceMonthly(){
  const rows=insuranceMonthMovements(state,insuranceMonth);
  const groups=confirmed=>['ARS','USD'].map(currency=>money(sum(rows.filter(x=>x.confirmed===confirmed&&(x.movement.currency||'ARS')===currency).map(x=>x.movement.amount)),currency)).join(' · ');
- return '<div class="metrics">'+metric('CARGOS CONFIRMADOS',groups(true),'Por fecha del cargo','shield')+metric('CARGOS POR CONFIRMAR',groups(false),'Débitos detectados en el mes','search')+'</div>'+
+ return '<div class="metrics monthly-metrics">'+metric('CARGOS CONFIRMADOS',groups(true),'Por fecha del cargo','shield')+metric('CARGOS POR CONFIRMAR',groups(false),'Débitos detectados en el mes','search')+'</div>'+
  panel('Débitos del mes','<div class="tablewrap"><table><thead><tr><th>Cargo</th><th>Tarjeta</th><th>Importe</th><th>Estado</th></tr></thead><tbody>'+
  (rows.map(({movement:m,insurance,confirmed})=>'<tr><td><b>'+esc(m.concept)+'</b><small>'+date(m.date)+'</small></td><td>'+esc(cname(m.card))+'</td><td>'+money(m.amount,m.currency)+'</td><td>'+
  (confirmed?tag('Confirmado','green'):tag('Por confirmar','gold'))+
@@ -125,7 +125,7 @@ function quotaMonthResults(query='',cardId=''){
  const rows=state.installments.filter(q=>(q.concept+' '+(q.note||'')).toLowerCase().includes(query)&&(!cardId||q.card===cardId))
    .map(q=>installmentForMonth(q,quotaMonth,shift)).filter(Boolean);
  const metricSum=confirmed=>['ARS','USD'].map(currency=>money(sum(rows.filter(q=>q.confirmed===confirmed&&(q.currency||'ARS')===currency).map(q=>q.amount)),currency)).join(' · ');
- return '<div class="metrics">'+metric('CUOTAS EN RESÚMENES',metricSum(true),'Importes registrados en el mes','check')+
+ return '<div class="metrics monthly-metrics">'+metric('CUOTAS EN RESÚMENES',metricSum(true),'Importes registrados en el mes','check')+
  metric('CUOTAS ESTIMADAS',metricSum(false),'Pendientes de verificar con un resumen','calendar')+'</div>'+
  panel('Cuotas del mes','<div class="tablewrap"><table><thead><tr><th>Concepto</th><th>Observaciones</th><th>Tarjeta</th><th>Importe</th><th>Cuota del mes</th><th>Última cuota estimada</th><th>Se libera desde</th><th></th></tr></thead><tbody>'+quotaRows(rows)+'</tbody></table></div>');
 }
