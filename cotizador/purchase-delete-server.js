@@ -22,7 +22,7 @@ async function main(){
  admin.initializeApp({credential:admin.credential.applicationDefault(),databaseURL});
  const accessToken=async()=>(await admin.app().options.credential.getAccessToken()).access_token;
  const store=require('./labor-rtdb-store').createLaborRtdbStore({databaseURL,accessToken});
- const guard=createLaborGuard({store,operationalSummaries:true,commercialPages:true,clientAccounts:true});
+ const guard=createLaborGuard({store,operationalSummaries:true,commercialPages:true,clientAccounts:true,saleDeleteRelations:true});
  const review=require('./purchase-manual-delete-review').create({runtime:()=>({coordinated:true,readOnly:false,operationalSummaries:true,commercialPages:true,clientAccounts:true})});
  if(!review.configured())throw Error('Revisión de compra ausente o vencida.');
  const gateway=require('./labor-write-gateway').createLaborWriteGateway({auth:{verifyIdToken:(...args)=>admin.auth().verifyIdToken(...args)},db:admin.database(),guard,store,enabled:true});
