@@ -45,9 +45,14 @@ test('malformed JSON and UTF8 fail closed without provider body leakage',async()
 test('point RAW is never mutated or reused across reads, phases, or instances',async()=>{
  let n=0;const o={...options,fetchImpl:async()=>{n++;return reply({raw:{cost:12.345}});}};for(let i=0;i<2;i++){const r=create(o),p=r.phase('initial'),v=await p.read(OT,'a');v.raw.cost=0;a.equal((await p.read(OT,'a')).raw.cost,12.345);a.equal((await r.phase('fresh').read(OT,'a')).raw.cost,12.345);r.dispose();}a.equal(n,6);
 });
-for(const shallow of [true,false])test('exact streamed '+(shallow?'1MiB shallow':'8MiB point')+' limit before parse and +1 rejected/cancelled',async()=>{
- const limit=(shallow?1:8)*MiB,prefix=shallow?'{}':'""';
- for(const extra of [0,1]){let offset=0,cancelled=0;const bytes=Buffer.from(prefix+' '.repeat(limit-prefix.length+extra));const r=create({...options,fetchImpl:async()=>new Response(new ReadableStream({pull(c){if(offset===bytes.length){if(!extra)c.close();return;}const next=Math.min(offset+65536,bytes.length);c.enqueue(bytes.subarray(offset,next));offset=next;},cancel(){cancelled++;}}))}),p=r.phase('initial');const work=shallow?p.keys(OT):p.read(OT,'a');if(extra){await a.rejects(work,oversized);a.equal(cancelled,1);}else a.deepEqual(await work,shallow?{keys:[],exists:true}:'');r.dispose();}
+for(const shallow of [true,false])test('exact streamed '+(shallow?'1MiB shallow':'32MiB claims point')+' limit before parse and +1 rejected/cancelled',async()=>{
+ const limit=(shallow?1:32)*MiB,prefix=shallow?'{}':'""';
+ for(const extra of [0,1]){let offset=0,cancelled=0;const bytes=Buffer.from(prefix+' '.repeat(limit-prefix.length+extra));const r=create({...options,fetchImpl:async()=>new Response(new ReadableStream({pull(c){if(offset===bytes.length){if(!extra)c.close();return;}const next=Math.min(offset+65536,bytes.length);c.enqueue(bytes.subarray(offset,next));offset=next;},cancel(){cancelled++;}}))}),p=r.phase('initial');const work=shallow?p.keys(OT):p.read(R,'a');if(extra){await a.rejects(work,oversized);a.equal(cancelled,1);}else a.deepEqual(await work,shallow?{keys:[],exists:true}:'');r.dispose();}
+});
+for(const root of [OT,R])test('single 9MiB RAW original survives both phases '+root,async()=>{
+ const original={id:'FICTITIOUS-LARGE',cost:12.345,attachment:'x'.repeat(9*MiB)},body=JSON.stringify(original);let gets=0;
+ const r=create({...options,fetchImpl:async()=>{gets++;return new Response(body);}});
+ try{for(const phase of ['initial','fresh'])a.deepEqual(await r.phase(phase).read(root,'large'),original);a.equal(gets,2);}finally{r.dispose();}
 });
 for(const [root,maxReads]of [[OT,10],[R,4]])test('aggregate per-phase limit '+root+' and fresh budget reset',async()=>{
  const payload='"'+'x'.repeat(8*MiB-2)+'"';let gets=0;const r=create({...options,fetchImpl:async()=>{gets++;return new Response(payload);}}),p=r.phase('initial');for(let i=0;i<maxReads;i++)await p.read(root,'k'+i);const fresh=r.phase('fresh');a.equal((await fresh.read(root,'fresh')).length,8*MiB-2);for(let i=1;i<maxReads;i++)await fresh.read(root,'fresh'+i);await a.rejects(fresh.read(root,'overflow'),oversized);const count=gets;await a.rejects(fresh.read(root,'after'),denied);a.equal(gets,count);r.dispose();

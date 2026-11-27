@@ -56,7 +56,7 @@ function create({databaseURL,accessToken,fetchImpl=fetch,requestMs=20000}={}){
     response=await fetchImpl(target,{method:'GET',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},cache:'no-store',redirect:'error',signal:controller.signal});
     if(disposed||failed||controller.signal.aborted||current!==state){discard(response);throw failure();}
     if(response.status!==200||!response.ok){discard(response);throw failure();}
-    const text=await boundedText(response,shallow?MiB:8*MiB,controller.signal,bytes=>{
+    const text=await boundedText(response,shallow?MiB:budgets.get(root),controller.signal,bytes=>{
      live(state);const total=(state.bytes.get(root)||0)+bytes;
      if(total>budgets.get(root))throw sizeFailure();
      state.bytes.set(root,total);
