@@ -54,7 +54,7 @@ test('la comisión manual confirma control, destino y venta juntos; la automáti
   assert.match(app, /function _calcularBaseComisionVenta\(venta\)/);
   assert.match(app, /SVCommissionGeneration\.generate\(venta\)/);
   assert.match(app, /await _ventaTieneComisionGenerada\(emp\.fbKey, venta\)/);
-  assert.match(app, /await _generarComisionVentaAtomica\(emp, movimiento\)/);
+  assert.match(app, /await _generarComisionVentaAtomica\(emp, movimiento, \{ habilitarComision: habilitarComision \}\)/);
   assert.match(app, /ventaId: venta\.id \|\| venta\.numero \|\| venta\.nro/);
   assert.match(app, /ventaFbKey: venta\.fbKey \|\| ''/);
   assert.match(app, /origenCarga: 'manual_empleados'/);

@@ -11617,7 +11617,7 @@ const APP_CONFIG = Object.freeze({
   RELEASE_NOTES: Object.freeze(['Cuenta corriente abre con los movimientos más recientes.','Contador y navegación arriba del historial, con aviso de carga al cambiar de página.']),
   RELEASE_FEATURE: Object.freeze({page:'presupuesto',actionLabel:'Ver presupuestos'}),
   RELEASE_HISTORY: Object.freeze([
- Object.freeze({version:'v3.22.7',date:'27/11/2026',title:'Listados estables al volver a la ventana',notes:Object.freeze(['Conserva los listados, filtros y posición al ocultar y volver a la ventana.','Actualiza los datos cuando hay cambios, manteniendo los controles de sesión y permisos.'])}),
+ Object.freeze({version:'v3.22.7',date:'27/11/2026',title:'Listados estables al volver a la ventana',notes:Object.freeze(['Conserva los listados, filtros y posición al ocultar y volver a la ventana.','Actualiza los datos cuando hay cambios, manteniendo los controles de sesión y permisos.','La carga manual permite habilitar y registrar una comisión pendiente en una sola confirmación, sin duplicarla.'])}),
  Object.freeze({version:'v3.22.6',date:'27/11/2026',title:'Reasignación de resúmenes de tarjeta',notes:Object.freeze(['Permite mover un resumen a la ficha original verificada.'])}),
  Object.freeze({version:'v3.22.5',date:'27/11/2026',title:'Impuestos e intereses en Gastos personales',notes:Object.freeze(['Consultá impuestos, intereses, seguros y cuotas por mes.','El Plan de cancelación puede calcular una TEM para simular desde la TEA del resumen.'])}),
  Object.freeze({version:'v3.22.4',date:'27/11/2026',title:'Reversiones de pagos en Gastos personales',notes:Object.freeze(['Los pagos muestran la fecha y el importe de la reversión bancaria.','El formulario permite registrar el pago junto con su reversión.'])}),
@@ -46254,6 +46254,8 @@ function actualizarComisionManualVenta(reponerPorcentaje) {
   var pctInput = document.getElementById('comision-manual-pct');
   var montoInput = document.getElementById('comision-manual-monto');
   var resumen = document.getElementById('comision-manual-resumen');
+  var guardar = document.getElementById('comision-manual-guardar');
+  if (guardar && !_comisionManualGuardando) guardar.textContent = venta && venta.comisionHabilitada !== true ? 'Habilitar y registrar' : 'Registrar comisión';
   var maxPct = parseFloat((APROBACION_CONFIG && APROBACION_CONFIG.maxComisionPct) || 10) || 10;
   if (pctInput) pctInput.max = String(maxPct);
   if (emp && pctInput && reponerPorcentaje) {
@@ -46279,7 +46281,7 @@ function actualizarComisionManualVenta(reponerPorcentaje) {
     '<div><span style="color:var(--text3)">Venta</span><strong style="display:block;margin-top:3px">$' + Math.round(_svTotalVentaCanonico(venta)).toLocaleString('es-AR') + '</strong></div>' +
     '<div><span style="color:var(--text3)">Ganancia base</span><strong style="display:block;margin-top:3px">$' + Math.round(calculo.ganancia).toLocaleString('es-AR') + '</strong></div>' +
     '<div><span style="color:var(--text3)">Comisión</span><strong style="display:block;margin-top:3px;color:var(--green)">$' + monto.toLocaleString('es-AR') + '</strong></div>' +
-    '</div>';
+    '</div>' + (venta.comisionHabilitada !== true ? '<div style="margin-top:10px">Al confirmar se habilitará la comisión de esta venta y quedará pendiente de aprobación.</div>' : '');
 }
 
 async function guardarComisionManualVenta() {
@@ -46289,7 +46291,8 @@ async function guardarComisionManualVenta() {
   var venta = _comisionManualResolverVenta((document.getElementById('comision-manual-venta') || {}).value);
   if (!emp) { notify('Seleccioná el empleado comisionado'); return; }
   if (!venta) { notify('Seleccioná una venta válida de la lista'); return; }
-  if (venta.comisionHabilitada !== true) { notify('Habilitá la comisión en la venta antes de registrarla.'); return; }
+  var habilitarComision = venta.comisionHabilitada !== true;
+  if (habilitarComision && !window.tienePermiso('ventas.configurarComision')) { notify('No tenés permiso para habilitar la comisión de esta venta.'); return; }
   var maxPct = parseFloat((APROBACION_CONFIG && APROBACION_CONFIG.maxComisionPct) || 10) || 10;
   var pct = parseFloat((document.getElementById('comision-manual-pct') || {}).value) || 0;
   if (pct <= 0) { notify('Ingresá el porcentaje de comisión'); return; }
@@ -46299,10 +46302,14 @@ async function guardarComisionManualVenta() {
   if (monto <= 0) { notify('La venta no tiene una ganancia positiva para calcular la comisión'); return; }
 
   _comisionManualGuardando = true;
+  var valid = svCapturarContextoOperacion();
   var btn = document.getElementById('comision-manual-guardar');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Verificando...'; }
   try {
+    var confirmacion = (habilitarComision ? '¿Habilitar la comisión de ' + (venta.id || venta.numero || 'esta venta') + ' y registrar $' : '¿Registrar la comisión de ' + (venta.id || venta.numero || 'esta venta') + ' por $') + monto.toLocaleString('es-AR', {minimumFractionDigits:2,maximumFractionDigits:2}) + ' para ' + (emp.nombre || 'el empleado') + '? Quedará pendiente de aprobación.';
+    if (!await svConfirm(confirmacion) || !valid()) return;
     var yaExiste = await _ventaTieneComisionGenerada(emp.fbKey, venta);
+    if (!valid()) return;
     if (yaExiste) {
       notify('Esa venta ya tiene una comisión registrada para ' + (emp.nombre || 'el empleado'));
       return;
@@ -46330,17 +46337,18 @@ async function guardarComisionManualVenta() {
       usuarioCarga: currentUser || 'admin'
     };
     if (btn) btn.innerHTML = '<i class="ti ti-loader-2"></i> Guardando...';
-    await _generarComisionVentaAtomica(emp, movimiento);
+    await _generarComisionVentaAtomica(emp, movimiento, { habilitarComision: habilitarComision });
+    if (!valid()) return;
     notify('✓ Comisión vinculada a la venta y pendiente de aprobación');
     _comisionManualGuardando = false;
     cerrarModalComisionVenta();
     if (typeof fbCargarGastos === 'function') fbCargarGastos();
     if (ctaEmpActual === emp.fbKey && typeof cargarCtaEmp === 'function') cargarCtaEmp(emp.fbKey);
   } catch (error) {
-    notify('No se pudo registrar la comisión: ' + error.message);
+    if (valid()) notify('No se pudo registrar la comisión: ' + error.message);
   } finally {
     _comisionManualGuardando = false;
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Registrar comisión'; }
+    if (btn) { btn.disabled = false; btn.textContent = habilitarComision ? 'Habilitar y registrar' : 'Registrar comisión'; }
   }
 }
 
@@ -46363,7 +46371,7 @@ function _ventaTieneComisionGenerada(empFbKey, venta) {
   }).catch(function(){ return false; });
 }
 
-function _generarComisionVentaAtomica(emp, movimiento) {
+function _generarComisionVentaAtomica(emp, movimiento, opciones) {
   if (!window.fbDB || typeof window.SVLaborWrites?.atomic !== 'function') return Promise.reject(new Error('No hay conexión segura para generar la comisión'));
   if (!emp?.fbKey || !movimiento?.ventaFbKey) return Promise.reject(new Error('Actualizá la venta y el empleado antes de registrar la comisión'));
   var ventaKey = movimiento.ventaFbKey || movimiento.ventaId;
@@ -46382,7 +46390,8 @@ function _generarComisionVentaAtomica(emp, movimiento) {
     if (control && (control.estado === 'completada' || control.estado === 'procesando' && ahora - Number(control.ts || 0) < 120000)) throw new Error('La venta ya tiene una comisión registrada o en proceso');
     if (valores[gastoPath] || valores[cuentaPath]) throw new Error('La venta ya tiene una comisión registrada. Se conservaron sus importes y pagos.');
     // El servidor verifica también los duplicados heredados bajo el mismo guard.
-    if (!empleado || empleado.activo === false || !venta || venta.comisionHabilitada !== true) throw new Error('El empleado o la venta cambió. Actualizá la pantalla.');
+    var habilitar = opciones?.habilitarComision === true && movimiento.cargadaManualmente === true && movimiento.origenCarga === 'manual_empleados';
+    if (!empleado || empleado.activo === false || !venta || venta.comisionHabilitada !== true && !habilitar) throw new Error('El empleado o la venta cambió. Actualizá la pantalla.');
     var pct = Number(movimiento.pct), maxPct = parseFloat(valores[maxPath]) || 10, calculo = _calcularBaseComisionVenta(venta);
     var montoVigente = window.SVCommercialMoney.percentage(calculo.ganancia, pct);
     if (!(pct > 0) || !Number.isFinite(pct) || pct > maxPct || !(calculo.ganancia > 0) || !Number.isFinite(Number(movimiento.gananciaBase)) || !Number.isFinite(Number(movimiento.monto)) || Math.abs(calculo.ganancia-Number(movimiento.gananciaBase)) > 0.009 || Math.abs(montoVigente-Number(movimiento.monto)) > 0.009) throw new Error('La base o el porcentaje de la comisión cambió. Actualizá la venta antes de registrarla.');
@@ -46404,6 +46413,7 @@ function _generarComisionVentaAtomica(emp, movimiento) {
     updates[gastoPath] = gasto;
     updates[controlPath] = { estado:'completada', ts:ahora, ventaId:movimiento.ventaId || '', ventaFbKey:movimiento.ventaFbKey || '', empleadoFbKey:emp.fbKey };
     updates[ventaPath + '/comisionesGeneradas'] = true;
+    if (habilitar && venta.comisionHabilitada !== true) updates[ventaPath + '/comisionHabilitada'] = true;
     return updates;
   }}).then(function(resultado) {
     if (!resultado || resultado.committed !== true) throw new Error('No se pudo confirmar la comisión. Revisá el estado antes de reintentar.');

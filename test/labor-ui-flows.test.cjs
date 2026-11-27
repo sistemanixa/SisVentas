@@ -113,10 +113,10 @@ test('Rechazo del PATCH de comisión no deja control, gasto, movimiento ni marca
 });
 
 test('El formulario manual real confirma una sola operación y respeta su permiso',async()=>{
- const f=commissionBackend(),p=f.page();p.refresh();p.load(['_comisionManualResolverVenta','_comisionManualEmpleadoSeleccionado','_ventaTieneComisionGenerada','cerrarModalComisionVenta','guardarComisionManualVenta']);
+ const f=commissionBackend(),p=f.page();p.refresh();p.load(['svCapturarContextoOperacion','_comisionManualResolverVenta','_comisionManualEmpleadoSeleccionado','_ventaTieneComisionGenerada','cerrarModalComisionVenta','guardarComisionManualVenta']);let confirmations=0;p.context.svConfirm=async text=>{confirmations++;assert.match(text,/Registrar la comisión/);return true;};
  p.node('comision-manual-empleado').value='e';p.node('comision-manual-venta').value='ficticia';p.context._comisionManualVentasMap.ficticia=p.context.ventasList[0];p.node('comision-manual-pct').value='5';p.node('comision-manual-fecha').value='2026-10-20';
  p.context.tienePermiso=()=>false;await p.context.guardarComisionManualVenta();assert.equal(f.commands.length,0);
- p.context.tienePermiso=()=>true;await p.context.guardarComisionManualVenta();assert.equal(f.commands.length,1);assert.equal(f.commits.length,1);assert.match(p.messages.at(-1),/pendiente de aprobación/);assert.equal(p.node('comision-manual-guardar').disabled,false);assert.equal(p.node('modal-comision-venta').style.display,'none');
+ p.context.tienePermiso=()=>true;await p.context.guardarComisionManualVenta();assert.equal(f.commands.length,1);assert.equal(f.commits.length,1);assert.match(p.messages.at(-1),/pendiente de aprobación/);assert.equal(p.node('comision-manual-guardar').disabled,false);assert.equal(p.node('modal-comision-venta').style.display,'none');assert.equal(confirmations,1);
 });
 
 test('El resumen pagado legacy sobrevive dos pagos, edición y anulación sin inventar pagos históricos',async()=>{
