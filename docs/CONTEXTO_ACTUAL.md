@@ -4914,3 +4914,5 @@ Estado/repositorio: rama codex/maintenance-three-blocks-20261126. Se retiran pan
 
 Las dos referencias históricas fueron adaptadas al centro vigente y sus archivos completos pasaron 12/12 también en Root. No se modificaron expectativas financieras ni se repitió la suite global. Fuentes de QA 6f245389/023e5cf2 y adaptación 942fc38e integradas literalmente; SessionAssets abf6f885 integrado como3b36f848.
 
+
+PUBLICADO v3.22.2 desde8f4eefeb5ee4b4fdcf0ab9d58619a6d1ad08fc00: Hosting729activos/9cargas. ContratoRAW privado8b2e3e0570182111a57a69ba09579c1b4dfbdac2a05d08e6a56259256b39d32e;9activosHTTPS byteidénticos (index/app/versiones/SW/centro/sessionassets/CSS) y aviso oficialFirebase sincronizado. Ventana real recargada:22.2/EstadoConectado/Admin y3bloques correctos. Se restauró la misma ficha y solapa de cliente, sin escrituras de negocio. No servidor/reglas/fiscal/índices modificados. Continúa identificado únicamente el defecto de distribución móvil del encabezado de Historial (acciones/contactos/direcciones superpuestos), fuera del cambio Mantenimiento.

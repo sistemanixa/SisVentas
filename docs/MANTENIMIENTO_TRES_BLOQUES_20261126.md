@@ -11,3 +11,5 @@ Suite vigente host completa: 11.925 casos, 11.779 PASS, 2 FAIL, 144 condicionale
 Publicación todavía pendiente al crear esta evidencia. La inspección de la ventana real en Historial de cliente detectó superposición de acciones/contactos a ancho móvil; es un problema independiente de distribución y no se modificaron sus datos ni su pantalla en este bloque.
 
 Cierre de referencias: los dos archivos adaptados pasaron 12/12 en Root. No cambia el resultado histórico de la suite; los dos fallos originales y su resolución focal quedan documentados por separado.
+
+Publicado v3.22.2 desde8f4eefeb5ee4b4fdcf0ab9d58619a6d1ad08fc00:729activos/9cargas,9HTTPSbyteexactos y aviso oficial confirmado. Verificado en la ventana real: tres bloques, conexión Conectado y sesión Administrador. Se restauró la misma ficha/solapa de Historial. Sin cambios de servidor/reglas ni datos.
