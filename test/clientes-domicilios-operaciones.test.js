@@ -70,6 +70,6 @@ test('Clientes difiere la primera grilla y reutiliza la vista preparada al regre
 test('la revisión histórica sale del encabezado y queda como herramienta administrativa', () => {
   const bloqueClientes = html.slice(html.indexOf('id="page-clientes"'), html.indexOf('id="page-productos"'));
   assert.doesNotMatch(bloqueClientes, /Revisar repetidos/);
-  assert.match(html, /id="mnt-clientes-repetidos-card"/);
-  assert.match(html, /Revisar clientes repetidos/);
+  assert.match(html, /id="mnt-targeted-reviews"[\s\S]*?data-mnt-action="clients"[^>]*data-mnt-page="clientes"/);
+  assert.match(html, /onclick="SVMaintenanceCenter\.openClients\(\)"[^>]*>Revisar clientes<\/button>/);
 });

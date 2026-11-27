@@ -2,9 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const app = fs.readFileSync('js/app.js', 'utf8');
+const app = require('./helpers/active-app').readActiveApp().source;
 const html = fs.readFileSync('index.html', 'utf8');
-const maintenance = fs.readFileSync('js/modules/maintenance.js', 'utf8');
+const maintenance = fs.readFileSync('test/fixtures/legacy-maintenance.source.js', 'utf8');
 
 test('Gastos no ejecuta migraciones durante su carga normal', () => {
   const inicio = app.indexOf('function fbCargarGastos()');
@@ -13,10 +13,9 @@ test('Gastos no ejecuta migraciones durante su carga normal', () => {
   assert.doesNotMatch(carga, /_migrarPagablesLegacyAGastos|_normalizarImputacionGastosPagados/);
 });
 
-test('Mantenimiento ofrece auditoría manual y corrección confirmada', () => {
-  assert.match(html, /id="mnt-gastos-fecha-card"/);
-  assert.match(html, /onclick="mntAuditarFechasGastos\(this\)"/);
-  assert.match(html, /onclick="mntMigrarFechasGastos\(this\)" disabled/);
+test('el centro actual retira el corrector masivo y conserva la regresión histórica confirmada', () => {
+  assert.doesNotMatch(html, /id="mnt-gastos-fecha-card"|onclick="mnt(?:Auditar|Migrar)FechasGastos/);
+  assert.match(html, /SVMaintenanceCenter\.openExpenses\(\)/);
   assert.match(maintenance, /async function mntAuditarFechasGastos\(btn\)/);
   assert.match(maintenance, /async function mntMigrarFechasGastos\(btn\)/);
   assert.match(maintenance, /await window\.svConfirm\(/);

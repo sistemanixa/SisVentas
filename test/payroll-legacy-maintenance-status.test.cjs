@@ -20,7 +20,7 @@ function fixture({fail='',unconfirmed=false,allowed=true}={}){
   mntGet:async()=>{throw Error('No continuar otras migraciones tras fallo SAC');}
  };
  c.window=c;load(c,['_pagableNormMonto','_migrarPagablesLegacyAGastos']);
- vm.runInContext(extract(fs.readFileSync('js/modules/maintenance.js','utf8'),'mntMigrarLegacy'),c);
+ vm.runInContext(extract(fs.readFileSync('test/fixtures/legacy-maintenance.source.js','utf8'),'mntMigrarLegacy'),c);
  return{c,reads,batches,writes,messages,states,logs};
 }
 test('migración manual agrupa todos los SAC en un solo contrato y no usa push para crearlos',async()=>{

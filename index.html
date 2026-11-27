@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.22.1-firebase' -->
+<!-- VERSION: 'v3.22.2-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,8 +21,9 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/operation-feedback.css?v=3.21.15">
+<link rel="stylesheet" href="./css/maintenance-center.css?v=3.22.2">
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.22.1.js"></script>
+<script src="./js/core/version.v3.22.2.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.18.4"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.18.4"></script>
@@ -42,7 +43,7 @@
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=3.10.32"></script>
 <script src="./js/core/domain-read-policy.js?v=3.10.34"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.18.4">
+<link rel="stylesheet" href="./css/app.css?v=3.22.2">
 <link rel="stylesheet" href="./css/loading-status.css?v=3.21.17">
 <link rel="stylesheet" href="./css/surveys.css?v=3.17.7">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.8.20-menu2">
@@ -80,7 +81,6 @@
   <script src="./js/core/bonus-payment-model.v1.js?v=3.18.4"></script>
   <script src="./js/core/bonus-payment.v1.js?v=3.18.4"></script>
   <script src="./js/core/financial-commands.js?v=3.22.1"></script>
-  <script src="./js/core/sale-delete-maintenance.js?v=3.22.1"></script>
   <script type="module" id="firebase-init" src="./js/core/firebase.js?v=3.17.12"></script>
 <link rel="stylesheet" href="./css/dashboard-privacy.css?v=3.14.5">
 <link rel="stylesheet" href="./css/bonus-grant.css?v=3.14.6">
@@ -2494,158 +2494,37 @@
           </div>
         </div>
 
-        <!-- TAB: MANTENIMIENTO — diagnóstico, migraciones y limpieza controlada -->
-        <div id="cfg-mantenimiento" class="cfg-panel" style="display:none">
-          <div class="card mnt-hero-card">
-            <div class="card-head">
-              <span class="card-title"><i class="ti ti-tool"></i> Estado y decisiones del sistema</span>
-              <span id="mnt-estado-general" class="badge b-amber">Sin analizar</span>
+        <!-- TAB: MANTENIMIENTO — revisiones puntuales y soporte -->
+        <div id="cfg-mantenimiento" class="cfg-panel" data-maintenance-layout="three-blocks" style="display:none">
+          <section class="card mnt-center-block" id="mnt-current-state" aria-labelledby="mnt-current-title">
+            <div class="card-head"><h2 class="card-title" id="mnt-current-title"><i class="ti ti-heart-rate-monitor"></i> Estado del sistema</h2></div>
+            <p class="mnt-center-copy">Versión y conexión de tu sesión actual.</p>
+            <dl class="mnt-center-state">
+              <div><dt>Versión en uso</dt><dd id="mnt-current-version">Sin confirmar</dd></div>
+              <div><dt>Conexión</dt><dd id="mnt-current-connection" role="status">Sin confirmar</dd></div>
+              <div><dt>Sesión</dt><dd id="mnt-current-session">Sin confirmar</dd></div>
+            </dl>
+          </section>
+          <section class="card mnt-center-block" id="mnt-targeted-reviews" aria-labelledby="mnt-reviews-title">
+            <div class="card-head"><h2 class="card-title" id="mnt-reviews-title"><i class="ti ti-search"></i> Revisiones puntuales de datos</h2></div>
+            <p class="mnt-center-copy">Elegí qué necesitás revisar. Los registros se abren en su módulo, con sus controles habituales.</p>
+            <div class="mnt-center-reviews">
+              <div class="mnt-center-review"><h3>Clientes repetidos</h3><p>Compará nombres y dejá registrada tu revisión manual.</p><button type="button" class="btn" data-mnt-action="clients" data-mnt-page="clientes" onclick="SVMaintenanceCenter.openClients()">Revisar clientes</button></div>
+              <div class="mnt-center-review"><h3>Gastos</h3><p>Revisá un gasto, sus fechas y el historial de pagos.</p><button type="button" class="btn" data-mnt-action="expenses" data-mnt-page="gastos" onclick="SVMaintenanceCenter.openExpenses()">Abrir Gastos</button></div>
+              <div class="mnt-center-review"><h3>Ventas y cobros</h3><p>Abrí la venta que necesitás revisar y consultá sus vínculos.</p><button type="button" class="btn" data-mnt-action="sales" data-mnt-page="detalle" onclick="SVMaintenanceCenter.openSales()">Abrir Ventas</button></div>
             </div>
-            <div class="mnt-hero-copy">
-              Esta pantalla traduce los controles técnicos en decisiones concretas. Examinar no modifica datos: primero muestra qué está bien y qué necesita tu confirmación.
+          </section>
+          <section class="card mnt-center-block" id="mnt-support" aria-labelledby="mnt-support-title">
+            <div class="card-head"><h2 class="card-title" id="mnt-support-title"><i class="ti ti-lifebuoy"></i> Soporte avanzado</h2></div>
+            <p class="mnt-center-copy">Generá un resumen de esta sesión para soporte. No incluye datos de clientes, ventas ni pagos.</p>
+            <div class="mnt-center-actions">
+              <button type="button" class="btn" id="mnt-diagnostic-generate" data-mnt-action="diagnostic" onclick="SVMaintenanceCenter.generate()">Generar diagnóstico</button>
+              <button type="button" class="btn" id="mnt-diagnostic-download" onclick="SVMaintenanceCenter.download()" disabled>Descargar diagnóstico</button>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px" class="metrics" id="mnt-metricas">
-              <div class="metric"><div class="m-label">Observaciones</div><div class="m-value" id="mnt-kpi-gastos">—</div><div class="m-sub">de todas las revisiones</div></div>
-              <div class="metric"><div class="m-label">Áreas a revisar</div><div class="m-value" id="mnt-kpi-agu">—</div><div class="m-sub">agrupadas sin duplicar paneles</div></div>
-              <div class="metric"><div class="m-label">Correcciones seguras</div><div class="m-value" id="mnt-kpi-hs">—</div><div class="m-sub">requieren confirmación</div></div>
-              <div class="metric"><div class="m-label">Registros laborales</div><div class="m-value" id="mnt-kpi-pend">—</div><div class="m-sub">pendientes de migrar</div></div>
-            </div>
-            <div class="mnt-exam-box">
-              <button class="btn btn-primary mnt-exam-btn" id="mnt-btn-examinar" onclick="mntExaminarTodo(this)"><i class="ti ti-stethoscope"></i> Revisar el sistema</button>
-              <div class="mnt-exam-info">
-                <strong id="mnt-exam-title">Listo para revisar</strong>
-                <span id="mnt-exam-status">No se cambiará nada sin mostrarte antes cada decisión pendiente.</span>
-              </div>
-            </div>
-          </div>
-          <div class="card mnt-guide-card" id="mnt-guia-usuario">
-            <div class="card-head">
-              <span class="card-title"><i class="ti ti-route"></i> Qué tenés que decidir</span>
-              <span id="mnt-guia-estado" class="badge b-amber">Sin revisar</span>
-            </div>
-            <div id="mnt-guia-resumen" class="mnt-guide-summary">
-              Presioná “Revisar el sistema”. Al terminar vas a ver una lista corta, explicada en lenguaje común y ordenada por importancia.
-            </div>
-            <div id="mnt-guia-decisiones" class="mnt-guide-decisions"></div>
-            <button type="button" class="btn btn-sm mnt-technical-toggle" id="mnt-toggle-tecnico" onclick="mntAlternarDetallesTecnicos(this)">
-              <i class="ti ti-settings-code"></i> Ver detalles técnicos
-            </button>
-          </div>
-          <div class="mnt-main-grid">
-          <div class="card mnt-primary-card">
-            <div class="card-head">
-              <span class="card-title"><i class="ti ti-activity"></i> Resumen operativo final</span>
-              <span id="mnt-operativo-count" class="badge b-amber">Sin auditar</span>
-            </div>
-            <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
-              <div class="metric"><div class="m-label">Relaciones</div><div class="m-value" id="mnt-op-rel">—</div><div class="m-sub">IDs y vínculos</div></div>
-              <div class="metric"><div class="m-label">Permisos</div><div class="m-value" id="mnt-op-sec">—</div><div class="m-sub">acciones críticas</div></div>
-              <div class="metric"><div class="m-label">Grids</div><div class="m-value" id="mnt-op-grid">—</div><div class="m-sub">tablas / scroll</div></div>
-              <div class="metric"><div class="m-label">Dólar</div><div class="m-value" id="mnt-op-dolar">—</div><div class="m-sub">histórico horario</div></div>
-            </div>
-            <div id="mnt-operativo-lista" style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg3)">
-              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Presioná “Examinar” para ver el cierre de relaciones, permisos, grids, credenciales y dólar.</div>
-            </div>
-          </div>
-          <div class="card mnt-primary-card" id="mnt-v2-card">
-            <div class="card-head">
-              <span class="card-title"><i class="ti ti-rocket"></i> Rumbo a SisVentas 2.0</span>
-              <span id="mnt-v2-count" class="badge b-amber">Sin evaluar</span>
-            </div>
-            <div style="font-size:13px;color:var(--text2);line-height:1.45;margin-bottom:12px">
-              Control de preparación para pasar a versión mayor: estabilidad, seguridad, deuda legacy, módulos separados, publicación y decisiones manuales pendientes.
-            </div>
-            <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
-              <div class="metric"><div class="m-label">Preparación</div><div class="m-value" id="mnt-v2-score">—</div><div class="m-sub">score general</div></div>
-              <div class="metric"><div class="m-label">Bloqueantes</div><div class="m-value" id="mnt-v2-blockers">—</div><div class="m-sub">antes de 2.0</div></div>
-              <div class="metric"><div class="m-label">Módulos</div><div class="m-value" id="mnt-v2-modulos">—</div><div class="m-sub">separados activos</div></div>
-              <div class="metric"><div class="m-label">Pruebas</div><div class="m-value" id="mnt-v2-tests">—</div><div class="m-sub">guardas release</div></div>
-            </div>
-            <div id="mnt-v2-lista" style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg3)">
-              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Presioná “Examinar” para ver qué falta antes de subir a versión mayor.</div>
-            </div>
-          </div>
-          <div class="card mnt-primary-card" id="mnt-v2-audit-card">
-            <div class="card-head">
-              <span class="card-title"><i class="ti ti-scan"></i> Auditoría V2 de datos y módulos</span>
-              <span id="mnt-v2-audit-count" class="badge b-amber">Sin auditar</span>
-            </div>
-            <div style="font-size:13px;color:var(--text2);line-height:1.45;margin-bottom:12px">
-              Revisión no destructiva para preparar la versión mayor: calidad de datos cargados, claves únicas, duplicados comerciales, vínculos débiles y mapa de módulos publicados.
-            </div>
-            <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
-              <div class="metric"><div class="m-label">Registros</div><div class="m-value" id="mnt-v2-audit-reg">—</div><div class="m-sub">en memoria</div></div>
-              <div class="metric"><div class="m-label">Duplicados</div><div class="m-value" id="mnt-v2-audit-dup">—</div><div class="m-sub">IDs comerciales</div></div>
-              <div class="metric"><div class="m-label">Claves</div><div class="m-value" id="mnt-v2-audit-keys">—</div><div class="m-sub">fbKey faltantes</div></div>
-              <div class="metric"><div class="m-label">Módulos</div><div class="m-value" id="mnt-v2-audit-mod">—</div><div class="m-sub">scripts separados</div></div>
-            </div>
-            <div id="mnt-v2-audit-lista" style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg3)">
-              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Presioná “Examinar” para revisar datos, duplicados, claves y módulos.</div>
-            </div>
-          </div>
-          </div>
-          <div class="card mnt-advanced-card" id="mnt-clientes-repetidos-card">
-            <div class="card-head"><span class="card-title"><i class="ti ti-users-group"></i> Clientes con nombres repetidos</span></div>
-            <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px">
-              Herramienta administrativa manual para revisar nuevos casos. No se ejecuta al abrir Clientes y no modifica datos sin confirmación.
-            </div>
-            <button class="btn btn-sm" onclick="abrirRevisionClientesDuplicados()"><i class="ti ti-search"></i> Revisar clientes repetidos</button>
-          </div>
-          <div class="card mnt-advanced-card">
-            <div class="card-head"><span class="card-title"><i class="ti ti-list-check"></i> Migraciones</span></div>
-            <div id="mnt-migraciones-lista" style="display:flex;flex-direction:column;gap:8px">
-              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Ejecutá “Analizar base” para ver el estado.</div>
-            </div>
-          </div>
-          <div class="card mnt-advanced-card" id="mnt-gastos-fecha-card">
-            <div class="card-head">
-              <span class="card-title"><i class="ti ti-calendar-dollar"></i> Fechas contables de Gastos</span>
-              <span id="mnt-gastos-fecha-estado" class="badge b-amber">Sin auditar</span>
-            </div>
-            <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px">
-              Herramienta administrativa manual. Compara la fecha principal e imputación con el último pago efectivo. No se ejecuta al iniciar SisVentas.
-            </div>
-            <div id="mnt-gastos-fecha-detalle" style="padding:11px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3);font-size:12px;color:var(--text3);margin-bottom:12px">
-              Presioná “Auditar fechas” para realizar una revisión de solo lectura.
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn btn-sm" id="mnt-btn-auditar-fechas-gastos" onclick="mntAuditarFechasGastos(this)"><i class="ti ti-search"></i> Auditar fechas</button>
-              <button class="btn btn-sm btn-primary" id="mnt-btn-migrar-fechas-gastos" onclick="mntMigrarFechasGastos(this)" disabled><i class="ti ti-database-cog"></i> Corregir pendientes</button>
-            </div>
-          </div>
-          <div class="card mnt-advanced-card">
-            <div class="card-head">
-              <span class="card-title"><i class="ti ti-link"></i> Auditoría de relaciones</span>
-              <span id="mnt-relaciones-count" class="badge b-amber">Sin auditar</span>
-            </div>
-            <div style="font-size:12px;color:var(--text3);line-height:1.45;margin-bottom:10px">
-              Revisa vínculos flojos en memoria: ventas, pagos, OT, reclamos, presupuestos y productos que todavía dependan de campos legacy.
-            </div>
-            <div id="mnt-relaciones-lista" style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg3)">
-              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Ejecutá “Auditar relaciones” para revisar vínculos pendientes.</div>
-            </div>
-          </div>
-          <div class="card mnt-advanced-card">
-            <div class="card-head">
-              <span class="card-title"><i class="ti ti-copy"></i> Duplicados de gastos fijos</span>
-              <span id="mnt-dup-fijos-count" class="badge b-amber">Sin analizar</span>
-            </div>
-            <div id="mnt-dup-fijos-lista" style="display:flex;flex-direction:column;gap:8px">
-              <div style="font-size:13px;color:var(--text3);padding:12px;text-align:center">Ejecutá “Buscar duplicados fijos” para detectar copias generadas por error.</div>
-            </div>
-          </div>
-          <div class="card mnt-advanced-card">
-            <div class="card-head"><span class="card-title">Vínculos de ventas</span></div>
-            <p style="color:var(--text3);font-size:13px">Preparación inicial del circuito de eliminación. Conserva las ventas, pagos y demás registros.</p>
-            <button class="btn btn-sm" onclick="prepararVinculosDeVentas(this)">Preparar vínculos</button>
-            <p id="mnt-vinculos-ventas-status" role="status" style="color:var(--text3);font-size:13px"></p>
-          </div>
-          <div class="card mnt-advanced-card">
-            <div class="card-head"><span class="card-title"><i class="ti ti-terminal-2"></i> Consola de mantenimiento</span></div>
-            <pre id="mnt-console" style="background:#05070c;color:#d7ffe2;border:0.5px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;min-height:220px;max-height:360px;overflow:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.45;white-space:pre-wrap">SisVentas Maintenance v2.0.312
-Listo para analizar.
-</pre>
-          </div>
+            <p id="mnt-diagnostic-status" role="status"></p>
+            <pre class="mnt-center-output" id="mnt-diagnostic-output" hidden></pre>
+            <p class="mnt-center-note">El diagnóstico describe esta sesión; no certifica saldos ni revisa toda la base.</p>
+          </section>
         </div>
 
         <!-- TAB: METAS DEL NEGOCIO -->
@@ -5856,7 +5735,7 @@ Listo para analizar.
 <script src="./js/core/guarded-writes.js?v=3.18.4"></script>
 <script src="./js/core/public-catalog-entry.js?v=3.11.8-catalog-entry"></script>
 <script src="./js/core/session-recovery.js?v=3.12.8-local-server"></script>
-<script src="./js/core/session-assets.js?v=3.20.4"></script>
+<script src="./js/core/session-assets.js?v=3.22.2"></script>
 <link rel="stylesheet" href="./css/user-access.css?v=3.11.9">
 <script src="./js/core/user-access.js?v=3.12.3"></script>
 <script src="./js/core/service-auth.js?v=3.12.20"></script>
@@ -5898,7 +5777,7 @@ Listo para analizar.
 <script src="./js/core/commercial-report-read.v1.js?v=3.19.0"></script>
 <script src="./js/modules/commercial-report-host.v1.js?v=3.19.0"></script>
 <script data-sv-sale-payment-history src="./js/core/sale-payment-history.v1.js?v=3.22.0"></script>
-<script src="./js/app.v3.22.1.js"></script>
+<script src="./js/app.v3.22.2.js"></script>
 <script src="./js/core/sales-search-model.v1.js?v=3.18.4"></script>
 <script src="./js/core/collection-search-model.v1.js?v=3.18.13"></script>
 <script src="./js/core/commercial-pages-reader.v1.js?v=3.19.6"></script>
@@ -6436,7 +6315,7 @@ Listo para analizar.
 <script src="./js/modules/payroll-pending-review.js?v=3.14.7"></script>
 
 
-<script src="./js/modules/maintenance.js?v=3.14.7"></script>
+<script src="./js/modules/maintenance-center.js?v=3.22.2"></script>
 
 
 <script src="./js/modules/refactor-health.js?v=3.18.4"></script>
@@ -6451,9 +6330,6 @@ Listo para analizar.
 <script src="./js/modules/dolar-month-chart.js?v=3.14.18-period"></script>
 <script src="./js/modules/dolar-historico.js?v=3.14.18-period"></script>
 <script src="./js/core/dollar-refresh.v1.js?v=3.16.16"></script>
-<script src="./js/modules/ops-hardening.js?v=2.3.2-maintenance-guided-1"></script>
-<script src="./js/modules/v2-readiness.js?v=2.0.154"></script>
-<script src="./js/modules/v2-audit.js?v=2.0.399-audit1"></script>
 <script src="./js/modules/page-transition.js?v=2.0.226"></script>
 <script src="./js/modules/resource-monitor.js?v=3.3.17"></script>
 

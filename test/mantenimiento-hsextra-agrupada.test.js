@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const js = fs.readFileSync(path.join(__dirname, '..', 'js', 'modules', 'maintenance.js'), 'utf8');
+const js = fs.readFileSync(path.join(__dirname, 'fixtures', 'legacy-maintenance.source.js'), 'utf8');
 const app = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.v2.3.2.js'), 'utf8');
 
 if (!js.includes("refGasto.replace(/^hsextra_grupo\\//,'')===refOrigen.replace(/^hsextra_solicitudes\\//,'')")) {

@@ -4,14 +4,18 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-const css = fs.readFileSync(path.join(__dirname, '..', 'css', 'app.css'), 'utf8');
-const js = fs.readFileSync(path.join(__dirname, '..', 'js', 'modules', 'maintenance.js'), 'utf8');
+const js = fs.readFileSync(path.join(__dirname, 'fixtures', 'legacy-maintenance.source.js'), 'utf8');
 
-test('Mantenimiento prioriza decisiones entendibles y oculta los detalles técnicos', () => {
-  assert.match(html, /id="mnt-guia-usuario"/);
-  assert.match(html, /Qué tenés que decidir/);
-  assert.match(html, /Ver detalles técnicos/);
-  assert.match(css, /#cfg-mantenimiento:not\(\.mnt-tecnico-visible\)>\.mnt-main-grid/);
+test('Mantenimiento actual expone tres bloques y retira diagnósticos y acciones históricas', () => {
+  const panel=html.slice(html.indexOf('id="cfg-mantenimiento"'),html.indexOf('<!-- TAB: METAS DEL NEGOCIO -->'));
+  assert.equal((panel.match(/<section\b/g)||[]).length,3);
+  for(const id of ['mnt-current-state','mnt-targeted-reviews','mnt-support'])assert(panel.includes('id="'+id+'"'));
+  assert.doesNotMatch(panel,/mnt-guia-usuario|mnt-v2-card|mnt-migraciones-lista|mnt-vinculos-ventas|mnt-console|mntMigrar|mntEliminar/);
+  assert.match(html,/js\/modules\/maintenance-center\.js/);
+  assert.doesNotMatch(html,/<script[^>]+(?:maintenance\.js|v2-readiness\.js|v2-audit\.js|ops-hardening\.js|sale-delete-maintenance\.js)/);
+});
+
+test('la fixture histórica conserva los casos de revisión para las regresiones financieras', () => {
   assert.match(js, /function mntRenderGuiaUsuario/);
   assert.match(js, /Qué pasó:/);
   assert.match(js, /Qué puede afectar:/);

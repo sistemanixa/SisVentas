@@ -21,7 +21,7 @@ test('la incorporación histórica sigue disponible sin duplicados y sólo media
   await page.context._crearGastoComisionDesdeMovimiento('e','m',backend.get('sisventas/ctaemp/e/m'));
   assert.equal(Object.keys(backend.get('sisventas/gastos')).length,1);assert.equal(backend.commits.length,1);assert.deepEqual(backend.direct,[]);
   assert.doesNotMatch(modulo, /window\.sincronizarComisionesLegacyConModulo\(\)/);
-  const maintenance = fs.readFileSync('js/modules/maintenance.js', 'utf8');
+  const maintenance = fs.readFileSync('test/fixtures/legacy-maintenance.source.js', 'utf8');
   assert.match(maintenance, /async function mntMigrarLegacy\(\)[\s\S]*?mntRequireAdmin\('migraciones de mantenimiento','mantenimiento\.migrar'\)/);
   assert.match(maintenance, /await _crearGastoComisionDesdeMovimiento\(empKeyCom, movKeyCom, movCom\)/);
 });

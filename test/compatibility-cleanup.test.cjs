@@ -1,12 +1,15 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
-const {source}=require('./helpers/active-app').readActiveApp();
+const {source,index}=require('./helpers/active-app').readActiveApp();
 
 test('auxiliares retirados no reaparecen en la aplicación activa',()=>{
  const report=JSON.parse(fs.readFileSync('docs/auditoria-compatibilidades-v3106.json','utf8'));
+ assert.match(index,/src="\.\/js\/modules\/maintenance-center\.js(?:\?[^"]*)?"/);
+ assert.doesNotMatch(index,/src="\.\/js\/modules\/maintenance\.js(?:\?[^"]*)?"/);
  for(const item of report.removed_functions){
-  const text=item.file.includes('/app.')?source:fs.readFileSync(item.file,'utf8');
+  const activeFile=item.file==='js/modules/maintenance.js'?'js/modules/maintenance-center.js':item.file;
+  const text=activeFile.includes('/app.')?source:fs.readFileSync(activeFile,'utf8');
   assert.doesNotMatch(text,new RegExp('\\b'+item.name+'\\b'),item.name);
  }
 });

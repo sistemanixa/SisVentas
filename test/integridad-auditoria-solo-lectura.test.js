@@ -1,7 +1,7 @@
 const fs=require('fs');
 const assert=require('assert');
 const vm=require('vm');
-const source=fs.readFileSync('js/modules/v2-audit.js','utf8');
+const source=fs.readFileSync('test/fixtures/legacy-v2-audit.source.js','utf8');
 assert.match(source,/comprobantesVenta/);
 assert.match(source,/gastosEmpleadoInexistente/);
 assert.match(source,/cuentaGastoInexistente/);

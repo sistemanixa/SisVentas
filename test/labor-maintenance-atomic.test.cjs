@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const {createBackend,apply,copy}=require('./helpers/labor-ui-flow.cjs'),Index=require('../cotizador/labor-index');
-const source=fs.readFileSync('js/modules/maintenance.js','utf8');
+const source=fs.readFileSync('test/fixtures/legacy-maintenance.source.js','utf8');
 const fixed=extra=>({tipo:'Fijo',categoria:'Servicios',descripcion:'Internet',fecha:'2026-10-01',monto:100,estado:'pendiente',ts:1,...extra});
 function fixture(initial={}){
  const b=createBackend(initial),p=b.page(),logs=[];vm.runInContext(source,p.context);p.context.svConfirm=async()=>true;p.context.svPrompt=async question=>question.includes('DUPLICADOS')?'DUPLICADOS':'LIMPIAR';p.context.escapeHTML=String;
