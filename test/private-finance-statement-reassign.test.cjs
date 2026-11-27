@@ -1,0 +1,38 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const {M,actor,now,card,statement,command,run,seed,memoryDB}=require('./helpers/private-finance-fixtures.cjs');
+const {createPrivateFinance}=require('../cotizador/private-finance');
+
+test('La transacción mueve un único resumen, conserva su PDF y los pagos, y no suma el saldo anterior',async()=>{
+ let s=seed();
+ s=run(s,'card-save',{...card,bank:'Banco de la Provincia de Buenos Aires',masked:'2241'});
+ s=run(s,'card-save',{...card,id:'dup',bank:'Banco Provincia',masked:'2241'});
+ s=run(s,'statement-save',{...statement,id:'older',period:'2026-09',close:'2026-09-20',due:'2026-09-30'});
+ s=run(s,'payment-save',{statement:'statement-a',amount:10000,currency:'ARS',date:'2026-10-05',type:'Parcial'});
+ s.documents.push({id:'original'});
+ s=run(s,'statement-save',{...statement,id:'recent',card:'dup',file:'original',period:'2026-11',close:'2026-10-15',due:'2026-11-02',total:200000,movements:[{id:'debit',date:'2026-10-15',concept:'Consumo',kind:'Consumo',amount:200000,currency:'ARS',origin:'PDF'}]});
+ const original=structuredClone(s);
+ const db=memoryDB({sv_personal_finance:{[actor.uid]:s}}),api=createPrivateFinance({db,enabled:true,ownerUid:actor.uid,now:()=>now});
+ const c=command(s,'statement-reassign-card',{id:'recent',target:card.id});
+ const {state}=await api.save(actor,c);
+ assert.deepEqual(state.cards.map(c=>c.id),[card.id]);
+ assert.equal(state.statements.length,3);
+ assert.ok(state.statements.every(st=>st.card===card.id));
+ assert.equal(state.statements.find(st=>st.id==='recent').file,'original');
+ assert.deepEqual(state.documents,original.documents);
+ assert.deepEqual(state.payments,original.payments);
+ assert.equal(state.movements.find(m=>m.id==='debit').card,card.id);
+ assert.equal(M.totalDebt(state),200000);
+ assert.deepEqual((await api.save(actor,c)).state,state);
+ const missingMasks=structuredClone(original);
+ missingMasks.cards.forEach(c=>c.masked='');
+ const move={id:'recent',target:card.id,verifiedMasked:'2241'};
+ assert.throws(()=>run(missingMasks,'statement-reassign-card',move),{statusCode:409});
+ missingMasks.statements.find(st=>st.id==='statement-a').file='old-original';
+ missingMasks.documents.push({id:'old-original'});
+ assert.equal(run(missingMasks,'statement-reassign-card',move).cards[0].masked,'2241');
+ assert.throws(()=>run(original,'statement-reassign-card',{id:'statement-a',target:'dup'}),{statusCode:409});
+ const conflict=structuredClone(original);
+ conflict.payments.push({...conflict.payments[0],id:'p-dup',statement:'recent',card:'dup'});
+ assert.throws(()=>run(conflict,'statement-reassign-card',{id:'recent',target:card.id}),{statusCode:409});
+});

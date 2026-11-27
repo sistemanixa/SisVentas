@@ -87,6 +87,38 @@
   if(command.type==='card-save'){
    if(!/^#[0-9a-f]{6}$/i.test(d.color||''))fail(400,'Color inválido');
    save('cards',{id:entityId,bank:text(d.bank,100,true),brand:text(d.brand,60,true),masked:text(d.masked||'',8),color:d.color,status:one(d.status||'Activa',['Activa','Archivada']),policy:text(d.policy||'',300),note:note()});
+  }else if(command.type==='statement-reassign-card'){
+   const st=find('statements',entityId),source=find('cards',st.card),target=find('cards',d.target);
+   const verified=text(d.verifiedMasked||source.masked||'',4);
+   const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+   const bank=value=>normalize(value).replace(/^banco de la provincia de buenos aires$/,'banco provincia');
+   if(source.id===target.id||target.status==='Archivada'||bank(source.bank)!==bank(target.bank)||
+      normalize(source.brand)!==normalize(target.brand)||!/^\d{4}$/.test(verified)||[source.masked,target.masked].some(masked=>masked&&masked!==verified))
+    fail(409,'Verificá que ambas fichas correspondan a la misma tarjeta.');
+   if(s.statements.some(x=>x.id!==st.id&&x.card===source.id)||
+      s.statements.some(x=>x.card===target.id&&(x.period===st.period||x.close===st.close)))
+    fail(409,'La ficha de origen tiene otros resúmenes o el ciclo ya figura en destino.');
+   if((!source.masked||!target.masked)&&(!st.file||!s.statements.some(x=>x.card===target.id&&x.file)))
+    fail(409,'Para fichas sin terminación, verificá los cuatro dígitos en ambos PDF originales.');
+   if(s.payments.some(p=>p.statement===st.id||p.card===source.id))
+    fail(409,'Hay pagos en la ficha de origen. La reasignación se detuvo sin modificarlos.');
+   const movements=s.movements.filter(m=>m.statement===st.id);
+   const ids=new Set(movements.map(m=>m.id));
+   if(s.movements.some(m=>m.card===source.id&&!ids.has(m.id))||s.strategies.some(x=>x.card===source.id))
+    fail(409,'Hay otros registros asociados a la ficha de origen.');
+   const linked=(group,refs)=>{
+    for(const item of s[group].filter(x=>x.card===source.id)){
+     const keys=refs(item).filter(Boolean);
+     if(!keys.length||keys.some(k=>!ids.has(k)))fail(409,'Hay cargos o cuotas con vínculos que requieren revisión.');
+     save(group,{...item,card:target.id});
+    }
+   };
+   linked('insurances',x=>Object.values(x.charges||{}));
+   linked('installments',x=>[x.movement,x.originMovement,...Object.values(x.observations||{}).map(o=>o.movement)]);
+   for(const m of movements){if(m.card!==source.id)fail(409,'Un movimiento pertenece a otra ficha.');save('movements',{...m,card:target.id});}
+   save('statements',{...st,card:target.id});
+   if(!target.masked)save('cards',{...target,masked:verified});
+   s.cards=s.cards.filter(c=>c.id!==source.id);
   }else if(command.type==='statement-save'){
    const old=s.statements.find(x=>x.id===entityId),card=cardId(d.card),p=period(d.period),close=date(d.close),due=date(d.due);
    if(due<close||close>today(stamp))fail(400,'Revisá cierre y vencimiento');
