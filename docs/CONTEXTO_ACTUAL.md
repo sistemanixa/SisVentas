@@ -1,3 +1,7 @@
+# Cuotas por mes de vencimiento
+
+Seleccionar noviembre incluye resúmenes de octubre o noviembre que vencen en noviembre. La lista confirmada usa movimientos de los resúmenes cargados, incluso sin ficha, y excluye proyecciones de la misma ficha. Local con datos reales: 15 cuotas en resúmenes y 7 estimadas, sin fichas repetidas entre grupos. 196 pruebas focales aprobadas. Sin escrituras ni publicación.
+
 # Compras en cuotas por mes del resumen
 
 El selector usa la observación exacta cuando existe y muestra como estimados los meses sin resumen a partir de la última cuota conocida. Conserva importe histórico, separa moneda y no genera cargos ni modifica fichas. La proyección de liberación existente se conserva. 195 pruebas focales aprobadas; sintaxis y diff verificados. Publicación pendiente.
