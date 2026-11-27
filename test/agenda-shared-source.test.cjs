@@ -190,3 +190,7 @@ for(const mode of ['range','all'])for(const field of ['_svOperacionesSesionEpoch
 test('real warm Agenda keeps its DOM while paused and skips identical resumed push, but renders a changed push',async()=>{
  const f=realAgendaFixture();let writes=0,html='';Object.defineProperty(f.nodes['ag-calendario'],'innerHTML',{get:()=>html,set:value=>{writes++;html=value;}});f.c.fbCargarAgenda();f.deliver({one:{fecha:'2026-10-24'}});const prior=html,painted=writes;f.visible(false);f.c.document.emit('visibilitychange');await tick();assert.equal(f.c._agEstadoLectura,'paused');assert.equal(html,prior);assert.equal(writes,painted);f.visible(true);f.c.fbCargarAgenda();assert.equal(html,prior);assert.equal(writes,painted);f.deliver({one:{fecha:'2026-10-24'}});assert.equal(f.c._agEstadoLectura,'ready');assert.equal(writes,painted);f.deliver({two:{fecha:'2026-10-25'}});assert.ok(writes>painted);assert.equal(f.c.AG_DATA[0].fbKey,'two');f.c.AG_UNSUBSCRIBE();await tick();
 });
+
+test('real warm Agenda cannot retain a presentation from a retired data epoch',async()=>{
+ const f=realAgendaFixture();f.c.fbCargarAgenda();f.deliver({one:{fecha:'2026-10-24'}});assert.equal(f.c.AG_DATA.length,1);f.c._svDataEpoch++;f.visible(false);f.c.document.emit('visibilitychange');await tick();assert.equal(f.c.AG_DATA.length,0);assert.equal(f.c._agEstadoLectura,'idle');assert.equal(f.c._svAgendaVista,undefined);
+});
