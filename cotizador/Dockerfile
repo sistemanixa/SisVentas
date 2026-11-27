@@ -70,6 +70,9 @@ COPY sale-return-to-budget.js ./
 
 COPY sale-delete-http-adapter.js sale-delete-command.js sale-delete-relations.js sale-delete-fence.js sale-delete-activity.js sale-delete-live-financial-evidence.js sale-delete-source-reader.js ./
 COPY sale-delete-target-index.js sale-delete-target-index-delta.js sale-delete-targeted-evidence.js sale-delete-target-projections.js sale-delete-target-preparation.js sale-delete-target-preparation-http.js ./
+COPY sale-delete-target-commit.js ./
+COPY sale-delete-target-financial.js ./
+COPY sale-delete-authorization.js ./
 
 COPY purchase-order-delete.js purchase-order-delete-model.js purchase-order-delete-review.js purchase-manual-delete-review.js ./
 

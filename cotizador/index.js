@@ -74,8 +74,9 @@ const oauthAuthorization = require('./oauth-authorization').createOAuthAuthoriza
 const laborTransaction = laborRuntime.transaction;
 const laborWriteGateway=require('./labor-write-gateway').createLaborWriteGateway({auth:businessAuth,db,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled});
 laborRuntime.store.saleDeleteFenceReady=process.env.SALE_DELETE_FENCE_READY==='true';
-const saleDeleteService=require('./sale-delete-http-adapter').createSaleDeleteHttpAdapter({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.SALE_DELETE_READY==='true'});
-const saleDeletePreparation=require('./sale-delete-target-preparation-http').create({authorize:laborWriteGateway.authorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.SALE_DELETE_RELATIONS_ENABLED==='true'});
+const saleDeleteAuthorize=require('./sale-delete-authorization').create({auth:firebaseAuth,db:admin.database(),enabled:laborScopedEnabled});
+const saleDeleteService=require('./sale-delete-http-adapter').createSaleDeleteHttpAdapter({authorize:saleDeleteAuthorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.SALE_DELETE_READY==='true'});
+const saleDeletePreparation=require('./sale-delete-target-preparation-http').create({authorize:saleDeleteAuthorize,guard:laborRuntime.guard,store:laborRuntime.store,enabled:laborScopedEnabled&&process.env.SALE_DELETE_RELATIONS_ENABLED==='true'});
 const purchaseDeleteReview=require('./purchase-order-delete-review').create({env:process.env,runtime:()=>({
  ...laborRuntime.capabilities(),operationalSummaries:process.env.OPERATIONAL_SUMMARIES_ENABLED==='true'
 })});

@@ -1,7 +1,7 @@
 'use strict';
 const M=require('./sale-delete-target-index');
 const F=require('./sale-financial-dependencies-model');
-const Financial=require('./sale-financial-dependencies-provider');
+const Financial=require('./sale-delete-target-financial');
 const Relations=require('./sale-delete-relations');
 const Live=require('./sale-delete-live-financial-evidence');
 const {pool}=require('./payment-snapshot');

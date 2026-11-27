@@ -56,9 +56,12 @@ function createLaborGuard({store,now=Date.now,uuid=crypto.randomUUID,leaseMs=300
  }
  async function execute(actor,work,op){
   const {opId,requestDigest}=op;
-  const lease={fence:uuid(),opId,digest:requestDigest,expiresAt:now()+leaseMs,actorUid:actor.uid,mode:actor.mode};
+  // Initial metadata preparation is a bounded maintenance operation; normal
+  // saves and deletes retain their existing lease duration.
+  const operationLeaseMs=actor.mode==='user'&&actor.operation==='sale-delete-target-preparation'&&actor.financialAction==='ventas.eliminar.preparar'?60000:leaseMs;
+  const lease={fence:uuid(),opId,digest:requestDigest,expiresAt:now()+operationLeaseMs,actorUid:actor.uid,mode:actor.mode};
   for(let attempt=0;;attempt++){
-   lease.expiresAt=now()+leaseMs;
+   lease.expiresAt=now()+operationLeaseMs;
    try{await store.acquire(lease,{clientAccountsWriterVersion:clientAccounts&&commercialPages?1:0,clientHistoryWriterVersion:clientHistory?1:0,saleFinancialWriterVersion:saleFinancialDependencies?1:0});break;}
    catch(error){
     // Las reglas niegan adquirir si el recibo ya existe. Otra instancia pudo
