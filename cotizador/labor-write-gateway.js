@@ -78,13 +78,15 @@ function createLaborWriteGateway({auth,db,guard,store,enabled=false}){
    if(removal&&digest(await removalAccess(path=>scope.get(path)))!==digest(removalContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
    if(bonus&&digest(await bonusAccess(path=>scope.get(path)))!==digest(bonusContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
    if((sac||sacMigration)&&digest(await sacAccess(path=>scope.get(path)))!==digest(sacContext))throw fail(409,'Los permisos cambiaron. Volvé a revisar la operación.','SV_LABOR_AUTH_CHANGED');
-   for(const [path,hash]of Object.entries(expected)){
+   const verifyExpected=async([path,hash])=>{
     // La lectura conserva el permiso del usuario, además del control de escritura
     // evaluado por Firebase para el PATCH final, nunca un resultado Admin público.
     const current=saleReturnPlan?.budgetPath===path&&!saleReturnPlan.reopen?await scope.get(path):scope.getAsUser?await scope.getAsUser(path):await store.readAsUser(path,actor);
     if(saleReturnPlan?.budgetPath===path&&!saleReturnPlan.reopen&&current!==null)throw fail(409,'Esta venta ya tiene un presupuesto recuperado. No se duplicó.','SV_CAS_CONFLICT');
     if(digest(current)!==hash)throw fail(409,'El registro cambió. Se volverá a comprobar.','SV_CAS_CONFLICT');
-   }
+   };
+   if(commissionParticipant)await require('./payment-snapshot').pool(Object.entries(expected),verifyExpected);
+   else for(const entry of Object.entries(expected))await verifyExpected(entry);
    if(normalization)for(const [path,value]of Object.entries(patch)){
     const p=parts(path);if(p[1]==='mantenimiento')continue;
     const current=await scope.get(path);

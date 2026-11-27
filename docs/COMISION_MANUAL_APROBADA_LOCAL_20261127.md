@@ -1,0 +1,13 @@
+# Comisión manual aprobada y lecturas agrupadas
+
+Candidata local v3.22.8; no publicada. La versión publicada anterior permanece intacta.
+
+La carga manual del administrador exige permisos actuales de crear y aprobar comisiones. En una confirmación habilita la venta si corresponde, registra el movimiento aprobado y su gasto pendiente de pago, con UID y sello de aprobación coincidentes. No incluye pagos ni modifica comisiones anteriores. Un administrador con aprobación revocada tampoco puede usar este recorrido. La generación automática y el agregado habitual de participantes conservan su estado pendiente de aprobación.
+
+Se elimina de esta carga manual la descarga previa de toda la cuenta del empleado. Se conservan destinos deterministas, consultas puntuales del servidor por referencias técnicas y comerciales, duplicados históricos, tope compartido, costos originales, comparación de fuentes y comprobación final de permisos. La lectura de originales autorizados y las verificaciones independientes usan grupos acotados de hasta seis; las fases inicial y final siguen separadas. Los errores esperan las consultas activas antes de liberar el guardado. No hay caché entre operaciones ni lecturas nuevas por reloj.
+
+Medición de sólo metadatos de solicitudes reales previas: dos respuestas HTTP200 tardaron aproximadamente14 y16segundos. No se reenviaron para medir. El ensayo ficticio del Gateway/validador con Guard real y20ms por lectura conservó exactamente las32lecturas y el PATCH financiero anterior: aproximadamente1029ms antes y372ms después, concurrencia máxima6. No representa el tiempo total de producción: no incluye sus proyecciones ni su red. No se promete una latencia remota a partir de ese ensayo.
+
+Pruebas focales iniciales:88casos de participante/capacidad,41consumidores completos tras adaptar expectativas del nuevo estado y2recorridos Chrome390/1280 con formulario actual y HTTP/Gateway/Guard/proyectores genuinos sobre originales ficticios. Confirmación cancelada no escribe; confirmación aceptada crea una aprobación sin pago; segundo intento y posterior generación automática no duplican ni reemplazan. Negativos de usuario ajeno, permiso de aprobación inicial/tardío, UID/sellos contradictorios, intento de registrar pagos, fallos paralelos, topes y datos concurrentes. La suite vigente completa queda pendiente al congelar.
+
+La implementación del servidor aún no está desplegada. El frontend local conectado al backend productivo no sustituye esas pruebas ficticias ni autoriza usar el recorrido nuevo antes de publicar ambos. No se aprobaron ni pagaron comisiones reales durante esta corrección. La evidencia técnica de producción permanece exclusivamente en archivos privados locales.

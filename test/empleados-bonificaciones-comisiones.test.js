@@ -53,7 +53,10 @@ test('eliminar una bonificación quita en una sola escritura el gasto y la cuent
 test('la comisión manual confirma control, destino y venta juntos; la automática delega al servidor', async () => {
   assert.match(app, /function _calcularBaseComisionVenta\(venta\)/);
   assert.match(app, /SVCommissionGeneration\.generate\(venta\)/);
-  assert.match(app, /await _ventaTieneComisionGenerada\(emp\.fbKey, venta\)/);
+  const manual=app.slice(app.indexOf('async function guardarComisionManualVenta('),app.indexOf('function _pctComisionEmpleadoVenta('));
+  assert.doesNotMatch(manual, /await _ventaTieneComisionGenerada/,'La carga manual no vuelve a descargar toda la cuenta; el servidor conserva la validación de duplicados.');
+  assert.match(manual, /aprobadoUid: currentUserUid/);
+  assert.match(manual, /Quedará aprobada y pendiente de pago/);
   assert.match(app, /await _generarComisionVentaAtomica\(emp, movimiento, \{ habilitarComision: habilitarComision \}\)/);
   assert.match(app, /ventaId: venta\.id \|\| venta\.numero \|\| venta\.nro/);
   assert.match(app, /ventaFbKey: venta\.fbKey \|\| ''/);
