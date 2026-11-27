@@ -11,7 +11,7 @@ function fixture({sales=[{key:'s',number:'V-FICTICIA'}],payments=[{key:'p',saleK
 }
 test('enumerates sales and payments through EOF, memoizes server histories and includes cancelled payments',async()=>{
  const sales=Array.from({length:51},(_,i)=>({key:'s'+i,number:'FICTICIA-'+i})),payments=[{key:'p',saleKey:'s0',cancelled:true},{key:'p2',saleKey:'s0'}],f=fixture({sales,payments});
- const result=await f.model.run();assert.equal(result.complete,true);assert.equal(result.checked,53);assert.equal(result.total,53);assert.ok(result.results.every(r=>r.status==='ok'));assert.equal(f.calls.filter(x=>x==='history:s0').length,1);assert.ok(f.peak()<=3&&f.peak()>1);assert.equal(f.active(),0);
+ const result=await f.model.run();assert.equal(result.complete,true);assert.equal(result.checked,53);assert.equal(result.total,53);assert.ok(result.results.every(r=>r.status==='ok'));assert.equal(f.calls.filter(x=>x==='history:s0').length,1);assert.ok(f.peak()<=6&&f.peak()>1);assert.equal(f.active(),0);
  assert.equal(f.calls.filter(x=>x?.kind==='sales').length,2);assert.ok(f.calls.filter(x=>x?.kind).every(x=>x.options.scopeName==='all'&&x.options.take===50&&Object.keys(x.options.filters).length===0));assert.equal(f.calls.find(x=>x?.kind==='payments').options.native,true);assert.equal(f.calls.filter(x=>typeof x==='string'&&x.startsWith('sisventas/ventas')).length,0);assert.equal(result.reads,f.calls.length);
 });
 test('progress reports only constant-size counters, not repeated result arrays',async()=>{
@@ -37,7 +37,7 @@ test('coverage revision, count mismatch or repeated page identity prevents compl
  for(const options of cases){const f=fixture({...options,payments:[]}),r=await f.model.run();assert.equal(r.complete,false);assert.ok(!r.results.some(x=>x.status==='ok'));}
 });
 test('cancellation drains in-flight workers, schedules no new work and emits no stale progress',async()=>{
- const f=fixture({sales:Array.from({length:10},(_,i)=>({key:'s'+i})),payments:[]});const pending=f.model.run();await new Promise(r=>setImmediate(r));f.stop();const last=f.progress.length,r=await pending;assert.equal(r.complete,false);assert.equal(f.active(),0);assert.ok(f.calls.filter(x=>typeof x==='string'&&x.startsWith('history:')).length<=3);assert.equal(f.progress.length,last);assert.ok(!f.calls.some(x=>x?.kind==='payments'));
+ const f=fixture({sales:Array.from({length:10},(_,i)=>({key:'s'+i})),payments:[]});const pending=f.model.run();await new Promise(r=>setImmediate(r));f.stop();const last=f.progress.length,r=await pending;assert.equal(r.complete,false);assert.equal(f.active(),0);assert.ok(f.calls.filter(x=>typeof x==='string'&&x.startsWith('history:')).length<=6);assert.equal(f.progress.length,last);assert.ok(!f.calls.some(x=>x?.kind==='payments'));
 });
 test('same run shares work; a later run gets new request-only memos',async()=>{const f=fixture();const a=f.model.run(),b=f.model.run();assert.equal(a,b);await a;await f.model.run();assert.equal(f.calls.filter(x=>x==='history:s').length,2);});
 test('actual commercial pages reader can enumerate a complete fictitious native index without source-root reads',async()=>{
@@ -46,4 +46,18 @@ test('actual commercial pages reader can enumerate a complete fictitious native 
  const sdk={ref:(_,p)=>p,orderByKey:()=>({kind:'order'}),startAt:from=>({kind:'start',from}),limitToFirst:take=>({kind:'limit',take}),query:(ref,...constraints)=>({ref,constraints}),get:async spec=>{const p=typeof spec==='string'?spec:spec.ref;access.push(p);let v=value(p);if(typeof spec==='object'){let entries=Object.entries(v||{}).sort(([a],[b])=>a.localeCompare(b));const start=spec.constraints.find(x=>x.kind==='start'),limit=spec.constraints.find(x=>x.kind==='limit');if(start)entries=entries.filter(([k])=>k>=start.from);if(limit)entries=entries.slice(0,limit.take);v=Object.fromEntries(entries);}return{val:()=>v};}};
  const actor={uid:'u',role:'admin',auth:{},db:{},permissionRevision:1,route:'configuracion',hidden:false,viewing:false,canReadPayments:true,online:true},reader=Reader.create({sdk,capture:()=>actor}),f=fixture();
  const r=await create({reader,history:f.history,read:f.read,valid:()=>true}).run();assert.equal(r.complete,true);assert.equal(r.checked,2);assert.ok(access.every(p=>p.startsWith('sv_commercial_pages')));reader.reset();
+});
+
+test('six shared IO slots overlap independent links without adding reads or duplicating histories',async()=>{
+ const sales=Array.from({length:12},(_,i)=>({key:'s'+i})),payments=sales.map(s=>({key:'p'+s.key,saleKey:s.key}));
+ const f=fixture({sales,payments});let active=0,peak=0,histories=0,points=0;
+ async function tracked(work){active++;peak=Math.max(peak,active);try{await new Promise(r=>setImmediate(r));return work();}finally{active--;}}
+ const result=await create({reader:f.reader,valid:()=>true,history:id=>tracked(()=>{histories++;return {ok:true,record:{fbKey:id,clienteFbKey:'c'+id,otKey:'o'+id,presupuestoFbKey:'b'+id},paymentHistory:{schema:1,source:'global',complete:true,paidAmount:10,payments:[{fbKey:'p'+id,monto:10,hasReceipt:false}]}};}),read:path=>tracked(()=>{points++;return {};})}).run();
+ assert.equal(result.complete,true);assert.equal(result.checked,24);assert.equal(histories,12);assert.equal(points,36);assert.equal(peak,6);assert.equal(active,0);assert.ok(result.results.every(r=>r.status==='ok'));assert.equal(result.reads,52);
+});
+
+test('cancellation with queued link reads drains six slots and never starts queued requests',async()=>{
+ const f=fixture({sales:Array.from({length:6},(_,i)=>({key:'s'+i})),payments:[]});let alive=true,started=0,active=0;const releases=[];
+ const model=create({reader:f.reader,valid:()=>alive,history:async id=>({ok:true,record:{fbKey:id,clienteFbKey:'c'+id,otKey:'o'+id,presupuestoFbKey:'b'+id},paymentHistory:{schema:1,source:'global',complete:true,paidAmount:0,payments:[]}}),read:async()=>{started++;active++;try{await new Promise(r=>releases.push(r));return {};}finally{active--;}}});
+ const pending=model.run();await new Promise(r=>setImmediate(r));assert.equal(started,6);alive=false;releases.forEach(r=>r());const result=await pending;assert.equal(result.complete,false);assert.equal(started,6);assert.equal(active,0);
 });
