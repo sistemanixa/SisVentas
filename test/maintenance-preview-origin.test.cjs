@@ -1,0 +1,5 @@
+const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
+const {source}=require('./helpers/active-app').readActiveApp();
+const start=source.indexOf("if(['127.0.0.1','localhost'].includes(location.hostname)&&new URLSearchParams(location.search).get('maintenance_preview')==='1')");
+assert(start>=0);const text=source.slice(start,source.indexOf('\n',start));
+for(const [hostname,search,kept] of [['ventas.sistemanixa.com','?maintenance_preview=1',true],['127.0.0.1','',true],['127.0.0.1','?maintenance_preview=1',false],['localhost','?maintenance_preview=1',false]])test('preview routing remains confined to explicit loopback review '+hostname+' '+search,()=>{const config={salePaymentHistoryReader:'approved-reader',cotizadorProveedor:'approved-main'},context={location:{hostname,search},URLSearchParams,SISVENTAS_FUNCTIONS:config};vm.runInNewContext(text,context);assert.equal(Object.hasOwn(config,'salePaymentHistoryReader'),kept);assert.equal(config.cotizadorProveedor,'approved-main');});

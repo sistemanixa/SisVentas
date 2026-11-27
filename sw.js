@@ -1,8 +1,11 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.22.2';
+const CACHE = 'sisventas-v3.22.3';
 const SHELL = [
-  './css/maintenance-center.css?v=3.22.2',
+  './js/modules/maintenance-expenses.js?v=3.22.3',
+  './js/modules/maintenance-sales.js?v=3.22.3',
+  './js/modules/client-review-status.js?v=3.22.3',
+  './css/maintenance-center.css?v=3.22.3',
   './css/operation-feedback.css?v=3.21.15',
   './js/core/action-feedback.js?v=3.21.15',
   './js/core/product-media-source.v1.js?v=3.21.15',
@@ -153,7 +156,7 @@ const SHELL = [
   './',
   './index.html',
   './js/modules/paraguay-budget-margin.js?v=3.21.15',
-  './css/app.css?v=3.22.2',
+  './css/app.css?v=3.22.3',
   './css/loading-status.css?v=3.21.17',
   './css/v3-preview.css?v=3.8.20-menu2',
   './js/app.js',
@@ -167,10 +170,10 @@ const SHELL = [
   './js/modules/commercial-approval.js?v=3.9.29',
   './js/core/provider-writes.js?v=3.17.7',
   './js/core/guarded-writes.js?v=3.18.4',
-  './js/core/session-assets.js?v=3.22.2',
+  './js/core/session-assets.js?v=3.22.3',
   './js/core/ot-personal-scope.js?v=3.14.0',
   './js/core/sale-payment-history.v1.js?v=3.22.0',
-  './js/app.v3.22.2.js',
+  './js/app.v3.22.3.js',
   './js/core/activity-period.v1.js',
   './js/core/dashboard-account-source.v1.js?v=3.14.19',
   './js/modules/navigation-back.js?v=3.10.20-home',
@@ -180,7 +183,7 @@ const SHELL = [
   './js/modules/provider-verification.js?v=3.9.3',
   './js/modules/paraguay-config.js?v=3.17.7',
   './js/core/version.js',
-  './js/core/version.v3.22.2.js',
+  './js/core/version.v3.22.3.js',
   './js/core/loading-indicator.js?v=3.21.15',
   './js/core/login.js?v=2.0.154',
   './js/core/access-control.js?v=3.10.32',
@@ -253,7 +256,7 @@ const SHELL = [
   './js/modules/payroll.js?v=3.17.17',
   './js/modules/payroll-legacy-sac.js?v=3.14.7',
   './js/modules/payroll-pending-review.js?v=3.14.7',
-  './js/modules/maintenance-center.js?v=3.22.2',
+  './js/modules/maintenance-center.js?v=3.22.3',
   './js/modules/refactor-health.js?v=3.18.4',
   './js/modules/resizable-tables.js?v=3.18.13',
   './js/modules/grid-default-order.js?v=rendimiento-1',

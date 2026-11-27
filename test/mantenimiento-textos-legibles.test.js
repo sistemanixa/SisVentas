@@ -8,10 +8,10 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-test('el diagnóstico actual conserva acentos y explica su alcance', () => {
-  assert.match(source, /Diagnóstico de sesión/);
+test('el informe conserva acentos y declara el alcance de sus revisiones', () => {
+  assert.match(source, /Informe de mantenimiento/);
   assert.match(source, /Conexión:/);
   assert.match(source, /Versión:/);
-  assert.match(source, /No comprueba saldos ni la integridad completa de la base/);
+  assert.match(source, /No certifica saldos, contabilidad ni la ausencia de otros vínculos/);
   assert.doesNotMatch(source, /diagn\?stico|Sesi\?n|Conexi\?n|Versi\?n/);
 });

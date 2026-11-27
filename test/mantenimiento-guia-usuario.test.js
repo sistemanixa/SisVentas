@@ -6,10 +6,12 @@ const assert = require('node:assert/strict');
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const js = fs.readFileSync(path.join(__dirname, 'fixtures', 'legacy-maintenance.source.js'), 'utf8');
 
-test('Mantenimiento actual expone tres bloques y retira diagnósticos y acciones históricas', () => {
+test('Mantenimiento ofrece revisiones e informe y no duplica el estado de la cabecera', () => {
   const panel=html.slice(html.indexOf('id="cfg-mantenimiento"'),html.indexOf('<!-- TAB: METAS DEL NEGOCIO -->'));
-  assert.equal((panel.match(/<section\b/g)||[]).length,3);
-  for(const id of ['mnt-current-state','mnt-targeted-reviews','mnt-support'])assert(panel.includes('id="'+id+'"'));
+  assert.equal((panel.match(/<section\b/g)||[]).length,2);
+  for(const id of ['mnt-targeted-reviews','mnt-support'])assert(panel.includes('id="'+id+'"'));
+  assert.doesNotMatch(panel,/mnt-current-state|Generar diagnóstico|Abrir Gastos|Abrir Ventas/);
+  assert.match(panel,/Revisar gastos/);assert.match(panel,/Revisar ventas y cobros/);assert.match(panel,/Descargar informe/);
   assert.doesNotMatch(panel,/mnt-guia-usuario|mnt-v2-card|mnt-migraciones-lista|mnt-vinculos-ventas|mnt-console|mntMigrar|mntEliminar/);
   assert.match(html,/js\/modules\/maintenance-center\.js/);
   assert.doesNotMatch(html,/<script[^>]+(?:maintenance\.js|v2-readiness\.js|v2-audit\.js|ops-hardening\.js|sale-delete-maintenance\.js)/);

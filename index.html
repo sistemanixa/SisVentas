@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <!-- Marcador compatible con clientes anteriores que consultan index.html. -->
-<!-- VERSION: 'v3.22.2-firebase' -->
+<!-- VERSION: 'v3.22.3-firebase' -->
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -21,9 +21,9 @@
 })();
 </script>
 <link rel="stylesheet" href="./css/operation-feedback.css?v=3.21.15">
-<link rel="stylesheet" href="./css/maintenance-center.css?v=3.22.2">
+<link rel="stylesheet" href="./css/maintenance-center.css?v=3.22.3">
 <link rel="stylesheet" href="./css/roles-help.css?v=3.10.35">
-<script src="./js/core/version.v3.22.2.js"></script>
+<script src="./js/core/version.v3.22.3.js"></script>
 
 <link rel="stylesheet" href="./css/projects.css?v=3.18.4"><link rel="stylesheet" href="./css/product-code-search.css?v=3.12.16"><link rel="stylesheet" href="./css/catalog-product-picker.css?v=3.12.3">
 <script src="./js/core/projects-model.js?v=3.18.4"></script>
@@ -43,7 +43,7 @@
 <script src="./js/core/login.js?v=2.0.154"></script>
 <script src="./js/core/access-control.js?v=3.10.32"></script>
 <script src="./js/core/domain-read-policy.js?v=3.10.34"></script>
-<link rel="stylesheet" href="./css/app.css?v=3.22.2">
+<link rel="stylesheet" href="./css/app.css?v=3.22.3">
 <link rel="stylesheet" href="./css/loading-status.css?v=3.21.17">
 <link rel="stylesheet" href="./css/surveys.css?v=3.17.7">
 <link rel="stylesheet" href="./css/v3-preview.css?v=3.8.20-menu2">
@@ -2496,34 +2496,27 @@
 
         <!-- TAB: MANTENIMIENTO — revisiones puntuales y soporte -->
         <div id="cfg-mantenimiento" class="cfg-panel" data-maintenance-layout="three-blocks" style="display:none">
-          <section class="card mnt-center-block" id="mnt-current-state" aria-labelledby="mnt-current-title">
-            <div class="card-head"><h2 class="card-title" id="mnt-current-title"><i class="ti ti-heart-rate-monitor"></i> Estado del sistema</h2></div>
-            <p class="mnt-center-copy">Versión y conexión de tu sesión actual.</p>
-            <dl class="mnt-center-state">
-              <div><dt>Versión en uso</dt><dd id="mnt-current-version">Sin confirmar</dd></div>
-              <div><dt>Conexión</dt><dd id="mnt-current-connection" role="status">Sin confirmar</dd></div>
-              <div><dt>Sesión</dt><dd id="mnt-current-session">Sin confirmar</dd></div>
-            </dl>
-          </section>
           <section class="card mnt-center-block" id="mnt-targeted-reviews" aria-labelledby="mnt-reviews-title">
             <div class="card-head"><h2 class="card-title" id="mnt-reviews-title"><i class="ti ti-search"></i> Revisiones puntuales de datos</h2></div>
-            <p class="mnt-center-copy">Elegí qué necesitás revisar. Los registros se abren en su módulo, con sus controles habituales.</p>
+            <p class="mnt-center-copy">Elegí qué necesitás comprobar. La revisión se realiza acá, sin modificar los registros.</p>
             <div class="mnt-center-reviews">
               <div class="mnt-center-review"><h3>Clientes repetidos</h3><p>Compará nombres y dejá registrada tu revisión manual.</p><button type="button" class="btn" data-mnt-action="clients" data-mnt-page="clientes" onclick="SVMaintenanceCenter.openClients()">Revisar clientes</button></div>
-              <div class="mnt-center-review"><h3>Gastos</h3><p>Revisá un gasto, sus fechas y el historial de pagos.</p><button type="button" class="btn" data-mnt-action="expenses" data-mnt-page="gastos" onclick="SVMaintenanceCenter.openExpenses()">Abrir Gastos</button></div>
-              <div class="mnt-center-review"><h3>Ventas y cobros</h3><p>Abrí la venta que necesitás revisar y consultá sus vínculos.</p><button type="button" class="btn" data-mnt-action="sales" data-mnt-page="detalle" onclick="SVMaintenanceCenter.openSales()">Abrir Ventas</button></div>
+              <div class="mnt-center-review"><h3>Gastos</h3><p>Comprobá sus referencias laborales y los registros de origen, sin modificar importes ni pagos.</p><button type="button" class="btn" data-mnt-action="expenses" data-mnt-page="gastos" onclick="SVMaintenanceCenter.openExpenses()">Revisar gastos</button></div>
+              <div class="mnt-center-review"><h3>Ventas y cobros</h3><p>Comprobá la relación entre ventas y cobros e identificá referencias faltantes o ambiguas.</p><button type="button" class="btn" data-mnt-action="sales" data-mnt-page="detalle" onclick="SVMaintenanceCenter.openSales()">Revisar ventas y cobros</button></div>
             </div>
           </section>
           <section class="card mnt-center-block" id="mnt-support" aria-labelledby="mnt-support-title">
-            <div class="card-head"><h2 class="card-title" id="mnt-support-title"><i class="ti ti-lifebuoy"></i> Soporte avanzado</h2></div>
-            <p class="mnt-center-copy">Generá un resumen de esta sesión para soporte. No incluye datos de clientes, ventas ni pagos.</p>
+            <div class="card-head"><h2 class="card-title" id="mnt-support-title"><i class="ti ti-clipboard-check"></i> Resultado de las revisiones</h2></div>
+            <p class="mnt-center-copy">Acá se muestra qué se comprobó, qué necesita revisión y qué no pudo verificarse. Las revisiones no cambian registros.</p>
+            <p id="mnt-review-progress" role="status" aria-live="polite"></p>
+            <button type="button" class="btn" id="mnt-review-cancel" onclick="SVMaintenanceCenter.cancelReview()" hidden>Cancelar revisión</button>
+            <div id="mnt-review-results"></div>
             <div class="mnt-center-actions">
-              <button type="button" class="btn" id="mnt-diagnostic-generate" data-mnt-action="diagnostic" onclick="SVMaintenanceCenter.generate()">Generar diagnóstico</button>
-              <button type="button" class="btn" id="mnt-diagnostic-download" onclick="SVMaintenanceCenter.download()" disabled>Descargar diagnóstico</button>
+              <button type="button" class="btn" id="mnt-diagnostic-download" onclick="SVMaintenanceCenter.download()" disabled>Descargar informe</button>
             </div>
             <p id="mnt-diagnostic-status" role="status"></p>
             <pre class="mnt-center-output" id="mnt-diagnostic-output" hidden></pre>
-            <p class="mnt-center-note">El diagnóstico describe esta sesión; no certifica saldos ni revisa toda la base.</p>
+            <p class="mnt-center-note">El informe incluye el alcance y los hallazgos de las revisiones realizadas en esta sesión. No es un respaldo ni una certificación contable.</p>
           </section>
         </div>
 
@@ -5735,7 +5728,7 @@
 <script src="./js/core/guarded-writes.js?v=3.18.4"></script>
 <script src="./js/core/public-catalog-entry.js?v=3.11.8-catalog-entry"></script>
 <script src="./js/core/session-recovery.js?v=3.12.8-local-server"></script>
-<script src="./js/core/session-assets.js?v=3.22.2"></script>
+<script src="./js/core/session-assets.js?v=3.22.3"></script>
 <link rel="stylesheet" href="./css/user-access.css?v=3.11.9">
 <script src="./js/core/user-access.js?v=3.12.3"></script>
 <script src="./js/core/service-auth.js?v=3.12.20"></script>
@@ -5777,7 +5770,8 @@
 <script src="./js/core/commercial-report-read.v1.js?v=3.19.0"></script>
 <script src="./js/modules/commercial-report-host.v1.js?v=3.19.0"></script>
 <script data-sv-sale-payment-history src="./js/core/sale-payment-history.v1.js?v=3.22.0"></script>
-<script src="./js/app.v3.22.2.js"></script>
+<script src="./js/modules/client-review-status.js?v=3.22.3"></script>
+<script src="./js/app.v3.22.3.js"></script>
 <script src="./js/core/sales-search-model.v1.js?v=3.18.4"></script>
 <script src="./js/core/collection-search-model.v1.js?v=3.18.13"></script>
 <script src="./js/core/commercial-pages-reader.v1.js?v=3.19.6"></script>
@@ -6315,7 +6309,9 @@
 <script src="./js/modules/payroll-pending-review.js?v=3.14.7"></script>
 
 
-<script src="./js/modules/maintenance-center.js?v=3.22.2"></script>
+<script src="./js/modules/maintenance-expenses.js?v=3.22.3"></script>
+<script src="./js/modules/maintenance-sales.js?v=3.22.3"></script>
+<script src="./js/modules/maintenance-center.js?v=3.22.3"></script>
 
 
 <script src="./js/modules/refactor-health.js?v=3.18.4"></script>
