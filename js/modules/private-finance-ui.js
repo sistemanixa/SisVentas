@@ -145,7 +145,17 @@ function installmentRowsForCycle(data,period,shiftMonth){
  }
  const matched=new Set(actual.flatMap(q=>q.id?[q.id]:[]));
  const actualMovements=new Set(actual.map(q=>q.movement));
- return actual.concat(projected.filter(q=>!matched.has(q.id)&&!actualMovements.has(q.movement)));
+ const remaining=projected.filter(q=>!matched.has(q.id)&&!actualMovements.has(q.movement));
+ // Historical imports may create a new purchase record even though the charged installment already exists.
+ const signature=q=>JSON.stringify([q.card,q.currency||'ARS',q.current,q.total,q.amount,
+   String(q.concept||'').trim().toUpperCase().replace(/\s+C\.?\s*\d+\s*\/\s*\d+$/,'').replace(/\s+/g,' ')]);
+ const actualCounts=new Map(),estimateCounts=new Map();
+ for(const q of actual){const k=signature(q);actualCounts.set(k,(actualCounts.get(k)||0)+1);}
+ for(const q of remaining){const k=signature(q);estimateCounts.set(k,(estimateCounts.get(k)||0)+1);}
+ return actual.concat(remaining.filter(q=>{
+  const k=signature(q);
+  return q.confirmed||actualCounts.get(k)!==1||estimateCounts.get(k)!==1;
+ }));
 }
 function quotaMonthResults(query='',cardId=''){
  const rows=installmentRowsForCycle(state,quotaMonth,shift).filter(q=>(q.concept+' '+(q.note||'')).toLowerCase().includes(query)&&(!cardId||q.card===cardId));

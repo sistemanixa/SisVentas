@@ -38,3 +38,13 @@ test('El mes agrupa cierres de distintos bancos por vencimiento e incluye cuotas
  assert.deepEqual(nov,[['Provincia',1,true],['Galicia',2,true],['future',2,false]]);
  assert.deepEqual(Array.from(scope.installmentRowsForCycle(data,'2026-12',shift),q=>[q.id,q.current]),[['qp',2],['future',3]]);
 });
+
+test('Un movimiento verificado reemplaza una proyección histórica equivalente y conserva coincidencias ambiguas',()=>{
+ const statement={id:'recent',card:'x',due:'2026-11-02',period:'2026-10'};
+ const movement={id:'m',statement:'recent',card:'x',kind:'Cuota',concept:'COMPRA ANTIGUA C.06/06',current:6,total:6,amount:7095316,currency:'ARS'};
+ const estimate={id:'old',card:'x',origin:'Manual',period:'2026-10',concept:'COMPRA ANTIGUA',current:5,total:6,amount:7095316,currency:'ARS'};
+ const select=(installments,movements)=>Array.from(scope.installmentRowsForCycle({statements:[statement],movements,installments},'2026-11',shift),q=>[q.movement||q.id,q.confirmed]);
+ assert.deepEqual(select([estimate],[movement]),[['m',true]]);
+ assert.deepEqual(select([estimate],[{...movement,amount:7095317}]),[['m',true],['old',false]]);
+ assert.deepEqual(select([estimate],[movement,{...movement,id:'m2'}]),[['m',true],['m2',true],['old',false]]);
+});
