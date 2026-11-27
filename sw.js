@@ -1,6 +1,6 @@
 /* SisVentas NIXA - Service Worker v3.9.10
    Estrategia: red primero con cache de respaldo. */
-const CACHE = 'sisventas-v3.22.4';
+const CACHE = 'sisventas-v3.22.5';
 const SHELL = [
   './js/modules/maintenance-expenses.js?v=3.22.3',
   './js/modules/maintenance-sales.js?v=3.22.3',
@@ -173,7 +173,7 @@ const SHELL = [
   './js/core/session-assets.js?v=3.22.3',
   './js/core/ot-personal-scope.js?v=3.14.0',
   './js/core/sale-payment-history.v1.js?v=3.22.0',
-  './js/app.v3.22.4.js',
+  './js/app.v3.22.5.js',
   './js/core/activity-period.v1.js',
   './js/core/dashboard-account-source.v1.js?v=3.14.19',
   './js/modules/navigation-back.js?v=3.10.20-home',
@@ -183,7 +183,7 @@ const SHELL = [
   './js/modules/provider-verification.js?v=3.9.3',
   './js/modules/paraguay-config.js?v=3.17.7',
   './js/core/version.js',
-  './js/core/version.v3.22.4.js',
+  './js/core/version.v3.22.5.js',
   './js/core/loading-indicator.js?v=3.21.15',
   './js/core/login.js?v=2.0.154',
   './js/core/access-control.js?v=3.10.32',
@@ -209,13 +209,13 @@ const SHELL = [
   './js/modules/product-query-guard.js?v=3.6.17',
   './js/modules/business-break-even.js?v=3.18.4',
   './push-sw.js',
-  './js/modules/private-finance-portal.js?v=3.22.4',
-  './js/modules/private-finance-ui.js?v=3.22.4',
+  './js/modules/private-finance-portal.js?v=3.22.5',
+  './js/modules/private-finance-ui.js?v=3.22.5',
   './js/core/private-finance-model.js?v=3.14.3-cycle',
   './js/core/private-finance-pdf.js?v=3.20.10',
   './js/core/private-finance-import-queue.js?v=3.12.6',
-  './css/private-finance.css?v=3.14.3-cycle',
-  './personal-finance.html?v=3.22.4',
+  './css/private-finance.css?v=3.22.5',
+  './personal-finance.html?v=3.22.5',
   './js/core/product-ranking.js?v=3.12.17',
   './css/product-ranking.css?v=3.12.17',
   './js/modules/product-ranking-dialog.js?v=3.12.17',
