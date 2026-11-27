@@ -14,7 +14,7 @@ function config(value){
 function check(v){if(v?.name!==NAME||v.environment!=='GEN_2'||v.state!=='ACTIVE'||v.buildConfig?.entryPoint!=='emitirFactura'||!v.serviceConfig?.serviceAccountEmail||v.eventTrigger||!v.updateTime)fail('FUNCTION_SHAPE_NOT_APPROVED');}
 function report(v){check(v);const c=config(v),s=v.serviceConfig;return{name:NAME,configurationSha256:hash(c),updateTime:v.updateTime,groupsSha256:{environment:hash(s.environmentVariables||{}),serviceAccount:hash(s.serviceAccountEmail),trigger:hash(v.eventTrigger??null),scaling:hash(Object.fromEntries(['availableCpu','availableMemory','minInstanceCount','maxInstanceCount','maxInstanceRequestConcurrency','timeoutSeconds'].map(k=>[k,s[k]??null]))),secrets:hash([s.secretEnvironmentVariables||[],s.secretVolumes||[]])}};}
 async function run({mode='plan',zipPath,expectedZipSha256,expectedConfigurationSha256,expectedUpdateTime,enableRelations=false}={},{fetchImpl=fetch,token,wait=ms=>new Promise(r=>setTimeout(r,ms)),notify=()=>{}}={}){
- if(mode==='plan')return{mode,name:NAME,remoteIO:false,maskWhenEnabled:'buildConfig.source,serviceConfig.environmentVariables'};
+ if(mode==='plan')return{mode,name:NAME,remoteIO:false,maskWhenEnabled:'buildConfig.source,serviceConfig.environmentVariables',preserveLatestTrafficWhenAlreadyTrue:true};
  if(!['inspect','apply'].includes(mode)||typeof token!=='function'||typeof enableRelations!=='boolean')fail('INVALID_OPERATOR_OPTIONS');
  let zip;
  if(mode==='apply'){
@@ -35,6 +35,10 @@ async function run({mode='plan',zipPath,expectedZipSha256,expectedConfigurationS
  const fresh=await api(NAME);check(fresh);if(fresh.updateTime!==before.updateTime||hash(fresh)!==hash(before))fail('FUNCTION_CHANGED_BEFORE_PATCH');
  const desired=config(before),body={name:NAME,buildConfig:{source:{storageSource:upload.storageSource}}};let mask='buildConfig.source';
  if(enableRelations){body.serviceConfig={environmentVariables:{...(before.serviceConfig.environmentVariables||{}),[FLAG]:'true'}};desired.serviceConfig.environmentVariables=body.serviceConfig.environmentVariables;mask+=',serviceConfig.environmentVariables';}
+ // The GCF source update can omit this indicator and leave traffic on an older
+ // revision. Preserve only a previously verified 100%-latest setting; never
+ // change a pre-existing split/false/absent setting into 100%-latest.
+ if(before.serviceConfig.allTrafficOnLatestRevision===true){body.serviceConfig={...body.serviceConfig,allTrafficOnLatestRevision:true};mask+=',serviceConfig.allTrafficOnLatestRevision';}
  let op=await api(NAME+'?updateMask='+encodeURIComponent(mask),'PATCH',body);
  if(typeof op.name!=='string'||!new RegExp('^'+PARENT+'/operations/[A-Za-z0-9_-]+$').test(op.name))fail('UNEXPECTED_OPERATION_NAME');
  notify({operation:op.name,phase:'submitted',zipSha256:expectedZipSha256});
