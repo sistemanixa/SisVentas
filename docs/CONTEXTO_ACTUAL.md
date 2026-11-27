@@ -1,3 +1,7 @@
+# Seguros por mes del débito
+
+La vista de Seguros consulta los movimientos ya cargados por fecha de débito. Separa confirmados y candidatos por moneda, conserva las fichas y sus alertas, y evita sumar dos fichas sobre el mismo movimiento. El Resumen usa los cargos confirmados del mes. Sin migración ni escrituras de datos. 194 pruebas focales verdes, node --check y diff --check. Publicación pendiente.
+
 # COMPLETADO: circuito por venta preparado en producción · 26/11/2026
 
 Después de que el titular desbloqueó Windows, se retomó la misma ventana. El primer intento legítimo con la lectura por registro aún rechazó un original por el límite individual de 8 MiB, antes de instalar metadatos. Se corrigieron únicamente dos condiciones: el límite individual ahora está contenido en el mismo presupuesto acumulado de su dominio (OT 80 MiB, Reclamos 32 MiB), sin elevar agregados, memoria, concurrencia, lease ni otros límites. Fuente funcional e1b849699eff61b573f85c69159c6ecedce0ecd6; builder 05f75c3b integrado. Treinta y ocho pruebas focales aprobadas (lector 16, scanner 19, HTTP completo 3 con originales individuales ficticios de 9 MiB) y doce del paquete nativo. No se repitió una suite global ni se ejecutó la medición opcional rechazada.
