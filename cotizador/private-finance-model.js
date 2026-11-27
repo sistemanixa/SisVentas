@@ -87,6 +87,38 @@
   if(command.type==='card-save'){
    if(!/^#[0-9a-f]{6}$/i.test(d.color||''))fail(400,'Color inválido');
    save('cards',{id:entityId,bank:text(d.bank,100,true),brand:text(d.brand,60,true),masked:text(d.masked||'',8),color:d.color,status:one(d.status||'Activa',['Activa','Archivada']),policy:text(d.policy||'',300),note:note()});
+  }else if(command.type==='statement-reassign-card'){
+   const st=find('statements',entityId),source=find('cards',st.card),target=find('cards',d.target);
+   const verified=text(d.verifiedMasked||source.masked||'',4);
+   const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+   const bank=value=>normalize(value).replace(/^banco de la provincia de buenos aires$/,'banco provincia');
+   if(source.id===target.id||target.status==='Archivada'||bank(source.bank)!==bank(target.bank)||
+      normalize(source.brand)!==normalize(target.brand)||!/^\d{4}$/.test(verified)||[source.masked,target.masked].some(masked=>masked&&masked!==verified))
+    fail(409,'Verificá que ambas fichas correspondan a la misma tarjeta.');
+   if(s.statements.some(x=>x.id!==st.id&&x.card===source.id)||
+      s.statements.some(x=>x.card===target.id&&(x.period===st.period||x.close===st.close)))
+    fail(409,'La ficha de origen tiene otros resúmenes o el ciclo ya figura en destino.');
+   if((!source.masked||!target.masked)&&(!st.file||!s.statements.some(x=>x.card===target.id&&x.file)))
+    fail(409,'Para fichas sin terminación, verificá los cuatro dígitos en ambos PDF originales.');
+   if(s.payments.some(p=>p.statement===st.id||p.card===source.id))
+    fail(409,'Hay pagos en la ficha de origen. La reasignación se detuvo sin modificarlos.');
+   const movements=s.movements.filter(m=>m.statement===st.id);
+   const ids=new Set(movements.map(m=>m.id));
+   if(s.movements.some(m=>m.card===source.id&&!ids.has(m.id))||s.strategies.some(x=>x.card===source.id))
+    fail(409,'Hay otros registros asociados a la ficha de origen.');
+   const linked=(group,refs)=>{
+    for(const item of s[group].filter(x=>x.card===source.id)){
+     const keys=refs(item).filter(Boolean);
+     if(!keys.length||keys.some(k=>!ids.has(k)))fail(409,'Hay cargos o cuotas con vínculos que requieren revisión.');
+     save(group,{...item,card:target.id});
+    }
+   };
+   linked('insurances',x=>Object.values(x.charges||{}));
+   linked('installments',x=>[x.movement,x.originMovement,...Object.values(x.observations||{}).map(o=>o.movement)]);
+   for(const m of movements){if(m.card!==source.id)fail(409,'Un movimiento pertenece a otra ficha.');save('movements',{...m,card:target.id});}
+   save('statements',{...st,card:target.id});
+   if(!target.masked)save('cards',{...target,masked:verified});
+   s.cards=s.cards.filter(c=>c.id!==source.id);
   }else if(command.type==='statement-save'){
    const old=s.statements.find(x=>x.id===entityId),card=cardId(d.card),p=period(d.period),close=date(d.close),due=date(d.due);
    if(due<close||close>today(stamp))fail(400,'Revisá cierre y vencimiento');
@@ -132,10 +164,17 @@
    const st=find('statements',d.statement),value=money(d.amount),c=currency(d.currency),dt=date(d.date,!!d.declared),type=one(d.type,['Mínimo','Total','Parcial','Extraordinario']);if(!value)fail(400,'El pago debe ser mayor a cero');
    if(d.declared&&type!=='Mínimo')fail(400,'Solo un mínimo declarado puede quedar sin fecha');if(dt&&(dt<st.close||dt>today(stamp)))fail(400,'La fecha debe estar entre el cierre y hoy');
    if(type==='Mínimo'&&c!==st.minimumCurrency)fail(400,'La moneda no coincide con el mínimo del resumen');
-   const b=balance(s,st,c);if((b==null||value>b)&&!d.reconciliation)fail(409,'El pago requiere conciliación explícita por saldo desconocido o excedido');if(type==='Total'&&value!==b)fail(400,'El pago total debe coincidir con el saldo de esa moneda');
-   if(s.payments.some(p=>p.statement===st.id&&p.currency===c&&p.amount===value&&p.date===dt&&p.status!=='Anulado'))fail(409,'Ya existe un pago con fecha, moneda e importe iguales');
-   if(type==='Mínimo'){if(c!==st.minimumCurrency)fail(400,'La moneda no coincide con el mínimo del resumen');if(st.minimum==null&&!d.reconciliation)fail(400,'Mínimo desconocido: completá la conciliación');const pending=st.minimum==null?null:Math.max(0,st.minimum-paid(s,st,c));if(pending===0||pending!=null&&value<pending)fail(400,'El mínimo está cubierto o el importe no lo alcanza; revisá el tipo de pago');}
-   save('payments',{id:entityId,statement:st.id,card:st.card,amount:value,currency:c,date:dt,type,status:'Registrado',initial:!!d.declared,origin:d.declared?'Declarado sin comprobante':'Manual',note:note(),reconciliation:text(d.reconciliation||'',1000)});
+   let bankReversal=null;
+   if(d.bankReversal!=null){
+    const reversed=money(d.bankReversal.amount),reversedOn=date(d.bankReversal.date);
+    if(!dt||!reversed||reversed>value||reversedOn<dt||reversedOn>today(stamp))fail(400,'Revisá la fecha y el importe de la reversión bancaria');
+    bankReversal={date:reversedOn,amount:reversed};
+   }
+   const net=value-(bankReversal?.amount||0);
+   const b=balance(s,st,c);if((b==null||net>b)&&!d.reconciliation)fail(409,'El pago requiere conciliación explícita por saldo desconocido o excedido');if(type==='Total'&&net!==b)fail(400,'El pago total debe coincidir con el saldo de esa moneda');
+   if(s.payments.some(p=>p.statement===st.id&&p.currency===c&&(p.bankReversal?.grossAmount??p.amount)===value&&p.date===dt&&p.status!=='Anulado'))fail(409,'Ya existe un pago con fecha, moneda e importe iguales');
+   if(type==='Mínimo'){if(c!==st.minimumCurrency)fail(400,'La moneda no coincide con el mínimo del resumen');if(st.minimum==null&&!d.reconciliation)fail(400,'Mínimo desconocido: completá la conciliación');const pending=st.minimum==null?null:Math.max(0,st.minimum-paid(s,st,c));if(pending===0||pending!=null&&net<pending)fail(400,'El mínimo está cubierto o el importe no lo alcanza; revisá el tipo de pago');}
+   save('payments',{id:entityId,statement:st.id,card:st.card,amount:net,currency:c,date:dt,type,...(bankReversal?{bankReversal:{...bankReversal,grossAmount:value}}:{}),status:'Registrado',initial:!!d.declared,origin:d.declared?'Declarado sin comprobante':'Manual',note:note(),reconciliation:text(d.reconciliation||'',1000)});
   }else if(command.type==='payment-edit'){
    const p=find('payments',entityId),st=find('statements',p.statement);if(!p.initial||p.status==='Anulado')fail(400,'Solo se completan mínimos declarados activos');const dt=date(d.date,true);if(dt&&(dt<st.close||dt>today(stamp)))fail(400,'Fecha de pago inválida');save('payments',{...p,date:dt,note:note()});
   }else if(command.type==='payment-void'){

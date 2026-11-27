@@ -26,3 +26,19 @@ test('persistencia concurrente y reintento incierto producen un solo pago',async
 test('PDF autenticado, hash por contenido, firma, descarga y no URL pública',async()=>{const storage=new Map(),{api}=service({documents:{put:async(p,b)=>storage.set(p,b),get:async p=>storage.get(p)}}),a=await api.authorize({headers:{authorization:'Bearer '+actor.uid}}),bytes=Buffer.from('%PDF-1.4\nFixture sin datos reales\n%%EOF');const one=await api.upload(a,{name:'ficticio.pdf',data:bytes.toString('base64')}),two=await api.upload(a,{name:'renombrado.pdf',data:bytes.toString('base64')});assert.equal(two.state.documents.length,1);assert.equal(storage.size,1);assert.equal(one.document.sha256,two.document.sha256);assert.equal(one.document.url,undefined);assert.deepEqual((await api.download(a,one.document.id)).bytes,bytes);await assert.rejects(api.download({uid:'other-admin'},one.document.id),e=>e.statusCode===403);await assert.rejects(api.upload(a,{name:'falso.pdf',data:Buffer.from('No PDF').toString('base64')}),e=>e.statusCode===400);});
 test('extracción conserva origen y página; ausencia y OCR no se vuelven ceros',()=>{const result=PDF.parse(['Período: 2026-10\nCierre: 01/10/2026\nVencimiento: 20/10/2026\nSaldo actual ARS: 1.000,01\nSaldo actual USD: 50,25\nPago mínimo: 100,00\nTEM: 5,25%\n01/10/2026 Seguro ficticio ARS 50,01']);assert.equal(result.fields.total.value,100001);assert.equal(result.fields.usd.value,5025);assert.equal(result.fields.total.page,1);assert.equal(result.movements[0].kind,'Débito a confirmar');assert.equal(PDF.parse(['escaneado']).fields.total,undefined);assert.equal(PDF.decimal('1,234.50'),null);});
 test('cliente no incluye semillas, localStorage financiero, token en URL ni escritura empresarial',()=>{const ui=fs.readFileSync('js/modules/private-finance-ui.js','utf8'),portal=fs.readFileSync('js/modules/private-finance-portal.js','utf8'),server=fs.readFileSync('cotizador/private-finance.js','utf8');assert.doesNotMatch(ui,/localStorage|indexedDB|SEED|originalFiles|confirmrestore/);assert.doesNotMatch(server,/sisventas\/(gastos|pagos|comisiones|caja|tesoreria)/);assert.match(portal,/cache:'no-store'/);assert.match(portal,/sisventas:session-ended/);assert.match(portal,/requests\.clear/);assert.equal(fs.readFileSync('js/core/private-finance-model.js','utf8'),fs.readFileSync('cotizador/private-finance-model.js','utf8'));});
+
+test('una reversion bancaria parcial o total conserva los importes y aplica solo el neto', () => {
+ const payment = {statement:'statement-a', amount:20000, currency:'ARS', date:'2026-10-03', type:'Parcial'};
+ const partial = {date:'2026-10-04', amount:7000};
+ let state = run(seed(), 'payment-save', {...payment, bankReversal:partial});
+ assert.equal(M.totalDebt(state), 87001);
+ assert.deepEqual(state.payments[0].bankReversal, {...partial,grossAmount:20000});
+ assert.equal(state.payments[0].amount, 13000);
+ error(() => run(state, 'payment-save', {...payment, bankReversal:partial}), 409);
+ error(() => run(state, 'payment-save', {...payment, date:'2026-10-05', bankReversal:partial}), 400);
+ const full = {date:'2026-10-06', amount:20000};
+ state = run(state, 'payment-save', {...payment, date:full.date, bankReversal:full});
+ assert.equal(M.totalDebt(state), 87001);
+ assert.deepEqual(state.payments[1].bankReversal, {...full,grossAmount:20000});
+ error(() => run(state, 'payment-save', {...payment, bankReversal:{...partial, amount:20001}}), 400);
+});
