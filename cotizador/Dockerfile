@@ -75,7 +75,7 @@ COPY sale-delete-target-financial.js ./
 COPY sale-delete-authorization.js ./
 COPY sale-delete-preparation-reader.js ./
 
-COPY purchase-order-delete.js purchase-order-delete-model.js purchase-order-delete-review.js purchase-manual-delete-review.js ./
+COPY purchase-order-delete.js purchase-order-delete-model.js purchase-order-delete-review.js purchase-manual-delete-review.js purchase-draft-delete-policy.js ./
 
 COPY ot-delete-command.js ot-delete-policy.js ot-delete-http-adapter.js ./
 COPY office-stock.js office-stock-policy.js office-stock-model.js office-stock-money.js ot-delete-authority.js ot-delete-operational-contract.js ot-delete-linked-plan.js ot-delete-operational-runtime.js ./

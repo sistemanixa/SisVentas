@@ -1162,12 +1162,12 @@
     });
   }
 
-  function statusBadge(status) {
+  function statusBadge(status,annulled) {
     var map = {
       borrador: ['b-blue', 'Borrador'], enviada: ['b-amber', 'Enviada'], recepcion_parcial: ['b-amber', 'Recepción parcial'],
       recibida: ['b-green', 'Recibida'], cancelada: ['b-red', 'Cancelada'], preparacion: ['b-blue', 'Preparación'], ordenada: ['b-amber', 'Ordenada'], reservada: ['b-green', 'Reservada sin compra'], cerrada: ['b-green', 'Cerrada']
     };
-    var data = map[status] || ['b-blue', status || '—'];
+    var data = annulled ? ['b-red','Anulada'] : map[status] || ['b-blue', status || '—'];
     return '<span class="badge ' + data[0] + '">' + esc(data[1]) + '</span>';
   }
 
@@ -1227,7 +1227,7 @@
       (list.length ? page.rows.map(function (o) {
         var qty = Array.isArray(o.items) ? o.items.reduce(function (s, i) { return s + (parseFloat(i.cantidadOrdenada || i.cantidad) || 0); }, 0) : (parseFloat(o.cantidad) || 0);
         var itemCount = (o.items && o.items.length) || 1;
-        return '<tr onclick="ocAbrirOrden(\'' + attr(o.fbKey) + '\')" style="cursor:pointer"><td><strong>' + esc(o.numero || '—') + '</strong></td><td>' + esc(orderProviderSummary(o)) + '</td><td>' + (o.ventaId ? '<span class="badge b-blue">' + esc(o.ventaId) + '</span><div style="font-size:11px;color:var(--text3)">' + esc(o.cliente || '') + '</div>' : 'Stock general') + '</td><td>' + qty + ' un. · ' + itemCount + ' ' + (itemCount === 1 ? 'ítem' : 'ítems') + '</td><td class="tr"><strong>' + money(o.total || o.monto) + '</strong></td><td>' + fmtDate(o.fecha) + '</td><td>' + statusBadge(o.estado) + '</td><td><button type="button" class="btn btn-sm btn-icon" title="Ver detalle" aria-label="Ver detalle"><i class="ti ti-eye"></i><span class="sv-mobile-action-label">Ver detalle</span></button></td></tr>';
+        return '<tr onclick="ocAbrirOrden(\'' + attr(o.fbKey) + '\')" style="cursor:pointer"><td><strong>' + esc(o.numero || '—') + '</strong></td><td>' + esc(orderProviderSummary(o)) + '</td><td>' + (o.ventaId ? '<span class="badge b-blue">' + esc(o.ventaId) + '</span><div style="font-size:11px;color:var(--text3)">' + esc(o.cliente || '') + '</div>' : 'Stock general') + '</td><td>' + qty + ' un. · ' + itemCount + ' ' + (itemCount === 1 ? 'ítem' : 'ítems') + '</td><td class="tr"><strong>' + money(o.total || o.monto) + '</strong></td><td>' + fmtDate(o.fecha) + '</td><td>' + statusBadge(o.estado,o.anulada) + '</td><td><button type="button" class="btn btn-sm btn-icon" title="Ver detalle" aria-label="Ver detalle"><i class="ti ti-eye"></i><span class="sv-mobile-action-label">Ver detalle</span></button></td></tr>';
       }).join('') : '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text3)">Todavía no hay órdenes en este estado</td></tr>') +
       '</tbody></table></div>' + page.html;
   }
@@ -1239,7 +1239,7 @@
     function amount(value,unit){return value == null ? '—' : Number(value).toLocaleString('es-AR',{maximumFractionDigits:6}) + ' ' + esc(unit);}
     target.innerHTML=metricBanner()+'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;margin:0 14px 12px;border:1px solid var(--amber);border-radius:8px;flex-wrap:wrap"><span>Producto: «'+esc(query)+'» · '+rows.length+' coincidencias en '+orderKeys.size+' órdenes</span><button class="btn btn-sm" type="button" onclick="ocLimpiarBusquedaProducto()">Quitar búsqueda</button></div>'+
       '<div class="table-wrap"><table id="oc2-product-history-table" data-sv-column-key="ordenes-compra-producto" style="min-width:1160px!important"><thead><tr><th>Orden</th><th>Producto</th><th>Proveedor</th><th class="tr">Pedida</th><th class="tr">Recibida</th><th>Fecha compra</th><th>Últ. recepción</th><th>Destino</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>'+
-      (rows.length ? page.rows.map(function(r){var o=r.order;return '<tr data-order-key="'+attr(o.fbKey)+'" onclick="ocAbrirOrden(this.dataset.orderKey)" style="cursor:pointer"><td><strong>'+esc(o.numero||'—')+'</strong></td><td style="white-space:normal!important;overflow-wrap:anywhere;line-height:1.45"><strong>'+esc(r.code)+'</strong><div>'+esc(r.name)+'</div></td><td>'+esc(r.item.proveedorFinal || orderProviderSummary(o))+'</td><td class="tr">'+amount(r.ordered,r.unit)+'</td><td class="tr">'+amount(r.received,r.unit)+'</td><td>'+esc(fmtDate(r.orderedDate))+'</td><td>'+esc(fmtDate(r.receivedDate))+'</td><td>'+esc(o.ventaId || (o.ventaFbKey ? 'Reservada para venta' : 'Stock general'))+'</td><td>'+statusBadge(o.estado)+'</td><td><button class="btn btn-sm btn-icon" type="button" aria-label="Ver detalle" title="Ver detalle"><i class="ti ti-eye"></i></button></td></tr>';}).join(''):'<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text3)">No hay productos que coincidan con esta búsqueda y estado.</td></tr>')+'</tbody></table></div>'+page.html;
+      (rows.length ? page.rows.map(function(r){var o=r.order;return '<tr data-order-key="'+attr(o.fbKey)+'" onclick="ocAbrirOrden(this.dataset.orderKey)" style="cursor:pointer"><td><strong>'+esc(o.numero||'—')+'</strong></td><td style="white-space:normal!important;overflow-wrap:anywhere;line-height:1.45"><strong>'+esc(r.code)+'</strong><div>'+esc(r.name)+'</div></td><td>'+esc(r.item.proveedorFinal || orderProviderSummary(o))+'</td><td class="tr">'+amount(r.ordered,r.unit)+'</td><td class="tr">'+amount(r.received,r.unit)+'</td><td>'+esc(fmtDate(r.orderedDate))+'</td><td>'+esc(fmtDate(r.receivedDate))+'</td><td>'+esc(o.ventaId || (o.ventaFbKey ? 'Reservada para venta' : 'Stock general'))+'</td><td>'+statusBadge(o.estado,o.anulada)+'</td><td><button class="btn btn-sm btn-icon" type="button" aria-label="Ver detalle" title="Ver detalle"><i class="ti ti-eye"></i></button></td></tr>';}).join(''):'<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text3)">No hay productos que coincidan con esta búsqueda y estado.</td></tr>')+'</tbody></table></div>'+page.html;
   }
 
   function metricBanner() {
@@ -1711,7 +1711,7 @@
     var hasReceipts = (order.items || []).some(function (item) { return (parseFloat(item.cantidadRecibida) || 0) > 0; });
     var editableReconciliation = hasReceipts && order.estado !== 'cancelada';
     var editableOrder = !hasReceipts && order.estado !== 'recibida' && order.estado !== 'cancelada';
-    body.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">' + statusBadge(order.estado) + (order.ventaId ? '<span class="badge b-blue">Destino: ' + esc(order.ventaId) + ' · ' + esc(order.cliente || '') + '</span>' : '<span class="badge b-green">Destino: stock general</span>') + '</div>' +
+    body.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">' + statusBadge(order.estado,order.anulada) + (order.ventaId ? '<span class="badge b-blue">Destino: ' + esc(order.ventaId) + ' · ' + esc(order.cliente || '') + '</span>' : '<span class="badge b-green">Destino: stock general</span>') + '</div>' +
       '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">En cada material indicá el proveedor efectivo, el costo real y la cantidad recibida. La diferencia se calcula mientras escribís.</div>' +
       '<div class="table-wrap"><table id="oc-order-items-table" data-sv-column-key="ordenes:detalle-conciliacion"><thead><tr><th>Material</th><th class="tr">Ordenado</th><th class="tr">Recibido</th><th class="tr">Pendiente</th><th>Proveedor real</th><th class="tr">Compra presup.</th><th class="tr">Compra real</th><th class="tr">Resultado</th>' + (editableReceipt ? '<th class="tr">Recibir ahora</th>' : '') + '</tr></thead><tbody>' +
       (order.items || []).map(function (item, index) {
@@ -1736,7 +1736,8 @@
         (order.estado === 'borrador' ? '<button class="btn" onclick="ocCambiarEstadoOrden(\'enviada\')"><i class="ti ti-send"></i> Marcar enviada</button>' : '') +
         (editableReceipt ? '<button class="btn btn-primary" onclick="ocRegistrarRecepcion()"><i class="ti ti-package-import"></i> Registrar recepción</button>' : '') +
         (order.estado !== 'cancelada' && order.estado !== 'recibida' ? '<button class="btn" style="color:var(--red)" onclick="ocCambiarEstadoOrden(\'cancelada\')">Cancelar</button>' : '') +
-        '<button class="btn" style="color:var(--red)" onclick="ocEliminarOrdenActual()"><i class="ti ti-trash"></i> Eliminar</button>' +
+        (order.estado==='borrador'?'<button class="btn" style="color:var(--red)" onclick="ocEliminarOrdenActual()"><i class="ti ti-trash"></i> Eliminar borrador</button>':'') +
+        (['recibida','recepcion_parcial'].includes(order.estado)?'<button class="btn" style="color:var(--red)" onclick="ocAnularOrdenActual()">Anular compra</button>':'') +
       '</div></div>';
     modal.style.display = 'flex';
     close.focus({preventScroll:true});
@@ -2220,6 +2221,22 @@
     }
   }
 
+  async function cancelReceivedOrder(){
+    var order=state.activeOrder;if(!order||!order.fbKey||state.orderDeletePending)return;
+    if(window.tienePermiso&&!window.tienePermiso('ordenes.eliminar')){window.notify('No tenés permiso para anular compras.');return;}
+    var valid=window.svCapturarContextoOperacion?window.svCapturarContextoOperacion():function(){return true;};
+    if(!await window.svConfirm('¿Anular '+(order.numero||'esta compra')+'? Se revertirá el stock recibido y se conservará la orden como anulada.'))return;
+    if(!valid()||state.activeOrder!==order)return;
+    var modal=document.getElementById('oc-order-modal'),button=modal&&modal.querySelector('[onclick="ocAnularOrdenActual()"]');
+    state.orderDeletePending=true;if(button){button.disabled=true;button.textContent='Anulando…';}
+    try{
+      if(!window.SVFinancialCommands?.cancelOrder)throw Error('Actualizá SisVentas para anular la compra.');
+      var result=await window.SVFinancialCommands.cancelOrder(order,order);if(!result?.cancelled)throw Error('No se confirmó la anulación. La compra se conserva.');
+      if(valid()&&state.activeOrder===order){state.activeOrder=null;if(modal)modal.style.display='none';window.notify('Compra anulada. Se conservó el historial y se revirtió el stock recibido.');}
+    }catch(error){if(valid())window.notify('No se pudo anular: '+error.message);}
+    finally{state.orderDeletePending=false;if(button&&state.activeOrder===order){button.disabled=false;button.textContent='Anular compra';}}
+  }
+
   // Las órdenes del circuito anterior sólo se necesitan para su incorporación explícita.
   // No son fuente de métricas, inventario ni listas actuales.
   function loadLegacyOrders() {
@@ -2425,6 +2442,7 @@
   window.ocGuardarConciliacionActual = saveActiveReconciliation;
   window.ocEditarOrdenActual = editActiveOrder;
   window.ocEliminarOrdenActual = deleteActiveOrder;
+  window.ocAnularOrdenActual = cancelReceivedOrder;
   window.ocAgregarItemManual = addManualItemV2;
   window.ocBuscarProductoManual = searchManualProductsV2;
   window.ocSeleccionarProductoManual = addManualItemV2;

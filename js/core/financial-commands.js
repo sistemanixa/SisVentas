@@ -26,7 +26,7 @@
   async function request(path,body,session,{capability=false,orderDelete=false}={}){
    let attempted=false;
    try{
-    session.check();const purchase=orderDelete||path==='/compras/ordenes/eliminar',base=String((purchase?root.SISVENTAS_FUNCTIONS?.comprasRevisadas:null)||root.SISVENTAS_FUNCTIONS?.cotizadorProveedor||'').replace(/\/$/,'');
+    session.check();const purchase=orderDelete||['/compras/ordenes/eliminar','/compras/ordenes/anular'].includes(path),base=String((purchase?root.SISVENTAS_FUNCTIONS?.comprasRevisadas:null)||root.SISVENTAS_FUNCTIONS?.cotizadorProveedor||'').replace(/\/$/,'');
     if(!base||typeof root.fetch!=='function'||typeof root.SVServiceAuth?.headers!=='function')throw fail('SV_FINANCIAL_SERVICE','No se pudo conectar con el guardado seguro.',503);
     const serialized=JSON.stringify(body);if(new TextEncoder().encode(serialized).byteLength>16*1024*1024)throw fail('SV_LABOR_SIZE','El guardado supera el tamaño permitido.',400);
     const headers=await root.SVServiceAuth.headers({'Content-Type':'application/json'});session.check();
@@ -124,6 +124,7 @@
   async function deleteOT(ot,reference=ot){const session=capture();if(!ot||typeof ot.fbKey!=='string'||!ot.fbKey||ot._svListSummary||ot._svPagedSummary)throw fail('SV_OT_DELETE_SOURCE','Volvé a abrir la OT original antes de eliminarla.',409);const original=clone(ot);delete original.fbKey;const expectedHash=await hash(original);session.check();return command('otDelete','delete-ot:'+ot.fbKey,{otKey:ot.fbKey,expectedHash},reference,'/operaciones/ot/eliminar',data=>{if(data?.otKey!==ot.fbKey)throw Object.assign(fail('SV_LABOR_COMMIT_UNCONFIRMED','No se recibió la confirmación de la OT eliminada.',503),{svLaborAttempted:true});return {otKey:ot.fbKey};});}
   async function canDeleteOT(){const session=capture(),state=await request('/operaciones/ot/disponible',{},session,{capability:true});session.check();return state?.version===1&&state.enabled===true;}
   function prepareSaleDeletion(){return command('saleDelete','prepare-sale-deletion',{},null,'/comerciales/ventas/eliminacion/preparar',data=>{if(data?.prepared!==true)throw fail('SV_LABOR_COMMIT_UNCONFIRMED','No se recibió la confirmación de los vínculos.',503);return {prepared:true};});}
-  return {register,annul,createExpense,editExpense,deleteSale,deleteOrder,deleteOT,canDeleteOT,prepareSaleDeletion};
+  async function cancelOrder(order,reference=order){const session=capture();if(!order||typeof order.fbKey!=='string'||!order.fbKey||order._svListSummary||order._svPagedSummary)throw fail('SV_PURCHASE_DELETE_SOURCE','Volvé a abrir la orden original antes de anularla.',409);const original=clone(order);delete original.fbKey;const expectedHash=await hash(original);session.check();return command('orderDelete','cancel-order:'+order.fbKey,{orderKey:order.fbKey,expectedHash,operation:'cancel'},reference,'/compras/ordenes/anular',data=>{if(data?.orderKey!==order.fbKey||data?.cancelled!==true)throw Object.assign(fail('SV_LABOR_COMMIT_UNCONFIRMED','No se recibió la confirmación de la anulación.',503),{svLaborAttempted:true});return {orderKey:data.orderKey,cancelled:true};});}
+  return {register,annul,createExpense,editExpense,deleteSale,deleteOrder,cancelOrder,deleteOT,canDeleteOT,prepareSaleDeletion};
  };
 });

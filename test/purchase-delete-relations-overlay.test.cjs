@@ -5,11 +5,15 @@ const native=process.env.SV_PURCHASE_DELETE_NATIVE_ROOT;
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 test('native purchase overlay reverses every core and maintains links without changing physical stock',{skip:!native},async t=>{
  const baselines=Object.fromEntries(B.BASES.map(n=>[n,fs.readFileSync(path.join(native,n))])),sources=Object.fromEntries(B.SOURCES.map(n=>[n,fs.readFileSync(path.join(__dirname,'../cotizador',n))]));
+ // Rebuild the prior reviewed overlay first; the second derivation below checks
+ // the current server and command against those actual native bytes.
+ sources['purchase-delete-server.js']=Buffer.from(baselines['purchase-delete-server.js'].toString().replace('clientAccounts:true});','clientAccounts:true,saleDeleteRelations:true});'));
  const derived=B.derive({baselines,sources,expectedBaseHashes:Object.fromEntries(Object.entries(baselines).map(([n,b])=>[n,sha(b)])),expectedSourceHashes:Object.fromEntries(Object.entries(sources).map(([n,b])=>[n,sha(b)]))});
  assert.equal(Object.keys(derived.files).length,9);
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'purchase-native-'));
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  fs.cpSync(native,dir,{recursive:true});for(const[n,b]of Object.entries(derived.files))fs.writeFileSync(path.join(dir,n),b);
+ const Next=require('../scripts/lib/purchase-draft-command-overlay.cjs'),nextBases=Object.fromEntries(Next.BASES.map(n=>[n,fs.readFileSync(path.join(dir,n))])),nextSources=Object.fromEntries(Next.SOURCES.map(n=>[n,fs.readFileSync(path.join(__dirname,'../cotizador',n))])),next=Next.derive({baselines:nextBases,sources:nextSources,expectedBaseHashes:Object.fromEntries(Object.entries(nextBases).map(([n,b])=>[n,sha(b)])),expectedSourceHashes:Object.fromEntries(Object.entries(nextSources).map(([n,b])=>[n,sha(b)]))});for(const[n,b]of Object.entries(next.files))fs.writeFileSync(path.join(dir,n),b);
  const {createCoordinatedBackend}=require('./helpers/coordinated-backend.cjs'),{apply}=require('./helpers/labor-ui-flow.cjs');
  const orders={draft:{numero:'OC-FIXTURE',estado:'borrador',origen:'manual',items:[{productoKey:'p',codigo:'P',cantidadOrdenada:2,cantidadRecibida:0}]},received:{numero:'OC-FIXTURE',estado:'recibida',origen:'manual',items:[{productoKey:'p',codigo:'P',cantidadOrdenada:2,cantidadRecibida:2}]}},inventory={general:2,reservado:0,enCompra:2,consumido:0};
  const backend=await createCoordinatedBackend({ordenes:orders,inventario_operativo:{p:inventory}}),state=backend.state;
@@ -21,8 +25,7 @@ test('native purchase overlay reverses every core and maintains links without ch
  const fin=structuredClone(at(M.FINANCIAL_ROOT));
  const reads=[],commits=[],store={...backend.store,read:async p=>{reads.push(p);return structuredClone(at(p));},exists:async p=>at(p)!==null,readAsUser:async p=>structuredClone(at(p)),commit:async(p,l,a)=>{assert.equal(a.saleDeleteRelationsWriterVersion,1);commits.push(structuredClone(p));apply(state,p);}};
  const guard=G.createLaborGuard({store,commercialPages:true,clientAccounts:true,saleDeleteRelations:true,operationalSummaries:true,delay:async()=>{}});
- const prepared=R.prepare({orders,orderKey:'draft',protectedOrderKey:'received',inventoryByKey:{p:inventory},configs:state,expiresAt:Date.now()+60000});
- const review=R.create({env:{PURCHASE_MANUAL_DELETE_READY:'true',PURCHASE_MANUAL_DELETE_REVIEW_JSON:prepared.reviewJson,PURCHASE_MANUAL_DELETE_REVIEW_SHA256:prepared.reviewSha256},runtime:()=>({coordinated:true,readOnly:false,commercialPages:true,clientAccounts:true,operationalSummaries:true,clientHistory:false})});
+ const Policy=require(dir+'/purchase-draft-delete-policy'),runtime=()=>({coordinated:true,readOnly:false,commercialPages:true,clientAccounts:true,operationalSummaries:true,saleDeleteRelations:true}),review=Policy.create({runtime});
  const service=require(dir+'/purchase-order-delete').createPurchaseOrderDelete({store,guard,review,enabled:true,authorize:async()=>({uid:'u',claims:{uid:'u'}})});
  const body={id:'fixture-purchase-delete-native',orderKey:'draft',expectedHash:G.digest(orders.draft)},req={method:'POST',url:'/compras/ordenes/eliminar'};
  await service.handle(req,body);await service.handle(req,body);
@@ -30,5 +33,9 @@ test('native purchase overlay reverses every core and maintains links without ch
  assert.equal(at('sv_client_history'),null);assert.equal(at('sv_sale_financial_dependencies'),null);
  const rebuilt={};apply(rebuilt,(await M.prepare(Object.fromEntries(M.roots.map(p=>[p,at(p)])),{generation:'fixture-links'})).patch);rebuilt.sv_sale_delete_relations.v1.coverage.revision=state.sv_sale_delete_relations.v1.coverage.revision;
  assert.deepEqual(state.sv_sale_delete_relations,rebuilt.sv_sale_delete_relations);
+ assert.equal(reads.includes('sisventas/ordenes'),false,'No full order capture');
+ const cancel=require(dir+'/purchase-order-delete').createPurchaseOrderDelete({store,guard,review:Policy.create({runtime,operation:'cancel'}),operation:'cancel',enabled:true,authorize:async()=>({uid:'u',claims:{uid:'u'}})}),cancelBody={id:'fixture-native-cancellation',orderKey:'received',operation:'cancel',expectedHash:G.digest(orders.received)};
+ const cancelled=await cancel.handle({method:'POST',url:'/compras/ordenes/anular'},cancelBody);await cancel.handle({method:'POST',url:'/compras/ordenes/anular'},cancelBody);assert.equal(cancelled.cancelled,true);assert.equal(commits.length,2);assert.equal(at('sisventas/inventario_operativo/p/general'),0);assert.equal(at('sisventas/inventario_operativo/p/reservado'),0);assert.equal(at('sisventas/ordenes/received/estado'),'cancelada');assert.equal(at('sisventas/ordenes/received/anulada'),true);assert.deepEqual(at('sisventas/ordenes/received/items'),orders.received.items);assert.equal(at('sisventas/ordenes/received/anulacion/uid'),'u');
+ const gateway=require(dir+'/labor-write-gateway').createLaborWriteGateway({store,guard,enabled:true,auth:{verifyIdToken:async()=>({uid:'u'})},db:{ref:p=>({get:async()=>({val:()=>at(p)})})}});assert.equal((await gateway.resolve({uid:'u',claims:{uid:'u'}},{id:cancelBody.id,digest:G.digest(cancelBody)})).status,'confirmed');assert.equal(commits.length,2,'Receipt recovery must not reverse stock twice');
  const changed={...baselines,'labor-guard.js':Buffer.from('changed')};assert.throws(()=>B.derive({baselines:changed,sources,expectedBaseHashes:Object.fromEntries(Object.entries(baselines).map(([n,b])=>[n,sha(b)])),expectedSourceHashes:Object.fromEntries(Object.entries(sources).map(([n,b])=>[n,sha(b)]))}),/baseline changed/);
 });

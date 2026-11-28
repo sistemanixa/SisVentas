@@ -1,3 +1,13 @@
+# En validación v3.22.9: Compras sin revisión temporal · 27/11/2026
+
+El titular pidió eliminar borradores sin habilitación por orden/vencimiento y poder anular compras recibidas conservando el historial. Se preparó v3.22.9 sobre la publicación anterior, sin modificar la aplicación inmutable v3.22.8. El servidor usa una política permanente que consulta originales puntuales y mantiene permiso/stock/vínculos/compare final/recibo. Para anular conserva orden, recepción y comprobantes, audita UID/operación/fecha y revierte stock disponible; no revierte pagos. No se ejecutaron operaciones reales de compra como prueba. Estado externo al iniciar este bloque: v3.22.8 publicado; v3.22.9 todavía no publicado.
+
+Pruebas focales: política y paquete nativo, recuperación/reintento sin doble reversión, REST emulador con Rules actuales y componentes reales de Compras/transportes/servidor a 390/1280. El arnés visual es de componente, no arranque completo del índice; el primer intento de usar la fixture comercial completa carecía de las proyecciones de Compras y no se acreditó. Sintaxis y diff aprobados. Medición HTTP de un intento legítimo anterior: 7,34 s, status200; no hay desglose interno de ese intento ni se repite para medir. Se elimina la descarga completa de órdenes y una comprobación duplicada de reglas en disponibilidad, manteniendo la verificación de reglas en toda escritura. Tiempos futuros sólo registran fase/milisegundos, sin datos de negocio ni identidad.
+
+Pendiente: puerta vigente final, despliegue acotado, verificación externa y recarga de la ventana. Detalle funcional en COMPRAS_CIRCUITO_NORMAL.md. Los artefactos/pines y metadatos remotos permanecen privados en tmp.
+
+---
+
 # Publicación conjunta: Compras y comisión manual del administrador · 27/11/2026
 
 El titular reanudó expresamente la publicación conjunta de Compras y comisiones. Fuente funcional 385f636f9acbfb2ee8097f5756e386b0255f0e3e, rama codex/commission-manual-approved-20261127; código subido a esa rama, sin afirmar integración en origin/main. Web y aviso oficial v3.22.8 verificados después de publicar 738 activos con contrato RAW; nueve activos principales y cabeceras comparados. Ambos servicios fueron preparados al 0% y activados al 100%, con configuración restante preservada. Evidencia de imágenes, revisión puntual, hashes y operación remota exclusivamente en tmp privado, sin copiar datos de negocio a Git.
